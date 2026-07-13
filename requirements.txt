@@ -9,6 +9,7 @@ uvicorn>=0.49
 jinja2>=3.1
 python-multipart>=0.0.32
 openpyxl>=3.1
+beautifulsoup4>=4.12  # parser do calendário (frontend/calendar_parser.py)
 passlib[bcrypt]>=1.7
 pyyaml>=6.0
 

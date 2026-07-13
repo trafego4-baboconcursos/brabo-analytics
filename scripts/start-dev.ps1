@@ -29,6 +29,23 @@ Start-Process -WindowStyle Hidden `
     -RedirectStandardOutput $uvicornOut `
     -RedirectStandardError $uvicornErr | Out-Null
 
+$schedulerRunning = Get-CimInstance Win32_Process | Where-Object {
+    $_.Name -match 'python' -and $_.CommandLine -match 'etl[\\/]scheduler\.py'
+}
+if (-not $schedulerRunning) {
+    $schedulerOut = Join-Path $tmpDir 'scheduler.out.log'
+    $schedulerErr = Join-Path $tmpDir 'scheduler.err.log'
+    Start-Process -WindowStyle Hidden `
+        -FilePath $python `
+        -WorkingDirectory $root `
+        -ArgumentList @('etl\scheduler.py') `
+        -RedirectStandardOutput $schedulerOut `
+        -RedirectStandardError $schedulerErr | Out-Null
+    Write-Host "Scheduler ETL iniciado (log: etl\scheduler.log)"
+} else {
+    Write-Host "Scheduler ETL ja em execucao (PID $($schedulerRunning[0].ProcessId))"
+}
+
 Start-Sleep -Seconds 2
 
 Start-Process -WindowStyle Hidden `

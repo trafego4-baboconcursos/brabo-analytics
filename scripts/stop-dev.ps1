@@ -25,6 +25,7 @@ function Stop-ByMatch {
 }
 
 Stop-ByMatch -Name 'python.exe|pythonw.exe' -Pattern "uvicorn frontend\.app:app.*--port $Port"
+Stop-ByMatch -Name 'python.exe|pythonw.exe' -Pattern 'etl[\\/]scheduler\.py'
 Stop-ByMatch -Name 'ngrok.exe' -Pattern "http 127\.0\.0\.1:$Port"
 
 try {

@@ -24,6 +24,7 @@ $ngrokErr = Join-Path $tmpDir 'ngrok.err.log'
 
 Start-Process -WindowStyle Hidden `
     -FilePath $python `
+    -WorkingDirectory $root `
     -ArgumentList @('-m', 'uvicorn', 'frontend.app:app', '--host', '127.0.0.1', '--port', $Port) `
     -RedirectStandardOutput $uvicornOut `
     -RedirectStandardError $uvicornErr | Out-Null

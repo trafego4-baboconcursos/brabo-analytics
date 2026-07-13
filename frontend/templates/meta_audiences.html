@@ -17,26 +17,30 @@
     </div>
     {% else %}
 
-    <div class="metrics-grid">
-      <div class="metric-card destaque">
-        <div class="label"><i class="ti ti-cash"></i> Investimento Meta</div>
-        <div class="value">{{ meta.total_gasto | brl }}</div>
-        <div class="subtext">Total gasto no período</div>
+    <div class="tp-kpi-grid">
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon meta"><i class="ti ti-coin"></i></div></div>
+        <div class="tp-value">{{ meta.total_gasto | brl }}</div>
+        <div class="tp-label">Investimento Meta</div>
+        <div class="tp-compare">Total gasto no período</div>
       </div>
-      <div class="metric-card destaque">
-        <div class="label"><i class="ti ti-users"></i> Leads Totais</div>
-        <div class="value">{{ meta.total_leads | num }}</div>
-        <div class="subtext">CPL médio: {{ meta.cpl_medio | brl }}</div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon meta"><i class="ti ti-users"></i></div></div>
+        <div class="tp-value">{{ meta.total_leads | num }}</div>
+        <div class="tp-label">Leads Totais</div>
+        <div class="tp-compare">CPL médio: {{ meta.cpl_medio | brl }}</div>
       </div>
-      <div class="metric-card">
-        <div class="label"><i class="ti ti-click"></i> Cliques</div>
-        <div class="value">{{ meta.total_cliques | num }}</div>
-        <div class="subtext">CTR médio: {{ meta.ctr_medio | pct(2) }}</div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-click"></i></div></div>
+        <div class="tp-value">{{ meta.total_cliques | num }}</div>
+        <div class="tp-label">Cliques</div>
+        <div class="tp-compare">CTR médio: {{ meta.ctr_medio | pct(2) }}</div>
       </div>
-      <div class="metric-card">
-        <div class="label"><i class="ti ti-eye"></i> Impressões</div>
-        <div class="value">{{ meta.total_impressoes | num }}</div>
-        <div class="subtext">CPM médio: {{ meta.cpm_medio | brl }}</div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-eye"></i></div></div>
+        <div class="tp-value">{{ meta.total_impressoes | num }}</div>
+        <div class="tp-label">Impressões</div>
+        <div class="tp-compare">CPM médio: {{ meta.cpm_medio | brl }}</div>
       </div>
     </div>
 

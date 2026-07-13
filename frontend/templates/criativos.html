@@ -111,11 +111,31 @@
     {% if ov.rows %}
     <div class="section">
       <div class="section-title">2. Ranking Geral - Todos os ADs de Captação (Meta + Google/YouTube)</div>
-      <div class="metrics-grid">
-        <div class="metric-card"><div class="label">ADs de captação</div><div class="value">{{ ov.resumo.total_ads | num }}</div><div class="subtext">Consolidado por código ADxxx</div></div>
-        <div class="metric-card"><div class="label">Investimento</div><div class="value">{{ ov.resumo.total_gasto | brl }}</div><div class="subtext">Meta + Google com AD identificado</div></div>
-        <div class="metric-card"><div class="label">Leads</div><div class="value">{{ ov.resumo.total_leads | num }}</div><div class="subtext">Captação consolidada</div></div>
-        <div class="metric-card destaque"><div class="label">ROAS rastreado</div><div class="value">{{ ov.resumo.roas_ads | num(2) }}x</div><div class="subtext">{{ ov.resumo.total_vendas_ads | num }} vendas | {{ ov.resumo.total_faturamento_ads | brl }}</div></div>
+      <div class="tp-kpi-grid">
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-palette"></i></div></div>
+          <div class="tp-value">{{ ov.resumo.total_ads | num }}</div>
+          <div class="tp-label">ADs de captação</div>
+          <div class="tp-compare">Consolidado por código ADxxx</div>
+        </div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon warning"><i class="ti ti-coin"></i></div></div>
+          <div class="tp-value">{{ ov.resumo.total_gasto | brl }}</div>
+          <div class="tp-label">Investimento</div>
+          <div class="tp-compare">Meta + Google com AD identificado</div>
+        </div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-users"></i></div></div>
+          <div class="tp-value">{{ ov.resumo.total_leads | num }}</div>
+          <div class="tp-label">Leads</div>
+          <div class="tp-compare">Captação consolidada</div>
+        </div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-chart-bar"></i></div></div>
+          <div class="tp-value">{{ ov.resumo.roas_ads | num(2) }}<small>x</small></div>
+          <div class="tp-label">ROAS rastreado</div>
+          <div class="tp-compare">{{ ov.resumo.total_vendas_ads | num }} vendas · {{ ov.resumo.total_faturamento_ads | brl }}</div>
+        </div>
       </div>
 
       <div class="note">
@@ -278,11 +298,31 @@
 
     <div class="section">
       <div class="section-title">5. Diagnóstico de Vendas Rastreadas e Leitura Criativa</div>
-      <div class="metrics-grid">
-        <div class="metric-card"><div class="label">Compradores únicos</div><div class="value">{{ ov.resumo.total_compradores | num }}</div><div class="subtext">Hotmart + TMB por e-mail</div></div>
-        <div class="metric-card"><div class="label">Com UTM</div><div class="value">{{ ov.resumo.compradores_com_utm | num }}</div><div class="subtext">Encontrados no Active Campaign</div></div>
-        <div class="metric-card"><div class="label">Sem UTM</div><div class="value">{{ ov.resumo.compradores_sem_utm | num }}</div><div class="subtext">Sem origem/criativo confiável</div></div>
-        <div class="metric-card"><div class="label">Typeform</div><div class="value">{{ typeform_count | num }}</div><div class="subtext">Respostas disponíveis para leitura qualitativa</div></div>
+      <div class="tp-kpi-grid">
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-users"></i></div></div>
+          <div class="tp-value">{{ ov.resumo.total_compradores | num }}</div>
+          <div class="tp-label">Compradores únicos</div>
+          <div class="tp-compare">Hotmart + TMB por e-mail</div>
+        </div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-user-check"></i></div></div>
+          <div class="tp-value">{{ ov.resumo.compradores_com_utm | num }}</div>
+          <div class="tp-label">Com UTM</div>
+          <div class="tp-compare">Encontrados no Active Campaign</div>
+        </div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon danger"><i class="ti ti-user-off"></i></div></div>
+          <div class="tp-value">{{ ov.resumo.compradores_sem_utm | num }}</div>
+          <div class="tp-label">Sem UTM</div>
+          <div class="tp-compare">Sem origem/criativo confiável</div>
+        </div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-clipboard-list"></i></div></div>
+          <div class="tp-value">{{ typeform_count | num }}</div>
+          <div class="tp-label">Typeform</div>
+          <div class="tp-compare">Respostas para leitura qualitativa</div>
+        </div>
       </div>
 
       {% set gsem_v = ov.resumo.get('google_sem_ad_vendas', 0) if ov.resumo is mapping else 0 %}

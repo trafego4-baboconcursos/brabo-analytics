@@ -40,6 +40,7 @@ PAGINAS = [
     "/funil",
     "/insights",
     "/debriefing",
+    "/comparativo",
     "/meta",
     "/google",
     "/criativos",

@@ -18,22 +18,31 @@
     </div>
     {% else %}
 
-    {# ── KPIs ── #}
-    <div class="metrics-grid">
-      <div class="metric-card destaque">
-        <div class="label">Total de Envios</div>
-        <div class="value">{{ ac_summary.total_envios | num }}</div>
-        <div class="subtext">Soma de todos os e-mails disparados</div>
+    {# ── KPIs (design system: tp-kpi) ── #}
+    <div class="tp-kpi-grid">
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-send"></i></div></div>
+        <div class="tp-value">{{ ac_summary.total_envios | num }}</div>
+        <div class="tp-label">Total de Envios</div>
+        <div class="tp-compare">Soma de todos os e-mails disparados</div>
       </div>
-      <div class="metric-card">
-        <div class="label">Total de Aberturas</div>
-        <div class="value">{{ ac_summary.total_aberturas | num }}</div>
-        <div class="subtext">Taxa Média: <span style="font-weight:700;color:var(--bs-accent);">{{ ac_summary.tx_abertura_media | round(2) }}%</span></div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top">
+          <div class="tp-icon"><i class="ti ti-mail-opened"></i></div>
+          <div class="tp-delta flat">{{ ac_summary.tx_abertura_media | round(2) }}%</div>
+        </div>
+        <div class="tp-value">{{ ac_summary.total_aberturas | num }}</div>
+        <div class="tp-label">Total de Aberturas</div>
+        <div class="tp-compare">Taxa média de abertura</div>
       </div>
-      <div class="metric-card">
-        <div class="label">Total de Cliques</div>
-        <div class="value">{{ ac_summary.total_cliques | num }}</div>
-        <div class="subtext">Taxa Média (Click/Open): <span class="positivo" style="font-weight:700;">{{ ac_summary.tx_clique_media | round(2) }}%</span></div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top">
+          <div class="tp-icon success"><i class="ti ti-click"></i></div>
+          <div class="tp-delta up">{{ ac_summary.tx_clique_media | round(2) }}%</div>
+        </div>
+        <div class="tp-value">{{ ac_summary.total_cliques | num }}</div>
+        <div class="tp-label">Total de Cliques</div>
+        <div class="tp-compare">Taxa média Click/Open</div>
       </div>
     </div>
 

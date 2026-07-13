@@ -361,26 +361,42 @@
     {% if comp.top_ads_a or comp.top_ads_b %}
     <div class="section">
       <div class="section-title"><i class="ti ti-brand-meta" style="color:var(--meta-color);"></i> Meta Ads — Comparativo</div>
-      <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
-        <div class="metric-card">
-          <div class="label">Investimento {{ comp.code_a }}</div>
-          <div class="value" style="font-size:20px">{{ comp.inv_meta_a | brl }}</div>
-          <div class="subtext">{{ comp.meta_ads_a }} anúncios únicos</div>
+      <div class="tp-kpi-grid">
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon meta"><i class="ti ti-coin"></i></div>
+            <div class="tp-delta flat">{{ comp.code_a }}</div>
+          </div>
+          <div class="tp-value">{{ comp.inv_meta_a | brl }}</div>
+          <div class="tp-label">Investimento Meta</div>
+          <div class="tp-compare">{{ comp.meta_ads_a }} anúncios únicos</div>
         </div>
-        <div class="metric-card">
-          <div class="label">Leads Meta {{ comp.code_a }}</div>
-          <div class="value" style="font-size:20px">{{ comp.meta_leads_a | num }}</div>
-          <div class="subtext">CPL R$ {{ comp.meta_cpl_a }}</div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon meta"><i class="ti ti-users"></i></div>
+            <div class="tp-delta flat">{{ comp.code_a }}</div>
+          </div>
+          <div class="tp-value">{{ comp.meta_leads_a | num }}</div>
+          <div class="tp-label">Leads Meta</div>
+          <div class="tp-compare">CPL R$ {{ comp.meta_cpl_a }}</div>
         </div>
-        <div class="metric-card destaque">
-          <div class="label">Investimento {{ comp.code_b }}</div>
-          <div class="value" style="font-size:20px">{{ comp.inv_meta_b | brl }}</div>
-          <div class="subtext">{{ comp.meta_ads_b }} anúncios únicos</div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon meta"><i class="ti ti-coin"></i></div>
+            <div class="tp-delta up">{{ comp.code_b }}</div>
+          </div>
+          <div class="tp-value">{{ comp.inv_meta_b | brl }}</div>
+          <div class="tp-label">Investimento Meta</div>
+          <div class="tp-compare">{{ comp.meta_ads_b }} anúncios únicos</div>
         </div>
-        <div class="metric-card destaque">
-          <div class="label">Leads Meta {{ comp.code_b }}</div>
-          <div class="value" style="font-size:20px">{{ comp.meta_leads_b | num }}</div>
-          <div class="subtext">CPL R$ {{ comp.meta_cpl_b }}</div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon meta"><i class="ti ti-users"></i></div>
+            <div class="tp-delta up">{{ comp.code_b }}</div>
+          </div>
+          <div class="tp-value">{{ comp.meta_leads_b | num }}</div>
+          <div class="tp-label">Leads Meta</div>
+          <div class="tp-compare">CPL R$ {{ comp.meta_cpl_b }}</div>
         </div>
       </div>
 
@@ -436,24 +452,40 @@
     {# ── 5. Google Ads ── #}
     <div class="section">
       <div class="section-title"><i class="ti ti-brand-google" style="color:var(--google-color);"></i> Google Ads — Comparativo Estrat&eacute;gico</div>
-      <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
-        <div class="metric-card" style="border-left:3px solid var(--google-color);">
-          <div class="label"><i class="ti ti-brand-google" style="color:var(--google-color);margin-right:4px;"></i>Invest. Google {{ comp.code_a }}</div>
-          <div class="value" style="font-size:18px">{{ comp.inv_google_a | brl }}</div>
+      <div class="tp-kpi-grid">
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon google"><i class="ti ti-coin"></i></div>
+            <div class="tp-delta flat">{{ comp.code_a }}</div>
+          </div>
+          <div class="tp-value">{{ comp.inv_google_a | brl }}</div>
+          <div class="tp-label">Investimento Google</div>
         </div>
-        <div class="metric-card" style="border-left:3px solid var(--google-color);">
-          <div class="label"><i class="ti ti-brand-google" style="color:var(--google-color);margin-right:4px;"></i>Conversões Google {{ comp.code_a }}</div>
-          <div class="value" style="font-size:18px">{{ comp.google_conv_a | num }}</div>
-          <div class="subtext">CPA R$ {{ comp.google_cpa_a }} | {{ comp.google_camps_a }} campanhas</div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon google"><i class="ti ti-target-arrow"></i></div>
+            <div class="tp-delta flat">{{ comp.code_a }}</div>
+          </div>
+          <div class="tp-value">{{ comp.google_conv_a | num }}</div>
+          <div class="tp-label">Conversões Google</div>
+          <div class="tp-compare">CPA R$ {{ comp.google_cpa_a }} · {{ comp.google_camps_a }} campanhas</div>
         </div>
-        <div class="metric-card" style="background:var(--google-color);color:#fff;">
-          <div class="label" style="color:rgba(255,255,255,.8)"><i class="ti ti-brand-google" style="margin-right:4px;"></i>Invest. Google {{ comp.code_b }}</div>
-          <div class="value" style="font-size:18px">{{ comp.inv_google_b | brl }}</div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon google"><i class="ti ti-coin"></i></div>
+            <div class="tp-delta up">{{ comp.code_b }}</div>
+          </div>
+          <div class="tp-value">{{ comp.inv_google_b | brl }}</div>
+          <div class="tp-label">Investimento Google</div>
         </div>
-        <div class="metric-card" style="background:var(--google-color);color:#fff;">
-          <div class="label" style="color:rgba(255,255,255,.8)"><i class="ti ti-brand-google" style="margin-right:4px;"></i>Conversões Google {{ comp.code_b }}</div>
-          <div class="value" style="font-size:18px">{{ comp.google_conv_b | num }}</div>
-          <div class="subtext" style="color:rgba(255,255,255,.7)">CPA R$ {{ comp.google_cpa_b }} | {{ comp.google_camps_b }} campanhas</div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon google"><i class="ti ti-target-arrow"></i></div>
+            <div class="tp-delta up">{{ comp.code_b }}</div>
+          </div>
+          <div class="tp-value">{{ comp.google_conv_b | num }}</div>
+          <div class="tp-label">Conversões Google</div>
+          <div class="tp-compare">CPA R$ {{ comp.google_cpa_b }} · {{ comp.google_camps_b }} campanhas</div>
         </div>
       </div>
       <div class="table-wrap" style="margin-top:12px">

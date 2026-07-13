@@ -448,37 +448,49 @@
     </div>
     {% else %}
 
-    <!-- KPIs -->
-    <div class="metrics-grid">
-      <div class="metric-card">
-        <div class="label">Respostas Typeform</div>
-        <div class="value">{{ tf.total_tf_raw | default(0) | num }}</div>
-        <div class="subtext">Respostas brutas no per&iacute;odo</div>
+    <!-- KPIs (design system: tp-kpi) -->
+    <div class="tp-kpi-grid">
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-clipboard-list"></i></div></div>
+        <div class="tp-value">{{ tf.total_tf_raw | default(0) | num }}</div>
+        <div class="tp-label">Respostas Typeform</div>
+        <div class="tp-compare">Respostas brutas no per&iacute;odo</div>
       </div>
-      <div class="metric-card">
-        <div class="label">Respondentes &uacute;nicos</div>
-        <div class="value">{{ tf.total_tf | default(0) | num }}</div>
-        <div class="subtext">E-mails &uacute;nicos</div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-users"></i></div></div>
+        <div class="tp-value">{{ tf.total_tf | default(0) | num }}</div>
+        <div class="tp-label">Respondentes &uacute;nicos</div>
+        <div class="tp-compare">E-mails &uacute;nicos</div>
       </div>
-      <div class="metric-card">
-        <div class="label">Leads no CRM</div>
-        <div class="value">{{ tf.leads_crm_total | num }}</div>
-        <div class="subtext">Active Campaign</div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-address-book"></i></div></div>
+        <div class="tp-value">{{ tf.leads_crm_total | num }}</div>
+        <div class="tp-label">Leads no CRM</div>
+        <div class="tp-compare">Active Campaign</div>
       </div>
-      <div class="metric-card destaque">
-        <div class="label">TF &rarr; Lead CRM</div>
-        <div class="value">{{ tf.tf_leads_crm | num }}</div>
-        <div class="subtext">{{ tf.tx_lead_pct | pct }} dos respondentes &uacute;nicos</div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top">
+          <div class="tp-icon"><i class="ti ti-arrows-exchange"></i></div>
+          <div class="tp-delta flat">{{ tf.tx_lead_pct | pct }}</div>
+        </div>
+        <div class="tp-value">{{ tf.tf_leads_crm | num }}</div>
+        <div class="tp-label">TF &rarr; Lead CRM</div>
+        <div class="tp-compare">Dos respondentes &uacute;nicos</div>
       </div>
-      <div class="metric-card destaque" style="background: linear-gradient(135deg, var(--bs-success) 0%, var(--bs-sidebar-dark) 100%); color: #fff;">
-        <div class="label" style="color: rgba(255,255,255,0.85);">TF &rarr; Compra</div>
-        <div class="value">{{ tf.tf_compras | num }}</div>
-        <div class="subtext" style="color: rgba(255,255,255,0.75);">{{ tf.tx_venda_tf_pct | pct }} convers&atilde;o total</div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top">
+          <div class="tp-icon success"><i class="ti ti-shopping-cart"></i></div>
+          <div class="tp-delta up">{{ tf.tx_venda_tf_pct | pct }}</div>
+        </div>
+        <div class="tp-value">{{ tf.tf_compras | num }}</div>
+        <div class="tp-label">TF &rarr; Compra</div>
+        <div class="tp-compare">Convers&atilde;o total</div>
       </div>
-      <div class="metric-card">
-        <div class="label">Faturamento via TF</div>
-        <div class="value">{{ tf.receita_tf | brl }}</div>
-        <div class="subtext">{{ tf.receita_tf_pct | pct }} da receita total</div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-cash"></i></div></div>
+        <div class="tp-value">{{ tf.receita_tf | brl }}</div>
+        <div class="tp-label">Faturamento via TF</div>
+        <div class="tp-compare">{{ tf.receita_tf_pct | pct }} da receita total</div>
       </div>
     </div>
 

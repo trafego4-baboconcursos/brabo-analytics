@@ -27,26 +27,30 @@
     {% set total_custo_publicos = google.publicos|map(attribute='custo')|sum or 1 %}
     {% set total_conv_publicos = google.publicos|map(attribute='conversoes')|sum %}
 
-    <div class="metrics-grid">
-      <div class="metric-card destaque" style="background:linear-gradient(135deg,var(--google-color),var(--google-color))">
-        <div class="label"><i class="ti ti-cash"></i> Investimento Google</div>
-        <div class="value">{{ google.total_custo | brl }}</div>
-        <div class="subtext">Total gasto no período</div>
+    <div class="tp-kpi-grid">
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon google"><i class="ti ti-coin"></i></div></div>
+        <div class="tp-value">{{ google.total_custo | brl }}</div>
+        <div class="tp-label">Investimento Google</div>
+        <div class="tp-compare">Total gasto no período</div>
       </div>
-      <div class="metric-card destaque" style="background:linear-gradient(135deg,var(--google-color),var(--google-color))">
-        <div class="label"><i class="ti ti-users"></i> Leads Totais</div>
-        <div class="value">{{ "%.0f"|format(google.total_conversoes) }}</div>
-        <div class="subtext">CPL médio: {{ google.custo_conv_medio | brl }}</div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon google"><i class="ti ti-users"></i></div></div>
+        <div class="tp-value">{{ "%.0f"|format(google.total_conversoes) }}</div>
+        <div class="tp-label">Leads Totais</div>
+        <div class="tp-compare">CPL médio: {{ google.custo_conv_medio | brl }}</div>
       </div>
-      <div class="metric-card">
-        <div class="label"><i class="ti ti-click"></i> Cliques</div>
-        <div class="value">{{ google.total_cliques | num }}</div>
-        <div class="subtext">CTR médio: {{ google.ctr_medio | pct(2) }}</div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-click"></i></div></div>
+        <div class="tp-value">{{ google.total_cliques | num }}</div>
+        <div class="tp-label">Cliques</div>
+        <div class="tp-compare">CTR médio: {{ google.ctr_medio | pct(2) }}</div>
       </div>
-      <div class="metric-card">
-        <div class="label"><i class="ti ti-eye"></i> Impressões</div>
-        <div class="value">{{ google.total_impressoes | num }}</div>
-        <div class="subtext">CPM médio: {{ (google.total_custo / google.total_impressoes * 1000) | brl if google.total_impressoes > 0 else "R$ 0,00" }}</div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-eye"></i></div></div>
+        <div class="tp-value">{{ google.total_impressoes | num }}</div>
+        <div class="tp-label">Impressões</div>
+        <div class="tp-compare">CPM médio: {{ (google.total_custo / google.total_impressoes * 1000) | brl if google.total_impressoes > 0 else "R$ 0,00" }}</div>
       </div>
     </div>
 

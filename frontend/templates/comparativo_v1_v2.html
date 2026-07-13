@@ -18,26 +18,30 @@
     </div>
     {% else %}
 
-    <div class="metrics-grid">
-      <div class="metric-card destaque">
-        <div class="label"><i class="ti ti-cash"></i> Investimento V2</div>
-        <div class="value">{{ invest | brl }}</div>
-        <div class="subtext">Meta + Google lidos dos CSVs</div>
+    <div class="tp-kpi-grid">
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon warning"><i class="ti ti-coin"></i></div></div>
+        <div class="tp-value">{{ invest | brl }}</div>
+        <div class="tp-label">Investimento V2</div>
+        <div class="tp-compare">Meta + Google lidos dos CSVs</div>
       </div>
-      <div class="metric-card destaque">
-        <div class="label"><i class="ti ti-receipt"></i> Receita V2</div>
-        <div class="value">{{ receita | brl }}</div>
-        <div class="subtext">Hotmart + TMB lidos dos CSVs</div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-cash"></i></div></div>
+        <div class="tp-value">{{ receita | brl }}</div>
+        <div class="tp-label">Receita V2</div>
+        <div class="tp-compare">Hotmart + TMB lidos dos CSVs</div>
       </div>
-      <div class="metric-card">
-        <div class="label"><i class="ti ti-chart-arrows"></i> ROAS V2</div>
-        <div class="value">{{ "%.2f"|format(roas) | replace(".", ",") }}x</div>
-        <div class="subtext">Receita / investimento</div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-chart-bar"></i></div></div>
+        <div class="tp-value">{{ "%.2f"|format(roas) | replace(".", ",") }}<small>x</small></div>
+        <div class="tp-label">ROAS V2</div>
+        <div class="tp-compare">Receita / investimento</div>
       </div>
-      <div class="metric-card">
-        <div class="label"><i class="ti ti-users"></i> Leads/Conv. V2</div>
-        <div class="value">{{ ((meta.total_leads if meta else 0) + (google.total_conversoes if google else 0)) | num }}</div>
-        <div class="subtext">Meta leads + Google conversoes</div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-users"></i></div></div>
+        <div class="tp-value">{{ ((meta.total_leads if meta else 0) + (google.total_conversoes if google else 0)) | num }}</div>
+        <div class="tp-label">Leads/Conv. V2</div>
+        <div class="tp-compare">Meta leads + Google conversões</div>
       </div>
     </div>
 

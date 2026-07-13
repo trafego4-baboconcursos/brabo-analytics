@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+{% block head %}
+<style>
+/* YouTube thumbnail — exclusivo desta página */
+.yt-thumb { width:80px; height:45px; object-fit:cover; border-radius:4px; display:block; margin-bottom:4px; border:1px solid #e2e8f0; }
+.yt-thumb-link { display:inline-block; }
+.yt-thumb-link:hover .yt-thumb { opacity:.85; }
+.criativos-table td small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1>Criativos{% if launch %} - {{ launch.code }}{% endif %}</h1>
+      <p>Overview por AD de captação, vendas rastreadas e leitura de escala</p>
+    </div>
+  </div>
+  <div class="content">
+    {% if not meta and not google %}
+    <div class="no-data">
+      <i class="ti ti-palette"></i>
+      <h3>CSVs de mídia não encontrados</h3>
+      <p>Adicione os exports em <code>analises/[{{ active_code or 'CODIGO' }}]/Meta Ads/*.csv</code> e/ou <code>Google Ads/*.csv</code>.</p>
+    </div>
+    {% else %}
+
+    {% set ov1 = creative_overview %}
+    {% if ov1 and (ov1.validados_all or ov1.novos_all) %}
+    <div class="section">
+      <div class="section-title">1. Criativos Validados vs Novos (Captação Meta + Google)</div>
+      <div class="note">
+        Criativos cujo código <strong>AD\d+</strong> já apareceu em lançamentos anteriores do mesmo produto (Meta ou Google) são <strong>Validados</strong>. Os demais são <strong>Novos</strong>.
+        A seção 2 abaixo consolida o ranking geral com vendas atribuídas por UTM.
+      </div>
+
+      {% macro criativo_table(lista, titulo, css_class, empty_msg) %}
+      {% set has_thumbs = drive_thumbnails | length > 0 %}
+      <div class="criativos-block">
+        <h3 class="criativos-title {{ css_class }}">{{ titulo }}</h3>
+        <div class="table-wrap funil-table-wrap">
+          <table class="criativos-table funil-table" style="table-layout:fixed;width:100%">
+            <colgroup>
+              <col style="width:36px">{% if has_thumbs %}<col style="width:88px">{% endif %}<col style="width:{{ '200px' if has_thumbs else '260px' }}"><col style="width:70px"><col style="width:80px"><col style="width:70px"><col style="width:80px"><col style="width:70px"><col style="width:100px"><col style="width:65px"><col style="width:60px">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>#</th>{% if has_thumbs %}<th>Miniatura</th>{% endif %}<th>Criativo</th><th style="text-align:center;" title="Plataforma de origem"><i class="ti ti-brand-meta" style="color:#1877F2;"></i><i class="ti ti-brand-google" style="color:#EA4335;margin-left:2px;"></i></th><th class="th-num">Investimento</th><th class="th-num">Leads</th><th class="th-num">CPL</th><th class="th-num">Vendas</th><th class="th-num">Faturamento</th><th class="th-num">ROAS</th><th class="th-num">CTR</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if lista %}
+                {% for c in lista %}
+                {% set td = drive_thumbnails.get(c.ad_code) if has_thumbs else None %}
+                <tr>
+                  <td class="numero">{{ loop.index }}</td>
+                  {% if has_thumbs %}
+                  <td style="padding:4px 6px;">
+                    {% if td %}
+                    <img src="{{ td.thumb }}" alt="{{ c.ad_code }}"
+                         style="width:80px;height:52px;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;cursor:pointer;display:block"
+                         data-preview="{{ td.preview }}" data-title="{{ c.ad_code }}"
+                         data-gasto="{{ c.gasto | brl }}" data-leads="{{ c.leads | num }}" data-cpl="{{ c.cpl | brl }}"
+                         data-vendas="{{ c.vendas | num }}" data-roas="{{ '%.2f'|format(c.roas) | replace('.', ',') }}x"
+                         data-ctr="{{ '%.2f'|format(c.ctr) | replace('.', ',') }}"
+                         data-hook="{{ '%.2f'|format(c.hook_rate) | replace('.', ',') }}"
+                         {% if c.hold_rate is not none %}data-hold="{{ '%.2f'|format(c.hold_rate) | replace('.', ',') }}"{% endif %}
+                         data-body="{{ '%.2f'|format(c.body_rate) | replace('.', ',') }}"
+                         onclick="openVideoModalFromEl(this)"
+                         onerror="this.style.display='none'">
+                    {% else %}
+                    <div style="width:80px;height:52px;border-radius:5px;border:1px dashed #d1d5db;background:#f3f4f6;display:flex;align-items:center;justify-content:center">
+                      <i class="ti ti-photo" style="color:#9ca3af;font-size:20px"></i>
+                    </div>
+                    {% endif %}
+                  </td>
+                  {% endif %}
+                  <td title="{{ c.nome }}" style="overflow:hidden;"><strong style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.nome }}</strong></td>
+                  <td style="text-align:center;white-space:nowrap;">
+                    {% if 'Meta' in c.origem %}<i class="ti ti-brand-meta" title="Meta Ads" style="font-size:15px;color:#1877F2;"></i>{% endif %}
+                    {% if 'Google' in c.origem %}<i class="ti ti-brand-google" title="Google Ads" style="font-size:15px;color:#EA4335;margin-left:2px;"></i>{% endif %}
+                  </td>
+                  <td class="numero">{{ c.gasto | brl }}</td>
+                  <td class="numero"><strong>{{ c.leads | num }}</strong></td>
+                  <td class="numero {{ 'positivo' if c.cpl < 3 else ('negativo' if c.cpl > 6 else '') }}"><strong>{{ c.cpl | brl }}</strong></td>
+                  <td class="numero"><strong>{{ c.vendas | num }}</strong></td>
+                  <td class="numero">{{ c.faturamento | brl }}</td>
+                  <td class="numero {{ 'positivo' if c.roas >= 1 else ('negativo' if c.roas == 0 and c.gasto > 0 else '') }}">{{ c.roas | num(2) }}x</td>
+                  <td class="numero">{{ c.ctr | pct(2) }}</td>
+                </tr>
+                {% endfor %}
+              {% else %}
+                <tr><td colspan="{{ 11 if has_thumbs else 10 }}" style="text-align:center;color:#9ca3af;padding:20px">{{ empty_msg }}</td></tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endmacro %}
+
+      <div class="criativos-stack">
+        {{ criativo_table(ov1.validados_all, "Criativos Validados", "validado", "Nenhum criativo validado encontrado") }}
+        {{ criativo_table(ov1.novos_all, "Criativos Novos", "novo", "Nenhum criativo novo encontrado") }}
+      </div>
+    </div>
+    {% endif %}
+
+    {% set ov = creative_overview %}
+    {% if ov.rows %}
+    <div class="section">
+      <div class="section-title">2. Ranking Geral - Todos os ADs de Captação (Meta + Google/YouTube)</div>
+      <div class="metrics-grid">
+        <div class="metric-card"><div class="label">ADs de captação</div><div class="value">{{ ov.resumo.total_ads | num }}</div><div class="subtext">Consolidado por código ADxxx</div></div>
+        <div class="metric-card"><div class="label">Investimento</div><div class="value">{{ ov.resumo.total_gasto | brl }}</div><div class="subtext">Meta + Google com AD identificado</div></div>
+        <div class="metric-card"><div class="label">Leads</div><div class="value">{{ ov.resumo.total_leads | num }}</div><div class="subtext">Captação consolidada</div></div>
+        <div class="metric-card destaque"><div class="label">ROAS rastreado</div><div class="value">{{ ov.resumo.roas_ads | num(2) }}x</div><div class="subtext">{{ ov.resumo.total_vendas_ads | num }} vendas | {{ ov.resumo.total_faturamento_ads | brl }}</div></div>
+      </div>
+
+      <div class="note">
+        O ranking remove temperatura e bucket porque o mesmo AD pode rodar em várias campanhas. Cada linha soma todas as ocorrências do código do anúncio em captação.
+        A coluna de vendas mostra apenas vendas rastreadas por UTM; zero significa que não encontramos comprador atribuído a esse AD nas UTMs disponíveis.
+      </div>
+
+      <div class="table-wrap funil-table-wrap">
+        <table class="funil-table criativos-overview-table" style="table-layout:fixed;width:100%;">
+          <colgroup>
+            <col style="width:36px"><col style="width:320px;min-width:200px"><col style="width:110px"><col style="width:70px"><col style="width:90px"><col style="width:60px"><col style="width:90px"><col style="width:90px"><col style="width:110px"><col style="width:70px">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Criativo</th>
+              <th class="th-num">Investimento</th>
+              <th class="th-num">Leads</th>
+              <th class="th-num">CPL</th>
+              <th class="th-num">CTR</th>
+              <th class="th-num">CPM</th>
+              <th class="th-num">Vendas rastreadas</th>
+              <th class="th-num">Faturamento</th>
+              <th class="th-num">ROAS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in ov.rows %}
+            {% set td = drive_thumbnails.get(c.ad_code) if drive_thumbnails else None %}
+            <tr class="{{ 'top3' if loop.index <= 3 else '' }}">
+              <td class="numero">{{ loop.index }}</td>
+              <td style="max-width:320px;overflow:hidden;padding:6px 10px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  {% if td %}
+                  <img src="{{ td.thumb }}" alt="{{ c.ad_code }}"
+                       style="width:72px;height:48px;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;cursor:pointer;flex-shrink:0;"
+                       data-preview="{{ td.preview }}" data-title="{{ c.ad_code }}"
+                       data-gasto="{{ c.gasto | brl }}" data-leads="{{ c.leads | num }}" data-cpl="{{ c.cpl | brl }}"
+                       data-cpm="{{ c.cpm | brl }}" data-vendas="{{ c.vendas | num }}"
+                       data-roas="{{ '%.2f'|format(c.roas) | replace('.', ',') }}x"
+                       data-ctr="{{ '%.2f'|format(c.ctr) | replace('.', ',') }}"
+                       data-hook="{{ '%.2f'|format(c.hook_rate) | replace('.', ',') }}"
+                       {% if c.hold_rate is not none %}data-hold="{{ '%.2f'|format(c.hold_rate) | replace('.', ',') }}"{% endif %}
+                       data-body="{{ '%.2f'|format(c.body_rate) | replace('.', ',') }}"
+                       onclick="openVideoModalFromEl(this)"
+                       onerror="this.src='/img/placeholder-ad.png';this.onerror=null;">
+                  {% elif c.video_id %}
+                  <a href="https://youtu.be/{{ c.video_id }}" target="_blank" rel="noopener" style="flex-shrink:0;">
+                    <img src="https://img.youtube.com/vi/{{ c.video_id }}/mqdefault.jpg" alt="{{ c.ad_code }}"
+                         style="width:72px;height:48px;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;"
+                         onerror="this.src='/img/placeholder-ad.png';this.onerror=null;">
+                  </a>
+                  {% else %}
+                  <div style="width:72px;height:48px;border-radius:5px;border:1px dashed #d1d5db;background:#f3f4f6;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="ti ti-photo" style="color:#9ca3af;font-size:20px"></i>
+                  </div>
+                  {% endif %}
+                  <strong title="{{ c.nome }}" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;">{% if c.video_id and not td %}<a href="https://youtu.be/{{ c.video_id }}" target="_blank" rel="noopener">{{ c.nome }}</a>{% else %}{{ c.nome }}{% endif %}</strong>
+                </div>
+              </td>
+              <td class="numero">{{ c.gasto | brl }}</td>
+              <td class="numero"><strong>{{ c.leads | num }}</strong></td>
+              <td class="numero {{ 'positivo' if c.cpl and c.cpl < 3 else ('negativo' if c.cpl > 8 else '') }}">{{ c.cpl | brl }}</td>
+              <td class="numero">{{ c.ctr | pct(2) }}</td>
+              <td class="numero">{{ c.cpm | brl }}</td>
+              <td class="numero"><strong>{{ c.vendas | num }}</strong></td>
+              <td class="numero">{{ c.faturamento | brl }}</td>
+              <td class="numero {{ 'positivo' if c.roas >= 1 else ('negativo' if c.roas == 0 else '') }}"><strong>{{ c.roas | num(2) }}x</strong></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% if ov.sales_only_rows %}
+    <div class="section">
+      <div class="section-title">3. Compras atribuídas a ADs de outros lançamentos</div>
+      <div class="note warning">
+        Compradores que chegaram via UTM de campanha de <strong>outro lançamento</strong> (remarketing, evergreen ou campanha esquecida ativa).
+        Esses ADs não fazem parte do lançamento atual — as vendas não entram no ROAS da seção 2.
+      </div>
+      <div class="table-wrap funil-table-wrap">
+        <table class="funil-table" style="table-layout:fixed;width:100%;">
+          <colgroup>
+            <col style="width:36px"><col style="width:90px"><col style="width:160px"><col style="width:280px"><col style="width:90px"><col style="width:110px">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>AD</th>
+              <th>Lançamento de origem</th>
+              <th>Campanha UTM</th>
+              <th class="th-num">Vendas</th>
+              <th class="th-num">Faturamento</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in ov.sales_only_rows %}
+            <tr>
+              <td class="numero">{{ loop.index }}</td>
+              <td><strong>{{ c.ad_code }}</strong></td>
+              <td>{{ c.launches | join(', ') if c.launches is iterable and c.launches is not string else c.launches }}</td>
+              <td title="{{ c.campaign }}" style="overflow:hidden;"><span style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.campaign }}</span></td>
+              <td class="numero"><strong>{{ c.vendas | num }}</strong></td>
+              <td class="numero">{{ c.faturamento | brl }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if ov.google_campaign_rows %}
+    <div class="section">
+      <div class="section-title">4. Google Search, PMax e Display</div>
+      <div class="note">
+        Estas linhas concentram vendas rastreadas por UTM pelo nome da campanha Google, usando termos como `search`, `p-max`, `pmax`, `performance max` e `display`.
+      </div>
+      <div class="table-wrap funil-table-wrap">
+        <table class="funil-table criativos-overview-table">
+          <colgroup>
+            <col class="col-rank"><col class="col-creative"><col class="col-money"><col class="col-count"><col class="col-money"><col class="col-share"><col class="col-money"><col class="col-count"><col class="col-money"><col class="col-roas">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Campanha</th>
+              <th class="th-num">Investimento</th>
+              <th class="th-num">Leads</th>
+              <th class="th-num">CPL</th>
+              <th class="th-num">CTR</th>
+              <th class="th-num">CPM</th>
+              <th class="th-num">Vendas rastreadas</th>
+              <th class="th-num">Faturamento</th>
+              <th class="th-num">ROAS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in ov.google_campaign_rows %}
+            <tr>
+              <td class="numero">{{ loop.index }}</td>
+              <td><strong>{{ c.nome }}</strong></td>
+              <td class="numero">{{ c.gasto | brl }}</td>
+              <td class="numero"><strong>{{ c.leads | num }}</strong></td>
+              <td class="numero">{{ c.cpl | brl }}</td>
+              <td class="numero">{{ c.ctr | pct(2) }}</td>
+              <td class="numero">{{ c.cpm | brl }}</td>
+              <td class="numero"><strong>{{ c.vendas | num }}</strong></td>
+              <td class="numero">{{ c.faturamento | brl }}</td>
+              <td class="numero {{ 'positivo' if c.roas >= 1 else ('negativo' if c.roas == 0 else '') }}"><strong>{{ c.roas | num(2) }}x</strong></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="section">
+      <div class="section-title">5. Diagnóstico de Vendas Rastreadas e Leitura Criativa</div>
+      <div class="metrics-grid">
+        <div class="metric-card"><div class="label">Compradores únicos</div><div class="value">{{ ov.resumo.total_compradores | num }}</div><div class="subtext">Hotmart + TMB por e-mail</div></div>
+        <div class="metric-card"><div class="label">Com UTM</div><div class="value">{{ ov.resumo.compradores_com_utm | num }}</div><div class="subtext">Encontrados no Active Campaign</div></div>
+        <div class="metric-card"><div class="label">Sem UTM</div><div class="value">{{ ov.resumo.compradores_sem_utm | num }}</div><div class="subtext">Sem origem/criativo confiável</div></div>
+        <div class="metric-card"><div class="label">Typeform</div><div class="value">{{ typeform_count | num }}</div><div class="subtext">Respostas disponíveis para leitura qualitativa</div></div>
+      </div>
+
+      {% set gsem_v = ov.resumo.get('google_sem_ad_vendas', 0) if ov.resumo is mapping else 0 %}
+      {% if gsem_v > 0 %}
+      <div class="note warning" style="margin-top:12px;">
+        <strong>Alerta: {{ gsem_v | num }} venda(s) Google sem AD rastreado</strong>
+        — UTM identificou canal Google mas sem <code>AD\d+</code> no utm_term/content/campaign.
+        Faturamento perdido na atribuição por criativo: <strong>{{ ov.resumo.get('google_sem_ad_faturamento', 0) | brl }}</strong>.
+        {% set gsem_detail = ov.resumo.get('google_sem_ad_detail', []) %}
+        {% if gsem_detail %}
+        Por tipo:
+        {% for d in gsem_detail %}
+          <span style="margin-left:8px;">{{ d.tipo }}: {{ d.vendas | num }} venda(s) / {{ d.faturamento | brl }}</span>{% if not loop.last %} ·{% endif %}
+        {% endfor %}
+        {% endif %}
+        <br><small>Solução: incluir <code>utm_term=adXXX</code> nas campanhas Display e P-Max.</small>
+      </div>
+      {% endif %}
+
+      <div class="highlights">
+        <div class="highlight-box">
+          <h3>O que foi bem</h3>
+          {% for c in ov.rows if c.vendas > 0 and c.roas >= 1 %}
+            {% if loop.index <= 5 %}
+            <div class="highlight-item">
+              <span class="criativo">{{ c.nome }} - {{ c.vendas | num }} vendas</span>
+              <small>{{ c.faturamento | brl }} | ROAS {{ c.roas | num(2) }}x | CPL {{ c.cpl | brl }}</small>
+            </div>
+            {% endif %}
+          {% else %}
+            <div class="highlight-item"><small>Nenhum AD atingiu ROAS rastreado acima de 1x.</small></div>
+          {% endfor %}
+        </div>
+        <div class="highlight-box">
+          <h3>O que exige revisão</h3>
+          {% for c in ov.rows if c.vendas == 0 and c.gasto > 0 %}
+            {% if loop.index <= 5 %}
+            <div class="highlight-item">
+              <span class="criativo">{{ c.nome }} - sem venda rastreada</span>
+              <small>{{ c.gasto | brl }} investidos | {{ c.leads | num }} leads | CPL {{ c.cpl | brl }}</small>
+            </div>
+            {% endif %}
+          {% else %}
+            <div class="highlight-item"><small>Todos os ADs com investimento tiveram ao menos uma venda rastreada.</small></div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="note success">
+        <strong>Parâmetros usados:</strong> volume de vendas rastreadas, faturamento atribuído, ROAS, eficiência de CPL, CTR/CPM e nível de investimento sem venda.
+        {% if typeform_count %}
+        O Typeform está disponível e deve ser usado na próxima camada para validar se os melhores ADs atraem um perfil de lead mais comprometido, e não apenas mais barato.
+        {% endif %}
+      </div>
+
+      {% for insight in ov.insights %}
+      <div class="note">{{ insight }}</div>
+      {% endfor %}
+    </div>
+
+    {% if ov.meta_rows or ov.google_rows %}
+    <div class="section">
+      <div class="section-title">6. Recortes por Canal</div>
+      <div class="highlights">
+        <div class="highlight-box">
+          <h3>Meta Ads</h3>
+          {% for c in ov.meta_rows[:8] %}
+          <div class="highlight-item">
+            <span class="criativo">{{ c.ad_code }}</span>
+            <small>{{ c.gasto | brl }} | {{ c.leads | num }} leads | {{ c.vendas | num }} vendas | ROAS {{ c.roas | num(2) }}x</small>
+          </div>
+          {% else %}
+          <div class="highlight-item"><small>Sem AD de captação identificado no Meta.</small></div>
+          {% endfor %}
+        </div>
+        <div class="highlight-box">
+          <h3>Google / YouTube</h3>
+          {% for c in ov.google_rows[:8] %}
+          <div class="highlight-item">
+            <span class="criativo">{{ c.ad_code }}</span>
+            <small>{{ c.gasto | brl }} | {{ c.leads | num }} leads | {{ c.vendas | num }} vendas | ROAS {{ c.roas | num(2) }}x</small>
+          </div>
+          {% else %}
+          <div class="highlight-item"><small>Sem AD de captação identificado no Google.</small></div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {% endif %}
+  </div>
+  <div class="footing">Gerado em tempo real | Brabo Analytics{% if launch %} - {{ launch.code }}{% endif %}</div>
+</div>
+{% endblock %}

@@ -1,0 +1,1300 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .tf-funnel-proportional {
+    display: grid;
+    gap: 14px;
+    margin-top: 18px;
+  }
+  .tf-funnel-row {
+    display: grid;
+    grid-template-columns: minmax(220px, 300px) 1fr;
+    gap: 16px;
+    align-items: center;
+  }
+  .tf-funnel-meta {
+    min-width: 0;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+    border: 1px solid #e2eaf6;
+    border-radius: 16px;
+    padding: 14px 16px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+    position: relative;
+  }
+  .tf-funnel-meta::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 14px;
+    bottom: 14px;
+    width: 4px;
+    border-radius: 999px;
+    background: var(--meta-accent, #3b82f6);
+  }
+  .tf-funnel-kicker {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--meta-accent, #3b82f6);
+    margin-bottom: 6px;
+    padding-left: 12px;
+  }
+  .tf-funnel-title {
+    font-size: 15px;
+    font-weight: 800;
+    color: #0f172a;
+    line-height: 1.25;
+    padding-left: 12px;
+  }
+  .tf-funnel-note {
+    font-size: 12px;
+    color: #64748b;
+    margin-top: 6px;
+    line-height: 1.35;
+    padding-left: 12px;
+  }
+  .tf-funnel-stage {
+    display: flex;
+    justify-content: center;
+    padding: 6px 0;
+  }
+  .tf-funnel-shape {
+    width: min(100%, calc(var(--shape-w, 100) * 1%));
+    min-width: 320px;
+    min-height: 74px;
+    padding: 14px 28px;
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-items: center;
+    align-items: center;
+    text-align: center;
+    color: #fff;
+    background: var(--shape-c, #2563eb);
+    clip-path: polygon(0 0, 100% 0, 94% 100%, 6% 100%);
+    box-shadow: 0 12px 30px rgba(37, 99, 235, 0.18);
+  }
+  .tf-funnel-shape > div:first-child {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  .tf-funnel-shape-label {
+    font-size: 15px;
+    font-weight: 800;
+    line-height: 1.2;
+    padding-right: 0;
+  }
+  .tf-funnel-shape-meta {
+    display: block;
+    margin-top: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.9);
+    line-height: 1.25;
+  }
+  .tf-funnel-shape-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 10px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(255, 243, 176, 0.22);
+    border: 1px solid rgba(255, 243, 176, 0.5);
+    color: #fff7cc;
+    font-size: 11px;
+    font-weight: 800;
+    line-height: 1.2;
+    text-align: center;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+  }
+  .tf-funnel-shape-value {
+    text-align: center;
+    margin-top: 8px;
+    min-width: 0;
+  }
+  .tf-funnel-shape-value strong {
+    display: block;
+    font-size: 28px;
+    line-height: 1;
+  }
+  .tf-funnel-shape-value span {
+    display: block;
+    margin-top: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.9);
+  }
+  @media (max-width: 900px) {
+    .tf-funnel-row {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    .tf-funnel-meta {
+      padding: 12px 14px;
+    }
+    .tf-funnel-shape {
+      min-width: 0;
+      width: 100%;
+      height: auto;
+      min-height: 72px;
+      padding: 14px 18px;
+    }
+    .tf-funnel-shape-label {
+      font-size: 13px;
+    }
+    .tf-funnel-shape-meta {
+      font-size: 11px;
+    }
+    .tf-funnel-shape-value strong {
+      font-size: 24px;
+    }
+  }
+  
+  /* Estilos de Insights dos Alunos */
+  .tf-alunos-grid {
+    display: grid;
+    grid-template-columns: 2fr 3fr;
+    gap: 24px;
+    margin-top: 20px;
+  }
+  @media (max-width: 992px) {
+    .tf-alunos-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  .tabs-container {
+    background: #ffffff;
+    border: 1px solid #e2eaf6;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+  }
+  .tabs-nav {
+    display: flex;
+    gap: 8px;
+    border-bottom: 2px solid #e2eaf6;
+    padding-bottom: 8px;
+    margin-bottom: 16px;
+    overflow-x: auto;
+  }
+  .tab-btn {
+    background: none;
+    border: none;
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #64748b;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+  }
+  .tab-btn:hover {
+    color: #0f172a;
+    background: #f1f5f9;
+  }
+  .tab-btn.active {
+    color: #ffffff;
+    background: #3b82f6;
+  }
+  .tab-content {
+    display: none;
+  }
+  .tab-content.active {
+    display: block;
+    animation: fadeIn 0.3s ease;
+  }
+  .depoimento-quote {
+    background: #f8fafc;
+    border-left: 4px solid #3b82f6;
+    border-radius: 0 12px 12px 0;
+    padding: 12px 16px 12px 24px;
+    margin-bottom: 12px;
+    position: relative;
+    font-size: 13.5px;
+    line-height: 1.45;
+    color: #334155;
+    font-style: italic;
+    text-align: left;
+  }
+  .depoimento-quote::before {
+    content: "\201C";
+    font-size: 28px;
+    color: #cbd5e1;
+    position: absolute;
+    left: 8px;
+    top: -4px;
+    line-height: 1;
+  }
+  .depoimento-list {
+    max-height: 400px;
+    overflow-y: auto;
+    padding-right: 6px;
+  }
+  .depoimento-list::-webkit-scrollbar {
+    width: 6px;
+  }
+  .depoimento-list::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border-radius: 10px;
+  }
+  .depoimento-list::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+  }
+  .depoimento-list::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
+  
+  /* Estilos de IA Insights */
+  .ia-insights-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-top: 18px;
+  }
+  .ia-card {
+    background: linear-gradient(135deg, #ffffff 0%, #fbfdff 100%);
+    border: 1px solid #e2eaf6;
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.05);
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.2s ease;
+  }
+  .ia-card:hover {
+    transform: translateY(-2px);
+  }
+  .ia-card::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 14px;
+    bottom: 14px;
+    width: 4px;
+    border-radius: 999px;
+  }
+  .ia-card.oportunidade::before {
+    background: #10b981;
+  }
+  .ia-card.atencao::before {
+    background: #f59e0b;
+  }
+  .ia-card.recomendacao::before {
+    background: #6366f1;
+  }
+  .ia-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    padding-left: 8px;
+  }
+  .ia-card-header i {
+    font-size: 18px;
+  }
+  .ia-card.oportunidade i {
+    color: #10b981;
+  }
+  .ia-card.atencao i {
+    color: #f59e0b;
+  }
+  .ia-card.recomendacao i {
+    color: #6366f1;
+  }
+  .ia-card-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: #0f172a;
+  }
+  .ia-card-desc {
+    font-size: 12.5px;
+    color: #475569;
+    line-height: 1.45;
+    padding-left: 8px;
+  }
+  
+  /* Estilos de Ganchos e Criativos */
+  .tf-copy-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 20px;
+  }
+  @media (max-width: 992px) {
+    .tf-copy-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  .copy-card {
+    background: #ffffff;
+    border: 1px solid #e2eaf6;
+    border-radius: 16px;
+    padding: 20px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+  }
+  .gancho-item {
+    background: #f8fafc;
+    border: 1px solid #e2eaf6;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 12px;
+    transition: all 0.2s ease;
+    text-align: left;
+  }
+  .gancho-item:hover {
+    border-color: #cbd5e1;
+    background: #f1f5f9;
+  }
+  .gancho-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    color: #6366f1;
+    background: rgba(99, 102, 241, 0.1);
+    padding: 4px 8px;
+    border-radius: 999px;
+    margin-bottom: 8px;
+  }
+  .gancho-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: #0f172a;
+    margin-bottom: 6px;
+  }
+  .gancho-text {
+    font-size: 12.5px;
+    color: #475569;
+    line-height: 1.45;
+  }
+  
+  /* Accordion para Roteiros */
+  .accordion-item {
+    border: 1px solid #e2eaf6;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    overflow: hidden;
+    background: #f8fafc;
+  }
+  .accordion-header {
+    background: #ffffff;
+    padding: 14px;
+    font-size: 13.5px;
+    font-weight: 800;
+    color: #0f172a;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background 0.2s ease;
+    user-select: none;
+    text-align: left;
+  }
+  .accordion-header:hover {
+    background: #f8fafc;
+  }
+  .accordion-header.active {
+    border-bottom: 1px solid #e2eaf6;
+  }
+  .accordion-content {
+    padding: 14px;
+    display: none;
+    font-size: 12.5px;
+    color: #334155;
+    line-height: 1.5;
+    background: #f8fafc;
+    text-align: left;
+  }
+  .accordion-content.active {
+    display: block;
+    animation: slideDown 0.2s ease-out;
+  }
+  .script-section {
+    margin-bottom: 12px;
+  }
+  .script-section:last-child {
+    margin-bottom: 0;
+  }
+  .script-label {
+    font-weight: 800;
+    color: #4f46e5;
+    text-transform: uppercase;
+    font-size: 10px;
+    letter-spacing: 0.05em;
+    display: block;
+    margin-bottom: 4px;
+  }
+</style>
+<div class="wrap">
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1><i class="ti ti-clipboard-list"></i> An&aacute;lise Typeform &mdash; Pesquisa de Capta&ccedil;&atilde;o{% if launch %} &mdash; {{ launch.code }}{% endif %}</h1>
+      <p>Confronto: Respostas da pesquisa &times; Leads CRM (Active Campaign) &times; Vendas consolidadas</p>
+    </div>
+  </div>
+
+  <div class="content">
+    {% if not tf or not tf.has_data %}
+    <div class="no-data">
+      <i class="ti ti-clipboard-list"></i>
+      <h3>Dados da pesquisa Typeform n&atilde;o dispon&iacute;veis</h3>
+      <p>Verifique a integra&ccedil;&atilde;o com o Supabase ou se a pesquisa possui respostas no per&iacute;odo do lan&ccedil;amento.</p>
+    </div>
+    {% else %}
+
+    <!-- KPIs -->
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="label">Respostas Typeform</div>
+        <div class="value">{{ tf.total_tf_raw | default(0) | num }}</div>
+        <div class="subtext">Respostas brutas no per&iacute;odo</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Respondentes &uacute;nicos</div>
+        <div class="value">{{ tf.total_tf | default(0) | num }}</div>
+        <div class="subtext">E-mails &uacute;nicos</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Leads no CRM</div>
+        <div class="value">{{ tf.leads_crm_total | num }}</div>
+        <div class="subtext">Active Campaign</div>
+      </div>
+      <div class="metric-card destaque">
+        <div class="label">TF &rarr; Lead CRM</div>
+        <div class="value">{{ tf.tf_leads_crm | num }}</div>
+        <div class="subtext">{{ tf.tx_lead_pct | pct }} dos respondentes &uacute;nicos</div>
+      </div>
+      <div class="metric-card destaque" style="background: linear-gradient(135deg, var(--bs-success) 0%, var(--bs-sidebar-dark) 100%); color: #fff;">
+        <div class="label" style="color: rgba(255,255,255,0.85);">TF &rarr; Compra</div>
+        <div class="value">{{ tf.tf_compras | num }}</div>
+        <div class="subtext" style="color: rgba(255,255,255,0.75);">{{ tf.tx_venda_tf_pct | pct }} convers&atilde;o total</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Faturamento via TF</div>
+        <div class="value">{{ tf.receita_tf | brl }}</div>
+        <div class="subtext">{{ tf.receita_tf_pct | pct }} da receita total</div>
+      </div>
+    </div>
+
+    <!-- Confronto entre pesquisas (se disponível) -->
+    {% if tf.compare_available %}
+    <div class="section">
+      <div class="section-title">Confronto entre pesquisas Typeform</div>
+      <div class="metrics-grid" style="grid-template-columns: repeat(4, minmax(0, 1fr));">
+        <div class="metric-card">
+          <div class="label">{{ tf.compare_label_a }}</div>
+          <div class="value">{{ tf.compare_total_a | num }}</div>
+          <div class="subtext">respondentes &uacute;nicos</div>
+        </div>
+        <div class="metric-card">
+          <div class="label">{{ tf.compare_label_b }}</div>
+          <div class="value">{{ tf.compare_total_b | num }}</div>
+          <div class="subtext">respondentes &uacute;nicos</div>
+        </div>
+        <div class="metric-card destaque">
+          <div class="label">Interse&ccedil;&atilde;o</div>
+          <div class="value">{{ tf.compare_overlap | num }}</div>
+          <div class="subtext">e-mails nas duas pesquisas</div>
+        </div>
+        <div class="metric-card">
+          <div class="label">Exclusivos</div>
+          <div class="value">{{ (tf.compare_only_a + tf.compare_only_b) | num }}</div>
+          <div class="subtext">{{ tf.compare_only_a | num }} + {{ tf.compare_only_b | num }}</div>
+        </div>
+      </div>
+
+      <div class="highlights" style="margin-top: 20px;">
+        <div class="note info" style="margin-bottom:0;">
+          <strong><i class="ti ti-git-merge"></i> Leitura comparada</strong><br>
+          {% if tf.compare_identical %}
+          As duas pesquisas parecem conter a mesma base de respondentes. Hoje esse confronto n&atilde;o adiciona leitura nova para {{ active_code }}.
+          {% else %}
+          As duas pesquisas trazem bases diferentes e permitem leitura complementar do lan&ccedil;amento.
+          {% endif %}
+        </div>
+        <div class="note success" style="margin-bottom:0; margin-top: 10px;">
+          <strong><i class="ti ti-bulb"></i> Insights relevantes (Varia&ccedil;&otilde;es de perfil)</strong><br>
+          {% if tf.compare_insights %}
+          <ul style="margin:8px 0 0 18px;">
+            {% for insight in tf.compare_insights %}
+            <li>{{ insight }}</li>
+            {% endfor %}
+          </ul>
+          {% else %}
+          N&atilde;o houve diferen&ccedil;a relevante de perfil entre as duas pesquisas neste lan&ccedil;amento.
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Proportional Funnel -->
+    <div class="section">
+      <div class="section-title">Funil de convers&atilde;o de respondentes</div>
+      {% set raw_total = tf.total_tf_raw | default(0) %}
+      {% set unique_total = tf.total_tf | default(0) %}
+      {% set crm_total = tf.tf_leads_crm | default(0) %}
+      {% set crm_buyers = tf.tf_compras_crm | default(0) %}
+      {% set buyers_total = tf.tf_compras | default(0) %}
+      {% set unique_share = (100 * unique_total / raw_total) if raw_total > 0 else 0 %}
+      {% set crm_share = (100 * crm_total / unique_total) if unique_total > 0 else 0 %}
+      {% set crm_buyer_share = (100 * crm_buyers / crm_total) if crm_total > 0 else 0 %}
+      {% set buyer_share = (100 * buyers_total / unique_total) if unique_total > 0 else 0 %}
+      {% set unique_visual_raw = (28 + 72 * ((unique_total / raw_total) ** 0.5)) if raw_total > 0 and unique_total > 0 else 0 %}
+      {% set crm_visual_raw = (28 + 72 * ((crm_total / raw_total) ** 0.5)) if raw_total > 0 and crm_total > 0 else 0 %}
+      {% set crm_buyer_visual_raw = (28 + 72 * ((crm_buyers / raw_total) ** 0.5)) if raw_total > 0 and crm_buyers > 0 else 0 %}
+      {% set buyer_visual_raw = (28 + 72 * ((buyers_total / raw_total) ** 0.5)) if raw_total > 0 and buyers_total > 0 else 0 %}
+      {% set unique_visual_cap = 84 %}
+      {% set crm_visual_cap = 66 %}
+      {% set crm_buyer_visual_cap = 48 %}
+      {% set buyer_visual_cap = 34 %}
+      {% set unique_visual = [unique_visual_raw, unique_visual_cap] | min %}
+      {% set crm_visual = [crm_visual_raw, crm_visual_cap] | min %}
+      {% set crm_buyer_visual = [crm_buyer_visual_raw, crm_buyer_visual_cap] | min %}
+      {% set buyer_visual = [buyer_visual_raw, buyer_visual_cap] | min %}
+
+      <div class="tf-funnel-proportional">
+        <!-- Etapa 1: Respostas Brutas -->
+        <div class="tf-funnel-row">
+          <div class="tf-funnel-meta" style="--meta-accent: #3b82f6;">
+            <div class="tf-funnel-kicker">Etapa 1</div>
+            <div class="tf-funnel-title">Respostas Brutas</div>
+            <div class="tf-funnel-note">Total de envios brutos ao Typeform</div>
+          </div>
+          <div class="tf-funnel-stage">
+            <div class="tf-funnel-shape" style="--shape-w: 100; --shape-c: #3b82f6;">
+              <div>
+                <span class="tf-funnel-shape-label">Total de Envio</span>
+                <span class="tf-funnel-shape-meta">100% bruto do lan&ccedil;amento</span>
+              </div>
+              <div class="tf-funnel-shape-value">
+                <strong>{{ raw_total | num }}</strong>
+                <span>respostas</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Etapa 2: Respondentes Únicos -->
+        <div class="tf-funnel-row">
+          <div class="tf-funnel-meta" style="--meta-accent: #6366f1;">
+            <div class="tf-funnel-kicker">Etapa 2</div>
+            <div class="tf-funnel-title">Respondentes &Uacute;nicos</div>
+            <div class="tf-funnel-note">E-mails &uacute;nicos respondentes</div>
+          </div>
+          <div class="tf-funnel-stage">
+            <div class="tf-funnel-shape" style="--shape-w: {{ unique_visual }}; --shape-c: #6366f1;">
+              <div>
+                <span class="tf-funnel-shape-label">E-mails &Uacute;nicos</span>
+                <span class="tf-funnel-shape-meta">{{ unique_share | pct }} de aproveitamento</span>
+              </div>
+              <div class="tf-funnel-shape-value">
+                <strong>{{ unique_total | num }}</strong>
+                <span>respondentes</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Etapa 3: Identificados no CRM -->
+        <div class="tf-funnel-row">
+          <div class="tf-funnel-meta" style="--meta-accent: #ec4899;">
+            <div class="tf-funnel-kicker">Etapa 3</div>
+            <div class="tf-funnel-title">Identificados no CRM</div>
+            <div class="tf-funnel-note">Respondentes cruzados com o Active Campaign</div>
+          </div>
+          <div class="tf-funnel-stage">
+            <div class="tf-funnel-shape" style="--shape-w: {{ crm_visual }}; --shape-c: #ec4899;">
+              <div>
+                <span class="tf-funnel-shape-label">Casados no CRM</span>
+                <span class="tf-funnel-shape-meta">{{ crm_share | pct }} dos e-mails &uacute;nicos</span>
+              </div>
+              <div class="tf-funnel-shape-value">
+                <strong>{{ crm_total | num }}</strong>
+                <span>leads</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Etapa 4: Vendas Convertidas -->
+        <div class="tf-funnel-row">
+          <div class="tf-funnel-meta" style="--meta-accent: #10b981;">
+            <div class="tf-funnel-kicker">Etapa 4</div>
+            <div class="tf-funnel-title">Vendas Convertidas</div>
+            <div class="tf-funnel-note">Compradores que responderam &agrave; pesquisa</div>
+          </div>
+          <div class="tf-funnel-stage">
+            <div class="tf-funnel-shape" style="--shape-w: {{ buyer_visual }}; --shape-c: #10b981;">
+              <div>
+                <span class="tf-funnel-shape-label">Compradores &uacute;nicos</span>
+                <span class="tf-funnel-shape-meta">{{ buyer_share | pct }} convers&atilde;o total</span>
+                <span class="tf-funnel-shape-badge">{{ crm_buyer_share | pct }} convers&atilde;o dos leads CRM</span>
+              </div>
+              <div class="tf-funnel-shape-value">
+                <strong>{{ buyers_total | num }}</strong>
+                <span>compras</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Demografia Section -->
+    <div class="section">
+      <div class="section-title">Perfil Demogr&aacute;fico &mdash; Compradores vs N&atilde;o Compradores</div>
+      
+      <!-- Gênero e Faixa Etária (Cima) -->
+      <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-bottom: 20px;">
+        <!-- Gênero -->
+        {% if tf.genero_comp_pct %}
+        <div class="card">
+          <h3>G&ecirc;nero</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Grupo</th>
+                <th style="text-align:right">Compradores</th>
+                <th style="text-align:right">N&atilde;o compradores</th>
+                <th style="text-align:right">Diferen&ccedil;a</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for k, v in tf.genero_comp_pct.items() %}
+              <tr>
+                <td>{{ k }}</td>
+                <td style="text-align:right">
+                  <strong>{{ v | pct }}</strong>
+                  <div class="pbar-track" style="height:6px; margin-top:4px;"><div class="pbar-fill" style="width:{{ v }}%;"></div></div>
+                </td>
+                {% set nc_val = tf.genero_ncomp_pct.get(k, 0.0) %}
+                <td style="text-align:right">
+                  {{ nc_val | pct }}
+                  <div class="pbar-track" style="height:6px; margin-top:4px;"><div class="pbar-fill" style="background:#cbd5e1; width:{{ nc_val }}%;"></div></div>
+                </td>
+                {% set diff = tf.genero_diff.get(k, 0.0) %}
+                <td style="text-align:right; font-weight:700; color: {% if diff > 0 %}var(--bs-success){% elif diff < 0 %}var(--bs-danger){% else %}var(--bs-ink-muted){% endif %};">
+                  {{ "%+d" | format(diff | round(0) | int) }} pp
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+
+        <!-- Faixa Etária -->
+        {% if tf.idade_comp_pct %}
+        <div class="card">
+          <h3>Faixa Et&aacute;ria</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Faixa</th>
+                <th style="text-align:right">Compradores</th>
+                <th style="text-align:right">N&atilde;o compradores</th>
+                <th style="text-align:right">Diferen&ccedil;a</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for k, v in tf.idade_comp_pct.items() %}
+              <tr>
+                <td>{{ k }}</td>
+                <td style="text-align:right">
+                  <strong>{{ v | pct }}</strong>
+                  <div class="pbar-track" style="height:6px; margin-top:4px;"><div class="pbar-fill" style="width:{{ v }}%;"></div></div>
+                </td>
+                {% set nc_val = tf.idade_ncomp_pct.get(k, 0.0) %}
+                <td style="text-align:right">
+                  {{ nc_val | pct }}
+                  <div class="pbar-track" style="height:6px; margin-top:4px;"><div class="pbar-fill" style="background:#cbd5e1; width:{{ nc_val }}%;"></div></div>
+                </td>
+                {% set diff = tf.idade_diff.get(k, 0.0) %}
+                <td style="text-align:right; font-weight:700; color: {% if diff > 0 %}var(--bs-success){% elif diff < 0 %}var(--bs-danger){% else %}var(--bs-ink-muted){% endif %};">
+                  {{ "%+d" | format(diff | round(0) | int) }} pp
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- Situação Profissional e Nível de Estudos (Baixo) -->
+      <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px;">
+        <!-- Situação Profissional -->
+        {% if tf.situacao_comp_pct %}
+        <div class="card">
+          <h3>Situa&ccedil;&atilde;o Profissional</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Situa&ccedil;&atilde;o</th>
+                <th style="text-align:right">Compradores</th>
+                <th style="text-align:right">N&atilde;o compradores</th>
+                <th style="text-align:right">Diferen&ccedil;a</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for k, v in tf.situacao_comp_pct.items() %}
+              <tr>
+                <td>{{ k }}</td>
+                <td style="text-align:right">
+                  <strong>{{ v | pct }}</strong>
+                  <div class="pbar-track" style="height:6px; margin-top:4px;"><div class="pbar-fill" style="width:{{ v }}%;"></div></div>
+                </td>
+                {% set nc_val = tf.situacao_ncomp_pct.get(k, 0.0) %}
+                <td style="text-align:right">
+                  {{ nc_val | pct }}
+                  <div class="pbar-track" style="height:6px; margin-top:4px;"><div class="pbar-fill" style="background:#cbd5e1; width:{{ nc_val }}%;"></div></div>
+                </td>
+                {% set diff = tf.situacao_diff.get(k, 0.0) %}
+                <td style="text-align:right; font-weight:700; color: {% if diff > 0 %}var(--bs-success){% elif diff < 0 %}var(--bs-danger){% else %}var(--bs-ink-muted){% endif %};">
+                  {{ "%+d" | format(diff | round(0) | int) }} pp
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+
+        <!-- Nível de Estudos -->
+        {% if tf.nivel_comp_pct %}
+        <div class="card">
+          <h3>N&iacute;vel nos Estudos</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>N&iacute;vel</th>
+                <th style="text-align:right">Compradores</th>
+                <th style="text-align:right">N&atilde;o compradores</th>
+                <th style="text-align:right">Diferen&ccedil;a</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for k, v in tf.nivel_comp_pct.items() %}
+              <tr>
+                <td>{{ k }}</td>
+                <td style="text-align:right">
+                  <strong>{{ v | pct }}</strong>
+                  <div class="pbar-track" style="height:6px; margin-top:4px;"><div class="pbar-fill" style="width:{{ v }}%;"></div></div>
+                </td>
+                {% set nc_val = tf.nivel_ncomp_pct.get(k, 0.0) %}
+                <td style="text-align:right">
+                  {{ nc_val | pct }}
+                  <div class="pbar-track" style="height:6px; margin-top:4px;"><div class="pbar-fill" style="background:#cbd5e1; width:{{ nc_val }}%;"></div></div>
+                </td>
+                {% set diff = tf.nivel_diff.get(k, 0.0) %}
+                <td style="text-align:right; font-weight:700; color: {% if diff > 0 %}var(--bs-success){% elif diff < 0 %}var(--bs-danger){% else %}var(--bs-ink-muted){% endif %};">
+                  {{ "%+d" | format(diff | round(0) | int) }} pp
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Obstáculos Declarados -->
+    {% if tf.obstaculos_comp_pct %}
+    <div class="section">
+      <div class="section-title">Obst&aacute;culos Declarados (Dificuldades nos Estudos)</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Dificuldade declarada</th>
+              <th style="text-align:right">Compradores</th>
+              <th style="text-align:right">N&atilde;o compradores</th>
+              <th style="text-align:right">Diferen&ccedil;a (pp)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for k, v in tf.obstaculos_comp_pct.items() %}
+            <tr>
+              <td><strong>{{ k }}</strong></td>
+              <td class="numero">
+                <strong>{{ v | pct }}</strong>
+                <div class="pbar-track" style="height:6px; width:150px; display:inline-block; margin-left:10px; vertical-align:middle;"><div class="pbar-fill" style="width:{{ v }}%;"></div></div>
+              </td>
+              {% set nc_val = tf.obstaculos_ncomp_pct.get(k, 0.0) %}
+              <td class="numero">
+                {{ nc_val | pct }}
+                <div class="pbar-track" style="height:6px; width:150px; display:inline-block; margin-left:10px; vertical-align:middle;"><div class="pbar-fill" style="background:#cbd5e1; width:{{ nc_val }}%;"></div></div>
+              </td>
+              {% set diff = tf.obstaculos_diff.get(k, 0.0) %}
+              <td class="numero" style="font-weight:700; color: {% if diff > 0 %}var(--bs-success){% elif diff < 0 %}var(--bs-danger){% else %}var(--bs-ink-muted){% endif %};">
+                {{ "%+d" | format(diff | round(0) | int) }} pp
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Top Estados & UTMs -->
+    <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-top: 20px;">
+      
+      <!-- Top Estados -->
+      {% if tf.top_estados_geral %}
+      <div class="card">
+        <h3>Top Estados (Geral)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Estado</th>
+              <th style="text-align:right">Respondentes</th>
+              <th style="text-align:right">% do Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for est in tf.top_estados_geral %}
+            <tr>
+              <td>{{ est.estado }}</td>
+              <td style="text-align:right">{{ est.qtd | num }}</td>
+              <td style="text-align:right">{{ est.pct | pct }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+
+      <!-- UTM Sources -->
+      {% if tf.top_utm_sources %}
+      <div class="card">
+        <h3>Top An&uacute;ncios (Compradores via Typeform)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>An&uacute;ncio (utm_content)</th>
+              <th style="text-align:right">Compradores</th>
+              <th style="text-align:right">Plataforma</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for src in tf.top_utm_sources %}
+            <tr>
+              <td><code>{{ src.source }}</code></td>
+              <td style="text-align:right"><strong>{{ src.qtd | num }}</strong></td>
+              <td style="text-align:right">
+                <span class="bs-pill {% if src.canal == 'Meta / FB' %}accent{% elif src.canal == 'YouTube' %}danger{% else %}neutral{% endif %}">
+                  {{ src.canal }}
+                </span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+
+    </div>
+
+    <!-- Nova Seção: Insights dos Alunos -->
+    {% if tf.top_influence_factors or tf.alunos_depoimentos_decidir or tf.alunos_depoimentos_convenceu or tf.alunos_depoimentos_atencao %}
+    <div class="section">
+      <div class="section-title">Insights de Convers&atilde;o &mdash; Voz dos Alunos (Compradores)</div>
+      
+      <div class="tf-alunos-grid">
+        <!-- Coluna Esquerda: Fatores de Influência -->
+        {% if tf.top_influence_factors %}
+        <div class="card" style="margin: 0; display: flex; flex-direction: column;">
+          <h3>O que mais influenciou na decis&atilde;o de compra?</h3>
+          <p style="font-size: 12.5px; color: #64748b; margin-top: -6px; margin-bottom: 16px; line-height: 1.35;">
+            Itens mais selecionados pelos alunos como decisivos para entrar na Mentoria
+          </p>
+          <table style="width: 100%;">
+            <thead>
+              <tr>
+                <th>Recurso / Diferencial</th>
+                <th style="text-align:right">Alunos (%)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in tf.top_influence_factors %}
+              <tr>
+                <td><strong>{{ item.opcao }}</strong></td>
+                <td style="text-align:right;">
+                  <strong>{{ item.pct | pct }}</strong>
+                  <div class="pbar-track" style="height:6px; margin-top:4px;"><div class="pbar-fill" style="width:{{ item.pct }}%;"></div></div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+
+        <!-- Coluna Direita: Depoimentos e Textos Abertos (Tabs) -->
+        <div class="tabs-container">
+          <h3>O que os compradores dizem?</h3>
+          <p style="font-size: 12.5px; color: #64748b; margin-top: -6px; margin-bottom: 16px; line-height: 1.35;">
+            Respostas espont&acirc;neas dos alunos que revelam a motiva&ccedil;&atilde;o real de compra
+          </p>
+          
+          <div class="tabs-nav">
+            <button class="tab-btn active" onclick="switchTab(event, 'tab-decidir')">Motivo da Decis&atilde;o</button>
+            <button class="tab-btn" onclick="switchTab(event, 'tab-convenceu')">O que Convenceu</button>
+            <button class="tab-btn" onclick="switchTab(event, 'tab-atencao')">O que chamou Aten&ccedil;&atilde;o</button>
+          </div>
+
+          <!-- Conteúdo 1: Decidir -->
+          <div id="tab-decidir" class="tab-content active">
+            <div class="depoimento-list">
+              {% if tf.alunos_depoimentos_decidir %}
+                {% for dep in tf.alunos_depoimentos_decidir %}
+                <div class="depoimento-quote">{{ dep }}</div>
+                {% endfor %}
+              {% else %}
+                <div style="color: #94a3b8; font-style: italic; padding: 20px 0; text-align: center;">Nenhum depoimento longo registrado.</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Conteúdo 2: Convenceu -->
+          <div id="tab-convenceu" class="tab-content">
+            <div class="depoimento-list">
+              {% if tf.alunos_depoimentos_convenceu %}
+                {% for dep in tf.alunos_depoimentos_convenceu %}
+                <div class="depoimento-quote">{{ dep }}</div>
+                {% endfor %}
+              {% else %}
+                <div style="color: #94a3b8; font-style: italic; padding: 20px 0; text-align: center;">Nenhum depoimento longo registrado.</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Conteúdo 3: Atenção -->
+          <div id="tab-atencao" class="tab-content">
+            <div class="depoimento-list">
+              {% if tf.alunos_depoimentos_atencao %}
+                {% for dep in tf.alunos_depoimentos_atencao %}
+                <div class="depoimento-quote">{{ dep }}</div>
+                {% endfor %}
+              {% else %}
+                <div style="color: #94a3b8; font-style: italic; padding: 20px 0; text-align: center;">Nenhum depoimento longo registrado.</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <script>
+      function switchTab(evt, tabId) {
+        var contents = document.getElementsByClassName("tab-content");
+        for (var i = 0; i < contents.length; i++) {
+          contents[i].classList.remove("active");
+        }
+        var buttons = document.getElementsByClassName("tab-btn");
+        for (var i = 0; i < buttons.length; i++) {
+          buttons[i].classList.remove("active");
+        }
+        document.getElementById(tabId).classList.add("active");
+        evt.currentTarget.classList.add("active");
+      }
+    </script>
+    {% endif %}
+
+    <!-- Análises de IA -->
+    {% if tf.ia_insights %}
+    <div class="section">
+      <div class="section-title"><i class="ti ti-sparkles" style="color: #6366f1; margin-right: 6px;"></i> Diagn&oacute;stico de Convers&atilde;o &mdash; An&aacute;lise de IA</div>
+      <div class="ia-insights-grid">
+        {% for ins in tf.ia_insights %}
+        <div class="ia-card {{ ins.tipo }}">
+          <div class="ia-card-header">
+            <i class="{{ ins.icone }}"></i>
+            <span class="ia-card-title">{{ ins.titulo }}</span>
+          </div>
+          <p class="ia-card-desc">{{ ins.descricao }}</p>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Nova Seção: Ganchos & Criativos de Alta Conversão -->
+    {# Variáveis de contexto do projeto/concurso para adaptar a copy a cada lançamento #}
+    {% set proj_nome = launch.project if launch else 'BB' %}
+    {% if proj_nome == 'BB' %}
+      {% set concurso_nome = 'Banco do Brasil' %}
+      {% set concurso_salario = 'mais de 5 mil reais do Banco do Brasil' %}
+      {% set edital_ref = 'o edital do Banco do Brasil' %}
+      {% set concurso_tipo = 'concurso de banco' %}
+    {% elif proj_nome == 'INSS' %}
+      {% set concurso_nome = 'INSS' %}
+      {% set concurso_salario = 'mais de 7 mil reais do INSS' %}
+      {% set edital_ref = 'o edital do INSS' %}
+      {% set concurso_tipo = 'concurso do INSS' %}
+    {% elif proj_nome == 'TJ' %}
+      {% set concurso_nome = 'Tribunal de Justiça (TJ)' %}
+      {% set concurso_salario = 'mais de 8 mil reais do Tribunal de Justiça' %}
+      {% set edital_ref = 'o edital do TJ' %}
+      {% set concurso_tipo = 'concurso do Tribunal de Justiça' %}
+    {% else %}
+      {% set concurso_nome = 'concurso público' %}
+      {% set concurso_salario = 'salário de concursado' %}
+      {% set edital_ref = 'o edital do concurso' %}
+      {% set concurso_tipo = 'concurso público' %}
+    {% endif %}
+    <div class="section">
+      <div class="section-title"><i class="ti ti-writing" style="color: #6366f1; margin-right: 6px;"></i> Roteiros e Ganchos de Copy Recomendados</div>
+      
+      <div class="tf-copy-grid">
+        <!-- Coluna Esquerda: Ideias de Ganchos -->
+        <div class="copy-card">
+          <h3>5 Ideias de Ganchos de Copy (Baseados em Dados Reais)</h3>
+          <p style="font-size: 12.5px; color: #64748b; margin-top: -6px; margin-bottom: 16px; line-height: 1.35;">
+            Ganchos de copy gerados com os maiores pesos estatísticos identificados nas pesquisas deste lançamento.
+          </p>
+          
+          <!-- Gancho 1: Apostila Física -->
+          <div class="gancho-item">
+            <span class="gancho-tag">Foco em Diferencial (Driver #1)</span>
+            <div class="gancho-title">A Força do Material Impresso</div>
+            <div class="gancho-text">
+              "Sabia que <strong>{% if tf.top_influence_factors %}{{ tf.top_influence_factors[0].pct | round(0) }}%{% else %}78%{% endif %}</strong> dos alunos compradores da Mentoria declararam que ter a <strong>{% if tf.top_influence_factors %}{{ tf.top_influence_factors[0].opcao }}{% else %}Apostila física completa (enviada para minha casa){% endif %}</strong> em mãos foi essencial para a tomada de decisão? Receba o método impresso pronto na sua mesa de estudos e pare de forçar as vistas lendo PDFs em telas."
+            </div>
+          </div>
+
+          <!-- Gancho 2: Método de Estudos -->
+          <div class="gancho-item">
+            <span class="gancho-tag">Foco em Solução de Dor (Obstáculo #1)</span>
+            <div class="gancho-title">Estudar do Jeito Certo</div>
+            <div class="gancho-text">
+              "O maior obstáculo de <strong>{{ tf.obstaculos_comp_pct.get('Não sei estudar do jeito certo', 65.3) | round(0) }}%</strong> dos concurseiros que acabam sendo reprovados é simplesmente não saber como estudar do jeito certo. A Mentoria foi desenhada para resolver isso, ensinando a metodologia exata que te leva do zero à aprovação."
+            </div>
+          </div>
+
+          <!-- Gancho 3: Circuito LOOP -->
+          <div class="gancho-item">
+            <span class="gancho-tag">Foco em Planejamento (Driver #2)</span>
+            <div class="gancho-title">Cronograma Inteligente Automático</div>
+            <div class="gancho-text">
+              "<strong>{% if tf.top_influence_factors and tf.top_influence_factors | length > 1 %}{{ tf.top_influence_factors[1].pct | round(0) }}%{% else %}73%{% endif %}</strong> dos novos alunos disseram que a <strong>{% if tf.top_influence_factors and tf.top_influence_factors | length > 1 %}{{ tf.top_influence_factors[1].opcao }}{% else %}Plataforma do Circuito LOOP{% endif %}</strong> foi o principal driver de compra. Pare de perder horas organizando planilhas complexas e deixe a inteligência do nosso circuito gerenciar sua rotina de estudos."
+            </div>
+          </div>
+
+          <!-- Gancho 4: Perfil Iniciante -->
+          <div class="gancho-item">
+            <span class="gancho-tag">Foco em Segurança</span>
+            <div class="gancho-title">Começar do Absoluto Zero</div>
+            <div class="gancho-text">
+              "Você acha que {{ concurso_tipo }} é só para quem já estuda há anos? <strong>{{ tf.nivel_comp_pct.get('Sou Iniciante', 48.8) | round(0) }}%</strong> dos alunos que garantiram sua vaga na mentoria se consideravam iniciantes absolutos. Nosso cronograma ensina do básico ao avançado."
+            </div>
+          </div>
+
+          <!-- Gancho 5: Procrastinação -->
+          <div class="gancho-item">
+            <span class="gancho-tag">Foco em Consistência</span>
+            <div class="gancho-title">Vencendo a Procrastinação</div>
+            <div class="gancho-text">
+              "A procrastinação é apontada por <strong>{{ tf.obstaculos_comp_pct.get('Procrastinação', 37.2) | round(0) }}%</strong> dos concurseiros como o maior vilão dos estudos. O acompanhamento diário com mentores e as metas da plataforma ajudam a manter a consistência necessária para passar."
+            </div>
+          </div>
+        </div>
+
+        <!-- Coluna Direita: Roteiros/Scripts para Anúncio -->
+        <div class="copy-card">
+          <h3>5 Scripts de Criativos de Anúncio (Vídeos/Roteiros)</h3>
+          <p style="font-size: 12.5px; color: #64748b; margin-top: -6px; margin-bottom: 16px; line-height: 1.35;">
+            Clique nos títulos abaixo para expandir e visualizar o roteiro completo recomendado para os criativos.
+          </p>
+
+          <!-- Script 1: Apostila Física -->
+          <div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+              <span>Script 1: Apostila Física na Mesa vs PDF na Tela</span>
+              <i class="ti ti-chevron-down"></i>
+            </div>
+            <div class="accordion-content">
+              <div class="script-section">
+                <span class="script-label">[Hook / Gancho - 0s a 5s]</span>
+                <p>"Olha para a sua mesa de estudos agora. O que você prefere: ler um PDF de 800 páginas brilhando na tela do seu computador ou ter uma Apostila Física com todo o método impresso pronto para você grifar e estudar?"</p>
+              </div>
+              <div class="script-section">
+                <span class="script-label">[Body / Conteúdo]</span>
+                <p>"Na nossa última pesquisa de alunos, {% if tf.top_influence_factors %}{{ tf.top_influence_factors[0].pct | round(0) }}%{% else %}78%{% endif %}% declararam que receber a Apostila Física em casa foi decisivo para entrar na mentoria. Estudar no papel te tira da distração do celular e te foca no que realmente importa."</p>
+              </div>
+              <div class="script-section">
+                <span class="script-label">[CTA / Chamada]</span>
+                <p>"Garanta sua vaga na Mentoria hoje e receba a apostila física oficial na sua casa com frete grátis. Clique no link para fazer sua inscrição."</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Script 2: Método de Estudos -->
+          <div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+              <span>Script 2: O Segredo de Saber Estudar</span>
+              <i class="ti ti-chevron-down"></i>
+            </div>
+            <div class="accordion-content">
+              <div class="script-section">
+                <span class="script-label">[Hook / Gancho - 0s a 5s]</span>
+                <p>"Se eu te der {{ edital_ref }} agora, você sabe exatamente o que estudar hoje, o que revisar amanhã e como testar seus conhecimentos no final da semana?"</p>
+              </div>
+              <div class="script-section">
+                <span class="script-label">[Body / Conteúdo]</span>
+                <p>"{{ tf.obstaculos_comp_pct.get('Não sei estudar do jeito certo', 65.3) | round(0) }}% dos concurseiros dizem que a maior barreira é não saber estudar do jeito certo. Eles acham que é só ler teoria e ler resumos. Mas a aprovação vem do estudo ativo e da engenharia reversa de questões."</p>
+              </div>
+              <div class="script-section">
+                <span class="script-label">[CTA / Chamada]</span>
+                <p>"Pare de andar em círculos. Clique no botão abaixo e venha aprender a estudar com o método prático que já aprovou centenas de alunos."</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Script 3: Circuito LOOP -->
+          <div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+              <span>Script 3: Acabando com a Procrastinação no Cronograma</span>
+              <i class="ti ti-chevron-down"></i>
+            </div>
+            <div class="accordion-content">
+              <div class="script-section">
+                <span class="script-label">[Hook / Gancho - 0s a 5s]</span>
+                <p>"Você passa mais tempo organizando planilhas de estudo e cronogramas coloridos do que efetivamente estudando?"</p>
+              </div>
+              <div class="script-section">
+                <span class="script-label">[Body / Conteúdo]</span>
+                <p>"{% if tf.top_influence_factors and tf.top_influence_factors | length > 1 %}{{ tf.top_influence_factors[1].pct | round(0) }}%{% else %}73%{% endif %}% dos nossos alunos disseram que a Plataforma do Circuito LOOP foi o maior motivo para fazer a inscrição. O sistema calcula automaticamente o que você deve estudar no dia, baseado nas suas dificuldades. Bateu a meta, avançou."</p>
+              </div>
+              <div class="script-section">
+                <span class="script-label">[CTA / Chamada]</span>
+                <p>"Esqueça as planilhas manuais. Toque em saiba mais e conheça a plataforma que vai automatizar seus estudos."</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Script 4: Transformação (Primeiro Salário) -->
+          <div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+              <span>Script 4: O Que Fazer com o Primeiro Salário?</span>
+              <i class="ti ti-chevron-down"></i>
+            </div>
+            <div class="accordion-content">
+              <div class="script-section">
+                <span class="script-label">[Hook / Gancho - 0s a 5s]</span>
+                <p>"O que você faria no dia em que o primeiro salário de {{ concurso_salario }} caísse na sua conta?"</p>
+              </div>
+              <div class="script-section">
+                <span class="script-label">[Body / Conteúdo]</span>
+                <p>"Perguntamos isso para os alunos recém-matriculados. A maioria respondeu: pagar contas atrasadas, dar conforto para a família e realizar a viagem dos sonhos. A estabilidade de ser concursado te dá essa liberdade financeira logo no primeiro mês."</p>
+              </div>
+              <div class="script-section">
+                <span class="script-label">[CTA / Chamada]</span>
+                <p>"O seu primeiro salário de concursado está a uma preparação de distância. Toque no link e garanta sua vaga na Mentoria oficial de {{ concurso_nome }}."</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Script 5: Começando do Absoluto Zero -->
+          <div class="accordion-item">
+            <div class="accordion-header" onclick="toggleAccordion(this)">
+              <span>Script 5: Criativo "Eu Sou Iniciante, Dá Tempo?"</span>
+              <i class="ti ti-chevron-down"></i>
+            </div>
+            <div class="accordion-content">
+              <div class="script-section">
+                <span class="script-label">[Hook / Gancho - 0s a 5s]</span>
+                <p>"Você acha que passar no {{ concurso_tipo }} é só para quem já estuda há anos ou tem formação na área?"</p>
+              </div>
+              <div class="script-section">
+                <span class="script-label">[Body / Conteúdo]</span>
+                <p>"Deixa eu te contar um segredo: {{ tf.nivel_comp_pct.get('Sou Iniciante', 48.8) | round(0) }}% dos alunos que entraram na nossa última turma começaram do absoluto zero ou eram iniciantes. Nosso cronograma foi construído justamente para quem não sabe nada e precisa de um passo a passo do básico ao edital."</p>
+              </div>
+              <div class="script-section">
+                <span class="script-label">[CTA / Chamada]</span>
+                <p>"Se você quer sair do zero e concorrer a uma vaga real, clique no botão e faça sua matrícula na turma."</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function toggleAccordion(header) {
+        var content = header.nextElementSibling;
+        if (header.classList.contains("active")) {
+          header.classList.remove("active");
+          content.classList.remove("active");
+        } else {
+          var headers = document.getElementsByClassName("accordion-header");
+          var contents = document.getElementsByClassName("accordion-content");
+          for (var i = 0; i < headers.length; i++) {
+            headers[i].classList.remove("active");
+            contents[i].classList.remove("active");
+          }
+          header.classList.add("active");
+          content.classList.add("active");
+        }
+      }
+    </script>
+
+    <!-- Bases de Dados Utilizadas -->
+    <div class="section">
+      <div class="section-title">Bases de dados utilizadas</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Fonte de dados</th>
+              <th class="th-num">Linhas / registros</th>
+              <th>Origem / Tabela</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Par&acirc;metros do Lan&ccedil;amento</strong></td>
+              <td class="numero">1 registro</td>
+              <td><code>dim_lancamentos</code> (Supabase)</td>
+            </tr>
+            <tr>
+              <td><strong>Typeform (pesquisa)</strong></td>
+              <td class="numero">{{ tf.total_tf | num }}</td>
+              <td><code>typeform_respostas</code> (Supabase)</td>
+            </tr>
+            <tr>
+              <td><strong>Active Campaign (CRM)</strong></td>
+              <td class="numero">{{ tf.leads_crm_total | num }}</td>
+              <td><code>leads</code> (Supabase)</td>
+            </tr>
+            <tr>
+              <td><strong>Vendas Hotmart</strong></td>
+              <td class="numero">{{ tf.vendas_hotmart_total | num }}</td>
+              <td><code>hotmart_clean_oficial</code> (Supabase)</td>
+            </tr>
+            <tr>
+              <td><strong>Vendas TMB</strong></td>
+              <td class="numero">{{ tf.vendas_tmb_total | num }}</td>
+              <td><code>tmb_clean_oficial</code> (Supabase)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% endif %}
+  </div>
+
+  <div class="footing">Gerado em tempo real via Brabo Analytics{% if launch %} &mdash; {{ launch.code }}{% endif %}</div>
+</div>
+{% endblock %}

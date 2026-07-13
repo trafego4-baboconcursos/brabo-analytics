@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Comparativo ABR-26 vs FEV-26 | Brabo Concursos</title>
+<link rel="icon" type="image/png" href="../img/favicon-brabo-concursos.png">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%);color:#333;line-height:1.5}
+.container{max-width:1300px;margin:20px auto;background:white;box-shadow:0 20px 60px rgba(0,0,0,.4);overflow:hidden;border-radius:10px}
+.header{background:white;padding:36px 40px;display:flex;align-items:center;gap:24px;border-bottom:3px solid #eee}
+.header img{max-width:110px;height:auto}
+.header h1{font-size:26px;color:#1a1a2e;margin-bottom:6px}
+.header p{font-size:13px;color:#666}
+.content{padding:40px}
+h2{margin:32px 0 14px;color:#1a1a2e;border-bottom:3px solid #1a1a2e;padding-bottom:8px;font-size:20px}
+h3{margin:18px 0 8px;color:#444;font-size:15px}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+table th{padding:10px 12px;text-align:left;font-weight:600}
+table td{padding:9px 12px;border-bottom:1px solid #eee;vertical-align:middle}
+table tr:hover{background:#fafafa}
+.th-fev{background:#667eea;color:white}
+.th-abr{background:#f5576c;color:white}
+.th-dark{background:#1a1a2e;color:white}
+.paradox{background:linear-gradient(135deg,#1a1a2e 0%,#0f3460 100%);color:white;padding:28px 36px;border-radius:10px;margin:20px 0;display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.paradox .block{flex:1;min-width:160px;text-align:center;padding:16px;border-radius:8px}
+.paradox .block.fev{background:rgba(102,126,234,.3);border:2px solid #667eea}
+.paradox .block.abr{background:rgba(245,87,108,.3);border:2px solid #f5576c}
+.paradox .block .label{font-size:11px;text-transform:uppercase;opacity:.8;margin-bottom:4px}
+.paradox .block .num{font-size:22px;font-weight:700}
+.paradox .arrow{font-size:32px;opacity:.6}
+.metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:16px 0}
+.mbox{padding:16px;border-radius:8px;border-left:4px solid #1a1a2e}
+.mbox.fev{border-color:#667eea;background:rgba(102,126,234,.06)}
+.mbox.abr{border-color:#f5576c;background:rgba(245,87,108,.06)}
+.mbox .label{font-size:11px;color:#666;text-transform:uppercase;margin-bottom:3px}
+.mbox .val{font-size:20px;font-weight:700;color:#1a1a2e}
+.mbox .sub{font-size:11px;color:#888;margin-top:2px}
+.cause{border-left:4px solid;padding:14px 18px;margin:10px 0;border-radius:0 6px 6px 0}
+.cause.red{border-color:#dc3545;background:#fff5f5}
+.cause.orange{border-color:#fd7e14;background:#fff8f0}
+.cause.yellow{border-color:#ffc107;background:#fffdf0}
+.cause.blue{border-color:#4285f4;background:#f0f4ff}
+.cause.purple{border-color:#764ba2;background:#f8f0ff}
+.action-box{background:#f0fff4;border-left:4px solid #28a745;padding:14px 18px;margin:10px 0;border-radius:0 6px 6px 0}
+.badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.badge.fev{background:#667eea;color:white}
+.badge.abr{background:#f5576c;color:white}
+.badge.warn{background:#ffc107;color:#333}
+.badge.ok{background:#28a745;color:white}
+.funil-wrap{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin:16px 0}
+.funil-step{padding:12px 16px;border-radius:6px;margin:4px 0;display:flex;justify-content:space-between;align-items:center}
+.section-intro{background:#f8f9fa;border-radius:6px;padding:14px;font-size:13px;color:#555;margin-bottom:16px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.footer{background:#f8f9fa;padding:24px;text-align:center;font-size:12px;color:#666;border-top:1px solid #eee;margin-top:40px}
+@media(max-width:800px){.two-col,.funil-wrap{grid-template-columns:1fr}.paradox{flex-direction:column}}
+</style>
+</head>
+<body>
+<!-- BRABO-NAV -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+<style id='brabo-ds-style'>
+/* ── Basis Design System — Brabo Analytics ──────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  /* Neutral ink scale */
+  --bs-ink:          #1f2330;
+  --bs-ink-muted:    #6b7280;
+  --bs-ink-subtle:   #9ca3af;
+
+  /* Surfaces */
+  --bs-bg:           #eef0f8;
+  --bs-surface:      #f6f7fb;
+  --bs-card:         #ffffff;
+  --bs-border:       #e5e7eb;
+  --bs-border-s:     #d1d5db;
+
+  /* Primary */
+  --bs-primary:      #2f5ee3;
+  --bs-primary-2:    #6aa8ff;
+  --bs-primary-bg:   #eef3ff;
+
+  /* Semantic */
+  --bs-success:      #31c16c;
+  --bs-success-bg:   #f0fdf4;
+  --bs-warning:      #f4b740;
+  --bs-warning-bg:   #fffbeb;
+  --bs-danger:       #f05454;
+  --bs-danger-bg:    #fef2f2;
+  --bs-info:         #3b82f6;
+  --bs-info-bg:      #eff6ff;
+
+  /* Sidebar */
+  --bs-sidebar:      #2f5ee3;
+  --bs-sidebar-dark: #2347b2;
+
+  /* Campaign accent (overridden inline per campaign) */
+  --bs-accent:       #2f5ee3;
+
+  /* Shadows */
+  --bs-sh-sm:  0 1px 3px rgba(0,0,0,.08);
+  --bs-sh-md:  0 4px 12px rgba(0,0,0,.10);
+  --bs-sh-lg:  0 12px 30px rgba(0,0,0,.12);
+  --bs-sh-xl:  0 20px 60px rgba(20,26,52,.18);
+
+  /* Radii */
+  --bs-r-sm:   6px;
+  --bs-r-md:   8px;
+  --bs-r-lg:   12px;
+  --bs-r-xl:   16px;
+  --bs-r-2xl:  20px;
+
+  /* Spacing */
+  --s1: 4px;   --s2: 8px;   --s3: 12px;  --s4: 16px;
+  --s5: 20px;  --s6: 24px;  --s8: 32px;  --s10: 40px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0 !important; padding: 0 !important;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--bs-ink);
+  background: var(--bs-bg);
+}
+
+/* ── Frame ───────────────────────────────────────────────────────────── */
+
+#bs-frame {
+  display: block;
+  min-height: 100vh;
+}
+
+/* ── Sidebar / App Drawer ─────────────────────────────────────────────── */
+
+#bs-drawer {
+  background: linear-gradient(180deg, var(--bs-sidebar) 0%, var(--bs-sidebar-dark) 100%);
+  color: #fff;
+  padding: 20px 14px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 240px;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  scrollbar-width: none;
+  z-index: 100;
+}
+#bs-drawer::-webkit-scrollbar { display: none; }
+
+/* Brand */
+.bs-brand {
+  display: flex; align-items: center; gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255,255,255,.15);
+  flex-shrink: 0;
+}
+.bs-brand a { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.bs-brand img { height: 26px; }
+.bs-brand-name { font-size: 12px; font-weight: 700; color: rgba(255,255,255,.9); }
+
+/* Campaign switcher */
+.bs-camp-switch {
+  display: flex; gap: 5px;
+  background: rgba(0,0,0,.2);
+  border-radius: var(--bs-r-lg);
+  padding: 4px;
+  flex-shrink: 0;
+}
+.bs-camp-btn {
+  flex: 1; padding: 6px 6px;
+  border: none; border-radius: var(--bs-r-md);
+  background: transparent; color: rgba(255,255,255,.6);
+  font-size: 11px; font-weight: 700;
+  cursor: pointer; text-decoration: none; text-align: center;
+  transition: background .15s, color .15s; white-space: nowrap;
+  line-height: 1.3;
+}
+.bs-camp-btn:hover  { background: rgba(255,255,255,.15); color: #fff; }
+.bs-camp-btn.active { background: var(--bs-accent); color: #fff; }
+
+/* Nav */
+.bs-nav { display: flex; flex-direction: column; gap: 1px; flex: 1; min-height: 0; }
+
+.bs-nav-sep {
+  height: 1px; background: rgba(255,255,255,.12);
+  margin: 6px 0;
+}
+.bs-nav-group {
+  font-size: 10px; font-weight: 700;
+  color: rgba(255,255,255,.4);
+  text-transform: uppercase; letter-spacing: .08em;
+  padding: 10px 8px 3px;
+}
+.bs-nav-link {
+  display: flex; align-items: center; gap: 8px;
+  color: rgba(255,255,255,.75); text-decoration: none;
+  padding: 7px 10px; border-radius: var(--bs-r-md);
+  font-size: 13px; font-weight: 500;
+  transition: background .12s, color .12s;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.bs-nav-link:hover  { background: rgba(255,255,255,.14); color: #fff; }
+.bs-nav-link.active { background: rgba(255,255,255,.22); color: #fff; font-weight: 700; }
+.bs-nav-icon { display: flex; align-items: center; flex-shrink: 0; }
+.bs-nav-icon i { font-size: 15px; line-height: 1; opacity: .85; }
+.bs-comp-link i { font-size: 14px; line-height: 1; vertical-align: middle; }
+
+/* Drawer footer */
+.bs-drawer-footer {
+  margin-top: auto; padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,.15);
+  flex-shrink: 0;
+}
+.bs-comp-link {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.22);
+  color: #fff; text-decoration: none; padding: 9px 12px;
+  border-radius: var(--bs-r-lg); font-size: 11px; font-weight: 700;
+  transition: background .15s; text-align: center;
+}
+.bs-comp-link:hover { background: rgba(255,255,255,.24); }
+
+/* ── Main content area ───────────────────────────────────────────────── */
+
+#bs-main {
+  background: var(--bs-surface);
+  min-width: 0;
+  overflow-x: hidden;
+  margin-left: 240px;
+}
+
+/* ── Legacy override: existing .wrap content inside sidebar layout ────── */
+
+body   { background: var(--bs-bg) !important; padding-top: 0 !important; }
+
+#bs-main .wrap {
+  max-width: 100% !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+#bs-main .hdr {
+  border-radius: 0 !important;
+  border-bottom: 1px solid var(--bs-border);
+  position: sticky; top: 0; z-index: 50;
+}
+#bs-main .content { padding: 24px 32px; }
+
+/* Accent-aware section titles and table headers */
+#bs-main .section-title  { border-bottom-color: var(--bs-accent) !important; }
+#bs-main table th        { background: var(--bs-accent) !important; }
+#bs-main .kpi-grid,
+#bs-main .kpis           { gap: 12px; }
+#bs-main .note {
+  background: var(--bs-info-bg);
+  border-left-color: var(--bs-info);
+}
+
+/* ── Design System Components ────────────────────────────────────────── */
+
+/* Stat row */
+.bs-stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--s3);
+  margin-bottom: var(--s4);
+}
+.bs-stat {
+  background: #f7f8fc;
+  border-radius: var(--bs-r-lg);
+  padding: var(--s4);
+  display: flex; flex-direction: column; gap: 4px;
+  border-top: 3px solid var(--bs-accent);
+}
+.bs-stat-label {
+  font-size: 11px; color: var(--bs-ink-muted);
+  text-transform: uppercase; letter-spacing: .05em; font-weight: 600;
+}
+.bs-stat-value { font-size: 22px; font-weight: 800; color: var(--bs-ink); line-height: 1.1; }
+.bs-stat-delta { font-size: 11px; font-weight: 600; }
+.bs-stat-delta.up      { color: var(--bs-success); }
+.bs-stat-delta.down    { color: var(--bs-danger); }
+.bs-stat-delta.neutral { color: var(--bs-ink-muted); }
+
+/* Card */
+.bs-card {
+  background: var(--bs-card);
+  border-radius: var(--bs-r-xl);
+  padding: var(--s5);
+  box-shadow: var(--bs-sh-md);
+  margin-bottom: var(--s5);
+}
+.bs-card-title {
+  font-size: 14px; font-weight: 700; color: var(--bs-ink);
+  border-bottom: 2px solid var(--bs-accent);
+  padding-bottom: var(--s2); margin-bottom: var(--s4);
+  display: flex; align-items: center; gap: var(--s2);
+}
+
+/* Badge */
+.bs-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 11px; padding: 2px 8px; border-radius: 999px;
+  background: var(--bs-primary-bg); color: var(--bs-primary);
+  font-weight: 600;
+}
+.bs-badge.success { background: var(--bs-success-bg); color: var(--bs-success); }
+.bs-badge.warning { background: var(--bs-warning-bg); color: #92400e; }
+.bs-badge.danger  { background: var(--bs-danger-bg);  color: var(--bs-danger); }
+.bs-badge.neutral { background: #f3f4f6; color: var(--bs-ink-muted); }
+
+/* Pill */
+.bs-pill {
+  display: inline-block; padding: 3px 10px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; color: #fff; white-space: nowrap;
+}
+.bs-pill.success { background: var(--bs-success); }
+.bs-pill.warning { background: var(--bs-warning); color: #1a1a2e; }
+.bs-pill.danger  { background: var(--bs-danger); }
+.bs-pill.info    { background: var(--bs-info); }
+.bs-pill.neutral { background: var(--bs-border-s); color: var(--bs-ink); }
+.bs-pill.accent  { background: var(--bs-accent); }
+
+/* Flash / Alert */
+.bs-flash {
+  padding: var(--s3) var(--s4);
+  border-radius: var(--bs-r-md);
+  border-left: 4px solid var(--bs-info);
+  background: var(--bs-info-bg);
+  font-size: 13px; color: var(--bs-ink); line-height: 1.6;
+  margin-bottom: var(--s4);
+}
+.bs-flash.success { border-color: var(--bs-success); background: var(--bs-success-bg); }
+.bs-flash.warning { border-color: var(--bs-warning); background: var(--bs-warning-bg); }
+.bs-flash.danger  { border-color: var(--bs-danger);  background: var(--bs-danger-bg); }
+
+/* Progress bar */
+.bs-bar-track {
+  background: #e5e7eb; border-radius: 4px; height: 8px; overflow: hidden;
+}
+.bs-bar-fill {
+  height: 100%; border-radius: 4px;
+  background: var(--bs-accent);
+  transition: width .3s ease;
+}
+
+/* Table */
+.bs-table-wrap {
+  border: 1px solid var(--bs-border);
+  border-radius: var(--bs-r-lg);
+  overflow: hidden;
+  margin-top: var(--s3);
+}
+.bs-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.bs-table th {
+  background: var(--bs-accent); color: #fff;
+  padding: 10px 12px; text-align: left;
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.bs-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--bs-border);
+  vertical-align: middle;
+}
+.bs-table tr:last-child td { border-bottom: none; }
+.bs-table tr:hover td { background: var(--bs-primary-bg); }
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+  #bs-frame { grid-template-columns: 1fr; }
+  #bs-drawer { height: auto; position: relative; flex-direction: row; flex-wrap: wrap; }
+  #bs-main { margin-left: 0; }
+  .bs-nav { flex-direction: row; flex-wrap: wrap; }
+  .bs-drawer-footer { margin-top: 0; }
+}
+
+/* ── Animations & Enhancements ────────────────────────────────────────── */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.wrap, .container {
+  animation: fadeInUp 0.45s ease-out forwards;
+}
+
+.bs-stat, .bs-card, .section {
+  animation: fadeInUp 0.45s ease-out forwards;
+}
+
+/* Total row highlights */
+.bs-table tr.total-row td,
+table tr.total-row td {
+  background: var(--bs-primary-bg) !important;
+  font-weight: 700 !important;
+  border-top: 2px double var(--bs-accent) !important;
+  border-bottom: 2px solid var(--bs-accent) !important;
+}
+
+/* Sortable Table Styles */
+.bs-table th.sortable-header,
+table th.sortable-header {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+.bs-table th.sortable-header:hover,
+table th.sortable-header:hover {
+  background-color: rgba(0, 0, 0, 0.15) !important;
+}
+.sort-indicator {
+  margin-left: 6px;
+  display: inline-block;
+  vertical-align: middle;
+}
+</style>
+<style id='brabo-accent'>:root{--bs-accent:#2f5ee3}</style>
+<script id="brabo-global-js">
+document.addEventListener("DOMContentLoaded", function() {
+  // 1. Identificar linhas de totalização
+  document.querySelectorAll("table, .bs-table").forEach(function(table) {
+    table.querySelectorAll("tbody tr").forEach(function(row) {
+      if (row.cells.length > 0) {
+        var firstCellText = row.cells[0].innerText.toLowerCase();
+        if (firstCellText.includes("total") || firstCellText.includes("media") || firstCellText.includes("consolidado")) {
+          row.classList.add("total-row");
+        }
+      }
+    });
+  });
+
+  // 2. Ordenação automática de tabelas
+  document.querySelectorAll(".bs-table, table").forEach(function(table) {
+    var headers = table.querySelectorAll("thead th");
+    if (!headers.length) return;
+    
+    var sortIndex = -1;
+    var sortDirection = 1;
+    
+    headers.forEach(function(header, index) {
+      if (header.closest("#bs-drawer")) return;
+      
+      header.classList.add("sortable-header");
+      header.setAttribute("title", "Clique para ordenar esta coluna");
+      
+      header.addEventListener("click", function() {
+        var tbody = table.querySelector("tbody");
+        if (!tbody) return;
+        var rows = Array.from(tbody.querySelectorAll("tr"));
+        
+        var totalRows = [];
+        var dataRows = rows.filter(function(row) {
+          if (row.classList.contains("total-row")) {
+            totalRows.push(row);
+            return false;
+          }
+          return true;
+        });
+        
+        if (sortIndex === index) {
+          sortDirection = -sortDirection;
+        } else {
+          sortDirection = -1;
+          sortIndex = index;
+        }
+        
+        headers.forEach(function(h) {
+          var ind = h.querySelector(".sort-indicator");
+          if (ind) ind.remove();
+        });
+        
+        var indSpan = document.createElement("span");
+        indSpan.className = "sort-indicator";
+        indSpan.style.opacity = "0.8";
+        indSpan.style.fontSize = "9px";
+        indSpan.innerHTML = sortDirection === 1 ? '<i class="ti ti-chevron-up"></i>' : '<i class="ti ti-chevron-down"></i>';
+        header.appendChild(indSpan);
+        
+        dataRows.sort(function(a, b) {
+          var cellA = a.cells[index];
+          var cellB = b.cells[index];
+          if (!cellA || !cellB) return 0;
+          
+          var valA = cellA.getAttribute("data-val") !== null ? cellA.getAttribute("data-val") : cellA.innerText;
+          var valB = cellB.getAttribute("data-val") !== null ? cellB.getAttribute("data-val") : cellB.innerText;
+          
+          var cleanA = parseFloat(valA.toString().replace(/[R$\s%]/g, "").replace(/\./g, "").replace(",", "."));
+          var cleanB = parseFloat(valB.toString().replace(/[R$\s%]/g, "").replace(/\./g, "").replace(",", "."));
+          
+          if (!isNaN(cleanA) && !isNaN(cleanB)) {
+            return (cleanA - cleanB) * sortDirection;
+          }
+          return valA.toString().localeCompare(valB.toString()) * sortDirection;
+        });
+        
+        tbody.innerHTML = "";
+        dataRows.forEach(function(r) { tbody.appendChild(r); });
+        totalRows.forEach(function(r) { tbody.appendChild(r); });
+      });
+    });
+  });
+
+  // 3. Filtro de busca rápida dinâmico
+  document.querySelectorAll(".bs-table, table").forEach(function(table) {
+    if (table.closest("#bs-drawer")) return;
+    
+    var tbody = table.querySelector("tbody");
+    if (!tbody) return;
+    var rows = tbody.querySelectorAll("tr");
+    
+    var dataRowsCount = Array.from(rows).filter(function(r) { return !r.classList.contains("total-row"); }).length;
+    if (dataRowsCount <= 5) return;
+    
+    var filterContainer = document.createElement("div");
+    filterContainer.className = "table-filter-wrap";
+    filterContainer.style.display = "flex";
+    filterContainer.style.alignItems = "center";
+    filterContainer.style.gap = "8px";
+    filterContainer.style.margin = "12px 0 8px";
+    
+    var searchIcon = document.createElement("i");
+    searchIcon.className = "ti ti-search";
+    searchIcon.style.color = "var(--bs-ink-subtle)";
+    searchIcon.style.fontSize = "16px";
+    
+    var filterInput = document.createElement("input");
+    filterInput.type = "text";
+    filterInput.placeholder = "Filtrar tabela...";
+    filterInput.style.padding = "6px 12px 6px 30px";
+    filterInput.style.fontSize = "13px";
+    filterInput.style.border = "1px solid var(--bs-border)";
+    filterInput.style.borderRadius = "var(--bs-r-md)";
+    filterInput.style.outline = "none";
+    filterInput.style.width = "220px";
+    filterInput.style.fontFamily = "inherit";
+    filterInput.style.color = "var(--bs-ink)";
+    filterInput.style.background = "var(--bs-card)";
+    
+    var wrapper = document.createElement("div");
+    wrapper.style.position = "relative";
+    wrapper.style.display = "inline-flex";
+    wrapper.style.alignItems = "center";
+    
+    searchIcon.style.position = "absolute";
+    searchIcon.style.left = "10px";
+    searchIcon.style.pointerEvents = "none";
+    
+    wrapper.appendChild(searchIcon);
+    wrapper.appendChild(filterInput);
+    filterContainer.appendChild(wrapper);
+    
+    filterInput.addEventListener("input", function() {
+      var query = filterInput.value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+      rows.forEach(function(row) {
+        if (row.classList.contains("total-row")) return;
+        var text = row.innerText.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+        if (text.indexOf(query) > -1) {
+          row.style.display = "";
+        } else {
+          row.style.display = "none";
+        }
+      });
+    });
+    
+    var parent = table.parentElement;
+    if (parent && parent.classList.contains("bs-table-wrap")) {
+      parent.parentElement.insertBefore(filterContainer, parent);
+    } else {
+      table.parentElement.insertBefore(filterContainer, table);
+    }
+  });
+});
+</script>
+<div id="bs-frame">
+  <aside id="bs-drawer">
+    <div class="bs-brand">
+      <a href="index.html"><img src="../img/logo-brabo-concursos.png" alt="Brabo Analytics"><span class="bs-brand-name">Brabo Analytics</span></a>
+    </div>
+    <div class="bs-camp-switch"><a class="bs-camp-btn" href="[PES-JAN-26]/INDEX_[PES-JAN-26].html" style="--bs-accent:#764ba2">JAN</a><a class="bs-camp-btn" href="[PBB-FEV-26]/INDEX_[PBB-FEV-26].html" style="--bs-accent:#667eea">FEV</a><a class="bs-camp-btn" href="[PBB-ABR-26]/INDEX_[PBB-ABR-26].html" style="--bs-accent:#f5576c">ABR</a><a class="bs-camp-btn" href="[PES-MAI-26]/INDEX_[PES-MAI-26].html" style="--bs-accent:#0f766e">MAI</a></div>
+    <nav class="bs-nav">
+<div class="bs-nav-group">Campanhas</div>
+<a class="bs-nav-link" href="[PES-JAN-26]/INDEX_[PES-JAN-26].html"><span class="bs-nav-icon"><i class="ti ti-calendar-event"></i></span>PES-JAN-26</a>
+<a class="bs-nav-link" href="[PBB-FEV-26]/INDEX_[PBB-FEV-26].html"><span class="bs-nav-icon"><i class="ti ti-calendar-event"></i></span>PBB-FEV-26</a>
+<a class="bs-nav-link" href="[PBB-ABR-26]/INDEX_[PBB-ABR-26].html"><span class="bs-nav-icon"><i class="ti ti-calendar-event"></i></span>PBB-ABR-26</a>
+<a class="bs-nav-link" href="[PES-MAI-26]/INDEX_[PES-MAI-26].html"><span class="bs-nav-icon"><i class="ti ti-calendar-event"></i></span>PES-MAI-26</a>
+    </nav>
+    <div class="bs-drawer-footer">
+      <a class="bs-comp-link active" href="COMPARATIVO_ABR_FEV_2026.html"><i class="ti ti-chart-bar"></i>&nbsp;ABR&nbsp;&times;&nbsp;FEV</a>
+    </div>
+  </aside>
+  <main id="bs-main">
+<!-- /BRABO-NAV -->
+
+
+
+
+
+
+
+
+
+
+
+<div class="container">
+
+<!-- HEADER -->
+<div class="header">
+  <a href="#"><img src="../img/logo-brabo-concursos.png" alt="Brabo Concursos"></a>
+  <div>
+    <h1>📊 Comparativo de Campanhas — PBB 2026</h1>
+    <p>Por que ABR-26 vendeu <strong>menos</strong> investindo <strong>mais</strong> que FEV-26? Análise detalhada com diagnóstico e plano de ação.</p>
+    <p style="margin-top:4px;color:#999">Gerado em 27/05/2026 às 10:32 | Dados: Active Campaign, Hotmart, TMB, Meta Ads, Google Ads</p>
+  </div>
+</div>
+
+<div class="content">
+
+<!-- O PARADOXO -->
+<h2>⚡ O Paradoxo</h2>
+<div class="paradox">
+  <div class="block fev">
+    <div class="label">FEV-26</div>
+    <div class="num">R$ 311.256,17</div>
+    <div class="label" style="margin-top:6px">Investido</div>
+    <div class="num" style="font-size:28px;margin-top:10px">798</div>
+    <div class="label">vendas</div>
+    <div class="num" style="font-size:18px;margin-top:8px">R$ 1.275.352,51</div>
+    <div class="label">faturamento</div>
+  </div>
+  <div class="arrow">→</div>
+  <div style="flex:1.5;text-align:center;color:white;padding:16px">
+    <div style="font-size:13px;opacity:.7;margin-bottom:8px">DIFERENÇA ABR vs FEV</div>
+    <div style="font-size:36px;font-weight:700;color:#ffc107">+17%</div>
+    <div style="font-size:13px;margin-bottom:12px;opacity:.8">mais investimento</div>
+    <div style="font-size:36px;font-weight:700;color:#ff6b6b">-31%</div>
+    <div style="font-size:13px;opacity:.8">menos vendas</div>
+    <div style="font-size:12px;margin-top:16px;opacity:.6">+24% mais leads, -31% menos faturamento</div>
+  </div>
+  <div class="arrow">←</div>
+  <div class="block abr">
+    <div class="label">ABR-26</div>
+    <div class="num">R$ 362.711,69</div>
+    <div class="label" style="margin-top:6px">Investido</div>
+    <div class="num" style="font-size:28px;margin-top:10px">548</div>
+    <div class="label">vendas</div>
+    <div class="num" style="font-size:18px;margin-top:8px">R$ 878.092,10</div>
+    <div class="label">faturamento</div>
+  </div>
+</div>
+
+<!-- SCORECARD -->
+<h2>📋 Scorecard Comparativo</h2>
+<div class="section-intro">Todos os indicadores principais lado a lado. A seta indica a direção do ABR-26 em relação ao FEV-26.</div>
+<table>
+<tr>
+  <th class="th-dark">Indicador</th>
+  <th class="th-fev" style="text-align:right">🟣 FEV-26</th>
+  <th class="th-abr" style="text-align:right">🔴 ABR-26</th>
+</tr>
+<tr><td style='font-weight:600'>Investimento Total</td><td style='text-align:right'>R$ 311.256,17</td><td style='text-align:right'>R$ 362.711,69 <span style="color:#dc3545;font-size:12px;font-weight:600">▲ 16.5%</span></td></tr>
+<tr><td style='font-weight:600'>↳ Captação (Meta+Google)</td><td style='text-align:right'>R$ 252.005,43</td><td style='text-align:right'>R$ 306.518,26 <span style="color:#dc3545;font-size:12px;font-weight:600">▲ 21.6%</span></td></tr>
+<tr><td style='font-weight:600'>↳ Alcance/Engaj/Aulas</td><td style='text-align:right'>R$ 59.250,74</td><td style='text-align:right'>R$ 56.193,43 <span style="color:#dc3545;font-size:12px;font-weight:600">▼ 5.2%</span></td></tr>
+<tr><td style='font-weight:600'>↳ Meta Ads (total)</td><td style='text-align:right'>R$ 107.426,39</td><td style='text-align:right'>R$ 174.864,45 <span style="color:#dc3545;font-size:12px;font-weight:600">▲ 62.8%</span></td></tr>
+<tr><td style='font-weight:600'>↳ Google Ads (total)</td><td style='text-align:right'>R$ 203.829,78</td><td style='text-align:right'>R$ 187.847,24 <span style="color:#28a745;font-size:12px;font-weight:600">▼ 7.8%</span></td></tr>
+<tr><td style='font-weight:600'>Leads no CRM</td><td style='text-align:right'>69.205</td><td style='text-align:right'>86.025 <span style="color:#28a745;font-size:12px;font-weight:600">▲ 24.3%</span></td></tr>
+<tr><td style='font-weight:600'>CPL — captação</td><td style='text-align:right'>R$ 3,64</td><td style='text-align:right'>R$ 3,56 <span style="color:#28a745;font-size:12px;font-weight:600">▼ 2.2%</span></td></tr>
+<tr><td style='font-weight:600'>Vendas Totais</td><td style='text-align:right'>798</td><td style='text-align:right'>548 <span style="color:#dc3545;font-size:12px;font-weight:600">▼ 31.3%</span></td></tr>
+<tr><td style='font-weight:600'>↳ Hotmart</td><td style='text-align:right'>503</td><td style='text-align:right'>378 <span style="color:#dc3545;font-size:12px;font-weight:600">▼ 24.9%</span></td></tr>
+<tr><td style='font-weight:600'>↳ TMB (Boleto)</td><td style='text-align:right'>295</td><td style='text-align:right'>170 <span style="color:#dc3545;font-size:12px;font-weight:600">▼ 42.4%</span></td></tr>
+<tr><td style='font-weight:600'>Faturamento Total</td><td style='text-align:right'>R$ 1.275.352,51</td><td style='text-align:right'>R$ 878.092,10 <span style="color:#dc3545;font-size:12px;font-weight:600">▼ 31.1%</span></td></tr>
+<tr><td style='font-weight:600'>Ticket Médio</td><td style='text-align:right'>R$ 1.598,19</td><td style='text-align:right'>R$ 1.602,36 <span style="color:#28a745;font-size:12px;font-weight:600">▲ 0.3%</span></td></tr>
+<tr><td style='font-weight:600'>ROAS (s/ captação)</td><td style='text-align:right'>5.06x</td><td style='text-align:right'>2.86x <span style="color:#dc3545;font-size:12px;font-weight:600">▼ 43.5%</span></td></tr>
+<tr><td style='font-weight:600'>Taxa Conv. CRM→Venda</td><td style='text-align:right'>0,94%</td><td style='text-align:right'>0,50% <span style="color:#dc3545;font-size:12px;font-weight:600">▼ 46.8%</span></td></tr>
+<tr><td style='font-weight:600'>CPA por Venda (captação)</td><td style='text-align:right'>R$ 315,80</td><td style='text-align:right'>R$ 559,34 <span style="color:#dc3545;font-size:12px;font-weight:600">▲ 77.1%</span></td></tr>
+<tr><td style='font-weight:600'>N° Campanhas Google</td><td style='text-align:right'>24</td><td style='text-align:right'>51 <span style="color:#dc3545;font-size:12px;font-weight:600">▲ 112.5%</span></td></tr>
+<tr><td style='font-weight:600'>Conversões Google</td><td style='text-align:right'>35.802</td><td style='text-align:right'>28.456 <span style="color:#dc3545;font-size:12px;font-weight:600">▼ 20.5%</span></td></tr>
+<tr><td style='font-weight:600'>CPC Google Ads</td><td style='text-align:right'>R$ 179,09</td><td style='text-align:right'>R$ 22,08 <span style="color:#28a745;font-size:12px;font-weight:600">▼ 87.7%</span></td></tr>
+<tr><td style='font-weight:600'>CTR Google Ads</td><td style='text-align:right'>0,00%</td><td style='text-align:right'>0,02% <span style="color:#28a745;font-size:12px;font-weight:600">▲ 0.0%</span></td></tr>
+</table>
+
+<!-- FUNIL COMPARADO -->
+<h2>🔽 Funil de Conversão Comparado</h2>
+<div class="section-intro">O funil revela onde cada campanha perdeu eficiência. O número que mais importa: a <strong>taxa CRM → Venda</strong>.</div>
+<div class="funil-wrap">
+  <div>
+    <div style="text-align:center;margin-bottom:10px"><span class="badge fev" style="font-size:14px;padding:4px 16px">FEV-26</span></div>
+    <div class="funil-step" style="background:rgba(102,126,234,0.08);margin-bottom:2px"><span style="font-weight:600;font-size:13px">Leads capturados</span><span style="font-size:18px;font-weight:700;color:#667eea">69.205<span style="font-size:11px;color:#888;margin-left:6px">100.00%</span></span></div><div class="funil-step" style="background:rgba(102,126,234,0.15000000000000002);margin-bottom:2px"><span style="font-weight:600;font-size:13px">Com UTM rastreado</span><span style="font-size:18px;font-weight:700;color:#667eea">65.545<span style="font-size:11px;color:#888;margin-left:6px">94.71%</span></span></div><div class="funil-step" style="background:rgba(102,126,234,0.22000000000000003);margin-bottom:2px"><span style="font-weight:600;font-size:13px">Vinculados a venda</span><span style="font-size:18px;font-weight:700;color:#667eea">650<span style="font-size:11px;color:#888;margin-left:6px">0.94%</span></span></div><div class="funil-step" style="background:rgba(102,126,234,0.29000000000000004);margin-bottom:2px"><span style="font-weight:600;font-size:13px">Vendas realizadas</span><span style="font-size:18px;font-weight:700;color:#667eea">798<span style="font-size:11px;color:#888;margin-left:6px">1.15%</span></span></div>
+  </div>
+  <div>
+    <div style="text-align:center;margin-bottom:10px"><span class="badge abr" style="font-size:14px;padding:4px 16px">ABR-26</span></div>
+    <div class="funil-step" style="background:rgba(245,87,108,0.06);margin-bottom:2px"><span style="font-weight:600;font-size:13px">Leads capturados</span><span style="font-size:18px;font-weight:700;color:#f5576c">86.025<span style="font-size:11px;color:#888;margin-left:6px">100.00%</span></span></div><div class="funil-step" style="background:rgba(245,87,108,0.12);margin-bottom:2px"><span style="font-weight:600;font-size:13px">Com UTM rastreado</span><span style="font-size:18px;font-weight:700;color:#f5576c">84.255<span style="font-size:11px;color:#888;margin-left:6px">97.94%</span></span></div><div class="funil-step" style="background:rgba(245,87,108,0.18);margin-bottom:2px"><span style="font-weight:600;font-size:13px">Vinculados a venda</span><span style="font-size:18px;font-weight:700;color:#f5576c">433<span style="font-size:11px;color:#888;margin-left:6px">0.50%</span></span></div><div class="funil-step" style="background:rgba(245,87,108,0.24);margin-bottom:2px"><span style="font-weight:600;font-size:13px">Vendas realizadas</span><span style="font-size:18px;font-weight:700;color:#f5576c">548<span style="font-size:11px;color:#888;margin-left:6px">0.64%</span></span></div>
+  </div>
+</div>
+<div class="cause red" style="margin-top:8px">
+  <strong>⚠️ Taxa de conversão CRM→Venda: FEV 0,94% → ABR 0,50%</strong> — queda de <strong>-46%</strong>.
+  ABR captou <strong>16.820 leads a mais</strong>, mas converteu proporcionalmente muito menos. O problema não foi o volume — foi a qualidade ou o processo de venda.
+</div>
+
+<!-- QUALIDADE DO LEAD POR PLATAFORMA -->
+<h2>🎯 Qualidade do Lead por Plataforma</h2>
+<div class="section-intro">Taxa de conversão (lead → comprador) segmentada por plataforma de origem. Revela qual canal trouxe leads de maior intenção de compra.</div>
+<table>
+<tr>
+  <th class="th-dark">Plataforma</th>
+  <th class="th-fev" style="text-align:right">Leads FEV</th>
+  <th class="th-fev" style="text-align:right">Compradores</th>
+  <th class="th-fev" style="text-align:right">Taxa FEV</th>
+  <th class="th-abr" style="text-align:right">Leads ABR</th>
+  <th class="th-abr" style="text-align:right">Compradores</th>
+  <th class="th-abr" style="text-align:right">Taxa ABR</th>
+</tr>
+<tr><td>Facebook</td><td style='text-align:right'>33.953</td><td style='text-align:right'>203</td><td style='text-align:right'>0,60%</td><td style='text-align:right'>62.125 <span style="color:#28a745;font-size:12px;font-weight:600">▲ 83.0%</span></td><td style='text-align:right'>198</td><td style='text-align:right'>0,32% <span style="color:#dc3545;font-size:12px;font-weight:600">▼ 46.7%</span></td></tr><tr><td>YouTube</td><td style='text-align:right'>31.048</td><td style='text-align:right'>369</td><td style='text-align:right'>1,19%</td><td style='text-align:right'>21.232 <span style="color:#dc3545;font-size:12px;font-weight:600">▼ 31.6%</span></td><td style='text-align:right'>204</td><td style='text-align:right'>0,96% <span style="color:#dc3545;font-size:12px;font-weight:600">▼ 19.2%</span></td></tr>
+</table>
+
+<!-- META ADS -->
+<h2>📱 Meta Ads — Comparativo</h2>
+<div class="metric-grid">
+  <div class="mbox fev"><div class="label">Investimento FEV</div><div class="val">R$ 107.426,39</div><div class="sub">28 anúncios únicos</div></div>
+  <div class="mbox fev"><div class="label">Leads Meta FEV</div><div class="val">33.746</div><div class="sub">CPL Meta R$ 3,18</div></div>
+  <div class="mbox abr"><div class="label">Investimento ABR</div><div class="val">R$ 174.864,45</div><div class="sub">40 anúncios únicos <span style="color:#dc3545;font-size:12px;font-weight:600">▲ 42.9%</span></div></div>
+  <div class="mbox abr"><div class="label">Leads Meta ABR</div><div class="val">59.524</div><div class="sub">CPL Meta R$ 2,94 <span style="color:#28a745;font-size:12px;font-weight:600">▼ 7.7%</span></div></div>
+</div>
+
+<h3>Top 5 Anúncios por Investimento — FEV-26</h3>
+<table style="width:100%">
+<tr>
+  <th class="th-fev">Anúncio</th>
+  <th class="th-fev" style="text-align:right">Investimento</th>
+  <th class="th-fev" style="text-align:right">Leads</th>
+  <th class="th-fev" style="text-align:right">Vendas</th>
+  <th class="th-fev" style="text-align:right">CPL</th>
+  <th class="th-fev" style="text-align:right">Custo/Venda</th>
+  <th class="th-fev" style="text-align:right">Total Vendido</th>
+</tr>
+<tr><td><small>AD058 -  Casa do Thales - PBB-FEV-26</small></td><td style='text-align:right'>R$ 19.116,39</td><td style='text-align:right'>6.091</td><td style='text-align:right'>62</td><td style='text-align:right'>R$ 3,14</td><td style='text-align:right'>R$ 308,33</td><td style='text-align:right'>R$ 100.412,68</td></tr><tr><td><small>AD092 - Dois personagens casa do Thales - PBB-FE…</small></td><td style='text-align:right'>R$ 13.089,49</td><td style='text-align:right'>5.322</td><td style='text-align:right'>39</td><td style='text-align:right'>R$ 2,46</td><td style='text-align:right'>R$ 335,63</td><td style='text-align:right'>R$ 62.322,09</td></tr><tr><td><small>AD059 - Fachada Banco do Brasil + cx nova - PBB-…</small></td><td style='text-align:right'>R$ 11.957,81</td><td style='text-align:right'>4.669</td><td style='text-align:right'>20</td><td style='text-align:right'>R$ 2,56</td><td style='text-align:right'>R$ 597,89</td><td style='text-align:right'>R$ 32.324,21</td></tr><tr><td><small>AD097 - Carro + cx - PBB-FEV-26</small></td><td style='text-align:right'>R$ 10.486,75</td><td style='text-align:right'>3.781</td><td style='text-align:right'>52</td><td style='text-align:right'>R$ 2,77</td><td style='text-align:right'>R$ 201,67</td><td style='text-align:right'>R$ 84.043,14</td></tr><tr><td><small>AD054 - Banco do Brasil + IA - PBB-FEV-26</small></td><td style='text-align:right'>R$ 10.116,38</td><td style='text-align:right'>4.568</td><td style='text-align:right'>44</td><td style='text-align:right'>R$ 2,21</td><td style='text-align:right'>R$ 229,92</td><td style='text-align:right'>R$ 70.941,09</td></tr>
+</table>
+
+<h3>Top 5 Anúncios por Investimento — ABR-26</h3>
+<table style="width:100%">
+<tr>
+  <th class="th-abr">Anúncio</th>
+  <th class="th-abr" style="text-align:right">Investimento</th>
+  <th class="th-abr" style="text-align:right">Leads</th>
+  <th class="th-abr" style="text-align:right">Vendas</th>
+  <th class="th-abr" style="text-align:right">CPL</th>
+  <th class="th-abr" style="text-align:right">Custo/Venda</th>
+  <th class="th-abr" style="text-align:right">Total Vendido</th>
+</tr>
+<tr><td><small>AD054 - Banco do Brasil + IA - PBB-ABR-26</small></td><td style='text-align:right'>R$ 26.299,58</td><td style='text-align:right'>11.669</td><td style='text-align:right'>38</td><td style='text-align:right'>R$ 2,25</td><td style='text-align:right'>R$ 692,09</td><td style='text-align:right'>R$ 59.662,40</td></tr><tr><td><small>AD113 - Dois personagens ape do Felipe - PBB-ABR…</small></td><td style='text-align:right'>R$ 24.663,34</td><td style='text-align:right'>10.493</td><td style='text-align:right'>52</td><td style='text-align:right'>R$ 2,35</td><td style='text-align:right'>R$ 474,30</td><td style='text-align:right'>R$ 84.445,77</td></tr><tr><td><small>AD109 - Fachada Banco do Brasil com cx PBB-ABR-2…</small></td><td style='text-align:right'>R$ 20.743,81</td><td style='text-align:right'>8.335</td><td style='text-align:right'>20</td><td style='text-align:right'>R$ 2,49</td><td style='text-align:right'>R$ 1.037,19</td><td style='text-align:right'>R$ 32.633,13</td></tr><tr><td><small>AD110 - Banco do Brasil 2 - cx nova - PBB-ABR-26</small></td><td style='text-align:right'>R$ 20.401,41</td><td style='text-align:right'>8.053</td><td style='text-align:right'>44</td><td style='text-align:right'>R$ 2,53</td><td style='text-align:right'>R$ 463,67</td><td style='text-align:right'>R$ 71.069,95</td></tr><tr><td><small>AD050 - Banco do Brasil 2 - cx nova - PBB-ABR-26</small></td><td style='text-align:right'>R$ 18.922,74</td><td style='text-align:right'>8.061</td><td style='text-align:right'>55</td><td style='text-align:right'>R$ 2,35</td><td style='text-align:right'>R$ 344,05</td><td style='text-align:right'>R$ 89.204,08</td></tr>
+</table>
+
+<h3>Overlap de Criativos</h3>
+<div class="metric-grid">
+  <div class="mbox fev"><div class="label">Exclusivos FEV</div><div class="val">6</div><div class="sub">códigos ADXXX só no FEV</div></div>
+  <div class="mbox" style="border-color:#1a1a2e"><div class="label">Em Comum</div><div class="val">21</div><div class="sub">mesmo código ADXXX em FEV e ABR</div></div>
+  <div class="mbox abr"><div class="label">Exclusivos ABR</div><div class="val">16</div><div class="sub">códigos ADXXX novos no ABR</div></div>
+</div>
+<div class="cause blue">
+  <strong>📌 Critério de validação:</strong> consideramos "criativo validado" quando o <strong>código ADXXX</strong> aparece nos dois lançamentos.
+  Neste recorte, <strong>21 códigos ADXXX foram reutilizados</strong> do FEV no ABR (AD04, AD049, AD050, AD054, AD058, AD059, AD071, AD09, AD091, AD092...).
+  Já os códigos presentes apenas em ABR (16) são tratados como <strong>criativos novos</strong> neste comparativo.
+</div>
+
+<!-- GOOGLE ADS -->
+<h2>🔍 Google Ads — Comparativo Estratégico</h2>
+<div class="section-intro">
+  <strong>Esta é a maior divergência entre as campanhas.</strong>
+  O Google em FEV fechou com <strong>mais conversões e CPA melhor</strong>.
+  O ABR trouxe <strong>mais cliques, CTR maior e mais campanhas</strong>, mas monetizou pior, o que sugere fragmentação e desalinhamento de objetivo entre campanhas.
+</div>
+
+<div class="metric-grid">
+  <div class="mbox fev"><div class="label">Investimento GA FEV</div><div class="val">R$ 203.829,78</div></div>
+  <div class="mbox fev"><div class="label">Conversões GA FEV</div><div class="val">35.802</div><div class="sub">CPA R$ 5,69</div></div>
+  <div class="mbox fev"><div class="label">CPC FEV</div><div class="val">R$ 179,09</div><div class="sub">CTR 0,00%</div></div>
+  <div class="mbox fev"><div class="label">Campanhas FEV</div><div class="val">24</div><div class="sub">campanhas ativas</div></div>
+  <div class="mbox abr"><div class="label">Investimento GA ABR</div><div class="val">R$ 187.847,24</div></div>
+  <div class="mbox abr"><div class="label">Conversões GA ABR</div><div class="val">28.456</div><div class="sub">CPA R$ 6,60 <span style="color:#dc3545;font-size:12px;font-weight:600">▲ 15.9%</span></div></div>
+  <div class="mbox abr"><div class="label">CPC ABR</div><div class="val">R$ 22,08</div><div class="sub">CTR 0,02% <span style="color:#28a745;font-size:12px;font-weight:600">▲ 490.1%</span></div></div>
+  <div class="mbox abr"><div class="label">Campanhas ABR</div><div class="val">51</div><div class="sub"><span style="color:#dc3545;font-size:12px;font-weight:600">▲ 112.5%</span> vs FEV</div></div>
+</div>
+
+<div class="two-col">
+  <div>
+    <h3>Top 5 Campanhas GA — FEV-26</h3>
+    <table>
+    <tr><th class="th-fev">Campanha</th><th class="th-fev" style="text-align:right">Custo</th><th class="th-fev" style="text-align:right">Conv.</th><th class="th-fev" style="text-align:right">CPA</th></tr>
+    <tr><td><small>[Captação] Público Quente Principal [PBB-FEV-26] - 19.01.26</small></td><td style='text-align:right'>R$ 35.433,83</td><td style='text-align:right'>8.476</td><td style='text-align:right'>R$ 4,18</td></tr><tr><td><small>[Captação] Público Específico Principal [PBB-FEV-26] - 19.01</small></td><td style='text-align:right'>R$ 34.136,61</td><td style='text-align:right'>7.806</td><td style='text-align:right'>R$ 4,37</td></tr><tr><td><small>Pré-qualificação Fria - [PBB-FEV-26] - 06.01.26</small></td><td style='text-align:right'>R$ 17.744,49</td><td style='text-align:right'>348</td><td style='text-align:right'>R$ 50,99</td></tr><tr><td><small>[Captação] Público Quente Shorts [PBB-FEV-26] - 19.01.26</small></td><td style='text-align:right'>R$ 17.417,83</td><td style='text-align:right'>3.462</td><td style='text-align:right'>R$ 5,03</td></tr><tr><td><small>[Captação] Público Específico Shorts [PBB-FEV-26] - 19.01.26</small></td><td style='text-align:right'>R$ 14.064,23</td><td style='text-align:right'>2.214</td><td style='text-align:right'>R$ 6,35</td></tr>
+    </table>
+  </div>
+  <div>
+    <h3>Top 5 Campanhas GA — ABR-26</h3>
+    <table>
+    <tr><th class="th-abr">Campanha</th><th class="th-abr" style="text-align:right">Custo</th><th class="th-abr" style="text-align:right">Conv.</th><th class="th-abr" style="text-align:right">CPA</th></tr>
+    <tr><td><small>[GA][captação][quente][principal][PBB-ABR-26][03.04.26][M]</small></td><td style='text-align:right'>R$ 29.564,65</td><td style='text-align:right'>6.349</td><td style='text-align:right'>R$ 4,66</td></tr><tr><td><small>[GA][pré-qualificação][frio][PBB-ABR-26][16.03.26]</small></td><td style='text-align:right'>R$ 19.893,64</td><td style='text-align:right'>25</td><td style='text-align:right'>R$ 795,75</td></tr><tr><td><small>[GA][captação][quente][principal][PBB-ABR-26][03.04.26][M][V</small></td><td style='text-align:right'>R$ 18.336,14</td><td style='text-align:right'>4.192</td><td style='text-align:right'>R$ 4,37</td></tr><tr><td><small>[GA][captação][quente][ads-novos][PBB-ABR-26][07.04.26]</small></td><td style='text-align:right'>R$ 14.082,80</td><td style='text-align:right'>2.749</td><td style='text-align:right'>R$ 5,12</td></tr><tr><td><small>[GA][captação][quente][potencial][PBB-ABR-26][04.04.26][MMM]</small></td><td style='text-align:right'>R$ 10.901,98</td><td style='text-align:right'>1.891</td><td style='text-align:right'>R$ 5,77</td></tr>
+    </table>
+  </div>
+</div>
+
+<div class="cause orange">
+  <strong>⚠️ O ganho de tráfego no ABR não virou eficiência de conversão</strong>.
+  O ABR registrou CPC de <strong>R$ 22,08</strong> contra <strong>R$ 179,09</strong> no FEV e CTR superior,
+  mas ainda assim fechou com <strong>menos conversões</strong> e <strong>CPA pior</strong>.
+  A leitura correta aqui não é "clique mais caro" isoladamente, e sim <strong>mix de campanhas mais disperso e menos eficiente para o objetivo final</strong>.
+</div>
+
+<!-- BUDGET DESPERDIÇADO -->
+<h2>🚨 Budget Desperdiçado — ABR-26</h2>
+<div class="section-intro">Anúncios de <strong>campanhas de captação</strong> no ABR-26 que consumiram investimento significativo e <strong>não geraram nenhuma venda rastreável</strong> no CRM. Campanhas de engajamento, alcance e aulas foram excluídas desta análise pois seu objetivo não é conversão direta.</div>
+<table><tr><th class="th-abr">Anúncio</th><th class="th-abr" style="text-align:right">Investimento</th><th class="th-abr" style="text-align:center">Vendas</th></tr><tr><td><small>AD054 - Banco do Brasil + IA - PBB-ABR-26</small></td><td style='text-align:right;color:#dc3545'><strong>R$ 26.299,58</strong></td><td style='text-align:center'>0</td></tr><tr><td><small>AD100 - Tudo em 1 minuto + legenda - PBB-ABR-26</small></td><td style='text-align:right;color:#dc3545'><strong>R$ 9.686,34</strong></td><td style='text-align:center'>0</td></tr><tr><td><small>AD071 - Casa do Felipe + cx - PBB-ABR-26</small></td><td style='text-align:right;color:#dc3545'><strong>R$ 5.360,26</strong></td><td style='text-align:center'>0</td></tr><tr><td><small>AD107 - Imagem apostilas - PBB-ABR-26</small></td><td style='text-align:right;color:#dc3545'><strong>R$ 5.041,13</strong></td><td style='text-align:center'>0</td></tr><tr><td><small>AD108 - Imagem apostilas - PBB-ABR-26</small></td><td style='text-align:right;color:#dc3545'><strong>R$ 1.542,68</strong></td><td style='text-align:center'>0</td></tr><tr><td><small>AD115 - Banco do Brasil Reels - PBB-ABR-26</small></td><td style='text-align:right;color:#dc3545'><strong>R$ 971,36</strong></td><td style='text-align:center'>0</td></tr><tr><td><small>AD049 - Flip + Canetão PBB-ABR-26</small></td><td style='text-align:right;color:#dc3545'><strong>R$ 653,61</strong></td><td style='text-align:center'>0</td></tr><tr style="background:#fff5f5;font-weight:700"><td>TOTAL NÃO RASTREADO</td><td style="text-align:right;color:#dc3545">R$ 49.554,96</td><td style="text-align:center">0</td></tr></table>
+
+<div class="cause red">
+  <strong>🔴 R$ 49.554,96 investidos sem retorno rastreável</strong> — representa 13.7% do investimento total do ABR.
+  Parte pode ter gerado leads não atribuídos (sem UTM), mas o impacto na taxa de conversão geral é real.
+</div>
+
+<!-- UTM DOS COMPRADORES -->
+<h2>📡 Origem dos Compradores (UTM Source)</h2>
+<div class="section-intro">UTM sources com maior concentração de compradores em cada campanha — revela quais canais/criativos geraram vendas de fato.</div>
+<table>
+<tr>
+  <th class="th-fev">Origem FEV-26</th>
+  <th class="th-fev" style="text-align:right">Compradores</th>
+  <th class="th-abr" style="border-left:2px solid white">Origem ABR-26</th>
+  <th class="th-abr" style="text-align:right">Compradores</th>
+</tr>
+<tr><td><span style="background:#ff0000;color:white;padding:1px 5px;border-radius:8px;font-size:10px">YT</span> <small>yt-quente-principal-v2</small></td><td style='text-align:right'><strong>51</strong></td><td style='text-align:right;border-left:2px solid #eee'><span style="background:#ff0000;color:white;padding:1px 5px;border-radius:8px;font-size:10px">YT</span> <small>yt-captacao-quente-principal-v2</small></td><td style='text-align:right'><strong>91</strong></td></tr><tr><td><span style="background:#1877f2;color:white;padding:1px 5px;border-radius:8px;font-size:10px">FB</span> <small>fb-quente-principal-v2</small></td><td style='text-align:right'><strong>46</strong></td><td style='text-align:right;border-left:2px solid #eee'><span style="background:#1877f2;color:white;padding:1px 5px;border-radius:8px;font-size:10px">FB</span> <small>fb-captacao-quente-principal-v10</small></td><td style='text-align:right'><strong>28</strong></td></tr><tr><td><span style="background:#ff0000;color:white;padding:1px 5px;border-radius:8px;font-size:10px">YT</span> <small>yt-quente-melhoria-v2</small></td><td style='text-align:right'><strong>42</strong></td><td style='text-align:right;border-left:2px solid #eee'><span style="background:#ff0000;color:white;padding:1px 5px;border-radius:8px;font-size:10px">YT</span> <small>yt-captacao-especifico-principal-v1</small></td><td style='text-align:right'><strong>25</strong></td></tr><tr><td><span style="background:#ff0000;color:white;padding:1px 5px;border-radius:8px;font-size:10px">YT</span> <small>yt-especifico-principal-v2</small></td><td style='text-align:right'><strong>37</strong></td><td style='text-align:right;border-left:2px solid #eee'><span style="background:#1877f2;color:white;padding:1px 5px;border-radius:8px;font-size:10px">FB</span> <small>fb-captacao-quente-reels-v10</small></td><td style='text-align:right'><strong>24</strong></td></tr><tr><td><span style="background:#ff0000;color:white;padding:1px 5px;border-radius:8px;font-size:10px">YT</span> <small>yt-quente-shorts-v2</small></td><td style='text-align:right'><strong>25</strong></td><td style='text-align:right;border-left:2px solid #eee'><span style="background:#ff0000;color:white;padding:1px 5px;border-radius:8px;font-size:10px">YT</span> <small>yt-captacao-quente-potencial-v5</small></td><td style='text-align:right'><strong>19</strong></td></tr><tr><td><span style="background:#ff0000;color:white;padding:1px 5px;border-radius:8px;font-size:10px">YT</span> <small>yt-especifico-principal-v1</small></td><td style='text-align:right'><strong>24</strong></td><td style='text-align:right;border-left:2px solid #eee'><span style="background:#1877f2;color:white;padding:1px 5px;border-radius:8px;font-size:10px">FB</span> <small>fb-captacao-quente-principal-v6</small></td><td style='text-align:right'><strong>18</strong></td></tr><tr><td><span style="background:#ff0000;color:white;padding:1px 5px;border-radius:8px;font-size:10px">YT</span> <small>yt-quente-principal-v1</small></td><td style='text-align:right'><strong>23</strong></td><td style='text-align:right;border-left:2px solid #eee'><span style="background:#ff0000;color:white;padding:1px 5px;border-radius:8px;font-size:10px">YT</span> <small>yt-captacao-quente-potencial-v4</small></td><td style='text-align:right'><strong>18</strong></td></tr><tr><td><span style="background:#ff0000;color:white;padding:1px 5px;border-radius:8px;font-size:10px">YT</span> <small>yt-frio-principal-v2</small></td><td style='text-align:right'><strong>22</strong></td><td style='text-align:right;border-left:2px solid #eee'><span style="background:#1877f2;color:white;padding:1px 5px;border-radius:8px;font-size:10px">FB</span> <small>fb-captacao-quente-principal-v4</small></td><td style='text-align:right'><strong>16</strong></td></tr>
+</table>
+
+<!-- TYPEFORM COMPARATIVO -->
+<h2>📋 Comparativo Typeform: O Mesmo Público, Resultados Opostos</h2>
+<div class="section-intro">
+  <strong>Esta é uma das análises mais reveladoras deste relatório.</strong>
+  Ambas as campanhas usaram a mesma pesquisa Typeform para capturar leads quentes. O perfil demográfico é
+  <em>praticamente idêntico</em> entre ABR e FEV. No entanto, a taxa de conversão Typeform→Venda foi
+  <strong>2,25× maior no FEV</strong>. Isso exclui "qualidade de audiência" como causa do baixo desempenho do ABR
+  e aponta para problemas de <strong>execução, estratégia de mídia e processo de venda</strong>.
+</div>
+
+<h3>📊 Funil Typeform Comparado</h3>
+<div class="funil-wrap">
+  <div>
+    <div style="text-align:center;margin-bottom:10px"><span class="badge fev" style="font-size:14px;padding:4px 16px">FEV-26</span></div>
+    <div class="funil-step" style="background:rgba(102,126,234,.08)">
+      <span style="font-weight:600;font-size:13px">Respostas Typeform</span>
+      <span style="font-size:20px;font-weight:700;color:#667eea">12,918
+        <span style="font-size:11px;color:#888;margin-left:6px">100%</span></span>
+    </div>
+    <div class="funil-step" style="background:rgba(102,126,234,.14)">
+      <span style="font-weight:600;font-size:13px">TF → Lead CRM</span>
+      <span style="font-size:20px;font-weight:700;color:#667eea">11,114
+        <span style="font-size:11px;color:#888;margin-left:6px">86.0%</span></span>
+    </div>
+    <div class="funil-step" style="background:rgba(102,126,234,.20)">
+      <span style="font-weight:600;font-size:13px">TF → Compra</span>
+      <span style="font-size:20px;font-weight:700;color:#667eea">304
+        <span style="font-size:11px;color:#888;margin-left:6px">2.35%</span></span>
+    </div>
+    <div class="funil-step" style="background:rgba(102,126,234,.28)">
+      <span style="font-weight:600;font-size:13px">Receita via TF</span>
+      <span style="font-size:16px;font-weight:700;color:#667eea">R$ 486.266,20
+        <span style="font-size:11px;color:#888;margin-left:6px">38.1% do total</span></span>
+    </div>
+  </div>
+  <div>
+    <div style="text-align:center;margin-bottom:10px"><span class="badge abr" style="font-size:14px;padding:4px 16px">ABR-26</span></div>
+    <div class="funil-step" style="background:rgba(245,87,108,.06)">
+      <span style="font-weight:600;font-size:13px">Respostas Typeform</span>
+      <span style="font-size:20px;font-weight:700;color:#f5576c">11,290
+        <span style="font-size:11px;color:#888;margin-left:6px">100%</span></span>
+    </div>
+    <div class="funil-step" style="background:rgba(245,87,108,.10)">
+      <span style="font-weight:600;font-size:13px">TF → Lead CRM</span>
+      <span style="font-size:20px;font-weight:700;color:#f5576c">9,934
+        <span style="font-size:11px;color:#888;margin-left:6px">88.0%</span></span>
+    </div>
+    <div class="funil-step" style="background:rgba(245,87,108,.16)">
+      <span style="font-weight:600;font-size:13px">TF → Compra</span>
+      <span style="font-size:20px;font-weight:700;color:#f5576c">121
+        <span style="font-size:11px;color:#888;margin-left:6px">1.07%</span></span>
+    </div>
+    <div class="funil-step" style="background:rgba(245,87,108,.22)">
+      <span style="font-weight:600;font-size:13px">Receita via TF</span>
+      <span style="font-size:16px;font-weight:700;color:#f5576c">R$ 195.653,83
+        <span style="font-size:11px;color:#888;margin-left:6px">22.3% do total</span></span>
+    </div>
+  </div>
+</div>
+
+<div class="metric-grid" style="margin-top:16px">
+  <div class="mbox" style="border-color:#1a1a2e;background:#f0f4ff">
+    <div class="label">Respondentes TF</div>
+    <div class="val">12,918 <span style="font-size:13px;color:#888">FEV</span> vs 11,290 <span style="font-size:13px;color:#888">ABR</span></div>
+    <div class="sub">+14.4% mais respostas no FEV</div>
+  </div>
+  <div class="mbox fev">
+    <div class="label">Taxa TF→Venda FEV</div>
+    <div class="val">2.35%</div>
+    <div class="sub">304 compradores de 12,918 respondentes</div>
+  </div>
+  <div class="mbox abr">
+    <div class="label">Taxa TF→Venda ABR</div>
+    <div class="val">1.07%</div>
+    <div class="sub">121 compradores de 11,290 respondentes <span style="color:#dc3545;font-size:12px;font-weight:600">▼ 54.5%</span></div>
+  </div>
+  <div class="mbox" style="border-color:#764ba2;background:#f8f0ff">
+    <div class="label">Multiplicador FEV vs ABR</div>
+    <div class="val" style="color:#764ba2">2.20×</div>
+    <div class="sub">FEV converteu 2.20× mais leads TF em vendas</div>
+  </div>
+  <div class="mbox fev">
+    <div class="label">Receita via TF — FEV</div>
+    <div class="val">R$ 486.266,20</div>
+    <div class="sub">38.1% do faturamento total</div>
+  </div>
+  <div class="mbox abr">
+    <div class="label">Receita via TF — ABR</div>
+    <div class="val">R$ 195.653,83</div>
+    <div class="sub">22.3% do faturamento total <span style="color:#dc3545;font-size:12px;font-weight:600">▼ 59.8%</span></div>
+  </div>
+</div>
+
+<div class="cause purple" style="margin-top:12px">
+  <strong>🔑 Insight Central: 59 pessoas responderam as duas pesquisas</strong> (participaram do ABR e do FEV).
+  O TF não é uma base nova a cada lançamento — parte do público já estava morno/quente do ciclo anterior.
+  Isso reforça a importância de nurturing entre campanhas para converter quem ficou para trás.
+</div>
+
+<h3>👥 Perfil Demográfico Comparado (FEV vs ABR)</h3>
+<div class="section-intro">A semelhança de perfil entre as campanhas confirma que a diferença de conversão <strong>não é demográfica</strong> — é de execução. Leads e vendas são dos respondentes Typeform (email-match CRM/Hotmart).</div>
+
+<h4>Gênero</h4>
+<table style="width:100%">
+  <tr>
+    <th class="th-dark" rowspan="2">Gênero</th>
+    <th class="th-fev" colspan="3" style="text-align:center">FEV-26</th>
+    <th class="th-abr" colspan="3" style="text-align:center">ABR-26</th>
+    <th class="th-dark" rowspan="2" style="text-align:right">Δ</th>
+  </tr>
+  <tr>
+    <th class="th-fev" style="text-align:right">%</th><th class="th-fev" style="text-align:right">Leads</th><th class="th-fev" style="text-align:right">Vendas</th>
+    <th class="th-abr" style="text-align:right">%</th><th class="th-abr" style="text-align:right">Leads</th><th class="th-abr" style="text-align:right">Vendas</th>
+  </tr>
+  <tr><td>Feminino</td><td style='text-align:right'><strong>58.5%</strong></td><td style='text-align:right'>6,466</td><td style='text-align:right'>136</td><td style='text-align:right'><strong>59.9%</strong></td><td style='text-align:right'>5,962</td><td style='text-align:right'>54</td><td style='text-align:right;color:#28a745;font-weight:600'>+1.4pp</td></tr><tr><td>Masculino</td><td style='text-align:right'><strong>41.5%</strong></td><td style='text-align:right'>4,648</td><td style='text-align:right'>168</td><td style='text-align:right'><strong>40.1%</strong></td><td style='text-align:right'>3,973</td><td style='text-align:right'>67</td><td style='text-align:right;color:#dc3545;font-weight:600'>-1.4pp</td></tr>
+</table>
+
+<h4>Faixa Etária</h4>
+<table style="width:100%">
+  <tr>
+    <th class="th-dark" rowspan="2">Faixa</th>
+    <th class="th-fev" colspan="3" style="text-align:center">FEV-26</th>
+    <th class="th-abr" colspan="3" style="text-align:center">ABR-26</th>
+    <th class="th-dark" rowspan="2" style="text-align:right">Δ</th>
+  </tr>
+  <tr>
+    <th class="th-fev" style="text-align:right">%</th><th class="th-fev" style="text-align:right">Leads</th><th class="th-fev" style="text-align:right">Vendas</th>
+    <th class="th-abr" style="text-align:right">%</th><th class="th-abr" style="text-align:right">Leads</th><th class="th-abr" style="text-align:right">Vendas</th>
+  </tr>
+  <tr><td>18 a 22 anos</td><td style='text-align:right'><strong>35.1%</strong></td><td style='text-align:right'>4,001</td><td style='text-align:right'>103</td><td style='text-align:right'><strong>42.7%</strong></td><td style='text-align:right'>4,270</td><td style='text-align:right'>39</td><td style='text-align:right;color:#28a745;font-weight:600'>+7.6pp</td></tr><tr><td>23 a 27 anos</td><td style='text-align:right'><strong>16.6%</strong></td><td style='text-align:right'>1,886</td><td style='text-align:right'>63</td><td style='text-align:right'><strong>22.7%</strong></td><td style='text-align:right'>2,276</td><td style='text-align:right'>34</td><td style='text-align:right;color:#28a745;font-weight:600'>+6.1pp</td></tr><tr><td>28 a 32 anos</td><td style='text-align:right'><strong>11.2%</strong></td><td style='text-align:right'>1,249</td><td style='text-align:right'>34</td><td style='text-align:right'><strong>11.6%</strong></td><td style='text-align:right'>1,167</td><td style='text-align:right'>18</td><td style='text-align:right;color:#28a745;font-weight:600'>+0.5pp</td></tr><tr><td>33 a 37 anos</td><td style='text-align:right'><strong>8.3%</strong></td><td style='text-align:right'>930</td><td style='text-align:right'>31</td><td style='text-align:right'><strong>6.8%</strong></td><td style='text-align:right'>673</td><td style='text-align:right'>16</td><td style='text-align:right;color:#dc3545;font-weight:600'>-1.5pp</td></tr><tr><td>38 a 45 anos</td><td style='text-align:right'><strong>10.8%</strong></td><td style='text-align:right'>1,151</td><td style='text-align:right'>37</td><td style='text-align:right'><strong>6.7%</strong></td><td style='text-align:right'>656</td><td style='text-align:right'>8</td><td style='text-align:right;color:#dc3545;font-weight:600'>-4.1pp</td></tr>
+</table>
+
+<h4>Situação Profissional</h4>
+<table style="width:100%">
+  <tr>
+    <th class="th-dark" rowspan="2">Situação</th>
+    <th class="th-fev" colspan="3" style="text-align:center">FEV-26</th>
+    <th class="th-abr" colspan="3" style="text-align:center">ABR-26</th>
+    <th class="th-dark" rowspan="2" style="text-align:right">Δ</th>
+  </tr>
+  <tr>
+    <th class="th-fev" style="text-align:right">%</th><th class="th-fev" style="text-align:right">Leads</th><th class="th-fev" style="text-align:right">Vendas</th>
+    <th class="th-abr" style="text-align:right">%</th><th class="th-abr" style="text-align:right">Leads</th><th class="th-abr" style="text-align:right">Vendas</th>
+  </tr>
+  <tr><td>Desempregado(a)</td><td style='text-align:right'><strong>44.9%</strong></td><td style='text-align:right'>5,064</td><td style='text-align:right'>98</td><td style='text-align:right'><strong>42.7%</strong></td><td style='text-align:right'>4,287</td><td style='text-align:right'>39</td><td style='text-align:right;color:#dc3545;font-weight:600'>-2.2pp</td></tr><tr><td>Funcionário(a) de empresa privada</td><td style='text-align:right'><strong>34.3%</strong></td><td style='text-align:right'>3,802</td><td style='text-align:right'>133</td><td style='text-align:right'><strong>36.4%</strong></td><td style='text-align:right'>3,621</td><td style='text-align:right'>55</td><td style='text-align:right;color:#28a745;font-weight:600'>+2.1pp</td></tr><tr><td>Autônomo(a)</td><td style='text-align:right'><strong>12.2%</strong></td><td style='text-align:right'>1,353</td><td style='text-align:right'>52</td><td style='text-align:right'><strong>12.1%</strong></td><td style='text-align:right'>1,197</td><td style='text-align:right'>17</td><td style='text-align:right;color:#dc3545;font-weight:600'>-0.1pp</td></tr><tr><td>Funcionário(a) público</td><td style='text-align:right'><strong>8.0%</strong></td><td style='text-align:right'>874</td><td style='text-align:right'>20</td><td style='text-align:right'><strong>8.0%</strong></td><td style='text-align:right'>779</td><td style='text-align:right'>6</td><td style='text-align:right;color:#28a745;font-weight:600'>+0.1pp</td></tr>
+</table>
+
+<h4>Nível nos Estudos</h4>
+<table style="width:100%">
+  <tr>
+    <th class="th-dark" rowspan="2">Nível</th>
+    <th class="th-fev" colspan="3" style="text-align:center">FEV-26</th>
+    <th class="th-abr" colspan="3" style="text-align:center">ABR-26</th>
+    <th class="th-dark" rowspan="2" style="text-align:right">Δ</th>
+  </tr>
+  <tr>
+    <th class="th-fev" style="text-align:right">%</th><th class="th-fev" style="text-align:right">Leads</th><th class="th-fev" style="text-align:right">Vendas</th>
+    <th class="th-abr" style="text-align:right">%</th><th class="th-abr" style="text-align:right">Leads</th><th class="th-abr" style="text-align:right">Vendas</th>
+  </tr>
+  <tr><td>Estou do zero</td><td style='text-align:right'><strong>56.1%</strong></td><td style='text-align:right'>6,315</td><td style='text-align:right'>206</td><td style='text-align:right'><strong>51.5%</strong></td><td style='text-align:right'>5,135</td><td style='text-align:right'>56</td><td style='text-align:right;color:#dc3545;font-weight:600'>-4.6pp</td></tr><tr><td>Sou Iniciante</td><td style='text-align:right'><strong>37.0%</strong></td><td style='text-align:right'>4,122</td><td style='text-align:right'>82</td><td style='text-align:right'><strong>40.6%</strong></td><td style='text-align:right'>4,065</td><td style='text-align:right'>59</td><td style='text-align:right;color:#28a745;font-weight:600'>+3.6pp</td></tr><tr><td>Sou Intermediário(a)</td><td style='text-align:right'><strong>6.3%</strong></td><td style='text-align:right'>696</td><td style='text-align:right'>21</td><td style='text-align:right'><strong>7.1%</strong></td><td style='text-align:right'>689</td><td style='text-align:right'>5</td><td style='text-align:right;color:#28a745;font-weight:600'>+0.8pp</td></tr><tr><td>Sou Avançado(a)</td><td style='text-align:right'><strong>0.6%</strong></td><td style='text-align:right'>60</td><td style='text-align:right'>—</td><td style='text-align:right'><strong>0.8%</strong></td><td style='text-align:right'>80</td><td style='text-align:right'>1</td><td style='text-align:right;color:#28a745;font-weight:600'>+0.2pp</td></tr>
+</table>
+
+<div class="cause blue">
+  <strong>📌 Perfil Quase Idêntico:</strong>
+  ~59% feminino, ~41% masculino nas duas campanhas.
+  Mesmo split de nível: 56% do zero FEV vs 51% ABR.
+  A principal diferença de faixa etária é que o ABR tinha mais jovens 18–22 anos
+  (42.7% vs 35.1% no FEV) —
+  faixa com maior barreira financeira. Isso pode ter contribuído marginalmente para a menor conversão do ABR,
+  mas não explica o gap de 2.20× sozinho.
+</div>
+
+<h3>🏠 Composição Familiar (Fator de Urgência)</h3>
+
+<h4>Com quem mora</h4>
+<table style="width:100%">
+  <tr>
+    <th class="th-dark" rowspan="2">Com quem mora</th>
+    <th class="th-fev" colspan="3" style="text-align:center">FEV-26</th>
+    <th class="th-abr" colspan="3" style="text-align:center">ABR-26</th>
+    <th class="th-dark" rowspan="2" style="text-align:right">Δ</th>
+  </tr>
+  <tr>
+    <th class="th-fev" style="text-align:right">%</th><th class="th-fev" style="text-align:right">Leads</th><th class="th-fev" style="text-align:right">Vendas</th>
+    <th class="th-abr" style="text-align:right">%</th><th class="th-abr" style="text-align:right">Leads</th><th class="th-abr" style="text-align:right">Vendas</th>
+  </tr>
+  <tr><td>Com meus pais</td><td style='text-align:right'><strong>46.0%</strong></td><td style='text-align:right'>5,248</td><td style='text-align:right'>149</td><td style='text-align:right'><strong>47.0%</strong></td><td style='text-align:right'>4,720</td><td style='text-align:right'>63</td><td style='text-align:right;color:#28a745;font-weight:600'>+1.0pp</td></tr><tr><td>Esposo(a) ou companheiro(a) e filhos</td><td style='text-align:right'><strong>19.4%</strong></td><td style='text-align:right'>2,130</td><td style='text-align:right'>63</td><td style='text-align:right'><strong>15.8%</strong></td><td style='text-align:right'>1,566</td><td style='text-align:right'>19</td><td style='text-align:right;color:#dc3545;font-weight:600'>-3.5pp</td></tr><tr><td>Esposo(a) ou companheiro(a)</td><td style='text-align:right'><strong>14.2%</strong></td><td style='text-align:right'>1,550</td><td style='text-align:right'>41</td><td style='text-align:right'><strong>15.0%</strong></td><td style='text-align:right'>1,494</td><td style='text-align:right'>24</td><td style='text-align:right;color:#28a745;font-weight:600'>+0.8pp</td></tr><tr><td>Sozinho</td><td style='text-align:right'><strong>13.1%</strong></td><td style='text-align:right'>1,429</td><td style='text-align:right'>34</td><td style='text-align:right'><strong>15.5%</strong></td><td style='text-align:right'>1,533</td><td style='text-align:right'>13</td><td style='text-align:right;color:#28a745;font-weight:600'>+2.4pp</td></tr><tr><td>Eu e meus filhos apenas</td><td style='text-align:right'><strong>7.4%</strong></td><td style='text-align:right'>798</td><td style='text-align:right'>19</td><td style='text-align:right'><strong>6.7%</strong></td><td style='text-align:right'>644</td><td style='text-align:right'>4</td><td style='text-align:right;color:#dc3545;font-weight:600'>-0.7pp</td></tr>
+</table>
+
+<h4>Filhos</h4>
+<table style="width:100%">
+  <tr>
+    <th class="th-dark" rowspan="2">Filhos</th>
+    <th class="th-fev" colspan="3" style="text-align:center">FEV-26</th>
+    <th class="th-abr" colspan="3" style="text-align:center">ABR-26</th>
+    <th class="th-dark" rowspan="2" style="text-align:right">Δ</th>
+  </tr>
+  <tr>
+    <th class="th-fev" style="text-align:right">%</th><th class="th-fev" style="text-align:right">Leads</th><th class="th-fev" style="text-align:right">Vendas</th>
+    <th class="th-abr" style="text-align:right">%</th><th class="th-abr" style="text-align:right">Leads</th><th class="th-abr" style="text-align:right">Vendas</th>
+  </tr>
+  <tr><td>Nenhum</td><td style='text-align:right'><strong>62.3%</strong></td><td style='text-align:right'>7,048</td><td style='text-align:right'>208</td><td style='text-align:right'><strong>67.1%</strong></td><td style='text-align:right'>6,730</td><td style='text-align:right'>89</td><td style='text-align:right;color:#28a745;font-weight:600'>+4.8pp</td></tr><tr><td>Um</td><td style='text-align:right'><strong>16.8%</strong></td><td style='text-align:right'>1,822</td><td style='text-align:right'>46</td><td style='text-align:right'><strong>17.4%</strong></td><td style='text-align:right'>1,711</td><td style='text-align:right'>15</td><td style='text-align:right;color:#28a745;font-weight:600'>+0.7pp</td></tr><tr><td>Dois</td><td style='text-align:right'><strong>12.9%</strong></td><td style='text-align:right'>1,399</td><td style='text-align:right'>36</td><td style='text-align:right'><strong>10.5%</strong></td><td style='text-align:right'>1,023</td><td style='text-align:right'>13</td><td style='text-align:right;color:#dc3545;font-weight:600'>-2.3pp</td></tr><tr><td>Três ou mais</td><td style='text-align:right'><strong>8.1%</strong></td><td style='text-align:right'>856</td><td style='text-align:right'>16</td><td style='text-align:right'><strong>4.9%</strong></td><td style='text-align:right'>478</td><td style='text-align:right'>5</td><td style='text-align:right;color:#dc3545;font-weight:600'>-3.2pp</td></tr>
+</table>
+<div class="cause blue">
+  <strong>📌 FEV tem mais respondentes com família constituída:</strong>
+  19.4%
+  vs 15.8% no ABR moram com esposo(a) e filhos.
+  FEV também tem mais respondentes com 2+ filhos (12.9% + 8.1%
+  vs 10.5% + 4.9% ABR).
+  Responsabilidade familiar aumenta senso de urgência e propensão de compra — possível fator de melhoria no FEV.
+</div>
+
+<h3>🚧 Obstáculos Declarados Comparados</h3>
+<table>
+  <tr>
+    <th class="th-dark">Obstáculo</th>
+    <th class="th-fev" style="text-align:right">FEV %</th>
+    <th class="th-abr" style="text-align:right">ABR %</th>
+    <th class="th-dark" style="text-align:right">Δ (ABR−FEV)</th>
+  </tr>
+  <tr><td>Não sei estudar do jeito certo</td><td style='text-align:right'><strong>62.5%</strong><div style="height:8px;background:#667eea;border-radius:3px;width:62%;margin-top:4px"></div></td><td style='text-align:right'><strong>58.7%</strong><div style="height:8px;background:#f5576c;border-radius:3px;width:59%;margin-top:4px"></div></td><td style='text-align:right;color:#dc3545;font-weight:600'>-3.8pp</td></tr><tr><td>Não sei montar cronograma</td><td style='text-align:right'><strong>41.9%</strong><div style="height:8px;background:#667eea;border-radius:3px;width:42%;margin-top:4px"></div></td><td style='text-align:right'><strong>37.6%</strong><div style="height:8px;background:#f5576c;border-radius:3px;width:38%;margin-top:4px"></div></td><td style='text-align:right;color:#dc3545;font-weight:600'>-4.3pp</td></tr><tr><td>Procrastinação</td><td style='text-align:right'><strong>28.0%</strong><div style="height:8px;background:#667eea;border-radius:3px;width:28%;margin-top:4px"></div></td><td style='text-align:right'><strong>26.0%</strong><div style="height:8px;background:#f5576c;border-radius:3px;width:26%;margin-top:4px"></div></td><td style='text-align:right;color:#dc3545;font-weight:600'>-2.0pp</td></tr><tr><td>Sem dinheiro para curso</td><td style='text-align:right'><strong>40.1%</strong><div style="height:8px;background:#667eea;border-radius:3px;width:40%;margin-top:4px"></div></td><td style='text-align:right'><strong>42.3%</strong><div style="height:8px;background:#f5576c;border-radius:3px;width:42%;margin-top:4px"></div></td><td style='text-align:right;color:#dc3545;font-weight:600'>+2.2pp</td></tr><tr><td>Medo de estudar e não passar</td><td style='text-align:right'><strong>37.6%</strong><div style="height:8px;background:#667eea;border-radius:3px;width:38%;margin-top:4px"></div></td><td style='text-align:right'><strong>37.9%</strong><div style="height:8px;background:#f5576c;border-radius:3px;width:38%;margin-top:4px"></div></td><td style='text-align:right;color:#28a745;font-weight:600'>+0.3pp</td></tr><tr><td>Medo de esquecer na prova</td><td style='text-align:right'><strong>28.3%</strong><div style="height:8px;background:#667eea;border-radius:3px;width:28%;margin-top:4px"></div></td><td style='text-align:right'><strong>28.3%</strong><div style="height:8px;background:#f5576c;border-radius:3px;width:28%;margin-top:4px"></div></td><td style='text-align:right;color:#28a745;font-weight:600'>+0.0pp</td></tr><tr><td>Pouco tempo disponível</td><td style='text-align:right'><strong>21.8%</strong><div style="height:8px;background:#667eea;border-radius:3px;width:22%;margin-top:4px"></div></td><td style='text-align:right'><strong>23.3%</strong><div style="height:8px;background:#f5576c;border-radius:3px;width:23%;margin-top:4px"></div></td><td style='text-align:right;color:#28a745;font-weight:600'>+1.5pp</td></tr><tr><td>Há muito tempo sem estudar</td><td style='text-align:right'><strong>23.6%</strong><div style="height:8px;background:#667eea;border-radius:3px;width:24%;margin-top:4px"></div></td><td style='text-align:right'><strong>21.4%</strong><div style="height:8px;background:#f5576c;border-radius:3px;width:21%;margin-top:4px"></div></td><td style='text-align:right;color:#dc3545;font-weight:600'>-2.2pp</td></tr><tr><td>Medo de não sair o concurso</td><td style='text-align:right'><strong>8.1%</strong><div style="height:8px;background:#667eea;border-radius:3px;width:8%;margin-top:4px"></div></td><td style='text-align:right'><strong>18.9%</strong><div style="height:8px;background:#f5576c;border-radius:3px;width:19%;margin-top:4px"></div></td><td style='text-align:right;color:#28a745;font-weight:600'>+10.8pp</td></tr>
+</table>
+<div class="two-col">
+  <div class="cause blue">
+    <strong>📌 FEV tem mais dor metodológica:</strong><br>
+    "Não sei estudar do jeito certo" 62.5% FEV
+    vs 58.7% ABR (+3.8pp).
+    "Não sei montar cronograma" 41.9% FEV vs 37.6% ABR.
+    Quem sente essas dores entende o valor do produto e converte mais.
+  </div>
+  <div class="cause orange">
+    <strong>⚠️ ABR tem mais barreira financeira:</strong><br>
+    "Sem dinheiro para curso" 42.3% ABR
+    vs 40.1% FEV (+2.2pp).
+    Combined com mais jovens 18–22 (renda mais baixa), parte da menor conversão do ABR pode ter origem em
+    barreira financeira real — não resolvida por nurturing ou condições de pagamento melhores.
+  </div>
+</div>
+
+<h3>🎥 Consciência de Marca — Felipe Graton</h3>
+<table>
+  <tr><th class="th-dark">Já assistiu Graton?</th><th class="th-fev" style="text-align:right">FEV</th><th class="th-abr" style="text-align:right">ABR</th><th class="th-dark" style="text-align:right">Δ</th></tr>
+  <tr><td>Sim (já conhecia)</td><td style='text-align:right'><strong>19.5%</strong><div style="height:8px;background:#667eea;border-radius:3px;width:19%;margin-top:4px"></div></td><td style='text-align:right'><strong>18.2%</strong><div style="height:8px;background:#f5576c;border-radius:3px;width:18%;margin-top:4px"></div></td><td style='text-align:right;color:#dc3545;font-weight:600'>-1.2pp</td></tr>
+  <tr><td>Não (novo seguidor)</td><td style='text-align:right'><strong>80.5%</strong><div style="height:8px;background:#667eea;border-radius:3px;width:81%;margin-top:4px"></div></td><td style='text-align:right'><strong>81.8%</strong><div style="height:8px;background:#f5576c;border-radius:3px;width:82%;margin-top:4px"></div></td><td style='text-align:right;color:#dc3545;font-weight:600'>+1.2pp</td></tr>
+</table>
+<div class="cause blue">
+  <strong>📌 Brand awareness praticamente igual</strong> (19.5% FEV vs 18.2% ABR já conheciam o Graton).
+  A diferença de conversão portanto <em>não vem de reconhecimento de marca</em> — confirma que o problema está na
+  qualidade dos leads capturados fora da pesquisa, no mix de canais e no processo de venda pós-captação.
+</div>
+
+<h3>🗺️ Distribuição Geográfica Comparada</h3>
+<table>
+  <tr><th class="th-dark">Estado</th><th class="th-fev" style="text-align:right">FEV (n | %)</th><th class="th-abr" style="text-align:right">ABR (n | %)</th><th class="th-dark" style="text-align:right">Δ</th></tr>
+  <tr><td><strong>São Paulo</strong></td><td style='text-align:right'>1,975 (15.3%)</td><td style='text-align:right'>1,472 (13.0%)</td><td style='text-align:right;color:#dc3545'>-2.3pp</td></tr><tr><td><strong>Minas Gerais</strong></td><td style='text-align:right'>1,269 (9.8%)</td><td style='text-align:right'>1,058 (9.4%)</td><td style='text-align:right;color:#dc3545'>-0.5pp</td></tr><tr><td><strong>Bahia</strong></td><td style='text-align:right'>1,029 (8.0%)</td><td style='text-align:right'>1,005 (8.9%)</td><td style='text-align:right;color:#28a745'>+0.9pp</td></tr><tr><td><strong>Rio de Janeiro</strong></td><td style='text-align:right'>941 (7.3%)</td><td style='text-align:right'>752 (6.7%)</td><td style='text-align:right;color:#dc3545'>-0.6pp</td></tr><tr><td><strong>Ceará</strong></td><td style='text-align:right'>645 (5.0%)</td><td style='text-align:right'>545 (4.8%)</td><td style='text-align:right;color:#dc3545'>-0.2pp</td></tr><tr><td><strong>Pará</strong></td><td style='text-align:right'>642 (5.0%)</td><td style='text-align:right'>594 (5.3%)</td><td style='text-align:right;color:#28a745'>+0.3pp</td></tr><tr><td><strong>Paraná</strong></td><td style='text-align:right'>625 (4.8%)</td><td style='text-align:right'>686 (6.1%)</td><td style='text-align:right;color:#28a745'>+1.2pp</td></tr><tr><td><strong>Pernambuco</strong></td><td style='text-align:right'>606 (4.7%)</td><td style='text-align:right'>0 (0.0%)</td><td style='text-align:right;color:#dc3545'>-4.7pp</td></tr>
+</table>
+<div class="cause blue">
+  <strong>📌 FEV cresceu em SP (+2.3pp), RJ (+0.6pp) e CE</strong> — estados com maior renda per capita e menor barreira de compra.
+  ABR tinha mais presença no Nordeste (PA, BA) — maior desafio de conversão por renda e acesso a parcelamento.
+  Para o próximo lançamento: ajustar lances geográficos para priorizar SP, RJ, RS, PR e DF.
+</div>
+
+<!-- 5 CAUSAS RAIZ -->
+<h2>🔬 Diagnóstico: 5 Causas Raiz</h2>
+
+<div class="cause red">
+  <strong>🔴 CAUSA 1 — Colapso da taxa de conversão em captação: 0,94% → 0,50% (-46%)</strong><br><br>
+  Esta é a causa fundamental. O ABR capturou <strong>16.820 leads a mais</strong> mas converteu muito menos — e isso se concentra nos leads de captação, que respondem por virtualmente 100% dos leads com UTM rastreado.
+  As hipóteses: (a) piora na qualidade/intenção do lead captado (mais jovens 18–22, mais barreira financeira);
+  (b) a estratégia de mídia de captação gerou mais volume de topo sem sustentar avanço proporcional até a venda;
+  (c) o processo comercial/sequência de e-mails pode não ter acompanhado o volume extra.
+  <br><strong>Evidência (captação):</strong> FEV taxa 0,94% | ABR taxa 0,50% com 86.025 leads — gap de 46% na eficiência de conversão.
+</div>
+
+<div class="cause orange">
+  <strong>🟠 CAUSA 2 — Google Ads captação mais fragmentado e menos eficiente no ABR</strong><br><br>
+  Nas campanhas de captação, o FEV fechou com <strong>34.916 conversões</strong> e CPA de <strong>R$ 4,73</strong>, enquanto o ABR ficou em <strong>28.428 conversões</strong> e CPA de <strong>R$ 5,47</strong>.
+  O ABR rodou <strong>42 campanhas de captação</strong> no Google contra apenas <strong>15 no FEV</strong> — fragmentação excessiva que divide o orçamento e prejudica a aprendizagem dos algoritmos.
+  <br><strong>Evidência (captação):</strong> CPA R$ 5,47 vs R$ 4,73 | CTR 0,02% vs 0,00% | 42 campanhas captação ABR vs 15 FEV.
+</div>
+
+<div class="cause yellow">
+  <strong>🟡 CAUSA 3 — Budget de captação desperdiçado em anúncios sem retorno (R$ 49.554,96)</strong><br><br>
+  Múltiplos anúncios de campanhas de captação Meta Ads no ABR consumiram investimento relevante sem produzir vendas rastreáveis no CRM.
+  AD054 (R$ 26.299,58), AD100 (R$ 9.686,34), AD071 (R$ 5.360,26) — sozinhos somam ~R$ 41.346,18 com 0 vendas confirmadas.
+  Isso aumenta o CPA efetivo de venda e distorce a percepção de eficiência do canal de captação.
+  <br><strong>Evidência:</strong> R$ 49.554,96 = 16.2% do investimento de captação sem retorno rastreado.
+</div>
+
+<div class="cause blue">
+  <strong>🔵 CAUSA 4 — Budget alocado em campanhas não-captação no Google (R$ 32.395,89)</strong><br><br>
+  O ABR rodou <strong>9 campanhas não-captação</strong> no Google Ads (pré-qualificação, tráfego/aulas, alcance/lembrete) que gastaram <strong>R$ 32.395,89</strong> com apenas <strong>28 conversões</strong> — CPA médio de <strong>R$ 1.157,00</strong> contra R$ 5,47 nas campanhas de captação.
+  Esse investimento não gera leads qualificados diretamente e distorce os números de eficiência do Google.
+  No FEV, praticamente todo o budget Google foi concentrado em captação, o que explica parte da eficiência superior.
+  <br><strong>Evidência:</strong> 9 campanhas não-captação = R$ 32.395,89 (17.2% do budget Google ABR) com retorno desprezível em leads.
+</div>
+
+<div class="cause purple">
+  <strong>🟣 CAUSA 5 — Variação no ticket médio e mix de produto</strong><br><br>
+  O ticket médio do ABR foi <strong>R$ 1.602,36</strong> vs <strong>R$ 1.598,19</strong> no FEV — aumento de 0.3%.
+  Esse efeito de ticket foi secundário: o principal impacto no faturamento veio da queda no volume de vendas.
+  Ainda assim, a variação de ticket pode indicar diferença no mix de oferta (parcelamento, preço praticado ou proporção de meios de pagamento).
+  <br><strong>Evidência:</strong> Hotmart FEV ticket R$1,573.63 vs ABR R$1,584.27 | TMB FEV R$1,640.05 vs ABR R$1,642.58.
+</div>
+
+<!-- PLANO DE AÇÃO -->
+<h2>🚀 Plano de Ação — Próximo Lançamento</h2>
+
+<div class="action-box">
+  <strong>✅ 1. Concentrar budget Google exclusivamente em captação</strong><br>
+  Eliminar campanhas de pré-qualificação, tráfego/aulas e alcance/lembrete do Google Ads durante a fase de captação.
+  No ABR, essas 9 campanhas não-captação desperdiçaram R$ 32.395,89 com CPA médio de R$ 1.157,00.
+  Meta operacional: 100% do budget Google em captação, CPA abaixo de R$ 4,73.
+</div>
+
+<div class="action-box">
+  <strong>✅ 2. Reduzir fragmentação: máximo 20 campanhas de captação no Google</strong><br>
+  Reduzir de 42 para no máximo 20 campanhas de captação com grupos de anúncios bem definidos (quente/específico/frio).
+  No FEV foram 15 campanhas de captação com CPA R$ 4,73 — esse é o benchmark para o próximo lançamento.
+  Consolidar versões deletadas e variantes similares para concentrar orçamento nos melhores públicos.
+</div>
+
+<div class="action-box">
+  <strong>✅ 3. Pausar anúncios sem venda após R$3.000 investidos</strong><br>
+  Estabelecer regra de pausa automática: qualquer anúncio com &gt;R$3.000 investido e 0 vendas confirmadas no CRM
+  deve ser pausado e avaliado. Isso evitaria a perda de ~R$ 49.554,96 identificada no ABR.
+</div>
+
+<div class="action-box">
+  <strong>✅ 4. Monitorar taxa de conversão CRM→Venda em tempo real</strong><br>
+  Criar dashboard semanal durante o lançamento comparando a taxa de conversão com o benchmark do FEV (0,94%).
+  Se cair abaixo de 0,8%, acionar revisão imediata de: sequência de e-mails, qualidade do lead e mix de canais.
+</div>
+
+<div class="action-box">
+  <strong>✅ 5. Renovar criativos: reduzir overlap com campanha anterior</strong><br>
+  21 criativos foram compartilhados entre FEV e ABR. Para o próximo lançamento, desenvolver pelo menos
+  70% de criativos novos para evitar fadiga de audiência — principalmente nos públicos quentes (remarketing).
+</div>
+
+<div class="action-box">
+  <strong>✅ 6. Segmentar Google por objetivo: captação vs aquecimento</strong><br>
+  Se quiser manter campanhas de branding (Demand Gen), separá-las em <strong>budget isolado (máx 20%)</strong>
+  e não contabilizá-las no CPA de captação. Assim a performance de captação fica clara e o CPA não é distorcido.
+</div>
+
+<div class="action-box">
+  <strong>✅ 7. Revisão de copy e sequência de nurturing pós-lead</strong><br>
+  Com 86.025 leads no CRM e taxa de conversão de apenas 0,50%, há 85.477
+  potenciais compradores que não converteram. Uma sequência de reativação pós-lançamento pode recuperar parte desse valor.
+</div>
+
+<div class="action-box">
+  <strong>✅ 8. Usar a dor metodológica como principal ângulo de copy (sinal forte do Typeform)</strong><br>
+  O FEV tinha mais respondentes com "Não sei estudar do jeito certo" (+3.8pp) e "Não sei montar cronograma" (+4.3pp), dores que o produto resolve diretamente.
+  Copy e criativos que abordam <em>método, cronograma e estrutura</em> ressoam mais com compradores — priorizar esses ângulos.
+</div>
+
+<div class="action-box">
+  <strong>✅ 9. Segmentação geográfica mais agressiva em SP, RJ, RS e DF</strong><br>
+  FEV cresceu +2.3pp em SP e +0.6pp em RJ. Estados com renda maior = menor barreira financeira = maior conversão.
+  Aumentar lances geográficos nesses estados e criar variações de copy específicas para SP/RJ.
+</div>
+
+<div class="action-box">
+  <strong>✅ 10. Criar oferta de acesso para o segmento jovem 18–22 anos</strong><br>
+  ABR tinha 42.7% de jovens 18–22 vs 35.1% no FEV — faixa com barreira financeira real.
+  Uma opção de menor entrada, parcelamento estendido ou trial pode converter esse segmento que responde a pesquisa mas não compra.
+</div>
+
+<div class="action-box">
+  <strong>✅ 11. Explorar o segmento com família constituída (Esposo+filhos)</strong><br>
+  FEV teve 19.4% vs 15.8% ABR de respondentes casados com filhos — maior senso de urgência e responsabilidade.
+  Criativos que abordam "estabilidade para a família", "concurso para dar uma vida melhor para os filhos" podem amplificar a conversão nesse segmento.
+</div>
+
+<!-- FONTES -->
+<h2>📁 Fontes de Dados</h2>
+<table>
+<tr><th class="th-dark">Fonte</th><th class="th-dark">FEV-26</th><th class="th-dark">ABR-26</th></tr>
+<tr><td>CRM (Active Campaign)</td><td>69.205 leads</td><td>86.025 leads</td></tr>
+<tr><td>Hotmart</td><td>503 vendas | R$ 791.538,21</td><td>378 vendas | R$ 598.854,30</td></tr>
+<tr><td>TMB</td><td>295 vendas | R$ 483.814,30</td><td>170 vendas | R$ 279.237,80</td></tr>
+<tr><td>Meta Ads</td><td>3,014 linhas | R$ 107.426,39</td><td>3,251 linhas | R$ 174.864,45</td></tr>
+<tr><td>Google Ads Campanhas</td><td>24 campanhas | R$ 203.829,78</td><td>51 campanhas | R$ 187.847,24</td></tr>
+<tr><td>Typeform</td><td>12,918 respostas | TF→Venda 2.35%</td><td>11,290 respostas | TF→Venda 1.07%</td></tr>
+</table>
+
+</div><!-- /content -->
+
+<div class="footer">
+  <p>Relatório gerado em 27/05/2026 às 10:32 | Brabo Concursos — Análise Interna</p>
+  <p style="margin-top:6px">
+    <a href="index.html" style="color:#1a1a2e;font-weight:600">← Índice central</a>
+    &nbsp;&nbsp;|&nbsp;&nbsp;
+    <a href="[PBB-FEV-26]/INDEX_[PBB-FEV-26].html" style="color:#667eea;font-weight:600">← Ver FEV-26</a>
+    &nbsp;&nbsp;|&nbsp;&nbsp;
+    <a href="[PBB-ABR-26]/INDEX_[PBB-ABR-26].html" style="color:#f5576c;font-weight:600">Ver ABR-26 →</a>
+  </p>
+</div>
+
+</div><!-- /container -->
+
+
+
+
+
+
+
+
+
+
+
+<!-- BRABO-FRAME-END -->
+  </main></div>
+<!-- /BRABO-FRAME-END -->
+</body>
+</html>

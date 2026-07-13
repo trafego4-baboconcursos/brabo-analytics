@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1><i class="ti ti-git-compare"></i> Comparativo V1/V2{% if launch %} &mdash; {{ launch.code }}{% endif %}</h1>
+      <p>Validação assistida entre relatórios estáticos da V1 e páginas dinâmicas da V2</p>
+    </div>
+  </div>
+
+  <div class="content">
+    {% if not launch %}
+    <div class="no-data">
+      <i class="ti ti-folder-off"></i>
+      <h3>Nenhum lançamento encontrado</h3>
+      <p>Adicione uma pasta no padrão <code>[PBB-ABR-26]</code> dentro de <code>analises/</code></p>
+    </div>
+    {% else %}
+
+    <div class="metrics-grid">
+      <div class="metric-card destaque">
+        <div class="label"><i class="ti ti-cash"></i> Investimento V2</div>
+        <div class="value">{{ invest | brl }}</div>
+        <div class="subtext">Meta + Google lidos dos CSVs</div>
+      </div>
+      <div class="metric-card destaque">
+        <div class="label"><i class="ti ti-receipt"></i> Receita V2</div>
+        <div class="value">{{ receita | brl }}</div>
+        <div class="subtext">Hotmart + TMB lidos dos CSVs</div>
+      </div>
+      <div class="metric-card">
+        <div class="label"><i class="ti ti-chart-arrows"></i> ROAS V2</div>
+        <div class="value">{{ "%.2f"|format(roas) | replace(".", ",") }}x</div>
+        <div class="subtext">Receita / investimento</div>
+      </div>
+      <div class="metric-card">
+        <div class="label"><i class="ti ti-users"></i> Leads/Conv. V2</div>
+        <div class="value">{{ ((meta.total_leads if meta else 0) + (google.total_conversoes if google else 0)) | num }}</div>
+        <div class="subtext">Meta leads + Google conversoes</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">1. Saude dos Dados V2</div>
+      <div class="highlights">
+        {% for item in data_status %}
+        <div class="highlight-box">
+          <h3>
+            {% if item.available %}
+            <i class="ti ti-circle-check" style="color:var(--bs-success)"></i>
+            {% else %}
+            <i class="ti ti-alert-circle" style="color:var(--bs-warning)"></i>
+            {% endif %}
+            {{ item.label }}
+          </h3>
+          <div class="highlight-item">
+            <span class="criativo">{{ "Disponivel" if item.available else "Ausente" }}</span>
+            <span class="value">{{ item.detail }}</span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">2. Checklist de Comparacao V1/V2</div>
+      <div class="note">
+        Esta primeira versao nao faz parsing automatico dos HTMLs V1. Use os links abaixo para abrir V1 e V2 lado a lado e registrar discrepancias manualmente.
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Area</th>
+              <th>V2 Dinamica</th>
+              <th>V1 Estatica</th>
+              <th>Status V2</th>
+              <th>Status V1</th>
+              <th>Validacao Manual</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for report in v1_reports %}
+            <tr>
+              <td><strong>{{ report.label }}</strong></td>
+              <td>
+                <a class="bs-pill info" href="{{ report.v2_url }}" target="_blank">Abrir V2</a>
+              </td>
+              <td>
+                {% if report.v1_exists %}
+                <a class="bs-pill accent" href="{{ report.v1_url }}" target="_blank">Abrir V1</a>
+                {% else %}
+                <span class="bs-pill neutral">Sem HTML V1</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if report.v2_ready %}
+                <span class="bs-pill success">Pronta</span>
+                {% else %}
+                <span class="bs-pill warning">Faltam: {{ report.missing_needs|join(", ") }}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if report.v1_exists %}
+                <span class="bs-pill success">Encontrada</span>
+                {% else %}
+                <span class="bs-pill warning">Nao encontrada</span>
+                {% endif %}
+              </td>
+              <td>
+                <span style="color:var(--bs-ink-muted);font-size:12px">Pendente</span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">3. KPIs V2 para Conferencia</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Metrica</th><th>Valor V2</th><th>Origem</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Investimento Meta</td><td class="numero">{{ meta.total_gasto | brl if meta else "-" }}</td><td>Meta Ads CSV</td></tr>
+            <tr><td>Investimento Google</td><td class="numero">{{ google.total_custo | brl if google else "-" }}</td><td>Google Ads CSV</td></tr>
+            <tr><td>Receita total</td><td class="numero">{{ receita | brl }}</td><td>Hotmart + TMB</td></tr>
+            <tr><td>ROAS geral</td><td class="numero">{{ "%.2f"|format(roas) | replace(".", ",") }}x</td><td>Receita / investimento</td></tr>
+            <tr><td>Leads Meta</td><td class="numero">{{ meta.total_leads | num if meta else "-" }}</td><td>Meta Ads CSV</td></tr>
+            <tr><td>Conversões Google</td><td class="numero">{{ "%.0f"|format(google.total_conversoes) if google else "-" }}</td><td>Google Ads CSV</td></tr>
+            <tr><td>Vendas totais</td><td class="numero">{{ vendas.total_vendas | num if vendas else "-" }}</td><td>Vendas CSV</td></tr>
+            <tr><td>Leads Active Campaign</td><td class="numero">{{ leads.total_leads | num if leads else "-" }}</td><td>Active Campaign CSV</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% endif %}
+  </div>
+  <div class="footing">Gerado em tempo real | Brabo Analytics{% if launch %} &mdash; {{ launch.code }}{% endif %}</div>
+</div>
+{% endblock %}

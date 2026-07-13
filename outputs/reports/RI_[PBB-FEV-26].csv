@@ -1,0 +1,29 @@
+section,source,metric,value,buyers,revenue,payment_card,payment_boleto,payment_pix,payment_other,utm_source,utm_medium,utm_campaign
+ri_summary,RI,sales,208,,,,,,,,,
+ri_summary,RI,revenue,30876.09,,,,,,,,,
+ri_summary,RI,buyers_with_utm,164,,,,,,,,,
+ri_summary,RI,buyers_without_utm,44,,,,,,,,,
+ri_summary,RI,buyers_with_utm_pct,"78,8%",,,,,,,,,
+ri_summary,RI,buyers_without_utm_pct,"21,2%",,,,,,,,,
+ri_top_utm,Facebook Quente,,,21,33526.560000000005,13,7,1,0,fb-quente-principal-v2,03 - Viu 50% da Captação - PBB-FEV-26,pbb-fev-26
+ri_top_utm,Facebook Quente,,,5,7797.12,4,1,0,0,fb-quente-reels-v1,04 - Viu 25% da Captação - PBB-FEV-26,pbb-fev-26
+ri_top_utm,Facebook Quente,,,4,6571.2,0,4,0,0,fb-quente-reels-v1,03 - Viu 50% da Captação - PBB-FEV-26,pbb-fev-26
+ri_top_utm,Facebook Frio,,,5,8214.0,0,5,0,0,fb-frio-reels-v1,07 - Interessados BB,pbb-fev-26
+ri_top_utm,Facebook Frio,,,4,6466.9800000000005,1,3,0,0,fb-frio-principal-v1,07 - Interessados BB,pbb-fev-26
+ri_top_utm,Facebook Frio,,,3,4980.26,2,1,0,0,fb-frio-potencial-v4,07 - Interessados BB,pbb-fev-26
+ri_top_utm,Facebook Especifico,,,2,3181.38,1,1,0,0,fb-especifico-principal-v1,{{adset.name}},pbb-fev-26
+ri_top_utm,YouTube Quente,,,24,37490.68,13,11,0,0,yt-quente-principal-v2,00_cadastrados_pbb_antigo,pbb-fev-26
+ri_top_utm,YouTube Quente,,,22,35343.74,12,9,1,0,yt-quente-melhoria-v2,00_cadastrados_pbb_antigo,pbb-fev-26
+ri_top_utm,YouTube Quente,,,14,22454.219999999994,5,8,1,0,yt-quente-shorts-v2,00_cadastrados_pbb_antigo,pbb-fev-26
+ri_top_utm,YouTube Frio,,,9,14566.249999999998,3,6,0,0,yt-frio-principal-v2,07_afinidade_concurso_bb,pbb-fev-26
+ri_top_utm,YouTube Frio,,,5,8005.56,2,3,0,0,yt-frio-principal-v2,06_estabilidade_financeira,pbb-fev-26
+ri_top_utm,YouTube Frio,,,5,7930.41,4,1,0,0,yt-frio-principal-v1,07_afinidade_concurso_bb,pbb-fev-26
+ri_top_utm,YouTube Especifico,,,1,1642.8,0,1,0,0,yt-captacao-especifico-potencial-v9,01_viu_video_inss_540d,pi-abr-26
+ri_top_utm,YouTube Especifico,,,1,1538.58,1,0,0,0,yt-captacao-especifico-principal-v9,01_viu_video_inss_540d,pi-abr-26
+ri_top_utm,Pre-Qualificacao YT,,,26,41739.77000000002,14,10,2,0,yt-especifico-principal-v2,00_viu_video_pre_quali,pbb-fev-26
+ri_top_utm,Pre-Qualificacao YT,,,14,22478.099999999995,5,9,0,0,yt-especifico-principal-v1,00_viu_video_pre_quali,pbb-fev-26
+ri_top_utm,Pre-Qualificacao YT,,,10,16090.8,6,1,3,0,yt-especifico-shorts-v6,00_viu_video_pre_quali,pbb-fev-26
+ri_top_utm,Pre-Qualificacao FB,,,5,8005.56,2,3,0,0,fb-especifico-principal-v2,00 - Viu 50% da Pré-Quali - PBB-FEV-26,pbb-fev-26
+ri_top_utm,Pre-Qualificacao FB,,,3,4928.4,0,3,0,0,fb-especifico-principal-v1,01 - Viu 25% da Pré-Quali - PBB-FEV-26,pbb-fev-26
+ri_top_utm,Pre-Qualificacao FB,,,2,3597.6099999999997,1,0,1,0,fb-especifico-principal-v4,00 - Viu 50% da Pré-Quali - PBB-FEV-26,pbb-fev-26
+ri_top_utm,Outros,,,59,94459.5300000001,34,25,0,0,,,

@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1><i class="ti ti-user-check"></i> Meta Audiências{% if launch %} &mdash; {{ launch.code }}{% endif %}</h1>
+      <p>Distribuição por temperatura de público | Segmentação de captação</p>
+    </div>
+  </div>
+  <div class="content">
+    {% if not meta %}
+    <div class="no-data">
+      <i class="ti ti-user-check"></i>
+      <h3>CSV Meta Ads não encontrado</h3>
+      <p>Adicione o export em <code>analises/[{{ active_code or 'CÓDIGO' }}]/Meta Ads/*.csv</code></p>
+    </div>
+    {% else %}
+
+    <div class="metrics-grid">
+      <div class="metric-card destaque">
+        <div class="label"><i class="ti ti-cash"></i> Investimento Meta</div>
+        <div class="value">{{ meta.total_gasto | brl }}</div>
+        <div class="subtext">Total gasto no período</div>
+      </div>
+      <div class="metric-card destaque">
+        <div class="label"><i class="ti ti-users"></i> Leads Totais</div>
+        <div class="value">{{ meta.total_leads | num }}</div>
+        <div class="subtext">CPL médio: {{ meta.cpl_medio | brl }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="label"><i class="ti ti-click"></i> Cliques</div>
+        <div class="value">{{ meta.total_cliques | num }}</div>
+        <div class="subtext">CTR médio: {{ meta.ctr_medio | pct(2) }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="label"><i class="ti ti-eye"></i> Impressões</div>
+        <div class="value">{{ meta.total_impressoes | num }}</div>
+        <div class="subtext">CPM médio: {{ meta.cpm_medio | brl }}</div>
+      </div>
+    </div>
+
+    {% if meta.por_temperatura %}
+    <div class="section">
+      <div class="section-title">1. Performance por Temperatura de Público</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Público</th>
+              <th>Investimento</th>
+              <th>% Verba</th>
+              <th>Leads</th>
+              <th>CPL</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set total = meta.por_temperatura.values()|map(attribute='gasto')|sum or 1 %}
+            {% set tc = {'Quente': '#f5576c', 'Frio': '#667eea', 'Específico': '#ff9800', 'Outros': '#9ca3af'} %}
+            {% for temp, d in meta.por_temperatura.items() | sort(attribute='1.gasto', reverse=True) %}
+            <tr>
+              <td><span class="bs-pill" style="background:{{ tc.get(temp,'#9ca3af') }}">{{ temp }}</span></td>
+              <td class="numero">{{ d.gasto | brl }}</td>
+              <td>
+                <div class="pbar-wrap">
+                  <div class="pbar-track"><div class="pbar-fill" style="background:{{ tc.get(temp,'#9ca3af') }};width:{{ (d.gasto/total*100)|round(1) }}%"></div></div>
+                  <strong style="color:{{ tc.get(temp,'#9ca3af') }};font-size:12px">{{ (d.gasto/total*100)|pct }}</strong>
+                </div>
+              </td>
+              <td class="numero">{{ d.leads | num }}</td>
+              <td class="numero">{{ d.cpl | brl if d.leads > 0 else "-" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">2. Leitura Rápida</div>
+      <div class="highlights">
+        {% set temp_items = meta.por_temperatura.items() | sort(attribute='1.gasto', reverse=True) %}
+        {% set best_items = meta.por_temperatura.items() | selectattr('1.leads', 'gt', 0) | sort(attribute='1.cpl') %}
+        {% if temp_items %}
+        <div class="highlight-box">
+          <h3><i class="ti ti-target-arrow"></i> Maior Alocação</h3>
+          {% set top_temp = temp_items[0] %}
+          <div class="highlight-item">
+            <span class="criativo">{{ top_temp[0] }}</span>
+            <span class="value">{{ top_temp[1].gasto | brl }}</span>
+            <small>{{ (top_temp[1].gasto/total*100)|pct }} da verba de captação</small>
+          </div>
+        </div>
+        {% endif %}
+        {% if best_items %}
+        <div class="highlight-box">
+          <h3><i class="ti ti-discount-check"></i> Melhor CPL</h3>
+          {% set best_temp = best_items[0] %}
+          <div class="highlight-item">
+            <span class="criativo">{{ best_temp[0] }}</span>
+            <span class="value">{{ best_temp[1].cpl | brl }}</span>
+            <small>{{ best_temp[1].leads | num }} leads gerados</small>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if meta.por_bucket %}
+    <div class="section">
+      <div class="section-title">3. Performance por Bucket de Campanha</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Bucket</th><th>Investimento</th><th>% Real</th><th>Leads</th><th>CPL</th></tr>
+          </thead>
+          <tbody>
+            {% for bucket, d in meta.por_bucket.items() | sort(attribute='1.gasto', reverse=True) %}
+            <tr>
+              <td><strong>{{ bucket }}</strong></td>
+              <td class="numero">{{ d.gasto | brl }}</td>
+              <td>
+                <div class="pbar-wrap">
+                  <div class="pbar-track"><div class="pbar-fill" style="width:{{ d.pct|round(1) }}%"></div></div>
+                  <strong style="font-size:12px">{{ d.pct|pct }}</strong>
+                </div>
+              </td>
+              <td class="numero">{{ d.leads | num }}</td>
+              <td class="numero">{{ d.cpl | brl if d.leads > 0 else "-" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if meta.publicos %}
+    {% set total_custo_publicos = meta.publicos|map(attribute='custo')|sum or 1 %}
+    <div class="section">
+      <div class="section-title">4. Top Públicos-Alvo por Investimento (Conjuntos de Anúncios)</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Público (Ad Set)</th>
+              <th>Investimento</th>
+              <th>Cliques</th>
+              <th>Leads</th>
+              <th>CPL</th>
+              <th>Vendas</th>
+              <th>CPA</th>
+              <th>Receita</th>
+              <th>ROAS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in meta.publicos %}
+            <tr class="{{ 'top3' if loop.index <= 3 else '' }}">
+              <td class="numero">{{ loop.index }}</td>
+              <td style="max-width:220px;font-size:12px"><strong>{{ p.segmento[:55] }}</strong></td>
+              <td class="numero">{{ p.custo | brl }}</td>
+              <td class="numero">{{ p.cliques | num }}</td>
+              <td class="numero">{{ p.conversoes | num }}</td>
+              <td class="numero">{{ p.cpl | brl if p.conversoes > 0 else "-" }}</td>
+              <td class="numero" style="font-weight: bold; color: var(--color-success);">{{ p.vendas | num }}</td>
+              <td class="numero">{{ p.cpa_vendas | brl }}</td>
+              <td class="numero" style="font-weight: bold; color: var(--color-success);">{{ p.receita | brl if p.receita else "-" }}</td>
+              {% set roas = (p.receita / p.custo) if p.receita and p.custo > 0 else 0 %}
+              <td class="numero" style="font-weight: bold; {{ 'color:var(--color-success)' if roas >= 1 else 'color:var(--color-danger)' }}">{{ "%.2f"|format(roas)|replace('.',',') }}x</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+    <!-- Demografia Meta -->
+    <div class="section">
+      <div class="section-title">5. Perfil Demográfico</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <!-- Idade -->
+        {% set idade_total = meta.demografia_idade | sum(attribute='cost') or 1 %}
+        <div class="card" data-no-filter>
+          <div class="card-header"><h2><i class="ti ti-users"></i> Faixa Etária</h2></div>
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">
+                <th style="padding:8px 16px;text-align:left;font-weight:500">Faixa</th>
+                <th style="padding:8px 16px;text-align:right;font-weight:500">Invest.</th>
+                <th style="padding:8px 16px;text-align:right;font-weight:500">Leads</th>
+                <th style="padding:8px 16px;text-align:right;font-weight:500">CPL</th>
+                <th style="padding:8px 16px;text-align:left;font-weight:500;min-width:120px">% verba</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in meta.demografia_idade | sort(attribute='cost', reverse=True) %}
+              {% set pct = (p.cost / idade_total * 100) %}
+              <tr style="border-top:1px solid var(--border)">
+                <td style="padding:10px 16px"><strong style="font-size:13px">{{ p.age | replace('Unknown','Desconhecido') | replace('unknown','Desconhecido') }}</strong></td>
+                <td style="padding:10px 16px;text-align:right;font-size:13px">{{ p.cost | brl }}</td>
+                <td style="padding:10px 16px;text-align:right;font-size:13px">{{ p.leads | num }}</td>
+                <td style="padding:10px 16px;text-align:right;font-size:13px">{{ p.cpl | brl if p.leads > 0 else "-" }}</td>
+                <td style="padding:10px 16px">
+                  <div class="pbar-wrap" style="gap:6px">
+                    <div class="pbar-track" style="flex:1"><div class="pbar-fill" style="width:{{ pct|round(1) }}%"></div></div>
+                    <strong style="font-size:11px;min-width:34px;text-align:right">{{ pct | pct }}</strong>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Gênero -->
+        {% set genero_total = meta.demografia_genero | sum(attribute='cost') or 1 %}
+        {% set gc = {'Feminino':'#f5576c','Masculino':'#667eea','Desconhecido':'#9ca3af'} %}
+        <div class="card" data-no-filter>
+          <div class="card-header"><h2><i class="ti ti-gender-intersex"></i> Gênero</h2></div>
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">
+                <th style="padding:8px 16px;text-align:left;font-weight:500">Gênero</th>
+                <th style="padding:8px 16px;text-align:right;font-weight:500">Invest.</th>
+                <th style="padding:8px 16px;text-align:right;font-weight:500">Leads</th>
+                <th style="padding:8px 16px;text-align:right;font-weight:500">CPL</th>
+                <th style="padding:8px 16px;text-align:left;font-weight:500;min-width:120px">% verba</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in meta.demografia_genero | sort(attribute='cost', reverse=True) %}
+              {% set label = p.gender | replace('female','Feminino') | replace('male','Masculino') | replace('unknown','Desconhecido') | replace('Unknown','Desconhecido') %}
+              {% set pct = (p.cost / genero_total * 100) %}
+              <tr style="border-top:1px solid var(--border)">
+                <td style="padding:10px 16px"><span class="bs-pill" style="background:{{ gc.get(label,'#9ca3af') }}">{{ label }}</span></td>
+                <td style="padding:10px 16px;text-align:right;font-size:13px">{{ p.cost | brl }}</td>
+                <td style="padding:10px 16px;text-align:right;font-size:13px">{{ p.leads | num }}</td>
+                <td style="padding:10px 16px;text-align:right;font-size:13px">{{ p.cpl | brl if p.leads > 0 else "-" }}</td>
+                <td style="padding:10px 16px">
+                  <div class="pbar-wrap" style="gap:6px">
+                    <div class="pbar-track" style="flex:1"><div class="pbar-fill" style="background:{{ gc.get(label,'#9ca3af') }};width:{{ pct|round(1) }}%"></div></div>
+                    <strong style="font-size:11px;min-width:34px;text-align:right">{{ pct | pct }}</strong>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    {% endif %}
+  </div>
+  <div class="footing">Gerado em tempo real | Brabo Analytics{% if launch %} &mdash; {{ launch.code }}{% endif %}</div>
+</div>
+{% endblock %}

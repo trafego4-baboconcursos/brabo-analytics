@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1>E-mails (CRM) — Campanhas{% if launch %} — {{ launch.code }}{% endif %}</h1>
+      <p>Active Campaign | Envios → Aberturas → Cliques</p>
+    </div>
+  </div>
+
+  <div class="content">
+    {% if not ac_summary or not ac_summary.has_data %}
+    <div class="no-data">
+      <i class="ti ti-mail"></i>
+      <h3>Dados de campanhas não encontrados</h3>
+      <p>Nenhuma campanha mapeada para o lançamento {{ active_code or 'selecionado' }}</p>
+    </div>
+    {% else %}
+
+    {# ── KPIs ── #}
+    <div class="metrics-grid">
+      <div class="metric-card destaque">
+        <div class="label">Total de Envios</div>
+        <div class="value">{{ ac_summary.total_envios | num }}</div>
+        <div class="subtext">Soma de todos os e-mails disparados</div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Total de Aberturas</div>
+        <div class="value">{{ ac_summary.total_aberturas | num }}</div>
+        <div class="subtext">Taxa Média: <span style="font-weight:700;color:var(--bs-accent);">{{ ac_summary.tx_abertura_media | round(2) }}%</span></div>
+      </div>
+      <div class="metric-card">
+        <div class="label">Total de Cliques</div>
+        <div class="value">{{ ac_summary.total_cliques | num }}</div>
+        <div class="subtext">Taxa Média (Click/Open): <span class="positivo" style="font-weight:700;">{{ ac_summary.tx_clique_media | round(2) }}%</span></div>
+      </div>
+    </div>
+
+    {# ── Curva Diária ── #}
+    {% if ac_summary.por_dia %}
+    <div class="info-box">
+      <h2>Envios por Dia</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-dark">Data</th>
+              <th style="text-align:right">Envios</th>
+              <th class="th-success" style="text-align:right">Aberturas</th>
+              <th class="th-success" style="text-align:right">Cliques</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in ac_summary.por_dia %}
+            <tr>
+              <td class="td-bold">{{ r.data }}</td>
+              <td style="text-align:right;font-weight:700;">{{ r.envios | num }}</td>
+              <td class="td-success" style="text-align:right;font-weight:700;">{{ r.aberturas | num }}</td>
+              <td class="td-success" style="text-align:right;font-weight:700;">{{ r.cliques | num }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── Ranking de Campanhas ── #}
+    <div class="info-box">
+      <h2>Ranking de E-mails</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-dark">Data</th>
+              <th class="th-dark">Nome da Campanha</th>
+              <th class="th-dark" style="text-align:right">Envios</th>
+              <th class="th-success" style="text-align:right">Aberturas</th>
+              <th class="th-success" style="text-align:right">Taxa (Open)</th>
+              <th class="th-success-dark" style="text-align:right">Cliques</th>
+              <th class="th-success-dark" style="text-align:right">Taxa (Click/Open)</th>
+              <th class="th-danger" style="text-align:right">Descadastros</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set total_env = ac_summary.total_envios or 1 %}
+            {% for c in ac_summary.campanhas %}
+            <tr>
+              <td class="td-muted" style="white-space:nowrap;">{{ c.data_envio }}</td>
+              <td style="font-weight:600;">{{ c.nome }}</td>
+              <td class="numero td-bold">{{ c.envios | num }}</td>
+              <td class="numero td-success">{{ c.aberturas | num }}</td>
+              <td class="numero" style="font-weight:700;color:var(--bs-accent);">{{ c.tx_abertura | round(1) }}%</td>
+              <td class="numero td-success-dark">{{ c.cliques | num }}</td>
+              <td class="numero td-success-dark" style="font-weight:700;">{{ c.tx_clique | round(1) }}%</td>
+              <td class="numero td-danger">{{ c.descadastros | num }} ({{ c.tx_descadastro | round(2) }}%)</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% endif %}{# end if has_data #}
+  </div>
+  <div class="footing">Gerado em tempo real | Brabo Analytics{% if launch %} — {{ launch.code }}{% endif %}</div>
+</div>
+{% endblock %}

@@ -1,0 +1,686 @@
+
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Análise de Vídeos com Hook Rate - Google Ads</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f7fa; color: #333; }
+            .container { max-width: 1800px; margin: 0 auto; padding: 20px; }
+            
+            .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px; }
+            .header h1 { font-size: 32px; margin-bottom: 5px; }
+            .header p { font-size: 14px; opacity: 0.9; }
+            
+            .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; }
+            .stat-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #667eea; }
+            .stat-card h3 { font-size: 12px; color: #999; text-transform: uppercase; margin-bottom: 10px; }
+            .stat-card .value { font-size: 28px; font-weight: bold; color: #667eea; }
+            
+            /* ===== TABELA HOOK RATE ===== */
+            .summary-section { margin-bottom: 40px; }
+            .summary-section h2 { margin: 30px 0 20px 0; color: #333; font-size: 24px; }
+            .summary-table { width: 100%; background: white; border-collapse: collapse; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+            .summary-table thead { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+            .summary-table th { padding: 15px; text-align: left; font-weight: 600; border-bottom: none; font-size: 12px; text-transform: uppercase; }
+            .summary-table td { padding: 12px 15px; border-bottom: 1px solid #e9ecef; }
+            .summary-table tr:hover { background: #f8f9fa; }
+            .summary-table .rank { font-weight: 700; color: #667eea; font-size: 16px; width: 40px; text-align: center; }
+            .summary-table .metric { font-weight: 600; color: #667eea; }
+            .hook-rate-high { color: #28a745; font-weight: 700; }
+            .hook-rate-medium { color: #ffc107; font-weight: 700; }
+            .hook-rate-low { color: #dc3545; font-weight: 700; }
+            
+            .chart-container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 30px; position: relative; height: 400px; }
+            .chart-container h3 { margin-bottom: 20px; color: #333; }
+            
+            .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+            .metric-box { background: white; padding: 15px; border-radius: 8px; border-left: 3px solid #667eea; }
+            .metric-box .label { font-size: 11px; color: #999; text-transform: uppercase; }
+            .metric-box .value { font-size: 24px; font-weight: bold; color: #667eea; margin-top: 5px; }
+            
+            .footer { text-align: center; color: #999; font-size: 12px; padding-top: 20px; border-top: 1px solid #e9ecef; }
+            
+            .info-box { background: #e7f3ff; border-left: 4px solid #2196F3; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+            .info-box strong { color: #1976D2; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>📺 Análise de Vídeos - Hook Rate [PI-JAN-26]</h1>
+                <p>Performance de Vídeos YouTube com Análise de Hook Rate</p>
+                <p>Período: 1º de dezembro de 2025 - 31 de janeiro de 2026</p>
+            </div>
+            
+            <div class="info-box">
+                <strong>🎯 Hook Rate:</strong> Porcentagem de pessoas que assistiram pelo menos 25% do vídeo em relação ao total de impressões. Métrica essencial para avaliar a eficácia do "gancho" (primeiros 3 segundos).
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Total de Impressões</h3>
+                    <div class="value">106.135.282</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Total de Visualizações</h3>
+                    <div class="value">22.434.878</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Hook Rate Médio</h3>
+                    <div class="value">0.23%</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Visualizações até 100%</h3>
+                    <div class="value">4.728</div>
+                </div>
+            </div>
+            
+            <div class="metrics-grid">
+                <div class="metric-box">
+                    <div class="label">View Rate Médio</div>
+                    <div class="value">19.41%</div>
+                </div>
+                <div class="metric-box">
+                    <div class="label">Taxa Conclusão 25%</div>
+                    <div class="value">1.11%</div>
+                </div>
+                <div class="metric-box">
+                    <div class="label">Taxa Conclusão 100%</div>
+                    <div class="value">0.37%</div>
+                </div>
+                <div class="metric-box">
+                    <div class="label">Custo Total</div>
+                    <div class="value">R$ 581.950,29</div>
+                </div>
+            </div>
+            
+            <!-- GRÁFICO HOOK RATE -->
+            <div class="chart-container">
+                <h3>📊 Hook Rate por Vídeo (Top 15)</h3>
+                <canvas id="hookRateChart"></canvas>
+            </div>
+            
+            <!-- GRÁFICO FUNIL DE VISUALIZAÇÃO -->
+            <div class="chart-container">
+                <h3>📈 Funil de Visualização (Média)</h3>
+                <canvas id="funnelChart"></canvas>
+            </div>
+            
+            <!-- TABELA HOOK RATE -->
+            <div class="summary-section">
+                <h2>🎯 Ranking de Vídeos - Hook Rate (% que assistiram até 25%)</h2>
+                <table class="summary-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th style="max-width: 200px;">Vídeo</th>
+                            <th>Impressões</th>
+                            <th>Visualizações</th>
+                            <th>View Rate</th>
+                            <th>Hook Rate ⭐</th>
+                            <th>até 50%</th>
+                            <th>até 75%</th>
+                            <th>até 100%</th>
+                            <th>Custo</th>
+                            <th>Conversões</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+    
+                        <tr>
+                            <td class="rank">#1</td>
+                            <td><strong>Aula 1 - Vídeo 2</strong></td>
+                            <td class="metric">4.701</td>
+                            <td class="metric">1.177</td>
+                            <td class="metric">25.04%</td>
+                            <td class="hook-rate-low">2.30%</td>
+                            <td class="metric">63</td>
+                            <td class="metric">51</td>
+                            <td class="metric">45</td>
+                            <td class="metric">R$ 737,68</td>
+                            <td class="metric" style="color: #28a745;"><strong>0</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#2</td>
+                            <td><strong>Aula 2 - Replay</strong></td>
+                            <td class="metric">4.249</td>
+                            <td class="metric">853</td>
+                            <td class="metric">20.08%</td>
+                            <td class="hook-rate-low">1.99%</td>
+                            <td class="metric">31</td>
+                            <td class="metric">24</td>
+                            <td class="metric">20</td>
+                            <td class="metric">R$ 61,73</td>
+                            <td class="metric" style="color: #28a745;"><strong>1</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#3</td>
+                            <td><strong>Aula 1 - Replay</strong></td>
+                            <td class="metric">17.730</td>
+                            <td class="metric">3.718</td>
+                            <td class="metric">20.97%</td>
+                            <td class="hook-rate-low">1.01%</td>
+                            <td class="metric">75</td>
+                            <td class="metric">57</td>
+                            <td class="metric">48</td>
+                            <td class="metric">R$ 742,15</td>
+                            <td class="metric" style="color: #28a745;"><strong>1</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#4</td>
+                            <td><strong>Aula 1 - Vídeo 1</strong></td>
+                            <td class="metric">16.362</td>
+                            <td class="metric">2.812</td>
+                            <td class="metric">17.19%</td>
+                            <td class="hook-rate-low">0.68%</td>
+                            <td class="metric">49</td>
+                            <td class="metric">35</td>
+                            <td class="metric">29</td>
+                            <td class="metric">R$ 3.348,64</td>
+                            <td class="metric" style="color: #28a745;"><strong>0</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#5</td>
+                            <td><strong>Aula 3 - Vídeo 2</strong></td>
+                            <td class="metric">16.411</td>
+                            <td class="metric">3.291</td>
+                            <td class="metric">20.05%</td>
+                            <td class="hook-rate-low">0.47%</td>
+                            <td class="metric">49</td>
+                            <td class="metric">39</td>
+                            <td class="metric">32</td>
+                            <td class="metric">R$ 1.612,14</td>
+                            <td class="metric" style="color: #28a745;"><strong>1</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#6</td>
+                            <td><strong>Aula 2 - Vídeo 1</strong></td>
+                            <td class="metric">31.068</td>
+                            <td class="metric">6.247</td>
+                            <td class="metric">20.11%</td>
+                            <td class="hook-rate-low">0.47%</td>
+                            <td class="metric">86</td>
+                            <td class="metric">71</td>
+                            <td class="metric">61</td>
+                            <td class="metric">R$ 2.423,11</td>
+                            <td class="metric" style="color: #28a745;"><strong>2</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#7</td>
+                            <td><strong>Aula 3 - Vídeo 1</strong></td>
+                            <td class="metric">18.057</td>
+                            <td class="metric">3.362</td>
+                            <td class="metric">18.62%</td>
+                            <td class="hook-rate-low">0.38%</td>
+                            <td class="metric">44</td>
+                            <td class="metric">35</td>
+                            <td class="metric">30</td>
+                            <td class="metric">R$ 1.975,92</td>
+                            <td class="metric" style="color: #28a745;"><strong>2</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#8</td>
+                            <td><strong>Aula 3 - Replay</strong></td>
+                            <td class="metric">40.966</td>
+                            <td class="metric">10.834</td>
+                            <td class="metric">26.45%</td>
+                            <td class="hook-rate-low">0.22%</td>
+                            <td class="metric">37</td>
+                            <td class="metric">30</td>
+                            <td class="metric">26</td>
+                            <td class="metric">R$ 583,77</td>
+                            <td class="metric" style="color: #28a745;"><strong>0</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#9</td>
+                            <td><strong>Carro 2 + legenda +cx - PI-JAN-26</strong></td>
+                            <td class="metric">470.466</td>
+                            <td class="metric">91.583</td>
+                            <td class="metric">19.47%</td>
+                            <td class="hook-rate-low">0.08%</td>
+                            <td class="metric">264</td>
+                            <td class="metric">221</td>
+                            <td class="metric">194</td>
+                            <td class="metric">R$ 2.586,33</td>
+                            <td class="metric" style="color: #28a745;"><strong>346</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#10</td>
+                            <td><strong>Aula 4 - Vídeo 1</strong></td>
+                            <td class="metric">128.808</td>
+                            <td class="metric">22.130</td>
+                            <td class="metric">17.18%</td>
+                            <td class="hook-rate-low">0.06%</td>
+                            <td class="metric">43</td>
+                            <td class="metric">35</td>
+                            <td class="metric">29</td>
+                            <td class="metric">R$ 6.996,60</td>
+                            <td class="metric" style="color: #28a745;"><strong>3</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#11</td>
+                            <td><strong>AD01</strong></td>
+                            <td class="metric">112.604</td>
+                            <td class="metric">28.334</td>
+                            <td class="metric">25.16%</td>
+                            <td class="hook-rate-low">0.04%</td>
+                            <td class="metric">31</td>
+                            <td class="metric">26</td>
+                            <td class="metric">24</td>
+                            <td class="metric">R$ 2.156,71</td>
+                            <td class="metric" style="color: #28a745;"><strong>21</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#12</td>
+                            <td><strong>AD04</strong></td>
+                            <td class="metric">550.820</td>
+                            <td class="metric">43.737</td>
+                            <td class="metric">7.94%</td>
+                            <td class="hook-rate-low">0.04%</td>
+                            <td class="metric">125</td>
+                            <td class="metric">104</td>
+                            <td class="metric">82</td>
+                            <td class="metric">R$ 924,38</td>
+                            <td class="metric" style="color: #28a745;"><strong>15</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#13</td>
+                            <td><strong>Antigo e Novo estúdio brabo - PI-JAN-26</strong></td>
+                            <td class="metric">1.070.430</td>
+                            <td class="metric">347.086</td>
+                            <td class="metric">32.42%</td>
+                            <td class="hook-rate-low">0.04%</td>
+                            <td class="metric">290</td>
+                            <td class="metric">226</td>
+                            <td class="metric">186</td>
+                            <td class="metric">R$ 6.506,60</td>
+                            <td class="metric" style="color: #28a745;"><strong>1.063</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#14</td>
+                            <td><strong>Estudio Brabo com mic na mão - PI-JAN-26</strong></td>
+                            <td class="metric">1.284.265</td>
+                            <td class="metric">307.268</td>
+                            <td class="metric">23.93%</td>
+                            <td class="hook-rate-low">0.03%</td>
+                            <td class="metric">310</td>
+                            <td class="metric">246</td>
+                            <td class="metric">206</td>
+                            <td class="metric">R$ 7.697,79</td>
+                            <td class="metric" style="color: #28a745;"><strong>1.783</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#15</td>
+                            <td><strong>Dois personagens casa do Mateus + legend</strong></td>
+                            <td class="metric">1.092.884</td>
+                            <td class="metric">270.084</td>
+                            <td class="metric">24.71%</td>
+                            <td class="hook-rate-low">0.03%</td>
+                            <td class="metric">210</td>
+                            <td class="metric">163</td>
+                            <td class="metric">134</td>
+                            <td class="metric">R$ 8.589,06</td>
+                            <td class="metric" style="color: #28a745;"><strong>1.566</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#16</td>
+                            <td><strong>Carro 1+ legenda - PI-JAN-26</strong></td>
+                            <td class="metric">5.604.328</td>
+                            <td class="metric">1.114.485</td>
+                            <td class="metric">19.89%</td>
+                            <td class="hook-rate-low">0.02%</td>
+                            <td class="metric">992</td>
+                            <td class="metric">867</td>
+                            <td class="metric">795</td>
+                            <td class="metric">R$ 26.006,65</td>
+                            <td class="metric" style="color: #28a745;"><strong>4.791</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#17</td>
+                            <td><strong>Dois personagens casa do Mateus - PI-JAN</strong></td>
+                            <td class="metric">1.127.267</td>
+                            <td class="metric">130.764</td>
+                            <td class="metric">11.60%</td>
+                            <td class="hook-rate-low">0.02%</td>
+                            <td class="metric">161</td>
+                            <td class="metric">121</td>
+                            <td class="metric">99</td>
+                            <td class="metric">R$ 5.174,45</td>
+                            <td class="metric" style="color: #28a745;"><strong>1.150</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#18</td>
+                            <td><strong>Estúdio Brabo reeditado - PI-JAN-26</strong></td>
+                            <td class="metric">1.907.114</td>
+                            <td class="metric">312.985</td>
+                            <td class="metric">16.41%</td>
+                            <td class="hook-rate-low">0.02%</td>
+                            <td class="metric">223</td>
+                            <td class="metric">175</td>
+                            <td class="metric">145</td>
+                            <td class="metric">R$ 9.822,67</td>
+                            <td class="metric" style="color: #28a745;"><strong>2.119</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#19</td>
+                            <td><strong>Cozinha do Mateus - PI-JAN-26</strong></td>
+                            <td class="metric">1.535.283</td>
+                            <td class="metric">121.321</td>
+                            <td class="metric">7.90%</td>
+                            <td class="hook-rate-low">0.02%</td>
+                            <td class="metric">154</td>
+                            <td class="metric">117</td>
+                            <td class="metric">96</td>
+                            <td class="metric">R$ 8.891,57</td>
+                            <td class="metric" style="color: #28a745;"><strong>1.296</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#20</td>
+                            <td><strong>Flip chart animado - PI-JAN-26</strong></td>
+                            <td class="metric">1.704.840</td>
+                            <td class="metric">162.855</td>
+                            <td class="metric">9.55%</td>
+                            <td class="hook-rate-low">0.01%</td>
+                            <td class="metric">155</td>
+                            <td class="metric">119</td>
+                            <td class="metric">97</td>
+                            <td class="metric">R$ 7.669,43</td>
+                            <td class="metric" style="color: #28a745;"><strong>1.599</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#21</td>
+                            <td><strong>Frankenstein - PI-JAN-26</strong></td>
+                            <td class="metric">1.885.090</td>
+                            <td class="metric">41.961</td>
+                            <td class="metric">2.23%</td>
+                            <td class="hook-rate-low">0.01%</td>
+                            <td class="metric">132</td>
+                            <td class="metric">93</td>
+                            <td class="metric">75</td>
+                            <td class="metric">R$ 6.826,08</td>
+                            <td class="metric" style="color: #28a745;"><strong>997</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#22</td>
+                            <td><strong>Estúdio Brabo - PI-JAN-26</strong></td>
+                            <td class="metric">5.345.040</td>
+                            <td class="metric">1.085.256</td>
+                            <td class="metric">20.30%</td>
+                            <td class="hook-rate-low">0.01%</td>
+                            <td class="metric">390</td>
+                            <td class="metric">304</td>
+                            <td class="metric">250</td>
+                            <td class="metric">R$ 34.323,33</td>
+                            <td class="metric" style="color: #28a745;"><strong>7.663</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#23</td>
+                            <td><strong>AD05</strong></td>
+                            <td class="metric">6.530.532</td>
+                            <td class="metric">753.004</td>
+                            <td class="metric">11.53%</td>
+                            <td class="hook-rate-low">0.01%</td>
+                            <td class="metric">466</td>
+                            <td class="metric">377</td>
+                            <td class="metric">304</td>
+                            <td class="metric">R$ 24.328,56</td>
+                            <td class="metric" style="color: #28a745;"><strong>121</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#24</td>
+                            <td><strong>Dois personagens + violão - PI-JAN-26</strong></td>
+                            <td class="metric">3.854.786</td>
+                            <td class="metric">858.023</td>
+                            <td class="metric">22.26%</td>
+                            <td class="hook-rate-low">0.01%</td>
+                            <td class="metric">237</td>
+                            <td class="metric">185</td>
+                            <td class="metric">152</td>
+                            <td class="metric">R$ 15.146,89</td>
+                            <td class="metric" style="color: #28a745;"><strong>3.719</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#25</td>
+                            <td><strong>Estudio Brabo Toque - PI-JAN-26</strong></td>
+                            <td class="metric">4.862.793</td>
+                            <td class="metric">1.139.500</td>
+                            <td class="metric">23.43%</td>
+                            <td class="hook-rate-low">0.01%</td>
+                            <td class="metric">252</td>
+                            <td class="metric">194</td>
+                            <td class="metric">159</td>
+                            <td class="metric">R$ 26.323,42</td>
+                            <td class="metric" style="color: #28a745;"><strong>6.169</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#26</td>
+                            <td><strong>AD02</strong></td>
+                            <td class="metric">7.364.632</td>
+                            <td class="metric">2.935.217</td>
+                            <td class="metric">39.86%</td>
+                            <td class="hook-rate-low">0.01%</td>
+                            <td class="metric">336</td>
+                            <td class="metric">272</td>
+                            <td class="metric">244</td>
+                            <td class="metric">R$ 40.666,78</td>
+                            <td class="metric" style="color: #28a745;"><strong>480</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#27</td>
+                            <td><strong>AD03</strong></td>
+                            <td class="metric">5.306.235</td>
+                            <td class="metric">2.247.624</td>
+                            <td class="metric">42.36%</td>
+                            <td class="hook-rate-low">0.01%</td>
+                            <td class="metric">289</td>
+                            <td class="metric">245</td>
+                            <td class="metric">186</td>
+                            <td class="metric">R$ 30.790,17</td>
+                            <td class="metric" style="color: #28a745;"><strong>322</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#28</td>
+                            <td><strong>Mateus em casa + insert novo + LEGENDA+4</strong></td>
+                            <td class="metric">4.049.156</td>
+                            <td class="metric">480.445</td>
+                            <td class="metric">11.87%</td>
+                            <td class="hook-rate-low">0.01%</td>
+                            <td class="metric">171</td>
+                            <td class="metric">121</td>
+                            <td class="metric">96</td>
+                            <td class="metric">R$ 17.115,79</td>
+                            <td class="metric" style="color: #28a745;"><strong>3.684</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#29</td>
+                            <td><strong>Podcast 4 + TD - PI-JAN-26</strong></td>
+                            <td class="metric">2.285.757</td>
+                            <td class="metric">303.660</td>
+                            <td class="metric">13.28%</td>
+                            <td class="hook-rate-low">0.01%</td>
+                            <td class="metric">81</td>
+                            <td class="metric">57</td>
+                            <td class="metric">44</td>
+                            <td class="metric">R$ 13.845,49</td>
+                            <td class="metric" style="color: #28a745;"><strong>3.334</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#30</td>
+                            <td><strong>Novo estúdio brabo - PI-JAN-26</strong></td>
+                            <td class="metric">13.183.828</td>
+                            <td class="metric">4.294.679</td>
+                            <td class="metric">32.58%</td>
+                            <td class="hook-rate-low">0.01%</td>
+                            <td class="metric">571</td>
+                            <td class="metric">442</td>
+                            <td class="metric">361</td>
+                            <td class="metric">R$ 83.220,10</td>
+                            <td class="metric" style="color: #28a745;"><strong>21.818</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#31</td>
+                            <td><strong>São Paulo + CX Verde + Legenda 2 - PI-J</strong></td>
+                            <td class="metric">5.066.426</td>
+                            <td class="metric">671.802</td>
+                            <td class="metric">13.26%</td>
+                            <td class="hook-rate-low">0.00%</td>
+                            <td class="metric">144</td>
+                            <td class="metric">102</td>
+                            <td class="metric">81</td>
+                            <td class="metric">R$ 25.774,72</td>
+                            <td class="metric" style="color: #28a745;"><strong>5.831</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#32</td>
+                            <td><strong>Mateus em casa + insert + nivel medio - </strong></td>
+                            <td class="metric">5.672.862</td>
+                            <td class="metric">808.203</td>
+                            <td class="metric">14.25%</td>
+                            <td class="hook-rate-low">0.00%</td>
+                            <td class="metric">158</td>
+                            <td class="metric">113</td>
+                            <td class="metric">90</td>
+                            <td class="metric">R$ 35.326,36</td>
+                            <td class="metric" style="color: #28a745;"><strong>9.353</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#33</td>
+                            <td><strong>Dois personagens casa do Mateus+ cx e le</strong></td>
+                            <td class="metric">8.602.774</td>
+                            <td class="metric">1.951.890</td>
+                            <td class="metric">22.69%</td>
+                            <td class="hook-rate-low">0.00%</td>
+                            <td class="metric">239</td>
+                            <td class="metric">185</td>
+                            <td class="metric">152</td>
+                            <td class="metric">R$ 41.890,23</td>
+                            <td class="metric" style="color: #28a745;"><strong>11.002</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#34</td>
+                            <td><strong>Mateus em casa + Insert + legenda - PI-J</strong></td>
+                            <td class="metric">6.506.116</td>
+                            <td class="metric">881.763</td>
+                            <td class="metric">13.55%</td>
+                            <td class="hook-rate-low">0.00%</td>
+                            <td class="metric">163</td>
+                            <td class="metric">116</td>
+                            <td class="metric">93</td>
+                            <td class="metric">R$ 31.331,31</td>
+                            <td class="metric" style="color: #28a745;"><strong>7.409</strong></td>
+                        </tr>
+        
+                        <tr>
+                            <td class="rank">#35</td>
+                            <td><strong>Mateus em casa + Insert - PI-JAN-26</strong></td>
+                            <td class="metric">8.880.602</td>
+                            <td class="metric">996.925</td>
+                            <td class="metric">11.23%</td>
+                            <td class="hook-rate-low">0.00%</td>
+                            <td class="metric">120</td>
+                            <td class="metric">82</td>
+                            <td class="metric">63</td>
+                            <td class="metric">R$ 50.533,68</td>
+                            <td class="metric" style="color: #28a745;"><strong>13.011</strong></td>
+                        </tr>
+        
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="footer">
+                <p>Relatório gerado automaticamente | Google Ads - Video Performance Data</p>
+                <p style="margin-top: 10px; font-size: 11px;">🎯 <strong>Interpretação:</strong> Hook Rate > 15% é excelente | 10-15% é bom | < 10% precisa melhorar</p>
+            </div>
+        </div>
+        
+        <script>
+            const videos = [{"nome":"Aula 1 - V\u00eddeo 2","impressoes":4701.0,"views":1177.0,"views_25":107.98,"views_50":62.93,"views_75":51.35,"views_100":45.31,"cliques":37.0,"custo":737.68,"conversoes":0.0,"campanha":["[RMK] AULA 1 [PI-JAN-26] - 12.01.26"],"view_rate":25.0372261221,"hook_rate":2.296958094,"completion_25_rate":9.1741716228,"completion_100_rate":3.849617672},{"nome":"Aula 2 - Replay","impressoes":4249.0,"views":853.0,"views_25":84.57,"views_50":31.31,"views_75":23.87,"views_100":19.5,"cliques":26.0,"custo":61.73,"conversoes":1.0,"campanha":["[RMK] Replay AULA 2 [PI-JAN-26] - 14.01.26"],"view_rate":20.0753118381,"hook_rate":1.9903506707,"completion_25_rate":9.9144196952,"completion_100_rate":2.286049238},{"nome":"Aula 1 - Replay","impressoes":17730.0,"views":3718.0,"views_25":179.75,"views_50":75.34,"views_75":56.98,"views_100":48.06,"cliques":198.0,"custo":742.15,"conversoes":1.0,"campanha":["[RMK] Replay AULA 1 [PI-JAN-26] - 13.01.26"],"view_rate":20.970107163,"hook_rate":1.0138183869,"completion_25_rate":4.8345884884,"completion_100_rate":1.2926304465},{"nome":"Aula 1 - V\u00eddeo 1","impressoes":16362.0,"views":2812.0,"views_25":112.05,"views_50":48.51,"views_75":35.26,"views_100":28.59,"cliques":203.0,"custo":3348.64,"conversoes":0.0,"campanha":["[RMK] AULA 1 [PI-JAN-26] - 12.01.26"],"view_rate":17.1861630608,"hook_rate":0.6848184818,"completion_25_rate":3.9847083926,"completion_100_rate":1.0167140825},{"nome":"Aula 3 - V\u00eddeo 2","impressoes":16411.0,"views":3291.0,"views_25":76.74,"views_50":48.92,"views_75":38.73,"views_100":32.39,"cliques":131.0,"custo":1612.14,"conversoes":1.0,"campanha":["[RMK] AULA 3 [PI-JAN-26] - 14.01.26"],"view_rate":20.0536225702,"hook_rate":0.4676131863,"completion_25_rate":2.3318140383,"completion_100_rate":0.9841993315},{"nome":"Aula 2 - V\u00eddeo 1","impressoes":31068.0,"views":6247.0,"views_25":145.15,"views_50":86.48,"views_75":70.64,"views_100":60.71,"cliques":298.0,"custo":2423.11,"conversoes":2.0,"campanha":["[RMK] AULA 2 [PI-JAN-26] - 13.01.26"],"view_rate":20.1075061156,"hook_rate":0.4672009785,"completion_25_rate":2.3235152873,"completion_100_rate":0.9718264767},{"nome":"Aula 3 - V\u00eddeo 1","impressoes":18057.0,"views":3362.0,"views_25":68.16,"views_50":44.37,"views_75":34.9,"views_100":29.79,"cliques":124.0,"custo":1975.92,"conversoes":2.0,"campanha":["[RMK] AULA 3 [PI-JAN-26] - 14.01.26"],"view_rate":18.6188181869,"hook_rate":0.3774713408,"completion_25_rate":2.0273646639,"completion_100_rate":0.8860797145},{"nome":"Aula 3 - Replay","impressoes":40966.0,"views":10834.0,"views_25":90.0,"views_50":37.33,"views_75":29.93,"views_100":26.0,"cliques":206.0,"custo":583.77,"conversoes":0.0,"campanha":["[RMK] Replay AULA 3 [PI-JAN-26] - 15.01.26"],"view_rate":26.4463213396,"hook_rate":0.2196943807,"completion_25_rate":0.8307181097,"completion_100_rate":0.2399852317},{"nome":"Carro 2 + legenda +cx - PI-JAN-26","impressoes":470466.0,"views":91583.0,"views_25":367.14,"views_50":263.81,"views_75":220.82,"views_100":194.44,"cliques":3819.0,"custo":2586.33,"conversoes":346.0,"campanha":["[Capta\u00e7\u00e3o] P\u00fablico Quente Teste [PI-JAN-26] - 09.01.26","[Capta\u00e7\u00e3o] P\u00fablico Frio Teste [PI-JAN-26] - 09.01.26","[Capta\u00e7\u00e3o] P\u00fablico Espec\u00edfico Teste [PI-JAN-26] - 09.01.26"],"view_rate":19.4664439088,"hook_rate":0.0780375202,"completion_25_rate":0.4008822598,"completion_100_rate":0.2123101449},{"nome":"Aula 4 - V\u00eddeo 1","impressoes":128808.0,"views":22130.0,"views_25":71.64,"views_50":43.46,"views_75":34.79,"views_100":28.76,"cliques":920.0,"custo":6996.6,"conversoes":3.0,"campanha":["[RMK] AULA 4 [PI-JAN-26] - 14.01.26"],"view_rate":17.1806099,"hook_rate":0.0556176635,"completion_25_rate":0.3237234523,"completion_100_rate":0.1299593312},{"nome":"AD01","impressoes":112604.0,"views":28334.0,"views_25":46.78,"views_50":31.16,"views_75":26.47,"views_100":23.51,"cliques":455.0,"custo":2156.71,"conversoes":21.0,"campanha":["[Alcance] Lembrete [PI-JAN-26] - 08.07.25"],"view_rate":25.1625164293,"hook_rate":0.0415438173,"completion_25_rate":0.1651019976,"completion_100_rate":0.0829745182},{"nome":"AD04","impressoes":550820.0,"views":43737.0,"views_25":207.85,"views_50":124.52,"views_75":103.94,"views_100":81.76,"cliques":6.0,"custo":924.38,"conversoes":15.0,"campanha":["[ALCANCE] Pr\u00e9-qualifica\u00e7\u00e3o: QUENTE - [PI-JAN-26] - 15.12.25","[ALCANCE] Pr\u00e9-qualifica\u00e7\u00e3o: FRIO - [PI-JAN-26] - 15.12.25","[EV] Pr\u00e9-qualifica\u00e7\u00e3o: Quente - [PI-JAN-26] - 16.12.25","Pr\u00e9-qualifica\u00e7\u00e3o: FRIO - [PI-JAN-26] - 16.12.25","Pr\u00e9-qualifica\u00e7\u00e3o: QUENTE - [PI-JAN-26] - 16.12.25","[EV] Pr\u00e9-qualifica\u00e7\u00e3o: Frio - [PI-JAN-26] - 16.12.25"],"view_rate":7.9403434879,"hook_rate":0.0377346502,"completion_25_rate":0.4752269246,"completion_100_rate":0.1869355466},{"nome":"Antigo e Novo estu\u0301dio brabo - PI-JAN-26","impressoes":1070430.0,"views":347086.0,"views_25":397.12,"views_50":289.72,"views_75":225.95,"views_100":185.78,"cliques":2410.645,"custo":6506.6,"conversoes":1063.0,"campanha":["[Capta\u00e7\u00e3o] P\u00fablico Frio Potencial [PI-JAN-26] - 29.12.26","[Capta\u00e7\u00e3o] P\u00fablico Quente Potencial [PI-JAN-26] - 29.12.26","[Capta\u00e7\u00e3o] P\u00fablico Espec\u00edfico Potencial [PI-JAN-26] - 29.12.26"],"view_rate":32.4249133526,"hook_rate":0.0370991097,"completion_25_rate":0.1144154475,"completion_100_rate":0.0535256392},{"nome":"Estudio Brabo com mic na m\u00e3o - PI-JAN-26","impressoes":1284265.0,"views":307268.0,"views_25":413.52,"views_50":310.49,"views_75":246.46,"views_100":206.24,"cliques":2540.67,"custo":7697.79,"conversoes":1783.0,"campanha":["[Capta\u00e7\u00e3o] P\u00fablico Quente Potencial [PI-JAN-26] - 29.12.26","[Capta\u00e7\u00e3o] P\u00fablico Espec\u00edfico Potencial [PI-JAN-26] - 29.12.26","[Capta\u00e7\u00e3o] P\u00fablico Frio Potencial [PI-JAN-26] - 29.12.26"],"view_rate":23.9255916808,"hook_rate":0.0321989621,"completion_25_rate":0.1345795852,"completion_100_rate":0.0671205593},{"nome":"Dois personagens casa do Mateus + legenda - PI-JAN-26","impressoes":1092884.0,"views":270084.0,"views_25":296.33,"views_50":210.05,"views_75":162.99,"views_100":133.54,"cliques":4615.272,"custo":8589.06,"conversoes":1566.0,"campanha":["[Capta\u00e7\u00e3o] P\u00fablico Quente Teste [PI-JAN-26] - 09.01.26","[Capta\u00e7\u00e3o] P\u00fablico Frio Teste [PI-JAN-26] - 09.01.26","[Capta\u00e7\u00e3o] P\u00fablico Espec\u00edfico Teste [PI-JAN-26] - 09.01.26"],"view_rate":24.7129613024,"hook_rate":0.0271144971,"completion_25_rate":0.1097177175,"completion_100_rate":0.0494438767}];
+            
+            // Gráfico Hook Rate
+            const hookCtx = document.getElementById('hookRateChart').getContext('2d');
+            new Chart(hookCtx, {
+                type: 'bar',
+                data: {
+                    labels: videos.map(v => v.nome.substring(0, 25) + '...'),
+                    datasets: [{
+                        label: 'Hook Rate (%)',
+                        data: videos.map(v => v.hook_rate),
+                        backgroundColor: videos.map(v => v.hook_rate >= 20 ? '#28a745' : (v.hook_rate >= 10 ? '#ffc107' : '#dc3545')),
+                        borderRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, max: 100 } }
+                }
+            });
+            
+            // Gráfico Funil
+            const funnelCtx = document.getElementById('funnelChart').getContext('2d');
+            const avgCompletion25 = 1.1093580967447416;
+            const avgCompletion50 = 0.03183476192738824;
+            const avgCompletion75 = 0.025184001446319434;
+            const avgCompletion100 = 0.37209815081071623;
+            
+            new Chart(funnelCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Até 25%', 'Até 50%', 'Até 75%', 'Até 100%'],
+                    datasets: [{
+                        label: 'Taxa de Conclusão (%)',
+                        data: [avgCompletion25, avgCompletion50, avgCompletion75, avgCompletion100],
+                        backgroundColor: ['#667eea', '#764ba2', '#f5576c', '#f093fb'],
+                        borderRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, max: 100 } }
+                }
+            });
+        </script>
+    </body>
+    </html>
+    

@@ -1,0 +1,26 @@
+launch:
+  code: PES-JAN-26
+  client: Brabo Concursos
+  course:
+    code: PES
+    name: Projeto Escrevente (Sao Paulo)
+  date_range:
+    start: 2026-01-22
+    end: 2026-05-28
+inputs:
+  active_campaign:
+    leads_csv: analises/[PES-JAN-26]/active-campaing/active-campaign-pes-jan-26.csv
+  meta_ads:
+    campaigns_csv: analises/[PES-JAN-26]/meta ads/CA2---Anunciante-Campanhas-23-de-dez-de-2025-21-de-jan-de-2026.csv
+  google_ads:
+    campaigns_csv: analises/[PES-JAN-26]/google ads/Performance Geral por Campanha - [PI-JAN-26].csv
+  sales:
+    hotmart_csv: analises/[PES-JAN-26]/vendas/pes-jan-26-hotmart.csv
+    boleto_csv: analises/[PES-JAN-26]/vendas/pes-jan-26-tmb.csv
+filters:
+  campaign_name_contains: PES-JAN-26
+outputs:
+  persist_db: false
+  db_path: outputs/analysis.db
+  snapshot_dir: outputs/snapshots/PES-JAN-26
+  report_html: outputs/reports/ANALISE_ATRIBUICAO_UTM_[PES-JAN-26].html

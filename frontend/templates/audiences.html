@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Header Dinâmico -->
+<div class="hdr" style="background: white; padding: 24px 30px; border-radius: var(--bs-r-lg); border: 1px solid var(--bs-border); margin-bottom: 20px; box-shadow: var(--bs-sh-sm); display: flex; align-items: center; gap: 15px;">
+  <div style="background: var(--bs-accent); width: 44px; height: 44px; border-radius: var(--bs-r-md); display: grid; place-items: center; color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
+    <i class="ti ti-users" style="font-size: 22px;"></i>
+  </div>
+  <div>
+    <h1 style="font-family: 'Inter', sans-serif; font-weight: 800; font-size: 1.8rem; color: var(--bs-ink); letter-spacing: -0.02em; line-height: 1.2;">Segmentação por Públicos (Top UTMs)</h1>
+    <p style="color: var(--bs-ink-muted); margin-top: 3px; font-size: 0.95rem;">
+      Cruzamento de chaves UTMs com faturamento e meios de pagamentos preferidos de compradores.
+    </p>
+  </div>
+</div>
+
+<div class="bs-card">
+  <p style="color: var(--bs-ink-muted); font-size: 13px; margin-bottom: 20px;">
+    💡 <strong>Dica de Uso:</strong> Use o campo de filtro rápido do cabeçalho da tabela para isolar termos específicos como <code>quente</code>, <code>frio</code> ou códigos de campanha.
+  </p>
+
+  {% for source, items in data.top_utms.items() %}
+  <div class="source-group" style="margin-bottom: 30px;">
+    <h4 style="font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 700; color: var(--bs-ink); margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+      <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--bs-accent); display: inline-block;"></span>
+      {{ source }}
+    </h4>
+    <div class="bs-table-wrap">
+      <table class="bs-table">
+        <thead>
+          <tr>
+            <th style="width: 8%; text-align: center;">Vendas</th>
+            <th style="width: 14%; text-align: right;">Faturamento</th>
+            <th style="width: 9%; text-align: center; background: rgba(47, 94, 227, 0.08);">Cartão</th>
+            <th style="width: 9%; text-align: center; background: rgba(244, 183, 64, 0.08);">Boleto</th>
+            <th style="width: 9%; text-align: center; background: rgba(49, 193, 108, 0.08);">Pix</th>
+            <th style="width: 9%; text-align: center;">Outros</th>
+            <th style="width: 15%;">UTM Source</th>
+            <th style="width: 13%;">UTM Medium</th>
+            <th>UTM Campaign</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in items %}
+          <tr>
+            <td style="text-align: center;"><strong>{{ item.buyers }}</strong></td>
+            <td style="text-align: right; font-weight: bold; color: var(--bs-ink);">R$ {{ "%.2f"|format(item.revenue or 0.0) }}</td>
+            <td style="text-align: center; background: rgba(47, 94, 227, 0.03); font-weight: 600;">{{ item.payment_card or 0 }}</td>
+            <td style="text-align: center; background: rgba(244, 183, 64, 0.03); font-weight: 600;">{{ item.payment_boleto or 0 }}</td>
+            <td style="text-align: center; background: rgba(49, 193, 108, 0.03); font-weight: 600;">{{ item.payment_pix or 0 }}</td>
+            <td style="text-align: center;" class="text-muted">{{ item.payment_other or 0 }}</td>
+            <td style="font-family: monospace; font-size: 11px;">{{ item.utm_source }}</td>
+            <td style="font-family: monospace; font-size: 11px;">{{ item.utm_medium }}</td>
+            <td style="font-family: monospace; font-size: 11px; white-space: nowrap; max-width: 250px; overflow: hidden; text-overflow: ellipsis;" title="{{ item.utm_campaign }}">{{ item.utm_campaign }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,253 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1>CRM — Qualidade de Lead{% if launch %} — {{ launch.code }}{% endif %}</h1>
+      <p>Active Campaign × Hotmart × TMB | Leads → Compradores → Faturamento</p>
+    </div>
+  </div>
+
+  <div class="content">
+    {% if not leads %}
+    <div class="no-data">
+      <i class="ti ti-users"></i>
+      <h3>Dados de leads não encontrados</h3>
+      <p>Adicione em <code>analises/[{{ active_code or 'CÓDIGO' }}]/Active Campaign/*.csv</code></p>
+    </div>
+    {% else %}
+
+    {# ── KPIs (design system: tp-kpi) ── #}
+    <div class="tp-kpi-grid">
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-users"></i></div></div>
+        <div class="tp-value">{{ leads.total_leads | num }}</div>
+        <div class="tp-label">Total de Leads (CRM)</div>
+        <div class="tp-compare">Captados no Active Campaign</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-user-check"></i></div></div>
+        <div class="tp-value">{{ leads.compradores_rastreados | num }}</div>
+        <div class="tp-label">Compradores Rastreados</div>
+        <div class="tp-compare">de {{ leads.total_compradores | num }} totais ({{ (leads.compradores_rastreados / leads.total_compradores * 100) | round(1) if leads.total_compradores > 0 else 0 }}% rastreados)</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top">
+          <div class="tp-icon {% if leads.tx_conversao >= 1.0 %}success{% elif leads.tx_conversao >= 0.5 %}warning{% else %}danger{% endif %}"><i class="ti ti-arrows-exchange"></i></div>
+          <div class="tp-delta {% if leads.tx_conversao >= 1.0 %}up{% elif leads.tx_conversao >= 0.5 %}flat{% else %}down{% endif %}">
+            {% if leads.tx_conversao >= 1.0 %}Excelente{% elif leads.tx_conversao >= 0.5 %}Atenção{% else %}Baixo{% endif %}
+          </div>
+        </div>
+        <div class="tp-value">{{ leads.tx_conversao | round(2) }}%</div>
+        <div class="tp-label">Taxa Conv. Lead → Venda</div>
+        <div class="tp-compare">Meta usual: &gt; 1%</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon {% if leads.compradores_sem_utm > 0 %}danger{% endif %}"><i class="ti ti-user-off"></i></div></div>
+        <div class="tp-value {% if leads.compradores_sem_utm > 0 %}negativo{% endif %}">{{ leads.compradores_sem_utm | num }}</div>
+        <div class="tp-label">Compradores sem CRM</div>
+        <div class="tp-compare">{{ (leads.compradores_sem_utm / leads.total_compradores * 100) | round(1) if leads.total_compradores > 0 else 0 }}% dos compradores sem rastreamento</div>
+      </div>
+    </div>
+
+    {# ── Curva diária ── #}
+    {% if leads.por_dia %}
+    <div class="info-box">
+      <h2>Leads por Dia</h2>
+      {% set max_leads = leads.por_dia | map(attribute='leads') | max %}
+      <div class="table-wrap" style="overflow-x:auto;">
+        <table class="table-compact" style="min-width:600px;">
+          <thead>
+            <tr>
+              <th class="th-dark">Dia</th>
+              <th class="th-dark">Data</th>
+              <th class="th-dark" style="text-align:right">Leads</th>
+              <th class="th-dark">Volume</th>
+              <th class="th-success" style="text-align:right">Compradores</th>
+              <th class="th-success" style="text-align:right">Conv.%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in leads.por_dia %}
+            <tr>
+              <td class="td-bold">{{ r.weekday }}</td>
+              <td class="td-muted">{{ r.date }}</td>
+              <td style="text-align:right;font-weight:700;">{{ r.leads | num }}</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:4px;">
+                  <div style="height:8px;border-radius:2px;background:var(--bs-accent);width:{{ (r.leads / max_leads * 120) | round(0) | int }}px;min-width:2px;"></div>
+                  <span class="td-muted" style="font-size:11px;">{{ (r.leads / leads.total_leads * 100) | round(1) }}%</span>
+                </div>
+              </td>
+              <td class="td-success" style="text-align:right;font-weight:{% if r.compradores > 0 %}700{% else %}400{% endif %};">
+                {{ r.compradores | num if r.compradores > 0 else "–" }}
+              </td>
+              <td style="text-align:right;">
+                {% if r.compradores > 0 %}
+                <span class="{% if r.conversao >= 1.0 %}positivo{% elif r.conversao < 0.5 %}negativo{% endif %}" style="font-weight:700;">{{ r.conversao | round(2) }}%</span>
+                {% else %}–{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── Por canal ── #}
+    {% if leads.por_canal %}
+    <div class="info-box">
+      <h2>Qualidade por Canal</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-dark">Canal</th>
+              <th class="th-dark" style="text-align:right">Leads</th>
+              <th class="th-dark" style="text-align:right">% Leads</th>
+              <th class="th-success" style="text-align:right">Compradores</th>
+              <th class="th-success" style="text-align:right">Conv.%</th>
+              <th class="th-success-dark" style="text-align:right">Faturamento</th>
+              <th class="th-success-dark" style="text-align:right">Ticket Médio</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set total_leads_canal = leads.total_leads or 1 %}
+            {% for r in leads.por_canal %}
+            <tr>
+              <td>
+                <span class="canal-badge" style="display:inline-flex;align-items:center;gap:5px;font-weight:700;font-size:12px;">
+                  {% if "Facebook" in r.canal or "Instagram" in r.canal %}
+                    <i class="ti ti-brand-meta" style="color:var(--meta-color);"></i>
+                  {% elif "Google" in r.canal or "YouTube" in r.canal %}
+                    <i class="ti ti-brand-google" style="color:var(--google-color);"></i>
+                  {% elif "TikTok" in r.canal %}
+                    <i class="ti ti-brand-tiktok" style="color:#000;"></i>
+                  {% else %}
+                    <i class="ti ti-world" class="td-muted"></i>
+                  {% endif %}
+                  {{ r.canal }}
+                </span>
+              </td>
+              <td class="numero td-bold">{{ r.leads | num }}</td>
+              <td>
+                <div class="conv-bar">
+                  <div class="conv-track"><div class="conv-fill" style="width:{{ (r.leads / total_leads_canal * 100) | round(1) }}%;"></div></div>
+                  <span style="font-size:12px;">{{ (r.leads / total_leads_canal * 100) | round(1) }}%</span>
+                </div>
+              </td>
+              <td class="numero td-success td-bold">{{ r.compradores | num }}</td>
+              <td class="numero">
+                <span class="{% if r.conversao >= 1.0 %}positivo{% elif r.conversao < 0.5 and r.leads > 100 %}negativo{% endif %}" style="font-weight:700;">
+                  {{ r.conversao | round(2) }}%
+                </span>
+              </td>
+              <td class="numero td-bold">{{ r.faturamento | brl }}</td>
+              <td class="numero">{{ r.ticket | brl if r.compradores > 0 else "–" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── Por etapa ── #}
+    {% if leads.por_etapa %}
+    <div class="info-box">
+      <h2>Qualidade por Etapa do Funil</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-dark">Etapa</th>
+              <th class="th-dark" style="text-align:right">Leads</th>
+              <th class="th-dark" style="text-align:right">% Leads</th>
+              <th class="th-success" style="text-align:right">Compradores</th>
+              <th class="th-success" style="text-align:right">Conv.%</th>
+              <th class="th-success-dark" style="text-align:right">Faturamento</th>
+              <th class="th-success-dark" style="text-align:right">Ticket Médio</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set total_l = leads.total_leads or 1 %}
+            {% for r in leads.por_etapa %}
+            <tr>
+              <td><span class="bs-pill accent">{{ r.etapa }}</span></td>
+              <td class="numero td-bold">{{ r.leads | num }}</td>
+              <td>
+                <div class="conv-bar">
+                  <div class="conv-track"><div class="conv-fill" style="width:{{ (r.leads / total_l * 100) | round(1) }}%;"></div></div>
+                  <span style="font-size:12px;">{{ (r.leads / total_l * 100) | round(1) }}%</span>
+                </div>
+              </td>
+              <td class="numero td-success td-bold">{{ r.compradores | num }}</td>
+              <td class="numero">
+                <span class="{% if r.conversao >= 1.0 %}positivo{% elif r.conversao < 0.5 and r.leads > 50 %}negativo{% endif %}" style="font-weight:700;">
+                  {{ r.conversao | round(2) }}%
+                </span>
+              </td>
+              <td class="numero td-bold">{{ r.faturamento | brl }}</td>
+              <td class="numero">{{ r.ticket | brl if r.compradores > 0 else "–" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── Por temperatura ── #}
+    {% if leads.por_temperatura %}
+    <div class="info-box">
+      <h2>Qualidade por Temperatura de Público</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-dark">Temperatura</th>
+              <th class="th-dark" style="text-align:right">Leads</th>
+              <th class="th-dark" style="text-align:right">% Leads</th>
+              <th class="th-success" style="text-align:right">Compradores</th>
+              <th class="th-success" style="text-align:right">Conv.%</th>
+              <th class="th-success-dark" style="text-align:right">Faturamento</th>
+              <th class="th-success-dark" style="text-align:right">Ticket Médio</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set total_l = leads.total_leads or 1 %}
+            {% for r in leads.por_temperatura %}
+            {% set temp_class = {"Específico": "temp-especifico", "Quente": "temp-quente", "Morno": "temp-morno", "Frio": "temp-frio"}.get(r.temp, "temp-outros") %}
+            {% set fill_class = {"Específico": "especifico", "Quente": "quente", "Morno": "morno", "Frio": "frio"}.get(r.temp, "outros") %}
+            <tr>
+              <td><span class="bs-pill {{ temp_class }}">{{ r.temp }}</span></td>
+              <td class="numero td-bold">{{ r.leads | num }}</td>
+              <td>
+                <div class="conv-bar">
+                  <div class="conv-track"><div class="conv-fill {{ fill_class }}" style="width:{{ (r.leads / total_l * 100) | round(1) }}%;"></div></div>
+                  <span style="font-size:12px;">{{ (r.leads / total_l * 100) | round(1) }}%</span>
+                </div>
+              </td>
+              <td class="numero td-success td-bold">{{ r.compradores | num }}</td>
+              <td class="numero">
+                <span class="{% if r.conversao >= 1.0 %}positivo{% elif r.conversao < 0.5 and r.leads > 50 %}negativo{% endif %}" style="font-weight:700;">
+                  {{ r.conversao | round(2) }}%
+                </span>
+              </td>
+              <td class="numero td-bold">{{ r.faturamento | brl }}</td>
+              <td class="numero">{{ r.ticket | brl if r.compradores > 0 else "–" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {% endif %}{# end if leads #}
+  </div>
+  <div class="footing">Gerado em tempo real | Brabo Analytics{% if launch %} — {{ launch.code }}{% endif %}</div>
+</div>
+{% endblock %}

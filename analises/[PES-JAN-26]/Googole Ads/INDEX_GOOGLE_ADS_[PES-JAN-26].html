@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análise Google Ads - Dashboard Principal [PES-JAN-26]</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 50px 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 42px;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .header p {
+            font-size: 16px;
+            opacity: 0.95;
+            margin-bottom: 5px;
+        }
+        
+        .header .period {
+            font-size: 13px;
+            opacity: 0.85;
+            margin-top: 10px;
+        }
+        
+        .content {
+            padding: 50px 30px;
+        }
+        
+        .info-box {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 40px;
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .info-box strong {
+            color: #333;
+        }
+        
+        .reports-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .report-card {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .report-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.2);
+            transform: translateY(-5px);
+        }
+        
+        .report-card.campanhas { border-top: 4px solid #667eea; }
+        .report-card.criativos { border-top: 4px solid #f5576c; }
+        .report-card.audiences { border-top: 4px solid #fa709a; }
+        
+        .report-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+        
+        .report-card h2 {
+            font-size: 22px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        
+        .report-card p {
+            color: #666;
+            font-size: 13px;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #f5576c;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #e73f54;
+            box-shadow: 0 5px 15px rgba(245, 87, 108, 0.4);
+        }
+        
+        .btn-tertiary {
+            background: #fa709a;
+            color: white;
+        }
+        
+        .btn-tertiary:hover {
+            background: #f85681;
+            box-shadow: 0 5px 15px rgba(250, 112, 154, 0.4);
+        }
+        
+        .features {
+            margin-top: 40px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        
+        .feature-item {
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
+        }
+        
+        .feature-item h4 {
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        
+        .feature-item p {
+            color: #666;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+        
+        .footer {
+            background: #f8f9fa;
+            padding: 30px;
+            text-align: center;
+            color: #999;
+            font-size: 12px;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .footer p {
+            margin-bottom: 5px;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 { font-size: 28px; }
+            .reports-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Análise Google Ads</h1>
+            <p>Dashboard de Campanhas, Criativos e Públicos</p>
+            <p><strong>[PES-JAN-26]</strong></p>
+            <p class="period">Período: 1º de dezembro de 2025 - 31 de janeiro de 2026</p>
+        </div>
+        
+        <div class="content">
+            <div class="info-box">
+                <strong>ℹ️ Bem-vindo ao Dashboard de Análise Google Ads!</strong><br>
+                Selecione um dos relatórios abaixo para explorar a performance das campanhas, anúncios e públicos do lançamento.
+            </div>
+            
+            <div class="reports-grid">
+                <!-- Relatório de Campanhas -->
+                <div class="report-card campanhas">
+                    <div class="report-icon">📈</div>
+                    <h2>Campanhas</h2>
+                    <p>Performance geral por campanha, incluindo impressões, cliques, conversões, CTR, CPM e investimento total.</p>
+                    <a href="ANALISE_GOOGLE_ADS_[PES-JAN-26].html" class="btn btn-primary">Abrir Relatório</a>
+                </div>
+                
+                <!-- Relatório de Criativos -->
+                <div class="report-card criativos">
+                    <div class="report-icon">🎬</div>
+                    <h2>Criativos</h2>
+                    <p>Análise detalhada de anúncios com thumbnails de vídeos, performance individual e ranking de melhores criativos.</p>
+                    <a href="ANALISE_GOOGLE_ANUNCIOS_[PES-JAN-26].html" class="btn btn-secondary">Abrir Relatório</a>
+                </div>
+                
+                <!-- Relatório de Públicos -->
+                <div class="report-card audiences">
+                    <div class="report-icon">🌡️</div>
+                    <h2>Públicos & Temperaturas</h2>
+                    <p>Segmentação por temperatura de público (FRIO, MORNO, QUENTE) com análise de dispositivos e regiões.</p>
+                    <a href="ANALISE_GOOGLE_AUDIENCES_[PES-JAN-26].html" class="btn btn-tertiary">Abrir Relatório</a>
+                </div>
+            </div>
+            
+            <h3 style="margin-top: 40px; margin-bottom: 20px; color: #333;">✨ Destaques de Cada Relatório</h3>
+            
+            <div class="features">
+                <div class="feature-item">
+                    <h4>📊 Relatório de Campanhas</h4>
+                    <p>• Resumo executivo com KPIs principais<br>• Gráficos interativos de conversões<br>• Análise investimento vs retorno<br>• Ranking de campanhas por performance</p>
+                </div>
+                
+                <div class="feature-item">
+                    <h4>🎬 Relatório de Criativos</h4>
+                    <p>• Thumbnails dos vídeos dos anúncios<br>• Cards individuais por criativo<br>• Métricas: impressões, cliques, CTR<br>• Ranking por conversões e CPL</p>
+                </div>
+                
+                <div class="feature-item">
+                    <h4>🌡️ Relatório de Públicos</h4>
+                    <p>• Segmentação por temperatura<br>• Performance FRIO x MORNO x QUENTE<br>• Análise por campanha<br>• Gráficos comparativos por temperatura</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Relatórios gerados automaticamente | Google Ads Data</p>
+            <p>Última atualização: <strong>3 de fevereiro de 2026</strong></p>
+        </div>
+    </div>
+</body>
+</html>

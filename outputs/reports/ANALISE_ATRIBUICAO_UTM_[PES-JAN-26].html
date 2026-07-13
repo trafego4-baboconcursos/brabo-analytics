@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analise de Atribuicao UTM - PES-JAN-26</title>
+    <link rel="icon" type="image/png" href="../../img/favicon-brabo-concursos.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #eb5757 0%, #ff9500 100%);
+            color: #333;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            background: white;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+            border-radius: 8px;
+        }
+        .content { padding: 40px; max-width: 100%; margin: 0 auto; }
+        .header {
+            background: white;
+            color: #333;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            flex-wrap: wrap;
+            border-bottom: 1px solid #eee;
+        }
+        .header-logo { width: 100%; margin-bottom: 20px; }
+        .header-logo a { display: inline-block; text-decoration: none; }
+        .header-logo img { height: 60px; width: auto; }
+        .header-title h1 { font-size: 28px; font-weight: 700; margin-bottom: 5px; }
+        .header-title p { font-size: 16px; opacity: 0.9; }
+        .section { margin-bottom: 40px; }
+        .section-title {
+            font-size: 24px; color: #eb5757; font-weight: 700; margin-bottom: 20px;
+            padding-bottom: 10px; border-bottom: 3px solid #eb5757; text-align: center;
+        }
+        .subsection-title { font-size: 18px; color: #ff9500; font-weight: 600; margin-top: 20px; margin-bottom: 15px; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px; }
+        .kpi { background: #f9f9f9; border-radius: 8px; padding: 16px; border-left: 4px solid #eb5757; }
+        .kpi h3 { font-size: 14px; color: #666; text-transform: uppercase; letter-spacing: 0.6px; }
+        .kpi p { font-size: 22px; font-weight: 700; margin-top: 6px; color: #333; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; background: #f9f9f9; border-radius: 4px; overflow: hidden; }
+        th { background: #eb5757; color: white; padding: 12px; text-align: left; font-weight: 600; }
+        td { padding: 12px; border-bottom: 1px solid #ddd; }
+        tr:last-child td { border-bottom: none; }
+        .list { margin-left: 18px; }
+        .list li { margin-bottom: 6px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div style="text-align: center; width: 100%;">
+            <div class="header-logo">
+                <a href="INDEX_[PES-JAN-26].html" title="Voltar ao Indice">
+                    <img src="../../img/logo-brabo-concursos.png" alt="Brabo Concursos">
+                </a>
+            </div>
+            <div class="header-title">
+                <h1>Analise de Atribuicao UTM</h1>
+                <p>PES-JAN-26 - Compradores atribuidos a origem do lead</p>
+            </div>
+        </div>
+    </div>
+    <div class="content">
+        <div class="section">
+            <h2 class="section-title">Resumo Executivo</h2>
+            <div class="kpi-grid">
+                <div class="kpi"><h3>Total de vendas</h3><p>1634</p></div>
+                <div class="kpi"><h3>Valor das vendas (R$)</h3><p>2.224.729,94</p></div>
+                <div class="kpi"><h3>Gasto Facebook (R$)</h3><p>479.165,43</p></div>
+                <div class="kpi"><h3>Gasto YouTube (R$)</h3><p>273.670,55</p></div>
+                <div class="kpi"><h3>ROAS Geral</h3><p>2,96</p></div>
+                <div class="kpi"><h3>Com UTM (lead encontrado)</h3><p>1060 (64,9%)</p></div>
+                <div class="kpi"><h3>Sem UTM (lead nao localizado)</h3><p>574 (35,1%)</p></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Recuperador Inteligente (RI) - Bloco Dedicado</h2>
+            <div class="kpi-grid">
+                <div class="kpi"><h3>Vendas RI</h3><p>206</p></div>
+                <div class="kpi"><h3>Receita RI (R$)</h3><p>26.966,77</p></div>
+                <div class="kpi"><h3>RI com UTM</h3><p>128 (62,1%)</p></div>
+                <div class="kpi"><h3>RI sem UTM</h3><p>78 (37,9%)</p></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Distribuicao por Fonte (Compradores com UTM)</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fonte</th>
+                        <th>Compradores</th>
+                        <th>% do total com UTM</th>
+                        <th>Gasto (R$)</th>
+                        <th>Vendas (R$)</th>
+                        <th>ROAS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Facebook Quente</td><td>341</td><td>32,2%</td><td>208.115,56</td><td>535.941,43</td><td>2,58</td></tr><tr><td>Facebook Frio</td><td>93</td><td>8,8%</td><td>37.508,64</td><td>146.216,86</td><td>3,90</td></tr><tr><td>Facebook Especifico</td><td>23</td><td>2,2%</td><td>120.490,04</td><td>35.038,48</td><td>0,29</td></tr><tr><td>YouTube Quente</td><td>187</td><td>17,6%</td><td>103.794,77</td><td>289.398,18</td><td>2,79</td></tr><tr><td>YouTube Frio</td><td>26</td><td>2,5%</td><td>18.698,14</td><td>41.447,37</td><td>2,22</td></tr><tr><td>YouTube Especifico</td><td>79</td><td>7,5%</td><td>66.644,01</td><td>120.588,65</td><td>1,81</td></tr><tr><td>Pre-Qualificacao YT</td><td>44</td><td>4,2%</td><td>81.589,09</td><td>68.956,63</td><td>0,85</td></tr><tr><td>Pre-Qualificacao FB</td><td>113</td><td>10,7%</td><td>99.019,73</td><td>175.118,69</td><td>1,77</td></tr><tr><td>Outros</td><td>154</td><td>14,5%</td><td>16.976,00</td><td>240.424,20</td><td>14,16</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Top UTMs por Fonte</h2>
+            
+        <h3 class="subsection-title">Facebook Quente</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Compradores</th>
+                    <th>Receita (R$)</th>
+                    <th>Cartao</th>
+                    <th>Boleto</th>
+                    <th>Pix</th>
+                    <th>Outros</th>
+                    <th>utm_source</th>
+                    <th>utm_medium</th>
+                    <th>utm_campaign</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>25</td><td>39.050,07</td><td>11</td><td>13</td><td>0</td><td>1</td><td>fb-quente-principal-v7</td><td>03 - Lista Completa Escrevente + Visitou o Site da Brabo 180D + [M] Lista Completa</td><td>pes-jan-26</td></tr><tr><td>22</td><td>34.590,98</td><td>15</td><td>6</td><td>1</td><td>0</td><td>fb-quente-imagem-v4</td><td>01 - Cadastrados Antigos - 180D</td><td>pes-jan-26</td></tr><tr><td>21</td><td>33.456,60</td><td>10</td><td>11</td><td>0</td><td>0</td><td>fb-quente-principal-v4</td><td>03 - Lista Completa Escrevente + Visitou o Site da Brabo 180D + [M] Lista Completa</td><td>pes-jan-26</td></tr>
+            </tbody>
+        </table>
+        
+        <h3 class="subsection-title">Facebook Frio</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Compradores</th>
+                    <th>Receita (R$)</th>
+                    <th>Cartao</th>
+                    <th>Boleto</th>
+                    <th>Pix</th>
+                    <th>Outros</th>
+                    <th>utm_source</th>
+                    <th>utm_medium</th>
+                    <th>utm_campaign</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>20</td><td>31.865,58</td><td>11</td><td>8</td><td>1</td><td>0</td><td>fb-frio-principal-v4</td><td>07 - Semelhante (BR, 3%) - Alunos Escrevente</td><td>pes-jan-26</td></tr><tr><td>10</td><td>15.987,24</td><td>4</td><td>6</td><td>0</td><td>0</td><td>fb-frio-principal-v7</td><td>07 - Semelhante (BR, 3%) - Alunos Escrevente</td><td>pes-jan-26</td></tr><tr><td>10</td><td>15.698,46</td><td>7</td><td>3</td><td>0</td><td>0</td><td>fb-frio-principal-v4</td><td>{{adset.name}}</td><td>pes-jan-26</td></tr>
+            </tbody>
+        </table>
+        
+        <h3 class="subsection-title">Facebook Especifico</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Compradores</th>
+                    <th>Receita (R$)</th>
+                    <th>Cartao</th>
+                    <th>Boleto</th>
+                    <th>Pix</th>
+                    <th>Outros</th>
+                    <th>utm_source</th>
+                    <th>utm_medium</th>
+                    <th>utm_campaign</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>10</td><td>15.570,36</td><td>8</td><td>1</td><td>0</td><td>1</td><td>fb-especifico-reels-v4</td><td>{{adset.name}}</td><td>pes-jan-26</td></tr><tr><td>4</td><td>6.338,88</td><td>2</td><td>1</td><td>1</td><td>0</td><td>fb-especifico-principal-v5</td><td>{{adset.name}}</td><td>pes-jan-26</td></tr><tr><td>3</td><td>4.904,52</td><td>0</td><td>2</td><td>1</td><td>0</td><td>fb-especifico-potencial-v7</td><td>{{adset.name}}</td><td>pes-jan-26</td></tr>
+            </tbody>
+        </table>
+        
+        <h3 class="subsection-title">YouTube Quente</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Compradores</th>
+                    <th>Receita (R$)</th>
+                    <th>Cartao</th>
+                    <th>Boleto</th>
+                    <th>Pix</th>
+                    <th>Outros</th>
+                    <th>utm_source</th>
+                    <th>utm_medium</th>
+                    <th>utm_campaign</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>12</td><td>18.123,23</td><td>8</td><td>3</td><td>1</td><td>0</td><td>yt-quente-teste-v7</td><td>00_viu_cpl_antigo</td><td>pes-jan-26</td></tr><tr><td>9</td><td>14.264,10</td><td>5</td><td>4</td><td>0</td><td>0</td><td>yt-quente-potencial-v2</td><td>01_cadastrado_antigo</td><td>pes-jan-26</td></tr><tr><td>8</td><td>12.777,30</td><td>5</td><td>2</td><td>0</td><td>1</td><td>yt-quente-teste-v7</td><td>08_afinidade_concurso_escrevente</td><td>pes-jan-26</td></tr>
+            </tbody>
+        </table>
+        
+        <h3 class="subsection-title">YouTube Frio</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Compradores</th>
+                    <th>Receita (R$)</th>
+                    <th>Cartao</th>
+                    <th>Boleto</th>
+                    <th>Pix</th>
+                    <th>Outros</th>
+                    <th>utm_source</th>
+                    <th>utm_medium</th>
+                    <th>utm_campaign</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>4</td><td>6.258,54</td><td>3</td><td>1</td><td>0</td><td>0</td><td>yt-frio-potencial-v6</td><td>08_afinidade_concurso_escrevente</td><td>pes-jan-26</td></tr><tr><td>3</td><td>4.824,18</td><td>1</td><td>2</td><td>0</td><td>0</td><td>yt-frio-potencial-v7</td><td>08_afinidade_concurso_escrevente</td><td>pes-jan-26</td></tr><tr><td>2</td><td>3.285,60</td><td>0</td><td>2</td><td>0</td><td>0</td><td>yt-frio-potencial-v4</td><td>08_afinidade_concurso_escrevente</td><td>pes-jan-26</td></tr>
+            </tbody>
+        </table>
+        
+        <h3 class="subsection-title">YouTube Especifico</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Compradores</th>
+                    <th>Receita (R$)</th>
+                    <th>Cartao</th>
+                    <th>Boleto</th>
+                    <th>Pix</th>
+                    <th>Outros</th>
+                    <th>utm_source</th>
+                    <th>utm_medium</th>
+                    <th>utm_campaign</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>12</td><td>17.722,98</td><td>6</td><td>5</td><td>1</td><td>0</td><td>yt-especifico-teste-v7</td><td>02_viu_tj_180d</td><td>pes-jan-26</td></tr><tr><td>9</td><td>13.556,62</td><td>4</td><td>5</td><td>0</td><td>0</td><td>yt-especifico-potencial-v2</td><td>03_viu_video_365d</td><td>pes-jan-26</td></tr><tr><td>6</td><td>9.367,13</td><td>5</td><td>0</td><td>1</td><td>0</td><td>yt-especifico-principal-v7</td><td>02_viu_tj_180d</td><td>pes-jan-26</td></tr>
+            </tbody>
+        </table>
+        
+        <h3 class="subsection-title">Pre-Qualificacao YT</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Compradores</th>
+                    <th>Receita (R$)</th>
+                    <th>Cartao</th>
+                    <th>Boleto</th>
+                    <th>Pix</th>
+                    <th>Outros</th>
+                    <th>utm_source</th>
+                    <th>utm_medium</th>
+                    <th>utm_campaign</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>17</td><td>27.198,06</td><td>7</td><td>10</td><td>0</td><td>0</td><td>yt-especifico-teste-v7</td><td>00_viu_pre_quali</td><td>pes-jan-26</td></tr><tr><td>5</td><td>6.696,29</td><td>4</td><td>1</td><td>0</td><td>0</td><td>yt-especifico-principal-v6</td><td>00_viu_pre_quali</td><td>pes-jan-26</td></tr><tr><td>4</td><td>6.534,08</td><td>3</td><td>1</td><td>0</td><td>0</td><td>yt-especifico-principal-v2</td><td>00_viu_pre_quali</td><td>pes-jan-26</td></tr>
+            </tbody>
+        </table>
+        
+        <h3 class="subsection-title">Pre-Qualificacao FB</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Compradores</th>
+                    <th>Receita (R$)</th>
+                    <th>Cartao</th>
+                    <th>Boleto</th>
+                    <th>Pix</th>
+                    <th>Outros</th>
+                    <th>utm_source</th>
+                    <th>utm_medium</th>
+                    <th>utm_campaign</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>23</td><td>36.442,22</td><td>13</td><td>9</td><td>1</td><td>0</td><td>fb-especifico-potencial-v7</td><td>01 - Viu 25% do Vídeo Pré-Quali</td><td>pes-jan-26</td></tr><tr><td>13</td><td>20.427,51</td><td>10</td><td>3</td><td>0</td><td>0</td><td>fb-especifico-reels-v4</td><td>00 - Viu 50% do Vídeo Pré-Quali</td><td>pes-jan-26</td></tr><tr><td>12</td><td>19.049,61</td><td>7</td><td>3</td><td>2</td><td>0</td><td>fb-especifico-potencial-v2</td><td>01 - Viu 25% do Vídeo Pré-Quali</td><td>pes-jan-26</td></tr>
+            </tbody>
+        </table>
+        
+        <h3 class="subsection-title">Outros</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Compradores</th>
+                    <th>Receita (R$)</th>
+                    <th>Cartao</th>
+                    <th>Boleto</th>
+                    <th>Pix</th>
+                    <th>Outros</th>
+                    <th>utm_source</th>
+                    <th>utm_medium</th>
+                    <th>utm_campaign</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>73</td><td>113.140,38</td><td>37</td><td>33</td><td>2</td><td>1</td><td></td><td></td><td></td></tr><tr><td>53</td><td>83.849,44</td><td>30</td><td>20</td><td>0</td><td>3</td><td>ig</td><td>social</td><td></td></tr><tr><td>9</td><td>14.368,32</td><td>4</td><td>5</td><td>0</td><td>0</td><td>ig</td><td>social</td><td>pes-jan-26</td></tr>
+            </tbody>
+        </table>
+        
+        </div>
+    </div>
+</div>
+</body>
+</html>

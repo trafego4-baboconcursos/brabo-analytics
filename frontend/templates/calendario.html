@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block head %}
+{{ cal_styles | safe }}
+<style>
+.cal-content-wrap {
+  overflow: auto;
+  padding: 0;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cal-content-wrap">
+  {{ cal_body | safe }}
+</div>
+{% endblock %}

@@ -1,0 +1,356 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1>⚙️ Configurações</h1>
+      <p>Lançamentos disponíveis | Cache | Sistema</p>
+    </div>
+  </div>
+  <div class="content">
+
+    <div class="section">
+      <div class="section-title">Lançamentos Disponíveis no Datalake</div>
+      <div class="note">
+        <i class="ti ti-info-circle"></i>
+        As datas e chaves dos lançamentos são extraídas do cronograma operacional oficial e registradas na dimensão <code>dim_lancamentos</code> no Supabase. Os dados de mídia e leads são classificados pelo código (ex: <code>PBB-ABR-26</code>).
+      </div>
+      <div class="table-wrap" style="margin-top:12px">
+        <table>
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Nome</th>
+              <th>Acento</th>
+              <th>Meta Ads</th>
+              <th>Google Ads</th>
+              <th>Vendas</th>
+              <th>Active Campaign</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for l in launches %}
+            <tr class="{{ 'top3' if l.code == active_code else '' }}">
+              <td><strong>{{ l.code }}</strong></td>
+              <td>{{ l.name }}</td>
+              <td><span class="bs-pill accent" style="background:{{ l.accent }}">{{ l.short }}</span></td>
+              <td style="text-align:center">{{ '✅' if l.has_meta else '❌' }}</td>
+              <td style="text-align:center">{{ '✅' if l.has_google else '❌' }}</td>
+              <td style="text-align:center">{{ '✅' if l.has_vendas else '❌' }}</td>
+              <td style="text-align:center">{{ '✅' if l.has_ac else '❌' }}</td>
+              <td style="display:flex;gap:6px;align-items:center">
+                <a href="/?launch_code={{ l.code }}" style="background:var(--bs-accent);color:#fff;padding:4px 12px;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none">
+                  Abrir
+                </a>
+                <button onclick="lcOpen('{{ l.code }}')"
+                  style="background:#f3f4f6;color:var(--bs-ink);border:1px solid var(--bs-border-s);padding:4px 10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px">
+                  <i class="ti ti-settings" style="font-size:13px"></i> Configurar
+                </button>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8" style="text-align:center;color:#9ca3af;padding:32px">Nenhum lançamento encontrado</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Cache do Painel</div>
+      <div class="note">
+        Os dados analíticos do Supabase são indexados e mantidos em cache de memória pelo FastAPI para máxima velocidade. Se a rotina do ETL diário/horário foi executada e você deseja atualizar os relatórios na hora, clique em limpar cache.
+      </div>
+      <div style="margin-top:12px;display:flex;gap:12px">
+        {% if active_code %}
+        <form action="/api/clear-cache" method="post">
+          <input type="hidden" name="launch_code" value="{{ active_code }}">
+          <button type="submit" style="background:var(--bs-warning);color:#1a1a2e;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">
+            <i class="ti ti-refresh"></i> Limpar Cache — {{ active_code }}
+          </button>
+        </form>
+        {% endif %}
+        <form action="/api/clear-cache" method="post">
+          <button type="submit" style="background:var(--bs-danger);color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">
+            <i class="ti ti-trash"></i> Limpar Todos os Caches
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- ── Gerenciar Usuários (somente admin) ── -->
+    <div class="section">
+      <div class="section-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>Usuários</span>
+        <button onclick="document.getElementById('invite-form').classList.toggle('hidden')"
+          style="background:var(--bs-accent);color:#fff;border:none;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+          <i class="ti ti-user-plus"></i> Convidar usuário
+        </button>
+      </div>
+
+      <!-- Formulário de convite inline -->
+      <div id="invite-form" class="hidden" style="background:var(--bs-surface);border:1px solid var(--bs-border);border-radius:12px;padding:20px;margin-bottom:16px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div>
+            <label style="font-size:11px;font-weight:700;color:var(--bs-ink-muted);display:block;margin-bottom:4px">E-mail (opcional)</label>
+            <input type="email" id="inv-email" placeholder="pré-preenche o campo"
+              style="width:100%;border:1px solid var(--bs-border-s);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;outline:none">
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:700;color:var(--bs-ink-muted);display:block;margin-bottom:4px">Perfil</label>
+            <select id="inv-role" style="width:100%;border:1px solid var(--bs-border-s);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;outline:none">
+              <option value="analista">Analista</option>
+              <option value="trafego">Tráfego</option>
+              <option value="leitura">Leitura</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:11px;font-weight:700;color:var(--bs-ink-muted);display:block;margin-bottom:6px">Acesso a produtos</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+              <input type="checkbox" id="inv-all" checked onchange="invToggleAll(this)" style="accent-color:var(--bs-accent)"> Todos
+            </label>
+            {% for p in all_products %}
+            <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+              <input type="checkbox" class="inv-prod" value="{{ p }}" style="accent-color:var(--bs-accent)"> {{ product_labels.get(p, p) }}
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button onclick="invCreate()"
+            style="background:var(--bs-accent);color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">
+            Gerar link de convite
+          </button>
+          <div id="inv-link-box" style="display:none;flex:1;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 12px;font-size:12px;font-family:monospace;word-break:break-all;color:#166534"></div>
+          <button id="inv-copy-btn" onclick="invCopy()" style="display:none;background:#dcfce7;border:1px solid #86efac;color:#166534;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">
+            <i class="ti ti-copy"></i> Copiar
+          </button>
+        </div>
+      </div>
+
+      <!-- Tabela de usuários -->
+      {% if users_list %}
+      <div class="table-wrap" style="margin-top:8px">
+        <table>
+          <thead>
+            <tr>
+              <th>Nome / E-mail</th>
+              <th>Perfil</th>
+              <th>Produtos</th>
+              <th>Último login</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for u in users_list %}
+            <tr id="user-row-{{ u.id }}">
+              <td>
+                <div style="font-weight:700;font-size:13px">{{ u.name }}</div>
+                <div style="font-size:11px;color:var(--bs-ink-muted)">{{ u.email }}</div>
+              </td>
+              <td>
+                <span class="bs-pill" style="
+                  background:{% if u.role == 'admin' %}#fef3c7{% elif u.role == 'analista' %}#eff6ff{% elif u.role == 'trafego' %}#f0fdf4{% else %}#f3f4f6{% endif %};
+                  color:{% if u.role == 'admin' %}#92400e{% elif u.role == 'analista' %}#1e40af{% elif u.role == 'trafego' %}#166534{% else %}#374151{% endif %};
+                  font-weight:700;font-size:11px;padding:3px 10px;border-radius:20px">
+                  {{ u.role_label }}
+                </span>
+              </td>
+              <td style="font-size:12px;color:var(--bs-ink-muted)">{{ u.products_label }}</td>
+              <td style="font-size:12px;color:var(--bs-ink-muted)">{{ u.last_login_at or '—' }}</td>
+              <td>
+                {% if u.is_active %}
+                <span style="color:var(--bs-success);font-size:12px;font-weight:600">● Ativo</span>
+                {% else %}
+                <span style="color:var(--bs-danger);font-size:12px;font-weight:600">● Inativo</span>
+                {% endif %}
+              </td>
+              <td>
+                <button onclick="userToggle('{{ u.id }}', {{ 'true' if u.is_active else 'false' }})"
+                  style="border:1px solid var(--bs-border-s);background:var(--bs-surface);color:var(--bs-ink);
+                  padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">
+                  {{ 'Desativar' if u.is_active else 'Reativar' }}
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="note" style="margin-top:12px">
+        <i class="ti ti-info-circle"></i>
+        Nenhum usuário cadastrado ainda. Execute a migration <code>003_users.sql</code> no Supabase e gere o primeiro convite.
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- ── Links de convite ativos ── -->
+    {% if invites_list %}
+    <div class="section">
+      <div class="section-title">Links de Convite</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>E-mail</th>
+              <th>Perfil</th>
+              <th>Produtos</th>
+              <th>Criado em</th>
+              <th>Expira em</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for inv in invites_list %}
+            <tr id="inv-row-{{ inv.id }}" {% if inv.is_used %}style="opacity:.5"{% endif %}>
+              <td style="font-size:13px">{{ inv.email }}</td>
+              <td>
+                <span class="bs-pill" style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;
+                  background:#eff6ff;color:#1e40af">{{ inv.role_label }}</span>
+              </td>
+              <td style="font-size:12px;color:var(--bs-ink-muted)">{{ inv.products_label }}</td>
+              <td style="font-size:12px;color:var(--bs-ink-muted)">{{ inv.created_at }}</td>
+              <td style="font-size:12px;color:var(--bs-ink-muted)">{{ inv.expires_at }}</td>
+              <td style="font-size:12px;font-weight:600">
+                {% if inv.is_used %}
+                  <span style="color:var(--bs-ink-subtle)">Usado</span>
+                {% elif inv.is_expired %}
+                  <span style="color:var(--bs-danger)">Expirado</span>
+                {% else %}
+                  <span style="color:var(--bs-success)">Disponível</span>
+                {% endif %}
+              </td>
+              <td style="display:flex;gap:6px">
+                {% if not inv.is_used and not inv.is_expired %}
+                <button onclick="invCopyExisting('{{ inv.token }}')"
+                  style="border:1px solid var(--bs-border-s);background:var(--bs-surface);color:var(--bs-ink);
+                  padding:4px 8px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">
+                  <i class="ti ti-copy"></i>
+                </button>
+                {% endif %}
+                <button onclick="invRevoke('{{ inv.id }}')"
+                  style="border:1px solid rgba(240,84,84,.3);background:var(--bs-danger-bg);color:var(--bs-danger);
+                  padding:4px 8px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">
+                  <i class="ti ti-trash"></i>
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="section">
+      <div class="section-title">Arquitetura de Dados Analíticos (Supabase)</div>
+      <div style="background:#1e293b;color:#e2e8f0;padding:20px;border-radius:12px;font-family:monospace;font-size:13px;line-height:1.8">
+        <pre style="margin:0">Pipeline ETL (scheduler.py) ➔ Datalake Supabase
+  ├── dim_lancamentos       ➔ Cadastro de lançamentos e períodos
+  ├── meta_ads_daily        ➔ Desempenho diário de anúncios Meta Ads API
+  ├── google_ads_daily      ➔ Desempenho diário de anúncios Google Ads API
+  ├── leads                 ➔ Base consolidada de leads (Active Campaign)
+  ├── typeform_respostas    ➔ Respostas das pesquisas do Typeform API
+  ├── hotmart_clean_oficial ➔ Vendas integradas e normalizadas Hotmart
+  └── tmb_clean_oficial     ➔ Vendas integradas e normalizadas TMB Pay</pre>
+      </div>
+    </div>
+
+  </div>
+  <div class="footing">Brabo Analytics — Sistema de Análise de Lançamentos</div>
+</div>
+
+<style>
+  .hidden { display: none !important; }
+</style>
+
+<script>
+// ── Usuários ──────────────────────────────────────────────
+async function userToggle(userId, isActive) {
+  const res = await fetch(`/api/users/${userId}/toggle`, { method: 'POST' });
+  if (res.ok) location.reload();
+  else alert('Erro ao atualizar usuário.');
+}
+
+// ── Convites — toggle "Todos" ─────────────────────────────
+function invToggleAll(allBox) {
+  document.querySelectorAll('.inv-prod').forEach(cb => {
+    cb.checked = false;
+    cb.disabled = allBox.checked;
+  });
+}
+
+// Garante que "Todos" desmarca quando produto específico é marcado
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.inv-prod').forEach(cb => {
+    cb.addEventListener('change', () => {
+      const allBox = document.getElementById('inv-all');
+      if (cb.checked && allBox) allBox.checked = false;
+    });
+  });
+});
+
+// ── Gerar convite ─────────────────────────────────────────
+async function invCreate() {
+  const email   = document.getElementById('inv-email').value.trim();
+  const role    = document.getElementById('inv-role').value;
+  const allBox  = document.getElementById('inv-all');
+  let products;
+  if (allBox && allBox.checked) {
+    products = ['ALL'];
+  } else {
+    products = Array.from(document.querySelectorAll('.inv-prod:checked')).map(c => c.value);
+    if (!products.length) { alert('Selecione ao menos um produto.'); return; }
+  }
+
+  const body = { role, products };
+  if (email) body.email = email;
+
+  const res  = await fetch('/api/invites', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) { alert('Erro ao gerar convite.'); return; }
+
+  const data = await res.json();
+  const link = `${location.origin}/invite/${data.token}`;
+  const box  = document.getElementById('inv-link-box');
+  const btn  = document.getElementById('inv-copy-btn');
+  box.textContent = link;
+  box.dataset.link = link;
+  box.style.display = 'block';
+  btn.style.display = 'inline-flex';
+}
+
+function invCopy() {
+  const link = document.getElementById('inv-link-box').dataset.link;
+  navigator.clipboard.writeText(link).then(() => {
+    const btn = document.getElementById('inv-copy-btn');
+    btn.innerHTML = '<i class="ti ti-check"></i> Copiado!';
+    setTimeout(() => btn.innerHTML = '<i class="ti ti-copy"></i> Copiar', 2000);
+  });
+}
+
+function invCopyExisting(token) {
+  const link = `${location.origin}/invite/${token}`;
+  navigator.clipboard.writeText(link).then(() => alert('Link copiado!'));
+}
+
+async function invRevoke(inviteId) {
+  if (!confirm('Revogar este convite?')) return;
+  const res = await fetch(`/api/invites/${inviteId}`, { method: 'DELETE' });
+  if (res.ok) document.getElementById(`inv-row-${inviteId}`).remove();
+  else alert('Erro ao revogar convite.');
+}
+</script>
+{% endblock %}

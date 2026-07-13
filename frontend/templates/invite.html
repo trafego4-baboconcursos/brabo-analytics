@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Convite — Brabo Analytics</title>
+  <link rel="icon" type="image/png" href="/img/favicon-brabo-concursos.png">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    :root {
+      --primary: #2f5ee3;
+      --primary-gradient: linear-gradient(135deg, #2f5ee3 0%, #764ba2 100%);
+      --bg-gradient: radial-gradient(circle at top right, #1f2330 0%, #0f1118 70%);
+      --card-bg: rgba(31, 35, 48, 0.65);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --input-bg: rgba(15, 17, 24, 0.8);
+      --text: #ffffff;
+      --text-muted: #9ca3af;
+      --danger: #f05454;
+      --success: #31c16c;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .bg-glow-1 {
+      position: absolute; width: 400px; height: 400px; border-radius: 50%;
+      background: rgba(47, 94, 227, 0.15); filter: blur(80px);
+      top: -100px; left: -100px; z-index: 1;
+    }
+    .bg-glow-2 {
+      position: absolute; width: 500px; height: 500px; border-radius: 50%;
+      background: rgba(118, 75, 162, 0.12); filter: blur(100px);
+      bottom: -150px; right: -100px; z-index: 1;
+    }
+
+    .container {
+      width: 100%; max-width: 460px; padding: 24px;
+      position: relative; z-index: 10;
+    }
+
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 40px 32px;
+      box-shadow: 0 20px 50px rgba(0,0,0,.3);
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    .header img {
+      height: 44px;
+      margin-bottom: 16px;
+      filter: drop-shadow(0 2px 8px rgba(47,94,227,.3));
+    }
+
+    .header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      background: linear-gradient(120deg, #ffffff, #a3b8cc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header p {
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    /* Info badges */
+    .invite-meta {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .badge-role   { background: rgba(47,94,227,.25); color: #93b4ff; border: 1px solid rgba(47,94,227,.3); }
+    .badge-product { background: rgba(118,75,162,.25); color: #c9a3ff; border: 1px solid rgba(118,75,162,.3); }
+
+    /* Alert */
+    .alert {
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 13px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .alert-danger  { background: rgba(240,84,84,.15); border: 1px solid rgba(240,84,84,.3); color: #ff8080; }
+    .alert-warning { background: rgba(244,183,64,.15); border: 1px solid rgba(244,183,64,.3); color: #fcd27a; }
+
+    /* Form */
+    .form-group { margin-bottom: 18px; }
+
+    .form-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--text-muted);
+      margin-bottom: 7px;
+    }
+
+    .input-wrap { position: relative; display: flex; align-items: center; }
+
+    .input-wrap i {
+      position: absolute; left: 14px; color: var(--text-muted);
+      font-size: 17px; pointer-events: none; transition: color .2s;
+    }
+
+    .form-input {
+      width: 100%;
+      background: var(--input-bg);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 12px;
+      padding: 13px 14px 13px 44px;
+      font-family: inherit;
+      font-size: 14px;
+      color: #fff;
+      outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+
+    .form-input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px rgba(47,94,227,.15);
+    }
+
+    .form-input[readonly] {
+      opacity: .6;
+      cursor: not-allowed;
+    }
+
+    .btn {
+      width: 100%;
+      background: var(--primary-gradient);
+      border: none;
+      border-radius: 12px;
+      padding: 14px;
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: filter .2s;
+      margin-top: 8px;
+    }
+
+    .btn:hover { filter: brightness(1.1); }
+    .btn:disabled { opacity: .6; cursor: not-allowed; filter: none; }
+
+    .footer-note {
+      text-align: center;
+      font-size: 11px;
+      color: rgba(255,255,255,.25);
+      margin-top: 20px;
+    }
+
+    /* Error state */
+    .blocked {
+      text-align: center;
+      padding: 16px 0;
+    }
+
+    .blocked .icon {
+      font-size: 48px;
+      color: #f05454;
+      margin-bottom: 12px;
+    }
+
+    .blocked h2 { font-size: 18px; margin-bottom: 8px; }
+    .blocked p  { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <div class="bg-glow-1"></div>
+  <div class="bg-glow-2"></div>
+
+  <div class="container">
+    <div class="card">
+      <div class="header">
+        <img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics">
+        <h1>Você foi convidado</h1>
+        <p>Crie sua conta no Brabo Analytics</p>
+      </div>
+
+      {% if error and (not invite or invite.is_used or invite.is_expired) %}
+      <!-- Convite inválido/expirado -->
+      <div class="blocked">
+        <div class="icon"><i class="ti ti-link-off"></i></div>
+        <h2>Link indisponível</h2>
+        <p>{{ error }}</p>
+        <a href="/login" style="color:var(--primary);font-size:13px;font-weight:600">← Ir para o login</a>
+      </div>
+
+      {% else %}
+      <!-- Badges de role e produtos -->
+      {% if invite %}
+      <div class="invite-meta">
+        <span class="badge badge-role">
+          <i class="ti ti-shield-check" style="font-size:12px"></i>
+          {{ role_labels.get(invite.role, invite.role) }}
+        </span>
+        {% for p in invite.products %}
+        <span class="badge badge-product">
+          <i class="ti ti-building" style="font-size:12px"></i>
+          {{ product_labels.get(p, p) }}
+        </span>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {% if error %}
+      <div class="alert alert-danger">
+        <i class="ti ti-alert-circle"></i>
+        <span>{{ error }}</span>
+      </div>
+      {% endif %}
+
+      <form action="/invite/{{ token }}" method="post">
+        <div class="form-group">
+          <label class="form-label" for="name">Nome completo</label>
+          <div class="input-wrap">
+            <input class="form-input" type="text" id="name" name="name"
+                   placeholder="Seu nome" required autofocus>
+            <i class="ti ti-user"></i>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="email">E-mail</label>
+          <div class="input-wrap">
+            <input class="form-input" type="email" id="email" name="email"
+                   value="{{ invite.email if invite and invite.email else '' }}"
+                   {% if invite and invite.email %}readonly{% endif %}
+                   placeholder="seu@email.com" required>
+            <i class="ti ti-mail"></i>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Senha</label>
+          <div class="input-wrap">
+            <input class="form-input" type="password" id="password" name="password"
+                   placeholder="Mínimo 8 caracteres" required minlength="8">
+            <i class="ti ti-lock"></i>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="confirm_password">Confirmar Senha</label>
+          <div class="input-wrap">
+            <input class="form-input" type="password" id="confirm_password" name="confirm_password"
+                   placeholder="Repita a senha" required minlength="8">
+            <i class="ti ti-lock-check"></i>
+          </div>
+        </div>
+
+        <button class="btn" type="submit">
+          <span>Criar minha conta</span>
+          <i class="ti ti-arrow-right"></i>
+        </button>
+      </form>
+
+      <div class="footer-note">
+        Ao criar a conta, você terá acesso ao Brabo Analytics conforme as permissões do convite.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <script>
+    // Validação client-side das senhas
+    document.querySelector("form") && document.querySelector("form").addEventListener("submit", function(e) {
+      var p1 = document.getElementById("password");
+      var p2 = document.getElementById("confirm_password");
+      if (p1 && p2 && p1.value !== p2.value) {
+        e.preventDefault();
+        alert("As senhas não coincidem.");
+        p2.focus();
+      }
+    });
+  </script>
+</body>
+</html>

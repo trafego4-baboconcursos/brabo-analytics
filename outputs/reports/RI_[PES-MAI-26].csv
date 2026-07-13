@@ -1,0 +1,31 @@
+section,source,metric,value,buyers,revenue,payment_card,payment_boleto,payment_pix,payment_other,utm_source,utm_medium,utm_campaign
+ri_summary,RI,sales,266,,,,,,,,,
+ri_summary,RI,revenue,38610.24,,,,,,,,,
+ri_summary,RI,buyers_with_utm,160,,,,,,,,,
+ri_summary,RI,buyers_without_utm,106,,,,,,,,,
+ri_summary,RI,buyers_with_utm_pct,"60,2%",,,,,,,,,
+ri_summary,RI,buyers_without_utm_pct,"39,8%",,,,,,,,,
+ri_top_utm,Facebook Quente,,,110,183002.13999999993,59,46,2,3,facebook,paid_social,[MA][cadastro][captação][quente][principal][PES-MAI-26][27.04.26]
+ri_top_utm,Facebook Quente,,,59,100136.01999999993,30,28,0,1,facebook,paid_social,[MA][cadastro][captação][quente][imagem][PES-MAI-26][27.04.26]
+ri_top_utm,Facebook Quente,,,48,79325.87999999998,27,17,3,1,facebook,paid_social,[MA][cadastro][captação][quente][reels][PES-MAI-26][27.04.26]
+ri_top_utm,Facebook Frio,,,82,135990.36999999997,47,30,2,3,facebook,paid_social,[MA][cadastro][captação][frio][principal][PES-MAI-26][27.04.26]
+ri_top_utm,Facebook Frio,,,43,69170.11999999997,26,16,0,1,facebook,paid_social,[MA][cadastro][captação][frio][potencial][PES-MAI-26][27.04.26]
+ri_top_utm,Facebook Frio,,,18,29148.46,10,6,2,0,facebook,paid_social,[MA][cadastro][captação][frio][imagem][PES-MAI-26][27.04.26]
+ri_top_utm,Facebook Especifico,,,5,8795.52,1,3,1,0,facebook,paid_social,[MA][cadastro][captação][específico][principal][PES-MAI-26][27.04.26]
+ri_top_utm,Facebook Especifico,,,1,1879.34,0,1,0,0,facebook,paid_social,[MA][cadastro][captação][específico][potencial][PES-MAI-26][27.04.26]
+ri_top_utm,Facebook Especifico,,,1,1671.87,1,0,0,0,facebook,paid_social,[MA][cadastro][captação][específico][reels][PES-MAI-26][27.04.26]
+ri_top_utm,YouTube Quente,,,94,160119.6399999999,46,42,3,3,google,cpc,[GA][cadastro][captação][quente][potencial][PES-MAI-26][27.04.26]
+ri_top_utm,YouTube Quente,,,71,114444.39999999997,41,27,2,1,google,cpc,[GA][cadastro][captação][quente][principal][PES-MAI-26][27.04.26]
+ri_top_utm,YouTube Quente,,,18,30354.74,10,8,0,0,google,cpc,[GA][cadastro][captação][quente][principal][p-max][PES-MAI-26][04.05.26]
+ri_top_utm,YouTube Frio,,,13,23068.38,4,9,0,0,google,cpc,[GA][cadastro][captação][frio][principal][melhores-ads][PES-MAI-26][04.05.26]
+ri_top_utm,YouTube Frio,,,10,17430.36,3,6,0,1,google,cpc,[GA][cadastro][captação][frio][principal][PES-MAI-26][27.04.26]
+ri_top_utm,YouTube Frio,,,10,16040.83,7,2,0,1,google,cpc,[GA][cadastro][captação][frio][potencial][PES-MAI-26][27.04.26]
+ri_top_utm,YouTube Especifico,,,12,21292.97,3,9,0,0,google,cpc,[GA][cadastro][captação][especifico][principal][melhores-ads][PES-MAI-26][04.05.26]
+ri_top_utm,YouTube Especifico,,,9,15587.58,4,5,0,0,google,cpc,[GA][cadastro][captação][específico][potencial][PES-MAI-26][27.04.26]
+ri_top_utm,YouTube Especifico,,,7,10408.68,4,3,0,0,google,cpc,[GA][cadastro][captação][específico][principal][PES-MAI-26][27.04.26]
+ri_top_utm,Pre-Qualificacao YT,,,1,1879.34,0,1,0,0,yt-pre-quali-frio,,pes-mai-26
+ri_top_utm,Pre-Qualificacao FB,,,1,1879.34,0,1,0,0,fb-pre-quali-frio,"00 - Semelhante (BR, 1%) - Alunos Mentoria TJ",pes-mai-26
+ri_top_utm,Pre-Qualificacao FB,,,1,1879.34,0,1,0,0,fb-pre-quali-frio,"00 - Semelhante (BR, 3%) - Alunos Mentoria TJ",pes-mai-26
+ri_top_utm,Pre-Qualificacao FB,,,1,1618.92,0,0,1,0,fb-captacao-especifico-reels-v6,01 - Viu 50% do Vídeo Pré-Quali,pi-abr-26
+ri_top_utm,Outros,,,63,103697.53999999996,35,22,2,4,,,
+ri_top_utm,Outros,,,27,45686.57999999998,16,11,0,0,facebook,paid_social,{{campaign.name}}

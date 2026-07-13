@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+
+# Ambiente virtual
+.venv/
+venv/
+env/
+
+# Credenciais e segredos
+.env
+*.env
+json/
+youtube/client_secrets.json
+youtube/token_bb.json
+client_secret*.json
+token*.json
+
+# Logs gerados em runtime
+logs/
+*.log
+
+# Cache
+.uv-cache/
+.cache/
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Dados locais / exports temporários
+*.csv.tmp
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# pre-commit
+.pre-commit-cache/
+
+# Node
+node_modules/
+
+# Dados de lançamentos (CSVs grandes, contêm PII de leads/compradores)
+analises/**/*.csv
+active-campaign/
+
+# Temporários
+temp/
+.tmp/
+
+# Claude Code (configurações locais)
+.claude/settings.local.json

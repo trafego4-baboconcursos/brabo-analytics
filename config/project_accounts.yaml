@@ -1,0 +1,22 @@
+# Contas de anúncio e IDs de produto por projeto (BB / TJ / INSS).
+# Compartilhados por todos os lançamentos de um mesmo projeto — ao contrário de
+# config/launches/*.yaml, que é por lançamento. Lido por frontend/core.py
+# (_compute_launch_defaults). Adicionar um projeto novo = editar só este arquivo.
+
+BB:
+  meta_ad_account_ids: ["act_438212624024216", "act_1175937361058463"]
+  google_ad_account_ids: ["1450466453"]
+  hotmart_produto_ids: ["6857021"]
+  tmb_produto_ids: ["29396"]
+
+TJ:
+  meta_ad_account_ids: ["act_1407542209639031"]
+  google_ad_account_ids: ["6482320788"]
+  hotmart_produto_ids: ["6857003"]
+  tmb_produto_ids: ["29395"]
+
+INSS:
+  meta_ad_account_ids: ["act_1407542209639031"]
+  google_ad_account_ids: ["6482320788"]
+  hotmart_produto_ids: ["6856971"]
+  tmb_produto_ids: ["28716"]

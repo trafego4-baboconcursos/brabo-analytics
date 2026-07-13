@@ -1,0 +1,401 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="wrap">
+
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}">
+      <img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics">
+    </a>
+    <div>
+      <h1>Análise Consolidada{% if launch %} — {{ launch.code }}{% endif %}</h1>
+      <p>{% if launch %}{{ launch.name }}{% endif %} | Performance geral da campanha</p>
+    </div>
+  </div>
+
+  <div class="content">
+
+    {% if not launch %}
+    <div class="no-data">
+      <i class="ti ti-folder-off"></i>
+      <h3>Nenhum lançamento encontrado</h3>
+      <p>Adicione uma pasta no padrão <code>[PBB-ABR-26]</code> dentro de <code>analises/</code></p>
+    </div>
+
+    {% else %}
+
+    {# ── KPIs Principais (design system: tp-kpi) ─────────────────────────── #}
+    <div class="tp-kpi-grid">
+
+      <div class="tp-kpi">
+        <div class="tp-kpi-top">
+          <div class="tp-icon warning"><i class="ti ti-coin"></i></div>
+        </div>
+        <div class="tp-value">{{ invest | brl }}</div>
+        <div class="tp-label">Investimento Total</div>
+        {% if prog_invest is not none %}
+        <div class="kpi-prog">
+          <div class="kpi-prog-track"><div class="kpi-prog-fill warning" style="width:{{ prog_invest | round(1) }}%"></div></div>
+          <div class="kpi-prog-lbl">{{ prog_invest | round(0) | int }}% da meta de {{ goal_invest | brl }}</div>
+        </div>
+        {% endif %}
+        <div class="tp-compare">
+          {% if meta %}Meta: {{ meta.total_gasto | brl }}{% endif %}
+          {% if google %}{% if meta %} · {% endif %}Google: {{ google.total_custo | brl }}{% endif %}
+        </div>
+      </div>
+
+      <div class="tp-kpi">
+        <div class="tp-kpi-top">
+          <div class="tp-icon success"><i class="ti ti-cash"></i></div>
+        </div>
+        <div class="tp-value">{{ receita | brl }}</div>
+        <div class="tp-label">Receita Total</div>
+        <div class="tp-compare">
+          {% if vendas %}Hotmart: {{ vendas.hotmart_receita | brl }} · TMB: {{ vendas.tmb_receita | brl }}{% else %}Sem dados de vendas{% endif %}
+        </div>
+      </div>
+
+      <div class="tp-kpi">
+        <div class="tp-kpi-top">
+          <div class="tp-icon"><i class="ti ti-chart-bar"></i></div>
+          {% if roas > 0 %}
+          <div class="tp-delta {% if roas >= 2 %}up{% elif roas >= 1 %}flat{% else %}down{% endif %}">
+            {{ "%.2f"|format(roas) | replace(".", ",") }}x
+          </div>
+          {% endif %}
+        </div>
+        <div class="tp-value">{{ "%.2f"|format(roas) | replace(".", ",") }}<small>x</small></div>
+        <div class="tp-label">ROAS Geral</div>
+        <div class="tp-compare">Retorno sobre investimento</div>
+      </div>
+
+      <div class="tp-kpi">
+        <div class="tp-kpi-top">
+          <div class="tp-icon success"><i class="ti ti-shopping-cart"></i></div>
+        </div>
+        <div class="tp-value">{{ vendas.total_vendas | num if vendas else "–" }}</div>
+        <div class="tp-label">Total de Vendas</div>
+        <div class="tp-compare">
+          {% if vendas %}Hotmart: {{ vendas.hotmart_vendas | num }} · TMB: {{ vendas.tmb_vendas | num }}{% else %}Sem dados de vendas{% endif %}
+        </div>
+      </div>
+
+      <div class="tp-kpi">
+        <div class="tp-kpi-top">
+          <div class="tp-icon meta"><i class="ti ti-brand-meta"></i></div>
+        </div>
+        <div class="tp-value">{{ meta.total_leads | num if meta else "–" }}</div>
+        <div class="tp-label">Leads (Meta)</div>
+        {% if prog_leads is not none %}
+        <div class="kpi-prog">
+          <div class="kpi-prog-track"><div class="kpi-prog-fill" style="width:{{ prog_leads | round(1) }}%"></div></div>
+          <div class="kpi-prog-lbl">{{ meta.total_leads | num if meta else 0 }} / {{ goal_leads | num }} meta</div>
+        </div>
+        {% endif %}
+        <div class="tp-compare">CPL: {{ meta.cpl_medio | brl if meta else "–" }}</div>
+      </div>
+
+      <div class="tp-kpi">
+        <div class="tp-kpi-top">
+          <div class="tp-icon google"><i class="ti ti-brand-google"></i></div>
+        </div>
+        <div class="tp-value">{{ "%.0f"|format(google.total_conversoes) if google else "–" }}</div>
+        <div class="tp-label">Conv. Google</div>
+        <div class="tp-compare">Custo/Conv: {{ google.custo_conv_medio | brl if google else "–" }}</div>
+      </div>
+
+    </div>
+
+    {# ── Highlights ─────────────────────────────────────────────────────── #}
+    {% if meta and meta.top_por_leads %}
+    <div class="highlights">
+
+      <div class="highlight-box">
+        <h3>Top 5 Criativos por Leads</h3>
+        {% for c in meta.top_por_leads[:5] %}
+        <div class="highlight-item">
+          <div class="highlight-row">
+            <span class="criativo">{{ c.nome[:40] }}</span>
+            <span class="value">{{ c.leads | num }} leads</span>
+          </div>
+          <small>{{ c.etapa }} | CPL {{ c.cpl | brl }} | Gasto {{ c.gasto | brl }}</small>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="highlight-box">
+        <h3>Melhores CPL (Captação)</h3>
+        {% for c in meta.top_por_cpl[:5] %}
+        <div class="highlight-item">
+          <div class="highlight-row">
+            <span class="criativo">{{ c.nome[:40] }}</span>
+            <span class="value positivo">{{ c.cpl | brl }}</span>
+          </div>
+          <small>{{ c.leads | num }} leads | CTR {{ c.ctr | pct(2) }}</small>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="highlight-box">
+        <h3>Piores CPL (atenção)</h3>
+        {% for c in meta.piores_cpl[:5] %}
+        <div class="highlight-item">
+          <div class="highlight-row">
+            <span class="criativo">{{ c.nome[:40] }}</span>
+            <span class="value negativo">{{ c.cpl | brl }}</span>
+          </div>
+          <small>{{ c.leads | num }} leads | Gasto {{ c.gasto | brl }}</small>
+        </div>
+        {% endfor %}
+      </div>
+
+    </div>
+    {% endif %}
+
+    {# ── Distribuição por etapa Meta ─────────────────────────────────────── #}
+    {% if meta and meta.por_etapa %}
+    <div class="info-box">
+      <h2><i class="ti ti-brand-meta" style="color:var(--meta-color);vertical-align:middle;margin-right:6px;"></i>Meta Ads — Distribuição por Etapa</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-meta">Etapa</th>
+              <th class="th-meta">Investimento</th>
+              <th class="th-meta">% Verba</th>
+              <th class="th-meta">Leads</th>
+              <th class="th-meta">CPL</th>
+              <th class="th-meta">ThruPlays</th>
+              <th class="th-meta">Custo/ThruPlay</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set total_meta = meta.total_gasto or 1 %}
+            {% for etapa, d in meta.por_etapa.items() %}
+            <tr {% if d.gasto == 0 %}style="opacity:0.45;"{% endif %}>
+              <td><span class="bs-pill meta">{{ etapa }}</span></td>
+              <td class="numero">{{ d.gasto | brl }}</td>
+              <td>
+                <div class="pbar-wrap">
+                  <div class="pbar-track" style="max-width:80px">
+                    <div class="pbar-fill meta" style="width:{{ (d.gasto / total_meta * 100) | round(1) }}%;"></div>
+                  </div>
+                  <span class="td-meta" style="font-weight:700;font-size:12px">{{ (d.gasto / total_meta * 100) | pct }}</span>
+                </div>
+              </td>
+              <td class="numero">{{ d.leads | num }}</td>
+              <td class="numero {% if d.cpl > 0 and d.cpl < 3 %}positivo{% elif d.cpl > 5 %}negativo{% endif %}">
+                {{ d.cpl | brl if d.leads > 0 else "–" }}
+              </td>
+              <td class="numero">{{ d.thruplays | num }}</td>
+              <td class="numero">{{ d.custo_thruplay | brl(3) if d.thruplays > 0 else "–" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── Google por etapa ───────────────────────────────────────────────── #}
+    {% if google and google.por_etapa %}
+    <div class="info-box">
+      <h2><i class="ti ti-brand-google" style="color:var(--google-color);vertical-align:middle;margin-right:6px;"></i>Google Ads — Distribuição por Etapa</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-google">Etapa</th>
+              <th class="th-google">Investimento</th>
+              <th class="th-google">% Verba</th>
+              <th class="th-google">Conversões</th>
+              <th class="th-google">Custo/Conv</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set total_google = google.total_custo or 1 %}
+            {% for etapa, d in google.por_etapa.items() %}
+            <tr {% if d.custo == 0 %}style="opacity:0.45;"{% endif %}>
+              <td><span class="bs-pill google">{{ etapa }}</span></td>
+              <td class="numero">{{ d.custo | brl }}</td>
+              <td>
+                <div class="pbar-wrap">
+                  <div class="pbar-track" style="max-width:80px">
+                    <div class="pbar-fill google" style="width:{{ (d.custo / total_google * 100) | round(1) }}%"></div>
+                  </div>
+                  <span class="td-google" style="font-weight:700;font-size:12px">{{ (d.custo / total_google * 100) | pct }}</span>
+                </div>
+              </td>
+              <td class="numero">{{ "%.0f"|format(d.conversoes) }}</td>
+              <td class="numero">{{ d.custo_conv | brl if d.conversoes > 0 else "–" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── Breakdown diário por plataforma ────────────────────────────────────────── #}
+    {% macro daily_table(rows, title) %}
+    {% if rows %}
+    <div class="info-box">
+      <h2>{{ title }}</h2>
+      <div class="table-wrap" style="overflow-x:auto;">
+        <table class="table-compact" style="min-width:900px;font-size:12px;">
+          <colgroup>
+            <col style="width:70px"><col style="width:55px">
+            <col><col><col>
+            <col style="background:#1877F208"><col style="background:#1877F208"><col style="background:#1877F208">
+            <col style="background:#EA433508"><col style="background:#EA433508"><col style="background:#EA433508">
+            <col style="background:#34A85308"><col style="background:#34A85308"><col style="background:#34A85308">
+            <col style="background:#FBBC0508"><col style="background:#FBBC0508"><col style="background:#FBBC0508">
+            <col style="background:#FF6D0008"><col style="background:#FF6D0008"><col style="background:#FF6D0008">
+          </colgroup>
+          <thead>
+            <tr>
+              <th colspan="2" class="th-dark" style="text-align:center;">Data</th>
+              <th colspan="3" class="th-dark" style="text-align:center;">Geral</th>
+              <th colspan="3" class="th-meta" style="text-align:center;"><i class="ti ti-brand-meta"></i> Facebook Ads</th>
+              <th colspan="3" class="th-youtube" style="text-align:center;"><i class="ti ti-brand-youtube"></i> YouTube</th>
+              <th colspan="3" class="th-search" style="text-align:center;">GA Search</th>
+              <th colspan="3" class="th-pmax" style="text-align:center;">GA P-Max</th>
+              <th colspan="3" class="th-display" style="text-align:center;">GA Display</th>
+            </tr>
+            <tr>
+              <th class="th-dark">Dia</th>
+              <th class="th-dark">Data</th>
+              <th class="th-dark" style="text-align:right">Leads</th>
+              <th class="th-dark" style="text-align:right">CPL</th>
+              <th class="th-dark" style="text-align:right">Gasto</th>
+              <th class="th-meta" style="text-align:right">Leads</th>
+              <th class="th-meta" style="text-align:right">CPL</th>
+              <th class="th-meta" style="text-align:right">Gasto</th>
+              <th class="th-youtube" style="text-align:right">Conv.</th>
+              <th class="th-youtube" style="text-align:right">CPA</th>
+              <th class="th-youtube" style="text-align:right">Gasto</th>
+              <th class="th-search" style="text-align:right">Conv.</th>
+              <th class="th-search" style="text-align:right">CPA</th>
+              <th class="th-search" style="text-align:right">Gasto</th>
+              <th class="th-pmax" style="text-align:right">Conv.</th>
+              <th class="th-pmax" style="text-align:right">CPA</th>
+              <th class="th-pmax" style="text-align:right">Gasto</th>
+              <th class="th-display" style="text-align:right">Conv.</th>
+              <th class="th-display" style="text-align:right">CPA</th>
+              <th class="th-display" style="text-align:right">Gasto</th>
+            </tr>
+            {# Linha de totais #}
+            {% set tot = namespace(leads=0,gasto=0,ml=0,mg=0,yl=0,yg=0,sl=0,sg=0,pl=0,pg=0,dl=0,dg=0) %}
+            {% for r in rows %}
+              {% set tot.leads = tot.leads + r.total_leads %}
+              {% set tot.gasto = tot.gasto + r.total_gasto %}
+              {% set tot.ml = tot.ml + r.meta_leads %}
+              {% set tot.mg = tot.mg + r.meta_gasto %}
+              {% set tot.yl = tot.yl + r.yt_leads %}
+              {% set tot.yg = tot.yg + r.yt_gasto %}
+              {% set tot.sl = tot.sl + r.search_leads %}
+              {% set tot.sg = tot.sg + r.search_gasto %}
+              {% set tot.pl = tot.pl + r.pmax_leads %}
+              {% set tot.pg = tot.pg + r.pmax_gasto %}
+              {% set tot.dl = tot.dl + r.display_leads %}
+              {% set tot.dg = tot.dg + r.display_gasto %}
+            {% endfor %}
+            <tr style="background:#1f2937;color:#fff;font-weight:700;">
+              <td colspan="2">TOTAL</td>
+              <td style="text-align:right;">{{ tot.leads | round(0) | int | num }}</td>
+              <td style="text-align:right;">{{ (tot.gasto / tot.leads) | brl if tot.leads > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ tot.gasto | brl }}</td>
+              <td style="text-align:right;">{{ tot.ml | round(0) | int | num }}</td>
+              <td style="text-align:right;">{{ (tot.mg / tot.ml) | brl if tot.ml > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ tot.mg | brl }}</td>
+              <td style="text-align:right;">{{ tot.yl | round(0) | int | num }}</td>
+              <td style="text-align:right;">{{ (tot.yg / tot.yl) | brl if tot.yl > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ tot.yg | brl }}</td>
+              <td style="text-align:right;">{{ tot.sl | round(0) | int | num }}</td>
+              <td style="text-align:right;">{{ (tot.sg / tot.sl) | brl if tot.sl > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ tot.sg | brl }}</td>
+              <td style="text-align:right;">{{ tot.pl | round(0) | int | num }}</td>
+              <td style="text-align:right;">{{ (tot.pg / tot.pl) | brl if tot.pl > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ tot.pg | brl }}</td>
+              <td style="text-align:right;">{{ tot.dl | round(0) | int | num }}</td>
+              <td style="text-align:right;">{{ (tot.dg / tot.dl) | brl if tot.dl > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ tot.dg | brl }}</td>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rows %}
+            <tr>
+              <td class="td-bold">{{ r.weekday }}</td>
+              <td class="td-muted">{{ r.date }}</td>
+              <td style="text-align:right;">{{ r.total_leads | round(0) | int | num }}</td>
+              <td style="text-align:right;">{{ r.total_cpl | brl }}</td>
+              <td style="text-align:right;">{{ r.total_gasto | brl }}</td>
+              <td class="td-meta" style="text-align:right;">{{ r.meta_leads | round(0) | int | num }}</td>
+              <td style="text-align:right;">{{ r.meta_cpl | brl if r.meta_leads > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ r.meta_gasto | brl }}</td>
+              <td class="td-google" style="text-align:right;">{{ r.yt_leads | round(0) | int | num }}</td>
+              <td style="text-align:right;">{{ r.yt_cpl | brl if r.yt_leads > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ r.yt_gasto | brl }}</td>
+              <td class="td-success" style="text-align:right;">{{ r.search_leads | round(0) | int | num }}</td>
+              <td style="text-align:right;">{{ r.search_cpl | brl if r.search_leads > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ r.search_gasto | brl }}</td>
+              <td style="text-align:right;">{{ r.pmax_leads | round(0) | int | num }}</td>
+              <td style="text-align:right;">{{ r.pmax_cpl | brl if r.pmax_leads > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ r.pmax_gasto | brl }}</td>
+              <td style="text-align:right;">{{ r.display_leads | round(0) | int | num }}</td>
+              <td style="text-align:right;">{{ r.display_cpl | brl if r.display_leads > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ r.display_gasto | brl }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+    {% endmacro %}
+
+    {{ daily_table(daily_breakdown_preq, "📅 Performance Diária por Plataforma — Pré-Qualificação") }}
+    {{ daily_table(daily_breakdown, "📅 Performance Diária por Plataforma — Captação") }}
+
+    {# ── Vendas detalhado ────────────────────────────────────────────────── #}
+    {% if vendas %}
+    <div class="info-box">
+      <h2>Vendas — Hotmart × TMB</h2>
+      <div class="metrics-grid" style="margin-bottom:16px">
+        <div class="metric-card">
+          <div class="label">Hotmart — Vendas</div>
+          <div class="value">{{ vendas.hotmart_vendas | num }}</div>
+          <div class="subtext">{{ vendas.hotmart_receita | brl }} | Ticket: {{ vendas.hotmart_ticket_medio | brl }}</div>
+        </div>
+        <div class="metric-card">
+          <div class="label">TMB — Vendas</div>
+          <div class="value">{{ vendas.tmb_vendas | num }}</div>
+          <div class="subtext">{{ vendas.tmb_receita | brl }} | Ticket: {{ vendas.tmb_ticket_medio | brl }}</div>
+        </div>
+        <div class="metric-card destaque">
+          <div class="label">Total Geral</div>
+          <div class="value">{{ vendas.total_vendas | num }}</div>
+          <div class="subtext">{{ vendas.total_receita | brl }} | Ticket: {{ vendas.total_ticket_medio | brl }}</div>
+        </div>
+        {% if vendas.pagamento_cartao or vendas.pagamento_pix or vendas.pagamento_boleto %}
+        <div class="metric-card">
+          <div class="label">Métodos (Hotmart)</div>
+          <div class="value" style="font-size:14px;margin-top:4px">
+            Cartão: {{ vendas.pagamento_cartao | num }}<br>
+            Pix: {{ vendas.pagamento_pix | num }}<br>
+            Boleto: {{ vendas.pagamento_boleto | num }}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% endif %}{# end if launch #}
+
+  </div>{# .content #}
+  <div class="footing">
+    Gerado em tempo real | Brabo Analytics{% if launch %} — {{ launch.code }}{% endif %}
+  </div>
+</div>
+{% endblock %}

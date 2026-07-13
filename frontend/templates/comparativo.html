@@ -1,0 +1,558 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  /* ── Comparativo-specific styles ── */
+  .cmp-paradox {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 16px;
+    align-items: center;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    border-radius: var(--bs-r-xl);
+    padding: 28px 32px;
+    margin-bottom: 24px;
+    color: #fff;
+  }
+  .cmp-block {
+    text-align: center;
+    padding: 20px 16px;
+    border-radius: var(--bs-r-lg);
+  }
+  .cmp-block.side-a { background: rgba(102,126,234,.25); border: 1.5px solid rgba(102,126,234,.5); }
+  .cmp-block.side-b { border: 1.5px solid rgba(255,255,255,.3); }
+  .cmp-block-label { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; opacity: .7; margin-bottom: 4px; }
+  .cmp-block-code  { font-size: 20px; font-weight: 800; margin-bottom: 16px; }
+  .cmp-block-num   { font-size: 30px; font-weight: 800; line-height: 1.1; }
+  .cmp-block-sub   { font-size: 12px; opacity: .7; margin-top: 4px; }
+  .cmp-arrow { text-align: center; }
+  .cmp-delta-box { background: rgba(0,0,0,.3); border-radius: var(--bs-r-lg); padding: 20px 24px; }
+  .cmp-delta-title { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; opacity: .6; margin-bottom: 12px; }
+  .cmp-delta-row { margin-bottom: 10px; }
+  .cmp-delta-pct { font-size: 34px; font-weight: 800; line-height: 1; }
+  .cmp-delta-pct.pos { color: var(--bs-success); }
+  .cmp-delta-pct.neg { color: var(--bs-danger); }
+  .cmp-delta-desc { font-size: 12px; opacity: .7; margin-top: 2px; }
+
+  /* Scorecard */
+  .cmp-scorecard table th.h-a { background: var(--temp-frio) !important; }
+  .cmp-scorecard table th.h-b { background: var(--bs-accent) !important; }
+  .cmp-scorecard table th.h-dark { background: #1a1a2e !important; }
+  .delta-pos { color: var(--bs-success); font-weight: 700; font-size: 12px; }
+  .delta-neg { color: var(--bs-danger); font-weight: 700; font-size: 12px; }
+  .delta-neu { color: var(--bs-ink-muted); font-weight: 600; font-size: 12px; }
+
+  /* Funil comparado */
+  .cmp-funnel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 16px; }
+  @media (max-width: 768px) { .cmp-funnel-grid { grid-template-columns: 1fr; } }
+  .cmp-funnel-side { background: var(--bs-card); border-radius: var(--bs-r-xl); padding: 20px; box-shadow: var(--bs-sh-sm); }
+  .cmp-funnel-label { text-align: center; margin-bottom: 14px; }
+  .cmp-funnel-step {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 16px; border-radius: 6px; margin-bottom: 5px; color: #fff;
+  }
+  .cmp-funnel-step-name { font-size: 13px; font-weight: 700; }
+  .cmp-funnel-step-val  { font-size: 18px; font-weight: 800; }
+  .cmp-funnel-step-pct  { font-size: 11px; opacity: .85; display: block; text-align: right; }
+
+  /* Top ads grid */
+  .cmp-ads-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 16px; }
+  @media (max-width: 900px) { .cmp-ads-grid { grid-template-columns: 1fr; } }
+
+  /* No-data */
+  .cmp-no-data {
+    text-align: center; padding: 60px 32px;
+    background: var(--bs-card); border-radius: var(--bs-r-xl);
+    box-shadow: var(--bs-sh-sm); color: var(--bs-ink-muted);
+  }
+  .cmp-no-data i { font-size: 48px; opacity: .3; display: block; margin-bottom: 16px; }
+  .cmp-no-data h3 { font-size: 18px; font-weight: 700; color: var(--bs-ink); margin: 0 0 8px; }
+  .cmp-no-data p  { font-size: 14px; margin: 0; }
+</style>
+
+<div class="wrap">
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}">
+      <img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics">
+    </a>
+    <div>
+      <h1><i class="ti ti-arrows-exchange"></i>
+        {% if comp %}
+          Comparativo &mdash; {{ comp.code_b }} vs {{ comp.code_a }}
+        {% else %}
+          Comparativo &mdash; {{ launch.code if launch else '—' }}
+        {% endif %}
+      </h1>
+      <p>An&aacute;lise comparativa entre lançamentos consecutivos do mesmo produto &mdash; dados consolidados de Investimento, Leads, Vendas e Receita</p>
+    </div>
+  </div>
+
+  <div class="content">
+
+    {% if comp_error %}
+    <div class="cmp-no-data">
+      <i class="ti ti-alert-triangle"></i>
+      <h3>Falha ao montar o comparativo</h3>
+      <p style="margin-bottom:10px">O comparativo encontrou um erro na leitura dos dados deste par de lançamentos.</p>
+      <p><code>{{ comp_error }}</code></p>
+    </div>
+
+    {% elif not comp %}
+    <div class="cmp-no-data">
+      <i class="ti ti-arrows-exchange"></i>
+      <h3>Nenhum lançamento anterior encontrado</h3>
+      <p>
+        {% if launch %}
+          <strong>{{ launch.code }}</strong> é o primeiro lançamento cadastrado para o produto <strong>{{ launch.product }}</strong>. Não há período anterior para comparar.
+        {% else %}
+          Selecione um lançamento no menu lateral para ver o comparativo.
+        {% endif %}
+      </p>
+    </div>
+
+    {% else %}
+
+    {# ── Macro: delta badge ── #}
+    {% macro delta(a, b, reverse=false) %}
+      {% set pct = ((b - a) / a * 100) | round(1) if a else 0 %}
+      {% set is_pos = pct > 0 %}
+      {% set good = (is_pos and not reverse) or (not is_pos and reverse) %}
+      {% if pct > 0 %}
+        <span class="{{ 'delta-pos' if good else 'delta-neg' }}">&#9650; {{ pct }}%</span>
+      {% elif pct < 0 %}
+        <span class="{{ 'delta-neg' if good else 'delta-pos' }}">&#9660; {{ pct | abs }}%</span>
+      {% else %}
+        <span class="delta-neu">= 0%</span>
+      {% endif %}
+    {% endmacro %}
+
+    {# ── 1. O Paradoxo ── #}
+    <div class="section">
+      <div class="section-title"><i class="ti ti-bolt" style="color:var(--bs-warning)"></i> O Paradoxo</div>
+      <div class="cmp-paradox">
+
+        <div class="cmp-block side-a">
+          <div class="cmp-block-label">Lançamento Anterior</div>
+          <div class="cmp-block-code">{{ comp.code_a }}</div>
+          <div class="cmp-block-num">{{ comp.inv_a | brl }}</div>
+          <div class="cmp-block-sub">Investimento</div>
+          <div class="cmp-block-num" style="font-size:32px;margin-top:14px">{{ comp.vendas_a | num }}</div>
+          <div class="cmp-block-sub">vendas</div>
+          <div class="cmp-block-num" style="font-size:20px;margin-top:10px">{{ comp.receita_a | brl }}</div>
+          <div class="cmp-block-sub">faturamento</div>
+        </div>
+
+        <div class="cmp-arrow">
+          <div class="cmp-delta-box">
+            <div class="cmp-delta-title">Diferença {{ comp.code_b }} vs {{ comp.code_a }}</div>
+            {% set inv_d = ((comp.inv_b - comp.inv_a) / comp.inv_a * 100) | round(1) if comp.inv_a else 0 %}
+            {% set vnd_d = ((comp.vendas_b - comp.vendas_a) / comp.vendas_a * 100) | round(1) if comp.vendas_a else 0 %}
+            {% set rec_d = ((comp.receita_b - comp.receita_a) / comp.receita_a * 100) | round(1) if comp.receita_a else 0 %}
+            <div class="cmp-delta-row">
+              <div class="cmp-delta-pct {{ 'neg' if inv_d > 0 else 'pos' }}">{{ '+' if inv_d > 0 else '' }}{{ inv_d }}%</div>
+              <div class="cmp-delta-desc">investimento</div>
+            </div>
+            <div class="cmp-delta-row">
+              <div class="cmp-delta-pct {{ 'pos' if vnd_d > 0 else 'neg' }}">{{ '+' if vnd_d > 0 else '' }}{{ vnd_d }}%</div>
+              <div class="cmp-delta-desc">vendas</div>
+            </div>
+            <div class="cmp-delta-row">
+              <div class="cmp-delta-pct {{ 'pos' if rec_d > 0 else 'neg' }}">{{ '+' if rec_d > 0 else '' }}{{ rec_d }}%</div>
+              <div class="cmp-delta-desc">faturamento</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cmp-block side-b" style="border-color: {{ comp.accent_b }}33; background: {{ comp.accent_b }}22;">
+          <div class="cmp-block-label">Lançamento Atual</div>
+          <div class="cmp-block-code">{{ comp.code_b }}</div>
+          <div class="cmp-block-num">{{ comp.inv_b | brl }}</div>
+          <div class="cmp-block-sub">Investimento</div>
+          <div class="cmp-block-num" style="font-size:32px;margin-top:14px">{{ comp.vendas_b | num }}</div>
+          <div class="cmp-block-sub">vendas</div>
+          <div class="cmp-block-num" style="font-size:20px;margin-top:10px">{{ comp.receita_b | brl }}</div>
+          <div class="cmp-block-sub">faturamento</div>
+        </div>
+
+      </div>
+    </div>
+
+    {# ── 2. Scorecard ── #}
+    <div class="section cmp-scorecard">
+      <div class="section-title"><i class="ti ti-clipboard-data"></i> Scorecard Comparativo</div>
+      <p style="font-size:13px;color:var(--bs-ink-muted);margin-bottom:16px">
+        Todos os indicadores lado a lado. A seta indica a direção de <strong>{{ comp.code_b }}</strong> em relação a <strong>{{ comp.code_a }}</strong>.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="h-dark" style="width:38%">Indicador</th>
+              <th class="h-a" style="text-align:right">🟣 {{ comp.code_a }}</th>
+              <th class="h-b" style="text-align:right">🔴 {{ comp.code_b }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Investimento Total (Meta + Google)</strong></td>
+              <td class="numero">{{ comp.inv_a | brl }}</td>
+              <td class="numero">{{ comp.inv_b | brl }} &nbsp;{{ delta(comp.inv_a, comp.inv_b, reverse=true) }}</td>
+            </tr>
+            <tr style="background:#1877F210;">
+              <td>&nbsp;&nbsp;↳ <i class="ti ti-brand-meta" style="color:var(--meta-color);"></i> Meta Ads</td>
+              <td class="numero">{{ comp.inv_meta_a | brl }}</td>
+              <td class="numero">{{ comp.inv_meta_b | brl }} &nbsp;{{ delta(comp.inv_meta_a, comp.inv_meta_b, reverse=true) }}</td>
+            </tr>
+            <tr style="background:#EA433510;">
+              <td>&nbsp;&nbsp;↳ <i class="ti ti-brand-google" style="color:var(--google-color);"></i> Google Ads</td>
+              <td class="numero">{{ comp.inv_google_a | brl }}</td>
+              <td class="numero">{{ comp.inv_google_b | brl }} &nbsp;{{ delta(comp.inv_google_a, comp.inv_google_b, reverse=true) }}</td>
+            </tr>
+            <tr>
+              <td><strong>Leads CRM (Active Campaign)</strong></td>
+              <td class="numero">{{ comp.leads_a | num }}</td>
+              <td class="numero">{{ comp.leads_b | num }} &nbsp;{{ delta(comp.leads_a, comp.leads_b) }}</td>
+            </tr>
+            <tr>
+              <td>&nbsp;&nbsp;↳ CPL — total</td>
+              <td class="numero">{{ comp.cpl_a | brl }}</td>
+              <td class="numero">{{ comp.cpl_b | brl }} &nbsp;{{ delta(comp.cpl_a, comp.cpl_b, reverse=true) }}</td>
+            </tr>
+            <tr style="background:#1877F210;">
+              <td><strong><i class="ti ti-brand-meta" style="color:var(--meta-color);"></i> Leads Meta Ads</strong></td>
+              <td class="numero">{{ comp.meta_leads_a | num }}</td>
+              <td class="numero">{{ comp.meta_leads_b | num }} &nbsp;{{ delta(comp.meta_leads_a, comp.meta_leads_b) }}</td>
+            </tr>
+            <tr style="background:#1877F210;">
+              <td>&nbsp;&nbsp;↳ CPL Meta</td>
+              <td class="numero">{{ comp.meta_cpl_a | brl }}</td>
+              <td class="numero">{{ comp.meta_cpl_b | brl }} &nbsp;{{ delta(comp.meta_cpl_a, comp.meta_cpl_b, reverse=true) }}</td>
+            </tr>
+            <tr style="background:#1877F210;">
+              <td>&nbsp;&nbsp;↳ Anúncios únicos Meta</td>
+              <td class="numero">{{ comp.meta_ads_a }}</td>
+              <td class="numero">{{ comp.meta_ads_b }} &nbsp;{{ delta(comp.meta_ads_a, comp.meta_ads_b) }}</td>
+            </tr>
+            <tr style="background:#EA433510;">
+              <td><strong><i class="ti ti-brand-google" style="color:var(--google-color);"></i> Conversões Google Ads</strong></td>
+              <td class="numero">{{ comp.google_conv_a | num }}</td>
+              <td class="numero">{{ comp.google_conv_b | num }} &nbsp;{{ delta(comp.google_conv_a, comp.google_conv_b) }}</td>
+            </tr>
+            <tr style="background:#EA433510;">
+              <td>&nbsp;&nbsp;↳ CPA Google</td>
+              <td class="numero">{{ comp.google_cpa_a | brl }}</td>
+              <td class="numero">{{ comp.google_cpa_b | brl }} &nbsp;{{ delta(comp.google_cpa_a, comp.google_cpa_b, reverse=true) }}</td>
+            </tr>
+            <tr style="background:#EA433510;">
+              <td>&nbsp;&nbsp;↳ Nº Campanhas Google</td>
+              <td class="numero">{{ comp.google_camps_a }}</td>
+              <td class="numero">{{ comp.google_camps_b }} &nbsp;{{ delta(comp.google_camps_a, comp.google_camps_b) }}</td>
+            </tr>
+            <tr>
+              <td>&nbsp;&nbsp;↳ CPC Google</td>
+              <td class="numero">{{ comp.google_cpc_a | brl }}</td>
+              <td class="numero">{{ comp.google_cpc_b | brl }} &nbsp;{{ delta(comp.google_cpc_a, comp.google_cpc_b, reverse=true) }}</td>
+            </tr>
+            <tr style="background:#fffbeb">
+              <td><strong>Vendas Totais</strong></td>
+              <td class="numero"><strong>{{ comp.vendas_a | num }}</strong></td>
+              <td class="numero"><strong>{{ comp.vendas_b | num }}</strong> &nbsp;{{ delta(comp.vendas_a, comp.vendas_b) }}</td>
+            </tr>
+            <tr>
+              <td>&nbsp;&nbsp;↳ Hotmart</td>
+              <td class="numero">{{ comp.hotmart_a | num }}</td>
+              <td class="numero">{{ comp.hotmart_b | num }} &nbsp;{{ delta(comp.hotmart_a, comp.hotmart_b) }}</td>
+            </tr>
+            <tr>
+              <td>&nbsp;&nbsp;↳ TMB (Boleto)</td>
+              <td class="numero">{{ comp.tmb_a | num }}</td>
+              <td class="numero">{{ comp.tmb_b | num }} &nbsp;{{ delta(comp.tmb_a, comp.tmb_b) }}</td>
+            </tr>
+            <tr style="background:#f0fdf4">
+              <td><strong>Faturamento Total</strong></td>
+              <td class="numero"><strong>{{ comp.receita_a | brl }}</strong></td>
+              <td class="numero"><strong>{{ comp.receita_b | brl }}</strong> &nbsp;{{ delta(comp.receita_a, comp.receita_b) }}</td>
+            </tr>
+            <tr>
+              <td>Ticket M&eacute;dio</td>
+              <td class="numero">{{ comp.ticket_a | brl }}</td>
+              <td class="numero">{{ comp.ticket_b | brl }} &nbsp;{{ delta(comp.ticket_a, comp.ticket_b) }}</td>
+            </tr>
+            <tr>
+              <td>ROAS (Receita / Invest. Captação)</td>
+              <td class="numero">{{ comp.roas_a }}x</td>
+              <td class="numero">{{ comp.roas_b }}x &nbsp;{{ delta(comp.roas_a, comp.roas_b) }}</td>
+            </tr>
+            <tr style="background:#fef2f2">
+              <td><strong>Taxa Conv. CRM &rarr; Venda</strong></td>
+              <td class="numero"><strong>{{ comp.tx_conv_a | round(2) }}%</strong></td>
+              <td class="numero"><strong>{{ comp.tx_conv_b | round(2) }}%</strong> &nbsp;{{ delta(comp.tx_conv_a, comp.tx_conv_b) }}</td>
+            </tr>
+            <tr>
+              <td>CPA por Venda (Invest. Captação)</td>
+              <td class="numero">{{ comp.cpa_a | brl }}</td>
+              <td class="numero">{{ comp.cpa_b | brl }} &nbsp;{{ delta(comp.cpa_a, comp.cpa_b, reverse=true) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {# ── 3. Funil Comparado ── #}
+    <div class="section">
+      <div class="section-title"><i class="ti ti-filter"></i> Funil de Conversão Comparado</div>
+      <p style="font-size:13px;color:var(--bs-ink-muted);margin-bottom:16px">
+        O funil revela onde cada campanha perdeu eficiência. O número que mais importa: a <strong>Taxa CRM → Venda</strong>.
+      </p>
+      <div class="cmp-funnel-grid">
+        {% for side, funil, code, color in [
+          ('a', comp.funil_a, comp.code_a, '#667eea'),
+          ('b', comp.funil_b, comp.code_b, comp.accent_b)
+        ] %}
+        <div class="cmp-funnel-side">
+          <div class="cmp-funnel-label">
+            <span class="bs-pill" style="background:{{ color }};font-size:13px;padding:4px 16px">{{ code }}</span>
+          </div>
+          {% set leads = funil.get('leads', 0) %}
+          {% set meta  = funil.get('meta', 0) %}
+          {% set gconv = funil.get('google', 0) %}
+          {% set vnd   = funil.get('vendas', 0) %}
+          <div class="cmp-funnel-step" style="background:{{ color }}22;color:{{ color }}">
+            <span class="cmp-funnel-step-name" style="color:#333">Leads CRM</span>
+            <span>
+              <span class="cmp-funnel-step-val" style="color:{{ color }}">{{ leads | num }}</span>
+              <span class="cmp-funnel-step-pct" style="color:#666">100%</span>
+            </span>
+          </div>
+          <div class="cmp-funnel-step" style="background:#1877F222;">
+            <span class="cmp-funnel-step-name" style="color:#333"><i class="ti ti-brand-meta" style="color:var(--meta-color);margin-right:4px;"></i>Leads Meta</span>
+            <span>
+              {% set mp = (meta / leads * 100) | round(1) if leads else 0 %}
+              <span class="cmp-funnel-step-val" style="color:var(--meta-color)">{{ meta | num }}</span>
+              <span class="cmp-funnel-step-pct" style="color:#666">{{ mp }}% do CRM</span>
+            </span>
+          </div>
+          <div class="cmp-funnel-step" style="background:#EA433522;">
+            <span class="cmp-funnel-step-name" style="color:#333"><i class="ti ti-brand-google" style="color:var(--google-color);margin-right:4px;"></i>Conv. Google</span>
+            <span>
+              {% set gp = (gconv / leads * 100) | round(1) if leads else 0 %}
+              <span class="cmp-funnel-step-val" style="color:var(--google-color)">{{ gconv | num }}</span>
+              <span class="cmp-funnel-step-pct" style="color:#666">{{ gp }}% do CRM</span>
+            </span>
+          </div>
+          <div class="cmp-funnel-step" style="background:{{ color }}44;color:#fff">
+            <span class="cmp-funnel-step-name" style="color:#333">Vendas realizadas</span>
+            <span>
+              {% set vp = (vnd / leads * 100) | round(2) if leads else 0 %}
+              <span class="cmp-funnel-step-val" style="color:{{ color }}">{{ vnd | num }}</span>
+              <span class="cmp-funnel-step-pct" style="color:#666">{{ vp }}% conv.</span>
+            </span>
+          </div>
+          {% if funil.get('tx_crm', 0) > 0 %}
+          <div class="note {% if funil.tx_crm < 0.5 %}danger{% elif funil.tx_crm < 1.0 %}warning{% else %}success{% endif %}" style="margin-top:12px;margin-bottom:0">
+            Taxa CRM→Venda: <strong>{{ funil.get('tx_crm', 0) | round(2) }}%</strong>
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {# ── 4. Meta Ads ── #}
+    {% if comp.top_ads_a or comp.top_ads_b %}
+    <div class="section">
+      <div class="section-title"><i class="ti ti-brand-meta" style="color:var(--meta-color);"></i> Meta Ads — Comparativo</div>
+      <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+        <div class="metric-card">
+          <div class="label">Investimento {{ comp.code_a }}</div>
+          <div class="value" style="font-size:20px">{{ comp.inv_meta_a | brl }}</div>
+          <div class="subtext">{{ comp.meta_ads_a }} anúncios únicos</div>
+        </div>
+        <div class="metric-card">
+          <div class="label">Leads Meta {{ comp.code_a }}</div>
+          <div class="value" style="font-size:20px">{{ comp.meta_leads_a | num }}</div>
+          <div class="subtext">CPL R$ {{ comp.meta_cpl_a }}</div>
+        </div>
+        <div class="metric-card destaque">
+          <div class="label">Investimento {{ comp.code_b }}</div>
+          <div class="value" style="font-size:20px">{{ comp.inv_meta_b | brl }}</div>
+          <div class="subtext">{{ comp.meta_ads_b }} anúncios únicos</div>
+        </div>
+        <div class="metric-card destaque">
+          <div class="label">Leads Meta {{ comp.code_b }}</div>
+          <div class="value" style="font-size:20px">{{ comp.meta_leads_b | num }}</div>
+          <div class="subtext">CPL R$ {{ comp.meta_cpl_b }}</div>
+        </div>
+      </div>
+
+      <div class="cmp-ads-grid">
+        {% for ads, code, col in [(comp.top_ads_a, comp.code_a, '#667eea'), (comp.top_ads_b, comp.code_b, comp.accent_b)] %}
+        <div>
+          <h3 style="margin:0 0 10px;font-size:14px;color:{{ col }}">
+            Top Anúncios — {{ code }}
+          </h3>
+          {% if ads %}
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="background:{{ col }}">Anúncio</th>
+                  <th style="background:{{ col }};text-align:right">Invest.</th>
+                  <th style="background:{{ col }};text-align:right">Leads</th>
+                  <th style="background:{{ col }};text-align:right">CPL</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for ad in ads %}
+                {% set ad_code = ad.nome.split(' - ')[0] if ' - ' in ad.nome else ad.nome %}
+                {% set td = drive_thumbnails.get(ad_code) if drive_thumbnails else None %}
+                <tr>
+                  <td style="max-width:300px;overflow:hidden;padding:6px 10px;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                      {% if td %}
+                      <img src="{{ td.thumb }}" onclick="openVideoModal('{{ td.preview }}','{{ ad.nome }}')" style="width:64px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer;flex-shrink:0;" loading="lazy" onerror="this.style.display='none'">
+                      {% else %}
+                      <div style="width:64px;height:42px;background:#f3f4f6;border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-photo" style="font-size:18px;color:#9ca3af;"></i></div>
+                      {% endif %}
+                      <small title="{{ ad.nome }}" style="min-width:0;">{{ ad.nome[:50] }}{% if ad.nome|length > 50 %}…{% endif %}</small>
+                    </div>
+                  </td>
+                  <td class="numero">{{ ad.inv | brl }}</td>
+                  <td class="numero">{{ ad.leads | num }}</td>
+                  <td class="numero">{{ ad.cpl | brl }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="note" style="text-align:center;color:var(--bs-ink-muted)">Sem dados de anúncios</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── 5. Google Ads ── #}
+    <div class="section">
+      <div class="section-title"><i class="ti ti-brand-google" style="color:var(--google-color);"></i> Google Ads — Comparativo Estrat&eacute;gico</div>
+      <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+        <div class="metric-card" style="border-left:3px solid var(--google-color);">
+          <div class="label"><i class="ti ti-brand-google" style="color:var(--google-color);margin-right:4px;"></i>Invest. Google {{ comp.code_a }}</div>
+          <div class="value" style="font-size:18px">{{ comp.inv_google_a | brl }}</div>
+        </div>
+        <div class="metric-card" style="border-left:3px solid var(--google-color);">
+          <div class="label"><i class="ti ti-brand-google" style="color:var(--google-color);margin-right:4px;"></i>Conversões Google {{ comp.code_a }}</div>
+          <div class="value" style="font-size:18px">{{ comp.google_conv_a | num }}</div>
+          <div class="subtext">CPA R$ {{ comp.google_cpa_a }} | {{ comp.google_camps_a }} campanhas</div>
+        </div>
+        <div class="metric-card" style="background:var(--google-color);color:#fff;">
+          <div class="label" style="color:rgba(255,255,255,.8)"><i class="ti ti-brand-google" style="margin-right:4px;"></i>Invest. Google {{ comp.code_b }}</div>
+          <div class="value" style="font-size:18px">{{ comp.inv_google_b | brl }}</div>
+        </div>
+        <div class="metric-card" style="background:var(--google-color);color:#fff;">
+          <div class="label" style="color:rgba(255,255,255,.8)"><i class="ti ti-brand-google" style="margin-right:4px;"></i>Conversões Google {{ comp.code_b }}</div>
+          <div class="value" style="font-size:18px">{{ comp.google_conv_b | num }}</div>
+          <div class="subtext" style="color:rgba(255,255,255,.7)">CPA R$ {{ comp.google_cpa_b }} | {{ comp.google_camps_b }} campanhas</div>
+        </div>
+      </div>
+      <div class="table-wrap" style="margin-top:12px">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:35%;background:var(--google-color);">Métrica Google</th>
+              <th style="text-align:right;background:var(--google-color);">{{ comp.code_a }}</th>
+              <th style="text-align:right;background:var(--google-color);">{{ comp.code_b }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Investimento</td>
+              <td class="numero">{{ comp.inv_google_a | brl }}</td>
+              <td class="numero">{{ comp.inv_google_b | brl }} &nbsp;{{ delta(comp.inv_google_a, comp.inv_google_b, reverse=true) }}</td>
+            </tr>
+            <tr>
+              <td>Conversões</td>
+              <td class="numero">{{ comp.google_conv_a | num }}</td>
+              <td class="numero">{{ comp.google_conv_b | num }} &nbsp;{{ delta(comp.google_conv_a, comp.google_conv_b) }}</td>
+            </tr>
+            <tr>
+              <td>CPA</td>
+              <td class="numero">{{ comp.google_cpa_a | brl }}</td>
+              <td class="numero">{{ comp.google_cpa_b | brl }} &nbsp;{{ delta(comp.google_cpa_a, comp.google_cpa_b, reverse=true) }}</td>
+            </tr>
+            <tr>
+              <td>Nº de Campanhas</td>
+              <td class="numero">{{ comp.google_camps_a }}</td>
+              <td class="numero">{{ comp.google_camps_b }} &nbsp;{{ delta(comp.google_camps_a, comp.google_camps_b) }}</td>
+            </tr>
+            <tr>
+              <td>CPC M&eacute;dio</td>
+              <td class="numero">{{ comp.google_cpc_a | brl }}</td>
+              <td class="numero">{{ comp.google_cpc_b | brl }} &nbsp;{{ delta(comp.google_cpc_a, comp.google_cpc_b, reverse=true) }}</td>
+            </tr>
+            <tr>
+              <td>CTR M&eacute;dio</td>
+              <td class="numero">{{ comp.google_ctr_a | round(4) }}%</td>
+              <td class="numero">{{ comp.google_ctr_b | round(4) }}% &nbsp;{{ delta(comp.google_ctr_a, comp.google_ctr_b) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+      <div class="cmp-ads-grid" style="margin-top:16px;">
+        {% for ads, code, col in [(comp.top_google_a, comp.code_a, '#667eea'), (comp.top_google_b, comp.code_b, '#EA4335')] %}
+        <div>
+          <h3 style="margin:0 0 10px;font-size:14px;color:{{ col }}">
+            <i class="ti ti-brand-google" style="color:var(--google-color);margin-right:4px;"></i>Top Campanhas Google — {{ code }}
+          </h3>
+          {% if ads %}
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th style="background:{{ col }};">Campanha / Anúncio</th>
+                  <th style="background:{{ col }};text-align:right">Invest.</th>
+                  <th style="background:{{ col }};text-align:right">Conv.</th>
+                  <th style="background:{{ col }};text-align:right">CPA</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for ad in ads %}
+                {% set ad_code = ad.nome.split(' - ')[0] if ' - ' in ad.nome else ad.nome %}
+                {% set td = drive_thumbnails.get(ad_code) if drive_thumbnails else None %}
+                <tr>
+                  <td style="max-width:300px;overflow:hidden;padding:6px 10px;">
+                    <div style="display:flex;align-items:center;gap:8px;">
+                      {% if td %}
+                      <img src="{{ td.thumb }}" onclick="openVideoModal('{{ td.preview }}','{{ ad.nome }}')" style="width:64px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer;flex-shrink:0;" loading="lazy" onerror="this.style.display='none'">
+                      {% else %}
+                      <div style="width:64px;height:42px;background:#f3f4f6;border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-photo" style="font-size:18px;color:#9ca3af;"></i></div>
+                      {% endif %}
+                      <small title="{{ ad.nome }}" style="min-width:0;">{{ ad.nome[:50] }}{% if ad.nome|length > 50 %}…{% endif %}</small>
+                    </div>
+                  </td>
+                  <td class="numero">{{ ad.inv | brl }}</td>
+                  <td class="numero">{{ ad.leads | num }}</td>
+                  <td class="numero">{{ ad.cpl | brl if ad.leads > 0 else "–" }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          {% else %}
+          <div class="note" style="text-align:center;color:var(--bs-ink-muted)">Sem dados de campanhas Google</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    {% endif %}{# end if comp #}
+
+  </div>
+
+  <div class="footing">Gerado em tempo real via Brabo Analytics{% if launch %} &mdash; {{ launch.code }}{% if previous_launch %} × {{ previous_launch.code }}{% endif %}{% endif %}</div>
+</div>
+{% endblock %}

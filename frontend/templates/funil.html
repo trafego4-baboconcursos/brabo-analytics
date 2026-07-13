@@ -1,0 +1,514 @@
+{% extends "base.html" %}
+{% block head %}
+<style>
+/* ── Funil — vars locais não cobertos pelo base ─────────────── */
+:root {
+  --meta-dark: #145DBF;
+  --yt-dark:   #CC0000;
+}
+
+/* Section title with platform badge */
+.section-title.platform-meta,
+.section-title.platform-google {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.platform-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  padding: 2px 8px 2px 5px;
+  border-radius: 20px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.platform-badge svg { display:block; }
+
+.platform-badge.meta   { background: var(--meta-color);   color: #fff; }
+.platform-badge.google { background: var(--google-color); color: #fff; }
+
+/* Section border */
+.section-title.platform-meta   { border-bottom-color: var(--meta-color); }
+.section-title.platform-google { border-bottom-color: var(--google-color); }
+
+/* Table header overrides — higher specificity than .table-wrap table th */
+.funil-table-meta   thead th { background: var(--meta-color);   }
+.funil-table-google thead th { background: var(--google-color); }
+
+/* Progress bar fill overrides */
+.funil-table-meta   .pbar-fill { background: var(--meta-color);   }
+.funil-table-google .pbar-fill { background: var(--google-color); }
+
+/* % label color overrides */
+.funil-table-meta   .pbar-wrap strong { color: var(--meta-color);   }
+.funil-table-google .pbar-wrap strong { color: var(--google-color); }
+
+/* Col-width override for meta table */
+.funil-table-meta .col-label { width: 18%; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1><i class="ti ti-git-merge"></i> Análise de Funil{% if launch %} &mdash; {{ launch.code }}{% endif %}</h1>
+      <p>Segmentação por etapa de funil | Validados vs Novos | Diagnóstico de verba</p>
+    </div>
+  </div>
+
+  <div class="content">
+    {% set meta_cliques = meta.total_cliques if meta else 0 %}
+    {% set meta_leads = meta.total_leads if meta else 0 %}
+    {% set google_cliques = google.total_cliques if google else 0 %}
+    {% set google_conv = google.total_conversoes if google else 0 %}
+    {% set crm_leads = leads.total_leads if leads else meta_leads %}
+    {% set pesquisas = typeform_count if typeform_count is defined else 0 %}
+    {% set total_vendas = vendas.total_vendas if vendas else 0 %}
+    {% set ticket_medio = vendas.total_ticket_medio if vendas else 0 %}
+    {% set cpa_total = (invest / total_vendas) if total_vendas > 0 else 0 %}
+    {% set meta_preq = meta.por_etapa.get('Pré-Qualificação') if meta and meta.por_etapa else none %}
+    {% set google_preq = google.por_etapa.get('Pré-Qualificação') if google and google.por_etapa else none %}
+    {% set google_preq_views = google_preq.visualizacoes if (google_preq and google_preq.visualizacoes > 0) else 0 %}
+    {% set thru_views_topo = (meta_preq.thruplays if meta_preq else (meta.total_thruplays if meta else 0)) + google_preq_views %}
+    {% set total_cliques = meta_cliques + google_cliques %}
+    {% set total_impressoes = (meta.total_impressoes if meta else 0) + (google.total_impressoes if google else 0) %}
+    
+    {# Se ThruPlays/Views for inconsistente ou menor que os cliques, usamos Impressões #}
+    {% set usa_impressoes = (thru_views_topo < total_cliques) or (thru_views_topo == 0) %}
+    {% set topo = total_impressoes if usa_impressoes else thru_views_topo %}
+    {% set topo_label = "Impressões (Meta + Google)" if usa_impressoes else "ThruPlays + Views YouTube (Meta + Google)" %}
+    {% set vendas_meta_etapa = sales_attr.meta_por_etapa if sales_attr else {} %}
+    {% set vendas_google_etapa = sales_attr.google_por_etapa if sales_attr else {} %}
+    {% set vendas_meta_bucket = sales_attr.meta_por_bucket if sales_attr else {} %}
+    {% set vendas_meta_temp = sales_attr.meta_por_temperatura if sales_attr else {} %}
+    {% set vendas_canal = sales_attr.por_canal if sales_attr else {} %}
+    {% set vendas_criativo = sales_attr.por_criativo if sales_attr else {} %}
+
+    <div class="section">
+      <div class="section-title">1. KPIs do Funil Completo</div>
+      <div class="kpi-funil-layout">
+        <div class="funil-kpi-wrap">
+          <div class="funil-kpi-head">
+            <h3>Funil de Conversão Geral</h3>
+            <p>Jornada completa do aquecimento até vendas</p>
+          </div>
+          <div class="funil-viz">
+            {% if topo > 0 %}
+            <div class="funil-step" style="--w:100%;--c:#17a2b8">
+              <span class="funil-step-label">{{ topo_label }}</span>
+              <span class="funil-step-value">{{ topo | num }}<small>100,0%</small></span>
+            </div>
+            <div class="funil-step" style="--w:82%;--c:#4f7cff">
+              <span class="funil-step-label">Cliques (Meta + Google)</span>
+              <span class="funil-step-value">{{ total_cliques | num }}<small>{{ (total_cliques / topo * 100) | round(1) if topo > 0 else 0 }}% do topo</small></span>
+            </div>
+            <div class="funil-step" style="--w:56%;--c:#667eea">
+              <span class="funil-step-label">Leads CRM</span>
+              <span class="funil-step-value">{{ crm_leads | num }}<small>{{ (crm_leads / topo * 100) | round(1) if topo > 0 else 0 }}% do topo</small></span>
+            </div>
+            {% if pesquisas > 0 %}
+            <div class="funil-step" style="--w:46%;--c:#764ba2">
+              <span class="funil-step-label">Responderam a pesquisa</span>
+              <span class="funil-step-value">{{ pesquisas | num }}<small>{{ (pesquisas / topo * 100) | round(1) if topo > 0 else 0 }}% do topo</small></span>
+            </div>
+            {% endif %}
+            <div class="funil-step" style="--w:42%;--c:#f5576c">
+              <span class="funil-step-label">Vendas (Hotmart + TMB)</span>
+              <span class="funil-step-value">{{ total_vendas | num }}<small>{{ (total_vendas / topo * 100) | round(1) if topo > 0 else 0 }}% do topo</small></span>
+            </div>
+            {% else %}
+            <div class="no-data" style="margin:0">
+              <i class="ti ti-database-off"></i>
+              <h3>Sem volume suficiente para montar o funil</h3>
+              <p>Importe dados de Meta, Google ou Active Campaign.</p>
+            </div>
+            {% endif %}
+          </div>
+          <div class="funil-rates">
+            <span class="funil-rate" style="border-color:#17a2b8;background:#17a2b812;color:#138496"><strong>Topo -> Clique:</strong> {{ (total_cliques / topo * 100) | round(1) if topo > 0 else 0 }}%</span>
+            <span class="funil-rate" style="border-color:#4f7cff;background:#4f7cff12;color:#3d64d9"><strong>Clique -> Lead:</strong> {{ (crm_leads / total_cliques * 100) | round(1) if total_cliques > 0 else 0 }}%</span>
+            {% if pesquisas > 0 %}
+            <span class="funil-rate" style="border-color:#667eea;background:#667eea12;color:#5367d1"><strong>Lead -> Pesquisa:</strong> {{ (pesquisas / crm_leads * 100) | round(1) if crm_leads > 0 else 0 }}%</span>
+            <span class="funil-rate" style="border-color:#764ba2;background:#764ba212;color:#613a8a"><strong>Pesquisa -> Venda:</strong> {{ (total_vendas / pesquisas * 100) | round(1) if pesquisas > 0 else 0 }}%</span>
+            {% endif %}
+            <span class="funil-rate" style="border-color:#f5576c;background:#f5576c12;color:#d43f53"><strong>ROAS Total:</strong> {{ "%.2f"|format(roas) | replace(".", ",") }}x</span>
+          </div>
+        </div>
+
+        <div class="kpi-grid">
+          <div class="kpi-card" style="border-top-color:#f5576c"><div class="kpi-val" style="color:#f5576c">{{ invest | brl }}</div><div class="kpi-lbl">Investimento Total</div><div class="kpi-sub">Meta: {{ meta.total_gasto | brl if meta else "-" }} | Google: {{ google.total_custo | brl if google else "-" }}</div></div>
+          <div class="kpi-card" style="border-top-color:#28a745"><div class="kpi-val" style="color:#28a745">{{ receita | brl }}</div><div class="kpi-lbl">Faturamento Total</div><div class="kpi-sub">{% if vendas %}Hotmart: {{ vendas.hotmart_receita | brl }} | TMB: {{ vendas.tmb_receita | brl }}{% endif %}</div></div>
+          <div class="kpi-card" style="border-top-color:#ff9800"><div class="kpi-val" style="color:#ff9800">{{ "%.2f"|format(roas) | replace(".", ",") }}x</div><div class="kpi-lbl">ROAS</div><div class="kpi-sub">Meta {{ meta.total_gasto | brl if meta else "-" }} | GA {{ google.total_custo | brl if google else "-" }}</div></div>
+          <div class="kpi-card" style="border-top-color:#667eea"><div class="kpi-val" style="color:#667eea">{{ crm_leads | num }}</div><div class="kpi-lbl">Leads CRM</div><div class="kpi-sub">Captação Meta: {{ meta_leads | num }} leads</div></div>
+          <div class="kpi-card" style="border-top-color:#17a2b8"><div class="kpi-val" style="color:#17a2b8">{{ total_vendas | num if vendas else "-" }}</div><div class="kpi-lbl">Vendas</div><div class="kpi-sub">{% if vendas %}Hotmart: {{ vendas.hotmart_vendas | num }} | TMB: {{ vendas.tmb_vendas | num }}{% endif %}</div></div>
+          <div class="kpi-card" style="border-top-color:#764ba2"><div class="kpi-val" style="color:#764ba2">{{ cpa_total | brl }}</div><div class="kpi-lbl">CPA Total</div><div class="kpi-sub">Ticket médio: {{ ticket_medio | brl }}</div></div>
+        </div>
+      </div>
+    </div>
+
+    {% if meta and meta.por_etapa %}
+    <div class="section">
+      <div class="section-title platform-meta">
+        <span class="platform-badge meta">
+          <svg width="14" height="14" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M24 4C12.95 4 4 12.95 4 24s8.95 20 20 20 20-8.95 20-20S35.05 4 24 4zm-2 29v-9h-3v-4h3v-3c0-3.31 2.01-5 4.87-5 1.38 0 2.83.25 2.83.25V15h-1.59c-1.57 0-2.06.98-2.06 1.98V20h3.5l-.56 4H26v9h-4z" fill="#fff"/></svg>
+          Meta Ads
+        </span>
+        2. Meta Ads - Investimento por Etapa de Funil
+      </div>
+      <div class="table-wrap funil-table-wrap">
+        <table class="funil-table funil-table-meta">
+          <colgroup><col class="col-label"><col class="col-count"><col class="col-money"><col class="col-share"><col class="col-count"><col class="col-count"><col class="col-money"><col class="col-roas"><col class="col-money"><col class="col-count"><col class="col-money"></colgroup>
+          <thead><tr><th>Etapa</th><th class="th-num">Campanhas</th><th class="th-num">Investimento</th><th class="th-num">% Verba</th><th class="th-num">Leads</th><th class="th-num">Vendas</th><th class="th-num">Faturamento</th><th class="th-num">ROAS</th><th class="th-num">CPL</th><th class="th-num">ThruPlays</th><th class="th-num">Custo/ThruPlay</th></tr></thead>
+          <tbody>
+            {% set total_meta = meta.total_gasto or 1 %}
+            {% set etapa_order = ['Pré-Qualificação', 'Captação', 'Lembrete', 'Depoimento', 'Aulas no Ar', 'Replay', 'Matrículas Abertas'] %}
+            {% for etapa in etapa_order %}
+            {% set d = meta.por_etapa.get(etapa) %}
+            <tr>
+              <td><span class="bs-pill accent">{{ etapa }}</span></td>
+              <td class="numero">{{ d.num_campanhas | num if d else 0 }}</td>
+              <td class="numero">{{ d.gasto | brl if d else "R$ 0,00" }}</td>
+              <td>{% if d %}<div class="pbar-wrap"><div class="pbar-track"><div class="pbar-fill" style="width:{{ (d.gasto/total_meta*100)|round(1) }}%"></div></div><strong style="color:var(--bs-accent);font-size:12px">{{ (d.gasto/total_meta*100)|pct }}</strong></div>{% else %}<span style="color:#aaa;font-size:12px">0,0%</span>{% endif %}</td>
+              <td class="numero">{{ d.leads | num if d else 0 }}</td>
+              {% set venda_etapa = vendas_meta_etapa.get(etapa, {}) %}
+              <td class="numero"><strong>{{ venda_etapa.get('vendas', 0) | num }}</strong></td>
+              <td class="numero">{{ venda_etapa.get('faturamento', 0) | brl }}</td>
+              <td class="numero">{{ "%.2f"|format((venda_etapa.get('faturamento', 0) / d.gasto) if d and d.gasto > 0 else 0) | replace(".", ",") }}x</td>
+              <td class="numero">{{ d.cpl | brl if d and d.leads > 0 else "-" }}</td>
+              <td class="numero">{{ d.thruplays | num if d else 0 }}</td>
+              <td class="numero">{{ d.custo_thruplay | brl(3) if d and d.thruplays > 0 else "-" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if google and google.por_etapa %}
+    <div class="section">
+      <div class="section-title platform-google">
+        <span class="platform-badge google">
+          <svg width="14" height="14" viewBox="0 0 48 48" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M43.2 20H24v8h11C33.6 33.2 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 2.8l5.7-5.7C34 6.5 29.3 4.5 24 4.5 13.2 4.5 4.5 13.2 4.5 24S13.2 43.5 24 43.5c10.8 0 19.5-8.7 19.5-19.5 0-1.3-.1-2.7-.3-4z"/></svg>
+          Google Ads
+        </span>
+        3. Google Ads - Investimento por Etapa de Funil
+      </div>
+      <div class="table-wrap funil-table-wrap">
+        <table class="funil-table funil-table-google">
+          <colgroup><col class="col-label"><col class="col-count"><col class="col-money"><col class="col-share"><col class="col-count"><col class="col-count"><col class="col-money"><col class="col-roas"><col class="col-money"></colgroup>
+          <thead><tr><th>Etapa</th><th class="th-num">Campanhas</th><th class="th-num">Investimento</th><th class="th-num">% Verba</th><th class="th-num">Conversões</th><th class="th-num">Vendas</th><th class="th-num">Faturamento</th><th class="th-num">ROAS</th><th class="th-num">Custo/Conv</th></tr></thead>
+          <tbody>
+            {% set total_google = google.total_custo or 1 %}
+            {% set etapa_order = ['Pré-Qualificação', 'Captação', 'Lembrete', 'Depoimento', 'Aulas no Ar', 'Replay', 'Matrículas Abertas'] %}
+            {% for etapa in etapa_order %}
+            {% set d = google.por_etapa.get(etapa) %}
+            <tr>
+              <td><span class="bs-pill" style="background:var(--yt-color)">{{ etapa }}</span></td>
+              <td class="numero">{{ d.num_campanhas | num if d else 0 }}</td>
+              <td class="numero">{{ d.custo | brl if d else "R$ 0,00" }}</td>
+              <td>{% if d %}<div class="pbar-wrap"><div class="pbar-track"><div class="pbar-fill" style="width:{{ (d.custo/total_google*100)|round(1) }}%"></div></div><strong style="font-size:12px">{{ (d.custo/total_google*100)|pct }}</strong></div>{% else %}<span style="color:#aaa;font-size:12px">0,0%</span>{% endif %}</td>
+              <td class="numero">{{ "%.0f"|format(d.conversoes) if d else 0 }}</td>
+              {% set venda_google_etapa = vendas_google_etapa.get(etapa, {}) %}
+              <td class="numero"><strong>{{ venda_google_etapa.get('vendas', 0) | num }}</strong></td>
+              <td class="numero">{{ venda_google_etapa.get('faturamento', 0) | brl }}</td>
+              <td class="numero">{{ "%.2f"|format((venda_google_etapa.get('faturamento', 0) / d.custo) if d and d.custo > 0 else 0) | replace(".", ",") }}x</td>
+              <td class="numero">{{ d.custo_conv | brl if d and d.conversoes > 0 else "-" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if meta and meta.por_segmento %}
+    <div class="section">
+      <div class="section-title platform-meta">
+        <span class="platform-badge meta">
+          <svg width="14" height="14" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M24 4C12.95 4 4 12.95 4 24s8.95 20 20 20 20-8.95 20-20S35.05 4 24 4zm-2 29v-9h-3v-4h3v-3c0-3.31 2.01-5 4.87-5 1.38 0 2.83.25 2.83.25V15h-1.59c-1.57 0-2.06.98-2.06 1.98V20h3.5l-.56 4H26v9h-4z" fill="#fff"/></svg>
+          Meta Ads
+        </span>
+        4. Distribuição de Verba Meta Captação por Segmento
+      </div>
+      <div class="note">Segmento = Temperatura + Tipo de Público | Apenas campanhas de Captação</div>
+      <div class="table-wrap funil-table-wrap">
+        <table class="funil-table funil-table-meta">
+          <colgroup><col class="col-label"><col class="col-count"><col class="col-money"><col class="col-share"><col class="col-count"><col class="col-money"></colgroup>
+          <thead><tr><th>Segmento</th><th class="th-num">Campanhas</th><th class="th-num">Investimento</th><th class="th-num">% Verba</th><th class="th-num">Leads</th><th class="th-num">CPL</th></tr></thead>
+          <tbody>
+            {% for seg, d in meta.por_segmento.items() | sort(attribute='1.gasto', reverse=True) %}
+            <tr>
+              <td><strong>{{ seg }}</strong></td>
+              <td class="numero">{{ d.num_campanhas | num }}</td>
+              <td class="numero">{{ d.gasto | brl }}</td>
+              <td><div class="pbar-wrap"><div class="pbar-track"><div class="pbar-fill" style="width:{{ d.pct|round(1) }}%"></div></div><strong style="color:var(--bs-accent);font-size:12px">{{ d.pct | pct }}</strong></div></td>
+              <td class="numero">{{ d.leads | num }}</td>
+              <td class="numero">{{ d.cpl | brl if d.leads > 0 else "-" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if google %}
+    <div class="section">
+      <div class="section-title platform-google">
+        <span class="platform-badge google">
+          <svg width="14" height="14" viewBox="0 0 48 48" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M43.2 20H24v8h11C33.6 33.2 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 2.8l5.7-5.7C34 6.5 29.3 4.5 24 4.5 13.2 4.5 4.5 13.2 4.5 24S13.2 43.5 24 43.5c10.8 0 19.5-8.7 19.5-19.5 0-1.3-.1-2.7-.3-4z"/></svg>
+          Google Ads
+        </span>
+        5. Distribuição de Verba Google Captação por Segmento
+      </div>
+      <div class="note">Segmento = Temperatura + Tipo de Público | Apenas campanhas de Captação Google</div>
+      {% if google.por_segmento %}
+      <div class="table-wrap funil-table-wrap">
+        <table class="funil-table funil-table-google">
+          <colgroup><col class="col-label"><col class="col-count"><col class="col-money"><col class="col-share"><col class="col-count"><col class="col-money"></colgroup>
+          <thead><tr><th>Segmento</th><th class="th-num">Campanhas</th><th class="th-num">Investimento</th><th class="th-num">% Verba</th><th class="th-num">Conversões</th><th class="th-num">Custo/Conv</th></tr></thead>
+          <tbody>
+            {% for seg, d in google.por_segmento.items() | sort(attribute='1.gasto', reverse=True) %}
+            <tr>
+              <td><strong>{{ seg }}</strong></td>
+              <td class="numero">{{ d.num_campanhas | num }}</td>
+              <td class="numero">{{ d.gasto | brl }}</td>
+              <td><div class="pbar-wrap"><div class="pbar-track"><div class="pbar-fill" style="width:{{ d.pct|round(1) }}%"></div></div><strong style="color:var(--bs-accent);font-size:12px">{{ d.pct | pct }}</strong></div></td>
+              <td class="numero">{{ d.conversoes | num }}</td>
+              <td class="numero">{{ d.custo_conv | brl if d.conversoes > 0 else "-" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="note" style="color:#e53e3e">Nenhuma campanha de Captação Google classificada para este lançamento.</div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if meta and meta.por_temperatura %}
+    <div class="section">
+      <div class="section-title">6. Performance por Temperatura de Público - Meta Captação</div>
+      <div class="table-wrap funil-table-wrap">
+        <table class="funil-table">
+          <colgroup><col class="col-label"><col class="col-money"><col class="col-share"><col class="col-count"><col class="col-count"><col class="col-money"><col class="col-roas"><col class="col-money"></colgroup>
+          <thead><tr><th>Público</th><th class="th-num">Investimento</th><th class="th-num">% Verba</th><th class="th-num">Leads</th><th class="th-num">Vendas</th><th class="th-num">Faturamento</th><th class="th-num">ROAS</th><th class="th-num">CPL</th></tr></thead>
+          <tbody>
+            {% set total_temp = meta.por_temperatura.values()|map(attribute='gasto')|sum or 1 %}
+            {% set tc = {'Quente': '#f5576c', 'Frio': '#667eea', 'Específico': '#ff9800', 'Especifico': '#ff9800', 'Outros': '#9ca3af'} %}
+            {% for temp, d in meta.por_temperatura.items() | sort(attribute='1.gasto', reverse=True) %}
+            <tr>
+              <td><span class="bs-pill" style="background:{{ tc.get(temp,'#9ca3af') }}">{{ temp }}</span></td>
+              <td class="numero">{{ d.gasto | brl }}</td>
+              <td><div class="pbar-wrap"><div class="pbar-track"><div class="pbar-fill" style="background:{{ tc.get(temp,'#9ca3af') }};width:{{ (d.gasto/total_temp*100)|round(1) }}%"></div></div><strong style="color:{{ tc.get(temp,'#9ca3af') }};font-size:12px">{{ (d.gasto/total_temp*100)|pct }}</strong></div></td>
+              <td class="numero">{{ d.leads | num }}</td>
+              {% set venda_temp = vendas_meta_temp.get(temp, {}) %}
+              <td class="numero"><strong>{{ venda_temp.get('vendas', 0) | num }}</strong></td>
+              <td class="numero">{{ venda_temp.get('faturamento', 0) | brl }}</td>
+              <td class="numero">{{ "%.2f"|format((venda_temp.get('faturamento', 0) / d.gasto) if d.gasto > 0 else 0) | replace(".", ",") }}x</td>
+              <td class="numero">{{ d.cpl | brl if d.leads > 0 else "-" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="section">
+      <div class="section-title">7. Pré-Qualificação - Views e Custo</div>
+      <div class="table-wrap">
+        {% set meta_preq_gasto = meta_preq.gasto if meta_preq else 0 %}
+        {% set meta_preq_thruplays = meta_preq.thruplays if meta_preq else 0 %}
+        {% set google_preq_custo = google_preq.custo if google_preq else 0 %}
+        {% set google_preq_views = google_preq.visualizacoes if (google_preq and google_preq.visualizacoes > 0) else (google_preq.conversoes if google_preq else 0) %}
+        {% set total_preq_gasto = meta_preq_gasto + google_preq_custo %}
+        {% set total_preq_views = meta_preq_thruplays + google_preq_views %}
+        {% set total_preq_cpt = (total_preq_gasto / total_preq_views) if total_preq_views > 0 else 0 %}
+        <table>
+          <thead><tr><th>Canal</th><th>Investimento</th><th>Volume</th><th>Custo</th><th>Métrica</th></tr></thead>
+          <tbody>
+            <tr><td><span class="bs-pill" style="background:#1877f2">Meta Ads Pre-Q</span></td><td class="numero">{{ meta_preq.gasto | brl if meta_preq else "-" }}</td><td class="numero">{{ meta_preq.thruplays | num if meta_preq else "-" }} ThruPlays</td><td class="numero">{{ meta_preq.custo_thruplay | brl(3) if meta_preq and meta_preq.thruplays > 0 else "-" }}</td><td>R$/ThruPlay</td></tr>
+            <tr><td><span class="bs-pill" style="background:#ff0000">YouTube Pre-Q</span></td><td class="numero">{{ google_preq.custo | brl if google_preq else "-" }}</td><td class="numero">{{ google_preq_views | num if google_preq else "-" }} ThruViews</td><td class="numero">{{ (google_preq.custo / google_preq_views) | brl if (google_preq and google_preq_views > 0) else "-" }}</td><td>R$/ThruView</td></tr>
+            <tr style="background:var(--bg-card, #f9f9fa);font-weight:700;border-top:2px solid rgba(0,0,0,0.08)"><td><span class="bs-pill" style="background:#374151">Total Vídeo Pre-Q</span></td><td class="numero">{{ total_preq_gasto | brl }}</td><td class="numero">{{ total_preq_views | num }} ThruViews</td><td class="numero">{{ total_preq_cpt | brl(3) if total_preq_views > 0 else "-" }}</td><td>R$/ThruView</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% if meta and (meta.validados or meta.novos) %}
+    {% set has_thumbs = drive_thumbnails is defined and drive_thumbnails | length > 0 %}
+    <div class="section">
+      <div class="section-title">8. Criativos Validados vs Novos</div>
+      <div class="criativos-stack">
+        <div class="criativos-block">
+          <h3 class="criativos-title validado">Criativos Validados</h3>
+          <div class="table-wrap funil-table-wrap">
+            <table class="funil-table criativos-table">
+              <colgroup><col class="col-rank">{% if has_thumbs %}<col style="width:90px">{% endif %}<col class="col-creative"><col class="col-money"><col class="col-count"><col class="col-count"><col class="col-money"><col class="col-roas"><col class="col-money"><col class="col-share"></colgroup>
+              <thead><tr><th class="th-num">#</th>{% if has_thumbs %}<th>Img</th>{% endif %}<th>Criativo</th><th class="th-num">Investimento</th><th class="th-num">Leads</th><th class="th-num">Vendas</th><th class="th-num">Faturamento</th><th class="th-num">ROAS</th><th class="th-num">CPL</th><th class="th-num">CTR</th></tr></thead>
+              <tbody>
+                {% for c in meta.validados %}
+                {% set ad_code = c.nome.split(' - ')[0] %}
+                {% set venda_criativo = vendas_criativo.get(ad_code, {}) %}
+                {% set td = drive_thumbnails.get(ad_code) if has_thumbs else None %}
+                <tr>
+                  <td class="numero">{{ loop.index }}</td>
+                  {% if has_thumbs %}
+                  <td style="padding:4px 6px;">
+                    {% if td %}
+                    <img src="{{ td.thumb }}" alt="{{ ad_code }}"
+                         style="width:80px;height:52px;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;cursor:pointer;display:block"
+                         onclick="openVideoModal('{{ td.preview }}','{{ ad_code }}')"
+                         onerror="this.style.display='none'">
+                    {% else %}
+                    <div style="width:80px;height:52px;border-radius:5px;border:1px dashed #d1d5db;background:#f9fafb;display:flex;align-items:center;justify-content:center">
+                      <i class="ti ti-photo-off" style="color:#d1d5db;font-size:16px"></i>
+                    </div>
+                    {% endif %}
+                  </td>
+                  {% endif %}
+                  <td><small>{{ c.nome[:78] }}</small></td>
+                  <td class="numero">{{ c.gasto | brl }}</td>
+                  <td class="numero"><strong>{{ c.leads | num }}</strong></td>
+                  <td class="numero"><strong>{{ venda_criativo.get('vendas', 0) | num }}</strong></td>
+                  <td class="numero">{{ venda_criativo.get('faturamento', 0) | brl }}</td>
+                  <td class="numero">{{ "%.2f"|format((venda_criativo.get('faturamento', 0) / c.gasto) if c.gasto > 0 else 0) | replace(".", ",") }}x</td>
+                  <td class="numero positivo">{{ c.cpl | brl }}</td>
+                  <td class="numero">{{ c.ctr | pct(2) }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="criativos-block">
+          <h3 class="criativos-title novo">Criativos Novos (novos-ads)</h3>
+          <div class="table-wrap funil-table-wrap">
+            <table class="funil-table criativos-table">
+              <colgroup><col class="col-rank">{% if has_thumbs %}<col style="width:90px">{% endif %}<col class="col-creative"><col class="col-money"><col class="col-count"><col class="col-count"><col class="col-money"><col class="col-roas"><col class="col-money"><col class="col-share"></colgroup>
+              <thead><tr><th class="th-num">#</th>{% if has_thumbs %}<th>Img</th>{% endif %}<th>Criativo</th><th class="th-num">Investimento</th><th class="th-num">Leads</th><th class="th-num">Vendas</th><th class="th-num">Faturamento</th><th class="th-num">ROAS</th><th class="th-num">CPL</th><th class="th-num">CTR</th></tr></thead>
+              <tbody>
+                {% for c in meta.novos %}
+                {% set ad_code = c.nome.split(' - ')[0] %}
+                {% set venda_criativo = vendas_criativo.get(ad_code, {}) %}
+                {% set td = drive_thumbnails.get(ad_code) if has_thumbs else None %}
+                <tr>
+                  <td class="numero">{{ loop.index }}</td>
+                  {% if has_thumbs %}
+                  <td style="padding:4px 6px;">
+                    {% if td %}
+                    <img src="{{ td.thumb }}" alt="{{ ad_code }}"
+                         style="width:80px;height:52px;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;cursor:pointer;display:block"
+                         onclick="openVideoModal('{{ td.preview }}','{{ ad_code }}')"
+                         onerror="this.style.display='none'">
+                    {% else %}
+                    <div style="width:80px;height:52px;border-radius:5px;border:1px dashed #d1d5db;background:#f9fafb;display:flex;align-items:center;justify-content:center">
+                      <i class="ti ti-photo-off" style="color:#d1d5db;font-size:16px"></i>
+                    </div>
+                    {% endif %}
+                  </td>
+                  {% endif %}
+                  <td><small>{{ c.nome[:78] }}</small></td>
+                  <td class="numero">{{ c.gasto | brl }}</td>
+                  <td class="numero"><strong>{{ c.leads | num }}</strong></td>
+                  <td class="numero"><strong>{{ venda_criativo.get('vendas', 0) | num }}</strong></td>
+                  <td class="numero">{{ venda_criativo.get('faturamento', 0) | brl }}</td>
+                  <td class="numero">{{ "%.2f"|format((venda_criativo.get('faturamento', 0) / c.gasto) if c.gasto > 0 else 0) | replace(".", ",") }}x</td>
+                  <td class="numero">{{ c.cpl | brl }}</td>
+                  <td class="numero">{{ c.ctr | pct(2) }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="{{ 10 if has_thumbs else 9 }}">Sem novos ads com leads.</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="section">
+      <div class="section-title">9. Comparativo de Canais - Meta vs Google</div>
+      <div class="table-wrap funil-table-wrap">
+        <table class="funil-table">
+          <colgroup><col class="col-label"><col class="col-money"><col class="col-count"><col class="col-count"><col class="col-money"><col class="col-roas"><col class="col-money"><col class="col-label-sm"><col class="col-share"></colgroup>
+          <thead><tr><th>Canal</th><th class="th-num">Investimento</th><th class="th-num">Volume</th><th class="th-num">Vendas</th><th class="th-num">Faturamento</th><th class="th-num">ROAS</th><th class="th-num">Custo médio</th><th>Métrica</th><th class="th-num">% Verba</th></tr></thead>
+          <tbody>
+            {% set total_invest = invest or 1 %}
+            {% set venda_meta_canal = vendas_canal.get('Meta Ads', {}) %}
+            {% set venda_google_canal = vendas_canal.get('Google Ads', {}) %}
+            <tr><td><span class="bs-pill" style="background:#1877f2">Meta Ads</span></td><td class="numero">{{ meta.total_gasto | brl if meta else "-" }}</td><td class="numero">{{ meta.total_leads | num if meta else "-" }}</td><td class="numero"><strong>{{ venda_meta_canal.get('vendas', 0) | num }}</strong></td><td class="numero">{{ venda_meta_canal.get('faturamento', 0) | brl }}</td><td class="numero">{{ "%.2f"|format((venda_meta_canal.get('faturamento', 0) / meta.total_gasto) if meta and meta.total_gasto > 0 else 0) | replace(".", ",") }}x</td><td class="numero">{{ meta.cpl_medio | brl if meta else "-" }}</td><td>CPL</td><td><div class="pbar-wrap"><div class="pbar-track"><div class="pbar-fill" style="background:#1877f2;width:{{ ((meta.total_gasto if meta else 0)/total_invest*100)|round(1) }}%"></div></div><strong>{{ ((meta.total_gasto if meta else 0)/total_invest*100)|pct }}</strong></div></td></tr>
+            <tr><td><span class="bs-pill" style="background:var(--google-color)">Google Ads</span></td><td class="numero">{{ google.total_custo | brl if google else "-" }}</td><td class="numero">{{ "%.0f"|format(google.total_conversoes) if google else "-" }}</td><td class="numero"><strong>{{ venda_google_canal.get('vendas', 0) | num }}</strong></td><td class="numero">{{ venda_google_canal.get('faturamento', 0) | brl }}</td><td class="numero">{{ "%.2f"|format((venda_google_canal.get('faturamento', 0) / google.total_custo) if google and google.total_custo > 0 else 0) | replace(".", ",") }}x</td><td class="numero">{{ google.custo_conv_medio | brl if google and google.total_conversoes > 0 else "-" }}</td><td>Custo/Conv</td><td><div class="pbar-wrap"><div class="pbar-track"><div class="pbar-fill" style="background:var(--google-color);width:{{ ((google.total_custo if google else 0)/total_invest*100)|round(1) }}%"></div></div><strong>{{ ((google.total_custo if google else 0)/total_invest*100)|pct }}</strong></div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% if meta and meta.por_dia %}
+    <div class="section">
+      <div class="section-title">10. Curva Diária - Meta Ads (Fases do Lançamento)</div>
+      {% set etapa_cores = {'Captação': '#667eea', 'Pré-Qualificação': '#f5576c', 'Pitch/ROAS': '#28a745', 'RMK/Engajamento': '#17a2b8', 'Outros': '#9ca3af'} %}
+      {% set max_gasto_dia = meta.por_dia|map(attribute='gasto')|max or 1 %}
+      <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+        {% for etapa, d in meta.por_etapa.items() | sort(attribute='1.gasto', reverse=True) %}
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="background:{{ etapa_cores.get(etapa,'#9ca3af') }};width:12px;height:12px;border-radius:2px"></div>
+          <span><strong>{{ etapa }}</strong> - {{ d.gasto | brl }} ({{ (d.gasto/(meta.total_gasto or 1)*100)|round(1) }}%)</span>
+        </div>
+        {% endfor %}
+      </div>
+      <div style="overflow-x:auto;padding-bottom:8px">
+        <div style="display:flex;align-items:flex-end;gap:4px;min-width:720px;border-bottom:2px solid #eee;padding-bottom:8px">
+          {% for day in meta.por_dia %}
+          {% set dominant = day.por_etapa.items()|sort(attribute='1.gasto', reverse=True)|first %}
+          {% set etapa = dominant[0] if dominant else 'Outros' %}
+          {% set h = (day.gasto / max_gasto_dia * 120)|round(0) %}
+          <div style="display:flex;flex-direction:column;align-items:center;gap:4px;min-width:30px">
+            <span style="font-size:9px;color:{{ etapa_cores.get(etapa,'#9ca3af') }};font-weight:700;writing-mode:vertical-rl;transform:rotate(180deg);height:38px;overflow:hidden">
+              {% if day.leads > 0 %}CPL {{ day.cpl | brl }}{% endif %}
+            </span>
+            <div title="{{ day.dia }}: {{ day.gasto | brl }} | {{ day.leads | num }} leads | {{ etapa }}"
+                 style="background:{{ etapa_cores.get(etapa,'#9ca3af') }};width:20px;height:{{ 2 if h < 2 else h }}px;border-radius:3px 3px 0 0;cursor:default"></div>
+            <span style="font-size:9px;color:#666;writing-mode:vertical-rl;transform:rotate(180deg);height:32px">{{ day.dia[8:10] }}/{{ day.dia[5:7] }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="note" style="margin-top:12px">
+        <strong>Leitura por fase:</strong> a cor de cada barra representa a etapa com maior gasto no dia. Use o hover para ver investimento, leads e CPL do dia.
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="section">
+      <div class="section-title">10. Diagnóstico e Recomendações</div>
+      {% if meta and meta.por_bucket %}
+        {% set principal = meta.por_bucket.get('Principal') %}
+        {% set reels = meta.por_bucket.get('Reels') %}
+        {% if principal and principal.pct < 60 %}
+        <div style="border-left:4px solid #dc3545;background:#dc354518;padding:14px 16px;border-radius:4px;margin-bottom:12px"><div style="font-weight:700;color:#dc3545;margin-bottom:4px">Distribuição Meta - Principal abaixo do target</div><div style="color:#444;font-size:13px">Campanha Principal recebeu {{ principal.pct|round(1) }}% da verba de captação (meta: 70%). Avaliar aumento de concentração se mantiver CPL competitivo.</div></div>
+        {% endif %}
+        {% if reels and reels.pct > 10 %}
+        <div style="border-left:4px solid #ff9800;background:#ff980018;padding:14px 16px;border-radius:4px;margin-bottom:12px"><div style="font-weight:700;color:#ff9800;margin-bottom:4px">Reels com verba acima do estratégico</div><div style="color:#444;font-size:13px">Reels recebeu {{ reels.pct|round(1) }}% vs meta de 5%. Avaliar se o CPL de {{ reels.cpl|brl }} justifica a sobrealocação.</div></div>
+        {% endif %}
+      {% endif %}
+      {% if google_preq and google and google.total_custo > 0 and (google_preq.custo / google.total_custo * 100) > 10 %}
+      <div style="border-left:4px solid #ff9800;background:#ff980018;padding:14px 16px;border-radius:4px;margin-bottom:12px"><div style="font-weight:700;color:#ff9800;margin-bottom:4px">Google Ads - Pré-Qualificação com alto % da verba</div><div style="color:#444;font-size:13px">Pré-Qualificação Google consumiu {{ (google_preq.custo / google.total_custo * 100)|round(1) }}% do investimento Google ({{ google_preq.custo|brl }}). Reavaliar orçamento se o ROAS não for rastreável.</div></div>
+      {% endif %}
+      <div style="border-left:4px solid #667eea;background:#667eea18;padding:14px 16px;border-radius:4px;margin-bottom:12px"><div style="font-weight:700;color:#667eea;margin-bottom:4px">Validação V1/V2</div><div style="color:#444;font-size:13px">Esta página agora segue a hierarquia da V1. Divergências remanescentes devem ser tratadas nos readers ou nas regras comerciais de vendas.</div></div>
+    </div>
+  </div>
+  <div class="footing">Gerado em tempo real | Brabo Analytics{% if launch %} &mdash; {{ launch.code }}{% endif %}</div>
+</div>
+{% endblock %}

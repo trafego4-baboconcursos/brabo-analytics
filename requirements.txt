@@ -1,0 +1,27 @@
+python-dotenv>=1.0.0
+sqlalchemy>=2.0
+psycopg2-binary>=2.9
+pandas>=2.0
+requests>=2.31
+google-auth>=2.23.0
+fastapi>=0.137
+uvicorn>=0.49
+jinja2>=3.1
+python-multipart>=0.0.32
+openpyxl>=3.1
+passlib[bcrypt]>=1.7
+pyyaml>=6.0
+
+# Retry HTTP com backoff exponencial (ETL scripts)
+tenacity>=8.2
+
+# Agendador de ETL sem sobreposição de execuções
+apscheduler>=3.10
+
+# Testes
+pytest>=8.0
+pytest-mock>=3.12
+
+# Linting / formatting (dev)
+ruff>=0.4
+pre-commit>=3.7

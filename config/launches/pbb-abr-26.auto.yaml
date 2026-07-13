@@ -1,0 +1,26 @@
+launch:
+  code: PBB-ABR-26
+  client: Brabo Concursos
+  course:
+    code: PBB
+    name: Projeto Banco do Brasil
+  date_range:
+    start: 2026-05-12
+    end: 2026-05-27
+inputs:
+  active_campaign:
+    leads_csv: analises/[PBB-ABR-26]/Active Campaign/active-campaign-pbb-abr-26.csv
+  meta_ads:
+    campaigns_csv: analises/[PBB-ABR-26]/Meta Ads/meta-pbb-abr-26.csv
+  google_ads:
+    campaigns_csv: analises/[PBB-ABR-26]/Google Ads/Performance da campanha-pbb-abr-26.csv
+  sales:
+    hotmart_csv: analises/[PBB-ABR-26]/Vendas/hotmart pbb-abr-26.csv
+    boleto_csv: analises/[PBB-ABR-26]/Vendas/tmb pbb-abr-26.csv
+filters:
+  campaign_name_contains: PBB-ABR-26
+outputs:
+  persist_db: false
+  db_path: outputs/analysis.db
+  snapshot_dir: outputs/snapshots/PBB-ABR-26
+  report_html: outputs/reports/ANALISE_ATRIBUICAO_UTM_[PBB-ABR-26].html

@@ -1,0 +1,23 @@
+[tool.pyright]
+pythonVersion = "3.11"
+venvPath = "."
+venv = ".venv"
+extraPaths = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+ignore = [
+    "E501",   # linhas longas — muitas existentes, ajustar incrementalmente
+    "F403",   # star imports (usados nos re-exportadores de frontend/readers/)
+    "F401",   # imports não usados (re-exportadores intencionais)
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]

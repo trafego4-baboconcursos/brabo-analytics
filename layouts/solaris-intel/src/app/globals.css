@@ -1,0 +1,54 @@
+:root {
+  color-scheme: light;
+  --ink-900: #0b1114;
+  --ink-800: #111a1e;
+  --ink-700: #1b262c;
+  --ink-600: #2d3b42;
+  --ink-500: #40515a;
+  --ink-400: #63727a;
+  --ink-200: #c9d2d8;
+  --sun-500: #f5b43b;
+  --sun-400: #ffd178;
+  --aqua-500: #5ce0d8;
+  --aqua-300: #9cf0e8;
+  --glow-500: #7de0ff;
+  --paper-0: #f6f7f4;
+  --paper-100: #eef1ee;
+  --card-0: #ffffff;
+  --border-100: rgba(11, 17, 20, 0.1);
+  --shadow-soft: 0 40px 120px rgba(15, 24, 29, 0.12);
+  --shadow-strong: 0 30px 80px rgba(10, 18, 22, 0.2);
+  --radius-xl: 28px;
+  --radius-lg: 22px;
+  --radius-md: 16px;
+  --radius-sm: 12px;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  color: var(--ink-900);
+  background: var(--paper-0);
+  font-family: var(--font-sora), "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+}

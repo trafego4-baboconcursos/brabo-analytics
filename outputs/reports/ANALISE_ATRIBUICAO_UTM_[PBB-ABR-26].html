@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analise de Atribuicao UTM - PBB-ABR-26</title>
+    <link rel="icon" type="image/png" href="../../img/favicon-brabo-concursos.png">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #eb5757 0%, #ff9500 100%);
+            color: #333;
+            line-height: 1.6;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            background: white;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+            border-radius: 8px;
+        }
+        .content { padding: 40px; max-width: 100%; margin: 0 auto; }
+        .header {
+            background: white;
+            color: #333;
+            padding: 40px 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            flex-wrap: wrap;
+            border-bottom: 1px solid #eee;
+        }
+        .header-logo { width: 100%; margin-bottom: 20px; }
+        .header-logo a { display: inline-block; text-decoration: none; }
+        .header-logo img { height: 60px; width: auto; }
+        .header-title h1 { font-size: 28px; font-weight: 700; margin-bottom: 5px; }
+        .header-title p { font-size: 16px; opacity: 0.9; }
+        .section { margin-bottom: 40px; }
+        .section-title {
+            font-size: 24px; color: #eb5757; font-weight: 700; margin-bottom: 20px;
+            padding-bottom: 10px; border-bottom: 3px solid #eb5757; text-align: center;
+        }
+        .subsection-title { font-size: 18px; color: #ff9500; font-weight: 600; margin-top: 20px; margin-bottom: 15px; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px; }
+        .kpi { background: #f9f9f9; border-radius: 8px; padding: 16px; border-left: 4px solid #eb5757; }
+        .kpi h3 { font-size: 14px; color: #666; text-transform: uppercase; letter-spacing: 0.6px; }
+        .kpi p { font-size: 22px; font-weight: 700; margin-top: 6px; color: #333; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; background: #f9f9f9; border-radius: 4px; overflow: hidden; }
+        th { background: #eb5757; color: white; padding: 12px; text-align: left; font-weight: 600; }
+        td { padding: 12px; border-bottom: 1px solid #ddd; }
+        tr:last-child td { border-bottom: none; }
+        .list { margin-left: 18px; }
+        .list li { margin-bottom: 6px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <div style="text-align: center; width: 100%;">
+            <div class="header-logo">
+                <a href="INDEX_[PBB-ABR-26].html" title="Voltar ao Indice">
+                    <img src="../../img/logo-brabo-concursos.png" alt="Brabo Concursos">
+                </a>
+            </div>
+            <div class="header-title">
+                <h1>Analise de Atribuicao UTM</h1>
+                <p>PBB-ABR-26 - Compradores atribuidos a origem do lead</p>
+            </div>
+        </div>
+    </div>
+    <div class="content">
+        <div class="section">
+            <h2 class="section-title">Resumo Executivo</h2>
+            <div class="kpi-grid">
+                <div class="kpi"><h3>Total de vendas</h3><p>397</p></div>
+                <div class="kpi"><h3>Valor das vendas (R$)</h3><p>605.309,58</p></div>
+                <div class="kpi"><h3>Gasto Facebook (R$)</h3><p>166.198,34</p></div>
+                <div class="kpi"><h3>Gasto YouTube (R$)</h3><p>187.847,24</p></div>
+                <div class="kpi"><h3>ROAS Geral</h3><p>1,71</p></div>
+                <div class="kpi"><h3>Com UTM (lead encontrado)</h3><p>304 (76,6%)</p></div>
+                <div class="kpi"><h3>Sem UTM (lead nao localizado)</h3><p>93 (23,4%)</p></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Recuperador Inteligente (RI) - Bloco Dedicado</h2>
+            <div class="kpi-grid">
+                <div class="kpi"><h3>Vendas RI</h3><p>165</p></div>
+                <div class="kpi"><h3>Receita RI (R$)</h3><p>25.617,92</p></div>
+                <div class="kpi"><h3>RI com UTM</h3><p>127 (77,0%)</p></div>
+                <div class="kpi"><h3>RI sem UTM</h3><p>38 (23,0%)</p></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Distribuicao por Fonte (Compradores com UTM)</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fonte</th>
+                        <th>Compradores</th>
+                        <th>% do total com UTM</th>
+                        <th>Gasto (R$)</th>
+                        <th>Vendas (R$)</th>
+                        <th>ROAS</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>Facebook Quente</td><td>95</td><td>31,2%</td><td>80.981,19</td><td>151.120,84</td><td>1,87</td></tr><tr><td>Facebook Frio</td><td>26</td><td>8,6%</td><td>32.819,96</td><td>41.826,60</td><td>1,27</td></tr><tr><td>Facebook Especifico</td><td>0</td><td>0,0%</td><td>37.265,76</td><td>0,00</td><td>0,00</td></tr><tr><td>YouTube Quente</td><td>99</td><td>32,6%</td><td>100.117,10</td><td>158.377,43</td><td>1,58</td></tr><tr><td>YouTube Frio</td><td>16</td><td>5,3%</td><td>24.616,05</td><td>25.643,60</td><td>1,04</td></tr><tr><td>YouTube Especifico</td><td>0</td><td>0,0%</td><td>30.718,20</td><td>0,00</td><td>0,00</td></tr><tr><td>Pre-Qualificacao YT</td><td>24</td><td>7,9%</td><td>28.920,63</td><td>38.541,00</td><td>1,33</td></tr><tr><td>Pre-Qualificacao FB</td><td>29</td><td>9,5%</td><td>11.335,25</td><td>46.650,12</td><td>4,12</td></tr><tr><td>Outros</td><td>15</td><td>4,9%</td><td>7.271,44</td><td>23.787,23</td><td>3,27</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="section">
+            <h2 class="section-title">Top UTMs por Fonte</h2>
+            
+        <h3 class="subsection-title">Facebook Quente</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Compradores</th>
+                    <th>Receita (R$)</th>
+                    <th>Cartao</th>
+                    <th>Boleto</th>
+                    <th>Pix</th>
+                    <th>Outros</th>
+                    <th>utm_source</th>
+                    <th>utm_medium</th>
+                    <th>utm_campaign</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>7</td><td>11.444,87</td><td>2</td><td>5</td><td>0</td><td>0</td><td>fb-captacao-quente-principal-v10</td><td>06 - [Felipe Graton] Envolvimento 180D</td><td>pbb-abr-26</td></tr><tr><td>7</td><td>11.082,72</td><td>4</td><td>3</td><td>0</td><td>0</td><td>fb-captacao-quente-reels-v10</td><td>03 - Viu 50% da Captação - PBB-FEV-26</td><td>pbb-abr-26</td></tr><tr><td>6</td><td>9.752,58</td><td>1</td><td>5</td><td>0</td><td>0</td><td>fb-captacao-quente-potencial-v5</td><td>04 - Viu 25% da Captação - PBB-FEV-26</td><td>pbb-abr-26</td></tr>
+            </tbody>
+        </table>
+        
+        <h3 class="subsection-title">Facebook Frio</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Compradores</th>
+                    <th>Receita (R$)</th>
+                    <th>Cartao</th>
+                    <th>Boleto</th>
+                    <th>Pix</th>
+                    <th>Outros</th>
+                    <th>utm_source</th>
+                    <th>utm_medium</th>
+                    <th>utm_campaign</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>5</td><td>8.109,78</td><td>1</td><td>4</td><td>0</td><td>0</td><td>fb-captacao-frio-reels-v2</td><td>07 - Interessados BB</td><td>pbb-abr-26</td></tr><tr><td>4</td><td>6.571,20</td><td>0</td><td>4</td><td>0</td><td>0</td><td>fb-captacao-frio-principal-v6</td><td>07 - Interessados BB</td><td>pbb-abr-26</td></tr><tr><td>4</td><td>6.362,76</td><td>2</td><td>2</td><td>0</td><td>0</td><td>fb-captacao-frio-principal-v6</td><td>07 - Bancário</td><td>pbb-abr-26</td></tr>
+            </tbody>
+        </table>
+        
+        <h3 class="subsection-title">Facebook Especifico</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Compradores</th>
+                    <th>Receita (R$)</th>
+                    <th>Cartao</th>
+                    <th>Boleto</th>
+                    <th>Pix</th>
+                    <th>Outros</th>
+                    <th>utm_source</th>
+                    <th>utm_medium</th>
+                    <th>utm_campaign</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="9">Sem dados</td></tr>
+            </tbody>
+        </table>
+        
+        <h3 class="subsection-title">YouTube Quente</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Compradores</th>
+                    <th>Receita (R$)</th>
+                    <th>Cartao</th>
+                    <th>Boleto</th>
+                    <th>Pix</th>
+                    <th>Outros</th>
+                    <th>utm_source</th>
+                    <th>utm_medium</th>
+                    <th>utm_campaign</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>38</td><td>60.795,44</td><td>16</td><td>22</td><td>0</td><td>0</td><td>yt-captacao-quente-principal-v2</td><td>00-cadastrados-pbb-antigos</td><td>pbb-abr-26</td></tr><tr><td>12</td><td>19.072,40</td><td>9</td><td>3</td><td>0</td><td>0</td><td>yt-captacao-quente-principal-v2</td><td>05-envolvimento-60D</td><td>pbb-abr-26</td></tr><tr><td>9</td><td>14.500,44</td><td>4</td><td>3</td><td>2</td><td>0</td><td>yt-captacao-quente-potencial-v5</td><td>00-cadastrados-pbb-antigos</td><td>pbb-abr-26</td></tr>
+            </tbody>
+        </table>
+        
+        <h3 class="subsection-title">YouTube Frio</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Compradores</th>
+                    <th>Receita (R$)</th>
+                    <th>Cartao</th>
+                    <th>Boleto</th>
+                    <th>Pix</th>
+                    <th>Outros</th>
+                    <th>utm_source</th>
+                    <th>utm_medium</th>
+                    <th>utm_campaign</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>7</td><td>11.119,28</td><td>4</td><td>3</td><td>0</td><td>0</td><td>yt-captacao-frio-principal-v1</td><td>08-afinidade-personalizada-concurso-banco-do-brasil</td><td>pbb-abr-26</td></tr><tr><td>3</td><td>4.824,18</td><td>1</td><td>2</td><td>0</td><td>0</td><td>yt-captacao-frio-potencial-v5</td><td>06-mercado-setor-publico</td><td>pbb-abr-26</td></tr><tr><td>2</td><td>3.181,38</td><td>1</td><td>1</td><td>0</td><td>0</td><td>yt-captacao-frio-potencial-v4</td><td>07-afinidade-personalizada-estabilidade-financeira</td><td>pbb-abr-26</td></tr>
+            </tbody>
+        </table>
+        
+        <h3 class="subsection-title">YouTube Especifico</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Compradores</th>
+                    <th>Receita (R$)</th>
+                    <th>Cartao</th>
+                    <th>Boleto</th>
+                    <th>Pix</th>
+                    <th>Outros</th>
+                    <th>utm_source</th>
+                    <th>utm_medium</th>
+                    <th>utm_campaign</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="9">Sem dados</td></tr>
+            </tbody>
+        </table>
+        
+        <h3 class="subsection-title">Pre-Qualificacao YT</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Compradores</th>
+                    <th>Receita (R$)</th>
+                    <th>Cartao</th>
+                    <th>Boleto</th>
+                    <th>Pix</th>
+                    <th>Outros</th>
+                    <th>utm_source</th>
+                    <th>utm_medium</th>
+                    <th>utm_campaign</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>10</td><td>16.271,34</td><td>3</td><td>6</td><td>1</td><td>0</td><td>yt-captacao-especifico-principal-v1</td><td>00-viu-videos-pre-quali</td><td>pbb-abr-26</td></tr><tr><td>10</td><td>15.906,90</td><td>5</td><td>5</td><td>0</td><td>0</td><td>yt-captacao-especifico-principal-v1</td><td>01-viu-videos-pre-quali-lancamentos-anteriores</td><td>pbb-abr-26</td></tr><tr><td>2</td><td>3.181,38</td><td>1</td><td>1</td><td>0</td><td>0</td><td>yt-captacao-especifico-principal-v6</td><td>00-viu-videos-pre-quali</td><td>pbb-abr-26</td></tr>
+            </tbody>
+        </table>
+        
+        <h3 class="subsection-title">Pre-Qualificacao FB</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Compradores</th>
+                    <th>Receita (R$)</th>
+                    <th>Cartao</th>
+                    <th>Boleto</th>
+                    <th>Pix</th>
+                    <th>Outros</th>
+                    <th>utm_source</th>
+                    <th>utm_medium</th>
+                    <th>utm_campaign</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>6</td><td>10.168,80</td><td>0</td><td>4</td><td>2</td><td>0</td><td>fb-captacao-especifico-principal-v10</td><td>01 - Viu 25% da Pré-Quali - PBB-ABR-26</td><td>pbb-abr-26</td></tr><tr><td>6</td><td>9.439,92</td><td>4</td><td>2</td><td>0</td><td>0</td><td>fb-captacao-especifico-reels-v10</td><td>01 - Viu 25% da Pré-Quali - PBB-ABR-26</td><td>pbb-abr-26</td></tr><tr><td>5</td><td>8.109,78</td><td>1</td><td>4</td><td>0</td><td>0</td><td>fb-captacao-especifico-potencial-v10</td><td>01 - Viu 25% da Pré-Quali - PBB-ABR-26</td><td>pbb-abr-26</td></tr>
+            </tbody>
+        </table>
+        
+        <h3 class="subsection-title">Outros</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Compradores</th>
+                    <th>Receita (R$)</th>
+                    <th>Cartao</th>
+                    <th>Boleto</th>
+                    <th>Pix</th>
+                    <th>Outros</th>
+                    <th>utm_source</th>
+                    <th>utm_medium</th>
+                    <th>utm_campaign</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td>13</td><td>20.710,07</td><td>9</td><td>3</td><td>1</td><td>0</td><td></td><td></td><td></td></tr><tr><td>2</td><td>3.077,16</td><td>2</td><td>0</td><td>0</td><td>0</td><td>ig</td><td>social</td><td></td></tr>
+            </tbody>
+        </table>
+        
+        </div>
+    </div>
+</div>
+</body>
+</html>

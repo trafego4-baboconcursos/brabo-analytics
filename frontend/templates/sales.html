@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Header Dinâmico -->
+<div class="hdr" style="background: white; padding: 24px 30px; border-radius: var(--bs-r-lg); border: 1px solid var(--bs-border); margin-bottom: 20px; box-shadow: var(--bs-sh-sm); display: flex; align-items: center; gap: 15px;">
+  <div style="background: var(--bs-accent); width: 44px; height: 44px; border-radius: var(--bs-r-md); display: grid; place-items: center; color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
+    <i class="ti ti-coin" style="font-size: 22px;"></i>
+  </div>
+  <div>
+    <h1 style="font-family: 'Inter', sans-serif; font-weight: 800; font-size: 1.8rem; color: var(--bs-ink); letter-spacing: -0.02em; line-height: 1.2;">Relatório de Checkouts e Vendas</h1>
+    <p style="color: var(--bs-ink-muted); margin-top: 3px; font-size: 0.95rem;">
+      Consolidação de transações financeiras rastreadas (Hotmart + TMB).
+    </p>
+  </div>
+</div>
+
+<div class="bs-stat-row">
+  <div class="bs-stat" style="border-top-color: var(--bs-accent);">
+    <div class="bs-stat-label">Vendas Totais</div>
+    <div class="bs-stat-value">{{ data.summary.total_sales or 0 }}</div>
+    <div class="bs-stat-delta neutral">Hotmart + TMB</div>
+  </div>
+  <div class="bs-stat" style="border-top-color: var(--bs-success);">
+    <div class="bs-stat-label">Receita Atribuída</div>
+    <div class="bs-stat-value" style="color: var(--bs-success);">R$ {{ "%.2f"|format(data.summary.total_revenue or 0.0) }}</div>
+    <div class="bs-stat-delta success">Líquido de Taxas</div>
+  </div>
+  <div class="bs-stat" style="border-top-color: var(--bs-warning);">
+    <div class="bs-stat-label">ROAS Geral</div>
+    <div class="bs-stat-value">{{ "%.2f"|format(data.summary.roas or 0.0) }}x</div>
+    <div class="bs-stat-delta warning">Média Geral</div>
+  </div>
+</div>
+
+<!-- Receita por Canal de Venda -->
+<div class="bs-card">
+  <div class="bs-card-title"><i class="ti ti-chart-bar"></i> Faturamento e Retorno por Categoria de Público</div>
+  <div class="bs-table-wrap">
+    <table class="bs-table">
+      <thead>
+        <tr>
+          <th>Fonte / Público</th>
+          <th style="text-align: right;">Compradores</th>
+          <th style="text-align: right;">Gasto Tráfego</th>
+          <th style="text-align: right;">Faturamento</th>
+          <th style="text-align: right;">ROAS de Canal</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in data.distribution %}
+        <tr>
+          <td><strong>{{ row.source }}</strong></td>
+          <td style="text-align: right;">{{ row.buyers }}</td>
+          <td style="text-align: right;" class="text-muted">R$ {{ "%.2f"|format(row.spend or 0.0) }}</td>
+          <td style="text-align: right; font-weight: bold; color: var(--bs-ink);">R$ {{ "%.2f"|format(row.revenue or 0.0) }}</td>
+          <td style="text-align: right; font-weight: bold;" class="{% if row.roas >= 2.0 %}text-success{% elif row.roas > 0 and row.roas < 1.0 %}text-danger{% endif %}">
+            {{ "%.2f"|format(row.roas or 0.0) }}x
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

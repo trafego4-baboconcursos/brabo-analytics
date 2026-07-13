@@ -1,0 +1,701 @@
+{% extends "base.html" %}
+{% block head %}
+<style>
+/* ── Insights page styles ─────────────────────────────────────────── */
+.ins-hero {
+  background: linear-gradient(135deg, var(--bs-accent) 0%, color-mix(in srgb, var(--bs-accent) 60%, #1a1a2e) 100%);
+  border-radius: var(--bs-r-xl);
+  padding: 32px 36px;
+  color: #fff;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  box-shadow: var(--bs-sh-lg);
+}
+.ins-hero-text h1 { margin: 0 0 6px; font-size: 22px; font-weight: 800; color: #fff; }
+.ins-hero-text p  { margin: 0; font-size: 13px; color: rgba(255,255,255,.75); }
+.ins-hero-stats { display: flex; gap: 32px; }
+.ins-hero-stat { text-align: center; }
+.ins-hero-stat .val { font-size: 28px; font-weight: 800; color: #fff; line-height: 1; }
+.ins-hero-stat .lbl { font-size: 10px; color: rgba(255,255,255,.7); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-top: 4px; }
+
+/* Cards de insight */
+.ins-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.ins-card {
+  background: var(--bs-card);
+  border-radius: var(--bs-r-lg);
+  padding: 20px;
+  box-shadow: var(--bs-sh-sm);
+  border-left: 4px solid var(--bs-accent);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: box-shadow .2s, transform .2s;
+}
+.ins-card:hover { box-shadow: var(--bs-sh-md); transform: translateY(-2px); }
+.ins-card.green  { border-left-color: var(--bs-success); }
+.ins-card.red    { border-left-color: var(--bs-danger); }
+.ins-card.orange { border-left-color: var(--bs-warning); }
+.ins-card.blue   { border-left-color: var(--bs-info); }
+.ins-card.purple { border-left-color: var(--temp-especifico); }
+.ins-card.teal   { border-left-color: var(--bs-info); }
+.ins-card-head   { display: flex; align-items: center; gap: 10px; }
+.ins-card-icon   {
+  width: 38px; height: 38px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.ins-card.green  .ins-card-icon { background: var(--bs-success-bg); color: var(--bs-success); }
+.ins-card.red    .ins-card-icon { background: var(--bs-danger-bg);  color: var(--bs-danger); }
+.ins-card.orange .ins-card-icon { background: var(--bs-warning-bg); color: var(--bs-warning); }
+.ins-card.blue   .ins-card-icon { background: var(--bs-info-bg);    color: var(--bs-info); }
+.ins-card.purple .ins-card-icon { background: #f5f0ff; color: var(--temp-especifico); }
+.ins-card.teal   .ins-card-icon { background: var(--bs-info-bg);    color: var(--bs-info); }
+.ins-card-label  { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; font-weight: 800; color: var(--bs-ink-muted); }
+.ins-card-body   { font-size: 13px; color: var(--bs-ink); line-height: 1.55; }
+.ins-card-metric { font-size: 24px; font-weight: 800; color: var(--bs-ink); line-height: 1; margin-top: 4px; }
+.ins-card-sub    { font-size: 12px; color: var(--bs-ink-muted); }
+
+/* Seção de alertas */
+.ins-alert {
+  border-radius: var(--bs-r-md);
+  padding: 14px 18px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  font-size: 13px;
+}
+.ins-alert.danger  { background: var(--bs-danger-bg);  border-left: 4px solid var(--bs-danger);  color: #7f1d1d; }
+.ins-alert.warn    { background: var(--bs-warning-bg); border-left: 4px solid var(--bs-warning); color: #78350f; }
+.ins-alert.success { background: var(--bs-success-bg); border-left: 4px solid var(--bs-success); color: #14532d; }
+.ins-alert.info    { background: var(--bs-info-bg);    border-left: 4px solid var(--bs-info);    color: #1e3a5f; }
+.ins-alert-icon    { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+.ins-alert-content strong { display: block; font-weight: 800; margin-bottom: 3px; }
+
+/* Grid de destaques */
+.ins-highlight-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+.ins-highlight-box  {
+  background: var(--bs-card);
+  border-radius: var(--bs-r-lg);
+  padding: 20px;
+  box-shadow: var(--bs-sh-sm);
+}
+.ins-highlight-box h3 { margin: 0 0 14px; font-size: 13px; font-weight: 800; color: var(--bs-ink-muted); text-transform: uppercase; letter-spacing: .05em; }
+.ins-rank-item { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--bs-border); }
+.ins-rank-item:last-child { border-bottom: none; }
+.ins-rank-pos { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; background: var(--bs-surface); color: var(--bs-ink-muted); }
+.ins-rank-pos.gold   { background: #fef3c7; color: #92400e; }
+.ins-rank-pos.silver { background: #f3f4f6; color: #374151; }
+.ins-rank-pos.bronze { background: #fef3c7; color: #78350f; }
+.ins-rank-info { flex: 1; min-width: 0; }
+.ins-rank-name { font-size: 12px; font-weight: 700; color: var(--bs-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ins-rank-sub  { font-size: 11px; color: var(--bs-ink-muted); }
+.ins-rank-val  { font-size: 14px; font-weight: 800; color: var(--bs-ink); white-space: nowrap; }
+.ins-rank-val.green  { color: var(--bs-success); }
+.ins-rank-val.red    { color: var(--bs-danger); }
+
+/* Score geral */
+.ins-score-box {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border-radius: var(--bs-r-xl);
+  padding: 28px 32px;
+  color: #fff;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+.ins-score-circle {
+  width: 120px; height: 120px;
+  border-radius: 50%;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: rgba(255,255,255,.08);
+  border: 3px solid rgba(255,255,255,.2);
+  flex-shrink: 0;
+}
+.ins-score-num  { font-size: 38px; font-weight: 800; line-height: 1; }
+.ins-score-max  { font-size: 11px; color: rgba(255,255,255,.5); }
+.ins-score-list { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ins-score-item { display: flex; flex-direction: column; gap: 4px; }
+.ins-score-item label { font-size: 10px; color: rgba(255,255,255,.5); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+.ins-score-bar  { height: 6px; background: rgba(255,255,255,.1); border-radius: 3px; overflow: hidden; }
+.ins-score-bar-fill { height: 100%; border-radius: 3px; transition: width .6s ease; }
+.ins-score-pct  { font-size: 12px; font-weight: 700; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1><i class="ti ti-bulb"></i> Insights Automáticos{% if launch %} — {{ launch.code }}{% endif %}</h1>
+      <p>Análise consolidada de criativos, verba, ROAS e rastreabilidade | Gerado em tempo real</p>
+    </div>
+  </div>
+
+  <div class="content">
+
+  {% if creative_overview_error %}
+  <div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:12px 16px;font-size:13px;color:#92400e;display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+    <i class="ti ti-alert-triangle"></i>
+    Não foi possível calcular o overview de criativos nesta sessão. Os dados de ranking podem estar ausentes.
+  </div>
+  {% endif %}
+
+  {# ── variáveis locais ───────────────────────────────────────────── #}
+  {% set total_vendas = vendas.total_vendas if vendas else 0 %}
+  {% set rastreados = insights_data.resumo.compradores_com_utm if insights_data else 0 %}
+  {% set total_buyers = insights_data.resumo.total_compradores if insights_data else total_vendas %}
+  {% set pct_rastreado = (rastreados / total_buyers * 100) | round(1) if total_buyers > 0 else 0 %}
+  {% set rows = insights_data.rows if insights_data else [] %}
+  {% set rows_com_venda = rows | selectattr('vendas', '>', 0) | list %}
+  {% set rows_sem_venda = rows | selectattr('vendas', '==', 0) | list %}
+  {% set meta_canal = sales_attr.por_canal.get('Meta Ads', {}) if sales_attr else {} %}
+  {% set google_canal = sales_attr.por_canal.get('Google Ads', {}) if sales_attr else {} %}
+  {% set meta_roas = (meta_canal.get('faturamento', 0) / meta.total_gasto) if meta and meta.total_gasto > 0 else 0 %}
+  {% set google_roas = (google_canal.get('faturamento', 0) / google.total_custo) if google and google.total_custo > 0 else 0 %}
+
+  {# ── Hero ───────────────────────────────────────────────────────── #}
+  <div class="ins-hero">
+    <div class="ins-hero-text">
+      <h1>🎯 Relatório de Insights — {{ launch.code if launch else "Sem Lançamento" }}</h1>
+      <p>{{ launch.name if launch else "" }} &nbsp;|&nbsp; Análise automática baseada em dados rastreados por UTM + Active Campaign</p>
+    </div>
+    <div class="ins-hero-stats">
+      <div class="ins-hero-stat">
+        <div class="val">{{ invest | brl }}</div>
+        <div class="lbl">Investimento</div>
+      </div>
+      <div class="ins-hero-stat">
+        <div class="val">{{ receita | brl }}</div>
+        <div class="lbl">Faturamento</div>
+      </div>
+      <div class="ins-hero-stat">
+        <div class="val">{{ "%.2f"|format(roas) | replace(".", ",") }}x</div>
+        <div class="lbl">ROAS Geral</div>
+      </div>
+      <div class="ins-hero-stat">
+        <div class="val">{{ pct_rastreado | round(0) | int }}%</div>
+        <div class="lbl">Rastreado</div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Score geral ────────────────────────────────────────────────── #}
+  {% if insights_data %}
+  {% set score_roas = 25 if roas >= 3 else ((roas / 3 * 25) | round(1)) %}
+  {% set score_rastr = (pct_rastreado / 100 * 25) | round(1) %}
+  {% set score_cpl_raw = (25 - (meta.cpl_medio / 10 * 5)) if meta else 0 %}
+  {% set score_cpl = score_cpl_raw if score_cpl_raw > 0 else 0 %}
+  {% set score_cpl = 25 if score_cpl > 25 else score_cpl %}
+  {% set criat_total = rows | length %}
+  {% set score_criat = (rows_com_venda | length / criat_total * 25) | round(1) if criat_total > 0 else 0 %}
+  {% set score_total = (score_roas + score_rastr + score_cpl + score_criat) | round(0) | int %}
+
+
+  <div class="ins-score-box">
+    <div class="ins-score-circle">
+      <span class="ins-score-num" style="color:{% if score_total >= 80 %}#4ade80{% elif score_total >= 60 %}#facc15{% else %}#f87171{% endif %}">
+        {{ score_total }}
+      </span>
+      <span class="ins-score-max">/100</span>
+    </div>
+    <div>
+      <div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;font-weight:700">Saúde Geral do Lançamento</div>
+      <div style="font-size:22px;font-weight:800;margin-bottom:12px">
+        {% if score_total >= 80 %}🟢 Excelente{% elif score_total >= 65 %}🟡 Bom{% elif score_total >= 50 %}🟠 Regular{% else %}🔴 Atenção{% endif %}
+      </div>
+      <div class="ins-score-list">
+        <div class="ins-score-item">
+          <label>ROAS</label>
+          <div class="ins-score-bar"><div class="ins-score-bar-fill" style="width:{{ (score_roas / 25 * 100)|round(0) }}%;background:#4ade80"></div></div>
+          <span class="ins-score-pct" style="color:#4ade80">{{ "%.2f"|format(roas) | replace(".", ",") }}x</span>
+        </div>
+        <div class="ins-score-item">
+          <label>Rastreabilidade</label>
+          <div class="ins-score-bar"><div class="ins-score-bar-fill" style="width:{{ pct_rastreado }}%;background:#60a5fa"></div></div>
+          <span class="ins-score-pct" style="color:#60a5fa">{{ pct_rastreado }}%</span>
+        </div>
+        <div class="ins-score-item">
+          <label>CPL Meta</label>
+          <div class="ins-score-bar"><div class="ins-score-bar-fill" style="width:{{ (score_cpl / 25 * 100)|round(0) }}%;background:#facc15"></div></div>
+          <span class="ins-score-pct" style="color:#facc15">{{ meta.cpl_medio | brl if meta else "–" }}</span>
+        </div>
+        <div class="ins-score-item">
+          <label>ADs c/ Venda</label>
+          <div class="ins-score-bar"><div class="ins-score-bar-fill" style="width:{{ (score_criat / 25 * 100)|round(0) }}%;background:#f472b6"></div></div>
+          <span class="ins-score-pct" style="color:#f472b6">{{ rows_com_venda | length }}/{{ rows | length }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Cards KPI por canal ────────────────────────────────────────── #}
+  <div class="ins-cards">
+
+    <div class="ins-card {% if meta_roas >= 1.5 %}green{% elif meta_roas < 1 %}red{% else %}orange{% endif %}">
+      <div class="ins-card-head">
+        <div class="ins-card-icon"><i class="ti ti-brand-meta"></i></div>
+        <div class="ins-card-label">Meta Ads — ROAS Rastreado</div>
+      </div>
+      <div class="ins-card-metric">{{ "%.2f"|format(meta_roas) | replace(".", ",") }}x</div>
+      <div class="ins-card-sub">
+        {{ meta_canal.get('vendas', 0) | num }} vendas · {{ meta_canal.get('faturamento', 0) | brl }} faturamento
+        {% if meta %} · Investido: {{ meta.total_gasto | brl }}{% endif %}
+      </div>
+    </div>
+
+    <div class="ins-card {% if google_roas >= 1.5 %}green{% elif google_roas < 1 %}red{% else %}orange{% endif %}">
+      <div class="ins-card-head">
+        <div class="ins-card-icon"><i class="ti ti-brand-google"></i></div>
+        <div class="ins-card-label">Google Ads — ROAS Rastreado</div>
+      </div>
+      <div class="ins-card-metric">{{ "%.2f"|format(google_roas) | replace(".", ",") }}x</div>
+      <div class="ins-card-sub">
+        {{ google_canal.get('vendas', 0) | num }} vendas · {{ google_canal.get('faturamento', 0) | brl }} faturamento
+        {% if google %} · Investido: {{ google.total_custo | brl }}{% endif %}
+      </div>
+    </div>
+
+    <div class="ins-card {% if pct_rastreado >= 75 %}green{% elif pct_rastreado >= 50 %}orange{% else %}red{% endif %}">
+      <div class="ins-card-head">
+        <div class="ins-card-icon"><i class="ti ti-radar"></i></div>
+        <div class="ins-card-label">Rastreabilidade UTM</div>
+      </div>
+      <div class="ins-card-metric">{{ pct_rastreado }}%</div>
+      <div class="ins-card-sub">{{ rastreados | num }} de {{ total_buyers | num }} compradores com UTM/Active Campaign</div>
+    </div>
+
+    {% if meta %}
+    <div class="ins-card {% if meta.cpl_medio < 3 %}green{% elif meta.cpl_medio < 5 %}orange{% else %}red{% endif %}">
+      <div class="ins-card-head">
+        <div class="ins-card-icon"><i class="ti ti-users"></i></div>
+        <div class="ins-card-label">CPL Médio Meta</div>
+      </div>
+      <div class="ins-card-metric">{{ meta.cpl_medio | brl }}</div>
+      <div class="ins-card-sub">{{ meta.total_leads | num }} leads · {{ meta.total_gasto | brl }} investido</div>
+    </div>
+    {% endif %}
+
+    {% if vendas %}
+    <div class="ins-card teal">
+      <div class="ins-card-head">
+        <div class="ins-card-icon"><i class="ti ti-coin"></i></div>
+        <div class="ins-card-label">Ticket Médio Geral</div>
+      </div>
+      <div class="ins-card-metric">{{ vendas.total_ticket_medio | brl }}</div>
+      <div class="ins-card-sub">Hotmart: {{ vendas.hotmart_ticket_medio | brl }} · TMB: {{ vendas.tmb_ticket_medio | brl }}</div>
+    </div>
+    {% endif %}
+
+    {% if insights_data %}
+    <div class="ins-card {% if insights_data.resumo.roas_ads >= 2 %}green{% elif insights_data.resumo.roas_ads >= 1 %}orange{% else %}red{% endif %}">
+      <div class="ins-card-head">
+        <div class="ins-card-icon"><i class="ti ti-palette"></i></div>
+        <div class="ins-card-label">ROAS dos Criativos (ADs)</div>
+      </div>
+      <div class="ins-card-metric">{{ "%.2f"|format(insights_data.resumo.roas_ads) | replace(".", ",") }}x</div>
+      <div class="ins-card-sub">
+        {{ insights_data.resumo.total_ads }} ADs · {{ insights_data.resumo.total_vendas_ads }} vendas rastreadas ·
+        {{ insights_data.resumo.total_faturamento_ads | brl }}
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+
+  {# ── Alertas automáticos ─────────────────────────────────────────── #}
+  <div class="section">
+    <div class="section-title">⚡ Alertas e Diagnósticos Automáticos</div>
+
+    {% set has_alert = false %}
+
+    {# ROAS baixo #}
+    {% if roas > 0 and roas < 1 %}
+    {% set has_alert = true %}
+    <div class="ins-alert danger">
+      <div class="ins-alert-icon">🔴</div>
+      <div class="ins-alert-content">
+        <strong>ROAS abaixo do ponto de equilíbrio</strong>
+        ROAS geral de {{ "%.2f"|format(roas) | replace(".", ",") }}x. Para cada R$1,00 investido, R$ {{ "%.2f"|format(roas) | replace(".", ",") }} retornou em faturamento.
+        Revisar mix de canais, qualidade dos criativos e processo de vendas.
+      </div>
+    </div>
+    {% endif %}
+
+    {# Rastreabilidade baixa #}
+    {% if total_buyers > 0 and pct_rastreado < 60 %}
+    {% set has_alert = true %}
+    <div class="ins-alert warn">
+      <div class="ins-alert-icon">⚠️</div>
+      <div class="ins-alert-content">
+        <strong>Rastreabilidade UTM abaixo de 60%</strong>
+        Apenas {{ pct_rastreado }}% dos {{ total_buyers | num }} compradores foram encontrados no Active Campaign com UTM válido.
+        {{ (total_buyers - rastreados) | num }} compradores sem rastreamento, o que limita a leitura por criativo e canal.
+        Verificar se os UTMs estão sendo passados corretamente para todas as páginas de captação.
+      </div>
+    </div>
+    {% endif %}
+
+    {# Meta — verba captação vs meta estratégica #}
+    {% if meta and meta.por_bucket %}
+      {% set bucket_principal = meta.por_bucket.get('Principal') %}
+      {% set bucket_reels = meta.por_bucket.get('Reels') %}
+      {% if bucket_principal and bucket_principal.pct < 60 %}
+      {% set has_alert = true %}
+      <div class="ins-alert warn">
+        <div class="ins-alert-icon">📊</div>
+        <div class="ins-alert-content">
+          <strong>Meta Captação — Principal abaixo do target (70%)</strong>
+          Campanha Principal recebeu {{ bucket_principal.pct | round(1) }}% da verba de captação. Meta: 70%.
+          Desvio de {{ (70 - bucket_principal.pct) | round(1) }}p.p. — avaliar se a distribuição atual gerou CPL competitivo antes de rebalancear.
+        </div>
+      </div>
+      {% endif %}
+      {% if bucket_reels and bucket_reels.pct > 12 %}
+      {% set has_alert = true %}
+      <div class="ins-alert warn">
+        <div class="ins-alert-icon">🎬</div>
+        <div class="ins-alert-content">
+          <strong>Reels com verba acima do estratégico (5%)</strong>
+          Reels recebeu {{ bucket_reels.pct | round(1) }}% da verba de captação.
+          CPL atual: {{ bucket_reels.cpl | brl }}.
+          Avaliar se o CPL justifica a sobrealocação comparando com os criativos do Principal.
+        </div>
+      </div>
+      {% endif %}
+    {% endif %}
+
+    {# Google Pré-Q pesado #}
+    {% if google and google.por_etapa %}
+      {% set google_preq = google.por_etapa.get('Pré-Qualificação') %}
+      {% if google_preq and google.total_custo > 0 and (google_preq.custo / google.total_custo * 100) > 15 %}
+      {% set has_alert = true %}
+      <div class="ins-alert warn">
+        <div class="ins-alert-icon">🔵</div>
+        <div class="ins-alert-content">
+          <strong>Google — Pré-Qualificação com alto % da verba</strong>
+          Pré-Qualificação Google consumiu {{ (google_preq.custo / google.total_custo * 100) | round(1) }}% do investimento
+          ({{ google_preq.custo | brl }}). Reavaliar se o ROAS desta etapa é rastreável e se o orçamento está otimizado.
+        </div>
+      </div>
+      {% endif %}
+    {% endif %}
+
+    {# ADs com alto gasto sem venda #}
+    {% if insights_data %}
+      {% set alto_gasto_sem_venda = rows_sem_venda | sort(attribute='gasto', reverse=True) %}
+      {% if alto_gasto_sem_venda and alto_gasto_sem_venda[0].gasto > 5000 %}
+      {% set has_alert = true %}
+      <div class="ins-alert danger">
+        <div class="ins-alert-icon">💸</div>
+        <div class="ins-alert-content">
+          <strong>{{ alto_gasto_sem_venda[0].ad_code }} — Alto investimento sem venda rastreada</strong>
+          {{ alto_gasto_sem_venda[0].ad_code }} consumiu {{ alto_gasto_sem_venda[0].gasto | brl }} sem nenhuma venda atribuída por UTM.
+          Revisar ângulo criativo, processo de vendas para este segmento, ou verificar se o UTM está configurado corretamente.
+        </div>
+      </div>
+      {% endif %}
+    {% endif %}
+
+    {# ROAS Meta vs Google muito diferente #}
+    {% if meta_roas > 0 and google_roas > 0 and ((meta_roas / google_roas) > 2 or (google_roas / meta_roas) > 2) %}
+    {% set has_alert = true %}
+    <div class="ins-alert info">
+      <div class="ins-alert-icon">⚖️</div>
+      <div class="ins-alert-content">
+        <strong>Diferença expressiva de ROAS entre Meta e Google</strong>
+        Meta ROAS: {{ "%.2f"|format(meta_roas) | replace(".", ",") }}x &nbsp;|&nbsp; Google ROAS: {{ "%.2f"|format(google_roas) | replace(".", ",") }}x.
+        Diferença de {{ "%.1f"|format((meta_roas / google_roas) if meta_roas > google_roas else (google_roas / meta_roas)) | replace(".", ",") }}x entre canais —
+        considerar rebalancear a verba para o canal com melhor ROAS rastreado.
+      </div>
+    </div>
+    {% endif %}
+
+    {# ROAS excelente #}
+    {% if roas >= 2.5 %}
+    <div class="ins-alert success">
+      <div class="ins-alert-icon">🏆</div>
+      <div class="ins-alert-content">
+        <strong>ROAS geral excelente — {{ "%.2f"|format(roas) | replace(".", ",") }}x</strong>
+        O lançamento performou bem acima do ponto de equilíbrio.
+        Faturamento de {{ receita | brl }} com investimento de {{ invest | brl }}.
+        Manter os ângulos criativos validados e escalar criativos com ROAS similar.
+      </div>
+    </div>
+    {% elif roas >= 1.5 %}
+    <div class="ins-alert success">
+      <div class="ins-alert-icon">✅</div>
+      <div class="ins-alert-content">
+        <strong>ROAS positivo — {{ "%.2f"|format(roas) | replace(".", ",") }}x</strong>
+        O lançamento gerou retorno positivo. Oportunidade de otimização nos criativos e canais
+        para elevar o ROAS no próximo ciclo.
+      </div>
+    </div>
+    {% endif %}
+
+    {% if not has_alert and roas == 0 %}
+    <div class="ins-alert info">
+      <div class="ins-alert-icon">ℹ️</div>
+      <div class="ins-alert-content">
+        <strong>Dados insuficientes para diagnóstico completo</strong>
+        Adicione CSVs de Meta Ads, Google Ads, Vendas e Active Campaign para gerar insights automáticos.
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  {# ── Top / Piores criativos ─────────────────────────────────────── #}
+  {% if rows_com_venda or rows_sem_venda %}
+  <div class="ins-highlight-grid">
+
+    <div class="ins-highlight-box">
+      <h3>🏆 Top 5 ADs — Mais vendas rastreadas</h3>
+      {% for row in rows_com_venda[:5] %}
+      {% set td = drive_thumbnails.get(row.ad_code) if drive_thumbnails else None %}
+      <div class="ins-rank-item">
+        <div class="ins-rank-pos {% if loop.index == 1 %}gold{% elif loop.index == 2 %}silver{% elif loop.index == 3 %}bronze{% endif %}">
+          {% if loop.index <= 3 %}{{ ['🥇','🥈','🥉'][loop.index0] }}{% else %}{{ loop.index }}{% endif %}
+        </div>
+        {% if td %}
+        <img src="{{ td.thumb }}" alt="{{ row.ad_code }}"
+             style="width:56px;height:38px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb;cursor:pointer;flex-shrink:0;"
+             onclick="openVideoModal('{{ td.preview }}','{{ row.ad_code }}')"
+             onerror="this.style.display='none'">
+        {% else %}
+        <div style="width:56px;height:38px;border-radius:4px;border:1px dashed #d1d5db;background:#f3f4f6;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <i class="ti ti-photo" style="color:#9ca3af;font-size:16px"></i>
+        </div>
+        {% endif %}
+        <div class="ins-rank-info">
+          <div class="ins-rank-name">{{ row.ad_code }} — {{ row.nome[:38] }}</div>
+          <div class="ins-rank-sub">{{ row.vendas | num }} vendas · {{ row.faturamento | brl }} · ROAS {{ "%.2f"|format(row.roas) | replace(".", ",") }}x · {{ row.origem }}</div>
+        </div>
+        <div class="ins-rank-val green">{{ row.faturamento | brl }}</div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="ins-highlight-box">
+      <h3>⚠️ Top 5 ADs — Alto gasto, sem venda rastreada</h3>
+      {% set sem_venda_sorted = rows_sem_venda | sort(attribute='gasto', reverse=True) %}
+      {% if sem_venda_sorted %}
+        {% for row in sem_venda_sorted[:5] %}
+        {% set td = drive_thumbnails.get(row.ad_code) if drive_thumbnails else None %}
+        <div class="ins-rank-item">
+          <div class="ins-rank-pos">{{ loop.index }}</div>
+          {% if td %}
+          <img src="{{ td.thumb }}" alt="{{ row.ad_code }}"
+               style="width:56px;height:38px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb;cursor:pointer;flex-shrink:0;"
+               onclick="openVideoModal('{{ td.preview }}','{{ row.ad_code }}')"
+               onerror="this.style.display='none'">
+          {% else %}
+          <div style="width:56px;height:38px;border-radius:4px;border:1px dashed #d1d5db;background:#f3f4f6;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="ti ti-photo" style="color:#9ca3af;font-size:16px"></i>
+          </div>
+          {% endif %}
+          <div class="ins-rank-info">
+            <div class="ins-rank-name">{{ row.ad_code }} — {{ row.nome[:38] }}</div>
+            <div class="ins-rank-sub">{{ row.gasto | brl }} investido · {{ row.leads | num }} leads · CPL {{ row.cpl | brl }}</div>
+          </div>
+          <div class="ins-rank-val red">{{ row.gasto | brl }}</div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <p style="color:var(--bs-ink-muted);font-size:13px;margin:0;padding:12px 0">Todos os ADs com investimento relevante têm vendas rastreadas. 🎉</p>
+      {% endif %}
+    </div>
+
+  </div>
+  {% endif %}
+
+  {# ── Insights de criativos ─────────────────────────────────────── #}
+  {% if insights_data and insights_data.insights %}
+  <div class="section">
+    <div class="section-title">🤖 Análise Automática de Criativos</div>
+    {% for txt in insights_data.insights %}
+    <div class="ins-alert info" style="margin-bottom:8px">
+      <div class="ins-alert-icon" style="font-size:16px">💡</div>
+      <div class="ins-alert-content" style="color:var(--bs-ink)">{{ txt }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# ── Oportunidades de escala ─────────────────────────────────────── #}
+  {% if rows_com_venda %}
+  {% set escalaveis = rows_com_venda | sort(attribute='roas', reverse=True) %}
+  <div class="section">
+    <div class="section-title">🚀 Oportunidades de Escala</div>
+    <div class="note">ADs com vendas rastreadas, ordenados por ROAS. Priorize escalar os com ROAS mais alto e CPL eficiente.</div>
+    <div class="table-wrap" style="margin-top:12px">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>AD / Criativo</th>
+            <th>Origem</th>
+            <th class="th-num" style="text-align:right">Investimento</th>
+            <th class="th-num" style="text-align:right">Leads</th>
+            <th class="th-num" style="text-align:right">CPL</th>
+            <th class="th-num" style="text-align:right">Vendas</th>
+            <th class="th-num" style="text-align:right">Faturamento</th>
+            <th class="th-num" style="text-align:right">ROAS</th>
+            <th style="text-align:center">Potencial</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in escalaveis[:10] %}
+          {% set roas_v = row.roas %}
+          {% set td = drive_thumbnails.get(row.ad_code) if drive_thumbnails else None %}
+          <tr class="{{ 'top3' if loop.index <= 3 else '' }}">
+            <td class="numero">{{ loop.index }}</td>
+            <td style="padding:6px 10px;">
+              <div style="display:flex;align-items:center;gap:10px;">
+                {% if td %}
+                <img src="{{ td.thumb }}" alt="{{ row.ad_code }}"
+                     style="width:64px;height:42px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb;cursor:pointer;flex-shrink:0;"
+                     onclick="openVideoModal('{{ td.preview }}','{{ row.ad_code }}')"
+                     onerror="this.style.display='none'">
+                {% else %}
+                <div style="width:64px;height:42px;border-radius:4px;border:1px dashed #d1d5db;background:#f3f4f6;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <i class="ti ti-photo" style="color:#9ca3af;font-size:18px"></i>
+                </div>
+                {% endif %}
+                <div style="min-width:0;">
+                  <strong style="font-size:12px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ row.ad_code }}</strong>
+                  <small style="display:block;color:var(--bs-ink-muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ row.nome[:50] }}</small>
+                </div>
+              </div>
+            </td>
+            <td>
+              {% for orig in row.origem.split(' + ') %}
+              <span style="background:{% if 'Meta' in orig %}#1877f2{% else %}var(--google-color){% endif %};color:#fff;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;margin-right:2px">{{ orig }}</span>
+              {% endfor %}
+            </td>
+            <td class="numero">{{ row.gasto | brl }}</td>
+            <td class="numero">{{ row.leads | num }}</td>
+            <td class="numero {{ 'positivo' if row.cpl < 3 else ('negativo' if row.cpl > 6 else '') }}">{{ row.cpl | brl if row.leads > 0 else "–" }}</td>
+            <td class="numero"><strong>{{ row.vendas | num }}</strong></td>
+            <td class="numero">{{ row.faturamento | brl }}</td>
+            <td class="numero"><strong class="{{ 'positivo' if roas_v >= 2 else ('negativo' if roas_v < 1 else '') }}">{{ "%.2f"|format(roas_v) | replace(".", ",") }}x</strong></td>
+            <td style="text-align:center">
+              {% if roas_v >= 3 %}
+              <span style="background:#f0fdf4;color:#14532d;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">🔥 Escalar</span>
+              {% elif roas_v >= 1.5 %}
+              <span style="background:#fffbeb;color:#78350f;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">📈 Otimizar</span>
+              {% else %}
+              <span style="background:#fef2f2;color:#7f1d1d;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">⚠️ Revisar</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Temperatura Meta ────────────────────────────────────────────── #}
+  {% if meta and meta.por_temperatura and sales_attr and sales_attr.meta_por_temperatura %}
+  <div class="section">
+    <div class="section-title">🌡️ Performance por Temperatura de Público</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Público</th>
+            <th class="th-num" style="text-align:right">Investimento</th>
+            <th class="th-num" style="text-align:right">% Verba</th>
+            <th class="th-num" style="text-align:right">Leads</th>
+            <th class="th-num" style="text-align:right">CPL</th>
+            <th class="th-num" style="text-align:right">Vendas</th>
+            <th class="th-num" style="text-align:right">Faturamento</th>
+            <th class="th-num" style="text-align:right">ROAS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set total_temp = meta.por_temperatura.values()|map(attribute='gasto')|sum or 1 %}
+          {% set tc = {'Quente': '#f5576c', 'Frio': '#667eea', 'Específico': '#ff9800', 'Outros': '#9ca3af'} %}
+          {% for temp, d in meta.por_temperatura.items() | sort(attribute='1.gasto', reverse=True) %}
+          {% set sv = sales_attr.meta_por_temperatura.get(temp, {}) %}
+          <tr>
+            <td><span class="bs-pill" style="background:{{ tc.get(temp, '#9ca3af') }}">{{ temp }}</span></td>
+            <td class="numero">{{ d.gasto | brl }}</td>
+            <td>
+              <div class="pbar-wrap">
+                <div class="pbar-track"><div class="pbar-fill" style="background:{{ tc.get(temp,'#9ca3af') }};width:{{ (d.gasto/total_temp*100)|round(1) }}%"></div></div>
+                <strong style="color:{{ tc.get(temp,'#9ca3af') }};font-size:12px">{{ (d.gasto/total_temp*100)|pct }}</strong>
+              </div>
+            </td>
+            <td class="numero">{{ d.leads | num }}</td>
+            <td class="numero">{{ d.cpl | brl if d.leads > 0 else "–" }}</td>
+            <td class="numero"><strong>{{ sv.get('vendas', 0) | num }}</strong></td>
+            <td class="numero">{{ sv.get('faturamento', 0) | brl }}</td>
+            <td class="numero"><strong class="{{ 'positivo' if (sv.get('faturamento', 0) / d.gasto) >= 1.5 else '' }}">
+              {{ "%.2f"|format(sv.get('faturamento', 0) / d.gasto if d.gasto > 0 else 0) | replace(".", ",") }}x
+            </strong></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Distribuição por plataforma de venda ─────────────────────── #}
+  {% if vendas %}
+  <div class="section">
+    <div class="section-title">💳 Comercial — Distribuição de Vendas</div>
+    <div class="ins-cards" style="margin-bottom:0">
+      <div class="ins-card teal">
+        <div class="ins-card-head">
+          <div class="ins-card-icon" style="background:#fee2e2;color:#dc2626"><i class="ti ti-shopping-cart"></i></div>
+          <div class="ins-card-label">Hotmart</div>
+        </div>
+        <div class="ins-card-metric">{{ vendas.hotmart_vendas | num }}</div>
+        <div class="ins-card-sub">{{ vendas.hotmart_receita | brl }} · Ticket: {{ vendas.hotmart_ticket_medio | brl }}</div>
+      </div>
+      <div class="ins-card blue">
+        <div class="ins-card-head">
+          <div class="ins-card-icon" style="background:#ede9fe;color:#7c3aed"><i class="ti ti-shopping-cart"></i></div>
+          <div class="ins-card-label">TMB</div>
+        </div>
+        <div class="ins-card-metric">{{ vendas.tmb_vendas | num }}</div>
+        <div class="ins-card-sub">{{ vendas.tmb_receita | brl }} · Ticket: {{ vendas.tmb_ticket_medio | brl }}</div>
+      </div>
+      <div class="ins-card green">
+        <div class="ins-card-head">
+          <div class="ins-card-icon"><i class="ti ti-check"></i></div>
+          <div class="ins-card-label">Total Geral</div>
+        </div>
+        <div class="ins-card-metric">{{ vendas.total_vendas | num }}</div>
+        <div class="ins-card-sub">{{ vendas.total_receita | brl }} · Ticket médio: {{ vendas.total_ticket_medio | brl }}</div>
+      </div>
+      {% if vendas.pagamento_cartao or vendas.pagamento_pix %}
+      <div class="ins-card purple">
+        <div class="ins-card-head">
+          <div class="ins-card-icon"><i class="ti ti-credit-card"></i></div>
+          <div class="ins-card-label">Métodos (Hotmart)</div>
+        </div>
+        <div class="ins-card-body" style="font-size:14px">
+          💳 Cartão: <strong>{{ vendas.pagamento_cartao | num }}</strong> |
+          ⚡ Pix: <strong>{{ vendas.pagamento_pix | num }}</strong> |
+          📄 Boleto: <strong>{{ vendas.pagamento_boleto | num }}</strong>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  </div>{# .content #}
+  <div class="footing">Gerado em tempo real | Brabo Analytics{% if launch %} — {{ launch.code }}{% endif %}</div>
+</div>
+{% endblock %}

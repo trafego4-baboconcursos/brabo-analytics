@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1><i class="ti ti-brand-google" style="color:var(--google-color)"></i> Google Ads{% if launch %} — {{ launch.code }}{% endif %}</h1>
+      <p>Performance por campanha, etapa de funil e segmentos de público
+        {% if google and google.data_inicio %} | {{ google.data_inicio }} → {{ google.data_fim }}{% endif %}
+      </p>
+    </div>
+  </div>
+  <div class="content">
+    {% if not google %}
+    <div class="no-data">
+      <i class="ti ti-brand-google"></i>
+      <h3>Dados Google Ads não encontrados</h3>
+      <p>Execute o ETL: <code>python etl/etl_google_ads.py --launch-code {{ active_code or 'CÓDIGO' }}</code></p>
+    </div>
+    {% else %}
+
+    {# ── KPIs (design system: tp-kpi) ─────────────────────────────────── #}
+    <div class="tp-kpi-grid">
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon google"><i class="ti ti-coin"></i></div></div>
+        <div class="tp-value">{{ google.total_custo | brl }}</div>
+        <div class="tp-label">Investimento Google</div>
+        <div class="tp-compare">Total investido</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon google"><i class="ti ti-target-arrow"></i></div></div>
+        <div class="tp-value">{{ "%.0f"|format(google.total_conversoes) }}</div>
+        <div class="tp-label">Conversões</div>
+        <div class="tp-compare">CPA médio: {{ google.custo_conv_medio | brl }}</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-player-play"></i></div></div>
+        <div class="tp-value">{{ google.total_visualizacoes | num }}</div>
+        <div class="tp-label">Visualizações</div>
+        <div class="tp-compare">
+          {% if google.total_visualizacoes > 0 %}CPV: {{ (google.total_custo / google.total_visualizacoes) | brl }}{% else %}–{% endif %}
+        </div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-click"></i></div></div>
+        <div class="tp-value">{{ google.total_cliques | num }}</div>
+        <div class="tp-label">Cliques</div>
+        <div class="tp-compare">CTR: {{ google.ctr_medio | pct(2) }}</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-eye"></i></div></div>
+        <div class="tp-value">{{ google.total_impressoes | num }}</div>
+        <div class="tp-label">Impressões</div>
+        <div class="tp-compare">Total de exibições</div>
+      </div>
+    </div>
+
+    {# ── 1. Por Etapa ─────────────────────────────────────────────────── #}
+    {% if google.por_etapa %}
+    <div class="section">
+      <div class="section-title">1. Investimento por Etapa de Funil</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-google">Etapa</th>
+              <th class="th-google">Investimento</th>
+              <th class="th-google">% Verba</th>
+              <th class="th-google">Conversões</th>
+              <th class="th-google">CPA</th>
+              <th class="th-google">Visualizações</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set total = google.total_custo or 1 %}
+            {% for etapa, d in google.por_etapa.items() | sort(attribute='1.custo', reverse=True) %}
+            {% if d.custo > 0 %}
+            <tr>
+              <td><span class="bs-pill google">{{ etapa }}</span></td>
+              <td class="numero">{{ d.custo | brl }}</td>
+              <td>
+                <div class="pbar-wrap">
+                  <div class="pbar-track"><div class="pbar-fill google" style="width:{{ (d.custo / total * 100)|round(1) }}%"></div></div>
+                  <strong class="td-google" style="font-size:12px">{{ (d.custo / total * 100)|pct }}</strong>
+                </div>
+              </td>
+              <td class="numero">{{ "%.0f"|format(d.conversoes) }}</td>
+              <td class="numero">{{ d.custo_conv | brl if d.conversoes > 0 else "–" }}</td>
+              <td class="numero">{{ d.visualizacoes | num if d.visualizacoes > 0 else "–" }}</td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── 2. Campanhas Detalhadas ──────────────────────────────────────── #}
+    {% if google.campanhas %}
+    {% set tipo_classes = {'youtube': 'google', 'search': 'search', 'pmax': 'pmax', 'display': 'display'} %}
+    {% set tipo_labels  = {'youtube': 'YouTube', 'search': 'Search', 'pmax': 'P-Max', 'display': 'Display'} %}
+    <div class="section">
+      <div class="section-title">2. Campanhas Detalhadas</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-google">#</th>
+              <th class="th-google">Campanha</th>
+              <th class="th-google">Etapa</th>
+              <th class="th-google">Tipo</th>
+              <th class="th-google">Custo</th>
+              <th class="th-google">Cliques</th>
+              <th class="th-google">Conv.</th>
+              <th class="th-google">CPA</th>
+              <th class="th-google">Visualizações</th>
+              <th class="th-google">CTR</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in google.campanhas %}
+            <tr class="{{ 'top3' if loop.index <= 3 else '' }}">
+              <td class="numero">{{ loop.index }}</td>
+              <td style="max-width:220px;font-size:12px"><strong>{{ c.nome[:65] }}</strong></td>
+              <td><span class="bs-pill google" style="font-size:10px;padding:1px 6px;border-radius:8px;">{{ c.etapa }}</span></td>
+              <td>
+                {% set tc = tipo_classes.get(c.tipo, 'neutral') %}
+                {% set tl = tipo_labels.get(c.tipo, c.tipo) %}
+                <span class="bs-pill {{ tc }}" style="font-size:10px;padding:1px 6px;border-radius:8px;">{{ tl }}</span>
+              </td>
+              <td class="numero">{{ c.custo | brl }}</td>
+              <td class="numero">{{ c.cliques | num }}</td>
+              <td class="numero"><strong>{{ "%.0f"|format(c.conversoes) }}</strong></td>
+              <td class="numero {{ 'positivo' if c.custo_conv > 0 and c.custo_conv < 30 else ('negativo' if c.custo_conv > 80 else '') }}">
+                {{ c.custo_conv | brl if c.conversoes > 0 else "–" }}
+              </td>
+              <td class="numero">{{ c.visualizacoes | num if c.visualizacoes > 0 else "–" }}</td>
+              <td class="numero">{{ c.ctr | pct(2) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── 3. Por Temperatura (Captação) ───────────────────────────────── #}
+    {% if google.por_temperatura %}
+    {% set temp_vals = google.por_temperatura.values() | list %}
+    {% if temp_vals | map(attribute='custo') | sum > 0 %}
+    <div class="section">
+      <div class="section-title">3. Captação por Temperatura de Público</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-google">Público</th>
+              <th class="th-google">Investimento</th>
+              <th class="th-google">% Verba Captação</th>
+              <th class="th-google">Conversões</th>
+              <th class="th-google">CPA</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set total_cap_t = temp_vals | map(attribute='custo') | sum or 1 %}
+            {% for temp, d in google.por_temperatura.items() | sort(attribute='1.custo', reverse=True) %}
+            {% set temp_class = {'Quente': 'temp-quente', 'Frio': 'temp-frio', 'Específico': 'temp-especifico', 'Outros': 'temp-outros'}.get(temp, 'temp-outros') %}
+            {% set fill_class = {'Quente': 'quente', 'Frio': 'frio', 'Específico': 'especifico', 'Outros': 'outros'}.get(temp, 'outros') %}
+            {% if d.custo > 0 %}
+            <tr>
+              <td><span class="bs-pill {{ temp_class }}">{{ temp }}</span></td>
+              <td class="numero">{{ d.custo | brl }}</td>
+              <td>
+                <div class="pbar-wrap">
+                  <div class="pbar-track"><div class="pbar-fill {{ fill_class }}" style="width:{{ (d.custo / total_cap_t * 100)|round(1) }}%"></div></div>
+                  <strong style="font-size:12px">{{ (d.custo / total_cap_t * 100)|pct }}</strong>
+                </div>
+              </td>
+              <td class="numero">{{ "%.0f"|format(d.conversoes) }}</td>
+              <td class="numero">{{ d.custo_conv | brl if d.conversoes > 0 else "–" }}</td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {# ── 4. Por Segmento (Captação) ──────────────────────────────────── #}
+    {% if google.por_segmento %}
+    {% set seg_vals = google.por_segmento.values() | list %}
+    {% if seg_vals | map(attribute='gasto') | sum > 0 %}
+    <div class="section">
+      <div class="section-title">4. Segmentos de Captação (Temperatura × Bucket)</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-google">Segmento</th>
+              <th class="th-google">Investimento</th>
+              <th class="th-google">% Verba</th>
+              <th class="th-google">Conversões</th>
+              <th class="th-google">CPA</th>
+              <th class="th-google">Campanhas</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set total_seg = seg_vals | map(attribute='gasto') | sum or 1 %}
+            {% for seg, d in google.por_segmento.items() | sort(attribute='1.gasto', reverse=True) %}
+            {% if d.gasto > 0 %}
+            <tr>
+              <td><strong>{{ seg }}</strong></td>
+              <td class="numero">{{ d.gasto | brl }}</td>
+              <td>
+                <div class="pbar-wrap">
+                  <div class="pbar-track"><div class="pbar-fill google" style="width:{{ (d.gasto / total_seg * 100)|round(1) }}%"></div></div>
+                  <strong class="td-google" style="font-size:12px">{{ (d.gasto / total_seg * 100)|pct }}</strong>
+                </div>
+              </td>
+              <td class="numero">{{ "%.0f"|format(d.conversoes) }}</td>
+              <td class="numero">{{ d.custo_conv | brl if d.conversoes > 0 else "–" }}</td>
+              <td class="numero">{{ d.num_campanhas }}</td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    {# ── 5. Ranking de Anúncios (Captação YouTube) ───────────────────── #}
+    {% if google.anuncios_por_ad %}
+    <div class="section">
+      <div class="section-title">5. Ranking de Anúncios — Captação Google</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-google">#</th>
+              {% if drive_thumbnails %}<th class="th-google">Criativo</th>{% endif %}
+              <th class="th-google">AD Code</th>
+              <th class="th-google">Nome do Anúncio</th>
+              <th class="th-google">Leads/Conv.</th>
+              <th class="th-google">CPL</th>
+              <th class="th-google">Investimento</th>
+              <th class="th-google">CTR</th>
+              <th class="th-google">CPM</th>
+              <th class="th-google">Vídeo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in google.anuncios_por_ad %}
+            {% set td = drive_thumbnails.get(a.ad_code) %}
+            <tr class="{{ 'top3' if loop.index <= 3 else '' }}">
+              <td class="numero">{{ loop.index }}</td>
+              {% if drive_thumbnails %}
+              <td style="padding:4px 8px;">
+                {% if td %}
+                <img src="{{ td.thumb }}" alt="{{ a.ad_code }}"
+                     style="width:72px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--bs-border);cursor:pointer;display:block"
+                     data-preview="{{ td.preview }}" data-title="{{ a.ad_code }} — {{ a.nome[:50] }}"
+                     data-gasto="{{ a.gasto | brl }}" data-leads="{{ a.leads | num }}" data-cpl="{{ a.cpl | brl }}"
+                     data-cpm="{{ a.cpm | brl }}" data-ctr="{{ '%.2f'|format(a.ctr) | replace('.', ',') }}"
+                     {% if a.hook_rate is defined and a.hook_rate %}data-hook="{{ '%.2f'|format(a.hook_rate) | replace('.', ',') }}"{% endif %}
+                     {% if a.body_rate is defined and a.body_rate %}data-body="{{ '%.2f'|format(a.body_rate) | replace('.', ',') }}"{% endif %}
+                     onclick="openVideoModalFromEl(this)"
+                     onerror="this.style.display='none'">
+                {% else %}
+                <div style="width:72px;height:48px;border-radius:6px;border:1px dashed var(--bs-border-s);background:var(--bs-surface);display:flex;align-items:center;justify-content:center">
+                  <i class="ti ti-photo-off" style="color:var(--bs-border-s);font-size:18px"></i>
+                </div>
+                {% endif %}
+              </td>
+              {% endif %}
+              <td><span class="bs-pill google">{{ a.ad_code }}</span></td>
+              <td class="td-muted" style="max-width:200px;font-size:11px;">{{ a.nome[:60] }}</td>
+              <td class="numero"><strong>{{ a.leads | num }}</strong></td>
+              <td class="numero {{ 'positivo' if a.cpl > 0 and a.cpl < 5 else ('negativo' if a.cpl > 12 else '') }}">
+                {{ a.cpl | brl if a.leads > 0 else "–" }}
+              </td>
+              <td class="numero">{{ a.gasto | brl }}</td>
+              <td class="numero">{{ a.ctr | pct(2) }}</td>
+              <td class="numero">{{ a.cpm | brl }}</td>
+              <td>
+                {% if a.video_id %}
+                <a href="https://www.youtube.com/watch?v={{ a.video_id }}" target="_blank" class="td-google" style="font-size:11px;text-decoration:none">
+                  <i class="ti ti-brand-youtube"></i> ver
+                </a>
+                {% else %}–{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {% endif %}{# end if google #}
+  </div>
+  <div class="footing">Gerado em tempo real | Brabo Analytics{% if launch %} — {{ launch.code }}{% endif %}</div>
+</div>
+{% endblock %}

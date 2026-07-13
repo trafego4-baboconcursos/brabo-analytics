@@ -1,0 +1,291 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1><i class="ti ti-file-text"></i> Análise de Vendas &mdash; TMB (Boleto / Pix){% if launch %} &mdash; {{ launch.code }}{% endif %}</h1>
+      <p>Visão de transações geradas via boleto e Pix parcelado: volumes, cancelamentos, e origens de conversão da TMB.</p>
+    </div>
+  </div>
+
+  <div class="content">
+    {% if not tmb or not tmb.has_data %}
+    <div class="no-data">
+      <i class="ti ti-file-check"></i>
+      <h3>Dados da TMB não disponíveis</h3>
+      <p>Adicione em <code>analises/[{{ active_code or 'CODIGO' }}]/Vendas/*tmb*.csv</code></p>
+    </div>
+    {% else %}
+
+    <!-- KPIs da TMB (design system: tp-kpi) -->
+    <div class="tp-kpi-grid">
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-file-invoice"></i></div></div>
+        <div class="tp-value">{{ tmb.total_vendas | num }}</div>
+        <div class="tp-label">Boletos Vigentes</div>
+        <div class="tp-compare">Pedidos pagos / ativos</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-cash"></i></div></div>
+        <div class="tp-value">{{ tmb.faturamento | brl }}</div>
+        <div class="tp-label">Faturamento TMB</div>
+        <div class="tp-compare">Ticket médio: {{ tmb.ticket_medio | brl }}</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon danger"><i class="ti ti-alert-triangle"></i></div></div>
+        <div class="tp-value negativo">{{ tmb.taxa_cancelamento | pct }}</div>
+        <div class="tp-label">Taxa Cancelamento</div>
+        <div class="tp-compare">{{ tmb.total_cancelados | num }} de {{ tmb.total_emitidos | num }} emitidos</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon warning"><i class="ti ti-coin"></i></div></div>
+        <div class="tp-value">{{ tmb.ticket_medio | brl }}</div>
+        <div class="tp-label">Ticket Médio</div>
+        <div class="tp-compare">Boleto / Pix parcelado</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-calendar-bolt"></i></div></div>
+        <div class="tp-value">{{ tmb.vendas_d1_pct | pct }}</div>
+        <div class="tp-label">Vendas em D1</div>
+        <div class="tp-compare">{{ tmb.vendas_d1 | num }} vendas no primeiro dia</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-tags"></i></div></div>
+        <div class="tp-value">{{ tmb.com_utm_pct | pct }}</div>
+        <div class="tp-label">Com UTM Registrado</div>
+        <div class="tp-compare">{{ tmb.com_utm_qtd | num }} vendas com source</div>
+      </div>
+    </div>
+
+    <!-- Timeline de Vendas -->
+    <div class="section">
+      <div class="section-title">📅 Timeline de Vendas</div>
+      <div class="note info">Abertura de vendas diárias processadas via TMB (Boleto/Pix parcelado).</div>
+      
+      <div class="highlights">
+        <!-- Tabela -->
+        <div class="highlight-box" style="flex:1.5;">
+          <div class="table-wrap" style="border:none; margin-top:0;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th class="th-num">Vendas</th>
+                  <th class="th-num">Faturamento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in tmb.timeline %}
+                <tr {% if r.is_d1 %}class="top3"{% endif %}>
+                  <td>
+                    <strong>{{ r.data_str }}</strong>
+                    {% if r.is_d1 %} 🚀 Abertura{% endif %}
+                  </td>
+                  <td class="numero">
+                    <strong>{{ r.vendas | num }}</strong>
+                    <div class="pbar-wrap" style="width:100%;"><div class="pbar-track" style="max-width:80px; height:4px;"><div class="pbar-fill" style="width:{{ r.vendas * 3 }}%; {% if r.is_d1 %}background:var(--bs-accent);{% else %}background:#9ca3af;{% endif %}"></div></div></div>
+                  </td>
+                  <td class="numero">{{ r.faturamento | brl }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Cards D1 vs Cauda -->
+        <div class="highlight-box">
+          <h3>Abertura D1 vs Cauda</h3>
+          
+          {% set total_v = tmb.total_vendas or 1 %}
+          {% set d1_v = tmb.vendas_d1 %}
+          {% set d1_f = 0 %}
+          {% for r in tmb.timeline %}
+            {% if r.is_d1 %}
+              {% set d1_f = r.faturamento %}
+            {% endif %}
+          {% endfor %}
+          {% set d1_v_pct = tmb.vendas_d1_pct %}
+          {% set cauda_v = total_v - d1_v %}
+          {% set cauda_f = tmb.faturamento - d1_f %}
+          {% set cauda_v_pct = 100 - d1_v_pct %}
+
+          <div style="margin-bottom:16px;">
+            <div class="label" style="font-size: 11px; text-transform: uppercase; color: var(--bs-ink-muted);">Abertura (D1)</div>
+            <div style="font-size:24px; font-weight:800; color:var(--bs-accent);">{{ d1_v | num }} vendas</div>
+            <div class="pbar-track" style="width:100%; height:8px; margin-top:4px;"><div class="pbar-fill" style="width:{{ d1_v_pct }}%;"></div></div>
+            <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:4px;">{{ d1_v_pct | pct }} do total · {{ d1_f | brl }}</div>
+          </div>
+          
+          <hr style="border:none; border-top:1px solid var(--bs-border); margin:16px 0;">
+          
+          <div>
+            <div class="label" style="font-size: 11px; text-transform: uppercase; color: var(--bs-ink-muted);">Cauda Pós-Abertura</div>
+            <div style="font-size:24px; font-weight:800; color:var(--bs-ink-muted);">{{ cauda_v | num }} vendas</div>
+            <div class="pbar-track" style="width:100%; height:8px; margin-top:4px; background:#e5e7eb;"><div class="pbar-fill" style="width:{{ cauda_v_pct }}%; background:#9ca3af;"></div></div>
+            <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:4px;">{{ cauda_v_pct | pct }} do total · {{ cauda_f | brl }}</div>
+          </div>
+          
+          <div class="note info" style="margin-top:20px; font-size:12px;">
+            <strong>⚡ Boleto / Pix Comercial</strong><br>
+            A TMB gerencia o faturamento alternativo ao cartão direto da Hotmart. Esse timeline demonstra o trabalho de repescagem de leads que não possuíam limite no cartão.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status dos Pedidos & Cancelamentos -->
+    <div class="section">
+      <div class="section-title">✅ Status dos Pedidos & Cancelamentos</div>
+      <div class="note warning">De {{ tmb.total_emitidos | num }} boletos/Pix gerados no período, {{ tmb.total_cancelados | num }} foram cancelados ou expiraram.</div>
+      
+      <div class="metrics-grid" style="grid-template-columns: repeat(3, 1fr); gap: 16px;">
+        <div class="metric-card" style="border-top: 4px solid var(--bs-success); background:var(--bs-success-bg);">
+          <div class="label" style="color:var(--bs-success); font-weight:700;">Vigentes (Pagos)</div>
+          <div class="value" style="color:var(--bs-success); font-size:32px;">{{ tmb.total_vendas | num }}</div>
+          <div class="pbar-track" style="width:60%; margin:8px auto 4px; height:6px;"><div class="pbar-fill" style="width:{{ (tmb.total_vendas/tmb.total_emitidos*100) if tmb.total_emitidos > 0 else 0 }}%; background:var(--bs-success);"></div></div>
+          <div class="subtext" style="color:var(--bs-success);">{{ ((tmb.total_vendas/tmb.total_emitidos*100) if tmb.total_emitidos > 0 else 0) | pct(1) }} das emissões</div>
+        </div>
+        
+        <div class="metric-card" style="border-top: 4px solid var(--bs-danger); background:var(--bs-danger-bg);">
+          <div class="label" style="color:var(--bs-danger); font-weight:700;">Cancelados / Expirados</div>
+          <div class="value" style="color:var(--bs-danger); font-size:32px;">{{ tmb.total_cancelados | num }}</div>
+          <div class="pbar-track" style="width:60%; margin:8px auto 4px; height:6px; background:#fca5a5;"><div class="pbar-fill" style="width:{{ tmb.taxa_cancelamento }}%; background:var(--bs-danger);"></div></div>
+          <div class="subtext" style="color:var(--bs-danger);">{{ tmb.taxa_cancelamento | pct(1) }} das emissões</div>
+        </div>
+
+        <div class="metric-card" style="border-top: 4px solid var(--bs-info); background:var(--bs-info-bg);">
+          <div class="label" style="color:var(--bs-info); font-weight:700;">Benchmark de Inadimplência</div>
+          <div class="value" style="color:var(--bs-info); font-size:26px;">15% a 25%</div>
+          <div class="subtext" style="color:var(--bs-info); margin-top:8px;">Taxa padrão do mercado de infoprodutos</div>
+          <div style="font-size:11px; font-weight:800; color:var(--bs-success); margin-top:6px;">Nossa Taxa: {{ tmb.taxa_cancelamento | pct }} ✅</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ofertas -->
+    <div class="section">
+      <div class="section-title">🎯 Estrutura de Ofertas (TMB)</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Nome da Oferta</th>
+              <th>Tipo</th>
+              <th class="th-num">Qtd</th>
+              <th class="th-num">Faturamento</th>
+              <th class="th-num">Ticket Médio</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in tmb.ofertas %}
+            <tr>
+              <td><strong>{{ r.nome }}</strong></td>
+              <td>
+                {% if r.tipo == 'Lead' %}
+                <span class="bs-badge success">Lead</span>
+                {% elif r.tipo == 'Upsell' %}
+                <span class="bs-badge warning">Upsell</span>
+                {% else %}
+                <span class="bs-badge neutral">{{ r.tipo }}</span>
+                {% endif %}
+              </td>
+              <td class="numero">{{ r.qtd | num }}</td>
+              <td class="numero">{{ r.faturamento | brl }}</td>
+              <td class="numero">{{ r.ticket_medio | brl }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Origens UTM TMB -->
+    <div class="section">
+      <div class="section-title">🧭 Origem UTM das Vendas TMB</div>
+      <div class="note info">Fontes registradas diretamente na plataforma TMB no momento da emissão do pedido.</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>utm_source</th>
+              <th class="th-num">Qtd de Vendas</th>
+              <th class="th-num">% das Vendas</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in tmb.utm_sources %}
+            <tr>
+              <td><strong>{{ r.source }}</strong></td>
+              <td class="numero">{{ r.qtd | num }}</td>
+              <td class="numero">{{ r.pct | pct(1) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Geografia -->
+    <div class="section">
+      <div class="section-title">🗺️ Geografia das Vendas TMB</div>
+      <div class="highlights">
+        <!-- Estados -->
+        <div class="highlight-box">
+          <h3>Top 10 Estados</h3>
+          <div class="table-wrap" style="border:none; margin-top:0;">
+            <table>
+              <thead>
+                <tr>
+                  <th>UF</th>
+                  <th class="th-num">Vendas</th>
+                  <th class="th-num">Faturamento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in tmb.estados %}
+                <tr>
+                  <td><strong>{{ r.estado }}</strong></td>
+                  <td class="numero">{{ r.qtd | num }}</td>
+                  <td class="numero">{{ r.faturamento | brl }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Cidades -->
+        <div class="highlight-box">
+          <h3>Top 10 Cidades</h3>
+          <div class="table-wrap" style="border:none; margin-top:0;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Cidade</th>
+                  <th class="th-num">Vendas</th>
+                  <th class="th-num">Faturamento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in tmb.cidades %}
+                <tr>
+                  <td><strong>{{ r.cidade }}</strong></td>
+                  <td class="numero">{{ r.qtd | num }}</td>
+                  <td class="numero">{{ r.faturamento | brl }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% endif %}
+  </div>
+
+  <div class="footing">Gerado em tempo real via Brabo Analytics{% if launch %} &mdash; {{ launch.code }}{% endif %}</div>
+</div>
+{% endblock %}

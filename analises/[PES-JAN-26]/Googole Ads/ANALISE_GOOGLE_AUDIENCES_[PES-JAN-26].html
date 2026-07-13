@@ -1,0 +1,560 @@
+
+        <!DOCTYPE html>
+        <html lang="pt-BR">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Análise de Públicos e Temperaturas - Google Ads</title>
+            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+            <style>
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f5f7fa; color: #333; }
+                .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+                
+                .header { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: #333; padding: 30px; border-radius: 10px; margin-bottom: 30px; }
+                .header h1 { font-size: 32px; margin-bottom: 5px; }
+                .header p { font-size: 14px; opacity: 0.8; }
+                
+                .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; }
+                .stat-card { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 4px solid #fa709a; }
+                .stat-card h3 { font-size: 12px; color: #999; text-transform: uppercase; margin-bottom: 10px; }
+                .stat-card .value { font-size: 28px; font-weight: bold; color: #fa709a; }
+                
+                .temperatures { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px; }
+                .temp-card { padding: 20px; border-radius: 10px; color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+                .temp-card h3 { font-size: 18px; margin-bottom: 15px; }
+                .temp-card .metric { display: flex; justify-content: space-between; margin: 8px 0; font-size: 14px; }
+                
+                .quente { background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%); }
+                .morno { background: linear-gradient(135deg, #f39c12 0%, #f1c40f 100%); }
+                .frio { background: linear-gradient(135deg, #3498db 0%, #2980b9 100%); }
+                
+                .chart-container { background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 30px; position: relative; height: 400px; }
+                .chart-container h3 { margin-bottom: 20px; color: #333; }
+                
+                table { width: 100%; background: white; border-collapse: collapse; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 30px; }
+                thead { background: #f8f9fa; }
+                th { padding: 15px; text-align: left; font-weight: 600; border-bottom: 2px solid #e9ecef; font-size: 13px; color: #666; text-transform: uppercase; }
+                td { padding: 12px 15px; border-bottom: 1px solid #e9ecef; }
+                tr:hover { background: #f8f9fa; }
+                
+                .metric { font-weight: 600; }
+                
+                .footer { text-align: center; color: #999; font-size: 12px; padding-top: 20px; border-top: 1px solid #e9ecef; }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🌡️ Análise de Públicos e Temperaturas - Google Ads</h1>
+                    <p>Segmentação por Temperatura de Público [PI-JAN-26]</p>
+                    <p>Período: 1º de dezembro de 2025 - 31 de janeiro de 2026</p>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Total de Impressões</h3>
+                        <div class="value">28.794.412</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total de Cliques</h3>
+                        <div class="value">713.885</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Investimento Total</h3>
+                        <div class="value">R$ 518.508,45</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>CTR Médio</h3>
+                        <div class="value">2.48%</div>
+                    </div>
+                </div>
+                
+                <h2 style="margin: 30px 0 20px 0;">🌡️ Performance por Temperatura</h2>
+                <div class="temperatures">
+        
+                    <div class="temp-card quente">
+                        <h3>🔥 Público QUENTE</h3>
+                        <div class="metric">
+                            <span>Impressões:</span>
+                            <strong>12.423.286</strong>
+                        </div>
+                        <div class="metric">
+                            <span>Cliques:</span>
+                            <strong>376.610</strong>
+                        </div>
+                        <div class="metric">
+                            <span>CTR:</span>
+                            <strong>3.03%</strong>
+                        </div>
+                        <div class="metric">
+                            <span>Custo:</span>
+                            <strong>R$ 238.226,73</strong>
+                        </div>
+                        <div class="metric">
+                            <span>CPC:</span>
+                            <strong style="color: white; font-size: 18px;">R$ 0,63</strong>
+                        </div>
+                    </div>
+                
+                    <div class="temp-card morno">
+                        <h3>⚠️ Público MORNO</h3>
+                        <div class="metric">
+                            <span>Impressões:</span>
+                            <strong>6.300.149</strong>
+                        </div>
+                        <div class="metric">
+                            <span>Cliques:</span>
+                            <strong>200.876</strong>
+                        </div>
+                        <div class="metric">
+                            <span>CTR:</span>
+                            <strong>3.19%</strong>
+                        </div>
+                        <div class="metric">
+                            <span>Custo:</span>
+                            <strong>R$ 127.857,61</strong>
+                        </div>
+                        <div class="metric">
+                            <span>CPC:</span>
+                            <strong style="color: white; font-size: 18px;">R$ 0,64</strong>
+                        </div>
+                    </div>
+                
+                    <div class="temp-card frio">
+                        <h3>❄️ Público FRIO</h3>
+                        <div class="metric">
+                            <span>Impressões:</span>
+                            <strong>9.560.262</strong>
+                        </div>
+                        <div class="metric">
+                            <span>Cliques:</span>
+                            <strong>133.428</strong>
+                        </div>
+                        <div class="metric">
+                            <span>CTR:</span>
+                            <strong>1.40%</strong>
+                        </div>
+                        <div class="metric">
+                            <span>Custo:</span>
+                            <strong>R$ 129.784,68</strong>
+                        </div>
+                        <div class="metric">
+                            <span>CPC:</span>
+                            <strong style="color: white; font-size: 18px;">R$ 0,97</strong>
+                        </div>
+                    </div>
+                
+                </div>
+                
+                <div class="chart-container">
+                    <h3>📈 Conversões por Temperatura</h3>
+                    <canvas id="conversionChart"></canvas>
+                </div>
+                
+                <div class="chart-container">
+                    <h3>💰 Investimento vs Conversões</h3>
+                    <canvas id="investmentChart"></canvas>
+                </div>
+                
+                <h2 style="margin: 30px 0 20px 0;">📋 Detalhamento por Campanha</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Campanha</th>
+                            <th>Temperatura</th>
+                            <th>Impressões</th>
+                            <th>Cliques</th>
+                            <th>CTR</th>
+                            <th>Custo</th>
+                            <th>Conversões</th>
+                            <th>CPL</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+        
+                        <tr>
+                            <td><strong>[Captação] Público Quente Principal [PI-JAN-26] - </strong></td>
+                            <td>🔥 QUENTE</td>
+                            <td class="metric">3.398.953</td>
+                            <td class="metric">198.283</td>
+                            <td class="metric">5.83%</td>
+                            <td class="metric">R$ 124.305,67</td>
+                            <td class="metric" style="color: #28a745;">198.283</td>
+                            <td class="metric">R$ 0,63</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>[Captação] Público Quente Potencial [PI-JAN-26] - </strong></td>
+                            <td>🔥 QUENTE</td>
+                            <td class="metric">2.807.336</td>
+                            <td class="metric">134.847</td>
+                            <td class="metric">4.80%</td>
+                            <td class="metric">R$ 67.274,25</td>
+                            <td class="metric" style="color: #28a745;">134.847</td>
+                            <td class="metric">R$ 0,50</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>[Captação] Público Específico Principal [PI-JAN-26</strong></td>
+                            <td>⚠️ MORNO</td>
+                            <td class="metric">2.975.469</td>
+                            <td class="metric">118.856</td>
+                            <td class="metric">3.99%</td>
+                            <td class="metric">R$ 83.238,52</td>
+                            <td class="metric" style="color: #28a745;">118.856</td>
+                            <td class="metric">R$ 0,70</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>[Captação] Público Frio Principal [PI-JAN-26] - 29</strong></td>
+                            <td>❄️ FRIO</td>
+                            <td class="metric">2.208.006</td>
+                            <td class="metric">64.110</td>
+                            <td class="metric">2.90%</td>
+                            <td class="metric">R$ 32.313,14</td>
+                            <td class="metric" style="color: #28a745;">64.110</td>
+                            <td class="metric">R$ 0,50</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>[Captação] Público Específico Potencial [PI-JAN-26</strong></td>
+                            <td>⚠️ MORNO</td>
+                            <td class="metric">2.003.480</td>
+                            <td class="metric">61.103</td>
+                            <td class="metric">3.05%</td>
+                            <td class="metric">R$ 29.915,55</td>
+                            <td class="metric" style="color: #28a745;">61.103</td>
+                            <td class="metric">R$ 0,49</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>[Captação] Público Frio Estudio [PI-JAN-26] - 02.0</strong></td>
+                            <td>❄️ FRIO</td>
+                            <td class="metric">1.758.489</td>
+                            <td class="metric">41.289</td>
+                            <td class="metric">2.35%</td>
+                            <td class="metric">R$ 19.377,97</td>
+                            <td class="metric" style="color: #28a745;">41.289</td>
+                            <td class="metric">R$ 0,47</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>[Captação] Público Quente Estudio [PI-JAN-26] - 02</strong></td>
+                            <td>🔥 QUENTE</td>
+                            <td class="metric">1.394.944</td>
+                            <td class="metric">31.954</td>
+                            <td class="metric">2.29%</td>
+                            <td class="metric">R$ 21.355,87</td>
+                            <td class="metric" style="color: #28a745;">31.954</td>
+                            <td class="metric">R$ 0,67</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>[Captação] Público Frio Potencial [PI-JAN-26] - 29</strong></td>
+                            <td>❄️ FRIO</td>
+                            <td class="metric">1.377.607</td>
+                            <td class="metric">24.180</td>
+                            <td class="metric">1.76%</td>
+                            <td class="metric">R$ 13.010,40</td>
+                            <td class="metric" style="color: #28a745;">24.180</td>
+                            <td class="metric">R$ 0,54</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>[Captação] Público Específico Estudio [PI-JAN-26] </strong></td>
+                            <td>⚠️ MORNO</td>
+                            <td class="metric">811.317</td>
+                            <td class="metric">14.385</td>
+                            <td class="metric">1.77%</td>
+                            <td class="metric">R$ 10.041,15</td>
+                            <td class="metric" style="color: #28a745;">14.385</td>
+                            <td class="metric">R$ 0,70</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>[Captação] Público Quente Teste [PI-JAN-26] - 09.0</strong></td>
+                            <td>🔥 QUENTE</td>
+                            <td class="metric">653.936</td>
+                            <td class="metric">11.260</td>
+                            <td class="metric">1.72%</td>
+                            <td class="metric">R$ 9.926,63</td>
+                            <td class="metric" style="color: #28a745;">11.260</td>
+                            <td class="metric">R$ 0,88</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>[Captação] Público Específico Teste [PI-JAN-26] - </strong></td>
+                            <td>⚠️ MORNO</td>
+                            <td class="metric">509.883</td>
+                            <td class="metric">6.532</td>
+                            <td class="metric">1.28%</td>
+                            <td class="metric">R$ 4.662,39</td>
+                            <td class="metric" style="color: #28a745;">6.532</td>
+                            <td class="metric">R$ 0,71</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>[Captação] Público Frio Teste [PI-JAN-26] - 09.01.</strong></td>
+                            <td>❄️ FRIO</td>
+                            <td class="metric">253.304</td>
+                            <td class="metric">2.884</td>
+                            <td class="metric">1.14%</td>
+                            <td class="metric">R$ 2.215,83</td>
+                            <td class="metric" style="color: #28a745;">2.884</td>
+                            <td class="metric">R$ 0,77</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>[Alcance] Lembrete [PI-JAN-26] - 08.07.25</strong></td>
+                            <td>• OUTRO</td>
+                            <td class="metric">280.425</td>
+                            <td class="metric">1.066</td>
+                            <td class="metric">0.38%</td>
+                            <td class="metric">R$ 6.068,51</td>
+                            <td class="metric" style="color: #28a745;">1.066</td>
+                            <td class="metric">R$ 5,69</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>[RMK] AULA 4 [PI-JAN-26] - 14.01.26</strong></td>
+                            <td>• OUTRO</td>
+                            <td class="metric">100.854</td>
+                            <td class="metric">811</td>
+                            <td class="metric">0.80%</td>
+                            <td class="metric">R$ 6.304,61</td>
+                            <td class="metric" style="color: #28a745;">811</td>
+                            <td class="metric">R$ 7,77</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>Pré-qualificação: FRIO - [PI-JAN-26] - 16.12.25</strong></td>
+                            <td>❄️ FRIO</td>
+                            <td class="metric">3.351.137</td>
+                            <td class="metric">714</td>
+                            <td class="metric">0.02%</td>
+                            <td class="metric">R$ 54.625,36</td>
+                            <td class="metric" style="color: #28a745;">714</td>
+                            <td class="metric">R$ 76,51</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>[RMK] AULA 2 [PI-JAN-26] - 13.01.26</strong></td>
+                            <td>• OUTRO</td>
+                            <td class="metric">26.496</td>
+                            <td class="metric">275</td>
+                            <td class="metric">1.04%</td>
+                            <td class="metric">R$ 2.170,18</td>
+                            <td class="metric" style="color: #28a745;">275</td>
+                            <td class="metric">R$ 7,89</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>[RMK] AULA 3 [PI-JAN-26] - 14.01.26</strong></td>
+                            <td>• OUTRO</td>
+                            <td class="metric">29.317</td>
+                            <td class="metric">222</td>
+                            <td class="metric">0.76%</td>
+                            <td class="metric">R$ 3.192,33</td>
+                            <td class="metric" style="color: #28a745;">222</td>
+                            <td class="metric">R$ 14,38</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>[RMK] AULA 1 [PI-JAN-26] - 12.01.26</strong></td>
+                            <td>• OUTRO</td>
+                            <td class="metric">17.829</td>
+                            <td class="metric">216</td>
+                            <td class="metric">1.21%</td>
+                            <td class="metric">R$ 3.674,86</td>
+                            <td class="metric" style="color: #28a745;">216</td>
+                            <td class="metric">R$ 17,01</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>[RMK] Replay AULA 3 [PI-JAN-26] - 15.01.26</strong></td>
+                            <td>• OUTRO</td>
+                            <td class="metric">36.335</td>
+                            <td class="metric">184</td>
+                            <td class="metric">0.51%</td>
+                            <td class="metric">R$ 517,94</td>
+                            <td class="metric" style="color: #28a745;">184</td>
+                            <td class="metric">R$ 2,81</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>[RMK] Replay AULA 1 [PI-JAN-26] - 13.01.26</strong></td>
+                            <td>• OUTRO</td>
+                            <td class="metric">15.673</td>
+                            <td class="metric">175</td>
+                            <td class="metric">1.12%</td>
+                            <td class="metric">R$ 656,32</td>
+                            <td class="metric" style="color: #28a745;">175</td>
+                            <td class="metric">R$ 3,75</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>Pré-qualificação: FRIO AD05 - [PI-JAN-26] - 16.12.</strong></td>
+                            <td>❄️ FRIO</td>
+                            <td class="metric">480.803</td>
+                            <td class="metric">160</td>
+                            <td class="metric">0.03%</td>
+                            <td class="metric">R$ 6.135,36</td>
+                            <td class="metric" style="color: #28a745;">160</td>
+                            <td class="metric">R$ 38,35</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>Pré-qualificação: QUENTE - [PI-JAN-26] - 16.12.25</strong></td>
+                            <td>🔥 QUENTE</td>
+                            <td class="metric">1.535.623</td>
+                            <td class="metric">156</td>
+                            <td class="metric">0.01%</td>
+                            <td class="metric">R$ 6.448,46</td>
+                            <td class="metric" style="color: #28a745;">156</td>
+                            <td class="metric">R$ 41,34</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>Pré-qualificação: QUENTE AD05 - [PI-JAN-26] - 16.1</strong></td>
+                            <td>🔥 QUENTE</td>
+                            <td class="metric">2.621.129</td>
+                            <td class="metric">110</td>
+                            <td class="metric">0.00%</td>
+                            <td class="metric">R$ 8.857,08</td>
+                            <td class="metric" style="color: #28a745;">110</td>
+                            <td class="metric">R$ 80,52</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>Pré-qualificação: FRIO AD05 - [PI-JAN-26] - 16.06.</strong></td>
+                            <td>❄️ FRIO</td>
+                            <td class="metric">80.348</td>
+                            <td class="metric">88</td>
+                            <td class="metric">0.11%</td>
+                            <td class="metric">R$ 1.944,43</td>
+                            <td class="metric" style="color: #28a745;">88</td>
+                            <td class="metric">R$ 22,10</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>[RMK] Replay AULA 2 [PI-JAN-26] - 14.01.26</strong></td>
+                            <td>• OUTRO</td>
+                            <td class="metric">3.785</td>
+                            <td class="metric">22</td>
+                            <td class="metric">0.58%</td>
+                            <td class="metric">R$ 54,68</td>
+                            <td class="metric" style="color: #28a745;">22</td>
+                            <td class="metric">R$ 2,49</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>[EV] Pré-qualificação: Frio AD05 - [PI-JAN-26] - 1</strong></td>
+                            <td>❄️ FRIO</td>
+                            <td class="metric">3.560</td>
+                            <td class="metric">3</td>
+                            <td class="metric">0.08%</td>
+                            <td class="metric">R$ 43,81</td>
+                            <td class="metric" style="color: #28a745;">3</td>
+                            <td class="metric">R$ 14,60</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>[ALCANCE] Pré-qualificação: FRIO AD05 - [PI-JAN-26</strong></td>
+                            <td>❄️ FRIO</td>
+                            <td class="metric">21.538</td>
+                            <td class="metric">0</td>
+                            <td class="metric">0.00%</td>
+                            <td class="metric">R$ 44,33</td>
+                            <td class="metric" style="color: #28a745;">0</td>
+                            <td class="metric">R$ inf</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>[ALCANCE] Pré-qualificação: QUENTE - [PI-JAN-26] -</strong></td>
+                            <td>🔥 QUENTE</td>
+                            <td class="metric">3.903</td>
+                            <td class="metric">0</td>
+                            <td class="metric">0.00%</td>
+                            <td class="metric">R$ 6,38</td>
+                            <td class="metric" style="color: #28a745;">0</td>
+                            <td class="metric">R$ inf</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>[ALCANCE] Pré-qualificação: QUENTE AD05 - [PI-JAN-</strong></td>
+                            <td>🔥 QUENTE</td>
+                            <td class="metric">5.210</td>
+                            <td class="metric">0</td>
+                            <td class="metric">0.00%</td>
+                            <td class="metric">R$ 9,47</td>
+                            <td class="metric" style="color: #28a745;">0</td>
+                            <td class="metric">R$ inf</td>
+                        </tr>
+            
+                        <tr>
+                            <td><strong>[ALCANCE] Pré-qualificação: FRIO - [PI-JAN-26] - 1</strong></td>
+                            <td>❄️ FRIO</td>
+                            <td class="metric">22.491</td>
+                            <td class="metric">0</td>
+                            <td class="metric">0.00%</td>
+                            <td class="metric">R$ 32,07</td>
+                            <td class="metric" style="color: #28a745;">0</td>
+                            <td class="metric">R$ inf</td>
+                        </tr>
+            
+                    </tbody>
+                </table>
+                
+                <div class="footer">
+                    <p>Relatório gerado automaticamente | Dados de Google Ads</p>
+                </div>
+            </div>
+            
+            <script>
+        
+                const temperatures = [{"Temperatura":"FRIO","Cliques":133428.0,"Custo":129784.68},{"Temperatura":"MORNO","Cliques":200876.105,"Custo":127857.61},{"Temperatura":"OUTRO","Cliques":2971.0,"Custo":22639.43},{"Temperatura":"QUENTE","Cliques":376609.771,"Custo":238226.73}];
+                
+                const convCtx = document.getElementById('conversionChart').getContext('2d');
+                new Chart(convCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: temperatures.map(t => t.Temperatura),
+                        datasets: [{
+                            label: 'Cliques',
+                            data: temperatures.map(t => t.Cliques),
+                            backgroundColor: ['#f5576c', '#f39c12', '#3498db'],
+                            borderRadius: 5
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } }
+                    }
+                });
+                
+                const invCtx = document.getElementById('investmentChart').getContext('2d');
+                new Chart(invCtx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: [{
+                            label: 'Temperaturas',
+                            data: temperatures.map(t => ({ x: t.Custo, y: t.Cliques })),
+                            backgroundColor: ['#f5576c', '#f39c12', '#3498db'],
+                            pointRadius: 12
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: { title: { display: true, text: 'Custo (R$)' } },
+                            y: { title: { display: true, text: 'Cliques' } }
+                        }
+                    }
+                });
+            </script>
+        </body>
+        </html>
+        

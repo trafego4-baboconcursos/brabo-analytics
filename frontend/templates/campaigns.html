@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Header Dinâmico -->
+<div class="hdr" style="background: white; padding: 24px 30px; border-radius: var(--bs-r-lg); border: 1px solid var(--bs-border); margin-bottom: 20px; box-shadow: var(--bs-sh-sm); display: flex; align-items: center; gap: 15px;">
+  <div style="background: var(--bs-accent); width: 44px; height: 44px; border-radius: var(--bs-r-md); display: grid; place-items: center; color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
+    <i class="ti ti-ad" style="font-size: 22px;"></i>
+  </div>
+  <div>
+    <h1 style="font-family: 'Inter', sans-serif; font-weight: 800; font-size: 1.8rem; color: var(--bs-ink); letter-spacing: -0.02em; line-height: 1.2;">Performance de Mídia Paga</h1>
+    <p style="color: var(--bs-ink-muted); margin-top: 3px; font-size: 0.95rem;">
+      Resultados de tráfego por plataforma e nível de funil de públicos.
+    </p>
+  </div>
+</div>
+
+<!-- Seção Meta Ads -->
+<div class="bs-card">
+  <div class="bs-card-title" style="border-bottom-color: var(--meta-color);">
+    <i class="ti ti-brand-meta" style="color: var(--meta-color); font-size: 20px;"></i> Meta Ads (Facebook & Instagram)
+  </div>
+  
+  <div class="bs-stat-row" style="margin-top: 15px;">
+    {% set fb_buyers = 0 %}
+    {% set fb_revenue = 0.0 %}
+    {% for row in data.distribution %}
+      {% if 'Facebook' in row.source or 'FB' in row.source %}
+        {% set fb_buyers = fb_buyers + row.buyers %}
+        {% set fb_revenue = fb_revenue + row.revenue %}
+      {% endif %}
+    {% endfor %}
+    {% set fb_spend = data.summary.fb_spend or 0.0 %}
+    {% set fb_roas = fb_revenue / fb_spend if fb_spend > 0 else 0.0 %}
+
+    <div class="bs-stat" style="border-top-color: var(--meta-color);">
+      <div class="bs-stat-label">Gasto Facebook</div>
+      <div class="bs-stat-value">R$ {{ "%.2f"|format(fb_spend) }}</div>
+    </div>
+    <div class="bs-stat" style="border-top-color: var(--bs-success);">
+      <div class="bs-stat-label">Receita Atribuída</div>
+      <div class="bs-stat-value">R$ {{ "%.2f"|format(fb_revenue) }}</div>
+    </div>
+    <div class="bs-stat" style="border-top-color: var(--bs-warning);">
+      <div class="bs-stat-label">ROAS Meta</div>
+      <div class="bs-stat-value" style="color: var(--bs-success);">{{ "%.2f"|format(fb_roas) }}x</div>
+    </div>
+  </div>
+
+  <div class="bs-table-wrap">
+    <table class="bs-table">
+      <thead>
+        <tr>
+          <th>Público Meta Ads</th>
+          <th style="text-align: right;">Compradores</th>
+          <th style="text-align: right;">Investimento</th>
+          <th style="text-align: right;">Faturamento</th>
+          <th style="text-align: right;">ROAS</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in data.distribution %}
+        {% if 'Facebook' in row.source or 'FB' in row.source %}
+        <tr>
+          <td><strong>{{ row.source }}</strong></td>
+          <td style="text-align: right;">{{ row.buyers }}</td>
+          <td style="text-align: right;" class="text-muted">R$ {{ "%.2f"|format(row.spend or 0.0) }}</td>
+          <td style="text-align: right; font-weight: 600;">R$ {{ "%.2f"|format(row.revenue or 0.0) }}</td>
+          <td style="text-align: right; font-weight: 700;" class="{% if row.roas >= 2.0 %}text-success{% elif row.roas > 0 and row.roas < 1.0 %}text-danger{% endif %}">
+            {{ "%.2f"|format(row.roas or 0.0) }}x
+          </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Seção Google Ads / YouTube -->
+<div class="bs-card">
+  <div class="bs-card-title" style="border-bottom-color: var(--google-color);">
+    <i class="ti ti-brand-google" style="color: var(--google-color); font-size: 20px;"></i> Google Ads (YouTube & Search)
+  </div>
+
+  <div class="bs-stat-row" style="margin-top: 15px;">
+    {% set yt_buyers = 0 %}
+    {% set yt_revenue = 0.0 %}
+    {% for row in data.distribution %}
+      {% if 'YouTube' in row.source or 'YT' in row.source or 'Google' in row.source %}
+        {% set yt_buyers = yt_buyers + row.buyers %}
+        {% set yt_revenue = yt_revenue + row.revenue %}
+      {% endif %}
+    {% endfor %}
+    {% set yt_spend = data.summary.yt_spend or 0.0 %}
+    {% set yt_roas = yt_revenue / yt_spend if yt_spend > 0 else 0.0 %}
+
+    <div class="bs-stat" style="border-top-color: var(--google-color);">
+      <div class="bs-stat-label">Gasto YouTube</div>
+      <div class="bs-stat-value">R$ {{ "%.2f"|format(yt_spend) }}</div>
+    </div>
+    <div class="bs-stat" style="border-top-color: var(--bs-success);">
+      <div class="bs-stat-label">Receita Atribuída</div>
+      <div class="bs-stat-value">R$ {{ "%.2f"|format(yt_revenue) }}</div>
+    </div>
+    <div class="bs-stat" style="border-top-color: var(--bs-warning);">
+      <div class="bs-stat-label">ROAS Google</div>
+      <div class="bs-stat-value" style="color: var(--bs-success);">{{ "%.2f"|format(yt_roas) }}x</div>
+    </div>
+  </div>
+
+  <div class="bs-table-wrap">
+    <table class="bs-table">
+      <thead>
+        <tr>
+          <th>Público Google Ads</th>
+          <th style="text-align: right;">Compradores</th>
+          <th style="text-align: right;">Investimento</th>
+          <th style="text-align: right;">Faturamento</th>
+          <th style="text-align: right;">ROAS</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in data.distribution %}
+        {% if 'YouTube' in row.source or 'YT' in row.source or 'Google' in row.source %}
+        <tr>
+          <td><strong>{{ row.source }}</strong></td>
+          <td style="text-align: right;">{{ row.buyers }}</td>
+          <td style="text-align: right;" class="text-muted">R$ {{ "%.2f"|format(row.spend or 0.0) }}</td>
+          <td style="text-align: right; font-weight: 600;">R$ {{ "%.2f"|format(row.revenue or 0.0) }}</td>
+          <td style="text-align: right; font-weight: 700;" class="{% if row.roas >= 2.0 %}text-success{% elif row.roas > 0 and row.roas < 1.0 %}text-danger{% endif %}">
+            {{ "%.2f"|format(row.roas or 0.0) }}x
+          </td>
+        </tr>
+        {% endif %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

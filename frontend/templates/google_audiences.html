@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1><i class="ti ti-trending-up"></i> Google Audiências{% if launch %} &mdash; {{ launch.code }}{% endif %}</h1>
+      <p>Públicos-alvo Google Ads | Performance por segmento</p>
+    </div>
+  </div>
+  <div class="content">
+    {% if not google %}
+    <div class="no-data">
+      <i class="ti ti-trending-up"></i>
+      <h3>Dados do Google Ads não encontrados</h3>
+      <p>Ainda não há dados na API para este lançamento.</p>
+    </div>
+    {% elif not google.publicos %}
+    <div class="no-data">
+      <i class="ti ti-trending-up"></i>
+      <h3>Dados de Públicos não encontrados</h3>
+      <p>Ainda não há dados de públicos na API para este lançamento.</p>
+    </div>
+    {% else %}
+
+    {% set publico_top = google.publicos[0] %}
+    {% set total_custo_publicos = google.publicos|map(attribute='custo')|sum or 1 %}
+    {% set total_conv_publicos = google.publicos|map(attribute='conversoes')|sum %}
+
+    <div class="metrics-grid">
+      <div class="metric-card destaque" style="background:linear-gradient(135deg,var(--google-color),var(--google-color))">
+        <div class="label"><i class="ti ti-cash"></i> Investimento Google</div>
+        <div class="value">{{ google.total_custo | brl }}</div>
+        <div class="subtext">Total gasto no período</div>
+      </div>
+      <div class="metric-card destaque" style="background:linear-gradient(135deg,var(--google-color),var(--google-color))">
+        <div class="label"><i class="ti ti-users"></i> Leads Totais</div>
+        <div class="value">{{ "%.0f"|format(google.total_conversoes) }}</div>
+        <div class="subtext">CPL médio: {{ google.custo_conv_medio | brl }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="label"><i class="ti ti-click"></i> Cliques</div>
+        <div class="value">{{ google.total_cliques | num }}</div>
+        <div class="subtext">CTR médio: {{ google.ctr_medio | pct(2) }}</div>
+      </div>
+      <div class="metric-card">
+        <div class="label"><i class="ti ti-eye"></i> Impressões</div>
+        <div class="value">{{ google.total_impressoes | num }}</div>
+        <div class="subtext">CPM médio: {{ (google.total_custo / google.total_impressoes * 1000) | brl if google.total_impressoes > 0 else "R$ 0,00" }}</div>
+      </div>
+    </div>
+
+    {% if google.por_temperatura %}
+    <div class="section">
+      <div class="section-title">1. Performance por Temperatura de Público</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Público</th>
+              <th>Investimento</th>
+              <th>% Verba</th>
+              <th>Leads</th>
+              <th>CPL</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set total_temp = google.por_temperatura.values()|map(attribute='custo')|sum or 1 %}
+            {% set tc = {'Quente': '#f5576c', 'Frio': '#667eea', 'Específico': '#ff9800', 'Outros': '#9ca3af'} %}
+            {% for temp, d in google.por_temperatura.items() | sort(attribute='1.custo', reverse=True) %}
+            <tr>
+              <td><span class="bs-pill" style="background:{{ tc.get(temp,'#9ca3af') }}">{{ temp }}</span></td>
+              <td class="numero">{{ d.custo | brl }}</td>
+              <td>
+                <div class="pbar-wrap">
+                  <div class="pbar-track"><div class="pbar-fill" style="background:{{ tc.get(temp,'#9ca3af') }};width:{{ (d.custo/total_temp*100)|round(1) }}%"></div></div>
+                  <strong style="color:{{ tc.get(temp,'#9ca3af') }};font-size:12px">{{ (d.custo/total_temp*100)|pct }}</strong>
+                </div>
+              </td>
+              <td class="numero">{{ d.conversoes | num }}</td>
+              <td class="numero">{{ d.custo_conv | brl if d.conversoes > 0 else "-" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="section">
+      <div class="section-title">2. Leitura Rápida</div>
+      <div class="highlights">
+        {% set temp_items = google.publicos | sort(attribute='custo', reverse=True) %}
+        {% set best_items = google.publicos | selectattr('conversoes', 'gt', 0) | sort(attribute='cpl') %}
+        {% if temp_items %}
+        <div class="highlight-box">
+          <h3><i class="ti ti-target-arrow"></i> Maior Alocação</h3>
+          {% set top_temp = temp_items[0] %}
+          <div class="highlight-item">
+            <span class="criativo">{{ top_temp.segmento[:55] }}</span>
+            <span class="value">{{ top_temp.custo | brl }}</span>
+            <small>{{ (top_temp.custo/total_custo_publicos*100)|pct }} do custo listado</small>
+          </div>
+        </div>
+        {% endif %}
+        {% if best_items %}
+        <div class="highlight-box">
+          <h3><i class="ti ti-discount-check"></i> Melhor CPL</h3>
+          {% set best_temp = best_items[0] %}
+          <div class="highlight-item">
+            <span class="criativo">{{ best_temp.segmento[:55] }}</span>
+            <span class="value">{{ best_temp.cpl | brl }}</span>
+            <small>{{ best_temp.conversoes | num }} leads gerados</small>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">3. Top Grupos de Anúncio por Investimento (Captação)</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Grupo de Anúncio</th>
+              <th>Custo</th>
+              <th>Cliques</th>
+              <th>Leads</th>
+              <th>CPL</th>
+              <th>Vendas</th>
+              <th>CPA</th>
+              <th>Receita</th>
+              <th>ROAS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in google.publicos %}
+            <tr class="{{ 'top3' if loop.index <= 3 else '' }}">
+              <td class="numero">{{ loop.index }}</td>
+              <td style="max-width:220px;font-size:12px"><strong>{{ p.segmento[:55] }}</strong></td>
+              <td class="numero">{{ p.custo | brl }}</td>
+              <td class="numero">{{ p.cliques | num }}</td>
+              <td class="numero">{{ "%.0f"|format(p.conversoes) }}</td>
+              <td class="numero">{{ p.cpl | brl }}</td>
+              <td class="numero" style="font-weight: bold; color: var(--color-success);">{{ p.vendas | num }}</td>
+              <td class="numero">{{ p.cpa_vendas | brl }}</td>
+              <td class="numero" style="font-weight: bold; color: var(--color-success);">{{ p.receita | brl if p.receita else "-" }}</td>
+              {% set roas = (p.receita / p.custo) if p.receita and p.custo > 0 else 0 %}
+              <td class="numero" style="font-weight: bold; {{ 'color:var(--color-success)' if roas >= 1 else 'color:var(--color-danger)' }}">{{ "%.2f"|format(roas)|replace('.',',') }}x</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Demografia Google -->
+    {% set demo_total = google.demografia_idade | sum(attribute='cost') %}
+    {% set demo_pct_cob = (demo_total / google.total_custo * 100) | round(0) | int if google.total_custo > 0 else 0 %}
+    <div class="section">
+      <div class="section-title">4. Perfil Demográfico
+        <span style="font-weight:400;font-size:12px;color:var(--muted);margin-left:8px">Cobertura {{ demo_pct_cob }}% do investimento (P-Max excluído — API do Google não reporta demographics para P-Max)</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <!-- Idade -->
+        {% set idade_total = google.demografia_idade | sum(attribute='cost') or 1 %}
+        <div class="card" data-no-filter>
+          <div class="card-header"><h2><i class="ti ti-users"></i> Faixa Etária</h2></div>
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">
+                <th style="padding:8px 16px;text-align:left;font-weight:500">Faixa</th>
+                <th style="padding:8px 16px;text-align:right;font-weight:500">Invest.</th>
+                <th style="padding:8px 16px;text-align:right;font-weight:500">Conv.</th>
+                <th style="padding:8px 16px;text-align:right;font-weight:500">CPA</th>
+                <th style="padding:8px 16px;text-align:left;font-weight:500;min-width:120px">% verba</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in google.demografia_idade | sort(attribute='cost', reverse=True) %}
+              {% set pct = (p.cost / idade_total * 100) %}
+              <tr style="border-top:1px solid var(--border)">
+                <td style="padding:10px 16px"><strong style="font-size:13px">{{ p.age | replace('AGE_RANGE_','') | replace('_UP','+') | replace('_','-') | replace('UNDETERMINED','Desconhecido') }}</strong></td>
+                <td style="padding:10px 16px;text-align:right;font-size:13px">{{ p.cost | brl }}</td>
+                <td style="padding:10px 16px;text-align:right;font-size:13px">{{ "%.0f"|format(p.conversions) }}</td>
+                <td style="padding:10px 16px;text-align:right;font-size:13px">{{ p.cpa | brl }}</td>
+                <td style="padding:10px 16px">
+                  <div class="pbar-wrap" style="gap:6px">
+                    <div class="pbar-track" style="flex:1"><div class="pbar-fill" style="width:{{ pct|round(1) }}%"></div></div>
+                    <strong style="font-size:11px;min-width:34px;text-align:right">{{ pct | pct }}</strong>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Gênero -->
+        {% set genero_total = google.demografia_genero | sum(attribute='cost') or 1 %}
+        {% set gc = {'Feminino':'#f5576c','Masculino':'#667eea','Desconhecido':'#9ca3af'} %}
+        <div class="card" data-no-filter>
+          <div class="card-header"><h2><i class="ti ti-gender-intersex"></i> Gênero</h2></div>
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">
+                <th style="padding:8px 16px;text-align:left;font-weight:500">Gênero</th>
+                <th style="padding:8px 16px;text-align:right;font-weight:500">Invest.</th>
+                <th style="padding:8px 16px;text-align:right;font-weight:500">Conv.</th>
+                <th style="padding:8px 16px;text-align:right;font-weight:500">CPA</th>
+                <th style="padding:8px 16px;text-align:left;font-weight:500;min-width:120px">% verba</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in google.demografia_genero | sort(attribute='cost', reverse=True) %}
+              {% set label = p.gender | replace('FEMALE','Feminino') | replace('MALE','Masculino') | replace('UNDETERMINED','Desconhecido') %}
+              {% set pct = (p.cost / genero_total * 100) %}
+              <tr style="border-top:1px solid var(--border)">
+                <td style="padding:10px 16px"><span class="bs-pill" style="background:{{ gc.get(label,'#9ca3af') }}">{{ label }}</span></td>
+                <td style="padding:10px 16px;text-align:right;font-size:13px">{{ p.cost | brl }}</td>
+                <td style="padding:10px 16px;text-align:right;font-size:13px">{{ "%.0f"|format(p.conversions) }}</td>
+                <td style="padding:10px 16px;text-align:right;font-size:13px">{{ p.cpa | brl }}</td>
+                <td style="padding:10px 16px">
+                  <div class="pbar-wrap" style="gap:6px">
+                    <div class="pbar-track" style="flex:1"><div class="pbar-fill" style="background:{{ gc.get(label,'#9ca3af') }};width:{{ pct|round(1) }}%"></div></div>
+                    <strong style="font-size:11px;min-width:34px;text-align:right">{{ pct | pct }}</strong>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    {% endif %}
+  </div>
+  <div class="footing">Gerado em tempo real | Brabo Analytics{% if launch %} &mdash; {{ launch.code }}{% endif %}</div>
+</div>
+{% endblock %}

@@ -1,0 +1,20 @@
+{
+  "campaigns": {
+    "PBB-ABR-26": {
+      "fingerprint": "analises/[PBB-ABR-26]/Active Campaign/active-campaign-pbb-abr-26.csv|1778604919|46156851\nanalises/[PBB-ABR-26]/Google Ads/Performance da campanha-pbb-abr-26.csv|1778594840|8092\nanalises/[PBB-ABR-26]/Meta Ads/meta-pbb-abr-26.csv|1779889530|1154035\nanalises/[PBB-ABR-26]/Vendas/hotmart pbb-abr-26.csv|1779279810|270353\nanalises/[PBB-ABR-26]/Vendas/tmb pbb-abr-26.csv|1779279815|77775",
+      "last_run": "2026-05-28T15:18:05"
+    },
+    "PBB-FEV-26": {
+      "fingerprint": "analises/[PBB-FEV-26]/active-campaing/active-campaign-pbb-fev-26.csv|1778613980|33376080\nanalises/[PBB-FEV-26]/google ads/Performance da campanha-pbb-fev-26.csv|1778594877|3868\nanalises/[PBB-FEV-26]/meta ads/meta-pbb-fev-26.csv|1779889303|1153346\nanalises/[PBB-FEV-26]/vendas/hotmart pbb-fev-26.csv|1779279806|346218\nanalises/[PBB-FEV-26]/vendas/tmb pbb-fev-26.csv|1779279807|144733",
+      "last_run": "2026-05-28T16:07:10"
+    },
+    "PES-JAN-26": {
+      "fingerprint": "analises/[PES-JAN-26]/active-campaing/active-campaign-pes-jan-26.csv|1779975073|34793471\nanalises/[PES-JAN-26]/google ads/Performance Geral por Campanha - [PI-JAN-26].csv|1770143930|1247031\nanalises/[PES-JAN-26]/meta ads/CA2---Anunciante-Campanhas-23-de-dez-de-2025-21-de-jan-de-2026.csv|1769110566|9106\nanalises/[PES-JAN-26]/vendas/pes-jan-26-hotmart.csv|1779974066|845218\nanalises/[PES-JAN-26]/vendas/pes-jan-26-tmb.csv|1779974066|281501",
+      "last_run": "2026-05-28T15:18:10"
+    },
+    "PES-MAI-26": {
+      "fingerprint": "analises/[PES-MAI-26]/Active Campaign/active-campaign-pes-mai-26.csv|1778675625|30096795\nanalises/[PES-MAI-26]/Google Ads/Performance da campanha-pes-mai-26.csv|1779190643|4668\nanalises/[PES-MAI-26]/Meta Ads/Campanhas-Completas-pes-mai-26.csv|1779190354|1454076\nanalises/[PES-MAI-26]/Vendas/pes-mai-26-hotmart.csv|1779973788|919304\nanalises/[PES-MAI-26]/Vendas/pes-mai-26-tmb.csv|1779973787|256103",
+      "last_run": "2026-05-28T15:18:12"
+    }
+  }
+}

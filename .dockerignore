@@ -1,0 +1,41 @@
+.venv
+.env
+.env.*
+.claude
+.tmp
+.uv-cache
+.vscode
+__pycache__
+*.pyc
+*.pyo
+.git
+.gitignore
+
+# dados locais e temporários
+data/
+temp/
+tmp/
+outputs/
+logs/
+json/
+analises/
+google trends/
+youtube/
+
+# arquivos de análise avulsos
+*.xlsx
+*.pdf
+*.csv
+check_*.py
+debug_*.py
+find_*.py
+list_*.py
+cruzamento_*.py
+analise_*.py
+*_perpetuo.py
+*_inspect.py
+tmp_*.py
+_check_*.py
+
+# documentação
+documentacao/

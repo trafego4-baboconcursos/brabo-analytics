@@ -1,0 +1,1193 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Análise de Criativos Google Ads - PBB-FEV-26</title>
+    <link rel="icon" type="image/png" href="../../img/favicon-brabo-concursos.png">
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #4285f4 0%, #34a853 100%);
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1250px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        .header {
+            background: white;
+            padding: 30px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        .header img { max-width: 100px; height: auto; }
+        .header h1 { color: #4285f4; font-size: 28px; margin-bottom: 5px; }
+        .header p { color: #666; }
+        .content { padding: 30px; }
+        .section-title {
+            color: #4285f4;
+            border-bottom: 3px solid #4285f4;
+            padding-bottom: 8px;
+            margin: 25px 0 15px;
+            font-size: 22px;
+        }
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        .metric-box {
+            background: linear-gradient(135deg, #4285f412 0%, #34a85312 100%);
+            border-left: 4px solid #4285f4;
+            border-radius: 6px;
+            padding: 14px;
+        }
+        .metric-value { font-size: 22px; font-weight: bold; color: #4285f4; }
+        .metric-label { color: #666; font-size: 13px; margin-top: 4px; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0 20px;
+            font-size: 14px;
+        }
+        th {
+            background: #4285f4;
+            color: white;
+            padding: 10px;
+            text-align: left;
+        }
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        tr:hover { background: #f7f9ff; }
+        .footer {
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+            border-top: 1px solid #eee;
+            padding: 18px;
+            margin-top: 20px;
+        }
+        .badge {
+            display: inline-block;
+            background: #eef4ff;
+            color: #2e5cb8;
+            border: 1px solid #d8e5ff;
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+    </style>
+    
+</head>
+<body>
+<!-- BRABO-NAV -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
+<style id='brabo-ds-style'>
+/* ── Basis Design System — Brabo Analytics ──────────────────────────── */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  /* Neutral ink scale */
+  --bs-ink:          #1f2330;
+  --bs-ink-muted:    #6b7280;
+  --bs-ink-subtle:   #9ca3af;
+
+  /* Surfaces */
+  --bs-bg:           #eef0f8;
+  --bs-surface:      #f6f7fb;
+  --bs-card:         #ffffff;
+  --bs-border:       #e5e7eb;
+  --bs-border-s:     #d1d5db;
+
+  /* Primary */
+  --bs-primary:      #2f5ee3;
+  --bs-primary-2:    #6aa8ff;
+  --bs-primary-bg:   #eef3ff;
+
+  /* Semantic */
+  --bs-success:      #31c16c;
+  --bs-success-bg:   #f0fdf4;
+  --bs-warning:      #f4b740;
+  --bs-warning-bg:   #fffbeb;
+  --bs-danger:       #f05454;
+  --bs-danger-bg:    #fef2f2;
+  --bs-info:         #3b82f6;
+  --bs-info-bg:      #eff6ff;
+
+  /* Sidebar */
+  --bs-sidebar:      #2f5ee3;
+  --bs-sidebar-dark: #2347b2;
+
+  /* Campaign accent (overridden inline per campaign) */
+  --bs-accent:       #2f5ee3;
+
+  /* Shadows */
+  --bs-sh-sm:  0 1px 3px rgba(0,0,0,.08);
+  --bs-sh-md:  0 4px 12px rgba(0,0,0,.10);
+  --bs-sh-lg:  0 12px 30px rgba(0,0,0,.12);
+  --bs-sh-xl:  0 20px 60px rgba(20,26,52,.18);
+
+  /* Radii */
+  --bs-r-sm:   6px;
+  --bs-r-md:   8px;
+  --bs-r-lg:   12px;
+  --bs-r-xl:   16px;
+  --bs-r-2xl:  20px;
+
+  /* Spacing */
+  --s1: 4px;   --s2: 8px;   --s3: 12px;  --s4: 16px;
+  --s5: 20px;  --s6: 24px;  --s8: 32px;  --s10: 40px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0 !important; padding: 0 !important;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--bs-ink);
+  background: var(--bs-bg);
+}
+
+/* ── Frame ───────────────────────────────────────────────────────────── */
+
+#bs-frame {
+  display: block;
+  min-height: 100vh;
+}
+
+/* ── Sidebar / App Drawer ─────────────────────────────────────────────── */
+
+#bs-drawer {
+  background: linear-gradient(180deg, var(--bs-sidebar) 0%, var(--bs-sidebar-dark) 100%);
+  color: #fff;
+  padding: 20px 14px;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 240px;
+  height: 100vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  scrollbar-width: none;
+  z-index: 100;
+}
+#bs-drawer::-webkit-scrollbar { display: none; }
+
+/* Brand */
+.bs-brand {
+  display: flex; align-items: center; gap: 10px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255,255,255,.15);
+  flex-shrink: 0;
+}
+.bs-brand a { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.bs-brand img { height: 26px; }
+.bs-brand-name { font-size: 12px; font-weight: 700; color: rgba(255,255,255,.9); }
+
+/* Campaign switcher */
+.bs-camp-switch {
+  display: flex; gap: 5px;
+  background: rgba(0,0,0,.2);
+  border-radius: var(--bs-r-lg);
+  padding: 4px;
+  flex-shrink: 0;
+}
+.bs-camp-btn {
+  flex: 1; padding: 6px 6px;
+  border: none; border-radius: var(--bs-r-md);
+  background: transparent; color: rgba(255,255,255,.6);
+  font-size: 11px; font-weight: 700;
+  cursor: pointer; text-decoration: none; text-align: center;
+  transition: background .15s, color .15s; white-space: nowrap;
+  line-height: 1.3;
+}
+.bs-camp-btn:hover  { background: rgba(255,255,255,.15); color: #fff; }
+.bs-camp-btn.active { background: var(--bs-accent); color: #fff; }
+
+/* Nav */
+.bs-nav { display: flex; flex-direction: column; gap: 1px; flex: 1; min-height: 0; }
+
+.bs-nav-sep {
+  height: 1px; background: rgba(255,255,255,.12);
+  margin: 6px 0;
+}
+.bs-nav-group {
+  font-size: 10px; font-weight: 700;
+  color: rgba(255,255,255,.4);
+  text-transform: uppercase; letter-spacing: .08em;
+  padding: 10px 8px 3px;
+}
+.bs-nav-link {
+  display: flex; align-items: center; gap: 8px;
+  color: rgba(255,255,255,.75); text-decoration: none;
+  padding: 7px 10px; border-radius: var(--bs-r-md);
+  font-size: 13px; font-weight: 500;
+  transition: background .12s, color .12s;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.bs-nav-link:hover  { background: rgba(255,255,255,.14); color: #fff; }
+.bs-nav-link.active { background: rgba(255,255,255,.22); color: #fff; font-weight: 700; }
+.bs-nav-icon { display: flex; align-items: center; flex-shrink: 0; }
+.bs-nav-icon i { font-size: 15px; line-height: 1; opacity: .85; }
+.bs-comp-link i { font-size: 14px; line-height: 1; vertical-align: middle; }
+
+/* Drawer footer */
+.bs-drawer-footer {
+  margin-top: auto; padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,.15);
+  flex-shrink: 0;
+}
+.bs-comp-link {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.22);
+  color: #fff; text-decoration: none; padding: 9px 12px;
+  border-radius: var(--bs-r-lg); font-size: 11px; font-weight: 700;
+  transition: background .15s; text-align: center;
+}
+.bs-comp-link:hover { background: rgba(255,255,255,.24); }
+
+/* ── Main content area ───────────────────────────────────────────────── */
+
+#bs-main {
+  background: var(--bs-surface);
+  min-width: 0;
+  overflow-x: hidden;
+  margin-left: 240px;
+}
+
+/* ── Legacy override: existing .wrap content inside sidebar layout ────── */
+
+body   { background: var(--bs-bg) !important; padding-top: 0 !important; }
+
+#bs-main .wrap {
+  max-width: 100% !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+#bs-main .hdr {
+  border-radius: 0 !important;
+  border-bottom: 1px solid var(--bs-border);
+  position: sticky; top: 0; z-index: 50;
+}
+#bs-main .content { padding: 24px 32px; }
+
+/* Accent-aware section titles and table headers */
+#bs-main .section-title  { border-bottom-color: var(--bs-accent) !important; }
+#bs-main table th        { background: var(--bs-accent) !important; }
+#bs-main .kpi-grid,
+#bs-main .kpis           { gap: 12px; }
+#bs-main .note {
+  background: var(--bs-info-bg);
+  border-left-color: var(--bs-info);
+}
+
+/* ── Design System Components ────────────────────────────────────────── */
+
+/* Stat row */
+.bs-stat-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--s3);
+  margin-bottom: var(--s4);
+}
+.bs-stat {
+  background: #f7f8fc;
+  border-radius: var(--bs-r-lg);
+  padding: var(--s4);
+  display: flex; flex-direction: column; gap: 4px;
+  border-top: 3px solid var(--bs-accent);
+}
+.bs-stat-label {
+  font-size: 11px; color: var(--bs-ink-muted);
+  text-transform: uppercase; letter-spacing: .05em; font-weight: 600;
+}
+.bs-stat-value { font-size: 22px; font-weight: 800; color: var(--bs-ink); line-height: 1.1; }
+.bs-stat-delta { font-size: 11px; font-weight: 600; }
+.bs-stat-delta.up      { color: var(--bs-success); }
+.bs-stat-delta.down    { color: var(--bs-danger); }
+.bs-stat-delta.neutral { color: var(--bs-ink-muted); }
+
+/* Card */
+.bs-card {
+  background: var(--bs-card);
+  border-radius: var(--bs-r-xl);
+  padding: var(--s5);
+  box-shadow: var(--bs-sh-md);
+  margin-bottom: var(--s5);
+}
+.bs-card-title {
+  font-size: 14px; font-weight: 700; color: var(--bs-ink);
+  border-bottom: 2px solid var(--bs-accent);
+  padding-bottom: var(--s2); margin-bottom: var(--s4);
+  display: flex; align-items: center; gap: var(--s2);
+}
+
+/* Badge */
+.bs-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 11px; padding: 2px 8px; border-radius: 999px;
+  background: var(--bs-primary-bg); color: var(--bs-primary);
+  font-weight: 600;
+}
+.bs-badge.success { background: var(--bs-success-bg); color: var(--bs-success); }
+.bs-badge.warning { background: var(--bs-warning-bg); color: #92400e; }
+.bs-badge.danger  { background: var(--bs-danger-bg);  color: var(--bs-danger); }
+.bs-badge.neutral { background: #f3f4f6; color: var(--bs-ink-muted); }
+
+/* Pill */
+.bs-pill {
+  display: inline-block; padding: 3px 10px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; color: #fff; white-space: nowrap;
+}
+.bs-pill.success { background: var(--bs-success); }
+.bs-pill.warning { background: var(--bs-warning); color: #1a1a2e; }
+.bs-pill.danger  { background: var(--bs-danger); }
+.bs-pill.info    { background: var(--bs-info); }
+.bs-pill.neutral { background: var(--bs-border-s); color: var(--bs-ink); }
+.bs-pill.accent  { background: var(--bs-accent); }
+
+/* Flash / Alert */
+.bs-flash {
+  padding: var(--s3) var(--s4);
+  border-radius: var(--bs-r-md);
+  border-left: 4px solid var(--bs-info);
+  background: var(--bs-info-bg);
+  font-size: 13px; color: var(--bs-ink); line-height: 1.6;
+  margin-bottom: var(--s4);
+}
+.bs-flash.success { border-color: var(--bs-success); background: var(--bs-success-bg); }
+.bs-flash.warning { border-color: var(--bs-warning); background: var(--bs-warning-bg); }
+.bs-flash.danger  { border-color: var(--bs-danger);  background: var(--bs-danger-bg); }
+
+/* Progress bar */
+.bs-bar-track {
+  background: #e5e7eb; border-radius: 4px; height: 8px; overflow: hidden;
+}
+.bs-bar-fill {
+  height: 100%; border-radius: 4px;
+  background: var(--bs-accent);
+  transition: width .3s ease;
+}
+
+/* Table */
+.bs-table-wrap {
+  border: 1px solid var(--bs-border);
+  border-radius: var(--bs-r-lg);
+  overflow: hidden;
+  margin-top: var(--s3);
+}
+.bs-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.bs-table th {
+  background: var(--bs-accent); color: #fff;
+  padding: 10px 12px; text-align: left;
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.bs-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--bs-border);
+  vertical-align: middle;
+}
+.bs-table tr:last-child td { border-bottom: none; }
+.bs-table tr:hover td { background: var(--bs-primary-bg); }
+
+/* ── Responsive ──────────────────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+  #bs-frame { grid-template-columns: 1fr; }
+  #bs-drawer { height: auto; position: relative; flex-direction: row; flex-wrap: wrap; }
+  #bs-main { margin-left: 0; }
+  .bs-nav { flex-direction: row; flex-wrap: wrap; }
+  .bs-drawer-footer { margin-top: 0; }
+}
+
+/* ── Animations & Enhancements ────────────────────────────────────────── */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.wrap, .container {
+  animation: fadeInUp 0.45s ease-out forwards;
+}
+
+.bs-stat, .bs-card, .section {
+  animation: fadeInUp 0.45s ease-out forwards;
+}
+
+/* Total row highlights */
+.bs-table tr.total-row td,
+table tr.total-row td {
+  background: var(--bs-primary-bg) !important;
+  font-weight: 700 !important;
+  border-top: 2px double var(--bs-accent) !important;
+  border-bottom: 2px solid var(--bs-accent) !important;
+}
+
+/* Sortable Table Styles */
+.bs-table th.sortable-header,
+table th.sortable-header {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+.bs-table th.sortable-header:hover,
+table th.sortable-header:hover {
+  background-color: rgba(0, 0, 0, 0.15) !important;
+}
+.sort-indicator {
+  margin-left: 6px;
+  display: inline-block;
+  vertical-align: middle;
+}
+</style>
+<style id='brabo-accent'>:root{--bs-accent:#667eea}</style>
+<script id="brabo-global-js">
+document.addEventListener("DOMContentLoaded", function() {
+  // 1. Identificar linhas de totalização
+  document.querySelectorAll("table, .bs-table").forEach(function(table) {
+    table.querySelectorAll("tbody tr").forEach(function(row) {
+      if (row.cells.length > 0) {
+        var firstCellText = row.cells[0].innerText.toLowerCase();
+        if (firstCellText.includes("total") || firstCellText.includes("media") || firstCellText.includes("consolidado")) {
+          row.classList.add("total-row");
+        }
+      }
+    });
+  });
+
+  // 2. Ordenação automática de tabelas
+  document.querySelectorAll(".bs-table, table").forEach(function(table) {
+    var headers = table.querySelectorAll("thead th");
+    if (!headers.length) return;
+    
+    var sortIndex = -1;
+    var sortDirection = 1;
+    
+    headers.forEach(function(header, index) {
+      if (header.closest("#bs-drawer")) return;
+      
+      header.classList.add("sortable-header");
+      header.setAttribute("title", "Clique para ordenar esta coluna");
+      
+      header.addEventListener("click", function() {
+        var tbody = table.querySelector("tbody");
+        if (!tbody) return;
+        var rows = Array.from(tbody.querySelectorAll("tr"));
+        
+        var totalRows = [];
+        var dataRows = rows.filter(function(row) {
+          if (row.classList.contains("total-row")) {
+            totalRows.push(row);
+            return false;
+          }
+          return true;
+        });
+        
+        if (sortIndex === index) {
+          sortDirection = -sortDirection;
+        } else {
+          sortDirection = -1;
+          sortIndex = index;
+        }
+        
+        headers.forEach(function(h) {
+          var ind = h.querySelector(".sort-indicator");
+          if (ind) ind.remove();
+        });
+        
+        var indSpan = document.createElement("span");
+        indSpan.className = "sort-indicator";
+        indSpan.style.opacity = "0.8";
+        indSpan.style.fontSize = "9px";
+        indSpan.innerHTML = sortDirection === 1 ? '<i class="ti ti-chevron-up"></i>' : '<i class="ti ti-chevron-down"></i>';
+        header.appendChild(indSpan);
+        
+        dataRows.sort(function(a, b) {
+          var cellA = a.cells[index];
+          var cellB = b.cells[index];
+          if (!cellA || !cellB) return 0;
+          
+          var valA = cellA.getAttribute("data-val") !== null ? cellA.getAttribute("data-val") : cellA.innerText;
+          var valB = cellB.getAttribute("data-val") !== null ? cellB.getAttribute("data-val") : cellB.innerText;
+          
+          var cleanA = parseFloat(valA.toString().replace(/[R$\s%]/g, "").replace(/\./g, "").replace(",", "."));
+          var cleanB = parseFloat(valB.toString().replace(/[R$\s%]/g, "").replace(/\./g, "").replace(",", "."));
+          
+          if (!isNaN(cleanA) && !isNaN(cleanB)) {
+            return (cleanA - cleanB) * sortDirection;
+          }
+          return valA.toString().localeCompare(valB.toString()) * sortDirection;
+        });
+        
+        tbody.innerHTML = "";
+        dataRows.forEach(function(r) { tbody.appendChild(r); });
+        totalRows.forEach(function(r) { tbody.appendChild(r); });
+      });
+    });
+  });
+
+  // 3. Filtro de busca rápida dinâmico
+  document.querySelectorAll(".bs-table, table").forEach(function(table) {
+    if (table.closest("#bs-drawer")) return;
+    
+    var tbody = table.querySelector("tbody");
+    if (!tbody) return;
+    var rows = tbody.querySelectorAll("tr");
+    
+    var dataRowsCount = Array.from(rows).filter(function(r) { return !r.classList.contains("total-row"); }).length;
+    if (dataRowsCount <= 5) return;
+    
+    var filterContainer = document.createElement("div");
+    filterContainer.className = "table-filter-wrap";
+    filterContainer.style.display = "flex";
+    filterContainer.style.alignItems = "center";
+    filterContainer.style.gap = "8px";
+    filterContainer.style.margin = "12px 0 8px";
+    
+    var searchIcon = document.createElement("i");
+    searchIcon.className = "ti ti-search";
+    searchIcon.style.color = "var(--bs-ink-subtle)";
+    searchIcon.style.fontSize = "16px";
+    
+    var filterInput = document.createElement("input");
+    filterInput.type = "text";
+    filterInput.placeholder = "Filtrar tabela...";
+    filterInput.style.padding = "6px 12px 6px 30px";
+    filterInput.style.fontSize = "13px";
+    filterInput.style.border = "1px solid var(--bs-border)";
+    filterInput.style.borderRadius = "var(--bs-r-md)";
+    filterInput.style.outline = "none";
+    filterInput.style.width = "220px";
+    filterInput.style.fontFamily = "inherit";
+    filterInput.style.color = "var(--bs-ink)";
+    filterInput.style.background = "var(--bs-card)";
+    
+    var wrapper = document.createElement("div");
+    wrapper.style.position = "relative";
+    wrapper.style.display = "inline-flex";
+    wrapper.style.alignItems = "center";
+    
+    searchIcon.style.position = "absolute";
+    searchIcon.style.left = "10px";
+    searchIcon.style.pointerEvents = "none";
+    
+    wrapper.appendChild(searchIcon);
+    wrapper.appendChild(filterInput);
+    filterContainer.appendChild(wrapper);
+    
+    filterInput.addEventListener("input", function() {
+      var query = filterInput.value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+      rows.forEach(function(row) {
+        if (row.classList.contains("total-row")) return;
+        var text = row.innerText.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+        if (text.indexOf(query) > -1) {
+          row.style.display = "";
+        } else {
+          row.style.display = "none";
+        }
+      });
+    });
+    
+    var parent = table.parentElement;
+    if (parent && parent.classList.contains("bs-table-wrap")) {
+      parent.parentElement.insertBefore(filterContainer, parent);
+    } else {
+      table.parentElement.insertBefore(filterContainer, table);
+    }
+  });
+});
+</script>
+<div id="bs-frame">
+  <aside id="bs-drawer">
+    <div class="bs-brand">
+      <a href="../index.html"><img src="../../img/logo-brabo-concursos.png" alt="Brabo Analytics"><span class="bs-brand-name">Brabo Analytics</span></a>
+    </div>
+    <div class="bs-camp-switch"><a class="bs-camp-btn" href="../[PES-JAN-26]/INDEX_[PES-JAN-26].html" style="--bs-accent:#764ba2">JAN</a><a class="bs-camp-btn active" href="INDEX_[PBB-FEV-26].html" style="--bs-accent:#667eea">FEV</a><a class="bs-camp-btn" href="../[PBB-ABR-26]/INDEX_[PBB-ABR-26].html" style="--bs-accent:#f5576c">ABR</a><a class="bs-camp-btn" href="../[PES-MAI-26]/INDEX_[PES-MAI-26].html" style="--bs-accent:#0f766e">MAI</a></div>
+    <nav class="bs-nav">
+<div class="bs-nav-group">Visão Geral</div>
+<a class="bs-nav-link" href="INDEX_[PBB-FEV-26].html"><span class="bs-nav-icon"><i class="ti ti-home"></i></span>Dashboard</a>
+<div class="bs-nav-sep"></div>
+<div class="bs-nav-group">Mídia Paga</div>
+<a class="bs-nav-link" href="ANALISE_META_ADS_[PBB-FEV-26].html"><span class="bs-nav-icon"><i class="ti ti-brand-meta"></i></span>Meta Ads</a>
+<a class="bs-nav-link" href="ANALISE_GOOGLE_ADS_[PBB-FEV-26].html"><span class="bs-nav-icon"><i class="ti ti-brand-google"></i></span>Google Ads</a>
+<a class="bs-nav-link active" href="ANALISE_GOOGLE_ANUNCIOS_[PBB-FEV-26].html"><span class="bs-nav-icon"><i class="ti ti-speakerphone"></i></span>Google Anúncios</a>
+<a class="bs-nav-link" href="ANALISE_CRIATIVOS_[PBB-FEV-26].html"><span class="bs-nav-icon"><i class="ti ti-palette"></i></span>Criativos</a>
+<a class="bs-nav-link" href="ANALISE_FACEBOOK_[PBB-FEV-26].html"><span class="bs-nav-icon"><i class="ti ti-brand-facebook"></i></span>Facebook</a>
+<a class="bs-nav-link" href="ANALISE_YOUTUBE_[PBB-FEV-26].html"><span class="bs-nav-icon"><i class="ti ti-brand-youtube"></i></span>YouTube</a>
+<a class="bs-nav-link" href="ANALISE_CONSOLIDADA_[PBB-FEV-26].html"><span class="bs-nav-icon"><i class="ti ti-chart-bar"></i></span>Consolidada</a>
+<a class="bs-nav-link" href="ANALISE_ANUNCIOS_[PBB-FEV-26].html"><span class="bs-nav-icon"><i class="ti ti-speakerphone"></i></span>Anúncios</a>
+<div class="bs-nav-sep"></div>
+<div class="bs-nav-group">Leads & Audiências</div>
+<a class="bs-nav-link" href="ANALISE_LEADS_CONFRONTO_[PBB-FEV-26].html"><span class="bs-nav-icon"><i class="ti ti-users"></i></span>Leads Confronto</a>
+<a class="bs-nav-link" href="ANALISE_META_AUDIENCES_[PBB-FEV-26].html"><span class="bs-nav-icon"><i class="ti ti-user-check"></i></span>Meta Audiences</a>
+<a class="bs-nav-link" href="ANALISE_GOOGLE_AUDIENCES_[PBB-FEV-26].html"><span class="bs-nav-icon"><i class="ti ti-trending-up"></i></span>Google Audiences</a>
+<div class="bs-nav-sep"></div>
+<div class="bs-nav-group">Vendas</div>
+<a class="bs-nav-link" href="ANALISE_VENDAS_[PBB-FEV-26].html"><span class="bs-nav-icon"><i class="ti ti-coin"></i></span>Vendas</a>
+<div class="bs-nav-sep"></div>
+<div class="bs-nav-group">Pesquisa</div>
+<a class="bs-nav-link" href="ANALISE_TYPEFORM_[PBB-FEV-26].html"><span class="bs-nav-icon"><i class="ti ti-clipboard-list"></i></span>Typeform</a>
+<div class="bs-nav-sep"></div>
+<div class="bs-nav-group">Insights</div>
+<a class="bs-nav-link" href="INSIGHTS_RECOMENDACOES_[PBB-FEV-26].html"><span class="bs-nav-icon"><i class="ti ti-bulb"></i></span>Insights & Recomendações</a>
+    </nav>
+    <div class="bs-drawer-footer">
+      <a class="bs-comp-link" href="../COMPARATIVO_ABR_FEV_2026.html"><i class="ti ti-chart-bar"></i>&nbsp;ABR&nbsp;&times;&nbsp;FEV</a>
+    </div>
+  </aside>
+  <main id="bs-main">
+<!-- /BRABO-NAV -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <div class="container">
+        <div class="header">
+            <a href="INDEX_[PBB-FEV-26].html">
+                <img src="../../img/logo-brabo-concursos.png" alt="Brabo Concursos">
+            </a>
+            <div>
+                <h1>Análise de Criativos Google Ads</h1>
+                <p>Campanha PBB-FEV-26</p>
+                <p>Atualizado em 14/05/2026 às 11:08</p>
+            </div>
+        </div>
+
+        <div class="content">
+            <span class="badge">Fonte: Performance dos anúncios (Google Ads)</span>
+            <h2 class="section-title">Resumo Executivo</h2>
+            <div class="metric-grid">
+                <div class="metric-box"><div class="metric-value">R$ 203.829,74</div><div class="metric-label">Investimento Total</div></div>
+                <div class="metric-box"><div class="metric-value">35.802</div><div class="metric-label">Conversões</div></div>
+                <div class="metric-box"><div class="metric-value">40.676.411</div><div class="metric-label">Impressões</div></div>
+                <div class="metric-box"><div class="metric-value">87.297</div><div class="metric-label">Cliques</div></div>
+                <div class="metric-box"><div class="metric-value">0,21%</div><div class="metric-label">CTR Médio</div></div>
+                <div class="metric-box"><div class="metric-value">R$ 5,69</div><div class="metric-label">CPA Médio</div></div>
+            </div>
+
+            <h2 class="section-title">Top 10 Criativos por Conversões</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Criativo</th>
+                        <th>Campanha</th>
+                        <th>Grupo</th>
+                        <th>Cliques</th>
+                        <th>Impressões</th>
+                        <th>CTR</th>
+                        <th>Custo</th>
+                        <th>Conversões</th>
+                        <th>CPA</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                    <tr>
+                        <td>AD093 - Dois personagens casa do Thales - PBB-FEV-26</td>
+                        <td>[Captação] Público Quente Principal [PBB-FEV-26] - 19.01.26</td>
+                        <td>00 - Cadastrados PBB [PBB-FEV-26]</td>
+                        <td>14</td>
+                        <td>1.421.608</td>
+                        <td>0,96%</td>
+                        <td>R$ 7.094,55</td>
+                        <td>2.341</td>
+                        <td>R$ 3,03</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD093 - Dois personagens casa do Thales - PBB-FEV-26</td>
+                        <td>[Captação] Público Específico Principal [PBB-FEV-26] - 19.01.26</td>
+                        <td>00 - Viu vídeos Pré-quali - PBB-FEV-26</td>
+                        <td>17</td>
+                        <td>3.478.414</td>
+                        <td>0,48%</td>
+                        <td>R$ 8.275,23</td>
+                        <td>2.212</td>
+                        <td>R$ 3,74</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD084 - Dois Personagens + Cx - PBB-FEV-26</td>
+                        <td>[Captação] Público Específico Principal [PBB-FEV-26] - 19.01.26</td>
+                        <td>00 - Viu vídeos Pré-quali - PBB-FEV-26</td>
+                        <td>7</td>
+                        <td>799.796</td>
+                        <td>0,88%</td>
+                        <td>R$ 5.264,61</td>
+                        <td>1.634</td>
+                        <td>R$ 3,22</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD031 - Pergunta e resposta - PBB-FEV-26</td>
+                        <td>[Captação] Público Específico Principal [PBB-FEV-26] - 19.01.26</td>
+                        <td>00 - Viu vídeos Pré-quali - PBB-FEV-26</td>
+                        <td>10</td>
+                        <td>2.026.465</td>
+                        <td>0,48%</td>
+                        <td>R$ 5.990,75</td>
+                        <td>1.373</td>
+                        <td>R$ 4,36</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD097 - Carro + cx - PBB-FEV-2</td>
+                        <td>[Captação] Público Quente Shorts [PBB-FEV-26] - 19.01.26</td>
+                        <td>00 - Cadastrados PBB [PBB-FEV-26]</td>
+                        <td>5</td>
+                        <td>712.208</td>
+                        <td>0,69%</td>
+                        <td>R$ 5.557,38</td>
+                        <td>1.318</td>
+                        <td>R$ 4,22</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD097 - Carro + cx - PBB-FEV-2</td>
+                        <td>[Captação] Público Específico Shorts [PBB-FEV-26] - 19.01.26</td>
+                        <td>01 - Viu vídeos Pré-quali Lançamentos Anteriores - PBB-FEV-26</td>
+                        <td>10</td>
+                        <td>1.252.061</td>
+                        <td>0,77%</td>
+                        <td>R$ 6.860,72</td>
+                        <td>1.175</td>
+                        <td>R$ 5,84</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD090 - Dois personagens diva - PBB-FEV-26</td>
+                        <td>[Captação] Público Quente Principal [PBB-FEV-26] - 19.01.26</td>
+                        <td>00 - Cadastrados PBB [PBB-FEV-26]</td>
+                        <td>8</td>
+                        <td>960.369</td>
+                        <td>0,83%</td>
+                        <td>R$ 6.288,96</td>
+                        <td>1.152</td>
+                        <td>R$ 5,46</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD058 - Casa do Thales - PBB-FEV-26</td>
+                        <td>[Captação] Público Quente Melhoria [PBB-FEV-26] - 27.01.26</td>
+                        <td>00 - Cadastrados PBB [PBB-FEV-26]</td>
+                        <td>7</td>
+                        <td>733.049</td>
+                        <td>0,93%</td>
+                        <td>R$ 3.608,29</td>
+                        <td>923</td>
+                        <td>R$ 3,91</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD084 - Dois Personagens + Cx - PBB-FEV-26</td>
+                        <td>[Captação] Público Quente Principal [PBB-FEV-26] - 19.01.26</td>
+                        <td>00 - Cadastrados PBB [PBB-FEV-26]</td>
+                        <td>7</td>
+                        <td>754.281</td>
+                        <td>0,89%</td>
+                        <td>R$ 3.263,80</td>
+                        <td>911</td>
+                        <td>R$ 3,58</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD050 - Banco do Brasil 2 - cx nova - PBB-FEV-26</td>
+                        <td>[Captação] Público Quente Melhoria [PBB-FEV-26] - 27.01.26</td>
+                        <td>00 - Cadastrados PBB [PBB-FEV-26]</td>
+                        <td>9</td>
+                        <td>743.311</td>
+                        <td>1,20%</td>
+                        <td>R$ 3.077,18</td>
+                        <td>864</td>
+                        <td>R$ 3,56</td>
+                    </tr>
+
+                </tbody>
+            </table>
+
+            <h2 class="section-title">Top CTR (mín. 50.000 impressões)</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Criativo</th>
+                        <th>Campanha</th>
+                        <th>CTR</th>
+                        <th>Impressões</th>
+                        <th>Conversões</th>
+                        <th>CPA</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                    <tr>
+                        <td>AD037 - Banco do Brasil 2 - PBB-FEV-26</td>
+                        <td>[Captação] Público Específico Principal [PBB-FEV-26] - 19.01.26</td>
+                        <td>3,21%</td>
+                        <td>55.412</td>
+                        <td>29</td>
+                        <td>R$ 17,64</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD058 - Casa do Thales - PBB-FEV-26</td>
+                        <td>[Captação] Público Específico Principal [PBB-FEV-26] - 19.01.26</td>
+                        <td>2,61%</td>
+                        <td>140.183</td>
+                        <td>113</td>
+                        <td>R$ 9,71</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD050 - Banco do Brasil 2 - cx nova - PBB-FEV-26</td>
+                        <td>[Captação] Público Específico Principal [PBB-FEV-26] - 19.01.26</td>
+                        <td>2,44%</td>
+                        <td>104.441</td>
+                        <td>166</td>
+                        <td>R$ 5,91</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD031 - Pergunta e resposta - PBB-FEV-26</td>
+                        <td>[Captação] Público Específico Principal [PBB-FEV-26] - 19.01.26</td>
+                        <td>2,30%</td>
+                        <td>64.026</td>
+                        <td>55</td>
+                        <td>R$ 7,84</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD084 - Dois Personagens + Cx - PBB-FEV-26</td>
+                        <td>[Captação] Público Quente Principal [PBB-FEV-26] - 19.01.26</td>
+                        <td>1,96%</td>
+                        <td>50.845</td>
+                        <td>30</td>
+                        <td>R$ 10,78</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD031 - Pergunta e resposta - PBB-FEV-26</td>
+                        <td>[Captação] Público Quente Principal [PBB-FEV-26] - 19.01.26</td>
+                        <td>1,86%</td>
+                        <td>50.258</td>
+                        <td>16</td>
+                        <td>R$ 18,21</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD065 - Novo Estúdio Brabo + Cx nova - PBB-FEV-26</td>
+                        <td>[Captação] Público Específico Potencial [PBB-FEV-26] - 19.01.26</td>
+                        <td>1,85%</td>
+                        <td>85.978</td>
+                        <td>37</td>
+                        <td>R$ 13,52</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD050 - Banco do Brasil 2 - cx nova - PBB-FEV-26</td>
+                        <td>[Captação] Público Quente Principal [PBB-FEV-26] - 19.01.26</td>
+                        <td>1,79%</td>
+                        <td>67.894</td>
+                        <td>71</td>
+                        <td>R$ 5,76</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD090 - Dois personagens diva - PBB-FEV-26</td>
+                        <td>[Captação] Público Quente Potencial [PBB-FEV-26] - 19.01.26</td>
+                        <td>1,79%</td>
+                        <td>93.948</td>
+                        <td>71</td>
+                        <td>R$ 14,74</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD058 - Casa do Thales - PBB-FEV-26</td>
+                        <td>[Captação] Público Quente Principal [PBB-FEV-26] - 19.01.26</td>
+                        <td>1,78%</td>
+                        <td>87.750</td>
+                        <td>51</td>
+                        <td>R$ 11,09</td>
+                    </tr>
+
+                </tbody>
+            </table>
+
+            <h2 class="section-title">Maior CPA (mín. 100 conversões)</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Criativo</th>
+                        <th>Campanha</th>
+                        <th>Custo</th>
+                        <th>Conversões</th>
+                        <th>CPA</th>
+                        <th>CTR</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                    <tr>
+                        <td>AD08</td>
+                        <td>Pré-qualificação Fria Novo - [PBB-FEV-26] -16.01.26</td>
+                        <td>R$ 7.150,21</td>
+                        <td>117</td>
+                        <td>R$ 61,11</td>
+                        <td>0,04%</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD02</td>
+                        <td>Pré-qualificação Fria - [PBB-FEV-26] - 06.01.26</td>
+                        <td>R$ 8.177,82</td>
+                        <td>191</td>
+                        <td>R$ 42,82</td>
+                        <td>0,14%</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD058 - Casa do Thales - PBB-FEV-26</td>
+                        <td>[Captação] Público Específico Principal [PBB-FEV-26] - 19.01.26</td>
+                        <td>R$ 1.097,52</td>
+                        <td>113</td>
+                        <td>R$ 9,71</td>
+                        <td>2,61%</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD081 - 1 minuto Banco do Brasil + IA - PBB-FEV-26</td>
+                        <td>[Captação] Público Frio Shorts [PBB-FEV-26] - 19.01.26</td>
+                        <td>R$ 956,78</td>
+                        <td>116</td>
+                        <td>R$ 8,25</td>
+                        <td>0,46%</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD02</td>
+                        <td>Pré-qualificação Quente - [PBB-FEV-26] - 06.01.26</td>
+                        <td>R$ 1.266,49</td>
+                        <td>164</td>
+                        <td>R$ 7,72</td>
+                        <td>0,01%</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD090 - Dois personagens diva - PBB-FEV-26</td>
+                        <td>[Captação] Público Quente Principal [PBB-FEV-26] - 19.01.26</td>
+                        <td>R$ 768,61</td>
+                        <td>103</td>
+                        <td>R$ 7,46</td>
+                        <td>0,76%</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD081 - 1 minuto Banco do Brasil + IA - PBB-FEV-26</td>
+                        <td>[Captação] Público Específico Shorts [PBB-FEV-26] - 19.01.26</td>
+                        <td>R$ 1.037,87</td>
+                        <td>142</td>
+                        <td>R$ 7,31</td>
+                        <td>0,48%</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD081 - 1 minuto Banco do Brasil + IA - PBB-FEV-26</td>
+                        <td>[Captação] Público Específico Shorts [PBB-FEV-26] - 19.01.26</td>
+                        <td>R$ 3.621,05</td>
+                        <td>542</td>
+                        <td>R$ 6,68</td>
+                        <td>0,24%</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD090 - Dois personagens diva - PBB-FEV-26</td>
+                        <td>[Captação] Público Específico Principal [PBB-FEV-26] - 19.01.26</td>
+                        <td>R$ 1.143,27</td>
+                        <td>175</td>
+                        <td>R$ 6,53</td>
+                        <td>0,98%</td>
+                    </tr>
+
+                    <tr>
+                        <td>AD037 - Banco do Brasil 2 - PBB-FEV-26</td>
+                        <td>[Captação] Público Específico Principal [PBB-FEV-26] - 19.01.26</td>
+                        <td>R$ 951,19</td>
+                        <td>154</td>
+                        <td>R$ 6,18</td>
+                        <td>1,16%</td>
+                    </tr>
+
+                </tbody>
+            </table>
+
+            <div class="footer">
+                <p>Relatório consolidado | Brabo Concursos</p>
+                <p><a href="INDEX_[PBB-FEV-26].html" style="color: #4285f4; text-decoration: none; font-weight: bold;">← Voltar para INDEX</a></p>
+            </div>
+        </div>
+    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- BRABO-FRAME-END -->
+  </main></div>
+<!-- /BRABO-FRAME-END -->
+</body>
+</html>

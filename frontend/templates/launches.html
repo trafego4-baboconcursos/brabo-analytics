@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- Header Dinâmico -->
+<div class="hdr" style="background: white; padding: 24px 30px; border-radius: var(--bs-r-lg); border: 1px solid var(--bs-border); margin-bottom: 20px; box-shadow: var(--bs-sh-sm); display: flex; align-items: center; gap: 15px;">
+  <div style="background: var(--bs-accent); width: 44px; height: 44px; border-radius: var(--bs-r-md); display: grid; place-items: center; color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.15);">
+    <i class="ti ti-rocket" style="font-size: 22px;"></i>
+  </div>
+  <div>
+    <h1 style="font-family: 'Inter', sans-serif; font-weight: 800; font-size: 1.8rem; color: var(--bs-ink); letter-spacing: -0.02em; line-height: 1.2;">Histórico de Lançamentos</h1>
+    <p style="color: var(--bs-ink-muted); margin-top: 3px; font-size: 0.95rem;">
+      Gerencie e analise edições passadas e presentes dos produtos Brabo Concursos.
+    </p>
+  </div>
+</div>
+
+<div class="bs-card">
+  <div class="bs-card-title"><i class="ti ti-history"></i> Lançamentos Cadastrados</div>
+  
+  <div class="bs-table-wrap">
+    <table class="bs-table">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Curso / Produto</th>
+          <th>Período</th>
+          <th>Último Snapshot</th>
+          <th style="text-align: right;">Vendas</th>
+          <th style="text-align: right;">ROAS Médio</th>
+          <th style="text-align: center;">Status</th>
+          <th style="text-align: center;">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in data.launches %}
+        {% set is_active = (row.code == active_launch_code) %}
+        <tr style="{% if is_active %}background: var(--bs-accent-bg); font-weight: 600;{% endif %}">
+          <td><strong>{{ row.code }}</strong></td>
+          <td>{{ row.course_name }}</td>
+          <td class="text-muted">{{ row.start_date }} a {{ row.end_date }}</td>
+          <td class="text-muted">{{ row.snapshot_at.split(' ')[0] if row.snapshot_at else "-" }}</td>
+          <td style="text-align: right;">{{ row.total_sales or 0 }}</td>
+          <td style="text-align: right; font-weight: bold;" class="{% if row.roas >= 2.0 %}text-success{% elif row.roas > 0 and row.roas < 1.0 %}text-danger{% endif %}">
+            {{ "%.2f"|format(row.roas or 0.0) }}x
+          </td>
+          <td style="text-align: center;">
+            {% if is_active %}
+            <span class="bs-badge success"><i class="ti ti-check"></i> Ativo</span>
+            {% else %}
+            <span class="bs-badge neutral">Inativo</span>
+            {% endif %}
+          </td>
+          <td style="text-align: center;">
+            {% if is_active %}
+            <a href="/?launch_code={{ row.code }}" class="bs-badge" style="background: var(--bs-accent); color: #fff; text-decoration: none; padding: 4px 10px;">Ver Dashboard</a>
+            {% else %}
+            <a href="/launches?launch_code={{ row.code }}" class="bs-badge" style="background: rgba(0,0,0,0.05); color: var(--bs-ink); text-decoration: none; padding: 4px 10px; border: 1px solid var(--bs-border);">Ativar</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

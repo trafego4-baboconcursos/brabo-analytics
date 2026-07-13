@@ -1,0 +1,25 @@
+launch:
+  code: PBB-JUN-26
+  client: Brabo Concursos
+  course:
+    code: PBB
+    name: Projeto Banco do Brasil
+  date_range:
+    start: 2026-06-08
+    end: 2026-06-15
+
+youtube:
+  aulas:
+    - id: "GQ8ZP1qv9jM"
+      label: "Aula 1 — 08/06"
+    - id: "7RHcc7Oy22o"
+      label: "Aula 2 — 09/06"
+    - id: "ZAsJrWcWxyM"
+      label: "Aula 3 — 10/06"
+    - id: "ef_gHEe6pXI"
+      label: "Aula 4 — 11/06"
+    - id: "kNwo7Sgyh9k"
+      label: "Aula Resumo — 15/06"
+
+filters:
+  campaign_name_contains: PBB-JUN-26

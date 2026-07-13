@@ -1,0 +1,368 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1><i class="ti ti-brand-meta"></i> Análise de Vendas &mdash; Hotmart{% if launch %} &mdash; {{ launch.code }}{% endif %}</h1>
+      <p>Visão completa de transações, taxas de intermediação financeira, formas de pagamento e parcelamento da Hotmart.</p>
+    </div>
+  </div>
+
+  <div class="content">
+    {% if not hotmart or not hotmart.has_data %}
+    <div class="no-data">
+      <i class="ti ti-flame"></i>
+      <h3>Dados da Hotmart não disponíveis</h3>
+      <p>Adicione em <code>analises/[{{ active_code or 'CODIGO' }}]/Vendas/*hotmart*.csv</code></p>
+    </div>
+    {% else %}
+
+    <!-- KPIs da Hotmart (design system: tp-kpi) -->
+    <div class="tp-kpi-grid">
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-shopping-cart"></i></div></div>
+        <div class="tp-value">{{ hotmart.total_vendas | num }}</div>
+        <div class="tp-label">Total de Vendas</div>
+        <div class="tp-compare">Transações aprovadas</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-cash"></i></div></div>
+        <div class="tp-value">{{ hotmart.receita_bruta | brl }}</div>
+        <div class="tp-label">Receita Bruta</div>
+        <div class="tp-compare">Faturamento bruto</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-cash-banknote"></i></div></div>
+        <div class="tp-value">{{ hotmart.receita_liquida | brl }}</div>
+        <div class="tp-label">Receita Líquida</div>
+        <div class="tp-compare">Faturamento após taxas</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon danger"><i class="ti ti-percentage"></i></div></div>
+        <div class="tp-value negativo">{{ hotmart.taxas | brl }}</div>
+        <div class="tp-label">Taxas Plataforma</div>
+        <div class="tp-compare">{{ hotmart.taxas_pct | pct }} do faturamento bruto</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon warning"><i class="ti ti-coin"></i></div></div>
+        <div class="tp-value">{{ hotmart.pix_ticket | brl }}</div>
+        <div class="tp-label">Ticket Médio Pix</div>
+        <div class="tp-compare">
+          {% if hotmart.pix_premium > 0 %}+{{ hotmart.pix_premium | pct }} vs cartão{% else %}Sem dados comparativos{% endif %}
+        </div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-credit-card"></i></div></div>
+        <div class="tp-value">{{ hotmart.vendas_12x_pct | pct }}</div>
+        <div class="tp-label">Vendas em 12x</div>
+        <div class="tp-compare">Do cartão de crédito</div>
+      </div>
+    </div>
+
+    <!-- Timeline de Vendas -->
+    <div class="section">
+      <div class="section-title">📅 Timeline de Vendas</div>
+      <div class="note info">Distribuição diária das vendas na Hotmart desde a data de abertura do carrinho.</div>
+      
+      <div class="highlights">
+        <!-- Tabela -->
+        <div class="highlight-box" style="flex:1.5;">
+          <div class="table-wrap" style="border:none; margin-top:0;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th class="th-num">Vendas</th>
+                  <th class="th-num">Faturamento Líquido</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in hotmart.timeline %}
+                <tr {% if r.is_d1 %}class="top3"{% endif %}>
+                  <td>
+                    <strong>{{ r.data_str }}</strong>
+                    {% if r.is_d1 %} 🚀 Abertura{% endif %}
+                  </td>
+                  <td class="numero">
+                    <strong>{{ r.vendas | num }}</strong>
+                    <div class="pbar-wrap" style="width:100%;"><div class="pbar-track" style="max-width:80px; height:4px;"><div class="pbar-fill" style="width:{{ r.vendas * 2 }}%; {% if r.is_d1 %}background:var(--bs-accent);{% else %}background:#9ca3af;{% endif %}"></div></div></div>
+                  </td>
+                  <td class="numero">{{ r.faturamento | brl }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Cards de Abertura D1 vs Cauda -->
+        <div class="highlight-box">
+          <h3>Concentração Abertura vs Cauda</h3>
+          
+          {% set total_v = hotmart.total_vendas or 1 %}
+          {% set d1_v = 0 %}
+          {% set d1_f = 0 %}
+          {% for r in hotmart.timeline %}
+            {% if r.is_d1 %}
+              {% set d1_v = r.vendas %}
+              {% set d1_f = r.faturamento %}
+            {% endif %}
+          {% endfor %}
+          {% set d1_v_pct = (d1_v / total_v * 100) %}
+          {% set cauda_v = total_v - d1_v %}
+          {% set cauda_f = hotmart.receita_liquida - d1_f %}
+          {% set cauda_v_pct = 100 - d1_v_pct %}
+
+          <div style="margin-bottom:16px;">
+            <div class="label" style="font-size: 11px; text-transform: uppercase; color: var(--bs-ink-muted);">Abertura (D1)</div>
+            <div style="font-size:24px; font-weight:800; color:var(--bs-accent);">{{ d1_v | num }} vendas</div>
+            <div class="pbar-track" style="width:100%; height:8px; margin-top:4px;"><div class="pbar-fill" style="width:{{ d1_v_pct }}%;"></div></div>
+            <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:4px;">{{ d1_v_pct | pct }} do total · {{ d1_f | brl }}</div>
+          </div>
+          
+          <hr style="border:none; border-top:1px solid var(--bs-border); margin:16px 0;">
+          
+          <div>
+            <div class="label" style="font-size: 11px; text-transform: uppercase; color: var(--bs-ink-muted);">Cauda Pós-Abertura</div>
+            <div style="font-size:24px; font-weight:800; color:var(--bs-ink-muted);">{{ cauda_v | num }} vendas</div>
+            <div class="pbar-track" style="width:100%; height:8px; margin-top:4px; background:#e5e7eb;"><div class="pbar-fill" style="width:{{ cauda_v_pct }}%; background:#9ca3af;"></div></div>
+            <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:4px;">{{ cauda_v_pct | pct }} do total · {{ cauda_f | brl }}</div>
+          </div>
+          
+          <div class="note success" style="margin-top:20px; font-size:12px;">
+            <strong>⚡ Urgência do Carrinho</strong><br>
+            A alta concentração no dia da abertura reflete o impacto dos gatilhos de urgência do time na captação inicial. A cauda demonstra a eficácia do remarketing pós-abertura.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Formas de Pagamento -->
+    <div class="section">
+      <div class="section-title">💳 Formas de Pagamento</div>
+      <div class="note info">Abertura de transações comerciais por método de pagamento. Pix apresenta melhor margem líquida por não sofrer desconto de parcelamento.</div>
+      
+      <div class="highlights">
+        <div class="highlight-box" style="flex:1.5;">
+          <div class="table-wrap" style="border:none; margin-top:0;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Método</th>
+                  <th class="th-num">Qtd / %</th>
+                  <th class="th-num">Faturamento</th>
+                  <th class="th-num">Ticket Médio</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in hotmart.pagamentos %}
+                <tr>
+                  <td><strong>{{ r.metodo }}</strong></td>
+                  <td class="numero">{{ r.qtd | num }} ({{ r.pct_vendas | pct(1) }})</td>
+                  <td class="numero">{{ r.faturamento | brl }} ({{ r.pct_faturamento | pct(1) }})</td>
+                  <td class="numero">{{ r.ticket_medio | brl }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="highlight-box">
+          <h3>Margem e Taxas Estimadas</h3>
+          <div style="background:var(--bs-accent-bg); border-radius:12px; padding:16px;">
+            <div style="font-size:11px; font-weight:700; color:var(--bs-accent); text-transform:uppercase; margin-bottom:8px;">Custos médios Hotmart</div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size:12px;">
+              <div>Cartão 12x: ~4-5%</div>
+              <div>Pix direto: ~1-1.5%</div>
+            </div>
+            <hr style="border:none; border-top:1px dashed rgba(47,94,227,0.2); margin:12px 0;">
+            <div style="font-size:12px; color:var(--bs-accent); line-height:1.4;">
+              Taxa efetiva do faturamento bruto retida pela plataforma: <strong>{{ hotmart.taxas | brl }}</strong> ({{ hotmart.taxas_pct | pct }} do bruto).
+            </div>
+          </div>
+          {% if hotmart.pix_premium > 0 %}
+          <div class="note success" style="margin-top:14px; font-size:12px;">
+            <strong>💡 Pix com Ticket Premium</strong><br>
+            Compradores no Pix pagam em média {{ hotmart.pix_premium | pct }} a mais do que compradores no cartão de crédito. É a audiência de maior poder aquisitivo direto.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Análise de Parcelamento -->
+    <div class="section">
+      <div class="section-title">🔢 Análise de Parcelamento</div>
+      <div class="note warning">Detalhamento da quantidade de parcelas selecionada pelos compradores que utilizaram cartão de crédito.</div>
+      
+      <div class="highlights">
+        <!-- Tabela -->
+        <div class="highlight-box">
+          <h3>Parcelas no Cartão</h3>
+          <div class="table-wrap" style="border:none; margin-top:0;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Parcelas</th>
+                  <th class="th-num">Vendas / %</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in hotmart.parcelas %}
+                <tr>
+                  <td><strong>{{ r.label }}</strong></td>
+                  <td class="numero">
+                    {{ r.qtd | num }} ({{ r.pct_vendas | pct(1) }})
+                    <div class="pbar-wrap" style="width:100%;"><div class="pbar-track" style="max-width:80px; height:4px;"><div class="pbar-fill" style="width:{{ r.pct_vendas }}%; background:var(--bs-accent);"></div></div></div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Fluxo de Caixa -->
+        <div class="highlight-box">
+          <h3>Impacto de Fluxo de Caixa</h3>
+          <div style="margin-bottom: 16px;">
+            <div class="label" style="font-size: 11px; text-transform: uppercase; color: var(--bs-ink-muted);">Recebido à Vista (Pix + Cartão 1x)</div>
+            <div style="font-size:24px; font-weight:800; color:var(--bs-success);">{{ hotmart.fluxo_caixa.a_vista | brl }}</div>
+            <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:4px;">Disponibilização imediata em D+30</div>
+          </div>
+          <hr style="border:none; border-top:1px solid var(--bs-border); margin:16px 0;">
+          <div>
+            <div class="label" style="font-size: 11px; text-transform: uppercase; color: var(--bs-ink-muted);">Fluxo Parcelado (Cartão 2x a 12x)</div>
+            <div style="font-size:24px; font-weight:800; color:var(--bs-accent);">{{ hotmart.fluxo_caixa.parcelado | brl }}</div>
+            <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:4px;">Entrada diluída nos meses correspondentes</div>
+          </div>
+          <div class="note warning" style="margin-top:20px; font-size:12px;">
+            <strong>⚠️ Atenção Financeira</strong><br>
+            Cerca de <strong>{{ hotmart.vendas_12x_pct | pct }}</strong> das compras no cartão foram feitas em 12x. Para financiar a captação do próximo lançamento, pode ser avaliada a antecipação de recebíveis.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ofertas e Afiliados -->
+    <div class="section">
+      <div class="section-title">🎯 Estrutura de Ofertas & Afiliado</div>
+      <div class="note info">As vendas na plataforma passam sob a indicação do afiliado <strong>Aprovasim</strong>. Divisão por nome de precificação cadastrado na Hotmart.</div>
+      
+      <div class="highlights">
+        <div class="highlight-box" style="flex:1.5;">
+          <div class="table-wrap" style="border:none; margin-top:0;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Preço da Oferta</th>
+                  <th>Tipo</th>
+                  <th class="th-num">Qtd</th>
+                  <th class="th-num">Faturamento Líquido</th>
+                  <th class="th-num">Ticket Médio</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in hotmart.ofertas %}
+                <tr>
+                  <td><strong>{{ r.nome }}</strong></td>
+                  <td>
+                    {% if r.tipo == 'Base' %}
+                    <span class="bs-badge success">Base</span>
+                    {% elif r.tipo == 'Lead' %}
+                    <span class="bs-badge warning">Lead</span>
+                    {% elif r.tipo == 'Cross' %}
+                    <span class="bs-badge danger" style="background:#fef2f2; color:#ef4444;">Cross</span>
+                    {% else %}
+                    <span class="bs-badge neutral">{{ r.tipo }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="numero">{{ r.qtd | num }}</td>
+                  <td class="numero">{{ r.faturamento | brl }}</td>
+                  <td class="numero">{{ r.ticket_medio | brl }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="highlight-box">
+          <h3>Parceiro / Afiliado</h3>
+          <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; padding:16px;">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+              <div style="height:10px; width:10px; border-radius:50%; background:var(--bs-success);"></div>
+              <strong style="font-size:14px;">Aprovasim (Afiliado Geral)</strong>
+            </div>
+            <p style="font-size:12px; color:var(--bs-ink-muted); line-height:1.5; margin-bottom:8px;">
+              Todas as transações registradas foram atribuídas ao parceiro comercial. Os comissionamentos sob ofertas específicas são negociados conforme origem do lead.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Geografia -->
+    <div class="section">
+      <div class="section-title">🗺️ Geografia dos Compradores (Hotmart)</div>
+      <div class="highlights">
+        <!-- Estados -->
+        <div class="highlight-box">
+          <h3>Top 10 Estados</h3>
+          <div class="table-wrap" style="border:none; margin-top:0;">
+            <table>
+              <thead>
+                <tr>
+                  <th>UF</th>
+                  <th class="th-num">Vendas</th>
+                  <th class="th-num">Faturamento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in hotmart.estados %}
+                <tr>
+                  <td><strong>{{ r.estado }}</strong></td>
+                  <td class="numero">{{ r.qtd | num }}</td>
+                  <td class="numero">{{ r.faturamento | brl }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Cidades -->
+        <div class="highlight-box">
+          <h3>Top 10 Cidades</h3>
+          <div class="table-wrap" style="border:none; margin-top:0;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Cidade</th>
+                  <th class="th-num">Vendas</th>
+                  <th class="th-num">Faturamento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in hotmart.cidades %}
+                <tr>
+                  <td><strong>{{ r.cidade }}</strong></td>
+                  <td class="numero">{{ r.qtd | num }}</td>
+                  <td class="numero">{{ r.faturamento | brl }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    {% endif %}
+  </div>
+
+  <div class="footing">Gerado em tempo real via Brabo Analytics{% if launch %} &mdash; {{ launch.code }}{% endif %}</div>
+</div>
+{% endblock %}

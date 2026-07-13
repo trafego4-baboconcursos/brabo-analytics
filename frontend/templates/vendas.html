@@ -1,0 +1,477 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1><i class="ti ti-coin"></i> Análise de Vendas Integrada{% if launch %} &mdash; {{ launch.code }}{% endif %}</h1>
+      <p>Cruzamento entre Typeform, Active Campaign, Hotmart e TMB para leitura de origem, ticket, perfil comprador e propensão.</p>
+    </div>
+  </div>
+  
+  <div class="content">
+    {% if not vendas or not vendas.has_data %}
+    <div class="no-data">
+      <i class="ti ti-coin"></i>
+      <h3>Dados de Vendas não disponíveis</h3>
+      <p>Adicione em <code>analises/[{{ active_code or 'CODIGO' }}]/Vendas/hotmart*.csv</code> e <code>tmb*.csv</code></p>
+    </div>
+    {% else %}
+
+    <!-- KPIs de Vendas Integradas (design system: tp-kpi) -->
+    <div class="tp-kpi-grid">
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-cash"></i></div></div>
+        <div class="tp-value">{{ vendas.total_receita | brl }}</div>
+        <div class="tp-label">Receita Total</div>
+        <div class="tp-compare">Hotmart + TMB</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-receipt"></i></div></div>
+        <div class="tp-value">{{ vendas.total_transacoes | num }}</div>
+        <div class="tp-label">Transações</div>
+        <div class="tp-compare">Vendas consolidadas</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-users"></i></div></div>
+        <div class="tp-value">{{ vendas.compradores_unicos | num }}</div>
+        <div class="tp-label">Compradores Únicos</div>
+        <div class="tp-compare">Emails distintos</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon warning"><i class="ti ti-coin"></i></div></div>
+        <div class="tp-value">{{ vendas.ticket_medio | brl }}</div>
+        <div class="tp-label">Ticket Médio</div>
+        <div class="tp-compare">Consolidado</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-address-book"></i></div></div>
+        <div class="tp-value">{{ vendas.leads_crm | num }}</div>
+        <div class="tp-label">Leads no CRM</div>
+        <div class="tp-compare">Active Campaign</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-arrows-exchange"></i></div></div>
+        <div class="tp-value">{{ vendas.conversao_lead_venda | pct }}</div>
+        <div class="tp-label">Conversão Lead → Venda</div>
+        <div class="tp-compare">Base total do CRM</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-user-check"></i></div></div>
+        <div class="tp-value">{{ vendas.compradores_crm | num }}</div>
+        <div class="tp-label">Compradores no CRM</div>
+        <div class="tp-compare">Leads AC vinculados</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-clipboard-list"></i></div></div>
+        <div class="tp-value">{{ vendas.compradores_typeform | num }}</div>
+        <div class="tp-label">Compradores Typeform</div>
+        <div class="tp-compare">Com pesquisa vinculada</div>
+      </div>
+    </div>
+
+    <!-- Leitura Executiva -->
+    <div class="section">
+      <div class="section-title">📌 Leitura Executiva</div>
+      <div class="highlights" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+        
+        <div class="note success" style="margin-bottom:0;">
+          <strong style="display:block; margin-bottom:4px; font-weight:700;"><i class="ti ti-trophy"></i> Origem mais valiosa</strong>
+          {% if vendas.top_origem_nome %}
+          {{ vendas.top_origem_nome }} lidera com {{ vendas.top_origem_faturamento | brl }}, {{ vendas.top_origem_compradores | num }} compradores e ticket médio de {{ vendas.top_origem_ticket | brl }}.
+          {% else %}
+          Origens de vendas ainda não mapeadas para este período.
+          {% endif %}
+        </div>
+        
+        <div class="note info" style="margin-bottom:0;">
+          <strong style="display:block; margin-bottom:4px; font-weight:700;"><i class="ti ti-map-pin"></i> Concentração geográfica</strong>
+          {% if vendas.top_estado_nome %}
+          {{ vendas.top_estado_nome }} concentra o maior faturamento mapeado, com {{ vendas.top_estado_faturamento | brl }} e {{ vendas.top_estado_compradores | num }} compradores.
+          {% else %}
+          Concentração geográfica não mapeável com dados atuais.
+          {% endif %}
+        </div>
+        
+        <div class="note warning" style="margin-bottom:0;">
+          <strong style="display:block; margin-bottom:4px; font-weight:700;"><i class="ti ti-users"></i> Maior volume comprador</strong>
+          {% if vendas.volume_insight %}
+          Na dimensão {{ vendas.volume_insight.dimensao }}, a resposta '{{ vendas.volume_insight.resposta }}' gerou {{ vendas.volume_insight.compradores | num }} compradores, {{ vendas.volume_insight.tx_conv | pct }} de conversão e {{ vendas.volume_insight.faturamento | brl }} de faturamento.
+          {% else %}
+          Amostra demográfica insuficiente para leitura de volume.
+          {% endif %}
+        </div>
+        
+        <div class="note success" style="margin-bottom:0;">
+          <strong style="display:block; margin-bottom:4px; font-weight:700;"><i class="ti ti-trending-up"></i> Maior conversão</strong>
+          {% if vendas.conv_insight %}
+          Na dimensão {{ vendas.conv_insight.dimensao }}, a resposta '{{ vendas.conv_insight.resposta }}' entregou {{ vendas.conv_insight.tx_conv | pct }} de conversão sobre {{ vendas.conv_insight.leads | num }} leads.
+          {% else %}
+          Amostra demográfica insuficiente para leitura de conversão.
+          {% endif %}
+        </div>
+        
+        <div class="note info" style="margin-bottom:0;">
+          <strong style="display:block; margin-bottom:4px; font-weight:700;"><i class="ti ti-receipt-2"></i> Maior ticket</strong>
+          {% if vendas.ticket_insight %}
+          Na dimensão {{ vendas.ticket_insight.dimensao }}, a resposta '{{ vendas.ticket_insight.resposta }}' fechou ticket médio de {{ vendas.ticket_insight.ticket | brl }} com {{ vendas.ticket_insight.compradores | num }} compradores.
+          {% else %}
+          Amostra demográfica insuficiente para leitura de ticket médio.
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Fechamento Comercial -->
+    <div class="section">
+      <div class="section-title">💳 Fechamento Comercial</div>
+      <div class="note info">Fechamento consolidado por plataforma de venda de infoprodutos.</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Plataforma</th>
+              <th class="th-num">Compradores</th>
+              <th class="th-num">Transações</th>
+              <th class="th-num">Faturamento</th>
+              <th class="th-num">Ticket Médio</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in vendas.fechamento %}
+            <tr>
+              <td><strong>{{ r.plataforma }}</strong></td>
+              <td class="numero">{{ r.compradores | num }}</td>
+              <td class="numero">{{ r.transacoes | num }}</td>
+              <td class="numero">{{ r.faturamento | brl }}</td>
+              <td class="numero">{{ r.ticket | brl }}</td>
+            </tr>
+            {% endfor %}
+            <tr class="total-row">
+              <td><strong>Consolidado</strong></td>
+              <td class="numero">{{ vendas.compradores_unicos | num }}</td>
+              <td class="numero">{{ vendas.total_transacoes | num }}</td>
+              <td class="numero">{{ vendas.total_receita | brl }}</td>
+              <td class="numero">{{ vendas.ticket_medio | brl }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Origem das Vendas -->
+    <div class="section">
+      <div class="section-title">🧭 Origem das Vendas</div>
+      <div class="highlights">
+        <!-- Canais -->
+        <div class="highlight-box">
+          <h3><i class="ti ti-brand-youtube"></i> Top Canais de Origem</h3>
+          <div class="table-wrap" style="border:none; margin-top:0;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Canal</th>
+                  <th class="th-num">Compr.</th>
+                  <th class="th-num">Faturamento</th>
+                  <th class="th-num">Ticket</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in vendas.top_canais %}
+                <tr>
+                  <td><strong>{{ r.label }}</strong></td>
+                  <td class="numero">{{ r.compradores | num }}</td>
+                  <td class="numero">{{ r.faturamento | brl }}</td>
+                  <td class="numero">{{ r.ticket | brl }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <!-- Campanhas -->
+        <div class="highlight-box">
+          <h3><i class="ti ti-adjustments"></i> Top Campanhas (UTM Campaign)</h3>
+          <div class="table-wrap" style="border:none; margin-top:0;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Campanha</th>
+                  <th class="th-num">Compr.</th>
+                  <th class="th-num">Faturamento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in vendas.top_campanhas %}
+                <tr>
+                  <td><div style="max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="{{ r.label }}">{{ r.label }}</div></td>
+                  <td class="numero">{{ r.compradores | num }}</td>
+                  <td class="numero">{{ r.faturamento | brl }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Perfil Demográfico -->
+    <div class="section">
+      <div class="section-title">👥 Perfil Demográfico</div>
+      <div class="note info">Leitura dos compradores que preencheram o Typeform de captação e foram encontrados na base de vendas.</div>
+      
+      {% if not vendas.genero and not vendas.idade and not vendas.situacao_prof and not vendas.escolaridade %}
+      <div class="no-data" style="padding: 30px;">
+        <i class="ti ti-users"></i>
+        <h3>Perfil demográfico não disponível</h3>
+        <p>Não houve correspondência de e-mails entre a pasta do Typeform e as vendas deste lançamento.</p>
+      </div>
+      {% else %}
+      <div class="highlights" style="grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));">
+        
+        <!-- Gênero -->
+        {% if vendas.genero %}
+        <div class="highlight-box">
+          <h3>Gênero</h3>
+          <div class="table-wrap" style="border:none; margin-top:0;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Gênero</th>
+                  <th class="th-num">Compr.</th>
+                  <th class="th-num">Faturamento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in vendas.genero %}
+                <tr>
+                  <td><strong>{{ r.label }}</strong></td>
+                  <td class="numero">{{ r.compradores | num }}</td>
+                  <td class="numero">{{ r.faturamento | brl }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Faixa Etária -->
+        {% if vendas.idade %}
+        <div class="highlight-box">
+          <h3>Faixa Etária</h3>
+          <div class="table-wrap" style="border:none; margin-top:0;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Idade</th>
+                  <th class="th-num">Compr.</th>
+                  <th class="th-num">Faturamento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in vendas.idade %}
+                <tr>
+                  <td><strong>{{ r.label }}</strong></td>
+                  <td class="numero">{{ r.compradores | num }}</td>
+                  <td class="numero">{{ r.faturamento | brl }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Situação Profissional -->
+        {% if vendas.situacao_prof %}
+        <div class="highlight-box">
+          <h3>Situação Profissional</h3>
+          <div class="table-wrap" style="border:none; margin-top:0;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Situação</th>
+                  <th class="th-num">Compr.</th>
+                  <th class="th-num">Faturamento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in vendas.situacao_prof %}
+                <tr>
+                  <td><strong>{{ r.label }}</strong></td>
+                  <td class="numero">{{ r.compradores | num }}</td>
+                  <td class="numero">{{ r.faturamento | brl }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Escolaridade -->
+        {% if vendas.escolaridade %}
+        <div class="highlight-box">
+          <h3>Escolaridade</h3>
+          <div class="table-wrap" style="border:none; margin-top:0;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Escolaridade</th>
+                  <th class="th-num">Compr.</th>
+                  <th class="th-num">Faturamento</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in vendas.escolaridade %}
+                <tr>
+                  <td><strong>{{ r.label }}</strong></td>
+                  <td class="numero">{{ r.compradores | num }}</td>
+                  <td class="numero">{{ r.faturamento | brl }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endif %}
+
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Geografia das Vendas -->
+    <div class="section">
+      <div class="section-title">📍 Geografia das Vendas</div>
+      <div class="highlights">
+        <!-- Estados -->
+        <div class="highlight-box">
+          <h3>Estados (UF)</h3>
+          <div class="table-wrap" style="border:none; margin-top:0;">
+            <table>
+              <thead>
+                <tr>
+                  <th>UF</th>
+                  <th class="th-num">Compradores</th>
+                  <th class="th-num">Transações</th>
+                  <th class="th-num">Faturamento</th>
+                  <th class="th-num">Ticket Médio</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in vendas.top_estados %}
+                <tr>
+                  <td><strong>{{ r.label }}</strong></td>
+                  <td class="numero">{{ r.compradores | num }}</td>
+                  <td class="numero">{{ r.transacoes | num }}</td>
+                  <td class="numero">{{ r.faturamento | brl }}</td>
+                  <td class="numero">{{ r.ticket | brl }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Cidades -->
+        <div class="highlight-box">
+          <h3>Cidades</h3>
+          <div class="table-wrap" style="border:none; margin-top:0;">
+            <table>
+              <thead>
+                <tr>
+                  <th>Cidade</th>
+                  <th class="th-num">Compradores</th>
+                  <th class="th-num">Transações</th>
+                  <th class="th-num">Faturamento</th>
+                  <th class="th-num">Ticket Médio</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for r in vendas.top_cidades %}
+                <tr>
+                  <td><strong>{{ r.label }}</strong></td>
+                  <td class="numero">{{ r.compradores | num }}</td>
+                  <td class="numero">{{ r.transacoes | num }}</td>
+                  <td class="numero">{{ r.faturamento | brl }}</td>
+                  <td class="numero">{{ r.ticket | brl }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Propensão por Resposta -->
+    <div class="section">
+      <div class="section-title">🧪 Propensão por Resposta</div>
+      <div class="note info">Taxa de conversão demográfica calculada sobre leads que responderam o Typeform de captação e constam no CRM.</div>
+      
+      {% if not vendas.propensao %}
+      <div class="no-data" style="padding: 30px;">
+        <i class="ti ti-test-tube"></i>
+        <h3>Sem dados de propensão suficientes</h3>
+        <p>Amostra demográfica reduzida para obter taxas estatisticamente saudáveis.</p>
+      </div>
+      {% else %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Dimensão</th>
+              <th>Resposta</th>
+              <th class="th-num">Leads</th>
+              <th class="th-num">Compradores</th>
+              <th class="th-num">Tx. Conversão</th>
+              <th class="th-num">Faturamento</th>
+              <th class="th-num">Ticket Médio</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in vendas.propensao %}
+            <tr>
+              <td>{{ r.dimensao }}</td>
+              <td><strong>{{ r.resposta }}</strong></td>
+              <td class="numero">{{ r.leads | num }}</td>
+              <td class="numero">{{ r.compradores | num }}</td>
+              <td class="numero positivo">{{ r.tx_conv | pct }}</td>
+              <td class="numero">{{ r.faturamento | brl }}</td>
+              <td class="numero">{{ r.ticket | brl }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Insights Acionáveis -->
+    <div class="section">
+      <div class="section-title">💡 Insights Acionáveis</div>
+      <div class="highlights">
+        <div class="note info" style="margin-bottom:0;">
+          <strong>Rastreabilidade</strong><br>
+          {{ vendas.compradores_crm | num }} compradores constam no CRM e {{ vendas.compradores_typeform | num }} compradores preencheram a pesquisa. A correlação de dados ajuda a mapear o perfil comercial exato de quem decide comprar.
+        </div>
+        <div class="note success" style="margin-bottom:0;">
+          <strong>Prioridade Comercial</strong><br>
+          Use o cruzamento por UTM dos canais e das campanhas mais valiosas para alocar budgets e segmentar as comunicações com foco em ticket médio alto e ROI otimizado.
+        </div>
+        <div class="note warning" style="margin-bottom:0;">
+          <strong>Próximo Nível</strong><br>
+          Pontuar leads frios vs leads com características de alta conversão (por exemplo, quem se compromete com 2h/dia de estudo) para ações urgentes do time de vendas do WhatsApp.
+        </div>
+      </div>
+    </div>
+
+    {% endif %}
+  </div>
+  
+  <div class="footing">Gerado em tempo real via Brabo Analytics{% if launch %} &mdash; {{ launch.code }}{% endif %}</div>
+</div>
+{% endblock %}

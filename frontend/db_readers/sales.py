@@ -20,7 +20,19 @@ logger = get_logger("db")
 
 
 def read_vendas(launch_folder_or_code: Any, start_date=None, end_date=None) -> VendasSummary | None:
+    """Cache + single-flight: read_meta/read_google/typeform chamam read_vendas
+    internamente e em paralelo; sem isso a mesma consulta rodava 3-4x por página."""
+    from frontend.cache import _get_or_compute  # noqa: PLC0415 — evita import circular
+
     code = _extract_launch_code(launch_folder_or_code)
+    return _get_or_compute(
+        code,
+        f"vendas::{start_date}::{end_date}",
+        lambda: _read_vendas_uncached(code, start_date, end_date),
+    )
+
+
+def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSummary | None:
     logger.info("read_vendas: inicio code=%s start=%s end=%s", code, start_date, end_date)
 
     from frontend.db_readers.launches import read_launch_config  # noqa: PLC0415

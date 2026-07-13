@@ -8,7 +8,7 @@ from typing import Any
 
 from fastapi.concurrency import run_in_threadpool
 
-from frontend.cache import _get_cached, _set_cached
+from frontend.cache import _get_cached, _get_or_compute, _set_cached
 from frontend.database_reader import (
     read_meta, read_google, read_vendas, read_leads,
     read_hotmart_details, read_tmb_details, read_vendas_consolidado,
@@ -24,12 +24,7 @@ logger = get_logger("frontend")
 # ── Config helpers ─────────────────────────────────────────────────────────────
 
 def _launch_cfg(launch_code: str) -> dict:
-    cached = _get_cached(launch_code, "launch_config")
-    if cached is not None:
-        return cached
-    result = read_launch_config(launch_code)
-    _set_cached(launch_code, "launch_config", result)
-    return result
+    return _get_or_compute(launch_code, "launch_config", lambda: read_launch_config(launch_code))
 
 
 def _get_global_start(cfg: dict) -> str:
@@ -41,113 +36,59 @@ def _get_global_end(cfg: dict) -> str:
 
 # ── Leitores com cache ─────────────────────────────────────────────────────────
 
-def _meta(launch: Any):
+def _window(launch: Any) -> tuple:
     cfg = _launch_cfg(launch.code)
-    start = _get_global_start(cfg)
-    end = _get_global_end(cfg)
-    cache_key = f"meta::{start}::{end}"
-    cached = _get_cached(launch.code, cache_key)
-    if cached is not None:
-        return cached
-    result = read_meta(launch.folder, start_date=start, end_date=end)
-    _set_cached(launch.code, cache_key, result)
-    return result
+    return _get_global_start(cfg), _get_global_end(cfg)
+
+
+def _meta(launch: Any):
+    start, end = _window(launch)
+    return _get_or_compute(launch.code, f"meta::{start}::{end}",
+                           lambda: read_meta(launch.folder, start_date=start, end_date=end))
 
 
 def _google(launch: Any):
-    cfg = _launch_cfg(launch.code)
-    start = _get_global_start(cfg)
-    end = _get_global_end(cfg)
-    cache_key = f"google::{start}::{end}"
-    cached = _get_cached(launch.code, cache_key)
-    if cached is not None:
-        return cached
-    result = read_google(launch.folder, start_date=start, end_date=end)
-    _set_cached(launch.code, cache_key, result)
-    return result
+    start, end = _window(launch)
+    return _get_or_compute(launch.code, f"google::{start}::{end}",
+                           lambda: read_google(launch.folder, start_date=start, end_date=end))
 
 
 def _vendas(launch: Any):
-    cfg = _launch_cfg(launch.code)
-    start = _get_global_start(cfg)
-    end = _get_global_end(cfg)
-    cache_key = f"vendas::{start}::{end}"
-    cached = _get_cached(launch.code, cache_key)
-    if cached is not None:
-        return cached
-    result = read_vendas(launch.folder, start_date=start, end_date=end)
-    _set_cached(launch.code, cache_key, result)
-    return result
+    start, end = _window(launch)
+    return read_vendas(launch.folder, start_date=start, end_date=end)
 
 
 def _leads(launch: Any, vendas_data: Any):
-    cfg = _launch_cfg(launch.code)
-    start = _get_global_start(cfg)
-    end = _get_global_end(cfg)
-    cache_key = f"leads::{start}::{end}"
-    cached = _get_cached(launch.code, cache_key)
-    if cached is not None:
-        return cached
-    result = read_leads(launch.folder, vendas_data, start_date=start, end_date=end)
-    _set_cached(launch.code, cache_key, result)
-    return result
+    start, end = _window(launch)
+    return _get_or_compute(launch.code, f"leads::{start}::{end}",
+                           lambda: read_leads(launch.folder, vendas_data, start_date=start, end_date=end))
 
 
 def _typeform(launch: Any):
-    cached = _get_cached(launch.code, "typeform_data")
-    if cached is not None:
-        return cached
-    result = read_typeform(launch.folder)
-    _set_cached(launch.code, "typeform_data", result)
-    return result
+    return _get_or_compute(launch.code, "typeform_data", lambda: read_typeform(launch.folder))
 
 
 def _hotmart_details(launch: Any):
-    cfg = _launch_cfg(launch.code)
-    start = _get_global_start(cfg)
-    end = _get_global_end(cfg)
-    cache_key = f"hotmart_details::{start}::{end}"
-    cached = _get_cached(launch.code, cache_key)
-    if cached is not None:
-        return cached
-    result = read_hotmart_details(launch.folder, start_date=start, end_date=end)
-    _set_cached(launch.code, cache_key, result)
-    return result
+    start, end = _window(launch)
+    return _get_or_compute(launch.code, f"hotmart_details::{start}::{end}",
+                           lambda: read_hotmart_details(launch.folder, start_date=start, end_date=end))
 
 
 def _tmb_details(launch: Any):
-    cfg = _launch_cfg(launch.code)
-    start = _get_global_start(cfg)
-    end = _get_global_end(cfg)
-    cache_key = f"tmb_details::{start}::{end}"
-    cached = _get_cached(launch.code, cache_key)
-    if cached is not None:
-        return cached
-    result = read_tmb_details(launch.folder, start_date=start, end_date=end)
-    _set_cached(launch.code, cache_key, result)
-    return result
+    start, end = _window(launch)
+    return _get_or_compute(launch.code, f"tmb_details::{start}::{end}",
+                           lambda: read_tmb_details(launch.folder, start_date=start, end_date=end))
 
 
 def _vendas_consolidado(launch: Any):
-    cfg = _launch_cfg(launch.code)
-    start = _get_global_start(cfg)
-    end = _get_global_end(cfg)
-    cache_key = f"vendas_consolidado::{start}::{end}"
-    cached = _get_cached(launch.code, cache_key)
-    if cached is not None:
-        return cached
-    result = read_vendas_consolidado(launch.folder, start_date=start, end_date=end)
-    _set_cached(launch.code, cache_key, result)
-    return result
+    start, end = _window(launch)
+    return _get_or_compute(launch.code, f"vendas_consolidado::{start}::{end}",
+                           lambda: read_vendas_consolidado(launch.folder, start_date=start, end_date=end))
 
 
 def _typeform_count(launch: Any) -> int:
-    cached = _get_cached(launch.code, "typeform_count")
-    if cached is not None:
-        return cached
-    total = read_typeform(launch.folder).total_tf
-    _set_cached(launch.code, "typeform_count", total)
-    return total
+    return _get_or_compute(launch.code, "typeform_count",
+                           lambda: read_typeform(launch.folder).total_tf)
 
 
 def _fetch_prev_for_debriefing(launch: Any) -> dict:

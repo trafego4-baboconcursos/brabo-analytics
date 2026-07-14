@@ -6,7 +6,8 @@
 #   powershell -File scripts\backup-workspace.ps1 -Destination "E:\"  # zip em outro lugar
 
 param(
-    [string]$Destination = (Join-Path $env:USERPROFILE 'Desktop')
+    # Desktop real do usuario (pode ser redirecionado pelo OneDrive)
+    [string]$Destination = [Environment]::GetFolderPath('Desktop')
 )
 
 $ErrorActionPreference = 'Stop'
@@ -72,7 +73,7 @@ $gitInfo | Out-File (Join-Path $stage 'git-info.txt') -Encoding utf8
 
 $restoreSrc = Join-Path $root 'documentacao\RESTAURAR_MAQUINA_NOVA.md'
 if (Test-Path -LiteralPath $restoreSrc) {
-    Copy-Item -LiteralPath $restoreSrc -Destination (Join-Path $stage 'LEIA-ME — RESTAURAR.md')
+    Copy-Item -LiteralPath $restoreSrc -Destination (Join-Path $stage 'LEIA-ME-RESTAURAR.md')
 }
 
 Write-Host "Compactando em $zip ..."

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import os
 import json
+import re
 import time as _time_module
 from pathlib import Path
 from typing import Any, Optional
@@ -409,8 +410,9 @@ def read_typeform(launch_folder_or_code: Any) -> TypeformSummary:
 
     def comp_ncomp_distribution(col_name_part: str) -> tuple[dict[str, float], dict[str, float], dict[str, float]]:
         col = None
+        pattern = re.compile(r"\b" + re.escape(col_name_part.lower()) + r"\b")
         for c in tf_df.columns:
-            if col_name_part.lower() in _norm_text(c):
+            if pattern.search(_norm_text(c)):
                 col = c
                 break
         if not col or tf_comp.empty:

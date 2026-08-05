@@ -1,0 +1,366 @@
+{
+  "meta": {
+    "2026-08-03": {
+      "quente_principal": 3377.4,
+      "quente_potencial": 964.97,
+      "quente_teste": 241.24,
+      "quente_reels": 241.24,
+      "frio_principal": 964.97,
+      "frio_potencial": 275.71,
+      "frio_teste": 68.93,
+      "frio_reels": 68.93,
+      "especifico_principal": 964.97,
+      "especifico_potencial": 275.71,
+      "especifico_teste": 68.93,
+      "especifico_reels": 68.93
+    },
+    "2026-08-04": {
+      "quente_principal": 3204.2,
+      "quente_potencial": 915.49,
+      "quente_teste": 228.87,
+      "quente_reels": 228.87,
+      "frio_principal": 915.49,
+      "frio_potencial": 261.57,
+      "frio_teste": 65.39,
+      "frio_reels": 65.39,
+      "especifico_principal": 915.49,
+      "especifico_potencial": 261.57,
+      "especifico_teste": 65.39,
+      "especifico_reels": 65.39
+    },
+    "2026-08-05": {
+      "quente_principal": 3031.0,
+      "quente_potencial": 866.0,
+      "quente_teste": 216.5,
+      "quente_reels": 216.5,
+      "frio_principal": 866.0,
+      "frio_potencial": 247.43,
+      "frio_teste": 61.86,
+      "frio_reels": 61.86,
+      "especifico_principal": 866.0,
+      "especifico_potencial": 247.43,
+      "especifico_teste": 61.86,
+      "especifico_reels": 61.86
+    },
+    "2026-08-06": {
+      "quente_principal": 2901.1,
+      "quente_potencial": 828.89,
+      "quente_teste": 207.22,
+      "quente_reels": 207.22,
+      "frio_principal": 828.89,
+      "frio_potencial": 236.82,
+      "frio_teste": 59.21,
+      "frio_reels": 59.21,
+      "especifico_principal": 828.89,
+      "especifico_potencial": 236.82,
+      "especifico_teste": 59.21,
+      "especifico_reels": 59.21
+    },
+    "2026-08-07": {
+      "quente_principal": 2814.5,
+      "quente_potencial": 804.14,
+      "quente_teste": 201.04,
+      "quente_reels": 201.04,
+      "frio_principal": 804.14,
+      "frio_potencial": 229.76,
+      "frio_teste": 57.44,
+      "frio_reels": 57.44,
+      "especifico_principal": 804.14,
+      "especifico_potencial": 229.76,
+      "especifico_teste": 57.44,
+      "especifico_reels": 57.44
+    },
+    "2026-08-08": {
+      "quente_principal": 2684.6,
+      "quente_potencial": 767.03,
+      "quente_teste": 191.76,
+      "quente_reels": 191.76,
+      "frio_principal": 767.03,
+      "frio_potencial": 219.15,
+      "frio_teste": 54.79,
+      "frio_reels": 54.79,
+      "especifico_principal": 767.03,
+      "especifico_potencial": 219.15,
+      "especifico_teste": 54.79,
+      "especifico_reels": 54.79
+    },
+    "2026-08-09": {
+      "quente_principal": 2684.6,
+      "quente_potencial": 767.03,
+      "quente_teste": 191.76,
+      "quente_reels": 191.76,
+      "frio_principal": 767.03,
+      "frio_potencial": 219.15,
+      "frio_teste": 54.79,
+      "frio_reels": 54.79,
+      "especifico_principal": 767.03,
+      "especifico_potencial": 219.15,
+      "especifico_teste": 54.79,
+      "especifico_reels": 54.79
+    },
+    "2026-08-10": {
+      "quente_principal": 3117.6,
+      "quente_potencial": 890.74,
+      "quente_teste": 222.69,
+      "quente_reels": 222.69,
+      "frio_principal": 890.74,
+      "frio_potencial": 254.5,
+      "frio_teste": 63.62,
+      "frio_reels": 63.62,
+      "especifico_principal": 890.74,
+      "especifico_potencial": 254.5,
+      "especifico_teste": 63.62,
+      "especifico_reels": 63.62
+    },
+    "2026-08-11": {
+      "quente_principal": 2814.5,
+      "quente_potencial": 804.14,
+      "quente_teste": 201.04,
+      "quente_reels": 201.04,
+      "frio_principal": 804.14,
+      "frio_potencial": 229.76,
+      "frio_teste": 57.44,
+      "frio_reels": 57.44,
+      "especifico_principal": 804.14,
+      "especifico_potencial": 229.76,
+      "especifico_teste": 57.44,
+      "especifico_reels": 57.44
+    },
+    "2026-08-12": {
+      "quente_principal": 2684.6,
+      "quente_potencial": 767.03,
+      "quente_teste": 191.76,
+      "quente_reels": 191.76,
+      "frio_principal": 767.03,
+      "frio_potencial": 219.15,
+      "frio_teste": 54.79,
+      "frio_reels": 54.79,
+      "especifico_principal": 767.03,
+      "especifico_potencial": 219.15,
+      "especifico_teste": 54.79,
+      "especifico_reels": 54.79
+    },
+    "2026-08-13": {
+      "quente_principal": 2598.0,
+      "quente_potencial": 742.29,
+      "quente_teste": 185.57,
+      "quente_reels": 185.57,
+      "frio_principal": 742.29,
+      "frio_potencial": 212.08,
+      "frio_teste": 53.02,
+      "frio_reels": 53.02,
+      "especifico_principal": 742.29,
+      "especifico_potencial": 212.08,
+      "especifico_teste": 53.02,
+      "especifico_reels": 53.02
+    },
+    "2026-08-14": {
+      "quente_principal": 2598.0,
+      "quente_potencial": 742.29,
+      "quente_teste": 185.57,
+      "quente_reels": 185.57,
+      "frio_principal": 742.29,
+      "frio_potencial": 212.08,
+      "frio_teste": 53.02,
+      "frio_reels": 53.02,
+      "especifico_principal": 742.29,
+      "especifico_potencial": 212.08,
+      "especifico_teste": 53.02,
+      "especifico_reels": 53.02
+    },
+    "2026-08-15": {
+      "quente_principal": 2684.6,
+      "quente_potencial": 767.03,
+      "quente_teste": 191.76,
+      "quente_reels": 191.76,
+      "frio_principal": 767.03,
+      "frio_potencial": 219.15,
+      "frio_teste": 54.79,
+      "frio_reels": 54.79,
+      "especifico_principal": 767.03,
+      "especifico_potencial": 219.15,
+      "especifico_teste": 54.79,
+      "especifico_reels": 54.79
+    },
+    "2026-08-16": {
+      "quente_principal": 2901.1,
+      "quente_potencial": 828.89,
+      "quente_teste": 207.22,
+      "quente_reels": 207.22,
+      "frio_principal": 828.89,
+      "frio_potencial": 236.82,
+      "frio_teste": 59.21,
+      "frio_reels": 59.21,
+      "especifico_principal": 828.89,
+      "especifico_potencial": 236.82,
+      "especifico_teste": 59.21,
+      "especifico_reels": 59.21
+    },
+    "2026-08-17": {
+      "quente_principal": 3204.2,
+      "quente_potencial": 915.49,
+      "quente_teste": 228.87,
+      "quente_reels": 228.87,
+      "frio_principal": 915.49,
+      "frio_potencial": 261.57,
+      "frio_teste": 65.39,
+      "frio_reels": 65.39,
+      "especifico_principal": 915.49,
+      "especifico_potencial": 261.57,
+      "especifico_teste": 65.39,
+      "especifico_reels": 65.39
+    }
+  },
+  "meta_campaign_ids": {
+    "quente_principal": "120251204225680520",
+    "quente_potencial": "120251209992680520",
+    "quente_teste": "120251210444090520",
+    "quente_reels": "120251210828670520",
+    "frio_principal": "120251204441590520",
+    "frio_potencial": "120251210921440520",
+    "frio_teste": "120251210924530520",
+    "frio_reels": "120251210927230520",
+    "especifico_principal": "120251205182310520",
+    "especifico_potencial": "120251210933210520",
+    "especifico_teste": "120251210936830520",
+    "especifico_reels": "120251210940120520"
+  },
+  "google_campaign_ids": {
+    "quente_principal": "24090839684",
+    "quente_potencial": "24088533261",
+    "frio_principal": "24090839708",
+    "frio_potencial": "24098465452",
+    "especifico_principal": "24095767624",
+    "especifico_potencial": "24088528524"
+  },
+  "google_budget_ids": {
+    "quente_principal": "15766600252",
+    "quente_potencial": "15763541232",
+    "frio_principal": "15761599818",
+    "frio_potencial": "15758076368",
+    "especifico_principal": "15761600583",
+    "especifico_potencial": "15768553567"
+  },
+  "google": {
+    "2026-08-03": {
+      "quente_principal": 4755.24,
+      "quente_potencial": 2086.03,
+      "frio_principal": 1648.77,
+      "frio_potencial": 648.78,
+      "especifico_principal": 2910.65,
+      "especifico_potencial": 1156.02
+    },
+    "2026-08-04": {
+      "quente_principal": 4511.38,
+      "quente_potencial": 1979.06,
+      "frio_principal": 1564.22,
+      "frio_potencial": 615.51,
+      "especifico_principal": 2761.39,
+      "especifico_potencial": 1096.73
+    },
+    "2026-08-05": {
+      "quente_principal": 4267.52,
+      "quente_potencial": 1872.08,
+      "frio_principal": 1479.67,
+      "frio_potencial": 582.24,
+      "especifico_principal": 2612.12,
+      "especifico_potencial": 1037.45
+    },
+    "2026-08-06": {
+      "quente_principal": 4084.63,
+      "quente_potencial": 1791.85,
+      "frio_principal": 1416.25,
+      "frio_potencial": 557.29,
+      "especifico_principal": 2500.18,
+      "especifico_potencial": 992.99
+    },
+    "2026-08-07": {
+      "quente_principal": 3962.7,
+      "quente_potencial": 1738.36,
+      "frio_principal": 1373.98,
+      "frio_potencial": 540.65,
+      "especifico_principal": 2425.54,
+      "especifico_potencial": 963.35
+    },
+    "2026-08-08": {
+      "quente_principal": 3779.8,
+      "quente_potencial": 1658.13,
+      "frio_principal": 1310.56,
+      "frio_potencial": 515.7,
+      "especifico_principal": 2313.6,
+      "especifico_potencial": 918.88
+    },
+    "2026-08-09": {
+      "quente_principal": 3779.8,
+      "quente_potencial": 1658.13,
+      "frio_principal": 1310.56,
+      "frio_potencial": 515.7,
+      "especifico_principal": 2313.6,
+      "especifico_potencial": 918.88
+    },
+    "2026-08-10": {
+      "quente_principal": 4389.45,
+      "quente_potencial": 1925.57,
+      "frio_principal": 1521.94,
+      "frio_potencial": 598.88,
+      "especifico_principal": 2686.76,
+      "especifico_potencial": 1067.09
+    },
+    "2026-08-11": {
+      "quente_principal": 3962.7,
+      "quente_potencial": 1738.36,
+      "frio_principal": 1373.98,
+      "frio_potencial": 540.65,
+      "especifico_principal": 2425.54,
+      "especifico_potencial": 963.35
+    },
+    "2026-08-12": {
+      "quente_principal": 3779.8,
+      "quente_potencial": 1658.13,
+      "frio_principal": 1310.56,
+      "frio_potencial": 515.7,
+      "especifico_principal": 2313.6,
+      "especifico_potencial": 918.88
+    },
+    "2026-08-13": {
+      "quente_principal": 3657.88,
+      "quente_potencial": 1604.64,
+      "frio_principal": 1268.28,
+      "frio_potencial": 499.06,
+      "especifico_principal": 2238.96,
+      "especifico_potencial": 889.24
+    },
+    "2026-08-14": {
+      "quente_principal": 3657.88,
+      "quente_potencial": 1604.64,
+      "frio_principal": 1268.28,
+      "frio_potencial": 499.06,
+      "especifico_principal": 2238.96,
+      "especifico_potencial": 889.24
+    },
+    "2026-08-15": {
+      "quente_principal": 3779.8,
+      "quente_potencial": 1658.13,
+      "frio_principal": 1310.56,
+      "frio_potencial": 515.7,
+      "especifico_principal": 2313.6,
+      "especifico_potencial": 918.88
+    },
+    "2026-08-16": {
+      "quente_principal": 4084.63,
+      "quente_potencial": 1791.85,
+      "frio_principal": 1416.25,
+      "frio_potencial": 557.29,
+      "especifico_principal": 2500.18,
+      "especifico_potencial": 992.99
+    },
+    "2026-08-17": {
+      "quente_principal": 4511.38,
+      "quente_potencial": 1979.06,
+      "frio_principal": 1564.22,
+      "frio_potencial": 615.51,
+      "especifico_principal": 2761.39,
+      "especifico_potencial": 1096.73
+    }
+  }
+}

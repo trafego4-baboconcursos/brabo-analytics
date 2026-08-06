@@ -149,3 +149,13 @@ Contas: Google `1450466453`, Meta `act_438212624024216`. Todas as mudanças abai
 - **Payload final que funcionou:** manter todo o `targeting` original (públicos, geo, posicionamentos) e só sobrescrever `age_min:22`, `age_max:55`, `targeting_relaxation_types: {custom_audience:0, lookalike:0}` e `targeting_automation: {advantage_audience:0, individual_setting:{age:0, gender:0}}`.
 - **Obstáculo à parte:** a conta de anúncios bateu o limite de chamadas da API (`error code 17`) várias vezes durante a tarefa — não é o mesmo limite do app (que está com folga, confirmado pelo usuário via painel "Limitação de volume no nível do aplicativo"). É um throttle no nível da conta de anúncios, que ficou instável ao longo da tarde. Contornado processando em lotes menores com pausa entre chamadas, e usando o MCP como caminho alternativo quando a chamada direta travava.
 - **Status:** ✅ 48/48 grupos de anúncio confirmados com idade 22-55, sem alterar nenhum outro parâmetro de segmentação (públicos, geo, posicionamentos mantidos idênticos).
+
+### 17. Verba de Quente dividida entre 2 contas — Felipe Graton (40%) + Criadora de Públicos 2 (60%)
+- **Contexto:** usuário ativou 2 campanhas na conta `act_1175937361058463` ("CA - Criadora de Públicos 2", mesmo Business Manager do Felipe Graton) — campanhas antigas do PBB-JUN-26 reaproveitadas e renomeadas com `[OLD]`:
+  - `[MA][cadastro][captação][quente][principal][OLD][PBB-AGO-26]` (id `120245854010630549`)
+  - `[MA][cadastro][captação][quente][potencial][OLD][PBB-AGO-26]` (id `120246130520210549`)
+- **Regra definida:** dentro do total diário de "Quente", **60% vai pras 2 campanhas da Criadora de Públicos** (proporção 70/20 entre principal/potencial reescalada pra somar 60%) e **40% fica nas 4 campanhas do Felipe Graton** (principal/potencial/teste/reels, mesma proporção 70/20/5/5 de sempre, agora valendo 40% do total).
+- **Aplicado:** `orcamento_diario.json` regravado com 6 chaves de "quente" no Meta (era 4) pra todos os dias de 03/08 a 17/08. Script não precisou de alteração — a API do Meta aceita atualizar campanha por ID direto, funciona entre contas diferentes sem mudança de lógica.
+- **Testado:** rodado manualmente pra hoje (06/08), 14/14 campanhas Meta (incluindo as 2 novas) + 9/9 Google, 23/23 sucesso via API.
+- **Valores de hoje (06/08):** Quente Principal (Felipe Graton) R$1.160,44 / Quente Potencial R$331,55 / Quente Teste R$82,89 / Quente Reels R$82,89 / Quente Principal [OLD] (Criadora) R$1.934,07 / Quente Potencial [OLD] (Criadora) R$552,59.
+- **Status:** ✅ aplicado e commitado.

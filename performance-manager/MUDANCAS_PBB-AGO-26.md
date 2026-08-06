@@ -140,3 +140,12 @@ Contas: Google `1450466453`, Meta `act_438212624024216`. Todas as mudanças abai
 - Reavaliar CPL das 6 campanhas em 2-3 dias pra medir o efeito da consolidação total de CPA.
 - Acompanhar as 3 campanhas "new-ads" (item 15) — ainda sem histórico de performance pra avaliar.
 - P-Max do Google ainda não existe — projeção de verba já calculada (baseada na proporção histórica do PBB-JUN-26), falta criar a campanha.
+
+## 2026-08-06 (continuação)
+
+### 16. Faixa etária 22-55 em todos os grupos de anúncio do Facebook (captação)
+- **O que:** a pedido do usuário, alterada a segmentação de idade pra **22 a 55 anos** nos 48 grupos de anúncio das 12 campanhas de captação (quente/frio/específico × principal/potencial/teste/reels).
+- **Obstáculo real — Advantage+ Audience:** o Meta bloqueia `age_max` abaixo de 65 em grupos que usam expansão de público, com o erro `error_subcode 1870189`. A causa não era só `targeting_relaxation_types` (custom_audience/lookalike) — o campo decisivo era `targeting_automation.individual_setting.age` e `.gender`, que precisavam ir pra **0** (estavam em 1, o que sinaliza "configuração individual relaxada" e ativa o Advantage+ de fato). Descoberto via busca na documentação/blog de desenvolvedores do Meta sobre a atualização de comportamento do Advantage+ audience (jun/2026).
+- **Payload final que funcionou:** manter todo o `targeting` original (públicos, geo, posicionamentos) e só sobrescrever `age_min:22`, `age_max:55`, `targeting_relaxation_types: {custom_audience:0, lookalike:0}` e `targeting_automation: {advantage_audience:0, individual_setting:{age:0, gender:0}}`.
+- **Obstáculo à parte:** a conta de anúncios bateu o limite de chamadas da API (`error code 17`) várias vezes durante a tarefa — não é o mesmo limite do app (que está com folga, confirmado pelo usuário via painel "Limitação de volume no nível do aplicativo"). É um throttle no nível da conta de anúncios, que ficou instável ao longo da tarde. Contornado processando em lotes menores com pausa entre chamadas, e usando o MCP como caminho alternativo quando a chamada direta travava.
+- **Status:** ✅ 48/48 grupos de anúncio confirmados com idade 22-55, sem alterar nenhum outro parâmetro de segmentação (públicos, geo, posicionamentos mantidos idênticos).

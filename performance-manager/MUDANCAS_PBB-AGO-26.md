@@ -159,3 +159,35 @@ Contas: Google `1450466453`, Meta `act_438212624024216`. Todas as mudanças abai
 - **Testado:** rodado manualmente pra hoje (06/08), 14/14 campanhas Meta (incluindo as 2 novas) + 9/9 Google, 23/23 sucesso via API.
 - **Valores de hoje (06/08):** Quente Principal (Felipe Graton) R$1.160,44 / Quente Potencial R$331,55 / Quente Teste R$82,89 / Quente Reels R$82,89 / Quente Principal [OLD] (Criadora) R$1.934,07 / Quente Potencial [OLD] (Criadora) R$552,59.
 - **Status:** ✅ aplicado e commitado.
+
+## 2026-08-07
+
+### 18. Migração das 12 campanhas de captação — Felipe Graton → Criadora de Públicos 2
+- **Contexto:** usuário pediu pra migrar todas as campanhas de captação de `act_438212624024216` (Felipe Graton) pra `act_1175937361058463` (Criadora de Públicos 2), cópia exata (segmentação, públicos, anúncios, URLs, UTMs) — abordagem campanha por campanha, confirmando cada uma antes de seguir pra próxima.
+- **Preparação:**
+  - Pausadas as 2 campanhas `[OLD]` (leftover do PBB-JUN-26) na Criadora de Públicos, a pedido do usuário.
+  - Confirmado que a campanha `[MA][cadastro][captação][quente][principal][PBB-AGO-26]` (id `120249399615500549`) já tinha sido criada e montada manualmente pelo usuário na Criadora de Públicos — 7 grupos + anúncios completos, não precisou de migração.
+  - **Achado técnico**: públicos customizados (custom audiences) são compartilháveis entre contas do mesmo Business Manager (confirmado via `/adaccounts` do público) — não precisam ser recriados. **Criativos (vídeo/imagem) não são compartilhados automaticamente** — vídeos funcionam direto pelo `video_id` (mesma Business Manager), mas imagens (`image_hash`) precisam ser baixadas da conta de origem e re-enviadas na conta de destino, gerando um hash novo por imagem.
+  - Criado `meta_migrate_helpers.py` (scratchpad) com função reutilizável de remapeamento de `image_hash` (cache em `image_hash_map.json`) e criação de anúncio (`create_ad`), cobrindo vídeo único, imagem única e carrossel (`child_attachments`).
+  - **Obstáculo recorrente**: a conta segue em `development_access` (ver item de upgrade abaixo) — bateu rate limit várias vezes durante a migração, contornado com pausas entre chamadas e uso do MCP como caminho alternativo quando a chamada direta falhava.
+- **Quente Potencial** (`120249422483500549`): 2 de 7 grupos concluídos (00, 01) com 14 anúncios completos — os outros 5 dependiam de públicos ainda não compartilhados na época. Retomar depois que os públicos abaixo forem confirmados.
+- **Quente Teste, Frio Teste, Específico Teste** — **concluídas 100%**:
+  - Quente Teste (`120249423617300549`), Frio Teste (`120249423618410549`), Específico Teste (`120249423620760549`).
+  - 12 grupos de anúncio criados, 72 anúncios criados (6 por grupo), **72/72 sucesso**, incluindo carrosséis com re-upload de imagem.
+  - **5 públicos identificados como bloqueio** (apareciam como `excluded_custom_audiences` em todos os grupos que falhavam na primeira tentativa): `[IG]`/`[FB] - Envolvimento Todos [Felipe Graton] - 180D` e `- 60D`, e `[SITE] Visitou Brabo Concursos - 180D`. Resolvido assim:
+    - Os dois "180D" foram **recriados** (não compartilhados) pelo usuário diretamente na Criadora de Públicos — IDs novos: `120233186165430549` ([IG]) e `120233186192980549` ([FB]).
+    - Os dois "60D" foram efetivamente **compartilhados** (mesmo ID funciona nas duas contas): `120212923212150520` ([IG]) e `120212923214490520` ([FB]).
+    - `[SITE] Visitou Brabo Concursos - 180D`: já existia um público **com o mesmo nome, ID diferente**, criado anteriormente e nativo da conta Criadora de Públicos (`120204080799680754`) — usado no lugar do original (`120232395096280695`, que pertence a uma terceira conta, `718198002133850`, e segue sem compartilhamento).
+- **Status:** 🟡 em andamento — 4 campanhas concluídas (Quente Principal, Quente Teste, Frio Teste, Específico Teste), 1 parcial (Quente Potencial), 7 pendentes (Quente Reels, Frio Principal/Potencial/Reels, Específico Principal/Potencial/Reels).
+
+### 19. Upgrade de Marketing API Access Tier (`ads_management`) — submetido para análise
+- **Contexto:** confirmado via header `x-business-use-case-usage` da própria resposta da API que a conta `act_438212624024216` está em `ads_api_access_tier: development_access` — nível com teto de chamadas baixo, causa raiz dos travamentos recorrentes de rate limit (`error code 17`) durante toda a sessão de hoje. Não tem relação com o app estar "Publicado" — é uma permissão separada, específica pra `ads_management`.
+- **Requisito de qualificação** (documentação oficial do Meta): 500+ chamadas de Marketing API nos últimos 15 dias, taxa de erro abaixo de 15%. Confirmado como "Concluída" na tela de submissão do app (`MKT Brabo Concursos`, App ID `1695645641374745`).
+- **Processo seguido:** App Dashboard → Casos de uso → Criar e gerenciar anúncios → Permissões e recursos → linha "Marketing API Access Tier" ("Acesso limitado") → submissão formal de Análise do App, cobrindo: motivo da solicitação, configurações do app (ícone, categoria "Educação", corrigido URL de Termos de Serviço e Exclusão de dados que apontavam erroneamente pro facebook.com), Tratamento de dados (RGPD/LGPD — responsável legal informado: Aprovasim Cursos Treinamentos e Coaching LTDA, CNPJ 30.704.315/0001-80; Supabase Inc. declarado como operador de dados, categoria "TI/armazenamento em nuvem", países Brasil + Estados Unidos, banco hospedado em `sa-east-1`), plataforma Website (`https://braboconcursos.com.br/`) e instruções de teste (integração server-to-server, sem Facebook Login).
+- **Status:** ✅ enviado para análise do Meta em 07/08/26. Aguardando aprovação (sem prazo divulgado) — assim que aprovado, o teto de `development_access` deixa de existir nessa conta.
+
+## Pendências gerais (atualizado 07/08)
+- Continuar migração das 7 campanhas restantes (Quente Reels, Frio Principal/Potencial/Reels, Específico Principal/Potencial/Reels) pra Criadora de Públicos 2.
+- Retomar os 5 grupos pendentes de Quente Potencial assim que possível.
+- Depois que as 12 campanhas estiverem migradas: decidir se as originais em Felipe Graton são pausadas/arquivadas, e atualizar `orcamento_diario.json` + `scripts/apply_daily_budget.py` pra apontar pra conta nova.
+- Acompanhar aprovação do Marketing API Access Tier (item 19).

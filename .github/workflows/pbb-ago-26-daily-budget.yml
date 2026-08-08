@@ -1,9 +1,14 @@
 name: PBB-AGO-26 - Orcamento diario
 
 on:
-  schedule:
-    # 00:05 America/Sao_Paulo (UTC-3) = 03:05 UTC
-    - cron: "5 3 * * *"
+  # PAUSADO em 07/08/26: reorganizacao das contas de anuncio da Criadora de
+  # Publicos em andamento (migracao de campanhas Felipe Graton -> Criadora).
+  # IDs de campanha vao mudar durante a reorganizacao - reativar o schedule
+  # abaixo (descomentar) so depois que a nova estrutura de contas estabilizar
+  # e orcamento_diario.json for atualizado pra refletir os IDs corretos.
+  # schedule:
+  #   # 00:05 America/Sao_Paulo (UTC-3) = 03:05 UTC
+  #   - cron: "5 3 * * *"
   workflow_dispatch:
     inputs:
       date:

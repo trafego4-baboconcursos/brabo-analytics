@@ -193,8 +193,15 @@ Contas: Google `1450466453`, Meta `act_438212624024216`. Todas as mudanças abai
 - **Corrigido via API** nos 6 grupos (`00`, `02`, `03`, `04`, `05`, `06`) da campanha `120249399615500549` — reaproveitando os IDs corretos já presentes/compartilhados na própria conta destino (não precisou recriar nenhum público novo). **Confirmado 7/7 grupos batendo exatamente com a origem** após a correção.
 - **Status:** ✅ concluído, 6/6 grupos corrigidos e verificados.
 
+### 21. Rejeição do Marketing API Access Tier e pausa da automação de orçamento
+- **Rejeição:** o pedido do item 19 foi **rejeitado** em 07/08/26 13:46 BRT — motivo: taxa de erro das últimas 500 chamadas do app está alta demais. Causa: volume grande de tentativas com erro durante os testes/depuração de hoje (rate limit, payload de imagem, público não compartilhado etc.) — cada chamada com erro (incluindo os próprios erros de rate limit) conta contra essa métrica.
+- **Decisão:** não resubmeter agora. Estratégia pra recuperar a taxa: parar de fazer chamadas pesadas/repetidas na conta, deixar só chamadas simples e bem-sucedidas acontecerem (leituras pontuais, escritas de orçamento) até a janela das últimas 500 chamadas naturalmente se limpar dos erros de hoje. Resubmeter só quando a tela de "Permissões e recursos" mostrar que qualifica de novo — não estimar por data.
+- **Automação de orçamento diário PAUSADA** (`.github/workflows/pbb-ago-26-daily-budget.yml`, cron comentado, `workflow_dispatch` continua disponível): usuário está reorganizando as campanhas na conta Criadora de Públicos, os IDs de campanha vão mudar durante o processo — rodar a automação agora aplicaria orçamento em campanhas erradas/inexistentes. Efeito colateral: perdemos a fonte "de graça" de chamadas de sucesso diárias que ajudava a diluir a taxa de erro.
+- **Status:** 🔴 Access Tier rejeitado, aguardando taxa de erro melhorar. 🟡 Automação de orçamento pausada até a reorganização de contas estabilizar.
+
 ## Pendências gerais (atualizado 07/08)
-- Continuar migração das 7 campanhas restantes (Quente Reels, Frio Principal/Potencial/Reels, Específico Principal/Potencial/Reels) pra Criadora de Públicos 2.
+- Continuar migração das 7 campanhas restantes (Quente Reels, Frio Principal/Potencial/Reels, Específico Principal/Potencial/Reels) pra Criadora de Públicos 2 — campanhas "Reels" já existem lá (reaproveitadas do PBB-JUN-26, precisam da mesma auditoria/correção de público que a Quente Principal recebeu no item 20; grupo "01" da Quente Reels está com nome errado citando PBB-ABR-26).
 - **Não mexer** na campanha "Quente Potencial" migrada (arquivada, fora de escopo por instrução do usuário).
-- Depois que as 7 campanhas estiverem migradas: decidir se as originais em Felipe Graton são pausadas/arquivadas, e atualizar `orcamento_diario.json` + `scripts/apply_daily_budget.py` pra apontar pra conta nova.
-- Acompanhar aprovação do Marketing API Access Tier (item 19) — rejeitada uma vez por taxa de erro alta (efeito colateral do volume de testes de hoje); resubmeter depois que a taxa de sucesso das últimas 500 chamadas melhorar organicamente.
+- Amanhã: conferir a taxa de erro atual antes de fazer qualquer chamada pesada; só fazer chamadas simples e espaçadas até confirmar que melhorou; resubmeter o Access Tier só quando qualificar de novo.
+- Depois que a reorganização de contas estabilizar: atualizar `orcamento_diario.json` com os IDs de campanha corretos e reativar o cron da automação (descomentar em `pbb-ago-26-daily-budget.yml`).
+- Depois que as 7 campanhas estiverem migradas: decidir se as originais em Felipe Graton são pausadas/arquivadas.

@@ -199,9 +199,19 @@ Contas: Google `1450466453`, Meta `act_438212624024216`. Todas as mudanças abai
 - **Automação de orçamento diário PAUSADA** (`.github/workflows/pbb-ago-26-daily-budget.yml`, cron comentado, `workflow_dispatch` continua disponível): usuário está reorganizando as campanhas na conta Criadora de Públicos, os IDs de campanha vão mudar durante o processo — rodar a automação agora aplicaria orçamento em campanhas erradas/inexistentes. Efeito colateral: perdemos a fonte "de graça" de chamadas de sucesso diárias que ajudava a diluir a taxa de erro.
 - **Status:** 🔴 Access Tier rejeitado, aguardando taxa de erro melhorar. 🟡 Automação de orçamento pausada até a reorganização de contas estabilizar.
 
-## Pendências gerais (atualizado 07/08)
-- Continuar migração das 7 campanhas restantes (Quente Reels, Frio Principal/Potencial/Reels, Específico Principal/Potencial/Reels) pra Criadora de Públicos 2 — campanhas "Reels" já existem lá (reaproveitadas do PBB-JUN-26, precisam da mesma auditoria/correção de público que a Quente Principal recebeu no item 20; grupo "01" da Quente Reels está com nome errado citando PBB-ABR-26).
+### 22. Aprovação do Marketing API Access Tier + retomada da migração (Reels)
+- **Aprovado** em 08/08/26 19:55 BRT — resubmetido depois de um dia sem chamadas pesadas na conta, que deixou a taxa de erro cair o suficiente. Confirmado via API: `ads_api_access_tier` mudou de `development_access` para **`standard_access`** no header `x-business-use-case-usage`. Resolve a causa raiz de todos os travamentos de rate limit da sessão.
+- **Reorganização manual do usuário**: usuário reorganizou bastante a conta Criadora de Públicos por conta própria (renomeou campanhas, criou variantes "new-ads" em Frio/Específico Principal, reativou/renomeou campanhas antigas). Levantamento pedido e aprovado antes de prosseguir — várias campanhas com nome duplicado (uma ativa, uma pausada) ficaram identificadas mas não mexidas, aguardando esclarecimento do usuário sobre qual é a definitiva.
+- **Cópia de públicos: Principal → Reels (mesma conta)**: a pedido do usuário, copiado o `targeting` das campanhas Quente/Frio/Específico Principal (já corrigidas por ele manualmente) pros grupos correspondentes das 3 campanhas Reels (que já existiam, reaproveitadas do PBB-JUN-26) — 12/12 grupos, casados por conteúdo do nome (ignorando número/colchete). Também corrigidos 6 nomes de grupo com erro (ex: "01" citando PBB-ABR-26 em vez de AGO-26; numeração fora do padrão em Frio/Específico Reels).
+  - **2 bugs novos da API do Meta encontrados e corrigidos** (documentados no `meta_migrate_helpers.py` reutilizável):
+    - Grupos com posicionamento `explore_home` no Instagram exigem também `explore` na lista — sem isso a API rejeita com "Você também deve selecionar o Explorar do Instagram" (mesmo bug já conhecido de outro contexto, documentado no `project_meta_campaign_duplication`).
+    - Campo `targeting_optimization` (deprecated) precisa ser removido do payload — API rejeita com "O campo targeting_optimization foi removido".
+- **Anúncios do grupo "00" da Quente Reels**: trazidos 6 anúncios de vídeo da campanha original (Felipe Graton) — **novo bug encontrado**: `video_data` com `image_url` E `image_hash` juntos (thumbnail do vídeo) é rejeitado pela API ("ObjectStorySpecRedundant"); corrigido removendo `image_url` e remapeando só o `image_hash` (mesma lógica de re-upload cross-account já usada pra imagem/carrossel). **6/6 sucesso.**
+- **Status:** ✅ Access Tier aprovado. ✅ 12 grupos de Reels com público correto. ✅ 6/6 anúncios do grupo 00 da Quente Reels criados. Faltam os anúncios dos outros 11 grupos de Reels.
+
+## Pendências gerais (atualizado 08/08)
+- Trazer os anúncios dos outros 11 grupos das 3 campanhas Reels (só o grupo "00" da Quente foi feito).
+- Esclarecer com o usuário quais campanhas duplicadas (mesmo nome, uma ativa/uma pausada — Frio Principal, Frio Potencial, Específico Principal) são as definitivas antes de mexer nelas ou na automação.
 - **Não mexer** na campanha "Quente Potencial" migrada (arquivada, fora de escopo por instrução do usuário).
-- Amanhã: conferir a taxa de erro atual antes de fazer qualquer chamada pesada; só fazer chamadas simples e espaçadas até confirmar que melhorou; resubmeter o Access Tier só quando qualificar de novo.
-- Depois que a reorganização de contas estabilizar: atualizar `orcamento_diario.json` com os IDs de campanha corretos e reativar o cron da automação (descomentar em `pbb-ago-26-daily-budget.yml`).
-- Depois que as 7 campanhas estiverem migradas: decidir se as originais em Felipe Graton são pausadas/arquivadas.
+- Depois que a estrutura de contas estabilizar de vez: atualizar `orcamento_diario.json` com os IDs de campanha corretos e reativar o cron da automação (descomentar em `pbb-ago-26-daily-budget.yml`).
+- Decidir se as campanhas originais em Felipe Graton são pausadas/arquivadas depois que a migração terminar.

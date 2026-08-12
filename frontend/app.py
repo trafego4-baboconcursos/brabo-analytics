@@ -80,7 +80,6 @@ async def auth_middleware(request: Request, call_next):
         path in ("/login", "/logout")
         or path.startswith("/invite/")
         or path.startswith("/img")
-        or path.startswith("/analises")
         or path.startswith("/static")
     ):
         return await call_next(request)

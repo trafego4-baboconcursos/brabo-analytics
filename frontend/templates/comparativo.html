@@ -67,6 +67,37 @@
   .cmp-no-data i { font-size: 48px; opacity: .3; display: block; margin-bottom: 16px; }
   .cmp-no-data h3 { font-size: 18px; font-weight: 700; color: var(--bs-ink); margin: 0 0 8px; }
   .cmp-no-data p  { font-size: 14px; margin: 0; }
+
+  /* Segmentos (plataforma × temperatura) — barras pareadas atual vs anterior */
+  .seg-card { background: var(--bs-card); border-radius: var(--bs-r-xl); padding: 20px; box-shadow: var(--bs-sh-sm); }
+  .seg-card + .seg-card { margin-top: 20px; }
+  .seg-card h3 { margin: 0 0 16px; }
+  .seg-legend { display:flex; gap:18px; margin: -4px 0 16px; flex-wrap:wrap; }
+  .seg-legend-item { display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--bs-ink-muted); font-weight:600; }
+  .seg-swatch { width:12px; height:12px; border-radius:3px; display:inline-block; }
+  .seg-swatch.fill { background: var(--bs-accent); }
+  .seg-swatch.outline { background: transparent; border:2px solid var(--bs-ink-subtle); }
+  .seg-row { display:grid; grid-template-columns: 170px 1fr; gap:12px; align-items:center; padding:10px 0; }
+  @media (max-width: 560px) { .seg-row { grid-template-columns: 110px 1fr; } }
+  .seg-row:first-child { padding-top: 0; }
+  .seg-row:last-child { padding-bottom: 0; }
+  .seg-row + .seg-row { border-top: 1px solid var(--bs-border); }
+  .seg-name { font-size:12.5px; font-weight:700; color: var(--bs-ink); }
+  .seg-bars { display:flex; flex-direction:column; gap:6px; min-width:0; }
+  .seg-track { display:grid; grid-template-columns: 1fr minmax(84px, auto); align-items:center; gap:10px; height:16px; min-width:0; }
+  .seg-visual { position:relative; height:100%; min-width:0; }
+  .seg-fill { position:absolute; left:0; top:0; height:100%; max-width:100%; border-radius:4px; }
+  .seg-outline { position:absolute; left:0; top:0; height:100%; max-width:100%; border-radius:4px; border:2px solid; background:transparent; box-sizing:border-box; }
+  .seg-val { font-size:11px; font-weight:700; color: var(--bs-ink); white-space:nowrap; }
+  .seg-val.muted { color: var(--bs-ink-muted); font-weight:600; }
+  .seg-card .section-sub { font-size:12px; color:var(--bs-ink-muted); margin: -10px 0 16px; }
+  .seg-stack-block + .seg-stack-block { margin-top: 20px; }
+  .seg-stack-title { font-size:12.5px; font-weight:700; color:var(--bs-ink-muted); margin: 0 0 8px; }
+  .seg-stack { display:flex; height:32px; border-radius:6px; overflow:hidden; }
+  .seg-stack-seg { height:100%; position:relative; border-right:2px solid var(--bs-card); }
+  .seg-stack-seg:last-child { border-right:none; }
+  .seg-stack-seg .seg-stack-label { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:700; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.35); overflow:hidden; white-space:nowrap; padding:0 2px; }
+  .seg-table-wrap { margin-top: 20px; }
 </style>
 
 <div class="wrap">
@@ -216,6 +247,16 @@
               <td>&nbsp;&nbsp;↳ CPL — total</td>
               <td class="numero">{{ comp.cpl_a | brl }}</td>
               <td class="numero">{{ comp.cpl_b | brl }} &nbsp;{{ delta(comp.cpl_a, comp.cpl_b, reverse=true) }}</td>
+            </tr>
+            <tr>
+              <td>&nbsp;&nbsp;↳ Investimento Pré-Qualificação</td>
+              <td class="numero">{{ comp.inv_prequali_a | brl }}</td>
+              <td class="numero">{{ comp.inv_prequali_b | brl }} &nbsp;{{ delta(comp.inv_prequali_a, comp.inv_prequali_b, reverse=true) }}</td>
+            </tr>
+            <tr>
+              <td>&nbsp;&nbsp;↳ CPL Geral (Captação + Pré-Quali)</td>
+              <td class="numero">{{ comp.cpl_geral_a | brl }}</td>
+              <td class="numero">{{ comp.cpl_geral_b | brl }} &nbsp;{{ delta(comp.cpl_geral_a, comp.cpl_geral_b, reverse=true) }}</td>
             </tr>
             <tr style="background:#1877F210;">
               <td><strong><i class="ti ti-brand-meta" style="color:var(--meta-color);"></i> Leads Meta Ads</strong></td>
@@ -531,7 +572,6 @@
           </tbody>
         </table>
       </div>
-    </div>
 
       <div class="cmp-ads-grid" style="margin-top:16px;">
         {% for ads, code, col in [(comp.top_google_a, comp.code_a, '#667eea'), (comp.top_google_b, comp.code_b, '#EA4335')] %}
@@ -580,6 +620,131 @@
         {% endfor %}
       </div>
     </div>
+
+    {# ── 6. Leads por Segmento (plataforma × temperatura, etapa Captação) ── #}
+    {% if comp.por_segmento %}
+    {% macro plat_icon(plataforma) %}<i class="ti {{ 'ti-brand-meta' if plataforma == 'Facebook' else 'ti-brand-google' }}" style="color:{{ 'var(--meta-color)' if plataforma == 'Facebook' else 'var(--google-color)' }};font-size:13px;margin-right:5px;vertical-align:-1px;"></i>{% endmacro %}
+    <div class="section">
+      <div class="section-title"><i class="ti ti-chart-bar"></i> Leads por Segmento — Captação</div>
+      <p style="font-size:13px;color:var(--bs-ink-muted);margin:-8px 0 16px">
+        <i class="ti ti-brand-meta" style="color:var(--meta-color);"></i> Facebook e <i class="ti ti-brand-google" style="color:var(--google-color);"></i> YouTube, quebrados por temperatura de público (cor da barra). Barra cheia = <strong>{{ comp.code_b }}</strong> (atual); contorno = <strong>{{ comp.code_a }}</strong> (anterior).
+      </p>
+
+      {% set max_leads_seg = comp.por_segmento | map(attribute='leads_a') | list + comp.por_segmento | map(attribute='leads_b') | list %}
+      {% set max_leads_seg = max_leads_seg | max if max_leads_seg else 1 %}
+      <div class="seg-card">
+        <h3>Volume de Leads</h3>
+        <div class="seg-legend">
+          <span class="seg-legend-item"><span class="seg-swatch fill"></span>{{ comp.code_b }} (atual)</span>
+          <span class="seg-legend-item"><span class="seg-swatch outline"></span>{{ comp.code_a }} (anterior)</span>
+        </div>
+        {% for s in comp.por_segmento %}
+        {% set w_b = (s.leads_b / max_leads_seg * 100) if max_leads_seg else 0 %}
+        {% set w_a = (s.leads_a / max_leads_seg * 100) if max_leads_seg else 0 %}
+        <div class="seg-row">
+          <div class="seg-name">{{ plat_icon(s.plataforma) }}{{ s.nome }}</div>
+          <div class="seg-bars">
+            <div class="seg-track">
+              <div class="seg-visual"><div class="seg-fill" style="width:{{ w_b }}%;background:{{ s.cor }};"></div></div>
+              <span class="seg-val">{{ s.leads_b | num }}</span>
+            </div>
+            <div class="seg-track">
+              <div class="seg-visual"><div class="seg-outline" style="width:{{ w_a }}%;border-color:{{ s.cor }};"></div></div>
+              <span class="seg-val muted">{{ s.leads_a | num }}</span>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      {% set max_cpl_seg = comp.por_segmento | map(attribute='cpl_a') | list + comp.por_segmento | map(attribute='cpl_b') | list %}
+      {% set max_cpl_seg = max_cpl_seg | max if max_cpl_seg else 1 %}
+      <div class="seg-card">
+        <h3>CPL por Segmento</h3>
+        <div class="seg-legend">
+          <span class="seg-legend-item"><span class="seg-swatch fill"></span>{{ comp.code_b }} (atual)</span>
+          <span class="seg-legend-item"><span class="seg-swatch outline"></span>{{ comp.code_a }} (anterior)</span>
+        </div>
+        {% for s in comp.por_segmento %}
+        {% set w_b = (s.cpl_b / max_cpl_seg * 100) if max_cpl_seg else 0 %}
+        {% set w_a = (s.cpl_a / max_cpl_seg * 100) if max_cpl_seg else 0 %}
+        <div class="seg-row">
+          <div class="seg-name">{{ plat_icon(s.plataforma) }}{{ s.nome }}</div>
+          <div class="seg-bars">
+            <div class="seg-track">
+              <div class="seg-visual"><div class="seg-fill" style="width:{{ w_b }}%;background:{{ s.cor }};"></div></div>
+              <span class="seg-val">{{ s.cpl_b | brl }}</span>
+            </div>
+            <div class="seg-track">
+              <div class="seg-visual"><div class="seg-outline" style="width:{{ w_a }}%;border-color:{{ s.cor }};"></div></div>
+              <span class="seg-val muted">{{ s.cpl_a | brl }}</span>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="seg-card">
+        <h3 style="margin-bottom:4px;">% de Leads por Segmento</h3>
+        <p class="section-sub">Participação de cada segmento no total de leads captados.</p>
+        <div class="seg-stack-block">
+          <p class="seg-stack-title">{{ comp.code_b }} (atual) — {{ comp.por_segmento | sum(attribute='leads_b') | num }} leads</p>
+          <div class="seg-stack">
+            {% for s in comp.por_segmento %}{% if s.share_b > 0 %}
+            {% set pcolor = 'var(--meta-color)' if s.plataforma == 'Facebook' else 'var(--google-color)' %}
+            <div class="seg-stack-seg" style="width:{{ s.share_b }}%;background:{{ s.cor }};border-bottom:4px solid {{ pcolor }};box-sizing:border-box;">
+              {% if s.share_b > 6 %}<span class="seg-stack-label">{{ s.share_b | round(1) }}%</span>{% endif %}
+            </div>
+            {% endif %}{% endfor %}
+          </div>
+        </div>
+        <div class="seg-stack-block">
+          <p class="seg-stack-title">{{ comp.code_a }} (anterior) — {{ comp.por_segmento | sum(attribute='leads_a') | num }} leads</p>
+          <div class="seg-stack">
+            {% for s in comp.por_segmento %}{% if s.share_a > 0 %}
+            {% set pcolor = 'var(--meta-color)' if s.plataforma == 'Facebook' else 'var(--google-color)' %}
+            <div class="seg-stack-seg" style="width:{{ s.share_a }}%;background:{{ s.cor }};border-bottom:4px solid {{ pcolor }};box-sizing:border-box;">
+              {% if s.share_a > 6 %}<span class="seg-stack-label">{{ s.share_a | round(1) }}%</span>{% endif %}
+            </div>
+            {% endif %}{% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="table-wrap seg-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Segmento</th>
+              <th style="text-align:right">Leads Atual</th>
+              <th style="text-align:right">Leads Anterior</th>
+              <th style="text-align:right">Δ Leads</th>
+              <th style="text-align:right">% Atual</th>
+              <th style="text-align:right">% Anterior</th>
+              <th style="text-align:right">CPL Atual</th>
+              <th style="text-align:right">CPL Anterior</th>
+              <th style="text-align:right">Δ CPL</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in comp.por_segmento %}
+            <tr>
+              <td><span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:3px;background:{{ s.cor }};margin-right:6px;"></span>{{ plat_icon(s.plataforma) }}{{ s.nome }}</td>
+              <td class="numero">{{ s.leads_b | num }}</td>
+              <td class="numero">{{ s.leads_a | num }}</td>
+              <td class="numero">{{ delta(s.leads_a, s.leads_b) }}</td>
+              <td class="numero">{{ s.share_b | round(1) }}%</td>
+              <td class="numero">{{ s.share_a | round(1) }}%</td>
+              <td class="numero">{{ s.cpl_b | brl }}</td>
+              <td class="numero">{{ s.cpl_a | brl }}</td>
+              <td class="numero">{{ delta(s.cpl_a, s.cpl_b, reverse=true) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
 
     {% endif %}{# end if comp #}
 

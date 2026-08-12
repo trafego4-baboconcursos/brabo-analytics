@@ -250,27 +250,15 @@ async def _fetch_all_data(
             _errors.append("Atribuição")
             return None
 
+    # read_meta/read_google não recebem `vendas` como parâmetro — o cruzamento com
+    # vendas já é feito internamente por elas via read_vendas(code) (cacheado). Os
+    # flags needs_meta_vendas/needs_google_vendas ficam então apenas documentando a
+    # intenção de quem chama; o resultado é sempre o mesmo objeto `meta`/`google`.
     async def f_meta_vendas():
-        if not (needs_meta_vendas and launch and launch.has_meta and vendas):
-            return meta
-        cfg = _launch_cfg(launch.code)
-        start = _get_global_start(cfg)
-        end = _get_global_end(cfg)
-        try: return await run_in_threadpool(read_meta, launch.folder, start_date=start, end_date=end, vendas=vendas)
-        except Exception:
-            logger.exception("Falha ao ler Meta com vendas")
-            return meta
+        return meta
 
     async def f_google_vendas():
-        if not (needs_google_vendas and launch and launch.has_google and vendas):
-            return google
-        cfg = _launch_cfg(launch.code)
-        start = _get_global_start(cfg)
-        end = _get_global_end(cfg)
-        try: return await run_in_threadpool(read_google, launch.folder, start_date=start, end_date=end, vendas=vendas)
-        except Exception:
-            logger.exception("Falha ao ler Google com vendas")
-            return google
+        return google
 
     leads, sales_attr, meta_enriched, google_enriched = await asyncio.gather(
         f_leads(), f_sales_attr(), f_meta_vendas(), f_google_vendas()

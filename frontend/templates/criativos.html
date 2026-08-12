@@ -6,6 +6,13 @@
 .yt-thumb-link { display:inline-block; }
 .yt-thumb-link:hover .yt-thumb { opacity:.85; }
 .criativos-table td small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* Recortes por Canal — item com miniatura */
+.recorte-item { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--bs-border); }
+.recorte-item:last-child { border-bottom:none; }
+.recorte-thumb { width:56px; height:38px; object-fit:cover; border-radius:5px; border:1px solid #e5e7eb; cursor:pointer; flex-shrink:0; display:block; }
+.recorte-thumb-empty { width:56px; height:38px; border-radius:5px; border:1px dashed #d1d5db; background:#f3f4f6; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.recorte-info { min-width:0; }
 </style>
 {% endblock %}
 
@@ -95,6 +102,30 @@
                 <tr><td colspan="{{ 11 if has_thumbs else 10 }}" style="text-align:center;color:#9ca3af;padding:20px">{{ empty_msg }}</td></tr>
               {% endif %}
             </tbody>
+            {% if lista %}
+            {% set t_gasto = lista | sum(attribute="gasto") %}
+            {% set t_leads = lista | sum(attribute="leads") %}
+            {% set t_vendas = lista | sum(attribute="vendas") %}
+            {% set t_faturamento = lista | sum(attribute="faturamento") %}
+            {% set t_cliques = lista | sum(attribute="cliques") %}
+            {% set t_impressoes = lista | sum(attribute="impressoes") %}
+            {% set t_cpl = (t_gasto / t_leads) if t_leads > 0 else 0 %}
+            {% set t_roas = (t_faturamento / t_gasto) if t_gasto > 0 else 0 %}
+            {% set t_ctr = (t_cliques / t_impressoes * 100) if t_impressoes > 0 else 0 %}
+            <tfoot>
+              <tr class="linha-resumo" style="font-weight:600;background:#f8fafc;border-top:2px solid #e2e8f0;">
+                <td colspan="{{ 3 if has_thumbs else 2 }}" style="text-align:right;">Total</td>
+                <td></td>
+                <td class="numero">{{ t_gasto | brl }}</td>
+                <td class="numero">{{ t_leads | num }}</td>
+                <td class="numero">{{ t_cpl | brl }}</td>
+                <td class="numero">{{ t_vendas | num }}</td>
+                <td class="numero">{{ t_faturamento | brl }}</td>
+                <td class="numero">{{ t_roas | num(2) }}x</td>
+                <td class="numero">{{ t_ctr | pct(2) }}</td>
+              </tr>
+            </tfoot>
+            {% endif %}
           </table>
         </div>
       </div>
@@ -390,9 +421,19 @@
         <div class="highlight-box">
           <h3>Meta Ads</h3>
           {% for c in ov.meta_rows[:8] %}
-          <div class="highlight-item">
-            <span class="criativo">{{ c.ad_code }}</span>
-            <small>{{ c.gasto | brl }} | {{ c.leads | num }} leads | {{ c.vendas | num }} vendas | ROAS {{ c.roas | num(2) }}x</small>
+          {% set td = drive_thumbnails.get(c.ad_code) if drive_thumbnails else None %}
+          <div class="recorte-item">
+            {% if td %}
+            <img src="{{ td.thumb }}" alt="{{ c.ad_code }}" class="recorte-thumb"
+                 onclick="openVideoModal('{{ td.preview }}','{{ c.ad_code }}')"
+                 onerror="this.style.display='none'">
+            {% else %}
+            <div class="recorte-thumb-empty"><i class="ti ti-photo" style="color:#9ca3af;font-size:16px"></i></div>
+            {% endif %}
+            <div class="recorte-info">
+              <span class="criativo">{{ c.ad_code }}</span>
+              <small>{{ c.gasto | brl }} | {{ c.leads | num }} leads | {{ c.vendas | num }} vendas | ROAS {{ c.roas | num(2) }}x</small>
+            </div>
           </div>
           {% else %}
           <div class="highlight-item"><small>Sem AD de captação identificado no Meta.</small></div>
@@ -401,9 +442,19 @@
         <div class="highlight-box">
           <h3>Google / YouTube</h3>
           {% for c in ov.google_rows[:8] %}
-          <div class="highlight-item">
-            <span class="criativo">{{ c.ad_code }}</span>
-            <small>{{ c.gasto | brl }} | {{ c.leads | num }} leads | {{ c.vendas | num }} vendas | ROAS {{ c.roas | num(2) }}x</small>
+          {% set td = drive_thumbnails.get(c.ad_code) if drive_thumbnails else None %}
+          <div class="recorte-item">
+            {% if td %}
+            <img src="{{ td.thumb }}" alt="{{ c.ad_code }}" class="recorte-thumb"
+                 onclick="openVideoModal('{{ td.preview }}','{{ c.ad_code }}')"
+                 onerror="this.style.display='none'">
+            {% else %}
+            <div class="recorte-thumb-empty"><i class="ti ti-photo" style="color:#9ca3af;font-size:16px"></i></div>
+            {% endif %}
+            <div class="recorte-info">
+              <span class="criativo">{{ c.ad_code }}</span>
+              <small>{{ c.gasto | brl }} | {{ c.leads | num }} leads | {{ c.vendas | num }} vendas | ROAS {{ c.roas | num(2) }}x</small>
+            </div>
           </div>
           {% else %}
           <div class="highlight-item"><small>Sem AD de captação identificado no Google.</small></div>

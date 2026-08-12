@@ -35,15 +35,16 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
     code = _extract_launch_code(launch_folder_or_code)
     engine = _get_engine()
 
+    _COLS = "date, ad_name, campaign_name, impressions, clicks, cost, conversions, video_views, video_views_100, video_id"
     if start_date and end_date:
         df = pd.read_sql(
-            text("SELECT * FROM google_ads_daily WHERE lancamento_codigo = :code AND date BETWEEN :start AND :end"),
+            text(f"SELECT {_COLS} FROM google_ads_daily WHERE lancamento_codigo = :code AND date BETWEEN :start AND :end"),
             engine,
             params={"code": code, "start": start_date, "end": end_date}
         )
     else:
         df = pd.read_sql(
-            text("SELECT * FROM google_ads_daily WHERE lancamento_codigo = :code"),
+            text(f"SELECT {_COLS} FROM google_ads_daily WHERE lancamento_codigo = :code"),
             engine,
             params={"code": code}
         )
@@ -89,11 +90,8 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
         "melhores-ads": "melhores ads", "new-ads": "new ads",
     }
 
-    df["etapa"] = "Outros"
-    df["temperatura"] = "Outros"
-    df["segmento"] = "Outros"
-    for idx, row in df.iterrows():
-        camp = str(row["campaign_name"]).lower()
+    def _categorize_campaign(camp: str) -> tuple[str, str, str]:
+        camp = str(camp).lower()
         etapa = "Outros"
         for k, v in ETAPA_MAP.items():
             if k in camp:
@@ -119,9 +117,11 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
         segmento = " ".join(seg_parts) if seg_parts else "Outros"
         if modifier:
             segmento += f" ({modifier})"
-        df.at[idx, "etapa"] = etapa
-        df.at[idx, "temperatura"] = temp
-        df.at[idx, "segmento"] = segmento
+        return etapa, temp, segmento
+
+    df["etapa"], df["temperatura"], df["segmento"] = zip(
+        *df["campaign_name"].map(_categorize_campaign)
+    )
 
     # Campanhas detalhadas
     camp_grouped = df.groupby("campaign_name").agg(

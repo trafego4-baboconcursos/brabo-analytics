@@ -55,15 +55,16 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
     code = _extract_launch_code(launch_folder_or_code)
     engine = _get_engine()
 
+    _COLS = "date, ad_id, ad_name, adset_name, campaign_name, impressions, clicks, spend, leads, video_thruplays"
     if start_date and end_date:
         df = pd.read_sql(
-            text("SELECT * FROM meta_ads_daily WHERE lancamento_codigo = :code AND date BETWEEN :start AND :end"),
+            text(f"SELECT {_COLS} FROM meta_ads_daily WHERE lancamento_codigo = :code AND date BETWEEN :start AND :end"),
             engine,
             params={"code": code, "start": start_date, "end": end_date}
         )
     else:
         df = pd.read_sql(
-            text("SELECT * FROM meta_ads_daily WHERE lancamento_codigo = :code"),
+            text(f"SELECT {_COLS} FROM meta_ads_daily WHERE lancamento_codigo = :code"),
             engine,
             params={"code": code}
         )
@@ -113,8 +114,8 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
         "melhores-ads": "melhores ads", "new-ads": "new ads",
     }
 
-    for idx, row in df.iterrows():
-        camp = str(row["campaign_name"]).lower()
+    def _categorize_campaign(camp: str) -> tuple[str, str, str, str]:
+        camp = str(camp).lower()
         etapa = "Outros"
         for k, v in ETAPA_MAP.items():
             if f"[{k}]" in camp or f"][{k}]" in camp:
@@ -140,10 +141,11 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
         segmento = " ".join(seg_parts) if seg_parts else "Outros"
         if modifier:
             segmento += f" ({modifier})"
-        df.at[idx, "etapa"] = etapa
-        df.at[idx, "temperatura"] = temp
-        df.at[idx, "bucket"] = bucket
-        df.at[idx, "segmento"] = segmento
+        return etapa, temp, bucket, segmento
+
+    df["etapa"], df["temperatura"], df["bucket"], df["segmento"] = zip(
+        *df["campaign_name"].map(_categorize_campaign)
+    )
 
     # Agrupamentos
     etapa_grouped = df.groupby("etapa").agg(
@@ -345,6 +347,7 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
             etapa=r["etapa"],
             temperatura=r["temperatura"],
             bucket=r["bucket"],
+            ad_code=ad_code,
             gasto=float(r["gasto"]),
             impressoes=int(r["impressoes"]),
             cliques=int(r["cliques"]),

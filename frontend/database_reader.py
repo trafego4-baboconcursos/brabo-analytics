@@ -75,6 +75,49 @@ load_dotenv()
 logger = get_logger("db")
 
 
+_SEG_TEMP_COLOR = {
+    "Quente": "var(--temp-quente)", "Frio": "var(--temp-frio)",
+    "Específico": "var(--temp-especifico)", "Morno": "var(--temp-morno)",
+    "Outros": "var(--bs-ink-muted)",
+}
+_SEG_TEMP_ORDER = ["Quente", "Frio", "Específico", "Morno", "Outros"]
+
+
+def _merge_segmentos(ra: dict, rb: dict) -> list[dict]:
+    """Combina por_temperatura_captacao (Meta) e por_temperatura (Google) de dois
+    lançamentos em uma lista única de segmentos plataforma+temperatura, para o
+    comparativo lado a lado (leads, custo, CPL, participação %)."""
+    rows = []
+    for plataforma, field, temp_a, temp_b in [
+        ("Facebook", "leads",      ra.get("meta_temp", {}),   rb.get("meta_temp", {})),
+        ("YouTube",  "conversoes", ra.get("google_temp", {}), rb.get("google_temp", {})),
+    ]:
+        for temp in _SEG_TEMP_ORDER:
+            da, db = temp_a.get(temp), temp_b.get(temp)
+            leads_a = da.get(field, 0) if da else 0
+            leads_b = db.get(field, 0) if db else 0
+            if not leads_a and not leads_b:
+                continue
+            custo_a = da.get("custo", 0.0) if da else 0.0
+            custo_b = db.get("custo", 0.0) if db else 0.0
+            rows.append({
+                "nome": f"{plataforma} {temp}",
+                "plataforma": plataforma,
+                "cor": _SEG_TEMP_COLOR.get(temp, "var(--bs-ink-muted)"),
+                "leads_a": int(leads_a), "leads_b": int(leads_b),
+                "custo_a": custo_a, "custo_b": custo_b,
+                "cpl_a": _safe_div(custo_a, leads_a),
+                "cpl_b": _safe_div(custo_b, leads_b),
+            })
+    total_a = sum(r["leads_a"] for r in rows) or 1
+    total_b = sum(r["leads_b"] for r in rows) or 1
+    for r in rows:
+        r["share_a"] = r["leads_a"] / total_a * 100
+        r["share_b"] = r["leads_b"] / total_b * 100
+    rows.sort(key=lambda r: r["leads_b"], reverse=True)
+    return rows
+
+
 def read_comparativo(launch_b: "Launch", launch_a: "Launch") -> ComparativoData:
     """
     Compara launch_b (atual) com launch_a (anterior do mesmo produto).
@@ -96,6 +139,8 @@ def read_comparativo(launch_b: "Launch", launch_a: "Launch") -> ComparativoData:
         ce = cfg.get("captacao_end_date")
         rs = cfg.get("carrinho_start_date")
         re_ = cfg.get("carrinho_end_date")
+        pqs = cfg.get("pre_quali_start_date")
+        pqe = cfg.get("pre_quali_end_date")
 
         vendas_sum = read_vendas(launch.code, start_date=rs, end_date=re_)
 
@@ -201,6 +246,26 @@ def read_comparativo(launch_b: "Launch", launch_a: "Launch") -> ComparativoData:
         result["tmb_count"]       = int(vendas_sum.tmb_vendas       if vendas_sum else 0)
         result["tmb_receita"]     = float(vendas_sum.tmb_receita     if vendas_sum else 0.0)
 
+        # â€” Segmentos por plataforma+temperatura (Captacao) e investimento em
+        # PrÃ©-QualificaÃ§Ã£o, reaproveitando o mesmo cache/janela usados pelo
+        # dashboard (frontend/services/fetch.py) para evitar recalcular Meta/
+        # Google do zero aqui. A classificaÃ§Ã£o Ã© por tag de campanha (etapa),
+        # nÃ£o por intervalo de datas â€” evita contar 2x quando pré-quali e
+        # captaÃ§Ã£o se sobrepÃµem no calendÃ¡rio (comum quando campanhas de
+        # captaÃ§Ã£o comeÃ§am antes do fim da pré-qualificaÃ§Ã£o).
+        from frontend.cache import _get_or_compute  # noqa: PLC0415 â€” evita import circular
+        gs = pqs or cs or cfg.get("evento_start_date") or rs
+        ge = re_ or cfg.get("evento_end_date") or ce or pqe
+        meta_summary = _get_or_compute(launch.code, f"meta::{gs}::{ge}",
+                                        lambda: read_meta(launch.code, start_date=gs, end_date=ge))
+        google_summary = _get_or_compute(launch.code, f"google::{gs}::{ge}",
+                                          lambda: read_google(launch.code, start_date=gs, end_date=ge))
+        result["meta_temp"]   = meta_summary.por_temperatura_captacao if meta_summary else {}
+        result["google_temp"] = google_summary.por_temperatura if google_summary else {}
+        meta_pq   = meta_summary.por_etapa.get("Pré-Qualificação", {}).get("custo", 0.0) if meta_summary else 0.0
+        google_pq = google_summary.por_etapa.get("Pré-Qualificação", {}).get("custo", 0.0) if google_summary else 0.0
+        result["inv_prequali"] = meta_pq + google_pq
+
         return result
 
     ra = _query_launch(launch_a)
@@ -241,6 +306,15 @@ def read_comparativo(launch_b: "Launch", launch_a: "Launch") -> ComparativoData:
     data.leads_b = rb["leads"]
     data.cpl_a   = _safe_div(inv_capt_a, ra["leads"])
     data.cpl_b   = _safe_div(inv_capt_b, rb["leads"])
+
+    # â€” PrÃ©-QualificaÃ§Ã£o e CPL Geral â€”
+    data.inv_prequali_a = ra.get("inv_prequali", 0.0)
+    data.inv_prequali_b = rb.get("inv_prequali", 0.0)
+    data.cpl_geral_a = _safe_div(inv_capt_a + data.inv_prequali_a, ra["leads"])
+    data.cpl_geral_b = _safe_div(inv_capt_b + data.inv_prequali_b, rb["leads"])
+
+    # â€” Segmentos (plataforma Ã— temperatura, etapa CaptaÃ§Ã£o) â€”
+    data.por_segmento = _merge_segmentos(ra, rb)
 
     # â€” Vendas â€”
     vendas_a = ra["hotmart_count"] + ra["tmb_count"]

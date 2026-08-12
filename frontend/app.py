@@ -21,6 +21,7 @@ if str(SRC_DIR) not in sys.path:
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.gzip import GZipMiddleware
 import html as _html
 import traceback as _traceback
 
@@ -43,6 +44,8 @@ app = FastAPI(
     redoc_url="/redoc" if _SHOW_DOCS else None,
     openapi_url="/openapi.json" if _SHOW_DOCS else None,
 )
+
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 if ANALISES_DIR.exists():
     app.mount("/analises", StaticFiles(directory=str(ANALISES_DIR)), name="analises")
@@ -124,35 +127,57 @@ async def _bootstrap_admin():
 
 @app.on_event("startup")
 async def pre_warm_cache():
-    if os.environ.get("PRE_WARM_CACHE", "false").lower() != "true":
+    if os.environ.get("PRE_WARM_CACHE", "true").lower() != "true":
         logger.info("Pre-warming de cache desativado")
         return
 
     import asyncio
+    from datetime import date, timedelta
     from fastapi.concurrency import run_in_threadpool
+
+    async def warm_one(launch, previous):
+        logger.info("Pre-warming cache para %s...", launch.code)
+        try:
+            await _fetch_all_data(
+                launch,
+                needs_tf=True,
+                needs_daily=True,
+                needs_thumbnails=True,
+                needs_comparativo=True,
+                previous=previous,
+                needs_vendas_con=True,
+                needs_hotmart=True,
+                needs_tmb=True,
+                needs_ac_camps=True,
+                needs_sales_attr=True,
+            )
+            logger.info("Pre-warming de %s concluído com sucesso!", launch.code)
+        except Exception:
+            logger.exception("Falha no pre-warming de %s", launch.code)
 
     async def warm():
         launches = await run_in_threadpool(get_launches)
-        if launches:
-            latest = launches[-1]
-            logger.info("Pre-warming cache para %s...", latest.code)
-            try:
-                await _fetch_all_data(
-                    latest,
-                    needs_tf=True,
-                    needs_daily=True,
-                    needs_thumbnails=True,
-                    needs_comparativo=True,
-                    previous=find_previous_launch(latest, launches),
-                    needs_vendas_con=True,
-                    needs_hotmart=True,
-                    needs_tmb=True,
-                    needs_ac_camps=True,
-                    needs_sales_attr=True,
-                )
-                logger.info("Pre-warming de %s concluído com sucesso!", latest.code)
-            except Exception:
-                logger.exception("Falha no pre-warming de %s", latest.code)
+        if not launches:
+            return
+        # Aquece o mais recente por produto + qualquer lançamento ainda em andamento
+        # (data_fim no futuro ou nos últimos 7 dias). O mais recente de cada produto
+        # nunca é cortado pelo teto; só o excedente de "em andamento" é limitado.
+        cutoff = date.today() - timedelta(days=7)
+        latest_by_product = {}
+        for l in launches:
+            latest_by_product[l.product] = l  # get_launches retorna em ordem cronológica; o último de cada produto fica
+        to_warm_by_code = {l.code: l for l in latest_by_product.values()}
+        active = [l for l in launches if l.data_fim and l.data_fim >= cutoff and l.code not in to_warm_by_code]
+        remaining_slots = max(0, 5 - len(to_warm_by_code))
+        for l in active[:remaining_slots]:
+            to_warm_by_code[l.code] = l
+        to_warm = list(to_warm_by_code.values())
+        # Sequencial (não gather): cada warm_one já dispara ~15 leituras paralelas
+        # via _fetch_all_data; aquecer vários lançamentos ao mesmo tempo satura o
+        # pool de conexões do banco (pool_size=10+5, ver src/db_engine.py) e atrasa
+        # as primeiras requisições reais logo após o deploy.
+        for l in to_warm:
+            await warm_one(l, find_previous_launch(l, launches))
 
     asyncio.create_task(warm())
 

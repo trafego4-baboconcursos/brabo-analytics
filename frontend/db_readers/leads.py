@@ -47,7 +47,10 @@ def read_leads(launch_folder_or_code: Any, vendas: VendasSummary | None = None, 
     engine = _get_engine()
 
     df = pd.read_sql(
-        text("SELECT * FROM leads WHERE lancamento_codigo = :code"),
+        text("""
+            SELECT email, created_at, utm_source, utm_medium, utm_campaign
+            FROM leads WHERE lancamento_codigo = :code
+        """),
         engine,
         params={"code": code}
     )

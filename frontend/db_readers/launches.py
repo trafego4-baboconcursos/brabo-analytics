@@ -290,20 +290,48 @@ def get_drive_thumbnails(launch_code: str, subfolder: str = "captação") -> dic
                     target_folder_id = item["id"]
                     break
 
-    files = list_files(target_folder_id)
-    thumbnails: dict[str, dict] = {}
-    ad_pattern = _re.compile(r"\bAD\d+\b", _re.IGNORECASE)
-    for f in files:
+    def _variant_num(name: str) -> int:
+        """Número de variante/card no nome do arquivo (ex: '... V3.png' -> 3). Um
+        arquivo sem número (a "capa" de uma pasta de carrossel, ex: 'AD322 - ....png')
+        retorna 0 e vence qualquer variante numerada."""
+        m = _re.search(r"\bV(\d+)\b", name, flags=_re.IGNORECASE)
+        if m:
+            return int(m.group(1))
+        m = _re.search(r"(\d+)\s*\.\w+$", name)
+        if m:
+            return int(m.group(1))
+        return 0
+
+    items = list_files(target_folder_id)
+    # Carrossel = pasta no Drive. Entra um nível para achar a imagem/vídeo capa
+    # (o arquivo que já carrega o código AD, ex: 'AD322 - Carrossel ... .png');
+    # ignora docs/prompts de texto dentro da pasta.
+    candidates: list[dict] = []
+    for f in items:
         if f["mimeType"] == "application/vnd.google-apps.folder":
-            continue
+            for inner in list_files(f["id"]):
+                if inner["mimeType"].startswith("image/") or inner["mimeType"].startswith("video/"):
+                    candidates.append(inner)
+        else:
+            candidates.append(f)
+
+    thumbnails: dict[str, dict] = {}
+    best_variant: dict[str, int] = {}
+    ad_pattern = _re.compile(r"\bAD\d+\b", _re.IGNORECASE)
+    for f in candidates:
         match = ad_pattern.search(f["name"])
-        if match:
-            ad_code = match.group(0).upper()
-            thumbnails[ad_code] = {
-                "thumb": f"/api/drive-thumb/{f['id']}",
-                "preview": f"https://drive.google.com/file/d/{f['id']}/preview",
-                "name": f["name"],
-            }
+        if not match:
+            continue
+        ad_code = match.group(0).upper()
+        variant = _variant_num(f["name"])
+        if ad_code in best_variant and variant >= best_variant[ad_code]:
+            continue
+        best_variant[ad_code] = variant
+        thumbnails[ad_code] = {
+            "thumb": f"/api/drive-thumb/{f['id']}",
+            "preview": f"https://drive.google.com/file/d/{f['id']}/preview",
+            "name": f["name"],
+        }
 
     _drive_cache[cache_key] = (_time.time(), thumbnails)
     return thumbnails

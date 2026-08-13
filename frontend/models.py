@@ -410,6 +410,8 @@ class ComparativoData:
     por_segmento: list = field(default_factory=list)
     dia1_a: dict = field(default_factory=dict)
     dia1_b: dict = field(default_factory=dict)
+    dia1_a2: dict = field(default_factory=dict)
+    code_a2: str = ""
     google_conv_a: int = 0
     google_conv_b: int = 0
     google_cpa_a: float = 0.0

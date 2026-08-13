@@ -119,9 +119,11 @@ def _merge_segmentos(ra: dict, rb: dict) -> list[dict]:
     return rows
 
 
-def read_comparativo(launch_b: "Launch", launch_a: "Launch") -> ComparativoData:
+def read_comparativo(launch_b: "Launch", launch_a: "Launch", launch_a2: "Launch | None" = None) -> ComparativoData:
     """
     Compara launch_b (atual) com launch_a (anterior do mesmo produto).
+    launch_a2, se informado (anterior de launch_a), é usado só pra calcular a
+    variação hora a hora do dia 1 da coluna "anterior" contra o ciclo dela mesma.
     Retorna ComparativoData com todos os indicadores e deltas calculados.
     """
     engine = _get_engine()
@@ -129,6 +131,7 @@ def read_comparativo(launch_b: "Launch", launch_a: "Launch") -> ComparativoData:
         has_data=True,
         code_a=launch_a.code,
         code_b=launch_b.code,
+        code_a2=launch_a2.code if launch_a2 else "",
         accent_a=launch_a.accent,
         accent_b=launch_b.accent,
     )
@@ -320,6 +323,7 @@ def read_comparativo(launch_b: "Launch", launch_a: "Launch") -> ComparativoData:
     # â€” Vendas hora a hora no dia 1 (abertura do carrinho) â€”
     data.dia1_a = read_dia1_sales(launch_a)
     data.dia1_b = read_dia1_sales(launch_b)
+    data.dia1_a2 = read_dia1_sales(launch_a2) if launch_a2 else {}
 
     # â€” Vendas â€”
     vendas_a = ra["hotmart_count"] + ra["tmb_count"]

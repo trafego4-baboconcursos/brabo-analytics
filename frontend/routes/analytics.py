@@ -138,15 +138,16 @@ def comparativo_page(request: Request, launch_code: str | None = None):
         launches = get_launches()
         launch = resolve_launch(launch_code, launches)
         previous = find_previous_launch(launch, launches) if launch else None
+        previous2 = find_previous_launch(previous, launches) if previous else None
 
         comp_data = None
         comp_error = None
         if launch and previous:
             try:
-                cache_key = f"{previous.code}_{launch.code}"
+                cache_key = f"{previous.code}_{launch.code}_{previous2.code if previous2 else 'none'}"
                 comp_data = _get_cached(cache_key, "comparativo")
                 if comp_data is None:
-                    comp_data = read_comparativo(launch, previous)
+                    comp_data = read_comparativo(launch, previous, previous2)
                     _set_cached(cache_key, "comparativo", comp_data)
             except Exception as exc:
                 logger.exception("Erro ao montar dados comparativos")

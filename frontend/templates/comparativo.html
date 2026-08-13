@@ -161,14 +161,14 @@
       <div class="section-title"><i class="ti ti-bolt" style="color:var(--bs-warning)"></i> O Paradoxo</div>
       <div class="cmp-paradox">
 
-        <div class="cmp-block side-a">
-          <div class="cmp-block-label">Lançamento Anterior</div>
-          <div class="cmp-block-code">{{ comp.code_a }}</div>
-          <div class="cmp-block-num">{{ comp.inv_a | brl }}</div>
+        <div class="cmp-block side-b" style="border-color: {{ comp.accent_b }}33; background: {{ comp.accent_b }}22;">
+          <div class="cmp-block-label">Lançamento Atual</div>
+          <div class="cmp-block-code">{{ comp.code_b }}</div>
+          <div class="cmp-block-num">{{ comp.inv_b | brl }}</div>
           <div class="cmp-block-sub">Investimento</div>
-          <div class="cmp-block-num" style="font-size:32px;margin-top:14px">{{ comp.vendas_a | num }}</div>
+          <div class="cmp-block-num" style="font-size:32px;margin-top:14px">{{ comp.vendas_b | num }}</div>
           <div class="cmp-block-sub">vendas</div>
-          <div class="cmp-block-num" style="font-size:20px;margin-top:10px">{{ comp.receita_a | brl }}</div>
+          <div class="cmp-block-num" style="font-size:20px;margin-top:10px">{{ comp.receita_b | brl }}</div>
           <div class="cmp-block-sub">faturamento</div>
         </div>
 
@@ -193,14 +193,14 @@
           </div>
         </div>
 
-        <div class="cmp-block side-b" style="border-color: {{ comp.accent_b }}33; background: {{ comp.accent_b }}22;">
-          <div class="cmp-block-label">Lançamento Atual</div>
-          <div class="cmp-block-code">{{ comp.code_b }}</div>
-          <div class="cmp-block-num">{{ comp.inv_b | brl }}</div>
+        <div class="cmp-block side-a">
+          <div class="cmp-block-label">Lançamento Anterior</div>
+          <div class="cmp-block-code">{{ comp.code_a }}</div>
+          <div class="cmp-block-num">{{ comp.inv_a | brl }}</div>
           <div class="cmp-block-sub">Investimento</div>
-          <div class="cmp-block-num" style="font-size:32px;margin-top:14px">{{ comp.vendas_b | num }}</div>
+          <div class="cmp-block-num" style="font-size:32px;margin-top:14px">{{ comp.vendas_a | num }}</div>
           <div class="cmp-block-sub">vendas</div>
-          <div class="cmp-block-num" style="font-size:20px;margin-top:10px">{{ comp.receita_b | brl }}</div>
+          <div class="cmp-block-num" style="font-size:20px;margin-top:10px">{{ comp.receita_a | brl }}</div>
           <div class="cmp-block-sub">faturamento</div>
         </div>
 
@@ -265,120 +265,120 @@
           <thead>
             <tr>
               <th class="h-dark" style="width:38%">Indicador</th>
-              <th class="h-a">🟣 {{ comp.code_a }}</th>
               <th class="h-b">🔴 {{ comp.code_b }}</th>
+              <th class="h-a">🟣 {{ comp.code_a }}</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td><strong>Investimento Total (Meta + Google)</strong></td>
-              <td class="numero">{{ comp.inv_a | brl }}</td>
               <td class="numero">{{ comp.inv_b | brl }} &nbsp;{{ delta(comp.inv_a, comp.inv_b, reverse=true) }}</td>
+              <td class="numero">{{ comp.inv_a | brl }}</td>
             </tr>
             <tr style="background:#1877F210;">
               <td>&nbsp;&nbsp;↳ <i class="ti ti-brand-meta" style="color:var(--meta-color);"></i> Meta Ads</td>
-              <td class="numero">{{ comp.inv_meta_a | brl }}</td>
               <td class="numero">{{ comp.inv_meta_b | brl }} &nbsp;{{ delta(comp.inv_meta_a, comp.inv_meta_b, reverse=true) }}</td>
+              <td class="numero">{{ comp.inv_meta_a | brl }}</td>
             </tr>
             <tr style="background:#EA433510;">
               <td>&nbsp;&nbsp;↳ <i class="ti ti-brand-google" style="color:var(--google-color);"></i> Google Ads</td>
-              <td class="numero">{{ comp.inv_google_a | brl }}</td>
               <td class="numero">{{ comp.inv_google_b | brl }} &nbsp;{{ delta(comp.inv_google_a, comp.inv_google_b, reverse=true) }}</td>
+              <td class="numero">{{ comp.inv_google_a | brl }}</td>
             </tr>
             <tr>
               <td><strong>Leads CRM (Active Campaign)</strong></td>
-              <td class="numero">{{ comp.leads_a | num }}</td>
               <td class="numero">{{ comp.leads_b | num }} &nbsp;{{ delta(comp.leads_a, comp.leads_b) }}</td>
+              <td class="numero">{{ comp.leads_a | num }}</td>
             </tr>
             <tr>
               <td>&nbsp;&nbsp;↳ CPL — total</td>
-              <td class="numero">{{ comp.cpl_a | brl }}</td>
               <td class="numero">{{ comp.cpl_b | brl }} &nbsp;{{ delta(comp.cpl_a, comp.cpl_b, reverse=true) }}</td>
+              <td class="numero">{{ comp.cpl_a | brl }}</td>
             </tr>
             <tr>
               <td>&nbsp;&nbsp;↳ Investimento Pré-Qualificação</td>
-              <td class="numero">{{ comp.inv_prequali_a | brl }}</td>
               <td class="numero">{{ comp.inv_prequali_b | brl }} &nbsp;{{ delta(comp.inv_prequali_a, comp.inv_prequali_b, reverse=true) }}</td>
+              <td class="numero">{{ comp.inv_prequali_a | brl }}</td>
             </tr>
             <tr>
               <td>&nbsp;&nbsp;↳ CPL Geral (Captação + Pré-Quali)</td>
-              <td class="numero">{{ comp.cpl_geral_a | brl }}</td>
               <td class="numero">{{ comp.cpl_geral_b | brl }} &nbsp;{{ delta(comp.cpl_geral_a, comp.cpl_geral_b, reverse=true) }}</td>
+              <td class="numero">{{ comp.cpl_geral_a | brl }}</td>
             </tr>
             <tr style="background:#1877F210;">
               <td><strong><i class="ti ti-brand-meta" style="color:var(--meta-color);"></i> Leads Meta Ads</strong></td>
-              <td class="numero">{{ comp.meta_leads_a | num }}</td>
               <td class="numero">{{ comp.meta_leads_b | num }} &nbsp;{{ delta(comp.meta_leads_a, comp.meta_leads_b) }}</td>
+              <td class="numero">{{ comp.meta_leads_a | num }}</td>
             </tr>
             <tr style="background:#1877F210;">
               <td>&nbsp;&nbsp;↳ CPL Meta</td>
-              <td class="numero">{{ comp.meta_cpl_a | brl }}</td>
               <td class="numero">{{ comp.meta_cpl_b | brl }} &nbsp;{{ delta(comp.meta_cpl_a, comp.meta_cpl_b, reverse=true) }}</td>
+              <td class="numero">{{ comp.meta_cpl_a | brl }}</td>
             </tr>
             <tr style="background:#1877F210;">
               <td>&nbsp;&nbsp;↳ Anúncios únicos Meta</td>
-              <td class="numero">{{ comp.meta_ads_a }}</td>
               <td class="numero">{{ comp.meta_ads_b }} &nbsp;{{ delta(comp.meta_ads_a, comp.meta_ads_b) }}</td>
+              <td class="numero">{{ comp.meta_ads_a }}</td>
             </tr>
             <tr style="background:#EA433510;">
               <td><strong><i class="ti ti-brand-google" style="color:var(--google-color);"></i> Conversões Google Ads</strong></td>
-              <td class="numero">{{ comp.google_conv_a | num }}</td>
               <td class="numero">{{ comp.google_conv_b | num }} &nbsp;{{ delta(comp.google_conv_a, comp.google_conv_b) }}</td>
+              <td class="numero">{{ comp.google_conv_a | num }}</td>
             </tr>
             <tr style="background:#EA433510;">
               <td>&nbsp;&nbsp;↳ CPA Google</td>
-              <td class="numero">{{ comp.google_cpa_a | brl }}</td>
               <td class="numero">{{ comp.google_cpa_b | brl }} &nbsp;{{ delta(comp.google_cpa_a, comp.google_cpa_b, reverse=true) }}</td>
+              <td class="numero">{{ comp.google_cpa_a | brl }}</td>
             </tr>
             <tr style="background:#EA433510;">
               <td>&nbsp;&nbsp;↳ Nº Campanhas Google</td>
-              <td class="numero">{{ comp.google_camps_a }}</td>
               <td class="numero">{{ comp.google_camps_b }} &nbsp;{{ delta(comp.google_camps_a, comp.google_camps_b) }}</td>
+              <td class="numero">{{ comp.google_camps_a }}</td>
             </tr>
             <tr>
               <td>&nbsp;&nbsp;↳ CPC Google</td>
-              <td class="numero">{{ comp.google_cpc_a | brl }}</td>
               <td class="numero">{{ comp.google_cpc_b | brl }} &nbsp;{{ delta(comp.google_cpc_a, comp.google_cpc_b, reverse=true) }}</td>
+              <td class="numero">{{ comp.google_cpc_a | brl }}</td>
             </tr>
             <tr style="background:#fffbeb">
               <td><strong>Vendas Totais</strong></td>
-              <td class="numero"><strong>{{ comp.vendas_a | num }}</strong></td>
               <td class="numero"><strong>{{ comp.vendas_b | num }}</strong> &nbsp;{{ delta(comp.vendas_a, comp.vendas_b) }}</td>
+              <td class="numero"><strong>{{ comp.vendas_a | num }}</strong></td>
             </tr>
             <tr>
               <td>&nbsp;&nbsp;↳ Hotmart</td>
-              <td class="numero">{{ comp.hotmart_a | num }}</td>
               <td class="numero">{{ comp.hotmart_b | num }} &nbsp;{{ delta(comp.hotmart_a, comp.hotmart_b) }}</td>
+              <td class="numero">{{ comp.hotmart_a | num }}</td>
             </tr>
             <tr>
               <td>&nbsp;&nbsp;↳ TMB (Boleto)</td>
-              <td class="numero">{{ comp.tmb_a | num }}</td>
               <td class="numero">{{ comp.tmb_b | num }} &nbsp;{{ delta(comp.tmb_a, comp.tmb_b) }}</td>
+              <td class="numero">{{ comp.tmb_a | num }}</td>
             </tr>
             <tr style="background:#f0fdf4">
               <td><strong>Faturamento Total</strong></td>
-              <td class="numero"><strong>{{ comp.receita_a | brl }}</strong></td>
               <td class="numero"><strong>{{ comp.receita_b | brl }}</strong> &nbsp;{{ delta(comp.receita_a, comp.receita_b) }}</td>
+              <td class="numero"><strong>{{ comp.receita_a | brl }}</strong></td>
             </tr>
             <tr>
               <td>Ticket M&eacute;dio</td>
-              <td class="numero">{{ comp.ticket_a | brl }}</td>
               <td class="numero">{{ comp.ticket_b | brl }} &nbsp;{{ delta(comp.ticket_a, comp.ticket_b) }}</td>
+              <td class="numero">{{ comp.ticket_a | brl }}</td>
             </tr>
             <tr>
               <td>ROAS (Receita / Invest. Captação)</td>
-              <td class="numero">{{ comp.roas_a }}x</td>
               <td class="numero">{{ comp.roas_b }}x &nbsp;{{ delta(comp.roas_a, comp.roas_b) }}</td>
+              <td class="numero">{{ comp.roas_a }}x</td>
             </tr>
             <tr style="background:#fef2f2">
               <td><strong>Taxa Conv. CRM &rarr; Venda</strong></td>
-              <td class="numero"><strong>{{ comp.tx_conv_a | round(2) }}%</strong></td>
               <td class="numero"><strong>{{ comp.tx_conv_b | round(2) }}%</strong> &nbsp;{{ delta(comp.tx_conv_a, comp.tx_conv_b) }}</td>
+              <td class="numero"><strong>{{ comp.tx_conv_a | round(2) }}%</strong></td>
             </tr>
             <tr>
               <td>CPA por Venda (Invest. Captação)</td>
-              <td class="numero">{{ comp.cpa_a | brl }}</td>
               <td class="numero">{{ comp.cpa_b | brl }} &nbsp;{{ delta(comp.cpa_a, comp.cpa_b, reverse=true) }}</td>
+              <td class="numero">{{ comp.cpa_a | brl }}</td>
             </tr>
           </tbody>
         </table>
@@ -393,8 +393,8 @@
       </p>
       <div class="cmp-funnel-grid">
         {% for side, funil, code, color in [
-          ('a', comp.funil_a, comp.code_a, '#667eea'),
-          ('b', comp.funil_b, comp.code_b, comp.accent_b)
+          ('b', comp.funil_b, comp.code_b, comp.accent_b),
+          ('a', comp.funil_a, comp.code_a, '#667eea')
         ] %}
         <div class="cmp-funnel-side">
           <div class="cmp-funnel-label">
@@ -453,24 +453,6 @@
         <div class="tp-kpi">
           <div class="tp-kpi-top">
             <div class="tp-icon meta"><i class="ti ti-coin"></i></div>
-            <div class="tp-delta flat">{{ comp.code_a }}</div>
-          </div>
-          <div class="tp-value">{{ comp.inv_meta_a | brl }}</div>
-          <div class="tp-label">Investimento Meta</div>
-          <div class="tp-compare">{{ comp.meta_ads_a }} anúncios únicos</div>
-        </div>
-        <div class="tp-kpi">
-          <div class="tp-kpi-top">
-            <div class="tp-icon meta"><i class="ti ti-users"></i></div>
-            <div class="tp-delta flat">{{ comp.code_a }}</div>
-          </div>
-          <div class="tp-value">{{ comp.meta_leads_a | num }}</div>
-          <div class="tp-label">Leads Meta</div>
-          <div class="tp-compare">CPL R$ {{ comp.meta_cpl_a }}</div>
-        </div>
-        <div class="tp-kpi">
-          <div class="tp-kpi-top">
-            <div class="tp-icon meta"><i class="ti ti-coin"></i></div>
             <div class="tp-delta up">{{ comp.code_b }}</div>
           </div>
           <div class="tp-value">{{ comp.inv_meta_b | brl }}</div>
@@ -486,10 +468,28 @@
           <div class="tp-label">Leads Meta</div>
           <div class="tp-compare">CPL R$ {{ comp.meta_cpl_b }}</div>
         </div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon meta"><i class="ti ti-coin"></i></div>
+            <div class="tp-delta flat">{{ comp.code_a }}</div>
+          </div>
+          <div class="tp-value">{{ comp.inv_meta_a | brl }}</div>
+          <div class="tp-label">Investimento Meta</div>
+          <div class="tp-compare">{{ comp.meta_ads_a }} anúncios únicos</div>
+        </div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon meta"><i class="ti ti-users"></i></div>
+            <div class="tp-delta flat">{{ comp.code_a }}</div>
+          </div>
+          <div class="tp-value">{{ comp.meta_leads_a | num }}</div>
+          <div class="tp-label">Leads Meta</div>
+          <div class="tp-compare">CPL R$ {{ comp.meta_cpl_a }}</div>
+        </div>
       </div>
 
       <div class="cmp-ads-grid">
-        {% for ads, code, col in [(comp.top_ads_a, comp.code_a, '#667eea'), (comp.top_ads_b, comp.code_b, comp.accent_b)] %}
+        {% for ads, code, col in [(comp.top_ads_b, comp.code_b, comp.accent_b), (comp.top_ads_a, comp.code_a, '#667eea')] %}
         <div>
           <h3 style="margin:0 0 10px;font-size:14px;color:{{ col }}">
             Top Anúncios — {{ code }}
@@ -544,23 +544,6 @@
         <div class="tp-kpi">
           <div class="tp-kpi-top">
             <div class="tp-icon google"><i class="ti ti-coin"></i></div>
-            <div class="tp-delta flat">{{ comp.code_a }}</div>
-          </div>
-          <div class="tp-value">{{ comp.inv_google_a | brl }}</div>
-          <div class="tp-label">Investimento Google</div>
-        </div>
-        <div class="tp-kpi">
-          <div class="tp-kpi-top">
-            <div class="tp-icon google"><i class="ti ti-target-arrow"></i></div>
-            <div class="tp-delta flat">{{ comp.code_a }}</div>
-          </div>
-          <div class="tp-value">{{ comp.google_conv_a | num }}</div>
-          <div class="tp-label">Conversões Google</div>
-          <div class="tp-compare">CPA R$ {{ comp.google_cpa_a }} · {{ comp.google_camps_a }} campanhas</div>
-        </div>
-        <div class="tp-kpi">
-          <div class="tp-kpi-top">
-            <div class="tp-icon google"><i class="ti ti-coin"></i></div>
             <div class="tp-delta up">{{ comp.code_b }}</div>
           </div>
           <div class="tp-value">{{ comp.inv_google_b | brl }}</div>
@@ -575,53 +558,70 @@
           <div class="tp-label">Conversões Google</div>
           <div class="tp-compare">CPA R$ {{ comp.google_cpa_b }} · {{ comp.google_camps_b }} campanhas</div>
         </div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon google"><i class="ti ti-coin"></i></div>
+            <div class="tp-delta flat">{{ comp.code_a }}</div>
+          </div>
+          <div class="tp-value">{{ comp.inv_google_a | brl }}</div>
+          <div class="tp-label">Investimento Google</div>
+        </div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon google"><i class="ti ti-target-arrow"></i></div>
+            <div class="tp-delta flat">{{ comp.code_a }}</div>
+          </div>
+          <div class="tp-value">{{ comp.google_conv_a | num }}</div>
+          <div class="tp-label">Conversões Google</div>
+          <div class="tp-compare">CPA R$ {{ comp.google_cpa_a }} · {{ comp.google_camps_a }} campanhas</div>
+        </div>
       </div>
       <div class="table-wrap" style="margin-top:12px">
         <table>
           <thead>
             <tr>
               <th style="width:35%;background:var(--google-color);">Métrica Google</th>
-              <th style="background:var(--google-color);">{{ comp.code_a }}</th>
               <th style="background:var(--google-color);">{{ comp.code_b }}</th>
+              <th style="background:var(--google-color);">{{ comp.code_a }}</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td>Investimento</td>
-              <td class="numero">{{ comp.inv_google_a | brl }}</td>
               <td class="numero">{{ comp.inv_google_b | brl }} &nbsp;{{ delta(comp.inv_google_a, comp.inv_google_b, reverse=true) }}</td>
+              <td class="numero">{{ comp.inv_google_a | brl }}</td>
             </tr>
             <tr>
               <td>Conversões</td>
-              <td class="numero">{{ comp.google_conv_a | num }}</td>
               <td class="numero">{{ comp.google_conv_b | num }} &nbsp;{{ delta(comp.google_conv_a, comp.google_conv_b) }}</td>
+              <td class="numero">{{ comp.google_conv_a | num }}</td>
             </tr>
             <tr>
               <td>CPA</td>
-              <td class="numero">{{ comp.google_cpa_a | brl }}</td>
               <td class="numero">{{ comp.google_cpa_b | brl }} &nbsp;{{ delta(comp.google_cpa_a, comp.google_cpa_b, reverse=true) }}</td>
+              <td class="numero">{{ comp.google_cpa_a | brl }}</td>
             </tr>
             <tr>
               <td>Nº de Campanhas</td>
-              <td class="numero">{{ comp.google_camps_a }}</td>
               <td class="numero">{{ comp.google_camps_b }} &nbsp;{{ delta(comp.google_camps_a, comp.google_camps_b) }}</td>
+              <td class="numero">{{ comp.google_camps_a }}</td>
             </tr>
             <tr>
               <td>CPC M&eacute;dio</td>
-              <td class="numero">{{ comp.google_cpc_a | brl }}</td>
               <td class="numero">{{ comp.google_cpc_b | brl }} &nbsp;{{ delta(comp.google_cpc_a, comp.google_cpc_b, reverse=true) }}</td>
+              <td class="numero">{{ comp.google_cpc_a | brl }}</td>
             </tr>
             <tr>
               <td>CTR M&eacute;dio</td>
-              <td class="numero">{{ comp.google_ctr_a | round(4) }}%</td>
               <td class="numero">{{ comp.google_ctr_b | round(4) }}% &nbsp;{{ delta(comp.google_ctr_a, comp.google_ctr_b) }}</td>
+              <td class="numero">{{ comp.google_ctr_a | round(4) }}%</td>
             </tr>
           </tbody>
         </table>
       </div>
 
       <div class="cmp-ads-grid" style="margin-top:16px;">
-        {% for ads, code, col in [(comp.top_google_a, comp.code_a, '#667eea'), (comp.top_google_b, comp.code_b, '#EA4335')] %}
+        {% for ads, code, col in [(comp.top_google_b, comp.code_b, '#EA4335'), (comp.top_google_a, comp.code_a, '#667eea')] %}
         <div>
           <h3 style="margin:0 0 10px;font-size:14px;color:{{ col }}">
             <i class="ti ti-brand-google" style="color:var(--google-color);margin-right:4px;"></i>Top Campanhas Google — {{ code }}

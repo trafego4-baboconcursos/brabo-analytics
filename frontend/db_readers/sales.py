@@ -760,9 +760,16 @@ def read_dia1_sales(launch: Any) -> dict:
     if not tmb_df.empty:
         tmb_df["valor"] = pd.to_numeric(tmb_df["valor_liquido"], errors="coerce").fillna(0.0)
 
+    agora = pd.Timestamp.now()
+
     checkpoints = []
     for label, minutes in _DIA1_CHECKPOINTS:
         cutoff = pd.Timestamp(day) + pd.Timedelta(minutes=minutes)
+        if cutoff > agora:
+            # checkpoint ainda não aconteceu (dia 1 em andamento) — não repete o
+            # último valor real como se já tivesse passado
+            checkpoints.append({"hora": label, "ht": None, "tmb": None, "total": None, "faturamento": None, "pendente": True})
+            continue
         ht_slice = hm_df[hm_df["ts"] <= cutoff] if not hm_df.empty else hm_df
         tmb_slice = tmb_df[tmb_df["ts"] <= cutoff] if not tmb_df.empty else tmb_df
         ht_count = len(ht_slice)
@@ -774,6 +781,7 @@ def read_dia1_sales(launch: Any) -> dict:
             "ht": ht_count, "tmb": tmb_count,
             "total": ht_count + tmb_count,
             "faturamento": ht_fat + tmb_fat,
+            "pendente": False,
         })
 
     return {"data_abertura": str(day), "checkpoints": checkpoints}

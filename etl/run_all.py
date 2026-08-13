@@ -15,12 +15,14 @@ import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
+from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 from logger import get_logger
 from etl_runs import start_run, finish_run
 
 BASE = Path(__file__).parent
+load_dotenv(dotenv_path=BASE.parent / ".env")
 logger = get_logger("etl.run_all")
 
 

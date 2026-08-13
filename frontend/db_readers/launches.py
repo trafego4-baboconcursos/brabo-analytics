@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import json as _json
 from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from pathlib import Path
 from typing import Any
 from sqlalchemy import text
@@ -384,10 +385,12 @@ def get_etl_status() -> dict[str, dict]:
             if finished_at.tzinfo is None:
                 finished_at = finished_at.replace(tzinfo=timezone.utc)
             hours_ago = (now - finished_at).total_seconds() / 3600
+            local_dt = finished_at.astimezone(ZoneInfo("America/Sao_Paulo"))
             result[source] = {
                 "status": "ok",
                 "hours_ago": round(hours_ago, 1),
                 "last_ok_at": finished_at,
+                "last_ok_at_local": local_dt.strftime("%d/%m %H:%M"),
                 "rows_upserted": rows_upserted,
             }
     except Exception:

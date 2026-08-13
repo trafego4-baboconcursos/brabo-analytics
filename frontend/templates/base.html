@@ -315,7 +315,7 @@ html, body { margin: 0 !important; padding: 0 !important; font-family: 'Inter','
 /* ── Tabelas ────────────────────────────────────────────────────────── */
 .table-wrap { border:1px solid var(--bs-border); border-radius:var(--bs-r-lg); overflow:hidden; margin-top:12px; }
 table { width:100%; border-collapse:collapse; font-size:13px; }
-.table-wrap table th { background:var(--bs-accent); color:#fff; padding:10px 12px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; }
+.table-wrap table th { background:var(--bs-accent); color:#fff; padding:10px 12px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:normal; }
 table td { padding:10px 12px; border-bottom:1px solid var(--bs-border); vertical-align:middle; }
 table tr:last-child td { border-bottom:none; }
 table tr:hover td { background:var(--bs-accent-bg) !important; }
@@ -1118,6 +1118,15 @@ kbd {
       <button class="bs-nav-link" id="bs-run-etl-btn" onclick="bsRunEtl()" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font:inherit;">
         <span class="bs-nav-icon"><i class="ti ti-refresh"></i></span>Rodar ETL agora
       </button>
+      {% set _synced = etl_status.values() | selectattr('last_ok_at') | list %}
+      {% set _last = (_synced | sort(attribute='last_ok_at') | last) if _synced else None %}
+      <div id="bs-etl-last-sync" style="padding:2px 10px 6px 34px;font-size:11px;color:var(--bs-ink-subtle);line-height:1.4;">
+        {% if _last %}
+          Última sinc.: {{ _last.last_ok_at_local }}
+        {% else %}
+          Sem histórico de sincronização ainda
+        {% endif %}
+      </div>
       {% endif %}
     </nav>
 
@@ -1359,22 +1368,41 @@ document.addEventListener('click', function(e) {
 /* ── Disparo manual do ETL ──────────────────────────────────────────── */
 window.bsRunEtl = function() {
   var btn = document.getElementById('bs-run-etl-btn');
+  var msgEl = document.getElementById('bs-etl-last-sync');
   if (!btn || btn.disabled) return;
   if (!confirm('Rodar o ETL agora (últimos 3 dias)? Pode levar alguns minutos.')) return;
   var original = btn.innerHTML;
+  var originalMsg = msgEl ? msgEl.innerHTML : '';
+  var originalColor = msgEl ? msgEl.style.color : '';
   btn.disabled = true;
   btn.innerHTML = '<span class="bs-nav-icon"><i class="ti ti-loader-2"></i></span>Disparando...';
   fetch('/api/run-etl', { method: 'POST' })
     .then(function(r) { return r.json(); })
     .then(function(data) {
-      alert(data.error || data.message || 'ETL disparado.');
+      if (!msgEl) return;
+      if (data.error) {
+        msgEl.style.color = 'var(--bs-danger)';
+        msgEl.textContent = data.error;
+      } else {
+        msgEl.style.color = 'var(--bs-success)';
+        msgEl.textContent = data.message || 'ETL disparado com sucesso.';
+      }
     })
     .catch(function() {
-      alert('Falha ao disparar o ETL — tente novamente.');
+      if (msgEl) {
+        msgEl.style.color = 'var(--bs-danger)';
+        msgEl.textContent = 'Falha ao disparar o ETL — tente novamente.';
+      }
     })
     .finally(function() {
       btn.disabled = false;
       btn.innerHTML = original;
+      if (msgEl) {
+        setTimeout(function() {
+          msgEl.style.color = originalColor;
+          msgEl.innerHTML = originalMsg;
+        }, 15000);
+      }
     });
 };
 

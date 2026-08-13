@@ -4,8 +4,11 @@ import sys
 from pathlib import Path
 
 _ETL_DIR = Path(__file__).parent
-sys.path.insert(0, str(_ETL_DIR))
+# src/ primeiro, depois etl/ por cima — etl/ precisa vencer a resolução de
+# "import db" (existe um pacote src/db/ com o mesmo nome, camada legada de
+# SQLite, que não tem get_engine() e quebrava start_run/finish_run em silêncio).
 sys.path.insert(0, str(_ETL_DIR.parent / "src"))
+sys.path.insert(0, str(_ETL_DIR))
 from logger import get_logger
 
 logger = get_logger("etl.runs")

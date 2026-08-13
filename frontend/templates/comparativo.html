@@ -207,6 +207,53 @@
       </div>
     </div>
 
+    {# ── 1.5 Dia 1 — Vendas hora a hora (abertura do carrinho) ── #}
+    {% if comp.dia1_a.checkpoints or comp.dia1_b.checkpoints %}
+    {% macro dia1_table(dia1, code, color, head_color=None) %}
+      <h3 style="margin:0 0 10px;font-size:14px;color:{{ color }}">
+        {{ code }} <small style="font-weight:400;opacity:.7;">— abertura {{ dia1.data_abertura[8:10] }}/{{ dia1.data_abertura[5:7] }}</small>
+      </h3>
+      <div class="table-wrap" data-no-filter>
+        <table>
+          <thead>
+            <tr>
+              <th{% if head_color %} style="background:{{ head_color }}"{% endif %}>Hora</th>
+              <th{% if head_color %} style="background:{{ head_color }}"{% endif %}>Hotmart</th>
+              <th{% if head_color %} style="background:{{ head_color }}"{% endif %}>TMB</th>
+              <th{% if head_color %} style="background:{{ head_color }}"{% endif %}>Total</th>
+              <th{% if head_color %} style="background:{{ head_color }}"{% endif %}>Faturamento</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in dia1.checkpoints %}
+            <tr>
+              <td><strong>{{ c.hora }}</strong></td>
+              {% if c.pendente %}
+              <td class="numero" colspan="4" style="color:var(--bs-ink-subtle);font-style:italic;">ainda não chegou</td>
+              {% else %}
+              <td class="numero">{{ c.ht | num }}</td>
+              <td class="numero">{{ c.tmb | num }}</td>
+              <td class="numero"><strong>{{ c.total | num }}</strong></td>
+              <td class="numero">{{ c.faturamento | brl }}</td>
+              {% endif %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endmacro %}
+    <div class="section">
+      <div class="section-title"><i class="ti ti-clock-hour-4"></i> Dia 1 — Vendas Hora a Hora</div>
+      <p style="font-size:13px;color:var(--bs-ink-muted);margin-bottom:16px">
+        Vendas acumuladas ao longo do primeiro dia de carrinho aberto — cada lançamento comparado a partir da sua própria data de abertura.
+      </p>
+      <div class="cmp-ads-grid">
+        <div>{{ dia1_table(comp.dia1_b, comp.code_b, comp.accent_b) }}</div>
+        <div>{{ dia1_table(comp.dia1_a, comp.code_a, '#6b7280', head_color='#6b7280') }}</div>
+      </div>
+    </div>
+    {% endif %}
+
     {# ── 2. Scorecard ── #}
     <div class="section cmp-scorecard">
       <div class="section-title"><i class="ti ti-clipboard-data"></i> Scorecard Comparativo</div>
@@ -218,8 +265,8 @@
           <thead>
             <tr>
               <th class="h-dark" style="width:38%">Indicador</th>
-              <th class="h-a" style="text-align:right">🟣 {{ comp.code_a }}</th>
-              <th class="h-b" style="text-align:right">🔴 {{ comp.code_b }}</th>
+              <th class="h-a">🟣 {{ comp.code_a }}</th>
+              <th class="h-b">🔴 {{ comp.code_b }}</th>
             </tr>
           </thead>
           <tbody>
@@ -453,9 +500,9 @@
               <thead>
                 <tr>
                   <th style="background:{{ col }}">Anúncio</th>
-                  <th style="background:{{ col }};text-align:right">Invest.</th>
-                  <th style="background:{{ col }};text-align:right">Leads</th>
-                  <th style="background:{{ col }};text-align:right">CPL</th>
+                  <th style="background:{{ col }}">Invest.</th>
+                  <th style="background:{{ col }}">Leads</th>
+                  <th style="background:{{ col }}">CPL</th>
                 </tr>
               </thead>
               <tbody>
@@ -534,8 +581,8 @@
           <thead>
             <tr>
               <th style="width:35%;background:var(--google-color);">Métrica Google</th>
-              <th style="text-align:right;background:var(--google-color);">{{ comp.code_a }}</th>
-              <th style="text-align:right;background:var(--google-color);">{{ comp.code_b }}</th>
+              <th style="background:var(--google-color);">{{ comp.code_a }}</th>
+              <th style="background:var(--google-color);">{{ comp.code_b }}</th>
             </tr>
           </thead>
           <tbody>
@@ -585,9 +632,9 @@
               <thead>
                 <tr>
                   <th style="background:{{ col }};">Campanha / Anúncio</th>
-                  <th style="background:{{ col }};text-align:right">Invest.</th>
-                  <th style="background:{{ col }};text-align:right">Conv.</th>
-                  <th style="background:{{ col }};text-align:right">CPA</th>
+                  <th style="background:{{ col }};">Invest.</th>
+                  <th style="background:{{ col }};">Conv.</th>
+                  <th style="background:{{ col }};">CPA</th>
                 </tr>
               </thead>
               <tbody>
@@ -716,14 +763,14 @@
           <thead>
             <tr>
               <th>Segmento</th>
-              <th style="text-align:right">Leads Atual</th>
-              <th style="text-align:right">Leads Anterior</th>
-              <th style="text-align:right">Δ Leads</th>
-              <th style="text-align:right">% Atual</th>
-              <th style="text-align:right">% Anterior</th>
-              <th style="text-align:right">CPL Atual</th>
-              <th style="text-align:right">CPL Anterior</th>
-              <th style="text-align:right">Δ CPL</th>
+              <th>Leads Atual</th>
+              <th>Leads Anterior</th>
+              <th>Δ Leads</th>
+              <th>% Atual</th>
+              <th>% Anterior</th>
+              <th>CPL Atual</th>
+              <th>CPL Anterior</th>
+              <th>Δ CPL</th>
             </tr>
           </thead>
           <tbody>
@@ -738,62 +785,6 @@
               <td class="numero">{{ s.cpl_b | brl }}</td>
               <td class="numero">{{ s.cpl_a | brl }}</td>
               <td class="numero">{{ delta(s.cpl_a, s.cpl_b, reverse=true) }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-    {% endif %}
-
-    {# ── 7. Dia 1 — Vendas hora a hora (abertura do carrinho) ── #}
-    {% if comp.dia1_a.checkpoints or comp.dia1_b.checkpoints %}
-    <div class="section">
-      <div class="section-title"><i class="ti ti-clock-hour-4"></i> Dia 1 — Vendas Hora a Hora</div>
-      <p style="font-size:13px;color:var(--bs-ink-muted);margin-bottom:16px">
-        Vendas acumuladas ao longo do primeiro dia de carrinho aberto — cada lançamento comparado a partir da sua própria data de abertura.
-      </p>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th rowspan="2" style="vertical-align:bottom;">Hora</th>
-              <th colspan="4" class="h-b" style="text-align:center;">
-                {{ comp.code_b }} <small style="font-weight:400;opacity:.85;">— abertura {{ comp.dia1_b.data_abertura[8:10] }}/{{ comp.dia1_b.data_abertura[5:7] }}</small>
-              </th>
-              <th colspan="4" class="h-a" style="text-align:center;">
-                {{ comp.code_a }} <small style="font-weight:400;opacity:.85;">— abertura {{ comp.dia1_a.data_abertura[8:10] }}/{{ comp.dia1_a.data_abertura[5:7] }}</small>
-              </th>
-            </tr>
-            <tr>
-              <th class="h-b" style="text-align:right;">HT</th>
-              <th class="h-b" style="text-align:right;">TMB</th>
-              <th class="h-b" style="text-align:right;">Total</th>
-              <th class="h-b" style="text-align:right;">Faturamento</th>
-              <th class="h-a" style="text-align:right;">HT</th>
-              <th class="h-a" style="text-align:right;">TMB</th>
-              <th class="h-a" style="text-align:right;">Total</th>
-              <th class="h-a" style="text-align:right;">Faturamento</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for i in range(comp.dia1_b.checkpoints | length) %}
-            {% set cb = comp.dia1_b.checkpoints[i] %}
-            {% set ca = comp.dia1_a.checkpoints[i] if i < (comp.dia1_a.checkpoints | length) else None %}
-            <tr>
-              <td><strong>{{ cb.hora }}</strong></td>
-              <td class="numero">{{ cb.ht | num }}</td>
-              <td class="numero">{{ cb.tmb | num }}</td>
-              <td class="numero"><strong>{{ cb.total | num }}</strong></td>
-              <td class="numero">{{ cb.faturamento | brl }}</td>
-              {% if ca %}
-              <td class="numero">{{ ca.ht | num }}</td>
-              <td class="numero">{{ ca.tmb | num }}</td>
-              <td class="numero"><strong>{{ ca.total | num }}</strong></td>
-              <td class="numero">{{ ca.faturamento | brl }}</td>
-              {% else %}
-              <td class="numero">–</td><td class="numero">–</td><td class="numero">–</td><td class="numero">–</td>
-              {% endif %}
             </tr>
             {% endfor %}
           </tbody>

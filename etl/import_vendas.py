@@ -88,7 +88,7 @@ def main():
         print("Erro: Nao foi possivel obter as colunas de hotmart_clean_oficial ou tmb_clean_oficial. Verifique a conexao.")
         sys.exit(1)
         
-    analises_dir = Path("c:\\Users\\trafe\\OneDrive\\Desktop\\workspace-mmm\\analises")
+    analises_dir = Path(__file__).parent.parent / "analises"
     
     total_hm = 0
     total_tmb = 0

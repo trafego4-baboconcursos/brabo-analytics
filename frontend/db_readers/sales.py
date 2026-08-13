@@ -642,3 +642,138 @@ def read_vendas_consolidado(launch_folder_or_code: Any, start_date=None, end_dat
         summary.top_estado_faturamento = float(top_estado.get("faturamento") or top_estado.get("receita") or 0.0)
 
     return summary
+
+
+# ── Vendas hora a hora no dia 1 (abertura do carrinho) ──────────────────────────
+
+_DIA1_CHECKPOINTS = [
+    ("8h30", 8 * 60 + 30), ("9h", 9 * 60), ("10h", 10 * 60), ("11h", 11 * 60),
+    ("12h", 12 * 60), ("13h", 13 * 60), ("15h", 15 * 60), ("19h", 19 * 60),
+]
+
+_HOTMART_STATUS_APROVADO = (
+    "Completa", "Aprovada", "Paga", "Completo", "Aprovado", "Pago",
+    "approved", "complete", "APPROVED", "COMPLETED",
+)
+
+
+def read_dia1_sales(launch: Any) -> dict:
+    """Vendas cumulativas hora a hora no primeiro dia do carrinho (abertura),
+    pra comparar o ritmo de vendas do dia de lançamento entre ciclos."""
+    from frontend.db_readers.launches import read_launch_config  # noqa: PLC0415
+
+    code = _extract_launch_code(launch)
+    cfg = read_launch_config(code)
+    day = _safe_date(cfg.get("carrinho_start_date"))
+    if not day:
+        return {"data_abertura": None, "checkpoints": []}
+
+    hotmart_ids = _normalize_product_ids(cfg.get("hotmart_produto_ids"))
+    tmb_ids = _normalize_product_ids(cfg.get("tmb_produto_ids"))
+
+    ops_engine = _get_users_engine()
+    day_start = f"{day} 00:00:00"
+    day_end = f"{day} 23:59:59"
+
+    hm_df = pd.DataFrame()
+    if hotmart_ids:
+        hm_sql = r"""
+            SELECT
+              COALESCE(
+                CASE WHEN NULLIF(data_da_transacao,'') ~ '^\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}$'
+                       THEN to_date(split_part(data_da_transacao, ' ', 1), 'DD/MM/YYYY')
+                            + split_part(data_da_transacao, ' ', 2)::interval
+                     WHEN NULLIF(data_da_transacao,'') ~ '^\d{2}/\d{2}/\d{4}$'
+                       THEN to_date(data_da_transacao, 'DD/MM/YYYY')::timestamp
+                     WHEN NULLIF(data_da_transacao,'') ~ '^\d{10,13}$'
+                       THEN (to_timestamp(CASE WHEN length(data_da_transacao) = 13
+                                 THEN data_da_transacao::bigint / 1000 ELSE data_da_transacao::bigint END)
+                             AT TIME ZONE 'America/Sao_Paulo')
+                     WHEN NULLIF(data_da_transacao,'') IS NOT NULL
+                       THEN (data_da_transacao::timestamptz AT TIME ZONE 'America/Sao_Paulo')
+                END
+              ) AS ts,
+              faturamento_liquido, valor_de_compra_sem_impostos,
+              tipo_de_cobranca, venda_feita_como,
+              quantidade_de_cobrancas, quantidade_total_de_parcelas
+            FROM hotmart_clean_oficial
+            WHERE status_da_transacao = ANY(:status)
+              AND codigo_do_produto = ANY(:product_ids)
+        """
+        raw = pd.read_sql(
+            text(hm_sql), ops_engine,
+            params={"status": list(_HOTMART_STATUS_APROVADO), "product_ids": hotmart_ids},
+        )
+        raw = raw[raw["ts"].notna()]
+        raw["ts"] = pd.to_datetime(raw["ts"])
+        if raw["ts"].dt.tz is not None:
+            raw["ts"] = raw["ts"].dt.tz_localize(None)
+        hm_df = raw[(raw["ts"] >= day_start) & (raw["ts"] <= day_end)].copy()
+
+    tmb_df = pd.DataFrame()
+    if tmb_ids:
+        ids_literal = ", ".join(str(int(i)) for i in tmb_ids)
+        tmb_sql = f"""
+            SELECT data_efetivado AS ts, valor_liquido
+            FROM tmb_clean_oficial
+            WHERE valor_liquido > 0
+              AND lancamento_id = ANY(ARRAY[{ids_literal}]::int[])
+              AND data_efetivado BETWEEN :start AND :end
+        """
+        tmb_df = pd.read_sql(text(tmb_sql), ops_engine, params={"start": day_start, "end": day_end})
+        if not tmb_df.empty:
+            tmb_df["ts"] = pd.to_datetime(tmb_df["ts"])
+
+    def _hm_valor(row) -> float | None:
+        def _v(x):
+            try:
+                if x is None or (isinstance(x, float) and math.isnan(x)):
+                    return None
+                v = float(str(x).replace(",", "."))
+                return v if math.isfinite(v) else None
+            except (ValueError, TypeError):
+                return None
+        valor = _v(row.get("faturamento_liquido"))
+        if valor is None:
+            valor = _v(row.get("valor_de_compra_sem_impostos"))
+        if valor is None:
+            valor = 0.0
+        tipo = _norm_text(row.get("tipo_de_cobranca") or row.get("venda_feita_como") or "")
+        try:
+            cobrancas = int(row.get("quantidade_de_cobrancas") or 1)
+        except (ValueError, TypeError):
+            cobrancas = 1
+        try:
+            parcelas = int(row.get("quantidade_total_de_parcelas") or 1)
+        except (ValueError, TypeError):
+            parcelas = 1
+        if tipo == "recuperador inteligente" and cobrancas != 1:
+            return None  # ignorado, igual ao read_vendas (evita contar recorrencia)
+        if tipo == "recuperador inteligente":
+            valor *= max(1, parcelas)
+        return valor
+
+    if not hm_df.empty:
+        hm_df["valor"] = hm_df.apply(_hm_valor, axis=1)
+        hm_df = hm_df[hm_df["valor"].notna()]
+
+    if not tmb_df.empty:
+        tmb_df["valor"] = pd.to_numeric(tmb_df["valor_liquido"], errors="coerce").fillna(0.0)
+
+    checkpoints = []
+    for label, minutes in _DIA1_CHECKPOINTS:
+        cutoff = pd.Timestamp(day) + pd.Timedelta(minutes=minutes)
+        ht_slice = hm_df[hm_df["ts"] <= cutoff] if not hm_df.empty else hm_df
+        tmb_slice = tmb_df[tmb_df["ts"] <= cutoff] if not tmb_df.empty else tmb_df
+        ht_count = len(ht_slice)
+        tmb_count = len(tmb_slice)
+        ht_fat = float(ht_slice["valor"].sum()) if not ht_slice.empty else 0.0
+        tmb_fat = float(tmb_slice["valor"].sum()) if not tmb_slice.empty else 0.0
+        checkpoints.append({
+            "hora": label,
+            "ht": ht_count, "tmb": tmb_count,
+            "total": ht_count + tmb_count,
+            "faturamento": ht_fat + tmb_fat,
+        })
+
+    return {"data_abertura": str(day), "checkpoints": checkpoints}

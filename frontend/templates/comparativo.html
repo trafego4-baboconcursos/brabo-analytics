@@ -746,6 +746,62 @@
     </div>
     {% endif %}
 
+    {# ── 7. Dia 1 — Vendas hora a hora (abertura do carrinho) ── #}
+    {% if comp.dia1_a.checkpoints or comp.dia1_b.checkpoints %}
+    <div class="section">
+      <div class="section-title"><i class="ti ti-clock-hour-4"></i> Dia 1 — Vendas Hora a Hora</div>
+      <p style="font-size:13px;color:var(--bs-ink-muted);margin-bottom:16px">
+        Vendas acumuladas ao longo do primeiro dia de carrinho aberto — cada lançamento comparado a partir da sua própria data de abertura.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th rowspan="2" style="vertical-align:bottom;">Hora</th>
+              <th colspan="4" class="h-b" style="text-align:center;">
+                {{ comp.code_b }} <small style="font-weight:400;opacity:.85;">— abertura {{ comp.dia1_b.data_abertura[8:10] }}/{{ comp.dia1_b.data_abertura[5:7] }}</small>
+              </th>
+              <th colspan="4" class="h-a" style="text-align:center;">
+                {{ comp.code_a }} <small style="font-weight:400;opacity:.85;">— abertura {{ comp.dia1_a.data_abertura[8:10] }}/{{ comp.dia1_a.data_abertura[5:7] }}</small>
+              </th>
+            </tr>
+            <tr>
+              <th class="h-b" style="text-align:right;">HT</th>
+              <th class="h-b" style="text-align:right;">TMB</th>
+              <th class="h-b" style="text-align:right;">Total</th>
+              <th class="h-b" style="text-align:right;">Faturamento</th>
+              <th class="h-a" style="text-align:right;">HT</th>
+              <th class="h-a" style="text-align:right;">TMB</th>
+              <th class="h-a" style="text-align:right;">Total</th>
+              <th class="h-a" style="text-align:right;">Faturamento</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for i in range(comp.dia1_b.checkpoints | length) %}
+            {% set cb = comp.dia1_b.checkpoints[i] %}
+            {% set ca = comp.dia1_a.checkpoints[i] if i < (comp.dia1_a.checkpoints | length) else None %}
+            <tr>
+              <td><strong>{{ cb.hora }}</strong></td>
+              <td class="numero">{{ cb.ht | num }}</td>
+              <td class="numero">{{ cb.tmb | num }}</td>
+              <td class="numero"><strong>{{ cb.total | num }}</strong></td>
+              <td class="numero">{{ cb.faturamento | brl }}</td>
+              {% if ca %}
+              <td class="numero">{{ ca.ht | num }}</td>
+              <td class="numero">{{ ca.tmb | num }}</td>
+              <td class="numero"><strong>{{ ca.total | num }}</strong></td>
+              <td class="numero">{{ ca.faturamento | brl }}</td>
+              {% else %}
+              <td class="numero">–</td><td class="numero">–</td><td class="numero">–</td><td class="numero">–</td>
+              {% endif %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
     {% endif %}{# end if comp #}
 
   </div>

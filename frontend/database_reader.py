@@ -65,6 +65,7 @@ from frontend.db_readers.launches import (  # noqa: E402
 
 from frontend.db_readers.sales import (  # noqa: E402
     read_vendas, read_hotmart_details, read_tmb_details, read_vendas_consolidado,
+    read_dia1_sales,
 )
 from frontend.db_readers.leads import (  # noqa: E402
     read_ac_leads_for_attribution, read_leads, read_ac_campaigns,
@@ -315,6 +316,10 @@ def read_comparativo(launch_b: "Launch", launch_a: "Launch") -> ComparativoData:
 
     # â€” Segmentos (plataforma Ã— temperatura, etapa CaptaÃ§Ã£o) â€”
     data.por_segmento = _merge_segmentos(ra, rb)
+
+    # â€” Vendas hora a hora no dia 1 (abertura do carrinho) â€”
+    data.dia1_a = read_dia1_sales(launch_a)
+    data.dia1_b = read_dia1_sales(launch_b)
 
     # â€” Vendas â€”
     vendas_a = ra["hotmart_count"] + ra["tmb_count"]

@@ -502,10 +502,16 @@ def build_df_from_api(rows: list[dict]) -> pd.DataFrame:
                 video_id = video_id_map[asset]
                 break
 
+        # Responsive Search Ads não têm campo "name" preenchível na API do Google Ads
+        # (fica None). Sem isso, o spend de Search nunca casa com o ad_code AD400
+        # usado nas UTMs (tracking template não consegue inserir ADxxx por anúncio
+        # em Search, só por grupo de anúncios — por isso o AD400 genérico).
+        ad_name = ad.get("name") or "AD400 - Busca Genérica"
+
         records.append({
             "date":           seg.get("date"),
             "ad_id":          str(ad.get("id")),
-            "ad_name":        ad.get("name"),
+            "ad_name":        ad_name,
             "ad_group_id":    str(group.get("id")),
             "ad_group_name":  group.get("name"),
             "campaign_id":    str(camp.get("id")),

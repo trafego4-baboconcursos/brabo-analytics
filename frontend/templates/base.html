@@ -1115,6 +1115,9 @@ kbd {
          href="/settings{% if active_code %}?launch_code={{ active_code }}{% endif %}">
         <span class="bs-nav-icon"><i class="ti ti-settings"></i></span>Configurações
       </a>
+      <button class="bs-nav-link" id="bs-run-etl-btn" onclick="bsRunEtl()" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font:inherit;">
+        <span class="bs-nav-icon"><i class="ti ti-refresh"></i></span>Rodar ETL agora
+      </button>
       {% endif %}
     </nav>
 
@@ -1352,6 +1355,28 @@ document.addEventListener('click', function(e) {
     if (btn)  btn.classList.remove('open');
   }
 });
+
+/* ── Disparo manual do ETL ──────────────────────────────────────────── */
+window.bsRunEtl = function() {
+  var btn = document.getElementById('bs-run-etl-btn');
+  if (!btn || btn.disabled) return;
+  if (!confirm('Rodar o ETL agora (últimos 3 dias)? Pode levar alguns minutos.')) return;
+  var original = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="bs-nav-icon"><i class="ti ti-loader-2"></i></span>Disparando...';
+  fetch('/api/run-etl', { method: 'POST' })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      alert(data.error || data.message || 'ETL disparado.');
+    })
+    .catch(function() {
+      alert('Falha ao disparar o ETL — tente novamente.');
+    })
+    .finally(function() {
+      btn.disabled = false;
+      btn.innerHTML = original;
+    });
+};
 
 /* ── Keyboard shortcuts modal ───────────────────────────────────────── */
 window.bsShortcuts = function() {

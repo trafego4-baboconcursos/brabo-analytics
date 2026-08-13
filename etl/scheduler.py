@@ -20,7 +20,7 @@ from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_MISSED
 
 BASE_DIR     = Path(__file__).parent
 ORQUESTRADOR = BASE_DIR / "run_all.py"
-INTERVALO_HORAS = 1
+INTERVALO_MINUTOS = 30
 
 load_dotenv(dotenv_path=BASE_DIR.parent / ".env")
 
@@ -139,7 +139,7 @@ def _on_job_event(event) -> None:
 def main() -> None:
     logger.info("=====================================================")
     logger.info("  Agendador de ETL Iniciado — Brabo Analytics")
-    logger.info("  Frequência: a cada %d hora(s)", INTERVALO_HORAS)
+    logger.info("  Frequência: a cada %d minuto(s)", INTERVALO_MINUTOS)
     logger.info("  Log file: %s", LOG_FILE.as_posix())
     logger.info("=====================================================")
 
@@ -151,7 +151,7 @@ def main() -> None:
     scheduler.add_job(
         rodar_carga,
         trigger="interval",
-        hours=INTERVALO_HORAS,
+        minutes=INTERVALO_MINUTOS,
         coalesce=True,
         misfire_grace_time=300,
         id="etl_carga",

@@ -221,6 +221,45 @@ def health_check(request: Request):
     return result
 
 
+# ── ETL manual ─────────────────────────────────────────────────────────────────
+
+@router.post("/api/run-etl")
+def api_run_etl(request: Request):
+    user = _get_current_user(request)
+    if not user or user.get("role") != "admin":
+        return {"error": "Sem permissão"}
+
+    import subprocess
+    import sys as _sys
+    from datetime import datetime, timedelta
+    from sqlalchemy import text as sa_text
+    from frontend.database_reader import _get_engine
+
+    try:
+        with _get_engine().connect() as conn:
+            row = conn.execute(sa_text(
+                "SELECT source, started_at FROM etl_runs "
+                "WHERE status = 'running' AND started_at > NOW() - INTERVAL '20 minutes' "
+                "ORDER BY started_at DESC LIMIT 1"
+            )).fetchone()
+        if row:
+            return {"error": f"Já existe uma rodada de ETL em andamento ({row[0]}, iniciada às {row[1]:%H:%M})."}
+    except Exception:
+        logger.exception("Falha ao checar etl_runs antes de disparar ETL manual")
+
+    hoje = datetime.now()
+    inicio = (hoje - timedelta(days=2)).strftime("%Y-%m-%d")
+    fim = hoje.strftime("%Y-%m-%d")
+    run_all_path = WORKSPACE_ROOT / "etl" / "run_all.py"
+
+    subprocess.Popen(
+        [_sys.executable, str(run_all_path), "--since", inicio, "--until", fim],
+        cwd=str(WORKSPACE_ROOT),
+    )
+    logger.info("ETL manual disparado por %s (janela %s a %s)", user.get("email"), inicio, fim)
+    return {"ok": True, "message": f"ETL disparado. Janela: {inicio} até {fim}. Pode levar alguns minutos."}
+
+
 # ── Debug ──────────────────────────────────────────────────────────────────────
 
 @router.get("/debug-path")

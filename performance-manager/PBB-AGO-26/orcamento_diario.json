@@ -428,9 +428,7 @@
       "frio_principal": 689.89,
       "frio_principal_new_ads": 295.71,
       "frio_potencial": 387.87,
-      "especifico_principal": 346.88,
-      "especifico_principal_new_ads": 148.62,
-      "especifico_potencial": 196.8
+      "especifico_principal_new_ads": 692.3
     },
     "2026-08-15": {
       "quente_principal": 3054.27,
@@ -439,9 +437,7 @@
       "frio_principal": 609.49,
       "frio_principal_new_ads": 261.24,
       "frio_potencial": 342.66,
-      "especifico_principal": 306.45,
-      "especifico_principal_new_ads": 131.3,
-      "especifico_potencial": 173.87
+      "especifico_principal_new_ads": 611.62
     },
     "2026-08-16": {
       "quente_principal": 3300.17,
@@ -450,9 +446,7 @@
       "frio_principal": 658.56,
       "frio_principal_new_ads": 282.28,
       "frio_potencial": 370.25,
-      "especifico_principal": 331.12,
-      "especifico_principal_new_ads": 141.87,
-      "especifico_potencial": 187.86
+      "especifico_principal_new_ads": 660.85
     },
     "2026-08-17": {
       "quente_principal": 3644.86,
@@ -461,9 +455,7 @@
       "frio_principal": 727.34,
       "frio_principal_new_ads": 311.76,
       "frio_potencial": 408.92,
-      "especifico_principal": 365.71,
-      "especifico_principal_new_ads": 156.69,
-      "especifico_potencial": 207.49
+      "especifico_principal_new_ads": 729.89
     }
   }
 }

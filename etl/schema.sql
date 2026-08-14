@@ -16,6 +16,9 @@ CREATE TABLE IF NOT EXISTS leads (
     utm_campaign TEXT,
     utm_content  TEXT,                      -- chave de atribuição (ex: "AD110 - ...")
     utm_term     TEXT,
+    nome         TEXT,
+    sobrenome    TEXT,
+    phone        TEXT,                      -- só dígitos, últimos 11 (DDD+número)
     updated_at   TIMESTAMPTZ DEFAULT NOW()
 );
 

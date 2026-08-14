@@ -4,6 +4,7 @@ frontend/db_readers/sales.py — leitores de vendas (Hotmart, TMB, Consolidado).
 from __future__ import annotations
 
 import math
+import re
 from typing import Any
 
 import pandas as pd
@@ -172,6 +173,14 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
                 summary.emails_hotmart.add(email)
                 summary.receita_por_email[email] = summary.receita_por_email.get(email, 0.0) + valor
                 summary.vendas_por_email[email] = summary.vendas_por_email.get(email, 0) + 1
+                if email not in summary.phone_por_email:
+                    phone_digits = re.sub(r"\D", "", str(row.get("telefone") or ""))
+                    if len(phone_digits) >= 10:
+                        summary.phone_por_email[email] = phone_digits[-11:]
+                if email not in summary.nome_por_email:
+                    nome = str(row.get("comprador_a") or "").strip()
+                    if nome:
+                        summary.nome_por_email[email] = nome
 
             if "cartao" in pagto or "card" in pagto or "credit" in pagto:
                 summary.pagamento_cartao += 1
@@ -200,6 +209,14 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
                 summary.emails_tmb.add(email)
                 summary.receita_por_email[email] = summary.receita_por_email.get(email, 0.0) + valor
                 summary.vendas_por_email[email] = summary.vendas_por_email.get(email, 0) + 1
+                if email not in summary.phone_por_email:
+                    phone_digits = re.sub(r"\D", "", str(row.get("telefone") or ""))
+                    if len(phone_digits) >= 10:
+                        summary.phone_por_email[email] = phone_digits[-11:]
+                if email not in summary.nome_por_email:
+                    nome = str(row.get("nome_cliente") or "").strip()
+                    if nome:
+                        summary.nome_por_email[email] = nome
 
             if "cartao" in pagto or "card" in pagto or "credito" in pagto:
                 summary.pagamento_cartao += 1

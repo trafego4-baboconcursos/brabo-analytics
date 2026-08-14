@@ -9,7 +9,7 @@ import pandas as pd
 from sqlalchemy import text
 
 from logger import get_logger
-from frontend.utils import _extract_launch_code
+from frontend.utils import _extract_launch_code, _norm_text
 from frontend.db import _get_engine
 from frontend.models import (
     LeadsSummary, VendasSummary,
@@ -24,7 +24,7 @@ def read_ac_leads_for_attribution(launch_code: str, start_date=None, end_date=No
     engine = _get_engine()
     df = pd.read_sql(
         text("""
-            SELECT email, utm_source, utm_medium, utm_campaign, utm_content, utm_term
+            SELECT email, utm_source, utm_medium, utm_campaign, utm_content, utm_term, phone, nome, sobrenome
             FROM leads
             WHERE lancamento_codigo = :code
         """),
@@ -39,6 +39,9 @@ def read_ac_leads_for_attribution(launch_code: str, start_date=None, end_date=No
         if col not in df.columns:
             df[col] = ""
         df[col] = df[col].fillna("").astype(str).str.strip()
+    df["phone"] = df["phone"].fillna("").astype(str).str.strip()
+    nome_full = (df["nome"].fillna("") + " " + df["sobrenome"].fillna("")).str.strip()
+    df["nome_norm"] = nome_full.apply(_norm_text).str.replace(r"\s+", " ", regex=True)
     return df
 
 

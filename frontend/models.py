@@ -161,6 +161,8 @@ class VendasSummary:
     emails_tmb: set[str] = field(default_factory=set)
     receita_por_email: dict[str, float] = field(default_factory=dict)
     vendas_por_email: dict[str, int] = field(default_factory=dict)
+    phone_por_email: dict[str, str] = field(default_factory=dict)
+    nome_por_email: dict[str, str] = field(default_factory=dict)
 
 @dataclass
 class LeadsSummary:

@@ -54,6 +54,10 @@ def extract_launch_code_from_path(filepath: str) -> str | None:
 CSV_COLUMN_MAP = {
     "ID":             "id",
     "Email":          "email",
+    "Nome":           "nome",
+    "Sobrenome":      "sobrenome",
+    "Número de telefone": "phone",
+    "Numero de telefone": "phone",   # fallback para encoding alternativo
     "Data da criação": "created_at",
     "Data da criacão": "created_at",   # fallback para encoding alternativo
     "*Utm_campaign":  "utm_campaign",
@@ -96,9 +100,15 @@ def load_from_csv(filepath: str, launch_code: str | None = None) -> pd.DataFrame
         df["created_at"] = pd.to_datetime(df["created_at"], errors="coerce", dayfirst=True)
 
     # Adiciona colunas ausentes como nulo para compatibilidade com o schema
-    for col in ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"]:
+    for col in ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "nome", "sobrenome", "phone"]:
         if col not in df.columns:
             df[col] = None
+
+    df["nome"] = df["nome"].str.strip() if df["nome"].notna().any() else df["nome"]
+    df["sobrenome"] = df["sobrenome"].str.strip() if df["sobrenome"].notna().any() else df["sobrenome"]
+    # Normaliza telefone: mantém só dígitos (remove DDI/formatação) para facilitar match
+    df["phone"] = df["phone"].fillna("").astype(str).str.replace(r"\D", "", regex=True)
+    df["phone"] = df["phone"].apply(lambda v: v[-11:] if len(v) >= 10 else None)
 
     # Extrai o código do lançamento
     df["lancamento_codigo"] = df["utm_campaign"].apply(extract_launch_code)
@@ -203,9 +213,13 @@ def load_from_api(since: str, until: str) -> pd.DataFrame:
         utm_campaign = utms.get("utm_campaign")
         utm_content  = utms.get("utm_content")
         utm_term     = utms.get("utm_term")
+        phone = re.sub(r"\D", "", c.get("phone") or "")
         records.append({
             "id":                cid,
             "email":             c.get("email", "").lower().strip(),
+            "nome":              (c.get("firstName") or "").strip() or None,
+            "sobrenome":         (c.get("lastName") or "").strip() or None,
+            "phone":             phone[-11:] if len(phone) >= 10 else None,
             "created_at":        c.get("cdate"),
             "utm_campaign":      utm_campaign,
             "lancamento_codigo": extract_launch_code(utm_campaign) if utm_campaign else None,
@@ -222,6 +236,9 @@ def load_from_api(since: str, until: str) -> pd.DataFrame:
     has_content = df["utm_content"].notna() & (df["utm_content"] != "")
     has_term    = df["utm_term"].notna()    & (df["utm_term"]    != "")
     df = df[has_content | has_term].copy()
+    # Um contato pode mudar de página na paginação por offset se for atualizado
+    # entre uma chamada e outra (updated_after/before), aparecendo duas vezes.
+    df = df.drop_duplicates(subset="id", keep="last")
     return df
 
 
@@ -232,16 +249,31 @@ def load_from_api(since: str, until: str) -> pd.DataFrame:
 _AC_REQUIRED_COLS = ["id", "email", "created_at", "lancamento_codigo"]
 
 def upsert(df: pd.DataFrame, label: str = ""):
+    """DELETE + INSERT atômicos por lote: se o INSERT falhar no meio, o DELETE
+    daquele lote também é desfeito — nunca perde leads já gravados por causa
+    de uma queda de conexão no meio do processo."""
     if not validate_dataframe(df, _AC_REQUIRED_COLS, "leads", logger):
         return
+    df = df.drop_duplicates(subset="id", keep="last")
+    df = df.astype(object).where(df.notna(), None)
     engine = get_engine()
-    ids = tuple(df["id"].astype(str).tolist())
-    with engine.begin() as conn:
-        conn.execute(
-            text(f"DELETE FROM {TABLE} WHERE id = ANY(:ids)"),
-            {"ids": list(ids)},
-        )
-    df.to_sql(TABLE, engine, if_exists="append", index=False, method="multi", chunksize=500)
+    cols = list(df.columns)
+    col_list = ", ".join(cols)
+    placeholders = ", ".join(f":{c}" for c in cols)
+    records = df.to_dict("records")
+    batch_size = 500
+    for i in range(0, len(records), batch_size):
+        chunk = records[i:i + batch_size]
+        ids = [r["id"] for r in chunk]
+        with engine.begin() as conn:
+            conn.execute(
+                text(f"DELETE FROM {TABLE} WHERE id = ANY(:ids)"),
+                {"ids": ids},
+            )
+            conn.execute(
+                text(f"INSERT INTO {TABLE} ({col_list}) VALUES ({placeholders})"),
+                chunk,
+            )
     logger.info("Upsert concluído: %d leads gravados em '%s'%s", len(df), TABLE, label)
 
 

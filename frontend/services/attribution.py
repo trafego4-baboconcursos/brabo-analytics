@@ -163,11 +163,8 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
     if leads_df.empty:
         _set_cached(launch.code, "sales_attribution", result)
         return result
-    leads_df = leads_df[leads_df["email_norm"].isin(buyers)]
-    if leads_df.empty:
-        _set_cached(launch.code, "sales_attribution", result)
-        return result
-    for _, row in leads_df.iterrows():
+    leads_df_email = leads_df[leads_df["email_norm"].isin(buyers)]
+    for _, row in leads_df_email.iterrows():
         email = row["email_norm"]
         if not email:
             continue
@@ -189,6 +186,53 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
                 "content": content,
                 "term": term,
             }
+
+    # Cascata para compradores sem match por e-mail: telefone, depois nome completo.
+    # Cobre casos onde o e-mail usado na compra difere do cadastrado no AC.
+    unmatched = buyers - buyer_utms.keys()
+    if unmatched:
+        def _row_score(row) -> int:
+            return _utm_score(launch.code, row["utm_source"], row["utm_medium"], row["utm_campaign"], row["utm_content"], row["utm_term"])
+
+        phone_rows = leads_df[leads_df["phone"] != ""]
+        phone_index: dict[str, Any] = {}
+        for _, row in phone_rows.iterrows():
+            phone = row["phone"]
+            score = _row_score(row)
+            current = phone_index.get(phone)
+            if current is None or score > current[0]:
+                phone_index[phone] = (score, row)
+
+        name_rows = leads_df[leads_df["nome_norm"].str.contains(" ", na=False)]
+        name_index: dict[str, Any] = {}
+        for _, row in name_rows.iterrows():
+            nome_norm = row["nome_norm"]
+            score = _row_score(row)
+            current = name_index.get(nome_norm)
+            if current is None or score > current[0]:
+                name_index[nome_norm] = (score, row)
+
+        for email in list(unmatched):
+            match_row = None
+            phone = vendas_data.phone_por_email.get(email)
+            if phone and phone in phone_index:
+                match_row = phone_index[phone][1]
+            else:
+                nome = vendas_data.nome_por_email.get(email)
+                nome_norm = _norm_text(nome) if nome else ""
+                nome_norm = re.sub(r"\s+", " ", nome_norm).strip()
+                if nome_norm and " " in nome_norm and nome_norm in name_index:
+                    match_row = name_index[nome_norm][1]
+            if match_row is not None:
+                buyer_utms[email] = {
+                    "score": _row_score(match_row),
+                    "source": match_row["utm_source"],
+                    "medium": match_row["utm_medium"],
+                    "campaign": match_row["utm_campaign"],
+                    "content": match_row["utm_content"],
+                    "term": match_row["utm_term"],
+                }
+
     for email, utm in buyer_utms.items():
         source = utm["source"]
         medium = utm["medium"]

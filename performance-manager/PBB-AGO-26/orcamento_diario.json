@@ -437,7 +437,8 @@
       "frio_principal": 609.49,
       "frio_principal_new_ads": 261.24,
       "frio_potencial": 342.66,
-      "especifico_principal_new_ads": 611.62
+      "especifico_principal_new_ads": 1053.8,
+      "especifico_principal": 1051.81
     },
     "2026-08-16": {
       "quente_principal": 3300.17,
@@ -446,7 +447,8 @@
       "frio_principal": 658.56,
       "frio_principal_new_ads": 282.28,
       "frio_potencial": 370.25,
-      "especifico_principal_new_ads": 660.85
+      "especifico_principal_new_ads": 1053.8,
+      "especifico_principal": 1051.81
     },
     "2026-08-17": {
       "quente_principal": 3644.86,
@@ -455,7 +457,8 @@
       "frio_principal": 727.34,
       "frio_principal_new_ads": 311.76,
       "frio_potencial": 408.92,
-      "especifico_principal_new_ads": 729.89
+      "especifico_principal_new_ads": 1053.8,
+      "especifico_principal": 1051.81
     }
   }
 }

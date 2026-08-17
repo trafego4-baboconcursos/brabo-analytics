@@ -115,7 +115,7 @@ async def calendario_page(request: Request, launch_code: str | None = None):
     launches = await run_in_threadpool(get_launches)
     launch   = resolve_launch(launch_code, launches)
 
-    cal_html_path = WORKSPACE_ROOT / "analises" / "[PBB-ABR-26]" / "SISTEMA_CALENDARIO_2026.html"
+    cal_html_path = WORKSPACE_ROOT / "frontend" / "static" / "calendario" / "SISTEMA_CALENDARIO_2026.html"
     try:
         soup = BeautifulSoup(cal_html_path.read_text(encoding="utf-8"), "html.parser")
         cal_styles = "\n".join(

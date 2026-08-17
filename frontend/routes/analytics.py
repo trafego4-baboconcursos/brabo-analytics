@@ -34,7 +34,7 @@ async def dashboard(request: Request, launch_code: str | None = None):
     cfg = await run_in_threadpool(_launch_cfg, launch.code) if launch else {}
     goal_leads  = int(cfg.get("meta_leads") or 0)
     goal_invest = float(cfg.get("meta_investimento_captacao") or 0)
-    leads_meta  = (meta.total_leads if meta else 0)
+    leads_meta  = (meta.total_leads if meta else 0) + (int(round(google.total_conversoes)) if google else 0)
     prog_leads  = min(100.0, leads_meta / goal_leads * 100) if goal_leads > 0 else None
     prog_invest = min(100.0, invest / goal_invest * 100) if goal_invest > 0 else None
 
@@ -42,6 +42,7 @@ async def dashboard(request: Request, launch_code: str | None = None):
         meta=meta, google=google, vendas=vendas,
         receita=receita, invest=invest, roas=roas,
         goal_leads=goal_leads, goal_invest=goal_invest,
+        leads_meta=leads_meta,
         prog_leads=prog_leads, prog_invest=prog_invest,
         daily_breakdown=daily_breakdown,
         daily_breakdown_preq=daily_breakdown_preq,

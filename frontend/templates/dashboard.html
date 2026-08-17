@@ -82,17 +82,20 @@
 
       <div class="tp-kpi">
         <div class="tp-kpi-top">
-          <div class="tp-icon meta"><i class="ti ti-brand-meta"></i></div>
+          <div class="tp-icon meta"><i class="ti ti-users"></i></div>
         </div>
-        <div class="tp-value">{{ meta.total_leads | num if meta else "–" }}</div>
-        <div class="tp-label">Leads (Meta)</div>
+        <div class="tp-value">{{ leads_meta | num }}</div>
+        <div class="tp-label">Leads (Geral)</div>
         {% if prog_leads is not none %}
         <div class="kpi-prog">
           <div class="kpi-prog-track"><div class="kpi-prog-fill" style="width:{{ prog_leads | round(1) }}%"></div></div>
-          <div class="kpi-prog-lbl">{{ meta.total_leads | num if meta else 0 }} / {{ goal_leads | num }} meta</div>
+          <div class="kpi-prog-lbl">{{ leads_meta | num }} / {{ goal_leads | num }} meta</div>
         </div>
         {% endif %}
-        <div class="tp-compare">CPL: {{ meta.cpl_medio | brl if meta else "–" }}</div>
+        <div class="tp-compare">
+          {% if meta %}Meta: {{ meta.total_leads | num }}{% endif %}
+          {% if google %}{% if meta %} · {% endif %}Google: {{ "%.0f"|format(google.total_conversoes) }}{% endif %}
+        </div>
       </div>
 
       <div class="tp-kpi">

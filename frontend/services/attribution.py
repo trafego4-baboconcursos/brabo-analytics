@@ -194,43 +194,40 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
         def _row_score(row) -> int:
             return _utm_score(launch.code, row["utm_source"], row["utm_medium"], row["utm_campaign"], row["utm_content"], row["utm_term"])
 
-        phone_rows = leads_df[leads_df["phone"] != ""]
-        phone_index: dict[str, Any] = {}
-        for _, row in phone_rows.iterrows():
-            phone = row["phone"]
-            score = _row_score(row)
-            current = phone_index.get(phone)
-            if current is None or score > current[0]:
-                phone_index[phone] = (score, row)
-
-        name_rows = leads_df[leads_df["nome_norm"].str.contains(" ", na=False)]
-        name_index: dict[str, Any] = {}
-        for _, row in name_rows.iterrows():
-            nome_norm = row["nome_norm"]
-            score = _row_score(row)
-            current = name_index.get(nome_norm)
-            if current is None or score > current[0]:
-                name_index[nome_norm] = (score, row)
+        # Agrupamento vetorizado (rápido mesmo em centenas de milhares de linhas) —
+        # a pontuação (_utm_score, com regex) só roda nos poucos candidatos de
+        # cada comprador não batido por e-mail, nunca na tabela inteira.
+        phone_groups = leads_df[leads_df["phone"] != ""].groupby("phone").groups
+        name_mask = leads_df["nome_norm"].str.contains(" ", na=False)
+        name_groups = leads_df[name_mask].groupby("nome_norm").groups
 
         for email in list(unmatched):
-            match_row = None
+            candidate_idx = None
             phone = vendas_data.phone_por_email.get(email)
-            if phone and phone in phone_index:
-                match_row = phone_index[phone][1]
+            if phone and phone in phone_groups:
+                candidate_idx = phone_groups[phone]
             else:
                 nome = vendas_data.nome_por_email.get(email)
                 nome_norm = _norm_text(nome) if nome else ""
                 nome_norm = re.sub(r"\s+", " ", nome_norm).strip()
-                if nome_norm and " " in nome_norm and nome_norm in name_index:
-                    match_row = name_index[nome_norm][1]
-            if match_row is not None:
+                if nome_norm and " " in nome_norm and nome_norm in name_groups:
+                    candidate_idx = name_groups[nome_norm]
+            if candidate_idx is None or len(candidate_idx) == 0:
+                continue
+            best_row, best_score = None, -1
+            for idx in candidate_idx:
+                row = leads_df.loc[idx]
+                score = _row_score(row)
+                if score > best_score:
+                    best_row, best_score = row, score
+            if best_row is not None:
                 buyer_utms[email] = {
-                    "score": _row_score(match_row),
-                    "source": match_row["utm_source"],
-                    "medium": match_row["utm_medium"],
-                    "campaign": match_row["utm_campaign"],
-                    "content": match_row["utm_content"],
-                    "term": match_row["utm_term"],
+                    "score": best_score,
+                    "source": best_row["utm_source"],
+                    "medium": best_row["utm_medium"],
+                    "campaign": best_row["utm_campaign"],
+                    "content": best_row["utm_content"],
+                    "term": best_row["utm_term"],
                 }
 
     for email, utm in buyer_utms.items():

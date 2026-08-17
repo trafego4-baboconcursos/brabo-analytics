@@ -9,7 +9,7 @@ from typing import Any, Callable
 
 # ── Cache com TTL ──────────────────────────────────────────────────────────────
 _CACHE: dict[str, tuple[Any, float]] = {}
-_CACHE_TTL: int = 1800       # 30 minutos
+_CACHE_TTL: int = 3600       # 60 minutos
 _CACHE_MAX_SIZE: int = 2000  # máx de entradas; evicta 20% das mais antigas ao exceder
 
 

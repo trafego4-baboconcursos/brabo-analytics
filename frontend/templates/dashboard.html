@@ -100,11 +100,11 @@
 
       <div class="tp-kpi">
         <div class="tp-kpi-top">
-          <div class="tp-icon google"><i class="ti ti-brand-google"></i></div>
+          <div class="tp-icon success"><i class="ti ti-report-money"></i></div>
         </div>
-        <div class="tp-value">{{ "%.0f"|format(google.total_conversoes) if google else "–" }}</div>
-        <div class="tp-label">Conv. Google</div>
-        <div class="tp-compare">Custo/Conv: {{ google.custo_conv_medio | brl if google else "–" }}</div>
+        <div class="tp-value">{{ valor_medio_lead | brl }}</div>
+        <div class="tp-label">Valor Médio do Lead</div>
+        <div class="tp-compare">Receita total / leads (Meta + Google)</div>
       </div>
 
     </div>

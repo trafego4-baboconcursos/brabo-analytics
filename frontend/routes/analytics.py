@@ -36,13 +36,14 @@ async def dashboard(request: Request, launch_code: str | None = None):
     goal_invest = float(cfg.get("meta_investimento_captacao") or 0)
     leads_meta  = (meta.total_leads if meta else 0) + (int(round(google.total_conversoes)) if google else 0)
     prog_leads  = min(100.0, leads_meta / goal_leads * 100) if goal_leads > 0 else None
+    valor_medio_lead = receita / leads_meta if leads_meta > 0 else 0.0
     prog_invest = min(100.0, invest / goal_invest * 100) if goal_invest > 0 else None
 
     ctx = _base_ctx(request, "dashboard", "Dashboard", launch, launches,
         meta=meta, google=google, vendas=vendas,
         receita=receita, invest=invest, roas=roas,
         goal_leads=goal_leads, goal_invest=goal_invest,
-        leads_meta=leads_meta,
+        leads_meta=leads_meta, valor_medio_lead=valor_medio_lead,
         prog_leads=prog_leads, prog_invest=prog_invest,
         daily_breakdown=daily_breakdown,
         daily_breakdown_preq=daily_breakdown_preq,

@@ -224,6 +224,42 @@ Contas: Google `1450466453`, Meta `act_438212624024216`. Todas as mudanças abai
 - **Aplicado o orçamento de 09/08** manualmente (16/16 campanhas Meta + 9/9 orçamentos Google conferidos batendo com o plano) e **reativado o cron da automação** (`schedule` descomentado em `pbb-ago-26-daily-budget.yml`, volta a rodar todo dia às 00:05 BRT).
 - **Status:** ✅ migração encerrada — todas as campanhas de captação (Principal/Potencial/Teste/Reels/New-Ads × Quente/Frio/Específico) ativas e auditadas na Criadora de Públicos. ✅ Automação de orçamento diário retomada.
 
-## Pendências gerais (atualizado 09/08)
+## 2026-08-13
+
+### 24. Auditoria — lookalike errado na Pré-Qualificação Frio (conta `act_438212624024216`)
+- **Contexto:** ao usar a estrutura simplificada da Pré-Qualificação do PBB-AGO-26 (`[MA][pré-qualificação][frio][PBB-AGO-26][17.07.26]`, id `120250853661650520`) como referência pro PES-SET-26, encontrado engano: os grupos `02 - Interesse Banco` e `02 - Semelhante (BR, 1%) - [M] - Lista de Alunos INSS 2026` usam lookalike de **INSS/Correios** (`Semelhante (BR, 1%) - [M] - Lista de Alunos Correios - 2023/24` id `120212954582580520` e `Semelhante (BR, 1%) - [M] - Lista de Alunos INSS 2023/24` id `120212896613610520`) numa campanha de **PBB** (Banco do Brasil) — base errada, não é intencional (confirmado com o usuário).
+- **Fix correto identificado (não aplicado ainda, a pedido do usuário — só documentado por ora):** trocar pelo lookalike `Semelhante (BR, 1%) - [Lista] Alunos BB - 2026` (id `120244073539180520`, fonte: `[Lista] Alunos BB - 2026` id `120245088195310549`) nos 3 ad sets afetados:
+  - `00 - [Felipe Graton] Envolvimento 60D` (id `120250853661870520`) — troca na **exclusão**.
+  - `02 - Interesse Banco` (id `120250853661700520`) — troca no **alvo** (`custom_audiences`).
+  - `02 - Semelhante (BR, 1%) - [M] - Lista de Alunos INSS 2026` (id `120250853661670520`) — troca no **alvo**, e provavelmente renomear o grupo.
+- **Também confirmado:** essa estrutura simplificada (quente = só Envolvimento 60D/180D com cascata simples, frio = interesse + 1 lookalike, sem grupos de "cadastrados antigos"/"caiu na captura") fica **específica do PBB por enquanto** — não vira padrão pros outros produtos (PES-SET-26 mantém a cascata 00-06 mais completa do PES-MAI-26, ver `MUDANCAS_PES-SET-26.md`).
+- **Status:** 🟡 achado documentado, correção pendente de aprovação do usuário pra aplicar via API.
+
+## 2026-08-17
+
+### 25. Encerramento da captação — orçamento, resultado final e achados operacionais da reta final
+- **Estouro de orçamento identificado em 12-13/08:** gasto acumulado passou do previsto em ~R$4.879 (2,45%). Corrigido cortando o orçamento diário dos dias restantes em ~19-20%, recalculado várias vezes ao longo da semana conforme o gasto real ia chegando (teto ajustado de R$294.558,10 original → R$262k → **R$280k**, decisão de negócio aprovada pelo usuário em conversa interna).
+- **Erro de data (13 vs 14/08):** tratei 13/08 como "hoje" numa consulta quando já era 14/08 — inflou um cálculo de orçamento incorretamente até o usuário confrontar com o número real visto direto no Ads Manager. Corrigido na hora, sem aplicar o valor errado.
+- **Descoberta: 2 campanhas "Best-Ads" (Quente e Frio) nunca entraram no orçamento gerenciado** — criadas manualmente no Ads Editor, rodavam soltas com orçamento próprio (R$1.996,90 + R$297,07/dia) fora do controle do `orcamento_diario.json`/cron. Adicionadas ao plano em 15/08 (chaves `quente_best_ads` e `frio_best_ads` em `google_campaign_ids`/`google_budget_ids`).
+- **Diagnóstico de queda de conversão no Google (13/08):** pico de CPL de R$21-67 nas 07h-08h levantou suspeita de problema real; investigação (landing pages, GTM, dado hora a hora) concluiu que era **atraso normal de atribuição** — números normalizaram nas horas seguintes. Usuário confirmou manualmente que tags e landing pages estavam OK.
+- **Investigação de baixa entrega do público "Específico" no YouTube:** hipóteses erradas descartadas em sequência (tamanho de audiência pra Display não importa pra vídeo/YouTube; política de Financial Services não era a causa; budget-constrained não impede cálculo de alcance). Achado real: o grupo "00" (vídeos da pré-quali atual) entrega 2-3x menos que o grupo "01" (vídeos do lançamento anterior, PBB-JUN-26) simplesmente porque a lista de remarketing do lançamento atual (420k) ainda é menor que a do anterior já maduro (980k) — confirmado que a pré-quali gerou 1.478.904 visualizações de vídeo acumuladas desde 20/07, crescendo em ritmo acelerado. Sem ação corretiva necessária, é maturação natural.
+- **Comparativo de CPL com o PBB-JUN-26** usado como base pra decidir reforçar o Específico: no lançamento anterior, CPL do Específico no Google (R$4,40) era equivalente ao de Quente/Frio — confirma que o CPL mais alto do momento (R$7,51) é da lista imatura, não do público em si.
+- **Consolidação das 4 campanhas Específico (Google):** comparado CPL das 4 variantes (Principal R$7,30, New-Ads R$6,81, Potencial R$11,08, Best-Ads R$13,52) — pausadas Potencial e Best-Ads, verba concentrada na New-Ads. Depois, a pedido do usuário, Principal foi **reativada** com verba fixa de R$1.051,81/dia (valor do próprio gasto real dela no período), e New-Ads passou a receber a soma de Potencial+Best-Ads+New-Ads (R$1.053,80/dia).
+- **Encerramento (17/08, ~17h):** todas as 28 campanhas Meta + 14 campanhas Google de captação **pausadas**. Duas ficaram ativas por engano após o corte manual do usuário (Específico New-Ads e Frio Best-Ads, ambas rodando no orçamento inflado ×24/17 do último dia) — identificadas e pausadas.
+- **Erro de contagem de gasto corrigido:** cálculo de "gasto total até agora" bateu 3 vezes com números diferentes do que o usuário via manualmente, até a causa ser achada — nenhuma conta/campanha estava faltando (Meta: 28 campanhas em 2 contas confirmadas via busca exaustiva em todas as contas acessíveis + arquivadas; Google: MCC completo mapeado, só 1 conta com campanhas do lançamento). Diferença era só arredondamento da conta manual do usuário.
+- **Resultado final da captação:**
+
+| | Meta | Google | Total |
+|---|---|---|---|
+| Gasto | R$104.064,93 | R$173.353,78 | **R$277.418,71** |
+| Leads/conversões | 42.658 | 39.140 | **81.798** |
+| CPL médio | R$2,44 | R$4,43 | **R$3,39** |
+
+  Fechou **dentro do teto de R$280k** (99,08% de utilização).
+- **Automação:** cron do `pbb-ago-26-daily-budget.yml` foi pausado em 16/08 (23h30) a pedido do usuário pra aplicação manual do orçamento do último dia; não foi reativado desde então (lançamento encerrado, sem necessidade).
+- **Status:** ✅ Captação PBB-AGO-26 encerrada. Todas as campanhas pausadas e confirmadas.
+
+## Pendências gerais (atualizado 17/08)
 - Decidir se as campanhas originais em Felipe Graton (todas pausadas) são arquivadas/excluídas definitivamente.
-- Acompanhar se a divisão `quente_principal` / `quente_principal_old` (pesos 20,56%/31,71% do total Quente) precisa de ajuste depois de alguns dias de performance real — foi calculada pro peso de orçamento do momento da migração, não por CPA/ROAS.
+- Reativar o cron (`schedule` em `pbb-ago-26-daily-budget.yml`) só se um novo ciclo de orçamento diário for necessário — não se aplica mais a este lançamento.
+- Correção da lista lookalike errada (INSS/Correios) na Pré-Qualificação Frio segue pendente de aprovação (item 24).

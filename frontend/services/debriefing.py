@@ -9,6 +9,7 @@ from frontend.services.attribution import _merge_google_tipo_sales
 from frontend.services.fetch import _launch_cfg
 
 _CLIMA_ORDER = ["Quente", "Frio", "Específico"]
+_REMARKETING_SUBETAPAS = ["Lembrete", "Depoimento", "Aulas no Ar", "Replay", "Matrículas Abertas"]
 
 
 def _build_clima_breakdown(obj: Any, attr: str, leads_key: str = "leads") -> list:
@@ -211,12 +212,20 @@ def _compute_debriefing_ctx(
     ]
 
     def get_etapa(m, g, name):
-        m_d = (getattr(m, "por_etapa", {}) or {}).get(name, {}) if m else {}
-        g_d = (getattr(g, "por_etapa", {}) or {}).get(name, {}) if g else {}
-        m_c = _f(m_d.get("custo") or m_d.get("gasto"))
-        g_c = _f(g_d.get("custo"))
-        m_l = _i(m_d.get("leads"))
-        g_l = _i(g_d.get("conversoes"))
+        # "Remarketing" não existe como chave própria em por_etapa — Meta/Google
+        # classificam essas campanhas nas sub-etapas (Lembrete, Depoimento, etc.),
+        # então somamos todas elas para compor o total de Remarketing.
+        names = _REMARKETING_SUBETAPAS if name == "Remarketing" else [name]
+        m_por = (getattr(m, "por_etapa", {}) or {}) if m else {}
+        g_por = (getattr(g, "por_etapa", {}) or {}) if g else {}
+        m_c = m_l = g_c = g_l = 0
+        for n in names:
+            m_d = m_por.get(n) or {}
+            g_d = g_por.get(n) or {}
+            m_c += _f(m_d.get("custo") or m_d.get("gasto"))
+            g_c += _f(g_d.get("custo"))
+            m_l += _i(m_d.get("leads"))
+            g_l += _i(g_d.get("conversoes"))
         total = m_c + g_c
         return {"nome": name, "invest": total, "meta": m_c, "google": g_c, "tiktok": 0.0, "leads": m_l + g_l}
 

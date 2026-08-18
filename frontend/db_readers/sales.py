@@ -152,7 +152,7 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
                 valor = _hm_val(row.get("valor_de_compra_sem_impostos"))
             if valor is None:
                 valor = 0.0
-            valor_bruto = _hm_val(row.get("valor_de_compra_sem_impostos"))
+            valor_bruto = _hm_val(row.get("valor_de_compra_com_impostos"))
             if valor_bruto is None:
                 valor_bruto = valor
             tipo_cobranca = _norm_text(row.get("tipo_de_cobranca", "") or row.get("venda_feita_como", ""))

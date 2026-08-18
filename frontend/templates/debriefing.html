@@ -316,19 +316,7 @@
       {% if dbf.has_prev %}<span class="dbf-launch-badge prev">vs {{ dbf.prev_code }}</span>{% endif %}
     </div>
 
-    <div class="dbf-kpi-grid">
-      {%- set kpis = [
-        ("Total Investido",  dbf.invest,        dbf.prev_invest,        "brl0"),
-        ("Receita Bruta",    dbf.receita_bruta, dbf.prev_receita_bruta, "brl0"),
-        ("Receita Líquida",  dbf.receita,       dbf.prev_receita,       "brl0"),
-        ("ROAS Bruto",       dbf.roas_bruto,    dbf.prev_roas_bruto,    "roas"),
-        ("ROAS",             dbf.roas,          dbf.prev_roas,          "roas"),
-        ("Total Vendas",     dbf.total_vendas, dbf.prev_total_vendas, "num"),
-        ("Ticket Médio",     dbf.ticket,       dbf.prev_ticket,       "brl"),
-        ("Total Leads",      dbf.total_leads,  dbf.prev_total_leads,  "num"),
-        ("CPL Total",        dbf.cpl,          dbf.prev_cpl,          "brl"),
-      ] -%}
-      {% for lbl, val, pval, fmt in kpis %}
+    {% macro kpi_card(lbl, val, pval, fmt) %}
       <div class="dbf-kpi">
         <div class="lbl">{{ lbl }}</div>
         <div class="val {% if val == 0 %}zero{% endif %}">
@@ -349,6 +337,30 @@
           </div>
         {% endif %}
       </div>
+    {% endmacro %}
+
+    <div class="dbf-kpi-grid">
+      {%- set kpis_financeiro = [
+        ("Total Investido",  dbf.invest,        dbf.prev_invest,        "brl0"),
+        ("Receita Bruta",    dbf.receita_bruta, dbf.prev_receita_bruta, "brl0"),
+        ("Receita Líquida",  dbf.receita,       dbf.prev_receita,       "brl0"),
+        ("ROAS Bruto",       dbf.roas_bruto,    dbf.prev_roas_bruto,    "roas"),
+        ("ROAS",             dbf.roas,          dbf.prev_roas,          "roas"),
+      ] -%}
+      {% for lbl, val, pval, fmt in kpis_financeiro %}
+        {{ kpi_card(lbl, val, pval, fmt) }}
+      {% endfor %}
+    </div>
+
+    <div class="dbf-kpi-grid">
+      {%- set kpis_volume = [
+        ("Total Vendas",  dbf.total_vendas, dbf.prev_total_vendas, "num"),
+        ("Ticket Médio",  dbf.ticket,       dbf.prev_ticket,       "brl"),
+        ("Total Leads",   dbf.total_leads,  dbf.prev_total_leads,  "num"),
+        ("CPL Total",     dbf.cpl,          dbf.prev_cpl,          "brl"),
+      ] -%}
+      {% for lbl, val, pval, fmt in kpis_volume %}
+        {{ kpi_card(lbl, val, pval, fmt) }}
       {% endfor %}
     </div>
 

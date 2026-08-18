@@ -323,6 +323,98 @@ def upsert_demographics(df: pd.DataFrame, since: str, until: str, launch_code: s
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Thumbnails de criativos — busca direto da API (substitui dependência do Drive)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def fetch_creative_details(ad_ids: list[str]) -> dict[str, dict]:
+    """Busca nome + thumbnail/image_url só dos ad_ids informados, em lotes
+    (endpoint de batch por 'ids='), evitando escanear a conta inteira."""
+    token = os.environ["META_ACCESS_TOKEN"]
+    result: dict[str, dict] = {}
+    batch_size = 25
+    unique_ids = list(dict.fromkeys(ad_ids))
+    for i in range(0, len(unique_ids), batch_size):
+        chunk = unique_ids[i:i + batch_size]
+        params = {
+            "access_token": token,
+            "ids": ",".join(chunk),
+            "fields": "name,creative{thumbnail_url,image_url,object_story_spec}",
+        }
+        try:
+            r = http_get(f"https://graph.facebook.com/{API_VERSION}/", params=params, timeout=60)
+        except Exception:
+            logger.exception("Falha ao buscar detalhes de criativo para lote de %d ads; pulando lote", len(chunk))
+            continue
+        data = r.json()
+        for ad_id, obj in data.items():
+            result[ad_id] = obj
+    return result
+
+
+def build_thumbnails_df(insights_df: pd.DataFrame) -> pd.DataFrame:
+    """A partir do df de insights (que já tem ad_id + lancamento_codigo),
+    busca os detalhes do criativo só para os anúncios com AD\\d+ no nome."""
+    if insights_df.empty:
+        return pd.DataFrame()
+    ad_meta = (
+        insights_df[["ad_id", "ad_name", "lancamento_codigo"]]
+        .dropna(subset=["lancamento_codigo"])
+        .drop_duplicates(subset=["ad_id"])
+    )
+    ad_meta = ad_meta[ad_meta["ad_name"].str.contains(AD_CODE_RE, na=False)]
+    if ad_meta.empty:
+        return pd.DataFrame()
+
+    details = fetch_creative_details(ad_meta["ad_id"].astype(str).tolist())
+
+    records = []
+    for _, row in ad_meta.iterrows():
+        ad_id = str(row["ad_id"])
+        name = row["ad_name"] or ""
+        match = AD_CODE_RE.search(name)
+        if not match:
+            continue
+        obj = details.get(ad_id) or {}
+        creative = obj.get("creative") or {}
+        image_url = creative.get("image_url")
+        if not image_url:
+            story = creative.get("object_story_spec") or {}
+            video_data = story.get("video_data") or {}
+            image_url = video_data.get("image_url")
+        records.append({
+            "platform":           "meta",
+            "ad_code":            match.group(1).upper(),
+            "ad_name":            name,
+            "lancamento_codigo":  row["lancamento_codigo"],
+            "thumbnail_url":      creative.get("thumbnail_url"),
+            "image_url":          image_url,
+        })
+    return pd.DataFrame(records)
+
+
+def upsert_thumbnails(df: pd.DataFrame):
+    if df.empty:
+        logger.info("Nenhum criativo com código AD encontrado para thumbnails.")
+        return
+    df = df.dropna(subset=["lancamento_codigo"])
+    df = df.drop_duplicates(subset=["platform", "ad_code", "lancamento_codigo"], keep="last")
+    df["updated_at"] = datetime.now(timezone.utc).isoformat()
+    df = df.astype(object).where(df.notna(), None)
+    engine = get_engine()
+    records = df.to_dict("records")
+    with engine.begin() as conn:
+        for rec in records:
+            conn.execute(text("""
+                INSERT INTO ad_creatives (platform, ad_code, ad_name, lancamento_codigo, thumbnail_url, image_url, updated_at)
+                VALUES (:platform, :ad_code, :ad_name, :lancamento_codigo, :thumbnail_url, :image_url, :updated_at)
+                ON CONFLICT (platform, ad_code, lancamento_codigo)
+                DO UPDATE SET ad_name = EXCLUDED.ad_name, thumbnail_url = EXCLUDED.thumbnail_url,
+                               image_url = EXCLUDED.image_url, updated_at = EXCLUDED.updated_at
+            """), rec)
+    logger.info("Thumbnails: %d criativos gravados em 'ad_creatives'", len(records))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 def main():
     parser = argparse.ArgumentParser(description="ETL Meta Ads - Supabase")
@@ -363,6 +455,17 @@ def main():
             if args.launch_code:
                 df_demo = df_demo[df_demo["lancamento_codigo"] == args.launch_code.upper()]
             upsert_demographics(df_demo, args.since, args.until, args.launch_code)
+
+        # Thumbnails de criativos: reaproveita ad_id/ad_name/lancamento_codigo
+        # ja retornados pelos insights, so busca creative{} para eles.
+        # Nao deve derrubar o resto do ETL se a API de criativos falhar/atrasar.
+        try:
+            df_thumb = build_thumbnails_df(df)
+            if args.launch_code:
+                df_thumb = df_thumb[df_thumb["lancamento_codigo"] == args.launch_code.upper()] if not df_thumb.empty else df_thumb
+            upsert_thumbnails(df_thumb)
+        except Exception:
+            logger.exception("Falha ao atualizar thumbnails de criativos; seguindo sem elas")
 
 
 if __name__ == "__main__":

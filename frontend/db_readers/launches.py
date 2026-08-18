@@ -230,6 +230,29 @@ def save_launch_config(launch_code: str, config: dict) -> None:
         conn.commit()
 
 
+def get_platform_thumbnails(launch_code: str) -> dict[str, dict]:
+    """Thumbnails buscadas direto da API do Meta (tabela ad_creatives) —
+    mais estáveis que o Drive, que depende de casar nome de arquivo."""
+    engine = _get_engine()
+    with engine.connect() as conn:
+        rows = conn.execute(
+            text("""
+                SELECT ad_code, ad_name, thumbnail_url, image_url
+                FROM ad_creatives
+                WHERE lancamento_codigo = :code AND thumbnail_url IS NOT NULL
+            """),
+            {"code": launch_code},
+        ).fetchall()
+    thumbnails: dict[str, dict] = {}
+    for ad_code, ad_name, thumbnail_url, image_url in rows:
+        thumbnails[ad_code] = {
+            "thumb": thumbnail_url,
+            "preview": image_url or thumbnail_url,
+            "name": ad_name,
+        }
+    return thumbnails
+
+
 def get_drive_thumbnails(launch_code: str, subfolder: str = "captação") -> dict[str, dict]:
     """
     Lista arquivos do Google Drive na pasta configurada para o lançamento,

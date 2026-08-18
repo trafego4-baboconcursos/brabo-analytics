@@ -13,7 +13,7 @@ from frontend.database_reader import (
     read_meta, read_google, read_vendas, read_leads,
     read_hotmart_details, read_tmb_details, read_vendas_consolidado,
     read_typeform, read_comparativo, read_daily_breakdown,
-    read_ac_campaigns, read_youtube_aulas, get_drive_thumbnails,
+    read_ac_campaigns, read_youtube_aulas, get_drive_thumbnails, get_platform_thumbnails,
     read_launch_config,
 )
 from frontend.services.attribution import _sales_attribution
@@ -175,10 +175,18 @@ async def _fetch_all_data(
 
     async def f_thumb():
         if not (launch and needs_thumbnails): return {}
-        try: return await run_in_threadpool(get_drive_thumbnails, launch.code)
+        drive: dict = {}
+        platform: dict = {}
+        try:
+            drive = await run_in_threadpool(get_drive_thumbnails, launch.code)
         except Exception:
             logger.exception("Falha ao buscar thumbnails do Drive")
-            return {}
+        try:
+            platform = await run_in_threadpool(get_platform_thumbnails, launch.code)
+        except Exception:
+            logger.exception("Falha ao buscar thumbnails da API")
+        # API tem prioridade (mais estável); Drive preenche o que faltar (ex: Google Ads)
+        return {**drive, **platform}
 
     async def f_comp():
         if not (launch and needs_comparativo and previous): return None

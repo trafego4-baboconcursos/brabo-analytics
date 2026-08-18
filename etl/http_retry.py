@@ -30,7 +30,7 @@ _RETRY_POLICY = dict(
 
 @retry(**_RETRY_POLICY)
 def http_get(url: str, **kwargs) -> requests.Response:
-    kwargs.setdefault("timeout", 30)
+    kwargs.setdefault("timeout", 60)
     resp = requests.get(url, **kwargs)
     resp.raise_for_status()
     return resp
@@ -38,7 +38,7 @@ def http_get(url: str, **kwargs) -> requests.Response:
 
 @retry(**_RETRY_POLICY)
 def http_post(url: str, **kwargs) -> requests.Response:
-    kwargs.setdefault("timeout", 30)
+    kwargs.setdefault("timeout", 60)
     resp = requests.post(url, **kwargs)
     resp.raise_for_status()
     return resp

@@ -27,6 +27,23 @@ CREATE INDEX IF NOT EXISTS idx_leads_utm_content ON leads (utm_content);
 CREATE INDEX IF NOT EXISTS idx_leads_created_at  ON leads (created_at);
 
 
+-- ── THUMBNAILS DE CRIATIVOS — direto da API (Meta/Google) ────────────────
+-- Substitui a dependência do Google Drive, que expira/quebra o link.
+CREATE TABLE IF NOT EXISTS ad_creatives (
+    id                 BIGSERIAL PRIMARY KEY,
+    platform           TEXT NOT NULL,          -- 'meta' | 'google'
+    ad_code            TEXT NOT NULL,          -- ex: AD255
+    ad_name            TEXT,
+    lancamento_codigo  TEXT,
+    thumbnail_url       TEXT,                   -- imagem pequena (preview em lista)
+    image_url          TEXT,                   -- imagem grande (modal)
+    updated_at         TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (platform, ad_code, lancamento_codigo)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ad_creatives_lancamento ON ad_creatives (lancamento_codigo);
+
+
 -- ── META ADS — performance diária por anúncio ────────────────────────────
 CREATE TABLE IF NOT EXISTS meta_ads_daily (
     id               BIGSERIAL PRIMARY KEY,

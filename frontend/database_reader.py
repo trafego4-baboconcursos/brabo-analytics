@@ -59,7 +59,7 @@ from frontend.db_readers.ads_google import (  # noqa: E402
 from frontend.db_readers.launches import (  # noqa: E402
     discover_launches, get_launch,
     autodetect_launch_data, read_launch_config, save_launch_config,
-    get_drive_thumbnails, count_campaigns_for_filter,
+    get_drive_thumbnails, get_platform_thumbnails, count_campaigns_for_filter,
     get_etl_status, _ETL_SOURCES,
 )
 

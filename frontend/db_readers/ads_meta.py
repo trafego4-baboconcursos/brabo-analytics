@@ -93,8 +93,8 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
         "pré-quali": "Pré-Qualificação", "pre-quali": "Pré-Qualificação",
         "captação": "Captação", "captacao": "Captação", "capta": "Captação",
         "lembrete": "Lembrete",
-        "depoimento": "Depoimento",
-        "replay": "Replay",  # deve vir antes de aula para [replay][aula N] → Replay
+        "depoimento": "Depoimento", "depoimentos": "Depoimento",
+        "replay aulas": "Replay", "replay": "Replay",  # deve vir antes de aula para [replay][aula N] → Replay
         "aulas no ar": "Aulas no Ar", "aulas-no-ar": "Aulas no Ar",
         "aula 1": "Aulas no Ar", "aula 2": "Aulas no Ar", "aula 3": "Aulas no Ar", "aula 4": "Aulas no Ar",
         "matrículas abertas": "Matrículas Abertas", "matriculas abertas": "Matrículas Abertas",

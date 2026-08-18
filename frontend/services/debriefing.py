@@ -218,7 +218,7 @@ def _compute_debriefing_ctx(
         m_l = _i(m_d.get("leads"))
         g_l = _i(g_d.get("conversoes"))
         total = m_c + g_c
-        return {"nome": name, "invest": total, "meta": m_c, "google": g_c, "leads": m_l + g_l}
+        return {"nome": name, "invest": total, "meta": m_c, "google": g_c, "tiktok": 0.0, "leads": m_l + g_l}
 
     base = invest or 1.0
     etapas = []

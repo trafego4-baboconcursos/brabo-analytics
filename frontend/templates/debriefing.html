@@ -96,6 +96,34 @@
 .bg-capt { background: #2563eb; }
 .bg-rmkt { background: #dc2626; }
 
+/* ── Traffic allocation — tabela colorida (estilo slide) ─────────── */
+.dbf-alloc-table {
+  border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; margin-bottom: 16px;
+}
+.dbf-alloc-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 11px 16px; font-size: 13.5px; color: #fff;
+  border-bottom: 1px solid rgba(255,255,255,.18);
+}
+.dbf-alloc-row:last-child { border-bottom: none; }
+.dbf-alloc-row .amt { font-weight: 800; }
+.dbf-alloc-row .pct { font-weight: 500; font-size: 12px; opacity: .88; margin-left: 4px; }
+.dbf-alloc-row.total {
+  background: var(--bs-card); color: var(--bs-ink);
+  border-top: 2px solid var(--bs-ink); font-weight: 700;
+}
+.dbf-alloc-row.total .pct { color: var(--bs-ink-muted); }
+.cmp-prev .dbf-alloc-table { filter: grayscale(55%); opacity: .82; }
+
+.dbf-plat-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12.5px; padding: 7px 0; border-bottom: 1px solid #f1f5f9;
+}
+.dbf-plat-row:last-child { border-bottom: none; }
+.dbf-plat-row .amt { font-weight: 700; color: var(--bs-ink); }
+.dbf-plat-row .pct { color: var(--bs-ink-muted); font-size: 11px; margin-left: 4px; }
+.cmp-prev .platform-card { filter: grayscale(55%); opacity: .82; }
+
 /* ── Platform split ───────────────────────────────────────────── */
 .platform-split { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
 .platform-card {
@@ -464,76 +492,63 @@
   <div class="dbf-section">
     <div class="dbf-section-title"><i class="ti ti-chart-pie"></i> Detalhamento de Tráfego</div>
 
-    {% set bg_map    = {"Pré-Qualificação": "bg-preq", "Captação": "bg-capt", "Remarketing": "bg-rmkt"} %}
     {% set color_map = {"Pré-Qualificação": "#16a34a", "Captação": "#2563eb",  "Remarketing": "#dc2626"} %}
+
+    {% macro alloc_table(etapas, total_invest) %}
+      <div class="dbf-alloc-table">
+        {% for e in etapas %}
+        <div class="dbf-alloc-row" style="background:{{ color_map.get(e.nome, '#2563eb') }}">
+          <span>{{ e.nome }}</span>
+          <span><span class="amt">{{ e.invest | brl(0) }}</span> <span class="pct">({{ e.pct | round(1) }}%)</span></span>
+        </div>
+        {% endfor %}
+        <div class="dbf-alloc-row total">
+          <span>Total Investido</span>
+          <span class="amt">{{ total_invest | brl(0) }}</span>
+        </div>
+      </div>
+    {% endmacro %}
+
+    {% macro plat_table(etapas) %}
+      <div class="platform-split">
+        {% for e in etapas %}{% if loop.index <= 2 %}
+        <div class="platform-card">
+          <span class="pc-header" style="background:{{ color_map.get(e.nome, '#334155') }}">{{ e.nome }}</span>
+          {% if e.meta > 0 %}
+          <div class="dbf-plat-row">
+            <span>Facebook Ads</span>
+            <span><span class="amt">{{ e.meta | brl(0) }}</span> <span class="pct">({{ (e.meta / e.invest * 100) | round(1) if e.invest > 0 else 0 }}%)</span></span>
+          </div>{% endif %}
+          {% if e.google > 0 %}
+          <div class="dbf-plat-row">
+            <span>Google Ads</span>
+            <span><span class="amt">{{ e.google | brl(0) }}</span> <span class="pct">({{ (e.google / e.invest * 100) | round(1) if e.invest > 0 else 0 }}%)</span></span>
+          </div>{% endif %}
+          {% if e.tiktok and e.tiktok > 0 %}
+          <div class="dbf-plat-row">
+            <span>TikTok Ads</span>
+            <span><span class="amt">{{ e.tiktok | brl(0) }}</span> <span class="pct">({{ (e.tiktok / e.invest * 100) | round(1) if e.invest > 0 else 0 }}%)</span></span>
+          </div>{% endif %}
+          {% if e.meta == 0 and e.google == 0 and not e.tiktok %}<div style="font-size:12px;color:#94a3b8;padding:6px 0">Sem dados</div>{% endif %}
+        </div>
+        {% endif %}{% endfor %}
+      </div>
+    {% endmacro %}
 
     <div class="{{ 'cmp-grid' if dbf.has_prev else '' }}">
       <!-- Atual -->
       <div class="cmp-curr">
-        <div class="cmp-title">{{ launch.code if launch else '—' }} — Total: {{ dbf.invest | brl(0) }}</div>
-        {% for e in dbf.etapas %}
-        <div class="alloc-row">
-          <div class="alloc-lbl">{{ e.nome }}</div>
-          <div class="alloc-bar-wrap">
-            <div class="alloc-bar {{ bg_map.get(e.nome, 'bg-capt') }}" style="width:{{ e.pct | round(1) }}%"></div>
-          </div>
-          <div class="alloc-pct" style="color:{{ color_map.get(e.nome,'#2563eb') }}">{{ e.pct | round(1) }}%</div>
-          <div class="alloc-val">{{ e.invest | brl(0) }}</div>
-        </div>
-        {% endfor %}
-        <div class="platform-split" style="margin-top:16px">
-          {% for e in dbf.etapas %}{% if loop.index <= 2 %}
-          <div class="platform-card">
-            <span class="pc-header" style="background:#334155">{{ e.nome }}</span>
-            {% if e.meta > 0 %}
-            <div class="pc-row">
-              <span class="pc-cat"><span style="background:#1877F2;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px;font-weight:700">FB</span></span>
-              <span class="pc-amt">{{ e.meta | brl(0) }}</span>
-              <span class="pc-pct">{{ (e.meta / e.invest * 100) | round(1) if e.invest > 0 else 0 }}%</span>
-            </div>{% endif %}
-            {% if e.google > 0 %}
-            <div class="pc-row">
-              <span class="pc-cat"><span style="background:#EA4335;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px;font-weight:700">GA</span></span>
-              <span class="pc-amt">{{ e.google | brl(0) }}</span>
-              <span class="pc-pct">{{ (e.google / e.invest * 100) | round(1) if e.invest > 0 else 0 }}%</span>
-            </div>{% endif %}
-            {% if e.meta == 0 and e.google == 0 %}<div style="font-size:12px;color:#94a3b8">Sem dados</div>{% endif %}
-          </div>
-          {% endif %}{% endfor %}
-        </div>
+        <div class="cmp-title">{{ launch.code if launch else '—' }}</div>
+        {{ alloc_table(dbf.etapas, dbf.invest) }}
+        {{ plat_table(dbf.etapas) }}
       </div>
 
       <!-- Anterior -->
       {% if dbf.has_prev and dbf.prev_etapas %}
       <div class="cmp-prev">
-        <div class="cmp-title">{{ dbf.prev_code }} — Total: {{ dbf.prev_invest | brl(0) }}</div>
-        {% for e in dbf.prev_etapas %}
-        <div class="alloc-row">
-          <div class="alloc-lbl">{{ e.nome }}</div>
-          <div class="alloc-bar-wrap"><div class="alloc-bar" style="width:{{ e.pct | round(1) }}%;background:#94a3b8"></div></div>
-          <div class="alloc-pct" style="color:#64748b">{{ e.pct | round(1) }}%</div>
-          <div class="alloc-val">{{ e.invest | brl(0) }}</div>
-        </div>
-        {% endfor %}
-        <div class="platform-split" style="margin-top:16px">
-          {% for e in dbf.prev_etapas %}{% if loop.index <= 2 %}
-          <div class="platform-card" style="background:#f1f5f9">
-            <span class="pc-header" style="background:#64748b">{{ e.nome }}</span>
-            {% if e.meta > 0 %}
-            <div class="pc-row">
-              <span class="pc-cat"><span style="background:#1877F2;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px;font-weight:700">FB</span></span>
-              <span class="pc-amt">{{ e.meta | brl(0) }}</span>
-              <span class="pc-pct">{{ (e.meta / e.invest * 100) | round(1) if e.invest > 0 else 0 }}%</span>
-            </div>{% endif %}
-            {% if e.google > 0 %}
-            <div class="pc-row">
-              <span class="pc-cat"><span style="background:#EA4335;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px;font-weight:700">GA</span></span>
-              <span class="pc-amt">{{ e.google | brl(0) }}</span>
-              <span class="pc-pct">{{ (e.google / e.invest * 100) | round(1) if e.invest > 0 else 0 }}%</span>
-            </div>{% endif %}
-          </div>
-          {% endif %}{% endfor %}
-        </div>
+        <div class="cmp-title">{{ dbf.prev_code }}</div>
+        {{ alloc_table(dbf.prev_etapas, dbf.prev_invest) }}
+        {{ plat_table(dbf.prev_etapas) }}
       </div>
       {% endif %}
     </div>

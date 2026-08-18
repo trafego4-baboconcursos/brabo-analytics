@@ -17,6 +17,7 @@ from logger import get_logger
 from frontend.utils import _norm_text, _extract_launch_code
 from frontend.db import _get_engine
 from frontend.models import TypeformSummary
+from src.typeform_resolve import fetch_typeform_forms, resolve_projeto_alunos_form_ids
 
 logger = get_logger("db")
 
@@ -37,27 +38,8 @@ def _get_typeform_forms() -> dict[str, str]:
     token = os.environ.get("TYPEFORM_TOKEN")
     if not token:
         return {}
-    import requests
-    headers = {"Authorization": f"Bearer {token}"}
-    all_forms: dict[str, str] = {}
-    page = 1
     try:
-        while True:
-            r = requests.get(
-                "https://api.typeform.com/forms",
-                headers=headers,
-                params={"page_size": 200, "page": page},
-                timeout=15,
-            )
-            r.raise_for_status()
-            data = r.json()
-            items = data.get("items", [])
-            for f in items:
-                all_forms[f["id"]] = f["title"]
-            if len(all_forms) >= data.get("total_items", 0) or not items:
-                break
-            page += 1
-        _typeform_forms_cache = all_forms
+        _typeform_forms_cache = fetch_typeform_forms(token)
         _typeform_forms_cache_expiry = now + _TYPEFORM_CACHE_TTL_OK
     except Exception:
         logger.exception("Erro ao obter formulários da API do Typeform")
@@ -95,20 +77,7 @@ def _get_typeform_fields(form_id: str) -> dict[str, str]:
 
 def _resolve_typeform_ids(code: str) -> tuple[Optional[str], Optional[str]]:
     forms = _get_typeform_forms()
-    code_norm = code.lower().strip()
-
-    proj_id = None
-    alunos_id = None
-
-    for fid, title in forms.items():
-        title_norm = title.lower()
-        if code_norm in title_norm:
-            if "alun" in title_norm:
-                alunos_id = fid
-            elif "projeto" in title_norm or "pesquisa" in title_norm:
-                proj_id = fid
-
-    return proj_id, alunos_id
+    return resolve_projeto_alunos_form_ids(code, forms)
 
 
 def _reconstruct_tabular_df(tf_df_raw: pd.DataFrame) -> list[dict[str, Any]]:

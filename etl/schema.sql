@@ -44,6 +44,20 @@ CREATE TABLE IF NOT EXISTS ad_creatives (
 CREATE INDEX IF NOT EXISTS idx_ad_creatives_lancamento ON ad_creatives (lancamento_codigo);
 
 
+-- ── THUMBNAILS DE CRIATIVOS — cópia permanente das imagens do Drive ─────────
+-- Guarda os bytes da imagem (não só a URL), pra sobreviver a arquivos movidos/
+-- apagados no Drive de campanha. Populada sob demanda por get_drive_thumbnails.
+CREATE TABLE IF NOT EXISTS creative_thumbnails (
+    lancamento_codigo TEXT NOT NULL,
+    ad_code            TEXT NOT NULL,
+    content_type       TEXT NOT NULL,
+    image_data         BYTEA NOT NULL,
+    drive_file_id       TEXT,
+    updated_at          TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (lancamento_codigo, ad_code)
+);
+
+
 -- ── META ADS — performance diária por anúncio ────────────────────────────
 CREATE TABLE IF NOT EXISTS meta_ads_daily (
     id               BIGSERIAL PRIMARY KEY,

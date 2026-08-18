@@ -27,6 +27,7 @@ from db import get_engine
 from logger import get_logger
 from http_retry import http_get
 from validation import validate_dataframe
+from typeform_resolve import fetch_typeform_forms, resolve_launch_form_ids
 
 load_dotenv()
 
@@ -120,19 +121,52 @@ def upsert(df: pd.DataFrame, form_id: str, since: str | None = None, until: str 
     logger.info("Upsert concluído: %d respostas gravadas em '%s'", len(df), TABLE)
 
 
+def discover_launch_form_ids() -> list[str]:
+    """
+    Resolve os form_id do Typeform de cada lançamento cadastrado em dim_lancamentos,
+    casando o código do lançamento (ex: 'PI-AGO-26') com o título do formulário na
+    API do Typeform. Evita depender de um único TYPEFORM_FORM_ID fixo no .env, que
+    fica desatualizado a cada novo lançamento (ver histórico do PI-AGO-26).
+    """
+    token = os.environ["TYPEFORM_TOKEN"]
+    forms = fetch_typeform_forms(token)
+
+    engine = get_engine()
+    with engine.connect() as conn:
+        codes = [r[0] for r in conn.execute(text("SELECT codigo FROM dim_lancamentos")).fetchall()]
+
+    form_ids: list[str] = []
+    for code in codes:
+        matched = resolve_launch_form_ids(code, forms)
+        if matched:
+            form_ids.extend(matched)
+        else:
+            logger.warning("Nenhum formulário Typeform encontrado para o lançamento '%s'", code)
+
+    return sorted(set(form_ids))
+
+
 def main():
     parser = argparse.ArgumentParser(description="ETL Typeform → Supabase")
     parser.add_argument("--since", required=True,  metavar="YYYY-MM-DD")
     parser.add_argument("--until", metavar="YYYY-MM-DD", default=datetime.now().strftime("%Y-%m-%d"))
-    parser.add_argument("--form-id", metavar="ID", help="Sobrescreve TYPEFORM_FORM_ID do .env")
+    parser.add_argument("--form-id", metavar="ID", help="Roda apenas este form_id, ignorando a descoberta automática por lançamento")
     args = parser.parse_args()
 
-    form_id = args.form_id or os.environ["TYPEFORM_FORM_ID"]
-    logger.info("[Typeform] %s  form=%s  [%s -> %s]", TABLE, form_id, args.since, args.until)
-    responses = fetch_responses(args.since, args.until, form_id)
-    logger.info("%d respostas encontradas", len(responses))
-    df = build_dataframe(responses, form_id)
-    upsert(df, form_id, since=args.since, until=args.until)
+    if args.form_id:
+        form_ids = [args.form_id]
+    else:
+        form_ids = discover_launch_form_ids()
+        if not form_ids:
+            logger.warning("Nenhum form_id descoberto; usando TYPEFORM_FORM_ID do .env como fallback")
+            form_ids = [os.environ["TYPEFORM_FORM_ID"]]
+
+    for form_id in form_ids:
+        logger.info("[Typeform] %s  form=%s  [%s -> %s]", TABLE, form_id, args.since, args.until)
+        responses = fetch_responses(args.since, args.until, form_id)
+        logger.info("%d respostas encontradas", len(responses))
+        df = build_dataframe(responses, form_id)
+        upsert(df, form_id, since=args.since, until=args.until)
 
 
 if __name__ == "__main__":

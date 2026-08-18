@@ -129,6 +129,24 @@ def api_drive_thumbnails(launch_code: str, subfolder: str = "captação"):
         return {"ok": False, "error": "Falha ao buscar thumbnails.", "thumbnails": {}}
 
 
+@router.get("/api/creative-image/{launch_code}/{ad_code}")
+def api_creative_image(launch_code: str, ad_code: str):
+    from fastapi.responses import Response as _Response
+    from sqlalchemy import text as _text
+    from frontend.db import _get_engine
+
+    engine = _get_engine()
+    with engine.connect() as conn:
+        row = conn.execute(
+            _text("SELECT content_type, image_data FROM creative_thumbnails WHERE lancamento_codigo = :code AND ad_code = :ad_code"),
+            {"code": launch_code, "ad_code": ad_code},
+        ).fetchone()
+    if not row:
+        return _Response(status_code=404, content="thumbnail não encontrada")
+    content_type, image_data = row
+    return _Response(content=bytes(image_data), media_type=content_type, headers={"Cache-Control": "public, max-age=31536000, immutable"})
+
+
 @router.get("/api/drive-thumb/{file_id}")
 def api_drive_thumb(file_id: str):
     from fastapi.responses import RedirectResponse as _Redirect, Response as _Response

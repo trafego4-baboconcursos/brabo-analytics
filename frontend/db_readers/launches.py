@@ -342,6 +342,7 @@ def get_drive_thumbnails(launch_code: str, subfolder: str = "captação") -> dic
     thumbnails: dict[str, dict] = {}
     best_variant: dict[str, int] = {}
     ad_pattern = _re.compile(r"\bAD\d+\b", _re.IGNORECASE)
+    best_file: dict[str, dict] = {}
     for f in candidates:
         match = ad_pattern.search(f["name"])
         if not match:
@@ -351,14 +352,81 @@ def get_drive_thumbnails(launch_code: str, subfolder: str = "captação") -> dic
         if ad_code in best_variant and variant >= best_variant[ad_code]:
             continue
         best_variant[ad_code] = variant
+        best_file[ad_code] = f
         thumbnails[ad_code] = {
             "thumb": f"/api/drive-thumb/{f['id']}",
             "preview": f"https://drive.google.com/file/d/{f['id']}/preview",
             "name": f["name"],
         }
 
+    _ensure_thumbnails_stored(launch_code, best_file)
+    stored_ad_codes = _stored_thumbnail_ad_codes(launch_code)
+    for ad_code in thumbnails:
+        if ad_code in stored_ad_codes:
+            thumbnails[ad_code]["thumb"] = f"/api/creative-image/{launch_code}/{ad_code}"
+
     _drive_cache[cache_key] = (_time.time(), thumbnails)
     return thumbnails
+
+
+def _stored_thumbnail_ad_codes(launch_code: str) -> set[str]:
+    engine = _get_engine()
+    with engine.connect() as conn:
+        rows = conn.execute(
+            text("SELECT ad_code FROM creative_thumbnails WHERE lancamento_codigo = :code"),
+            {"code": launch_code},
+        ).fetchall()
+    return {r[0] for r in rows}
+
+
+def _ensure_thumbnails_stored(launch_code: str, best_file: dict[str, dict]) -> None:
+    """
+    Baixa e grava no banco (bytea) a imagem de thumbnail (thumbnailLink do Drive)
+    de cada ad_code que ainda não tem cópia persistida. Idempotente: uma vez
+    guardada, nunca mais depende do arquivo continuar existindo no Drive.
+    """
+    import requests
+
+    engine = _get_engine()
+    with engine.connect() as conn:
+        already_stored = {
+            r[0] for r in conn.execute(
+                text("SELECT ad_code FROM creative_thumbnails WHERE lancamento_codigo = :code"),
+                {"code": launch_code},
+            ).fetchall()
+        }
+
+    upsert_sql = text("""
+        INSERT INTO creative_thumbnails (lancamento_codigo, ad_code, content_type, image_data, drive_file_id, updated_at)
+        VALUES (:code, :ad_code, :content_type, :image_data, :file_id, NOW())
+        ON CONFLICT (lancamento_codigo, ad_code) DO UPDATE SET
+            content_type = EXCLUDED.content_type,
+            image_data   = EXCLUDED.image_data,
+            drive_file_id = EXCLUDED.drive_file_id,
+            updated_at   = NOW()
+    """)
+
+    for ad_code, f in best_file.items():
+        if ad_code in already_stored:
+            continue
+        thumbnail_link = f.get("thumbnailLink")
+        if not thumbnail_link:
+            continue
+        try:
+            resp = requests.get(thumbnail_link, timeout=15)
+            resp.raise_for_status()
+        except Exception:
+            logger.warning("Falha ao baixar thumbnail do Drive para %s/%s", launch_code, ad_code)
+            continue
+        content_type = resp.headers.get("Content-Type", "image/jpeg").split(";")[0].strip()
+        with engine.begin() as conn:
+            conn.execute(upsert_sql, {
+                "code": launch_code,
+                "ad_code": ad_code,
+                "content_type": content_type,
+                "image_data": resp.content,
+                "file_id": f["id"],
+            })
 
 
 def count_campaigns_for_filter(launch_code: str, term: str) -> dict:

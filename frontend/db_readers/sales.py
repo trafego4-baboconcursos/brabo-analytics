@@ -152,6 +152,9 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
                 valor = _hm_val(row.get("valor_de_compra_sem_impostos"))
             if valor is None:
                 valor = 0.0
+            valor_bruto = _hm_val(row.get("valor_de_compra_sem_impostos"))
+            if valor_bruto is None:
+                valor_bruto = valor
             tipo_cobranca = _norm_text(row.get("tipo_de_cobranca", "") or row.get("venda_feita_como", ""))
             cobrancas = int(row.get("quantidade_de_cobrancas") or 1) if not pd.isna(row.get("quantidade_de_cobrancas", 1) or 1) else 1
             parcelas = int(row.get("quantidade_total_de_parcelas") or 1) if not pd.isna(row.get("quantidade_total_de_parcelas", 1) or 1) else 1
@@ -159,6 +162,7 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
                 continue
             if tipo_cobranca == "recuperador inteligente":
                 valor *= max(1, parcelas)
+                valor_bruto *= max(1, parcelas)
 
             email = str(row["email_do_a_comprador_a"]).strip().lower()
             pagto = _norm_text(row.get("metodo_de_pagamento", ""))
@@ -169,6 +173,7 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
 
             summary.hotmart_vendas += 1
             summary.hotmart_receita += valor
+            summary.hotmart_receita_bruta += valor_bruto
             if email:
                 summary.emails_hotmart.add(email)
                 summary.receita_por_email[email] = summary.receita_por_email.get(email, 0.0) + valor
@@ -205,6 +210,7 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
 
             summary.tmb_vendas += 1
             summary.tmb_receita += valor
+            summary.tmb_receita_bruta += valor  # TMB não expõe valor pré-comissão
             if email:
                 summary.emails_tmb.add(email)
                 summary.receita_por_email[email] = summary.receita_por_email.get(email, 0.0) + valor
@@ -229,12 +235,19 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
 
     summary.total_vendas = summary.hotmart_vendas + summary.tmb_vendas
     summary.total_receita = summary.hotmart_receita + summary.tmb_receita
+    summary.total_receita_bruta = summary.hotmart_receita_bruta + summary.tmb_receita_bruta
     if not math.isfinite(summary.hotmart_receita):
         summary.hotmart_receita = 0.0
     if not math.isfinite(summary.tmb_receita):
         summary.tmb_receita = 0.0
     if not math.isfinite(summary.total_receita):
         summary.total_receita = summary.hotmart_receita + summary.tmb_receita
+    if not math.isfinite(summary.hotmart_receita_bruta):
+        summary.hotmart_receita_bruta = 0.0
+    if not math.isfinite(summary.tmb_receita_bruta):
+        summary.tmb_receita_bruta = 0.0
+    if not math.isfinite(summary.total_receita_bruta):
+        summary.total_receita_bruta = summary.hotmart_receita_bruta + summary.tmb_receita_bruta
     summary.hotmart_ticket_medio = (summary.hotmart_receita / summary.hotmart_vendas) if summary.hotmart_vendas > 0 else 0.0
     summary.tmb_ticket_medio = (summary.tmb_receita / summary.tmb_vendas) if summary.tmb_vendas > 0 else 0.0
     summary.total_ticket_medio = (summary.total_receita / summary.total_vendas) if summary.total_vendas > 0 else 0.0

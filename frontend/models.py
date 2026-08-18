@@ -145,12 +145,15 @@ class GoogleSummary:
 class VendasSummary:
     hotmart_vendas: int = 0
     hotmart_receita: float = 0.0
+    hotmart_receita_bruta: float = 0.0
     hotmart_ticket_medio: float = 0.0
     tmb_vendas: int = 0
     tmb_receita: float = 0.0
+    tmb_receita_bruta: float = 0.0
     tmb_ticket_medio: float = 0.0
     total_vendas: int = 0
     total_receita: float = 0.0
+    total_receita_bruta: float = 0.0
     total_ticket_medio: float = 0.0
     pagamento_cartao: int = 0
     pagamento_boleto: int = 0

@@ -45,8 +45,19 @@ def make_engine(env_var: str, readonly_guard: bool = False):
         ),
         pool_size=pool["pool_size"], max_overflow=pool["max_overflow"],
         pool_timeout=60, pool_recycle=1800, pool_pre_ping=True,
-        connect_args={"options": "-c statement_timeout=30000"},  # 30 s por query
     )
+
+    @event.listens_for(eng, "checkout")
+    def _set_statement_timeout(dbapi_conn, connection_record, connection_proxy):
+        # SET via SQL (não connect_args={"options": ...}) porque em pooler de
+        # transaction mode (porta 6543) a conexão física é compartilhada entre
+        # clientes diferentes — opções de startup só valem na primeira vez que
+        # aquela conexão física foi aberta, não a cada checkout. Rodar o SET
+        # aqui garante o limite de 30s em qualquer modo do pooler.
+        cursor = dbapi_conn.cursor()
+        cursor.execute("SET statement_timeout = 30000")
+        cursor.close()
+
     if readonly_guard:
         @event.listens_for(eng, "before_cursor_execute")
         def _block_writes(conn, cursor, statement, parameters, context, executemany):

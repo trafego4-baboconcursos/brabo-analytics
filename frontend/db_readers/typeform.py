@@ -288,7 +288,9 @@ def read_typeform(launch_folder_or_code: Any, start_date=None, end_date=None) ->
         l_row = conn.execute(text("SELECT projeto, data_inicio, data_fim FROM dim_lancamentos WHERE codigo = :code"), {"code": code}).fetchone()
         if not l_row:
             return summary
-        project, start_date, end_date = l_row
+        project, dim_start, dim_end = l_row
+        vendas_start = start_date or dim_start
+        vendas_end = end_date or dim_end
 
     proj_id, alunos_id = _resolve_typeform_ids(code)
     if not proj_id:
@@ -310,7 +312,7 @@ def read_typeform(launch_folder_or_code: Any, start_date=None, end_date=None) ->
                   AND upper(coalesce(form_id, '')) = :code
             """),
             engine,
-            params={"start": start_date, "end": end_date, "code": code.upper()}
+            params={"start": dim_start, "end": dim_end, "code": code.upper()}
         )
 
     if tf_df_raw.empty:
@@ -342,7 +344,7 @@ def read_typeform(launch_folder_or_code: Any, start_date=None, end_date=None) ->
     # 2. Carrega vendas e CRM para cruzamento
     # Mesma janela usada pelos demais readers — evita duplicar a consulta inteira
     # de Hotmart+TMB com uma cache-key diferente (start=None).
-    v_sum = read_vendas(code, start_date=start_date, end_date=end_date)
+    v_sum = read_vendas(code, start_date=vendas_start, end_date=vendas_end)
     buyers = (v_sum.emails_hotmart | v_sum.emails_tmb) if v_sum else set()
     summary.vendas_hotmart_total = v_sum.hotmart_vendas if v_sum else 0
     summary.vendas_tmb_total = v_sum.tmb_vendas if v_sum else 0

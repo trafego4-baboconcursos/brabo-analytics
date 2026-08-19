@@ -215,7 +215,9 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
     # Segmento — apenas campanhas de Captação
     df_cap = df[df["etapa"] == "Captação"]
     if not df_cap.empty:
-        vendas = read_vendas(code)
+        # Mesma janela usada pela query principal deste reader — evita duplicar a
+        # consulta inteira de Hotmart+TMB com uma cache-key diferente (start=None).
+        vendas = read_vendas(code, start_date=start_date, end_date=end_date)
         buyers = (vendas.emails_hotmart | vendas.emails_tmb) if vendas else set()
         sales_by_content = {}
         if buyers:

@@ -276,7 +276,7 @@ def _build_typeform_comparison(
     summary.alunos_depoimentos_atencao = extract_depoimentos("o que mais chamou sua atencao")
 
 
-def read_typeform(launch_folder_or_code: Any) -> TypeformSummary:
+def read_typeform(launch_folder_or_code: Any, start_date=None, end_date=None) -> TypeformSummary:
     # deferred import to avoid circular dependency (read_vendas still in database_reader)
     from frontend.db_readers.sales import read_vendas  # noqa: PLC0415
 
@@ -340,7 +340,9 @@ def read_typeform(launch_folder_or_code: Any) -> TypeformSummary:
         _build_typeform_comparison(summary, tf_df, tf_alunos_raw, proj_id, alunos_id)
 
     # 2. Carrega vendas e CRM para cruzamento
-    v_sum = read_vendas(code)
+    # Mesma janela usada pelos demais readers — evita duplicar a consulta inteira
+    # de Hotmart+TMB com uma cache-key diferente (start=None).
+    v_sum = read_vendas(code, start_date=start_date, end_date=end_date)
     buyers = (v_sum.emails_hotmart | v_sum.emails_tmb) if v_sum else set()
     summary.vendas_hotmart_total = v_sum.hotmart_vendas if v_sum else 0
     summary.vendas_tmb_total = v_sum.tmb_vendas if v_sum else 0

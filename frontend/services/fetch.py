@@ -65,7 +65,9 @@ def _leads(launch: Any, vendas_data: Any):
 
 
 def _typeform(launch: Any):
-    return _get_or_compute(launch.code, "typeform_data", lambda: read_typeform(launch.folder))
+    start, end = _window(launch)
+    return _get_or_compute(launch.code, "typeform_data",
+                           lambda: read_typeform(launch.folder, start_date=start, end_date=end))
 
 
 def _hotmart_details(launch: Any):
@@ -87,8 +89,9 @@ def _vendas_consolidado(launch: Any):
 
 
 def _typeform_count(launch: Any) -> int:
+    start, end = _window(launch)
     return _get_or_compute(launch.code, "typeform_count",
-                           lambda: read_typeform(launch.folder).total_tf)
+                           lambda: read_typeform(launch.folder, start_date=start, end_date=end).total_tf)
 
 
 def _fetch_prev_for_debriefing(launch: Any) -> dict:

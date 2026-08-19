@@ -509,28 +509,57 @@ def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dic
     resumo["roas_ads"] = resumo["total_faturamento_ads"] / resumo["total_gasto"] if resumo["total_gasto"] > 0 else 0.0
 
     def build_platform_rows(platform: str) -> list[dict]:
+        # Um mesmo AD código pode aparecer em vários ad_name/adset (ex.: mesmo
+        # criativo rodando em Quente e Frio) — unifica por ad_code antes de exibir,
+        # senão o mesmo anúncio aparece duplicado na tabela.
         channel_sales = (sales_attr or {}).get("por_criativo_canal", {}).get(platform, {})
-        out = []
+        grouped: dict[str, dict] = {}
         for item in platform_source_rows.get(platform, []):
             code = str(item.get("ad_code", "")).upper()
+            if not code:
+                continue
+            g = grouped.setdefault(code, {
+                "ad_code": code, "nome": item.get("nome") or code,
+                "gasto": 0.0, "leads": 0, "cliques": 0, "impressoes": 0,
+                "_hook_views": 0, "_meta_views_3s": 0, "_meta_thruplays": 0, "_views_100": 0,
+            })
+            g["gasto"] += float(item.get("gasto") or 0.0)
+            g["leads"] += int(item.get("leads") or 0)
+            g["cliques"] += int(item.get("cliques") or 0)
+            g["impressoes"] += int(item.get("impressoes") or 0)
+            if platform == "Meta Ads":
+                views_3s = int(item.get("views_3s") or 0)
+                g["_hook_views"] += views_3s
+                g["_meta_views_3s"] += views_3s
+                g["_meta_thruplays"] += int(item.get("thruplays") or 0)
+                g["_views_100"] += int(item.get("views_100") or 0)
+            else:
+                g["_hook_views"] += int(item.get("video_views") or 0)
+                g["_views_100"] += int(item.get("video_views_100") or 0)
+            if len(str(item.get("nome") or "")) > len(g["nome"]):
+                g["nome"] = item.get("nome") or g["nome"]
+
+        out = []
+        for code, g in grouped.items():
             sales = channel_sales.get(code, {})
-            gasto = float(item.get("gasto") or 0.0)
-            leads = int(item.get("leads") or 0)
+            gasto = g["gasto"]
+            leads = g["leads"]
+            impressoes = g["impressoes"]
             faturamento = float(sales.get("faturamento") or 0.0)
             out.append({
                 "ad_code": code,
-                "nome": item.get("nome") or code,
+                "nome": g["nome"],
                 "gasto": gasto,
                 "leads": leads,
                 "cpl": gasto / leads if leads > 0 else 0.0,
-                "ctr": float(item.get("ctr") or 0.0),
-                "cpm": float(item.get("cpm") or 0.0),
+                "ctr": g["cliques"] / impressoes * 100 if impressoes > 0 else 0.0,
+                "cpm": gasto / impressoes * 1000 if impressoes > 0 else 0.0,
                 "vendas": int(sales.get("vendas") or 0),
                 "faturamento": faturamento,
                 "roas": faturamento / gasto if gasto > 0 else 0.0,
-                "hook_rate": float(item.get("hook_rate") or 0.0),
-                "hold_rate": float(item.get("hold_rate") or 0.0) if platform == "Meta Ads" else None,
-                "body_rate": float(item.get("body_rate") or 0.0),
+                "hook_rate": g["_hook_views"] / impressoes * 100 if impressoes > 0 else 0.0,
+                "hold_rate": (g["_meta_thruplays"] / g["_meta_views_3s"] * 100) if platform == "Meta Ads" and g["_meta_views_3s"] > 0 else None,
+                "body_rate": (g["_views_100"] / g["_hook_views"] * 100) if g["_hook_views"] > 0 else 0.0,
             })
         return sorted(out, key=lambda item: (item["vendas"], item["faturamento"], item["leads"], item["gasto"]), reverse=True)
 

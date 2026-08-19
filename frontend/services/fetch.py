@@ -12,7 +12,7 @@ from frontend.cache import _get_cached, _get_or_compute, _set_cached
 from frontend.database_reader import (
     read_meta, read_google, read_vendas, read_leads,
     read_hotmart_details, read_tmb_details, read_vendas_consolidado,
-    read_typeform, read_comparativo, read_daily_breakdown,
+    read_typeform, read_typeform_count, read_comparativo, read_daily_breakdown,
     read_ac_campaigns, read_youtube_aulas, get_drive_thumbnails, get_platform_thumbnails,
     read_launch_config,
 )
@@ -89,9 +89,8 @@ def _vendas_consolidado(launch: Any):
 
 
 def _typeform_count(launch: Any) -> int:
-    start, end = _window(launch)
     return _get_or_compute(launch.code, "typeform_count",
-                           lambda: read_typeform(launch.folder, start_date=start, end_date=end).total_tf)
+                           lambda: read_typeform_count(launch.folder))
 
 
 def _fetch_prev_for_debriefing(launch: Any) -> dict:

@@ -50,7 +50,7 @@ from frontend.db_readers.users import (  # noqa: E402
 from frontend.db_readers.typeform import (  # noqa: E402
     _get_typeform_forms, _get_typeform_fields, _resolve_typeform_ids,
     _reconstruct_tabular_df, _build_typeform_comparison,
-    read_typeform, _generate_ia_insights,
+    read_typeform, read_typeform_count, _generate_ia_insights,
 )
 from frontend.db_readers.ads_meta import get_historico_ad_codes, read_meta  # noqa: E402
 from frontend.db_readers.ads_google import (  # noqa: E402

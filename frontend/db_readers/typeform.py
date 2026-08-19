@@ -276,6 +276,46 @@ def _build_typeform_comparison(
     summary.alunos_depoimentos_atencao = extract_depoimentos("o que mais chamou sua atencao")
 
 
+def read_typeform_count(launch_folder_or_code: Any) -> int:
+    """Versão enxuta de read_typeform() só para o contador da navegação.
+
+    A função completa traz a coluna `answers` (JSONB com todas as respostas)
+    de cada linha, faz parsing e cruza com vendas/CRM — caro (~30s) para só
+    exibir "quantas pessoas responderam". Aqui buscamos só `email`, evitando
+    o transporte do JSONB pela rede (o gargalo real, não o Postgres em si).
+    """
+    code = _extract_launch_code(launch_folder_or_code)
+    engine = _get_engine()
+
+    with engine.connect() as conn:
+        l_row = conn.execute(text("SELECT data_inicio, data_fim FROM dim_lancamentos WHERE codigo = :code"), {"code": code}).fetchone()
+        if not l_row:
+            return 0
+        dim_start, dim_end = l_row
+
+    proj_id, _ = _resolve_typeform_ids(code)
+    if not proj_id:
+        proj_id = code
+
+    with engine.connect() as conn:
+        emails = conn.execute(
+            text("SELECT email FROM typeform_respostas WHERE upper(coalesce(form_id, '')) = :fid"),
+            {"fid": proj_id.upper()},
+        ).scalars().all()
+        if not emails:
+            emails = conn.execute(
+                text("""
+                    SELECT email FROM typeform_respostas
+                    WHERE submitted_at::date BETWEEN :start AND :end
+                      AND upper(coalesce(form_id, '')) = :code
+                """),
+                {"start": dim_start, "end": dim_end, "code": code.upper()},
+            ).scalars().all()
+
+    norm_emails = {str(e).strip().lower() for e in emails if e and "@" in str(e)}
+    return len(norm_emails)
+
+
 def read_typeform(launch_folder_or_code: Any, start_date=None, end_date=None) -> TypeformSummary:
     # deferred import to avoid circular dependency (read_vendas still in database_reader)
     from frontend.db_readers.sales import read_vendas  # noqa: PLC0415

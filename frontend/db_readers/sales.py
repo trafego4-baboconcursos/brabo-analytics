@@ -796,7 +796,12 @@ def read_dia1_sales(launch: Any) -> dict:
         # TMB não expõe valor pré-comissão — usa o líquido mesmo (ver read_vendas)
         tmb_df["valor"] = pd.to_numeric(tmb_df["valor_liquido"], errors="coerce").fillna(0.0)
 
-    agora = pd.Timestamp.now()
+    # "day"/"ts" acima são naive mas já em horário de Brasília (a query SQL
+    # converte explicitamente AT TIME ZONE 'America/Sao_Paulo'). pd.Timestamp.now()
+    # sem tz pega o horário local do processo — em produção isso costuma ser UTC
+    # (containers geralmente rodam em UTC), adiantando "agora" em ~3h e fazendo
+    # checkpoints que ainda não aconteceram aparecerem como se já tivessem passado.
+    agora = pd.Timestamp.now(tz="America/Sao_Paulo").tz_localize(None)
 
     checkpoints = []
     for label, minutes in _DIA1_CHECKPOINTS:

@@ -95,7 +95,7 @@ def read_launch_config(launch_code: str) -> dict:
         return {}
     d = dict(row._mapping)
     for key in ("captacao_start_date", "captacao_end_date", "carrinho_start_date", "carrinho_end_date",
-                "pre_quali_start_date", "pre_quali_end_date", "evento_start_date", "evento_end_date"):
+                "pre_quali_start_date", "pre_quali_end_date"):
         if d.get(key):
             d[key] = str(d[key])
     for key in ("meta_ad_account_ids", "google_ad_account_ids", "hotmart_produto_ids", "tmb_produto_ids"):
@@ -111,6 +111,14 @@ def read_launch_config(launch_code: str) -> dict:
             d["youtube_aulas"] = _j.loads(d["youtube_aulas"])
         except Exception:
             d["youtube_aulas"] = []
+    if d.get("etapas") is None:
+        d["etapas"] = []
+    elif isinstance(d["etapas"], str):
+        import json as _j
+        try:
+            d["etapas"] = _j.loads(d["etapas"])
+        except Exception:
+            d["etapas"] = []
     return d
 
 
@@ -120,7 +128,6 @@ def save_launch_config(launch_code: str, config: dict) -> None:
         INSERT INTO launch_config (
             lancamento_codigo,
             pre_quali_start_date, pre_quali_end_date, meta_leads_pre_quali, meta_investimento_pre_quali,
-            evento_start_date, evento_end_date, meta_investimento_evento,
             captacao_start_date, captacao_end_date, meta_leads,
             meta_investimento_captacao, meta_ad_account_ids, google_ad_account_ids,
             filtro_lancamento, filtro_captacao, filtro_pre_quali,
@@ -131,11 +138,11 @@ def save_launch_config(launch_code: str, config: dict) -> None:
             hotmart_produto_ids, tmb_produto_ids,
             drive_folder_url,
             youtube_aulas,
+            etapas,
             updated_at
         ) VALUES (
             :lancamento_codigo,
             :pre_quali_start_date, :pre_quali_end_date, :meta_leads_pre_quali, :meta_investimento_pre_quali,
-            :evento_start_date, :evento_end_date, :meta_investimento_evento,
             :captacao_start_date, :captacao_end_date, :meta_leads,
             :meta_investimento_captacao, :meta_ad_account_ids, :google_ad_account_ids,
             :filtro_lancamento, :filtro_captacao, :filtro_pre_quali,
@@ -146,6 +153,7 @@ def save_launch_config(launch_code: str, config: dict) -> None:
             :hotmart_produto_ids, :tmb_produto_ids,
             :drive_folder_url,
             :youtube_aulas,
+            :etapas,
             NOW()
         )
         ON CONFLICT (lancamento_codigo) DO UPDATE SET
@@ -153,9 +161,6 @@ def save_launch_config(launch_code: str, config: dict) -> None:
             pre_quali_end_date         = EXCLUDED.pre_quali_end_date,
             meta_leads_pre_quali       = EXCLUDED.meta_leads_pre_quali,
             meta_investimento_pre_quali= EXCLUDED.meta_investimento_pre_quali,
-            evento_start_date          = EXCLUDED.evento_start_date,
-            evento_end_date            = EXCLUDED.evento_end_date,
-            meta_investimento_evento   = EXCLUDED.meta_investimento_evento,
             captacao_start_date        = EXCLUDED.captacao_start_date,
             captacao_end_date          = EXCLUDED.captacao_end_date,
             meta_leads                 = EXCLUDED.meta_leads,
@@ -176,6 +181,7 @@ def save_launch_config(launch_code: str, config: dict) -> None:
             tmb_produto_ids            = EXCLUDED.tmb_produto_ids,
             drive_folder_url           = EXCLUDED.drive_folder_url,
             youtube_aulas              = EXCLUDED.youtube_aulas,
+            etapas                     = EXCLUDED.etapas,
             updated_at                 = NOW()
     """)
 
@@ -200,9 +206,6 @@ def save_launch_config(launch_code: str, config: dict) -> None:
         "pre_quali_end_date":             _or_none(config.get("pre_quali_end_date")),
         "meta_leads_pre_quali":           _or_int(config.get("meta_leads_pre_quali")),
         "meta_investimento_pre_quali":    _or_zero(config.get("meta_investimento_pre_quali")),
-        "evento_start_date":              _or_none(config.get("evento_start_date")),
-        "evento_end_date":                _or_none(config.get("evento_end_date")),
-        "meta_investimento_evento":       _or_zero(config.get("meta_investimento_evento")),
         "captacao_start_date":            _or_none(config.get("captacao_start_date")),
         "captacao_end_date":              _or_none(config.get("captacao_end_date")),
         "meta_leads":                     _or_int(config.get("meta_leads")),
@@ -223,6 +226,7 @@ def save_launch_config(launch_code: str, config: dict) -> None:
         "tmb_produto_ids":                config.get("tmb_produto_ids") or [],
         "drive_folder_url":               _or_none(config.get("drive_folder_url")),
         "youtube_aulas":                  _json.dumps(config.get("youtube_aulas") or []),
+        "etapas":                         _json.dumps(config.get("etapas") or []),
     }
 
     with _get_users_engine().connect() as conn:

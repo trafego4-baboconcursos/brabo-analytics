@@ -66,9 +66,9 @@ def parse_number(value) -> float:
 # Modo API
 # ─────────────────────────────────────────────────────────────────────────────
 
-def fetch_insights(since: str, until: str) -> list[dict]:
+def fetch_insights(since: str, until: str, account_ids: list[str] | None = None) -> list[dict]:
     """Busca insights diários por anúncio via Marketing API para múltiplas contas."""
-    account_ids = [acc.strip() for acc in os.environ["META_AD_ACCOUNT_ID"].split(",") if acc.strip()]
+    account_ids = account_ids or [acc.strip() for acc in os.environ["META_AD_ACCOUNT_ID"].split(",") if acc.strip()]
     token      = os.environ["META_ACCESS_TOKEN"]
 
     rows = []

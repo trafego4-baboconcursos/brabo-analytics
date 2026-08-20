@@ -193,8 +193,9 @@ def setup_oauth():
 # Modo API
 # ─────────────────────────────────────────────────────────────────────────────
 
-def fetch_report(since: str, until: str) -> list[dict]:
-    customer_ids = [cid.strip().replace("-", "") for cid in os.environ["GOOGLE_ADS_CUSTOMER_ID"].split(",") if cid.strip()]
+def fetch_report(since: str, until: str, customer_ids: list[str] | None = None) -> list[dict]:
+    customer_ids = customer_ids or [cid.strip() for cid in os.environ["GOOGLE_ADS_CUSTOMER_ID"].split(",") if cid.strip()]
+    customer_ids = [cid.replace("-", "") for cid in customer_ids]
     login_customer_id = os.environ.get("GOOGLE_ADS_LOGIN_CUSTOMER_ID", "").replace("-", "")
 
     headers = {
@@ -264,8 +265,9 @@ def fetch_youtube_video_ids(asset_resources: set[str]) -> dict[str, str]:
     return result
 
 
-def fetch_pmax_report(since: str, until: str) -> list[dict]:
-    customer_ids = [cid.strip().replace("-", "") for cid in os.environ["GOOGLE_ADS_CUSTOMER_ID"].split(",") if cid.strip()]
+def fetch_pmax_report(since: str, until: str, customer_ids: list[str] | None = None) -> list[dict]:
+    customer_ids = customer_ids or [cid.strip() for cid in os.environ["GOOGLE_ADS_CUSTOMER_ID"].split(",") if cid.strip()]
+    customer_ids = [cid.replace("-", "") for cid in customer_ids]
     login_customer_id = os.environ.get("GOOGLE_ADS_LOGIN_CUSTOMER_ID", "").replace("-", "")
 
     headers = {

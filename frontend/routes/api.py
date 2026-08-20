@@ -189,10 +189,12 @@ def api_campaign_count(launch_code: str, term: str = ""):
 @router.post("/api/clear-cache")
 def clear_cache(launch_code: str | None = None):
     if launch_code:
-        _invalidate(launch_code)
-        return {"cleared": launch_code}
+        readers = _invalidate(launch_code)
+        return {"cleared": launch_code, "readers": readers}
+    readers = sorted({k.split("::", 1)[1] if "::" in k else k for k in _core._CACHE})
+    count = len(_core._CACHE)
     _core._CACHE.clear()
-    return {"cleared": "all"}
+    return {"cleared": "all", "readers": readers, "entries": count}
 
 
 # ── Health ─────────────────────────────────────────────────────────────────────

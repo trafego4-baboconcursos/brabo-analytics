@@ -1602,6 +1602,11 @@ document.addEventListener('keydown', function (e) {
         <div class="lc-step-circle">5</div>
         <span>YouTube</span>
       </div>
+      <div class="lc-step-line" id="lc-line-5"></div>
+      <div class="lc-step" id="lc-step-6">
+        <div class="lc-step-circle">6</div>
+        <span>Verba</span>
+      </div>
     </div>
 
     <!-- Body -->
@@ -1808,33 +1813,12 @@ document.addEventListener('keydown', function (e) {
       <div class="lc-pane" id="lc-pane-3" style="display:none">
         <div class="lc-info-banner">
           <i class="ti ti-video"></i>
-          <span>Datas do Evento (ex: Aulas, Replay). Pode ser o gap de 7 dias entre Captação e Carrinho.</span>
+          <span>Provisão de verba do Evento — Lembrete, Depoimento, Aulas no Ar, Replay e Matrículas Abertas: total, curva de gasto por dia e divisão por bucket (plataforma/temperatura/aula/manual). Remova etapas que não se aplicam ou adicione outras.</span>
         </div>
-        <div class="lc-section">
-          <div class="lc-section-title">Datas do Evento</div>
-          <div class="lc-date-row">
-            <div class="lc-field">
-              <span class="lc-label">Data de início do Evento</span>
-              <div class="lc-date-btn">
-                <i class="ti ti-calendar"></i>
-                <input type="date" id="lc_evento_start_date">
-              </div>
-            </div>
-            <div class="lc-field">
-              <span class="lc-label">Data de fim do Evento</span>
-              <div class="lc-date-btn">
-                <i class="ti ti-calendar"></i>
-                <input type="date" id="lc_evento_end_date">
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="lc-section">
-          <div class="lc-section-title">Meta do Evento</div>
-          <div class="lc-field">
-            <span class="lc-label">Valor previsto para investir (Lembretes, Replay)</span>
-            <input class="lc-input" type="number" id="lc_meta_investimento_evento" placeholder="Ex: 20000" min="0" step="100">
-          </div>
+        <div id="lc-etapas-evento-container"></div>
+        <div class="lc-product-add" style="margin-top:6px">
+          <input class="lc-input" type="text" id="lc-new-etapa-evento-nome" placeholder="Nome da etapa (ex: Live Extra)" style="flex:2">
+          <button type="button" class="lc-add-btn" onclick="lcAddEtapaEvento()" title="Adicionar etapa"><i class="ti ti-plus"></i></button>
         </div>
       </div><!-- /pane-3 -->
 
@@ -1903,6 +1887,15 @@ document.addEventListener('keydown', function (e) {
         </div>
       </div><!-- /pane-5 -->
 
+      <!-- ─── Pane 6: Provisão de Verba ────────────────────────────── -->
+      <div class="lc-pane" id="lc-pane-6" style="display:none">
+        <div class="lc-info-banner">
+          <i class="ti ti-report-money"></i>
+          <span>Provisão de verba — Pré-Qualificação e Captação: total, curva de gasto por dia e divisão por bucket (plataforma/temperatura/aula/manual)</span>
+        </div>
+        <div id="lc-etapas-container"></div>
+      </div><!-- /pane-6 -->
+
     </div><!-- /lc-body -->
 
     <!-- Footer -->
@@ -1931,6 +1924,7 @@ document.addEventListener('keydown', function (e) {
     document.getElementById("lc-product-list").innerHTML = "";
     document.getElementById("lc-tmb-list").innerHTML = "";
     document.getElementById("lc-yt-list").innerHTML = "";
+    lcPopulateEtapas([]);
     document.getElementById("lc-outras-body").classList.remove("open");
     document.getElementById("lc-outras-toggle").classList.remove("open");
     document.querySelectorAll(".lc-acc-menu input[type=checkbox]").forEach(function(cb){ cb.checked = false; });
@@ -1950,23 +1944,23 @@ document.addEventListener('keydown', function (e) {
   };
 
   function lcRenderStep() {
-    [1,2,3,4,5].forEach(function(s){
+    [1,2,3,4,5,6].forEach(function(s){
       var step = document.getElementById("lc-step-" + s);
       var pane = document.getElementById("lc-pane-" + s);
       step.className = "lc-step" + (s === _step ? " active" : s < _step ? " done" : "");
       pane.style.display = s === _step ? "" : "none";
     });
-    [1,2,3,4].forEach(function(i){
+    [1,2,3,4,5].forEach(function(i){
       var line = document.getElementById("lc-line-" + i);
       line.className = "lc-step-line" + (i < _step ? " done" : "");
     });
     document.getElementById("lc-btn-prev").style.display = _step > 1 ? "" : "none";
-    document.getElementById("lc-btn-next").style.display = _step < 5 ? "" : "none";
-    document.getElementById("lc-btn-save").style.display = _step === 5 ? "" : "none";
+    document.getElementById("lc-btn-next").style.display = _step < 6 ? "" : "none";
+    document.getElementById("lc-btn-save").style.display = _step === 6 ? "" : "none";
   }
 
   window.lcNext = function() {
-    if (_step < 5) { _step++; lcRenderStep(); document.getElementById("lc-body").scrollTop = 0; }
+    if (_step < 6) { _step++; lcRenderStep(); document.getElementById("lc-body").scrollTop = 0; }
   };
   window.lcPrev = function() {
     if (_step > 1) { _step--; lcRenderStep(); document.getElementById("lc-body").scrollTop = 0; }
@@ -1979,10 +1973,6 @@ document.addEventListener('keydown', function (e) {
     setVal("lc_pre_quali_end_date",    cfg.pre_quali_end_date   || "");
     setVal("lc_meta_leads_pre_quali",  cfg.meta_leads_pre_quali || "");
     setVal("lc_meta_investimento_pre_quali", cfg.meta_investimento_pre_quali || "");
-
-    setVal("lc_evento_start_date",     cfg.evento_start_date || "");
-    setVal("lc_evento_end_date",       cfg.evento_end_date   || "");
-    setVal("lc_meta_investimento_evento", cfg.meta_investimento_evento || "");
 
     setVal("lc_captacao_start_date",  cfg.captacao_start_date || "");
     setVal("lc_captacao_end_date",    cfg.captacao_end_date   || "");
@@ -2028,6 +2018,8 @@ document.addEventListener('keydown', function (e) {
     var ytAulas = cfg.youtube_aulas || [];
     document.getElementById("lc-yt-list").innerHTML = "";
     ytAulas.forEach(function(a){ lcAddYtAulaItem(a.id || "", a.label || ""); });
+
+    lcPopulateEtapas(cfg.etapas || []);
 
     lcUpdateBadge("lc_filtro_lancamento", "lc-badge-lancamento");
     lcUpdateBadge("lc_filtro_captacao",   "lc-badge-captacao");
@@ -2182,6 +2174,270 @@ document.addEventListener('keydown', function (e) {
     });
   });
 
+  var LC_ETAPAS_VERBA_DEFAULT = [
+    { key: "pre_qualificacao", nome: "Pré-Qualificação" },
+    { key: "captacao",         nome: "Captação" },
+  ];
+  var LC_ETAPAS_EVENTO_DEFAULT = [
+    { key: "lembrete",         nome: "Lembrete" },
+    { key: "depoimento",       nome: "Depoimento" },
+    { key: "aulas",            nome: "Aulas no Ar" },
+    { key: "replay",           nome: "Replay" },
+    { key: "matriculas",       nome: "Matrículas Abertas" },
+  ];
+
+  function lcEtapaId(key, suffix) { return "lc_etapa_" + key + "_" + suffix; }
+
+  function lcSlugify(nome) {
+    return (nome || "etapa").toLowerCase()
+      .normalize("NFD").replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "etapa";
+  }
+
+  function lcUniqueEtapaKey(nome) {
+    var base = lcSlugify(nome);
+    var key = base;
+    var i = 2;
+    while (document.getElementById(lcEtapaId(key, "start"))) {
+      key = base + "_" + i;
+      i++;
+    }
+    return key;
+  }
+
+  function lcCreateEtapaBlock(containerId, key, nome, removable) {
+    var container = document.getElementById(containerId);
+    var block = document.createElement("div");
+    block.className = "lc-section";
+    block.dataset.etapaKey = key;
+    block.dataset.etapaNome = nome;
+    block.innerHTML =
+      '<div class="lc-section-title" style="display:flex;align-items:center;justify-content:space-between">' +
+        '<span>' + nome + '</span>' +
+        (removable
+          ? '<button type="button" class="lc-icon-btn" onclick="this.closest(\'.lc-section\').remove()" title="Remover etapa"><i class="ti ti-x"></i></button>'
+          : '') +
+      '</div>' +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
+        '<div class="lc-field" style="flex:1;min-width:140px"><label>Início</label>' +
+          '<input type="date" class="lc-input" id="' + lcEtapaId(key,"start") + '"></div>' +
+        '<div class="lc-field" style="flex:1;min-width:140px"><label>Fim</label>' +
+          '<input type="date" class="lc-input" id="' + lcEtapaId(key,"end") + '"></div>' +
+        '<div class="lc-field" style="flex:1;min-width:140px"><label>Total planejado (R$)</label>' +
+          '<input type="number" step="0.01" min="0" class="lc-input" id="' + lcEtapaId(key,"total") + '"></div>' +
+      '</div>' +
+      '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--bs-muted);margin-bottom:8px">' +
+        '<input type="checkbox" id="' + lcEtapaId(key,"personalizada") + '" onchange="lcToggleEtapaCurva(\'' + key + '\')">' +
+        'Distribuição personalizada por dia (padrão: uniforme, dividido igualmente pelos dias do período)' +
+      '</label>' +
+      '<div id="' + lcEtapaId(key,"curva-wrap") + '" style="display:none;margin-bottom:10px">' +
+        '<button type="button" class="lc-add-btn" style="margin-bottom:6px" onclick="lcGerarCurvaEtapa(\'' + key + '\')">Gerar dias do período</button>' +
+        '<div id="' + lcEtapaId(key,"curva") + '" style="display:flex;flex-wrap:wrap;gap:6px"></div>' +
+        '<div style="font-size:12px;color:var(--bs-muted);margin-top:4px">Soma: <span id="' + lcEtapaId(key,"curva-soma") + '">0</span>%</div>' +
+      '</div>' +
+      '<div class="lc-section-title" style="font-size:12px;margin-top:4px">Buckets (plataforma / temperatura / aula / manual)</div>' +
+      '<div id="' + lcEtapaId(key,"buckets") + '"></div>' +
+      '<div class="lc-product-add" style="margin-top:6px">' +
+        '<input class="lc-input" type="text" id="' + lcEtapaId(key,"new-bucket-nome") + '" placeholder="Nome do bucket (ex: FB Quente, Aula 2, WhatsApp)" style="flex:2">' +
+        '<button type="button" class="lc-add-btn" onclick="lcAddEtapaBucket(\'' + key + '\')" title="Adicionar bucket"><i class="ti ti-plus"></i></button>' +
+      '</div>' +
+      '<div style="font-size:12px;color:var(--bs-muted);margin-top:4px">Soma dos buckets: <span id="' + lcEtapaId(key,"bucket-soma") + '">0</span>%</div>';
+    container.appendChild(block);
+    var curvaDiv = block.querySelector("#" + lcEtapaId(key,"curva"));
+    curvaDiv.addEventListener("input", function(){ lcUpdateCurvaSoma(key); });
+    var bucketsDiv = block.querySelector("#" + lcEtapaId(key,"buckets"));
+    bucketsDiv.addEventListener("input", function(){ lcUpdateBucketSoma(key); });
+    return block;
+  }
+
+  window.lcAddEtapaEvento = function() {
+    var inp = document.getElementById("lc-new-etapa-evento-nome");
+    var nome = (inp.value || "").trim();
+    if (!nome) return;
+    var key = lcUniqueEtapaKey(nome);
+    lcCreateEtapaBlock("lc-etapas-evento-container", key, nome, true);
+    inp.value = "";
+  };
+
+  window.lcToggleEtapaCurva = function(key) {
+    var checked = document.getElementById(lcEtapaId(key,"personalizada")).checked;
+    document.getElementById(lcEtapaId(key,"curva-wrap")).style.display = checked ? "" : "none";
+  };
+
+  function lcDateRangeDays(startStr, endStr) {
+    if (!startStr || !endStr) return 0;
+    var start = new Date(startStr + "T00:00:00");
+    var end   = new Date(endStr + "T00:00:00");
+    var diff  = Math.round((end - start) / 86400000) + 1;
+    return diff > 0 ? diff : 0;
+  }
+
+  window.lcGerarCurvaEtapa = function(key) {
+    var start = document.getElementById(lcEtapaId(key,"start")).value;
+    var end   = document.getElementById(lcEtapaId(key,"end")).value;
+    var n = lcDateRangeDays(start, end);
+    var curvaDiv = document.getElementById(lcEtapaId(key,"curva"));
+    curvaDiv.innerHTML = "";
+    if (!n) return;
+    var pct = (100 / n);
+    for (var i = 1; i <= n; i++) {
+      var wrap = document.createElement("div");
+      wrap.style.cssText = "display:flex;flex-direction:column;align-items:center;width:56px";
+      wrap.innerHTML =
+        '<label style="font-size:10px;color:var(--bs-muted)">D' + i + '</label>' +
+        '<input type="number" step="0.01" class="lc-input lc-curva-pct" value="' + pct.toFixed(2) + '" style="width:100%;padding:4px;font-size:12px">';
+      curvaDiv.appendChild(wrap);
+    }
+    lcUpdateCurvaSoma(key);
+  };
+
+  function lcUpdateCurvaSoma(key) {
+    var vals = Array.from(document.querySelectorAll("#" + lcEtapaId(key,"curva") + " .lc-curva-pct")).map(function(i){ return parseFloat(i.value) || 0; });
+    var soma = vals.reduce(function(a,b){ return a+b; }, 0);
+    var span = document.getElementById(lcEtapaId(key,"curva-soma"));
+    if (span) {
+      span.textContent = soma.toFixed(1);
+      span.style.color = Math.abs(soma - 100) > 0.5 ? "var(--bs-danger)" : "var(--bs-success)";
+    }
+  }
+
+  window.lcAddEtapaBucket = function(key) {
+    var inp = document.getElementById(lcEtapaId(key,"new-bucket-nome"));
+    var nome = (inp.value || "").trim();
+    if (!nome) return;
+    lcAddEtapaBucketRow(key, { nome: nome, pct: 0, tipo: "campanha", plataforma: "meta" });
+    inp.value = "";
+    lcUpdateBucketSoma(key);
+  };
+
+  function lcAddEtapaBucketRow(key, bucket) {
+    var list = document.getElementById(lcEtapaId(key,"buckets"));
+    var row = document.createElement("div");
+    row.className = "lc-product-row lc-bucket-row";
+    row.style.cssText = "display:flex;gap:6px;margin-bottom:6px;align-items:center;flex-wrap:wrap";
+    var tipo = bucket.tipo || "campanha";
+    var plataforma = bucket.plataforma || "meta";
+    row.innerHTML =
+      '<input class="lc-input lc-bucket-nome" type="text" value="' + (bucket.nome||"") + '" placeholder="Nome" style="flex:2;min-width:110px">' +
+      '<input class="lc-input lc-bucket-pct" type="number" step="0.01" min="0" max="100" value="' + (bucket.pct||0) + '" placeholder="%" style="width:70px">' +
+      '<select class="lc-input lc-bucket-tipo" style="width:110px" onchange="this.closest(\'.lc-bucket-row\').querySelector(\'.lc-bucket-plataforma\').style.display = this.value===\'campanha\' ? \'\' : \'none\'">' +
+        '<option value="campanha"' + (tipo==="campanha"?" selected":"") + '>Campanha</option>' +
+        '<option value="manual"'   + (tipo==="manual"  ?" selected":"") + '>Manual</option>' +
+      '</select>' +
+      '<select class="lc-input lc-bucket-plataforma" style="width:100px;' + (tipo==="campanha"?"":"display:none") + '">' +
+        '<option value="meta"'   + (plataforma==="meta"  ?" selected":"") + '>Meta</option>' +
+        '<option value="google"' + (plataforma==="google"?" selected":"") + '>Google</option>' +
+        '<option value="tiktok"' + (plataforma==="tiktok"?" selected":"") + '>TikTok</option>' +
+        '<option value="outro"'  + (plataforma==="outro" ?" selected":"") + '>Outro</option>' +
+      '</select>' +
+      '<button type="button" class="lc-icon-btn" onclick="this.closest(\'.lc-bucket-row\').remove()" title="Remover">' +
+        '<i class="ti ti-x"></i>' +
+      '</button>';
+    list.appendChild(row);
+  }
+
+  function lcUpdateBucketSoma(key) {
+    var vals = Array.from(document.querySelectorAll("#" + lcEtapaId(key,"buckets") + " .lc-bucket-pct")).map(function(i){ return parseFloat(i.value) || 0; });
+    var soma = vals.reduce(function(a,b){ return a+b; }, 0);
+    var span = document.getElementById(lcEtapaId(key,"bucket-soma"));
+    if (span) {
+      span.textContent = soma.toFixed(1);
+      span.style.color = Math.abs(soma - 100) > 0.5 ? "var(--bs-danger)" : "var(--bs-success)";
+    }
+  }
+
+  function lcFillEtapaBlock(block, cfg) {
+    var key = block.dataset.etapaKey;
+    document.getElementById(lcEtapaId(key,"start")).value = cfg.start_date || "";
+    document.getElementById(lcEtapaId(key,"end")).value   = cfg.end_date   || "";
+    document.getElementById(lcEtapaId(key,"total")).value = cfg.total != null ? cfg.total : "";
+    var personalizada = cfg.distribuicao === "personalizada";
+    document.getElementById(lcEtapaId(key,"personalizada")).checked = personalizada;
+    document.getElementById(lcEtapaId(key,"curva-wrap")).style.display = personalizada ? "" : "none";
+    var curvaDiv = document.getElementById(lcEtapaId(key,"curva"));
+    curvaDiv.innerHTML = "";
+    if (personalizada && Array.isArray(cfg.curva_pct)) {
+      cfg.curva_pct.forEach(function(pct, i){
+        var wrap = document.createElement("div");
+        wrap.style.cssText = "display:flex;flex-direction:column;align-items:center;width:56px";
+        wrap.innerHTML =
+          '<label style="font-size:10px;color:var(--bs-muted)">D' + (i+1) + '</label>' +
+          '<input type="number" step="0.01" class="lc-input lc-curva-pct" value="' + pct + '" style="width:100%;padding:4px;font-size:12px">';
+        curvaDiv.appendChild(wrap);
+      });
+    }
+    lcUpdateCurvaSoma(key);
+    var bucketsDiv = document.getElementById(lcEtapaId(key,"buckets"));
+    bucketsDiv.innerHTML = "";
+    (cfg.buckets || []).forEach(function(b){ lcAddEtapaBucketRow(key, b); });
+    lcUpdateBucketSoma(key);
+  }
+
+  function lcPopulateEtapas(etapas) {
+    etapas = etapas || [];
+    var verbaNomes = { "Pré-Qualificação": "pre_qualificacao", "Captação": "captacao" };
+
+    var verbaContainer = document.getElementById("lc-etapas-container");
+    verbaContainer.innerHTML = "";
+    LC_ETAPAS_VERBA_DEFAULT.forEach(function(et){
+      lcCreateEtapaBlock("lc-etapas-container", et.key, et.nome, false);
+    });
+
+    var eventoContainer = document.getElementById("lc-etapas-evento-container");
+    eventoContainer.innerHTML = "";
+    var eventoEtapas = etapas.filter(function(e){ return !verbaNomes[e.nome]; });
+    if (!eventoEtapas.length) {
+      LC_ETAPAS_EVENTO_DEFAULT.forEach(function(et){
+        lcCreateEtapaBlock("lc-etapas-evento-container", et.key, et.nome, true);
+      });
+    } else {
+      eventoEtapas.forEach(function(e){
+        var defaultMatch = LC_ETAPAS_EVENTO_DEFAULT.filter(function(d){ return d.nome === e.nome; })[0];
+        var key = defaultMatch ? defaultMatch.key : lcUniqueEtapaKey(e.nome);
+        lcCreateEtapaBlock("lc-etapas-evento-container", key, e.nome, true);
+      });
+    }
+
+    Array.from(verbaContainer.children).concat(Array.from(eventoContainer.children)).forEach(function(block){
+      var nome = block.dataset.etapaNome;
+      var cfg = etapas.filter(function(e){ return e.nome === nome; })[0] || {};
+      lcFillEtapaBlock(block, cfg);
+    });
+  }
+
+  function lcCollectEtapasFromContainer(containerId) {
+    return Array.from(document.querySelectorAll("#" + containerId + " > .lc-section")).map(function(block){
+      var key = block.dataset.etapaKey;
+      var nome = block.dataset.etapaNome;
+      var personalizada = document.getElementById(lcEtapaId(key,"personalizada")).checked;
+      var curvaPct = personalizada
+        ? Array.from(document.querySelectorAll("#" + lcEtapaId(key,"curva") + " .lc-curva-pct")).map(function(i){ return parseFloat(i.value) || 0; })
+        : [];
+      var buckets = Array.from(document.querySelectorAll("#" + lcEtapaId(key,"buckets") + " .lc-bucket-row")).map(function(row){
+        var tipo = row.querySelector(".lc-bucket-tipo").value;
+        return {
+          nome: row.querySelector(".lc-bucket-nome").value.trim(),
+          pct: parseFloat(row.querySelector(".lc-bucket-pct").value) || 0,
+          tipo: tipo,
+          plataforma: tipo === "campanha" ? row.querySelector(".lc-bucket-plataforma").value : null,
+        };
+      }).filter(function(b){ return b.nome; });
+      return {
+        nome: nome,
+        start_date: document.getElementById(lcEtapaId(key,"start")).value || null,
+        end_date: document.getElementById(lcEtapaId(key,"end")).value || null,
+        total: parseFloat(document.getElementById(lcEtapaId(key,"total")).value) || 0,
+        distribuicao: personalizada ? "personalizada" : "uniforme",
+        curva_pct: curvaPct,
+        buckets: buckets,
+      };
+    });
+  }
+
+  function lcCollectEtapas() {
+    return lcCollectEtapasFromContainer("lc-etapas-container").concat(lcCollectEtapasFromContainer("lc-etapas-evento-container"));
+  }
+
   window.lcSave = function() {
     var btn = document.getElementById("lc-btn-save");
     btn.textContent = "Salvando...";
@@ -2203,9 +2459,6 @@ document.addEventListener('keydown', function (e) {
       pre_quali_end_date:         v("lc_pre_quali_end_date"),
       meta_leads_pre_quali:       v("lc_meta_leads_pre_quali"),
       meta_investimento_pre_quali:v("lc_meta_investimento_pre_quali"),
-      evento_start_date:          v("lc_evento_start_date"),
-      evento_end_date:            v("lc_evento_end_date"),
-      meta_investimento_evento:   v("lc_meta_investimento_evento"),
       captacao_start_date:        v("lc_captacao_start_date"),
       captacao_end_date:          v("lc_captacao_end_date"),
       meta_leads:                 v("lc_meta_leads"),
@@ -2231,6 +2484,7 @@ document.addEventListener('keydown', function (e) {
           label: (row.querySelector(".lc-yt-label") || {}).value || "",
         };
       }).filter(function(a){ return a.id; }),
+      etapas: lcCollectEtapas(),
     };
 
     fetch("/api/launch-config/" + encodeURIComponent(_code), {

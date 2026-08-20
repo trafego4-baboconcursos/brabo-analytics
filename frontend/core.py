@@ -37,7 +37,7 @@ from frontend.database_reader import (
 from frontend.calendar_parser import parse_calendar
 from frontend.utils import _norm_text
 from frontend.formatters import fmt_brl, fmt_num, fmt_pct
-from frontend.cache import _get_cached, _set_cached, _invalidate  # noqa: E402
+from frontend.cache import _get_cached, _set_cached, _invalidate, _CACHE  # noqa: E402
 from frontend.auth import (  # noqa: E402
     BRABO_USER, BRABO_PASS, COOKIE_SECURE, ROUTE_PERMISSIONS,
     _hash_password, _verify_password,

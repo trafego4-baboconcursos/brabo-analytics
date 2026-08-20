@@ -18,6 +18,8 @@ from dotenv import load_dotenv
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_MISSED
 
+from budget_alert import rodar_alerta_orcamento
+
 BASE_DIR     = Path(__file__).parent
 ORQUESTRADOR = BASE_DIR / "run_all.py"
 INTERVALO_MINUTOS = 30
@@ -157,6 +159,18 @@ def main() -> None:
         id="etl_carga",
         name="ETL Brabo Analytics",
         next_run_time=datetime.now(),  # executa imediatamente ao iniciar
+    )
+
+    # Alerta diário de orçamento (planejado x real): roda só às 9h, não ao subir o processo
+    scheduler.add_job(
+        rodar_alerta_orcamento,
+        trigger="cron",
+        hour=9,
+        minute=0,
+        coalesce=True,
+        misfire_grace_time=1800,
+        id="alerta_orcamento",
+        name="Alerta de Orçamento Diário",
     )
 
     try:

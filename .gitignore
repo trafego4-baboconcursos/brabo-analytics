@@ -60,3 +60,4 @@ temp/
 
 # Claude Code (configurações locais)
 .claude/settings.local.json
+claude-memory-export/

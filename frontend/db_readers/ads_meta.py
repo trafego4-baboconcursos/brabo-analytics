@@ -48,6 +48,63 @@ def get_historico_ad_codes(code: str) -> set[str]:
     return vistos
 
 
+ETAPA_MAP = {
+    "pré-qualificação": "Pré-Qualificação", "pre-qualificacao": "Pré-Qualificação",
+    "pré-quali": "Pré-Qualificação", "pre-quali": "Pré-Qualificação",
+    "captação": "Captação", "captacao": "Captação", "capta": "Captação",
+    "lembrete": "Lembrete",
+    "depoimento": "Depoimento", "depoimentos": "Depoimento",
+    "replay aulas": "Replay", "replay": "Replay",  # deve vir antes de aula para [replay][aula N] → Replay
+    "aulas no ar": "Aulas no Ar", "aulas-no-ar": "Aulas no Ar",
+    "aula 1": "Aulas no Ar", "aula 2": "Aulas no Ar", "aula 3": "Aulas no Ar", "aula 4": "Aulas no Ar",
+    "matrículas abertas": "Matrículas Abertas", "matriculas abertas": "Matrículas Abertas",
+    "matrículas": "Matrículas Abertas", "matriculas": "Matrículas Abertas",
+}
+TEMPERATURA_MAP = {
+    "quente": "Quente", "frio": "Frio", "específico": "Específico", "especifico": "Específico", "lookalike": "Frio",
+}
+BUCKET_MAP = {
+    "principal": "Principal", "potencial": "Potencial", "reels": "Reels",
+    "imagem": "Imagem", "search": "Search", "p-max": "P-Max",
+    "shorts": "Shorts",
+    "novos-ads": "Novos Ads", "novos_ads": "Novos Ads",
+}
+MODIFIER_MAP = {
+    "otimizada": "otimizada", "teste": "teste",
+    "melhores-ads": "melhores ads", "new-ads": "new ads",
+}
+
+
+def _categorize_campaign(camp: str) -> tuple[str, str, str, str]:
+    camp = str(camp).lower()
+    etapa = "Outros"
+    for k, v in ETAPA_MAP.items():
+        if f"[{k}]" in camp or f"][{k}]" in camp:
+            etapa = v
+            break
+    temp = "Outros"
+    for k, v in TEMPERATURA_MAP.items():
+        if f"[{k}]" in camp:
+            temp = v
+            break
+    bucket = "Outros"
+    for k, v in BUCKET_MAP.items():
+        if f"[{k}]" in camp:
+            bucket = v
+            break
+    modifier = None
+    for k, v in MODIFIER_MAP.items():
+        if f"[{k}]" in camp:
+            modifier = v
+            break
+    seg_parts = [p for p in [temp if temp != "Outros" else None,
+                              bucket if bucket != "Outros" else None] if p]
+    segmento = " ".join(seg_parts) if seg_parts else "Outros"
+    if modifier:
+        segmento += f" ({modifier})"
+    return etapa, temp, bucket, segmento
+
+
 def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> MetaSummary | None:
     # deferred import to avoid circular dependency (read_vendas still in database_reader)
     from frontend.db_readers.sales import read_vendas  # noqa: PLC0415
@@ -87,61 +144,6 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
     df["etapa"] = "Outros"
     df["temperatura"] = "Outros"
     df["bucket"] = "Outros"
-
-    ETAPA_MAP = {
-        "pré-qualificação": "Pré-Qualificação", "pre-qualificacao": "Pré-Qualificação",
-        "pré-quali": "Pré-Qualificação", "pre-quali": "Pré-Qualificação",
-        "captação": "Captação", "captacao": "Captação", "capta": "Captação",
-        "lembrete": "Lembrete",
-        "depoimento": "Depoimento", "depoimentos": "Depoimento",
-        "replay aulas": "Replay", "replay": "Replay",  # deve vir antes de aula para [replay][aula N] → Replay
-        "aulas no ar": "Aulas no Ar", "aulas-no-ar": "Aulas no Ar",
-        "aula 1": "Aulas no Ar", "aula 2": "Aulas no Ar", "aula 3": "Aulas no Ar", "aula 4": "Aulas no Ar",
-        "matrículas abertas": "Matrículas Abertas", "matriculas abertas": "Matrículas Abertas",
-        "matrículas": "Matrículas Abertas", "matriculas": "Matrículas Abertas",
-    }
-    TEMPERATURA_MAP = {
-        "quente": "Quente", "frio": "Frio", "específico": "Específico", "especifico": "Específico", "lookalike": "Frio",
-    }
-    BUCKET_MAP = {
-        "principal": "Principal", "potencial": "Potencial", "reels": "Reels",
-        "imagem": "Imagem", "search": "Search", "p-max": "P-Max",
-        "shorts": "Shorts",
-        "novos-ads": "Novos Ads", "novos_ads": "Novos Ads",
-    }
-    MODIFIER_MAP = {
-        "otimizada": "otimizada", "teste": "teste",
-        "melhores-ads": "melhores ads", "new-ads": "new ads",
-    }
-
-    def _categorize_campaign(camp: str) -> tuple[str, str, str, str]:
-        camp = str(camp).lower()
-        etapa = "Outros"
-        for k, v in ETAPA_MAP.items():
-            if f"[{k}]" in camp or f"][{k}]" in camp:
-                etapa = v
-                break
-        temp = "Outros"
-        for k, v in TEMPERATURA_MAP.items():
-            if f"[{k}]" in camp:
-                temp = v
-                break
-        bucket = "Outros"
-        for k, v in BUCKET_MAP.items():
-            if f"[{k}]" in camp:
-                bucket = v
-                break
-        modifier = None
-        for k, v in MODIFIER_MAP.items():
-            if f"[{k}]" in camp:
-                modifier = v
-                break
-        seg_parts = [p for p in [temp if temp != "Outros" else None,
-                                  bucket if bucket != "Outros" else None] if p]
-        segmento = " ".join(seg_parts) if seg_parts else "Outros"
-        if modifier:
-            segmento += f" ({modifier})"
-        return etapa, temp, bucket, segmento
 
     df["etapa"], df["temperatura"], df["bucket"], df["segmento"] = zip(
         *df["campaign_name"].map(_categorize_campaign)

@@ -63,21 +63,19 @@
       <div class="note">
         Os dados analíticos do Supabase são indexados e mantidos em cache de memória pelo FastAPI para máxima velocidade. Se a rotina do ETL diário/horário foi executada e você deseja atualizar os relatórios na hora, clique em limpar cache.
       </div>
-      <div style="margin-top:12px;display:flex;gap:12px">
+      <div style="margin-top:12px;display:flex;gap:12px;flex-wrap:wrap">
         {% if active_code %}
-        <form action="/api/clear-cache" method="post">
-          <input type="hidden" name="launch_code" value="{{ active_code }}">
-          <button type="submit" style="background:var(--bs-warning);color:#1a1a2e;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">
-            <i class="ti ti-refresh"></i> Limpar Cache — {{ active_code }}
-          </button>
-        </form>
+        <button type="button" id="cc-btn-one" onclick="clearCache('{{ active_code }}', 'cc-btn-one')"
+          style="background:var(--bs-warning);color:#1a1a2e;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+          <i class="ti ti-refresh"></i> <span>Limpar Cache — {{ active_code }}</span>
+        </button>
         {% endif %}
-        <form action="/api/clear-cache" method="post">
-          <button type="submit" style="background:var(--bs-danger);color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">
-            <i class="ti ti-trash"></i> Limpar Todos os Caches
-          </button>
-        </form>
+        <button type="button" id="cc-btn-all" onclick="clearCache(null, 'cc-btn-all')"
+          style="background:var(--bs-danger);color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+          <i class="ti ti-trash"></i> <span>Limpar Todos os Caches</span>
+        </button>
       </div>
+      <div id="cc-log" style="display:none;margin-top:12px;background:var(--bs-surface);border:1px solid var(--bs-border);border-radius:8px;padding:12px;font-size:12px;font-family:monospace;color:var(--bs-ink-muted)"></div>
     </div>
 
     <!-- ── Gerenciar Usuários (somente admin) ── -->
@@ -273,6 +271,46 @@
 </style>
 
 <script>
+// ── Cache ───────────────────────────────────────────────
+async function clearCache(launchCode, btnId) {
+  const btn = document.getElementById(btnId);
+  const label = btn.querySelector("span");
+  const originalLabel = label.textContent;
+  const log = document.getElementById("cc-log");
+
+  btn.disabled = true;
+  btn.style.opacity = "0.7";
+  btn.style.cursor = "wait";
+  label.textContent = "Limpando...";
+  log.style.display = "block";
+  log.innerHTML = "&gt; iniciando limpeza" + (launchCode ? " de " + launchCode : " geral") + "...";
+
+  try {
+    const url = "/api/clear-cache" + (launchCode ? "?launch_code=" + encodeURIComponent(launchCode) : "");
+    const res = await fetch(url, { method: "POST" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const data = await res.json();
+    const readers = data.readers || [];
+    if (readers.length) {
+      log.innerHTML = readers.map(r => "&gt; cache limpo: " + r).join("<br>");
+    } else {
+      log.innerHTML = "&gt; nenhum cache ativo para limpar.";
+    }
+    label.textContent = "Concluído ✓";
+  } catch (err) {
+    log.innerHTML += "<br>&gt; erro: " + err.message;
+    label.textContent = "Erro";
+    alert("Erro ao limpar cache: " + err.message);
+  } finally {
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.style.opacity = "";
+      btn.style.cursor = "pointer";
+      label.textContent = originalLabel;
+    }, 2000);
+  }
+}
+
 // ── Usuários ──────────────────────────────────────────────
 async function userToggle(userId, isActive) {
   const res = await fetch(`/api/users/${userId}/toggle`, { method: 'POST' });

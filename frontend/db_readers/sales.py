@@ -725,7 +725,7 @@ def read_dia1_sales(launch: Any) -> dict:
                        THEN (data_da_transacao::timestamptz AT TIME ZONE 'America/Sao_Paulo')
                 END
               ) AS ts,
-              faturamento_liquido, valor_de_compra_sem_impostos,
+              faturamento_liquido, valor_de_compra_sem_impostos, valor_de_compra_com_impostos,
               tipo_de_cobranca, venda_feita_como,
               quantidade_de_cobrancas, quantidade_total_de_parcelas
             FROM hotmart_clean_oficial
@@ -765,11 +765,14 @@ def read_dia1_sales(launch: Any) -> dict:
                 return v if math.isfinite(v) else None
             except (ValueError, TypeError):
                 return None
+        valor_bruto = _v(row.get("valor_de_compra_com_impostos"))
         valor = _v(row.get("faturamento_liquido"))
         if valor is None:
             valor = _v(row.get("valor_de_compra_sem_impostos"))
         if valor is None:
             valor = 0.0
+        if valor_bruto is None:
+            valor_bruto = valor
         tipo = _norm_text(row.get("tipo_de_cobranca") or row.get("venda_feita_como") or "")
         try:
             cobrancas = int(row.get("quantidade_de_cobrancas") or 1)
@@ -782,14 +785,15 @@ def read_dia1_sales(launch: Any) -> dict:
         if tipo == "recuperador inteligente" and cobrancas != 1:
             return None  # ignorado, igual ao read_vendas (evita contar recorrencia)
         if tipo == "recuperador inteligente":
-            valor *= max(1, parcelas)
-        return valor
+            valor_bruto *= max(1, parcelas)
+        return valor_bruto
 
     if not hm_df.empty:
         hm_df["valor"] = hm_df.apply(_hm_valor, axis=1)
         hm_df = hm_df[hm_df["valor"].notna()]
 
     if not tmb_df.empty:
+        # TMB não expõe valor pré-comissão — usa o líquido mesmo (ver read_vendas)
         tmb_df["valor"] = pd.to_numeric(tmb_df["valor_liquido"], errors="coerce").fillna(0.0)
 
     agora = pd.Timestamp.now()

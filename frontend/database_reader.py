@@ -246,9 +246,9 @@ def read_comparativo(launch_b: "Launch", launch_a: "Launch", launch_a2: "Launch 
             ]
 
         result["hotmart_count"]   = int(vendas_sum.hotmart_vendas   if vendas_sum else 0)
-        result["hotmart_receita"] = float(vendas_sum.hotmart_receita if vendas_sum else 0.0)
+        result["hotmart_receita"] = float(vendas_sum.hotmart_receita_bruta if vendas_sum else 0.0)
         result["tmb_count"]       = int(vendas_sum.tmb_vendas       if vendas_sum else 0)
-        result["tmb_receita"]     = float(vendas_sum.tmb_receita     if vendas_sum else 0.0)
+        result["tmb_receita"]     = float(vendas_sum.tmb_receita_bruta     if vendas_sum else 0.0)
 
         # â€” Segmentos por plataforma+temperatura (Captacao) e investimento em
         # PrÃ©-QualificaÃ§Ã£o, reaproveitando o mesmo cache/janela usados pelo

@@ -37,7 +37,11 @@ def _set_cached(launch_code: str, reader: str, value: Any) -> None:
 
 
 def _invalidate(launch_code: str) -> None:
-    keys = [k for k in _CACHE if k.startswith(f"{launch_code}::")]
+    # Algumas entradas usam chave composta (ex.: comparativo, que cacheia sob
+    # "{codigo_anterior}_{codigo_atual}::comparativo") — códigos de lançamento
+    # nunca têm "_" (usam "-"), então dá pra separar com segurança e casar
+    # launch_code em qualquer posição, não só como prefixo exato da chave.
+    keys = [k for k in _CACHE if launch_code in k.split("::", 1)[0].split("_")]
     for k in keys:
         del _CACHE[k]
 

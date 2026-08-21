@@ -160,8 +160,8 @@ def _compute_debriefing_ctx(
     def _i(x): return int(x or 0)
 
     invest = _f(getattr(meta, "total_gasto", 0)) + _f(getattr(google, "total_custo", 0))
-    receita = _f(getattr(vendas, "total_receita", 0))
-    receita_bruta = _f(getattr(vendas, "total_receita_bruta", 0)) or receita
+    receita = _f(getattr(vendas, "total_receita_liquida", 0)) or _f(getattr(vendas, "total_receita", 0))
+    receita_bruta = _f(getattr(vendas, "total_receita_bruta", 0)) or _f(getattr(vendas, "total_receita", 0))
     roas = receita / invest if invest > 0 else 0.0
     roas_bruto = receita_bruta / invest if invest > 0 else 0.0
     total_vendas = _i(getattr(vendas, "total_vendas", 0))
@@ -184,8 +184,8 @@ def _compute_debriefing_ctx(
     cpl = total_spend_all / total_leads if total_leads > 0 else 0.0
 
     prev_invest = _f(getattr(prev_meta, "total_gasto", 0)) + _f(getattr(prev_google, "total_custo", 0))
-    prev_receita = _f(getattr(prev_vendas, "total_receita", 0))
-    prev_receita_bruta = _f(getattr(prev_vendas, "total_receita_bruta", 0)) or prev_receita
+    prev_receita = _f(getattr(prev_vendas, "total_receita_liquida", 0)) or _f(getattr(prev_vendas, "total_receita", 0))
+    prev_receita_bruta = _f(getattr(prev_vendas, "total_receita_bruta", 0)) or _f(getattr(prev_vendas, "total_receita", 0))
     prev_roas = prev_receita / prev_invest if prev_invest > 0 else 0.0
     prev_roas_bruto = prev_receita_bruta / prev_invest if prev_invest > 0 else 0.0
     prev_total_vendas = _i(getattr(prev_vendas, "total_vendas", 0))

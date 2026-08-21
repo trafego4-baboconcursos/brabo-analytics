@@ -74,7 +74,7 @@
                 <tr>
                   <th>Data</th>
                   <th class="th-num">Vendas</th>
-                  <th class="th-num">Faturamento Líquido</th>
+                  <th class="th-num">Faturamento</th>
                 </tr>
               </thead>
               <tbody>
@@ -111,7 +111,7 @@
           {% endfor %}
           {% set d1_v_pct = (d1_v / total_v * 100) %}
           {% set cauda_v = total_v - d1_v %}
-          {% set cauda_f = hotmart.receita_liquida - d1_f %}
+          {% set cauda_f = hotmart.receita_bruta - d1_f %}
           {% set cauda_v_pct = 100 - d1_v_pct %}
 
           <div style="margin-bottom:16px;">
@@ -260,7 +260,7 @@
                   <th>Preço da Oferta</th>
                   <th>Tipo</th>
                   <th class="th-num">Qtd</th>
-                  <th class="th-num">Faturamento Líquido</th>
+                  <th class="th-num">Faturamento</th>
                   <th class="th-num">Ticket Médio</th>
                 </tr>
               </thead>

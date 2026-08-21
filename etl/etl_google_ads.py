@@ -229,6 +229,49 @@ def fetch_report(since: str, until: str, customer_ids: list[str] | None = None) 
     return rows
 
 
+GAQL_STATUS = """
+SELECT campaign.name, campaign.status
+FROM campaign
+WHERE campaign.status != 'REMOVED'
+"""
+
+
+def fetch_campaign_status(customer_ids: list[str] | None = None) -> dict[str, str]:
+    """Retorna {campaign_name: status} (ENABLED/PAUSED) das contas informadas."""
+    customer_ids = customer_ids or [cid.strip() for cid in os.environ["GOOGLE_ADS_CUSTOMER_ID"].split(",") if cid.strip()]
+    customer_ids = [cid.replace("-", "") for cid in customer_ids]
+    login_customer_id = os.environ.get("GOOGLE_ADS_LOGIN_CUSTOMER_ID", "").replace("-", "")
+
+    headers = {
+        "Authorization":   f"Bearer {_get_access_token()}",
+        "developer-token": os.environ["GOOGLE_ADS_DEVELOPER_TOKEN"],
+        "Content-Type":    "application/json",
+    }
+    if login_customer_id:
+        headers["login-customer-id"] = login_customer_id
+
+    result: dict[str, str] = {}
+    for customer_id in customer_ids:
+        search_url = (
+            f"https://googleads.googleapis.com/{API_VERSION}"
+            f"/customers/{customer_id}/googleAds:search"
+        )
+        page_token = None
+        while True:
+            payload = {"query": GAQL_STATUS}
+            if page_token:
+                payload["pageToken"] = page_token
+            r = http_post(search_url, headers=headers, json=payload)
+            data = r.json()
+            for row in data.get("results", []):
+                camp = row.get("campaign", {})
+                result[camp.get("name")] = camp.get("status")
+            page_token = data.get("nextPageToken")
+            if not page_token:
+                break
+    return result
+
+
 def fetch_youtube_video_ids(asset_resources: set[str]) -> dict[str, str]:
     """Resolve asset resource names → youtube_video_id via query FROM asset."""
     if not asset_resources:

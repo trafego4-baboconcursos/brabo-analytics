@@ -101,6 +101,27 @@ def fetch_insights(since: str, until: str, account_ids: list[str] | None = None)
     return rows
 
 
+def fetch_campaign_status(account_ids: list[str] | None = None) -> dict[str, str]:
+    """Retorna {campaign_name: effective_status} das campanhas das contas informadas."""
+    account_ids = account_ids or [acc.strip() for acc in os.environ["META_AD_ACCOUNT_ID"].split(",") if acc.strip()]
+    token = os.environ["META_ACCESS_TOKEN"]
+
+    result: dict[str, str] = {}
+    for account_id in account_ids:
+        if not account_id.startswith("act_"):
+            account_id = f"act_{account_id}"
+        url = f"https://graph.facebook.com/{API_VERSION}/{account_id}/campaigns"
+        params = {"access_token": token, "fields": "name,effective_status", "limit": 200}
+        while url:
+            r = http_get(url, params=params)
+            data = r.json()
+            for c in data.get("data", []):
+                result[c.get("name")] = c.get("effective_status")
+            url = data.get("paging", {}).get("next")
+            params = {}
+    return result
+
+
 def _action_value(actions: list, action_type: str) -> int:
     for a in (actions or []):
         if a.get("action_type") == action_type:

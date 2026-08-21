@@ -61,3 +61,6 @@ temp/
 # Claude Code (configurações locais)
 .claude/settings.local.json
 claude-memory-export/
+
+# Estado do alerta de orçamento (runtime, não versionar)
+etl/budget_alert_state.json

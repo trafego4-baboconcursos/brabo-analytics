@@ -165,12 +165,12 @@ def main() -> None:
     scheduler.add_job(
         rodar_alerta_orcamento,
         trigger="cron",
-        hour=9,
+        hour="8,13,21",
         minute=0,
         coalesce=True,
         misfire_grace_time=1800,
         id="alerta_orcamento",
-        name="Alerta de Orçamento Diário",
+        name="Alerta de Orçamento (8h/13h/21h)",
     )
 
     try:

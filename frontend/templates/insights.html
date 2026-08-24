@@ -99,7 +99,7 @@
 
 /* Score geral */
 .ins-score-box {
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  background: linear-gradient(135deg, #1f2937 0%, #1f2330 100%);
   border-radius: var(--bs-r-xl);
   padding: 28px 32px;
   color: #fff;
@@ -163,7 +163,7 @@
   {# ── Hero ───────────────────────────────────────────────────────── #}
   <div class="ins-hero">
     <div class="ins-hero-text">
-      <h1>🎯 Relatório de Insights — {{ launch.code if launch else "Sem Lançamento" }}</h1>
+      <h1>Relatório de Insights — {{ launch.code if launch else "Sem Lançamento" }}</h1>
       <p>{{ launch.name if launch else "" }} &nbsp;|&nbsp; Análise automática baseada em dados rastreados por UTM + Active Campaign</p>
     </div>
     <div class="ins-hero-stats">
@@ -312,7 +312,7 @@
 
   {# ── Alertas automáticos ─────────────────────────────────────────── #}
   <div class="section">
-    <div class="section-title">⚡ Alertas e Diagnósticos Automáticos</div>
+    <div class="section-title">Alertas e Diagnósticos Automáticos</div>
 
     {% set has_alert = false %}
 
@@ -456,7 +456,7 @@
   <div class="ins-highlight-grid">
 
     <div class="ins-highlight-box">
-      <h3>🏆 Top 5 ADs — Mais vendas rastreadas</h3>
+      <h3>Top 5 ADs — Mais vendas rastreadas</h3>
       {% for row in rows_com_venda[:5] %}
       {% set td = drive_thumbnails.get(row.ad_code) if drive_thumbnails else None %}
       <div class="ins-rank-item">
@@ -483,7 +483,7 @@
     </div>
 
     <div class="ins-highlight-box">
-      <h3>⚠️ Top 5 ADs — Alto gasto, sem venda rastreada</h3>
+      <h3>Top 5 ADs — Alto gasto, sem venda rastreada</h3>
       {% set sem_venda_sorted = rows_sem_venda | sort(attribute='gasto', reverse=True) %}
       {% if sem_venda_sorted %}
         {% for row in sem_venda_sorted[:5] %}
@@ -518,7 +518,7 @@
   {# ── Insights de criativos ─────────────────────────────────────── #}
   {% if insights_data and insights_data.insights %}
   <div class="section">
-    <div class="section-title">🤖 Análise Automática de Criativos</div>
+    <div class="section-title">Análise Automática de Criativos</div>
     {% for txt in insights_data.insights %}
     <div class="ins-alert info" style="margin-bottom:8px">
       <div class="ins-alert-icon" style="font-size:16px">💡</div>
@@ -532,7 +532,7 @@
   {% if rows_com_venda %}
   {% set escalaveis = rows_com_venda | sort(attribute='roas', reverse=True) %}
   <div class="section">
-    <div class="section-title">🚀 Oportunidades de Escala</div>
+    <div class="section-title">Oportunidades de Escala</div>
     <div class="note">ADs com vendas rastreadas, ordenados por ROAS. Priorize escalar os com ROAS mais alto e CPL eficiente.</div>
     <div class="table-wrap" style="margin-top:12px">
       <table>
@@ -605,7 +605,7 @@
   {# ── Temperatura Meta ────────────────────────────────────────────── #}
   {% if meta and meta.por_temperatura and sales_attr and sales_attr.meta_por_temperatura %}
   <div class="section">
-    <div class="section-title">🌡️ Performance por Temperatura de Público</div>
+    <div class="section-title">Performance por Temperatura de Público</div>
     <div class="table-wrap">
       <table>
         <thead>
@@ -622,7 +622,7 @@
         </thead>
         <tbody>
           {% set total_temp = meta.por_temperatura.values()|map(attribute='gasto')|sum or 1 %}
-          {% set tc = {'Quente': '#f5576c', 'Frio': '#667eea', 'Específico': '#ff9800', 'Outros': '#9ca3af'} %}
+          {% set tc = TEMP_COLORS %}
           {% for temp, d in meta.por_temperatura.items() | sort(attribute='1.gasto', reverse=True) %}
           {% set sv = sales_attr.meta_por_temperatura.get(temp, {}) %}
           <tr>
@@ -652,7 +652,7 @@
   {# ── Distribuição por plataforma de venda ─────────────────────── #}
   {% if vendas %}
   <div class="section">
-    <div class="section-title">💳 Comercial — Distribuição de Vendas</div>
+    <div class="section-title">Comercial — Distribuição de Vendas</div>
     <div class="ins-cards" style="margin-bottom:0">
       <div class="ins-card teal">
         <div class="ins-card-head">

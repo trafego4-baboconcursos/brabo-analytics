@@ -70,7 +70,7 @@
           </thead>
           <tbody>
             {% set total_temp = google.por_temperatura.values()|map(attribute='custo')|sum or 1 %}
-            {% set tc = {'Quente': '#f5576c', 'Frio': '#667eea', 'Específico': '#ff9800', 'Outros': '#9ca3af'} %}
+            {% set tc = TEMP_COLORS %}
             {% for temp, d in google.por_temperatura.items() | sort(attribute='1.custo', reverse=True) %}
             <tr>
               <td><span class="bs-pill" style="background:{{ tc.get(temp,'#9ca3af') }}">{{ temp }}</span></td>

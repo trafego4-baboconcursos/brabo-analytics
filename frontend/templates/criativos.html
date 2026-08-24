@@ -2,7 +2,7 @@
 {% block head %}
 <style>
 /* YouTube thumbnail — exclusivo desta página */
-.yt-thumb { width:80px; height:45px; object-fit:cover; border-radius:4px; display:block; margin-bottom:4px; border:1px solid #e2e8f0; }
+.yt-thumb { width:80px; height:45px; object-fit:cover; border-radius:4px; display:block; margin-bottom:4px; border:1px solid #e5e7eb; }
 .yt-thumb-link { display:inline-block; }
 .yt-thumb-link:hover .yt-thumb { opacity:.85; }
 .criativos-table td small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -113,7 +113,7 @@
             {% set t_roas = (t_faturamento / t_gasto) if t_gasto > 0 else 0 %}
             {% set t_ctr = (t_cliques / t_impressoes * 100) if t_impressoes > 0 else 0 %}
             <tfoot>
-              <tr class="linha-resumo" style="font-weight:600;background:#f8fafc;border-top:2px solid #e2e8f0;">
+              <tr class="linha-resumo" style="font-weight:600;background:#f6f7fb;border-top:2px solid #e5e7eb;">
                 <td colspan="{{ 3 if has_thumbs else 2 }}" style="text-align:right;">Total</td>
                 <td></td>
                 <td class="numero">{{ t_gasto | brl }}</td>

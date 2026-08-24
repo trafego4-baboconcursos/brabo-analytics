@@ -92,6 +92,14 @@ templates.env.filters["num"] = fmt_num
 templates.env.filters["pct"] = fmt_pct
 templates.env.filters["br_date"] = fmt_br_date
 
+# Cores categóricas de temperatura, compartilhadas entre funil/insights/audiências
+# (antes cada template redeclarava o dict — divergiam com o tempo).
+templates.env.globals["TEMP_COLORS"] = {
+    "Quente": "#f5576c", "Frio": "#667eea",
+    "Específico": "#ff9800", "Especifico": "#ff9800",
+    "Outros": "#9ca3af",
+}
+
 # ── Cache de lançamentos ───────────────────────────────────────────────────────
 _LAUNCHES_CACHE: list[Launch] = []
 _LAUNCHES_CACHE_AT: float = 0.0

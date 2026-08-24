@@ -304,7 +304,7 @@
           <thead><tr><th>Público</th><th class="th-num">Investimento</th><th class="th-num">% Verba</th><th class="th-num">Leads</th><th class="th-num">Vendas</th><th class="th-num">Faturamento</th><th class="th-num">ROAS</th><th class="th-num">CPL</th></tr></thead>
           <tbody>
             {% set total_temp = meta.por_temperatura.values()|map(attribute='gasto')|sum or 1 %}
-            {% set tc = {'Quente': '#f5576c', 'Frio': '#667eea', 'Específico': '#ff9800', 'Especifico': '#ff9800', 'Outros': '#9ca3af'} %}
+            {% set tc = TEMP_COLORS %}
             {% for temp, d in meta.por_temperatura.items() | sort(attribute='1.gasto', reverse=True) %}
             <tr>
               <td><span class="bs-pill" style="background:{{ tc.get(temp,'#9ca3af') }}">{{ temp }}</span></td>
@@ -506,7 +506,7 @@
       {% if google_preq and google and google.total_custo > 0 and (google_preq.custo / google.total_custo * 100) > 10 %}
       <div style="border-left:4px solid #ff9800;background:#ff980018;padding:14px 16px;border-radius:4px;margin-bottom:12px"><div style="font-weight:700;color:#ff9800;margin-bottom:4px">Google Ads - Pré-Qualificação com alto % da verba</div><div style="color:#444;font-size:13px">Pré-Qualificação Google consumiu {{ (google_preq.custo / google.total_custo * 100)|round(1) }}% do investimento Google ({{ google_preq.custo|brl }}). Reavaliar orçamento se o ROAS não for rastreável.</div></div>
       {% endif %}
-      <div style="border-left:4px solid #667eea;background:#667eea18;padding:14px 16px;border-radius:4px;margin-bottom:12px"><div style="font-weight:700;color:#667eea;margin-bottom:4px">Validação V1/V2</div><div style="color:#444;font-size:13px">Esta página agora segue a hierarquia da V1. Divergências remanescentes devem ser tratadas nos readers ou nas regras comerciais de vendas.</div></div>
+      <div style="border-left:4px solid var(--bs-accent);background:var(--bs-accent-bg);padding:14px 16px;border-radius:4px;margin-bottom:12px"><div style="font-weight:700;color:var(--bs-accent);margin-bottom:4px">Validação V1/V2</div><div style="color:#444;font-size:13px">Esta página agora segue a hierarquia da V1. Divergências remanescentes devem ser tratadas nos readers ou nas regras comerciais de vendas.</div></div>
     </div>
   </div>
   <div class="footing">Gerado em tempo real | Brabo Analytics{% if launch %} &mdash; {{ launch.code }}{% endif %}</div>

@@ -161,16 +161,18 @@ def main() -> None:
         next_run_time=datetime.now(),  # executa imediatamente ao iniciar
     )
 
-    # Alerta diário de orçamento (planejado x real): roda só às 9h, não ao subir o processo
+    # Alerta de orçamento (planejado x real), 3x/dia — minute=15 propositalmente
+    # deslocado do :00/:30 do ETL horário (INTERVALO_MINUTOS) pra evitar as duas
+    # rotinas baterem nas mesmas contas do Meta/Google ao mesmo tempo (rate limit).
     scheduler.add_job(
         rodar_alerta_orcamento,
         trigger="cron",
         hour="8,13,21",
-        minute=0,
+        minute=15,
         coalesce=True,
         misfire_grace_time=1800,
         id="alerta_orcamento",
-        name="Alerta de Orçamento (8h/13h/21h)",
+        name="Alerta de Orçamento (8h15/13h15/21h15)",
     )
 
     try:

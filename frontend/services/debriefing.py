@@ -159,6 +159,12 @@ def _compute_debriefing_ctx(
     def _f(x): return float(x or 0)
     def _i(x): return int(x or 0)
 
+    # Leads e CPL consideram só a etapa de Captação — leads de campanhas de
+    # lembrete/remarketing/pré-quali distorcem o CPL real da captação. O
+    # investimento total (invest) segue sendo o lançamento inteiro.
+    def _captacao(summary) -> dict:
+        return (getattr(summary, "por_etapa", None) or {}).get("Captação") or {}
+
     invest = _f(getattr(meta, "total_gasto", 0)) + _f(getattr(google, "total_custo", 0))
     receita = _f(getattr(vendas, "total_receita_liquida", 0)) or _f(getattr(vendas, "total_receita", 0))
     receita_bruta = _f(getattr(vendas, "total_receita_bruta", 0)) or _f(getattr(vendas, "total_receita", 0))
@@ -166,12 +172,14 @@ def _compute_debriefing_ctx(
     roas_bruto = receita_bruta / invest if invest > 0 else 0.0
     total_vendas = _i(getattr(vendas, "total_vendas", 0))
     ticket = _f(getattr(vendas, "total_ticket_medio", 0))
-    meta_leads  = _i(getattr(meta,   "total_leads",    0))
-    meta_spend  = _f(getattr(meta,   "total_gasto",    0))
+    meta_capt   = _captacao(meta)
+    meta_leads  = _i(meta_capt.get("leads"))
+    meta_spend  = _f(meta_capt.get("custo"))
     meta_cpl    = meta_spend  / meta_leads  if meta_leads  > 0 else 0.0
 
-    google_leads = int(_f(getattr(google, "total_conversoes", 0)))
-    google_spend = _f(getattr(google, "total_custo", 0))
+    google_capt  = _captacao(google)
+    google_leads = int(_f(google_capt.get("conversoes")))
+    google_spend = _f(google_capt.get("custo"))
     google_cpl   = google_spend / google_leads if google_leads > 0 else 0.0
 
     # TikTok — sem integração ainda
@@ -190,14 +198,16 @@ def _compute_debriefing_ctx(
     prev_roas_bruto = prev_receita_bruta / prev_invest if prev_invest > 0 else 0.0
     prev_total_vendas = _i(getattr(prev_vendas, "total_vendas", 0))
     prev_ticket = _f(getattr(prev_vendas, "total_ticket_medio", 0))
-    prev_meta_leads   = _i(getattr(prev_meta,   "total_leads",      0))
-    prev_meta_spend   = _f(getattr(prev_meta,   "total_gasto",      0))
+    prev_meta_capt    = _captacao(prev_meta)
+    prev_meta_leads   = _i(prev_meta_capt.get("leads"))
+    prev_meta_spend   = _f(prev_meta_capt.get("custo"))
     prev_meta_cpl     = prev_meta_spend  / prev_meta_leads  if prev_meta_leads  > 0 else 0.0
-    prev_google_leads = int(_f(getattr(prev_google, "total_conversoes", 0)))
-    prev_google_spend = _f(getattr(prev_google, "total_custo", 0))
+    prev_google_capt  = _captacao(prev_google)
+    prev_google_leads = int(_f(prev_google_capt.get("conversoes")))
+    prev_google_spend = _f(prev_google_capt.get("custo"))
     prev_google_cpl   = prev_google_spend / prev_google_leads if prev_google_leads > 0 else 0.0
     prev_total_leads  = prev_meta_leads + prev_google_leads
-    prev_cpl = prev_invest / prev_total_leads if prev_total_leads > 0 else 0.0
+    prev_cpl = (prev_meta_spend + prev_google_spend) / prev_total_leads if prev_total_leads > 0 else 0.0
 
     fontes_leads = [
         {"fonte": "Meta",   "icon": "ti-brand-meta",   "color": "#1877F2",

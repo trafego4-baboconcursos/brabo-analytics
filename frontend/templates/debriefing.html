@@ -375,8 +375,8 @@
         ("ROAS Bruto",       dbf.roas_bruto,    dbf.prev_roas_bruto,    "roas"),
         ("Total Vendas",  dbf.total_vendas, dbf.prev_total_vendas, "num"),
         ("Ticket Médio",  dbf.ticket,       dbf.prev_ticket,       "brl"),
-        ("Total Leads",   dbf.total_leads,  dbf.prev_total_leads,  "num"),
-        ("CPL Total",     dbf.cpl,          dbf.prev_cpl,          "brl"),
+        ("Leads Captação", dbf.total_leads, dbf.prev_total_leads,  "num"),
+        ("CPL Captação",  dbf.cpl,          dbf.prev_cpl,          "brl"),
       ] -%}
       {% for lbl, val, pval, fmt in kpis_gerais %}
         {{ kpi_card(lbl, val, pval, fmt) }}

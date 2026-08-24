@@ -36,7 +36,7 @@ from frontend.database_reader import (
 )
 from frontend.calendar_parser import parse_calendar
 from frontend.utils import _norm_text
-from frontend.formatters import fmt_brl, fmt_num, fmt_pct
+from frontend.formatters import fmt_brl, fmt_num, fmt_pct, fmt_br_date
 from frontend.cache import _get_cached, _set_cached, _invalidate, _CACHE  # noqa: E402
 from frontend.auth import (  # noqa: E402
     BRABO_USER, BRABO_PASS, COOKIE_SECURE, ROUTE_PERMISSIONS,
@@ -89,6 +89,7 @@ templates.TemplateResponse = _compat_template_response
 templates.env.filters["brl"] = fmt_brl
 templates.env.filters["num"] = fmt_num
 templates.env.filters["pct"] = fmt_pct
+templates.env.filters["br_date"] = fmt_br_date
 
 # ── Cache de lançamentos ───────────────────────────────────────────────────────
 _LAUNCHES_CACHE: list[Launch] = []
@@ -141,7 +142,7 @@ def find_previous_launch(launch: Launch, all_launches: list[Launch]) -> Launch |
 
 # ── V1 Reports ────────────────────────────────────────────────────────────────
 V1_REPORTS = [
-    {"key": "dashboard", "label": "Dashboard / Indice", "v2_path": "/", "v1_file": "INDEX_[{code}].html", "needs": []},
+    {"key": "dashboard", "label": "Dashboard / Indice", "v2_path": "/captacao", "v1_file": "INDEX_[{code}].html", "needs": []},
     {"key": "funil", "label": "Funil", "v2_path": "/funil", "v1_file": "ANALISE_FUNIL_[{code}].html", "needs": ["meta", "google", "vendas"]},
     {"key": "meta", "label": "Meta Ads", "v2_path": "/meta", "v1_file": "ANALISE_META_ADS_[{code}].html", "needs": ["meta"]},
     {"key": "google", "label": "Google Ads", "v2_path": "/google", "v1_file": "ANALISE_GOOGLE_ADS_[{code}].html", "needs": ["google"]},

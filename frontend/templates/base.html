@@ -1040,9 +1040,13 @@ kbd {
     <!-- Navegação completa (espelho do INDEX manual) -->
     <nav class="bs-nav">
       <div class="bs-nav-group">Visão Geral</div>
-      <a class="bs-nav-link {% if page == 'dashboard' %}active{% endif %}"
+      <a class="bs-nav-link {% if page == 'index' %}active{% endif %}"
          href="{% if active_code %}/?launch_code={{ active_code }}{% else %}/{% endif %}">
-        <span class="bs-nav-icon"><i class="ti ti-home"></i></span>Dashboard
+        <span class="bs-nav-icon"><i class="ti ti-home"></i></span>Início
+      </a>
+      <a class="bs-nav-link {% if page == 'captacao' %}active{% endif %}"
+         href="/captacao{% if active_code %}?launch_code={{ active_code }}{% endif %}">
+        <span class="bs-nav-icon"><i class="ti ti-target-arrow"></i></span>Captação
       </a>
       <a class="bs-nav-link {% if page == 'calendario' %}active{% endif %}"
          href="/calendario">
@@ -1641,7 +1645,7 @@ document.addEventListener('keydown', function (e) {
 </script>
 
 <!-- ── Launch Config Modal ─────────────────────────────────────────────── -->
-<div id="lc-overlay" style="display:none" onclick="if(event.target===this)lcClose()">
+<div id="lc-overlay" style="display:none">
   <div id="lc-modal">
 
     <!-- Header -->

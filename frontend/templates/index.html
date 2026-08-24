@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="wrap">
+
+  <div class="hdr">
+    <a href="/captacao?launch_code={{ active_code }}">
+      <img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics">
+    </a>
+    <div>
+      <h1>Índice{% if launch %} — {{ launch.code }}{% endif %}</h1>
+      <p>{% if launch %}{{ launch.name }}{% endif %} | Conferência das datas e configurações cadastradas</p>
+    </div>
+  </div>
+
+  <div class="content">
+
+    {% if not launch %}
+    <div class="no-data">
+      <i class="ti ti-folder-off"></i>
+      <h3>Nenhum lançamento encontrado</h3>
+      <p>Adicione uma pasta no padrão <code>[PBB-ABR-26]</code> dentro de <code>analises/</code></p>
+    </div>
+
+    {% else %}
+
+    <div class="section">
+      <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+        <span>Identificação do Lançamento</span>
+        <button onclick="lcOpen('{{ launch.code }}')"
+          style="background:var(--bs-accent);color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+          <i class="ti ti-settings"></i> Editar Configuração
+        </button>
+      </div>
+      <div class="highlights">
+        <div class="highlight-box">
+          <h3>Lançamento</h3>
+          <div class="highlight-item"><span>Código</span><span class="value">{{ launch.code }}</span></div>
+          <div class="highlight-item"><span>Nome</span><span class="value">{{ launch.name }}</span></div>
+          <div class="highlight-item"><span>Produto</span><span class="value">{{ launch.product_name or launch.product }}</span></div>
+          <div class="highlight-item"><span>Período (dim_lancamentos)</span><span class="value">{{ launch.data_inicio | br_date }} a {{ launch.data_fim | br_date }}</span></div>
+        </div>
+        <div class="highlight-box">
+          <h3>Fontes de Dados Disponíveis</h3>
+          <div class="highlight-item"><span>Meta Ads</span><span class="value">{{ '✅' if launch.has_meta else '❌' }}</span></div>
+          <div class="highlight-item"><span>Google Ads</span><span class="value">{{ '✅' if launch.has_google else '❌' }}</span></div>
+          <div class="highlight-item"><span>Vendas (Hotmart/TMB)</span><span class="value">{{ '✅' if launch.has_vendas else '❌' }}</span></div>
+          <div class="highlight-item"><span>Active Campaign</span><span class="value">{{ '✅' if launch.has_ac else '❌' }}</span></div>
+          <div class="highlight-item"><span>Typeform</span><span class="value">{{ '✅' if launch.has_typeform else '❌' }}</span></div>
+        </div>
+      </div>
+    </div>
+
+    {% if not cfg %}
+    <div class="note warning">
+      <i class="ti ti-alert-triangle"></i>
+      Nenhuma configuração cadastrada em <code>launch_config</code> pra este lançamento ainda. Clique em "Editar Configuração" acima pra cadastrar as datas e metas.
+    </div>
+    {% else %}
+
+    <div class="section">
+      <div class="section-title">Datas por Etapa</div>
+      <div class="highlights">
+        <div class="highlight-box">
+          <h3>Captação</h3>
+          <div class="highlight-item"><span>Início</span><span class="value">{{ cfg.captacao_start_date | br_date }}</span></div>
+          <div class="highlight-item"><span>Fim</span><span class="value">{{ cfg.captacao_end_date | br_date }}</span></div>
+          <div class="highlight-item"><span>Meta de Leads</span><span class="value">{{ cfg.meta_leads | num if cfg.meta_leads else '—' }}</span></div>
+          <div class="highlight-item"><span>Meta de Investimento</span><span class="value">{{ cfg.meta_investimento_captacao | brl if cfg.meta_investimento_captacao else '—' }}</span></div>
+        </div>
+        <div class="highlight-box">
+          <h3>Pré-Qualificação</h3>
+          <div class="highlight-item"><span>Início</span><span class="value">{{ cfg.pre_quali_start_date | br_date }}</span></div>
+          <div class="highlight-item"><span>Fim</span><span class="value">{{ cfg.pre_quali_end_date | br_date }}</span></div>
+          <div class="highlight-item"><span>Meta de Leads</span><span class="value">{{ cfg.meta_leads_pre_quali | num if cfg.meta_leads_pre_quali else '—' }}</span></div>
+          <div class="highlight-item"><span>Meta de Investimento</span><span class="value">{{ cfg.meta_investimento_pre_quali | brl if cfg.meta_investimento_pre_quali else '—' }}</span></div>
+        </div>
+        <div class="highlight-box">
+          <h3>Carrinho / Vendas</h3>
+          <div class="highlight-item"><span>Abertura</span><span class="value">{{ cfg.carrinho_start_date | br_date }}</span></div>
+          <div class="highlight-item"><span>Fechamento</span><span class="value">{{ cfg.carrinho_end_date | br_date }}</span></div>
+          <div class="highlight-item"><span>Produtos Hotmart</span><span class="value">{{ cfg.hotmart_produto_ids | join(', ') if cfg.hotmart_produto_ids else '—' }}</span></div>
+          <div class="highlight-item"><span>Produtos TMB</span><span class="value">{{ cfg.tmb_produto_ids | join(', ') if cfg.tmb_produto_ids else '—' }}</span></div>
+        </div>
+        <div class="highlight-box">
+          <h3>Evento / Aulas</h3>
+          <div class="highlight-item"><span>Aulas cadastradas</span><span class="value">{{ cfg.youtube_aulas | length if cfg.youtube_aulas else 0 }}</span></div>
+          {% for aula in cfg.youtube_aulas %}
+          <div class="highlight-item"><span>{{ aula.label or aula.id }}</span><span class="value">{{ aula.id }}</span></div>
+          {% endfor %}
+          <div class="highlight-item"><span>Datas do evento</span><span class="value">ver tabela de etapas abaixo</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Tráfego</div>
+      <div class="highlights">
+        <div class="highlight-box">
+          <h3>Contas de Anúncio</h3>
+          <div class="highlight-item"><span>Meta Ads</span><span class="value">{{ cfg.meta_ad_account_ids | join(', ') if cfg.meta_ad_account_ids else '—' }}</span></div>
+          <div class="highlight-item"><span>Google Ads</span><span class="value">{{ cfg.google_ad_account_ids | join(', ') if cfg.google_ad_account_ids else '—' }}</span></div>
+        </div>
+        <div class="highlight-box">
+          <h3>Filtros de Campanha</h3>
+          <div class="highlight-item"><span>Tag do Lançamento</span><span class="value">{{ cfg.filtro_lancamento or '—' }}</span></div>
+          <div class="highlight-item"><span>Captação</span><span class="value">{{ cfg.filtro_captacao or '—' }}</span></div>
+          <div class="highlight-item"><span>Pré-Qualificação</span><span class="value">{{ cfg.filtro_pre_quali or '—' }}</span></div>
+          <div class="highlight-item"><span>Quente</span><span class="value">{{ cfg.filtro_quente or '—' }} ({{ cfg.filtro_quente_scope or '—' }})</span></div>
+          <div class="highlight-item"><span>Frio</span><span class="value">{{ cfg.filtro_frio or '—' }} ({{ cfg.filtro_frio_scope or '—' }})</span></div>
+          {% if cfg.outras_temperaturas %}
+          <div class="highlight-item"><span>Outras Temperaturas</span><span class="value">{{ cfg.outras_temperaturas | map(attribute='termo', default='') | join(', ') }}</span></div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {% if cfg.etapas %}
+    <div class="section">
+      <div class="section-title">Provisão de Verba por Etapa</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Etapa</th>
+              <th>Início</th>
+              <th>Fim</th>
+              <th class="th-num">Verba Provisionada</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for etapa in cfg.etapas %}
+            <tr>
+              <td>{{ etapa.nome or '—' }}</td>
+              <td>{{ etapa.start_date | br_date }}</td>
+              <td>{{ etapa.end_date | br_date }}</td>
+              <td class="numero">{{ (etapa.total or 0) | brl }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="section">
+      <div class="section-title">Outros</div>
+      <div class="highlights">
+        <div class="highlight-box">
+          <h3>Diversos</h3>
+          <div class="highlight-item"><span>Pasta do Drive</span><span class="value">{% if cfg.drive_folder_url %}<a href="{{ cfg.drive_folder_url }}" target="_blank" rel="noopener">Abrir</a>{% else %}—{% endif %}</span></div>
+          <div class="highlight-item"><span>Última atualização</span><span class="value">{{ cfg.updated_at | br_date }}</span></div>
+        </div>
+      </div>
+    </div>
+
+    {% endif %}
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}

@@ -28,3 +28,16 @@ def fmt_pct(value: float, decimals: int = 1) -> str:
         return f"{float(value):.{decimals}f}%"
     except (TypeError, ValueError):
         return "0%"
+
+
+def fmt_br_date(value) -> str:
+    """Converte data/datetime ou string 'YYYY-MM-DD[...]' para 'DD/MM/YYYY'."""
+    if not value:
+        return "—"
+    s = str(value)
+    date_part = s[:10]
+    parts = date_part.split("-")
+    if len(parts) == 3 and len(parts[0]) == 4:
+        y, m, d = parts
+        return f"{d}/{m}/{y}"
+    return s

@@ -19,7 +19,17 @@ router = APIRouter()
 
 
 @router.get("/", response_class=HTMLResponse)
-async def dashboard(request: Request, launch_code: str | None = None):
+async def index_page(request: Request, launch_code: str | None = None):
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    cfg = await run_in_threadpool(_launch_cfg, launch.code) if launch else {}
+
+    ctx = _base_ctx(request, "index", "Índice", launch, launches, cfg=cfg)
+    return templates.TemplateResponse("index.html", ctx)
+
+
+@router.get("/captacao", response_class=HTMLResponse)
+async def captacao(request: Request, launch_code: str | None = None):
     launches = await run_in_threadpool(get_launches)
     launch = resolve_launch(launch_code, launches)
     d = await _fetch_all_data(launch, needs_daily=True)
@@ -39,7 +49,7 @@ async def dashboard(request: Request, launch_code: str | None = None):
     valor_medio_lead = invest / leads_meta if leads_meta > 0 else 0.0
     prog_invest = min(100.0, invest / goal_invest * 100) if goal_invest > 0 else None
 
-    ctx = _base_ctx(request, "dashboard", "Dashboard", launch, launches,
+    ctx = _base_ctx(request, "captacao", "Captação", launch, launches,
         meta=meta, google=google, vendas=vendas,
         receita=receita, invest=invest, roas=roas,
         goal_leads=goal_leads, goal_invest=goal_invest,

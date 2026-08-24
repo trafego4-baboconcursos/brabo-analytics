@@ -32,7 +32,8 @@
 /* ── KPI grid ─────────────────────────────────────────────────── */
 .dbf-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(175px, 1fr));
+  /* auto-fit (não auto-fill): sem trilhas vazias — os cards esticam e ocupam a linha inteira */
+  grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
   gap: 14px; margin-bottom: 20px;
 }
 .dbf-kpi {
@@ -368,25 +369,16 @@
     {% endmacro %}
 
     <div class="dbf-kpi-grid">
-      {%- set kpis_financeiro = [
+      {%- set kpis_gerais = [
         ("Total Investido",  dbf.invest,        dbf.prev_invest,        "brl0"),
         ("Receita Bruta",    dbf.receita_bruta, dbf.prev_receita_bruta, "brl0"),
         ("ROAS Bruto",       dbf.roas_bruto,    dbf.prev_roas_bruto,    "roas"),
-        ("ROAS",             dbf.roas,          dbf.prev_roas,          "roas"),
-      ] -%}
-      {% for lbl, val, pval, fmt in kpis_financeiro %}
-        {{ kpi_card(lbl, val, pval, fmt) }}
-      {% endfor %}
-    </div>
-
-    <div class="dbf-kpi-grid">
-      {%- set kpis_volume = [
         ("Total Vendas",  dbf.total_vendas, dbf.prev_total_vendas, "num"),
         ("Ticket Médio",  dbf.ticket,       dbf.prev_ticket,       "brl"),
         ("Total Leads",   dbf.total_leads,  dbf.prev_total_leads,  "num"),
         ("CPL Total",     dbf.cpl,          dbf.prev_cpl,          "brl"),
       ] -%}
-      {% for lbl, val, pval, fmt in kpis_volume %}
+      {% for lbl, val, pval, fmt in kpis_gerais %}
         {{ kpi_card(lbl, val, pval, fmt) }}
       {% endfor %}
     </div>

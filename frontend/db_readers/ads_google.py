@@ -162,6 +162,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
                 _video_id_by_ad_name[str(ad_name)] = str(vid)
 
     agg_cols = {"campaign_name": ("campaign_name", "first"),
+                "etapa": ("etapa", "first"),
                 "custo": ("cost", "sum"), "cliques": ("clicks", "sum"),
                 "impressoes": ("impressions", "sum"), "conversions": ("conversions", "sum"),
                 "video_views": ("video_views", "sum")}
@@ -172,7 +173,12 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
     for _, r in ad_grouped.iterrows():
         name = r["ad_name"]
         camp = r["campaign_name"]
-        if "capta" not in str(camp).lower():
+        etapa = r["etapa"]
+        if etapa == "Captação":
+            target_list = summary.anuncios_por_ad
+        elif etapa == "Pré-Qualificação" and _classify_google_type(camp) == "youtube":
+            target_list = summary.preq_por_ad
+        else:
             continue
         match = re.search(r"\bAD\d+\b", name, flags=re.IGNORECASE)
         if not match:
@@ -193,7 +199,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
                     video_id = v
                     break
 
-        summary.anuncios_por_ad.append({
+        target_list.append({
             "ad_code": ad_code,
             "nome": name,
             "gasto": gasto,
@@ -211,6 +217,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
             "video_id": video_id,
         })
     summary.anuncios_por_ad = sorted(summary.anuncios_por_ad, key=lambda x: x["leads"], reverse=True)
+    summary.preq_por_ad = sorted(summary.preq_por_ad, key=lambda x: x["leads"], reverse=True)
 
     # Agrega por etapa
     etapa_grouped = df.groupby("etapa").agg(

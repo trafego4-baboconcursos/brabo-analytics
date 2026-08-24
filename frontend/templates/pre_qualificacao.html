@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="wrap">
+
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}">
+      <img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics">
+    </a>
+    <div>
+      <h1>Pré-Qualificação{% if launch %} — {{ launch.code }}{% endif %}</h1>
+      <p>{% if launch %}{{ launch.name }}{% endif %} | Performance diária por plataforma na etapa de pré-qualificação</p>
+    </div>
+  </div>
+
+  <div class="content">
+
+    {% if not launch %}
+    <div class="no-data">
+      <i class="ti ti-folder-off"></i>
+      <h3>Nenhum lançamento encontrado</h3>
+      <p>Adicione uma pasta no padrão <code>[PBB-ABR-26]</code> dentro de <code>analises/</code></p>
+    </div>
+
+    {% elif not (daily_breakdown_preq or meta_ads_preq or youtube_ads_preq) %}
+    <div class="no-data">
+      <i class="ti ti-calendar-off"></i>
+      <h3>Sem dados de pré-qualificação</h3>
+      <p>Verifique o filtro <code>filtro_pre_quali</code> e as datas configuradas no wizard de lançamento.</p>
+    </div>
+
+    {% else %}
+
+    {% macro daily_table(rows, title) %}
+    {% if rows %}
+    <div class="info-box">
+      <h2>{{ title }}</h2>
+      <div class="table-wrap" style="overflow-x:auto;">
+        <table class="table-compact" style="min-width:900px;font-size:12px;">
+          <colgroup>
+            <col style="width:70px"><col style="width:55px">
+            <col><col><col>
+            <col style="background:#1877F208"><col style="background:#1877F208"><col style="background:#1877F208">
+            <col style="background:#EA433508"><col style="background:#EA433508"><col style="background:#EA433508">
+            <col style="background:#34A85308"><col style="background:#34A85308"><col style="background:#34A85308">
+            <col style="background:#FBBC0508"><col style="background:#FBBC0508"><col style="background:#FBBC0508">
+            <col style="background:#FF6D0008"><col style="background:#FF6D0008"><col style="background:#FF6D0008">
+          </colgroup>
+          <thead>
+            <tr>
+              <th colspan="2" class="th-dark" style="text-align:center;">Data</th>
+              <th colspan="3" class="th-dark" style="text-align:center;">Geral</th>
+              <th colspan="3" class="th-meta" style="text-align:center;"><i class="ti ti-brand-meta"></i> Facebook Ads</th>
+              <th colspan="3" class="th-youtube" style="text-align:center;"><i class="ti ti-brand-youtube"></i> YouTube</th>
+              <th colspan="3" class="th-search" style="text-align:center;">GA Search</th>
+              <th colspan="3" class="th-pmax" style="text-align:center;">GA P-Max</th>
+              <th colspan="3" class="th-display" style="text-align:center;">GA Display</th>
+            </tr>
+            <tr>
+              <th class="th-dark">Dia</th>
+              <th class="th-dark">Data</th>
+              <th class="th-dark" style="text-align:right">Leads</th>
+              <th class="th-dark" style="text-align:right">CPL</th>
+              <th class="th-dark" style="text-align:right">Gasto</th>
+              <th class="th-meta" style="text-align:right">Leads</th>
+              <th class="th-meta" style="text-align:right">CPL</th>
+              <th class="th-meta" style="text-align:right">Gasto</th>
+              <th class="th-youtube" style="text-align:right">Conv.</th>
+              <th class="th-youtube" style="text-align:right">CPA</th>
+              <th class="th-youtube" style="text-align:right">Gasto</th>
+              <th class="th-search" style="text-align:right">Conv.</th>
+              <th class="th-search" style="text-align:right">CPA</th>
+              <th class="th-search" style="text-align:right">Gasto</th>
+              <th class="th-pmax" style="text-align:right">Conv.</th>
+              <th class="th-pmax" style="text-align:right">CPA</th>
+              <th class="th-pmax" style="text-align:right">Gasto</th>
+              <th class="th-display" style="text-align:right">Conv.</th>
+              <th class="th-display" style="text-align:right">CPA</th>
+              <th class="th-display" style="text-align:right">Gasto</th>
+            </tr>
+            {# Linha de totais #}
+            {% set tot = namespace(leads=0,gasto=0,ml=0,mg=0,yl=0,yg=0,sl=0,sg=0,pl=0,pg=0,dl=0,dg=0) %}
+            {% for r in rows %}
+              {% set tot.leads = tot.leads + r.total_leads %}
+              {% set tot.gasto = tot.gasto + r.total_gasto %}
+              {% set tot.ml = tot.ml + r.meta_leads %}
+              {% set tot.mg = tot.mg + r.meta_gasto %}
+              {% set tot.yl = tot.yl + r.yt_leads %}
+              {% set tot.yg = tot.yg + r.yt_gasto %}
+              {% set tot.sl = tot.sl + r.search_leads %}
+              {% set tot.sg = tot.sg + r.search_gasto %}
+              {% set tot.pl = tot.pl + r.pmax_leads %}
+              {% set tot.pg = tot.pg + r.pmax_gasto %}
+              {% set tot.dl = tot.dl + r.display_leads %}
+              {% set tot.dg = tot.dg + r.display_gasto %}
+            {% endfor %}
+            <tr style="background:#1f2937;color:#fff;font-weight:700;">
+              <td colspan="2">TOTAL</td>
+              <td style="text-align:right;">{{ tot.leads | round(0) | int | num }}</td>
+              <td style="text-align:right;">{{ (tot.gasto / tot.leads) | brl if tot.leads > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ tot.gasto | brl }}</td>
+              <td style="text-align:right;">{{ tot.ml | round(0) | int | num }}</td>
+              <td style="text-align:right;">{{ (tot.mg / tot.ml) | brl if tot.ml > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ tot.mg | brl }}</td>
+              <td style="text-align:right;">{{ tot.yl | round(0) | int | num }}</td>
+              <td style="text-align:right;">{{ (tot.yg / tot.yl) | brl if tot.yl > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ tot.yg | brl }}</td>
+              <td style="text-align:right;">{{ tot.sl | round(0) | int | num }}</td>
+              <td style="text-align:right;">{{ (tot.sg / tot.sl) | brl if tot.sl > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ tot.sg | brl }}</td>
+              <td style="text-align:right;">{{ tot.pl | round(0) | int | num }}</td>
+              <td style="text-align:right;">{{ (tot.pg / tot.pl) | brl if tot.pl > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ tot.pg | brl }}</td>
+              <td style="text-align:right;">{{ tot.dl | round(0) | int | num }}</td>
+              <td style="text-align:right;">{{ (tot.dg / tot.dl) | brl if tot.dl > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ tot.dg | brl }}</td>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rows %}
+            <tr>
+              <td class="td-bold">{{ r.weekday }}</td>
+              <td class="td-muted">{{ r.date }}</td>
+              <td style="text-align:right;">{{ r.total_leads | round(0) | int | num }}</td>
+              <td style="text-align:right;">{{ r.total_cpl | brl }}</td>
+              <td style="text-align:right;">{{ r.total_gasto | brl }}</td>
+              <td class="td-meta" style="text-align:right;">{{ r.meta_leads | round(0) | int | num }}</td>
+              <td style="text-align:right;">{{ r.meta_cpl | brl if r.meta_leads > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ r.meta_gasto | brl }}</td>
+              <td class="td-google" style="text-align:right;">{{ r.yt_leads | round(0) | int | num }}</td>
+              <td style="text-align:right;">{{ r.yt_cpl | brl if r.yt_leads > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ r.yt_gasto | brl }}</td>
+              <td class="td-success" style="text-align:right;">{{ r.search_leads | round(0) | int | num }}</td>
+              <td style="text-align:right;">{{ r.search_cpl | brl if r.search_leads > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ r.search_gasto | brl }}</td>
+              <td style="text-align:right;">{{ r.pmax_leads | round(0) | int | num }}</td>
+              <td style="text-align:right;">{{ r.pmax_cpl | brl if r.pmax_leads > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ r.pmax_gasto | brl }}</td>
+              <td style="text-align:right;">{{ r.display_leads | round(0) | int | num }}</td>
+              <td style="text-align:right;">{{ r.display_cpl | brl if r.display_leads > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ r.display_gasto | brl }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+    {% endmacro %}
+
+    {{ daily_table(daily_breakdown_preq, "📅 Performance Diária por Plataforma — Pré-Qualificação") }}
+
+    {# ── Ranking de Anúncios — Meta Ads ─────────────────────────────────── #}
+    {% if meta_ads_preq %}
+    <div class="info-box">
+      <h2><i class="ti ti-brand-meta" style="color:var(--meta-color);vertical-align:middle;margin-right:6px;"></i>Ranking de Anúncios — Meta Ads (Pré-Qualificação)</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-meta">#</th>
+              <th class="th-meta">AD Code</th>
+              <th class="th-meta">Nome do Anúncio</th>
+              <th class="th-meta">Leads</th>
+              <th class="th-meta">CPL</th>
+              <th class="th-meta">Investimento</th>
+              <th class="th-meta">CTR</th>
+              <th class="th-meta">CPM</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in meta_ads_preq %}
+            <tr class="{{ 'top3' if loop.index <= 3 else '' }}">
+              <td class="numero">{{ loop.index }}</td>
+              <td><span class="bs-pill meta">{{ a.ad_code or "–" }}</span></td>
+              <td class="td-muted" style="max-width:280px;font-size:11px;">{{ a.nome[:70] }}</td>
+              <td class="numero"><strong>{{ a.leads | num }}</strong></td>
+              <td class="numero">{{ a.cpl | brl if a.leads > 0 else "–" }}</td>
+              <td class="numero">{{ a.gasto | brl }}</td>
+              <td class="numero">{{ a.ctr | pct(2) }}</td>
+              <td class="numero">{{ a.cpm | brl }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── Ranking de Anúncios — YouTube (Google Ads) ─────────────────────── #}
+    {% if youtube_ads_preq %}
+    <div class="info-box">
+      <h2><i class="ti ti-brand-youtube" style="color:var(--yt-color);vertical-align:middle;margin-right:6px;"></i>Ranking de Anúncios — YouTube (Pré-Qualificação)</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-youtube">#</th>
+              <th class="th-youtube">AD Code</th>
+              <th class="th-youtube">Nome do Anúncio</th>
+              <th class="th-youtube">Conv.</th>
+              <th class="th-youtube">CPA</th>
+              <th class="th-youtube">Investimento</th>
+              <th class="th-youtube">CTR</th>
+              <th class="th-youtube">CPM</th>
+              <th class="th-youtube">Vídeo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in youtube_ads_preq %}
+            <tr class="{{ 'top3' if loop.index <= 3 else '' }}">
+              <td class="numero">{{ loop.index }}</td>
+              <td><span class="bs-pill youtube">{{ a.ad_code or "–" }}</span></td>
+              <td class="td-muted" style="max-width:280px;font-size:11px;">{{ a.nome[:70] }}</td>
+              <td class="numero"><strong>{{ a.leads | num }}</strong></td>
+              <td class="numero">{{ a.cpl | brl if a.leads > 0 else "–" }}</td>
+              <td class="numero">{{ a.gasto | brl }}</td>
+              <td class="numero">{{ a.ctr | pct(2) }}</td>
+              <td class="numero">{{ a.cpm | brl }}</td>
+              <td>
+                {% if a.video_id %}
+                <a href="https://www.youtube.com/watch?v={{ a.video_id }}" target="_blank" class="td-google" style="font-size:11px;text-decoration:none">
+                  <i class="ti ti-brand-youtube"></i> ver
+                </a>
+                {% else %}–{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {% endif %}{# end if launch #}
+
+  </div>{# .content #}
+  <div class="footing">
+    Gerado em tempo real | Brabo Analytics{% if launch %} — {{ launch.code }}{% endif %}
+  </div>
+</div>
+{% endblock %}

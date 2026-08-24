@@ -81,6 +81,7 @@ class MetaSummary:
     validados: list = field(default_factory=list)
     novos: list = field(default_factory=list)
     captacao_por_ad: list = field(default_factory=list)
+    preq_por_ad: list = field(default_factory=list)
     publicos: list = field(default_factory=list)
     demografia_idade: list = field(default_factory=list)
     demografia_genero: list = field(default_factory=list)
@@ -135,6 +136,7 @@ class GoogleSummary:
     demografia_idade: list = field(default_factory=list)
     demografia_genero: list = field(default_factory=list)
     anuncios_por_ad: list = field(default_factory=list)
+    preq_por_ad: list = field(default_factory=list)
     data_inicio: str = ""
     data_fim: str = ""
 

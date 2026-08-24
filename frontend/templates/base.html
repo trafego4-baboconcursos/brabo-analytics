@@ -1044,6 +1044,10 @@ kbd {
          href="{% if active_code %}/?launch_code={{ active_code }}{% else %}/{% endif %}">
         <span class="bs-nav-icon"><i class="ti ti-home"></i></span>Início
       </a>
+      <a class="bs-nav-link {% if page == 'pre_qualificacao' %}active{% endif %}"
+         href="/pre-qualificacao{% if active_code %}?launch_code={{ active_code }}{% endif %}">
+        <span class="bs-nav-icon"><i class="ti ti-list-check"></i></span>Pré-Qualificação
+      </a>
       <a class="bs-nav-link {% if page == 'captacao' %}active{% endif %}"
          href="/captacao{% if active_code %}?launch_code={{ active_code }}{% endif %}">
         <span class="bs-nav-icon"><i class="ti ti-target-arrow"></i></span>Captação

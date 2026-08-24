@@ -364,28 +364,32 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
             custo_thruplay=float(r["gasto"] / r["thruplays"]) if r["thruplays"] > 0 else 0.0
         )
 
+        ad_dict = {
+            "ad_code": ad_code,
+            "nome": c.nome,
+            "gasto": c.gasto,
+            "leads": c.leads,
+            "cpl": c.cpl,
+            "ctr": c.ctr,
+            "cpm": c.cpm,
+            "thruplays": c.thruplays,
+            "cliques": c.cliques,
+            "impressoes": c.impressoes,
+            "origem": "Meta Ads"
+        }
+
         if r["etapa"] == "Captação":
-            ad_dict = {
-                "ad_code": ad_code,
-                "nome": c.nome,
-                "gasto": c.gasto,
-                "leads": c.leads,
-                "cpl": c.cpl,
-                "ctr": c.ctr,
-                "cpm": c.cpm,
-                "thruplays": c.thruplays,
-                "cliques": c.cliques,
-                "impressoes": c.impressoes,
-                "origem": "Meta Ads"
-            }
             summary.captacao_por_ad.append(ad_dict)
 
             if ad_code and ad_code in _ad_codes_vistos_antes:
                 summary.validados.append(c)
             else:
                 summary.novos.append(c)
+        elif r["etapa"] == "Pré-Qualificação":
+            summary.preq_por_ad.append(ad_dict)
 
     summary.captacao_por_ad = sorted(summary.captacao_por_ad, key=lambda x: x["leads"], reverse=True)
+    summary.preq_por_ad = sorted(summary.preq_por_ad, key=lambda x: x["leads"], reverse=True)
     summary.validados = sorted(summary.validados, key=lambda x: x.leads, reverse=True)
     summary.novos = sorted(summary.novos, key=lambda x: x.leads, reverse=True)
 

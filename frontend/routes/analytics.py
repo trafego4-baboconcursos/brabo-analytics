@@ -62,6 +62,25 @@ async def captacao(request: Request, launch_code: str | None = None):
     return templates.TemplateResponse("dashboard.html", ctx)
 
 
+@router.get("/pre-qualificacao", response_class=HTMLResponse)
+async def pre_qualificacao(request: Request, launch_code: str | None = None):
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    d = await _fetch_all_data(launch, needs_daily=True)
+    meta, google = d["meta"], d["google"]
+    daily_breakdown_preq = d.get("daily_breakdown_preq") or []
+    meta_ads_preq = meta.preq_por_ad if meta else []
+    youtube_ads_preq = google.preq_por_ad if google else []
+
+    ctx = _base_ctx(request, "pre_qualificacao", "Pré-Qualificação", launch, launches,
+        daily_breakdown_preq=daily_breakdown_preq,
+        meta_ads_preq=meta_ads_preq,
+        youtube_ads_preq=youtube_ads_preq,
+        data_errors=d.get("_errors", []),
+    )
+    return templates.TemplateResponse("pre_qualificacao.html", ctx)
+
+
 @router.get("/funil", response_class=HTMLResponse)
 async def funil_page(request: Request, launch_code: str | None = None):
     launches = await run_in_threadpool(get_launches)

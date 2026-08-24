@@ -1131,30 +1131,6 @@ kbd {
 
       {% if not current_user or current_user.role in ['admin','analista'] %}
       <div class="bs-nav-sep"></div>
-      <div class="bs-nav-group">Versões</div>
-      <a class="bs-nav-link"
-         href="{% if active_code %}{{ request.url.path }}?launch_code={{ active_code }}{% else %}/{% endif %}">
-        <span class="bs-nav-icon"><i class="ti ti-apps"></i></span>V2 App
-      </a>
-      <a class="bs-nav-link {% if page == 'comparativo-v1-v2' %}active{% endif %}"
-         href="/comparativo-v1-v2{% if active_code %}?launch_code={{ active_code }}{% endif %}">
-        <span class="bs-nav-icon"><i class="ti ti-git-compare"></i></span>Comparar V1/V2
-      </a>
-      <a class="bs-nav-link"
-         href="/analises/index.html"
-         target="_blank">
-        <span class="bs-nav-icon"><i class="ti ti-file-analytics"></i></span>V1 &Iacute;ndice Geral
-      </a>
-      {% if v1_launch_url %}
-      <a class="bs-nav-link"
-         href="{{ v1_launch_url }}"
-         target="_blank">
-        <span class="bs-nav-icon"><i class="ti ti-external-link"></i></span>V1 Lançamento
-      </a>
-      {% endif %}{% endif %}{# fecha bloco Versões #}
-
-      {% if not current_user or current_user.role in ['admin','analista'] %}
-      <div class="bs-nav-sep"></div>
       <div class="bs-nav-group">Vendas</div>
       <a class="bs-nav-link {% if page == 'vendas' %}active{% endif %} {% if not (launch and launch.has_vendas) %}disabled{% endif %}"
          href="/vendas{% if active_code %}?launch_code={{ active_code }}{% endif %}">

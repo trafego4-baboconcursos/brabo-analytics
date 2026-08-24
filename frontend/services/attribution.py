@@ -56,8 +56,7 @@ def _extract_ad_code(value: str) -> str:
     return match.group(0).upper() if match else ""
 
 
-def _classify_google_campaign_type(campaign: str = "", source: str = "", medium: str = "", content: str = "", term: str = "", campaign_type: str = "") -> str:
-    text = _norm_text(f"{source} {medium} {campaign} {content} {term} {campaign_type}")
+def _match_google_type_tokens(text: str) -> str:
     if any(token in text for token in ["pmax", "p-max", "performance max", "performance-max"]):
         return "PMax"
     if any(token in text for token in ["display", "gdn"]):
@@ -68,7 +67,26 @@ def _classify_google_campaign_type(campaign: str = "", source: str = "", medium:
         return "YouTube"
     if "geracao de demanda" in text or "geração de demanda" in text:
         return "Geração de demanda"
-    if "[ga]" in text and any(token in text for token in ["cadastro", "capta"]):
+    return ""
+
+
+def _classify_google_campaign_type(campaign: str = "", source: str = "", medium: str = "", content: str = "", term: str = "", campaign_type: str = "") -> str:
+    # O tipo vem do NOME da campanha (convenção [search]/[p-max]/[display]).
+    # content/term carregam nomes de público ("...afinidade-personalizada-...-pesquisa-google")
+    # que NÃO indicam o tipo — só entram como fallback quando a UTM não trouxe
+    # o nome da campanha (ex.: PI-AGO-26, onde apenas o utm_term tinha a informação).
+    campaign_text = _norm_text(f"{source} {medium} {campaign} {campaign_type}")
+    tipo = _match_google_type_tokens(campaign_text)
+    if tipo:
+        return tipo
+    if "[ga]" in campaign_text and any(token in campaign_text for token in ["cadastro", "capta", "pre-qualifica"]):
+        # Campanha nomeada na convenção mas sem tag de tipo = geração de demanda.
+        return "Geração de demanda"
+    full_text = _norm_text(f"{source} {medium} {campaign} {content} {term} {campaign_type}")
+    tipo = _match_google_type_tokens(full_text)
+    if tipo:
+        return tipo
+    if "[ga]" in full_text and any(token in full_text for token in ["cadastro", "capta", "pre-qualifica"]):
         return "Geração de demanda"
     return "Google sem AD"
 
@@ -187,8 +205,9 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
                 "term": term,
             }
 
-    # Cascata para compradores sem match por e-mail: telefone, depois nome completo.
+    # Cascata para compradores sem match por e-mail: telefone.
     # Cobre casos onde o e-mail usado na compra difere do cadastrado no AC.
+    # Nome completo NÃO entra como fallback: homônimos herdariam UTM de outra pessoa.
     unmatched = buyers - buyer_utms.keys()
     if unmatched:
         def _row_score(row) -> int:
@@ -198,20 +217,10 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
         # a pontuação (_utm_score, com regex) só roda nos poucos candidatos de
         # cada comprador não batido por e-mail, nunca na tabela inteira.
         phone_groups = leads_df[leads_df["phone"] != ""].groupby("phone").groups
-        name_mask = leads_df["nome_norm"].str.contains(" ", na=False)
-        name_groups = leads_df[name_mask].groupby("nome_norm").groups
 
         for email in list(unmatched):
-            candidate_idx = None
             phone = vendas_data.phone_por_email.get(email)
-            if phone and phone in phone_groups:
-                candidate_idx = phone_groups[phone]
-            else:
-                nome = vendas_data.nome_por_email.get(email)
-                nome_norm = _norm_text(nome) if nome else ""
-                nome_norm = re.sub(r"\s+", " ", nome_norm).strip()
-                if nome_norm and " " in nome_norm and nome_norm in name_groups:
-                    candidate_idx = name_groups[nome_norm]
+            candidate_idx = phone_groups.get(phone) if phone else None
             if candidate_idx is None or len(candidate_idx) == 0:
                 continue
             best_row, best_score = None, -1
@@ -230,12 +239,30 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
                     "term": best_row["utm_term"],
                 }
 
+    # Mapa term→campanha aprendido dos próprios leads (só tráfego Google): recupera
+    # vendas de períodos com UTM quebrada, onde campanha/grupo vieram vazios e apenas
+    # o utm_term identifica o grupo de recursos (ex.: PI-AGO-26 — AD219/AD220/AD232
+    # eram grupos da p-max e AD400 da search). Voto majoritário resolve variantes
+    # URL-encoded do mesmo nome de campanha.
+    term_campaign_map: dict[str, str] = {}
+    _tc = leads_df[
+        (leads_df["utm_campaign"] != "")
+        & (leads_df["utm_term"] != "")
+        & leads_df["utm_source"].str.contains("google", case=False, na=False)
+    ]
+    if not _tc.empty:
+        _tc_counts = _tc.groupby(["utm_term", "utm_campaign"]).size()
+        for term_value, grp in _tc_counts.groupby(level=0):
+            term_campaign_map[term_value] = grp.idxmax()[1]
+
     for email, utm in buyer_utms.items():
         source = utm["source"]
         medium = utm["medium"]
         campaign = utm["campaign"]
         content = utm["content"]
         term = utm.get("term", "")
+        if not campaign and term and "google" in _norm_text(source):
+            campaign = term_campaign_map.get(term, "")
         cls = _classify_campaign(campaign, source, medium)
         receita_email = float(vendas_data.receita_por_email.get(email, 0.0))
         vendas_email = int(getattr(vendas_data, "vendas_por_email", {}).get(email, 1) or 1)

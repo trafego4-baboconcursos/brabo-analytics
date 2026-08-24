@@ -235,23 +235,35 @@ def save_launch_config(launch_code: str, config: dict) -> None:
 
 
 def get_platform_thumbnails(launch_code: str) -> dict[str, dict]:
-    """Thumbnails buscadas direto da API do Meta (tabela ad_creatives) —
-    mais estáveis que o Drive, que depende de casar nome de arquivo."""
+    """Thumbnails buscadas direto da API do Meta (tabela ad_creatives).
+    Quando os bytes estão persistidos (migration 006), serve pelo endpoint
+    local /api/meta-creative — as URLs do CDN do Facebook são assinadas e
+    expiram em poucas semanas; a URL crua fica só como fallback de transição
+    pra linhas antigas que ainda não têm bytes."""
     engine = _get_engine()
     with engine.connect() as conn:
         rows = conn.execute(
             text("""
-                SELECT ad_code, ad_name, thumbnail_url, image_url
+                SELECT ad_code, ad_name, thumbnail_url, image_url,
+                       (thumb_data IS NOT NULL) AS has_thumb,
+                       (image_data IS NOT NULL) AS has_image
                 FROM ad_creatives
                 WHERE lancamento_codigo = :code AND thumbnail_url IS NOT NULL
             """),
             {"code": launch_code},
         ).fetchall()
     thumbnails: dict[str, dict] = {}
-    for ad_code, ad_name, thumbnail_url, image_url in rows:
+    for ad_code, ad_name, thumbnail_url, image_url, has_thumb, has_image in rows:
+        thumb = f"/api/meta-creative/{launch_code}/{ad_code}/thumb" if has_thumb else thumbnail_url
+        if has_image:
+            preview = f"/api/meta-creative/{launch_code}/{ad_code}/image"
+        elif has_thumb and not image_url:
+            preview = thumb
+        else:
+            preview = image_url or thumbnail_url
         thumbnails[ad_code] = {
-            "thumb": thumbnail_url,
-            "preview": image_url or thumbnail_url,
+            "thumb": thumb,
+            "preview": preview,
             "name": ad_name,
         }
     return thumbnails

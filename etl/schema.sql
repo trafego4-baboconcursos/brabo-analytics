@@ -37,6 +37,12 @@ CREATE TABLE IF NOT EXISTS ad_creatives (
     lancamento_codigo  TEXT,
     thumbnail_url       TEXT,                   -- imagem pequena (preview em lista)
     image_url          TEXT,                   -- imagem grande (modal)
+    -- bytes persistidos no ETL: as URLs do CDN do Facebook são assinadas e
+    -- expiram — servir do banco elimina a expiração (mesma lição do Drive)
+    thumb_data         BYTEA,
+    thumb_content_type TEXT,
+    image_data         BYTEA,
+    image_content_type TEXT,
     updated_at         TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (platform, ad_code, lancamento_codigo)
 );

@@ -18,6 +18,7 @@ import re
 import pandas as pd
 from datetime import datetime, timezone
 from pathlib import Path
+import requests
 from sqlalchemy import text
 from dotenv import load_dotenv
 
@@ -447,6 +448,25 @@ def build_thumbnails_df(insights_df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(records)
 
 
+def _download_image(url: str | None) -> tuple[bytes, str] | None:
+    """Baixa a imagem enquanto a URL assinada do CDN ainda está fresca.
+    Sem retry de propósito: imagem indisponível (403/404) não volta com
+    backoff, e o retry exponencial fazia o backfill levar horas."""
+    if not url:
+        return None
+    try:
+        r = requests.get(url, timeout=20)
+        if r.status_code != 200 or not r.content:
+            return None
+        content_type = r.headers.get("Content-Type", "image/jpeg").split(";")[0]
+        if not content_type.startswith("image/"):
+            return None
+        return r.content, content_type
+    except Exception:
+        logger.debug("Falha ao baixar imagem de criativo: %s", url[:80])
+        return None
+
+
 def upsert_thumbnails(df: pd.DataFrame):
     if df.empty:
         logger.info("Nenhum criativo com código AD encontrado para thumbnails.")
@@ -456,17 +476,63 @@ def upsert_thumbnails(df: pd.DataFrame):
     df["updated_at"] = datetime.now(timezone.utc).isoformat()
     df = df.astype(object).where(df.notna(), None)
     engine = get_engine()
+
+    # As URLs do CDN do Facebook expiram — persiste os BYTES da imagem no
+    # momento do ETL (mesma lição do Drive/creative_thumbnails). Só baixa
+    # quando a linha ainda não tem bytes, pra não re-baixar tudo a cada hora.
+    with engine.connect() as conn:
+        have_bytes = {
+            (r[0], r[1], r[2])
+            for r in conn.execute(text(
+                "SELECT platform, ad_code, lancamento_codigo FROM ad_creatives WHERE thumb_data IS NOT NULL"
+            )).fetchall()
+        }
+
+    upsert_sql = text("""
+        INSERT INTO ad_creatives (platform, ad_code, ad_name, lancamento_codigo, thumbnail_url, image_url,
+                                  thumb_data, thumb_content_type, image_data, image_content_type, updated_at)
+        VALUES (:platform, :ad_code, :ad_name, :lancamento_codigo, :thumbnail_url, :image_url,
+                :thumb_data, :thumb_content_type, :image_data, :image_content_type, :updated_at)
+        ON CONFLICT (platform, ad_code, lancamento_codigo)
+        DO UPDATE SET ad_name = EXCLUDED.ad_name, thumbnail_url = EXCLUDED.thumbnail_url,
+                       image_url = EXCLUDED.image_url, updated_at = EXCLUDED.updated_at,
+                       thumb_data = COALESCE(EXCLUDED.thumb_data, ad_creatives.thumb_data),
+                       thumb_content_type = COALESCE(EXCLUDED.thumb_content_type, ad_creatives.thumb_content_type),
+                       image_data = COALESCE(EXCLUDED.image_data, ad_creatives.image_data),
+                       image_content_type = COALESCE(EXCLUDED.image_content_type, ad_creatives.image_content_type)
+    """)
+
     records = df.to_dict("records")
-    with engine.begin() as conn:
-        for rec in records:
-            conn.execute(text("""
-                INSERT INTO ad_creatives (platform, ad_code, ad_name, lancamento_codigo, thumbnail_url, image_url, updated_at)
-                VALUES (:platform, :ad_code, :ad_name, :lancamento_codigo, :thumbnail_url, :image_url, :updated_at)
-                ON CONFLICT (platform, ad_code, lancamento_codigo)
-                DO UPDATE SET ad_name = EXCLUDED.ad_name, thumbnail_url = EXCLUDED.thumbnail_url,
-                               image_url = EXCLUDED.image_url, updated_at = EXCLUDED.updated_at
-            """), rec)
-    logger.info("Thumbnails: %d criativos gravados em 'ad_creatives'", len(records))
+    baixadas = 0
+    # grava em lotes conforme baixa, pra um backfill longo interrompido não
+    # perder o progresso (os já-com-bytes são pulados na próxima rodada)
+    batch: list[dict] = []
+    def _flush():
+        if not batch:
+            return
+        with engine.begin() as conn:
+            for rec in batch:
+                conn.execute(upsert_sql, rec)
+        batch.clear()
+
+    for i, rec in enumerate(records):
+        rec["thumb_data"] = rec["thumb_content_type"] = None
+        rec["image_data"] = rec["image_content_type"] = None
+        if (rec["platform"], rec["ad_code"], rec["lancamento_codigo"]) not in have_bytes:
+            thumb = _download_image(rec.get("thumbnail_url"))
+            if thumb:
+                rec["thumb_data"], rec["thumb_content_type"] = thumb
+            image = _download_image(rec.get("image_url"))
+            if image:
+                rec["image_data"], rec["image_content_type"] = image
+            if thumb or image:
+                baixadas += 1
+        batch.append(rec)
+        if len(batch) >= 50:
+            _flush()
+            logger.info("Thumbnails: %d/%d processados (%d imagens baixadas)", i + 1, len(records), baixadas)
+    _flush()
+    logger.info("Thumbnails: %d criativos gravados em 'ad_creatives' (%d imagens baixadas)", len(records), baixadas)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

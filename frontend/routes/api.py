@@ -147,6 +147,32 @@ def api_creative_image(launch_code: str, ad_code: str):
     return _Response(content=bytes(image_data), media_type=content_type, headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 
+@router.get("/api/meta-creative/{launch_code}/{ad_code}/{kind}")
+def api_meta_creative(launch_code: str, ad_code: str, kind: str):
+    """Serve os bytes da thumbnail/imagem do Meta persistidos em ad_creatives —
+    as URLs do CDN do Facebook expiram, os bytes no banco não (ver migration 006)."""
+    from fastapi.responses import Response as _Response
+    from sqlalchemy import text as _text
+    from frontend.db import _get_engine
+
+    if kind not in ("thumb", "image"):
+        return _Response(status_code=404, content="tipo inválido")
+    col_data, col_type = (("thumb_data", "thumb_content_type") if kind == "thumb"
+                          else ("image_data", "image_content_type"))
+    with _get_engine().connect() as conn:
+        row = conn.execute(
+            _text(f"SELECT {col_type}, {col_data} FROM ad_creatives "
+                  "WHERE platform = 'meta' AND lancamento_codigo = :code AND ad_code = :ad_code "
+                  f"AND {col_data} IS NOT NULL"),
+            {"code": launch_code, "ad_code": ad_code},
+        ).fetchone()
+    if not row:
+        return _Response(status_code=404, content="imagem não encontrada")
+    content_type, image_data = row
+    return _Response(content=bytes(image_data), media_type=content_type or "image/jpeg",
+                     headers={"Cache-Control": "public, max-age=604800"})
+
+
 @router.get("/api/drive-thumb/{file_id}")
 def api_drive_thumb(file_id: str):
     from fastapi.responses import RedirectResponse as _Redirect, Response as _Response

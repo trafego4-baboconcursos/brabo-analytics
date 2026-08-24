@@ -7,6 +7,7 @@ import sys
 import io
 import re
 import os
+import threading as _threading
 import time as _time_module
 from pathlib import Path
 from fastapi import Request
@@ -94,22 +95,40 @@ templates.env.filters["br_date"] = fmt_br_date
 # ── Cache de lançamentos ───────────────────────────────────────────────────────
 _LAUNCHES_CACHE: list[Launch] = []
 _LAUNCHES_CACHE_AT: float = 0.0
-_LAUNCHES_CACHE_TTL: int = 60
+_LAUNCHES_CACHE_TTL: int = 300
 _LAUNCHES_DB_OK: bool = True
+_LAUNCHES_REFRESHING = _threading.Lock()
 
-def get_launches() -> list[Launch]:
+def _refresh_launches() -> list[Launch]:
     global _LAUNCHES_CACHE, _LAUNCHES_CACHE_AT, _LAUNCHES_DB_OK
-    now = _time_module.time()
-    if _LAUNCHES_CACHE and (now - _LAUNCHES_CACHE_AT) < _LAUNCHES_CACHE_TTL:
-        return _LAUNCHES_CACHE
     result = discover_launches(ANALISES_DIR)
     if result:
         _LAUNCHES_CACHE = result
-        _LAUNCHES_CACHE_AT = now
+        _LAUNCHES_CACHE_AT = _time_module.time()
         _LAUNCHES_DB_OK = True
     else:
         _LAUNCHES_DB_OK = False
-    return result or _LAUNCHES_CACHE
+    return result
+
+def get_launches() -> list[Launch]:
+    """Stale-while-revalidate: com cache expirado, devolve a lista antiga na hora
+    e atualiza num thread de fundo — nenhum request paga o custo do discover."""
+    now = _time_module.time()
+    if _LAUNCHES_CACHE and (now - _LAUNCHES_CACHE_AT) < _LAUNCHES_CACHE_TTL:
+        return _LAUNCHES_CACHE
+    if _LAUNCHES_CACHE:
+        if _LAUNCHES_REFRESHING.acquire(blocking=False):
+            def _bg():
+                try:
+                    _refresh_launches()
+                except Exception:
+                    logger.exception("Refresh de lançamentos em background falhou")
+                finally:
+                    _LAUNCHES_REFRESHING.release()
+            _threading.Thread(target=_bg, daemon=True).start()
+        return _LAUNCHES_CACHE
+    # cache frio (primeiro request pós-boot): não tem o que servir, computa inline
+    return _refresh_launches() or _LAUNCHES_CACHE
 
 def reset_launches_cache() -> None:
     global _LAUNCHES_CACHE_AT

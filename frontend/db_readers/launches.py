@@ -518,19 +518,32 @@ def discover_launches(analises_dir: Any = None) -> list[Launch]:
         hm_projects, tmb_projects = set(), set()
 
     query = text("""
-        SELECT
-            codigo, nome, projeto, data_inicio, data_fim,
-            EXISTS(SELECT 1 FROM meta_ads_daily WHERE lancamento_codigo = dl.codigo) AS has_meta,
-            EXISTS(SELECT 1 FROM google_ads_daily WHERE lancamento_codigo = dl.codigo) AS has_google,
-            EXISTS(SELECT 1 FROM leads WHERE lancamento_codigo = dl.codigo) AS has_ac,
-            FALSE AS has_typeform
-        FROM dim_lancamentos dl
-        ORDER BY dl.data_inicio ASC
+        SELECT codigo, nome, projeto, data_inicio, data_fim
+        FROM dim_lancamentos
+        ORDER BY data_inicio ASC
+    """)
+
+    # DISTINCT de lancamento_codigo em leads via loose index scan (CTE recursiva):
+    # com 1,2M+ linhas, tanto EXISTS por lançamento quanto SELECT DISTINCT viram
+    # scan de ~4s — a CTE faz ~1 sonda no índice por código distinto (<50ms).
+    leads_codes_sql = text("""
+        WITH RECURSIVE t AS (
+          (SELECT lancamento_codigo FROM leads ORDER BY lancamento_codigo LIMIT 1)
+          UNION ALL
+          SELECT (SELECT l.lancamento_codigo FROM leads l
+                  WHERE l.lancamento_codigo > t.lancamento_codigo
+                  ORDER BY l.lancamento_codigo LIMIT 1)
+          FROM t WHERE t.lancamento_codigo IS NOT NULL
+        )
+        SELECT lancamento_codigo FROM t WHERE lancamento_codigo IS NOT NULL
     """)
 
     try:
         with _get_engine().connect() as conn:
             result = conn.execute(query).fetchall()
+            meta_codes = {r[0] for r in conn.execute(text("SELECT DISTINCT lancamento_codigo FROM meta_ads_daily")).fetchall()}
+            google_codes = {r[0] for r in conn.execute(text("SELECT DISTINCT lancamento_codigo FROM google_ads_daily")).fetchall()}
+            ac_codes = {r[0] for r in conn.execute(leads_codes_sql).fetchall()}
             tf_form_ids_in_db: set[str] = {
                 r[0].upper()
                 for r in conn.execute(text("SELECT DISTINCT upper(form_id) FROM typeform_respostas WHERE form_id IS NOT NULL")).fetchall()
@@ -559,12 +572,12 @@ def discover_launches(analises_dir: Any = None) -> list[Launch]:
                     product=product,
                     product_name=product_name,
                     product_order=product_order,
-                    has_meta=bool(row[5]),
-                    has_google=bool(row[6]),
+                    has_meta=code in meta_codes,
+                    has_google=code in google_codes,
                     has_vendas=has_hotmart or has_tmb,
                     has_hotmart=has_hotmart,
                     has_tmb=has_tmb,
-                    has_ac=bool(row[7]),
+                    has_ac=code in ac_codes,
                     has_typeform=has_typeform,
                     project=row[2],
                     data_inicio=row[3],

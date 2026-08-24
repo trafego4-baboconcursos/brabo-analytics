@@ -28,12 +28,12 @@ def _get_cached(launch_code: str, reader: str) -> Any:
     return value
 
 
-def _set_cached(launch_code: str, reader: str, value: Any) -> None:
+def _set_cached(launch_code: str, reader: str, value: Any, ttl: int | None = None) -> None:
     if len(_CACHE) >= _CACHE_MAX_SIZE:
         sorted_keys = sorted(_CACHE, key=lambda k: _CACHE[k][1])
         for k in sorted_keys[:_CACHE_MAX_SIZE // 5]:
             del _CACHE[k]
-    _CACHE[_cache_key(launch_code, reader)] = (value, _time_module.time() + _CACHE_TTL)
+    _CACHE[_cache_key(launch_code, reader)] = (value, _time_module.time() + (ttl or _CACHE_TTL))
 
 
 def _invalidate(launch_code: str) -> list[str]:
@@ -61,15 +61,49 @@ def _lock_for(key: str) -> threading.Lock:
         return _KEY_LOCKS.setdefault(key, threading.Lock())
 
 
+# Sentinela para memorizar "compute() retornou None" — sem isso, lançamentos ainda
+# sem dados (ex: em captação, carrinho fechado) pagavam a consulta pesada em toda
+# visita, porque None nunca entrava no cache. Fica encapsulado aqui: quem usa
+# _get_cached/_set_cached direto nunca vê o sentinela.
+_NONE_RESULT = object()
+
+
+def _store(launch_code: str, reader: str, value: Any) -> None:
+    # "sem dados" expira em 10 min: quando o dado aparecer (ex: carrinho
+    # abriu, ETL upsertou), a página reflete logo, sem esperar o TTL de 1h.
+    if value is None:
+        _set_cached(launch_code, reader, _NONE_RESULT, ttl=600)
+    else:
+        _set_cached(launch_code, reader, value)
+
+
 def _get_or_compute(launch_code: str, reader: str, compute: Callable[[], Any]) -> Any:
-    value = _get_cached(launch_code, reader)
-    if value is not None:
-        return value
-    with _lock_for(_cache_key(launch_code, reader)):
-        value = _get_cached(launch_code, reader)
-        if value is not None:
-            return value
+    """Cache com single-flight e stale-while-revalidate: com a entrada expirada,
+    devolve o valor antigo na hora e recomputa num thread de fundo — nenhum
+    request paga a consulta pesada, exceto no primeiro acesso pós-boot."""
+    key = _cache_key(launch_code, reader)
+    entry = _CACHE.get(key)
+    if entry is not None:
+        value, expires_at = entry
+        if _time_module.time() <= expires_at:
+            return None if value is _NONE_RESULT else value
+        lock = _lock_for(key)
+        if lock.acquire(blocking=False):
+            def _bg():
+                try:
+                    _store(launch_code, reader, compute())
+                except Exception:
+                    from logger import get_logger  # noqa: PLC0415 — evita import na carga do módulo
+                    get_logger("cache").exception("Refresh em background falhou: %s", key)
+                finally:
+                    lock.release()
+            threading.Thread(target=_bg, daemon=True).start()
+        return None if value is _NONE_RESULT else value
+    with _lock_for(key):
+        entry = _CACHE.get(key)
+        if entry is not None:  # outro thread computou enquanto esperávamos o lock
+            value, _ = entry
+            return None if value is _NONE_RESULT else value
         value = compute()
-        if value is not None:
-            _set_cached(launch_code, reader, value)
+        _store(launch_code, reader, value)
         return value

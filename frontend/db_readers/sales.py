@@ -92,6 +92,10 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
                               ELSE confirmacao_do_pagamento::bigint END)::date
                      WHEN NULLIF(confirmacao_do_pagamento,'') IS NOT NULL THEN confirmacao_do_pagamento::timestamptz::date END
               ) BETWEEN :start AND :end
+              AND (email_do_a_comprador_a IS NULL OR (
+                  email_do_a_comprador_a NOT ILIKE '%+teste%'
+                  AND email_do_a_comprador_a NOT ILIKE '%@aprovasim.com'
+              ))
         """
         params: dict = {"project": project, "start": launch_start, "end": launch_end}
         if use_ids:
@@ -314,6 +318,10 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
                           ELSE confirmacao_do_pagamento::bigint END)::date
                  WHEN NULLIF(confirmacao_do_pagamento,'') IS NOT NULL THEN confirmacao_do_pagamento::timestamptz::date END
           ) BETWEEN :start AND :end
+          AND (email_do_a_comprador_a IS NULL OR (
+              email_do_a_comprador_a NOT ILIKE '%+teste%'
+              AND email_do_a_comprador_a NOT ILIKE '%@aprovasim.com'
+          ))
     """
     params: dict = {"project": project, "start": effective_start, "end": effective_end}
     if hotmart_ids:
@@ -751,6 +759,10 @@ def read_dia1_sales(launch: Any) -> dict:
             FROM hotmart_clean_oficial
             WHERE status_da_transacao = ANY(:status)
               AND codigo_do_produto = ANY(:product_ids)
+              AND (email_do_a_comprador_a IS NULL OR (
+                  email_do_a_comprador_a NOT ILIKE '%+teste%'
+                  AND email_do_a_comprador_a NOT ILIKE '%@aprovasim.com'
+              ))
         """
         raw = pd.read_sql(
             text(hm_sql), ops_engine,

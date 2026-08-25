@@ -75,6 +75,42 @@ MODIFIER_MAP = {
 }
 
 
+_PUBLICO_ORDEM = [
+    "Cadastrados", "Envolvimento", "Vídeo", "Lista", "Semelhante",
+    "Pág. de Captura", "Pág. de Vendas", "Advantage+", "Interesses", "Outros",
+]
+
+
+def _categorize_publico(adset: Any) -> str:
+    """Classifica o adset numa categoria de público (base do cascateamento 00-06).
+
+    Envolvimento retorna com a janela ("Envolvimento 30D") quando o nome traz
+    o sufixo de dias; as demais categorias são agregadas sem sub-janela.
+    """
+    a = str(adset or "").lower()
+    dias = re.search(r"(\d+)\s*d\b", a)
+    janela = f" {dias.group(1)}D" if dias else ""
+    if "cadastrad" in a:
+        return "Cadastrados"
+    if "envolvimento" in a or "engajamento" in a:
+        return f"Envolvimento{janela}"
+    if re.search(r"viu\s|v[íi]deo|\d+\s*%", a):
+        return "Vídeo"
+    if "lista" in a or "e-mail" in a or "email" in a or "[m]" in a or "checkout" in a:
+        return "Lista"
+    if "semelhante" in a or "lookalike" in a or "look alike" in a:
+        return "Semelhante"
+    if "captura" in a:
+        return "Pág. de Captura"
+    if "vendas" in a or "[site]" in a:
+        return "Pág. de Vendas"
+    if "advantage" in a:
+        return "Advantage+"
+    if "interesse" in a or "education" in a or "higher" in a:
+        return "Interesses"
+    return "Outros"
+
+
 def _categorize_campaign(camp: str) -> tuple[str, str, str, str]:
     camp = str(camp).lower()
     etapa = "Outros"
@@ -282,6 +318,30 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
                 "cpc": cost / clicks if clicks > 0 else 0.0,
                 "ctr": clicks / impr * 100 if impr > 0 else 0.0
             })
+
+    # Categorias de público por clima — só Captação (pauta debriefing:
+    # "Detalhamento dos públicos", ex. Quente: Envolvimento 30D/180D, Vídeo, Lista)
+    if not df_cap.empty:
+        df_pub = df_cap.copy()
+        df_pub["publico"] = df_pub["adset_name"].map(_categorize_publico)
+        pub_grouped = df_pub.groupby(["temperatura", "publico"]).agg(
+            custo=("spend", "sum"), leads=("leads", "sum"),
+            num_adsets=("adset_name", "nunique"),
+        ).reset_index()
+        for temp in pub_grouped["temperatura"].unique():
+            sub = pub_grouped[pub_grouped["temperatura"] == temp].sort_values("custo", ascending=False)
+            total_temp = sub["custo"].sum() or 1
+            summary.por_publico_captacao[temp] = [
+                {
+                    "publico": r["publico"],
+                    "gasto": float(r["custo"]),
+                    "leads": int(r["leads"]),
+                    "cpl": float(r["custo"] / r["leads"]) if r["leads"] > 0 else 0.0,
+                    "pct": float(r["custo"] / total_temp * 100),
+                    "num_adsets": int(r["num_adsets"]),
+                }
+                for _, r in sub.iterrows()
+            ]
 
     # Por dia e etapa
     dia_grouped = df.groupby(["date", "etapa"]).agg(

@@ -598,6 +598,89 @@ def read_typeform(launch_folder_or_code: Any, start_date=None, end_date=None) ->
     return summary
 
 
+_PERFIL_PERGUNTAS = [
+    ("Gênero", "genero"),
+    ("Idade", "idade"),
+    ("Situação profissional", "situacao profissional"),
+    ("Nível", "voce se considera"),
+]
+
+
+def read_perfil_por_anuncio(launch_folder_or_code: Any, top_n: int = 5) -> dict | None:
+    """Perfil do lead por anúncio (pauta debriefing): cruza os leads dos top
+    anúncios (utm_content → ADxxx) com as respostas da pesquisa por e-mail e
+    devolve a distribuição das perguntas-padrão por anúncio."""
+    code = _extract_launch_code(launch_folder_or_code)
+    engine = _get_engine()
+
+    proj_id, _ = _resolve_typeform_ids(code)
+    if not proj_id:
+        proj_id = code
+    tf_df_raw = pd.read_sql(
+        text("SELECT * FROM typeform_respostas WHERE upper(coalesce(form_id, '')) = :fid"),
+        engine, params={"fid": proj_id.upper()},
+    )
+    if tf_df_raw.empty:
+        return None
+    records = _reconstruct_tabular_df(tf_df_raw)
+    if not records:
+        return None
+    tf_df = pd.DataFrame(records).drop_duplicates("email_norm", keep="last")
+
+    # O código ADxxx do anúncio vem no utm_term (utm_content traz o adset);
+    # utm_content fica de fallback pra lançamentos antigos.
+    leads_df = pd.read_sql(
+        text("SELECT LOWER(TRIM(email)) AS email_norm, utm_term, utm_content FROM leads WHERE lancamento_codigo = :code"),
+        engine, params={"code": code},
+    )
+    if leads_df.empty:
+        return None
+    ad_term = leads_df["utm_term"].astype(str).str.extract(r"^(AD\d+)", flags=re.IGNORECASE)[0]
+    ad_content = leads_df["utm_content"].astype(str).str.extract(r"^(AD\d+)", flags=re.IGNORECASE)[0]
+    leads_df["ad_code"] = ad_term.fillna(ad_content).str.upper()
+    leads_df = leads_df.dropna(subset=["ad_code"]).drop_duplicates("email_norm")
+
+    merged = tf_df.merge(leads_df[["email_norm", "ad_code"]], on="email_norm", how="inner")
+    if merged.empty:
+        return None
+
+    leads_por_ad = leads_df["ad_code"].value_counts()
+    top_ads = merged["ad_code"].value_counts().head(top_n)
+
+    # Resolve as colunas das perguntas-padrão uma vez só
+    colunas: list[tuple[str, str]] = []
+    for label, needle in _PERFIL_PERGUNTAS:
+        pattern = re.compile(r"\b" + re.escape(needle) + r"\b")
+        for c in merged.columns:
+            if pattern.search(_norm_text(c)):
+                colunas.append((label, c))
+                break
+
+    ads = []
+    for ad_code, n_resp in top_ads.items():
+        sub = merged[merged["ad_code"] == ad_code]
+        dist: dict[str, list[dict]] = {}
+        for label, col in colunas:
+            vc = sub[col].dropna()
+            vc = vc[vc.astype(str).str.strip() != ""]
+            if vc.empty:
+                continue
+            pcts = (vc.value_counts(normalize=True) * 100).head(3)
+            dist[label] = [{"opcao": str(k), "pct": float(v)} for k, v in pcts.items()]
+        ads.append({
+            "ad_code": ad_code,
+            "leads": int(leads_por_ad.get(ad_code, 0)),
+            "respostas": int(n_resp),
+            "dist": dist,
+        })
+
+    return {
+        "perguntas": [label for label, _ in colunas],
+        "ads": ads,
+        "total_cruzado": int(len(merged)),
+    }
+
+
 def _generate_ia_insights(summary: TypeformSummary) -> list[dict]:
     insights = []
 

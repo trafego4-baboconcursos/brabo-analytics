@@ -281,6 +281,22 @@ async def debriefing(request: Request, launch_code: str | None = None):
             logger.exception("Debriefing: falha ao montar creative overview")
             creative_data_error = True
 
+    leads_antigos = None
+    if launch and vendas:
+        try:
+            from frontend.db_readers.leads import read_leads_antigos_compradores  # noqa: PLC0415
+            leads_antigos = await run_in_threadpool(read_leads_antigos_compradores, launch.code, vendas)
+        except Exception:
+            logger.exception("Debriefing: falha ao classificar leads antigos × novos")
+
+    perfil_por_anuncio = None
+    if launch:
+        try:
+            from frontend.db_readers.typeform import read_perfil_por_anuncio  # noqa: PLC0415
+            perfil_por_anuncio = await run_in_threadpool(read_perfil_por_anuncio, launch.code)
+        except Exception:
+            logger.exception("Debriefing: falha ao montar perfil do lead por anúncio")
+
     prev_meta = prev_google = prev_vendas = None
     prev_sales_attr = None
     if previous:
@@ -301,6 +317,8 @@ async def debriefing(request: Request, launch_code: str | None = None):
         youtube_aulas=youtube_aulas,
         prev_sales_attr=prev_sales_attr,
         tmb=tmb,
+        leads_antigos=leads_antigos,
+        perfil_por_anuncio=perfil_por_anuncio,
     )
 
     ctx = _base_ctx(request, "debriefing", "Debriefing", launch, launches,

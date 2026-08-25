@@ -209,6 +209,68 @@ def read_leads(launch_folder_or_code: Any, vendas: VendasSummary | None = None, 
     return summary
 
 
+def read_leads_antigos_compradores(launch_folder_or_code: Any, vendas: VendasSummary | None = None) -> dict | None:
+    """Classifica os compradores pelo histórico do contato no Active Campaign.
+
+    A tabela `leads` tem UMA linha por contato do AC (o lancamento_codigo é
+    sobrescrito no cadastro mais recente), então a distinção usa a data de
+    criação do contato contra o início do lançamento:
+
+    - novo:     contato criado a partir do início do lançamento
+    - antigo:   contato já existia na base antes do lançamento começar
+    - sem_lead: e-mail sem registro na tabela de leads
+    """
+    from frontend.db_readers.sales import read_vendas  # noqa: PLC0415 — evita import circular
+    from frontend.db_readers.launches import read_launch_config  # noqa: PLC0415
+
+    code = _extract_launch_code(launch_folder_or_code)
+    if vendas is None:
+        vendas = read_vendas(code)
+    if not vendas:
+        return None
+    buyers = {e for e in (vendas.emails_hotmart | vendas.emails_tmb) if e}
+    if not buyers:
+        return None
+
+    cfg = read_launch_config(code)
+    inicio = cfg.get("pre_quali_start_date") or cfg.get("captacao_start_date")
+    engine = _get_engine()
+    if not inicio:
+        row = pd.read_sql(
+            text("SELECT data_inicio FROM dim_lancamentos WHERE codigo = :code"),
+            engine, params={"code": code},
+        )
+        inicio = str(row.iloc[0, 0]) if not row.empty else None
+    if not inicio:
+        return None
+    inicio = str(inicio)
+
+    df = pd.read_sql(
+        text("SELECT LOWER(email) AS email, MIN(created_at) AS created_at FROM leads WHERE LOWER(email) = ANY(:emails) GROUP BY 1"),
+        engine,
+        params={"emails": [e.lower() for e in buyers]},
+    )
+    created = {r["email"]: r["created_at"] for _, r in df.iterrows()}
+
+    receita = vendas.receita_por_email or {}
+    cats = {k: {"n": 0, "receita": 0.0} for k in ("novo", "antigo", "sem_lead")}
+    for email in buyers:
+        c = created.get(email.lower())
+        if c is None or pd.isna(c):
+            cat = "sem_lead"
+        elif str(c)[:10] < inicio[:10]:
+            cat = "antigo"
+        else:
+            cat = "novo"
+        cats[cat]["n"] += 1
+        cats[cat]["receita"] += float(receita.get(email) or 0)
+
+    total = len(buyers)
+    for v in cats.values():
+        v["pct"] = v["n"] / total * 100 if total else 0.0
+    return {"total": total, "inicio": inicio[:10], **cats}
+
+
 def read_ac_campaigns(launch: Launch) -> AcCampaignSummary:
     """Busca estatísticas de campanhas de e-mail do Active Campaign filtradas por datas e keywords."""
     engine = _get_engine()

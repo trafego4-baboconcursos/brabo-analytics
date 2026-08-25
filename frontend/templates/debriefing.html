@@ -652,6 +652,89 @@
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4b. DETALHAMENTO DOS PÚBLICOS — categoria de adset (Meta)  -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-users-group"></i> Detalhamento dos Públicos — Captação (Meta)</div>
+    {% if dbf.publicos_captacao %}
+    <div class="cmp-grid-3">
+      {% for clima, pubs in dbf.publicos_captacao.items() %}
+      <div>
+        <div class="cmp-label">{{ clima }}</div>
+        <div class="table-wrap">
+          <table class="dbf-table">
+            <thead>
+              <tr>
+                <th>Público</th>
+                <th class="num">Invest.</th>
+                <th class="num">%</th>
+                <th class="num">Leads</th>
+                <th class="num">CPL</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in pubs %}
+              <tr>
+                <td>{{ p.publico }}{% if p.num_adsets > 1 %} <span class="ldt-pct">({{ p.num_adsets }} conj.)</span>{% endif %}</td>
+                <td class="num">{{ p.gasto | brl }}</td>
+                <td class="num">{{ p.pct | round(1) }}%</td>
+                <td class="num">{{ p.leads | num }}</td>
+                <td class="num">{{ p.cpl | brl if p.leads > 0 else '—' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    {{ sem_dados("Sem adsets de Captação classificáveis por público") }}
+    {% endif %}
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4c. PERFIL DO LEAD POR ANÚNCIO (TOP 5 × PESQUISA)          -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.perfil_por_anuncio and dbf.perfil_por_anuncio.ads %}
+  {% set pa = dbf.perfil_por_anuncio %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-id-badge-2"></i> Perfil do Lead por Anúncio — Top 5 × Pesquisa</div>
+    <div class="table-wrap">
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            <th>Anúncio</th>
+            <th class="num">Leads</th>
+            <th class="num">Respostas</th>
+            {% for q in pa.perguntas %}<th>{{ q }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in pa.ads %}
+          <tr>
+            <td><span class="aud-tag">{{ a.ad_code }}</span></td>
+            <td class="num">{{ a.leads | num }}</td>
+            <td class="num">{{ a.respostas | num }}</td>
+            {% for q in pa.perguntas %}
+            <td style="font-size:12px; line-height:1.5;">
+              {% for o in a.dist.get(q, []) %}
+                {{ o.opcao }} <strong>{{ o.pct | round(0) | int }}%</strong>{% if not loop.last %}<br>{% endif %}
+              {% else %}—{% endfor %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+      Cruzamento por e-mail entre leads (código do anúncio no utm_term) e as respostas da pesquisa — {{ pa.total_cruzado | num }} respostas cruzadas.
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 5. VENDAS POR PÚBLICO (atribuição UTM)                    -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <div class="dbf-section">
@@ -1041,6 +1124,36 @@
       </div>
     </div>
   </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 9b. COMPRADORES: LEAD NOVO × LEAD ANTIGO                   -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.leads_antigos %}
+  {% set la = dbf.leads_antigos %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-user-search"></i> Compradores — Lead Novo × Lead Antigo</div>
+    <div class="dbf-kpi-grid">
+      <div class="dbf-kpi">
+        <div class="lbl">Lead deste lançamento</div>
+        <div class="val">{{ la.novo.n | num }} <span class="ldt-pct">({{ la.novo.pct | round(1) }}%)</span></div>
+        <div class="lbl">{{ la.novo.receita | brl }}</div>
+      </div>
+      <div class="dbf-kpi">
+        <div class="lbl">Lead antigo (já estava na base)</div>
+        <div class="val">{{ la.antigo.n | num }} <span class="ldt-pct">({{ la.antigo.pct | round(1) }}%)</span></div>
+        <div class="lbl">{{ la.antigo.receita | brl }}</div>
+      </div>
+      <div class="dbf-kpi">
+        <div class="lbl">Sem cadastro na base</div>
+        <div class="val">{{ la.sem_lead.n | num }} <span class="ldt-pct">({{ la.sem_lead.pct | round(1) }}%)</span></div>
+        <div class="lbl">{{ la.sem_lead.receita | brl }}</div>
+      </div>
+    </div>
+    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+      "Antigo" = contato do Active Campaign criado antes de {{ la.inicio }} (início do lançamento). Cruzamento por e-mail com as vendas Hotmart/TMB.
+    </div>
+  </div>
+  {% endif %}
 
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 10. DETALHAMENTO DE VENDAS POR PAGAMENTO                  -->

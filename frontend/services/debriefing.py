@@ -155,6 +155,8 @@ def _compute_debriefing_ctx(
     youtube_aulas: Any = None,
     prev_sales_attr: Any = None,
     tmb: Any = None,
+    leads_antigos: Any = None,
+    perfil_por_anuncio: Any = None,
 ) -> dict:
     def _f(x): return float(x or 0)
     def _i(x): return int(x or 0)
@@ -390,6 +392,13 @@ def _compute_debriefing_ctx(
         "meta_segmentos": meta_segmentos, "google_segmentos": google_segmentos,
         "meta_clima": meta_clima, "google_clima": google_clima,
         "leads_detail_table": leads_detail_table,
+        # Detalhamento dos públicos (categoria de adset) por clima — Captação Meta
+        "publicos_captacao": {
+            c: v for c, v in (
+                (c, (getattr(meta, "por_publico_captacao", {}) or {}).get(c))
+                for c in _CLIMA_ORDER
+            ) if v
+        },
         "rmkt_adsets": _build_rmkt_adsets(meta),
         "prev_rmkt_adsets": _build_rmkt_adsets(prev_meta),
         # Sales por temperatura/tipo
@@ -400,4 +409,8 @@ def _compute_debriefing_ctx(
         "max_mt": max_mt, "max_gt": max_gt,
         "youtube_aulas": youtube_aulas or [],
         "max_peak_yt": max_peak_yt,
+        # Compradores × histórico de lead (novo/antigo/sem cadastro)
+        "leads_antigos": leads_antigos,
+        # Perfil do lead por anúncio (top 5 × pesquisa)
+        "perfil_por_anuncio": perfil_por_anuncio,
     }

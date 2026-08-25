@@ -17,6 +17,7 @@ no período, sem timeline de saída.
 """
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from sqlalchemy import text
@@ -57,39 +58,145 @@ def _escolhe_tabela(conn, candidatos: list[str]) -> str | None:
 _DATA_EXPR = "to_date(\"DATA1\", 'DD/MM/YYYY')"
 
 
+def _norm_phone(v: Any) -> str | None:
+    """Normaliza pra DDD + últimos 8 dígitos (ignora DDI 55 e o nono dígito),
+    permitindo casar números dos grupos (com 55, às vezes sem o 9) com os
+    telefones das vendas (11 dígitos)."""
+    s = re.sub(r"\D", "", str(v or ""))
+    if s.startswith("55") and len(s) > 11:
+        s = s[2:]
+    if len(s) < 10 or len(s) > 11:
+        return None
+    return s[:2] + s[-8:]
+
+
+def _telefones_tabela(conn, tabela: str) -> set[str]:
+    rows = conn.execute(text(f'SELECT DISTINCT "NÚMERO" FROM "{tabela}"')).fetchall()
+    out: set[str] = set()
+    for r in rows:
+        p = _norm_phone(r[0])
+        if p:
+            out.add(p)
+    return out
+
+
+def _compradores_grupos(conn, t_normal: str | None, t_vip: str | None, code: str) -> dict | None:
+    """Cruza compradores (Hotmart+TMB, por telefone) com presença nos grupos."""
+    from frontend.db_readers.sales import read_vendas  # noqa: PLC0415 — evita import circular
+
+    vendas = read_vendas(code)
+    if not vendas:
+        return None
+    buyers = vendas.emails_hotmart | vendas.emails_tmb
+    if not buyers:
+        return None
+
+    phone_por_email = vendas.phone_por_email or {}
+    receita_por_email = vendas.receita_por_email or {}
+
+    fones_normal = _telefones_tabela(conn, t_normal) if t_normal else set()
+    fones_vip = _telefones_tabela(conn, t_vip) if t_vip else set()
+    fones_grupos = fones_normal | fones_vip
+
+    dentro = dentro_vip = dentro_normal = fora = sem_tel = 0
+    receita_dentro = receita_fora = 0.0
+    for email in buyers:
+        p = _norm_phone(phone_por_email.get(email))
+        receita = float(receita_por_email.get(email) or 0)
+        if p is None:
+            sem_tel += 1
+            continue
+        if p in fones_grupos:
+            dentro += 1
+            receita_dentro += receita
+            if p in fones_vip:
+                dentro_vip += 1
+            if p in fones_normal:
+                dentro_normal += 1
+        else:
+            fora += 1
+            receita_fora += receita
+
+    com_tel = dentro + fora
+    return {
+        "total": len(buyers),
+        "com_telefone": com_tel,
+        "sem_telefone": sem_tel,
+        "dentro": dentro,
+        "dentro_normal": dentro_normal,
+        "dentro_vip": dentro_vip,
+        "fora": fora,
+        "pct_dentro": (dentro / com_tel * 100) if com_tel else 0.0,
+        "receita_dentro": receita_dentro,
+        "receita_fora": receita_fora,
+    }
+
+
 def _resumo_tabela(conn, tabela: str, start, end, tem_lead_numero: bool) -> dict:
-    """Agrega tudo em SQL — as tabelas têm centenas de milhares de linhas."""
-    where = f"WHERE {_DATA_EXPR} BETWEEN :start AND :end"
+    """Agrega tudo em SQL — as tabelas têm centenas de milhares de linhas.
+
+    SEMPRE deduplicado por telefone: as tabelas novas (_API) já têm uma linha
+    por pessoa, mas várias antigas guardam uma linha por (pessoa, grupo) —
+    ex: PBB_ABR_26 tem 20k linhas repetidas. Pessoa em N grupos conta 1 vez;
+    "ativa" se estiver ativa em pelo menos um grupo; a data considerada é a
+    da PRIMEIRA entrada.
+    """
     params = {"start": start, "end": end}
+    # uma linha por pessoa: primeira entrada, ativa em algum grupo, nº de grupos
+    dedup = f'''
+        SELECT "NÚMERO"::text                        AS fone,
+               MIN({_DATA_EXPR})                     AS dia,
+               MAX("LEAD ÚNICO")                     AS ativo,
+               COUNT(DISTINCT "GRUPO DA CAMPANHA")   AS n_grupos
+        FROM "{tabela}"
+        GROUP BY 1
+    '''
+    where = "WHERE dia BETWEEN :start AND :end"
 
     tot = conn.execute(text(f'''
-        SELECT COUNT(*)                                 AS entradas,
-               COALESCE(SUM("LEAD ÚNICO"), 0)           AS ativos,
-               COUNT(*) - COALESCE(SUM("LEAD ÚNICO"),0) AS saidas,
-               COUNT(DISTINCT "GRUPO DA CAMPANHA")      AS grupos
-        FROM "{tabela}" {where}
+        SELECT COUNT(*)                          AS entradas,
+               COALESCE(SUM(ativo), 0)           AS ativos,
+               COUNT(*) - COALESCE(SUM(ativo),0) AS saidas,
+               COUNT(*) FILTER (WHERE n_grupos >= 2) AS multi
+        FROM ({dedup}) d {where}
     '''), params).fetchone()
 
-    multi_grupo = 0
+    n_grupos_total = conn.execute(text(f'''
+        SELECT COUNT(DISTINCT "GRUPO DA CAMPANHA") FROM "{tabela}"
+        WHERE {_DATA_EXPR} BETWEEN :start AND :end
+    '''), params).fetchone()[0]
+
+    # "em 2+ grupos": nas tabelas antigas sai das linhas repetidas (n_grupos);
+    # nas novas (1 linha/pessoa) só o campo LEAD NÚMERO carrega essa informação
+    multi_grupo = int(tot[3] or 0)
     if tem_lead_numero:
-        multi_grupo = conn.execute(text(f'''
-            SELECT COUNT(*) FROM "{tabela}" {where} AND "LEAD NÚMERO" >= 2
+        via_campo = conn.execute(text(f'''
+            SELECT COUNT(*) FROM "{tabela}"
+            WHERE {_DATA_EXPR} BETWEEN :start AND :end AND "LEAD NÚMERO" >= 2
         '''), params).fetchone()[0]
+        multi_grupo = max(multi_grupo, int(via_campo or 0))
 
     timeline = conn.execute(text(f'''
-        SELECT {_DATA_EXPR} AS dia,
+        SELECT dia,
                COUNT(*) AS entradas,
-               COUNT(*) - COALESCE(SUM("LEAD ÚNICO"),0) AS saidas
-        FROM "{tabela}" {where}
+               COUNT(*) - COALESCE(SUM(ativo),0) AS saidas
+        FROM ({dedup}) d {where}
         GROUP BY 1 ORDER BY 1
     '''), params).fetchall()
 
+    # por grupo: deduplicado por (grupo, pessoa) — pessoa em 2 grupos conta
+    # 1x em cada grupo (a soma dos grupos pode exceder o total geral)
     grupos = conn.execute(text(f'''
-        SELECT "GRUPO DA CAMPANHA" AS grupo,
+        SELECT grupo,
                COUNT(*) AS entradas,
-               COALESCE(SUM("LEAD ÚNICO"),0) AS ativos,
-               COUNT(*) - COALESCE(SUM("LEAD ÚNICO"),0) AS saidas
-        FROM "{tabela}" {where}
+               COALESCE(SUM(ativo),0) AS ativos,
+               COUNT(*) - COALESCE(SUM(ativo),0) AS saidas
+        FROM (
+            SELECT "GRUPO DA CAMPANHA" AS grupo, "NÚMERO"::text AS fone,
+                   MIN({_DATA_EXPR}) AS dia, MAX("LEAD ÚNICO") AS ativo
+            FROM "{tabela}"
+            GROUP BY 1, 2
+        ) g {where}
         GROUP BY 1 ORDER BY 2 DESC
     '''), params).fetchall()
 
@@ -101,9 +208,9 @@ def _resumo_tabela(conn, tabela: str, start, end, tem_lead_numero: bool) -> dict
         "ativos": ativos,
         "saidas": saidas,
         "churn_pct": (saidas / entradas * 100) if entradas else 0.0,
-        "grupos": int(tot[3] or 0),
-        "media_por_grupo": (ativos / int(tot[3])) if tot[3] else 0.0,
-        "multi_grupo": int(multi_grupo or 0),
+        "grupos": int(n_grupos_total or 0),
+        "media_por_grupo": (ativos / int(n_grupos_total)) if n_grupos_total else 0.0,
+        "multi_grupo": multi_grupo,
         "timeline": [
             {"data": r[0].strftime("%Y-%m-%d"), "data_str": r[0].strftime("%d/%m"),
              "entradas": int(r[1]), "saidas": int(r[2])}
@@ -167,12 +274,19 @@ def _read_whatsapp_uncached(code: str, start_date=None, end_date=None) -> dict |
                 JOIN "{t_vip}" b ON a."NÚMERO"::text = b."NÚMERO"::text
             ''')).fetchone()[0]
 
+        try:
+            compradores = _compradores_grupos(conn, t_normal, t_vip, code)
+        except Exception:
+            logger.exception("compradores_grupos: falha para %s", code)
+            compradores = None
+
     return {
         "start": str(start),
         "end": str(end),
         "normal": normal,
         "vip": vip,
         "overlap_vip": int(overlap or 0),
+        "compradores": compradores,
     }
 
 

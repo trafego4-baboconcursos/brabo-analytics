@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+  <h1>💬 Grupos de WhatsApp</h1>
+  <p>Entradas e saídas dos grupos (normal e VIP) da pré-qualificação até o fechamento do carrinho.</p>
+</div>
+
+{% if not wa %}
+  <div class="note warning">Nenhuma tabela de grupos de WhatsApp encontrada para este lançamento
+    (esperado: <code>{{ (launch.code if launch else '')|replace('-','_') }}_API</code> e/ou
+    <code>{{ (launch.code if launch else '')|replace('-','_') }}_VIP_API</code> no banco analytics).</div>
+{% else %}
+
+  <div class="note info">Período monitorado: <strong>{{ wa.start }}</strong> até <strong>{{ wa.end }}</strong>
+    (pré-quali → fechamento do carrinho). "Saíram" = pessoas que entraram no período e já não estão mais no grupo
+    — a automação não registra a data de saída, só o estado atual.</div>
+
+  {% for tipo, dados in [("Grupos Normais", wa.normal), ("Grupos VIP", wa.vip)] %}
+  {% if dados %}
+  <div class="section">
+    <div class="section-title">{{ tipo }}</div>
+    <div class="tp-kpi-grid">
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-user-plus"></i></div></div>
+        <div class="tp-value">{{ dados.entradas | num }}</div>
+        <div class="tp-label">Entraram</div>
+        <div class="tp-compare">no período</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-users"></i></div></div>
+        <div class="tp-value">{{ dados.ativos | num }}</div>
+        <div class="tp-label">Ativos agora</div>
+        <div class="tp-compare">continuam no grupo</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon danger"><i class="ti ti-user-minus"></i></div></div>
+        <div class="tp-value negativo">{{ dados.saidas | num }}</div>
+        <div class="tp-label">Saíram</div>
+        <div class="tp-compare">{{ dados.churn_pct | pct }} de churn</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-users-group"></i></div></div>
+        <div class="tp-value">{{ dados.grupos | num }}</div>
+        <div class="tp-label">Grupos</div>
+        <div class="tp-compare">{{ dados.media_por_grupo | num }} ativos/grupo</div>
+      </div>
+      {% if dados.multi_grupo %}
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon warning"><i class="ti ti-copy"></i></div></div>
+        <div class="tp-value">{{ dados.multi_grupo | num }}</div>
+        <div class="tp-label">Em 2+ grupos</div>
+        <div class="tp-compare">mesma pessoa em vários grupos</div>
+      </div>
+      {% endif %}
+      {% if tipo == "Grupos VIP" and wa.overlap_vip %}
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-arrows-join"></i></div></div>
+        <div class="tp-value">{{ wa.overlap_vip | num }}</div>
+        <div class="tp-label">Também no Normal</div>
+        <div class="tp-compare">presentes nos dois tipos</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+  {% endfor %}
+
+  <!-- Timeline de entradas -->
+  <div class="section">
+    <div class="section-title">Entradas por Dia</div>
+    <div style="height:320px"><canvas id="waTimeline"></canvas></div>
+  </div>
+
+  <!-- Top grupos -->
+  <div class="highlights">
+    {% for tipo, dados in [("Grupos Normais", wa.normal), ("Grupos VIP", wa.vip)] %}
+    {% if dados %}
+    <div class="highlight-box" style="flex:1;">
+      <h3>Top Grupos — {{ tipo }}</h3>
+      <div class="table-wrap" style="border:none; margin-top:0;">
+        <table>
+          <thead>
+            <tr><th>Grupo</th><th class="th-num">Entradas</th><th class="th-num">Ativos</th><th class="th-num">Saíram</th><th class="th-num">Churn</th></tr>
+          </thead>
+          <tbody>
+            {% for g in dados.por_grupo[:15] %}
+            <tr>
+              <td>{{ g.grupo }}</td>
+              <td class="numero">{{ g.entradas | num }}</td>
+              <td class="numero">{{ g.ativos | num }}</td>
+              <td class="numero {% if g.saidas %}negativo{% endif %}">{{ g.saidas | num }}</td>
+              <td class="numero">{{ g.churn_pct | pct }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if dados.por_grupo | length > 15 %}
+      <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:6px;">Mostrando 15 de {{ dados.por_grupo | length }} grupos.</div>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function(){
+  const normal = {{ (wa.normal.timeline if wa.normal else []) | tojson }};
+  const vip    = {{ (wa.vip.timeline    if wa.vip    else []) | tojson }};
+
+  // eixo único de datas (união das duas séries)
+  const dias = [...new Set([...normal.map(d => d.data), ...vip.map(d => d.data)])].sort();
+  const lbl  = dias.map(d => { const [y,m,dd] = d.split('-'); return dd + '/' + m; });
+  const mapa = (serie) => { const m = Object.fromEntries(serie.map(d => [d.data, d.entradas])); return dias.map(d => m[d] || 0); };
+
+  new Chart(document.getElementById('waTimeline'), {
+    type: 'bar',
+    data: {
+      labels: lbl,
+      datasets: [
+        { label: 'Normal', data: mapa(normal), backgroundColor: '#3b82f6' },
+        { label: 'VIP',    data: mapa(vip),    backgroundColor: '#a78bfa' },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } },
+      plugins: { legend: { position: 'top' } }
+    }
+  });
+})();
+</script>
+
+{% endif %}
+{% endblock %}

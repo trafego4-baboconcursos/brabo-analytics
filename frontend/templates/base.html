@@ -1116,6 +1116,10 @@ kbd {
          href="/typeform{% if active_code %}?launch_code={{ active_code }}{% endif %}">
         <span class="bs-nav-icon"><i class="ti ti-clipboard-list"></i></span>Typeform
       </a>
+      <a class="bs-nav-link {% if page == 'whatsapp' %}active{% endif %}"
+         href="/whatsapp{% if active_code %}?launch_code={{ active_code }}{% endif %}">
+        <span class="bs-nav-icon"><i class="ti ti-brand-whatsapp"></i></span>Grupos de WhatsApp
+      </a>
       {% elif current_user.role == 'trafego' %}
       <div class="bs-nav-sep"></div>
       <div class="bs-nav-group">Audiências</div>

@@ -34,6 +34,18 @@ async def typeform_page(request: Request, launch_code: str | None = None):
     return templates.TemplateResponse("typeform.html", ctx)
 
 
+@router.get("/whatsapp", response_class=HTMLResponse)
+async def whatsapp_page(request: Request, launch_code: str | None = None):
+    from frontend.db_readers.whatsapp_groups import read_whatsapp_groups  # noqa: PLC0415
+
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    wa = await run_in_threadpool(read_whatsapp_groups, launch.code if launch else "") if launch else None
+    ctx = _base_ctx(request, "whatsapp", "Grupos de WhatsApp", launch, launches,
+                    wa=wa, data_errors=[])
+    return templates.TemplateResponse("whatsapp.html", ctx)
+
+
 @router.get("/crm-campanhas", response_class=HTMLResponse)
 async def crm_campanhas_page(request: Request, launch_code: str | None = None):
     launches = await run_in_threadpool(get_launches)

@@ -220,12 +220,12 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
                 continue
 
             summary.hotmart_vendas += 1
-            summary.hotmart_receita += valor_bruto
+            summary.hotmart_receita += valor
             summary.hotmart_receita_bruta += valor_bruto
             summary.hotmart_receita_liquida += valor
             if email:
                 summary.emails_hotmart.add(email)
-                summary.receita_por_email[email] = summary.receita_por_email.get(email, 0.0) + valor_bruto
+                summary.receita_por_email[email] = summary.receita_por_email.get(email, 0.0) + valor
                 summary.vendas_por_email[email] = summary.vendas_por_email.get(email, 0) + 1
                 if email not in summary.phone_por_email:
                     phone_digits = re.sub(r"\D", "", str(row.get("telefone") or ""))
@@ -425,15 +425,15 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
     details.total_vendas = len(df_paid)
     details.receita_liquida = float(df_paid["valor_liq"].sum())
     details.receita_bruta = float(df_paid["valor_bruto"].sum())
-    details.faturamento = details.receita_bruta
+    details.faturamento = details.receita_liquida
     details.taxas = max(0.0, details.receita_bruta - details.receita_liquida)
     details.taxas_pct = details.taxas / details.receita_bruta * 100 if details.receita_bruta > 0 else 0.0
     details.ticket_medio = details.faturamento / details.total_vendas if details.total_vendas > 0 else 0.0
 
     pix_df = df_paid[df_paid["metodo_de_pagamento"].str.lower().str.contains("pix", na=False)]
     card_df = df_paid[df_paid["metodo_de_pagamento"].str.lower().str.contains("cartao|card|credit", na=False)]
-    details.pix_ticket = float(pix_df["valor_bruto"].mean()) if not pix_df.empty else 0.0
-    details.card_ticket = float(card_df["valor_bruto"].mean()) if not card_df.empty else 0.0
+    details.pix_ticket = float(pix_df["valor_liq"].mean()) if not pix_df.empty else 0.0
+    details.card_ticket = float(card_df["valor_liq"].mean()) if not card_df.empty else 0.0
     if details.card_ticket > 0:
         details.pix_premium = (details.pix_ticket - details.card_ticket) / details.card_ticket * 100
 
@@ -453,14 +453,14 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
     if not df_paid.empty and "metodo_de_pagamento" in df_paid.columns:
         pay_grouped = df_paid.groupby(df_paid["metodo_de_pagamento"].fillna("Nao informado"))
         for metodo, group in pay_grouped:
-            faturamento = float(group["valor_bruto"].sum())
+            faturamento = float(group["valor_liq"].sum())
             details.pagamentos.append({
                 "metodo": str(metodo).strip() or "Nao informado",
                 "qtd": int(len(group)),
                 "pct_vendas": float(len(group) / details.total_vendas * 100) if details.total_vendas > 0 else 0.0,
                 "faturamento": faturamento,
                 "pct_faturamento": float(faturamento / details.faturamento * 100) if details.faturamento > 0 else 0.0,
-                "ticket_medio": float(group["valor_bruto"].mean()) if not group.empty else 0.0,
+                "ticket_medio": float(group["valor_liq"].mean()) if not group.empty else 0.0,
             })
         details.pagamentos = sorted(details.pagamentos, key=lambda item: item["qtd"], reverse=True)
 
@@ -469,8 +469,8 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
         av_df = df_paid[df_paid["metodo_de_pagamento"].str.lower().str.contains("pix|boleto", na=False) | (df_paid["parcelas_int"] == 1)]
         parc_df = df_paid[(df_paid["parcelas_int"] > 1) & df_paid["metodo_de_pagamento"].str.lower().str.contains("cart", na=False)]
         details.fluxo_caixa = {
-            "a_vista": float(av_df["valor_bruto"].sum()),
-            "parcelado": float(parc_df["valor_bruto"].sum())
+            "a_vista": float(av_df["valor_liq"].sum()),
+            "parcelado": float(parc_df["valor_liq"].sum())
         }
 
     if not df_paid.empty:
@@ -489,8 +489,8 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
         df_paid["data_parsed"] = df_paid["data_da_transacao"].apply(_parse_hm_date)
         d1_date = df_paid["data_parsed"].min()
         timeline_grouped = df_paid.groupby(df_paid["data_parsed"].dt.date).agg(
-            vendas=("valor_bruto", "count"),
-            faturamento=("valor_bruto", "sum")
+            vendas=("valor_liq", "count"),
+            faturamento=("valor_liq", "sum")
         ).reset_index().sort_values("data_parsed")
 
         for _, row in timeline_grouped.iterrows():
@@ -837,20 +837,17 @@ def read_dia1_sales(launch: Any) -> dict:
                 return v if math.isfinite(v) else None
             except (ValueError, TypeError):
                 return None
-        valor_bruto = _v(row.get("valor_de_compra_com_impostos"))
         valor = _v(row.get("faturamento_liquido"))
         if valor is None:
             valor = _v(row.get("valor_de_compra_sem_impostos"))
         if valor is None:
             valor = 0.0
-        if valor_bruto is None:
-            valor_bruto = valor
         eh_por_parcela, cobrancas, parcelas = _parcela_unica_info(row)
         if eh_por_parcela and cobrancas != 1:
             return None  # ignorado, igual ao read_vendas (evita contar recorrencia)
         if eh_por_parcela:
-            valor_bruto *= max(1, parcelas)
-        return valor_bruto
+            valor *= max(1, parcelas)
+        return valor
 
     if not hm_df.empty:
         hm_df["valor"] = hm_df.apply(_hm_valor, axis=1)

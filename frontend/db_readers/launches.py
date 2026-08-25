@@ -295,13 +295,24 @@ def get_drive_thumbnails(launch_code: str, subfolder: str = "captação") -> dic
         return {}
     root_folder_id = m.group(1)
 
-    KEY_FILE = os.path.normpath(
-        os.path.join(os.path.dirname(__file__), "..", "..", "json",
-                     "uplifted-kit-499213-d8-6c09276f2753.json")
-    )
-    creds = service_account.Credentials.from_service_account_file(
-        KEY_FILE, scopes=["https://www.googleapis.com/auth/drive.readonly"]
-    )
+    # Em produção (Docker) a pasta json/ não vai na imagem (.dockerignore) —
+    # a credencial da service account entra pela env GOOGLE_SERVICE_ACCOUNT_JSON
+    # (conteúdo do arquivo JSON). Localmente, cai no arquivo da pasta json/.
+    _SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
+    sa_json = os.environ.get("GOOGLE_SERVICE_ACCOUNT_JSON")
+    if sa_json:
+        import json as _json
+        creds = service_account.Credentials.from_service_account_info(
+            _json.loads(sa_json), scopes=_SCOPES
+        )
+    else:
+        KEY_FILE = os.path.normpath(
+            os.path.join(os.path.dirname(__file__), "..", "..", "json",
+                         "uplifted-kit-499213-d8-6c09276f2753.json")
+        )
+        creds = service_account.Credentials.from_service_account_file(
+            KEY_FILE, scopes=_SCOPES
+        )
     service = build("drive", "v3", credentials=creds, cache_discovery=False)
 
     def list_files(folder_id: str) -> list[dict]:

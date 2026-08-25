@@ -1,11 +1,15 @@
 {% extends "base.html" %}
 {% block content %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1><i class="ti ti-brand-whatsapp"></i> Grupos de WhatsApp{% if launch %} — {{ launch.code }}{% endif %}</h1>
+      <p>Entradas e saídas dos grupos (normal e VIP) da pré-qualificação até o fechamento do carrinho.</p>
+    </div>
+  </div>
 
-<div class="page-header">
-  <h1>💬 Grupos de WhatsApp</h1>
-  <p>Entradas e saídas dos grupos (normal e VIP) da pré-qualificação até o fechamento do carrinho.</p>
-</div>
-
+  <div class="content">
 {% if not wa %}
   <div class="note warning">Nenhuma tabela de grupos de WhatsApp encontrada para este lançamento
     (esperado: <code>{{ (launch.code if launch else '')|replace('-','_') }}_API</code> e/ou
@@ -65,6 +69,42 @@
   </div>
   {% endif %}
   {% endfor %}
+
+  {% if wa.compradores %}
+  {% set cp = wa.compradores %}
+  <div class="section">
+    <div class="section-title">Compradores × Grupos</div>
+    <div class="tp-kpi-grid">
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-user-check"></i></div></div>
+        <div class="tp-value">{{ cp.dentro | num }}</div>
+        <div class="tp-label">Compraram DENTRO dos grupos</div>
+        <div class="tp-compare">{{ cp.pct_dentro | pct }} dos compradores com telefone · {{ cp.receita_dentro | brl }}</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon warning"><i class="ti ti-user-x"></i></div></div>
+        <div class="tp-value">{{ cp.fora | num }}</div>
+        <div class="tp-label">Compraram FORA dos grupos</div>
+        <div class="tp-compare">{{ cp.receita_fora | brl }}</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-crown"></i></div></div>
+        <div class="tp-value">{{ cp.dentro_vip | num }}</div>
+        <div class="tp-label">Compradores no VIP</div>
+        <div class="tp-compare">{{ cp.dentro_normal | num }} no Normal</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-phone-off"></i></div></div>
+        <div class="tp-value">{{ cp.sem_telefone | num }}</div>
+        <div class="tp-label">Sem telefone na venda</div>
+        <div class="tp-compare">de {{ cp.total | num }} compradores no total</div>
+      </div>
+    </div>
+    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+      Cruzamento por telefone (DDD + número, ignorando DDI e nono dígito) entre as vendas Hotmart/TMB e as tabelas de grupos.
+    </div>
+  </div>
+  {% endif %}
 
   <!-- Timeline de entradas -->
   <div class="section">
@@ -134,4 +174,6 @@
 </script>
 
 {% endif %}
+  </div><!-- /content -->
+</div><!-- /wrap -->
 {% endblock %}

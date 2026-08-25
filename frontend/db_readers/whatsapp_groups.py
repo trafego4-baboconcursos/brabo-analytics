@@ -36,6 +36,24 @@ def _tabela_existe(conn, nome: str) -> bool:
     return r is not None
 
 
+def _tem_coluna(conn, tabela: str, coluna: str) -> bool:
+    r = conn.execute(
+        text("SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name = :t AND column_name = :c"),
+        {"t": tabela, "c": coluna},
+    ).fetchone()
+    return r is not None
+
+
+def _escolhe_tabela(conn, candidatos: list[str]) -> str | None:
+    """Primeira candidata existente COM linhas; senão a primeira existente (vazia)."""
+    existentes = [t for t in candidatos if _tabela_existe(conn, t)]
+    for t in existentes:
+        n = conn.execute(text(f'SELECT COUNT(*) FROM "{t}"')).fetchone()[0]
+        if n:
+            return t
+    return existentes[0] if existentes else None
+
+
 _DATA_EXPR = "to_date(\"DATA1\", 'DD/MM/YYYY')"
 
 
@@ -103,8 +121,11 @@ def _read_whatsapp_uncached(code: str, start_date=None, end_date=None) -> dict |
     from frontend.db_readers.launches import read_launch_config  # noqa: PLC0415
 
     base = code.replace("-", "_")
-    t_normal = f"{base}_API"
-    t_vip = f"{base}_VIP_API"
+    # Padrões por geração da automação: novos "_API", antigos sem sufixo/_VIPS;
+    # o "_VIP" solto cobre exceções tipo PES_SET_VIP (base sem o ano).
+    candidatos_normal = [f"{base}_API", base]
+    candidatos_vip = [f"{base}_VIP_API", f"{base}_VIPS", f"{base}_VIP",
+                      base.rsplit("_", 1)[0] + "_VIP"]
 
     cfg = read_launch_config(code)
     start = _safe_date(start_date) or _safe_date(cfg.get("pre_quali_start_date"))
@@ -112,8 +133,10 @@ def _read_whatsapp_uncached(code: str, start_date=None, end_date=None) -> dict |
 
     engine = _get_engine()
     with engine.connect() as conn:
-        tem_normal = _tabela_existe(conn, t_normal)
-        tem_vip = _tabela_existe(conn, t_vip)
+        t_normal = _escolhe_tabela(conn, candidatos_normal)
+        t_vip = _escolhe_tabela(conn, candidatos_vip)
+        tem_normal = t_normal is not None
+        tem_vip = t_vip is not None
         if not tem_normal and not tem_vip:
             return None
 
@@ -126,15 +149,22 @@ def _read_whatsapp_uncached(code: str, start_date=None, end_date=None) -> dict |
         if start is None or end is None:
             return None
 
-        normal = _resumo_tabela(conn, t_normal, start, end, tem_lead_numero=True) if tem_normal else None
-        vip = _resumo_tabela(conn, t_vip, start, end, tem_lead_numero=False) if tem_vip else None
+        # "LEAD NÚMERO" não existe em algumas tabelas da geração _API — detecta
+        normal = _resumo_tabela(
+            conn, t_normal, start, end,
+            tem_lead_numero=_tem_coluna(conn, t_normal, "LEAD NÚMERO"),
+        ) if tem_normal else None
+        vip = _resumo_tabela(
+            conn, t_vip, start, end,
+            tem_lead_numero=_tem_coluna(conn, t_vip, "LEAD NÚMERO"),
+        ) if tem_vip else None
 
         overlap = 0
         if tem_normal and tem_vip:
             overlap = conn.execute(text(f'''
                 SELECT COUNT(DISTINCT a."NÚMERO")
                 FROM "{t_normal}" a
-                JOIN "{t_vip}" b ON a."NÚMERO" = b."NÚMERO"
+                JOIN "{t_vip}" b ON a."NÚMERO"::text = b."NÚMERO"::text
             ''')).fetchone()[0]
 
     return {

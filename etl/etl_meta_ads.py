@@ -326,6 +326,13 @@ def upsert_demographics(df: pd.DataFrame, since: str, until: str, launch_code: s
     if df.empty:
         logger.warning("Nenhum dado de demografia Meta Ads para gravar.")
         return
+    # A mesma campanha (mesmo nome) pode existir em mais de uma conta Meta —
+    # ex.: migração de campanhas entre contas. Como a chave única da tabela é
+    # (age, gender, campaign_name, date, lancamento_codigo), sem agregar o
+    # insert quebra com UniqueViolation.
+    key_cols = ["date", "age", "gender", "campaign_name", "lancamento_codigo"]
+    metric_cols = ["impressions", "clicks", "cost", "leads"]
+    df = df.groupby(key_cols, dropna=False, as_index=False)[metric_cols].sum()
     df["updated_at"] = datetime.now(timezone.utc).isoformat()
     engine = get_engine()
     table = "meta_ads_demographics_daily"

@@ -1,7 +1,9 @@
 """
-Agendador de ETL — executa as rotinas a cada 1 hora via APScheduler.
-Mantém o banco de dados do Supabase atualizado com uma janela móvel de 3 dias
-(hoje e os 2 dias anteriores) para capturar atualizações retrospectivas de conversão.
+Agendador de ETL — executa as rotinas via APScheduler.
+Mantém o banco de dados do Supabase atualizado com duas cargas:
+- a cada 30 min, janela móvel de 3 dias (hoje e os 2 anteriores) para conversões;
+- 1x/dia (3h40), janela profunda de 14 dias para capturar restatements
+  retroativos das plataformas (gasto corrigido dias depois pelo Meta/Google).
 
 Uso:
     python etl/scheduler.py
@@ -11,6 +13,7 @@ import subprocess
 import os
 import threading
 import logging
+from functools import partial
 from logging.handlers import RotatingFileHandler
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -74,7 +77,7 @@ def enviar_alerta_webhook(mensagem: str, erro_detalhado: str = "") -> None:
         logger.error("Erro ao disparar webhook de alerta: %s", e)
 
 
-def rodar_carga() -> None:
+def rodar_carga(dias_janela: int = 2) -> None:
     global _FALHAS_CONSECUTIVAS, _DESABILITADO_ATE
     import time as _time
 
@@ -91,10 +94,10 @@ def rodar_carga() -> None:
 
     try:
         hoje  = datetime.now()
-        inicio = (hoje - timedelta(days=2)).strftime("%Y-%m-%d")
+        inicio = (hoje - timedelta(days=dias_janela)).strftime("%Y-%m-%d")
         fim    = hoje.strftime("%Y-%m-%d")
 
-        logger.info("Iniciando rodada do ETL. Janela de atualização: %s até %s", inicio, fim)
+        logger.info("Iniciando rodada do ETL. Janela de atualização: %s até %s (%d dias)", inicio, fim, dias_janela)
 
         cmd = [sys.executable, str(ORQUESTRADOR), "--since", inicio, "--until", fim]
         result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore")
@@ -159,6 +162,21 @@ def main() -> None:
         id="etl_carga",
         name="ETL Brabo Analytics",
         next_run_time=datetime.now(),  # executa imediatamente ao iniciar
+    )
+
+    # Reprocessamento profundo diário (janela de 14 dias), 3h40 da madrugada:
+    # captura restatements retroativos das plataformas — ex.: em 07/08/26 o Meta
+    # corrigiu o gasto do AD322 dias depois, quando o dia já estava fora da
+    # janela móvel curta. O _job_lock garante que não sobrepõe a carga horária.
+    scheduler.add_job(
+        partial(rodar_carga, dias_janela=14),
+        trigger="cron",
+        hour=3,
+        minute=40,
+        coalesce=True,
+        misfire_grace_time=3600,
+        id="etl_carga_profunda",
+        name="ETL janela profunda diária (14 dias)",
     )
 
     # Alerta de orçamento (planejado x real), 3x/dia — minute=15 propositalmente

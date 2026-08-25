@@ -139,14 +139,15 @@ def _save_state(state: dict) -> None:
         logger.exception("Falha ao gravar %s", STATE_FILE)
 
 
-def _listar_codigos_lancamentos() -> list[str]:
+def _listar_codigos_lancamentos() -> list[str] | None:
+    """None = falha na consulta (diferente de lista vazia), pro relatório avisar."""
     try:
         with get_engine().connect() as conn:
             rows = conn.execute(text("SELECT codigo FROM dim_lancamentos ORDER BY codigo")).fetchall()
         return [r[0] for r in rows]
     except Exception:
         logger.exception("Falha ao listar lançamentos de dim_lancamentos")
-        return []
+        return None
 
 
 def _ler_launch_config(codigo: str) -> dict:
@@ -154,7 +155,8 @@ def _ler_launch_config(codigo: str) -> dict:
         with get_users_engine().connect() as conn:
             row = conn.execute(
                 text(
-                    "SELECT etapas, meta_ad_account_ids, google_ad_account_ids, carrinho_end_date "
+                    "SELECT etapas, meta_ad_account_ids, google_ad_account_ids, carrinho_end_date, "
+                    "       pre_quali_start_date, pre_quali_end_date, captacao_start_date, captacao_end_date "
                     "FROM launch_config WHERE lancamento_codigo = :c"
                 ),
                 {"c": codigo},
@@ -164,15 +166,34 @@ def _ler_launch_config(codigo: str) -> dict:
         etapas = row[0] or []
         if isinstance(etapas, str):
             etapas = _json.loads(etapas) if etapas else []
+
+        # Fallback de datas: os blocos de Verba de Pré-Qualificação/Captação
+        # costumam ficar sem data (o time preenche as datas nos passos 1-2 do
+        # wizard, não de novo na Verba) — sem isso a etapa era pulada do
+        # relatório mesmo com campanha no ar.
+        fallback_datas = {
+            "Pré-Qualificação": (row[4], row[5]),
+            "Captação": (row[6], row[7]),
+        }
+        for etapa in etapas:
+            fb = fallback_datas.get(etapa.get("nome"))
+            if fb:
+                if not etapa.get("start_date") and fb[0]:
+                    etapa["start_date"] = str(fb[0])
+                if not etapa.get("end_date") and fb[1]:
+                    etapa["end_date"] = str(fb[1])
+
         return {
             "etapas": etapas,
             "meta_ad_account_ids": row[1] or [],
             "google_ad_account_ids": row[2] or [],
             "carrinho_end_date": str(row[3]) if row[3] else None,
         }
-    except Exception:
+    except Exception as exc:
         logger.exception("Falha ao ler launch_config de %s", codigo)
-        return {}
+        # falha de leitura NÃO é "sem etapas" — precisa aparecer no relatório,
+        # senão um lançamento ativo some do Slack em silêncio
+        return {"_erro_leitura": str(exc)}
 
 
 def _planejado_etapa_dia(etapa: dict, hoje: date) -> dict[str, float]:
@@ -206,18 +227,23 @@ def _planejado_etapa_dia(etapa: dict, hoje: date) -> dict[str, float]:
             if b.get("tipo") == "campanha" and b.get("plataforma") == plataforma
         )
         planejado[plataforma] = planejado_dia * pct_plataforma / 100.0
+    if planejado["meta"] == 0.0 and planejado["google"] == 0.0 and planejado_dia > 0:
+        # etapa sem buckets de plataforma cadastrados: assume o total como
+        # mídia — senão o "previsto do dia" sai R$ 0 mesmo com verba definida
+        planejado["meta"] = planejado_dia
     return planejado
 
 
 def _previsto_periodo_midia(etapa: dict) -> float:
-    """Total previsto do período inteiro da etapa, só a fatia de mídia (Meta+Google)."""
+    """Total previsto do período inteiro da etapa, só a fatia de mídia (Meta+Google).
+    Sem buckets de plataforma cadastrados, assume o total inteiro como mídia."""
     total = float(etapa.get("total") or 0)
     pct_midia = sum(
         float(b.get("pct") or 0)
         for b in (etapa.get("buckets") or [])
         if b.get("tipo") == "campanha" and b.get("plataforma") in ("meta", "google")
     )
-    return total * pct_midia / 100.0
+    return total * pct_midia / 100.0 if pct_midia > 0 else total
 
 
 def _categorizar_gasto(rows_meta: list[dict], rows_google: list[dict], codigo: str) -> dict[str, dict]:
@@ -281,6 +307,8 @@ def _etapa_ativa(nome: str, codigo: str, status_meta: dict[str, str], status_goo
 
 def _processar_lancamento(codigo: str, cfg: dict, hoje: date, state: dict) -> tuple[str | None, list[str]]:
     """Retorna (bloco_de_mensagem_ou_None, [erros])."""
+    if cfg.get("_erro_leitura"):
+        return None, [f"• *{codigo}*: falha ao ler launch_config — {cfg['_erro_leitura']}"]
     etapas = cfg.get("etapas") or []
     if not etapas:
         return None, []
@@ -309,15 +337,28 @@ def _processar_lancamento(codigo: str, cfg: dict, hoje: date, state: dict) -> tu
         try:
             inicio = date.fromisoformat(etapa["start_date"])
         except (KeyError, TypeError, ValueError):
-            continue
-        if hoje < inicio:
-            continue  # etapa ainda não começou
+            inicio = None
 
+        # Vigência é decidida pela PLATAFORMA (campanha ativa), não pela config:
+        # etapa sem data cadastrada (ou antes da data) entra no relatório mesmo
+        # assim se tiver campanha no ar — só fica de fora se não há data E não
+        # há campanha ativa.
         ativa_agora = _etapa_ativa(nome, codigo, status_meta, status_google)
+        if not ativa_agora and (inicio is None or hoje < inicio):
+            continue
+
         estava_ativa = state_launch.get(nome, "active") == "active"
 
         if ativa_agora:
-            planejado = _planejado_etapa_dia(etapa, hoje)
+            if inicio is None or hoje < inicio:
+                # sem data cadastrada, ou campanha no ar antes do início previsto:
+                # não há planejado pro dia — reporta só o gasto real
+                planejado = {"meta": 0.0, "google": 0.0}
+            else:
+                try:
+                    planejado = _planejado_etapa_dia(etapa, hoje)
+                except (KeyError, TypeError, ValueError):
+                    planejado = {"meta": 0.0, "google": 0.0}
             info = real_hoje.get(nome, {"spend_meta": 0.0, "spend_google": 0.0, "campanhas_meta": set(), "campanhas_google": set()})
             plan_total = planejado["meta"] + planejado["google"]
             real_total = info["spend_meta"] + info["spend_google"]
@@ -338,11 +379,14 @@ def _processar_lancamento(codigo: str, cfg: dict, hoje: date, state: dict) -> tu
             if estava_ativa:
                 # transição ativa -> pausada: relatório de fechamento (gasto total acumulado)
                 fim_consulta = min(etapa.get("end_date") or hoje.isoformat(), hoje.isoformat())
+                inicio_consulta = etapa.get("start_date")
                 try:
-                    rows_m = fetch_insights(etapa["start_date"], fim_consulta, account_ids=meta_ids) if meta_ids else []
+                    if not inicio_consulta:
+                        raise ValueError("etapa sem start_date — sem período pra somar o gasto")
+                    rows_m = fetch_insights(inicio_consulta, fim_consulta, account_ids=meta_ids) if meta_ids else []
                     rows_g = (
-                        fetch_report(etapa["start_date"], fim_consulta, customer_ids=google_ids)
-                        + fetch_pmax_report(etapa["start_date"], fim_consulta, customer_ids=google_ids)
+                        fetch_report(inicio_consulta, fim_consulta, customer_ids=google_ids)
+                        + fetch_pmax_report(inicio_consulta, fim_consulta, customer_ids=google_ids)
                     ) if google_ids else []
                     total_periodo = _categorizar_gasto(rows_m, rows_g, codigo)
                     gasto_total = _total_gasto(total_periodo.get(nome, {}))
@@ -408,7 +452,11 @@ def rodar_alerta_orcamento() -> None:
         blocos: list[str] = []
         falhas: list[str] = []
 
-        for codigo in _listar_codigos_lancamentos():
+        codigos = _listar_codigos_lancamentos()
+        if codigos is None:
+            falhas.append("• Falha ao listar lançamentos (dim_lancamentos indisponível) — relatório incompleto")
+            codigos = []
+        for codigo in codigos:
             cfg = _ler_launch_config(codigo)
             bloco, erros = _processar_lancamento(codigo, cfg, hoje, state)
             if bloco:

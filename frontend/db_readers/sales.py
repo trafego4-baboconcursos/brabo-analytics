@@ -20,6 +20,52 @@ from frontend.models import (
 logger = get_logger("db")
 
 
+def _parcela_unica_info(row) -> tuple[bool, int, int]:
+    """Identifica vendas do Hotmart gravadas com o VALOR DA PARCELA em vez do total.
+
+    Duas origens gravam assim:
+    - CSV do Hotmart: tipo_de_cobranca = "Recuperador Inteligente"
+    - Webhook/API (tipo_de_cobranca vazio): o payload só traz recurrence_number
+      (gravado em quantidade_de_cobrancas) nesse tipo de compra — a presença do
+      campo é o marcador. Validado contra o PI-AGO-26 inteiro comparando cada
+      valor com o preço padrão da mesma oferta: 5.436 linhas, separação exata.
+
+    Retorna (eh_por_parcela, cobrancas, parcelas). Quando eh_por_parcela e
+    cobrancas != 1, a linha é retentativa de cobrança (não é venda nova).
+    """
+    tipo_raw = row.get("tipo_de_cobranca")
+    tipo_vazio = (
+        tipo_raw is None
+        or (isinstance(tipo_raw, float) and math.isnan(tipo_raw))
+        or str(tipo_raw).strip() == ""
+    )
+    tipo = "" if tipo_vazio else _norm_text(str(tipo_raw))
+
+    cobr_raw = row.get("quantidade_de_cobrancas")
+    tem_cobrancas = not (
+        cobr_raw is None
+        or (isinstance(cobr_raw, float) and math.isnan(cobr_raw))
+        or str(cobr_raw).strip() == ""
+    )
+    try:
+        cobrancas = int(float(cobr_raw)) if tem_cobrancas else 1
+    except (ValueError, TypeError):
+        cobrancas, tem_cobrancas = 1, False
+
+    parc_raw = row.get("quantidade_total_de_parcelas")
+    try:
+        parcelas = 1 if (
+            parc_raw is None
+            or (isinstance(parc_raw, float) and math.isnan(parc_raw))
+            or str(parc_raw).strip() == ""
+        ) else int(float(parc_raw))
+    except (ValueError, TypeError):
+        parcelas = 1
+
+    eh_por_parcela = tipo == "recuperador inteligente" or (tipo_vazio and tem_cobrancas)
+    return eh_por_parcela, cobrancas, parcelas
+
+
 def read_vendas(launch_folder_or_code: Any, start_date=None, end_date=None) -> VendasSummary | None:
     """Cache + single-flight: read_meta/read_google/typeform chamam read_vendas
     internamente e em paralelo; sem isso a mesma consulta rodava 3-4x por página."""
@@ -159,12 +205,10 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
             valor_bruto = _hm_val(row.get("valor_de_compra_com_impostos"))
             if valor_bruto is None:
                 valor_bruto = valor
-            tipo_cobranca = _norm_text(row.get("tipo_de_cobranca", "") or row.get("venda_feita_como", ""))
-            cobrancas = int(row.get("quantidade_de_cobrancas") or 1) if not pd.isna(row.get("quantidade_de_cobrancas", 1) or 1) else 1
-            parcelas = int(row.get("quantidade_total_de_parcelas") or 1) if not pd.isna(row.get("quantidade_total_de_parcelas", 1) or 1) else 1
-            if tipo_cobranca == "recuperador inteligente" and cobrancas != 1:
+            eh_por_parcela, cobrancas, parcelas = _parcela_unica_info(row)
+            if eh_por_parcela and cobrancas != 1:
                 continue
-            if tipo_cobranca == "recuperador inteligente":
+            if eh_por_parcela:
                 valor *= max(1, parcelas)
                 valor_bruto *= max(1, parcelas)
 
@@ -369,12 +413,8 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
         valor_bruto = _hmd_num(row.get("valor_de_compra_com_impostos"))
         if valor_bruto is None:
             valor_bruto = valor
-        tipo_cobranca = _norm_text(row.get("tipo_de_cobranca", "") or row.get("venda_feita_como", ""))
-        cobrancas_raw = row.get("quantidade_de_cobrancas")
-        cobrancas = int(cobrancas_raw) if pd.notna(cobrancas_raw) else 1
-        parcelas_raw = row.get("quantidade_total_de_parcelas")
-        parcelas = int(parcelas_raw) if pd.notna(parcelas_raw) else 1
-        if tipo_cobranca == "recuperador inteligente":
+        eh_por_parcela, cobrancas, parcelas = _parcela_unica_info(row)
+        if eh_por_parcela:
             if cobrancas != 1:
                 continue
             valor *= max(1, parcelas)
@@ -805,18 +845,10 @@ def read_dia1_sales(launch: Any) -> dict:
             valor = 0.0
         if valor_bruto is None:
             valor_bruto = valor
-        tipo = _norm_text(row.get("tipo_de_cobranca") or row.get("venda_feita_como") or "")
-        try:
-            cobrancas = int(row.get("quantidade_de_cobrancas") or 1)
-        except (ValueError, TypeError):
-            cobrancas = 1
-        try:
-            parcelas = int(row.get("quantidade_total_de_parcelas") or 1)
-        except (ValueError, TypeError):
-            parcelas = 1
-        if tipo == "recuperador inteligente" and cobrancas != 1:
+        eh_por_parcela, cobrancas, parcelas = _parcela_unica_info(row)
+        if eh_por_parcela and cobrancas != 1:
             return None  # ignorado, igual ao read_vendas (evita contar recorrencia)
-        if tipo == "recuperador inteligente":
+        if eh_por_parcela:
             valor_bruto *= max(1, parcelas)
         return valor_bruto
 

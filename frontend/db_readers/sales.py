@@ -542,6 +542,15 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
             if _re.match(r'^\d{2}/\d{2}/\d{4}', s):
                 try: return pd.to_datetime(s[:10], format="%d/%m/%Y")
                 except Exception: pass
+            if _re.match(r'^\d{10,13}$', s):
+                # epoch (ms se 13 digitos, s caso contrario) — mesmo formato
+                # ja tratado no SQL de filtragem (WHERE) e em read_dia1_sales;
+                # sem esse branch, toda linha nesse formato virava NaT e
+                # sumia da timeline (Hotmart ficava ausente do grafico).
+                try:
+                    epoch_s = int(s) / 1000 if len(s) == 13 else int(s)
+                    return pd.Timestamp(epoch_s, unit="s", tz="UTC").tz_convert("America/Sao_Paulo").tz_localize(None)
+                except Exception: pass
             try:
                 dt = pd.to_datetime(s, errors="coerce")
                 if dt is not pd.NaT and hasattr(dt, 'tzinfo') and dt.tzinfo is not None:

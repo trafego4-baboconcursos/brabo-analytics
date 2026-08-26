@@ -18,6 +18,10 @@ Legenda: ✅ temos | 🟡 derivável (dado existe, falta cruzar/exibir) | ❌ fa
 > 7. ✅ Abertura do carrinho hora a hora × lançamento anterior (reusa `read_dia1_sales` do /comparativo)
 >
 > Com isso, TODOS os itens deriváveis dos dados existentes estão no ar. O que resta na pauta exige coleta nova (ver lista priorizada no fim).
+>
+> **Atualização 26/08/2026 (tarde):** avançou nos itens 2 e 3 da lista de coletas novas:
+> - ✅ **Flag antigo × novo** — a regra (ADxxx já usado em lançamento anterior do mesmo produto = antigo/validado) já existia mas só cobria Captação do Meta; estendida pra Pré-Qualificação (Meta) e pra todo o Google Ads. Nova seção "Anúncios Antigos × Novos" no Debriefing. PI-AGO-26: Captação 73% do investimento em antigos, 27% em novos.
+> - 🟡 **Região/cidade** — testado ao vivo contra as duas APIs: **Meta devolve estado** via `breakdowns=region` (ETL novo, tabela `meta_ads_region_daily`); **Google NÃO expõe** estado/cidade em nenhuma view de relatório da API (`geographic_view` e `user_location_view` só devolvem o ID do país, sempre Brasil — testado e confirmado, não é falta de permissão). **Nenhuma das duas plataformas dá cidade**, só estado. Nova seção "Qualidade por Estado" no Debriefing cruza investimento Meta por estado com compradores/receita (Hotmart+TMB, 100% de cobertura de estado no PI-AGO-26). O ETL de região do Meta precisa rodar (demorado — pagina por conta × dia × estado).
 
 ---
 

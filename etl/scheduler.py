@@ -21,7 +21,7 @@ from dotenv import load_dotenv
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_MISSED
 
-from budget_alert import rodar_alerta_orcamento
+from budget_alert import rodar_alerta_orcamento, alerta_pendente
 
 BASE_DIR     = Path(__file__).parent
 ORQUESTRADOR = BASE_DIR / "run_all.py"
@@ -191,6 +191,24 @@ def main() -> None:
         misfire_grace_time=1800,
         id="alerta_orcamento",
         name="Alerta de Orçamento (8h15/13h15/21h15)",
+    )
+
+    # Catch-up no boot: se o processo estava morto no último horário (deploy
+    # reiniciou o container bem em cima de 8h15/13h15/21h15, cron não reagenda
+    # o que perdeu), o last_sent no banco denuncia e o alerta sai agora.
+    def _catch_up_alerta():
+        if alerta_pendente():
+            logger.info("Alerta de orçamento do último horário não foi enviado (deploy/queda?) — enviando agora.")
+            rodar_alerta_orcamento()
+        else:
+            logger.info("Alerta de orçamento em dia — sem catch-up.")
+
+    scheduler.add_job(
+        _catch_up_alerta,
+        trigger="date",
+        run_date=datetime.now() + timedelta(minutes=2),
+        id="alerta_orcamento_catchup",
+        name="Catch-up do Alerta de Orçamento (boot)",
     )
 
     try:

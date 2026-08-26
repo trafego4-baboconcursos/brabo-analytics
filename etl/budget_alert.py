@@ -75,14 +75,15 @@ _MAX_FALHAS = 5
 _PAUSA_HORAS = 6.0
 
 
-def enviar_slack(mensagem: str) -> None:
+def enviar_slack(mensagem: str) -> bool:
     """Envia via Slack Web API (chat.postMessage) usando um Bot Token — o bot
-    precisa estar adicionado/convidado no canal de destino."""
+    precisa estar adicionado/convidado no canal de destino. Retorna True se
+    o Slack aceitou (usado pra registrar last_sent e permitir catch-up)."""
     token = os.environ.get("SLACK_BOT_TOKEN")
     channel = os.environ.get("SLACK_BUDGET_CHANNEL")
     if not token or not channel:
         logger.warning("SLACK_BOT_TOKEN/SLACK_BUDGET_CHANNEL não configurados — mensagem não enviada.")
-        return
+        return False
     try:
         import requests
         r = requests.post(
@@ -95,10 +96,12 @@ def enviar_slack(mensagem: str) -> None:
         data = r.json()
         if not data.get("ok"):
             logger.error("Slack recusou o envio do alerta de orçamento: %s", data.get("error"))
-            return
+            return False
         logger.info("Alerta de orçamento enviado ao Slack com sucesso.")
+        return True
     except Exception as e:
         logger.error("Erro ao enviar alerta de orçamento ao Slack: %s", e)
+        return False
 
 
 def _formatar_valor(v: float) -> str:
@@ -125,18 +128,80 @@ def _status_orcamento(desvio_pct: float) -> str:
     return "✅ Dentro do previsto"
 
 
+# Estado no BANCO (não em arquivo): o filesystem do container zera a cada
+# deploy, o que apagava o estado de etapas ativas/pausadas e impedia saber se
+# o último horário de alerta chegou a ser enviado.
+_STATE_TABLE_SQL = """
+    CREATE TABLE IF NOT EXISTS budget_alert_state (
+        id INT PRIMARY KEY DEFAULT 1,
+        state JSONB NOT NULL DEFAULT '{}',
+        last_sent TIMESTAMPTZ
+    )
+"""
+
+
 def _load_state() -> dict:
     try:
-        return _json.loads(STATE_FILE.read_text(encoding="utf-8"))
-    except (FileNotFoundError, ValueError):
+        with get_engine().begin() as conn:
+            conn.execute(text(_STATE_TABLE_SQL))
+            row = conn.execute(text("SELECT state FROM budget_alert_state WHERE id = 1")).fetchone()
+        if row and row[0]:
+            return row[0] if isinstance(row[0], dict) else _json.loads(row[0])
         return {}
+    except Exception:
+        logger.exception("Falha ao ler budget_alert_state do banco; usando arquivo local")
+        try:
+            return _json.loads(STATE_FILE.read_text(encoding="utf-8"))
+        except (FileNotFoundError, ValueError):
+            return {}
 
 
-def _save_state(state: dict) -> None:
+def _save_state(state: dict, sent: bool = False) -> None:
     try:
-        STATE_FILE.write_text(_json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
-    except OSError:
-        logger.exception("Falha ao gravar %s", STATE_FILE)
+        with get_engine().begin() as conn:
+            conn.execute(text(_STATE_TABLE_SQL))
+            conn.execute(text(
+                "INSERT INTO budget_alert_state (id, state, last_sent) "
+                "VALUES (1, :s, CASE WHEN :sent THEN NOW() ELSE NULL END) "
+                "ON CONFLICT (id) DO UPDATE SET state = EXCLUDED.state, "
+                "last_sent = CASE WHEN :sent THEN NOW() ELSE budget_alert_state.last_sent END"
+            ), {"s": _json.dumps(state, ensure_ascii=False), "sent": sent})
+    except Exception:
+        logger.exception("Falha ao gravar budget_alert_state no banco; usando arquivo local")
+        try:
+            STATE_FILE.write_text(_json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+        except OSError:
+            logger.exception("Falha ao gravar %s", STATE_FILE)
+
+
+def _ultimo_horario_previsto(agora=None):
+    """O horário de disparo (8h15/13h15/21h15 America/Sao_Paulo) mais recente
+    que já passou — pode ser o 21h15 de ontem se ainda não deu 8h15 hoje."""
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+    tz = ZoneInfo("America/Sao_Paulo")
+    agora = agora or datetime.now(tz)
+    slots_hoje = [agora.replace(hour=h, minute=15, second=0, microsecond=0) for h in (8, 13, 21)]
+    passados = [s for s in slots_hoje if s <= agora]
+    if passados:
+        return passados[-1]
+    return (agora - timedelta(days=1)).replace(hour=21, minute=15, second=0, microsecond=0)
+
+
+def alerta_pendente() -> bool:
+    """True se o último horário de disparo não gerou envio (deploy engoliu o
+    cron, Slack falhou etc.) — usado pelo scheduler pra recuperar no boot."""
+    try:
+        with get_engine().begin() as conn:
+            conn.execute(text(_STATE_TABLE_SQL))
+            row = conn.execute(text("SELECT last_sent FROM budget_alert_state WHERE id = 1")).fetchone()
+        last_sent = row[0] if row else None
+        if last_sent is None:
+            return True
+        return last_sent < _ultimo_horario_previsto()
+    except Exception:
+        logger.exception("Falha ao checar alerta pendente; assumindo que não há")
+        return False
 
 
 def _listar_codigos_lancamentos() -> list[str] | None:
@@ -196,42 +261,26 @@ def _ler_launch_config(codigo: str) -> dict:
         return {"_erro_leitura": str(exc)}
 
 
-def _planejado_etapa_dia(etapa: dict, hoje: date) -> dict[str, float]:
-    """Retorna {"meta": valor_planejado, "google": valor_planejado} pro dia de hoje."""
-    ini = date.fromisoformat(etapa["start_date"])
-    fim = date.fromisoformat(etapa["end_date"])
+def _planejado_acumulado_midia(etapa: dict, hoje: date) -> float:
+    """Previsto acumulado (fatia de mídia) do início da etapa até hoje, inclusive.
+    Uniforme: pro-rata pelos dias decorridos; personalizada: soma da curva %."""
+    try:
+        ini = date.fromisoformat(etapa["start_date"])
+        fim = date.fromisoformat(etapa["end_date"])
+    except (KeyError, TypeError, ValueError):
+        return 0.0
+    total_midia = _previsto_periodo_midia(etapa)
     total_dias = (fim - ini).days + 1
-    dia_pos = (hoje - ini).days + 1  # 1-indexado
-
-    total = float(etapa.get("total") or 0)
+    if total_dias <= 0:
+        return 0.0
+    dia_pos = min((hoje - ini).days + 1, total_dias)
+    if dia_pos <= 0:
+        return 0.0
     if etapa.get("distribuicao") == "personalizada":
         curva = etapa.get("curva_pct") or []
-        if 0 < dia_pos <= len(curva):
-            pct_dia = float(curva[dia_pos - 1])
-        else:
-            pct_dia = 0.0
-            logger.warning(
-                "Etapa %s: dia_pos %d fora da curva_pct (len=%d) — planejado do dia tratado como 0.",
-                etapa.get("nome"), dia_pos, len(curva),
-            )
-    else:
-        pct_dia = 100.0 / total_dias if total_dias > 0 else 0.0
-
-    planejado_dia = total * pct_dia / 100.0
-
-    planejado = {"meta": 0.0, "google": 0.0}
-    for plataforma in ("meta", "google"):
-        pct_plataforma = sum(
-            float(b.get("pct") or 0)
-            for b in (etapa.get("buckets") or [])
-            if b.get("tipo") == "campanha" and b.get("plataforma") == plataforma
-        )
-        planejado[plataforma] = planejado_dia * pct_plataforma / 100.0
-    if planejado["meta"] == 0.0 and planejado["google"] == 0.0 and planejado_dia > 0:
-        # etapa sem buckets de plataforma cadastrados: assume o total como
-        # mídia — senão o "previsto do dia" sai R$ 0 mesmo com verba definida
-        planejado["meta"] = planejado_dia
-    return planejado
+        pct = sum(float(x or 0) for x in curva[:dia_pos])
+        return total_midia * pct / 100.0
+    return total_midia * dia_pos / total_dias
 
 
 def _previsto_periodo_midia(etapa: dict) -> float:
@@ -350,29 +399,56 @@ def _processar_lancamento(codigo: str, cfg: dict, hoje: date, state: dict) -> tu
         estava_ativa = state_launch.get(nome, "active") == "active"
 
         if ativa_agora:
-            if inicio is None or hoje < inicio:
-                # sem data cadastrada, ou campanha no ar antes do início previsto:
-                # não há planejado pro dia — reporta só o gasto real
-                planejado = {"meta": 0.0, "google": 0.0}
-            else:
+            # O que importa é o ACUMULADO da etapa contra o previsto total —
+            # o gasto do dia sozinho não conta a história (pedido do time).
+            info_hoje = real_hoje.get(nome, {"spend_meta": 0.0, "spend_google": 0.0, "campanhas_meta": set(), "campanhas_google": set()})
+            real_dia = info_hoje["spend_meta"] + info_hoje["spend_google"]
+            n_campanhas = len(info_hoje["campanhas_meta"]) + len(info_hoje["campanhas_google"])
+
+            previsto_total = _previsto_periodo_midia(etapa)
+            previsto_ate_hoje = _planejado_acumulado_midia(etapa, hoje) if inicio and hoje >= inicio else 0.0
+
+            acumulado = None
+            acum_meta = acum_google = 0.0
+            if inicio and hoje >= inicio:
+                fim_consulta = min(etapa.get("end_date") or hoje.isoformat(), hoje.isoformat())
                 try:
-                    planejado = _planejado_etapa_dia(etapa, hoje)
-                except (KeyError, TypeError, ValueError):
-                    planejado = {"meta": 0.0, "google": 0.0}
-            info = real_hoje.get(nome, {"spend_meta": 0.0, "spend_google": 0.0, "campanhas_meta": set(), "campanhas_google": set()})
-            plan_total = planejado["meta"] + planejado["google"]
-            real_total = info["spend_meta"] + info["spend_google"]
-            if plan_total or real_total:
-                pct_gasto = (real_total / plan_total * 100) if plan_total else (100.0 if real_total else 0.0)
-                status_txt = _status_orcamento(pct_gasto - 100.0) if plan_total else "— sem orçamento previsto pra essa etapa"
+                    rows_m = fetch_insights(etapa["start_date"], fim_consulta, account_ids=meta_ids) if meta_ids else []
+                    rows_g = (
+                        fetch_report(etapa["start_date"], fim_consulta, customer_ids=google_ids)
+                        + fetch_pmax_report(etapa["start_date"], fim_consulta, customer_ids=google_ids)
+                    ) if google_ids else []
+                    periodo = _categorizar_gasto(rows_m, rows_g, codigo).get(nome, {})
+                    acum_meta = periodo.get("spend_meta", 0.0)
+                    acum_google = periodo.get("spend_google", 0.0)
+                    acumulado = acum_meta + acum_google
+                except Exception:
+                    logger.exception("Falha ao buscar gasto acumulado de %s / %s", codigo, nome)
+
+            if acumulado is not None:
+                periodo_txt = f" ({_formatar_data_br(etapa.get('start_date'))} → {_formatar_data_br(etapa.get('end_date'))})" if etapa.get("end_date") else ""
+                pct_total = (acumulado / previsto_total * 100) if previsto_total else 0.0
+                pct_ritmo = (acumulado / previsto_ate_hoje * 100) if previsto_ate_hoje else 0.0
+                status_txt = _status_orcamento(pct_ritmo - 100.0) if previsto_ate_hoje else "— sem orçamento previsto pra essa etapa"
+                previsto_txt = (
+                    f"    Previsto total da etapa: {_formatar_valor(previsto_total)}\n"
+                    f"    Consumido do total: {_formatar_pct(pct_total)}%\n"
+                    f"    Previsto até hoje: {_formatar_valor(previsto_ate_hoje)} | Ritmo: {_formatar_pct(pct_ritmo)}%\n"
+                ) if previsto_total else "    (sem orçamento previsto cadastrado pra essa etapa)\n"
                 linhas.append(
-                    f"\n  *{nome}* (hoje até agora)\n"
-                    f"    Meta: {_formatar_valor(info['spend_meta'])} ({len(info['campanhas_meta'])} campanhas)\n"
-                    f"    Google: {_formatar_valor(info['spend_google'])} ({len(info['campanhas_google'])} campanhas)\n"
-                    f"    Total: {_formatar_valor(real_total)}\n"
-                    f"    Orçamento previsto hoje: {_formatar_valor(plan_total)}\n"
-                    f"    % gasto: {_formatar_pct(pct_gasto)}%\n"
+                    f"\n  *{nome}*{periodo_txt}\n"
+                    f"    Gasto acumulado: {_formatar_valor(acumulado)} (Meta {_formatar_valor(acum_meta)} · Google {_formatar_valor(acum_google)})\n"
+                    f"    Hoje até agora: {_formatar_valor(real_dia)} ({n_campanhas} campanhas ativas)\n"
+                    f"{previsto_txt}"
                     f"    Status: {status_txt}"
+                )
+            elif real_dia > 0:
+                # etapa sem período cadastrado (ou campanha no ar antes do início):
+                # sem como somar o acumulado — reporta o dia com aviso
+                linhas.append(
+                    f"\n  *{nome}* — ⚠️ sem período cadastrado no wizard (Verba)\n"
+                    f"    Hoje até agora: {_formatar_valor(real_dia)} ({n_campanhas} campanhas ativas)\n"
+                    f"    Cadastre datas e verba da etapa pra ver acumulado x previsto"
                 )
             state_launch[nome] = "active"
         else:
@@ -463,8 +539,6 @@ def rodar_alerta_orcamento() -> None:
                 blocos.append(bloco)
             falhas.extend(erros)
 
-        _save_state(state)
-
         partes = [f"*Relatório de Orçamento — {hoje.strftime('%d/%m/%Y')}*"]
         if falhas:
             partes.append("\n*⚠️ Falhas na consulta (sem números pra esses lançamentos):*\n" + "\n".join(falhas))
@@ -473,7 +547,10 @@ def rodar_alerta_orcamento() -> None:
         else:
             partes.append("\nNenhuma novidade — nenhum lançamento com etapa ativa ou fechamento hoje.")
 
-        enviar_slack("\n".join(partes))
+        enviado = enviar_slack("\n".join(partes))
+        # last_sent só marca quando o Slack aceitou — se falhou, o catch-up do
+        # próximo boot/horário reenvia em vez de dar o horário como cumprido
+        _save_state(state, sent=enviado)
         _FALHAS_CONSECUTIVAS = 0
         _DESABILITADO_ATE = 0.0
 

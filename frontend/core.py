@@ -55,6 +55,7 @@ from frontend.services.fetch import (  # noqa: E402
     _fetch_all_data, _fetch_prev_for_debriefing,
 )
 from frontend.services.debriefing import _compute_debriefing_ctx  # noqa: F401,E402
+from frontend.services.instagram import get_instagram_profiles  # noqa: F401,E402
 from logger import get_logger
 
 logger = get_logger("frontend")

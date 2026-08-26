@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1><i class="ti ti-brand-instagram"></i> Perfil Instagram</h1>
+      <p>Perfis dos experts nas redes — dados de API conforme disponibilidade.</p>
+    </div>
+  </div>
+
+  <div class="content">
+
+    {% if not instagram_api_configured %}
+    <div class="note warning">
+      Métricas automáticas (seguidores, posts, bio, foto) ainda não estão conectadas.
+      A API do Meta permite trazer isso via <code>business_discovery</code>, usando uma conta Instagram
+      Business/Creator nossa como ponte — sem precisar de autorização do expert, desde que o perfil dele
+      também seja Business/Creator. Falta configurar <code>INSTAGRAM_BUSINESS_ID</code> e o escopo
+      <code>instagram_basic</code> no <code>META_ACCESS_TOKEN</code>. Por enquanto os cards abaixo mostram
+      só o link do perfil.
+    </div>
+    {% endif %}
+
+    <div class="highlights">
+      {% for p in instagram_profiles %}
+      <div class="highlight-box" style="text-align:center;">
+        {% if p.profile_picture_url %}
+        <img src="{{ p.profile_picture_url }}" alt="{{ p.name }}"
+             style="width:88px;height:88px;border-radius:50%;object-fit:cover;margin-bottom:12px;box-shadow:var(--bs-sh-sm);">
+        {% else %}
+        <div style="width:88px;height:88px;border-radius:50%;background:var(--bs-accent-bg);color:var(--bs-accent);
+                    display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:32px;">
+          <i class="ti ti-user"></i>
+        </div>
+        {% endif %}
+
+        <h3 style="margin-bottom:2px;">{{ p.name }}</h3>
+        <div style="font-size:13px;color:var(--bs-ink-muted);margin-bottom:14px;">@{{ p.username }}</div>
+
+        {% if p.api_ok %}
+        <div class="tp-kpi-grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+          <div class="tp-kpi" style="padding:10px;">
+            <div class="tp-value" style="font-size:18px;">{{ p.followers_count | num }}</div>
+            <div class="tp-label">Seguidores</div>
+          </div>
+          <div class="tp-kpi" style="padding:10px;">
+            <div class="tp-value" style="font-size:18px;">{{ p.media_count | num }}</div>
+            <div class="tp-label">Posts</div>
+          </div>
+        </div>
+        {% if p.biography %}
+        <div style="font-size:12px;color:var(--bs-ink-muted);margin-bottom:14px;text-align:left;">{{ p.biography }}</div>
+        {% endif %}
+        {% else %}
+        <div class="bs-pill neutral" style="margin-bottom:14px;">Sem dados de API</div>
+        {% endif %}
+
+        <a href="{{ p.profile_url }}" target="_blank" rel="noopener"
+           class="lc-btn lc-btn-primary" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;">
+          <i class="ti ti-brand-instagram"></i> Ver perfil
+        </a>
+      </div>
+      {% endfor %}
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /wrap -->
+{% endblock %}

@@ -6,7 +6,7 @@ from fastapi.concurrency import run_in_threadpool
 
 from frontend.core import (
     templates, logger, get_launches, resolve_launch, _base_ctx,
-    _fetch_all_data, _creative_overview,
+    _fetch_all_data, _creative_overview, get_instagram_profiles,
 )
 
 router = APIRouter()
@@ -82,6 +82,16 @@ async def criativos_page(request: Request, launch_code: str | None = None):
         drive_thumbnails=drive_thumbnails,
         data_errors=d.get("_errors", []))
     return templates.TemplateResponse("criativos.html", ctx)
+
+
+@router.get("/instagram", response_class=HTMLResponse)
+async def instagram_page(request: Request, launch_code: str | None = None):
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    ig = await run_in_threadpool(get_instagram_profiles)
+    ctx = _base_ctx(request, "instagram", "Perfil Instagram", launch, launches,
+                    instagram_profiles=ig["profiles"], instagram_api_configured=ig["api_configured"])
+    return templates.TemplateResponse("instagram.html", ctx)
 
 
 @router.get("/meta-audiences", response_class=HTMLResponse)

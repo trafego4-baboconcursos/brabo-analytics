@@ -1092,6 +1092,10 @@ kbd {
          {% if not (launch and launch.has_meta) %}class="bs-nav-link disabled"{% endif %}>
         <span class="bs-nav-icon"><i class="ti ti-palette"></i></span>Criativos
       </a>
+      <a class="bs-nav-link {% if page == 'instagram' %}active{% endif %}"
+         href="/instagram{% if active_code %}?launch_code={{ active_code }}{% endif %}">
+        <span class="bs-nav-icon"><i class="ti ti-brand-instagram"></i></span>Perfil Instagram
+      </a>
 
       {% if not current_user or current_user.role in ['admin','analista'] %}
       <div class="bs-nav-sep"></div>

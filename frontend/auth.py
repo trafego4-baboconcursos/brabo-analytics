@@ -42,6 +42,7 @@ ROUTE_PERMISSIONS: dict[str, list[str]] = {
     "/meta":              _MEDIA,
     "/google":            _MEDIA,
     "/criativos":         _MEDIA,
+    "/instagram":         _MEDIA,
     "/meta-audiences":    _MEDIA,
     "/google-audiences":  _MEDIA,
     "/leads":             _DTLD,

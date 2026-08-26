@@ -244,10 +244,11 @@
 
     {% if ov.sales_only_rows %}
     <div class="section">
-      <div class="section-title">3. Compras atribuídas a ADs de outros lançamentos</div>
+      <div class="section-title">3. Compras atribuídas a ADs sem veiculação neste lançamento</div>
       <div class="note warning">
-        Compradores que chegaram via UTM de campanha de <strong>outro lançamento</strong> (remarketing, evergreen ou campanha esquecida ativa).
-        Esses ADs não fazem parte do lançamento atual — as vendas não entram no ROAS da seção 2.
+        Compradores cujo UTM aponta pra um AD sem nenhum investimento registrado no lançamento atual (nem em <code>meta_ads_daily</code>, nem em <code>google_ads_daily</code>).
+        Pode ser UTM de <strong>outro lançamento</strong> (remarketing, evergreen) ou de um criativo duplicado que <strong>nunca chegou a rodar com verba</strong> neste — repare na coluna "Lançamento de origem": se mostrar o código do lançamento atual, é o segundo caso.
+        Essas vendas não entram no ROAS da seção 2.
       </div>
       <div class="table-wrap funil-table-wrap">
         <table class="funil-table" style="table-layout:fixed;width:100%;">

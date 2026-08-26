@@ -400,12 +400,19 @@ def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dic
                     cliques += int(getattr(camp, "cliques", 0) or 0)
                     impressoes += int(getattr(camp, "impressoes", 0) or 0)
                     origem = "Google"
+        if gasto <= 0:
+            # Sem investimento real casado (nem ad-level, nem campanha Google) —
+            # não é veiculação do lançamento atual, só um UTM antigo/duplicado
+            # "grudado" num comprador. Fica de fora do ranking principal (seção 2)
+            # e cai no bloco de vendas sem veiculação (seção 3), como qualquer
+            # outro AD sem match — ver loop de sales_only_rows logo abaixo.
+            continue
         faturamento = float(sales.get("faturamento") or 0.0)
         vendas_val = int(sales.get("vendas") or 0)
         rows_by_ad[code] = {
             "ad_code": code,
             "nome": f"{code} - criativo rastreado por UTM do lançamento",
-            "origens": {"Google"} if gasto > 0 else {"UTM"},
+            "origens": {"Google"},
             "gasto": gasto,
             "leads": leads,
             "cliques": cliques,

@@ -139,32 +139,6 @@ def _build_rmkt_adsets(meta: Any) -> list:
     return rows
 
 
-def _build_dia1_rows(dia1: Any, prev_dia1: Any) -> list:
-    """Vendas cumulativas hora a hora do dia 1 (abertura), lado a lado com o
-    lançamento anterior — mesmos checkpoints de horário nos dois."""
-    cps = (dia1 or {}).get("checkpoints") or []
-    if not cps:
-        return []
-    prev_map = {c.get("hora"): c for c in ((prev_dia1 or {}).get("checkpoints") or [])}
-    rows = []
-    for c in cps:
-        p = prev_map.get(c.get("hora")) or {}
-        total = c.get("total")
-        prev_total = p.get("total")
-        var = None
-        if total is not None and prev_total:
-            var = (total - prev_total) / prev_total * 100
-        rows.append({
-            "hora": c.get("hora"),
-            "total": total,
-            "faturamento": c.get("faturamento"),
-            "pendente": bool(c.get("pendente")),
-            "prev_total": prev_total,
-            "var": var,
-        })
-    return rows
-
-
 def _build_antigo_novo(meta: Any, google: Any) -> dict:
     """Investimento/leads em anúncios antigos (ADxxx já usado em lançamento
     anterior do mesmo produto) × novos, por etapa. Combina Meta + Google."""
@@ -479,14 +453,13 @@ def _compute_debriefing_ctx(
         "pesquisa_engajamento": pesquisa_engajamento,
         # Comercial × IA × Orgânico (sck Hotmart / utm_source TMB)
         "vendas_por_canal": getattr(vendas, "por_canal", {}) or {},
-        # Dia 1 hora a hora × lançamento anterior
-        "dia1_rows": _build_dia1_rows(dia1, prev_dia1),
+        # Dia 1 hora a hora × lançamento anterior (mesmo formato de duas
+        # tabelas já usado em /comparativo — dia1/prev_dia1 crus com .checkpoints)
+        "dia1": dia1 or {}, "prev_dia1": prev_dia1 or {},
         # Antigo × novo (ADxxx já usado em lançamento anterior do produto)
         "antigo_novo": _build_antigo_novo(meta, google),
         # Qualidade por estado (Meta invest/leads + compradores/receita)
         "qualidade_regiao": qualidade_regiao,
         # Caminho do comprador — funil unificado por pessoa (lead→grupo→pesquisa→compra)
         "caminho_comprador": (caminho_comprador or {}).get("resumo"),
-        "dia1_data": (dia1 or {}).get("data_abertura") or "",
-        "prev_dia1_data": (prev_dia1 or {}).get("data_abertura") or "",
     }

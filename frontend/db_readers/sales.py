@@ -79,6 +79,19 @@ def read_vendas(launch_folder_or_code: Any, start_date=None, end_date=None) -> V
     )
 
 
+def _canal_venda(sck: Any, utm_source: Any) -> str:
+    """Comercial × IA × Orgânico. Hotmart marca o comercial no codigo_sck
+    (ana, HOTMART_SALES_AGENT, agente_ia); TMB no utm_source (COMERCIAL, IA).
+    Sem marcação conta como Orgânico."""
+    s = str(sck or "").strip().lower()
+    u = str(utm_source or "").strip().lower()
+    if "comercial" in u or "comercial" in s or s in ("ana", "hotmart_sales_agent"):
+        return "Comercial"
+    if s == "agente_ia" or u in ("ia", "agente_ia") or u.startswith("ia"):
+        return "IA"
+    return "Orgânico"
+
+
 def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSummary | None:
     logger.info("read_vendas: inicio code=%s start=%s end=%s", code, start_date, end_date)
 
@@ -245,6 +258,11 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
             else:
                 summary.pagamento_outros += 1
 
+            canal = _canal_venda(row.get("codigo_sck"), None)
+            d = summary.por_canal.setdefault(canal, {"vendas": 0, "receita": 0.0})
+            d["vendas"] += 1
+            d["receita"] += valor
+
     if not tmb_df.empty:
         for _, row in tmb_df.iterrows():
             try:
@@ -281,6 +299,11 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
                 summary.pagamento_pix += 1
             else:
                 summary.pagamento_outros += 1
+
+            canal = _canal_venda(None, row.get("utm_source"))
+            d = summary.por_canal.setdefault(canal, {"vendas": 0, "receita": 0.0})
+            d["vendas"] += 1
+            d["receita"] += valor
 
     summary.total_vendas = summary.hotmart_vendas + summary.tmb_vendas
     summary.total_receita = summary.hotmart_receita + summary.tmb_receita

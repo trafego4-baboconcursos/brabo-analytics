@@ -681,6 +681,39 @@ def read_perfil_por_anuncio(launch_folder_or_code: Any, top_n: int = 5) -> dict 
     }
 
 
+def read_pesquisa_engajamento(launch_folder_or_code: Any) -> dict | None:
+    """Resumo de engajamento da pesquisa (pauta debriefing): quantos leads da
+    base responderam. "Quem recebeu" depende da fonte de disparo (WhatsApp/
+    automação) — não existe no AC Campaigns, então a taxa é sobre a base."""
+    code = _extract_launch_code(launch_folder_or_code)
+    proj_id, _ = _resolve_typeform_ids(code)
+    if not proj_id:
+        proj_id = code
+    engine = _get_engine()
+    with engine.connect() as conn:
+        respostas = conn.execute(text("""
+            SELECT COUNT(DISTINCT LOWER(email)) FROM typeform_respostas
+            WHERE upper(coalesce(form_id, '')) = :fid AND email IS NOT NULL
+        """), {"fid": proj_id.upper()}).scalar() or 0
+        if not respostas:
+            return None
+        base = conn.execute(text("""
+            SELECT COUNT(DISTINCT LOWER(email)) FROM leads WHERE lancamento_codigo = :code
+        """), {"code": code}).scalar() or 0
+        cruzadas = conn.execute(text("""
+            SELECT COUNT(DISTINCT LOWER(t.email))
+            FROM typeform_respostas t
+            JOIN leads l ON LOWER(l.email) = LOWER(t.email) AND l.lancamento_codigo = :code
+            WHERE upper(coalesce(t.form_id, '')) = :fid
+        """), {"code": code, "fid": proj_id.upper()}).scalar() or 0
+    return {
+        "respostas": int(respostas),
+        "base_leads": int(base),
+        "respostas_da_base": int(cruzadas),
+        "taxa_resposta": (cruzadas / base * 100) if base else 0.0,
+    }
+
+
 def _generate_ia_insights(summary: TypeformSummary) -> list[dict]:
     insights = []
 

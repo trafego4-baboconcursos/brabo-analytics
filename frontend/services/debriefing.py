@@ -157,6 +157,7 @@ def _compute_debriefing_ctx(
     tmb: Any = None,
     leads_antigos: Any = None,
     perfil_por_anuncio: Any = None,
+    pesquisa_engajamento: Any = None,
 ) -> dict:
     def _f(x): return float(x or 0)
     def _i(x): return int(x or 0)
@@ -413,4 +414,8 @@ def _compute_debriefing_ctx(
         "leads_antigos": leads_antigos,
         # Perfil do lead por anúncio (top 5 × pesquisa)
         "perfil_por_anuncio": perfil_por_anuncio,
+        # Engajamento da pesquisa (respostas × base de leads)
+        "pesquisa_engajamento": pesquisa_engajamento,
+        # Comercial × IA × Orgânico (sck Hotmart / utm_source TMB)
+        "vendas_por_canal": getattr(vendas, "por_canal", {}) or {},
     }

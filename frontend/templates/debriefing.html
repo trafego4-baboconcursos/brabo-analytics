@@ -694,6 +694,37 @@
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4b2. PESQUISA — ENGAJAMENTO (RESPOSTAS × BASE)             -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.pesquisa_engajamento %}
+  {% set pe = dbf.pesquisa_engajamento %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-clipboard-check"></i> Pesquisa — Engajamento da Base</div>
+    <div class="dbf-kpi-grid">
+      <div class="dbf-kpi">
+        <div class="lbl">Base de leads</div>
+        <div class="val">{{ pe.base_leads | num }}</div>
+      </div>
+      <div class="dbf-kpi">
+        <div class="lbl">Responderam a pesquisa</div>
+        <div class="val">{{ pe.respostas | num }}</div>
+      </div>
+      <div class="dbf-kpi">
+        <div class="lbl">Respostas da base (e-mail no CRM)</div>
+        <div class="val">{{ pe.respostas_da_base | num }}</div>
+      </div>
+      <div class="dbf-kpi">
+        <div class="lbl">Taxa de resposta da base</div>
+        <div class="val">{{ pe.taxa_resposta | round(1) }}%</div>
+      </div>
+    </div>
+    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+      A resposta à pesquisa funciona como indicador de engajamento. "Quantos receberam" depende dos dados de disparo (WhatsApp/automação) — ainda não coletados.
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 4c. PERFIL DO LEAD POR ANÚNCIO (TOP 5 × PESQUISA)          -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.perfil_por_anuncio and dbf.perfil_por_anuncio.ads %}
@@ -1124,6 +1155,30 @@
       </div>
     </div>
   </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 9a. VENDAS: COMERCIAL × IA × ORGÂNICO                       -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.vendas_por_canal %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-headset"></i> Vendas — Comercial × Orgânico</div>
+    <div class="dbf-kpi-grid">
+      {% for canal in ["Orgânico", "Comercial", "IA"] %}
+      {% set d = dbf.vendas_por_canal.get(canal) %}
+      {% if d %}
+      <div class="dbf-kpi">
+        <div class="lbl">{{ canal }}</div>
+        <div class="val">{{ d.vendas | num }} <span class="ldt-pct">({{ (d.vendas / dbf.total_vendas * 100) | round(1) if dbf.total_vendas else 0 }}%)</span></div>
+        <div class="lbl">{{ d.receita | brl }}</div>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+      Comercial/IA identificados pelo codigo_sck (Hotmart) e utm_source (TMB); vendas sem marcação contam como Orgânico.
+    </div>
+  </div>
+  {% endif %}
 
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 9b. COMPRADORES: LEAD NOVO × LEAD ANTIGO                   -->

@@ -290,10 +290,12 @@ async def debriefing(request: Request, launch_code: str | None = None):
             logger.exception("Debriefing: falha ao classificar leads antigos × novos")
 
     perfil_por_anuncio = None
+    pesquisa_engajamento = None
     if launch:
         try:
-            from frontend.db_readers.typeform import read_perfil_por_anuncio  # noqa: PLC0415
+            from frontend.db_readers.typeform import read_perfil_por_anuncio, read_pesquisa_engajamento  # noqa: PLC0415
             perfil_por_anuncio = await run_in_threadpool(read_perfil_por_anuncio, launch.code)
+            pesquisa_engajamento = await run_in_threadpool(read_pesquisa_engajamento, launch.code)
         except Exception:
             logger.exception("Debriefing: falha ao montar perfil do lead por anúncio")
 
@@ -319,6 +321,7 @@ async def debriefing(request: Request, launch_code: str | None = None):
         tmb=tmb,
         leads_antigos=leads_antigos,
         perfil_por_anuncio=perfil_por_anuncio,
+        pesquisa_engajamento=pesquisa_engajamento,
     )
 
     ctx = _base_ctx(request, "debriefing", "Debriefing", launch, launches,

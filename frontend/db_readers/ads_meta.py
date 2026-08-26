@@ -139,8 +139,11 @@ def _categorize_publico(adset: Any) -> str:
 
     Envolvimento retorna com a janela ("Envolvimento 30D") quando o nome traz
     o sufixo de dias; as demais categorias são agregadas sem sub-janela.
+    Quando nada bate, devolve o nome do conjunto de anúncios em vez de um
+    "Outros" genérico — pra nenhum público ficar escondido no relatório.
     """
-    a = str(adset or "").lower()
+    original = str(adset or "").strip() or "Sem Nome"
+    a = original.lower()
     dias = re.search(r"(\d+)\s*d\b", a)
     janela = f" {dias.group(1)}D" if dias else ""
     if "cadastrad" in a:
@@ -161,7 +164,7 @@ def _categorize_publico(adset: Any) -> str:
         return "Advantage+"
     if "interesse" in a or "education" in a or "higher" in a:
         return "Interesses"
-    return "Outros"
+    return original
 
 
 def _categorize_campaign(camp: str) -> tuple[str, str, str, str]:

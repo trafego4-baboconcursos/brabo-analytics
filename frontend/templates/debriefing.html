@@ -763,6 +763,54 @@
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4b0. DETALHAMENTO DOS PÚBLICOS — audiências (Google)        -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-users-group"></i> Detalhamento dos Públicos — Captação (Google)</div>
+    {% if dbf.publicos_captacao_google %}
+    <div class="dbf-publicos-stack">
+      {% for clima, pubs in dbf.publicos_captacao_google.items() %}
+      <div>
+        <div class="cmp-label">{{ clima }}</div>
+        <div class="table-wrap" data-no-filter>
+          <table class="dbf-table">
+            <thead>
+              <tr>
+                <th>Público</th>
+                <th class="num">Invest.</th>
+                <th class="num">%</th>
+                <th class="num">Leads</th>
+                <th class="num">CPL</th>
+                <th class="num">Vendas</th>
+                <th class="num">Faturamento</th>
+                <th class="num">ROAS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in pubs %}
+              <tr>
+                <td>{{ p.publico }}</td>
+                <td class="num">{{ p.gasto | brl }}</td>
+                <td class="num">{{ p.pct | round(1) }}%</td>
+                <td class="num">{{ p.leads | num }}</td>
+                <td class="num">{{ p.cpl | brl if p.leads > 0 else '—' }}</td>
+                <td class="num">{{ p.vendas | num }}</td>
+                <td class="num">{{ p.receita | brl }}</td>
+                <td class="num {{ 'roas-good' if p.roas >= 2 else ('roas-ok' if p.roas >= 1 else ('roas-bad' if p.roas > 0 else '')) }}">{{ "%.2f"|format(p.roas) | replace(".", ",") }}x</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    {{ sem_dados("Sem audiências de Captação com investimento no Google Ads") }}
+    {% endif %}
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 4b1. ANÚNCIOS ANTIGOS × NOVOS — PRÉ-QUALI E CAPTAÇÃO       -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.antigo_novo %}
@@ -782,6 +830,9 @@
                 <th class="num">Leads</th>
                 <th class="num">CPL</th>
                 <th class="num">Anúncios</th>
+                <th class="num">Vendas</th>
+                <th class="num">Receita</th>
+                <th class="num">ROAS</th>
               </tr>
             </thead>
             <tbody>
@@ -792,6 +843,9 @@
                 <td class="num">{{ g.antigo.leads | num }}</td>
                 <td class="num">{{ g.antigo.cpl | brl if g.antigo.leads > 0 else '—' }}</td>
                 <td class="num">{{ g.antigo.n }}</td>
+                <td class="num">{{ g.antigo.vendas | num }}</td>
+                <td class="num">{{ g.antigo.receita | brl }}</td>
+                <td class="num">{{ g.antigo.roas | round(2) if g.antigo.gasto > 0 else '—' }}{% if g.antigo.gasto > 0 %}x{% endif %}</td>
               </tr>
               <tr>
                 <td>Novos</td>
@@ -800,6 +854,9 @@
                 <td class="num">{{ g.novo.leads | num }}</td>
                 <td class="num">{{ g.novo.cpl | brl if g.novo.leads > 0 else '—' }}</td>
                 <td class="num">{{ g.novo.n }}</td>
+                <td class="num">{{ g.novo.vendas | num }}</td>
+                <td class="num">{{ g.novo.receita | brl }}</td>
+                <td class="num">{{ g.novo.roas | round(2) if g.novo.gasto > 0 else '—' }}{% if g.novo.gasto > 0 %}x{% endif %}</td>
               </tr>
             </tbody>
           </table>

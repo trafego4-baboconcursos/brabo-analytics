@@ -424,6 +424,7 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
             custo_thruplay=float(r["gasto"] / r["thruplays"]) if r["thruplays"] > 0 else 0.0
         )
 
+        antigo = bool(ad_code and ad_code in _ad_codes_vistos_antes)
         ad_dict = {
             "ad_code": ad_code,
             "nome": c.nome,
@@ -435,13 +436,14 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
             "thruplays": c.thruplays,
             "cliques": c.cliques,
             "impressoes": c.impressoes,
-            "origem": "Meta Ads"
+            "origem": "Meta Ads",
+            "antigo": antigo,
         }
 
         if r["etapa"] == "Captação":
             summary.captacao_por_ad.append(ad_dict)
 
-            if ad_code and ad_code in _ad_codes_vistos_antes:
+            if antigo:
                 summary.validados.append(c)
             else:
                 summary.novos.append(c)

@@ -79,6 +79,33 @@ def read_vendas(launch_folder_or_code: Any, start_date=None, end_date=None) -> V
     )
 
 
+_UF_POR_NOME = {
+    "acre": "AC", "alagoas": "AL", "amapa": "AP", "amazonas": "AM", "bahia": "BA",
+    "ceara": "CE", "distrito federal": "DF", "espirito santo": "ES", "goias": "GO",
+    "maranhao": "MA", "mato grosso": "MT", "mato grosso do sul": "MS", "minas gerais": "MG",
+    "para": "PA", "paraiba": "PB", "parana": "PR", "pernambuco": "PE", "piaui": "PI",
+    "rio de janeiro": "RJ", "rio grande do norte": "RN", "rio grande do sul": "RS",
+    "rondonia": "RO", "roraima": "RR", "santa catarina": "SC", "sao paulo": "SP",
+    "sergipe": "SE", "tocantins": "TO",
+}
+_UFS_VALIDAS = set(_UF_POR_NOME.values())
+
+
+def _norm_uf(value: Any) -> str | None:
+    """Normaliza estado pra sigla (UF), aceitando sigla, nome completo (com/sem
+    acento) ou o formato do Meta Ads ("Acre (state)"). None se não reconhecer
+    (ex: "Florida" — comprador fora do Brasil)."""
+    import unicodedata
+    s = str(value or "").strip()
+    if not s:
+        return None
+    s = re.sub(r"\s*\(state\)\s*$", "", s, flags=re.IGNORECASE).strip()
+    if len(s) == 2 and s.upper() in _UFS_VALIDAS:
+        return s.upper()
+    s_norm = unicodedata.normalize("NFKD", s).encode("ascii", "ignore").decode().lower().strip()
+    return _UF_POR_NOME.get(s_norm)
+
+
 def _canal_venda(sck: Any, utm_source: Any) -> str:
     """Comercial × IA × Orgânico. Hotmart marca o comercial no codigo_sck
     (ana, HOTMART_SALES_AGENT, agente_ia); TMB no utm_source (COMERCIAL, IA).
@@ -248,6 +275,10 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
                     nome = str(row.get("comprador_a") or "").strip()
                     if nome:
                         summary.nome_por_email[email] = nome
+                if email not in summary.estado_por_email:
+                    uf = _norm_uf(row.get("estado_provincia"))
+                    if uf:
+                        summary.estado_por_email[email] = uf
 
             if "cartao" in pagto or "card" in pagto or "credit" in pagto:
                 summary.pagamento_cartao += 1
@@ -290,6 +321,10 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
                     nome = str(row.get("nome_cliente") or "").strip()
                     if nome:
                         summary.nome_por_email[email] = nome
+                if email not in summary.estado_por_email:
+                    uf = _norm_uf(row.get("estado"))
+                    if uf:
+                        summary.estado_por_email[email] = uf
 
             if "cartao" in pagto or "card" in pagto or "credito" in pagto:
                 summary.pagamento_cartao += 1
@@ -778,6 +813,75 @@ _HOTMART_STATUS_APROVADO = (
     "Completa", "Aprovada", "Paga", "Completo", "Aprovado", "Pago",
     "approved", "complete", "APPROVED", "COMPLETED",
 )
+
+
+def read_qualidade_regiao(launch_folder_or_code: Any, vendas: Any = None) -> dict | None:
+    """Qualidade por região (pauta debriefing, item 3): investimento/leads/CPL
+    do Meta por estado (Captação) cruzado com compradores/receita por estado.
+
+    O Google Ads NÃO expõe breakdown de estado/cidade nas views de relatório
+    da API (testado: geographic_view e user_location_view só devolvem o
+    country_criterion_id, sempre Brasil) — por isso não há coluna Google aqui.
+    O Meta também só oferece "region" (estado); cidade não é suportado pelo
+    breakdown de Insights.
+    """
+    from frontend.db_readers.ads_meta import _categorize_campaign  # noqa: PLC0415
+
+    code = _extract_launch_code(launch_folder_or_code)
+    if vendas is None:
+        vendas = read_vendas(code)
+    if not vendas:
+        return None
+
+    receita = vendas.receita_por_email or {}
+    estado_email = vendas.estado_por_email or {}
+    buyers = (vendas.emails_hotmart | vendas.emails_tmb) if vendas else set()
+
+    compradores_uf: dict[str, dict] = {}
+    for email in buyers:
+        uf = estado_email.get(email)
+        if not uf:
+            continue
+        d = compradores_uf.setdefault(uf, {"compradores": 0, "receita": 0.0})
+        d["compradores"] += 1
+        d["receita"] += float(receita.get(email) or 0)
+
+    engine = _get_engine()
+    df = pd.read_sql(
+        text("SELECT region, campaign_name, cost, leads FROM meta_ads_region_daily WHERE lancamento_codigo = :code"),
+        engine, params={"code": code},
+    )
+    invest_uf: dict[str, dict] = {}
+    if not df.empty:
+        df["uf"] = df["region"].map(_norm_uf)
+        df["etapa"] = df["campaign_name"].map(lambda c: _categorize_campaign(c)[0])
+        df_cap = df[(df["etapa"] == "Captação") & df["uf"].notna()]
+        g = df_cap.groupby("uf").agg(cost=("cost", "sum"), leads=("leads", "sum"))
+        for uf, r in g.iterrows():
+            invest_uf[uf] = {"invest": float(r["cost"]), "leads": int(r["leads"])}
+
+    ufs = set(compradores_uf) | set(invest_uf)
+    if not ufs:
+        return None
+
+    rows = []
+    for uf in ufs:
+        c = compradores_uf.get(uf, {"compradores": 0, "receita": 0.0})
+        i = invest_uf.get(uf, {"invest": 0.0, "leads": 0})
+        leads = i["leads"]
+        rows.append({
+            "estado": uf,
+            "invest": i["invest"],
+            "leads": leads,
+            "cpl": i["invest"] / leads if leads > 0 else 0.0,
+            "compradores": c["compradores"],
+            "conversao": (c["compradores"] / leads * 100) if leads > 0 else 0.0,
+            "receita": c["receita"],
+            "rpl": (c["receita"] / leads) if leads > 0 else 0.0,
+            "roas": (c["receita"] / i["invest"]) if i["invest"] > 0 else 0.0,
+        })
+    rows.sort(key=lambda r: r["receita"], reverse=True)
+    return {"rows": rows, "tem_invest_meta": bool(invest_uf)}
 
 
 def read_dia1_sales(launch: Any) -> dict:

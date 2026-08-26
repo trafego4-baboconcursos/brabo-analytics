@@ -738,6 +738,57 @@
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4b1. ANÚNCIOS ANTIGOS × NOVOS — PRÉ-QUALI E CAPTAÇÃO       -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.antigo_novo %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-recycle"></i> Anúncios Antigos × Novos</div>
+    <div class="cmp-grid-3">
+      {% for etapa, g in dbf.antigo_novo.items() %}
+      <div>
+        <div class="cmp-label">{{ etapa }}</div>
+        <div class="table-wrap">
+          <table class="dbf-table">
+            <thead>
+              <tr>
+                <th></th>
+                <th class="num">Invest.</th>
+                <th class="num">%</th>
+                <th class="num">Leads</th>
+                <th class="num">CPL</th>
+                <th class="num">Anúncios</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Antigos (validados)</td>
+                <td class="num">{{ g.antigo.gasto | brl }}</td>
+                <td class="num">{{ g.antigo.pct | round(1) }}%</td>
+                <td class="num">{{ g.antigo.leads | num }}</td>
+                <td class="num">{{ g.antigo.cpl | brl if g.antigo.leads > 0 else '—' }}</td>
+                <td class="num">{{ g.antigo.n }}</td>
+              </tr>
+              <tr>
+                <td>Novos</td>
+                <td class="num">{{ g.novo.gasto | brl }}</td>
+                <td class="num">{{ g.novo.pct | round(1) }}%</td>
+                <td class="num">{{ g.novo.leads | num }}</td>
+                <td class="num">{{ g.novo.cpl | brl if g.novo.leads > 0 else '—' }}</td>
+                <td class="num">{{ g.novo.n }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+      "Antigo" = código ADxxx já usado em algum lançamento anterior do mesmo produto (Meta + Google combinados).
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 4b2. PESQUISA — ENGAJAMENTO (RESPOSTAS × BASE)             -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.pesquisa_engajamento %}
@@ -764,6 +815,51 @@
     </div>
     <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
       A resposta à pesquisa funciona como indicador de engajamento. "Quantos receberam" depende dos dados de disparo (WhatsApp/automação) — ainda não coletados.
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4b3. QUALIDADE POR ESTADO (INVEST. META + COMPRADORES)     -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.qualidade_regiao and dbf.qualidade_regiao.rows %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-map-pin"></i> Qualidade por Estado — Captação</div>
+    <div class="table-wrap">
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            <th>Estado</th>
+            <th class="num">Invest. (Meta)</th>
+            <th class="num">Leads (Meta)</th>
+            <th class="num">CPL</th>
+            <th class="num">Compradores</th>
+            <th class="num">Conversão</th>
+            <th class="num">Receita</th>
+            <th class="num">RPL</th>
+            <th class="num">ROAS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in dbf.qualidade_regiao.rows[:15] %}
+          <tr>
+            <td><span class="aud-tag">{{ r.estado }}</span></td>
+            <td class="num">{{ r.invest | brl if r.invest > 0 else '—' }}</td>
+            <td class="num">{{ r.leads | num if r.leads > 0 else '—' }}</td>
+            <td class="num">{{ r.cpl | brl if r.leads > 0 else '—' }}</td>
+            <td class="num"><strong>{{ r.compradores | num }}</strong></td>
+            <td class="num">{{ r.conversao | round(2) if r.leads > 0 else '—' }}{% if r.leads > 0 %}%{% endif %}</td>
+            <td class="num">{{ r.receita | brl }}</td>
+            <td class="num">{{ r.rpl | brl if r.leads > 0 else '—' }}</td>
+            <td class="num">{{ r.roas | round(2) if r.invest > 0 else '—' }}{% if r.invest > 0 %}x{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+      Investimento/leads por estado só disponíveis para o Meta — a API de relatórios do Google Ads não expõe breakdown de estado/cidade. Nenhuma das duas plataformas oferece granularidade de cidade.
+      {% if not dbf.qualidade_regiao.tem_invest_meta %}Sem dados de investimento por estado do Meta para este lançamento ainda.{% endif %}
     </div>
   </div>
   {% endif %}

@@ -560,6 +560,26 @@ CREATE TABLE IF NOT EXISTS meta_ads_demographics_daily (
 CREATE INDEX IF NOT EXISTS idx_ma_demo_date ON meta_ads_demographics_daily (date);
 CREATE INDEX IF NOT EXISTS idx_ma_demo_lancamento ON meta_ads_demographics_daily (lancamento_codigo);
 
+-- ── META ADS — performance por região (estado) ────────────────────────────
+-- A API de Insights do Meta só devolve breakdown de estado ("region"), não
+-- de cidade — por isso não existe coluna de cidade aqui.
+CREATE TABLE IF NOT EXISTS meta_ads_region_daily (
+    id              BIGSERIAL PRIMARY KEY,
+    date            DATE    NOT NULL,
+    region          TEXT    NOT NULL,
+    campaign_name   TEXT,
+    impressions     INTEGER      DEFAULT 0,
+    clicks          INTEGER      DEFAULT 0,
+    cost            NUMERIC(12,2) DEFAULT 0,
+    leads           INTEGER      DEFAULT 0,
+    lancamento_codigo TEXT,
+    updated_at      TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (region, campaign_name, date, lancamento_codigo)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ma_region_date ON meta_ads_region_daily (date);
+CREATE INDEX IF NOT EXISTS idx_ma_region_lancamento ON meta_ads_region_daily (lancamento_codigo);
+
 -- ── ETL Run History ────────────────────────────────────────────────────────────
 -- ─────────────────────────────────────────────────────────────────────────────
 -- YouTube Analytics por aula

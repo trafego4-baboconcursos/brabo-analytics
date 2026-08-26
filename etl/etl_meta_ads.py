@@ -216,6 +216,81 @@ def build_df_from_demographics_api(rows: list[dict]) -> pd.DataFrame:
     return pd.DataFrame(records)
 
 
+def fetch_region(since: str, until: str) -> list[dict]:
+    """Breakdown por estado ("region"). A API de Insights do Meta não oferece
+    granularidade de cidade — "region" é o máximo disponível."""
+    account_ids = [acc.strip() for acc in os.environ["META_AD_ACCOUNT_ID"].split(",") if acc.strip()]
+    token      = os.environ["META_ACCESS_TOKEN"]
+
+    rows = []
+    for account_id in account_ids:
+        if not account_id.startswith("act_"):
+            account_id = f"act_{account_id}"
+        logger.info("Buscando regiao da conta Meta: %s", account_id)
+        url = f"https://graph.facebook.com/{API_VERSION}/{account_id}/insights"
+
+        params = {
+            "access_token":  token,
+            "fields":        "campaign_name,impressions,clicks,spend,actions",
+            "level":         "campaign",
+            "breakdowns":    "region",
+            "time_range":    f'{{"since":"{since}","until":"{until}"}}',
+            "time_increment": 1,
+            "limit":         50,
+        }
+
+        while url:
+            r = http_get(url, params=params)
+            data = r.json()
+            rows.extend(data.get("data", []))
+            url    = data.get("paging", {}).get("next")
+            params = {}   # próxima página já vem com todos os parâmetros na URL
+
+    return rows
+
+
+def build_df_from_region_api(rows: list[dict]) -> pd.DataFrame:
+    records = []
+    for r in rows:
+        campaign_name = r.get("campaign_name", "")
+        records.append({
+            "date":             r.get("date_start"),
+            "region":           r.get("region", ""),
+            "campaign_name":    campaign_name,
+            "lancamento_codigo": extract_launch_code(campaign_name),
+            "impressions":      int(r.get("impressions", 0)),
+            "clicks":           int(r.get("clicks", 0)),
+            "cost":             float(r.get("spend", 0)),
+            "leads":            _action_value(r.get("actions"), "lead"),
+        })
+    return pd.DataFrame(records)
+
+
+def upsert_region(df: pd.DataFrame, since: str, until: str, launch_code: str | None = None):
+    if df.empty:
+        logger.warning("Nenhum dado de regiao Meta Ads para gravar.")
+        return
+    key_cols = ["date", "region", "campaign_name", "lancamento_codigo"]
+    metric_cols = ["impressions", "clicks", "cost", "leads"]
+    df = df.groupby(key_cols, dropna=False, as_index=False)[metric_cols].sum()
+    df["updated_at"] = datetime.now(timezone.utc).isoformat()
+    engine = get_engine()
+    table = "meta_ads_region_daily"
+    with engine.begin() as conn:
+        if launch_code:
+            conn.execute(
+                text(f"DELETE FROM {table} WHERE date BETWEEN :s AND :u AND lancamento_codigo = :launch_code"),
+                {"s": since, "u": until, "launch_code": launch_code},
+            )
+        else:
+            conn.execute(
+                text(f"DELETE FROM {table} WHERE date BETWEEN :s AND :u"),
+                {"s": since, "u": until},
+            )
+    df.to_sql(table, engine, if_exists="append", index=False, method="multi", chunksize=500)
+    logger.info("Upsert concluído: %d linhas gravadas em '%s'", len(df), table)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Modo CSV (export manual do Ads Manager)
 # O CSV do Ads Manager já tem breakdown diário — coluna "Dia"
@@ -595,6 +670,15 @@ def main():
             if args.launch_code:
                 df_demo = df_demo[df_demo["lancamento_codigo"] == args.launch_code.upper()]
             upsert_demographics(df_demo, args.since, args.until, args.launch_code)
+
+        # Região (estado)
+        region_rows = fetch_region(args.since, args.until)
+        if region_rows:
+            logger.info("%d registros de regiao retornados", len(region_rows))
+            df_region = build_df_from_region_api(region_rows)
+            if args.launch_code:
+                df_region = df_region[df_region["lancamento_codigo"] == args.launch_code.upper()]
+            upsert_region(df_region, args.since, args.until, args.launch_code)
 
         # Thumbnails de criativos: reaproveita ad_id/ad_name/lancamento_codigo
         # ja retornados pelos insights, so busca creative{} para eles.

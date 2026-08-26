@@ -165,6 +165,37 @@ def _build_dia1_rows(dia1: Any, prev_dia1: Any) -> list:
     return rows
 
 
+def _build_antigo_novo(meta: Any, google: Any) -> dict:
+    """Investimento/leads em anúncios antigos (ADxxx já usado em lançamento
+    anterior do mesmo produto) × novos, por etapa. Combina Meta + Google."""
+    listas = {
+        "Pré-Qualificação": [
+            *(getattr(meta, "preq_por_ad", None) or []),
+            *(getattr(google, "preq_por_ad", None) or []),
+        ],
+        "Captação": [
+            *(getattr(meta, "captacao_por_ad", None) or []),
+            *(getattr(google, "anuncios_por_ad", None) or []),
+        ],
+    }
+    out: dict[str, dict] = {}
+    for etapa, ads in listas.items():
+        if not ads:
+            continue
+        grupos = {"antigo": {"gasto": 0.0, "leads": 0, "n": 0}, "novo": {"gasto": 0.0, "leads": 0, "n": 0}}
+        for a in ads:
+            key = "antigo" if a.get("antigo") else "novo"
+            grupos[key]["gasto"] += float(a.get("gasto") or 0)
+            grupos[key]["leads"] += int(a.get("leads") or 0)
+            grupos[key]["n"] += 1
+        total_gasto = grupos["antigo"]["gasto"] + grupos["novo"]["gasto"] or 1
+        for g in grupos.values():
+            g["cpl"] = g["gasto"] / g["leads"] if g["leads"] > 0 else 0.0
+            g["pct"] = g["gasto"] / total_gasto * 100
+        out[etapa] = grupos
+    return out
+
+
 def _compute_debriefing_ctx(
     launch: Any,
     previous: Any,
@@ -186,6 +217,7 @@ def _compute_debriefing_ctx(
     pesquisa_engajamento: Any = None,
     dia1: Any = None,
     prev_dia1: Any = None,
+    qualidade_regiao: Any = None,
 ) -> dict:
     def _f(x): return float(x or 0)
     def _i(x): return int(x or 0)
@@ -448,6 +480,10 @@ def _compute_debriefing_ctx(
         "vendas_por_canal": getattr(vendas, "por_canal", {}) or {},
         # Dia 1 hora a hora × lançamento anterior
         "dia1_rows": _build_dia1_rows(dia1, prev_dia1),
+        # Antigo × novo (ADxxx já usado em lançamento anterior do produto)
+        "antigo_novo": _build_antigo_novo(meta, google),
+        # Qualidade por estado (Meta invest/leads + compradores/receita)
+        "qualidade_regiao": qualidade_regiao,
         "dia1_data": (dia1 or {}).get("data_abertura") or "",
         "prev_dia1_data": (prev_dia1 or {}).get("data_abertura") or "",
     }

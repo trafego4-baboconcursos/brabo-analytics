@@ -15,6 +15,7 @@ from logger import get_logger
 from frontend.utils import _extract_launch_code
 from frontend.db import _get_engine
 from frontend.models import GoogleCampanha, GoogleSummary
+from frontend.db_readers.ads_meta import get_historico_ad_codes
 from src.constants import ETAPAS_ORDEM
 
 logger = get_logger("db")
@@ -170,6 +171,8 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
         agg_cols["views_100"] = ("video_views_100", "sum")
     ad_grouped = df.groupby("ad_name").agg(**agg_cols).reset_index()
 
+    _ad_codes_vistos_antes = get_historico_ad_codes(code)
+
     for _, r in ad_grouped.iterrows():
         name = r["ad_name"]
         camp = r["campaign_name"]
@@ -215,6 +218,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
             "body_rate": views_100 / vviews * 100 if vviews > 0 else 0.0,
             "origem": "Google Ads",
             "video_id": video_id,
+            "antigo": bool(ad_code in _ad_codes_vistos_antes),
         })
     summary.anuncios_por_ad = sorted(summary.anuncios_por_ad, key=lambda x: x["leads"], reverse=True)
     summary.preq_por_ad = sorted(summary.preq_por_ad, key=lambda x: x["leads"], reverse=True)

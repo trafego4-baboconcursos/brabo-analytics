@@ -300,14 +300,16 @@ async def debriefing(request: Request, launch_code: str | None = None):
             logger.exception("Debriefing: falha ao montar perfil do lead por anúncio")
 
     dia1 = prev_dia1 = None
+    qualidade_regiao = None
     if launch:
         try:
-            from frontend.db_readers.sales import read_dia1_sales  # noqa: PLC0415
+            from frontend.db_readers.sales import read_dia1_sales, read_qualidade_regiao  # noqa: PLC0415
             dia1 = await run_in_threadpool(read_dia1_sales, launch.code)
             if previous:
                 prev_dia1 = await run_in_threadpool(read_dia1_sales, previous.code)
+            qualidade_regiao = await run_in_threadpool(read_qualidade_regiao, launch.code, vendas)
         except Exception:
-            logger.exception("Debriefing: falha ao montar vendas hora a hora do dia 1")
+            logger.exception("Debriefing: falha ao montar vendas hora a hora do dia 1 / qualidade por regiao")
 
     prev_meta = prev_google = prev_vendas = None
     prev_sales_attr = None
@@ -334,6 +336,7 @@ async def debriefing(request: Request, launch_code: str | None = None):
         pesquisa_engajamento=pesquisa_engajamento,
         dia1=dia1,
         prev_dia1=prev_dia1,
+        qualidade_regiao=qualidade_regiao,
     )
 
     ctx = _base_ctx(request, "debriefing", "Debriefing", launch, launches,

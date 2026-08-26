@@ -13,12 +13,9 @@
 
     {% if not instagram_api_configured %}
     <div class="note warning">
-      Métricas automáticas (seguidores, posts, bio, foto) ainda não estão conectadas.
-      A API do Meta permite trazer isso via <code>business_discovery</code>, usando uma conta Instagram
-      Business/Creator nossa como ponte — sem precisar de autorização do expert, desde que o perfil dele
-      também seja Business/Creator. Falta configurar <code>INSTAGRAM_BUSINESS_ID</code> e o escopo
-      <code>instagram_basic</code> no <code>META_ACCESS_TOKEN</code>. Por enquanto os cards abaixo mostram
-      só o link do perfil.
+      Métricas automáticas (seguidores, posts, bio, foto) ainda não estão conectadas — falta configurar
+      o escopo <code>instagram_basic</code> no <code>META_ACCESS_TOKEN</code>. Por enquanto os cards
+      abaixo mostram só o link do perfil.
     </div>
     {% endif %}
 

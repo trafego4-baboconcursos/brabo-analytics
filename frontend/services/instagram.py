@@ -1,14 +1,12 @@
 """
-frontend/services/instagram.py — Perfis de Instagram dos experts via Graph API (business_discovery).
+frontend/services/instagram.py — Perfis de Instagram dos experts via Graph API.
 
-business_discovery permite consultar dados públicos de qualquer perfil Instagram
-Business/Creator (foto, bio, seguidores, nº de posts) usando uma conta Instagram
-Business nossa como "ponte" — não precisa do expert autorizar nada.
+As 3 contas Instagram dos experts são Business/Creator vinculadas a Páginas do
+Facebook que administramos — dá pra ler os dados delas direto pelo próprio
+ID da conta (sem precisar de business_discovery nem de autorização extra).
 Requer:
-    META_ACCESS_TOKEN        — com escopo instagram_basic (além de ads_read)
-    INSTAGRAM_BUSINESS_ID    — ID da conta Instagram Business/Creator usada como ponte
-Sem essas duas variáveis, ou se o perfil consultado não for Business/Creator,
-a função devolve só o link do perfil (sem métricas).
+    META_ACCESS_TOKEN — com escopo instagram_basic (além de ads_read)
+Sem essa variável, ou se a chamada falhar, a função devolve só o link do perfil.
 """
 from __future__ import annotations
 import os
@@ -23,57 +21,51 @@ logger = get_logger("frontend")
 API_VERSION = "v22.0"
 
 EXPERTS = [
-    {"name": "Mateus Andrade",   "username": "mateusandrade.me"},
-    {"name": "Brabo Concursos",  "username": "braboconcursos"},
-    {"name": "Felipe Graton",    "username": "felipegraton"},
+    {"name": "Mateus Andrade",   "username": "mateusandrade.me", "ig_id": "17841402341156659"},
+    {"name": "Brabo Concursos",  "username": "braboconcursos",   "ig_id": "17841456180884668"},
+    {"name": "Felipe Graton",    "username": "felipegraton",     "ig_id": "17841460679248187"},
 ]
 
 _CACHE: dict[str, tuple[float, dict]] = {}
 _CACHE_TTL = 3600  # 1h — dados de perfil mudam pouco
 
 
-def _fetch_business_discovery(username: str) -> dict | None:
+def _fetch_profile(ig_id: str) -> dict | None:
     token = os.environ.get("META_ACCESS_TOKEN")
-    ig_id = os.environ.get("INSTAGRAM_BUSINESS_ID")
-    if not token or not ig_id:
+    if not token:
         return None
     url = f"https://graph.facebook.com/{API_VERSION}/{ig_id}"
     params = {
-        "fields": (
-            f"business_discovery.username({username})"
-            "{username,name,biography,followers_count,media_count,profile_picture_url}"
-        ),
+        "fields": "username,name,biography,followers_count,media_count,profile_picture_url",
         "access_token": token,
     }
     try:
         resp = requests.get(url, params=params, timeout=15)
         resp.raise_for_status()
-        data = resp.json().get("business_discovery")
-        return data or None
+        return resp.json() or None
     except Exception:
-        logger.warning("Instagram business_discovery falhou para @%s", username, exc_info=True)
+        logger.warning("Instagram: falha ao buscar perfil %s", ig_id, exc_info=True)
         return None
 
 
-def get_instagram_profiles() -> list[dict]:
+def get_instagram_profiles() -> dict:
     """Retorna a lista de experts com o que der pra trazer da API no momento.
     Sempre inclui link do perfil; métricas (seguidores, posts, bio, foto) só
-    aparecem se INSTAGRAM_BUSINESS_ID/META_ACCESS_TOKEN estiverem configurados
-    e o perfil consultado for Business/Creator."""
-    api_configured = bool(os.environ.get("META_ACCESS_TOKEN") and os.environ.get("INSTAGRAM_BUSINESS_ID"))
+    aparecem se META_ACCESS_TOKEN estiver configurado com instagram_basic."""
+    api_configured = bool(os.environ.get("META_ACCESS_TOKEN"))
     profiles = []
     for expert in EXPERTS:
-        username = expert["username"]
-        cached = _CACHE.get(username)
+        ig_id = expert["ig_id"]
+        cached = _CACHE.get(ig_id)
         if cached and (_time.time() - cached[0]) < _CACHE_TTL:
             data = cached[1]
         else:
-            data = _fetch_business_discovery(username) or {}
-            _CACHE[username] = (_time.time(), data)
+            data = _fetch_profile(ig_id) or {}
+            _CACHE[ig_id] = (_time.time(), data)
         profiles.append({
             "name": expert["name"],
-            "username": username,
-            "profile_url": f"https://instagram.com/{username}",
+            "username": expert["username"],
+            "profile_url": f"https://instagram.com/{expert['username']}",
             "followers_count": data.get("followers_count"),
             "media_count": data.get("media_count"),
             "biography": data.get("biography"),

@@ -554,7 +554,10 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
             try:
                 dt = pd.to_datetime(s, errors="coerce")
                 if dt is not pd.NaT and hasattr(dt, 'tzinfo') and dt.tzinfo is not None:
-                    dt = dt.tz_localize(None)
+                    # formato ISO com Z/offset (webhook) vem em UTC — converte
+                    # pra Brasília antes de descartar o tz, senão vendas perto
+                    # da meia-noite caem no dia errado (mesmo ajuste do epoch acima)
+                    dt = dt.tz_convert("America/Sao_Paulo").tz_localize(None)
                 return dt
             except Exception: return pd.NaT
         df_paid["data_parsed"] = df_paid["data_da_transacao"].apply(_parse_hm_date)

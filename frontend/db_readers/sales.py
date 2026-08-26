@@ -293,6 +293,8 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
             d = summary.por_canal.setdefault(canal, {"vendas": 0, "receita": 0.0})
             d["vendas"] += 1
             d["receita"] += valor
+            if email and canal != "Orgânico":
+                summary.canal_por_email[email] = canal
 
     if not tmb_df.empty:
         for _, row in tmb_df.iterrows():
@@ -339,6 +341,8 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
             d = summary.por_canal.setdefault(canal, {"vendas": 0, "receita": 0.0})
             d["vendas"] += 1
             d["receita"] += valor
+            if email and canal != "Orgânico":
+                summary.canal_por_email[email] = canal
 
     summary.total_vendas = summary.hotmart_vendas + summary.tmb_vendas
     summary.total_receita = summary.hotmart_receita + summary.tmb_receita

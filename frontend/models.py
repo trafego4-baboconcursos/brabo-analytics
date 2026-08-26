@@ -172,6 +172,7 @@ class VendasSummary:
     phone_por_email: dict[str, str] = field(default_factory=dict)
     por_canal: dict[str, dict] = field(default_factory=dict)
     estado_por_email: dict[str, str] = field(default_factory=dict)
+    canal_por_email: dict[str, str] = field(default_factory=dict)
     nome_por_email: dict[str, str] = field(default_factory=dict)
 
 @dataclass

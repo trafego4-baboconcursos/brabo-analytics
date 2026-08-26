@@ -1,7 +1,7 @@
 from __future__ import annotations
 import asyncio
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from fastapi.concurrency import run_in_threadpool
 
 from frontend.core import (
@@ -311,6 +311,14 @@ async def debriefing(request: Request, launch_code: str | None = None):
         except Exception:
             logger.exception("Debriefing: falha ao montar vendas hora a hora do dia 1 / qualidade por regiao")
 
+    caminho_comprador = None
+    if launch and vendas:
+        try:
+            from frontend.db_readers.caminho_comprador import read_caminho_comprador  # noqa: PLC0415
+            caminho_comprador = await run_in_threadpool(read_caminho_comprador, launch.code, vendas)
+        except Exception:
+            logger.exception("Debriefing: falha ao montar caminho do comprador")
+
     prev_meta = prev_google = prev_vendas = None
     prev_sales_attr = None
     if previous:
@@ -337,6 +345,7 @@ async def debriefing(request: Request, launch_code: str | None = None):
         dia1=dia1,
         prev_dia1=prev_dia1,
         qualidade_regiao=qualidade_regiao,
+        caminho_comprador=caminho_comprador,
     )
 
     ctx = _base_ctx(request, "debriefing", "Debriefing", launch, launches,
@@ -344,3 +353,35 @@ async def debriefing(request: Request, launch_code: str | None = None):
                     data_errors=data_errors,
                     creative_data_error=creative_data_error)
     return templates.TemplateResponse("debriefing.html", ctx)
+
+
+@router.get("/api/caminho-comprador.csv")
+async def api_caminho_comprador_csv(launch_code: str | None = None):
+    """Base unificada 'caminho do comprador' (uma linha por comprador) em CSV
+    — pra rodar análise/IA em cima, conforme a pauta do debriefing."""
+    import csv
+    import io
+
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    if not launch:
+        return Response("lancamento nao encontrado", status_code=404, media_type="text/plain")
+
+    from frontend.db_readers.caminho_comprador import read_caminho_comprador  # noqa: PLC0415
+    data = await run_in_threadpool(read_caminho_comprador, launch.code)
+    if not data or not data.get("rows"):
+        return Response("sem dados", status_code=404, media_type="text/plain")
+
+    buf = io.StringIO()
+    cols = ["email", "nome", "estado", "ad_code", "plataforma", "data_cadastro",
+            "grupo", "respondeu_pesquisa", "canal", "vendas", "receita"]
+    writer = csv.DictWriter(buf, fieldnames=cols)
+    writer.writeheader()
+    for row in data["rows"]:
+        writer.writerow(row)
+
+    return Response(
+        buf.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="caminho_comprador_{launch.code}.csv"'},
+    )

@@ -1313,6 +1313,43 @@
   {% endif %}
 
   <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 9a2. CAMINHO DO COMPRADOR — FUNIL UNIFICADO POR PESSOA     -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.caminho_comprador %}
+  {% set cc = dbf.caminho_comprador %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-route"></i> Caminho do Comprador</div>
+    <div class="dbf-kpi-grid">
+      <div class="dbf-kpi">
+        <div class="lbl">Origem/anúncio identificado</div>
+        <div class="val">{{ cc.com_lead | num }} <span class="ldt-pct">({{ cc.pct_lead | round(1) }}%)</span></div>
+      </div>
+      <div class="dbf-kpi">
+        <div class="lbl">Entrou em grupo (Normal ou VIP)</div>
+        <div class="val">{{ cc.com_grupo | num }} <span class="ldt-pct">({{ cc.pct_grupo | round(1) }}%)</span></div>
+        <div class="lbl">{{ cc.vip | num }} no VIP</div>
+      </div>
+      <div class="dbf-kpi">
+        <div class="lbl">Respondeu pesquisa</div>
+        <div class="val">{{ cc.com_pesquisa | num }} <span class="ldt-pct">({{ cc.pct_pesquisa | round(1) }}%)</span></div>
+      </div>
+      <div class="dbf-kpi">
+        <div class="lbl">Comercial ou IA</div>
+        <div class="val">{{ cc.comercial_ia | num }} <span class="ldt-pct">({{ cc.pct_comercial_ia | round(1) }}%)</span></div>
+      </div>
+    </div>
+    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+      <span>Base de {{ cc.total | num }} compradores, unindo por e-mail/telefone: lead (anúncio + data de cadastro) → grupo WhatsApp → pesquisa → canal de venda. Participação em sorteio/live ainda não tem fonte de dados.</span>
+      <a href="/api/caminho-comprador.csv?launch_code={{ launch.code if launch else '' }}"
+         style="white-space:nowrap; display:inline-flex; align-items:center; gap:6px; padding:6px 12px;
+                border:1px solid var(--bs-accent); border-radius:8px; color:var(--bs-accent); text-decoration:none;">
+        <i class="ti ti-download"></i> Baixar base (CSV)
+      </a>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 9b. COMPRADORES: LEAD NOVO × LEAD ANTIGO                   -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.leads_antigos %}

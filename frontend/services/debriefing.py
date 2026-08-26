@@ -218,6 +218,7 @@ def _compute_debriefing_ctx(
     dia1: Any = None,
     prev_dia1: Any = None,
     qualidade_regiao: Any = None,
+    caminho_comprador: Any = None,
 ) -> dict:
     def _f(x): return float(x or 0)
     def _i(x): return int(x or 0)
@@ -484,6 +485,8 @@ def _compute_debriefing_ctx(
         "antigo_novo": _build_antigo_novo(meta, google),
         # Qualidade por estado (Meta invest/leads + compradores/receita)
         "qualidade_regiao": qualidade_regiao,
+        # Caminho do comprador — funil unificado por pessoa (lead→grupo→pesquisa→compra)
+        "caminho_comprador": (caminho_comprador or {}).get("resumo"),
         "dia1_data": (dia1 or {}).get("data_abertura") or "",
         "prev_dia1_data": (prev_dia1 or {}).get("data_abertura") or "",
     }

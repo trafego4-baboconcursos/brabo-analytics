@@ -139,6 +139,32 @@ def _build_rmkt_adsets(meta: Any) -> list:
     return rows
 
 
+def _build_dia1_rows(dia1: Any, prev_dia1: Any) -> list:
+    """Vendas cumulativas hora a hora do dia 1 (abertura), lado a lado com o
+    lançamento anterior — mesmos checkpoints de horário nos dois."""
+    cps = (dia1 or {}).get("checkpoints") or []
+    if not cps:
+        return []
+    prev_map = {c.get("hora"): c for c in ((prev_dia1 or {}).get("checkpoints") or [])}
+    rows = []
+    for c in cps:
+        p = prev_map.get(c.get("hora")) or {}
+        total = c.get("total")
+        prev_total = p.get("total")
+        var = None
+        if total is not None and prev_total:
+            var = (total - prev_total) / prev_total * 100
+        rows.append({
+            "hora": c.get("hora"),
+            "total": total,
+            "faturamento": c.get("faturamento"),
+            "pendente": bool(c.get("pendente")),
+            "prev_total": prev_total,
+            "var": var,
+        })
+    return rows
+
+
 def _compute_debriefing_ctx(
     launch: Any,
     previous: Any,
@@ -158,6 +184,8 @@ def _compute_debriefing_ctx(
     leads_antigos: Any = None,
     perfil_por_anuncio: Any = None,
     pesquisa_engajamento: Any = None,
+    dia1: Any = None,
+    prev_dia1: Any = None,
 ) -> dict:
     def _f(x): return float(x or 0)
     def _i(x): return int(x or 0)
@@ -418,4 +446,8 @@ def _compute_debriefing_ctx(
         "pesquisa_engajamento": pesquisa_engajamento,
         # Comercial × IA × Orgânico (sck Hotmart / utm_source TMB)
         "vendas_por_canal": getattr(vendas, "por_canal", {}) or {},
+        # Dia 1 hora a hora × lançamento anterior
+        "dia1_rows": _build_dia1_rows(dia1, prev_dia1),
+        "dia1_data": (dia1 or {}).get("data_abertura") or "",
+        "prev_dia1_data": (prev_dia1 or {}).get("data_abertura") or "",
     }

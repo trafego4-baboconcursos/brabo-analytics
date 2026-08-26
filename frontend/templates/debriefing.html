@@ -477,6 +477,50 @@
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 2b. DIA 1 HORA A HORA × LANÇAMENTO ANTERIOR                -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.dia1_rows %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-clock-hour-4"></i> Abertura do Carrinho — Hora a Hora (Dia 1)</div>
+    <div class="table-wrap">
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            <th>Horário</th>
+            <th class="num">Vendas acum. {% if dbf.dia1_data %}<span class="ldt-pct">({{ dbf.dia1_data[8:10] }}/{{ dbf.dia1_data[5:7] }})</span>{% endif %}</th>
+            <th class="num">Faturamento acum.</th>
+            {% if dbf.prev_dia1_data %}
+            <th class="num">{{ dbf.prev_code }} <span class="ldt-pct">({{ dbf.prev_dia1_data[8:10] }}/{{ dbf.prev_dia1_data[5:7] }})</span></th>
+            <th class="num">Δ</th>
+            {% endif %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in dbf.dia1_rows %}
+          <tr>
+            <td>{{ r.hora }}</td>
+            <td class="num">{% if r.pendente %}—{% else %}<strong>{{ r.total | num }}</strong>{% endif %}</td>
+            <td class="num">{% if r.pendente or r.faturamento is none %}—{% else %}{{ r.faturamento | brl(0) }}{% endif %}</td>
+            {% if dbf.prev_dia1_data %}
+            <td class="num">{{ r.prev_total | num if r.prev_total is not none else '—' }}</td>
+            <td class="num">
+              {% if r.var is not none %}
+                <span class="{{ 'up' if r.var >= 0 else 'dn' }}">{{ '%+.0f' | format(r.var) }}%</span>
+              {% else %}—{% endif %}
+            </td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+      Vendas cumulativas no primeiro dia de carrinho, comparadas ao mesmo horário do lançamento anterior.
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 3. DETALHAMENTO DE TRÁFEGO                                 -->
   <!-- ═══════════════════════════════════════════════════════════ -->

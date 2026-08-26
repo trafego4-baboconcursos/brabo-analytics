@@ -11,6 +11,13 @@ Legenda: ✅ temos | 🟡 derivável (dado existe, falta cruzar/exibir) | ❌ fa
 > 2. ✅ Compradores dentro × fora dos grupos (cruzamento por telefone) — seção "Compradores × Grupos" na página Grupos de WhatsApp. PI-AGO-26: 95,6% dos compradores estavam nos grupos
 > 3. ✅ Compradores lead novo × lead antigo (created_at do contato AC vs início do lançamento) — seção nova no Debriefing. PI-AGO-26: 29,5% dos compradores já estavam na base antes do lançamento
 > 4. ✅ Perfil do lead por anúncio top 5 × pesquisa (utm_term ADxxx × Typeform por e-mail) — seção nova no Debriefing. Descoberta importante: o código do anúncio vem no **utm_term** (utm_content traz o adset)
+>
+> **Atualização 26/08/2026:** mais 3 itens deriváveis concluídos:
+> 5. ✅ Pesquisa — taxa de resposta da base (47.136 respostas, 14,6% da base no PI-AGO-26); "quem recebeu" segue pendente dos disparos WhatsApp. `etl_ac_campaigns` entrou no `run_all` (estava parado desde 23/06)
+> 6. ✅ Vendas Comercial × IA × Orgânico via `codigo_sck` Hotmart (ana, HOTMART_SALES_AGENT, agente_ia) + `utm_source` TMB (COMERCIAL, IA). PI-AGO-26: 63 comercial (R$ 114k) + 15 IA (R$ 28k)
+> 7. ✅ Abertura do carrinho hora a hora × lançamento anterior (reusa `read_dia1_sales` do /comparativo)
+>
+> Com isso, TODOS os itens deriváveis dos dados existentes estão no ar. O que resta na pauta exige coleta nova (ver lista priorizada no fim).
 
 ---
 

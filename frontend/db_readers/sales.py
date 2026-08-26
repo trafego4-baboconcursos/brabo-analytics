@@ -816,14 +816,19 @@ _HOTMART_STATUS_APROVADO = (
 
 
 def read_qualidade_regiao(launch_folder_or_code: Any, vendas: Any = None) -> dict | None:
-    """Qualidade por região (pauta debriefing, item 3): investimento/leads/CPL
-    do Meta por estado (Captação) cruzado com compradores/receita por estado.
+    """Qualidade por região (pauta debriefing, item 3): investimento do Meta
+    por estado (Captação) cruzado com compradores/receita por estado.
 
-    O Google Ads NÃO expõe breakdown de estado/cidade nas views de relatório
-    da API (testado: geographic_view e user_location_view só devolvem o
-    country_criterion_id, sempre Brasil) — por isso não há coluna Google aqui.
-    O Meta também só oferece "region" (estado); cidade não é suportado pelo
-    breakdown de Insights.
+    Duas limitações reais da API, confirmadas testando ao vivo:
+    - Google Ads não expõe breakdown de estado/cidade em nenhuma view de
+      relatório (geographic_view e user_location_view só devolvem o
+      country_criterion_id, sempre Brasil) — por isso não há coluna Google.
+    - O Meta só oferece "region" (estado, sem cidade) E, quando o insights é
+      quebrado por region, a API NÃO devolve o action_type "lead" no array de
+      actions (só ações de engajamento) — confirmado em ~2.400 linhas reais
+      de Captação sem nenhum "lead". Por isso não há leads/CPL/conversão por
+      estado do Meta aqui, só investimento (spend segue correto) cruzado com
+      o ROAS calculado a partir da receita das vendas.
     """
     from frontend.db_readers.ads_meta import _categorize_campaign  # noqa: PLC0415
 
@@ -848,17 +853,17 @@ def read_qualidade_regiao(launch_folder_or_code: Any, vendas: Any = None) -> dic
 
     engine = _get_engine()
     df = pd.read_sql(
-        text("SELECT region, campaign_name, cost, leads FROM meta_ads_region_daily WHERE lancamento_codigo = :code"),
+        text("SELECT region, campaign_name, cost FROM meta_ads_region_daily WHERE lancamento_codigo = :code"),
         engine, params={"code": code},
     )
-    invest_uf: dict[str, dict] = {}
+    invest_uf: dict[str, float] = {}
     if not df.empty:
         df["uf"] = df["region"].map(_norm_uf)
         df["etapa"] = df["campaign_name"].map(lambda c: _categorize_campaign(c)[0])
         df_cap = df[(df["etapa"] == "Captação") & df["uf"].notna()]
-        g = df_cap.groupby("uf").agg(cost=("cost", "sum"), leads=("leads", "sum"))
+        g = df_cap.groupby("uf").agg(cost=("cost", "sum"))
         for uf, r in g.iterrows():
-            invest_uf[uf] = {"invest": float(r["cost"]), "leads": int(r["leads"])}
+            invest_uf[uf] = float(r["cost"])
 
     ufs = set(compradores_uf) | set(invest_uf)
     if not ufs:
@@ -867,18 +872,13 @@ def read_qualidade_regiao(launch_folder_or_code: Any, vendas: Any = None) -> dic
     rows = []
     for uf in ufs:
         c = compradores_uf.get(uf, {"compradores": 0, "receita": 0.0})
-        i = invest_uf.get(uf, {"invest": 0.0, "leads": 0})
-        leads = i["leads"]
+        invest = invest_uf.get(uf, 0.0)
         rows.append({
             "estado": uf,
-            "invest": i["invest"],
-            "leads": leads,
-            "cpl": i["invest"] / leads if leads > 0 else 0.0,
+            "invest": invest,
             "compradores": c["compradores"],
-            "conversao": (c["compradores"] / leads * 100) if leads > 0 else 0.0,
             "receita": c["receita"],
-            "rpl": (c["receita"] / leads) if leads > 0 else 0.0,
-            "roas": (c["receita"] / i["invest"]) if i["invest"] > 0 else 0.0,
+            "roas": (c["receita"] / invest) if invest > 0 else 0.0,
         })
     rows.sort(key=lambda r: r["receita"], reverse=True)
     return {"rows": rows, "tem_invest_meta": bool(invest_uf)}

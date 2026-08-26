@@ -890,12 +890,24 @@ def read_qualidade_regiao(launch_folder_or_code: Any, vendas: Any = None) -> dic
 
 def read_dia1_sales(launch: Any) -> dict:
     """Vendas cumulativas hora a hora no primeiro dia do carrinho (abertura),
-    pra comparar o ritmo de vendas do dia de lançamento entre ciclos."""
+    pra comparar o ritmo de vendas do dia de lançamento entre ciclos.
+
+    `carrinho_start_date` é a segunda-feira (1º dia de aula) — início da
+    janela usada pra contar vendas do lançamento. A abertura oficial real do
+    carrinho (normalmente quinta-feira, mas o intervalo já variou +2/+3 dias
+    entre lançamentos — não é um offset fixo) vem do campo explícito
+    `abertura_oficial_carrinho`. Fallback pra carrinho_start_date + 3 dias
+    só em lançamentos antigos que ainda não tiveram esse campo preenchido.
+    """
+    from datetime import timedelta  # noqa: PLC0415
     from frontend.db_readers.launches import read_launch_config  # noqa: PLC0415
 
     code = _extract_launch_code(launch)
     cfg = read_launch_config(code)
-    day = _safe_date(cfg.get("carrinho_start_date"))
+    day = _safe_date(cfg.get("abertura_oficial_carrinho"))
+    if not day:
+        carrinho_start = _safe_date(cfg.get("carrinho_start_date"))
+        day = carrinho_start + timedelta(days=3) if carrinho_start else None
     if not day:
         return {"data_abertura": None, "checkpoints": []}
 

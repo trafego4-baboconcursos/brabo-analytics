@@ -31,7 +31,7 @@ import sys
 import threading
 import time as _time
 import traceback
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -329,8 +329,49 @@ def _categorizar_gasto(rows_meta: list[dict], rows_google: list[dict], codigo: s
     return real
 
 
-def _total_gasto(info: dict) -> float:
-    return info.get("spend_meta", 0.0) + info.get("spend_google", 0.0)
+def _gasto_db_periodo(codigo: str, data_ini: str, data_fim: str) -> dict[str, dict]:
+    """Gasto já consolidado no banco (ETL a cada 30min + reprocessamento profundo
+    3h40) entre data_ini e data_fim, agrupado por etapa. Pra período D-1 e antes
+    isso é MELHOR que reconsultar a API ao vivo: mais rápido (query local em vez
+    de paginar semanas de insights), e reflete os restatements retroativos que o
+    Meta/Google fazem (o job de 3h40 existe justamente pra capturar isso — ver
+    scheduler.py). lancamento_codigo já vem extraído pelo ETL, sem precisar
+    re-parsear o nome da campanha."""
+    real: dict[str, dict] = {}
+
+    def _bucket(etapa):
+        return real.setdefault(etapa, {
+            "spend_meta": 0.0, "spend_google": 0.0,
+            "campanhas_meta": set(), "campanhas_google": set(),
+        })
+
+    with get_engine().connect() as conn:
+        rows_m = conn.execute(text(
+            "SELECT campaign_name, SUM(spend) FROM meta_ads_daily "
+            "WHERE lancamento_codigo = :c AND date BETWEEN :ini AND :fim "
+            "GROUP BY campaign_name"
+        ), {"c": codigo, "ini": data_ini, "fim": data_fim}).fetchall()
+        rows_g = conn.execute(text(
+            "SELECT campaign_name, SUM(cost) FROM google_ads_daily "
+            "WHERE lancamento_codigo = :c AND date BETWEEN :ini AND :fim "
+            "GROUP BY campaign_name"
+        ), {"c": codigo, "ini": data_ini, "fim": data_fim}).fetchall()
+
+    for nome_camp, spend in rows_m:
+        etapa, *_ = _categorize_meta(nome_camp or "")
+        if etapa == "Performance Max":
+            etapa = ETAPA_PMAX_REDIRECIONA_PARA
+        b = _bucket(etapa)
+        b["spend_meta"] += float(spend or 0)
+        b["campanhas_meta"].add(nome_camp)
+    for nome_camp, cost in rows_g:
+        etapa, *_ = _categorize_google(nome_camp or "")
+        if etapa == "Performance Max":
+            etapa = ETAPA_PMAX_REDIRECIONA_PARA
+        b = _bucket(etapa)
+        b["spend_google"] += float(cost or 0)
+        b["campanhas_google"].add(nome_camp)
+    return real
 
 
 def _etapa_ativa(nome: str, codigo: str, status_meta: dict[str, str], status_google: dict[str, str]) -> bool:
@@ -408,19 +449,23 @@ def _processar_lancamento(codigo: str, cfg: dict, hoje: date, state: dict) -> tu
             previsto_total = _previsto_periodo_midia(etapa)
             previsto_ate_hoje = _planejado_acumulado_midia(etapa, hoje) if inicio and hoje >= inicio else 0.0
 
+            # D-1 pro trás vem do BANCO (já ETL'd, restatements já aplicados,
+            # query local rápida); só o dia de hoje é buscado ao vivo — e esse
+            # já tínhamos (real_hoje), sem chamada extra. Isso também resolve
+            # o pedido de "o relatório das 8h mostra o gasto até ontem 23h59":
+            # às 8h a fatia "hoje" ainda é ~0, então o acumulado já sai como
+            # D-1 fechado na prática, sem precisar de lógica por horário.
             acumulado = None
             acum_meta = acum_google = 0.0
             if inicio and hoje >= inicio:
-                fim_consulta = min(etapa.get("end_date") or hoje.isoformat(), hoje.isoformat())
+                ontem = hoje - timedelta(days=1)
                 try:
-                    rows_m = fetch_insights(etapa["start_date"], fim_consulta, account_ids=meta_ids) if meta_ids else []
-                    rows_g = (
-                        fetch_report(etapa["start_date"], fim_consulta, customer_ids=google_ids)
-                        + fetch_pmax_report(etapa["start_date"], fim_consulta, customer_ids=google_ids)
-                    ) if google_ids else []
-                    periodo = _categorizar_gasto(rows_m, rows_g, codigo).get(nome, {})
-                    acum_meta = periodo.get("spend_meta", 0.0)
-                    acum_google = periodo.get("spend_google", 0.0)
+                    historico = {}
+                    if ontem >= inicio:
+                        historico = _gasto_db_periodo(codigo, inicio.isoformat(), ontem.isoformat())
+                    hist_info = historico.get(nome, {"spend_meta": 0.0, "spend_google": 0.0})
+                    acum_meta = hist_info.get("spend_meta", 0.0) + info_hoje["spend_meta"]
+                    acum_google = hist_info.get("spend_google", 0.0) + info_hoje["spend_google"]
                     acumulado = acum_meta + acum_google
                 except Exception:
                     logger.exception("Falha ao buscar gasto acumulado de %s / %s", codigo, nome)
@@ -453,19 +498,21 @@ def _processar_lancamento(codigo: str, cfg: dict, hoje: date, state: dict) -> tu
             state_launch[nome] = "active"
         else:
             if estava_ativa:
-                # transição ativa -> pausada: relatório de fechamento (gasto total acumulado)
-                fim_consulta = min(etapa.get("end_date") or hoje.isoformat(), hoje.isoformat())
+                # transição ativa -> pausada: relatório de fechamento (gasto total
+                # acumulado) — mesmo padrão banco (D-1 pro trás) + hoje ao vivo
                 inicio_consulta = etapa.get("start_date")
                 try:
                     if not inicio_consulta:
                         raise ValueError("etapa sem start_date — sem período pra somar o gasto")
-                    rows_m = fetch_insights(inicio_consulta, fim_consulta, account_ids=meta_ids) if meta_ids else []
-                    rows_g = (
-                        fetch_report(inicio_consulta, fim_consulta, customer_ids=google_ids)
-                        + fetch_pmax_report(inicio_consulta, fim_consulta, customer_ids=google_ids)
-                    ) if google_ids else []
-                    total_periodo = _categorizar_gasto(rows_m, rows_g, codigo)
-                    gasto_total = _total_gasto(total_periodo.get(nome, {}))
+                    ontem = hoje - timedelta(days=1)
+                    ini_dt = date.fromisoformat(inicio_consulta)
+                    historico = _gasto_db_periodo(codigo, inicio_consulta, ontem.isoformat()) if ontem >= ini_dt else {}
+                    hist_info = historico.get(nome, {"spend_meta": 0.0, "spend_google": 0.0})
+                    hoje_info = real_hoje.get(nome, {"spend_meta": 0.0, "spend_google": 0.0})
+                    gasto_total = (
+                        hist_info.get("spend_meta", 0.0) + hoje_info.get("spend_meta", 0.0)
+                        + hist_info.get("spend_google", 0.0) + hoje_info.get("spend_google", 0.0)
+                    )
                 except Exception:
                     logger.exception("Falha ao buscar gasto total de fechamento pra %s / %s", codigo, nome)
                     gasto_total = None
@@ -481,19 +528,20 @@ def _processar_lancamento(codigo: str, cfg: dict, hoje: date, state: dict) -> tu
     if cfg.get("carrinho_end_date") == hoje.isoformat():
         try:
             resumo_linhas = ["\n  *📋 Fechamento do carrinho — resumo completo*"]
+            ontem = hoje - timedelta(days=1)
             for etapa in etapas:
                 nome = etapa.get("nome")
                 inicio = etapa.get("start_date")
                 if not inicio:
                     continue
-                fim_consulta = min(etapa.get("end_date") or hoje.isoformat(), hoje.isoformat())
-                rows_m = fetch_insights(inicio, fim_consulta, account_ids=meta_ids) if meta_ids else []
-                rows_g = (
-                    fetch_report(inicio, fim_consulta, customer_ids=google_ids)
-                    + fetch_pmax_report(inicio, fim_consulta, customer_ids=google_ids)
-                ) if google_ids else []
-                total_periodo = _categorizar_gasto(rows_m, rows_g, codigo)
-                gasto_total = _total_gasto(total_periodo.get(nome, {}))
+                ini_dt = date.fromisoformat(inicio)
+                historico = _gasto_db_periodo(codigo, inicio, ontem.isoformat()) if ontem >= ini_dt else {}
+                hist_info = historico.get(nome, {"spend_meta": 0.0, "spend_google": 0.0})
+                hoje_info = real_hoje.get(nome, {"spend_meta": 0.0, "spend_google": 0.0})
+                gasto_total = (
+                    hist_info.get("spend_meta", 0.0) + hoje_info.get("spend_meta", 0.0)
+                    + hist_info.get("spend_google", 0.0) + hoje_info.get("spend_google", 0.0)
+                )
                 previsto_total = _previsto_periodo_midia(etapa)
                 resumo_linhas.append(
                     f"    {nome}: {_formatar_valor(gasto_total)} "

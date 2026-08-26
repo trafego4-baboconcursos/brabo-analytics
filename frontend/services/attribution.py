@@ -431,16 +431,24 @@ def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dic
 
     sales_only_rows = []
     creative_utm = (sales_attr or {}).get("por_criativo_utm", {})
+    _codes_sem_veiculacao = {code for code in creative_sales if code not in rows_by_ad}
+    real_launches_by_code: dict[str, list[dict]] = {}
+    if launch_code and _codes_sem_veiculacao:
+        from frontend.db_readers.ads_meta import find_ad_code_real_launches  # noqa: PLC0415
+        real_launches_by_code = find_ad_code_real_launches(_codes_sem_veiculacao, launch_code)
     for code, sales in creative_sales.items():
         if code in rows_by_ad:
             continue
         utm = creative_utm.get(code, {})
+        real = real_launches_by_code.get(code, [])
         sales_only_rows.append({
             "ad_code": code,
             "nome": code,
             "vendas": int(sales.get("vendas") or 0),
             "faturamento": float(sales.get("faturamento") or 0.0),
             "launches": ", ".join(utm.get("launches") or ["Sem código"]),
+            "real_launch": real[0]["launch"] if real else "",
+            "real_launch_gasto": real[0]["gasto"] if real else 0.0,
             "source": utm.get("source", ""),
             "medium": utm.get("medium", ""),
             "campaign": utm.get("campaign", ""),
@@ -553,7 +561,7 @@ def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dic
             if not code:
                 continue
             g = grouped.setdefault(code, {
-                "ad_code": code, "nome": item.get("nome") or code,
+                "ad_code": code, "nome": item.get("nome") or code, "video_id": None,
                 "gasto": 0.0, "leads": 0, "cliques": 0, "impressoes": 0,
                 "_hook_views": 0, "_meta_views_3s": 0, "_meta_thruplays": 0, "_views_100": 0,
             })
@@ -570,6 +578,8 @@ def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dic
             else:
                 g["_hook_views"] += int(item.get("video_views") or 0)
                 g["_views_100"] += int(item.get("video_views_100") or 0)
+            if item.get("video_id") and not g.get("video_id"):
+                g["video_id"] = item.get("video_id")
             if len(str(item.get("nome") or "")) > len(g["nome"]):
                 g["nome"] = item.get("nome") or g["nome"]
 
@@ -583,6 +593,7 @@ def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dic
             out.append({
                 "ad_code": code,
                 "nome": g["nome"],
+                "video_id": g.get("video_id"),
                 "gasto": gasto,
                 "leads": leads,
                 "cpl": gasto / leads if leads > 0 else 0.0,

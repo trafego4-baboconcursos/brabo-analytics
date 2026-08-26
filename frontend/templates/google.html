@@ -233,66 +233,74 @@
     {% endif %}
     {% endif %}
 
-    {# ── 5. Ranking de Anúncios (Captação YouTube) ───────────────────── #}
-    {% if google.anuncios_por_ad %}
+    {# ── 5. Ranking de Anúncios — Ranking Geral (mesmo padrão da página Criativos) #}
+    {% set google_creative_rows = creative_overview.google_rows if creative_overview else [] %}
+    {% if google_creative_rows %}
     <div class="section">
-      <div class="section-title">5. Ranking de Anúncios — Captação Google</div>
-      <div class="table-wrap">
-        <table>
+      <div class="section-title">5. Ranking de Anúncios — Ranking Geral</div>
+      <div class="table-wrap funil-table-wrap">
+        <table class="funil-table" style="table-layout:fixed;width:100%;">
+          <colgroup>
+            <col style="width:36px"><col style="width:320px;min-width:200px"><col style="width:110px"><col style="width:70px"><col style="width:90px"><col style="width:60px"><col style="width:90px"><col style="width:90px"><col style="width:110px"><col style="width:70px">
+          </colgroup>
           <thead>
             <tr>
-              <th class="th-google">#</th>
-              {% if drive_thumbnails %}<th class="th-google">Criativo</th>{% endif %}
-              <th class="th-google">AD Code</th>
-              <th class="th-google">Nome do Anúncio</th>
-              <th class="th-google">Leads/Conv.</th>
-              <th class="th-google">CPL</th>
-              <th class="th-google">Investimento</th>
-              <th class="th-google">CTR</th>
-              <th class="th-google">CPM</th>
-              <th class="th-google">Vídeo</th>
+              <th>#</th>
+              <th>Criativo</th>
+              <th class="th-num">Investimento</th>
+              <th class="th-num">Leads/Conv.</th>
+              <th class="th-num">CPL</th>
+              <th class="th-num">CTR</th>
+              <th class="th-num">CPM</th>
+              <th class="th-num">Vendas rastreadas</th>
+              <th class="th-num">Faturamento</th>
+              <th class="th-num">ROAS</th>
             </tr>
           </thead>
           <tbody>
-            {% for a in google.anuncios_por_ad %}
-            {% set td = drive_thumbnails.get(a.ad_code) %}
+            {% for c in google_creative_rows %}
+            {% set td = drive_thumbnails.get(c.ad_code) if drive_thumbnails else None %}
             <tr class="{{ 'top3' if loop.index <= 3 else '' }}">
               <td class="numero">{{ loop.index }}</td>
-              {% if drive_thumbnails %}
-              <td style="padding:4px 8px;">
-                {% if td %}
-                <img src="{{ td.thumb }}" alt="{{ a.ad_code }}"
-                     style="width:72px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--bs-border);cursor:pointer;display:block"
-                     data-preview="{{ td.preview }}" data-title="{{ a.ad_code }} — {{ a.nome[:50] }}"
-                     data-gasto="{{ a.gasto | brl }}" data-leads="{{ a.leads | num }}" data-cpl="{{ a.cpl | brl }}"
-                     data-cpm="{{ a.cpm | brl }}" data-ctr="{{ '%.2f'|format(a.ctr) | replace('.', ',') }}"
-                     {% if a.hook_rate is defined and a.hook_rate %}data-hook="{{ '%.2f'|format(a.hook_rate) | replace('.', ',') }}"{% endif %}
-                     {% if a.body_rate is defined and a.body_rate %}data-body="{{ '%.2f'|format(a.body_rate) | replace('.', ',') }}"{% endif %}
-                     onclick="openVideoModalFromEl(this)"
-                     onerror="this.style.display='none'">
-                {% else %}
-                <div style="width:72px;height:48px;border-radius:6px;border:1px dashed var(--bs-border-s);background:var(--bs-surface);display:flex;align-items:center;justify-content:center">
-                  <i class="ti ti-photo-off" style="color:var(--bs-border-s);font-size:18px"></i>
+              <td style="max-width:320px;overflow:hidden;padding:6px 10px;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                  {% if td %}
+                  <img src="{{ td.thumb }}" alt="{{ c.ad_code }}"
+                       style="width:72px;height:48px;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;cursor:pointer;flex-shrink:0;"
+                       data-preview="{{ td.preview }}" data-title="{{ c.ad_code }}"
+                       data-gasto="{{ c.gasto | brl }}" data-leads="{{ c.leads | num }}" data-cpl="{{ c.cpl | brl }}"
+                       data-cpm="{{ c.cpm | brl }}" data-vendas="{{ c.vendas | num }}"
+                       data-roas="{{ '%.2f'|format(c.roas) | replace('.', ',') }}x"
+                       data-ctr="{{ '%.2f'|format(c.ctr) | replace('.', ',') }}"
+                       data-hook="{{ '%.2f'|format(c.hook_rate) | replace('.', ',') }}"
+                       data-body="{{ '%.2f'|format(c.body_rate) | replace('.', ',') }}"
+                       onclick="openVideoModalFromEl(this)"
+                       onerror="this.src='/img/placeholder-ad.png';this.onerror=null;">
+                  {% elif c.video_id %}
+                  <a href="https://youtu.be/{{ c.video_id }}" target="_blank" rel="noopener" style="flex-shrink:0;">
+                    <img src="https://img.youtube.com/vi/{{ c.video_id }}/mqdefault.jpg" alt="{{ c.ad_code }}"
+                         style="width:72px;height:48px;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;"
+                         onerror="this.src='/img/placeholder-ad.png';this.onerror=null;">
+                  </a>
+                  {% else %}
+                  <div style="width:72px;height:48px;border-radius:5px;border:1px dashed #d1d5db;background:#f3f4f6;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="ti ti-photo" style="color:#9ca3af;font-size:20px"></i>
+                  </div>
+                  {% endif %}
+                  <strong title="{{ c.nome }}" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;">
+                    {% if c.ad_code %}<span class="bs-pill google" style="font-size:10px;padding:1px 5px;border-radius:6px;margin-right:4px">{{ c.ad_code }}</span>{% endif %}
+                    {% if c.video_id and not td %}<a href="https://youtu.be/{{ c.video_id }}" target="_blank" rel="noopener">{{ c.nome }}</a>{% else %}{{ c.nome }}{% endif %}
+                  </strong>
                 </div>
-                {% endif %}
               </td>
-              {% endif %}
-              <td><span class="bs-pill google">{{ a.ad_code }}</span></td>
-              <td class="td-muted" style="max-width:200px;font-size:11px;">{{ a.nome[:60] }}</td>
-              <td class="numero"><strong>{{ a.leads | num }}</strong></td>
-              <td class="numero {{ 'positivo' if a.cpl > 0 and a.cpl < 5 else ('negativo' if a.cpl > 12 else '') }}">
-                {{ a.cpl | brl if a.leads > 0 else "–" }}
-              </td>
-              <td class="numero">{{ a.gasto | brl }}</td>
-              <td class="numero">{{ a.ctr | pct(2) }}</td>
-              <td class="numero">{{ a.cpm | brl }}</td>
-              <td>
-                {% if a.video_id %}
-                <a href="https://www.youtube.com/watch?v={{ a.video_id }}" target="_blank" class="td-google" style="font-size:11px;text-decoration:none">
-                  <i class="ti ti-brand-youtube"></i> ver
-                </a>
-                {% else %}–{% endif %}
-              </td>
+              <td class="numero">{{ c.gasto | brl }}</td>
+              <td class="numero"><strong>{{ c.leads | num }}</strong></td>
+              <td class="numero {{ 'positivo' if c.cpl > 0 and c.cpl < 5 else ('negativo' if c.cpl > 12 else '') }}">{{ c.cpl | brl if c.leads > 0 else "–" }}</td>
+              <td class="numero">{{ c.ctr | pct(2) }}</td>
+              <td class="numero">{{ c.cpm | brl }}</td>
+              <td class="numero"><strong>{{ c.vendas | num }}</strong></td>
+              <td class="numero">{{ c.faturamento | brl }}</td>
+              <td class="numero {{ 'positivo' if c.roas >= 1 else ('negativo' if c.roas == 0 else '') }}"><strong>{{ c.roas | num(2) }}x</strong></td>
             </tr>
             {% endfor %}
           </tbody>

@@ -247,19 +247,21 @@
       <div class="section-title">3. Compras atribuídas a ADs sem veiculação neste lançamento</div>
       <div class="note warning">
         Compradores cujo UTM aponta pra um AD sem nenhum investimento registrado no lançamento atual (nem em <code>meta_ads_daily</code>, nem em <code>google_ads_daily</code>).
-        Pode ser UTM de <strong>outro lançamento</strong> (remarketing, evergreen) ou de um criativo duplicado que <strong>nunca chegou a rodar com verba</strong> neste — repare na coluna "Lançamento de origem": se mostrar o código do lançamento atual, é o segundo caso.
+        Quando o código já rodou com verba real em <strong>outro lançamento do mesmo produto</strong>, a coluna "Veiculação real" mostra onde — esse é o lançamento correto pra essas vendas, não o atual.
+        Sem correspondência (célula vazia), pode ser UTM de outro produto, remarketing antigo ou um campo que nunca refletiu um anúncio de fato.
         Essas vendas não entram no ROAS da seção 2.
       </div>
       <div class="table-wrap funil-table-wrap">
         <table class="funil-table" style="table-layout:fixed;width:100%;">
           <colgroup>
-            <col style="width:36px"><col style="width:90px"><col style="width:160px"><col style="width:280px"><col style="width:90px"><col style="width:110px">
+            <col style="width:36px"><col style="width:90px"><col style="width:150px"><col style="width:120px"><col style="width:260px"><col style="width:90px"><col style="width:110px">
           </colgroup>
           <thead>
             <tr>
               <th>#</th>
               <th>AD</th>
-              <th>Lançamento de origem</th>
+              <th>UTM menciona</th>
+              <th>Veiculação real</th>
               <th>Campanha UTM</th>
               <th class="th-num">Vendas</th>
               <th class="th-num">Faturamento</th>
@@ -271,6 +273,11 @@
               <td class="numero">{{ loop.index }}</td>
               <td><strong>{{ c.ad_code }}</strong></td>
               <td>{{ c.launches | join(', ') if c.launches is iterable and c.launches is not string else c.launches }}</td>
+              <td>
+                {% if c.real_launch %}
+                <span class="bs-pill success" title="Investimento real: {{ c.real_launch_gasto | brl }}">{{ c.real_launch }}</span>
+                {% else %}—{% endif %}
+              </td>
               <td title="{{ c.campaign }}" style="overflow:hidden;"><span style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.campaign }}</span></td>
               <td class="numero"><strong>{{ c.vendas | num }}</strong></td>
               <td class="numero">{{ c.faturamento | brl }}</td>

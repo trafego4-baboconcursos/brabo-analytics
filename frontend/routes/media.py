@@ -16,9 +16,20 @@ router = APIRouter()
 async def meta_page(request: Request, launch_code: str | None = None):
     launches = await run_in_threadpool(get_launches)
     launch = resolve_launch(launch_code, launches)
-    d = await _fetch_all_data(launch, needs_thumbnails=True)
-    meta, drive_thumbnails = d["meta"], d["drive_thumbnails"]
+    d = await _fetch_all_data(launch, needs_thumbnails=True, needs_sales_attr=True)
+    meta, google, vendas, sales_attr, drive_thumbnails = (
+        d["meta"], d["google"], d["vendas"], d["sales_attr"], d["drive_thumbnails"]
+    )
+    creative_overview = None
+    try:
+        creative_overview = await run_in_threadpool(
+            _creative_overview, meta, google, vendas, sales_attr,
+            launch_code=launch.code if launch else ""
+        )
+    except Exception:
+        logger.exception("Meta: falha ao montar creative overview")
     ctx = _base_ctx(request, "meta", "Meta Ads", launch, launches, meta=meta,
+                    creative_overview=creative_overview,
                     drive_thumbnails=drive_thumbnails,
                     data_errors=d.get("_errors", []))
     return templates.TemplateResponse("meta.html", ctx)
@@ -28,9 +39,20 @@ async def meta_page(request: Request, launch_code: str | None = None):
 async def google_page(request: Request, launch_code: str | None = None):
     launches = await run_in_threadpool(get_launches)
     launch = resolve_launch(launch_code, launches)
-    d = await _fetch_all_data(launch, needs_thumbnails=True)
-    google, drive_thumbnails = d["google"], d["drive_thumbnails"]
+    d = await _fetch_all_data(launch, needs_thumbnails=True, needs_sales_attr=True)
+    meta, google, vendas, sales_attr, drive_thumbnails = (
+        d["meta"], d["google"], d["vendas"], d["sales_attr"], d["drive_thumbnails"]
+    )
+    creative_overview = None
+    try:
+        creative_overview = await run_in_threadpool(
+            _creative_overview, meta, google, vendas, sales_attr,
+            launch_code=launch.code if launch else ""
+        )
+    except Exception:
+        logger.exception("Google: falha ao montar creative overview")
     ctx = _base_ctx(request, "google", "Google Ads", launch, launches, google=google,
+                    creative_overview=creative_overview,
                     drive_thumbnails=drive_thumbnails,
                     data_errors=d.get("_errors", []))
     return templates.TemplateResponse("google.html", ctx)

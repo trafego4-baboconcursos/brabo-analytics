@@ -48,6 +48,59 @@ def get_historico_ad_codes(code: str) -> set[str]:
     return vistos
 
 
+def find_ad_code_real_launches(ad_codes: set[str], code: str) -> dict[str, list[dict]]:
+    """Para cada AD code em `ad_codes`, procura em QUAIS lançamentos do MESMO
+    produto (mesmo prefixo de `code`, ex.: PI-%) ele teve investimento real
+    registrado (Meta ou Google) — usado quando o UTM de uma venda aponta pro
+    lançamento atual mas o anúncio nunca rodou aqui de fato (ex.: cópia
+    duplicada de outro lançamento que nunca foi ativada)."""
+    if not ad_codes:
+        return {}
+    produto_prefix = code.split("-")[0].upper() if code else ""
+    if not produto_prefix:
+        return {}
+    engine = _get_engine()
+    # ad_code -> lancamento -> {"gasto": soma Meta+Google, "canais": set}
+    by_launch: dict[str, dict[str, dict]] = {}
+    _TABELAS = (("meta_ads_daily", "spend", "Meta"), ("google_ads_daily", "cost", "Google"))
+    try:
+        with engine.connect() as conn:
+            for tabela, spend_col, canal in _TABELAS:
+                assert tabela in {"meta_ads_daily", "google_ads_daily"}
+                rows = conn.execute(
+                    text(f"""
+                        SELECT lancamento_codigo, ad_name, SUM({spend_col}) as gasto
+                        FROM {tabela}
+                        WHERE lancamento_codigo != :code
+                          AND lancamento_codigo ILIKE :prefix
+                        GROUP BY lancamento_codigo, ad_name
+                        HAVING SUM({spend_col}) > 0
+                    """),
+                    {"code": code, "prefix": f"{produto_prefix}-%"},
+                ).fetchall()
+                for lancamento, ad_name, gasto in rows:
+                    m = re.search(r"\bAD\d+\b", str(ad_name or ""), flags=re.IGNORECASE)
+                    if not m:
+                        continue
+                    ad_code = m.group(0).upper()
+                    if ad_code not in ad_codes:
+                        continue
+                    launches = by_launch.setdefault(ad_code, {})
+                    entry = launches.setdefault(lancamento, {"launch": lancamento, "gasto": 0.0, "canais": set()})
+                    entry["gasto"] += float(gasto or 0)
+                    entry["canais"].add(canal)
+    except Exception:
+        logger.exception("Falha ao buscar lançamentos reais dos AD codes; retornando vazio")
+    result: dict[str, list[dict]] = {}
+    for ad_code, launches in by_launch.items():
+        entries = list(launches.values())
+        for entry in entries:
+            entry["canal"] = " + ".join(sorted(entry.pop("canais")))
+        entries.sort(key=lambda e: e["gasto"], reverse=True)
+        result[ad_code] = entries
+    return result
+
+
 ETAPA_MAP = {
     "pré-qualificação": "Pré-Qualificação", "pre-qualificacao": "Pré-Qualificação",
     "pré-quali": "Pré-Qualificação", "pre-quali": "Pré-Qualificação",

@@ -234,70 +234,72 @@
     {% endif %}
     {% endif %}
 
-    {# ── 5. Top Criativos — Ranking por Leads ──────────────────────── #}
-    {% if meta.top_por_leads %}
+    {# ── 5. Top Criativos — Ranking Geral (mesmo padrão da página Criativos) ─── #}
+    {% set meta_creative_rows = creative_overview.meta_rows if creative_overview else [] %}
+    {% if meta_creative_rows %}
     <div class="section">
-      <div class="section-title">5. Top Criativos — Ranking por Leads</div>
-      <div class="info-box" style="padding:0">
-        <div class="table-wrap" style="margin-top:0">
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                {% if drive_thumbnails %}<th>Criativo</th>{% endif %}
-                <th>Anúncio</th>
-                <th>Conjunto</th>
-                <th>Etapa</th>
-                <th>Investimento</th>
-                <th>Leads</th>
-                <th>CPL</th>
-                <th>CTR</th>
-                <th>CPM</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for c in meta.top_por_leads %}
-              {% set td = drive_thumbnails.get(c.ad_code) if drive_thumbnails else None %}
-              <tr class="{{ 'top3' if loop.index <= 3 else '' }}">
-                <td class="numero">{{ loop.index }}</td>
-                {% if drive_thumbnails %}
-                <td style="padding:4px 8px;">
+      <div class="section-title">5. Top Criativos — Ranking Geral</div>
+      <div class="table-wrap funil-table-wrap">
+        <table class="funil-table" style="table-layout:fixed;width:100%;">
+          <colgroup>
+            <col style="width:36px"><col style="width:320px;min-width:200px"><col style="width:110px"><col style="width:70px"><col style="width:90px"><col style="width:60px"><col style="width:90px"><col style="width:90px"><col style="width:110px"><col style="width:70px">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Criativo</th>
+              <th class="th-num">Investimento</th>
+              <th class="th-num">Leads</th>
+              <th class="th-num">CPL</th>
+              <th class="th-num">CTR</th>
+              <th class="th-num">CPM</th>
+              <th class="th-num">Vendas rastreadas</th>
+              <th class="th-num">Faturamento</th>
+              <th class="th-num">ROAS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in meta_creative_rows %}
+            {% set td = drive_thumbnails.get(c.ad_code) if drive_thumbnails else None %}
+            <tr class="{{ 'top3' if loop.index <= 3 else '' }}">
+              <td class="numero">{{ loop.index }}</td>
+              <td style="max-width:320px;overflow:hidden;padding:6px 10px;">
+                <div style="display:flex;align-items:center;gap:10px;">
                   {% if td %}
                   <img src="{{ td.thumb }}" alt="{{ c.ad_code }}"
-                       style="width:72px;height:48px;object-fit:cover;border-radius:6px;border:1px solid var(--bs-border);cursor:pointer;display:block"
-                       data-preview="{{ td.preview }}" data-title="{{ c.ad_code }} — {{ c.nome[:50] }}"
+                       style="width:72px;height:48px;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;cursor:pointer;flex-shrink:0;"
+                       data-preview="{{ td.preview }}" data-title="{{ c.ad_code }}"
                        data-gasto="{{ c.gasto | brl }}" data-leads="{{ c.leads | num }}" data-cpl="{{ c.cpl | brl }}"
-                       data-cpm="{{ c.cpm | brl }}" data-ctr="{{ '%.2f'|format(c.ctr) | replace('.', ',') }}"
+                       data-cpm="{{ c.cpm | brl }}" data-vendas="{{ c.vendas | num }}"
+                       data-roas="{{ '%.2f'|format(c.roas) | replace('.', ',') }}x"
+                       data-ctr="{{ '%.2f'|format(c.ctr) | replace('.', ',') }}"
                        data-hook="{{ '%.2f'|format(c.hook_rate) | replace('.', ',') }}"
-                       data-hold="{{ '%.2f'|format(c.hold_rate) | replace('.', ',') }}"
+                       {% if c.hold_rate is not none %}data-hold="{{ '%.2f'|format(c.hold_rate) | replace('.', ',') }}"{% endif %}
                        data-body="{{ '%.2f'|format(c.body_rate) | replace('.', ',') }}"
                        onclick="openVideoModalFromEl(this)"
-                       onerror="this.style.display='none'">
+                       onerror="this.src='/img/placeholder-ad.png';this.onerror=null;">
                   {% else %}
-                  <div style="width:72px;height:48px;border-radius:6px;border:1px dashed var(--bs-border-s);background:var(--bs-surface);display:flex;align-items:center;justify-content:center">
-                    <i class="ti ti-photo-off" style="color:var(--bs-border-s);font-size:18px"></i>
+                  <div style="width:72px;height:48px;border-radius:5px;border:1px dashed #d1d5db;background:#f3f4f6;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="ti ti-photo" style="color:#9ca3af;font-size:20px"></i>
                   </div>
                   {% endif %}
-                </td>
-                {% endif %}
-                <td style="max-width:200px">
-                  {% if c.ad_code %}<span class="bs-pill meta" style="font-size:10px;padding:1px 5px;border-radius:6px;margin-right:4px">{{ c.ad_code }}</span>{% endif %}
-                  <strong>{{ c.nome[:50] }}</strong>
-                </td>
-                <td class="td-muted" style="max-width:160px;font-size:11px;">{{ c.conjunto[:40] }}</td>
-                <td><span class="bs-pill meta" style="font-size:10px;padding:1px 6px;border-radius:8px;">{{ c.etapa }}</span></td>
-                <td class="numero">{{ c.gasto | brl }}</td>
-                <td class="numero"><strong>{{ c.leads | num }}</strong></td>
-                <td class="numero {{ 'positivo' if c.cpl > 0 and c.cpl < 3 else ('negativo' if c.cpl > 6 else '') }}">
-                  <strong>{{ c.cpl | brl }}</strong>
-                </td>
-                <td class="numero">{{ c.ctr | pct(2) }}</td>
-                <td class="numero">{{ c.cpm | brl }}</td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+                  <strong title="{{ c.nome }}" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;">
+                    {% if c.ad_code %}<span class="bs-pill meta" style="font-size:10px;padding:1px 5px;border-radius:6px;margin-right:4px">{{ c.ad_code }}</span>{% endif %}{{ c.nome }}
+                  </strong>
+                </div>
+              </td>
+              <td class="numero">{{ c.gasto | brl }}</td>
+              <td class="numero"><strong>{{ c.leads | num }}</strong></td>
+              <td class="numero {{ 'positivo' if c.cpl > 0 and c.cpl < 3 else ('negativo' if c.cpl > 6 else '') }}">{{ c.cpl | brl }}</td>
+              <td class="numero">{{ c.ctr | pct(2) }}</td>
+              <td class="numero">{{ c.cpm | brl }}</td>
+              <td class="numero"><strong>{{ c.vendas | num }}</strong></td>
+              <td class="numero">{{ c.faturamento | brl }}</td>
+              <td class="numero {{ 'positivo' if c.roas >= 1 else ('negativo' if c.roas == 0 else '') }}"><strong>{{ c.roas | num(2) }}x</strong></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     </div>
     {% endif %}

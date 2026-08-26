@@ -35,6 +35,7 @@ from db import get_engine
 from logger import get_logger
 from http_retry import http_post
 from validation import validate_dataframe
+from launch_resolver import resolve_launch_code
 
 load_dotenv()
 
@@ -360,7 +361,7 @@ def build_df_from_pmax_api(rows: list[dict]) -> pd.DataFrame:
             "ad_group_name":   None,
             "campaign_id":     campaign_id,
             "campaign_name":   campaign_name,
-            "lancamento_codigo": extract_launch_code(campaign_name),
+            "lancamento_codigo": resolve_launch_code(campaign_name, seg.get("date")),
             "impressions":     int(met.get("impressions", 0)),
             "clicks":          int(met.get("clicks", 0)),
             "cost":            round(int(met.get("costMicros", 0)) / 1_000_000, 2),
@@ -461,7 +462,7 @@ def build_df_from_demographics_api(rows: list[dict]) -> pd.DataFrame:
             "demographic_type":  demo_type,
             "demographic_value": val,
             "campaign_name":     campaign_name,
-            "lancamento_codigo": extract_launch_code(campaign_name),
+            "lancamento_codigo": resolve_launch_code(campaign_name, seg.get("date")),
             "impressions":       int(met.get("impressions", 0)),
             "clicks":            int(met.get("clicks", 0)),
             "cost":              round(int(met.get("costMicros", 0)) / 1_000_000, 2),
@@ -491,7 +492,7 @@ def build_df_from_audiences_api(rows: list[dict]) -> pd.DataFrame:
             "audience_name":     crit.get("displayName", ""),
             "ad_group_name":     ad_group.get("name", ""),
             "campaign_name":     campaign_name,
-            "lancamento_codigo": extract_launch_code(campaign_name),
+            "lancamento_codigo": resolve_launch_code(campaign_name, seg.get("date")),
             "impressions":       int(met.get("impressions", 0)),
             "clicks":            int(met.get("clicks", 0)),
             "cost":              round(int(met.get("costMicros", 0)) / 1_000_000, 2),
@@ -561,7 +562,7 @@ def build_df_from_api(rows: list[dict]) -> pd.DataFrame:
             "ad_group_name":  group.get("name"),
             "campaign_id":    str(camp.get("id")),
             "campaign_name":  camp.get("name"),
-            "lancamento_codigo": extract_launch_code(camp.get("name")),
+            "lancamento_codigo": resolve_launch_code(camp.get("name"), seg.get("date")),
             "impressions":    imp,
             "clicks":         int(met.get("clicks", 0)),
             "cost":           round(int(met.get("costMicros", 0)) / 1_000_000, 2),
@@ -636,7 +637,9 @@ def build_df_from_csv(filepath: str, period: str) -> pd.DataFrame:
     df["ad_group_id"]    = None
     df["campaign_id"] = None
     df["ad_group_name"]  = df.get("ad_group_name")
-    df["lancamento_codigo"] = df["campaign_name"].apply(extract_launch_code)
+    df["lancamento_codigo"] = df.apply(
+        lambda row: resolve_launch_code(row["campaign_name"], row["date"]), axis=1
+    )
  
     df = df.dropna(subset=["ad_id"])
     numeric_cols = ["impressions", "clicks", "cost", "conversions", "video_views",

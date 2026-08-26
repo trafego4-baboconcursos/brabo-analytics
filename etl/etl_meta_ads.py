@@ -28,6 +28,7 @@ from db import get_engine
 from logger import get_logger
 from http_retry import http_get
 from validation import validate_dataframe
+from launch_resolver import resolve_launch_code
 
 load_dotenv()
 
@@ -140,15 +141,16 @@ def build_df_from_api(rows: list[dict]) -> pd.DataFrame:
     records = []
     for r in rows:
         campaign_name = r.get("campaign_name")
+        date_start = r.get("date_start")
         records.append({
-            "date":             r.get("date_start"),
+            "date":             date_start,
             "ad_id":            r.get("ad_id"),
             "ad_name":          r.get("ad_name"),
             "adset_id":         r.get("adset_id"),
             "adset_name":       r.get("adset_name"),
             "campaign_id":      r.get("campaign_id"),
             "campaign_name":    campaign_name,
-            "lancamento_codigo": extract_launch_code(campaign_name),
+            "lancamento_codigo": resolve_launch_code(campaign_name, date_start),
             "impressions":      int(r.get("impressions", 0)),
             "clicks":           int(r.get("clicks", 0)),
             "spend":            float(r.get("spend", 0)),
@@ -202,12 +204,13 @@ def build_df_from_demographics_api(rows: list[dict]) -> pd.DataFrame:
     records = []
     for r in rows:
         campaign_name = r.get("campaign_name", "")
+        date_start = r.get("date_start")
         records.append({
-            "date":             r.get("date_start"),
+            "date":             date_start,
             "age":              r.get("age", ""),
             "gender":           r.get("gender", ""),
             "campaign_name":    campaign_name,
-            "lancamento_codigo": extract_launch_code(campaign_name),
+            "lancamento_codigo": resolve_launch_code(campaign_name, date_start),
             "impressions":      int(r.get("impressions", 0)),
             "clicks":           int(r.get("clicks", 0)),
             "cost":             float(r.get("spend", 0)),
@@ -253,11 +256,12 @@ def build_df_from_region_api(rows: list[dict]) -> pd.DataFrame:
     records = []
     for r in rows:
         campaign_name = r.get("campaign_name", "")
+        date_start = r.get("date_start")
         records.append({
-            "date":             r.get("date_start"),
+            "date":             date_start,
             "region":           r.get("region", ""),
             "campaign_name":    campaign_name,
-            "lancamento_codigo": extract_launch_code(campaign_name),
+            "lancamento_codigo": resolve_launch_code(campaign_name, date_start),
             "impressions":      int(r.get("impressions", 0)),
             "clicks":           int(r.get("clicks", 0)),
             "cost":             float(r.get("spend", 0)),
@@ -351,7 +355,9 @@ def build_df_from_csv(filepath: str) -> pd.DataFrame:
     df["ad_id"]       = extracted.combine_first(fallback)
     df["adset_id"]    = None
     df["campaign_id"] = None
-    df["lancamento_codigo"] = df["campaign_name"].apply(extract_launch_code)
+    df["lancamento_codigo"] = df.apply(
+        lambda row: resolve_launch_code(row["campaign_name"], row["date"]), axis=1
+    )
 
     df = df.dropna(subset=["ad_id", "date"])
     df = df[["date", "ad_id", "ad_name", "adset_id", "adset_name",

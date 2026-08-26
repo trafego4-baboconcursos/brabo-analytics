@@ -10,6 +10,148 @@
   </div>
 
   <div class="content">
+
+  {% if wa_msgs and wa_msgs.accounts %}
+  <div class="section">
+    <div class="section-title">Volume de Mensagens (Meta API) — sincronizado com o lançamento</div>
+    <div class="note info">
+      Período do lançamento: <strong>{{ wa_msgs.start | br_date }}</strong> até <strong>{{ wa_msgs.end | br_date }}</strong>.
+      Sem valor em R$ — essas contas são faturadas pela Unichat como parceiro de mensagens, e o Meta
+      esconde o custo em reais quando quem fatura é um parceiro (confirmado também na API da Unichat: não
+      existe endpoint de custo/fatura lá, só operação de envio). O que dá pra mostrar sem bloqueio é o
+      <strong>volume enviado/entregue por dia</strong>, por número de WhatsApp Business.
+    </div>
+    <div class="note warning">
+      Os números ainda não estão separados por produto (PBB/PES/PI) — o volume abaixo é de
+      <strong>todos os números monitorados</strong> dentro da janela deste lançamento. Se dois lançamentos
+      rodarem em paralelo, o mesmo envio pode aparecer nos dois. Assim que confirmarmos qual número
+      pertence a qual produto, isso é filtrado automaticamente.
+    </div>
+
+    {% set marcos = [
+      ("Pré-Qualificação", launch_cfg.pre_quali_start_date),
+      ("Captação", launch_cfg.captacao_start_date),
+      ("Abertura do Carrinho", launch_cfg.abertura_oficial_carrinho or launch_cfg.carrinho_start_date),
+      ("Fechamento do Carrinho", launch_cfg.carrinho_end_date),
+    ] %}
+    {% if marcos | selectattr(1) | list %}
+    <div class="funil-rates" style="margin-bottom:16px;">
+      {% for label, dt in marcos %}
+      {% if dt %}<span class="funil-rate"><strong>{{ label }}:</strong> {{ dt | br_date }}</span>{% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="tp-kpi-grid">
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-send"></i></div></div>
+        <div class="tp-value">{{ wa_msgs.total_sent | num }}</div>
+        <div class="tp-label">Enviadas no período</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-check"></i></div></div>
+        <div class="tp-value">{{ wa_msgs.total_delivered | num }}</div>
+        <div class="tp-label">Entregues no período</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-devices"></i></div></div>
+        <div class="tp-value">{{ wa_msgs.accounts | selectattr("total_sent", "gt", 0) | list | length }}</div>
+        <div class="tp-label">Números ativos</div>
+        <div class="tp-compare">de {{ wa_msgs.accounts | length }} monitorados</div>
+      </div>
+    </div>
+
+    <div style="height:280px; margin-bottom:20px;"><canvas id="waMsgChart"></canvas></div>
+
+    <div class="funil-table-wrap">
+      <table class="funil-table">
+        <thead>
+          <tr>
+            <th class="col-label">Número</th>
+            <th class="th-num col-count">Enviadas</th>
+            <th class="th-num col-count">Entregues</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for acc in wa_msgs.accounts %}
+          <tr>
+            <td>{{ acc.name }}<br><small style="color:var(--bs-ink-muted);">{{ acc.phone or "" }}</small></td>
+            <td class="numero">{{ acc.total_sent | num }}</td>
+            <td class="numero">{{ acc.total_delivered | num }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script>
+  (function(){
+    const accounts = {{ wa_msgs.accounts | tojson }};
+    const dates = [...new Set(accounts.flatMap(a => a.series.map(p => p.date)))].sort();
+    const lbl = dates.map(d => { const [y,m,dd] = d.split('-'); return dd + '/' + m; });
+    const colors = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#6366f1'];
+    const top = [...accounts].sort((a,b) => b.total_sent - a.total_sent).slice(0, 6);
+    const datasets = top.map((acc, i) => {
+      const map = Object.fromEntries(acc.series.map(p => [p.date, p.sent]));
+      return {
+        label: acc.name,
+        data: dates.map(d => map[d] || 0),
+        borderColor: colors[i % colors.length],
+        backgroundColor: colors[i % colors.length],
+        borderWidth: 2, pointRadius: 0, tension: 0.25,
+      };
+    });
+
+    // marcos do lancamento -> indice no eixo X (pra desenhar linha vertical)
+    const marcos = [
+      ["Pré-Quali", {{ (launch_cfg.pre_quali_start_date or "") | tojson }}],
+      ["Captação", {{ (launch_cfg.captacao_start_date or "") | tojson }}],
+      ["Abertura Carrinho", {{ (launch_cfg.abertura_oficial_carrinho or launch_cfg.carrinho_start_date or "") | tojson }}],
+      ["Fechamento Carrinho", {{ (launch_cfg.carrinho_end_date or "") | tojson }}],
+    ].filter(([, d]) => d && dates.includes(d)).map(([label, d]) => ({ label, idx: dates.indexOf(d) }));
+
+    const milestonePlugin = {
+      id: 'milestoneLines',
+      afterDraw(chart) {
+        const { ctx, chartArea, scales } = chart;
+        if (!chartArea) return;
+        ctx.save();
+        marcos.forEach(m => {
+          const x = scales.x.getPixelForValue(m.idx);
+          ctx.strokeStyle = 'rgba(107,114,128,0.55)';
+          ctx.setLineDash([4, 4]);
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(x, chartArea.top);
+          ctx.lineTo(x, chartArea.bottom);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = '#6b7280';
+          ctx.font = '10px Inter, sans-serif';
+          ctx.textAlign = 'left';
+          ctx.fillText(m.label, x + 4, chartArea.top + 12);
+        });
+        ctx.restore();
+      }
+    };
+
+    new Chart(document.getElementById('waMsgChart'), {
+      type: 'line',
+      data: { labels: lbl, datasets },
+      plugins: [milestonePlugin],
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        scales: { y: { beginAtZero: true } },
+        plugins: { legend: { position: 'top' } }
+      }
+    });
+  })();
+  </script>
+  {% endif %}
+
 {% if not wa %}
   <div class="note warning">Nenhuma tabela de grupos de WhatsApp encontrada para este lançamento
     (esperado: <code>{{ (launch.code if launch else '')|replace('-','_') }}_API</code> e/ou

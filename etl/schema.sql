@@ -137,6 +137,27 @@ CREATE INDEX IF NOT EXISTS idx_tf_email ON typeform_respostas (email);
 CREATE INDEX IF NOT EXISTS idx_tf_date  ON typeform_respostas (submitted_at);
 
 
+-- ── WHATSAPP BUSINESS — volume de mensagens diário por número ────────────
+-- Não tem custo em R$ (contas faturadas via Unichat como parceiro — o Meta
+-- esconde o campo de custo pra WABAs faturadas por parceiro). O que a API
+-- expõe sem bloqueio é o volume enviado/entregue por dia, por WABA.
+-- waba_id/account_name/phone_number vêm de config/whatsapp_accounts.yaml.
+CREATE TABLE IF NOT EXISTS whatsapp_messages_daily (
+    id            BIGSERIAL PRIMARY KEY,
+    date          DATE NOT NULL,
+    waba_id       TEXT NOT NULL,
+    account_name  TEXT,
+    phone_number  TEXT,
+    sent          INTEGER DEFAULT 0,
+    delivered     INTEGER DEFAULT 0,
+    updated_at    TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (date, waba_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_wa_msg_date    ON whatsapp_messages_daily (date);
+CREATE INDEX IF NOT EXISTS idx_wa_msg_waba_id ON whatsapp_messages_daily (waba_id);
+
+
 -- ── FUNÇÕES DUMMY PARA TRIGGERS DE VENDAS ──────────────────────────────────
 CREATE OR REPLACE FUNCTION processar_comissao_tmb()
 RETURNS TRIGGER AS $$

@@ -1,0 +1,58 @@
+# Contas de WhatsApp Business monitoradas (volume de envio/entrega via Meta Graph API).
+# Descobertas em 2026-08-26 listando as WABAs ligadas ao usuário que gerou o
+# META_ACCESS_TOKEN, cruzando com owned_whatsapp_business_accounts de cada
+# Business Manager. Não têm custo em R$ pela API — faturamento passa pela
+# Unichat como parceiro, e o Meta esconde o campo de custo nesse caso.
+#
+# product: PBB | PES | PI | null (ainda não confirmado com a equipe)
+# bot_ia: true pra contas de atendimento automatizado que atendem os 3 produtos
+# (ex.: Olívia) — não deve ser somado no gasto/volume por lançamento.
+accounts:
+  - waba_id: "107835298745518"
+    name: "Brabo Concursos"
+    phone: "+55 16 99323-1517"
+    product: null
+  - waba_id: "716649991509258"
+    name: "Brabo Concursos (BM1)"
+    phone: "+55 16 99396-9419"
+    product: null
+  - waba_id: "2243314659499655"
+    name: "Atendimento Brabo"
+    phone: "+55 16 99407-7802"
+    product: null
+  - waba_id: "518889657980684"
+    name: "Mentora Brabo Concursos"
+    phone: "+55 16 99463-5779"
+    product: null
+  - waba_id: "706442392258645"
+    name: "Brabo Editora"
+    phone: "+55 16 99371-4906 / +55 16 99211-6388"
+    product: null
+  - waba_id: "902660789166827"
+    name: "Beatriz / Felipe Graton (BM)"
+    phone: "+55 16 99417-7834"
+    product: null
+  - waba_id: "4165781687074871"
+    name: "Financeiro"
+    phone: "+55 16 99194-2896"
+    product: null
+  - waba_id: "1796660090983356"
+    name: "Brabo Concursos (BE2)"
+    phone: "+55 16 99410-6476"
+    product: null
+  - waba_id: "1832617280717236"
+    name: "Felipe Graton"
+    phone: "+55 16 99335-2110"
+    product: null
+  - waba_id: "2247874135699156"
+    name: "Ivan Neto (BM1)"
+    phone: "+55 16 99393-8345"
+    product: null
+  # Olívia (bot de atendimento por IA) — cobre os 3 produtos, WABA ainda não
+  # identificada (o token atual não enxerga nenhum phone_number vinculado a
+  # ela). Adicionar aqui assim que o waba_id for confirmado.
+  - waba_id: null
+    name: "Olívia (bot IA)"
+    phone: null
+    product: null
+    bot_ia: true

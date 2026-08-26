@@ -162,6 +162,19 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
         "google_por_campanha": {},
         "google_sem_ad_por_tipo": {},
         "google_sem_ad_por_campanha": {},
+        # Vendas/receita nas MESMAS categorias (etapa/temperatura/bucket/segmento)
+        # que as páginas /meta e /google usam pra montar suas tabelas de
+        # investimento — categorizadas com as funções desses readers, não a
+        # classificação simplificada de _classify_campaign, pra as chaves
+        # baterem exatamente com as das tabelas.
+        "meta_etapa_sales": {},
+        "meta_temperatura_sales": {},
+        "meta_bucket_sales": {},
+        "meta_segmento_sales": {},
+        "google_etapa_sales": {},
+        "google_temperatura_sales": {},
+        "google_segmento_sales": {},
+        "google_campanha_sales": {},
         "por_criativo": {},
         "por_criativo_canal": {},
         "por_criativo_lancamento_atual": set(),
@@ -255,6 +268,9 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
         for term_value, grp in _tc_counts.groupby(level=0):
             term_campaign_map[term_value] = grp.idxmax()[1]
 
+    from frontend.db_readers.ads_meta import _categorize_campaign as _categorize_meta_campaign  # noqa: PLC0415
+    from frontend.db_readers.ads_google import _categorize_campaign as _categorize_google_campaign  # noqa: PLC0415
+
     for email, utm in buyer_utms.items():
         source = utm["source"]
         medium = utm["medium"]
@@ -273,6 +289,11 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
             _inc_sales(result["meta_por_etapa"], cls["etapa"], receita_email, vendas_email)
             _inc_sales(result["meta_por_bucket"], cls["bucket"], receita_email, vendas_email)
             _inc_sales(result["meta_por_temperatura"], cls["temperatura"], receita_email, vendas_email)
+            m_etapa, m_temp, m_bucket, m_segmento = _categorize_meta_campaign(campaign)
+            _inc_sales(result["meta_etapa_sales"], m_etapa, receita_email, vendas_email)
+            _inc_sales(result["meta_temperatura_sales"], m_temp, receita_email, vendas_email)
+            _inc_sales(result["meta_bucket_sales"], m_bucket, receita_email, vendas_email)
+            _inc_sales(result["meta_segmento_sales"], m_segmento, receita_email, vendas_email)
         elif cls["channel"] == "Google Ads":
             _inc_sales(result["google_por_etapa"], cls["etapa"], receita_email, vendas_email)
             _inc_sales(result["google_por_temperatura"], cls["temperatura"], receita_email, vendas_email)
@@ -281,6 +302,12 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
             google_campaign_key = _norm_text(campaign)
             if google_campaign_key:
                 _inc_sales(result["google_por_campanha"], google_campaign_key, receita_email, vendas_email)
+            g_etapa, g_temp, g_segmento = _categorize_google_campaign(campaign)
+            _inc_sales(result["google_etapa_sales"], g_etapa, receita_email, vendas_email)
+            _inc_sales(result["google_temperatura_sales"], g_temp, receita_email, vendas_email)
+            _inc_sales(result["google_segmento_sales"], g_segmento, receita_email, vendas_email)
+            if campaign:
+                _inc_sales(result["google_campanha_sales"], campaign, receita_email, vendas_email)
         ad_code = _extract_ad_code(f"{source} {medium} {campaign} {content} {term}")
         if ad_code:
             _inc_sales(result["por_criativo"], ad_code, receita_email, vendas_email)

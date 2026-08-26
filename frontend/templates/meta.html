@@ -23,6 +23,10 @@
     {% else %}
 
     {# ── KPIs (design system: tp-kpi) ───────────────────────────────── #}
+    {% set meta_canal = sales_attr.por_canal.get('Meta Ads', {}) if sales_attr else {} %}
+    {% set meta_vendas = meta_canal.get('vendas', 0) %}
+    {% set meta_faturamento = meta_canal.get('faturamento', 0) %}
+    {% set meta_roas = (meta_faturamento / meta.total_gasto) if meta.total_gasto > 0 else 0 %}
     <div class="tp-kpi-grid">
       <div class="tp-kpi">
         <div class="tp-kpi-top"><div class="tp-icon meta"><i class="ti ti-coin"></i></div></div>
@@ -54,6 +58,12 @@
         <div class="tp-label">Impressões</div>
         <div class="tp-compare">CPM: {{ meta.cpm_medio | brl }}</div>
       </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon meta"><i class="ti ti-shopping-cart"></i></div></div>
+        <div class="tp-value">{{ meta_vendas | num }}</div>
+        <div class="tp-label">Vendas Atribuídas</div>
+        <div class="tp-compare">{{ meta_faturamento | brl }} | ROAS {{ "%.2f"|format(meta_roas) | replace(".", ",") }}x</div>
+      </div>
     </div>
 
     {# ── 1. Por Etapa ──────────────────────────────────────────────── #}
@@ -78,12 +88,16 @@
               <th>CPL</th>
               <th>ThruPlays</th>
               <th>Custo/TP</th>
+              <th>Vendas</th>
+              <th>ROAS</th>
             </tr>
           </thead>
           <tbody>
             {% set total = meta.total_gasto or 1 %}
             {% for etapa, d in meta.por_etapa.items() | sort(attribute='1.gasto', reverse=True) %}
             {% if d.gasto > 0 %}
+            {% set s = sales_attr.meta_etapa_sales.get(etapa, {}) if sales_attr else {} %}
+            {% set s_roas = (s.get('faturamento', 0) / d.gasto) if d.gasto > 0 else 0 %}
             <tr>
               <td><span class="bs-pill meta">{{ etapa }}</span></td>
               <td class="numero">{{ d.gasto | brl }}</td>
@@ -99,6 +113,8 @@
               </td>
               <td class="numero">{{ d.thruplays | num }}</td>
               <td class="numero">{{ d.custo_thruplay | brl(3) if d.thruplays > 0 else "–" }}</td>
+              <td class="numero"><strong>{{ s.get('vendas', 0) | num }}</strong></td>
+              <td class="numero {{ 'positivo' if s_roas >= 1 else ('negativo' if s_roas == 0 else '') }}">{{ "%.2f"|format(s_roas) | replace(".", ",") }}x</td>
             </tr>
             {% endif %}
             {% endfor %}
@@ -121,6 +137,8 @@
               <th>% Verba Captação</th>
               <th>Leads</th>
               <th>CPL</th>
+              <th>Vendas</th>
+              <th>ROAS</th>
             </tr>
           </thead>
           <tbody>
@@ -129,6 +147,8 @@
             {% set temp_class = {'Quente': 'temp-quente', 'Frio': 'temp-frio', 'Específico': 'temp-especifico', 'Outros': 'temp-outros'}.get(temp, 'temp-outros') %}
             {% set fill_class = {'Quente': 'quente', 'Frio': 'frio', 'Específico': 'especifico', 'Outros': 'outros'}.get(temp, 'outros') %}
             {% if d.gasto > 0 %}
+            {% set s = sales_attr.meta_temperatura_sales.get(temp, {}) if sales_attr else {} %}
+            {% set s_roas = (s.get('faturamento', 0) / d.gasto) if d.gasto > 0 else 0 %}
             <tr>
               <td><span class="bs-pill {{ temp_class }}">{{ temp }}</span></td>
               <td class="numero">{{ d.gasto | brl }}</td>
@@ -140,6 +160,8 @@
               </td>
               <td class="numero">{{ d.leads | num }}</td>
               <td class="numero">{{ d.cpl | brl if d.leads > 0 else "–" }}</td>
+              <td class="numero"><strong>{{ s.get('vendas', 0) | num }}</strong></td>
+              <td class="numero {{ 'positivo' if s_roas >= 1 else ('negativo' if s_roas == 0 else '') }}">{{ "%.2f"|format(s_roas) | replace(".", ",") }}x</td>
             </tr>
             {% endif %}
             {% endfor %}
@@ -163,11 +185,15 @@
               <th>% Real</th>
               <th>Leads</th>
               <th>CPL</th>
+              <th>Vendas</th>
+              <th>ROAS</th>
             </tr>
           </thead>
           <tbody>
             {% for bucket, d in meta.por_bucket.items() | sort(attribute='1.gasto', reverse=True) %}
             {% if d.gasto > 0 %}
+            {% set s = sales_attr.meta_bucket_sales.get(bucket, {}) if sales_attr else {} %}
+            {% set s_roas = (s.get('faturamento', 0) / d.gasto) if d.gasto > 0 else 0 %}
             <tr>
               <td><strong>{{ bucket }}</strong></td>
               <td class="numero">{{ d.gasto | brl }}</td>
@@ -179,6 +205,8 @@
               </td>
               <td class="numero">{{ d.leads | num }}</td>
               <td class="numero">{{ d.cpl | brl if d.leads > 0 else "–" }}</td>
+              <td class="numero"><strong>{{ s.get('vendas', 0) | num }}</strong></td>
+              <td class="numero {{ 'positivo' if s_roas >= 1 else ('negativo' if s_roas == 0 else '') }}">{{ "%.2f"|format(s_roas) | replace(".", ",") }}x</td>
             </tr>
             {% endif %}
             {% endfor %}
@@ -204,12 +232,16 @@
               <th>Leads</th>
               <th>CPL</th>
               <th>Campanhas</th>
+              <th>Vendas</th>
+              <th>ROAS</th>
             </tr>
           </thead>
           <tbody>
             {% set total_seg = seg_vals | map(attribute='gasto') | sum or 1 %}
             {% for seg, d in meta.por_segmento.items() | sort(attribute='1.gasto', reverse=True) %}
             {% if d.gasto > 0 %}
+            {% set s = sales_attr.meta_segmento_sales.get(seg, {}) if sales_attr else {} %}
+            {% set s_roas = (s.get('faturamento', 0) / d.gasto) if d.gasto > 0 else 0 %}
             <tr>
               <td><strong>{{ seg }}</strong></td>
               <td class="numero">{{ d.gasto | brl }}</td>
@@ -224,6 +256,8 @@
                 {{ d.cpl | brl if d.leads > 0 else "–" }}
               </td>
               <td class="numero">{{ d.num_campanhas }}</td>
+              <td class="numero"><strong>{{ s.get('vendas', 0) | num }}</strong></td>
+              <td class="numero {{ 'positivo' if s_roas >= 1 else ('negativo' if s_roas == 0 else '') }}">{{ "%.2f"|format(s_roas) | replace(".", ",") }}x</td>
             </tr>
             {% endif %}
             {% endfor %}
@@ -284,7 +318,7 @@
                   </div>
                   {% endif %}
                   <strong title="{{ c.nome }}" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;">
-                    {% if c.ad_code %}<span class="bs-pill meta" style="font-size:10px;padding:1px 5px;border-radius:6px;margin-right:4px">{{ c.ad_code }}</span>{% endif %}{{ c.nome }}
+                    {{ c.nome }}
                   </strong>
                 </div>
               </td>

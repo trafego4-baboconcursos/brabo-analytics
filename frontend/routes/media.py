@@ -29,6 +29,7 @@ async def meta_page(request: Request, launch_code: str | None = None):
     except Exception:
         logger.exception("Meta: falha ao montar creative overview")
     ctx = _base_ctx(request, "meta", "Meta Ads", launch, launches, meta=meta,
+                    sales_attr=sales_attr,
                     creative_overview=creative_overview,
                     drive_thumbnails=drive_thumbnails,
                     data_errors=d.get("_errors", []))
@@ -52,6 +53,7 @@ async def google_page(request: Request, launch_code: str | None = None):
     except Exception:
         logger.exception("Google: falha ao montar creative overview")
     ctx = _base_ctx(request, "google", "Google Ads", launch, launches, google=google,
+                    sales_attr=sales_attr,
                     creative_overview=creative_overview,
                     drive_thumbnails=drive_thumbnails,
                     data_errors=d.get("_errors", []))

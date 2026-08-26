@@ -20,6 +20,10 @@
     {% else %}
 
     {# ── KPIs (design system: tp-kpi) ─────────────────────────────────── #}
+    {% set google_canal = sales_attr.por_canal.get('Google Ads', {}) if sales_attr else {} %}
+    {% set google_vendas = google_canal.get('vendas', 0) %}
+    {% set google_faturamento = google_canal.get('faturamento', 0) %}
+    {% set google_roas = (google_faturamento / google.total_custo) if google.total_custo > 0 else 0 %}
     <div class="tp-kpi-grid">
       <div class="tp-kpi">
         <div class="tp-kpi-top"><div class="tp-icon google"><i class="ti ti-coin"></i></div></div>
@@ -53,6 +57,12 @@
         <div class="tp-label">Impressões</div>
         <div class="tp-compare">Total de exibições</div>
       </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon google"><i class="ti ti-shopping-cart"></i></div></div>
+        <div class="tp-value">{{ google_vendas | num }}</div>
+        <div class="tp-label">Vendas Atribuídas</div>
+        <div class="tp-compare">{{ google_faturamento | brl }} | ROAS {{ "%.2f"|format(google_roas) | replace(".", ",") }}x</div>
+      </div>
     </div>
 
     {# ── 1. Por Etapa ─────────────────────────────────────────────────── #}
@@ -69,12 +79,16 @@
               <th class="th-google">Conversões</th>
               <th class="th-google">CPA</th>
               <th class="th-google">Visualizações</th>
+              <th class="th-google">Vendas</th>
+              <th class="th-google">ROAS</th>
             </tr>
           </thead>
           <tbody>
             {% set total = google.total_custo or 1 %}
             {% for etapa, d in google.por_etapa.items() | sort(attribute='1.custo', reverse=True) %}
             {% if d.custo > 0 %}
+            {% set s = sales_attr.google_etapa_sales.get(etapa, {}) if sales_attr else {} %}
+            {% set s_roas = (s.get('faturamento', 0) / d.custo) if d.custo > 0 else 0 %}
             <tr>
               <td><span class="bs-pill google">{{ etapa }}</span></td>
               <td class="numero">{{ d.custo | brl }}</td>
@@ -87,6 +101,8 @@
               <td class="numero">{{ "%.0f"|format(d.conversoes) }}</td>
               <td class="numero">{{ d.custo_conv | brl if d.conversoes > 0 else "–" }}</td>
               <td class="numero">{{ d.visualizacoes | num if d.visualizacoes > 0 else "–" }}</td>
+              <td class="numero"><strong>{{ s.get('vendas', 0) | num }}</strong></td>
+              <td class="numero {{ 'positivo' if s_roas >= 1 else ('negativo' if s_roas == 0 else '') }}">{{ "%.2f"|format(s_roas) | replace(".", ",") }}x</td>
             </tr>
             {% endif %}
             {% endfor %}
@@ -116,10 +132,14 @@
               <th class="th-google">CPA</th>
               <th class="th-google">Visualizações</th>
               <th class="th-google">CTR</th>
+              <th class="th-google">Vendas</th>
+              <th class="th-google">ROAS</th>
             </tr>
           </thead>
           <tbody>
             {% for c in google.campanhas %}
+            {% set s = sales_attr.google_campanha_sales.get(c.nome, {}) if sales_attr else {} %}
+            {% set s_roas = (s.get('faturamento', 0) / c.custo) if c.custo > 0 else 0 %}
             <tr class="{{ 'top3' if loop.index <= 3 else '' }}">
               <td class="numero">{{ loop.index }}</td>
               <td style="max-width:220px;font-size:12px"><strong>{{ c.nome[:65] }}</strong></td>
@@ -137,6 +157,8 @@
               </td>
               <td class="numero">{{ c.visualizacoes | num if c.visualizacoes > 0 else "–" }}</td>
               <td class="numero">{{ c.ctr | pct(2) }}</td>
+              <td class="numero"><strong>{{ s.get('vendas', 0) | num }}</strong></td>
+              <td class="numero {{ 'positivo' if s_roas >= 1 else ('negativo' if s_roas == 0 else '') }}">{{ "%.2f"|format(s_roas) | replace(".", ",") }}x</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -160,6 +182,8 @@
               <th class="th-google">% Verba Captação</th>
               <th class="th-google">Conversões</th>
               <th class="th-google">CPA</th>
+              <th class="th-google">Vendas</th>
+              <th class="th-google">ROAS</th>
             </tr>
           </thead>
           <tbody>
@@ -168,6 +192,8 @@
             {% set temp_class = {'Quente': 'temp-quente', 'Frio': 'temp-frio', 'Específico': 'temp-especifico', 'Outros': 'temp-outros'}.get(temp, 'temp-outros') %}
             {% set fill_class = {'Quente': 'quente', 'Frio': 'frio', 'Específico': 'especifico', 'Outros': 'outros'}.get(temp, 'outros') %}
             {% if d.custo > 0 %}
+            {% set s = sales_attr.google_temperatura_sales.get(temp, {}) if sales_attr else {} %}
+            {% set s_roas = (s.get('faturamento', 0) / d.custo) if d.custo > 0 else 0 %}
             <tr>
               <td><span class="bs-pill {{ temp_class }}">{{ temp }}</span></td>
               <td class="numero">{{ d.custo | brl }}</td>
@@ -179,6 +205,8 @@
               </td>
               <td class="numero">{{ "%.0f"|format(d.conversoes) }}</td>
               <td class="numero">{{ d.custo_conv | brl if d.conversoes > 0 else "–" }}</td>
+              <td class="numero"><strong>{{ s.get('vendas', 0) | num }}</strong></td>
+              <td class="numero {{ 'positivo' if s_roas >= 1 else ('negativo' if s_roas == 0 else '') }}">{{ "%.2f"|format(s_roas) | replace(".", ",") }}x</td>
             </tr>
             {% endif %}
             {% endfor %}
@@ -205,12 +233,16 @@
               <th class="th-google">Conversões</th>
               <th class="th-google">CPA</th>
               <th class="th-google">Campanhas</th>
+              <th class="th-google">Vendas</th>
+              <th class="th-google">ROAS</th>
             </tr>
           </thead>
           <tbody>
             {% set total_seg = seg_vals | map(attribute='gasto') | sum or 1 %}
             {% for seg, d in google.por_segmento.items() | sort(attribute='1.gasto', reverse=True) %}
             {% if d.gasto > 0 %}
+            {% set s = sales_attr.google_segmento_sales.get(seg, {}) if sales_attr else {} %}
+            {% set s_roas = (s.get('faturamento', 0) / d.gasto) if d.gasto > 0 else 0 %}
             <tr>
               <td><strong>{{ seg }}</strong></td>
               <td class="numero">{{ d.gasto | brl }}</td>
@@ -223,6 +255,8 @@
               <td class="numero">{{ "%.0f"|format(d.conversoes) }}</td>
               <td class="numero">{{ d.custo_conv | brl if d.conversoes > 0 else "–" }}</td>
               <td class="numero">{{ d.num_campanhas }}</td>
+              <td class="numero"><strong>{{ s.get('vendas', 0) | num }}</strong></td>
+              <td class="numero {{ 'positivo' if s_roas >= 1 else ('negativo' if s_roas == 0 else '') }}">{{ "%.2f"|format(s_roas) | replace(".", ",") }}x</td>
             </tr>
             {% endif %}
             {% endfor %}
@@ -288,7 +322,6 @@
                   </div>
                   {% endif %}
                   <strong title="{{ c.nome }}" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;">
-                    {% if c.ad_code %}<span class="bs-pill google" style="font-size:10px;padding:1px 5px;border-radius:6px;margin-right:4px">{{ c.ad_code }}</span>{% endif %}
                     {% if c.video_id and not td %}<a href="https://youtu.be/{{ c.video_id }}" target="_blank" rel="noopener">{{ c.nome }}</a>{% else %}{{ c.nome }}{% endif %}
                   </strong>
                 </div>

@@ -80,6 +80,13 @@
 }
 .mat-card.curr .mat-tag { background: rgba(255,255,255,.25); color: #fff; }
 .mat-card.prev .mat-tag { background: #e5e7eb; color: #6b7280; }
+.mat-var-badge {
+  font-size: 11px; font-weight: 700; padding: 3px 10px;
+  border-radius: 20px; display: inline-block; margin-top: 4px; margin-left: 6px;
+  color: #fff;
+}
+.mat-var-badge.up { background: var(--bs-success); }
+.mat-var-badge.down { background: var(--bs-danger); }
 
 /* ── Traffic allocation ───────────────────────────────────────── */
 .alloc-row {
@@ -322,12 +329,13 @@
       <div class="mat-card curr">
         <div class="mat-num">{{ dbf.total_vendas | num }}</div>
         <div style="font-size:22px;font-weight:700;color:rgba(255,255,255,.9)">matrículas</div>
-        <span class="mat-tag">{{ launch.code if launch else '—' }}
-          {% if dbf.has_prev and dbf.prev_total_vendas > 0 %}
-            {% set dd = ((dbf.total_vendas - dbf.prev_total_vendas) / dbf.prev_total_vendas * 100) | round(1) %}
-            <span style="color:rgba(255,255,255,.7)"> · {% if dd > 0 %}+{% endif %}{{ dd }}% vs anterior</span>
-          {% endif %}
-        </span>
+        <span class="mat-tag">{{ launch.code if launch else '—' }}</span>
+        {% if dbf.has_prev and dbf.prev_total_vendas > 0 %}
+          {% set dd = ((dbf.total_vendas - dbf.prev_total_vendas) / dbf.prev_total_vendas * 100) | round(1) %}
+          <span class="mat-var-badge {{ 'up' if dd > 0 else ('down' if dd < 0 else '') }}">
+            {% if dd > 0 %}▲ +{% elif dd < 0 %}▼ {% else %}= {% endif %}{{ dd }}% vs anterior
+          </span>
+        {% endif %}
         {% if dbf.periodo_atual %}<div style="font-size:12px;color:rgba(255,255,255,.65);margin-top:8px"><i class="ti ti-calendar"></i> {{ dbf.periodo_atual }}</div>{% endif %}
       </div>
       <div class="mat-card prev">

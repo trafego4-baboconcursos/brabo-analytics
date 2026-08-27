@@ -74,7 +74,7 @@ Legenda: ✅ temos | 🟡 derivável (dado existe, falta cruzar/exibir) | ❌ fa
 | Abriu janela com "SORTEIO" (domingo) | ❌ | Dado da ferramenta de WhatsApp API (Utily) — precisa export/API |
 | Páginas de captura A×B | ❌→🟡 | **GA4 em andamento**: `etl/get_ga4_token.py` + `etl/ga4_discover.py` já criados; falta o ETL de pageviews/conversão por página |
 | Página de Obrigado A×B (visitas → ação WhatsApp → conversão) | ❌ | mesmo caminho GA4 + evento de clique no botão do WhatsApp |
-| Disparos dos grupos (Utily × MKT, valor gasto, janelas abertas, engajamento) | ❌ | Escopo novo: API/export da plataforma de WhatsApp. Nada no banco hoje |
+| Disparos dos grupos (Utily × MKT, valor gasto, janelas abertas, engajamento) | ❌ | Escopo novo: API/export da plataforma de WhatsApp. Nada no banco hoje. **Testado em 27/08/26**: `UNICHAT_API_TOKEN` existe e autentica (confirmado via `/attendants`), mas a API da Unichat é de CRM/envio, não de relatório — sem `GET /broadcasts`, sem histórico de campanha, sem custo. Não dá pra puxar retroativo por essa API, mesmo em cenário ideal. Caminho que resta: export manual do painel da Unichat (se tiver tela de relatório) ou webhook pra frente. |
 | Qtde entrando na pré-quali e captação (grupos) | 🟡 | `GRUPO DA CAMPANHA` nas tabelas de grupos — se a nomenclatura separar pré-quali de captação, é só agrupar |
 
 ## 5. Aulas ao Vivo

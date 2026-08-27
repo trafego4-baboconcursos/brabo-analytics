@@ -143,18 +143,15 @@ def _resumo_tabela(conn, tabela: str, start, end, tem_lead_numero: bool) -> dict
     """
     params = {"start": start, "end": end}
     # uma linha por pessoa: primeira entrada, ativa em algum grupo, nº de grupos.
-    # Filtra LID do WhatsApp (identificador que substitui o telefone real em
-    # contas com privacidade ativada) — só passa quem tem formato de telefone
-    # BR válido (55 + DDD + 8 ou 9 dígitos = 12 ou 13 caracteres). Sem esse
-    # filtro, LID conta como lead novo a cada sincronização (não é estável
-    # entre execuções), inflando a contagem.
+    # Sem filtro de formato de número — mantém a mesma contagem que a
+    # planilha (inclui LID do WhatsApp), por decisão de manter os dois
+    # números iguais em vez de divergir.
     dedup = f'''
         SELECT "NÚMERO"::text                        AS fone,
                MIN({_DATA_EXPR})                     AS dia,
                MAX("LEAD ÚNICO")                     AS ativo,
                COUNT(DISTINCT "GRUPO DA CAMPANHA")   AS n_grupos
         FROM "{tabela}"
-        WHERE length("NÚMERO"::text) BETWEEN 12 AND 13
         GROUP BY 1
     '''
     where = "WHERE dia BETWEEN :start AND :end"
@@ -210,7 +207,6 @@ def _resumo_tabela(conn, tabela: str, start, end, tem_lead_numero: bool) -> dict
             SELECT "GRUPO DA CAMPANHA" AS grupo, "NÚMERO"::text AS fone,
                    MIN({_DATA_EXPR}) AS dia, MAX("LEAD ÚNICO") AS ativo
             FROM "{tabela}"
-            WHERE length("NÚMERO"::text) BETWEEN 12 AND 13
             GROUP BY 1, 2
         ) g {where}
         GROUP BY 1 ORDER BY 2 DESC

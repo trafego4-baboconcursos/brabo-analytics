@@ -158,6 +158,47 @@ CREATE INDEX IF NOT EXISTS idx_wa_msg_date    ON whatsapp_messages_daily (date);
 CREATE INDEX IF NOT EXISTS idx_wa_msg_waba_id ON whatsapp_messages_daily (waba_id);
 
 
+-- ── INSTAGRAM — snapshot diário de perfil + posts (Graph API, contas próprias) ──
+-- Contas configuradas em config/instagram_accounts.yaml. followers_count é uma
+-- foto diária (a API não dá histórico retroativo de seguidores com o escopo
+-- atual) — o gráfico de crescimento passa a existir a partir do dia que essa
+-- tabela começou a ser alimentada.
+CREATE TABLE IF NOT EXISTS instagram_profile_daily (
+    id                   BIGSERIAL PRIMARY KEY,
+    date                 DATE NOT NULL,
+    ig_id                TEXT NOT NULL,
+    username             TEXT,
+    name                 TEXT,
+    followers_count      INTEGER,
+    media_count          INTEGER,
+    biography            TEXT,
+    profile_picture_url  TEXT,
+    updated_at           TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (date, ig_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ig_profile_date  ON instagram_profile_daily (date);
+CREATE INDEX IF NOT EXISTS idx_ig_profile_ig_id ON instagram_profile_daily (ig_id);
+
+-- Posts recentes — like_count/comments_count são atualizados a cada rodada do
+-- ETL (não são fotos históricas, refletem o valor mais recente lido).
+CREATE TABLE IF NOT EXISTS instagram_media (
+    media_id        TEXT PRIMARY KEY,
+    ig_id           TEXT NOT NULL,
+    media_type      TEXT,
+    caption         TEXT,
+    permalink       TEXT,
+    thumbnail_url   TEXT,
+    posted_at       TIMESTAMPTZ,
+    like_count      INTEGER DEFAULT 0,
+    comments_count  INTEGER DEFAULT 0,
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ig_media_ig_id    ON instagram_media (ig_id);
+CREATE INDEX IF NOT EXISTS idx_ig_media_posted   ON instagram_media (posted_at);
+
+
 -- ── FUNÇÕES DUMMY PARA TRIGGERS DE VENDAS ──────────────────────────────────
 CREATE OR REPLACE FUNCTION processar_comissao_tmb()
 RETURNS TRIGGER AS $$

@@ -53,10 +53,16 @@
         <div class="bs-pill neutral" style="margin-bottom:14px;">Sem dados de API</div>
         {% endif %}
 
-        <a href="{{ p.profile_url }}" target="_blank" rel="noopener"
-           class="lc-btn lc-btn-primary" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;">
-          <i class="ti ti-brand-instagram"></i> Ver perfil
-        </a>
+        <div style="display:flex;gap:8px;justify-content:center;">
+          <a href="{{ p.profile_url }}" target="_blank" rel="noopener"
+             class="lc-btn lc-btn-secondary" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;">
+            <i class="ti ti-brand-instagram"></i> Ver perfil
+          </a>
+          <a href="/instagram/{{ p.username }}{% if active_code %}?launch_code={{ active_code }}{% endif %}"
+             class="lc-btn lc-btn-primary" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;">
+            <i class="ti ti-chart-bar"></i> Ver métricas
+          </a>
+        </div>
       </div>
       {% endfor %}
     </div>

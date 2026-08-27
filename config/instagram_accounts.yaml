@@ -1,0 +1,13 @@
+# Contas Instagram dos experts (Business, vinculadas às Páginas do Facebook que
+# administramos) — usado tanto pelo overview (/instagram) quanto pelo ETL
+# (etl/etl_instagram.py) e pela página de análise por perfil (/instagram/{username}).
+accounts:
+  - name: "Mateus Andrade"
+    username: "mateusandrade.me"
+    ig_id: "17841402341156659"
+  - name: "Brabo Concursos"
+    username: "braboconcursos"
+    ig_id: "17841456180884668"
+  - name: "Felipe Graton"
+    username: "felipegraton"
+    ig_id: "17841460679248187"

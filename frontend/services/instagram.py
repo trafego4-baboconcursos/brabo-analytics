@@ -11,8 +11,10 @@ Sem essa variável, ou se a chamada falhar, a função devolve só o link do per
 from __future__ import annotations
 import os
 import time as _time
+from pathlib import Path
 
 import requests
+import yaml
 
 from logger import get_logger
 
@@ -20,11 +22,15 @@ logger = get_logger("frontend")
 
 API_VERSION = "v22.0"
 
-EXPERTS = [
-    {"name": "Mateus Andrade",   "username": "mateusandrade.me", "ig_id": "17841402341156659"},
-    {"name": "Brabo Concursos",  "username": "braboconcursos",   "ig_id": "17841456180884668"},
-    {"name": "Felipe Graton",    "username": "felipegraton",     "ig_id": "17841460679248187"},
-]
+_CONFIG_PATH = Path(__file__).resolve().parents[2] / "config" / "instagram_accounts.yaml"
+
+
+def _load_experts() -> list[dict]:
+    cfg = yaml.safe_load(_CONFIG_PATH.read_text(encoding="utf-8")) or {}
+    return cfg.get("accounts", [])
+
+
+EXPERTS = _load_experts()
 
 _CACHE: dict[str, tuple[float, dict]] = {}
 _CACHE_TTL = 3600  # 1h — dados de perfil mudam pouco

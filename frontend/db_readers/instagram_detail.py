@@ -1,7 +1,7 @@
 """
 frontend/db_readers/instagram_detail.py — Análise por perfil Instagram
-(posts recentes, engajamento, evolução de seguidores), lidos das tabelas
-alimentadas pelo etl/etl_instagram.py.
+(posts recentes, engajamento, evolução de seguidores, alcance), lidos das
+tabelas alimentadas pelo etl/etl_instagram.py.
 """
 from __future__ import annotations
 
@@ -30,6 +30,21 @@ def _find_account(username: str) -> dict | None:
     return None
 
 
+def _build_follower_series(growth_rows, followers_now: int) -> list[dict]:
+    """Reconstrói o total de seguidores por dia a partir do ganho líquido
+    diário (instagram_follower_growth_daily) — a API só dá o total 'de hoje',
+    então a série histórica é derivada de trás pra frente a partir dele."""
+    if not growth_rows:
+        return []
+    ordered = sorted(growth_rows, key=lambda r: r.date)
+    cumulative: dict[str, int] = {}
+    running = followers_now
+    for r in reversed(ordered):
+        cumulative[str(r.date)] = running
+        running -= (r.new_followers or 0)
+    return [{"date": d, "followers": cumulative[d]} for d in sorted(cumulative)]
+
+
 def read_instagram_detail(username: str) -> dict | None:
     account = _find_account(username)
     if not account:
@@ -48,8 +63,22 @@ def read_instagram_detail(username: str) -> dict | None:
             media_rows = conn.execute(
                 text(
                     "SELECT media_id, media_type, caption, permalink, thumbnail_url, posted_at, "
-                    "like_count, comments_count FROM instagram_media "
-                    "WHERE ig_id = :ig_id ORDER BY posted_at DESC"
+                    "like_count, comments_count, reach, saved, shares, total_interactions "
+                    "FROM instagram_media WHERE ig_id = :ig_id ORDER BY posted_at DESC"
+                ),
+                {"ig_id": ig_id},
+            ).fetchall()
+            growth_rows = conn.execute(
+                text(
+                    "SELECT date, new_followers FROM instagram_follower_growth_daily "
+                    "WHERE ig_id = :ig_id ORDER BY date"
+                ),
+                {"ig_id": ig_id},
+            ).fetchall()
+            account_insight_rows = conn.execute(
+                text(
+                    "SELECT date, reach, profile_views, accounts_engaged, total_interactions "
+                    "FROM instagram_account_insights_daily WHERE ig_id = :ig_id ORDER BY date"
                 ),
                 {"ig_id": ig_id},
             ).fetchall()
@@ -68,7 +97,15 @@ def read_instagram_detail(username: str) -> dict | None:
     latest = profile_rows[-1]
     followers_now = latest.followers_count or 0
 
-    follower_series = [{"date": str(r.date), "followers": r.followers_count} for r in profile_rows]
+    follower_series = _build_follower_series(growth_rows, followers_now)
+    if not follower_series:
+        follower_series = [{"date": str(r.date), "followers": r.followers_count} for r in profile_rows]
+
+    reach_period = sum((r.reach or 0) for r in account_insight_rows)
+    last_totals = next(
+        (r for r in reversed(account_insight_rows) if r.profile_views is not None),
+        None,
+    )
 
     posts = []
     for r in media_rows:
@@ -83,6 +120,10 @@ def read_instagram_detail(username: str) -> dict | None:
             "posted_at": str(r.posted_at) if r.posted_at else None,
             "like_count": r.like_count or 0,
             "comments_count": r.comments_count or 0,
+            "reach": r.reach,
+            "saved": r.saved,
+            "shares": r.shares,
+            "total_interactions": r.total_interactions,
             "engagement": engagement,
             "engagement_rate": rate,
         })
@@ -91,6 +132,8 @@ def read_instagram_detail(username: str) -> dict | None:
     avg_likes = round(sum(p["like_count"] for p in posts) / total_posts) if total_posts else 0
     avg_comments = round(sum(p["comments_count"] for p in posts) / total_posts) if total_posts else 0
     avg_engagement_rate = round(sum(p["engagement_rate"] for p in posts) / total_posts, 2) if total_posts else 0
+    posts_with_reach = [p for p in posts if p["reach"]]
+    avg_reach = round(sum(p["reach"] for p in posts_with_reach) / len(posts_with_reach)) if posts_with_reach else None
     top_posts = sorted(posts, key=lambda p: -p["engagement"])[:3]
 
     return {
@@ -108,5 +151,10 @@ def read_instagram_detail(username: str) -> dict | None:
         "avg_likes": avg_likes,
         "avg_comments": avg_comments,
         "avg_engagement_rate": avg_engagement_rate,
+        "avg_reach": avg_reach,
+        "reach_period_days": len(account_insight_rows),
+        "reach_period_total": reach_period,
+        "profile_views": last_totals.profile_views if last_totals else None,
+        "accounts_engaged": last_totals.accounts_engaged if last_totals else None,
         "no_data": False,
     }

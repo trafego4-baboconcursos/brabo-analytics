@@ -182,21 +182,60 @@ CREATE INDEX IF NOT EXISTS idx_ig_profile_ig_id ON instagram_profile_daily (ig_i
 
 -- Posts recentes — like_count/comments_count são atualizados a cada rodada do
 -- ETL (não são fotos históricas, refletem o valor mais recente lido).
+-- reach/saved/shares/total_interactions exigem escopo instagram_manage_insights
+-- (habilitado em 2026-08-27) — ficam NULL em posts sincronizados antes disso
+-- até a próxima rodada do ETL atualizar.
 CREATE TABLE IF NOT EXISTS instagram_media (
-    media_id        TEXT PRIMARY KEY,
-    ig_id           TEXT NOT NULL,
-    media_type      TEXT,
-    caption         TEXT,
-    permalink       TEXT,
-    thumbnail_url   TEXT,
-    posted_at       TIMESTAMPTZ,
-    like_count      INTEGER DEFAULT 0,
-    comments_count  INTEGER DEFAULT 0,
-    updated_at      TIMESTAMPTZ DEFAULT NOW()
+    media_id           TEXT PRIMARY KEY,
+    ig_id              TEXT NOT NULL,
+    media_type         TEXT,
+    caption            TEXT,
+    permalink          TEXT,
+    thumbnail_url      TEXT,
+    posted_at          TIMESTAMPTZ,
+    like_count         INTEGER DEFAULT 0,
+    comments_count     INTEGER DEFAULT 0,
+    reach              INTEGER,
+    saved              INTEGER,
+    shares             INTEGER,
+    total_interactions INTEGER,
+    updated_at         TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_ig_media_ig_id    ON instagram_media (ig_id);
 CREATE INDEX IF NOT EXISTS idx_ig_media_posted   ON instagram_media (posted_at);
+
+-- Insights de conta por dia (alcance, profile views, contas engajadas, interações).
+-- Escopo instagram_manage_insights. metric_type=time_series.
+CREATE TABLE IF NOT EXISTS instagram_account_insights_daily (
+    id                 BIGSERIAL PRIMARY KEY,
+    date               DATE NOT NULL,
+    ig_id              TEXT NOT NULL,
+    reach              INTEGER,
+    profile_views      INTEGER,
+    accounts_engaged   INTEGER,
+    total_interactions INTEGER,
+    updated_at         TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (date, ig_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ig_acct_insights_date  ON instagram_account_insights_daily (date);
+CREATE INDEX IF NOT EXISTS idx_ig_acct_insights_ig_id ON instagram_account_insights_daily (ig_id);
+
+-- Ganho líquido de seguidores por dia (metric follower_count, period=day).
+-- A API só permite consultar os últimos 30 dias (rolling) — por isso é
+-- importante já ir acumulando aqui pra não perder o que sai da janela.
+CREATE TABLE IF NOT EXISTS instagram_follower_growth_daily (
+    id             BIGSERIAL PRIMARY KEY,
+    date           DATE NOT NULL,
+    ig_id          TEXT NOT NULL,
+    new_followers  INTEGER,
+    updated_at     TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (date, ig_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ig_follower_growth_date  ON instagram_follower_growth_daily (date);
+CREATE INDEX IF NOT EXISTS idx_ig_follower_growth_ig_id ON instagram_follower_growth_daily (ig_id);
 
 
 -- ── FUNÇÕES DUMMY PARA TRIGGERS DE VENDAS ──────────────────────────────────

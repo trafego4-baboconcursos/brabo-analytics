@@ -78,13 +78,42 @@
           <div class="tp-label">Engajamento médio</div>
           <div class="tp-compare">(curtidas+comentários) / seguidores</div>
         </div>
+        {% if ig.reach_period_total %}
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-eye"></i></div></div>
+          <div class="tp-value">{{ ig.reach_period_total | num }}</div>
+          <div class="tp-label">Alcance da conta</div>
+          <div class="tp-compare">últimos {{ ig.reach_period_days }} dias</div>
+        </div>
+        {% endif %}
+        {% if ig.profile_views %}
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-user-search"></i></div></div>
+          <div class="tp-value">{{ ig.profile_views | num }}</div>
+          <div class="tp-label">Visitas ao perfil</div>
+        </div>
+        {% endif %}
+        {% if ig.accounts_engaged %}
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-users-group"></i></div></div>
+          <div class="tp-value">{{ ig.accounts_engaged | num }}</div>
+          <div class="tp-label">Contas engajadas</div>
+        </div>
+        {% endif %}
+        {% if ig.avg_reach %}
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-target-arrow"></i></div></div>
+          <div class="tp-value">{{ ig.avg_reach | num }}</div>
+          <div class="tp-label">Alcance médio por post</div>
+        </div>
+        {% endif %}
       </div>
     </div>
 
     {% if ig.follower_series | length > 1 %}
     <div class="section">
       <div class="section-title">Evolução de Seguidores</div>
-      <div class="note info">Histórico começa a partir do dia em que o ETL passou a rodar — sem retroativo (a API não oferece).</div>
+      <div class="note info">Seguidores reconstruídos a partir do ganho diário — a API do Meta só permite consultar os últimos 30 dias; daqui pra frente, o histórico segue acumulando sozinho.</div>
       <div style="height:220px;"><canvas id="igFollowerChart"></canvas></div>
     </div>
     {% endif %}
@@ -105,6 +134,13 @@
             <span><i class="ti ti-message-circle"></i> {{ p.comments_count | num }}</span>
             <span class="bs-pill accent">{{ p.engagement_rate }}%</span>
           </div>
+          {% if p.reach or p.saved or p.shares %}
+          <div class="highlight-row" style="margin-top:6px;font-size:11px;color:var(--bs-ink-muted);">
+            {% if p.reach %}<span><i class="ti ti-eye"></i> {{ p.reach | num }} alcance</span>{% endif %}
+            {% if p.saved %}<span><i class="ti ti-bookmark"></i> {{ p.saved | num }} salvos</span>{% endif %}
+            {% if p.shares %}<span><i class="ti ti-share"></i> {{ p.shares | num }} compart.</span>{% endif %}
+          </div>
+          {% endif %}
           <a href="{{ p.permalink }}" target="_blank" rel="noopener" style="font-size:12px;display:inline-block;margin-top:8px;">Ver post &rarr;</a>
         </div>
         {% endfor %}
@@ -123,6 +159,9 @@
               <th class="th-num">Data</th>
               <th class="th-num">Curtidas</th>
               <th class="th-num">Comentários</th>
+              <th class="th-num">Alcance</th>
+              <th class="th-num">Salvos</th>
+              <th class="th-num">Compart.</th>
               <th class="th-num">Engajamento</th>
             </tr>
           </thead>
@@ -138,6 +177,9 @@
               <td class="numero">{{ p.posted_at | br_date }}</td>
               <td class="numero">{{ p.like_count | num }}</td>
               <td class="numero">{{ p.comments_count | num }}</td>
+              <td class="numero">{{ p.reach | num if p.reach else "—" }}</td>
+              <td class="numero">{{ p.saved | num if p.saved else "—" }}</td>
+              <td class="numero">{{ p.shares | num if p.shares else "—" }}</td>
               <td class="numero"><a href="{{ p.permalink }}" target="_blank" rel="noopener">{{ p.engagement_rate }}%</a></td>
             </tr>
             {% endfor %}

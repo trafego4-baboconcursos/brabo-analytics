@@ -139,9 +139,12 @@ def _build_rmkt_adsets(meta: Any) -> list:
     return rows
 
 
-def _build_antigo_novo(meta: Any, google: Any) -> dict:
-    """Investimento/leads em anúncios antigos (ADxxx já usado em lançamento
-    anterior do mesmo produto) × novos, por etapa. Combina Meta + Google."""
+def _build_antigo_novo(meta: Any, google: Any, sales_attr: Any = None) -> dict:
+    """Investimento/leads/vendas em anúncios antigos (ADxxx já usado em
+    lançamento anterior do mesmo produto) × novos, por etapa. Combina Meta +
+    Google; vendas/receita cruzadas por ad_code via atribuição UTM (mesma
+    fonte da seção 'Vendas por Público')."""
+    por_criativo = (sales_attr or {}).get("por_criativo", {}) or {}
     listas = {
         "Pré-Qualificação": [
             *(getattr(meta, "preq_por_ad", None) or []),
@@ -156,16 +159,23 @@ def _build_antigo_novo(meta: Any, google: Any) -> dict:
     for etapa, ads in listas.items():
         if not ads:
             continue
-        grupos = {"antigo": {"gasto": 0.0, "leads": 0, "n": 0}, "novo": {"gasto": 0.0, "leads": 0, "n": 0}}
+        grupos = {
+            "antigo": {"gasto": 0.0, "leads": 0, "n": 0, "vendas": 0, "receita": 0.0},
+            "novo": {"gasto": 0.0, "leads": 0, "n": 0, "vendas": 0, "receita": 0.0},
+        }
         for a in ads:
             key = "antigo" if a.get("antigo") else "novo"
             grupos[key]["gasto"] += float(a.get("gasto") or 0)
             grupos[key]["leads"] += int(a.get("leads") or 0)
             grupos[key]["n"] += 1
+            venda = por_criativo.get(str(a.get("ad_code") or "").upper(), {})
+            grupos[key]["vendas"] += int(venda.get("vendas") or 0)
+            grupos[key]["receita"] += float(venda.get("faturamento") or 0)
         total_gasto = grupos["antigo"]["gasto"] + grupos["novo"]["gasto"] or 1
         for g in grupos.values():
             g["cpl"] = g["gasto"] / g["leads"] if g["leads"] > 0 else 0.0
             g["pct"] = g["gasto"] / total_gasto * 100
+            g["roas"] = g["receita"] / g["gasto"] if g["gasto"] > 0 else 0.0
         out[etapa] = grupos
     return out
 
@@ -191,6 +201,8 @@ def _compute_debriefing_ctx(
     pesquisa_engajamento: Any = None,
     dia1: Any = None,
     prev_dia1: Any = None,
+    prev_prev_dia1: Any = None,
+    prev_prev_code: str = "",
     qualidade_regiao: Any = None,
     caminho_comprador: Any = None,
 ) -> dict:
@@ -435,6 +447,13 @@ def _compute_debriefing_ctx(
                 for c in _CLIMA_ORDER
             ) if v
         },
+        # Idem, Google Ads (audiências reais da API, sem categorização por nome)
+        "publicos_captacao_google": {
+            c: v for c, v in (
+                (c, (getattr(google, "por_publico_captacao", {}) or {}).get(c))
+                for c in _CLIMA_ORDER
+            ) if v
+        },
         "rmkt_adsets": _build_rmkt_adsets(meta),
         "prev_rmkt_adsets": _build_rmkt_adsets(prev_meta),
         # Sales por temperatura/tipo
@@ -456,8 +475,9 @@ def _compute_debriefing_ctx(
         # Dia 1 hora a hora × lançamento anterior (mesmo formato de duas
         # tabelas já usado em /comparativo — dia1/prev_dia1 crus com .checkpoints)
         "dia1": dia1 or {}, "prev_dia1": prev_dia1 or {},
+        "prev_prev_dia1": prev_prev_dia1 or {}, "prev_prev_code": prev_prev_code,
         # Antigo × novo (ADxxx já usado em lançamento anterior do produto)
-        "antigo_novo": _build_antigo_novo(meta, google),
+        "antigo_novo": _build_antigo_novo(meta, google, sales_attr),
         # Qualidade por estado (Meta invest/leads + compradores/receita)
         "qualidade_regiao": qualidade_regiao,
         # Caminho do comprador — funil unificado por pessoa (lead→grupo→pesquisa→compra)

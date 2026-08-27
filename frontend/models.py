@@ -134,6 +134,7 @@ class GoogleSummary:
     por_segmento: dict = field(default_factory=dict)
     campanhas: list = field(default_factory=list)
     publicos: list = field(default_factory=list)
+    por_publico_captacao: dict = field(default_factory=dict)
     demografia_idade: list = field(default_factory=list)
     demografia_genero: list = field(default_factory=list)
     anuncios_por_ad: list = field(default_factory=list)

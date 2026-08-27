@@ -137,6 +137,110 @@ CREATE INDEX IF NOT EXISTS idx_tf_email ON typeform_respostas (email);
 CREATE INDEX IF NOT EXISTS idx_tf_date  ON typeform_respostas (submitted_at);
 
 
+-- ── WHATSAPP BUSINESS — volume de mensagens diário por número ────────────
+-- Não tem custo em R$ (contas faturadas via Unichat como parceiro — o Meta
+-- esconde o campo de custo pra WABAs faturadas por parceiro). O que a API
+-- expõe sem bloqueio é o volume enviado/entregue por dia, por WABA.
+-- waba_id/account_name/phone_number vêm de config/whatsapp_accounts.yaml.
+CREATE TABLE IF NOT EXISTS whatsapp_messages_daily (
+    id            BIGSERIAL PRIMARY KEY,
+    date          DATE NOT NULL,
+    waba_id       TEXT NOT NULL,
+    account_name  TEXT,
+    phone_number  TEXT,
+    sent          INTEGER DEFAULT 0,
+    delivered     INTEGER DEFAULT 0,
+    updated_at    TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (date, waba_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_wa_msg_date    ON whatsapp_messages_daily (date);
+CREATE INDEX IF NOT EXISTS idx_wa_msg_waba_id ON whatsapp_messages_daily (waba_id);
+
+
+-- ── INSTAGRAM — snapshot diário de perfil + posts (Graph API, contas próprias) ──
+-- Contas configuradas em config/instagram_accounts.yaml. followers_count é uma
+-- foto diária (a API não dá histórico retroativo de seguidores com o escopo
+-- atual) — o gráfico de crescimento passa a existir a partir do dia que essa
+-- tabela começou a ser alimentada.
+CREATE TABLE IF NOT EXISTS instagram_profile_daily (
+    id                   BIGSERIAL PRIMARY KEY,
+    date                 DATE NOT NULL,
+    ig_id                TEXT NOT NULL,
+    username             TEXT,
+    name                 TEXT,
+    followers_count      INTEGER,
+    media_count          INTEGER,
+    biography            TEXT,
+    profile_picture_url  TEXT,
+    updated_at           TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (date, ig_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ig_profile_date  ON instagram_profile_daily (date);
+CREATE INDEX IF NOT EXISTS idx_ig_profile_ig_id ON instagram_profile_daily (ig_id);
+
+-- Posts recentes — like_count/comments_count são atualizados a cada rodada do
+-- ETL (não são fotos históricas, refletem o valor mais recente lido).
+-- reach/saved/shares/total_interactions exigem escopo instagram_manage_insights
+-- (habilitado em 2026-08-27) — ficam NULL em posts sincronizados antes disso
+-- até a próxima rodada do ETL atualizar.
+CREATE TABLE IF NOT EXISTS instagram_media (
+    media_id           TEXT PRIMARY KEY,
+    ig_id              TEXT NOT NULL,
+    media_type         TEXT,
+    caption            TEXT,
+    permalink          TEXT,
+    thumbnail_url      TEXT,
+    posted_at          TIMESTAMPTZ,
+    like_count         INTEGER DEFAULT 0,
+    comments_count     INTEGER DEFAULT 0,
+    reach              INTEGER,
+    saved              INTEGER,
+    shares             INTEGER,
+    total_interactions INTEGER,
+    views              INTEGER,               -- vezes que o post foi reproduzido/exibido
+    new_followers_from_post INTEGER,           -- metric "follows" — seguidores ganhos a partir desse post
+    updated_at         TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_ig_media_ig_id    ON instagram_media (ig_id);
+CREATE INDEX IF NOT EXISTS idx_ig_media_posted   ON instagram_media (posted_at);
+
+-- Insights de conta por dia (alcance, profile views, contas engajadas, interações).
+-- Escopo instagram_manage_insights. metric_type=time_series.
+CREATE TABLE IF NOT EXISTS instagram_account_insights_daily (
+    id                 BIGSERIAL PRIMARY KEY,
+    date               DATE NOT NULL,
+    ig_id              TEXT NOT NULL,
+    reach              INTEGER,
+    profile_views      INTEGER,
+    accounts_engaged   INTEGER,
+    total_interactions INTEGER,
+    views_total        INTEGER,               -- so total do periodo padrao da API, sem historico diario
+    updated_at         TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (date, ig_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ig_acct_insights_date  ON instagram_account_insights_daily (date);
+CREATE INDEX IF NOT EXISTS idx_ig_acct_insights_ig_id ON instagram_account_insights_daily (ig_id);
+
+-- Ganho líquido de seguidores por dia (metric follower_count, period=day).
+-- A API só permite consultar os últimos 30 dias (rolling) — por isso é
+-- importante já ir acumulando aqui pra não perder o que sai da janela.
+CREATE TABLE IF NOT EXISTS instagram_follower_growth_daily (
+    id             BIGSERIAL PRIMARY KEY,
+    date           DATE NOT NULL,
+    ig_id          TEXT NOT NULL,
+    new_followers  INTEGER,
+    updated_at     TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (date, ig_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ig_follower_growth_date  ON instagram_follower_growth_daily (date);
+CREATE INDEX IF NOT EXISTS idx_ig_follower_growth_ig_id ON instagram_follower_growth_daily (ig_id);
+
+
 -- ── FUNÇÕES DUMMY PARA TRIGGERS DE VENDAS ──────────────────────────────────
 CREATE OR REPLACE FUNCTION processar_comissao_tmb()
 RETURNS TRIGGER AS $$

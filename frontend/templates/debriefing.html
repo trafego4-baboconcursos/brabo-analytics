@@ -201,6 +201,8 @@
 .delta-pos { color: var(--bs-success); font-weight: 700; font-size: 12px; }
 .delta-neg { color: var(--bs-danger); font-weight: 700; font-size: 12px; }
 .delta-neu { color: var(--bs-ink-muted); font-weight: 600; font-size: 12px; }
+.dbf-dia1-val { display: block; }
+.dbf-dia1-delta { display: block; margin-top: 1px; }
 .cmp-curr {
   background: var(--bs-card); border-radius: 10px; padding: 18px;
   box-shadow: 0 1px 4px rgba(0,0,0,.06); border-top: 3px solid var(--bs-accent);
@@ -220,6 +222,7 @@
 /* ── Pub chart (vendas por público) ──────────────────────────────── */
 .cmp-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
 @media (max-width: 900px) { .cmp-grid-3 { grid-template-columns: 1fr; } }
+.dbf-publicos-stack { display: flex; flex-direction: column; gap: 20px; }
 .pub-chart-wrap { position: relative; height: 260px; margin-top: 6px; }
 
 /* ── Engajamento (aulas) ──────────────────────────────────────── */
@@ -497,8 +500,11 @@
     {% if compare and compare_code %}
     <p style="font-size:11.5px;color:var(--bs-ink-muted);margin:0 0 10px;">Variação em relação a <strong>{{ compare_code }}</strong>, mesmo horário do dia 1.</p>
     {% endif %}
-    <div class="table-wrap">
+    <div class="table-wrap" data-no-filter>
       <table class="dbf-table">
+        <colgroup>
+          <col style="width:60px"><col><col><col><col>
+        </colgroup>
         <thead>
           <tr><th>Hora</th><th class="num">Hotmart</th><th class="num">TMB</th><th class="num">Total</th><th class="num">Faturamento</th></tr>
         </thead>
@@ -511,10 +517,10 @@
             {% if c.pendente %}
             <td class="num" colspan="4" style="color:var(--bs-ink-subtle);font-style:italic;">ainda não chegou</td>
             {% else %}
-            <td class="num">{{ c.ht | num }}{% if has_cmp %} {{ dbf_delta(cmp.ht, c.ht) }}{% endif %}</td>
-            <td class="num">{{ c.tmb | num }}{% if has_cmp %} {{ dbf_delta(cmp.tmb, c.tmb) }}{% endif %}</td>
-            <td class="num"><strong>{{ c.total | num }}</strong>{% if has_cmp %} {{ dbf_delta(cmp.total, c.total) }}{% endif %}</td>
-            <td class="num">{{ c.faturamento | brl }}{% if has_cmp %} {{ dbf_delta(cmp.faturamento, c.faturamento) }}{% endif %}</td>
+            <td class="num"><span class="dbf-dia1-val">{{ c.ht | num }}</span>{% if has_cmp %}<span class="dbf-dia1-delta">{{ dbf_delta(cmp.ht, c.ht) }}</span>{% endif %}</td>
+            <td class="num"><span class="dbf-dia1-val">{{ c.tmb | num }}</span>{% if has_cmp %}<span class="dbf-dia1-delta">{{ dbf_delta(cmp.tmb, c.tmb) }}</span>{% endif %}</td>
+            <td class="num"><span class="dbf-dia1-val"><strong>{{ c.total | num }}</strong></span>{% if has_cmp %}<span class="dbf-dia1-delta">{{ dbf_delta(cmp.total, c.total) }}</span>{% endif %}</td>
+            <td class="num"><span class="dbf-dia1-val">{{ c.faturamento | brl }}</span>{% if has_cmp %}<span class="dbf-dia1-delta">{{ dbf_delta(cmp.faturamento, c.faturamento) }}</span>{% endif %}</td>
             {% endif %}
           </tr>
           {% endfor %}
@@ -527,7 +533,7 @@
     <div class="cmp-grid">
       <div>{{ dbf_dia1_table(dbf.dia1, launch.code if launch else '', 'var(--bs-accent)', compare=(dbf.prev_dia1.checkpoints if dbf.prev_dia1.checkpoints else None), compare_code=dbf.prev_code) }}</div>
       {% if dbf.prev_dia1.checkpoints %}
-      <div>{{ dbf_dia1_table(dbf.prev_dia1, dbf.prev_code, '#6b7280') }}</div>
+      <div>{{ dbf_dia1_table(dbf.prev_dia1, dbf.prev_code, '#6b7280', compare=(dbf.prev_prev_dia1.checkpoints if dbf.prev_prev_dia1.checkpoints else None), compare_code=dbf.prev_prev_code) }}</div>
       {% endif %}
     </div>
   </div>
@@ -714,11 +720,11 @@
   <div class="dbf-section">
     <div class="dbf-section-title"><i class="ti ti-users-group"></i> Detalhamento dos Públicos — Captação (Meta)</div>
     {% if dbf.publicos_captacao %}
-    <div class="cmp-grid-3">
+    <div class="dbf-publicos-stack">
       {% for clima, pubs in dbf.publicos_captacao.items() %}
       <div>
         <div class="cmp-label">{{ clima }}</div>
-        <div class="table-wrap">
+        <div class="table-wrap" data-no-filter>
           <table class="dbf-table">
             <thead>
               <tr>
@@ -727,6 +733,9 @@
                 <th class="num">%</th>
                 <th class="num">Leads</th>
                 <th class="num">CPL</th>
+                <th class="num">Vendas</th>
+                <th class="num">Faturamento</th>
+                <th class="num">ROAS</th>
               </tr>
             </thead>
             <tbody>
@@ -737,6 +746,9 @@
                 <td class="num">{{ p.pct | round(1) }}%</td>
                 <td class="num">{{ p.leads | num }}</td>
                 <td class="num">{{ p.cpl | brl if p.leads > 0 else '—' }}</td>
+                <td class="num">{{ p.vendas | num }}</td>
+                <td class="num">{{ p.receita | brl }}</td>
+                <td class="num {{ 'roas-good' if p.roas >= 2 else ('roas-ok' if p.roas >= 1 else ('roas-bad' if p.roas > 0 else '')) }}">{{ "%.2f"|format(p.roas) | replace(".", ",") }}x</td>
               </tr>
               {% endfor %}
             </tbody>
@@ -747,6 +759,54 @@
     </div>
     {% else %}
     {{ sem_dados("Sem adsets de Captação classificáveis por público") }}
+    {% endif %}
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4b0. DETALHAMENTO DOS PÚBLICOS — audiências (Google)        -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-users-group"></i> Detalhamento dos Públicos — Captação (Google)</div>
+    {% if dbf.publicos_captacao_google %}
+    <div class="dbf-publicos-stack">
+      {% for clima, pubs in dbf.publicos_captacao_google.items() %}
+      <div>
+        <div class="cmp-label">{{ clima }}</div>
+        <div class="table-wrap" data-no-filter>
+          <table class="dbf-table">
+            <thead>
+              <tr>
+                <th>Público</th>
+                <th class="num">Invest.</th>
+                <th class="num">%</th>
+                <th class="num">Leads</th>
+                <th class="num">CPL</th>
+                <th class="num">Vendas</th>
+                <th class="num">Faturamento</th>
+                <th class="num">ROAS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in pubs %}
+              <tr>
+                <td>{{ p.publico }}</td>
+                <td class="num">{{ p.gasto | brl }}</td>
+                <td class="num">{{ p.pct | round(1) }}%</td>
+                <td class="num">{{ p.leads | num }}</td>
+                <td class="num">{{ p.cpl | brl if p.leads > 0 else '—' }}</td>
+                <td class="num">{{ p.vendas | num }}</td>
+                <td class="num">{{ p.receita | brl }}</td>
+                <td class="num {{ 'roas-good' if p.roas >= 2 else ('roas-ok' if p.roas >= 1 else ('roas-bad' if p.roas > 0 else '')) }}">{{ "%.2f"|format(p.roas) | replace(".", ",") }}x</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    {{ sem_dados("Sem audiências de Captação com investimento no Google Ads") }}
     {% endif %}
   </div>
 
@@ -770,6 +830,9 @@
                 <th class="num">Leads</th>
                 <th class="num">CPL</th>
                 <th class="num">Anúncios</th>
+                <th class="num">Vendas</th>
+                <th class="num">Receita</th>
+                <th class="num">ROAS</th>
               </tr>
             </thead>
             <tbody>
@@ -780,6 +843,9 @@
                 <td class="num">{{ g.antigo.leads | num }}</td>
                 <td class="num">{{ g.antigo.cpl | brl if g.antigo.leads > 0 else '—' }}</td>
                 <td class="num">{{ g.antigo.n }}</td>
+                <td class="num">{{ g.antigo.vendas | num }}</td>
+                <td class="num">{{ g.antigo.receita | brl }}</td>
+                <td class="num">{{ g.antigo.roas | round(2) if g.antigo.gasto > 0 else '—' }}{% if g.antigo.gasto > 0 %}x{% endif %}</td>
               </tr>
               <tr>
                 <td>Novos</td>
@@ -788,6 +854,9 @@
                 <td class="num">{{ g.novo.leads | num }}</td>
                 <td class="num">{{ g.novo.cpl | brl if g.novo.leads > 0 else '—' }}</td>
                 <td class="num">{{ g.novo.n }}</td>
+                <td class="num">{{ g.novo.vendas | num }}</td>
+                <td class="num">{{ g.novo.receita | brl }}</td>
+                <td class="num">{{ g.novo.roas | round(2) if g.novo.gasto > 0 else '—' }}{% if g.novo.gasto > 0 %}x{% endif %}</td>
               </tr>
             </tbody>
           </table>

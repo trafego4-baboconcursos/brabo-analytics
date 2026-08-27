@@ -299,7 +299,8 @@ async def debriefing(request: Request, launch_code: str | None = None):
         except Exception:
             logger.exception("Debriefing: falha ao montar perfil do lead por anúncio")
 
-    dia1 = prev_dia1 = None
+    dia1 = prev_dia1 = prev_prev_dia1 = None
+    prev_previous = None
     qualidade_regiao = None
     if launch:
         try:
@@ -307,6 +308,9 @@ async def debriefing(request: Request, launch_code: str | None = None):
             dia1 = await run_in_threadpool(read_dia1_sales, launch.code)
             if previous:
                 prev_dia1 = await run_in_threadpool(read_dia1_sales, previous.code)
+                prev_previous = find_previous_launch(previous, launches)
+                if prev_previous:
+                    prev_prev_dia1 = await run_in_threadpool(read_dia1_sales, prev_previous.code)
             qualidade_regiao = await run_in_threadpool(read_qualidade_regiao, launch.code, vendas)
         except Exception:
             logger.exception("Debriefing: falha ao montar vendas hora a hora do dia 1 / qualidade por regiao")
@@ -344,6 +348,8 @@ async def debriefing(request: Request, launch_code: str | None = None):
         pesquisa_engajamento=pesquisa_engajamento,
         dia1=dia1,
         prev_dia1=prev_dia1,
+        prev_prev_dia1=prev_prev_dia1,
+        prev_prev_code=prev_previous.code if prev_previous else "",
         qualidade_regiao=qualidade_regiao,
         caminho_comprador=caminho_comprador,
     )

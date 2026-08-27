@@ -334,6 +334,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
         return SequenceMatcher(None, u, a).ratio()
 
     summary.publicos = []
+    api_to_sales: dict = {}
     if not df_aud.empty:
         api_audiences = df_aud["audience_name"].tolist()
 
@@ -384,6 +385,64 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
                 "cpc": cost / clicks if clicks > 0 else 0.0,
                 "ctr": clicks / impr * 100 if impr > 0 else 0.0
             })
+
+    # Detalhamento dos públicos por clima — Captação (pauta debriefing, igual
+    # à seção já existente do Meta). Reaproveita o cruzamento de vendas por
+    # audiência (api_to_sales) já calculado acima.
+    try:
+        df_aud_temp = pd.read_sql(
+            text("""
+                SELECT audience_name, campaign_name, SUM(cost) as cost,
+                       SUM(conversions) as conversions
+                FROM google_ads_audiences_daily
+                WHERE lancamento_codigo = :code
+                GROUP BY audience_name, campaign_name
+            """),
+            engine, params={"code": code},
+        )
+    except Exception:
+        logger.exception("Falha ao buscar audiências por campanha (Google); usando DataFrame vazio")
+        df_aud_temp = pd.DataFrame()
+
+    if not df_aud_temp.empty:
+        df_aud_temp["etapa"], df_aud_temp["temperatura"], _ = zip(
+            *df_aud_temp["campaign_name"].map(_categorize_campaign)
+        )
+        df_aud_cap = df_aud_temp[df_aud_temp["etapa"] == "Captação"].copy()
+        if not df_aud_cap.empty:
+            def _label_publico(nome):
+                if isinstance(nome, str) and nome.startswith("uservertical::"):
+                    return f"Público de Afinidade/Mercado ({nome.split('::')[-1]})"
+                return nome or "Sem Nome"
+            df_aud_cap["publico"] = df_aud_cap["audience_name"].map(_label_publico)
+
+            pub_grouped_g = df_aud_cap.groupby(["temperatura", "publico"]).agg(
+                custo=("cost", "sum"), conversoes=("conversions", "sum"),
+                num_audiencias=("audience_name", "nunique"),
+            ).reset_index()
+            aud_by_group = df_aud_cap.groupby(["temperatura", "publico"])["audience_name"].unique()
+            for temp in pub_grouped_g["temperatura"].unique():
+                sub = pub_grouped_g[pub_grouped_g["temperatura"] == temp].sort_values("custo", ascending=False)
+                total_temp = sub["custo"].sum() or 1
+                rows = []
+                for _, r in sub.iterrows():
+                    audiencias = aud_by_group.get((temp, r["publico"]), [])
+                    vendas_pub = sum(int(api_to_sales.get(a, {}).get("sales", 0) or 0) for a in audiencias)
+                    receita_pub = sum(float(api_to_sales.get(a, {}).get("receita", 0.0) or 0.0) for a in audiencias)
+                    custo = float(r["custo"])
+                    leads = float(r["conversoes"])
+                    rows.append({
+                        "publico": r["publico"],
+                        "gasto": custo,
+                        "leads": leads,
+                        "cpl": custo / leads if leads > 0 else 0.0,
+                        "pct": custo / total_temp * 100,
+                        "num_adsets": int(r["num_audiencias"]),
+                        "vendas": vendas_pub,
+                        "receita": receita_pub,
+                        "roas": (receita_pub / custo) if custo > 0 else 0.0,
+                    })
+                summary.por_publico_captacao[temp] = rows
 
     # Demographics Google
     try:

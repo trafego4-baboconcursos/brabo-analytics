@@ -139,8 +139,11 @@ def _categorize_publico(adset: Any) -> str:
 
     Envolvimento retorna com a janela ("Envolvimento 30D") quando o nome traz
     o sufixo de dias; as demais categorias são agregadas sem sub-janela.
+    Quando nada bate, devolve o nome do conjunto de anúncios em vez de um
+    "Outros" genérico — pra nenhum público ficar escondido no relatório.
     """
-    a = str(adset or "").lower()
+    original = str(adset or "").strip() or "Sem Nome"
+    a = original.lower()
     dias = re.search(r"(\d+)\s*d\b", a)
     janela = f" {dias.group(1)}D" if dias else ""
     if "cadastrad" in a:
@@ -161,7 +164,7 @@ def _categorize_publico(adset: Any) -> str:
         return "Advantage+"
     if "interesse" in a or "education" in a or "higher" in a:
         return "Interesses"
-    return "Outros"
+    return original
 
 
 def _categorize_campaign(camp: str) -> tuple[str, str, str, str]:
@@ -381,20 +384,33 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
             custo=("spend", "sum"), leads=("leads", "sum"),
             num_adsets=("adset_name", "nunique"),
         ).reset_index()
+        # Vendas/receita por (temperatura, público) — soma sales_by_content (por
+        # adset_name, já calculado acima) sobre os adsets únicos de cada grupo.
+        # Precisa ser por adset único, não por linha diária: sales_by_content
+        # já é um total por adset, então somar direto nas linhas de df_pub
+        # (uma por dia) contaria a mesma venda várias vezes.
+        adsets_by_group = df_pub.groupby(["temperatura", "publico"])["adset_name"].unique()
         for temp in pub_grouped["temperatura"].unique():
             sub = pub_grouped[pub_grouped["temperatura"] == temp].sort_values("custo", ascending=False)
             total_temp = sub["custo"].sum() or 1
-            summary.por_publico_captacao[temp] = [
-                {
+            rows = []
+            for _, r in sub.iterrows():
+                adset_names = adsets_by_group.get((temp, r["publico"]), [])
+                vendas_pub = sum(int(sales_by_content.get(a, {}).get("sales", 0) or 0) for a in adset_names)
+                receita_pub = sum(float(sales_by_content.get(a, {}).get("receita", 0.0) or 0.0) for a in adset_names)
+                custo = float(r["custo"])
+                rows.append({
                     "publico": r["publico"],
-                    "gasto": float(r["custo"]),
+                    "gasto": custo,
                     "leads": int(r["leads"]),
                     "cpl": float(r["custo"] / r["leads"]) if r["leads"] > 0 else 0.0,
                     "pct": float(r["custo"] / total_temp * 100),
                     "num_adsets": int(r["num_adsets"]),
-                }
-                for _, r in sub.iterrows()
-            ]
+                    "vendas": vendas_pub,
+                    "receita": receita_pub,
+                    "roas": (receita_pub / custo) if custo > 0 else 0.0,
+                })
+            summary.por_publico_captacao[temp] = rows
 
     # Por dia e etapa
     dia_grouped = df.groupby(["date", "etapa"]).agg(

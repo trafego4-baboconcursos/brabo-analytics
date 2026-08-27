@@ -1,0 +1,115 @@
+# Contas de WhatsApp Business monitoradas (volume de envio/entrega via Meta Graph API).
+# Descobertas em 2026-08-26 listando as WABAs ligadas ao usuário que gerou o
+# META_ACCESS_TOKEN, cruzando com owned_whatsapp_business_accounts de cada
+# Business Manager. Não têm custo em R$ pela API — faturamento passa pela
+# Unichat como parceiro, e o Meta esconde o campo de custo nesse caso.
+#
+# product: PBB | PES | PI | null (ainda não confirmado com a equipe)
+# bot_ia: true pra contas de atendimento automatizado que atendem os 3 produtos
+# (ex.: Olívia) — não deve ser somado no gasto/volume por lançamento.
+accounts:
+  - waba_id: "107835298745518"
+    name: "Brabo Concursos"
+    phone: "+55 16 99323-1517"
+    product: null
+  - waba_id: "716649991509258"
+    name: "Brabo Concursos (BM1)"
+    phone: "+55 16 99396-9419"
+    product: null
+  - waba_id: "2243314659499655"
+    name: "Atendimento Brabo"
+    phone: "+55 16 99407-7802"
+    product: null
+  - waba_id: "518889657980684"
+    name: "Mentora Brabo Concursos"
+    phone: "+55 16 99463-5779"
+    product: null
+  - waba_id: "706442392258645"
+    name: "Brabo Editora"
+    phone: "+55 16 99371-4906 / +55 16 99211-6388"
+    product: null
+  - waba_id: "902660789166827"
+    name: "Beatriz / Felipe Graton (BM)"
+    phone: "+55 16 99417-7834"
+    product: null
+  - waba_id: "4165781687074871"
+    name: "Financeiro"
+    phone: "+55 16 99194-2896"
+    product: null
+  - waba_id: "1796660090983356"
+    name: "Brabo Concursos (BE2)"
+    phone: "+55 16 99410-6476 / +55 16 99393-3255"
+    product: null
+  - waba_id: "1832617280717236"
+    name: "Felipe Graton"
+    phone: "+55 16 99335-2110"
+    product: PBB  # = "FEL 2" na lista de Números Unnichat (número de expert)
+  - waba_id: "2247874135699156"
+    name: "Ivan Neto (BM1)"
+    phone: "+55 16 99393-8345"
+    product: PES  # = "IVAN 2" na lista de Números Unnichat (número de expert)
+
+  # Descobertos em 2026-08-27 depois que o token ganhou mais permissão de
+  # whatsapp_business_management (foram de 10 pra 31 WABAs visíveis) — batem
+  # exatamente com os 7 números de expert que faltavam na lista Unnichat.
+  - waba_id: "1063354699147692"
+    name: "Felipe Graton"
+    phone: "+55 16 99116-6666"
+    product: PBB  # = "FEL 1"
+  - waba_id: "1543463903689395"
+    name: "Ivan Neto"
+    phone: "+55 16 99360-5417"
+    product: PES  # = "IVAN 1"
+  - waba_id: "1022667809928866"
+    name: "Mateus Andrade"
+    phone: "+55 16 99110-3003"
+    product: PI  # = "MAT 1"
+  - waba_id: "1038255301503147"
+    name: "Mateus Andrade"
+    phone: "+55 16 99100-2552"
+    product: PI  # = "MAT 2"
+  - waba_id: "1067144278825913"
+    name: "Mateus Andrade"
+    phone: "+55 16 99402-6712"
+    product: PI  # = "MAT 3"
+  - waba_id: "1379517437290817"
+    name: "Mateus Andrade"
+    phone: "+55 16 99321-4345"
+    product: PI  # = "MAT 4"
+  - waba_id: "1916472119262164"
+    name: "Mateus Andrade"
+    phone: "+55 16 99393-3851"
+    product: PI  # = "MAT 5"
+
+  # Também descobertos em 2026-08-27, mas NÃO batem com nenhum item da lista
+  # Unnichat que o usuário mandou — não sei se são numero de apoio, WABA de
+  # teste, ou algo novo. Deixados fora do produto até confirmar.
+  - waba_id: "944367928688976"
+    name: "Sucesso do Aluno"
+    phone: "+55 16 98122-4100"
+    product: null  # é complementar (não-expert) pela lista Unnichat, não incluir por enquanto
+  - waba_id: "107217548955039"
+    name: "Mateus Andrade"
+    phone: "+55 16 99455-3008"
+    product: null  # número extra do Mateus, não está na lista Unnichat — confirmar antes de marcar PI
+  - waba_id: "1636300064348017"
+    name: "MKT135"
+    phone: "+55 16 99394-9446"
+    product: null  # não identificado
+  - waba_id: "1591438101969939"
+    name: "Test Number"
+    phone: "+1 555-152-6972"
+    product: null  # número de teste do Meta, ignorar
+  - waba_id: "471383656068759"
+    name: "Test Number"
+    phone: "+1 555-172-7613"
+    product: null  # número de teste do Meta, ignorar
+
+  # Olívia (bot de atendimento por IA) — cobre os 3 produtos, WABA ainda não
+  # identificada (o token atual não enxerga nenhum phone_number vinculado a
+  # ela). Adicionar aqui assim que o waba_id for confirmado.
+  - waba_id: null
+    name: "Olívia (bot IA)"
+    phone: null
+    product: null
+    bot_ia: true

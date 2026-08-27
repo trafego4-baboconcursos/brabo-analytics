@@ -1,0 +1,353 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1><i class="ti ti-brand-instagram"></i> {{ title }}</h1>
+      <p><a href="/instagram{% if active_code %}?launch_code={{ active_code }}{% endif %}">&larr; Voltar pro Perfil Instagram</a></p>
+    </div>
+  </div>
+
+  <div class="content">
+
+  {% if not ig %}
+    <div class="no-data">
+      <i class="ti ti-brand-instagram"></i>
+      <h3>Conta não encontrada</h3>
+      <p>Não achei <code>{{ title }}</code> em <code>config/instagram_accounts.yaml</code>.</p>
+    </div>
+  {% elif ig.no_data %}
+    <div class="no-data">
+      <i class="ti ti-clock-hour-4"></i>
+      <h3>Ainda sem dados coletados</h3>
+      <p>O ETL (<code>etl/etl_instagram.py</code>) ainda não rodou pra <strong>{{ ig.name }}</strong> —
+        assim que rodar (manual ou no ciclo do scheduler), essa página passa a mostrar posts, curtidas,
+        comentários e engajamento.</p>
+      <a href="{{ ig.profile_url }}" target="_blank" rel="noopener" class="lc-btn lc-btn-primary"
+         style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;margin-top:12px;">
+        <i class="ti ti-brand-instagram"></i> Ver perfil no Instagram
+      </a>
+    </div>
+  {% else %}
+
+    <div class="section">
+      <div class="highlight-box" style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;">
+        {% if ig.profile_picture_url %}
+        <img src="{{ ig.profile_picture_url }}" alt="{{ ig.name }}"
+             style="width:96px;height:96px;border-radius:50%;object-fit:cover;box-shadow:var(--bs-sh-sm);flex-shrink:0;">
+        {% endif %}
+        <div style="flex:1;min-width:220px;">
+          <h2 style="margin:0 0 2px;font-size:20px;">{{ ig.name }}</h2>
+          <div style="color:var(--bs-ink-muted);margin-bottom:8px;">@{{ ig.username }}</div>
+          {% if ig.biography %}<div style="font-size:13px;color:var(--bs-ink-muted);max-width:520px;">{{ ig.biography }}</div>{% endif %}
+        </div>
+        <a href="{{ ig.profile_url }}" target="_blank" rel="noopener" class="lc-btn lc-btn-secondary"
+           style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;flex-shrink:0;">
+          <i class="ti ti-brand-instagram"></i> Ver no Instagram
+        </a>
+      </div>
+    </div>
+
+    {% set base_url = "/instagram/" ~ ig.username ~ (("?launch_code=" ~ active_code) if active_code else "") %}
+    {% set sep = "&" if active_code else "?" %}
+    <div class="section" style="margin-bottom:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div style="display:flex;gap:6px;">
+          {% for d, label in [(7,"7 dias"), (30,"30 dias"), (90,"90 dias")] %}
+          <a href="{{ base_url }}{{ sep }}days={{ d }}{% if ig.compare %}&compare=1{% endif %}"
+             class="bs-pill {% if ig.days == d %}accent{% else %}neutral{% endif %}"
+             style="text-decoration:none;">{{ label }}</a>
+          {% endfor %}
+        </div>
+        <a href="{{ base_url }}{{ sep }}days={{ ig.days }}&compare={{ 0 if ig.compare else 1 }}"
+           class="bs-pill {% if ig.compare %}accent{% else %}neutral{% endif %}"
+           style="text-decoration:none;display:inline-flex;align-items:center;gap:5px;">
+          <i class="ti ti-arrows-exchange" style="font-size:12px;"></i> Comparar com período anterior
+        </a>
+      </div>
+      <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:8px;">
+        Período: <strong>{{ ig.range_start | br_date }}</strong> a <strong>{{ ig.range_end | br_date }}</strong>
+        {% if ig.compare %} · comparado com <strong>{{ ig.prev_range_start | br_date }}</strong> a <strong>{{ ig.prev_range_end | br_date }}</strong>{% endif %}
+        {% if ig.range_available_from > ig.range_start %} · dado disponível só a partir de {{ ig.range_available_from | br_date }}{% endif %}
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="tp-kpi-grid">
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-users"></i></div></div>
+          <div class="tp-value">{{ ig.followers_count | num }}</div>
+          <div class="tp-label">Seguidores</div>
+        </div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon"><i class="ti ti-user-plus"></i></div>
+            {% if ig.compare and ig.deltas.followers_gained is not none %}
+            <div class="tp-delta {{ 'up' if ig.deltas.followers_gained >= 0 else 'down' }}">
+              {{ '+' if ig.deltas.followers_gained >= 0 }}{{ ig.deltas.followers_gained }}%
+            </div>
+            {% endif %}
+          </div>
+          <div class="tp-value">{{ '+' if ig.followers_gained >= 0 }}{{ ig.followers_gained | num }}</div>
+          <div class="tp-label">Seguidores ganhos</div>
+          <div class="tp-compare">no período selecionado</div>
+        </div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-photo"></i></div></div>
+          <div class="tp-value">{{ ig.media_count | num }}</div>
+          <div class="tp-label">Posts (total da conta)</div>
+        </div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon success"><i class="ti ti-heart"></i></div>
+            {% if ig.compare and ig.deltas.avg_likes is not none %}
+            <div class="tp-delta {{ 'up' if ig.deltas.avg_likes >= 0 else 'down' }}">
+              {{ '+' if ig.deltas.avg_likes >= 0 }}{{ ig.deltas.avg_likes }}%
+            </div>
+            {% endif %}
+          </div>
+          <div class="tp-value">{{ ig.avg_likes | num }}</div>
+          <div class="tp-label">Média de curtidas</div>
+          <div class="tp-compare">{{ ig.total_posts_analisados }} posts no período</div>
+        </div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon"><i class="ti ti-message-circle"></i></div>
+            {% if ig.compare and ig.deltas.avg_comments is not none %}
+            <div class="tp-delta {{ 'up' if ig.deltas.avg_comments >= 0 else 'down' }}">
+              {{ '+' if ig.deltas.avg_comments >= 0 }}{{ ig.deltas.avg_comments }}%
+            </div>
+            {% endif %}
+          </div>
+          <div class="tp-value">{{ ig.avg_comments | num }}</div>
+          <div class="tp-label">Média de comentários</div>
+        </div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon warning"><i class="ti ti-bolt"></i></div>
+            {% if ig.compare and ig.deltas.avg_engagement_rate is not none %}
+            <div class="tp-delta {{ 'up' if ig.deltas.avg_engagement_rate >= 0 else 'down' }}">
+              {{ '+' if ig.deltas.avg_engagement_rate >= 0 }}{{ ig.deltas.avg_engagement_rate }}%
+            </div>
+            {% endif %}
+          </div>
+          <div class="tp-value">{{ ig.avg_engagement_rate }}%</div>
+          <div class="tp-label">Engajamento médio</div>
+          <div class="tp-compare">(curtidas+comentários) / seguidores</div>
+        </div>
+        {% if ig.reach_period_total %}
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon"><i class="ti ti-eye"></i></div>
+            {% if ig.compare and ig.deltas.reach_period_total is not none %}
+            <div class="tp-delta {{ 'up' if ig.deltas.reach_period_total >= 0 else 'down' }}">
+              {{ '+' if ig.deltas.reach_period_total >= 0 }}{{ ig.deltas.reach_period_total }}%
+            </div>
+            {% endif %}
+          </div>
+          <div class="tp-value">{{ ig.reach_period_total | num }}</div>
+          <div class="tp-label">Alcance da conta</div>
+          <div class="tp-compare">{{ ig.reach_period_days }} dias com dado no período</div>
+        </div>
+        {% endif %}
+        {% if ig.profile_views %}
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-user-search"></i></div></div>
+          <div class="tp-value">{{ ig.profile_views | num }}</div>
+          <div class="tp-label">Visitas ao perfil</div>
+          <div class="tp-compare">janela padrão da API, não filtra por período</div>
+        </div>
+        {% endif %}
+        {% if ig.accounts_engaged %}
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-users-group"></i></div></div>
+          <div class="tp-value">{{ ig.accounts_engaged | num }}</div>
+          <div class="tp-label">Contas engajadas</div>
+          <div class="tp-compare">janela padrão da API, não filtra por período</div>
+        </div>
+        {% endif %}
+        {% if ig.avg_reach %}
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-target-arrow"></i></div></div>
+          <div class="tp-value">{{ ig.avg_reach | num }}</div>
+          <div class="tp-label">Alcance médio por post</div>
+        </div>
+        {% endif %}
+        {% if ig.avg_views %}
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon"><i class="ti ti-player-play"></i></div>
+            {% if ig.compare and ig.deltas.avg_views is not none %}
+            <div class="tp-delta {{ 'up' if ig.deltas.avg_views >= 0 else 'down' }}">
+              {{ '+' if ig.deltas.avg_views >= 0 }}{{ ig.deltas.avg_views }}%
+            </div>
+            {% endif %}
+          </div>
+          <div class="tp-value">{{ ig.avg_views | num }}</div>
+          <div class="tp-label">Visualizações médias por post</div>
+        </div>
+        {% endif %}
+        {% if ig.views_total %}
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-player-play"></i></div></div>
+          <div class="tp-value">{{ ig.views_total | num }}</div>
+          <div class="tp-label">Visualizações (conta)</div>
+          <div class="tp-compare">janela padrão da API, não filtra por período</div>
+        </div>
+        {% endif %}
+        {% if ig.avg_interactions %}
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon success"><i class="ti ti-click"></i></div>
+            {% if ig.compare and ig.deltas.avg_interactions is not none %}
+            <div class="tp-delta {{ 'up' if ig.deltas.avg_interactions >= 0 else 'down' }}">
+              {{ '+' if ig.deltas.avg_interactions >= 0 }}{{ ig.deltas.avg_interactions }}%
+            </div>
+            {% endif %}
+          </div>
+          <div class="tp-value">{{ ig.avg_interactions | num }}</div>
+          <div class="tp-label">Interações médias por post</div>
+          <div class="tp-compare">métrica do Meta (curtidas, comentários, salvos etc.)</div>
+        </div>
+        {% endif %}
+        {% if ig.new_followers_from_posts %}
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-user-plus"></i></div></div>
+          <div class="tp-value">{{ ig.new_followers_from_posts | num }}</div>
+          <div class="tp-label">Novos seguidores via posts</div>
+          <div class="tp-compare">soma dos posts do período</div>
+        </div>
+        {% endif %}
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-calendar"></i></div></div>
+          <div class="tp-value">{{ ig.posts_this_month | num }}</div>
+          <div class="tp-label">Publicações neste mês</div>
+        </div>
+      </div>
+    </div>
+
+    {% if ig.follower_series | length > 1 %}
+    <div class="section">
+      <div class="section-title">Evolução de Seguidores</div>
+      <div class="note info">Seguidores reconstruídos a partir do ganho diário — a API do Meta só permite consultar os últimos 30 dias; daqui pra frente, o histórico segue acumulando sozinho.</div>
+      <div style="height:220px;"><canvas id="igFollowerChart"></canvas></div>
+    </div>
+    {% endif %}
+
+    {% if not ig.posts %}
+    <div class="note warning">Nenhum post publicado no período selecionado (o ETL sincroniza os {{ ig.media_count if ig.media_count else "últimos" }} posts mais recentes — se o período for muito curto ou antigo, pode não ter nenhum aqui).</div>
+    {% endif %}
+
+    {% if ig.top_posts %}
+    <div class="section">
+      <div class="section-title">Top 3 Posts por Engajamento</div>
+      <div class="highlights">
+        {% for p in ig.top_posts %}
+        <div class="highlight-box">
+          {% if p.thumbnail_url %}
+          <img src="{{ p.thumbnail_url }}" alt="post" style="width:100%;aspect-ratio:1;object-fit:cover;border-radius:var(--bs-r-md);margin-bottom:10px;">
+          {% endif %}
+          <div style="font-size:12px;color:var(--bs-ink-muted);margin-bottom:6px;">{{ p.posted_at | br_date }}</div>
+          <div style="font-size:12px;margin-bottom:10px;">{{ p.caption }}{% if p.caption | length >= 180 %}…{% endif %}</div>
+          <div class="highlight-row">
+            <span><i class="ti ti-heart"></i> {{ p.like_count | num }}</span>
+            <span><i class="ti ti-message-circle"></i> {{ p.comments_count | num }}</span>
+            <span class="bs-pill accent">{{ p.engagement_rate }}%</span>
+          </div>
+          {% if p.reach or p.saved or p.shares or p.views %}
+          <div class="highlight-row" style="margin-top:6px;font-size:11px;color:var(--bs-ink-muted);">
+            {% if p.views %}<span><i class="ti ti-player-play"></i> {{ p.views | num }} views</span>{% endif %}
+            {% if p.reach %}<span><i class="ti ti-eye"></i> {{ p.reach | num }} alcance</span>{% endif %}
+            {% if p.saved %}<span><i class="ti ti-bookmark"></i> {{ p.saved | num }} salvos</span>{% endif %}
+            {% if p.shares %}<span><i class="ti ti-share"></i> {{ p.shares | num }} compart.</span>{% endif %}
+          </div>
+          {% endif %}
+          {% if p.new_followers_from_post %}
+          <div style="font-size:11px;color:var(--bs-success);margin-top:4px;">
+            <i class="ti ti-user-plus"></i> {{ p.new_followers_from_post | num }} novos seguidores
+          </div>
+          {% endif %}
+          <a href="{{ p.permalink }}" target="_blank" rel="noopener" style="font-size:12px;display:inline-block;margin-top:8px;">Ver post &rarr;</a>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    {% if ig.posts %}
+    <div class="section">
+      <div class="section-title">Posts Recentes ({{ ig.total_posts_analisados }})</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Post</th>
+              <th class="th-num">Data</th>
+              <th class="th-num">Curtidas</th>
+              <th class="th-num">Comentários</th>
+              <th class="th-num">Views</th>
+              <th class="th-num">Alcance</th>
+              <th class="th-num">Salvos</th>
+              <th class="th-num">Compart.</th>
+              <th class="th-num">+Seguidores</th>
+              <th class="th-num">Engajamento</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in ig.posts %}
+            <tr>
+              <td style="display:flex;align-items:center;gap:10px;max-width:360px;">
+                {% if p.thumbnail_url %}
+                <img src="{{ p.thumbnail_url }}" alt="" style="width:40px;height:40px;border-radius:6px;object-fit:cover;flex-shrink:0;">
+                {% endif %}
+                <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ p.caption }}</span>
+              </td>
+              <td class="numero">{{ p.posted_at | br_date }}</td>
+              <td class="numero">{{ p.like_count | num }}</td>
+              <td class="numero">{{ p.comments_count | num }}</td>
+              <td class="numero">{{ p.views | num if p.views else "—" }}</td>
+              <td class="numero">{{ p.reach | num if p.reach else "—" }}</td>
+              <td class="numero">{{ p.saved | num if p.saved else "—" }}</td>
+              <td class="numero">{{ p.shares | num if p.shares else "—" }}</td>
+              <td class="numero">{{ p.new_followers_from_post | num if p.new_followers_from_post else "—" }}</td>
+              <td class="numero"><a href="{{ p.permalink }}" target="_blank" rel="noopener">{{ p.engagement_rate }}%</a></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+    (function(){
+      const canvas = document.getElementById('igFollowerChart');
+      if (!canvas) return;
+      const series = {{ ig.follower_series | tojson }};
+      new Chart(canvas, {
+        type: 'line',
+        data: {
+          labels: series.map(p => { const [y,m,d] = p.date.split('-'); return d + '/' + m; }),
+          datasets: [{
+            label: 'Seguidores',
+            data: series.map(p => p.followers),
+            borderColor: '#e1306c', backgroundColor: 'rgba(225,48,108,0.08)',
+            borderWidth: 2, pointRadius: 3, tension: 0.2, fill: true,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { ticks: { precision: 0 } } }
+        }
+      });
+    })();
+    </script>
+
+  {% endif %}
+
+  </div><!-- /content -->
+</div><!-- /wrap -->
+{% endblock %}

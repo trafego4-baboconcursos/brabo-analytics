@@ -542,10 +542,22 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
             if _re.match(r'^\d{2}/\d{2}/\d{4}', s):
                 try: return pd.to_datetime(s[:10], format="%d/%m/%Y")
                 except Exception: pass
+            if _re.match(r'^\d{10,13}$', s):
+                # epoch (ms se 13 digitos, s caso contrario) — mesmo formato
+                # ja tratado no SQL de filtragem (WHERE) e em read_dia1_sales;
+                # sem esse branch, toda linha nesse formato virava NaT e
+                # sumia da timeline (Hotmart ficava ausente do grafico).
+                try:
+                    epoch_s = int(s) / 1000 if len(s) == 13 else int(s)
+                    return pd.Timestamp(epoch_s, unit="s", tz="UTC").tz_convert("America/Sao_Paulo").tz_localize(None)
+                except Exception: pass
             try:
                 dt = pd.to_datetime(s, errors="coerce")
                 if dt is not pd.NaT and hasattr(dt, 'tzinfo') and dt.tzinfo is not None:
-                    dt = dt.tz_localize(None)
+                    # formato ISO com Z/offset (webhook) vem em UTC — converte
+                    # pra Brasília antes de descartar o tz, senão vendas perto
+                    # da meia-noite caem no dia errado (mesmo ajuste do epoch acima)
+                    dt = dt.tz_convert("America/Sao_Paulo").tz_localize(None)
                 return dt
             except Exception: return pd.NaT
         df_paid["data_parsed"] = df_paid["data_da_transacao"].apply(_parse_hm_date)
@@ -890,12 +902,24 @@ def read_qualidade_regiao(launch_folder_or_code: Any, vendas: Any = None) -> dic
 
 def read_dia1_sales(launch: Any) -> dict:
     """Vendas cumulativas hora a hora no primeiro dia do carrinho (abertura),
-    pra comparar o ritmo de vendas do dia de lançamento entre ciclos."""
+    pra comparar o ritmo de vendas do dia de lançamento entre ciclos.
+
+    `carrinho_start_date` é a segunda-feira (1º dia de aula) — início da
+    janela usada pra contar vendas do lançamento. A abertura oficial real do
+    carrinho (normalmente quinta-feira, mas o intervalo já variou +2/+3 dias
+    entre lançamentos — não é um offset fixo) vem do campo explícito
+    `abertura_oficial_carrinho`. Fallback pra carrinho_start_date + 3 dias
+    só em lançamentos antigos que ainda não tiveram esse campo preenchido.
+    """
+    from datetime import timedelta  # noqa: PLC0415
     from frontend.db_readers.launches import read_launch_config  # noqa: PLC0415
 
     code = _extract_launch_code(launch)
     cfg = read_launch_config(code)
-    day = _safe_date(cfg.get("carrinho_start_date"))
+    day = _safe_date(cfg.get("abertura_oficial_carrinho"))
+    if not day:
+        carrinho_start = _safe_date(cfg.get("carrinho_start_date"))
+        day = carrinho_start + timedelta(days=3) if carrinho_start else None
     if not day:
         return {"data_abertura": None, "checkpoints": []}
 

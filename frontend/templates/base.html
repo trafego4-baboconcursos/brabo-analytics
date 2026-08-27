@@ -1092,6 +1092,10 @@ kbd {
          {% if not (launch and launch.has_meta) %}class="bs-nav-link disabled"{% endif %}>
         <span class="bs-nav-icon"><i class="ti ti-palette"></i></span>Criativos
       </a>
+      <a class="bs-nav-link {% if page == 'instagram' %}active{% endif %}"
+         href="/instagram{% if active_code %}?launch_code={{ active_code }}{% endif %}">
+        <span class="bs-nav-icon"><i class="ti ti-brand-instagram"></i></span>Perfil Instagram
+      </a>
 
       {% if not current_user or current_user.role in ['admin','analista'] %}
       <div class="bs-nav-sep"></div>
@@ -1909,6 +1913,14 @@ document.addEventListener('keydown', function (e) {
                 <input type="date" id="lc_carrinho_end_date">
               </div>
             </div>
+            <div class="lc-field">
+              <span class="lc-label">Abertura oficial do carrinho</span>
+              <div class="lc-date-btn">
+                <i class="ti ti-calendar"></i>
+                <input type="date" id="lc_abertura_oficial_carrinho">
+              </div>
+              <span style="font-size:11px;color:var(--bs-ink-muted)">Data real de abertura (geralmente quinta) — usada na tabela hora a hora do debriefing. O intervalo desde o início do carrinho já variou entre lançamentos, então preencha manualmente.</span>
+            </div>
           </div>
         </div>
 
@@ -2051,6 +2063,7 @@ document.addEventListener('keydown', function (e) {
     setVal("lc_filtro_frio_scope",    cfg.filtro_frio_scope   || "campanhas");
     setVal("lc_carrinho_start_date",  cfg.carrinho_start_date || "");
     setVal("lc_carrinho_end_date",    cfg.carrinho_end_date   || "");
+    setVal("lc_abertura_oficial_carrinho", cfg.abertura_oficial_carrinho || "");
     setVal("lc_drive_folder_url",     cfg.drive_folder_url    || "");
 
     var metaIds = cfg.meta_ad_account_ids || [];
@@ -2539,6 +2552,7 @@ document.addEventListener('keydown', function (e) {
       outras_temperaturas:        outras,
       carrinho_start_date:        v("lc_carrinho_start_date"),
       carrinho_end_date:          v("lc_carrinho_end_date"),
+      abertura_oficial_carrinho:  v("lc_abertura_oficial_carrinho"),
       hotmart_produto_ids:        productIds,
       tmb_produto_ids:            tmbIds,
       drive_folder_url:           v("lc_drive_folder_url"),

@@ -16,6 +16,7 @@ from frontend.database_reader import (
     read_ac_campaigns, read_youtube_aulas, get_drive_thumbnails, get_platform_thumbnails,
     read_launch_config,
 )
+from frontend.db_readers.whatsapp_messages import _read_uncached as _read_wa_cost
 from frontend.services.attribution import _sales_attribution
 from logger import get_logger
 
@@ -91,6 +92,20 @@ def _vendas_consolidado(launch: Any):
 def _typeform_count(launch: Any) -> int:
     return _get_or_compute(launch.code, "typeform_count",
                            lambda: read_typeform_count(launch.folder))
+
+
+def _wa_cost(launch: Any):
+    """Custo de WhatsApp (config/whatsapp_accounts.yaml, filtrado por produto)
+    na MESMA janela usada pro investimento de Meta/Google (_window), pra somar
+    junto no Investimento Total."""
+    from frontend.utils import _safe_date
+
+    start, end = _window(launch)
+    s, e = _safe_date(start), _safe_date(end)
+    if not s or not e:
+        return None
+    return _get_or_compute(launch.code, f"wa_cost::{start}::{end}",
+                           lambda: _read_wa_cost(launch.code, s, e))
 
 
 def _fetch_prev_for_debriefing(launch: Any) -> dict:
@@ -237,8 +252,15 @@ async def _fetch_all_data(
             logger.exception("Falha ao ler YouTube aulas")
             return []
 
-    meta, google, vendas, tfc, tf, daily_tuple, thumb, comp, vc, hm, tmb, ac_camps, yt_aulas = await asyncio.gather(
-        f_meta(), f_google(), f_vendas(), f_tfc(), f_tf(), f_daily(), f_thumb(), f_comp(), f_vc(), f_hm(), f_tmb(), f_ac(), f_youtube()
+    async def f_wa_cost():
+        if not launch: return None
+        try: return await run_in_threadpool(_wa_cost, launch)
+        except Exception:
+            logger.exception("Falha ao ler custo de WhatsApp")
+            return None
+
+    meta, google, vendas, tfc, tf, daily_tuple, thumb, comp, vc, hm, tmb, ac_camps, yt_aulas, wa_cost = await asyncio.gather(
+        f_meta(), f_google(), f_vendas(), f_tfc(), f_tf(), f_daily(), f_thumb(), f_comp(), f_vc(), f_hm(), f_tmb(), f_ac(), f_youtube(), f_wa_cost()
     )
 
     daily_captacao, daily_preq = daily_tuple if isinstance(daily_tuple, tuple) else (daily_tuple, [])
@@ -283,5 +305,6 @@ async def _fetch_all_data(
         "vendas_con": vc, "hotmart": hm, "tmb": tmb, "ac_summary": ac_camps,
         "leads": leads, "sales_attr": sales_attr,
         "youtube_aulas": yt_aulas,
+        "wa_cost": wa_cost,
         "_errors": _errors,
     }

@@ -157,6 +157,13 @@ CREATE TABLE IF NOT EXISTS whatsapp_messages_daily (
 CREATE INDEX IF NOT EXISTS idx_wa_msg_date    ON whatsapp_messages_daily (date);
 CREATE INDEX IF NOT EXISTS idx_wa_msg_waba_id ON whatsapp_messages_daily (waba_id);
 
+-- Custo (pricing_analytics, cobrança por mensagem) — cost_usd vem direto do
+-- Meta; ptax_venda é a cotação do Bacen NO DIA do faturamento (não a de hoje),
+-- cost_brl = cost_usd * ptax_venda já calculado na carga pra não recalcular toda hora.
+ALTER TABLE whatsapp_messages_daily ADD COLUMN IF NOT EXISTS cost_usd    NUMERIC(12,4);
+ALTER TABLE whatsapp_messages_daily ADD COLUMN IF NOT EXISTS ptax_venda  NUMERIC(10,4);
+ALTER TABLE whatsapp_messages_daily ADD COLUMN IF NOT EXISTS cost_brl    NUMERIC(12,2);
+
 
 -- ── INSTAGRAM — snapshot diário de perfil + posts (Graph API, contas próprias) ──
 -- Contas configuradas em config/instagram_accounts.yaml. followers_count é uma

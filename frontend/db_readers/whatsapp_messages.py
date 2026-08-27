@@ -59,7 +59,8 @@ def _read_uncached(launch_code: str, start: date, end: date) -> dict | None:
         with _get_engine().connect() as conn:
             rows = conn.execute(
                 text(
-                    "SELECT date, waba_id, account_name, phone_number, sent, delivered "
+                    "SELECT date, waba_id, account_name, phone_number, sent, delivered, "
+                    "cost_usd, cost_brl "
                     "FROM whatsapp_messages_daily WHERE date BETWEEN :s AND :e "
                     "ORDER BY date"
                 ),
@@ -85,19 +86,30 @@ def _read_uncached(launch_code: str, start: date, end: date) -> dict | None:
             "series": [],
             "total_sent": 0,
             "total_delivered": 0,
+            "total_cost_usd": 0.0,
+            "total_cost_brl": 0.0,
         })
-        acc["series"].append({"date": str(r.date), "sent": r.sent or 0, "delivered": r.delivered or 0})
+        acc["series"].append({
+            "date": str(r.date), "sent": r.sent or 0, "delivered": r.delivered or 0,
+            "cost_brl": float(r.cost_brl) if r.cost_brl is not None else None,
+        })
         acc["total_sent"] += r.sent or 0
         acc["total_delivered"] += r.delivered or 0
+        acc["total_cost_usd"] += float(r.cost_usd or 0)
+        acc["total_cost_brl"] += float(r.cost_brl or 0)
 
     accounts = sorted(by_account.values(), key=lambda a: -a["total_sent"])
     total_sent = sum(a["total_sent"] for a in accounts)
     total_delivered = sum(a["total_delivered"] for a in accounts)
+    total_cost_usd = sum(a["total_cost_usd"] for a in accounts)
+    total_cost_brl = sum(a["total_cost_brl"] for a in accounts)
 
     return {
         "accounts": accounts,
         "total_sent": total_sent,
         "total_delivered": total_delivered,
+        "total_cost_usd": total_cost_usd,
+        "total_cost_brl": total_cost_brl,
         "start": str(start),
         "end": str(end),
     }

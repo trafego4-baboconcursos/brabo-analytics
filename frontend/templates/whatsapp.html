@@ -16,16 +16,11 @@
     <div class="section-title">Volume de Mensagens (Meta API) — sincronizado com o lançamento</div>
     <div class="note info">
       Período do lançamento: <strong>{{ wa_msgs.start | br_date }}</strong> até <strong>{{ wa_msgs.end | br_date }}</strong>.
-      Sem valor em R$ — essas contas são faturadas pela Unichat como parceiro de mensagens, e o Meta
-      esconde o custo em reais quando quem fatura é um parceiro (confirmado também na API da Unichat: não
-      existe endpoint de custo/fatura lá, só operação de envio). O que dá pra mostrar sem bloqueio é o
-      <strong>volume enviado/entregue por dia</strong>, por número de WhatsApp Business.
-    </div>
-    <div class="note warning">
-      Os números ainda não estão separados por produto (PBB/PES/PI) — o volume abaixo é de
-      <strong>todos os números monitorados</strong> dentro da janela deste lançamento. Se dois lançamentos
-      rodarem em paralelo, o mesmo envio pode aparecer nos dois. Assim que confirmarmos qual número
-      pertence a qual produto, isso é filtrado automaticamente.
+      Volume (enviado/entregue) e custo por dia, só dos números do expert responsável por este produto
+      (config/whatsapp_accounts.yaml). O custo em USD vem do endpoint <code>pricing_analytics</code> do Meta
+      (cobrança por mensagem — o antigo <code>conversation_analytics</code> continua bloqueado pra contas
+      faturadas via Unichat como parceiro, mas esse não é) e é convertido pra R$ usando a <strong>cotação
+      PTAX do Bacen no dia do faturamento</strong> (não a cotação de hoje).
     </div>
 
     {% set marcos = [
@@ -59,6 +54,12 @@
         <div class="tp-label">Números ativos</div>
         <div class="tp-compare">de {{ wa_msgs.accounts | length }} monitorados</div>
       </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon danger"><i class="ti ti-currency-real"></i></div></div>
+        <div class="tp-value">{{ wa_msgs.total_cost_brl | brl }}</div>
+        <div class="tp-label">Custo no período</div>
+        <div class="tp-compare">US$ {{ "%.2f"|format(wa_msgs.total_cost_usd) }} · cotação PTAX do dia</div>
+      </div>
     </div>
 
     <div style="height:280px; margin-bottom:20px;"><canvas id="waMsgChart"></canvas></div>
@@ -70,6 +71,7 @@
             <th class="col-label">Número</th>
             <th class="th-num col-count">Enviadas</th>
             <th class="th-num col-count">Entregues</th>
+            <th class="th-num col-count">Custo (R$)</th>
           </tr>
         </thead>
         <tbody>
@@ -78,6 +80,7 @@
             <td>{{ acc.name }}<br><small style="color:var(--bs-ink-muted);">{{ acc.phone or "" }}</small></td>
             <td class="numero">{{ acc.total_sent | num }}</td>
             <td class="numero">{{ acc.total_delivered | num }}</td>
+            <td class="numero">{{ acc.total_cost_brl | brl }}</td>
           </tr>
           {% endfor %}
         </tbody>

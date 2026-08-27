@@ -41,6 +41,7 @@
         <div class="tp-compare">
           {% if meta %}Meta: {{ meta.total_gasto | brl }}{% endif %}
           {% if google %}{% if meta %} · {% endif %}Google: {{ google.total_custo | brl }}{% endif %}
+          {% if wa_gasto %}{% if meta or google %} · {% endif %}WhatsApp: {{ wa_gasto | brl }}{% endif %}
         </div>
       </div>
 

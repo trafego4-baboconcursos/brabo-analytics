@@ -30,6 +30,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from db import get_engine
 from logger import get_logger
 from http_retry import http_get
+from ptax import get_ptax_venda
 
 load_dotenv()
 
@@ -61,6 +62,27 @@ def fetch_daily_volume(waba_id: str, since: str, until: str) -> list[dict]:
     return analytics.get("data_points", [])
 
 
+def fetch_pricing(waba_id: str, since: str, until: str) -> dict[str, float]:
+    """{data (YYYY-MM-DD): custo em USD} via pricing_analytics (cobrança por
+    mensagem) — substitui o antigo conversation_analytics, que o Meta esconde
+    pra WABAs faturadas por parceiro (Unichat); pricing_analytics não é
+    escondido."""
+    token = os.environ["META_ACCESS_TOKEN"]
+    start_ts = int(datetime.strptime(since, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp())
+    end_ts = int(datetime.strptime(until, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp()) + 86400
+
+    r = http_get(
+        f"https://graph.facebook.com/{API_VERSION}/{waba_id}/pricing_analytics",
+        params={"start": start_ts, "end": end_ts, "granularity": "DAILY", "access_token": token},
+    )
+    out: dict[str, float] = {}
+    for block in r.json().get("data") or []:
+        for p in block.get("data_points", []):
+            date = datetime.fromtimestamp(p["start"], tz=timezone.utc).strftime("%Y-%m-%d")
+            out[date] = out.get(date, 0.0) + float(p.get("cost") or 0)
+    return out
+
+
 def build_df(accounts: list[dict], since: str, until: str) -> pd.DataFrame:
     records = []
     for acc in accounts:
@@ -70,8 +92,15 @@ def build_df(accounts: list[dict], since: str, until: str) -> pd.DataFrame:
         except Exception:
             logger.warning("WhatsApp: falha ao buscar %s (%s)", acc.get("name"), waba_id, exc_info=True)
             continue
+        try:
+            cost_by_date = fetch_pricing(waba_id, since, until)
+        except Exception:
+            logger.warning("WhatsApp: falha ao buscar custo de %s (%s)", acc.get("name"), waba_id, exc_info=True)
+            cost_by_date = {}
         for p in points:
             date = datetime.fromtimestamp(p["start"], tz=timezone.utc).strftime("%Y-%m-%d")
+            cost_usd = cost_by_date.get(date)
+            ptax = get_ptax_venda(date) if cost_usd is not None else None
             records.append({
                 "date": date,
                 "waba_id": waba_id,
@@ -79,8 +108,11 @@ def build_df(accounts: list[dict], since: str, until: str) -> pd.DataFrame:
                 "phone_number": acc.get("phone"),
                 "sent": int(p.get("sent", 0)),
                 "delivered": int(p.get("delivered", 0)),
+                "cost_usd": cost_usd,
+                "ptax_venda": ptax,
+                "cost_brl": (cost_usd * ptax) if (cost_usd is not None and ptax is not None) else None,
             })
-        logger.info("WhatsApp: %s (%s) -> %d dias", acc.get("name"), waba_id, len(points))
+        logger.info("WhatsApp: %s (%s) -> %d dias, %d com custo", acc.get("name"), waba_id, len(points), len(cost_by_date))
     return pd.DataFrame(records)
 
 

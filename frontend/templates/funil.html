@@ -143,7 +143,7 @@
         </div>
 
         <div class="kpi-grid">
-          <div class="kpi-card" style="border-top-color:#f5576c"><div class="kpi-val" style="color:#f5576c">{{ invest | brl }}</div><div class="kpi-lbl">Investimento Total</div><div class="kpi-sub">Meta: {{ meta.total_gasto | brl if meta else "-" }} | Google: {{ google.total_custo | brl if google else "-" }}</div></div>
+          <div class="kpi-card" style="border-top-color:#f5576c"><div class="kpi-val" style="color:#f5576c">{{ invest | brl }}</div><div class="kpi-lbl">Investimento Total</div><div class="kpi-sub">Meta: {{ meta.total_gasto | brl if meta else "-" }} | Google: {{ google.total_custo | brl if google else "-" }}{% if wa_gasto %} | WhatsApp: {{ wa_gasto | brl }}{% endif %}</div></div>
           <div class="kpi-card" style="border-top-color:#28a745"><div class="kpi-val" style="color:#28a745">{{ receita | brl }}</div><div class="kpi-lbl">Faturamento Total</div><div class="kpi-sub">{% if vendas %}Hotmart: {{ vendas.hotmart_receita | brl }} | TMB: {{ vendas.tmb_receita | brl }}{% endif %}</div></div>
           <div class="kpi-card" style="border-top-color:#ff9800"><div class="kpi-val" style="color:#ff9800">{{ "%.2f"|format(roas) | replace(".", ",") }}x</div><div class="kpi-lbl">ROAS</div><div class="kpi-sub">Meta {{ meta.total_gasto | brl if meta else "-" }} | GA {{ google.total_custo | brl if google else "-" }}</div></div>
           <div class="kpi-card" style="border-top-color:#667eea"><div class="kpi-val" style="color:#667eea">{{ crm_leads | num }}</div><div class="kpi-lbl">Leads CRM</div><div class="kpi-sub">Captação Meta: {{ meta_leads | num }} leads</div></div>

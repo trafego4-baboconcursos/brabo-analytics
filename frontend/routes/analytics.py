@@ -36,9 +36,11 @@ async def captacao(request: Request, launch_code: str | None = None):
     meta, google, vendas = d["meta"], d["google"], d["vendas"]
     daily_breakdown      = d["daily_breakdown"]
     daily_breakdown_preq = d.get("daily_breakdown_preq") or []
+    wa_cost = d.get("wa_cost")
+    wa_gasto = (wa_cost.get("total_cost_brl") or 0.0) if wa_cost else 0.0
 
     receita = (vendas.total_receita if vendas else 0.0)
-    invest  = (meta.total_gasto if meta else 0.0) + (google.total_custo if google else 0.0)
+    invest  = (meta.total_gasto if meta else 0.0) + (google.total_custo if google else 0.0) + wa_gasto
     roas    = receita / invest if invest > 0 else 0.0
 
     cfg = await run_in_threadpool(_launch_cfg, launch.code) if launch else {}
@@ -50,7 +52,7 @@ async def captacao(request: Request, launch_code: str | None = None):
     prog_invest = min(100.0, invest / goal_invest * 100) if goal_invest > 0 else None
 
     ctx = _base_ctx(request, "captacao", "Captação", launch, launches,
-        meta=meta, google=google, vendas=vendas,
+        meta=meta, google=google, vendas=vendas, wa_gasto=wa_gasto,
         receita=receita, invest=invest, roas=roas,
         goal_leads=goal_leads, goal_invest=goal_invest,
         leads_meta=leads_meta, valor_medio_lead=valor_medio_lead,
@@ -90,12 +92,15 @@ async def funil_page(request: Request, launch_code: str | None = None):
         d["meta"], d["google"], d["vendas"], d["leads"], d["sales_attr"], d["typeform_count"], d["drive_thumbnails"]
     )
 
+    wa_cost = d.get("wa_cost")
+    wa_gasto = (wa_cost.get("total_cost_brl") or 0.0) if wa_cost else 0.0
+
     receita = (vendas.total_receita if vendas else 0.0)
-    invest  = (meta.total_gasto if meta else 0.0) + (google.total_custo if google else 0.0)
+    invest  = (meta.total_gasto if meta else 0.0) + (google.total_custo if google else 0.0) + wa_gasto
     roas    = receita / invest if invest > 0 else 0.0
 
     ctx = _base_ctx(request, "funil", "Funil Completo", launch, launches,
-        meta=meta, google=google, vendas=vendas, leads=leads,
+        meta=meta, google=google, vendas=vendas, leads=leads, wa_gasto=wa_gasto,
         sales_attr=sales_attr,
         typeform_count=typeform_count,
         receita=receita, invest=invest, roas=roas,
@@ -123,13 +128,15 @@ async def insights_page(request: Request, launch_code: str | None = None):
     except Exception:
         logger.exception("Insights: falha ao montar creative overview")
         creative_overview_error = True
+    wa_cost = d.get("wa_cost")
+    wa_gasto = (wa_cost.get("total_cost_brl") or 0.0) if wa_cost else 0.0
     receita = vendas.total_receita if vendas else 0.0
-    invest  = (meta.total_gasto if meta else 0.0) + (google.total_custo if google else 0.0)
+    invest  = (meta.total_gasto if meta else 0.0) + (google.total_custo if google else 0.0) + wa_gasto
     roas    = receita / invest if invest > 0 else 0.0
     if creative_overview and leads:
         creative_overview["resumo"]["total_leads"] = leads.total_leads
     ctx = _base_ctx(request, "insights", "Insights", launch, launches,
-        meta=meta, google=google, vendas=vendas, leads=leads, sales_attr=sales_attr,
+        meta=meta, google=google, vendas=vendas, leads=leads, sales_attr=sales_attr, wa_gasto=wa_gasto,
         insights_data=creative_overview, creative_overview_error=creative_overview_error,
         typeform_count=typeform_count,
         receita=receita, invest=invest, roas=roas,
@@ -219,8 +226,10 @@ async def comparativo_v1_v2(request: Request, launch_code: str | None = None):
     d = await _fetch_all_data(launch)
     meta, google, vendas, leads = d["meta"], d["google"], d["vendas"], d["leads"]
 
+    wa_cost = d.get("wa_cost")
+    wa_gasto = (wa_cost.get("total_cost_brl") or 0.0) if wa_cost else 0.0
     receita = vendas.total_receita if vendas else 0.0
-    invest = (meta.total_gasto if meta else 0.0) + (google.total_custo if google else 0.0)
+    invest = (meta.total_gasto if meta else 0.0) + (google.total_custo if google else 0.0) + wa_gasto
     roas = receita / invest if invest > 0 else 0.0
 
     data_status = [
@@ -244,6 +253,7 @@ async def comparativo_v1_v2(request: Request, launch_code: str | None = None):
         receita=receita,
         invest=invest,
         roas=roas,
+        wa_gasto=wa_gasto,
         data_status=data_status,
         v1_reports=_v1_reports_for_launch(launch),
         data_errors=d.get("_errors", []),

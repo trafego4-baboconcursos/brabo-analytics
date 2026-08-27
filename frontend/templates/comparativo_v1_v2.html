@@ -132,6 +132,7 @@
           <tbody>
             <tr><td>Investimento Meta</td><td class="numero">{{ meta.total_gasto | brl if meta else "-" }}</td><td>Meta Ads CSV</td></tr>
             <tr><td>Investimento Google</td><td class="numero">{{ google.total_custo | brl if google else "-" }}</td><td>Google Ads CSV</td></tr>
+            {% if wa_gasto %}<tr><td>Investimento WhatsApp</td><td class="numero">{{ wa_gasto | brl }}</td><td>Meta Graph API (pricing_analytics)</td></tr>{% endif %}
             <tr><td>Receita total</td><td class="numero">{{ receita | brl }}</td><td>Hotmart + TMB</td></tr>
             <tr><td>ROAS geral</td><td class="numero">{{ "%.2f"|format(roas) | replace(".", ",") }}x</td><td>Receita / investimento</td></tr>
             <tr><td>Leads Meta</td><td class="numero">{{ meta.total_leads | num if meta else "-" }}</td><td>Meta Ads CSV</td></tr>

@@ -142,13 +142,19 @@ def _resumo_tabela(conn, tabela: str, start, end, tem_lead_numero: bool) -> dict
     da PRIMEIRA entrada.
     """
     params = {"start": start, "end": end}
-    # uma linha por pessoa: primeira entrada, ativa em algum grupo, nº de grupos
+    # uma linha por pessoa: primeira entrada, ativa em algum grupo, nº de grupos.
+    # Filtra LID do WhatsApp (identificador que substitui o telefone real em
+    # contas com privacidade ativada) — só passa quem tem formato de telefone
+    # BR válido (55 + DDD + 8 ou 9 dígitos = 12 ou 13 caracteres). Sem esse
+    # filtro, LID conta como lead novo a cada sincronização (não é estável
+    # entre execuções), inflando a contagem.
     dedup = f'''
         SELECT "NÚMERO"::text                        AS fone,
                MIN({_DATA_EXPR})                     AS dia,
                MAX("LEAD ÚNICO")                     AS ativo,
                COUNT(DISTINCT "GRUPO DA CAMPANHA")   AS n_grupos
         FROM "{tabela}"
+        WHERE length("NÚMERO"::text) BETWEEN 12 AND 13
         GROUP BY 1
     '''
     where = "WHERE dia BETWEEN :start AND :end"
@@ -160,6 +166,15 @@ def _resumo_tabela(conn, tabela: str, start, end, tem_lead_numero: bool) -> dict
                COUNT(*) FILTER (WHERE n_grupos >= 2) AS multi
         FROM ({dedup}) d {where}
     '''), params).fetchone()
+
+    # Totais histórico completo (não escopado pelo período selecionado) —
+    # alimenta os cards Total / Total Limpo / Saída do topo da página.
+    tot_geral = conn.execute(text(f'''
+        SELECT COUNT(*)                          AS total,
+               COALESCE(SUM(ativo), 0)           AS total_limpo,
+               COUNT(*) - COALESCE(SUM(ativo),0) AS saida_total
+        FROM ({dedup}) d
+    ''')).fetchone()
 
     n_grupos_total = conn.execute(text(f'''
         SELECT COUNT(DISTINCT "GRUPO DA CAMPANHA") FROM "{tabela}"
@@ -195,6 +210,7 @@ def _resumo_tabela(conn, tabela: str, start, end, tem_lead_numero: bool) -> dict
             SELECT "GRUPO DA CAMPANHA" AS grupo, "NÚMERO"::text AS fone,
                    MIN({_DATA_EXPR}) AS dia, MAX("LEAD ÚNICO") AS ativo
             FROM "{tabela}"
+            WHERE length("NÚMERO"::text) BETWEEN 12 AND 13
             GROUP BY 1, 2
         ) g {where}
         GROUP BY 1 ORDER BY 2 DESC
@@ -203,10 +219,15 @@ def _resumo_tabela(conn, tabela: str, start, end, tem_lead_numero: bool) -> dict
     entradas = int(tot[0] or 0)
     ativos = int(tot[1] or 0)
     saidas = int(tot[2] or 0)
+    total_limpo = int(tot_geral[1] or 0)
+    saida_total = int(tot_geral[2] or 0)
     return {
         "entradas": entradas,
         "ativos": ativos,
         "saidas": saidas,
+        "total": int(tot_geral[0] or 0),
+        "total_limpo": total_limpo,
+        "saida_total": saida_total,
         "churn_pct": (saidas / entradas * 100) if entradas else 0.0,
         "grupos": int(n_grupos_total or 0),
         "media_por_grupo": (ativos / int(n_grupos_total)) if n_grupos_total else 0.0,

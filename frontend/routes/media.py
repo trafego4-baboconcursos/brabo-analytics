@@ -96,10 +96,11 @@ async def instagram_page(request: Request, launch_code: str | None = None):
 
 
 @router.get("/instagram/{username}", response_class=HTMLResponse)
-async def instagram_detail_page(request: Request, username: str, launch_code: str | None = None):
+async def instagram_detail_page(request: Request, username: str, launch_code: str | None = None,
+                                 days: int = 30, compare: int = 0):
     launches = await run_in_threadpool(get_launches)
     launch = resolve_launch(launch_code, launches)
-    detail = await run_in_threadpool(read_instagram_detail, username)
+    detail = await run_in_threadpool(read_instagram_detail, username, days, bool(compare))
     ctx = _base_ctx(request, "instagram", f"@{username}", launch, launches, ig=detail)
     return templates.TemplateResponse("instagram_detail.html", ctx)
 

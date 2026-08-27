@@ -59,20 +59,20 @@ class OAuthCallbackHandler(BaseHTTPRequestHandler):
         pass
 
 
-def _update_env(refresh_token: str):
+def _update_env(refresh_token: str, env_var: str = "YOUTUBE_REFRESH_TOKEN"):
     env_path = Path(__file__).parent.parent / ".env"
     if not env_path.exists():
         print(f"AVISO: .env nao encontrado em {env_path}")
         return
     content = env_path.read_text(encoding="utf-8")
-    pattern = r"^(YOUTUBE_REFRESH_TOKEN=).*$"
-    replacement = f"YOUTUBE_REFRESH_TOKEN={refresh_token}"
+    pattern = rf"^({re.escape(env_var)}=).*$"
+    replacement = f"{env_var}={refresh_token}"
     if re.search(pattern, content, re.MULTILINE):
         new_content = re.sub(pattern, replacement, content, flags=re.MULTILINE)
     else:
-        new_content = content.rstrip() + f"\nYOUTUBE_REFRESH_TOKEN={refresh_token}\n"
+        new_content = content.rstrip() + f"\n{env_var}={refresh_token}\n"
     env_path.write_text(new_content, encoding="utf-8")
-    print("[OK] .env atualizado com YOUTUBE_REFRESH_TOKEN")
+    print(f"[OK] .env atualizado com {env_var}")
 
 
 def _load_credentials() -> tuple[str, str]:
@@ -132,6 +132,12 @@ def main():
                         help="Gera URL de autorizacao para enviar a outra pessoa")
     parser.add_argument("--trocar-codigo", metavar="URL",
                         help="Cola aqui a URL de retorno recebida apos autorizacao remota")
+    parser.add_argument("--env-var", default="YOUTUBE_REFRESH_TOKEN",
+                        help="Nome da variavel gravada no .env (default: YOUTUBE_REFRESH_TOKEN). "
+                             "Use um nome proprio (ex: YOUTUBE_REFRESH_TOKEN_MATEUS) pra nao "
+                             "sobrescrever o token do canal principal ao autorizar outro canal.")
+    parser.add_argument("--nome", default="",
+                        help="Nome da pessoa/canal sendo autorizado, so pra exibir nas instrucoes")
     args = parser.parse_args()
 
     client_id, client_secret = _load_credentials()
@@ -148,7 +154,7 @@ def main():
         print(f"Codigo extraido: {code[:20]}...")
         token = _exchange_code(code, client_id, client_secret)
         if token:
-            _update_env(token)
+            _update_env(token, args.env_var)
             print("\nAutorizacao concluida! Agora execute:")
             print("  .venv\\Scripts\\python etl/etl_youtube_analytics.py --launch-code PBB-JUN-26\n")
         return
@@ -157,21 +163,22 @@ def main():
 
     # ── Modo: gerar URL para enviar ───────────────────────────────────────────
     if args.gerar_url:
+        quem = args.nome or "a pessoa"
         print("\n" + "="*60)
-        print("ENVIE ESTA URL AO FELIPE GRATON (WhatsApp/email):")
+        print(f"ENVIE ESTA URL PARA {quem.upper()} (WhatsApp/email):")
         print("="*60)
         print(auth_url)
         print("="*60)
-        print("""
-Instrucoes para o Felipe:
+        print(f"""
+Instrucoes para {quem}:
 1. Abra o link acima no navegador
-2. Faca login com a conta Google do canal Felipe Graton
+2. Faca login com a conta Google do canal do YouTube dele(a)
 3. Autorize o acesso
 4. O navegador vai mostrar erro de conexao (normal!)
 5. Copie a URL COMPLETA da barra de endereco e envie de volta
 
 Depois que receber a URL, rode:
-  .venv\\Scripts\\python etl/get_youtube_token.py --trocar-codigo "URL_RECEBIDA"
+  .venv\\Scripts\\python etl/get_youtube_token.py --trocar-codigo "URL_RECEBIDA" --env-var {args.env_var}
 """)
         return
 

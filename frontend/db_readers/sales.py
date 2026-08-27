@@ -190,23 +190,44 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
         return pd.read_sql(text(sql), ops_engine, params=params)
 
     def _query_tmb(use_ids: bool) -> pd.DataFrame:
+        # Data efetiva = data de CRIAÇÃO do pedido (tmb_oficial.criado_em) quando
+        # ela está PERTO da data de compensação (até 20 dias) — cobre um boleto
+        # gerado no fim do carrinho que demora a compensar, mesmo critério já usado
+        # pro Hotmart (data_da_transacao antes de confirmacao_do_pagamento).
+        # Gaps maiores que 20 dias entre criado_em e data_efetivado são parcela/
+        # renovação de um contrato antigo (ex.: Mentoria Vitalícia parcelada) —
+        # nesses casos criado_em aponta pra assinatura original, não pra ESTA
+        # cobrança, então usa data_efetivado (data real do evento de pagamento).
         sql = r"""
-            SELECT * FROM tmb_clean_oficial
-            WHERE valor_liquido > 0
-              AND CASE
-                  WHEN produto ILIKE '%inss%' THEN 'INSS'
-                  WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%') THEN 'TJ'
-                  WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'
-                  ELSE 'OUTRO'
-              END = :project
-              AND CASE
-                  WHEN NULLIF(NULLIF(TRIM(data_efetivado::text),''),'""') ~ '^\d{2}/\d{2}/\d{4}' THEN to_date(TRIM(data_efetivado::text),'DD/MM/YYYY')
-                  WHEN NULLIF(NULLIF(TRIM(data_efetivado::text),''),'""') ~ '^\d{10,13}$' THEN to_timestamp(
-                      CASE WHEN length(NULLIF(NULLIF(TRIM(data_efetivado::text),''),'""')) = 13
-                           THEN TRIM(data_efetivado::text)::bigint / 1000
-                           ELSE TRIM(data_efetivado::text)::bigint END)::date
-                  WHEN NULLIF(NULLIF(TRIM(data_efetivado::text),''),'""') IS NOT NULL THEN TRIM(data_efetivado::text)::timestamptz::date
-                  END BETWEEN :start AND :end
+            SELECT * FROM (
+                SELECT c.*, o.criado_em AS tmb_oficial_criado_em,
+                    CASE WHEN NULLIF(TRIM(o.criado_em),'') ~ '^\d{2}/\d{2}/\d{4}' THEN to_timestamp(TRIM(o.criado_em),'DD/MM/YYYY HH24:MI:SS')::date
+                         WHEN NULLIF(TRIM(o.criado_em),'') ~ '^\d{4}-\d{2}-\d{2}' THEN TRIM(o.criado_em)::timestamp::date
+                         ELSE NULL END AS _criado_date,
+                    CASE
+                        WHEN NULLIF(NULLIF(TRIM(c.data_efetivado::text),''),'""') ~ '^\d{2}/\d{2}/\d{4}' THEN to_date(TRIM(c.data_efetivado::text),'DD/MM/YYYY')
+                        WHEN NULLIF(NULLIF(TRIM(c.data_efetivado::text),''),'""') ~ '^\d{10,13}$' THEN to_timestamp(
+                            CASE WHEN length(NULLIF(NULLIF(TRIM(c.data_efetivado::text),''),'""')) = 13
+                                 THEN TRIM(c.data_efetivado::text)::bigint / 1000
+                                 ELSE TRIM(c.data_efetivado::text)::bigint END)::date
+                        WHEN NULLIF(NULLIF(TRIM(c.data_efetivado::text),''),'""') IS NOT NULL THEN TRIM(c.data_efetivado::text)::timestamptz::date
+                        END AS _efetivado_date
+                FROM tmb_clean_oficial c
+                LEFT JOIN tmb_oficial o ON o.pedido = c.pedido
+                WHERE c.valor_liquido > 0
+                  AND CASE
+                      WHEN c.produto ILIKE '%inss%' THEN 'INSS'
+                      WHEN (c.produto ILIKE '%tj%' OR c.produto ILIKE '%tjsp%') THEN 'TJ'
+                      WHEN (c.produto ILIKE '%bb%' OR c.produto ILIKE '%banco do brasil%' OR c.produto ILIKE '%bbsa%') THEN 'BB'
+                      ELSE 'OUTRO'
+                  END = :project
+            ) sub
+            WHERE COALESCE(
+                CASE WHEN _criado_date IS NOT NULL AND _efetivado_date IS NOT NULL
+                          AND (_efetivado_date - _criado_date) BETWEEN 0 AND 20
+                     THEN _criado_date END,
+                _efetivado_date
+            ) BETWEEN :start AND :end
         """
         params: dict = {"project": project, "start": launch_start, "end": launch_end}
         if use_ids:

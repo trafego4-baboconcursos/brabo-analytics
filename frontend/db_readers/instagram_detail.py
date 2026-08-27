@@ -55,19 +55,26 @@ def _pct_delta(curr: float, prev: float) -> float | None:
     return round((curr - prev) / prev * 100, 1)
 
 
+def _avg_of(posts: list[dict], key: str) -> int | None:
+    vals = [p[key] for p in posts if p.get(key)]
+    return round(sum(vals) / len(vals)) if vals else None
+
+
 def _post_stats(posts: list[dict]) -> dict:
     total = len(posts)
     avg_likes = round(sum(p["like_count"] for p in posts) / total) if total else 0
     avg_comments = round(sum(p["comments_count"] for p in posts) / total) if total else 0
     avg_engagement_rate = round(sum(p["engagement_rate"] for p in posts) / total, 2) if total else 0
-    with_reach = [p for p in posts if p["reach"]]
-    avg_reach = round(sum(p["reach"] for p in with_reach) / len(with_reach)) if with_reach else None
+    new_followers_from_posts = sum((p.get("new_followers_from_post") or 0) for p in posts)
     return {
         "total_posts": total,
         "avg_likes": avg_likes,
         "avg_comments": avg_comments,
         "avg_engagement_rate": avg_engagement_rate,
-        "avg_reach": avg_reach,
+        "avg_reach": _avg_of(posts, "reach"),
+        "avg_views": _avg_of(posts, "views"),
+        "avg_interactions": _avg_of(posts, "total_interactions"),
+        "new_followers_from_posts": new_followers_from_posts,
     }
 
 
@@ -89,7 +96,8 @@ def read_instagram_detail(username: str, days: int = 30, compare: bool = False) 
             media_rows = conn.execute(
                 text(
                     "SELECT media_id, media_type, caption, permalink, thumbnail_url, posted_at, "
-                    "like_count, comments_count, reach, saved, shares, total_interactions "
+                    "like_count, comments_count, reach, saved, shares, total_interactions, "
+                    "views, new_followers_from_post "
                     "FROM instagram_media WHERE ig_id = :ig_id ORDER BY posted_at DESC"
                 ),
                 {"ig_id": ig_id},
@@ -103,7 +111,7 @@ def read_instagram_detail(username: str, days: int = 30, compare: bool = False) 
             ).fetchall()
             account_insight_rows = conn.execute(
                 text(
-                    "SELECT date, reach, profile_views, accounts_engaged, total_interactions "
+                    "SELECT date, reach, profile_views, accounts_engaged, total_interactions, views_total "
                     "FROM instagram_account_insights_daily WHERE ig_id = :ig_id ORDER BY date"
                 ),
                 {"ig_id": ig_id},
@@ -147,6 +155,7 @@ def read_instagram_detail(username: str, days: int = 30, compare: bool = False) 
     followers_gained = _followers_gained(start, end)
     reach_period_total, reach_period_days = _reach_total(start, end)
     last_totals = next((r for r in reversed(account_insight_rows) if r.profile_views is not None), None)
+    views_total = next((r.views_total for r in reversed(account_insight_rows) if r.views_total is not None), None)
 
     def _posts_in_range(range_start: date, range_end: date) -> list[dict]:
         out = []
@@ -168,6 +177,8 @@ def read_instagram_detail(username: str, days: int = 30, compare: bool = False) 
                 "saved": r.saved,
                 "shares": r.shares,
                 "total_interactions": r.total_interactions,
+                "views": r.views,
+                "new_followers_from_post": r.new_followers_from_post,
                 "engagement": engagement,
                 "engagement_rate": rate,
             })
@@ -176,6 +187,12 @@ def read_instagram_detail(username: str, days: int = 30, compare: bool = False) 
     posts = _posts_in_range(start, end)
     stats = _post_stats(posts)
     top_posts = sorted(posts, key=lambda p: -p["engagement"])[:3]
+
+    today = date.today()
+    month_start = today.replace(day=1)
+    posts_this_month = sum(
+        1 for r in media_rows if r.posted_at and month_start <= r.posted_at.date() <= today
+    )
 
     result = {
         "name": latest.name or account.get("name"),
@@ -193,11 +210,16 @@ def read_instagram_detail(username: str, days: int = 30, compare: bool = False) 
         "avg_comments": stats["avg_comments"],
         "avg_engagement_rate": stats["avg_engagement_rate"],
         "avg_reach": stats["avg_reach"],
+        "avg_views": stats["avg_views"],
+        "avg_interactions": stats["avg_interactions"],
+        "new_followers_from_posts": stats["new_followers_from_posts"],
+        "posts_this_month": posts_this_month,
         "followers_gained": followers_gained,
         "reach_period_days": reach_period_days,
         "reach_period_total": reach_period_total,
         "profile_views": last_totals.profile_views if last_totals else None,
         "accounts_engaged": last_totals.accounts_engaged if last_totals else None,
+        "views_total": views_total,
         "no_data": False,
         "days": days,
         "compare": compare,
@@ -219,6 +241,8 @@ def read_instagram_detail(username: str, days: int = 30, compare: bool = False) 
             "avg_comments": _pct_delta(stats["avg_comments"], prev_stats["avg_comments"]),
             "avg_engagement_rate": _pct_delta(stats["avg_engagement_rate"], prev_stats["avg_engagement_rate"]),
             "reach_period_total": _pct_delta(reach_period_total, prev_reach_total),
+            "avg_views": _pct_delta(stats["avg_views"] or 0, prev_stats["avg_views"] or 0),
+            "avg_interactions": _pct_delta(stats["avg_interactions"] or 0, prev_stats["avg_interactions"] or 0),
         }
         result["prev"] = {
             "followers_gained": prev_followers_gained,

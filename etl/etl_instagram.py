@@ -37,11 +37,14 @@ API_VERSION = "v22.0"
 CONFIG_PATH = Path(__file__).parent.parent / "config" / "instagram_accounts.yaml"
 PROFILE_FIELDS = "username,name,biography,followers_count,media_count,profile_picture_url"
 MEDIA_FIELDS = "id,caption,media_type,permalink,timestamp,like_count,comments_count,media_url,thumbnail_url"
-MEDIA_INSIGHTS_METRICS = "reach,saved,shares,total_interactions"
+MEDIA_INSIGHTS_METRICS = "reach,saved,shares,total_interactions,views"
+# "follows" não é aceito pra VIDEO/REELS (só IMAGE/CAROUSEL_ALBUM) — pedido
+# separado do resto pra um post de vídeo não derrubar as outras métricas.
+MEDIA_FOLLOWS_METRIC = "follows"
 # reach e follower_count são os únicos que aceitam metric_type=time_series
 # (histórico dia a dia); os demais só dão total agregado do período (total_value).
 DAILY_TIME_SERIES_METRICS = "reach"
-PERIOD_TOTAL_METRICS = "profile_views,accounts_engaged,total_interactions"
+PERIOD_TOTAL_METRICS = "profile_views,accounts_engaged,total_interactions,views"
 
 
 def load_accounts() -> list[dict]:
@@ -68,22 +71,36 @@ def fetch_media(ig_id: str, limit: int) -> list[dict]:
 
 
 def fetch_media_insights(media_id: str) -> dict:
-    """reach/saved/shares/total_interactions de um post — requer
-    instagram_manage_insights. Retorna {} se o app/conta ainda não tiver
-    esse escopo (mensagem fica só em log, não interrompe o resto do ETL)."""
+    """reach/saved/shares/total_interactions/views de um post — requer
+    instagram_manage_insights. "follows" é pedido à parte porque a API rejeita
+    esse metric pra media_type VIDEO/REELS (só aceita IMAGE/CAROUSEL_ALBUM) —
+    combinado com os outros, um post de vídeo derrubaria a chamada inteira.
+    Retorna {} pra qualquer chamada que falhar (sem escopo, tipo incompatível
+    etc.) — loga e segue, não interrompe o resto do ETL."""
     token = os.environ["META_ACCESS_TOKEN"]
+    out = {}
     try:
         r = http_get(
             f"https://graph.facebook.com/{API_VERSION}/{media_id}/insights",
             params={"metric": MEDIA_INSIGHTS_METRICS, "access_token": token},
         )
+        for item in r.json().get("data", []):
+            values = item.get("values") or []
+            if values:
+                out[item["name"]] = values[0].get("value")
     except Exception:
-        return {}
-    out = {}
-    for item in r.json().get("data", []):
-        values = item.get("values") or []
-        if values:
-            out[item["name"]] = values[0].get("value")
+        pass
+    try:
+        r = http_get(
+            f"https://graph.facebook.com/{API_VERSION}/{media_id}/insights",
+            params={"metric": MEDIA_FOLLOWS_METRIC, "access_token": token},
+        )
+        for item in r.json().get("data", []):
+            values = item.get("values") or []
+            if values:
+                out[item["name"]] = values[0].get("value")
+    except Exception:
+        pass
     return out
 
 
@@ -173,6 +190,8 @@ def build_media_df(accounts: list[dict], limit: int) -> pd.DataFrame:
                 "saved": insights.get("saved"),
                 "shares": insights.get("shares"),
                 "total_interactions": insights.get("total_interactions"),
+                "views": insights.get("views"),
+                "new_followers_from_post": insights.get("follows"),
             })
         logger.info("Instagram posts: %s -> %d posts", acc.get("name"), len(items))
     return pd.DataFrame(records)
@@ -224,6 +243,7 @@ def build_account_insights_df(accounts: list[dict]) -> pd.DataFrame:
             row["profile_views"] = totals.get("profile_views")
             row["accounts_engaged"] = totals.get("accounts_engaged")
             row["total_interactions"] = totals.get("total_interactions")
+            row["views_total"] = totals.get("views")
         logger.info("Instagram insights de conta: %s -> %d dias de reach, totais=%s",
                     acc.get("name"), len(reach_values), bool(totals))
     return pd.DataFrame(list(by_date.values()))
@@ -258,11 +278,11 @@ def upsert_media(df: pd.DataFrame):
                     INSERT INTO instagram_media
                         (media_id, ig_id, media_type, caption, permalink, thumbnail_url,
                          posted_at, like_count, comments_count, reach, saved, shares,
-                         total_interactions, updated_at)
+                         total_interactions, views, new_followers_from_post, updated_at)
                     VALUES
                         (:media_id, :ig_id, :media_type, :caption, :permalink, :thumbnail_url,
                          :posted_at, :like_count, :comments_count, :reach, :saved, :shares,
-                         :total_interactions, NOW())
+                         :total_interactions, :views, :new_followers_from_post, NOW())
                     ON CONFLICT (media_id) DO UPDATE SET
                         like_count = EXCLUDED.like_count,
                         comments_count = EXCLUDED.comments_count,
@@ -271,6 +291,8 @@ def upsert_media(df: pd.DataFrame):
                         saved = COALESCE(EXCLUDED.saved, instagram_media.saved),
                         shares = COALESCE(EXCLUDED.shares, instagram_media.shares),
                         total_interactions = COALESCE(EXCLUDED.total_interactions, instagram_media.total_interactions),
+                        views = COALESCE(EXCLUDED.views, instagram_media.views),
+                        new_followers_from_post = COALESCE(EXCLUDED.new_followers_from_post, instagram_media.new_followers_from_post),
                         updated_at = NOW()
                 """),
                 row,
@@ -301,7 +323,7 @@ def upsert_account_insights(df: pd.DataFrame):
     if df.empty:
         logger.warning("Nenhum insight de conta Instagram para gravar.")
         return
-    for col in ("reach", "profile_views", "accounts_engaged", "total_interactions"):
+    for col in ("reach", "profile_views", "accounts_engaged", "total_interactions", "views_total"):
         if col not in df.columns:
             df[col] = None
     engine = get_engine()
@@ -311,14 +333,15 @@ def upsert_account_insights(df: pd.DataFrame):
             conn.execute(
                 text("""
                     INSERT INTO instagram_account_insights_daily
-                        (date, ig_id, reach, profile_views, accounts_engaged, total_interactions, updated_at)
+                        (date, ig_id, reach, profile_views, accounts_engaged, total_interactions, views_total, updated_at)
                     VALUES
-                        (:date, :ig_id, :reach, :profile_views, :accounts_engaged, :total_interactions, NOW())
+                        (:date, :ig_id, :reach, :profile_views, :accounts_engaged, :total_interactions, :views_total, NOW())
                     ON CONFLICT (date, ig_id) DO UPDATE SET
                         reach = COALESCE(EXCLUDED.reach, instagram_account_insights_daily.reach),
                         profile_views = COALESCE(EXCLUDED.profile_views, instagram_account_insights_daily.profile_views),
                         accounts_engaged = COALESCE(EXCLUDED.accounts_engaged, instagram_account_insights_daily.accounts_engaged),
                         total_interactions = COALESCE(EXCLUDED.total_interactions, instagram_account_insights_daily.total_interactions),
+                        views_total = COALESCE(EXCLUDED.views_total, instagram_account_insights_daily.views_total),
                         updated_at = NOW()
                 """),
                 row,

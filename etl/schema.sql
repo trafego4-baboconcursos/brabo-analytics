@@ -199,6 +199,8 @@ CREATE TABLE IF NOT EXISTS instagram_media (
     saved              INTEGER,
     shares             INTEGER,
     total_interactions INTEGER,
+    views              INTEGER,               -- vezes que o post foi reproduzido/exibido
+    new_followers_from_post INTEGER,           -- metric "follows" — seguidores ganhos a partir desse post
     updated_at         TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -215,6 +217,7 @@ CREATE TABLE IF NOT EXISTS instagram_account_insights_daily (
     profile_views      INTEGER,
     accounts_engaged   INTEGER,
     total_interactions INTEGER,
+    views_total        INTEGER,               -- so total do periodo padrao da API, sem historico diario
     updated_at         TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (date, ig_id)
 );

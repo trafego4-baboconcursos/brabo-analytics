@@ -174,6 +174,56 @@
           <div class="tp-label">Alcance médio por post</div>
         </div>
         {% endif %}
+        {% if ig.avg_views %}
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon"><i class="ti ti-player-play"></i></div>
+            {% if ig.compare and ig.deltas.avg_views is not none %}
+            <div class="tp-delta {{ 'up' if ig.deltas.avg_views >= 0 else 'down' }}">
+              {{ '+' if ig.deltas.avg_views >= 0 }}{{ ig.deltas.avg_views }}%
+            </div>
+            {% endif %}
+          </div>
+          <div class="tp-value">{{ ig.avg_views | num }}</div>
+          <div class="tp-label">Visualizações médias por post</div>
+        </div>
+        {% endif %}
+        {% if ig.views_total %}
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-player-play"></i></div></div>
+          <div class="tp-value">{{ ig.views_total | num }}</div>
+          <div class="tp-label">Visualizações (conta)</div>
+          <div class="tp-compare">janela padrão da API, não filtra por período</div>
+        </div>
+        {% endif %}
+        {% if ig.avg_interactions %}
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon success"><i class="ti ti-click"></i></div>
+            {% if ig.compare and ig.deltas.avg_interactions is not none %}
+            <div class="tp-delta {{ 'up' if ig.deltas.avg_interactions >= 0 else 'down' }}">
+              {{ '+' if ig.deltas.avg_interactions >= 0 }}{{ ig.deltas.avg_interactions }}%
+            </div>
+            {% endif %}
+          </div>
+          <div class="tp-value">{{ ig.avg_interactions | num }}</div>
+          <div class="tp-label">Interações médias por post</div>
+          <div class="tp-compare">métrica do Meta (curtidas, comentários, salvos etc.)</div>
+        </div>
+        {% endif %}
+        {% if ig.new_followers_from_posts %}
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-user-plus"></i></div></div>
+          <div class="tp-value">{{ ig.new_followers_from_posts | num }}</div>
+          <div class="tp-label">Novos seguidores via posts</div>
+          <div class="tp-compare">soma dos posts do período</div>
+        </div>
+        {% endif %}
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-calendar"></i></div></div>
+          <div class="tp-value">{{ ig.posts_this_month | num }}</div>
+          <div class="tp-label">Publicações neste mês</div>
+        </div>
       </div>
     </div>
 
@@ -205,11 +255,17 @@
             <span><i class="ti ti-message-circle"></i> {{ p.comments_count | num }}</span>
             <span class="bs-pill accent">{{ p.engagement_rate }}%</span>
           </div>
-          {% if p.reach or p.saved or p.shares %}
+          {% if p.reach or p.saved or p.shares or p.views %}
           <div class="highlight-row" style="margin-top:6px;font-size:11px;color:var(--bs-ink-muted);">
+            {% if p.views %}<span><i class="ti ti-player-play"></i> {{ p.views | num }} views</span>{% endif %}
             {% if p.reach %}<span><i class="ti ti-eye"></i> {{ p.reach | num }} alcance</span>{% endif %}
             {% if p.saved %}<span><i class="ti ti-bookmark"></i> {{ p.saved | num }} salvos</span>{% endif %}
             {% if p.shares %}<span><i class="ti ti-share"></i> {{ p.shares | num }} compart.</span>{% endif %}
+          </div>
+          {% endif %}
+          {% if p.new_followers_from_post %}
+          <div style="font-size:11px;color:var(--bs-success);margin-top:4px;">
+            <i class="ti ti-user-plus"></i> {{ p.new_followers_from_post | num }} novos seguidores
           </div>
           {% endif %}
           <a href="{{ p.permalink }}" target="_blank" rel="noopener" style="font-size:12px;display:inline-block;margin-top:8px;">Ver post &rarr;</a>
@@ -230,9 +286,11 @@
               <th class="th-num">Data</th>
               <th class="th-num">Curtidas</th>
               <th class="th-num">Comentários</th>
+              <th class="th-num">Views</th>
               <th class="th-num">Alcance</th>
               <th class="th-num">Salvos</th>
               <th class="th-num">Compart.</th>
+              <th class="th-num">+Seguidores</th>
               <th class="th-num">Engajamento</th>
             </tr>
           </thead>
@@ -248,9 +306,11 @@
               <td class="numero">{{ p.posted_at | br_date }}</td>
               <td class="numero">{{ p.like_count | num }}</td>
               <td class="numero">{{ p.comments_count | num }}</td>
+              <td class="numero">{{ p.views | num if p.views else "—" }}</td>
               <td class="numero">{{ p.reach | num if p.reach else "—" }}</td>
               <td class="numero">{{ p.saved | num if p.saved else "—" }}</td>
               <td class="numero">{{ p.shares | num if p.shares else "—" }}</td>
+              <td class="numero">{{ p.new_followers_from_post | num if p.new_followers_from_post else "—" }}</td>
               <td class="numero"><a href="{{ p.permalink }}" target="_blank" rel="noopener">{{ p.engagement_rate }}%</a></td>
             </tr>
             {% endfor %}

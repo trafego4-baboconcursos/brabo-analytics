@@ -142,7 +142,10 @@ def _resumo_tabela(conn, tabela: str, start, end, tem_lead_numero: bool) -> dict
     da PRIMEIRA entrada.
     """
     params = {"start": start, "end": end}
-    # uma linha por pessoa: primeira entrada, ativa em algum grupo, nº de grupos
+    # uma linha por pessoa: primeira entrada, ativa em algum grupo, nº de grupos.
+    # Sem filtro de formato de número — mantém a mesma contagem que a
+    # planilha (inclui LID do WhatsApp), por decisão de manter os dois
+    # números iguais em vez de divergir.
     dedup = f'''
         SELECT "NÚMERO"::text                        AS fone,
                MIN({_DATA_EXPR})                     AS dia,
@@ -160,6 +163,15 @@ def _resumo_tabela(conn, tabela: str, start, end, tem_lead_numero: bool) -> dict
                COUNT(*) FILTER (WHERE n_grupos >= 2) AS multi
         FROM ({dedup}) d {where}
     '''), params).fetchone()
+
+    # Totais histórico completo (não escopado pelo período selecionado) —
+    # alimenta os cards Total / Total Limpo / Saída do topo da página.
+    tot_geral = conn.execute(text(f'''
+        SELECT COUNT(*)                          AS total,
+               COALESCE(SUM(ativo), 0)           AS total_limpo,
+               COUNT(*) - COALESCE(SUM(ativo),0) AS saida_total
+        FROM ({dedup}) d
+    ''')).fetchone()
 
     n_grupos_total = conn.execute(text(f'''
         SELECT COUNT(DISTINCT "GRUPO DA CAMPANHA") FROM "{tabela}"
@@ -203,10 +215,15 @@ def _resumo_tabela(conn, tabela: str, start, end, tem_lead_numero: bool) -> dict
     entradas = int(tot[0] or 0)
     ativos = int(tot[1] or 0)
     saidas = int(tot[2] or 0)
+    total_limpo = int(tot_geral[1] or 0)
+    saida_total = int(tot_geral[2] or 0)
     return {
         "entradas": entradas,
         "ativos": ativos,
         "saidas": saidas,
+        "total": int(tot_geral[0] or 0),
+        "total_limpo": total_limpo,
+        "saida_total": saida_total,
         "churn_pct": (saidas / entradas * 100) if entradas else 0.0,
         "grupos": int(n_grupos_total or 0),
         "media_por_grupo": (ativos / int(n_grupos_total)) if n_grupos_total else 0.0,
@@ -265,6 +282,17 @@ def _read_whatsapp_uncached(code: str, start_date=None, end_date=None) -> dict |
             conn, t_vip, start, end,
             tem_lead_numero=_tem_coluna(conn, t_vip, "LEAD NÚMERO"),
         ) if tem_vip else None
+
+        # Total/Total Limpo vêm da planilha do Sheets quando disponível — é
+        # o número que o time já acompanha, calculado pelo poller (dedup +
+        # exclusão de admin). Sem isso, cai no cálculo daqui (tabela de
+        # leads acumulada), que pode divergir por causa do LID do WhatsApp.
+        from frontend.db_readers.sheets_contagem import ler_contagem_sheets  # noqa: PLC0415
+        contagem_sheets = ler_contagem_sheets(code) or {}
+        if normal and contagem_sheets.get("normal"):
+            normal.update(contagem_sheets["normal"])
+        if vip and contagem_sheets.get("vip"):
+            vip.update(contagem_sheets["vip"])
 
         overlap = 0
         if tem_normal and tem_vip:

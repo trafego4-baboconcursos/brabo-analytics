@@ -241,28 +241,6 @@ def _resumo_tabela(conn, tabela: str, start, end, tem_lead_numero: bool) -> dict
     }
 
 
-def _snapshot(conn, tabela: str | None) -> dict | None:
-    """Números finais (TOTAL LEADS/TOTAL LIMPO) já calculados pelo poller
-    que alimenta o Sheets, gravados em whatsapp_snapshot — usados pra bater
-    exatamente com a planilha, em vez de recalcular da tabela de leads
-    acumulada (que cresce ao longo do tempo por causa do LID do WhatsApp).
-    Retorna None se a tabela de snapshot ainda não existe ou não tem linha
-    pra esse lançamento (lançamentos sem poller ativo, ou antigos)."""
-    if not tabela:
-        return None
-    try:
-        if not _tabela_existe(conn, "whatsapp_snapshot"):
-            return None
-        r = conn.execute(
-            text('SELECT total_leads, total_limpo FROM "whatsapp_snapshot" WHERE tabela = :t'),
-            {"t": tabela},
-        ).fetchone()
-        return {"total": int(r[0]), "total_limpo": int(r[1])} if r else None
-    except Exception:
-        logger.exception("_snapshot: falha ao ler whatsapp_snapshot para %s", tabela)
-        return None
-
-
 def _read_whatsapp_uncached(code: str, start_date=None, end_date=None) -> dict | None:
     from frontend.db_readers.launches import read_launch_config  # noqa: PLC0415
 
@@ -305,12 +283,16 @@ def _read_whatsapp_uncached(code: str, start_date=None, end_date=None) -> dict |
             tem_lead_numero=_tem_coluna(conn, t_vip, "LEAD NÚMERO"),
         ) if tem_vip else None
 
-        snap_normal = _snapshot(conn, t_normal)
-        if normal and snap_normal:
-            normal.update(snap_normal)
-        snap_vip = _snapshot(conn, t_vip)
-        if vip and snap_vip:
-            vip.update(snap_vip)
+        # Total/Total Limpo vêm da planilha do Sheets quando disponível — é
+        # o número que o time já acompanha, calculado pelo poller (dedup +
+        # exclusão de admin). Sem isso, cai no cálculo daqui (tabela de
+        # leads acumulada), que pode divergir por causa do LID do WhatsApp.
+        from frontend.db_readers.sheets_contagem import ler_contagem_sheets  # noqa: PLC0415
+        contagem_sheets = ler_contagem_sheets(code) or {}
+        if normal and contagem_sheets.get("normal"):
+            normal.update(contagem_sheets["normal"])
+        if vip and contagem_sheets.get("vip"):
+            vip.update(contagem_sheets["vip"])
 
         overlap = 0
         if tem_normal and tem_vip:

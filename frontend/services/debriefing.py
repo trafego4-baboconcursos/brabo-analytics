@@ -400,6 +400,35 @@ def _compute_debriefing_ctx(
     _attach_clima_variation(google_clima, prev_google_clima)
     _attach_clima_sales(google_clima, (sales_attr or {}).get("google_por_temperatura"))
 
+    meta_preq_clima = _build_clima_breakdown(meta, "por_temperatura_prequali")
+    prev_meta_preq_clima = _build_clima_breakdown(prev_meta, "por_temperatura_prequali")
+    _attach_clima_variation(meta_preq_clima, prev_meta_preq_clima)
+
+    google_preq_clima = _build_clima_breakdown(google, "por_temperatura_prequali", leads_key="conversoes")
+    prev_google_preq_clima = _build_clima_breakdown(prev_google, "por_temperatura_prequali", leads_key="conversoes")
+    _attach_clima_variation(google_preq_clima, prev_google_preq_clima)
+
+    meta_preq_etapa = (getattr(meta, "por_etapa", {}) or {}).get("Pré-Qualificação") or {}
+    prev_meta_preq_etapa = (getattr(prev_meta, "por_etapa", {}) or {}).get("Pré-Qualificação") or {}
+    google_preq_etapa = (getattr(google, "por_etapa", {}) or {}).get("Pré-Qualificação") or {}
+    prev_google_preq_etapa = (getattr(prev_google, "por_etapa", {}) or {}).get("Pré-Qualificação") or {}
+    prequali_invest = {
+        "meta": {
+            "total": _f(meta_preq_etapa.get("custo")),
+            "prev_total": _f(prev_meta_preq_etapa.get("custo")),
+            "data_inicio": meta_preq_etapa.get("data_inicio") or "",
+            "climas": meta_preq_clima,
+        },
+        "google": {
+            "total": _f(google_preq_etapa.get("custo")),
+            "prev_total": _f(prev_google_preq_etapa.get("custo")),
+            "data_inicio": google_preq_etapa.get("data_inicio") or "",
+            "climas": google_preq_clima,
+        },
+    }
+    prequali_invest["total"] = prequali_invest["meta"]["total"] + prequali_invest["google"]["total"]
+    prequali_invest["prev_total"] = prequali_invest["meta"]["prev_total"] + prequali_invest["google"]["prev_total"]
+
     leads_detail_table = _build_leads_detail_table(
         meta, google, prev_meta, prev_google, sales_attr, prev_sales_attr,
     )
@@ -444,6 +473,7 @@ def _compute_debriefing_ctx(
         # Audiences (captação only)
         "meta_segmentos": meta_segmentos, "google_segmentos": google_segmentos,
         "meta_clima": meta_clima, "google_clima": google_clima,
+        "prequali_invest": prequali_invest,
         "leads_detail_table": leads_detail_table,
         # Detalhamento dos públicos (categoria de adset) por clima — Captação Meta
         "publicos_captacao": {

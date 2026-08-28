@@ -71,6 +71,7 @@ class MetaSummary:
     por_etapa: dict = field(default_factory=dict)
     por_temperatura: dict = field(default_factory=dict)
     por_temperatura_captacao: dict = field(default_factory=dict)
+    por_temperatura_prequali: dict = field(default_factory=dict)
     por_bucket: dict = field(default_factory=dict)
     por_segmento: dict = field(default_factory=dict)
     remarketing_por_adset: list = field(default_factory=list)
@@ -131,6 +132,7 @@ class GoogleSummary:
     ctr_medio: float = 0.0
     por_etapa: dict = field(default_factory=dict)
     por_temperatura: dict = field(default_factory=dict)
+    por_temperatura_prequali: dict = field(default_factory=dict)
     por_segmento: dict = field(default_factory=dict)
     campanhas: list = field(default_factory=list)
     publicos: list = field(default_factory=list)

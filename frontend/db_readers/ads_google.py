@@ -231,6 +231,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
         num_campanhas=("campaign_name", "nunique"),
     ).reset_index()
 
+    etapa_data_inicio = df[df["cost"] > 0].groupby("etapa")["date"].min()
     total_custo_etapas = etapa_grouped["custo"].sum() or 1
     etapa_google_raw: dict[str, dict] = {}
     for _, r in etapa_grouped.iterrows():
@@ -245,6 +246,11 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
             "custo_conv": float(r["custo"] / conv) if conv > 0 else 0.0,
             "pct": float(r["custo"] / total_custo_etapas * 100),
             "num_campanhas": int(r["num_campanhas"]),
+            "data_inicio": (
+                etapa_data_inicio[r["etapa"]].strftime("%Y-%m-%d")
+                if r["etapa"] in etapa_data_inicio.index and pd.notna(etapa_data_inicio[r["etapa"]])
+                else ""
+            ),
         }
     zero_google = {"custo": 0.0, "conversoes": 0.0, "cliques": 0, "impressoes": 0, "visualizacoes": 0, "custo_conv": 0.0, "pct": 0.0, "num_campanhas": 0}
     for etapa in ETAPAS_ORDEM:
@@ -263,6 +269,21 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
             "temperatura": r["temperatura"],
             "custo": float(r["custo"]),
             "conversoes": conv,
+            "custo_conv": float(r["custo"] / conv) if conv > 0 else 0.0
+        }
+
+    # Agrega por temperatura — pré-qualificação
+    preq_grouped = df[df["etapa"] == "Pré-Qualificação"].groupby("temperatura").agg(
+        custo=("cost", "sum"), conversoes=("conversions", "sum")
+    ).reset_index()
+    for _, r in preq_grouped.iterrows():
+        conv = float(r["conversoes"])
+        summary.por_temperatura_prequali[r["temperatura"]] = {
+            "temperatura": r["temperatura"],
+            "custo": float(r["custo"]),
+            "gasto": float(r["custo"]),
+            "conversoes": conv,
+            "leads": conv,
             "custo_conv": float(r["custo"] / conv) if conv > 0 else 0.0
         }
 

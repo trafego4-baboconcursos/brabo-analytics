@@ -248,6 +248,7 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
         thruplays=("video_thruplays", "sum"),
         num_campanhas=("campaign_name", "nunique"),
     ).reset_index()
+    etapa_data_inicio = df[df["spend"] > 0].groupby("etapa")["date"].min()
     total_spend_etapas = etapa_grouped["custo"].sum() or 1
     etapa_data_raw: dict[str, dict] = {}
     for _, r in etapa_grouped.iterrows():
@@ -261,6 +262,11 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
             "custo_thruplay": float(r["custo"] / r["thruplays"]) if r["thruplays"] > 0 else 0.0,
             "pct": float(r["custo"] / total_spend_etapas * 100),
             "num_campanhas": int(r["num_campanhas"]),
+            "data_inicio": (
+                etapa_data_inicio[r["etapa"]].strftime("%Y-%m-%d")
+                if r["etapa"] in etapa_data_inicio.index and pd.notna(etapa_data_inicio[r["etapa"]])
+                else ""
+            ),
         }
     zero_meta = {"custo": 0.0, "gasto": 0.0, "leads": 0, "thruplays": 0, "cpl": 0.0, "custo_thruplay": 0.0, "pct": 0.0, "num_campanhas": 0}
     for etapa in ETAPAS_ORDEM:
@@ -292,6 +298,19 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
             "leads": int(r["leads"]),
             "cpl": float(r["custo"] / r["leads"]) if r["leads"] > 0 else 0.0,
             "pct": float(r["custo"] / total_spend_cap * 100)
+        }
+
+    df_preq = df[df["etapa"] == "Pré-Qualificação"]
+    preq_grouped = df_preq.groupby("temperatura").agg(custo=("spend", "sum"), leads=("leads", "sum")).reset_index()
+    total_spend_preq = preq_grouped["custo"].sum() or 1
+    for _, r in preq_grouped.iterrows():
+        summary.por_temperatura_prequali[r["temperatura"]] = {
+            "temperatura": r["temperatura"],
+            "custo": float(r["custo"]),
+            "gasto": float(r["custo"]),
+            "leads": int(r["leads"]),
+            "cpl": float(r["custo"] / r["leads"]) if r["leads"] > 0 else 0.0,
+            "pct": float(r["custo"] / total_spend_preq * 100)
         }
 
     bucket_grouped = df.groupby("bucket").agg(custo=("spend", "sum"), leads=("leads", "sum")).reset_index()

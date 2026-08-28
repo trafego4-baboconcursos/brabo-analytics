@@ -45,13 +45,13 @@
                   Abrir
                 </a>
                 <button onclick="lcOpen('{{ l.code }}')"
-                  style="background:#f3f4f6;color:var(--bs-ink);border:1px solid var(--bs-border-s);padding:4px 10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px">
+                  style="background:var(--bs-accent-bg);color:var(--bs-ink);border:1px solid var(--bs-border-s);padding:4px 10px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:4px">
                   <i class="ti ti-settings" style="font-size:13px"></i> Configurar
                 </button>
               </td>
             </tr>
             {% else %}
-            <tr><td colspan="8" style="text-align:center;color:#9ca3af;padding:32px">Nenhum lançamento encontrado</td></tr>
+            <tr><td colspan="8" style="text-align:center;color:var(--bs-ink-subtle);padding:32px">Nenhum lançamento encontrado</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -124,7 +124,7 @@
             style="background:var(--bs-accent);color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">
             Gerar link de convite
           </button>
-          <div id="inv-link-box" style="display:none;flex:1;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:8px 12px;font-size:12px;font-family:monospace;word-break:break-all;color:#166534"></div>
+          <div id="inv-link-box" style="display:none;flex:1;background:var(--bs-success-bg);border:1px solid #bbf7d0;border-radius:8px;padding:8px 12px;font-size:12px;font-family:monospace;word-break:break-all;color:#166534"></div>
           <button id="inv-copy-btn" onclick="invCopy()" style="display:none;background:#dcfce7;border:1px solid #86efac;color:#166534;padding:8px 12px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer">
             <i class="ti ti-copy"></i> Copiar
           </button>
@@ -154,8 +154,8 @@
               </td>
               <td>
                 <span class="bs-pill" style="
-                  background:{% if u.role == 'admin' %}#fef3c7{% elif u.role == 'analista' %}#eff6ff{% elif u.role == 'trafego' %}#f0fdf4{% else %}#f3f4f6{% endif %};
-                  color:{% if u.role == 'admin' %}#92400e{% elif u.role == 'analista' %}#1e40af{% elif u.role == 'trafego' %}#166534{% else %}#374151{% endif %};
+                  background:{% if u.role == 'admin' %}#fef3c7{% elif u.role == 'analista' %}#eff6ff{% elif u.role == 'trafego' %}var(--bs-success-bg){% else %}var(--bs-accent-bg){% endif %};
+                  color:{% if u.role == 'admin' %}#92400e{% elif u.role == 'analista' %}#1e40af{% elif u.role == 'trafego' %}#166534{% else %}var(--bs-sidebar){% endif %};
                   font-weight:700;font-size:11px;padding:3px 10px;border-radius:20px">
                   {{ u.role_label }}
                 </span>
@@ -250,7 +250,7 @@
 
     <div class="section">
       <div class="section-title">Arquitetura de Dados Analíticos (Supabase)</div>
-      <div style="background:#1f2937;color:#e5e7eb;padding:20px;border-radius:12px;font-family:monospace;font-size:13px;line-height:1.8">
+      <div style="background:var(--bs-sidebar-dark);color:var(--bs-border);padding:20px;border-radius:12px;font-family:monospace;font-size:13px;line-height:1.8">
         <pre style="margin:0">Pipeline ETL (scheduler.py) ➔ Datalake Supabase
   ├── dim_lancamentos       ➔ Cadastro de lançamentos e períodos
   ├── meta_ads_daily        ➔ Desempenho diário de anúncios Meta Ads API

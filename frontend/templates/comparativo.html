@@ -254,7 +254,7 @@
       </p>
       <div class="cmp-ads-grid">
         <div>{{ dia1_table(comp.dia1_b, comp.code_b, comp.accent_b, compare=comp.dia1_a.checkpoints, compare_code=comp.code_a) }}</div>
-        <div>{{ dia1_table(comp.dia1_a, comp.code_a, '#6b7280', head_color='#6b7280', compare=(comp.dia1_a2.checkpoints if comp.dia1_a2 else None), compare_code=(comp.code_a2 if comp.code_a2 else None)) }}</div>
+        <div>{{ dia1_table(comp.dia1_a, comp.code_a, 'var(--bs-ink-muted)', head_color='var(--bs-ink-muted)', compare=(comp.dia1_a2.checkpoints if comp.dia1_a2 else None), compare_code=(comp.code_a2 if comp.code_a2 else None)) }}</div>
       </div>
     </div>
     {% endif %}
@@ -468,7 +468,7 @@
                       {% if td %}
                       <img src="{{ td.thumb }}" onclick="openVideoModal('{{ td.preview }}','{{ ad.nome }}')" style="width:64px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer;flex-shrink:0;" loading="lazy" onerror="this.style.display='none'">
                       {% else %}
-                      <div style="width:64px;height:42px;background:#f3f4f6;border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-photo" style="font-size:18px;color:#9ca3af;"></i></div>
+                      <div style="width:64px;height:42px;background:var(--bs-accent-bg);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-photo" style="font-size:18px;color:var(--bs-ink-subtle);"></i></div>
                       {% endif %}
                       <small title="{{ ad.nome }}" style="min-width:0;">{{ ad.nome[:50] }}{% if ad.nome|length > 50 %}…{% endif %}</small>
                     </div>
@@ -574,7 +574,7 @@
       </div>
 
       <div class="cmp-ads-grid" style="margin-top:16px;">
-        {% for ads, code, col in [(comp.top_google_b, comp.code_b, '#EA4335'), (comp.top_google_a, comp.code_a, '#667eea')] %}
+        {% for ads, code, col in [(comp.top_google_b, comp.code_b, 'var(--google-color)'), (comp.top_google_a, comp.code_a, '#667eea')] %}
         <div>
           <h3 style="margin:0 0 10px;font-size:14px;color:{{ col }}">
             <i class="ti ti-brand-google" style="color:var(--google-color);margin-right:4px;"></i>Top Campanhas Google — {{ code }}
@@ -600,7 +600,7 @@
                       {% if td %}
                       <img src="{{ td.thumb }}" onclick="openVideoModal('{{ td.preview }}','{{ ad.nome }}')" style="width:64px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer;flex-shrink:0;" loading="lazy" onerror="this.style.display='none'">
                       {% else %}
-                      <div style="width:64px;height:42px;background:#f3f4f6;border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-photo" style="font-size:18px;color:#9ca3af;"></i></div>
+                      <div style="width:64px;height:42px;background:var(--bs-accent-bg);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-photo" style="font-size:18px;color:var(--bs-ink-subtle);"></i></div>
                       {% endif %}
                       <small title="{{ ad.nome }}" style="min-width:0;">{{ ad.nome[:50] }}{% if ad.nome|length > 50 %}…{% endif %}</small>
                     </div>

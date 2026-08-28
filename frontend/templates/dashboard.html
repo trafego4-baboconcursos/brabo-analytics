@@ -304,7 +304,7 @@
               {% set tot.dl = tot.dl + r.display_leads %}
               {% set tot.dg = tot.dg + r.display_gasto %}
             {% endfor %}
-            <tr style="background:#1f2937;color:#fff;font-weight:700;">
+            <tr style="background:var(--bs-sidebar-dark);color:#fff;font-weight:700;">
               <td colspan="2">TOTAL</td>
               <td style="text-align:right;">{{ tot.leads | round(0) | int | num }}</td>
               <td style="text-align:right;">{{ (tot.gasto / tot.leads) | brl if tot.leads > 0 else "–" }}</td>

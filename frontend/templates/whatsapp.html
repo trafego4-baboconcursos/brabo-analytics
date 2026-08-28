@@ -91,10 +91,14 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script>
   (function(){
+    const cssVar = (name, fallback) => {
+      const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+      return v || fallback;
+    };
     const accounts = {{ wa_msgs.accounts | tojson }};
     const dates = [...new Set(accounts.flatMap(a => a.series.map(p => p.date)))].sort();
     const lbl = dates.map(d => { const [y,m,dd] = d.split('-'); return dd + '/' + m; });
-    const colors = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899','#14b8a6','#6366f1'];
+    const colors = [cssVar('--temp-frio','#3b82f6'),'#10b981','#f59e0b','#ef4444',cssVar('--temp-especifico','#8b5cf6'),'#ec4899','#14b8a6','#6366f1'];
     const top = [...accounts].sort((a,b) => b.total_sent - a.total_sent).slice(0, 6);
     const datasets = top.map((acc, i) => {
       const map = Object.fromEntries(acc.series.map(p => [p.date, p.sent]));
@@ -131,7 +135,7 @@
           ctx.lineTo(x, chartArea.bottom);
           ctx.stroke();
           ctx.setLineDash([]);
-          ctx.fillStyle = '#6b7280';
+          ctx.fillStyle = cssVar('--bs-ink-muted', '#6b7280');
           ctx.font = '10px Inter, sans-serif';
           ctx.textAlign = 'left';
           ctx.fillText(m.label, x + 4, chartArea.top + 12);
@@ -298,6 +302,10 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 (function(){
+  const cssVar = (name, fallback) => {
+    const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback;
+  };
   const normal = {{ (wa.normal.timeline if wa.normal else []) | tojson }};
   const vip    = {{ (wa.vip.timeline    if wa.vip    else []) | tojson }};
 
@@ -311,7 +319,7 @@
     data: {
       labels: lbl,
       datasets: [
-        { label: 'Normal', data: mapa(normal), backgroundColor: '#3b82f6' },
+        { label: 'Normal', data: mapa(normal), backgroundColor: cssVar('--temp-frio', '#3b82f6') },
         { label: 'VIP',    data: mapa(vip),    backgroundColor: '#a78bfa' },
       ]
     },

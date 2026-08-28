@@ -300,7 +300,7 @@
                 <div style="display:flex;align-items:center;gap:10px;">
                   {% if td %}
                   <img src="{{ td.thumb }}" alt="{{ c.ad_code }}"
-                       style="width:72px;height:48px;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;cursor:pointer;flex-shrink:0;"
+                       style="width:72px;height:48px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);cursor:pointer;flex-shrink:0;"
                        data-preview="{{ td.preview }}" data-title="{{ c.ad_code }}"
                        data-gasto="{{ c.gasto | brl }}" data-leads="{{ c.leads | num }}" data-cpl="{{ c.cpl | brl }}"
                        data-cpm="{{ c.cpm | brl }}" data-vendas="{{ c.vendas | num }}"
@@ -313,12 +313,12 @@
                   {% elif c.video_id %}
                   <a href="https://youtu.be/{{ c.video_id }}" target="_blank" rel="noopener" style="flex-shrink:0;">
                     <img src="https://img.youtube.com/vi/{{ c.video_id }}/mqdefault.jpg" alt="{{ c.ad_code }}"
-                         style="width:72px;height:48px;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;"
+                         style="width:72px;height:48px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);"
                          onerror="this.src='/img/placeholder-ad.png';this.onerror=null;">
                   </a>
                   {% else %}
-                  <div style="width:72px;height:48px;border-radius:5px;border:1px dashed #d1d5db;background:#f3f4f6;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                    <i class="ti ti-photo" style="color:#9ca3af;font-size:20px"></i>
+                  <div style="width:72px;height:48px;border-radius:5px;border:1px dashed var(--bs-border-s);background:var(--bs-accent-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="ti ti-photo" style="color:var(--bs-ink-subtle);font-size:20px"></i>
                   </div>
                   {% endif %}
                   <strong title="{{ c.nome }}" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;">

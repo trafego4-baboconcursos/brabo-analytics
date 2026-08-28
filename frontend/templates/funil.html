@@ -307,9 +307,9 @@
             {% set tc = TEMP_COLORS %}
             {% for temp, d in meta.por_temperatura.items() | sort(attribute='1.gasto', reverse=True) %}
             <tr>
-              <td><span class="bs-pill" style="background:{{ tc.get(temp,'#9ca3af') }}">{{ temp }}</span></td>
+              <td><span class="bs-pill" style="background:{{ tc.get(temp,'var(--bs-ink-subtle)') }}">{{ temp }}</span></td>
               <td class="numero">{{ d.gasto | brl }}</td>
-              <td><div class="pbar-wrap"><div class="pbar-track"><div class="pbar-fill" style="background:{{ tc.get(temp,'#9ca3af') }};width:{{ (d.gasto/total_temp*100)|round(1) }}%"></div></div><strong style="color:{{ tc.get(temp,'#9ca3af') }};font-size:12px">{{ (d.gasto/total_temp*100)|pct }}</strong></div></td>
+              <td><div class="pbar-wrap"><div class="pbar-track"><div class="pbar-fill" style="background:{{ tc.get(temp,'var(--bs-ink-subtle)') }};width:{{ (d.gasto/total_temp*100)|round(1) }}%"></div></div><strong style="color:{{ tc.get(temp,'var(--bs-ink-subtle)') }};font-size:12px">{{ (d.gasto/total_temp*100)|pct }}</strong></div></td>
               <td class="numero">{{ d.leads | num }}</td>
               {% set venda_temp = vendas_meta_temp.get(temp, {}) %}
               <td class="numero"><strong>{{ venda_temp.get('vendas', 0) | num }}</strong></td>
@@ -337,9 +337,9 @@
         <table>
           <thead><tr><th>Canal</th><th>Investimento</th><th>Volume</th><th>Custo</th><th>Métrica</th></tr></thead>
           <tbody>
-            <tr><td><span class="bs-pill" style="background:#1877f2">Meta Ads Pre-Q</span></td><td class="numero">{{ meta_preq.gasto | brl if meta_preq else "-" }}</td><td class="numero">{{ meta_preq.thruplays | num if meta_preq else "-" }} ThruPlays</td><td class="numero">{{ meta_preq.custo_thruplay | brl(3) if meta_preq and meta_preq.thruplays > 0 else "-" }}</td><td>R$/ThruPlay</td></tr>
+            <tr><td><span class="bs-pill" style="background:var(--meta-color)">Meta Ads Pre-Q</span></td><td class="numero">{{ meta_preq.gasto | brl if meta_preq else "-" }}</td><td class="numero">{{ meta_preq.thruplays | num if meta_preq else "-" }} ThruPlays</td><td class="numero">{{ meta_preq.custo_thruplay | brl(3) if meta_preq and meta_preq.thruplays > 0 else "-" }}</td><td>R$/ThruPlay</td></tr>
             <tr><td><span class="bs-pill" style="background:#ff0000">YouTube Pre-Q</span></td><td class="numero">{{ google_preq.custo | brl if google_preq else "-" }}</td><td class="numero">{{ google_preq_views | num if google_preq else "-" }} ThruViews</td><td class="numero">{{ (google_preq.custo / google_preq_views) | brl if (google_preq and google_preq_views > 0) else "-" }}</td><td>R$/ThruView</td></tr>
-            <tr style="background:var(--bg-card, #f9f9fa);font-weight:700;border-top:2px solid rgba(0,0,0,0.08)"><td><span class="bs-pill" style="background:#374151">Total Vídeo Pre-Q</span></td><td class="numero">{{ total_preq_gasto | brl }}</td><td class="numero">{{ total_preq_views | num }} ThruViews</td><td class="numero">{{ total_preq_cpt | brl(3) if total_preq_views > 0 else "-" }}</td><td>R$/ThruView</td></tr>
+            <tr style="background:var(--bg-card, #f9f9fa);font-weight:700;border-top:2px solid rgba(0,0,0,0.08)"><td><span class="bs-pill" style="background:var(--bs-sidebar)">Total Vídeo Pre-Q</span></td><td class="numero">{{ total_preq_gasto | brl }}</td><td class="numero">{{ total_preq_views | num }} ThruViews</td><td class="numero">{{ total_preq_cpt | brl(3) if total_preq_views > 0 else "-" }}</td><td>R$/ThruView</td></tr>
           </tbody>
         </table>
       </div>
@@ -367,12 +367,12 @@
                   <td style="padding:4px 6px;">
                     {% if td %}
                     <img src="{{ td.thumb }}" alt="{{ ad_code }}"
-                         style="width:80px;height:52px;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;cursor:pointer;display:block"
+                         style="width:80px;height:52px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);cursor:pointer;display:block"
                          onclick="openVideoModal('{{ td.preview }}','{{ ad_code }}')"
                          onerror="this.style.display='none'">
                     {% else %}
-                    <div style="width:80px;height:52px;border-radius:5px;border:1px dashed #d1d5db;background:#f9fafb;display:flex;align-items:center;justify-content:center">
-                      <i class="ti ti-photo-off" style="color:#d1d5db;font-size:16px"></i>
+                    <div style="width:80px;height:52px;border-radius:5px;border:1px dashed var(--bs-border-s);background:#f9fafb;display:flex;align-items:center;justify-content:center">
+                      <i class="ti ti-photo-off" style="color:var(--bs-border-s);font-size:16px"></i>
                     </div>
                     {% endif %}
                   </td>
@@ -408,12 +408,12 @@
                   <td style="padding:4px 6px;">
                     {% if td %}
                     <img src="{{ td.thumb }}" alt="{{ ad_code }}"
-                         style="width:80px;height:52px;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;cursor:pointer;display:block"
+                         style="width:80px;height:52px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);cursor:pointer;display:block"
                          onclick="openVideoModal('{{ td.preview }}','{{ ad_code }}')"
                          onerror="this.style.display='none'">
                     {% else %}
-                    <div style="width:80px;height:52px;border-radius:5px;border:1px dashed #d1d5db;background:#f9fafb;display:flex;align-items:center;justify-content:center">
-                      <i class="ti ti-photo-off" style="color:#d1d5db;font-size:16px"></i>
+                    <div style="width:80px;height:52px;border-radius:5px;border:1px dashed var(--bs-border-s);background:#f9fafb;display:flex;align-items:center;justify-content:center">
+                      <i class="ti ti-photo-off" style="color:var(--bs-border-s);font-size:16px"></i>
                     </div>
                     {% endif %}
                   </td>
@@ -448,7 +448,7 @@
             {% set total_invest = invest or 1 %}
             {% set venda_meta_canal = vendas_canal.get('Meta Ads', {}) %}
             {% set venda_google_canal = vendas_canal.get('Google Ads', {}) %}
-            <tr><td><span class="bs-pill" style="background:#1877f2">Meta Ads</span></td><td class="numero">{{ meta.total_gasto | brl if meta else "-" }}</td><td class="numero">{{ meta.total_leads | num if meta else "-" }}</td><td class="numero"><strong>{{ venda_meta_canal.get('vendas', 0) | num }}</strong></td><td class="numero">{{ venda_meta_canal.get('faturamento', 0) | brl }}</td><td class="numero">{{ "%.2f"|format((venda_meta_canal.get('faturamento', 0) / meta.total_gasto) if meta and meta.total_gasto > 0 else 0) | replace(".", ",") }}x</td><td class="numero">{{ meta.cpl_medio | brl if meta else "-" }}</td><td>CPL</td><td><div class="pbar-wrap"><div class="pbar-track"><div class="pbar-fill" style="background:#1877f2;width:{{ ((meta.total_gasto if meta else 0)/total_invest*100)|round(1) }}%"></div></div><strong>{{ ((meta.total_gasto if meta else 0)/total_invest*100)|pct }}</strong></div></td></tr>
+            <tr><td><span class="bs-pill" style="background:var(--meta-color)">Meta Ads</span></td><td class="numero">{{ meta.total_gasto | brl if meta else "-" }}</td><td class="numero">{{ meta.total_leads | num if meta else "-" }}</td><td class="numero"><strong>{{ venda_meta_canal.get('vendas', 0) | num }}</strong></td><td class="numero">{{ venda_meta_canal.get('faturamento', 0) | brl }}</td><td class="numero">{{ "%.2f"|format((venda_meta_canal.get('faturamento', 0) / meta.total_gasto) if meta and meta.total_gasto > 0 else 0) | replace(".", ",") }}x</td><td class="numero">{{ meta.cpl_medio | brl if meta else "-" }}</td><td>CPL</td><td><div class="pbar-wrap"><div class="pbar-track"><div class="pbar-fill" style="background:var(--meta-color);width:{{ ((meta.total_gasto if meta else 0)/total_invest*100)|round(1) }}%"></div></div><strong>{{ ((meta.total_gasto if meta else 0)/total_invest*100)|pct }}</strong></div></td></tr>
             <tr><td><span class="bs-pill" style="background:var(--google-color)">Google Ads</span></td><td class="numero">{{ google.total_custo | brl if google else "-" }}</td><td class="numero">{{ "%.0f"|format(google.total_conversoes) if google else "-" }}</td><td class="numero"><strong>{{ venda_google_canal.get('vendas', 0) | num }}</strong></td><td class="numero">{{ venda_google_canal.get('faturamento', 0) | brl }}</td><td class="numero">{{ "%.2f"|format((venda_google_canal.get('faturamento', 0) / google.total_custo) if google and google.total_custo > 0 else 0) | replace(".", ",") }}x</td><td class="numero">{{ google.custo_conv_medio | brl if google and google.total_conversoes > 0 else "-" }}</td><td>Custo/Conv</td><td><div class="pbar-wrap"><div class="pbar-track"><div class="pbar-fill" style="background:var(--google-color);width:{{ ((google.total_custo if google else 0)/total_invest*100)|round(1) }}%"></div></div><strong>{{ ((google.total_custo if google else 0)/total_invest*100)|pct }}</strong></div></td></tr>
           </tbody>
         </table>
@@ -458,12 +458,12 @@
     {% if meta and meta.por_dia %}
     <div class="section">
       <div class="section-title">10. Curva Diária - Meta Ads (Fases do Lançamento)</div>
-      {% set etapa_cores = {'Captação': '#667eea', 'Pré-Qualificação': '#f5576c', 'Pitch/ROAS': '#28a745', 'RMK/Engajamento': '#17a2b8', 'Outros': '#9ca3af'} %}
+      {% set etapa_cores = {'Captação': '#667eea', 'Pré-Qualificação': '#f5576c', 'Pitch/ROAS': '#28a745', 'RMK/Engajamento': '#17a2b8', 'Outros': 'var(--bs-ink-subtle)'} %}
       {% set max_gasto_dia = meta.por_dia|map(attribute='gasto')|max or 1 %}
       <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
         {% for etapa, d in meta.por_etapa.items() | sort(attribute='1.gasto', reverse=True) %}
         <div style="display:flex;align-items:center;gap:8px">
-          <div style="background:{{ etapa_cores.get(etapa,'#9ca3af') }};width:12px;height:12px;border-radius:2px"></div>
+          <div style="background:{{ etapa_cores.get(etapa,'var(--bs-ink-subtle)') }};width:12px;height:12px;border-radius:2px"></div>
           <span><strong>{{ etapa }}</strong> - {{ d.gasto | brl }} ({{ (d.gasto/(meta.total_gasto or 1)*100)|round(1) }}%)</span>
         </div>
         {% endfor %}
@@ -475,11 +475,11 @@
           {% set etapa = dominant[0] if dominant else 'Outros' %}
           {% set h = (day.gasto / max_gasto_dia * 120)|round(0) %}
           <div style="display:flex;flex-direction:column;align-items:center;gap:4px;min-width:30px">
-            <span style="font-size:9px;color:{{ etapa_cores.get(etapa,'#9ca3af') }};font-weight:700;writing-mode:vertical-rl;transform:rotate(180deg);height:38px;overflow:hidden">
+            <span style="font-size:9px;color:{{ etapa_cores.get(etapa,'var(--bs-ink-subtle)') }};font-weight:700;writing-mode:vertical-rl;transform:rotate(180deg);height:38px;overflow:hidden">
               {% if day.leads > 0 %}CPL {{ day.cpl | brl }}{% endif %}
             </span>
             <div title="{{ day.dia }}: {{ day.gasto | brl }} | {{ day.leads | num }} leads | {{ etapa }}"
-                 style="background:{{ etapa_cores.get(etapa,'#9ca3af') }};width:20px;height:{{ 2 if h < 2 else h }}px;border-radius:3px 3px 0 0;cursor:default"></div>
+                 style="background:{{ etapa_cores.get(etapa,'var(--bs-ink-subtle)') }};width:20px;height:{{ 2 if h < 2 else h }}px;border-radius:3px 3px 0 0;cursor:default"></div>
             <span style="font-size:9px;color:#666;writing-mode:vertical-rl;transform:rotate(180deg);height:32px">{{ day.dia[8:10] }}/{{ day.dia[5:7] }}</span>
           </div>
           {% endfor %}

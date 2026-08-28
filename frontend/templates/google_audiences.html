@@ -73,12 +73,12 @@
             {% set tc = TEMP_COLORS %}
             {% for temp, d in google.por_temperatura.items() | sort(attribute='1.custo', reverse=True) %}
             <tr>
-              <td><span class="bs-pill" style="background:{{ tc.get(temp,'#9ca3af') }}">{{ temp }}</span></td>
+              <td><span class="bs-pill" style="background:{{ tc.get(temp,'var(--bs-ink-subtle)') }}">{{ temp }}</span></td>
               <td class="numero">{{ d.custo | brl }}</td>
               <td>
                 <div class="pbar-wrap">
-                  <div class="pbar-track"><div class="pbar-fill" style="background:{{ tc.get(temp,'#9ca3af') }};width:{{ (d.custo/total_temp*100)|round(1) }}%"></div></div>
-                  <strong style="color:{{ tc.get(temp,'#9ca3af') }};font-size:12px">{{ (d.custo/total_temp*100)|pct }}</strong>
+                  <div class="pbar-track"><div class="pbar-fill" style="background:{{ tc.get(temp,'var(--bs-ink-subtle)') }};width:{{ (d.custo/total_temp*100)|round(1) }}%"></div></div>
+                  <strong style="color:{{ tc.get(temp,'var(--bs-ink-subtle)') }};font-size:12px">{{ (d.custo/total_temp*100)|pct }}</strong>
                 </div>
               </td>
               <td class="numero">{{ d.conversoes | num }}</td>
@@ -202,7 +202,7 @@
 
         <!-- Gênero -->
         {% set genero_total = google.demografia_genero | sum(attribute='cost') or 1 %}
-        {% set gc = {'Feminino':'#f5576c','Masculino':'#667eea','Desconhecido':'#9ca3af'} %}
+        {% set gc = {'Feminino':'#f5576c','Masculino':'#667eea','Desconhecido':'var(--bs-ink-subtle)'} %}
         <div class="card" data-no-filter>
           <div class="card-header"><h2><i class="ti ti-gender-intersex"></i> Gênero</h2></div>
           <table style="width:100%;border-collapse:collapse">
@@ -220,13 +220,13 @@
               {% set label = p.gender | replace('FEMALE','Feminino') | replace('MALE','Masculino') | replace('UNDETERMINED','Desconhecido') %}
               {% set pct = (p.cost / genero_total * 100) %}
               <tr style="border-top:1px solid var(--border)">
-                <td style="padding:10px 16px"><span class="bs-pill" style="background:{{ gc.get(label,'#9ca3af') }}">{{ label }}</span></td>
+                <td style="padding:10px 16px"><span class="bs-pill" style="background:{{ gc.get(label,'var(--bs-ink-subtle)') }}">{{ label }}</span></td>
                 <td style="padding:10px 16px;text-align:right;font-size:13px">{{ p.cost | brl }}</td>
                 <td style="padding:10px 16px;text-align:right;font-size:13px">{{ "%.0f"|format(p.conversions) }}</td>
                 <td style="padding:10px 16px;text-align:right;font-size:13px">{{ p.cpa | brl }}</td>
                 <td style="padding:10px 16px">
                   <div class="pbar-wrap" style="gap:6px">
-                    <div class="pbar-track" style="flex:1"><div class="pbar-fill" style="background:{{ gc.get(label,'#9ca3af') }};width:{{ pct|round(1) }}%"></div></div>
+                    <div class="pbar-track" style="flex:1"><div class="pbar-fill" style="background:{{ gc.get(label,'var(--bs-ink-subtle)') }};width:{{ pct|round(1) }}%"></div></div>
                     <strong style="font-size:11px;min-width:34px;text-align:right">{{ pct | pct }}</strong>
                   </div>
                 </td>

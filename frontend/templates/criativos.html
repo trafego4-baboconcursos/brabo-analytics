@@ -2,7 +2,7 @@
 {% block head %}
 <style>
 /* YouTube thumbnail — exclusivo desta página */
-.yt-thumb { width:80px; height:45px; object-fit:cover; border-radius:4px; display:block; margin-bottom:4px; border:1px solid #e5e7eb; }
+.yt-thumb { width:80px; height:45px; object-fit:cover; border-radius:4px; display:block; margin-bottom:4px; border:1px solid var(--bs-border); }
 .yt-thumb-link { display:inline-block; }
 .yt-thumb-link:hover .yt-thumb { opacity:.85; }
 .criativos-table td small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -10,8 +10,8 @@
 /* Recortes por Canal — item com miniatura */
 .recorte-item { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--bs-border); }
 .recorte-item:last-child { border-bottom:none; }
-.recorte-thumb { width:56px; height:38px; object-fit:cover; border-radius:5px; border:1px solid #e5e7eb; cursor:pointer; flex-shrink:0; display:block; }
-.recorte-thumb-empty { width:56px; height:38px; border-radius:5px; border:1px dashed #d1d5db; background:#f3f4f6; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.recorte-thumb { width:56px; height:38px; object-fit:cover; border-radius:5px; border:1px solid var(--bs-border); cursor:pointer; flex-shrink:0; display:block; }
+.recorte-thumb-empty { width:56px; height:38px; border-radius:5px; border:1px dashed var(--bs-border-s); background:var(--bs-accent-bg); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 .recorte-info { min-width:0; }
 </style>
 {% endblock %}
@@ -54,7 +54,7 @@
             </colgroup>
             <thead>
               <tr>
-                <th>#</th>{% if has_thumbs %}<th>Miniatura</th>{% endif %}<th>Criativo</th><th style="text-align:center;" title="Plataforma de origem"><i class="ti ti-brand-meta" style="color:#1877F2;"></i><i class="ti ti-brand-google" style="color:#EA4335;margin-left:2px;"></i></th><th class="th-num">Investimento</th><th class="th-num">Leads</th><th class="th-num">CPL</th><th class="th-num">Vendas</th><th class="th-num">Faturamento</th><th class="th-num">ROAS</th><th class="th-num">CTR</th>
+                <th>#</th>{% if has_thumbs %}<th>Miniatura</th>{% endif %}<th>Criativo</th><th style="text-align:center;" title="Plataforma de origem"><i class="ti ti-brand-meta" style="color:var(--meta-color);"></i><i class="ti ti-brand-google" style="color:var(--google-color);margin-left:2px;"></i></th><th class="th-num">Investimento</th><th class="th-num">Leads</th><th class="th-num">CPL</th><th class="th-num">Vendas</th><th class="th-num">Faturamento</th><th class="th-num">ROAS</th><th class="th-num">CTR</th>
               </tr>
             </thead>
             <tbody>
@@ -67,7 +67,7 @@
                   <td style="padding:4px 6px;">
                     {% if td %}
                     <img src="{{ td.thumb }}" alt="{{ c.ad_code }}"
-                         style="width:80px;height:52px;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;cursor:pointer;display:block"
+                         style="width:80px;height:52px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);cursor:pointer;display:block"
                          data-preview="{{ td.preview }}" data-title="{{ c.ad_code }}"
                          data-gasto="{{ c.gasto | brl }}" data-leads="{{ c.leads | num }}" data-cpl="{{ c.cpl | brl }}"
                          data-vendas="{{ c.vendas | num }}" data-roas="{{ '%.2f'|format(c.roas) | replace('.', ',') }}x"
@@ -78,16 +78,16 @@
                          onclick="openVideoModalFromEl(this)"
                          onerror="this.style.display='none'">
                     {% else %}
-                    <div style="width:80px;height:52px;border-radius:5px;border:1px dashed #d1d5db;background:#f3f4f6;display:flex;align-items:center;justify-content:center">
-                      <i class="ti ti-photo" style="color:#9ca3af;font-size:20px"></i>
+                    <div style="width:80px;height:52px;border-radius:5px;border:1px dashed var(--bs-border-s);background:var(--bs-accent-bg);display:flex;align-items:center;justify-content:center">
+                      <i class="ti ti-photo" style="color:var(--bs-ink-subtle);font-size:20px"></i>
                     </div>
                     {% endif %}
                   </td>
                   {% endif %}
                   <td title="{{ c.nome }}" style="overflow:hidden;"><strong style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">{{ c.nome }}</strong></td>
                   <td style="text-align:center;white-space:nowrap;">
-                    {% if 'Meta' in c.origem %}<i class="ti ti-brand-meta" title="Meta Ads" style="font-size:15px;color:#1877F2;"></i>{% endif %}
-                    {% if 'Google' in c.origem %}<i class="ti ti-brand-google" title="Google Ads" style="font-size:15px;color:#EA4335;margin-left:2px;"></i>{% endif %}
+                    {% if 'Meta' in c.origem %}<i class="ti ti-brand-meta" title="Meta Ads" style="font-size:15px;color:var(--meta-color);"></i>{% endif %}
+                    {% if 'Google' in c.origem %}<i class="ti ti-brand-google" title="Google Ads" style="font-size:15px;color:var(--google-color);margin-left:2px;"></i>{% endif %}
                   </td>
                   <td class="numero">{{ c.gasto | brl }}</td>
                   <td class="numero"><strong>{{ c.leads | num }}</strong></td>
@@ -99,7 +99,7 @@
                 </tr>
                 {% endfor %}
               {% else %}
-                <tr><td colspan="{{ 11 if has_thumbs else 10 }}" style="text-align:center;color:#9ca3af;padding:20px">{{ empty_msg }}</td></tr>
+                <tr><td colspan="{{ 11 if has_thumbs else 10 }}" style="text-align:center;color:var(--bs-ink-subtle);padding:20px">{{ empty_msg }}</td></tr>
               {% endif %}
             </tbody>
             {% if lista %}
@@ -113,7 +113,7 @@
             {% set t_roas = (t_faturamento / t_gasto) if t_gasto > 0 else 0 %}
             {% set t_ctr = (t_cliques / t_impressoes * 100) if t_impressoes > 0 else 0 %}
             <tfoot>
-              <tr class="linha-resumo" style="font-weight:600;background:#f6f7fb;border-top:2px solid #e5e7eb;">
+              <tr class="linha-resumo" style="font-weight:600;background:var(--bs-surface);border-top:2px solid var(--bs-border);">
                 <td colspan="{{ 3 if has_thumbs else 2 }}" style="text-align:right;">Total</td>
                 <td></td>
                 <td class="numero">{{ t_gasto | brl }}</td>
@@ -202,7 +202,7 @@
                 <div style="display:flex;align-items:center;gap:10px;">
                   {% if td %}
                   <img src="{{ td.thumb }}" alt="{{ c.ad_code }}"
-                       style="width:72px;height:48px;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;cursor:pointer;flex-shrink:0;"
+                       style="width:72px;height:48px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);cursor:pointer;flex-shrink:0;"
                        data-preview="{{ td.preview }}" data-title="{{ c.ad_code }}"
                        data-gasto="{{ c.gasto | brl }}" data-leads="{{ c.leads | num }}" data-cpl="{{ c.cpl | brl }}"
                        data-cpm="{{ c.cpm | brl }}" data-vendas="{{ c.vendas | num }}"
@@ -216,12 +216,12 @@
                   {% elif c.video_id %}
                   <a href="https://youtu.be/{{ c.video_id }}" target="_blank" rel="noopener" style="flex-shrink:0;">
                     <img src="https://img.youtube.com/vi/{{ c.video_id }}/mqdefault.jpg" alt="{{ c.ad_code }}"
-                         style="width:72px;height:48px;object-fit:cover;border-radius:5px;border:1px solid #e5e7eb;"
+                         style="width:72px;height:48px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);"
                          onerror="this.src='/img/placeholder-ad.png';this.onerror=null;">
                   </a>
                   {% else %}
-                  <div style="width:72px;height:48px;border-radius:5px;border:1px dashed #d1d5db;background:#f3f4f6;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                    <i class="ti ti-photo" style="color:#9ca3af;font-size:20px"></i>
+                  <div style="width:72px;height:48px;border-radius:5px;border:1px dashed var(--bs-border-s);background:var(--bs-accent-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="ti ti-photo" style="color:var(--bs-ink-subtle);font-size:20px"></i>
                   </div>
                   {% endif %}
                   <strong title="{{ c.nome }}" style="display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;">{% if c.video_id and not td %}<a href="https://youtu.be/{{ c.video_id }}" target="_blank" rel="noopener">{{ c.nome }}</a>{% else %}{{ c.nome }}{% endif %}</strong>
@@ -436,7 +436,7 @@
                  onclick="openVideoModal('{{ td.preview }}','{{ c.ad_code }}')"
                  onerror="this.style.display='none'">
             {% else %}
-            <div class="recorte-thumb-empty"><i class="ti ti-photo" style="color:#9ca3af;font-size:16px"></i></div>
+            <div class="recorte-thumb-empty"><i class="ti ti-photo" style="color:var(--bs-ink-subtle);font-size:16px"></i></div>
             {% endif %}
             <div class="recorte-info">
               <span class="criativo">{{ c.ad_code }}</span>
@@ -457,7 +457,7 @@
                  onclick="openVideoModal('{{ td.preview }}','{{ c.ad_code }}')"
                  onerror="this.style.display='none'">
             {% else %}
-            <div class="recorte-thumb-empty"><i class="ti ti-photo" style="color:#9ca3af;font-size:16px"></i></div>
+            <div class="recorte-thumb-empty"><i class="ti ti-photo" style="color:var(--bs-ink-subtle);font-size:16px"></i></div>
             {% endif %}
             <div class="recorte-info">
               <span class="criativo">{{ c.ad_code }}</span>

@@ -29,27 +29,27 @@
     bottom: 14px;
     width: 4px;
     border-radius: 999px;
-    background: var(--meta-accent, #3b82f6);
+    background: var(--meta-accent, var(--temp-frio));
   }
   .tf-funnel-kicker {
     font-size: 11px;
     font-weight: 800;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: var(--meta-accent, #3b82f6);
+    color: var(--meta-accent, var(--temp-frio));
     margin-bottom: 6px;
     padding-left: 12px;
   }
   .tf-funnel-title {
     font-size: 15px;
     font-weight: 800;
-    color: #1f2330;
+    color: var(--bs-ink);
     line-height: 1.25;
     padding-left: 12px;
   }
   .tf-funnel-note {
     font-size: 12px;
-    color: #6b7280;
+    color: var(--bs-ink-muted);
     margin-top: 6px;
     line-height: 1.35;
     padding-left: 12px;
@@ -166,7 +166,7 @@
     }
   }
   .tabs-container {
-    background: #ffffff;
+    background: var(--bs-card);
     border: 1px solid #e2eaf6;
     border-radius: 16px;
     padding: 20px;
@@ -186,19 +186,19 @@
     padding: 8px 16px;
     font-size: 13px;
     font-weight: 700;
-    color: #6b7280;
+    color: var(--bs-ink-muted);
     border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
     white-space: nowrap;
   }
   .tab-btn:hover {
-    color: #1f2330;
-    background: #f6f7fb;
+    color: var(--bs-ink);
+    background: var(--bs-surface);
   }
   .tab-btn.active {
     color: #ffffff;
-    background: #3b82f6;
+    background: var(--temp-frio);
   }
   .tab-content {
     display: none;
@@ -208,22 +208,22 @@
     animation: fadeIn 0.3s ease;
   }
   .depoimento-quote {
-    background: #f6f7fb;
-    border-left: 4px solid #3b82f6;
+    background: var(--bs-surface);
+    border-left: 4px solid var(--temp-frio);
     border-radius: 0 12px 12px 0;
     padding: 12px 16px 12px 24px;
     margin-bottom: 12px;
     position: relative;
     font-size: 13.5px;
     line-height: 1.45;
-    color: #374151;
+    color: var(--bs-sidebar);
     font-style: italic;
     text-align: left;
   }
   .depoimento-quote::before {
     content: "\201C";
     font-size: 28px;
-    color: #d1d5db;
+    color: var(--bs-border-s);
     position: absolute;
     left: 8px;
     top: -4px;
@@ -238,15 +238,15 @@
     width: 6px;
   }
   .depoimento-list::-webkit-scrollbar-track {
-    background: #f6f7fb;
+    background: var(--bs-surface);
     border-radius: 10px;
   }
   .depoimento-list::-webkit-scrollbar-thumb {
-    background: #d1d5db;
+    background: var(--bs-border-s);
     border-radius: 10px;
   }
   .depoimento-list::-webkit-scrollbar-thumb:hover {
-    background: #9ca3af;
+    background: var(--bs-ink-subtle);
   }
   
   /* Estilos de IA Insights */
@@ -309,11 +309,11 @@
   .ia-card-title {
     font-size: 14px;
     font-weight: 800;
-    color: #1f2330;
+    color: var(--bs-ink);
   }
   .ia-card-desc {
     font-size: 12.5px;
-    color: #4b5563;
+    color: var(--bs-info);
     line-height: 1.45;
     padding-left: 8px;
   }
@@ -331,14 +331,14 @@
     }
   }
   .copy-card {
-    background: #ffffff;
+    background: var(--bs-card);
     border: 1px solid #e2eaf6;
     border-radius: 16px;
     padding: 20px;
     box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
   }
   .gancho-item {
-    background: #f6f7fb;
+    background: var(--bs-surface);
     border: 1px solid #e2eaf6;
     border-radius: 12px;
     padding: 14px;
@@ -347,8 +347,8 @@
     text-align: left;
   }
   .gancho-item:hover {
-    border-color: #d1d5db;
-    background: #f6f7fb;
+    border-color: var(--bs-border-s);
+    background: var(--bs-surface);
   }
   .gancho-tag {
     display: inline-block;
@@ -364,12 +364,12 @@
   .gancho-title {
     font-size: 14px;
     font-weight: 800;
-    color: #1f2330;
+    color: var(--bs-ink);
     margin-bottom: 6px;
   }
   .gancho-text {
     font-size: 12.5px;
-    color: #4b5563;
+    color: var(--bs-info);
     line-height: 1.45;
   }
   
@@ -379,14 +379,14 @@
     border-radius: 12px;
     margin-bottom: 10px;
     overflow: hidden;
-    background: #f6f7fb;
+    background: var(--bs-surface);
   }
   .accordion-header {
-    background: #ffffff;
+    background: var(--bs-card);
     padding: 14px;
     font-size: 13.5px;
     font-weight: 800;
-    color: #1f2330;
+    color: var(--bs-ink);
     cursor: pointer;
     display: flex;
     justify-content: space-between;
@@ -396,7 +396,7 @@
     text-align: left;
   }
   .accordion-header:hover {
-    background: #f6f7fb;
+    background: var(--bs-surface);
   }
   .accordion-header.active {
     border-bottom: 1px solid #e2eaf6;
@@ -405,9 +405,9 @@
     padding: 14px;
     display: none;
     font-size: 12.5px;
-    color: #374151;
+    color: var(--bs-sidebar);
     line-height: 1.5;
-    background: #f6f7fb;
+    background: var(--bs-surface);
     text-align: left;
   }
   .accordion-content.active {
@@ -574,13 +574,13 @@
       <div class="tf-funnel-proportional">
         <!-- Etapa 1: Respostas Brutas -->
         <div class="tf-funnel-row">
-          <div class="tf-funnel-meta" style="--meta-accent: #3b82f6;">
+          <div class="tf-funnel-meta" style="--meta-accent: var(--temp-frio);">
             <div class="tf-funnel-kicker">Etapa 1</div>
             <div class="tf-funnel-title">Respostas Brutas</div>
             <div class="tf-funnel-note">Total de envios brutos ao Typeform</div>
           </div>
           <div class="tf-funnel-stage">
-            <div class="tf-funnel-shape" style="--shape-w: 100; --shape-c: #3b82f6;">
+            <div class="tf-funnel-shape" style="--shape-w: 100; --shape-c: var(--temp-frio);">
               <div>
                 <span class="tf-funnel-shape-label">Total de Envio</span>
                 <span class="tf-funnel-shape-meta">100% bruto do lan&ccedil;amento</span>
@@ -689,7 +689,7 @@
                 {% set nc_val = tf.genero_ncomp_pct.get(k, 0.0) %}
                 <td style="text-align:right">
                   {{ nc_val | pct }}
-                  <div class="pbar-track" style="height:6px; margin-top:4px;"><div class="pbar-fill" style="background:#d1d5db; width:{{ nc_val }}%;"></div></div>
+                  <div class="pbar-track" style="height:6px; margin-top:4px;"><div class="pbar-fill" style="background:var(--bs-border-s); width:{{ nc_val }}%;"></div></div>
                 </td>
                 {% set diff = tf.genero_diff.get(k, 0.0) %}
                 <td style="text-align:right; font-weight:700; color: {% if diff > 0 %}var(--bs-success){% elif diff < 0 %}var(--bs-danger){% else %}var(--bs-ink-muted){% endif %};">
@@ -726,7 +726,7 @@
                 {% set nc_val = tf.idade_ncomp_pct.get(k, 0.0) %}
                 <td style="text-align:right">
                   {{ nc_val | pct }}
-                  <div class="pbar-track" style="height:6px; margin-top:4px;"><div class="pbar-fill" style="background:#d1d5db; width:{{ nc_val }}%;"></div></div>
+                  <div class="pbar-track" style="height:6px; margin-top:4px;"><div class="pbar-fill" style="background:var(--bs-border-s); width:{{ nc_val }}%;"></div></div>
                 </td>
                 {% set diff = tf.idade_diff.get(k, 0.0) %}
                 <td style="text-align:right; font-weight:700; color: {% if diff > 0 %}var(--bs-success){% elif diff < 0 %}var(--bs-danger){% else %}var(--bs-ink-muted){% endif %};">
@@ -766,7 +766,7 @@
                 {% set nc_val = tf.situacao_ncomp_pct.get(k, 0.0) %}
                 <td style="text-align:right">
                   {{ nc_val | pct }}
-                  <div class="pbar-track" style="height:6px; margin-top:4px;"><div class="pbar-fill" style="background:#d1d5db; width:{{ nc_val }}%;"></div></div>
+                  <div class="pbar-track" style="height:6px; margin-top:4px;"><div class="pbar-fill" style="background:var(--bs-border-s); width:{{ nc_val }}%;"></div></div>
                 </td>
                 {% set diff = tf.situacao_diff.get(k, 0.0) %}
                 <td style="text-align:right; font-weight:700; color: {% if diff > 0 %}var(--bs-success){% elif diff < 0 %}var(--bs-danger){% else %}var(--bs-ink-muted){% endif %};">
@@ -803,7 +803,7 @@
                 {% set nc_val = tf.nivel_ncomp_pct.get(k, 0.0) %}
                 <td style="text-align:right">
                   {{ nc_val | pct }}
-                  <div class="pbar-track" style="height:6px; margin-top:4px;"><div class="pbar-fill" style="background:#d1d5db; width:{{ nc_val }}%;"></div></div>
+                  <div class="pbar-track" style="height:6px; margin-top:4px;"><div class="pbar-fill" style="background:var(--bs-border-s); width:{{ nc_val }}%;"></div></div>
                 </td>
                 {% set diff = tf.nivel_diff.get(k, 0.0) %}
                 <td style="text-align:right; font-weight:700; color: {% if diff > 0 %}var(--bs-success){% elif diff < 0 %}var(--bs-danger){% else %}var(--bs-ink-muted){% endif %};">
@@ -843,7 +843,7 @@
               {% set nc_val = tf.obstaculos_ncomp_pct.get(k, 0.0) %}
               <td class="numero">
                 {{ nc_val | pct }}
-                <div class="pbar-track" style="height:6px; width:150px; display:inline-block; margin-left:10px; vertical-align:middle;"><div class="pbar-fill" style="background:#d1d5db; width:{{ nc_val }}%;"></div></div>
+                <div class="pbar-track" style="height:6px; width:150px; display:inline-block; margin-left:10px; vertical-align:middle;"><div class="pbar-fill" style="background:var(--bs-border-s); width:{{ nc_val }}%;"></div></div>
               </td>
               {% set diff = tf.obstaculos_diff.get(k, 0.0) %}
               <td class="numero" style="font-weight:700; color: {% if diff > 0 %}var(--bs-success){% elif diff < 0 %}var(--bs-danger){% else %}var(--bs-ink-muted){% endif %};">
@@ -926,7 +926,7 @@
         {% if tf.top_influence_factors %}
         <div class="card" style="margin: 0; display: flex; flex-direction: column;">
           <h3>O que mais influenciou na decis&atilde;o de compra?</h3>
-          <p style="font-size: 12.5px; color: #6b7280; margin-top: -6px; margin-bottom: 16px; line-height: 1.35;">
+          <p style="font-size: 12.5px; color: var(--bs-ink-muted); margin-top: -6px; margin-bottom: 16px; line-height: 1.35;">
             Itens mais selecionados pelos alunos como decisivos para entrar na Mentoria
           </p>
           <table style="width: 100%;">
@@ -954,7 +954,7 @@
         <!-- Coluna Direita: Depoimentos e Textos Abertos (Tabs) -->
         <div class="tabs-container">
           <h3>O que os compradores dizem?</h3>
-          <p style="font-size: 12.5px; color: #6b7280; margin-top: -6px; margin-bottom: 16px; line-height: 1.35;">
+          <p style="font-size: 12.5px; color: var(--bs-ink-muted); margin-top: -6px; margin-bottom: 16px; line-height: 1.35;">
             Respostas espont&acirc;neas dos alunos que revelam a motiva&ccedil;&atilde;o real de compra
           </p>
           
@@ -972,7 +972,7 @@
                 <div class="depoimento-quote">{{ dep }}</div>
                 {% endfor %}
               {% else %}
-                <div style="color: #9ca3af; font-style: italic; padding: 20px 0; text-align: center;">Nenhum depoimento longo registrado.</div>
+                <div style="color: var(--bs-ink-subtle); font-style: italic; padding: 20px 0; text-align: center;">Nenhum depoimento longo registrado.</div>
               {% endif %}
             </div>
           </div>
@@ -985,7 +985,7 @@
                 <div class="depoimento-quote">{{ dep }}</div>
                 {% endfor %}
               {% else %}
-                <div style="color: #9ca3af; font-style: italic; padding: 20px 0; text-align: center;">Nenhum depoimento longo registrado.</div>
+                <div style="color: var(--bs-ink-subtle); font-style: italic; padding: 20px 0; text-align: center;">Nenhum depoimento longo registrado.</div>
               {% endif %}
             </div>
           </div>
@@ -998,7 +998,7 @@
                 <div class="depoimento-quote">{{ dep }}</div>
                 {% endfor %}
               {% else %}
-                <div style="color: #9ca3af; font-style: italic; padding: 20px 0; text-align: center;">Nenhum depoimento longo registrado.</div>
+                <div style="color: var(--bs-ink-subtle); font-style: italic; padding: 20px 0; text-align: center;">Nenhum depoimento longo registrado.</div>
               {% endif %}
             </div>
           </div>
@@ -1071,7 +1071,7 @@
         <!-- Coluna Esquerda: Ideias de Ganchos -->
         <div class="copy-card">
           <h3>5 Ideias de Ganchos de Copy (Baseados em Dados Reais)</h3>
-          <p style="font-size: 12.5px; color: #6b7280; margin-top: -6px; margin-bottom: 16px; line-height: 1.35;">
+          <p style="font-size: 12.5px; color: var(--bs-ink-muted); margin-top: -6px; margin-bottom: 16px; line-height: 1.35;">
             Ganchos de copy gerados com os maiores pesos estatísticos identificados nas pesquisas deste lançamento.
           </p>
           
@@ -1124,7 +1124,7 @@
         <!-- Coluna Direita: Roteiros/Scripts para Anúncio -->
         <div class="copy-card">
           <h3>5 Scripts de Criativos de Anúncio (Vídeos/Roteiros)</h3>
-          <p style="font-size: 12.5px; color: #6b7280; margin-top: -6px; margin-bottom: 16px; line-height: 1.35;">
+          <p style="font-size: 12.5px; color: var(--bs-ink-muted); margin-top: -6px; margin-bottom: 16px; line-height: 1.35;">
             Clique nos títulos abaixo para expandir e visualizar o roteiro completo recomendado para os criativos.
           </p>
 

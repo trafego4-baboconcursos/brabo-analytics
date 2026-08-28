@@ -88,7 +88,7 @@
 .ins-rank-item:last-child { border-bottom: none; }
 .ins-rank-pos { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; background: var(--bs-surface); color: var(--bs-ink-muted); }
 .ins-rank-pos.gold   { background: #fef3c7; color: #92400e; }
-.ins-rank-pos.silver { background: #f3f4f6; color: #374151; }
+.ins-rank-pos.silver { background: var(--bs-accent-bg); color: var(--bs-sidebar); }
 .ins-rank-pos.bronze { background: #fef3c7; color: #78350f; }
 .ins-rank-info { flex: 1; min-width: 0; }
 .ins-rank-name { font-size: 12px; font-weight: 700; color: var(--bs-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -99,7 +99,7 @@
 
 /* Score geral */
 .ins-score-box {
-  background: linear-gradient(135deg, #1f2937 0%, #1f2330 100%);
+  background: linear-gradient(135deg, var(--bs-sidebar-dark) 0%, var(--bs-ink) 100%);
   border-radius: var(--bs-r-xl);
   padding: 28px 32px;
   color: #fff;
@@ -465,12 +465,12 @@
         </div>
         {% if td %}
         <img src="{{ td.thumb }}" alt="{{ row.ad_code }}"
-             style="width:56px;height:38px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb;cursor:pointer;flex-shrink:0;"
+             style="width:56px;height:38px;object-fit:cover;border-radius:4px;border:1px solid var(--bs-border);cursor:pointer;flex-shrink:0;"
              onclick="openVideoModal('{{ td.preview }}','{{ row.ad_code }}')"
              onerror="this.style.display='none'">
         {% else %}
-        <div style="width:56px;height:38px;border-radius:4px;border:1px dashed #d1d5db;background:#f3f4f6;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-          <i class="ti ti-photo" style="color:#9ca3af;font-size:16px"></i>
+        <div style="width:56px;height:38px;border-radius:4px;border:1px dashed var(--bs-border-s);background:var(--bs-accent-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <i class="ti ti-photo" style="color:var(--bs-ink-subtle);font-size:16px"></i>
         </div>
         {% endif %}
         <div class="ins-rank-info">
@@ -492,12 +492,12 @@
           <div class="ins-rank-pos">{{ loop.index }}</div>
           {% if td %}
           <img src="{{ td.thumb }}" alt="{{ row.ad_code }}"
-               style="width:56px;height:38px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb;cursor:pointer;flex-shrink:0;"
+               style="width:56px;height:38px;object-fit:cover;border-radius:4px;border:1px solid var(--bs-border);cursor:pointer;flex-shrink:0;"
                onclick="openVideoModal('{{ td.preview }}','{{ row.ad_code }}')"
                onerror="this.style.display='none'">
           {% else %}
-          <div style="width:56px;height:38px;border-radius:4px;border:1px dashed #d1d5db;background:#f3f4f6;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <i class="ti ti-photo" style="color:#9ca3af;font-size:16px"></i>
+          <div style="width:56px;height:38px;border-radius:4px;border:1px dashed var(--bs-border-s);background:var(--bs-accent-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <i class="ti ti-photo" style="color:var(--bs-ink-subtle);font-size:16px"></i>
           </div>
           {% endif %}
           <div class="ins-rank-info">
@@ -560,12 +560,12 @@
               <div style="display:flex;align-items:center;gap:10px;">
                 {% if td %}
                 <img src="{{ td.thumb }}" alt="{{ row.ad_code }}"
-                     style="width:64px;height:42px;object-fit:cover;border-radius:4px;border:1px solid #e5e7eb;cursor:pointer;flex-shrink:0;"
+                     style="width:64px;height:42px;object-fit:cover;border-radius:4px;border:1px solid var(--bs-border);cursor:pointer;flex-shrink:0;"
                      onclick="openVideoModal('{{ td.preview }}','{{ row.ad_code }}')"
                      onerror="this.style.display='none'">
                 {% else %}
-                <div style="width:64px;height:42px;border-radius:4px;border:1px dashed #d1d5db;background:#f3f4f6;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                  <i class="ti ti-photo" style="color:#9ca3af;font-size:18px"></i>
+                <div style="width:64px;height:42px;border-radius:4px;border:1px dashed var(--bs-border-s);background:var(--bs-accent-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <i class="ti ti-photo" style="color:var(--bs-ink-subtle);font-size:18px"></i>
                 </div>
                 {% endif %}
                 <div style="min-width:0;">
@@ -576,7 +576,7 @@
             </td>
             <td>
               {% for orig in row.origem.split(' + ') %}
-              <span style="background:{% if 'Meta' in orig %}#1877f2{% else %}var(--google-color){% endif %};color:#fff;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;margin-right:2px">{{ orig }}</span>
+              <span style="background:{% if 'Meta' in orig %}var(--meta-color){% else %}var(--google-color){% endif %};color:#fff;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;margin-right:2px">{{ orig }}</span>
               {% endfor %}
             </td>
             <td class="numero">{{ row.gasto | brl }}</td>
@@ -587,11 +587,11 @@
             <td class="numero"><strong class="{{ 'positivo' if roas_v >= 2 else ('negativo' if roas_v < 1 else '') }}">{{ "%.2f"|format(roas_v) | replace(".", ",") }}x</strong></td>
             <td style="text-align:center">
               {% if roas_v >= 3 %}
-              <span style="background:#f0fdf4;color:#14532d;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">🔥 Escalar</span>
+              <span style="background:var(--bs-success-bg);color:#14532d;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">🔥 Escalar</span>
               {% elif roas_v >= 1.5 %}
-              <span style="background:#fffbeb;color:#78350f;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">📈 Otimizar</span>
+              <span style="background:var(--bs-warning-bg);color:#78350f;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">📈 Otimizar</span>
               {% else %}
-              <span style="background:#fef2f2;color:#7f1d1d;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">⚠️ Revisar</span>
+              <span style="background:var(--bs-danger-bg);color:#7f1d1d;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">⚠️ Revisar</span>
               {% endif %}
             </td>
           </tr>
@@ -626,12 +626,12 @@
           {% for temp, d in meta.por_temperatura.items() | sort(attribute='1.gasto', reverse=True) %}
           {% set sv = sales_attr.meta_por_temperatura.get(temp, {}) %}
           <tr>
-            <td><span class="bs-pill" style="background:{{ tc.get(temp, '#9ca3af') }}">{{ temp }}</span></td>
+            <td><span class="bs-pill" style="background:{{ tc.get(temp, 'var(--bs-ink-subtle)') }}">{{ temp }}</span></td>
             <td class="numero">{{ d.gasto | brl }}</td>
             <td>
               <div class="pbar-wrap">
-                <div class="pbar-track"><div class="pbar-fill" style="background:{{ tc.get(temp,'#9ca3af') }};width:{{ (d.gasto/total_temp*100)|round(1) }}%"></div></div>
-                <strong style="color:{{ tc.get(temp,'#9ca3af') }};font-size:12px">{{ (d.gasto/total_temp*100)|pct }}</strong>
+                <div class="pbar-track"><div class="pbar-fill" style="background:{{ tc.get(temp,'var(--bs-ink-subtle)') }};width:{{ (d.gasto/total_temp*100)|round(1) }}%"></div></div>
+                <strong style="color:{{ tc.get(temp,'var(--bs-ink-subtle)') }};font-size:12px">{{ (d.gasto/total_temp*100)|pct }}</strong>
               </div>
             </td>
             <td class="numero">{{ d.leads | num }}</td>

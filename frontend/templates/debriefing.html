@@ -16,18 +16,18 @@
   border-radius: 20px; background: var(--bs-accent); color: #fff;
   letter-spacing: .04em;
 }
-.dbf-launch-badge.prev { background: #9ca3af; }
+.dbf-launch-badge.prev { background: var(--bs-ink-subtle); }
 
 /* ── Sem dados banner ─────────────────────────────────────────── */
 .dbf-sem-dados {
-  background: #fffbeb; border: 1px dashed #f59e0b;
+  background: var(--bs-warning-bg); border: 1px dashed var(--bs-warning);
   border-radius: 8px; padding: 16px 20px;
   display: flex; align-items: flex-start; gap: 12px;
-  font-size: 13px; color: #78350f;
+  font-size: 13px; color: var(--bs-ink);
 }
-.dbf-sem-dados i { color: #f59e0b; font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+.dbf-sem-dados i { color: var(--bs-warning); font-size: 20px; flex-shrink: 0; margin-top: 1px; }
 .dbf-sem-dados strong { display: block; margin-bottom: 4px; font-size: 13px; }
-.dbf-sem-dados span { font-size: 12px; color: #92400e; }
+.dbf-sem-dados span { font-size: 12px; color: var(--bs-ink-muted); }
 
 /* ── KPI grid ─────────────────────────────────────────────────── */
 .dbf-kpi-grid {
@@ -38,7 +38,7 @@
 }
 .dbf-kpi {
   background: var(--bs-card); border-radius: 10px;
-  padding: 18px 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  padding: 18px 16px; box-shadow: var(--bs-sh-sm);
 }
 .dbf-kpi .lbl {
   font-size: 10px; color: var(--bs-ink-muted); font-weight: 700;
@@ -47,18 +47,18 @@
 .dbf-kpi .val {
   font-size: 21px; font-weight: 800; color: var(--bs-ink); line-height: 1.1;
 }
-.dbf-kpi .val.zero { color: #9ca3af; }
+.dbf-kpi .val.zero { color: var(--bs-ink-subtle); }
 .dbf-kpi .delta {
   margin-top: 7px; font-size: 11px; font-weight: 700;
   display: inline-flex; align-items: center; gap: 3px;
   padding: 2px 7px; border-radius: 20px;
 }
-.delta.up   { background: #dcfce7; color: #15803d; }
-.delta.dn   { background: #fee2e2; color: #b91c1c; }
-.delta.neut { background: #f6f7fb; color: #6b7280; }
-.delta.ntr  { background: #fef9c3; color: #a16207; }  /* variação sem lado bom/ruim definido */
-.delta.pp-up { background: #166534; color: #fff; }    /* diferença em p.p. (não % de variação) — desejada */
-.delta.pp-dn { background: #7f1d1d; color: #fff; }    /* diferença em p.p. — indesejada */
+.delta.up   { background: var(--bs-success-bg); color: var(--bs-success); }
+.delta.dn   { background: var(--bs-danger-bg); color: var(--bs-danger); }
+.delta.neut { background: var(--bs-surface); color: var(--bs-ink-muted); }
+.delta.ntr  { background: var(--bs-warning-bg); color: var(--bs-ink); }  /* variação sem lado bom/ruim definido; texto escuro p/ contraste sobre o dourado claro */
+.delta.pp-up { background: var(--bs-success); color: #fff; }    /* diferença em p.p. (não % de variação) — desejada */
+.delta.pp-dn { background: var(--bs-danger); color: #fff; }    /* diferença em p.p. — indesejada */
 .dbf-kpi .prev-val {
   font-size: 11px; color: var(--bs-ink-muted); margin-top: 4px;
 }
@@ -70,7 +70,7 @@
   display: flex; flex-direction: column; gap: 6px;
 }
 .mat-card.curr { background: var(--bs-accent); color: #fff; }
-.mat-card.prev { background: #f6f7fb; }
+.mat-card.prev { background: var(--bs-surface); }
 .mat-card .mat-num { font-size: 56px; font-weight: 900; line-height: 1; }
 .mat-card.curr .mat-num { color: #fff; }
 .mat-card.prev .mat-num { color: var(--bs-ink); }
@@ -82,7 +82,7 @@
   border-radius: 20px; display: inline-block; margin-top: 4px;
 }
 .mat-card.curr .mat-tag { background: rgba(255,255,255,.25); color: #fff; }
-.mat-card.prev .mat-tag { background: #e5e7eb; color: #6b7280; }
+.mat-card.prev .mat-tag { background: var(--bs-border); color: var(--bs-ink-muted); }
 .mat-var-badge {
   font-size: 11px; font-weight: 700; padding: 3px 10px;
   border-radius: 20px; display: inline-block; margin-top: 4px; margin-left: 6px;
@@ -95,11 +95,11 @@
 .alloc-row {
   display: grid; grid-template-columns: 160px 1fr 80px 110px;
   align-items: center; gap: 14px; padding: 10px 0;
-  border-bottom: 1px solid #f6f7fb;
+  border-bottom: 1px solid var(--bs-surface);
 }
 .alloc-row:last-child { border-bottom: none; }
 .alloc-lbl { font-size: 13px; font-weight: 600; color: var(--bs-ink); }
-.alloc-bar-wrap { height: 18px; background: #e5e7eb; border-radius: 4px; overflow: hidden; }
+.alloc-bar-wrap { height: 18px; background: var(--bs-border); border-radius: 4px; overflow: hidden; }
 .alloc-bar { height: 100%; border-radius: 4px; }
 .alloc-pct { font-size: 13px; font-weight: 700; text-align: right; }
 .alloc-val { font-size: 12px; color: var(--bs-ink-muted); text-align: right; }
@@ -109,7 +109,7 @@
 
 /* ── Traffic allocation — tabela colorida (estilo slide) ─────────── */
 .dbf-alloc-table {
-  border-radius: 10px; overflow: hidden; border: 1px solid #e5e7eb; margin-bottom: 16px;
+  border-radius: 10px; overflow: hidden; border: 1px solid var(--bs-border); margin-bottom: 16px;
 }
 .dbf-alloc-row {
   display: flex; justify-content: space-between; align-items: center;
@@ -128,7 +128,7 @@
 
 .dbf-plat-row {
   display: flex; justify-content: space-between; align-items: center;
-  font-size: 12.5px; padding: 7px 0; border-bottom: 1px solid #f6f7fb;
+  font-size: 12.5px; padding: 7px 0; border-bottom: 1px solid var(--bs-surface);
 }
 .dbf-plat-row:last-child { border-bottom: none; }
 .dbf-plat-row .amt { font-weight: 700; color: var(--bs-ink); }
@@ -139,7 +139,7 @@
 .platform-split { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
 .platform-card {
   background: var(--bs-card); border-radius: 10px;
-  padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  padding: 16px; box-shadow: var(--bs-sh-sm);
 }
 .pc-header {
   font-size: 11px; font-weight: 800; color: #fff; padding: 3px 10px;
@@ -148,7 +148,7 @@
 }
 .pc-row {
   display: flex; justify-content: space-between; align-items: center;
-  font-size: 12px; padding: 5px 0; border-bottom: 1px solid #f6f7fb;
+  font-size: 12px; padding: 5px 0; border-bottom: 1px solid var(--bs-surface);
 }
 .pc-row:last-child { border-bottom: none; }
 .pc-row .pc-cat { color: var(--bs-ink-muted); }
@@ -158,22 +158,22 @@
 /* ── Tables ───────────────────────────────────────────────────── */
 .dbf-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .dbf-table th {
-  background: #1e3a8a; color: #fff; padding: 10px 14px;
+  background: var(--bs-accent); color: #fff; padding: 10px 14px;
   text-align: left; font-weight: 600; white-space: nowrap;
 }
 .dbf-table td {
-  padding: 9px 14px; border-bottom: 1px solid #f6f7fb; vertical-align: middle;
+  padding: 9px 14px; border-bottom: 1px solid var(--bs-surface); vertical-align: middle;
 }
-.dbf-table tbody tr:hover td { background: #f6f7fb; }
+.dbf-table tbody tr:hover td { background: var(--bs-surface); }
 .dbf-table .num { text-align: right; font-weight: 600; }
-.dbf-table .roas-good { color: #15803d; font-weight: 800; }
+.dbf-table .roas-good { color: var(--bs-success); font-weight: 800; }
 .dbf-table .roas-ok   { color: #d97706; font-weight: 800; }
-.dbf-table .roas-bad  { color: #dc2626; font-weight: 800; }
-.dbf-table .muted     { color: #9ca3af; }
+.dbf-table .roas-bad  { color: var(--bs-danger); font-weight: 800; }
+.dbf-table .muted     { color: var(--bs-ink-subtle); }
 .ldt-main td { border-bottom: none; padding-bottom: 4px; }
-.ldt-sub td { padding-top: 0; padding-bottom: 10px; border-bottom: 1px solid #f6f7fb; background: #fafbfc; }
+.ldt-sub td { padding-top: 0; padding-bottom: 10px; border-bottom: 1px solid var(--bs-surface); background: #fafbfc; }
 .ldt-sub .delta { font-size: 10px; padding: 1px 6px; }
-.ldt-pct { font-size: 11px; color: #9ca3af; font-weight: 600; }
+.ldt-pct { font-size: 11px; color: var(--bs-ink-subtle); font-weight: 600; }
 
 /* ── Line chart (timeline) ────────────────────────────────────── */
 .line-chart-wrap { position: relative; height: 220px; margin-top: 16px; }
@@ -182,22 +182,22 @@
 .day-tables-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 .day-week-title {
   font-size: 12px; font-weight: 700; text-transform: uppercase;
-  color: #fff; background: #1e3a8a; padding: 8px 12px;
+  color: #fff; background: var(--bs-accent); padding: 8px 12px;
   border-radius: 6px 6px 0 0; letter-spacing: .04em;
 }
 .day-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .day-table th {
-  background: #374151; color: #fff; padding: 8px 10px;
+  background: var(--bs-sidebar); color: #fff; padding: 8px 10px;
   text-align: left; font-weight: 600; font-size: 12px;
 }
-.day-table td { padding: 8px 10px; border-bottom: 1px solid #f6f7fb; }
-.day-table tr:hover td { background: #f6f7fb; }
+.day-table td { padding: 8px 10px; border-bottom: 1px solid var(--bs-surface); }
+.day-table tr:hover td { background: var(--bs-surface); }
 
 /* ── Payment breakdown ────────────────────────────────────────── */
 .pay-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
 .pay-card {
   background: var(--bs-card); border-radius: 10px; padding: 16px 12px;
-  text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  text-align: center; box-shadow: var(--bs-sh-sm);
 }
 .pay-card .pay-num { font-size: 28px; font-weight: 900; color: var(--bs-ink); }
 .pay-card .pay-pct { font-size: 15px; font-weight: 700; color: var(--bs-accent); margin-top: 2px; }
@@ -215,15 +215,15 @@
 .dbf-dia1-delta { display: block; margin-top: 1px; }
 .cmp-curr {
   background: var(--bs-card); border-radius: 10px; padding: 18px;
-  box-shadow: 0 1px 4px rgba(0,0,0,.06); border-top: 3px solid var(--bs-accent);
+  box-shadow: var(--bs-sh-sm); border-top: 3px solid var(--bs-accent);
 }
 .cmp-prev {
-  background: #f6f7fb; border-radius: 10px; padding: 18px;
-  border-top: 3px solid #9ca3af;
+  background: var(--bs-surface); border-radius: 10px; padding: 18px;
+  border-top: 3px solid var(--bs-ink-subtle);
 }
 .cmp-title { font-size: 12px; font-weight: 700; margin-bottom: 14px; }
 .cmp-curr .cmp-title { color: var(--bs-accent); }
-.cmp-prev .cmp-title { color: #6b7280; }
+.cmp-prev .cmp-title { color: var(--bs-ink-muted); }
 
 /* ── Audience ─────────────────────────────────────────────────── */
 .aud-tag { background:#e0f2fe; color:#0369a1; border-radius:4px; padding:2px 7px; font-size:11px; font-weight:700; }
@@ -239,25 +239,25 @@
 .aula-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
 .aula-card {
   background: var(--bs-card); border-radius: 10px;
-  padding: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  padding: 16px; box-shadow: var(--bs-sh-sm);
 }
-.aula-card .aula-num { font-size: 28px; font-weight: 800; color: #9ca3af; }
+.aula-card .aula-num { font-size: 28px; font-weight: 800; color: var(--bs-ink-subtle); }
 .aula-card .aula-lbl { font-size: 11px; color: var(--bs-ink-muted); font-weight: 700; text-transform: uppercase; margin-top: 4px; }
 .aula-card .aula-detail { font-size: 12px; color: var(--bs-ink-muted); margin-top: 6px; }
 
 /* ── Historico boleto ─────────────────────────────────────────── */
 .hist-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.hist-table th { background: #374151; color: #fff; padding: 9px 12px; text-align: left; font-weight: 600; font-size: 12px; }
-.hist-table td { padding: 9px 12px; border-bottom: 1px solid #f6f7fb; }
-.hist-table .muted { color: #9ca3af; font-style: italic; }
+.hist-table th { background: var(--bs-sidebar); color: #fff; padding: 9px 12px; text-align: left; font-weight: 600; font-size: 12px; }
+.hist-table td { padding: 9px 12px; border-bottom: 1px solid var(--bs-surface); }
+.hist-table .muted { color: var(--bs-ink-subtle); font-style: italic; }
 
 /* ── Oferta ───────────────────────────────────────────────────── */
 .oferta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.oferta-card { background: var(--bs-card); border-radius: 10px; padding: 18px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.oferta-card { background: var(--bs-card); border-radius: 10px; padding: 18px; box-shadow: var(--bs-sh-sm); }
 .oferta-card .oferta-title { font-size: 13px; font-weight: 700; color: var(--bs-ink); margin-bottom: 10px; }
-.oferta-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f6f7fb; font-size: 13px; color: var(--bs-ink-muted); }
+.oferta-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--bs-surface); font-size: 13px; color: var(--bs-ink-muted); }
 .oferta-item:last-child { border-bottom: none; }
-.oferta-item i { color: #9ca3af; }
+.oferta-item i { color: var(--bs-ink-subtle); }
 
 /* ── Responsive ───────────────────────────────────────────────── */
 @media (max-width: 960px) {
@@ -360,12 +360,12 @@
         {% if dbf.periodo_atual %}<div style="font-size:12px;color:rgba(255,255,255,.65);margin-top:8px"><i class="ti ti-calendar"></i> {{ dbf.periodo_atual }}</div>{% endif %}
       </div>
       <div class="mat-card prev">
-        <div class="mat-num" style="font-size:48px;{% if not dbf.has_prev %}color:#9ca3af{% endif %}">
+        <div class="mat-num" style="font-size:48px;{% if not dbf.has_prev %}color:var(--bs-ink-subtle){% endif %}">
           {% if dbf.has_prev %}{{ dbf.prev_total_vendas | num }}{% else %}—{% endif %}
         </div>
         <div style="font-size:18px;font-weight:700;color:#4b5563">matrículas</div>
         <span class="mat-tag">{% if dbf.has_prev %}{{ dbf.prev_code }}{% else %}Lançamento anterior{% endif %}</span>
-        {% if dbf.has_prev and dbf.periodo_prev %}<div style="font-size:12px;color:#9ca3af;margin-top:8px"><i class="ti ti-calendar"></i> {{ dbf.periodo_prev }}</div>{% endif %}
+        {% if dbf.has_prev and dbf.periodo_prev %}<div style="font-size:12px;color:var(--bs-ink-subtle);margin-top:8px"><i class="ti ti-calendar"></i> {{ dbf.periodo_prev }}</div>{% endif %}
       </div>
     </div>
   </div>
@@ -459,6 +459,7 @@
           const labels = [{% for t in dbf.timeline %}"{{ t.data_str }}"{% if not loop.last %},{% endif %}{% endfor %}];
           const vendas  = [{% for t in dbf.timeline %}{{ t.vendas }}{% if not loop.last %},{% endif %}{% endfor %}];
           const accent  = getComputedStyle(document.documentElement).getPropertyValue('--bs-accent').trim() || '#f97316';
+          const surface = getComputedStyle(document.documentElement).getPropertyValue('--bs-surface').trim() || '#f6f7fb';
           new Chart(document.getElementById('timelineChart'), {
             type: 'line',
             plugins: [ChartDataLabels],
@@ -496,7 +497,7 @@
                 x: { grid: { display: false }, ticks: { font: { size: 11 } } },
                 y: {
                   beginAtZero: true,
-                  grid: { color: '#f6f7fb' },
+                  grid: { color: surface },
                   ticks: { font: { size: 11 }, precision: 0 }
                 }
               },
@@ -562,7 +563,7 @@
     <div class="cmp-grid">
       <div>{{ dbf_dia1_table(dbf.dia1, launch.code if launch else '', 'var(--bs-accent)', compare=(dbf.prev_dia1.checkpoints if dbf.prev_dia1.checkpoints else None), compare_code=dbf.prev_code) }}</div>
       {% if dbf.prev_dia1.checkpoints %}
-      <div>{{ dbf_dia1_table(dbf.prev_dia1, dbf.prev_code, '#6b7280', compare=(dbf.prev_prev_dia1.checkpoints if dbf.prev_prev_dia1.checkpoints else None), compare_code=dbf.prev_prev_code) }}</div>
+      <div>{{ dbf_dia1_table(dbf.prev_dia1, dbf.prev_code, 'var(--bs-ink-muted)', compare=(dbf.prev_prev_dia1.checkpoints if dbf.prev_prev_dia1.checkpoints else None), compare_code=dbf.prev_prev_code) }}</div>
       {% endif %}
     </div>
   </div>
@@ -598,7 +599,7 @@
         {% for e in etapas %}{% if loop.index <= 2 %}
         {% set pe = (prev_etapas | selectattr('nome', 'equalto', e.nome) | first) if prev_etapas else None %}
         <div class="platform-card">
-          <span class="pc-header" style="background:{{ color_map.get(e.nome, '#374151') }}">{{ e.nome }}</span>
+          <span class="pc-header" style="background:{{ color_map.get(e.nome, 'var(--bs-sidebar)') }}">{{ e.nome }}</span>
           {% if e.meta > 0 %}
           <div class="dbf-plat-row">
             <span>{% if pe %}{{ dbadge(e.meta, pe.meta, 'neutral') }}{% endif %} Facebook Ads</span>
@@ -614,7 +615,7 @@
             <span>{% if pe %}{{ dbadge(e.tiktok, pe.tiktok, 'neutral') }}{% endif %} TikTok Ads</span>
             <span><span class="amt">{{ e.tiktok | brl(0) }}</span> <span class="pct">({{ (e.tiktok / e.invest * 100) | round(1) if e.invest > 0 else 0 }}%)</span></span>
           </div>{% endif %}
-          {% if e.meta == 0 and e.google == 0 and not e.tiktok %}<div style="font-size:12px;color:#9ca3af;padding:6px 0">Sem dados</div>{% endif %}
+          {% if e.meta == 0 and e.google == 0 and not e.tiktok %}<div style="font-size:12px;color:var(--bs-ink-subtle);padding:6px 0">Sem dados</div>{% endif %}
         </div>
         {% endif %}{% endfor %}
       </div>
@@ -649,11 +650,11 @@
         <div class="alloc-row">
           <div class="alloc-lbl" title="{{ a.adset }}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px">{{ a.adset }}</div>
           <div class="alloc-bar-wrap"><div class="alloc-bar" style="width:{{ a.pct | round(1) }}%;background:#f97316"></div></div>
-          <div class="alloc-pct" style="color:{{ '#f97316' if a.gasto > 0 else '#9ca3af' }}">{{ a.pct | round(1) }}%</div>
+          <div class="alloc-pct" style="color:{{ '#f97316' if a.gasto > 0 else 'var(--bs-ink-subtle)' }}">{{ a.pct | round(1) }}%</div>
           <div class="alloc-val">{{ a.gasto | brl(0) }}</div>
         </div>
         {% endfor %}
-        <div class="alloc-row" style="border-top:1px solid #e5e7eb;margin-top:6px;padding-top:6px;font-weight:600">
+        <div class="alloc-row" style="border-top:1px solid var(--bs-border);margin-top:6px;padding-top:6px;font-weight:600">
           <div class="alloc-lbl">Total</div>
           <div class="alloc-bar-wrap" style="visibility:hidden"></div>
           <div class="alloc-pct" style="color:#f97316">100%</div>
@@ -668,15 +669,15 @@
         {% for a in dbf.prev_rmkt_adsets %}
         <div class="alloc-row">
           <div class="alloc-lbl" title="{{ a.adset }}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px">{{ a.adset }}</div>
-          <div class="alloc-bar-wrap"><div class="alloc-bar" style="width:{{ a.pct | round(1) }}%;background:#9ca3af"></div></div>
-          <div class="alloc-pct" style="color:{{ '#6b7280' if a.gasto > 0 else '#9ca3af' }}">{{ a.pct | round(1) }}%</div>
+          <div class="alloc-bar-wrap"><div class="alloc-bar" style="width:{{ a.pct | round(1) }}%;background:var(--bs-ink-subtle)"></div></div>
+          <div class="alloc-pct" style="color:{{ 'var(--bs-ink-muted)' if a.gasto > 0 else 'var(--bs-ink-subtle)' }}">{{ a.pct | round(1) }}%</div>
           <div class="alloc-val">{{ a.gasto | brl(0) }}</div>
         </div>
         {% endfor %}
-        <div class="alloc-row" style="border-top:1px solid #e5e7eb;margin-top:6px;padding-top:6px;font-weight:600">
+        <div class="alloc-row" style="border-top:1px solid var(--bs-border);margin-top:6px;padding-top:6px;font-weight:600">
           <div class="alloc-lbl">Total</div>
           <div class="alloc-bar-wrap" style="visibility:hidden"></div>
-          <div class="alloc-pct" style="color:#6b7280">100%</div>
+          <div class="alloc-pct" style="color:var(--bs-ink-muted)">100%</div>
           <div class="alloc-val">{{ prev_rmkt_total | brl(0) }}</div>
         </div>
       </div>
@@ -694,7 +695,7 @@
   <div class="dbf-section">
     <div class="dbf-section-title"><i class="ti ti-target-arrow"></i> Investimento em Pré-Qualificação</div>
     <div class="platform-split">
-      {% for plat_key, plat_label, plat_color in [('meta', 'Facebook Ads', '#1877f2'), ('google', 'Google Ads', '#374151')] %}
+      {% for plat_key, plat_label, plat_color in [('meta', 'Facebook Ads', 'var(--meta-color)'), ('google', 'Google Ads', 'var(--bs-sidebar)')] %}
       {% set p = dbf.prequali_invest[plat_key] %}
       {% if p.total > 0 %}
       <div class="platform-card">
@@ -1080,10 +1081,12 @@
       const hasPrev   = {{ 'true' if dbf.has_prev else 'false' }};
       const prevLabel = "{{ (dbf.prev_code or 'Lançamento anterior') | e }}";
       const climaLabels = [{% for c in dbf.clima_order %}"{{ c | e }}"{% if not loop.last %},{% endif %}{% endfor %}];
+      const cssVar = (name, fallback) => (getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback);
 
       function buildPubChart(canvasId, labels, currVals, prevVals, currColor) {
         const el = document.getElementById(canvasId);
         if (!el) return;
+        currColor = currColor.startsWith('var(') ? cssVar(currColor.slice(4, -1), '#374151') : currColor;
         const datasets = [{ label: 'Atual', data: currVals, backgroundColor: currColor, borderRadius: 4, maxBarThickness: 56 }];
         if (hasPrev) {
           datasets.push({ label: prevLabel, data: prevVals, backgroundColor: currColor + '55', borderRadius: 4, maxBarThickness: 56 });
@@ -1101,13 +1104,13 @@
               datalabels: {
                 anchor: 'end', align: 'top', offset: 2,
                 font: { size: 11, weight: '700' },
-                color: '#374151',
+                color: cssVar('--bs-sidebar', '#374151'),
                 formatter: v => v,
               }
             },
             scales: {
               x: { grid: { display: false }, ticks: { font: { size: 11 } } },
-              y: { beginAtZero: true, grid: { color: '#f6f7fb' }, ticks: { font: { size: 11 }, precision: 0 } }
+              y: { beginAtZero: true, grid: { color: cssVar('--bs-surface', '#f6f7fb') }, ticks: { font: { size: 11 }, precision: 0 } }
             },
             layout: { padding: { top: 22 } }
           }
@@ -1120,7 +1123,7 @@
         climaLabels,
         [{% for c in dbf.clima_order %}{{ dbf.meta_temp_sales.get(c, {}).get('vendas', 0) | int }}{% if not loop.last %},{% endif %}{% endfor %}],
         [{% for c in dbf.clima_order %}{{ dbf.prev_meta_temp_sales.get(c, {}).get('vendas', 0) | int }}{% if not loop.last %},{% endif %}{% endfor %}],
-        '#1877F2'
+        'var(--meta-color)'
       );
       {% endif %}
 
@@ -1130,7 +1133,7 @@
         climaLabels,
         [{% for c in dbf.clima_order %}{{ dbf.google_temp_sales.get(c, {}).get('vendas', 0) | int }}{% if not loop.last %},{% endif %}{% endfor %}],
         [{% for c in dbf.clima_order %}{{ dbf.prev_google_temp_sales.get(c, {}).get('vendas', 0) | int }}{% if not loop.last %},{% endif %}{% endfor %}],
-        '#EA4335'
+        'var(--google-color)'
       );
       {% endif %}
 
@@ -1195,7 +1198,7 @@
 
     <div class="cmp-grid" style="margin-top:16px">
       <div>
-        <div style="font-size:13px;font-weight:700;color:#1877F2;margin-bottom:10px"><i class="ti ti-brand-meta"></i> Top Facebook Ads</div>
+        <div style="font-size:13px;font-weight:700;color:var(--meta-color);margin-bottom:10px"><i class="ti ti-brand-meta"></i> Top Facebook Ads</div>
         {% if dbf.top_meta %}
         <div class="table-wrap">
           <table class="dbf-table">
@@ -1220,7 +1223,7 @@
         {% else %}{{ sem_dados("Meta Ads com atribuição de vendas por UTM") }}{% endif %}
       </div>
       <div>
-        <div style="font-size:13px;font-weight:700;color:#EA4335;margin-bottom:10px"><i class="ti ti-brand-youtube"></i> Top Google Ads</div>
+        <div style="font-size:13px;font-weight:700;color:var(--google-color);margin-bottom:10px"><i class="ti ti-brand-youtube"></i> Top Google Ads</div>
         {% if dbf.top_google %}
         <div class="table-wrap">
           <table class="dbf-table">
@@ -1326,13 +1329,13 @@
 
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
             <div>
-              <div class="aula-num" style="color:{% if a.views_live > 0 %}var(--bs-ink){% else %}#9ca3af{% endif %}">
+              <div class="aula-num" style="color:{% if a.views_live > 0 %}var(--bs-ink){% else %}var(--bs-ink-subtle){% endif %}">
                 {{ a.views_live | num if a.views_live > 0 else "—" }}
               </div>
               <div class="aula-lbl">Views ao vivo</div>
             </div>
             <div>
-              <div class="aula-num" style="color:{% if a.views_replay > 0 %}var(--bs-ink){% else %}#9ca3af{% endif %}">
+              <div class="aula-num" style="color:{% if a.views_replay > 0 %}var(--bs-ink){% else %}var(--bs-ink-subtle){% endif %}">
                 {{ a.views_replay | num if a.views_replay > 0 else "—" }}
               </div>
               <div class="aula-lbl">Views replay</div>
@@ -1348,7 +1351,7 @@
                 {{ a.avg_view_pct | round(1) }}%
               </span>
             </div>
-            <div style="height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden">
+            <div style="height:6px;background:var(--bs-border);border-radius:3px;overflow:hidden">
               <div style="height:100%;width:{{ [a.avg_view_pct, 100] | min | round | int }}%;background:{% if a.avg_view_pct >= 50 %}#16a34a{% elif a.avg_view_pct >= 30 %}#f59e0b{% else %}#dc2626{% endif %};border-radius:3px"></div>
             </div>
           </div>
@@ -1601,7 +1604,7 @@
           <!-- Linhas de lançamentos anteriores — sem dados ainda -->
           {% for label in ["Lançamento anterior", "Lançamento -2", "Lançamento -3"] %}
           <tr>
-            <td style="color:#9ca3af">{{ label }}</td>
+            <td style="color:var(--bs-ink-subtle)">{{ label }}</td>
             <td class="muted">—</td>
             <td class="muted">—</td>
             <td class="muted">—</td>

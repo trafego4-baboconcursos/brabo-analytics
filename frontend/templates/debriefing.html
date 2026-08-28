@@ -577,39 +577,41 @@
 
     {% set color_map = {"Pré-Qualificação": "#16a34a", "Captação": "#2563eb",  "Remarketing": "#dc2626"} %}
 
-    {% macro alloc_table(etapas, total_invest) %}
+    {% macro alloc_table(etapas, total_invest, prev_etapas=None, prev_total_invest=None) %}
       <div class="dbf-alloc-table">
         {% for e in etapas %}
+        {% set pe = (prev_etapas | selectattr('nome', 'equalto', e.nome) | first) if prev_etapas else None %}
         <div class="dbf-alloc-row" style="background:{{ color_map.get(e.nome, '#2563eb') }}">
-          <span>{{ e.nome }}</span>
+          <span>{% if pe %}{{ dbadge(e.invest, pe.invest, 'neutral') }}{% endif %} {{ e.nome }}</span>
           <span><span class="amt">{{ e.invest | brl(0) }}</span> <span class="pct">({{ e.pct | round(1) }}%)</span></span>
         </div>
         {% endfor %}
         <div class="dbf-alloc-row total">
-          <span>Total Investido</span>
+          <span>{% if prev_total_invest %}{{ dbadge(total_invest, prev_total_invest, 'neutral') }}{% endif %} Total Investido</span>
           <span class="amt">{{ total_invest | brl(0) }}</span>
         </div>
       </div>
     {% endmacro %}
 
-    {% macro plat_table(etapas) %}
+    {% macro plat_table(etapas, prev_etapas=None) %}
       <div class="platform-split">
         {% for e in etapas %}{% if loop.index <= 2 %}
+        {% set pe = (prev_etapas | selectattr('nome', 'equalto', e.nome) | first) if prev_etapas else None %}
         <div class="platform-card">
           <span class="pc-header" style="background:{{ color_map.get(e.nome, '#374151') }}">{{ e.nome }}</span>
           {% if e.meta > 0 %}
           <div class="dbf-plat-row">
-            <span>Facebook Ads</span>
+            <span>{% if pe %}{{ dbadge(e.meta, pe.meta, 'neutral') }}{% endif %} Facebook Ads</span>
             <span><span class="amt">{{ e.meta | brl(0) }}</span> <span class="pct">({{ (e.meta / e.invest * 100) | round(1) if e.invest > 0 else 0 }}%)</span></span>
           </div>{% endif %}
           {% if e.google > 0 %}
           <div class="dbf-plat-row">
-            <span>Google Ads</span>
+            <span>{% if pe %}{{ dbadge(e.google, pe.google, 'neutral') }}{% endif %} Google Ads</span>
             <span><span class="amt">{{ e.google | brl(0) }}</span> <span class="pct">({{ (e.google / e.invest * 100) | round(1) if e.invest > 0 else 0 }}%)</span></span>
           </div>{% endif %}
           {% if e.tiktok and e.tiktok > 0 %}
           <div class="dbf-plat-row">
-            <span>TikTok Ads</span>
+            <span>{% if pe %}{{ dbadge(e.tiktok, pe.tiktok, 'neutral') }}{% endif %} TikTok Ads</span>
             <span><span class="amt">{{ e.tiktok | brl(0) }}</span> <span class="pct">({{ (e.tiktok / e.invest * 100) | round(1) if e.invest > 0 else 0 }}%)</span></span>
           </div>{% endif %}
           {% if e.meta == 0 and e.google == 0 and not e.tiktok %}<div style="font-size:12px;color:#9ca3af;padding:6px 0">Sem dados</div>{% endif %}
@@ -622,8 +624,8 @@
       <!-- Atual -->
       <div class="cmp-curr">
         <div class="cmp-title">{{ launch.code if launch else '—' }}</div>
-        {{ alloc_table(dbf.etapas, dbf.invest) }}
-        {{ plat_table(dbf.etapas) }}
+        {{ alloc_table(dbf.etapas, dbf.invest, dbf.prev_etapas if dbf.has_prev else None, dbf.prev_invest if dbf.has_prev else None) }}
+        {{ plat_table(dbf.etapas, dbf.prev_etapas if dbf.has_prev else None) }}
       </div>
 
       <!-- Anterior -->

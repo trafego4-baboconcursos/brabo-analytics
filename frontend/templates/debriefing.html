@@ -405,7 +405,7 @@
 
     <div class="dbf-kpi-grid">
       {%- set kpis_gerais = [
-        ("Total Investido",  dbf.invest,        dbf.prev_invest,        "brl0", "neutral"),
+        ("Total Investido",  dbf.invest,        dbf.prev_invest,        "brl0", "up"),
         ("Receita Líquida",  dbf.receita,       dbf.prev_receita,       "brl0", "up"),
         ("ROAS",             dbf.roas,          dbf.prev_roas,          "roas", "up"),
         ("Total Vendas",  dbf.total_vendas, dbf.prev_total_vendas, "num", "up"),
@@ -583,12 +583,12 @@
         {% for e in etapas %}
         {% set pe = (prev_etapas | selectattr('nome', 'equalto', e.nome) | first) if prev_etapas else None %}
         <div class="dbf-alloc-row" style="background:{{ color_map.get(e.nome, '#2563eb') }}">
-          <span>{% if pe %}{{ dbadge(e.invest, pe.invest, 'neutral') }}{% endif %} {{ e.nome }}</span>
+          <span>{% if pe %}{{ dbadge(e.invest, pe.invest, 'up') }}{% endif %} {{ e.nome }}</span>
           <span><span class="amt">{{ e.invest | brl(0) }}</span> <span class="pct">({{ e.pct | round(1) }}%)</span></span>
         </div>
         {% endfor %}
         <div class="dbf-alloc-row total">
-          <span>{% if prev_total_invest %}{{ dbadge(total_invest, prev_total_invest, 'neutral') }}{% endif %} Total Investido</span>
+          <span>{% if prev_total_invest %}{{ dbadge(total_invest, prev_total_invest, 'up') }}{% endif %} Total Investido</span>
           <span class="amt">{{ total_invest | brl(0) }}</span>
         </div>
       </div>
@@ -602,17 +602,17 @@
           <span class="pc-header" style="background:{{ color_map.get(e.nome, 'var(--bs-sidebar)') }}">{{ e.nome }}</span>
           {% if e.meta > 0 %}
           <div class="dbf-plat-row">
-            <span>{% if pe %}{{ dbadge(e.meta, pe.meta, 'neutral') }}{% endif %} Facebook Ads</span>
+            <span>{% if pe %}{{ dbadge(e.meta, pe.meta, 'up') }}{% endif %} Facebook Ads</span>
             <span><span class="amt">{{ e.meta | brl(0) }}</span> <span class="pct">({{ (e.meta / e.invest * 100) | round(1) if e.invest > 0 else 0 }}%)</span></span>
           </div>{% endif %}
           {% if e.google > 0 %}
           <div class="dbf-plat-row">
-            <span>{% if pe %}{{ dbadge(e.google, pe.google, 'neutral') }}{% endif %} Google Ads</span>
+            <span>{% if pe %}{{ dbadge(e.google, pe.google, 'up') }}{% endif %} Google Ads</span>
             <span><span class="amt">{{ e.google | brl(0) }}</span> <span class="pct">({{ (e.google / e.invest * 100) | round(1) if e.invest > 0 else 0 }}%)</span></span>
           </div>{% endif %}
           {% if e.tiktok and e.tiktok > 0 %}
           <div class="dbf-plat-row">
-            <span>{% if pe %}{{ dbadge(e.tiktok, pe.tiktok, 'neutral') }}{% endif %} TikTok Ads</span>
+            <span>{% if pe %}{{ dbadge(e.tiktok, pe.tiktok, 'up') }}{% endif %} TikTok Ads</span>
             <span><span class="amt">{{ e.tiktok | brl(0) }}</span> <span class="pct">({{ (e.tiktok / e.invest * 100) | round(1) if e.invest > 0 else 0 }}%)</span></span>
           </div>{% endif %}
           {% if e.meta == 0 and e.google == 0 and not e.tiktok %}<div style="font-size:12px;color:var(--bs-ink-subtle);padding:6px 0">Sem dados</div>{% endif %}
@@ -702,12 +702,12 @@
         <span class="pc-header" style="background:{{ plat_color }}">{{ plat_label }}</span>
         {% if p.data_inicio %}<div style="font-size:11px;color:var(--bs-ink-muted);margin-bottom:8px">Início: {{ p.data_inicio | br_date }}</div>{% endif %}
         <div class="dbf-plat-row" style="font-weight:700">
-          <span>{% if p.prev_total %}{{ dbadge(p.total, p.prev_total, 'neutral') }}{% endif %} Total investido</span>
+          <span>{% if p.prev_total %}{{ dbadge(p.total, p.prev_total, 'up') }}{% endif %} Total investido</span>
           <span class="amt">{{ p.total | brl(0) }}</span>
         </div>
         {% for c in p.climas %}{% if c.gasto > 0 %}
         <div class="dbf-plat-row">
-          <span>{% if c.prev_gasto %}{{ dbadge(c.gasto, c.prev_gasto, 'neutral') }}{% endif %} {{ c.clima }}</span>
+          <span>{% if c.prev_gasto %}{{ dbadge(c.gasto, c.prev_gasto, 'up') }}{% endif %} {{ c.clima }}</span>
           <span><span class="amt">{{ c.gasto | brl(0) }}</span> <span class="pct">({{ c.pct | round(1) }}%)</span></span>
         </div>
         {% endif %}{% endfor %}
@@ -716,7 +716,7 @@
       {% endfor %}
     </div>
     <div class="dbf-alloc-row total" style="margin-top:14px;border-radius:8px">
-      <span>{% if dbf.prequali_invest.prev_total %}{{ dbadge(dbf.prequali_invest.total, dbf.prequali_invest.prev_total, 'neutral') }}{% endif %} Total Investido — Pré-Qualificação</span>
+      <span>{% if dbf.prequali_invest.prev_total %}{{ dbadge(dbf.prequali_invest.total, dbf.prequali_invest.prev_total, 'up') }}{% endif %} Total Investido — Pré-Qualificação</span>
       <span class="amt">{{ dbf.prequali_invest.total | brl(0) }}</span>
     </div>
   </div>

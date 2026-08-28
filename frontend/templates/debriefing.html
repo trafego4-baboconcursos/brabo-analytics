@@ -93,7 +93,7 @@
 
 /* ── Traffic allocation ───────────────────────────────────────── */
 .alloc-row {
-  display: grid; grid-template-columns: 160px 1fr 80px 110px;
+  display: grid; grid-template-columns: 160px 1fr 80px 110px 74px;
   align-items: center; gap: 14px; padding: 10px 0;
   border-bottom: 1px solid var(--bs-surface);
 }
@@ -103,6 +103,7 @@
 .alloc-bar { height: 100%; border-radius: 4px; }
 .alloc-pct { font-size: 13px; font-weight: 700; text-align: right; }
 .alloc-val { font-size: 12px; color: var(--bs-ink-muted); text-align: right; }
+.alloc-badge { text-align: right; }
 .bg-preq { background: #16a34a; }
 .bg-capt { background: #2563eb; }
 .bg-rmkt { background: #dc2626; }
@@ -267,7 +268,7 @@
 }
 @media (max-width: 640px) {
   .alloc-row { grid-template-columns: 120px 1fr 60px; }
-  .alloc-val { display: none; }
+  .alloc-val, .alloc-badge { display: none; }
   .pay-grid { grid-template-columns: 1fr 1fr; }
   .dbf-kpi-grid { grid-template-columns: repeat(2, 1fr); }
 }
@@ -646,12 +647,15 @@
       <div class="cmp-curr">
         <div class="cmp-title">{{ launch.code if launch else '—' }} — Remarketing</div>
         {% set rmkt_total = dbf.rmkt_adsets | sum(attribute='gasto') %}
+        {% set prev_rmkt_total = dbf.prev_rmkt_adsets | sum(attribute='gasto') if dbf.prev_rmkt_adsets else 0 %}
         {% for a in dbf.rmkt_adsets %}
+        {% set pa = dbf.prev_rmkt_adsets[loop.index0] if dbf.prev_rmkt_adsets and loop.index0 < (dbf.prev_rmkt_adsets | length) else None %}
         <div class="alloc-row">
           <div class="alloc-lbl" title="{{ a.adset }}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px">{{ a.adset }}</div>
           <div class="alloc-bar-wrap"><div class="alloc-bar" style="width:{{ a.pct | round(1) }}%;background:#f97316"></div></div>
           <div class="alloc-pct" style="color:{{ '#f97316' if a.gasto > 0 else 'var(--bs-ink-subtle)' }}">{{ a.pct | round(1) }}%</div>
           <div class="alloc-val">{{ a.gasto | brl(0) }}</div>
+          <div class="alloc-badge">{% if pa and pa.gasto %}{{ dbadge(a.gasto, pa.gasto, 'up') }}{% endif %}</div>
         </div>
         {% endfor %}
         <div class="alloc-row" style="border-top:1px solid var(--bs-border);margin-top:6px;padding-top:6px;font-weight:600">
@@ -659,6 +663,7 @@
           <div class="alloc-bar-wrap" style="visibility:hidden"></div>
           <div class="alloc-pct" style="color:#f97316">100%</div>
           <div class="alloc-val">{{ rmkt_total | brl(0) }}</div>
+          <div class="alloc-badge">{% if prev_rmkt_total %}{{ dbadge(rmkt_total, prev_rmkt_total, 'up') }}{% endif %}</div>
         </div>
       </div>
       {% endif %}
@@ -672,6 +677,7 @@
           <div class="alloc-bar-wrap"><div class="alloc-bar" style="width:{{ a.pct | round(1) }}%;background:var(--bs-ink-subtle)"></div></div>
           <div class="alloc-pct" style="color:{{ 'var(--bs-ink-muted)' if a.gasto > 0 else 'var(--bs-ink-subtle)' }}">{{ a.pct | round(1) }}%</div>
           <div class="alloc-val">{{ a.gasto | brl(0) }}</div>
+          <div class="alloc-badge"></div>
         </div>
         {% endfor %}
         <div class="alloc-row" style="border-top:1px solid var(--bs-border);margin-top:6px;padding-top:6px;font-weight:600">
@@ -679,6 +685,7 @@
           <div class="alloc-bar-wrap" style="visibility:hidden"></div>
           <div class="alloc-pct" style="color:var(--bs-ink-muted)">100%</div>
           <div class="alloc-val">{{ prev_rmkt_total | brl(0) }}</div>
+          <div class="alloc-badge"></div>
         </div>
       </div>
       {% endif %}

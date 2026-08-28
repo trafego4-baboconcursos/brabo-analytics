@@ -205,6 +205,8 @@ def _compute_debriefing_ctx(
     prev_prev_code: str = "",
     qualidade_regiao: Any = None,
     caminho_comprador: Any = None,
+    wa_cost: Any = None,
+    prev_wa_cost: Any = None,
 ) -> dict:
     def _f(x): return float(x or 0)
     def _i(x): return int(x or 0)
@@ -215,7 +217,10 @@ def _compute_debriefing_ctx(
     def _captacao(summary) -> dict:
         return (getattr(summary, "por_etapa", None) or {}).get("Captação") or {}
 
-    invest = _f(getattr(meta, "total_gasto", 0)) + _f(getattr(google, "total_custo", 0))
+    wa_gasto = _f((wa_cost or {}).get("total_cost_brl"))
+    prev_wa_gasto = _f((prev_wa_cost or {}).get("total_cost_brl"))
+
+    invest = _f(getattr(meta, "total_gasto", 0)) + _f(getattr(google, "total_custo", 0)) + wa_gasto
     receita = _f(getattr(vendas, "total_receita_liquida", 0)) or _f(getattr(vendas, "total_receita", 0))
     receita_bruta = _f(getattr(vendas, "total_receita_bruta", 0)) or _f(getattr(vendas, "total_receita", 0))
     roas = receita / invest if invest > 0 else 0.0
@@ -241,7 +246,7 @@ def _compute_debriefing_ctx(
     total_spend_all = meta_spend + google_spend + tiktok_spend
     cpl = total_spend_all / total_leads if total_leads > 0 else 0.0
 
-    prev_invest = _f(getattr(prev_meta, "total_gasto", 0)) + _f(getattr(prev_google, "total_custo", 0))
+    prev_invest = _f(getattr(prev_meta, "total_gasto", 0)) + _f(getattr(prev_google, "total_custo", 0)) + prev_wa_gasto
     prev_receita = _f(getattr(prev_vendas, "total_receita_liquida", 0)) or _f(getattr(prev_vendas, "total_receita", 0))
     prev_receita_bruta = _f(getattr(prev_vendas, "total_receita_bruta", 0)) or _f(getattr(prev_vendas, "total_receita", 0))
     prev_roas = prev_receita / prev_invest if prev_invest > 0 else 0.0
@@ -414,7 +419,7 @@ def _compute_debriefing_ctx(
         "prev_code": previous.code if previous else "",
         "periodo_atual": periodo_atual, "periodo_prev": periodo_prev,
         # KPIs
-        "invest": invest, "receita": receita, "roas": roas,
+        "invest": invest, "wa_gasto": wa_gasto, "receita": receita, "roas": roas,
         "receita_bruta": receita_bruta, "roas_bruto": roas_bruto,
         "total_vendas": total_vendas, "ticket": ticket,
         "total_leads": total_leads, "cpl": cpl,

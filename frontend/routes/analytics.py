@@ -39,8 +39,13 @@ async def captacao(request: Request, launch_code: str | None = None):
     wa_cost = d.get("wa_cost")
     wa_gasto = (wa_cost.get("total_cost_brl") or 0.0) if wa_cost else 0.0
 
+    # ads_invest é só Meta+Google (captação de lead de verdade) — CPL/valor por
+    # lead e a meta de investimento de captação NUNCA podem incluir WhatsApp,
+    # que não gera lead nenhum. wa_gasto só entra no invest/ROAS (KPI de
+    # investimento total da campanha, não de custo por lead).
+    ads_invest = (meta.total_gasto if meta else 0.0) + (google.total_custo if google else 0.0)
     receita = (vendas.total_receita if vendas else 0.0)
-    invest  = (meta.total_gasto if meta else 0.0) + (google.total_custo if google else 0.0) + wa_gasto
+    invest  = ads_invest + wa_gasto
     roas    = receita / invest if invest > 0 else 0.0
 
     cfg = await run_in_threadpool(_launch_cfg, launch.code) if launch else {}
@@ -48,8 +53,8 @@ async def captacao(request: Request, launch_code: str | None = None):
     goal_invest = float(cfg.get("meta_investimento_captacao") or 0)
     leads_meta  = (meta.total_leads if meta else 0) + (int(round(google.total_conversoes)) if google else 0)
     prog_leads  = min(100.0, leads_meta / goal_leads * 100) if goal_leads > 0 else None
-    valor_medio_lead = invest / leads_meta if leads_meta > 0 else 0.0
-    prog_invest = min(100.0, invest / goal_invest * 100) if goal_invest > 0 else None
+    valor_medio_lead = ads_invest / leads_meta if leads_meta > 0 else 0.0
+    prog_invest = min(100.0, ads_invest / goal_invest * 100) if goal_invest > 0 else None
 
     ctx = _base_ctx(request, "captacao", "Captação", launch, launches,
         meta=meta, google=google, vendas=vendas, wa_gasto=wa_gasto,
@@ -335,12 +340,14 @@ async def debriefing(request: Request, launch_code: str | None = None):
 
     prev_meta = prev_google = prev_vendas = None
     prev_sales_attr = None
+    prev_wa_cost = None
     if previous:
         try:
             prev_d = await run_in_threadpool(_fetch_prev_for_debriefing, previous)
-            prev_meta   = prev_d.get("meta")
-            prev_google = prev_d.get("google")
-            prev_vendas = prev_d.get("vendas")
+            prev_meta    = prev_d.get("meta")
+            prev_google  = prev_d.get("google")
+            prev_vendas  = prev_d.get("vendas")
+            prev_wa_cost = prev_d.get("wa_cost")
             if getattr(previous, "has_ac", False) and prev_vendas:
                 prev_sales_attr = await run_in_threadpool(_sales_attribution, previous, prev_vendas)
         except Exception:
@@ -362,6 +369,8 @@ async def debriefing(request: Request, launch_code: str | None = None):
         prev_prev_code=prev_previous.code if prev_previous else "",
         qualidade_regiao=qualidade_regiao,
         caminho_comprador=caminho_comprador,
+        wa_cost=d.get("wa_cost"),
+        prev_wa_cost=prev_wa_cost,
     )
 
     ctx = _base_ctx(request, "debriefing", "Debriefing", launch, launches,

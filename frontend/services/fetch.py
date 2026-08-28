@@ -109,11 +109,13 @@ def _wa_cost(launch: Any):
 
 
 def _fetch_prev_for_debriefing(launch: Any) -> dict:
-    """Sync: busca meta/google/vendas do lançamento anterior para comparações no debriefing."""
-    meta   = _meta(launch)   if getattr(launch, "has_meta",   False) else None
-    google = _google(launch) if getattr(launch, "has_google", False) else None
-    vendas = _vendas(launch) if getattr(launch, "has_vendas", False) else None
-    return {"meta": meta, "google": google, "vendas": vendas}
+    """Sync: busca meta/google/vendas/custo WhatsApp do lançamento anterior
+    para comparações no debriefing."""
+    meta    = _meta(launch)    if getattr(launch, "has_meta",   False) else None
+    google  = _google(launch)  if getattr(launch, "has_google", False) else None
+    vendas  = _vendas(launch)  if getattr(launch, "has_vendas", False) else None
+    wa_cost = _wa_cost(launch)
+    return {"meta": meta, "google": google, "vendas": vendas, "wa_cost": wa_cost}
 
 # ── Orquestrador assíncrono ────────────────────────────────────────────────────
 

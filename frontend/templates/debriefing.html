@@ -56,6 +56,9 @@
 .delta.up   { background: #dcfce7; color: #15803d; }
 .delta.dn   { background: #fee2e2; color: #b91c1c; }
 .delta.neut { background: #f6f7fb; color: #6b7280; }
+.delta.ntr  { background: #fef9c3; color: #a16207; }  /* variação sem lado bom/ruim definido */
+.delta.pp-up { background: #166534; color: #fff; }    /* diferença em p.p. (não % de variação) — desejada */
+.delta.pp-dn { background: #7f1d1d; color: #fff; }    /* diferença em p.p. — indesejada */
 .dbf-kpi .prev-val {
   font-size: 11px; color: var(--bs-ink-muted); margin-top: 4px;
 }
@@ -275,18 +278,36 @@
 
 {% block content %}
 {# ─── macros ──────────────────────────────────────────────────────────── #}
-{% macro dbadge(curr, prev) %}
+{# polarity: 'up' (subir é bom, padrão) | 'down' (subir é ruim, ex: CPL) | 'neutral' (nem bom nem ruim, ex: Investimento) #}
+{% macro dbadge(curr, prev, polarity='up') %}
   {% if prev and prev > 0 %}
     {% set pct = ((curr - prev) / prev * 100) | round(1) %}
-    {% if pct > 0 %}<span class="delta up">▲ {{ pct }}%</span>
-    {% elif pct < 0 %}<span class="delta dn">▼ {{ (pct * -1) | round(1) }}%</span>
+    {% if polarity == 'neutral' %}
+      {% set cls = 'ntr' %}
+    {% elif pct > 0 %}
+      {% set cls = 'up' if polarity == 'up' else 'dn' %}
+    {% elif pct < 0 %}
+      {% set cls = 'dn' if polarity == 'up' else 'up' %}
+    {% else %}
+      {% set cls = 'neut' %}
+    {% endif %}
+    {% if pct > 0 %}<span class="delta {{ cls }}">▲ {{ pct }}%</span>
+    {% elif pct < 0 %}<span class="delta {{ cls }}">▼ {{ (pct * -1) | round(1) }}%</span>
     {% else %}<span class="delta neut">= 0%</span>{% endif %}
   {% endif %}
 {% endmacro %}
 
+{# cls: classe já resolvida pelo chamador ('up'/'dn'/'neut') — pra métricas onde
+   subir pode ser bom ou ruim dependendo do indicador, decida antes de chamar.
+   suffix='pp': diferença em pontos percentuais (não variação relativa) — usa
+   verde/vermelho escuro pra não confundir com % de variação normal. #}
 {% macro vbadge(val, cls, suffix='%') %}
   {% if val is none %}<span class="delta neut">—</span>
-  {% else %}<span class="delta {{ cls }}">{{ '▲' if val > 0 else ('▼' if val < 0 else '=') }} {{ val | abs | round(1) }}{{ suffix }}</span>
+  {% else %}
+    {% if suffix == 'pp' and cls == 'up' %}{% set render_cls = 'pp-up' %}
+    {% elif suffix == 'pp' and cls == 'dn' %}{% set render_cls = 'pp-dn' %}
+    {% else %}{% set render_cls = cls %}{% endif %}
+    <span class="delta {{ render_cls }}">{{ '▲' if val > 0 else ('▼' if val < 0 else '=') }} {{ val | abs | round(1) }}{{ suffix }}</span>
   {% endif %}
 {% endmacro %}
 
@@ -359,7 +380,7 @@
       {% if dbf.has_prev %}<span class="dbf-launch-badge prev">vs {{ dbf.prev_code }}</span>{% endif %}
     </div>
 
-    {% macro kpi_card(lbl, val, pval, fmt) %}
+    {% macro kpi_card(lbl, val, pval, fmt, polarity='up') %}
       <div class="dbf-kpi">
         <div class="lbl">{{ lbl }}</div>
         <div class="val {% if val == 0 %}zero{% endif %}">
@@ -370,7 +391,7 @@
           {% endif %}
         </div>
         {% if dbf.has_prev %}
-          {{ dbadge(val, pval) }}
+          {{ dbadge(val, pval, polarity) }}
           <div class="prev-val">ant.:
             {% if fmt == "brl0" %}{{ pval | brl(0) }}
             {% elif fmt == "brl" %}{{ pval | brl }}
@@ -384,16 +405,16 @@
 
     <div class="dbf-kpi-grid">
       {%- set kpis_gerais = [
-        ("Total Investido",  dbf.invest,        dbf.prev_invest,        "brl0"),
-        ("Receita Líquida",  dbf.receita,       dbf.prev_receita,       "brl0"),
-        ("ROAS",             dbf.roas,          dbf.prev_roas,          "roas"),
-        ("Total Vendas",  dbf.total_vendas, dbf.prev_total_vendas, "num"),
-        ("Ticket Médio",  dbf.ticket,       dbf.prev_ticket,       "brl"),
-        ("Leads Captação", dbf.total_leads, dbf.prev_total_leads,  "num"),
-        ("CPL Captação",  dbf.cpl,          dbf.prev_cpl,          "brl"),
+        ("Total Investido",  dbf.invest,        dbf.prev_invest,        "brl0", "neutral"),
+        ("Receita Líquida",  dbf.receita,       dbf.prev_receita,       "brl0", "up"),
+        ("ROAS",             dbf.roas,          dbf.prev_roas,          "roas", "up"),
+        ("Total Vendas",  dbf.total_vendas, dbf.prev_total_vendas, "num", "up"),
+        ("Ticket Médio",  dbf.ticket,       dbf.prev_ticket,       "brl", "up"),
+        ("Leads Captação", dbf.total_leads, dbf.prev_total_leads,  "num", "up"),
+        ("CPL Captação",  dbf.cpl,          dbf.prev_cpl,          "brl", "down"),
       ] -%}
-      {% for lbl, val, pval, fmt in kpis_gerais %}
-        {{ kpi_card(lbl, val, pval, fmt) }}
+      {% for lbl, val, pval, fmt, polarity in kpis_gerais %}
+        {{ kpi_card(lbl, val, pval, fmt, polarity) }}
       {% endfor %}
     </div>
 
@@ -401,10 +422,10 @@
     <div class="dbf-kpi-grid">
       {% for f in dbf.fontes_leads %}
       {%- set pairs = [
-        (f.fonte ~ " — Leads", f.leads,   f.prev_leads, "num"),
-        (f.fonte ~ " — CPL",   f.cpl,     f.prev_cpl,   "brl"),
+        (f.fonte ~ " — Leads", f.leads,   f.prev_leads, "num", "up"),
+        (f.fonte ~ " — CPL",   f.cpl,     f.prev_cpl,   "brl", "down"),
       ] -%}
-      {% for lbl, val, pval, fmt in pairs %}
+      {% for lbl, val, pval, fmt, polarity in pairs %}
       <div class="dbf-kpi">
         <div class="lbl"><i class="ti {{ f.icon }}" style="color:{{ f.color }}"></i> {{ lbl }}</div>
         <div class="val {% if not f.has_data or val == 0 %}zero{% endif %}">
@@ -414,7 +435,7 @@
           {% endif %}
         </div>
         {% if dbf.has_prev and f.has_data %}
-          {{ dbadge(val, pval) }}
+          {{ dbadge(val, pval, polarity) }}
           <div class="prev-val">ant.:
             {% if fmt == "num" %}{{ pval | num }}
             {% elif fmt == "brl" %}{{ pval | brl }}

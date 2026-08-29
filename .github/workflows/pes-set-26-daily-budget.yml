@@ -1,0 +1,42 @@
+name: PES-SET-26 - Orcamento diario (Captacao)
+
+on:
+  schedule:
+    # 00:05 America/Sao_Paulo (UTC-3) = 03:05 UTC
+    - cron: "5 3 * * *"
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Data especifica (YYYY-MM-DD), deixe vazio para hoje"
+        required: false
+        default: ""
+
+jobs:
+  apply-budget:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests google-auth python-dotenv
+
+      - name: Aplicar orcamento do dia
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          GOOGLE_ADS_REFRESH_TOKEN: ${{ secrets.GOOGLE_ADS_REFRESH_TOKEN }}
+          GOOGLE_ADS_CLIENT_ID: ${{ secrets.GOOGLE_ADS_CLIENT_ID }}
+          GOOGLE_ADS_CLIENT_SECRET: ${{ secrets.GOOGLE_ADS_CLIENT_SECRET }}
+          GOOGLE_ADS_DEVELOPER_TOKEN: ${{ secrets.GOOGLE_ADS_DEVELOPER_TOKEN }}
+          GOOGLE_ADS_LOGIN_CUSTOMER_ID: ${{ secrets.GOOGLE_ADS_LOGIN_CUSTOMER_ID }}
+        run: |
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            python scripts/apply_daily_budget_pes_set_26.py --date "${{ github.event.inputs.date }}"
+          else
+            python scripts/apply_daily_budget_pes_set_26.py
+          fi

@@ -181,99 +181,114 @@
     "quente_principal": "15835393096",
     "quente_potencial": "15833484933",
     "frio_principal": "15832025181",
+    "frio_potencial": "15828304478",
     "especifico_principal": "15837069583"
   },
   "google": {
     "2026-08-31": {
       "quente_principal": 8769.6,
       "quente_potencial": 3758.4,
-      "frio_principal": 1296.0,
+      "frio_principal": 907.2,
+      "frio_potencial": 388.8,
       "especifico_principal": 2592.0
     },
     "2026-09-01": {
       "quente_principal": 9317.7,
       "quente_potencial": 3993.3,
-      "frio_principal": 1377.0,
+      "frio_principal": 963.9,
+      "frio_potencial": 413.1,
       "especifico_principal": 2754.0
     },
     "2026-09-02": {
       "quente_principal": 9317.7,
       "quente_potencial": 3993.3,
-      "frio_principal": 1377.0,
+      "frio_principal": 963.9,
+      "frio_potencial": 413.1,
       "especifico_principal": 2754.0
     },
     "2026-09-03": {
       "quente_principal": 9317.7,
       "quente_potencial": 3993.3,
-      "frio_principal": 1377.0,
+      "frio_principal": 963.9,
+      "frio_potencial": 413.1,
       "especifico_principal": 2754.0
     },
     "2026-09-04": {
       "quente_principal": 7673.4,
       "quente_potencial": 3288.6,
-      "frio_principal": 1134.0,
+      "frio_principal": 793.8,
+      "frio_potencial": 340.2,
       "especifico_principal": 2268.0
     },
     "2026-09-05": {
       "quente_principal": 6577.2,
       "quente_potencial": 2818.8,
-      "frio_principal": 972.0,
+      "frio_principal": 680.4,
+      "frio_potencial": 291.6,
       "especifico_principal": 1944.0
     },
     "2026-09-06": {
       "quente_principal": 6029.1,
       "quente_potencial": 2583.9,
-      "frio_principal": 891.0,
+      "frio_principal": 623.7,
+      "frio_potencial": 267.3,
       "especifico_principal": 1782.0
     },
     "2026-09-07": {
       "quente_principal": 8221.5,
       "quente_potencial": 3523.5,
-      "frio_principal": 1215.0,
+      "frio_principal": 850.5,
+      "frio_potencial": 364.5,
       "especifico_principal": 2430.0
     },
     "2026-09-08": {
       "quente_principal": 7673.4,
       "quente_potencial": 3288.6,
-      "frio_principal": 1134.0,
+      "frio_principal": 793.8,
+      "frio_potencial": 340.2,
       "especifico_principal": 2268.0
     },
     "2026-09-09": {
       "quente_principal": 7673.4,
       "quente_potencial": 3288.6,
-      "frio_principal": 1134.0,
+      "frio_principal": 793.8,
+      "frio_potencial": 340.2,
       "especifico_principal": 2268.0
     },
     "2026-09-10": {
       "quente_principal": 7125.3,
       "quente_potencial": 3053.7,
-      "frio_principal": 1053.0,
+      "frio_principal": 737.1,
+      "frio_potencial": 315.9,
       "especifico_principal": 2106.0
     },
     "2026-09-11": {
       "quente_principal": 6577.2,
       "quente_potencial": 2818.8,
-      "frio_principal": 972.0,
+      "frio_principal": 680.4,
+      "frio_potencial": 291.6,
       "especifico_principal": 1944.0
     },
     "2026-09-12": {
       "quente_principal": 6577.2,
       "quente_potencial": 2818.8,
-      "frio_principal": 972.0,
+      "frio_principal": 680.4,
+      "frio_potencial": 291.6,
       "especifico_principal": 1944.0
     },
     "2026-09-13": {
       "quente_principal": 6029.1,
       "quente_potencial": 2583.9,
-      "frio_principal": 891.0,
+      "frio_principal": 623.7,
+      "frio_potencial": 267.3,
       "especifico_principal": 1782.0
     },
     "2026-09-14": {
       "quente_principal": 2740.5,
       "quente_potencial": 1174.5,
-      "frio_principal": 405.0,
+      "frio_principal": 283.5,
+      "frio_potencial": 121.5,
       "especifico_principal": 810.0
     }
-  },
-  "_pendencia": "Google Ads Frio Potencial ainda nao foi criada nesta conta. Enquanto isso, 100% do orcamento YT Frio vai para a campanha Principal. Quando a Potencial for criada, adicionar o budget_id dela em google_budget_ids e redividir 70/30 no google_plan (mesma logica ja aplicada ao Quente)."
+  }
 }

@@ -3,15 +3,16 @@ import os
 import time as _time
 from fastapi import APIRouter, Request
 from fastapi.responses import RedirectResponse
+from fastapi.concurrency import run_in_threadpool
 
 from frontend.core import (
     logger,
     WORKSPACE_ROOT, ANALISES_DIR,
     _APP_START_TIME, _HEALTH_CACHE_TTL,
     _THUMB_URL_TTL,
-    _get_current_user, _invalidate, reset_launches_cache,
+    _get_current_user, _invalidate, reset_launches_cache, _refresh_launches,
     get_launches,
-    read_launch_config, save_launch_config,
+    read_launch_config, save_launch_config, create_launch,
     count_campaigns_for_filter, get_drive_thumbnails,
     KNOWN_META_ACCOUNTS, KNOWN_GOOGLE_ACCOUNTS,
     _compute_launch_defaults,
@@ -19,6 +20,8 @@ from frontend.core import (
     create_invite, delete_invite,
 )
 import frontend.core as _core
+import re as _re
+from src.constants import PRODUCT_BY_PREFIX
 
 router = APIRouter()
 
@@ -115,6 +118,40 @@ async def api_save_launch_config(launch_code: str, request: Request):
     _invalidate(launch_code)
     reset_launches_cache()
     return {"ok": True, "launch_code": launch_code}
+
+
+@router.post("/api/lancamentos")
+async def api_create_launch(request: Request):
+    import json as _json
+    current = _get_current_user(request)
+    if current["role"] not in ("admin", "analista", "trafego"):
+        return {"ok": False, "error": "Sem permissão para criar lançamentos."}
+
+    body = await request.body()
+    data = _json.loads(body)
+    code = (data.get("code") or "").strip().upper()
+    data_inicio = (data.get("data_inicio") or "").strip()
+    data_fim = (data.get("data_fim") or "").strip()
+
+    if not _re.match(r"^[A-Z]+-[A-ZÇ]{3}-\d{2}$", code):
+        return {"ok": False, "error": "Código inválido. Use o formato PREFIXO-MES-AA (ex: PES-NOV-26)."}
+    if not data_inicio or not data_fim:
+        return {"ok": False, "error": "Informe data de início e fim."}
+
+    prefix = code.split("-")[0]
+    product, product_name, _order = PRODUCT_BY_PREFIX.get(prefix, (prefix, prefix, 99))
+    nome = (data.get("nome") or "").strip() or f"{product_name} - {code}"
+
+    try:
+        create_launch(code, nome, product, data_inicio, data_fim)
+    except ValueError as e:
+        return {"ok": False, "error": str(e)}
+    except Exception:
+        logger.exception("Falha ao criar lançamento %s", code)
+        return {"ok": False, "error": "Falha ao criar lançamento. Veja os logs."}
+
+    await run_in_threadpool(_refresh_launches)
+    return {"ok": True, "code": code}
 
 
 # ── Drive Thumbnails ───────────────────────────────────────────────────────────

@@ -246,6 +246,61 @@ def save_launch_config(launch_code: str, config: dict) -> None:
         conn.execute(upsert_sql, params)
         conn.commit()
 
+    sync_launch_dates(launch_code, config)
+
+
+def create_launch(code: str, nome: str, projeto: str, data_inicio: str, data_fim: str) -> None:
+    """Registra um novo lançamento em dim_lancamentos (analytics DB) — passo
+    necessário antes do wizard de Configurações aceitar o código, já que
+    get_launches()/discover_launches só enxerga códigos cadastrados lá."""
+    with _get_engine().connect() as conn:
+        exists = conn.execute(
+            text("SELECT 1 FROM dim_lancamentos WHERE codigo = :code"),
+            {"code": code},
+        ).fetchone()
+        if exists:
+            raise ValueError(f"O lançamento {code} já está cadastrado.")
+        conn.execute(
+            text("""
+                INSERT INTO dim_lancamentos (codigo, nome, projeto, data_inicio, data_fim, updated_at)
+                VALUES (:codigo, :nome, :projeto, :data_inicio, :data_fim, NOW())
+            """),
+            {"codigo": code, "nome": nome, "projeto": projeto,
+             "data_inicio": data_inicio, "data_fim": data_fim},
+        )
+        conn.commit()
+
+
+def sync_launch_dates(code: str, config: dict) -> None:
+    """Mantém dim_lancamentos.data_inicio/data_fim alinhados com as datas
+    reais cadastradas no launch_config (usadas por find_previous_launch para
+    achar o 'lançamento anterior' do mesmo produto) — evita que essas datas
+    fiquem desatualizadas conforme o calendário de cada lançamento é ajustado."""
+    date_keys = (
+        "pre_quali_start_date", "captacao_start_date", "depoimento_start_date",
+        "aulas_start_date", "carrinho_start_date",
+        "pre_quali_end_date", "captacao_end_date", "depoimento_end_date",
+        "aulas_end_date", "carrinho_end_date",
+    )
+    dates = [d for k in date_keys if (d := config.get(k))]
+    if not dates:
+        return
+    try:
+        with _get_engine().connect() as conn:
+            conn.execute(
+                text("""
+                    UPDATE dim_lancamentos
+                    SET data_inicio = :d_min,
+                        data_fim    = :d_max,
+                        updated_at  = NOW()
+                    WHERE codigo = :code
+                """),
+                {"code": code, "d_min": min(dates), "d_max": max(dates)},
+            )
+            conn.commit()
+    except Exception:
+        logger.exception("sync_launch_dates: falha ao sincronizar dim_lancamentos para %s", code)
+
 
 def get_platform_thumbnails(launch_code: str) -> dict[str, dict]:
     """Thumbnails buscadas direto da API do Meta (tabela ad_creatives).

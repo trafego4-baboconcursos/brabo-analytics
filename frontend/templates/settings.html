@@ -11,11 +11,49 @@
   <div class="content">
 
     <div class="section">
-      <div class="section-title">Lançamentos Disponíveis no Datalake</div>
+      <div class="section-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>Lançamentos Disponíveis no Datalake</span>
+        <button onclick="document.getElementById('new-launch-form').classList.toggle('hidden')"
+          style="background:var(--bs-accent);color:#fff;border:none;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+          <i class="ti ti-calendar-plus"></i> Novo lançamento
+        </button>
+      </div>
       <div class="note">
         <i class="ti ti-info-circle"></i>
         As datas e chaves dos lançamentos são extraídas do cronograma operacional oficial e registradas na dimensão <code>dim_lancamentos</code> no Supabase. Os dados de mídia e leads são classificados pelo código (ex: <code>PBB-ABR-26</code>).
       </div>
+
+      <!-- Formulário de novo lançamento inline -->
+      <div id="new-launch-form" class="hidden" style="background:var(--bs-surface);border:1px solid var(--bs-border);border-radius:12px;padding:20px;margin-top:12px">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+          <div>
+            <label style="font-size:11px;font-weight:700;color:var(--bs-ink-muted);display:block;margin-bottom:4px">Código</label>
+            <input type="text" id="nl-code" placeholder="Ex: PES-NOV-26"
+              style="width:100%;border:1px solid var(--bs-border-s);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;outline:none;text-transform:uppercase">
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:700;color:var(--bs-ink-muted);display:block;margin-bottom:4px">Início (aprox. — dá pra ajustar depois)</label>
+            <input type="date" id="nl-inicio"
+              style="width:100%;border:1px solid var(--bs-border-s);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;outline:none">
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:700;color:var(--bs-ink-muted);display:block;margin-bottom:4px">Fim (aprox. — dá pra ajustar depois)</label>
+            <input type="date" id="nl-fim"
+              style="width:100%;border:1px solid var(--bs-border-s);border-radius:8px;padding:8px 10px;font-size:13px;font-family:inherit;outline:none">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button onclick="nlCreate()"
+            style="background:var(--bs-accent);color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer">
+            Criar e configurar
+          </button>
+          <span id="nl-error" style="display:none;color:var(--bs-danger);font-size:12px;font-weight:600"></span>
+        </div>
+        <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
+          O projeto (INSS/TJ-SP/Banco do Brasil) é detectado pelo prefixo do código (PI/PES/PBB). As datas de início/fim aqui são só um período aproximado — o calendário e o resto do sistema usam as datas detalhadas por etapa que você preenche no wizard, que abre em seguida.
+        </div>
+      </div>
+
       <div class="table-wrap" style="margin-top:12px">
         <table>
           <thead>
@@ -334,6 +372,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (cb.checked && allBox) allBox.checked = false;
     });
   });
+
+  {% if open_launch %}
+  if (typeof lcOpen === 'function') lcOpen('{{ open_launch }}');
+  {% endif %}
 });
 
 // ── Gerar convite ─────────────────────────────────────────
@@ -368,6 +410,35 @@ async function invCreate() {
   box.dataset.link = link;
   box.style.display = 'block';
   btn.style.display = 'inline-flex';
+}
+
+async function nlCreate() {
+  const code    = document.getElementById('nl-code').value.trim().toUpperCase();
+  const inicio  = document.getElementById('nl-inicio').value;
+  const fim     = document.getElementById('nl-fim').value;
+  const errBox  = document.getElementById('nl-error');
+  errBox.style.display = 'none';
+
+  if (!code || !inicio || !fim) {
+    errBox.textContent = 'Preencha código, início e fim.';
+    errBox.style.display = 'inline';
+    return;
+  }
+
+  const res = await fetch('/api/lancamentos', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code, data_inicio: inicio, data_fim: fim }),
+  });
+  const data = await res.json();
+
+  if (!res.ok || !data.ok) {
+    errBox.textContent = data.error || 'Erro ao criar lançamento.';
+    errBox.style.display = 'inline';
+    return;
+  }
+
+  window.location.href = '/settings?launch_code=' + encodeURIComponent(data.code) + '&open_launch=' + encodeURIComponent(data.code);
 }
 
 function invCopy() {

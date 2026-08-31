@@ -12,7 +12,7 @@ router = APIRouter()
 
 
 @router.get("/settings", response_class=HTMLResponse)
-async def settings(request: Request, launch_code: str | None = None):
+async def settings(request: Request, launch_code: str | None = None, open_launch: str | None = None):
     launches = await run_in_threadpool(get_launches)
     launch = resolve_launch(launch_code, launches)
     users_list, invites_list = [], []
@@ -26,5 +26,6 @@ async def settings(request: Request, launch_code: str | None = None):
         users_list=users_list, invites_list=invites_list,
         role_labels=ROLE_LABELS, product_labels=PRODUCT_LABELS,
         all_products=["PBB", "PES", "PI", "PERPETUO"],
+        open_launch=open_launch,
     )
     return templates.TemplateResponse("settings.html", ctx)

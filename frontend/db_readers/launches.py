@@ -635,10 +635,23 @@ def discover_launches(analises_dir: Any = None) -> list[Launch]:
             meta_codes = {r[0] for r in conn.execute(text("SELECT DISTINCT lancamento_codigo FROM meta_ads_daily")).fetchall()}
             google_codes = {r[0] for r in conn.execute(text("SELECT DISTINCT lancamento_codigo FROM google_ads_daily")).fetchall()}
             ac_codes = {r[0] for r in conn.execute(leads_codes_sql).fetchall()}
+            # Une a tabela viva com os 2 backups (conta Typeform cancelada em
+            # ago/2026) — senão lançamentos cujo form_id só existe no backup
+            # ficam com "Pesquisas" desabilitado no menu mesmo tendo dados.
             tf_form_ids_in_db: set[str] = {
                 r[0].upper()
-                for r in conn.execute(text("SELECT DISTINCT upper(form_id) FROM typeform_respostas WHERE form_id IS NOT NULL")).fetchall()
+                for r in conn.execute(text("""
+                    SELECT DISTINCT upper(form_id) FROM typeform_respostas WHERE form_id IS NOT NULL
+                    UNION SELECT DISTINCT upper(form_id) FROM typeform_respostas_backup WHERE form_id IS NOT NULL
+                    UNION SELECT DISTINCT upper(form_id) FROM typeform_respostas_backup_2 WHERE form_id IS NOT NULL
+                """)).fetchall()
             }
+            # Sistema de pesquisa interno (substituiu o Typeform a partir do
+            # PBB-AGO-26) — título do formulário contém o código do lançamento.
+            novo_sistema_titulos: list[str] = [
+                r[0].lower()
+                for r in conn.execute(text("SELECT titulo FROM formularios WHERE publicado = true")).fetchall()
+            ]
 
             for row in result:
                 code = row[0]
@@ -649,9 +662,11 @@ def discover_launches(analises_dir: Any = None) -> list[Launch]:
                 has_tmb = row[2] in tmb_projects
 
                 proj_id, alunos_id = _resolve_typeform_ids(code)
+                has_pesquisa_nova = any(code.lower() in t for t in novo_sistema_titulos)
                 has_typeform = bool(
                     (proj_id and proj_id.upper() in tf_form_ids_in_db)
                     or (alunos_id and alunos_id.upper() in tf_form_ids_in_db)
+                    or has_pesquisa_nova
                 )
 
                 launch = Launch(

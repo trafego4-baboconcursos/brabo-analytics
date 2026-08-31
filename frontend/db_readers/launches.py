@@ -95,7 +95,8 @@ def read_launch_config(launch_code: str) -> dict:
         return {}
     d = dict(row._mapping)
     for key in ("captacao_start_date", "captacao_end_date", "carrinho_start_date", "carrinho_end_date",
-                "pre_quali_start_date", "pre_quali_end_date", "abertura_oficial_carrinho"):
+                "pre_quali_start_date", "pre_quali_end_date", "abertura_oficial_carrinho",
+                "depoimento_start_date", "depoimento_end_date", "aulas_start_date", "aulas_end_date"):
         if d.get(key):
             d[key] = str(d[key])
     for key in ("meta_ad_account_ids", "google_ad_account_ids", "hotmart_produto_ids", "tmb_produto_ids"):
@@ -135,6 +136,7 @@ def save_launch_config(launch_code: str, config: dict) -> None:
             filtro_frio, filtro_frio_scope,
             outras_temperaturas,
             carrinho_start_date, carrinho_end_date, abertura_oficial_carrinho,
+            depoimento_start_date, depoimento_end_date, aulas_start_date, aulas_end_date,
             hotmart_produto_ids, tmb_produto_ids,
             drive_folder_url,
             youtube_aulas,
@@ -150,6 +152,7 @@ def save_launch_config(launch_code: str, config: dict) -> None:
             :filtro_frio, :filtro_frio_scope,
             :outras_temperaturas,
             :carrinho_start_date, :carrinho_end_date, :abertura_oficial_carrinho,
+            :depoimento_start_date, :depoimento_end_date, :aulas_start_date, :aulas_end_date,
             :hotmart_produto_ids, :tmb_produto_ids,
             :drive_folder_url,
             :youtube_aulas,
@@ -178,6 +181,10 @@ def save_launch_config(launch_code: str, config: dict) -> None:
             carrinho_start_date        = EXCLUDED.carrinho_start_date,
             carrinho_end_date          = EXCLUDED.carrinho_end_date,
             abertura_oficial_carrinho  = EXCLUDED.abertura_oficial_carrinho,
+            depoimento_start_date      = EXCLUDED.depoimento_start_date,
+            depoimento_end_date        = EXCLUDED.depoimento_end_date,
+            aulas_start_date           = EXCLUDED.aulas_start_date,
+            aulas_end_date             = EXCLUDED.aulas_end_date,
             hotmart_produto_ids        = EXCLUDED.hotmart_produto_ids,
             tmb_produto_ids            = EXCLUDED.tmb_produto_ids,
             drive_folder_url           = EXCLUDED.drive_folder_url,
@@ -224,6 +231,10 @@ def save_launch_config(launch_code: str, config: dict) -> None:
         "carrinho_start_date":            _or_none(config.get("carrinho_start_date")),
         "carrinho_end_date":              _or_none(config.get("carrinho_end_date")),
         "abertura_oficial_carrinho":      _or_none(config.get("abertura_oficial_carrinho")),
+        "depoimento_start_date":          _or_none(config.get("depoimento_start_date")),
+        "depoimento_end_date":            _or_none(config.get("depoimento_end_date")),
+        "aulas_start_date":               _or_none(config.get("aulas_start_date")),
+        "aulas_end_date":                 _or_none(config.get("aulas_end_date")),
         "hotmart_produto_ids":            config.get("hotmart_produto_ids") or [],
         "tmb_produto_ids":                config.get("tmb_produto_ids") or [],
         "drive_folder_url":               _or_none(config.get("drive_folder_url")),

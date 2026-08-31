@@ -14,6 +14,7 @@ from frontend.core import (
     _sales_attribution,
 )
 from frontend.services.fetch import _launch_cfg
+from frontend.services.calendario import build_calendario_ctx
 
 router = APIRouter()
 
@@ -150,32 +151,37 @@ async def insights_page(request: Request, launch_code: str | None = None):
     return templates.TemplateResponse("insights.html", ctx)
 
 
-def _load_calendario_embed() -> tuple[str, str]:
-    """Lê o HTML estático do calendário e devolve (styles, body) prontos pra embutir."""
+def _load_calendario_assets() -> tuple[str, str]:
+    """Lê o CSS e o <script> do arquivo estático original (design system e
+    lógica de hoje/status/sync entre tabelas) — reaproveitados como estão;
+    só o conteúdo das tabelas passa a ser gerado dinamicamente a partir do
+    launch_config de cada lançamento (ver build_calendario_ctx)."""
     from bs4 import BeautifulSoup
     cal_html_path = WORKSPACE_ROOT / "frontend" / "static" / "calendario" / "SISTEMA_CALENDARIO_2026.html"
     try:
         soup = BeautifulSoup(cal_html_path.read_text(encoding="utf-8"), "html.parser")
         cal_styles = "\n".join(
             str(s) for s in soup.find_all("style")
-            if s.get("id") != "brabo-ds-style"
+            if s.get("id") not in ("brabo-ds-style", "brabo-accent")
         )
         main = soup.find("main", id="bs-main")
-        cal_body = main.decode_contents() if main else ""
-        return cal_styles, cal_body
+        scripts = main.find_all("script") if main else []
+        cal_script = str(scripts[-1]) if scripts else ""
+        return cal_styles, cal_script
     except Exception:
-        logger.exception("Falha ao carregar arquivo de calendário")
-        return "", "<p>Arquivo de calendário não encontrado.</p>"
+        logger.exception("Falha ao carregar assets do calendário")
+        return "", ""
 
 
 @router.get("/calendario", response_class=HTMLResponse)
 async def calendario_page(request: Request, launch_code: str | None = None):
     launches = await run_in_threadpool(get_launches)
     launch   = resolve_launch(launch_code, launches)
-    cal_styles, cal_body = await run_in_threadpool(_load_calendario_embed)
+    cal_styles, cal_script = await run_in_threadpool(_load_calendario_assets)
+    cal = await run_in_threadpool(build_calendario_ctx, launches, _launch_cfg)
 
     ctx = _base_ctx(request, "calendario", "Calendário", launch, launches,
-                    cal_styles=cal_styles, cal_body=cal_body)
+                    cal_styles=cal_styles, cal_script=cal_script, cal=cal)
     return templates.TemplateResponse("calendario.html", ctx)
 
 
@@ -279,7 +285,7 @@ async def comparativo_v1_v2(request: Request, launch_code: str | None = None):
         {"label": "Google Ads", "available": bool(launch and launch.has_google), "detail": f"{google.total_conversoes:.0f} conversoes" if google else "CSV ausente"},
         {"label": "Vendas", "available": bool(launch and launch.has_vendas), "detail": f"{vendas.total_vendas if vendas else 0} vendas" if vendas else "CSV ausente"},
         {"label": "Active Campaign", "available": bool(launch and launch.has_ac), "detail": f"{leads.total_leads if leads else 0} leads AC" if leads else "CSV ausente"},
-        {"label": "Typeform", "available": bool(launch and launch.has_typeform), "detail": "Pasta com CSV detectada" if launch and launch.has_typeform else "CSV ausente"},
+        {"label": "Pesquisas", "available": bool(launch and launch.has_typeform), "detail": "Pasta com CSV detectada" if launch and launch.has_typeform else "CSV ausente"},
     ]
 
     ctx = _base_ctx(

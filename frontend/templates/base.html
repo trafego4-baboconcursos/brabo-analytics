@@ -1964,6 +1964,43 @@ document.addEventListener('keydown', function (e) {
           <i class="ti ti-video"></i>
           <span>Provisão de verba do Evento — Lembrete, Depoimento, Aulas no Ar, Replay e Matrículas Abertas: total, curva de gasto por dia e divisão por bucket (plataforma/temperatura/aula/manual). Remova etapas que não se aplicam ou adicione outras.</span>
         </div>
+
+        <div class="lc-section">
+          <div class="lc-section-title">Datas — Depoimento e Aulas (usadas no Calendário)</div>
+          <div class="lc-date-row">
+            <div class="lc-field">
+              <span class="lc-label">Data de início do Depoimento</span>
+              <div class="lc-date-btn">
+                <i class="ti ti-calendar"></i>
+                <input type="date" id="lc_depoimento_start_date">
+              </div>
+            </div>
+            <div class="lc-field">
+              <span class="lc-label">Data de fim do Depoimento</span>
+              <div class="lc-date-btn">
+                <i class="ti ti-calendar"></i>
+                <input type="date" id="lc_depoimento_end_date">
+              </div>
+            </div>
+          </div>
+          <div class="lc-date-row" style="margin-top:10px">
+            <div class="lc-field">
+              <span class="lc-label">Data de início das Aulas (Semana 0)</span>
+              <div class="lc-date-btn">
+                <i class="ti ti-calendar"></i>
+                <input type="date" id="lc_aulas_start_date">
+              </div>
+            </div>
+            <div class="lc-field">
+              <span class="lc-label">Data de fim das Aulas (Semana 0)</span>
+              <div class="lc-date-btn">
+                <i class="ti ti-calendar"></i>
+                <input type="date" id="lc_aulas_end_date">
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div id="lc-etapas-evento-container"></div>
         <div class="lc-product-add" style="margin-top:6px">
           <input class="lc-input" type="text" id="lc-new-etapa-evento-nome" placeholder="Nome da etapa (ex: Live Extra)" style="flex:2">
@@ -2145,6 +2182,10 @@ document.addEventListener('keydown', function (e) {
     setVal("lc_carrinho_start_date",  cfg.carrinho_start_date || "");
     setVal("lc_carrinho_end_date",    cfg.carrinho_end_date   || "");
     setVal("lc_abertura_oficial_carrinho", cfg.abertura_oficial_carrinho || "");
+    setVal("lc_depoimento_start_date", cfg.depoimento_start_date || "");
+    setVal("lc_depoimento_end_date",   cfg.depoimento_end_date   || "");
+    setVal("lc_aulas_start_date",      cfg.aulas_start_date      || "");
+    setVal("lc_aulas_end_date",        cfg.aulas_end_date        || "");
     setVal("lc_drive_folder_url",     cfg.drive_folder_url    || "");
 
     var metaIds = cfg.meta_ad_account_ids || [];
@@ -2634,6 +2675,10 @@ document.addEventListener('keydown', function (e) {
       carrinho_start_date:        v("lc_carrinho_start_date"),
       carrinho_end_date:          v("lc_carrinho_end_date"),
       abertura_oficial_carrinho:  v("lc_abertura_oficial_carrinho"),
+      depoimento_start_date:      v("lc_depoimento_start_date"),
+      depoimento_end_date:        v("lc_depoimento_end_date"),
+      aulas_start_date:           v("lc_aulas_start_date"),
+      aulas_end_date:             v("lc_aulas_end_date"),
       hotmart_produto_ids:        productIds,
       tmb_produto_ids:            tmbIds,
       drive_folder_url:           v("lc_drive_folder_url"),

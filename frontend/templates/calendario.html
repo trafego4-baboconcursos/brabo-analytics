@@ -6,11 +6,152 @@
   overflow: auto;
   padding: 0;
 }
+/* O HTML estático embutido tem sua própria .container centralizada com
+   max-width fixo (pensada pra ser vista solta, fora do layout do app) —
+   aqui dentro do #bs-main isso sobra espaço vazio nas laterais. Estica
+   pra ocupar a largura real disponível e usa o accent do produto atual
+   em vez das cores fixas do arquivo estático. */
+.cal-content-wrap .container {
+  max-width: 100%;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+  border: none;
+}
+.cal-content-wrap .header {
+  background: linear-gradient(120deg, var(--bs-sidebar-dark) 0%, var(--bs-accent) 100%) !important;
+}
+.cal-content-wrap .metric .k { color: var(--bs-accent) !important; }
+.cal-content-wrap .today-dot { background: var(--bs-accent) !important; box-shadow: 0 0 0 4px var(--bs-accent-bg) !important; }
 </style>
 {% endblock %}
 
 {% block content %}
+{% set stage_order = [('pre','Pré-Quali'), ('cap','Captação'), ('dep','Depoimento'), ('aul','Aulas Semana 0'), ('car','Carrinho aberto')] %}
+{% set tag_by_state = {'completed': ('done', 'Concluído'), 'running': ('running', 'Em andamento'), 'scheduled': ('scheduled', 'Programada')} %}
 <div class="cal-content-wrap">
-  {{ cal_body | safe }}
+<div class="container">
+  <div class="header">
+    <h1>Calendário Operacional</h1>
+    <p>Datas geradas a partir das Configurações de cada lançamento — mude lá e o calendário acompanha.</p>
+  </div>
+
+  <div class="content">
+    <div class="today-banner">
+      <span class="today-dot"></span>
+      <span id="today-display">Hoje é --/--/----</span>
+    </div>
+
+    <div class="quick-grid">
+      <div class="metric">
+        <div class="k">Lançamentos cadastrados</div>
+        <div class="v">{{ cal.metrics.total }}</div>
+      </div>
+      <div class="metric">
+        <div class="k">Extração feita</div>
+        <div class="v">{{ cal.metrics.extraido }}</div>
+      </div>
+      <div class="metric">
+        <div class="k">Pendentes (já passaram)</div>
+        <div class="v">{{ cal.metrics.pendentes }}</div>
+      </div>
+      <div class="metric">
+        <div class="k">Programadas (próximas)</div>
+        <div class="v">{{ cal.metrics.programadas }}</div>
+      </div>
+    </div>
+
+    <div class="note">
+      Datas de Pré-Quali, Captação, Depoimento, Aulas Semana 0 e Carrinho vêm direto do launch_config de cada lançamento (aba Configurações). Lançamentos sem datas cadastradas não aparecem aqui.
+    </div>
+
+    <div class="legend">
+      <span class="chip pre">Pre-Quali</span>
+      <span class="chip cap">Captação</span>
+      <span class="chip dep">Depoimento</span>
+      <span class="chip aul">Aulas Semana 0</span>
+      <span class="chip car">Carrinho Aberto</span>
+    </div>
+
+    {% if cal.rows %}
+    <h2>Pipeline Completo de Lançamentos</h2>
+    <div class="table-wrap">
+      <table id="pipeline-table">
+        <thead>
+          <tr>
+            <th>Lançamento</th>
+            <th>Projeto</th>
+            <th>Início Pre-Quali</th>
+            <th>Início Captação</th>
+            <th>Início Aulas ao vivo</th>
+            <th>Abertura Carrinho</th>
+            <th>Fechamento Carrinho</th>
+            <th>Dados</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in cal.rows %}
+          <tr>
+            <td><span class="launch-name {{ r.launch_class }}">{{ r.code }}</span></td>
+            <td><span class="project-badge {{ r.proj_class }}">{{ r.project }}</span></td>
+            <td>{{ r.by_css.pre.start | br_date if r.by_css.pre else '' }}</td>
+            <td>{{ r.by_css.cap.start | br_date if r.by_css.cap else '' }}</td>
+            <td>{{ r.by_css.aul.start | br_date if r.by_css.aul else '' }}</td>
+            <td>{{ r.by_css.car.start | br_date if r.by_css.car else '' }}</td>
+            <td>{{ r.by_css.car.end | br_date if r.by_css.car else '' }}</td>
+            <td><span class="tag {{ 'uploaded' if r.extraido else 'pending-upload' }}">{{ 'Já subimos' if r.extraido else 'Pendente' }}</span></td>
+            <td><span class="tag {{ tag_by_state[r.state][0] }}">{{ tag_by_state[r.state][1] }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <h2>Agenda Por Lançamento</h2>
+    <div class="table-wrap">
+      <table id="agenda-table">
+        <thead>
+          <tr>
+            <th>Lançamento</th>
+            <th>Projeto</th>
+            <th>Fase</th>
+            <th>Etapa</th>
+            <th>Duração (Dias)</th>
+            <th>Início</th>
+            <th>Fim</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in cal.rows %}
+          {% for css, label in stage_order %}
+          {% set st = r.by_css.get(css) %}
+          {% if st %}
+          <tr data-launch="{{ r.code }}">
+            <td><span class="launch-name {{ r.launch_class }}">{{ r.code }}</span></td>
+            <td><span class="project-badge {{ r.proj_class }}">{{ r.project }}</span></td>
+            <td><span class="stage {{ css }}">{{ label }}</span></td>
+            <td>{{ loop.index }}</td>
+            <td>{{ (st.days / 7) | round(0, 'ceil') | int }}</td>
+            <td>{{ st.days }}</td>
+            <td>{{ st.start | br_date }}</td>
+            <td>{{ st.end | br_date }}</td>
+            <td>Definido em Configurações</td>
+            <td><span class="tag {{ tag_by_state[r.state][0] }}">{{ tag_by_state[r.state][1] }}</span></td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="note" style="margin-top:16px">
+      Nenhum lançamento com datas cadastradas em Configurações ainda. Abra um lançamento e preencha as datas de Pré-Qualificação, Captação, Depoimento, Aulas Semana 0 e Carrinho para ele aparecer aqui.
+    </div>
+    {% endif %}
+  </div>
 </div>
+</div>
+{{ cal_script | safe }}
 {% endblock %}

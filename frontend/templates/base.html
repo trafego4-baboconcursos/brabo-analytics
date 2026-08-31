@@ -138,6 +138,90 @@ html, body { margin: 0 !important; padding: 0 !important; font-family: 'Inter','
   padding:8px 10px;
 }
 
+/* Mode rail — Funis / Lançamentos / Perpétuo / Redes Sociais */
+.bs-mode-rail { display:flex; flex-direction:column; gap:3px; flex-shrink:0; }
+.bs-mode-btn {
+  display:flex; align-items:center; gap:9px;
+  padding:9px 10px; border-radius:var(--bs-r-md);
+  color:rgba(255,255,255,.6); text-decoration:none;
+  font-size:12.5px; font-weight:700; letter-spacing:.02em;
+  transition:background .12s,color .12s;
+  border:none; background:none; width:100%; text-align:left; cursor:pointer; font-family:inherit;
+}
+.bs-mode-btn i { font-size:16px; flex-shrink:0; opacity:.85; }
+.bs-mode-btn:hover { background:rgba(255,255,255,.10); color:#fff; }
+.bs-mode-btn.active { background:rgba(255,255,255,.18); color:#fff; }
+.bs-mode-btn.disabled { opacity:.35; cursor:default; pointer-events:none; }
+.bs-mode-btn .bs-mode-soon { margin-left:auto; font-size:9px; font-weight:700; text-transform:uppercase; background:rgba(255,255,255,.14); padding:2px 6px; border-radius:999px; letter-spacing:.04em; }
+
+/* Lançamentos — botão que dobra de navegação de modo + troca de lançamento */
+.bs-launch-picker { position:relative; }
+.bs-launch-picker-btn { flex-wrap:wrap; row-gap:6px; justify-content:flex-start; }
+.bs-launch-picker-label { display:flex; align-items:center; gap:9px; flex:0 0 100%; }
+.bs-launch-picker-btn .bs-live-badge { margin-right:2px; }
+.bs-launch-picker-chevron { margin-left:auto; font-size:12px; opacity:.6; transition:transform .15s; flex-shrink:0; }
+.bs-launch-picker.open .bs-launch-picker-chevron { transform:rotate(180deg); }
+.bs-launch-picker-menu {
+  display:none; position:absolute; top:calc(100% + 4px); left:0; right:-40px;
+  background:#fff; border-radius:12px; box-shadow:0 12px 30px rgba(20,26,52,.24);
+  border:1px solid #e5e7eb; z-index:220; max-height:70vh; overflow-y:auto;
+  padding:6px;
+}
+.bs-launch-picker.open .bs-launch-picker-menu { display:block; }
+.bs-launch-picker-all {
+  display:flex; align-items:center; gap:8px; padding:9px 10px; border-radius:8px;
+  color:var(--bs-accent); text-decoration:none; font-size:12.5px; font-weight:700;
+}
+.bs-launch-picker-all:hover { background:var(--bs-accent-bg); }
+.bs-launch-picker-sep { height:1px; background:#f3f4f6; margin:4px 2px; }
+.bs-launch-picker-group {
+  font-size:10px; font-weight:700; color:#9ca3af; text-transform:uppercase;
+  letter-spacing:.06em; padding:10px 10px 3px;
+}
+.bs-launch-picker-item {
+  display:block; padding:8px 10px; border-radius:8px;
+  color:#1f2330; text-decoration:none; font-size:13px; font-weight:600;
+}
+.bs-launch-picker-item:hover { background:#f6f7fb; }
+.bs-launch-picker-item.active { background:var(--bs-accent-bg); color:var(--bs-accent); }
+
+/* Subnav horizontal (modo Funis, desktop) — clique abre, não hover */
+.bs-nav.bs-nav-mobile-only { display:none; }
+.bs-subnav {
+  display:flex; align-items:stretch; gap:2px;
+  background:#fff; border-bottom:1px solid var(--bs-border);
+  padding:0 20px; position:sticky; top:0; z-index:60;
+  box-shadow:0 1px 4px rgba(20,26,52,.04);
+}
+.bs-subnav-group { position:relative; }
+.bs-subnav-btn {
+  display:flex; align-items:center; gap:6px;
+  height:44px; padding:0 14px; border:none; background:none; cursor:pointer;
+  font-family:inherit; font-size:13px; font-weight:600; color:var(--bs-ink-muted);
+  border-bottom:2px solid transparent; transition:color .12s,border-color .12s;
+}
+.bs-subnav-btn i { font-size:15px; }
+.bs-subnav-btn .bs-subnav-chevron { font-size:12px; margin-left:2px; transition:transform .15s; opacity:.6; }
+.bs-subnav-btn:hover { color:var(--bs-ink); }
+.bs-subnav-btn.active { color:var(--bs-accent); border-bottom-color:var(--bs-accent); }
+.bs-subnav-group.open .bs-subnav-btn .bs-subnav-chevron { transform:rotate(180deg); }
+.bs-subnav-dropdown {
+  display:none; position:absolute; top:100%; left:0; min-width:220px;
+  background:#fff; border:1px solid var(--bs-border); border-radius:0 0 var(--bs-r-lg) var(--bs-r-lg);
+  box-shadow:0 12px 30px rgba(20,26,52,.14); padding:6px; z-index:60;
+}
+.bs-subnav-group.open .bs-subnav-dropdown { display:block; }
+.bs-subnav-link {
+  display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:var(--bs-r-md);
+  color:var(--bs-ink); text-decoration:none; font-size:13px; font-weight:500;
+  transition:background .1s;
+}
+.bs-subnav-link i { font-size:15px; color:var(--bs-ink-muted); width:18px; text-align:center; }
+.bs-subnav-link:hover { background:var(--bs-surface); }
+.bs-subnav-link.active { background:var(--bs-accent-bg); color:var(--bs-accent); font-weight:700; }
+.bs-subnav-link.disabled { opacity:.4; pointer-events:none; }
+#bs-main.has-subnav .hdr { top:44px; }
+
 /* Nav */
 .bs-nav { display:flex; flex-direction:column; gap:1px; flex:1; min-height:0; overflow-y:auto; scrollbar-width:none; }
 .bs-nav::-webkit-scrollbar { display:none; }
@@ -760,9 +844,12 @@ kbd {
   #bs-main   { margin-left:0; padding-top:56px; }
   #bs-topbar { left:0; top:56px; }
   .hdr       { top:56px; }
+  #bs-main.has-subnav .hdr { top:56px; }
   .bs-nav    { flex-direction:column; flex-wrap:nowrap; }
   .bs-drawer-footer { margin-top:0; }
   .content   { padding:16px; }
+  .bs-subnav { display:none; }
+  .bs-nav.bs-nav-mobile-only { display:flex; }
 }
 
 @media (max-width:520px) {
@@ -1019,155 +1106,95 @@ kbd {
       </a>
     </div>
 
-    <!-- Seletor global de lançamento -->
-    {% if launch_groups %}
-    <div class="bs-launch-switch">
-      <select class="bs-camp-select" onchange="if(this.value){window.location.href=this.value}">
-        {% for group in launch_groups %}
-        <optgroup label="{{ group.product_name or group.product }}">
+    <!-- Trilha de modo -->
+    {% set _switch_base = '/' if nav_mode == 'lancamentos' else request.url.path %}
+    <nav class="bs-mode-rail">
+      <a class="bs-mode-btn {% if nav_mode == 'calendario' %}active{% endif %}"
+         href="/calendario">
+        <i class="ti ti-calendar"></i> Calendário
+      </a>
+
+      <!-- Lançamentos — duplo papel: navega pra /lancamentos E troca o
+           lançamento atual (substitui o antigo seletor separado). Uma vez
+           com lançamento escolhido, o próprio botão vira o badge do
+           lançamento ativo. -->
+      <div class="bs-launch-picker" id="bs-launch-picker">
+        <button type="button"
+                class="bs-mode-btn bs-launch-picker-btn {% if nav_mode == 'lancamentos' %}active{% endif %}"
+                onclick="bsLaunchPickerToggle()">
+          <span class="bs-launch-picker-label"><i class="ti ti-rocket"></i> Lançamento{% if not active_code %}s{% endif %}</span>
+          {% if active_code %}
+          <span class="bs-live-badge"><span class="bs-live-dot"></span> {{ active_code }}</span>
+          {% endif %}
+          <i class="ti ti-chevron-down bs-launch-picker-chevron"></i>
+        </button>
+        <div class="bs-launch-picker-menu" id="bs-launch-picker-menu">
+          <a class="bs-launch-picker-all" href="/lancamentos">
+            <i class="ti ti-layout-grid"></i> Ver todos os lançamentos
+          </a>
+          {% if launch_groups %}
+          <div class="bs-launch-picker-sep"></div>
+          {% for group in launch_groups %}
+          <div class="bs-launch-picker-group">{{ group.product or group.product_name }}</div>
           {% for l in group.launches %}
-          <option value="{{ request.url.path }}?launch_code={{ l.code }}"
-                  {% if active_code == l.code %}selected{% endif %}>
+          <a class="bs-launch-picker-item {% if active_code == l.code %}active{% endif %}"
+             href="{{ _switch_base }}?launch_code={{ l.code }}">
             {{ l.code }}
-          </option>
+          </a>
           {% endfor %}
-        </optgroup>
-        {% endfor %}
-      </select>
-    </div>
+          {% endfor %}
+          {% endif %}
+        </div>
+      </div>
+
+      <span class="bs-mode-btn disabled" title="Em desenvolvimento">
+        <i class="ti ti-infinity"></i> Perpétuo <span class="bs-mode-soon">em breve</span>
+      </span>
+      <a class="bs-mode-btn {% if nav_mode == 'redes_sociais' %}active{% endif %}"
+         href="/instagram{% if active_code %}?launch_code={{ active_code }}{% endif %}">
+        <i class="ti ti-share"></i> Redes Sociais
+      </a>
+    </nav>
+
+    <!-- Navegação do modo Funis — versão vertical, só visível na gaveta mobile
+         (no desktop a mesma nav_groups vira a barra horizontal em #bs-subnav) -->
+    {% if nav_mode == 'funis' and nav_groups %}
+    <nav class="bs-nav bs-nav-mobile-only">
+      {% for group in nav_groups %}
+      {% if not loop.first %}<div class="bs-nav-sep"></div>{% endif %}
+      <div class="bs-nav-group">{{ group.label }}</div>
+      {% for item in group.links %}
+      <a class="bs-nav-link {% if page == item.page %}active{% endif %} {% if not item.enabled %}disabled{% endif %}"
+         href="{{ item.href }}">
+        <span class="bs-nav-icon"><i class="ti {{ item.icon }}"></i></span>{{ item.label }}
+      </a>
+      {% endfor %}
+      {% endfor %}
+    </nav>
     {% endif %}
 
-    <!-- Navegação completa (espelho do INDEX manual) -->
+    <!-- Navegação — modo Redes Sociais -->
+    {% if nav_mode == 'redes_sociais' %}
     <nav class="bs-nav">
-      <div class="bs-nav-group">Visão Geral</div>
-      <a class="bs-nav-link {% if page == 'index' %}active{% endif %}"
-         href="{% if active_code %}/?launch_code={{ active_code }}{% else %}/{% endif %}">
-        <span class="bs-nav-icon"><i class="ti ti-home"></i></span>Início
-      </a>
-      <a class="bs-nav-link {% if page == 'pre_qualificacao' %}active{% endif %}"
-         href="/pre-qualificacao{% if active_code %}?launch_code={{ active_code }}{% endif %}">
-        <span class="bs-nav-icon"><i class="ti ti-list-check"></i></span>Pré-Qualificação
-      </a>
-      <a class="bs-nav-link {% if page == 'captacao' %}active{% endif %}"
-         href="/captacao{% if active_code %}?launch_code={{ active_code }}{% endif %}">
-        <span class="bs-nav-icon"><i class="ti ti-target-arrow"></i></span>Captação
-      </a>
-      <a class="bs-nav-link {% if page == 'calendario' %}active{% endif %}"
-         href="/calendario">
-        <span class="bs-nav-icon"><i class="ti ti-calendar"></i></span>Calendário
-      </a>
-      <a class="bs-nav-link {% if page == 'funil' %}active{% endif %}"
-         href="/funil{% if active_code %}?launch_code={{ active_code }}{% endif %}">
-        <span class="bs-nav-icon"><i class="ti ti-git-merge"></i></span>Funil Completo
-      </a>
-      <a class="bs-nav-link {% if page == 'insights' %}active{% endif %}"
-         href="/insights{% if active_code %}?launch_code={{ active_code }}{% endif %}">
-        <span class="bs-nav-icon"><i class="ti ti-bulb"></i></span>Insights
-      </a>
-      {% if previous_launch %}
-      <a class="bs-nav-link {% if page == 'comparativo' %}active{% endif %}"
-         href="/comparativo?launch_code={{ active_code }}">
-        <span class="bs-nav-icon"><i class="ti ti-arrows-exchange"></i></span>Comparativo
-      </a>
-      {% endif %}
-      <a class="bs-nav-link {% if page == 'debriefing' %}active{% endif %}"
-         href="/debriefing{% if active_code %}?launch_code={{ active_code }}{% endif %}">
-        <span class="bs-nav-icon"><i class="ti ti-clipboard-check"></i></span>Debriefing
-      </a>
-
-      <div class="bs-nav-sep"></div>
-      <div class="bs-nav-group">Mídia Paga</div>
-      <a class="bs-nav-link {% if page == 'meta' %}active{% endif %}"
-         href="/meta{% if active_code %}?launch_code={{ active_code }}{% endif %}"
-         {% if not (launch and launch.has_meta) %}class="bs-nav-link disabled"{% endif %}>
-        <span class="bs-nav-icon"><i class="ti ti-brand-meta"></i></span>Meta Ads
-      </a>
-      <a class="bs-nav-link {% if page == 'google' %}active{% endif %}"
-         href="/google{% if active_code %}?launch_code={{ active_code }}{% endif %}"
-         {% if not (launch and launch.has_google) %}class="bs-nav-link disabled"{% endif %}>
-        <span class="bs-nav-icon"><i class="ti ti-brand-google"></i></span>Google Ads
-      </a>
-      <a class="bs-nav-link {% if page == 'criativos' %}active{% endif %}"
-         href="/criativos{% if active_code %}?launch_code={{ active_code }}{% endif %}"
-         {% if not (launch and launch.has_meta) %}class="bs-nav-link disabled"{% endif %}>
-        <span class="bs-nav-icon"><i class="ti ti-palette"></i></span>Criativos
-      </a>
+      <div class="bs-nav-group">Redes Sociais</div>
       <a class="bs-nav-link {% if page == 'instagram' %}active{% endif %}"
          href="/instagram{% if active_code %}?launch_code={{ active_code }}{% endif %}">
         <span class="bs-nav-icon"><i class="ti ti-brand-instagram"></i></span>Perfil Instagram
       </a>
+    </nav>
+    {% endif %}
 
-      {% if not current_user or current_user.role in ['admin','analista'] %}
-      <div class="bs-nav-sep"></div>
-      <div class="bs-nav-group">Leads & Audiências</div>
-      <a class="bs-nav-link {% if page == 'leads' %}active{% endif %} {% if not (launch and launch.has_ac) %}disabled{% endif %}"
-         href="/leads{% if active_code %}?launch_code={{ active_code }}{% endif %}">
-        <span class="bs-nav-icon"><i class="ti ti-users"></i></span>Leads Confronto
-      </a>
-      <a class="bs-nav-link {% if page == 'crm_campanhas' %}active{% endif %} {% if not (launch and launch.has_ac) %}disabled{% endif %}"
-         href="/crm-campanhas{% if active_code %}?launch_code={{ active_code }}{% endif %}">
-        <span class="bs-nav-icon"><i class="ti ti-mail"></i></span>Campanhas (E-mails)
-      </a>
-      <a class="bs-nav-link {% if page == 'meta-audiences' %}active{% endif %} {% if not (launch and launch.has_meta) %}disabled{% endif %}"
-         href="/meta-audiences{% if active_code %}?launch_code={{ active_code }}{% endif %}">
-        <span class="bs-nav-icon"><i class="ti ti-user-check"></i></span>Meta Audiências
-      </a>
-      <a class="bs-nav-link {% if page == 'google-audiences' %}active{% endif %} {% if not (launch and launch.has_google) %}disabled{% endif %}"
-         href="/google-audiences{% if active_code %}?launch_code={{ active_code }}{% endif %}">
-        <span class="bs-nav-icon"><i class="ti ti-trending-up"></i></span>Google Audiências
-      </a>
-      <a class="bs-nav-link {% if page == 'typeform' %}active{% endif %} {% if not (launch and launch.has_typeform) %}disabled{% endif %}"
-         href="/typeform{% if active_code %}?launch_code={{ active_code }}{% endif %}">
-        <span class="bs-nav-icon"><i class="ti ti-clipboard-list"></i></span>Typeform
-      </a>
-      <a class="bs-nav-link {% if page == 'whatsapp' %}active{% endif %}"
-         href="/whatsapp{% if active_code %}?launch_code={{ active_code }}{% endif %}">
-        <span class="bs-nav-icon"><i class="ti ti-brand-whatsapp"></i></span>Grupos de WhatsApp
-      </a>
-      {% elif current_user.role == 'trafego' %}
-      <div class="bs-nav-sep"></div>
-      <div class="bs-nav-group">Audiências</div>
-      <a class="bs-nav-link {% if page == 'meta-audiences' %}active{% endif %} {% if not (launch and launch.has_meta) %}disabled{% endif %}"
-         href="/meta-audiences{% if active_code %}?launch_code={{ active_code }}{% endif %}">
-        <span class="bs-nav-icon"><i class="ti ti-user-check"></i></span>Meta Audiências
-      </a>
-      <a class="bs-nav-link {% if page == 'google-audiences' %}active{% endif %} {% if not (launch and launch.has_google) %}disabled{% endif %}"
-         href="/google-audiences{% if active_code %}?launch_code={{ active_code }}{% endif %}">
-        <span class="bs-nav-icon"><i class="ti ti-trending-up"></i></span>Google Audiências
-      </a>
-      {% endif %}
-
-      {% if not current_user or current_user.role in ['admin','analista'] %}
-      <div class="bs-nav-sep"></div>
-      <div class="bs-nav-group">Vendas</div>
-      <a class="bs-nav-link {% if page == 'vendas' %}active{% endif %} {% if not (launch and launch.has_vendas) %}disabled{% endif %}"
-         href="/vendas{% if active_code %}?launch_code={{ active_code }}{% endif %}">
-        <span class="bs-nav-icon"><i class="ti ti-coin"></i></span>Vendas
-      </a>
-      <a class="bs-nav-link {% if page == 'hotmart' %}active{% endif %} {% if not (launch and launch.has_hotmart) %}disabled{% endif %}"
-         href="/hotmart{% if active_code %}?launch_code={{ active_code }}{% endif %}">
-        <span class="bs-nav-icon"><i class="ti ti-file-text"></i></span>Hotmart
-      </a>
-      <a class="bs-nav-link {% if page == 'tmb' %}active{% endif %} {% if not (launch and launch.has_tmb) %}disabled{% endif %}"
-         href="/tmb{% if active_code %}?launch_code={{ active_code }}{% endif %}">
-        <span class="bs-nav-icon"><i class="ti ti-file-text"></i></span>TMB
-      </a>
-      {% endif %}
-
+    <!-- Sistema — fora dos modos, só pra admin -->
+    {% if current_user and current_user.role == 'admin' %}
+    <div style="flex-shrink:0;">
       <div class="bs-nav-sep"></div>
       <div class="bs-nav-group">Sistema</div>
-      {% if launch %}
-      <div style="padding:5px 10px 4px">
-        <span class="bs-live-badge"><span class="bs-live-dot"></span> {{ launch.code }}</span>
-      </div>
-      {% endif %}
-      {% if current_user and current_user.role == 'admin' %}
-      <a class="bs-nav-link {% if page == 'settings' %}active{% endif %}"
+      <a class="bs-mode-btn {% if page == 'settings' %}active{% endif %}"
          href="/settings{% if active_code %}?launch_code={{ active_code }}{% endif %}">
-        <span class="bs-nav-icon"><i class="ti ti-settings"></i></span>Configurações
+        <i class="ti ti-settings"></i> Configurações
       </a>
-      <button class="bs-nav-link" id="bs-run-etl-btn" onclick="bsRunEtl()" style="width:100%;text-align:left;background:none;border:none;cursor:pointer;font:inherit;">
-        <span class="bs-nav-icon"><i class="ti ti-refresh"></i></span>Rodar ETL agora
+      <button type="button" class="bs-mode-btn" id="bs-run-etl-btn" onclick="bsRunEtl()">
+        <i class="ti ti-refresh"></i> Rodar ETL
       </button>
       {% set _synced = etl_status.values() | selectattr('last_ok_at') | list %}
       {% set _last = (_synced | sort(attribute='last_ok_at') | last) if _synced else None %}
@@ -1178,8 +1205,8 @@ kbd {
           Sem histórico de sincronização ainda
         {% endif %}
       </div>
-      {% endif %}
-    </nav>
+    </div>
+    {% endif %}
 
     <!-- Conta do usuário -->
     {% if current_user %}
@@ -1222,7 +1249,25 @@ kbd {
   </aside>
 
   <!-- ── CONTEÚDO PRINCIPAL ────────────────────────────────────────── -->
-  <main id="bs-main">
+  <main id="bs-main" class="{% if nav_mode == 'funis' and nav_groups %}has-subnav{% endif %}">
+    {% if nav_mode == 'funis' and nav_groups %}
+    <nav class="bs-subnav" id="bs-subnav">
+      {% for group in nav_groups %}
+      <div class="bs-subnav-group">
+        <button type="button" class="bs-subnav-btn {% if group.active %}active{% endif %}" onclick="bsSubnavToggle(this)">
+          <i class="ti {{ group.icon }}"></i> {{ group.label }} <i class="ti ti-chevron-down bs-subnav-chevron"></i>
+        </button>
+        <div class="bs-subnav-dropdown">
+          {% for item in group.links %}
+          <a class="bs-subnav-link {% if page == item.page %}active{% endif %} {% if not item.enabled %}disabled{% endif %}" href="{{ item.href }}">
+            <i class="ti {{ item.icon }}"></i> {{ item.label }}
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </nav>
+    {% endif %}
     {% if db_ok == false %}
     <div style="background:var(--bs-danger);color:#fff;padding:10px 20px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;border-radius:0 0 var(--bs-r-md) var(--bs-r-md);margin-bottom:16px;">
       <i class="ti ti-database-off"></i>
@@ -1408,11 +1453,43 @@ window.bsMenuToggle = function(force) {
   if (overlay) overlay.classList.toggle('open', open);
   document.body.style.overflow = open ? 'hidden' : '';
 };
-document.querySelectorAll('#bs-drawer .bs-nav-link, #bs-drawer .bs-camp-select').forEach(function(el) {
+document.querySelectorAll('#bs-drawer .bs-nav-link, #bs-drawer .bs-camp-select, #bs-drawer .bs-launch-picker-item, #bs-drawer .bs-launch-picker-all').forEach(function(el) {
   el.addEventListener('click', function() { if (window.innerWidth <= 1024) bsMenuToggle(false); });
 });
 window.addEventListener('resize', function() {
   if (window.innerWidth > 1024) bsMenuToggle(false);
+});
+
+/* ── Seletor de lançamento (botão Lançamentos na trilha) ─────────────── */
+window.bsLaunchPickerToggle = function() {
+  var picker = document.getElementById('bs-launch-picker');
+  if (!picker) return;
+  picker.classList.toggle('open');
+};
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#bs-launch-picker')) {
+    var picker = document.getElementById('bs-launch-picker');
+    if (picker) picker.classList.remove('open');
+  }
+});
+
+/* ── Subnav horizontal (modo Funis, desktop) — clique abre/fecha ─────── */
+window.bsSubnavToggle = function(btn) {
+  var group = btn.closest('.bs-subnav-group');
+  if (!group) return;
+  var open = group.classList.contains('open');
+  document.querySelectorAll('.bs-subnav-group.open').forEach(function(g) { g.classList.remove('open'); });
+  group.classList.toggle('open', !open);
+};
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('.bs-subnav-group')) {
+    document.querySelectorAll('.bs-subnav-group.open').forEach(function(g) { g.classList.remove('open'); });
+  }
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.bs-subnav-group.open').forEach(function(g) { g.classList.remove('open'); });
+  }
 });
 
 /* ── Account dropdown ───────────────────────────────────────────────── */

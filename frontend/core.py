@@ -219,6 +219,97 @@ def _v1_reports_for_launch(launch: Launch | None) -> list[dict]:
 
 # ── Contexto base ──────────────────────────────────────────────────────────────
 
+def _build_funis_nav_groups(launch, active_code, page, current_user, previous_launch) -> list[dict]:
+    """Grupos de navegação do modo Funis — usados tanto na barra horizontal
+    (desktop) quanto na lista vertical dentro da gaveta (mobile), pra não
+    duplicar a lógica de habilitado/desabilitado e visibilidade por role."""
+    def _href(path: str) -> str:
+        return f"{path}?launch_code={active_code}" if active_code else path
+
+    user_role = (current_user or {}).get("role") if current_user else None
+    is_admin_or_analista = not current_user or user_role in ("admin", "analista")
+    is_trafego = bool(current_user) and user_role == "trafego"
+
+    groups = [
+        {
+            "key": "visao_geral", "label": "Visão Geral", "icon": "ti-layout-dashboard",
+            "links": [
+                {"page": "index", "label": "Início", "icon": "ti-home",
+                 "href": _href("/"), "enabled": True},
+                {"page": "pre_qualificacao", "label": "Pré-Qualificação", "icon": "ti-list-check",
+                 "href": _href("/pre-qualificacao"), "enabled": True},
+                {"page": "captacao", "label": "Captação", "icon": "ti-target-arrow",
+                 "href": _href("/captacao"), "enabled": True},
+                {"page": "funil", "label": "Funil Completo", "icon": "ti-git-merge",
+                 "href": _href("/funil"), "enabled": True},
+                {"page": "insights", "label": "Insights", "icon": "ti-bulb",
+                 "href": _href("/insights"), "enabled": True},
+                {"page": "comparativo", "label": "Comparativo", "icon": "ti-arrows-exchange",
+                 "href": f"/comparativo?launch_code={active_code}", "enabled": bool(previous_launch)},
+                {"page": "debriefing", "label": "Debriefing", "icon": "ti-clipboard-check",
+                 "href": _href("/debriefing"), "enabled": True},
+            ],
+        },
+        {
+            "key": "midia_paga", "label": "Mídia Paga", "icon": "ti-speakerphone",
+            "links": [
+                {"page": "meta", "label": "Meta Ads", "icon": "ti-brand-meta",
+                 "href": _href("/meta"), "enabled": bool(launch and launch.has_meta)},
+                {"page": "google", "label": "Google Ads", "icon": "ti-brand-google",
+                 "href": _href("/google"), "enabled": bool(launch and launch.has_google)},
+                {"page": "criativos", "label": "Criativos", "icon": "ti-palette",
+                 "href": _href("/criativos"), "enabled": bool(launch and launch.has_meta)},
+            ],
+        },
+    ]
+
+    if is_admin_or_analista:
+        groups.append({
+            "key": "leads_audiencias", "label": "Leads & Audiências", "icon": "ti-users",
+            "links": [
+                {"page": "leads", "label": "Leads Confronto", "icon": "ti-users",
+                 "href": _href("/leads"), "enabled": bool(launch and launch.has_ac)},
+                {"page": "crm_campanhas", "label": "Campanhas (E-mails)", "icon": "ti-mail",
+                 "href": _href("/crm-campanhas"), "enabled": bool(launch and launch.has_ac)},
+                {"page": "meta-audiences", "label": "Meta Audiências", "icon": "ti-user-check",
+                 "href": _href("/meta-audiences"), "enabled": bool(launch and launch.has_meta)},
+                {"page": "google-audiences", "label": "Google Audiências", "icon": "ti-trending-up",
+                 "href": _href("/google-audiences"), "enabled": bool(launch and launch.has_google)},
+                {"page": "typeform", "label": "Typeform", "icon": "ti-clipboard-list",
+                 "href": _href("/typeform"), "enabled": bool(launch and launch.has_typeform)},
+                {"page": "whatsapp", "label": "Grupos de WhatsApp", "icon": "ti-brand-whatsapp",
+                 "href": _href("/whatsapp"), "enabled": True},
+            ],
+        })
+    elif is_trafego:
+        groups.append({
+            "key": "audiencias", "label": "Audiências", "icon": "ti-users",
+            "links": [
+                {"page": "meta-audiences", "label": "Meta Audiências", "icon": "ti-user-check",
+                 "href": _href("/meta-audiences"), "enabled": bool(launch and launch.has_meta)},
+                {"page": "google-audiences", "label": "Google Audiências", "icon": "ti-trending-up",
+                 "href": _href("/google-audiences"), "enabled": bool(launch and launch.has_google)},
+            ],
+        })
+
+    if is_admin_or_analista:
+        groups.append({
+            "key": "vendas", "label": "Vendas", "icon": "ti-coin",
+            "links": [
+                {"page": "vendas", "label": "Vendas", "icon": "ti-coin",
+                 "href": _href("/vendas"), "enabled": bool(launch and launch.has_vendas)},
+                {"page": "hotmart", "label": "Hotmart", "icon": "ti-file-text",
+                 "href": _href("/hotmart"), "enabled": bool(launch and launch.has_hotmart)},
+                {"page": "tmb", "label": "TMB", "icon": "ti-file-text",
+                 "href": _href("/tmb"), "enabled": bool(launch and launch.has_tmb)},
+            ],
+        })
+
+    for group in groups:
+        group["active"] = any(item["page"] == page for item in group["links"])
+    return groups
+
+
 def _base_ctx(
     request: Request,
     page: str,
@@ -249,9 +340,26 @@ def _base_ctx(
     if launch:
         v1_launch_url = _v1_url_if_exists(launch, "INDEX_[{code}].html")
 
+    if page == "instagram":
+        nav_mode = "redes_sociais"
+    elif page == "lancamentos":
+        nav_mode = "lancamentos"
+    elif page == "calendario":
+        nav_mode = "calendario"
+    else:
+        nav_mode = "funis"
+
+    previous_launch = find_previous_launch(launch, launches) if launch else None
+    nav_groups = (
+        _build_funis_nav_groups(launch, launch.code if launch else None, page, current_user, previous_launch)
+        if nav_mode == "funis" else []
+    )
+
     return {
         "request":         request,
         "page":            page,
+        "nav_mode":        nav_mode,
+        "nav_groups":      nav_groups,
         "title":           title,
         "launch":          launch,
         "launches":        visible_launches,
@@ -259,7 +367,7 @@ def _base_ctx(
         "v1_launch_url":   v1_launch_url,
         "active_code":     launch.code if launch else None,
         "accent":          launch.accent if launch else "#2f5ee3",
-        "previous_launch": find_previous_launch(launch, launches) if launch else None,
+        "previous_launch": previous_launch,
         "current_user":    current_user,
         "db_ok":           _LAUNCHES_DB_OK,
         "etl_status":      get_etl_status(),

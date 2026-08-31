@@ -150,12 +150,9 @@ async def insights_page(request: Request, launch_code: str | None = None):
     return templates.TemplateResponse("insights.html", ctx)
 
 
-@router.get("/calendario", response_class=HTMLResponse)
-async def calendario_page(request: Request, launch_code: str | None = None):
+def _load_calendario_embed() -> tuple[str, str]:
+    """Lê o HTML estático do calendário e devolve (styles, body) prontos pra embutir."""
     from bs4 import BeautifulSoup
-    launches = await run_in_threadpool(get_launches)
-    launch   = resolve_launch(launch_code, launches)
-
     cal_html_path = WORKSPACE_ROOT / "frontend" / "static" / "calendario" / "SISTEMA_CALENDARIO_2026.html"
     try:
         soup = BeautifulSoup(cal_html_path.read_text(encoding="utf-8"), "html.parser")
@@ -165,14 +162,54 @@ async def calendario_page(request: Request, launch_code: str | None = None):
         )
         main = soup.find("main", id="bs-main")
         cal_body = main.decode_contents() if main else ""
+        return cal_styles, cal_body
     except Exception:
         logger.exception("Falha ao carregar arquivo de calendário")
-        cal_styles = ""
-        cal_body = "<p>Arquivo de calendário não encontrado.</p>"
+        return "", "<p>Arquivo de calendário não encontrado.</p>"
+
+
+@router.get("/calendario", response_class=HTMLResponse)
+async def calendario_page(request: Request, launch_code: str | None = None):
+    launches = await run_in_threadpool(get_launches)
+    launch   = resolve_launch(launch_code, launches)
+    cal_styles, cal_body = await run_in_threadpool(_load_calendario_embed)
 
     ctx = _base_ctx(request, "calendario", "Calendário", launch, launches,
                     cal_styles=cal_styles, cal_body=cal_body)
     return templates.TemplateResponse("calendario.html", ctx)
+
+
+@router.get("/lancamentos", response_class=HTMLResponse)
+async def lancamentos_page(request: Request, launch_code: str | None = None):
+    from frontend.services.fetch import _meta, _google, _vendas  # noqa: PLC0415
+
+    launches = await run_in_threadpool(get_launches)
+    launch   = resolve_launch(launch_code, launches)
+
+    def _summary(l):
+        try:
+            m = _meta(l) if l.has_meta else None
+            g = _google(l) if l.has_google else None
+            v = _vendas(l) if l.has_vendas else None
+            leads  = (m.total_leads if m else 0) + (int(round(g.total_conversoes)) if g else 0)
+            invest = (m.total_gasto if m else 0.0) + (g.total_custo if g else 0.0)
+            receita = v.total_receita if v else 0.0
+            return {
+                "leads": leads, "invest": invest, "receita": receita,
+                "roas": receita / invest if invest > 0 else 0.0,
+            }
+        except Exception:
+            logger.exception("Lançamentos: falha ao resumir %s", l.code)
+            return {"leads": 0, "invest": 0.0, "receita": 0.0, "roas": 0.0}
+
+    ctx = _base_ctx(request, "lancamentos", "Lançamentos", launch, launches)
+    summaries = await asyncio.gather(*[
+        run_in_threadpool(_summary, l) for l in ctx["launches"]
+    ])
+    summary_by_code = {l.code: s for l, s in zip(ctx["launches"], summaries)}
+    ctx["summary_by_code"] = summary_by_code
+
+    return templates.TemplateResponse("lancamentos.html", ctx)
 
 
 @router.get("/comparativo", response_class=HTMLResponse)

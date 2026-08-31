@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block head %}
+<style>
+.ldg-product { margin-bottom: 32px; }
+.ldg-product-title {
+  font-size: 15px; font-weight: 800; color: var(--bs-ink);
+  margin-bottom: 14px; display: flex; align-items: center; gap: 10px;
+}
+.ldg-product-count {
+  font-size: 11px; font-weight: 700; color: var(--bs-ink-muted);
+  background: var(--bs-accent-bg); padding: 2px 10px; border-radius: 999px;
+}
+.ldg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+.ldg-card {
+  display: block; background: var(--bs-card); border-radius: var(--bs-r-lg);
+  padding: 16px; box-shadow: var(--bs-sh-sm); text-decoration: none; color: inherit;
+  border-top: 3px solid var(--bs-accent); transition: box-shadow .15s, transform .15s;
+}
+.ldg-card:hover { box-shadow: var(--bs-sh-md); transform: translateY(-2px); }
+.ldg-card-code { font-size: 15px; font-weight: 800; color: var(--bs-ink); }
+.ldg-card-dates { font-size: 11px; color: var(--bs-ink-muted); margin-top: 2px; }
+.ldg-card-stats { display: flex; justify-content: space-between; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--bs-border); }
+.ldg-stat { text-align: left; }
+.ldg-stat-val { font-size: 13px; font-weight: 800; color: var(--bs-ink); }
+.ldg-stat-val.roas-good { color: #15803d; }
+.ldg-stat-val.roas-bad  { color: #dc2626; }
+.ldg-stat-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--bs-ink-subtle); margin-top: 2px; }
+.ldg-cal-link {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--bs-accent); color: #fff; text-decoration: none;
+  padding: 10px 18px; border-radius: var(--bs-r-lg); font-size: 13px; font-weight: 700;
+  margin-bottom: 28px; transition: filter .12s;
+}
+.ldg-cal-link:hover { filter: brightness(1.08); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/lancamentos">
+      <img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics">
+    </a>
+    <div>
+      <h1>Lançamentos</h1>
+      <p>Todos os projetos e lançamentos cadastrados no sistema</p>
+    </div>
+  </div>
+
+  <div class="content">
+    <a class="ldg-cal-link" href="/calendario">
+      <i class="ti ti-calendar"></i> Ver calendário operacional completo
+    </a>
+
+    {% if not launch_groups %}
+    <div class="no-data">
+      <i class="ti ti-folder-off"></i>
+      <h3>Nenhum lançamento encontrado</h3>
+      <p>Adicione uma pasta no padrão <code>[PBB-ABR-26]</code> dentro de <code>analises/</code></p>
+    </div>
+    {% else %}
+
+    {% for group in launch_groups %}
+    <div class="ldg-product">
+      <div class="ldg-product-title">
+        <i class="ti ti-folder"></i>
+        {% if group.product and group.product_name and group.product != group.product_name %}{{ group.product }} — {{ group.product_name }}
+        {% else %}{{ group.product_name or group.product }}{% endif %}
+        <span class="ldg-product-count">{{ group.launches | length }} lançamento{{ 's' if group.launches | length != 1 else '' }}</span>
+      </div>
+      <div class="ldg-grid">
+        {% for l in group.launches %}
+        {% set s = summary_by_code.get(l.code, {}) %}
+        <a class="ldg-card" href="/?launch_code={{ l.code }}" style="border-top-color:{{ l.accent }}">
+          <div class="ldg-card-code">{{ l.code }}</div>
+          <div class="ldg-card-dates">
+            {{ l.data_inicio | br_date if l.data_inicio else '—' }}
+            {% if l.data_fim %} — {{ l.data_fim | br_date }}{% endif %}
+          </div>
+          <div class="ldg-card-stats">
+            <div class="ldg-stat">
+              <div class="ldg-stat-val">{{ s.leads | default(0) | num }}</div>
+              <div class="ldg-stat-lbl">Leads</div>
+            </div>
+            <div class="ldg-stat">
+              <div class="ldg-stat-val">{{ s.receita | default(0) | brl(0) }}</div>
+              <div class="ldg-stat-lbl">Vendas</div>
+            </div>
+            <div class="ldg-stat">
+              <div class="ldg-stat-val {{ 'roas-good' if (s.roas | default(0)) >= 2 else ('roas-bad' if (s.roas | default(0)) > 0 else '') }}">{{ "%.2f"|format(s.roas | default(0)) | replace(".", ",") }}x</div>
+              <div class="ldg-stat-lbl">ROAS</div>
+            </div>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endfor %}
+
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

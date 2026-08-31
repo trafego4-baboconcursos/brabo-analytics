@@ -48,7 +48,8 @@ PAGINAS = [
     "/crm-campanhas",
     "/meta-audiences",
     "/google-audiences",
-    "/typeform",
+    "/pesquisas",
+    "/typeform",  # link legado — redireciona pra /pesquisas
     "/vendas",
     "/hotmart",
     "/tmb",

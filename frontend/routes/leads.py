@@ -1,6 +1,6 @@
 from __future__ import annotations
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.concurrency import run_in_threadpool
 
 from frontend.core import (
@@ -23,15 +23,22 @@ async def leads_page(request: Request, launch_code: str | None = None):
     return templates.TemplateResponse("leads.html", ctx)
 
 
-@router.get("/typeform", response_class=HTMLResponse)
-async def typeform_page(request: Request, launch_code: str | None = None):
+@router.get("/pesquisas", response_class=HTMLResponse)
+async def pesquisas_page(request: Request, launch_code: str | None = None):
     launches = await run_in_threadpool(get_launches)
     launch = resolve_launch(launch_code, launches)
     d = await _fetch_all_data(launch, needs_tf=True)
     tf_data = d["tf"]
-    ctx = _base_ctx(request, "typeform", "Typeform", launch, launches, tf=tf_data,
+    ctx = _base_ctx(request, "pesquisas", "Pesquisas", launch, launches, tf=tf_data,
                     data_errors=d.get("_errors", []))
-    return templates.TemplateResponse("typeform.html", ctx)
+    return templates.TemplateResponse("pesquisas.html", ctx)
+
+
+@router.get("/typeform", response_class=HTMLResponse)
+async def typeform_page_legacy(request: Request, launch_code: str | None = None):
+    """Link antigo — a página foi renomeada pra "Pesquisas" (cobre Typeform + sistema interno)."""
+    qs = f"?launch_code={launch_code}" if launch_code else ""
+    return RedirectResponse(url=f"/pesquisas{qs}", status_code=307)
 
 
 @router.get("/whatsapp", response_class=HTMLResponse)

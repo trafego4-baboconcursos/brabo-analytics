@@ -1,9 +1,9 @@
 """
-frontend/db_readers/typeform.py — Integração com a API do Typeform e leitura do banco.
+frontend/db_readers/typeform.py — Leitura das respostas/formulários do Typeform no banco
+(a conta do Typeform foi cancelada; tudo vem do backup em Supabase).
 """
 from __future__ import annotations
 
-import os
 import json
 import re
 import time as _time_module
@@ -17,7 +17,7 @@ from logger import get_logger
 from frontend.utils import _norm_text, _extract_launch_code
 from frontend.db import _get_engine
 from frontend.models import TypeformSummary
-from src.typeform_resolve import fetch_typeform_forms, resolve_projeto_alunos_form_ids
+from src.typeform_resolve import resolve_projeto_alunos_form_ids
 
 logger = get_logger("db")
 
@@ -25,24 +25,55 @@ _typeform_forms_cache: dict[str, str] | None = None
 _typeform_forms_cache_expiry: float = 0.0
 _typeform_fields_cache: dict[str, dict[str, str]] = {}
 
-_TYPEFORM_CACHE_TTL_OK  = 1800.0   # 30 min quando API responde
-_TYPEFORM_CACHE_TTL_ERR = 3600.0   # 1 h quando API falha (backoff)
+_TYPEFORM_CACHE_TTL_OK  = 1800.0   # 30 min quando a leitura do banco funciona
+_TYPEFORM_CACHE_TTL_ERR = 3600.0   # 1 h quando falha (backoff)
+
+# typeform_respostas (sync ao vivo, só lançamentos recentes) + os dois backups
+# completos das duas contas Typeform (feitos antes do cancelamento da API) —
+# tratadas como uma fonte só, deduplicada por response_id (a mais recente por
+# updated_at, quando o mesmo response_id aparece em mais de uma tabela).
+# O filtro (where_sql) é aplicado dentro de cada tabela antes do UNION — se
+# aplicado só por fora, o DISTINCT ON teria que varrer ~1M linhas a cada
+# chamada (era o caso de read_typeform_count, pensada pra ser barata).
+_TF_RESPOSTAS_TABLES = ("typeform_respostas", "typeform_respostas_backup", "typeform_respostas_backup_2")
+
+
+def _tf_source(where_sql: str, cols: str = "*") -> str:
+    branches = " UNION ALL ".join(
+        f"SELECT {cols} FROM {t} WHERE {where_sql}" for t in _TF_RESPOSTAS_TABLES
+    )
+    return f"""
+        (
+            SELECT DISTINCT ON (response_id) *
+            FROM ({branches}) tf_all
+            ORDER BY response_id, updated_at DESC NULLS LAST
+        )
+    """
 
 
 def _get_typeform_forms() -> dict[str, str]:
+    """form_id -> título, lido do backup local (typeform_forms/typeform_forms_2).
+
+    Substituiu a chamada à API do Typeform (conta cancelada) — o backup foi
+    feito antes do cancelamento e cobre todos os formulários já criados.
+    Formulários novos não existirão mais, então não há dado a perder.
+    """
     global _typeform_forms_cache, _typeform_forms_cache_expiry
     now = _time_module.time()
     if _typeform_forms_cache is not None and now < _typeform_forms_cache_expiry:
         return _typeform_forms_cache
 
-    token = os.environ.get("TYPEFORM_TOKEN")
-    if not token:
-        return {}
+    engine = _get_engine()
     try:
-        _typeform_forms_cache = fetch_typeform_forms(token)
+        with engine.connect() as conn:
+            rows = conn.execute(text(
+                "SELECT form_id, title FROM typeform_forms "
+                "UNION SELECT form_id, title FROM typeform_forms_2"
+            )).fetchall()
+        _typeform_forms_cache = {r[0]: r[1] for r in rows}
         _typeform_forms_cache_expiry = now + _TYPEFORM_CACHE_TTL_OK
     except Exception:
-        logger.exception("Erro ao obter formulários da API do Typeform")
+        logger.exception("Erro ao ler backup de formulários do Typeform (typeform_forms)")
         _typeform_forms_cache = {}
         _typeform_forms_cache_expiry = now + _TYPEFORM_CACHE_TTL_ERR
 
@@ -50,34 +81,102 @@ def _get_typeform_forms() -> dict[str, str]:
 
 
 def _get_typeform_fields(form_id: str) -> dict[str, str]:
-    global _typeform_fields_cache
-    if form_id in _typeform_fields_cache:
-        return _typeform_fields_cache[form_id]
+    """Mapeamento field_id -> título da pergunta.
 
-    token = os.environ.get("TYPEFORM_TOKEN")
-    if not token:
-        return {}
-
-    import requests
-    headers = {"Authorization": f"Bearer {token}"}
-    url = f"https://api.typeform.com/forms/{form_id}"
-    try:
-        r = requests.get(url, headers=headers, timeout=10)
-        r.raise_for_status()
-        form_data = r.json()
-        fields = form_data.get("fields", [])
-        mapping = {f["id"]: f["title"] for f in fields if "id" in f and "title" in f}
-        _typeform_fields_cache[form_id] = mapping
-    except Exception:
-        logger.exception("Erro ao obter campos do form %s no Typeform", form_id)
-        _typeform_fields_cache[form_id] = {}
-
-    return _typeform_fields_cache[form_id]
+    Não há mais chamada à API do Typeform (conta cancelada) e o backup das
+    respostas não guarda field.title dentro do JSON. Sem esse mapeamento,
+    _reconstruct_tabular_df cai no fallback (field_id cru como nome de
+    coluna) — os relatórios de perfil/demografia do /typeform ficam com
+    nomes de coluna ilegíveis até esse mapeamento ser recuperado de outra
+    fonte (ex: export manual do Typeform antes do cancelamento).
+    """
+    return _typeform_fields_cache.get(form_id, {})
 
 
 def _resolve_typeform_ids(code: str) -> tuple[Optional[str], Optional[str]]:
     forms = _get_typeform_forms()
     return resolve_projeto_alunos_form_ids(code, forms)
+
+
+# ── Sistema de pesquisa novo (substituiu o Typeform a partir do PBB-AGO-26) ──
+# Schema normalizado: formularios (1 por lançamento) → perguntas (uma linha por
+# pergunta, titulo já é o texto legível) → submissoes (1 por resposta) →
+# respostas (1 linha por pergunta respondida, valor jsonb: 'texto'/'opcao'/
+# 'opcoes'+'texto_outro'). Sem o gap de field-title que existe no Typeform.
+
+def _resolve_novo_sistema_formulario_ids(code: str) -> list[int]:
+    """Formulários cujo título contém o código do lançamento (ex: '[PBB-AGO-26]')."""
+    engine = _get_engine()
+    with engine.connect() as conn:
+        ids = conn.execute(
+            text("SELECT id FROM formularios WHERE publicado = true AND lower(titulo) LIKE :pat"),
+            {"pat": f"%{code.lower()}%"},
+        ).scalars().all()
+    return list(ids)
+
+
+def _read_novo_sistema_emails(formulario_ids: list[int]) -> set[str]:
+    """Só os e-mails — equivalente leve pro contador (read_typeform_count)."""
+    if not formulario_ids:
+        return set()
+    engine = _get_engine()
+    with engine.connect() as conn:
+        emails = conn.execute(text("""
+            SELECT DISTINCT r.valor->>'texto' AS email
+            FROM submissoes s
+            JOIN respostas r ON r.submissao_id = s.id
+            JOIN perguntas p ON p.id = r.pergunta_id
+            WHERE s.formulario_id = ANY(:fids) AND p.tipo = 'email'
+        """), {"fids": formulario_ids}).scalars().all()
+    return {str(e).strip().lower() for e in emails if e and "@" in str(e)}
+
+
+def _read_novo_sistema_respostas(formulario_ids: list[int]) -> pd.DataFrame:
+    """Tabular email_norm + uma coluna por pergunta (titulo), no mesmo formato
+    que _reconstruct_tabular_df produz pro Typeform — dá pra concatenar direto."""
+    if not formulario_ids:
+        return pd.DataFrame()
+
+    engine = _get_engine()
+    raw = pd.read_sql(text("""
+        SELECT s.id AS submissao_id, p.titulo AS pergunta, r.valor
+        FROM submissoes s
+        JOIN respostas r ON r.submissao_id = s.id
+        JOIN perguntas p ON p.id = r.pergunta_id
+        WHERE s.formulario_id = ANY(:fids)
+    """), engine, params={"fids": formulario_ids})
+    if raw.empty:
+        return pd.DataFrame()
+
+    def _extract_valor(v: Any) -> str:
+        if not isinstance(v, dict):
+            return ""
+        if "opcoes" in v:
+            parts = [str(p) for p in (v.get("opcoes") or [])]
+            outro = v.get("texto_outro")
+            if outro:
+                parts.append(str(outro))
+            return ", ".join(parts)
+        if "opcao" in v:
+            val = str(v.get("opcao") or "")
+            outro = v.get("texto_outro")
+            return f"{val} ({outro})" if outro else val
+        return str(v.get("texto") or "")
+
+    raw["valor_str"] = raw["valor"].apply(_extract_valor)
+    # Se duas perguntas de formulários diferentes casados pelo mesmo código
+    # tiverem o título idêntico, aggfunc="first" evita erro de pivot — não é
+    # o caso hoje (1 formulário por código), mas não quebra se acontecer.
+    wide = raw.pivot_table(index="submissao_id", columns="pergunta", values="valor_str", aggfunc="first")
+    wide = wide.reset_index(drop=True)
+
+    email_col = next((c for c in wide.columns if "mail" in _norm_text(c)), None)
+    if not email_col:
+        return pd.DataFrame()
+
+    wide["email_norm"] = wide[email_col].astype(str).str.strip().str.lower()
+    wide = wide[wide["email_norm"].str.contains("@", na=False)]
+    return wide
 
 
 def _reconstruct_tabular_df(tf_df_raw: pd.DataFrame) -> list[dict[str, Any]]:
@@ -297,22 +396,31 @@ def read_typeform_count(launch_folder_or_code: Any) -> int:
     if not proj_id:
         proj_id = code
 
+    count_cols = "response_id, updated_at, email"
     with engine.connect() as conn:
+        fid_where = "upper(coalesce(form_id, '')) = :fid"
         emails = conn.execute(
-            text("SELECT email FROM typeform_respostas WHERE upper(coalesce(form_id, '')) = :fid"),
+            text("SELECT email FROM " + _tf_source(fid_where, count_cols) + " t"),
             {"fid": proj_id.upper()},
         ).scalars().all()
         if not emails:
             emails = conn.execute(
-                text("""
-                    SELECT email FROM typeform_respostas
-                    WHERE submitted_at::date BETWEEN :start AND :end
-                      AND upper(coalesce(form_id, '')) = :code
-                """),
+                text(
+                    "SELECT email FROM "
+                    + _tf_source(
+                        "submitted_at::date BETWEEN :start AND :end AND upper(coalesce(form_id, '')) = :code",
+                        count_cols,
+                    )
+                    + " t"
+                ),
                 {"start": dim_start, "end": dim_end, "code": code.upper()},
             ).scalars().all()
 
     norm_emails = {str(e).strip().lower() for e in emails if e and "@" in str(e)}
+
+    novo_fids = _resolve_novo_sistema_formulario_ids(code)
+    norm_emails |= _read_novo_sistema_emails(novo_fids)
+
     return len(norm_emails)
 
 
@@ -337,44 +445,45 @@ def read_typeform(launch_folder_or_code: Any, start_date=None, end_date=None) ->
         proj_id = code
 
     # 1. Carrega dados do Typeform do Supabase
+    fid_where = "upper(coalesce(form_id, '')) = :fid"
     tf_df_raw = pd.read_sql(
-        text("SELECT * FROM typeform_respostas WHERE upper(coalesce(form_id, '')) = :fid"),
+        text("SELECT * FROM " + _tf_source(fid_where) + " t"),
         engine,
         params={"fid": proj_id.upper()}
     )
     if tf_df_raw.empty:
         # Fallback histórico por data e código do lançamento
+        date_where = "submitted_at::date BETWEEN :start AND :end AND upper(coalesce(form_id, '')) = :code"
         tf_df_raw = pd.read_sql(
-            text("""
-                SELECT *
-                FROM typeform_respostas
-                WHERE submitted_at::date BETWEEN :start AND :end
-                  AND upper(coalesce(form_id, '')) = :code
-            """),
+            text("SELECT * FROM " + _tf_source(date_where) + " t"),
             engine,
             params={"start": dim_start, "end": dim_end, "code": code.upper()}
         )
 
-    if tf_df_raw.empty:
+    # Reconstruir o DataFrame tabular baseado nas respostas JSONB (Typeform)
+    records = _reconstruct_tabular_df(tf_df_raw) if not tf_df_raw.empty else []
+    tf_df_typeform = pd.DataFrame(records)
+
+    # Respostas do sistema de pesquisa novo (PBB-AGO-26 em diante) — mesmo
+    # código do lançamento, formulário próprio, sem passar pelo Typeform.
+    novo_fids = _resolve_novo_sistema_formulario_ids(code)
+    novo_df = _read_novo_sistema_respostas(novo_fids)
+
+    if tf_df_typeform.empty and novo_df.empty:
         return summary
+
+    tf_df = pd.concat([tf_df_typeform, novo_df], ignore_index=True, sort=False)
+    tf_df = tf_df.drop_duplicates("email_norm", keep="last")
 
     summary.has_data = True
-    summary.total_tf_raw = len(tf_df_raw)
-
-    # Reconstruir o DataFrame tabular baseado nas respostas JSONB
-    records = _reconstruct_tabular_df(tf_df_raw)
-    if not records:
-        return summary
-
-    tf_df = pd.DataFrame(records)
-    tf_df = tf_df.drop_duplicates("email_norm", keep="last")
+    summary.total_tf_raw = len(tf_df_raw) + len(novo_df)
     summary.total_tf = len(tf_df)
 
     # Confrontar pesquisas
     tf_alunos_raw = pd.DataFrame()
     if alunos_id:
         tf_alunos_raw = pd.read_sql(
-            text("SELECT * FROM typeform_respostas WHERE upper(coalesce(form_id, '')) = :fid"),
+            text("SELECT * FROM " + _tf_source(fid_where) + " t"),
             engine,
             params={"fid": alunos_id.upper()}
         )
@@ -617,15 +726,19 @@ def read_perfil_por_anuncio(launch_folder_or_code: Any, top_n: int = 5) -> dict 
     if not proj_id:
         proj_id = code
     tf_df_raw = pd.read_sql(
-        text("SELECT * FROM typeform_respostas WHERE upper(coalesce(form_id, '')) = :fid"),
+        text("SELECT * FROM " + _tf_source("upper(coalesce(form_id, '')) = :fid") + " t"),
         engine, params={"fid": proj_id.upper()},
     )
-    if tf_df_raw.empty:
+    records = _reconstruct_tabular_df(tf_df_raw) if not tf_df_raw.empty else []
+    tf_df_typeform = pd.DataFrame(records)
+
+    novo_fids = _resolve_novo_sistema_formulario_ids(code)
+    novo_df = _read_novo_sistema_respostas(novo_fids)
+
+    if tf_df_typeform.empty and novo_df.empty:
         return None
-    records = _reconstruct_tabular_df(tf_df_raw)
-    if not records:
-        return None
-    tf_df = pd.DataFrame(records).drop_duplicates("email_norm", keep="last")
+    tf_df = pd.concat([tf_df_typeform, novo_df], ignore_index=True, sort=False)
+    tf_df = tf_df.drop_duplicates("email_norm", keep="last")
 
     # O código ADxxx do anúncio vem no utm_term (utm_content traz o adset);
     # utm_content fica de fallback pra lançamentos antigos.
@@ -690,22 +803,26 @@ def read_pesquisa_engajamento(launch_folder_or_code: Any) -> dict | None:
     if not proj_id:
         proj_id = code
     engine = _get_engine()
+    fid_where = "upper(coalesce(form_id, '')) = :fid"
     with engine.connect() as conn:
-        respostas = conn.execute(text("""
-            SELECT COUNT(DISTINCT LOWER(email)) FROM typeform_respostas
-            WHERE upper(coalesce(form_id, '')) = :fid AND email IS NOT NULL
-        """), {"fid": proj_id.upper()}).scalar() or 0
-        if not respostas:
-            return None
-        base = conn.execute(text("""
-            SELECT COUNT(DISTINCT LOWER(email)) FROM leads WHERE lancamento_codigo = :code
-        """), {"code": code}).scalar() or 0
-        cruzadas = conn.execute(text("""
-            SELECT COUNT(DISTINCT LOWER(t.email))
-            FROM typeform_respostas t
-            JOIN leads l ON LOWER(l.email) = LOWER(t.email) AND l.lancamento_codigo = :code
-            WHERE upper(coalesce(t.form_id, '')) = :fid
-        """), {"code": code, "fid": proj_id.upper()}).scalar() or 0
+        tf_emails = conn.execute(text(
+            "SELECT email FROM " + _tf_source(fid_where) + " t WHERE email IS NOT NULL"
+        ), {"fid": proj_id.upper()}).scalars().all()
+
+    novo_fids = _resolve_novo_sistema_formulario_ids(code)
+    all_emails = {str(e).strip().lower() for e in tf_emails if e} | _read_novo_sistema_emails(novo_fids)
+    respostas = len(all_emails)
+    if not respostas:
+        return None
+
+    with engine.connect() as conn:
+        lead_emails = conn.execute(text(
+            "SELECT email FROM leads WHERE lancamento_codigo = :code"
+        ), {"code": code}).scalars().all()
+    lead_emails_norm = {str(e).strip().lower() for e in lead_emails if e}
+    base = len(lead_emails_norm)
+    cruzadas = len(all_emails & lead_emails_norm)
+
     return {
         "respostas": int(respostas),
         "base_leads": int(base),

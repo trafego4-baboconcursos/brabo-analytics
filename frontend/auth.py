@@ -47,7 +47,8 @@ ROUTE_PERMISSIONS: dict[str, list[str]] = {
     "/google-audiences":  _MEDIA,
     "/leads":             _DTLD,
     "/crm-campanhas":     _DTLD,
-    "/typeform":          _DTLD,
+    "/pesquisas":         _DTLD,
+    "/typeform":          _DTLD,  # link legado — redireciona pra /pesquisas
     "/vendas":            _DTLD,
     "/hotmart":           _DTLD,
     "/tmb":               _DTLD,

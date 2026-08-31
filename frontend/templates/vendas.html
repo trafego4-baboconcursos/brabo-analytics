@@ -5,7 +5,7 @@
     <a href="/?launch_code={{ active_code }}"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
     <div>
       <h1><i class="ti ti-coin"></i> Análise de Vendas Integrada{% if launch %} &mdash; {{ launch.code }}{% endif %}</h1>
-      <p>Cruzamento entre Typeform, Active Campaign, Hotmart e TMB para leitura de origem, ticket, perfil comprador e propensão.</p>
+      <p>Cruzamento entre Pesquisas, Active Campaign, Hotmart e TMB para leitura de origem, ticket, perfil comprador e propensão.</p>
     </div>
   </div>
   
@@ -65,7 +65,7 @@
       <div class="tp-kpi">
         <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-clipboard-list"></i></div></div>
         <div class="tp-value">{{ vendas.compradores_typeform | num }}</div>
-        <div class="tp-label">Compradores Typeform</div>
+        <div class="tp-label">Compradores Pesquisa</div>
         <div class="tp-compare">Com pesquisa vinculada</div>
       </div>
     </div>
@@ -220,13 +220,13 @@
     <!-- Perfil Demográfico -->
     <div class="section">
       <div class="section-title">Perfil Demográfico</div>
-      <div class="note info">Leitura dos compradores que preencheram o Typeform de captação e foram encontrados na base de vendas.</div>
+      <div class="note info">Leitura dos compradores que preencheram a Pesquisa de captação e foram encontrados na base de vendas.</div>
       
       {% if not vendas.genero and not vendas.idade and not vendas.situacao_prof and not vendas.escolaridade %}
       <div class="no-data" style="padding: 30px;">
         <i class="ti ti-users"></i>
         <h3>Perfil demográfico não disponível</h3>
-        <p>Não houve correspondência de e-mails entre a pasta do Typeform e as vendas deste lançamento.</p>
+        <p>Não houve correspondência de e-mails entre a Pesquisa e as vendas deste lançamento.</p>
       </div>
       {% else %}
       <div class="highlights" style="grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));">
@@ -410,7 +410,7 @@
     <!-- Propensão por Resposta -->
     <div class="section">
       <div class="section-title">Propensão por Resposta</div>
-      <div class="note info">Taxa de conversão demográfica calculada sobre leads que responderam o Typeform de captação e constam no CRM.</div>
+      <div class="note info">Taxa de conversão demográfica calculada sobre leads que responderam a Pesquisa de captação e constam no CRM.</div>
       
       {% if not vendas.propensao %}
       <div class="no-data" style="padding: 30px;">

@@ -1,7 +1,7 @@
 # Brabo Analytics — Defesa Técnica e Estratégica
 
-> Documento atualizado em: 2026-07-01  
-> Última versão do sistema: PBB-JUN-26 encerrado, pipeline ETL 100% via API operacional, conexão Supabase estabilizada via Session Pooler, refatoração arquitetural God Module Split (S1–S6) concluída
+> Documento atualizado em: 2026-08-31  
+> Última versão do sistema: conta do Typeform cancelada — pesquisas de lançamento migraram para um sistema de formulários interno a partir do PBB-AGO-26; dados de pesquisas antigas preservados via backup no Supabase
 
 ---
 
@@ -27,7 +27,7 @@ A plataforma conecta e unifica automaticamente:
 | **Google Ads** | Investimento, conversões, CPA por campanha (Search, P-Max, Display, YouTube) |
 | **Active Campaign** | Base de leads com qualidade, temperatura, canal de origem e etapa |
 | **Hotmart + TMB** | Vendas confirmadas, receita bruta, reembolsos |
-| **Typeform** | +113.000 respostas coletadas de inscritos em 8 lançamentos |
+| **Pesquisas de lançamento** | Typeform (histórico, até ago/26) + sistema de formulários interno (a partir do PBB-AGO-26) — mais de 140.000 respostas coletadas de inscritos, combinadas automaticamente na mesma tela por lançamento |
 
 ### Histórico de lançamentos cobertos
 

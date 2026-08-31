@@ -22,7 +22,7 @@ python -m uvicorn frontend.app:app --reload
 # Full run (all sources)
 python etl/run_all.py --since 2026-04-01 --until 2026-04-30
 
-# Single source (meta_ads | google_ads | active_campaign | typeform)
+# Single source (meta_ads | google_ads | active_campaign)
 python etl/run_all.py --since 2026-04-01 --until 2026-04-30 --only meta_ads
 
 # Continuous scheduler (runs every hour)
@@ -83,7 +83,8 @@ Session auth uses HMAC-signed cookies. Roles: `admin > analista > trafego > leit
 
 ### ETL (`etl/`)
 - `run_all.py` — orchestrator, accepts API mode or CSV mode
-- `etl_meta_ads.py`, `etl_google_ads.py`, `etl_active_campaign.py`, `etl_typeform.py` — individual ETL scripts, each supports `--since/--until` (API mode) or `--from-csv` (CSV mode)
+- `etl_meta_ads.py`, `etl_google_ads.py`, `etl_active_campaign.py` — individual ETL scripts, each supports `--since/--until` (API mode) or `--from-csv` (CSV mode)
+- `etl_typeform.py` — no longer wired into `run_all.py`/`scheduler.py` (Typeform account was cancelled); `typeform_respostas` reads now come from a one-time Supabase backup (`typeform_respostas_backup`, `typeform_respostas_backup_2`, `typeform_forms`, `typeform_forms_2`) via `frontend/db_readers/typeform.py`. The script still exists for a manual one-off run if the token is ever valid again.
 - `scheduler.py` — runs `run_all.py` every hour with a rolling 3-day window
 - `schema.sql` — full DB schema + Supabase views (run once)
 - `db.py` — SQLAlchemy engine factory (reads `SUPABASE_DB_URL` from `.env`)

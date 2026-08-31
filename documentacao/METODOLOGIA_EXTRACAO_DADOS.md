@@ -37,9 +37,9 @@ Meta Ads / Google Ads API (Investimento)
 > `Plataforma/API -> ETL -> Supabase -> App`
 >
 > Em outras palavras:
-> - **Meta Ads / Google Ads / Typeform / Active Campaign** já podem entrar por API no banco.
+> - **Meta Ads / Google Ads / Active Campaign** já podem entrar por API no banco.
 > - O **frontend** ainda lê, em regra, das tabelas já materializadas no banco.
-> - A exceção parcial hoje é o **Typeform**, onde o app também consulta a API para metadados de formulários/campos quando necessário.
+> - **Typeform foi desligado em agosto de 2026** (conta cancelada) — ver seção 10. A partir do `PBB-AGO-26`, as pesquisas de lançamento rodam no sistema de formulários interno (`formularios`/`perguntas`/`submissoes`/`respostas`), não mais no Typeform.
 
 ### Arquitetura 1.0 (Legado / Baseado em CSV)
 Anteriormente, o processo dependia de exportações manuais depositadas nas pastas `analises/[LANCAMENTO]/`.
@@ -54,7 +54,8 @@ Anteriormente, o processo dependia de exportações manuais depositadas nas past
 | **Active Campaign** | `etl_active_campaign.py` | Tabela `leads` | Leads capturados + UTMs customizados (Campaign, Source, Content, etc) |
 | **Meta Ads** | `etl_meta_ads.py` | Tabela `meta_ads_daily` | Investimento (Spend), Impressões e Cliques por *Ad* (breakdown diário) |
 | **Google Ads** | `etl_google_ads.py` | Tabela `google_ads_daily` | Custo e conversões por anúncio |
-| **Typeform** | `etl_typeform.py` | Tabela `typeform_respostas` | Respostas completas das pesquisas de lançamento |
+| **Typeform** (até PI/PES-AGO-26, legado) | `etl_typeform.py` (desligado do pipeline automático em ago/2026) | Tabelas `typeform_respostas` + backups `typeform_respostas_backup`/`_2`, `typeform_forms`/`_2` | Respostas históricas das pesquisas via Typeform — ver seção 10 |
+| **Sistema de pesquisa interno** (PBB-AGO-26 em diante) | Formulário web próprio (fora do escopo do `etl/`) | Tabelas `formularios`, `perguntas`, `submissoes`, `respostas` | Respostas das pesquisas de lançamento, substituindo o Typeform |
 | **Hotmart / TMB** | Integração via TI | Tabelas da Hotmart/TMB | Receita real validada (`faturamento`, `email`, `status_transacao`) |
 
 ---
@@ -180,6 +181,43 @@ Durante a primeira execução real do pipeline via API (pós-encerramento do PBB
 | Active Campaign | ✓ funcional | ~8 min |
 
 O scheduler pode ser ativado — nenhuma fonte depende mais de CSV para operação normal.
+
+---
+
+## 10. Desligamento do Typeform e migração pro sistema de pesquisa interno (2026-08-31)
+
+A conta do Typeform foi cancelada. Antes do cancelamento, um backup completo de duas contas Typeform foi feito para o mesmo Supabase (`SUPABASE_DB_URL`):
+
+| Tabela | Conteúdo |
+| :--- | :--- |
+| `typeform_forms` / `typeform_forms_2` | `form_id → título` de todos os formulários das duas contas |
+| `typeform_respostas_backup` / `typeform_respostas_backup_2` | Respostas completas das duas contas (mesmo schema de `typeform_respostas`) |
+| `typeform_respostas` | Tabela viva sincronizada pela ETL (`etl_typeform.py`) — cobre só os lançamentos mais recentes antes do cancelamento; tinha 3 form_id que ainda não estavam nos backups |
+
+**Mudanças no código (`frontend/db_readers/typeform.py`):**
+- Nenhuma chamada à API do Typeform sobrevive. `_get_typeform_forms()` lê `typeform_forms`/`typeform_forms_2`; `_get_typeform_fields()` (mapeamento field_id → título da pergunta) não tem fonte de backup — retorna vazio, então colunas de perguntas de pesquisas antigas cujo `field.title` não veio salvo no JSON aparecem com o ID cru do campo em vez do texto da pergunta. Isso é uma perda de legibilidade conhecida, sem solução até recuperar esse mapeamento de outra fonte.
+- Toda leitura de respostas passou a usar uma fonte unificada (`_tf_source`) que faz `UNION ALL` das 3 tabelas de respostas (`typeform_respostas` + os 2 backups), deduplicada por `response_id` (mantém a versão mais recente por `updated_at` quando o mesmo id aparece em mais de uma tabela). O filtro (form_id ou período) é aplicado dentro de cada tabela antes do `UNION`, não depois — senão o `DISTINCT ON` teria que varrer ~1M linhas a cada chamada.
+- `etl/run_all.py` não roda mais `etl_typeform.py` no modo API (removido do dict `scripts` em `run_api_mode`) — o `scheduler.py`, que chama `run_all.py` a cada 30 min, não bate mais na API do Typeform. O script `etl_typeform.py` continua no repo pra uso manual pontual.
+
+**Sistema de pesquisa interno (substituto, a partir do `PBB-AGO-26`):**
+
+Schema normalizado, sem o gap de field-title do Typeform (`perguntas.titulo` já é o texto legível da pergunta):
+
+```
+formularios (1 por lançamento, titulo contém "[CODIGO-LANCAMENTO]")
+      ↓
+perguntas (1 linha por pergunta: id, formulario_id, tipo, titulo, ordem)
+      ↓
+submissoes (1 linha por resposta enviada: id, formulario_id, created_at)
+      ↓
+respostas (1 linha por pergunta respondida: submissao_id, pergunta_id, valor jsonb)
+```
+
+`valor` (jsonb) guarda a resposta em uma destas chaves, dependendo do tipo da pergunta: `texto` (texto curto/longo, telefone, e-mail, nome), `opcao` (múltipla escolha de uma opção, com `texto_outro` opcional quando a opção é "Outro"), `opcoes` (lista, múltipla escolha de várias opções).
+
+Formulários já criados nesse sistema: `[PBB-AGO-26] Pesquisa - Projeto Banco do Brasil` (id 9) e `[PES-SET-26] Pesquisa - Projeto TJ-SP` (id 13).
+
+**Integração no frontend:** `frontend/db_readers/typeform.py` resolve o(s) `formulario_id` cujo título contém o código do lançamento (`_resolve_novo_sistema_formulario_ids`) e converte o formato normalizado pra tabela larga (`email_norm` + uma coluna por `pergunta.titulo`) via `_read_novo_sistema_respostas`/`_read_novo_sistema_emails` — mesmo formato que o Typeform já produzia. As 4 funções de leitura (`read_typeform_count`, `read_typeform`, `read_perfil_por_anuncio`, `read_pesquisa_engajamento`) combinam (concat/union por e-mail) o resultado do Typeform com o do sistema novo, então cada lançamento usa automaticamente a fonte certa sem configuração manual — Typeform pros lançamentos antigos, sistema novo do `PBB-AGO-26` em diante.
 
 ---
 

@@ -434,7 +434,7 @@
   <div class="hdr">
     <a href="/?launch_code={{ active_code }}"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
     <div>
-      <h1><i class="ti ti-clipboard-list"></i> An&aacute;lise Typeform &mdash; Pesquisa de Capta&ccedil;&atilde;o{% if launch %} &mdash; {{ launch.code }}{% endif %}</h1>
+      <h1><i class="ti ti-clipboard-list"></i> An&aacute;lise de Pesquisas &mdash; Pesquisa de Capta&ccedil;&atilde;o{% if launch %} &mdash; {{ launch.code }}{% endif %}</h1>
       <p>Confronto: Respostas da pesquisa &times; Leads CRM (Active Campaign) &times; Vendas consolidadas</p>
     </div>
   </div>
@@ -443,7 +443,7 @@
     {% if not tf or not tf.has_data %}
     <div class="no-data">
       <i class="ti ti-clipboard-list"></i>
-      <h3>Dados da pesquisa Typeform n&atilde;o dispon&iacute;veis</h3>
+      <h3>Dados da pesquisa n&atilde;o dispon&iacute;veis</h3>
       <p>Verifique a integra&ccedil;&atilde;o com o Supabase ou se a pesquisa possui respostas no per&iacute;odo do lan&ccedil;amento.</p>
     </div>
     {% else %}
@@ -453,7 +453,7 @@
       <div class="tp-kpi">
         <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-clipboard-list"></i></div></div>
         <div class="tp-value">{{ tf.total_tf_raw | default(0) | num }}</div>
-        <div class="tp-label">Respostas Typeform</div>
+        <div class="tp-label">Respostas Pesquisas</div>
         <div class="tp-compare">Respostas brutas no per&iacute;odo</div>
       </div>
       <div class="tp-kpi">
@@ -497,7 +497,7 @@
     <!-- Confronto entre pesquisas (se disponível) -->
     {% if tf.compare_available %}
     <div class="section">
-      <div class="section-title">Confronto entre pesquisas Typeform</div>
+      <div class="section-title">Confronto entre pesquisas</div>
       <div class="metrics-grid" style="grid-template-columns: repeat(4, minmax(0, 1fr));">
         <div class="metric-card">
           <div class="label">{{ tf.compare_label_a }}</div>
@@ -577,7 +577,7 @@
           <div class="tf-funnel-meta" style="--meta-accent: var(--temp-frio);">
             <div class="tf-funnel-kicker">Etapa 1</div>
             <div class="tf-funnel-title">Respostas Brutas</div>
-            <div class="tf-funnel-note">Total de envios brutos ao Typeform</div>
+            <div class="tf-funnel-note">Total de envios brutos &agrave; pesquisa</div>
           </div>
           <div class="tf-funnel-stage">
             <div class="tf-funnel-shape" style="--shape-w: 100; --shape-c: var(--temp-frio);">
@@ -888,7 +888,7 @@
       <!-- UTM Sources -->
       {% if tf.top_utm_sources %}
       <div class="card">
-        <h3>Top An&uacute;ncios (Compradores via Typeform)</h3>
+        <h3>Top An&uacute;ncios (Compradores via Pesquisa)</h3>
         <table>
           <thead>
             <tr>
@@ -1280,9 +1280,9 @@
               <td><code>dim_lancamentos</code> (Supabase)</td>
             </tr>
             <tr>
-              <td><strong>Typeform (pesquisa)</strong></td>
+              <td><strong>Pesquisa de Capta&ccedil;&atilde;o</strong></td>
               <td class="numero">{{ tf.total_tf | num }}</td>
-              <td><code>typeform_respostas</code> (Supabase)</td>
+              <td><code>typeform_respostas</code> + backups (legado) / <code>formularios</code>+<code>respostas</code> (sistema atual) &mdash; Supabase</td>
             </tr>
             <tr>
               <td><strong>Active Campaign (CRM)</strong></td>

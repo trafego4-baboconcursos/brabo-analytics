@@ -1107,7 +1107,11 @@ kbd {
     </div>
 
     <!-- Trilha de modo -->
-    {% set _switch_base = '/' if nav_mode == 'lancamentos' else request.url.path %}
+    {# Calendário e Lançamentos são páginas do sistema, não de um lançamento
+       específico — escolher um lançamento a partir delas deve levar pra
+       home do lançamento (Índice), não recarregar a página atual com
+       launch_code colado. #}
+    {% set _switch_base = '/' if nav_mode in ('lancamentos', 'calendario') else request.url.path %}
     <nav class="bs-mode-rail">
       <a class="bs-mode-btn {% if nav_mode == 'calendario' %}active{% endif %}"
          href="/calendario">

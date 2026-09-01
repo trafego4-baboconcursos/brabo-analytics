@@ -221,7 +221,8 @@ def _ler_launch_config(codigo: str) -> dict:
             row = conn.execute(
                 text(
                     "SELECT etapas, meta_ad_account_ids, google_ad_account_ids, carrinho_end_date, "
-                    "       pre_quali_start_date, pre_quali_end_date, captacao_start_date, captacao_end_date "
+                    "       pre_quali_start_date, pre_quali_end_date, captacao_start_date, captacao_end_date, "
+                    "       meta_investimento_pre_quali, meta_investimento_captacao "
                     "FROM launch_config WHERE lancamento_codigo = :c"
                 ),
                 {"c": codigo},
@@ -232,21 +233,26 @@ def _ler_launch_config(codigo: str) -> dict:
         if isinstance(etapas, str):
             etapas = _json.loads(etapas) if etapas else []
 
-        # Fallback de datas: os blocos de Verba de Pré-Qualificação/Captação
-        # costumam ficar sem data (o time preenche as datas nos passos 1-2 do
-        # wizard, não de novo na Verba) — sem isso a etapa era pulada do
-        # relatório mesmo com campanha no ar.
-        fallback_datas = {
-            "Pré-Qualificação": (row[4], row[5]),
-            "Captação": (row[6], row[7]),
+        # Fonte única pra Pré-Qualificação/Captação: data E orçamento vêm dos
+        # passos 1/2 do wizard (pre_quali_*/captacao_*/meta_investimento*), não
+        # dos campos próprios do bloco de Verba — o wizard novo já nem edita
+        # esses campos ali (fica só leitura/sincronizado), mas launch_configs
+        # salvos antes disso ainda têm o bloco de Verba desatualizado/vazio, e
+        # esse fallback cobre esse caso sem precisar editar o banco na mão.
+        fallback = {
+            "Pré-Qualificação": {"start": row[4], "end": row[5], "total": row[8]},
+            "Captação": {"start": row[6], "end": row[7], "total": row[9]},
         }
         for etapa in etapas:
-            fb = fallback_datas.get(etapa.get("nome"))
-            if fb:
-                if not etapa.get("start_date") and fb[0]:
-                    etapa["start_date"] = str(fb[0])
-                if not etapa.get("end_date") and fb[1]:
-                    etapa["end_date"] = str(fb[1])
+            fb = fallback.get(etapa.get("nome"))
+            if not fb:
+                continue
+            if not etapa.get("start_date") and fb["start"]:
+                etapa["start_date"] = str(fb["start"])
+            if not etapa.get("end_date") and fb["end"]:
+                etapa["end_date"] = str(fb["end"])
+            if not etapa.get("total") and fb["total"]:
+                etapa["total"] = float(fb["total"])
 
         return {
             "etapas": etapas,

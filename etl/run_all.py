@@ -26,17 +26,33 @@ load_dotenv(dotenv_path=BASE.parent / ".env")
 logger = get_logger("etl.run_all")
 
 
-def run(cmd: list[str], label: str, source: str | None = None) -> int:
+# Sem timeout aqui, um hang de rede dentro de QUALQUER script (visto em
+# etl_active_campaign.py, mas vale pra qualquer fonte) trava o subprocess.run
+# pra sempre — e como run_api_mode roda as fontes em sequência, tudo que vem
+# depois (meta_ads, google_ads, ...) nunca chega a rodar. Foi o que aconteceu
+# em 01/09: active_campaign travou às 8h32 e nada mais rodou por ~6h, até
+# alguém notar e reiniciar o container na mão. Com timeout, o processo
+# travado é morto e o orquestrador segue pra próxima fonte sozinho.
+_TIMEOUT_PADRAO_SEGUNDOS = 900  # 15 min — folgado pra janela normal de 3 dias
+
+
+def run(cmd: list[str], label: str, source: str | None = None, timeout: int = _TIMEOUT_PADRAO_SEGUNDOS) -> int:
     logger.info("Iniciando: %s", label)
     run_id = start_run(source) if source else None
-    result = subprocess.run(cmd)
-    if result.returncode != 0:
-        logger.error("Falha em '%s' (código %d)", label, result.returncode)
-        finish_run(run_id, status="error", error=f"exit code {result.returncode}")
+    try:
+        result = subprocess.run(cmd, timeout=timeout)
+        returncode = result.returncode
+    except subprocess.TimeoutExpired:
+        logger.error("Timeout em '%s' após %ds — processo travado, seguindo para a próxima fonte.", label, timeout)
+        finish_run(run_id, status="error", error=f"timeout apos {timeout}s")
+        return -1
+    if returncode != 0:
+        logger.error("Falha em '%s' (código %d)", label, returncode)
+        finish_run(run_id, status="error", error=f"exit code {returncode}")
     else:
         logger.info("Concluído: %s", label)
         finish_run(run_id, status="ok")
-    return result.returncode
+    return returncode
 
 
 def run_api_mode(since: str, until: str, only: str | None):
@@ -58,6 +74,8 @@ def run_api_mode(since: str, until: str, only: str | None):
                             "--since", since, "--until", until],
         # Perfil + posts nao usam --since/--until (sempre pega o snapshot atual).
         "instagram":       [sys.executable, str(BASE / "etl_instagram.py")],
+        "ga4":             [sys.executable, str(BASE / "etl_ga4.py"),
+                            "--since", since, "--until", until],
     }
 
     targets = {only: scripts[only]} if only else scripts
@@ -131,7 +149,7 @@ def main():
     mode.add_argument("--csv-mode",        action="store_true",  help="Importa via CSVs exportados manualmente")
 
     parser.add_argument("--until",          metavar="YYYY-MM-DD", default=datetime.now().strftime("%Y-%m-%d"))
-    parser.add_argument("--only",           metavar="SCRIPT",    help="Roda somente: active_campaign | meta_ads | google_ads | ac_campaigns | whatsapp | instagram")
+    parser.add_argument("--only",           metavar="SCRIPT",    help="Roda somente: active_campaign | meta_ads | google_ads | ac_campaigns | whatsapp | instagram | ga4")
     parser.add_argument("--campaign-folder", metavar="PATH",      help="Pasta da campanha (modo --csv-mode), ex: analises/[PBB-ABR-26]")
     parser.add_argument("--period",          metavar="YYYY-MM",   help="Período da campanha (modo --csv-mode), ex: 2026-04")
     args = parser.parse_args()

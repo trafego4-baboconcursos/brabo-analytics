@@ -189,7 +189,7 @@ html, body { margin: 0 !important; padding: 0 !important; font-family: 'Inter','
 .bs-nav.bs-nav-mobile-only { display:none; }
 .bs-subnav {
   display:flex; align-items:stretch; gap:2px;
-  background:#fff; border-bottom:1px solid var(--bs-border);
+  background:#111827; border-bottom:1px solid rgba(255,255,255,.08);
   padding:0 20px; position:sticky; top:0; z-index:60;
   box-shadow:0 1px 4px rgba(20,26,52,.04);
 }
@@ -197,13 +197,13 @@ html, body { margin: 0 !important; padding: 0 !important; font-family: 'Inter','
 .bs-subnav-btn {
   display:flex; align-items:center; gap:6px;
   height:44px; padding:0 14px; border:none; background:none; cursor:pointer;
-  font-family:inherit; font-size:13px; font-weight:600; color:var(--bs-ink-muted);
-  border-bottom:2px solid transparent; transition:color .12s,border-color .12s;
+  font-family:inherit; font-size:13px; font-weight:600; color:rgba(255,255,255,.75);
+  border-bottom:2px solid transparent; transition:color .12s,border-color .12s,background .12s;
 }
 .bs-subnav-btn i { font-size:15px; }
-.bs-subnav-btn .bs-subnav-chevron { font-size:12px; margin-left:2px; transition:transform .15s; opacity:.6; }
-.bs-subnav-btn:hover { color:var(--bs-ink); }
-.bs-subnav-btn.active { color:var(--bs-accent); border-bottom-color:var(--bs-accent); }
+.bs-subnav-btn .bs-subnav-chevron { font-size:12px; margin-left:2px; transition:transform .15s; opacity:.7; }
+.bs-subnav-btn:hover { color:#fff; background:rgba(255,255,255,.08); }
+.bs-subnav-btn.active { color:#fff; border-bottom-color:var(--bs-accent); background:rgba(255,255,255,.06); }
 .bs-subnav-group.open .bs-subnav-btn .bs-subnav-chevron { transform:rotate(180deg); }
 .bs-subnav-dropdown {
   display:none; position:absolute; top:100%; left:0; min-width:220px;
@@ -294,7 +294,7 @@ html, body { margin: 0 !important; padding: 0 !important; font-family: 'Inter','
 }
 
 /* ── Main ───────────────────────────────────────────────────────────── */
-#bs-main { background:var(--bs-surface); min-width:0; overflow-x:hidden; margin-left:240px; }
+#bs-main { background:var(--bs-surface); min-width:0; overflow-x:hidden; overflow-y:auto; height:100vh; margin-left:240px; }
 
 /* ── Wrap / hdr / content / section — PADRÃO MANUAL ────────────────── */
 .wrap  { animation:fadeInUp .4s ease-out forwards; }
@@ -1095,7 +1095,7 @@ kbd {
   <button id="bs-menu-toggle" onclick="bsMenuToggle()" aria-label="Abrir menu">
     <i class="ti ti-menu-2"></i>
   </button>
-  <a href="/">
+  <a href="/calendario">
     <img src="/img/logo-brabo-concursos-white.svg" alt="Brabo Analytics">
   </a>
   <span style="width:44px"></span>
@@ -1106,7 +1106,7 @@ kbd {
   <!-- ── SIDEBAR ─────────────────────────────────────────────────────── -->
   <aside id="bs-drawer">
     <div class="bs-brand">
-      <a href="/">
+      <a href="/calendario">
         <img src="/img/logo-brabo-concursos-white.svg" alt="Brabo Analytics">
         <span class="bs-brand-name">Brabo Analytics - V3.0</span>
       </a>
@@ -1157,13 +1157,20 @@ kbd {
         </div>
       </div>
 
-      <span class="bs-mode-btn disabled" title="Em desenvolvimento">
-        <i class="ti ti-infinity"></i> Perpétuo <span class="bs-mode-soon">em breve</span>
-      </span>
+      <a class="bs-mode-btn {% if nav_mode == 'perpetuo' %}active{% endif %}"
+         href="/perpetuo/pmq-tjsp{% if active_code %}?launch_code={{ active_code }}{% endif %}">
+        <i class="ti ti-infinity"></i> Perpétuo
+      </a>
       <a class="bs-mode-btn {% if nav_mode == 'redes_sociais' %}active{% endif %}"
          href="/instagram{% if active_code %}?launch_code={{ active_code }}{% endif %}">
         <i class="ti ti-share"></i> Redes Sociais
       </a>
+      {% if distribuicao_first_username %}
+      <a class="bs-mode-btn {% if nav_mode == 'distribuicao' %}active{% endif %}"
+         href="/distribuicao/{{ distribuicao_first_username }}{% if active_code %}?launch_code={{ active_code }}{% endif %}">
+        <i class="ti ti-speakerphone"></i> Distribuição
+      </a>
+      {% endif %}
     </nav>
 
     <!-- Navegação do modo Funis — versão vertical, só visível na gaveta mobile
@@ -1191,6 +1198,31 @@ kbd {
          href="/instagram{% if active_code %}?launch_code={{ active_code }}{% endif %}">
         <span class="bs-nav-icon"><i class="ti ti-brand-instagram"></i></span>Perfil Instagram
       </a>
+    </nav>
+    {% endif %}
+
+    <!-- Navegação — modo Perpétuo (4 verticais: Mestre em Questões TJ-SP/INSS/BB + Planner) -->
+    {% if nav_mode == 'perpetuo' %}
+    <nav class="bs-nav">
+      <div class="bs-nav-group">Perpétuo</div>
+      {% for item in perpetuo_nav_items %}
+      <a class="bs-nav-link {% if item.active %}active{% endif %}" href="{{ item.href }}">
+        <span class="bs-nav-icon"><i class="ti ti-infinity"></i></span>{{ item.label }}
+      </a>
+      {% endfor %}
+    </nav>
+    {% endif %}
+
+    <!-- Navegação — modo Distribuição de Conteúdo (1 item por expert, mesmos
+         perfis da aba Redes Sociais — aqui é o lado pago, não o orgânico) -->
+    {% if nav_mode == 'distribuicao' %}
+    <nav class="bs-nav">
+      <div class="bs-nav-group">Distribuição de Conteúdo</div>
+      {% for item in distribuicao_nav_items %}
+      <a class="bs-nav-link {% if item.active %}active{% endif %}" href="{{ item.href }}">
+        <span class="bs-nav-icon"><i class="ti ti-speakerphone"></i></span>{{ item.label }}
+      </a>
+      {% endfor %}
     </nav>
     {% endif %}
 
@@ -2247,6 +2279,7 @@ document.addEventListener('keydown', function (e) {
     ytAulas.forEach(function(a){ lcAddYtAulaItem(a.id || "", a.label || ""); });
 
     lcPopulateEtapas(cfg.etapas || []);
+    lcSyncAllLinkedEtapas();
 
     lcUpdateBadge("lc_filtro_lancamento", "lc-badge-lancamento");
     lcUpdateBadge("lc_filtro_captacao",   "lc-badge-captacao");
@@ -2432,12 +2465,13 @@ document.addEventListener('keydown', function (e) {
     return key;
   }
 
-  function lcCreateEtapaBlock(containerId, key, nome, removable) {
+  function lcCreateEtapaBlock(containerId, key, nome, removable, linked) {
     var container = document.getElementById(containerId);
     var block = document.createElement("div");
     block.className = "lc-section";
     block.dataset.etapaKey = key;
     block.dataset.etapaNome = nome;
+    var linkedAttr = linked ? ' disabled title="Editado no passo Pré-Qualificação/Captação, não aqui — evita os dois campos divergirem"' : '';
     block.innerHTML =
       '<div class="lc-section-title" style="display:flex;align-items:center;justify-content:space-between">' +
         '<span>' + nome + '</span>' +
@@ -2445,13 +2479,14 @@ document.addEventListener('keydown', function (e) {
           ? '<button type="button" class="lc-icon-btn" onclick="this.closest(\'.lc-section\').remove()" title="Remover etapa"><i class="ti ti-x"></i></button>'
           : '') +
       '</div>' +
+      (linked ? '<div class="note info" style="font-size:11px;padding:6px 10px;margin-bottom:8px">Datas e orçamento vêm do passo "' + nome + '" — mudam automaticamente se você editar lá.</div>' : '') +
       '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">' +
         '<div class="lc-field" style="flex:1;min-width:140px"><label>Início</label>' +
-          '<input type="date" class="lc-input" id="' + lcEtapaId(key,"start") + '"></div>' +
+          '<input type="date" class="lc-input" id="' + lcEtapaId(key,"start") + '"' + linkedAttr + '></div>' +
         '<div class="lc-field" style="flex:1;min-width:140px"><label>Fim</label>' +
-          '<input type="date" class="lc-input" id="' + lcEtapaId(key,"end") + '"></div>' +
+          '<input type="date" class="lc-input" id="' + lcEtapaId(key,"end") + '"' + linkedAttr + '></div>' +
         '<div class="lc-field" style="flex:1;min-width:140px"><label>Total planejado (R$)</label>' +
-          '<input type="number" step="0.01" min="0" class="lc-input" id="' + lcEtapaId(key,"total") + '"></div>' +
+          '<input type="number" step="0.01" min="0" class="lc-input" id="' + lcEtapaId(key,"total") + '"' + linkedAttr + '></div>' +
       '</div>' +
       '<label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--bs-muted);margin-bottom:8px">' +
         '<input type="checkbox" id="' + lcEtapaId(key,"personalizada") + '" onchange="lcToggleEtapaCurva(\'' + key + '\')">' +
@@ -2600,6 +2635,48 @@ document.addEventListener('keydown', function (e) {
     lcUpdateBucketSoma(key);
   }
 
+  // Fonte única: Pré-Qualificação/Captação têm data+orçamento definidos nos
+  // passos 1/2 (lc_pre_quali_*/lc_captacao_*/lc_meta_investimento*). O bloco
+  // de Verba desses dois NÃO tem input próprio (ver linkedAttr em
+  // lcCreateEtapaBlock) — só espelha esses campos, pra nunca mais divergir
+  // como aconteceu com PES-SET-26 (data de Pré-Quali e orçamento de Captação
+  // ficaram desatualizados no bloco de Verba porque eram editáveis à parte).
+  var LC_ETAPA_VERBA_LINKED_SOURCE = {
+    pre_qualificacao: { start: "lc_pre_quali_start_date", end: "lc_pre_quali_end_date", total: "lc_meta_investimento_pre_quali" },
+    captacao:         { start: "lc_captacao_start_date",  end: "lc_captacao_end_date",  total: "lc_meta_investimento" },
+  };
+
+  function lcSyncLinkedEtapa(key) {
+    var src = LC_ETAPA_VERBA_LINKED_SOURCE[key];
+    if (!src) return;
+    var startEl = document.getElementById(lcEtapaId(key, "start"));
+    var endEl   = document.getElementById(lcEtapaId(key, "end"));
+    var totalEl = document.getElementById(lcEtapaId(key, "total"));
+    if (!startEl) return; // bloco ainda não renderizado (ex: no step 1 antes de abrir o step 6)
+    var srcStart = document.getElementById(src.start);
+    var srcEnd   = document.getElementById(src.end);
+    var srcTotal = document.getElementById(src.total);
+    startEl.value = srcStart ? srcStart.value : "";
+    endEl.value   = srcEnd   ? srcEnd.value   : "";
+    totalEl.value = srcTotal ? srcTotal.value : "";
+  }
+
+  function lcSyncAllLinkedEtapas() {
+    Object.keys(LC_ETAPA_VERBA_LINKED_SOURCE).forEach(lcSyncLinkedEtapa);
+  }
+
+  // Liga a sincronização assim que o usuário edita o passo 1/2 — o card na
+  // Verba já reflete na hora, sem precisar trocar de step e voltar.
+  (function () {
+    Object.keys(LC_ETAPA_VERBA_LINKED_SOURCE).forEach(function (key) {
+      var src = LC_ETAPA_VERBA_LINKED_SOURCE[key];
+      [src.start, src.end, src.total].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el) el.addEventListener("input", function () { lcSyncLinkedEtapa(key); });
+      });
+    });
+  })();
+
   function lcPopulateEtapas(etapas) {
     etapas = etapas || [];
     var verbaNomes = { "Pré-Qualificação": "pre_qualificacao", "Captação": "captacao" };
@@ -2607,7 +2684,7 @@ document.addEventListener('keydown', function (e) {
     var verbaContainer = document.getElementById("lc-etapas-container");
     verbaContainer.innerHTML = "";
     LC_ETAPAS_VERBA_DEFAULT.forEach(function(et){
-      lcCreateEtapaBlock("lc-etapas-container", et.key, et.nome, false);
+      lcCreateEtapaBlock("lc-etapas-container", et.key, et.nome, false, true);
     });
 
     var eventoContainer = document.getElementById("lc-etapas-evento-container");

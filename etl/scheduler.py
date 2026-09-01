@@ -100,7 +100,13 @@ def rodar_carga(dias_janela: int = 2) -> None:
         logger.info("Iniciando rodada do ETL. Janela de atualização: %s até %s (%d dias)", inicio, fim, dias_janela)
 
         cmd = [sys.executable, str(ORQUESTRADOR), "--since", inicio, "--until", fim]
-        result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore")
+        # Rede de segurança externa: run_all.py agora tem timeout por fonte
+        # (ver run_all.py), mas esse timeout aqui cobre qualquer coisa que
+        # escape dele (hang fora de subprocess, trava no nível do Python) —
+        # sem isso, um travamento aqui prende o _job_lock pra sempre e todo
+        # ciclo seguinte do scheduler é pulado em silêncio (aconteceu em
+        # 01/09: ~6h sem nenhuma fonte rodar até restart manual).
+        result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=5700)
 
         if result.returncode == 0:
             logger.info("ETL executado com sucesso.")

@@ -186,16 +186,24 @@
         <div class="tp-label">Total Limpo</div>
         <div class="tp-compare">ativos agora</div>
       </div>
+      {% set entradas_hoje = dados.get('entradas_hoje', dados.entradas) %}
+      {% set saidas_hoje = dados.get('saidas_hoje', dados.saidas) %}
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-user-plus"></i></div></div>
+        <div class="tp-value">{{ entradas_hoje | num }}</div>
+        <div class="tp-label">Entrada</div>
+        <div class="tp-compare">hoje</div>
+      </div>
       <div class="tp-kpi">
         <div class="tp-kpi-top"><div class="tp-icon danger"><i class="ti ti-user-minus"></i></div></div>
-        <div class="tp-value negativo">{{ dados.get('saidas_hoje', dados.saidas) | num }}</div>
+        <div class="tp-value negativo">{{ saidas_hoje | num }}</div>
         <div class="tp-label">Saída</div>
         <div class="tp-compare">hoje</div>
       </div>
       <div class="tp-kpi">
-        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-user-plus"></i></div></div>
-        <div class="tp-value">{{ dados.get('entradas_hoje', dados.entradas) | num }}</div>
-        <div class="tp-label">Entrada</div>
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-arrows-left-right"></i></div></div>
+        <div class="tp-value{% if entradas_hoje - saidas_hoje < 0 %} negativo{% endif %}">{{ "%+d"|format(entradas_hoje - saidas_hoje) }}</div>
+        <div class="tp-label">Relação (E/S)</div>
         <div class="tp-compare">hoje</div>
       </div>
       <div class="tp-kpi">

@@ -209,11 +209,6 @@
 
 /* ── Comparison section ────────────────────────────────────────── */
 .cmp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-.delta-pos { color: var(--bs-success); font-weight: 700; font-size: 12px; }
-.delta-neg { color: var(--bs-danger); font-weight: 700; font-size: 12px; }
-.delta-neu { color: var(--bs-ink-muted); font-weight: 600; font-size: 12px; }
-.dbf-dia1-val { display: block; }
-.dbf-dia1-delta { display: block; margin-top: 1px; }
 .cmp-curr {
   background: var(--bs-card); border-radius: 10px; padding: 18px;
   box-shadow: var(--bs-sh-sm); border-top: 3px solid var(--bs-accent);
@@ -512,63 +507,6 @@
       {% endif %}
     </div>
   </div>
-
-  <!-- ═══════════════════════════════════════════════════════════ -->
-  <!-- 2b. DIA 1 HORA A HORA × LANÇAMENTO ANTERIOR (duas tabelas,   -->
-  <!-- mesmo padrão já usado em /comparativo)                      -->
-  <!-- ═══════════════════════════════════════════════════════════ -->
-  {% if dbf.dia1.checkpoints %}
-  {% macro dbf_delta(a, b) %}
-    {% set pct = ((b - a) / a * 100) | round(1) if a else 0 %}
-    {% if pct > 0 %}<span class="delta-pos">&#9650; {{ pct }}%</span>
-    {% elif pct < 0 %}<span class="delta-neg">&#9660; {{ pct | abs }}%</span>
-    {% else %}<span class="delta-neu">= 0%</span>{% endif %}
-  {% endmacro %}
-  {% macro dbf_dia1_table(dia1, code, color, compare=None, compare_code=None) %}
-    <h3 style="margin:0 0 10px;font-size:14px;color:{{ color }}">
-      {{ code }} <small style="font-weight:400;opacity:.7;">— abertura {{ dia1.data_abertura[8:10] }}/{{ dia1.data_abertura[5:7] }}</small>
-    </h3>
-    {% if compare and compare_code %}
-    <p style="font-size:11.5px;color:var(--bs-ink-muted);margin:0 0 10px;">Variação em relação a <strong>{{ compare_code }}</strong>, mesmo horário do dia 1.</p>
-    {% endif %}
-    <div class="table-wrap" data-no-filter>
-      <table class="dbf-table">
-        <colgroup>
-          <col style="width:60px"><col><col><col><col>
-        </colgroup>
-        <thead>
-          <tr><th>Hora</th><th class="num">Hotmart</th><th class="num">TMB</th><th class="num">Total</th><th class="num">Faturamento</th></tr>
-        </thead>
-        <tbody>
-          {% for c in dia1.checkpoints %}
-          {% set cmp = compare[loop.index0] if compare and loop.index0 < (compare | length) else None %}
-          {% set has_cmp = cmp and not cmp.pendente %}
-          <tr>
-            <td><strong>{{ c.hora }}</strong></td>
-            {% if c.pendente %}
-            <td class="num" colspan="4" style="color:var(--bs-ink-subtle);font-style:italic;">ainda não chegou</td>
-            {% else %}
-            <td class="num"><span class="dbf-dia1-val">{{ c.ht | num }}</span>{% if has_cmp %}<span class="dbf-dia1-delta">{{ dbf_delta(cmp.ht, c.ht) }}</span>{% endif %}</td>
-            <td class="num"><span class="dbf-dia1-val">{{ c.tmb | num }}</span>{% if has_cmp %}<span class="dbf-dia1-delta">{{ dbf_delta(cmp.tmb, c.tmb) }}</span>{% endif %}</td>
-            <td class="num"><span class="dbf-dia1-val"><strong>{{ c.total | num }}</strong></span>{% if has_cmp %}<span class="dbf-dia1-delta">{{ dbf_delta(cmp.total, c.total) }}</span>{% endif %}</td>
-            <td class="num"><span class="dbf-dia1-val">{{ c.faturamento | brl }}</span>{% if has_cmp %}<span class="dbf-dia1-delta">{{ dbf_delta(cmp.faturamento, c.faturamento) }}</span>{% endif %}</td>
-            {% endif %}
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% endmacro %}
-  <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-clock-hour-4"></i> Abertura do Carrinho — Hora a Hora (Dia 1)</div>
-    <div class="cmp-grid">
-      <div>{{ dbf_dia1_table(dbf.dia1, launch.code if launch else '', 'var(--bs-accent)', compare=(dbf.prev_dia1.checkpoints if dbf.prev_dia1.checkpoints else None), compare_code=dbf.prev_code) }}</div>
-      {% if dbf.prev_dia1.checkpoints %}
-      <div>{{ dbf_dia1_table(dbf.prev_dia1, dbf.prev_code, 'var(--bs-ink-muted)', compare=(dbf.prev_prev_dia1.checkpoints if dbf.prev_prev_dia1.checkpoints else None), compare_code=dbf.prev_prev_code) }}</div>
-      {% endif %}
-    </div>
-  </div>
-  {% endif %}
 
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- ═══════════════════════════════════════════════════════════ -->

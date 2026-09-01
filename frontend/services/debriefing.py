@@ -199,10 +199,6 @@ def _compute_debriefing_ctx(
     leads_antigos: Any = None,
     perfil_por_anuncio: Any = None,
     pesquisa_engajamento: Any = None,
-    dia1: Any = None,
-    prev_dia1: Any = None,
-    prev_prev_dia1: Any = None,
-    prev_prev_code: str = "",
     qualidade_regiao: Any = None,
     caminho_comprador: Any = None,
     wa_cost: Any = None,
@@ -507,10 +503,6 @@ def _compute_debriefing_ctx(
         "pesquisa_engajamento": pesquisa_engajamento,
         # Comercial × IA × Orgânico (sck Hotmart / utm_source TMB)
         "vendas_por_canal": getattr(vendas, "por_canal", {}) or {},
-        # Dia 1 hora a hora × lançamento anterior (mesmo formato de duas
-        # tabelas já usado em /comparativo — dia1/prev_dia1 crus com .checkpoints)
-        "dia1": dia1 or {}, "prev_dia1": prev_dia1 or {},
-        "prev_prev_dia1": prev_prev_dia1 or {}, "prev_prev_code": prev_prev_code,
         # Antigo × novo (ADxxx já usado em lançamento anterior do produto)
         "antigo_novo": _build_antigo_novo(meta, google, sales_attr),
         # Qualidade por estado (Meta invest/leads + compradores/receita)

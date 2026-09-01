@@ -15,6 +15,12 @@ mandaram mensagem no mesmo período apareciam junto, mesmo sem relação com o
 lançamento. Contas com `bot_ia: true` (ex: Olívia) atendem os 3 produtos e
 entram em qualquer lançamento; contas com `product: null` (institucionais,
 ainda não confirmadas) ficam de fora.
+
+`total_cost_brl` já vem com o IOF de compra internacional no cartão (3,5%,
+confirmado com o usuário em 2026-09-01 — a cobrança cai direto na fatura do
+cartão da Aprova Sim, não é remessa via Unichat) embutido — é o valor "real"
+que soma no Investimento Total. `total_cost_brl_sem_iof` fica disponível à
+parte só pra depuração/transparência.
 """
 from __future__ import annotations
 
@@ -60,7 +66,7 @@ def _read_uncached(launch_code: str, start: date, end: date) -> dict | None:
             rows = conn.execute(
                 text(
                     "SELECT date, waba_id, account_name, phone_number, sent, delivered, "
-                    "cost_usd, cost_brl "
+                    "cost_usd, cost_brl, cost_brl_iof "
                     "FROM whatsapp_messages_daily WHERE date BETWEEN :s AND :e "
                     "ORDER BY date"
                 ),
@@ -88,21 +94,25 @@ def _read_uncached(launch_code: str, start: date, end: date) -> dict | None:
             "total_delivered": 0,
             "total_cost_usd": 0.0,
             "total_cost_brl": 0.0,
+            "total_cost_brl_sem_iof": 0.0,
         })
+        cost_iof = float(r.cost_brl_iof) if r.cost_brl_iof is not None else None
         acc["series"].append({
             "date": str(r.date), "sent": r.sent or 0, "delivered": r.delivered or 0,
-            "cost_brl": float(r.cost_brl) if r.cost_brl is not None else None,
+            "cost_brl": cost_iof,
         })
         acc["total_sent"] += r.sent or 0
         acc["total_delivered"] += r.delivered or 0
         acc["total_cost_usd"] += float(r.cost_usd or 0)
-        acc["total_cost_brl"] += float(r.cost_brl or 0)
+        acc["total_cost_brl"] += cost_iof or 0.0
+        acc["total_cost_brl_sem_iof"] += float(r.cost_brl or 0)
 
     accounts = sorted(by_account.values(), key=lambda a: -a["total_sent"])
     total_sent = sum(a["total_sent"] for a in accounts)
     total_delivered = sum(a["total_delivered"] for a in accounts)
     total_cost_usd = sum(a["total_cost_usd"] for a in accounts)
     total_cost_brl = sum(a["total_cost_brl"] for a in accounts)
+    total_cost_brl_sem_iof = sum(a["total_cost_brl_sem_iof"] for a in accounts)
 
     return {
         "accounts": accounts,
@@ -110,6 +120,7 @@ def _read_uncached(launch_code: str, start: date, end: date) -> dict | None:
         "total_delivered": total_delivered,
         "total_cost_usd": total_cost_usd,
         "total_cost_brl": total_cost_brl,
+        "total_cost_brl_sem_iof": total_cost_brl_sem_iof,
         "start": str(start),
         "end": str(end),
     }

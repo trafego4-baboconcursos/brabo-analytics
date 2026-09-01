@@ -19,8 +19,10 @@
       Volume (enviado/entregue) e custo por dia, só dos números do expert responsável por este produto
       (config/whatsapp_accounts.yaml). O custo em USD vem do endpoint <code>pricing_analytics</code> do Meta
       (cobrança por mensagem — o antigo <code>conversation_analytics</code> continua bloqueado pra contas
-      faturadas via Unichat como parceiro, mas esse não é) e é convertido pra R$ usando a <strong>cotação
-      PTAX do Bacen no dia do faturamento</strong> (não a cotação de hoje).
+      faturadas via Unichat como parceiro, mas esse não é), convertido pra R$ pela <strong>cotação PTAX do
+      Bacen no dia do faturamento</strong> (não a cotação de hoje), com o <strong>IOF de 3,5%</strong> de
+      compra internacional no cartão já incluído (a cobrança cai direto na fatura do cartão, não é remessa
+      via Unichat). Sem IOF: {{ wa_msgs.total_cost_brl_sem_iof | brl }}.
     </div>
 
     {% set marcos = [
@@ -57,8 +59,8 @@
       <div class="tp-kpi">
         <div class="tp-kpi-top"><div class="tp-icon danger"><i class="ti ti-currency-real"></i></div></div>
         <div class="tp-value">{{ wa_msgs.total_cost_brl | brl }}</div>
-        <div class="tp-label">Custo no período</div>
-        <div class="tp-compare">US$ {{ "%.2f"|format(wa_msgs.total_cost_usd) }} · cotação PTAX do dia</div>
+        <div class="tp-label">Custo no período (com IOF)</div>
+        <div class="tp-compare">US$ {{ "%.2f"|format(wa_msgs.total_cost_usd) }} · PTAX do dia + IOF 3,5%</div>
       </div>
     </div>
 

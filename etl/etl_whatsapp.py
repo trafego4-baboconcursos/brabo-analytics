@@ -40,6 +40,12 @@ API_VERSION = "v22.0"
 TABLE = "whatsapp_messages_daily"
 CONFIG_PATH = Path(__file__).parent.parent / "config" / "whatsapp_accounts.yaml"
 
+# IOF sobre compra internacional no cartão de crédito (Decreto 12.499/2025,
+# em vigor desde 16/07/2025) — a cobrança do WhatsApp cai direto na fatura do
+# cartão da Aprova Sim em USD, não é remessa via Unichat (essa é paga à parte,
+# em BRL, fora deste cálculo). Confirmado com o usuário em 2026-09-01.
+IOF_CARTAO_INTERNACIONAL = 0.035
+
 
 def load_accounts() -> list[dict]:
     cfg = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8")) or {}
@@ -101,6 +107,7 @@ def build_df(accounts: list[dict], since: str, until: str) -> pd.DataFrame:
             date = datetime.fromtimestamp(p["start"], tz=timezone.utc).strftime("%Y-%m-%d")
             cost_usd = cost_by_date.get(date)
             ptax = get_ptax_venda(date) if cost_usd is not None else None
+            cost_brl = (cost_usd * ptax) if (cost_usd is not None and ptax is not None) else None
             records.append({
                 "date": date,
                 "waba_id": waba_id,
@@ -110,7 +117,8 @@ def build_df(accounts: list[dict], since: str, until: str) -> pd.DataFrame:
                 "delivered": int(p.get("delivered", 0)),
                 "cost_usd": cost_usd,
                 "ptax_venda": ptax,
-                "cost_brl": (cost_usd * ptax) if (cost_usd is not None and ptax is not None) else None,
+                "cost_brl": cost_brl,
+                "cost_brl_iof": (cost_brl * (1 + IOF_CARTAO_INTERNACIONAL)) if cost_brl is not None else None,
             })
         logger.info("WhatsApp: %s (%s) -> %d dias, %d com custo", acc.get("name"), waba_id, len(points), len(cost_by_date))
     return pd.DataFrame(records)

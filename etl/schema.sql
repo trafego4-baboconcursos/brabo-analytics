@@ -164,6 +164,12 @@ ALTER TABLE whatsapp_messages_daily ADD COLUMN IF NOT EXISTS cost_usd    NUMERIC
 ALTER TABLE whatsapp_messages_daily ADD COLUMN IF NOT EXISTS ptax_venda  NUMERIC(10,4);
 ALTER TABLE whatsapp_messages_daily ADD COLUMN IF NOT EXISTS cost_brl    NUMERIC(12,2);
 
+-- cost_brl_iof = cost_brl com o IOF de compra internacional no cartão de
+-- crédito já embutido (3,5%, Decreto 12.499/2025 — a cobrança do WhatsApp cai
+-- direto na fatura do cartão da Aprova Sim, não é remessa via Unichat). É o
+-- valor "real" que entra no Investimento Total do painel.
+ALTER TABLE whatsapp_messages_daily ADD COLUMN IF NOT EXISTS cost_brl_iof NUMERIC(12,2);
+
 
 -- ── INSTAGRAM — snapshot diário de perfil + posts (Graph API, contas próprias) ──
 -- Contas configuradas em config/instagram_accounts.yaml. followers_count é uma

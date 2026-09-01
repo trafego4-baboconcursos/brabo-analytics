@@ -125,7 +125,7 @@ def _get_analytics(token: str, release_id: str) -> dict:
     return data
 
 
-def _contar(token: str, release_id: str) -> dict | None:
+def _contar(token: str, release_id: str, total_limpo_anterior: int | None = None) -> dict | None:
     try:
         leads = _export_leads(token, release_id)
     except Exception:
@@ -142,6 +142,20 @@ def _contar(token: str, release_id: str) -> dict | None:
         if numero not in ADMIN_NUMBERS_BASE:
             numeros_limpo.add(numero)
 
+    # Proteção contra leitura parcial (mesma lógica do sendflow-analytics-
+    # poller): o CSV do export-leads vem de um download separado do Firebase
+    # Storage — se cortar no meio por rate limit/timeout, csv.DictReader
+    # processa só o que chegou, sem erro nenhum, e o total fica baixo demais
+    # sem nenhum aviso. Uma queda >10% de um ciclo pro outro é implausível
+    # pra uma campanha só crescendo — nesse caso não confia nessa leitura.
+    if total_limpo_anterior and total_limpo_anterior > 0 and len(numeros_limpo) < total_limpo_anterior * 0.9:
+        logger.warning(
+            "sendflow_contagem: total_limpo (%s) caiu mais de 10%% em relação ao anterior "
+            "(%s) para release %s — parece leitura parcial, descartando",
+            len(numeros_limpo), total_limpo_anterior, release_id,
+        )
+        return None
+
     entradas_hoje = saidas_hoje = 0
     try:
         analytics = _get_analytics(token, release_id)
@@ -152,7 +166,13 @@ def _contar(token: str, release_id: str) -> dict | None:
         logger.exception("sendflow_contagem: falha ao consultar /analytics (release %s)", release_id)
 
     return {
-        "total": len(numeros_todos),
+        # "Total" replica o que o Sheets mostra hoje: contagem de LINHA do
+        # export-leads (uma por participação em grupo — quem está em vários
+        # grupos conta mais de uma vez), não de pessoa única. Sim, é a mesma
+        # conta que já foi identificada como "errada" no poller (corrigida
+        # lá em 27/08, commit e5ce4bf) — mas aqui o objetivo é bater com o
+        # que o Sheets mostra agora, não com a versão corrigida.
+        "total": len(leads),
         "total_limpo": len(numeros_limpo),
         "entradas_hoje": int(entradas_hoje or 0),
         "saidas_hoje": int(saidas_hoje or 0),
@@ -201,8 +221,11 @@ def contar_lancamento(code: str) -> dict | None:
         if not cfg:
             return None
 
+        resultado_anterior = cached[1] if cached else None
+
         blocos_esperados = [c for c in ("normal", "vip") if cfg.get(c)]
         resultado = {}
+        blocos_frescos = 0  # só conta leitura NOVA e bem-sucedida, não reaproveitada
         primeira = True
         for chave in blocos_esperados:
             bloco = cfg[chave]
@@ -213,11 +236,20 @@ def contar_lancamento(code: str) -> dict | None:
             if not primeira:
                 time.sleep(1.5)  # espaça chamadas ao mesmo token (rate limit da SendFlow)
             primeira = False
-            r = _contar(token, bloco["release_id"])
+            anterior = (resultado_anterior or {}).get(chave, {}).get("total_limpo")
+            r = _contar(token, bloco["release_id"], total_limpo_anterior=anterior)
             if r:
                 resultado[chave] = r
+                blocos_frescos += 1
+            elif anterior is not None:
+                # leitura descartada (parcial) ou falhou — mantém o último
+                # valor bom conhecido em vez de mostrar zero/fallback errado
+                resultado[chave] = resultado_anterior[chave]
 
-        completo = len(resultado) == len(blocos_esperados)
+        # completo = toda chave esperada veio de uma leitura NOVA bem-sucedida
+        # nesse ciclo — se alguma foi reaproveitada do anterior (ou faltou),
+        # cache curto pra tentar de novo em breve.
+        completo = blocos_frescos == len(blocos_esperados)
         resultado_final = resultado or None
         _cache[code] = (time.time(), resultado_final, completo)
         return resultado_final

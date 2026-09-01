@@ -283,16 +283,17 @@ def _read_whatsapp_uncached(code: str, start_date=None, end_date=None) -> dict |
             tem_lead_numero=_tem_coluna(conn, t_vip, "LEAD NÚMERO"),
         ) if tem_vip else None
 
-        # Total/Total Limpo vêm da planilha do Sheets quando disponível — é
-        # o número que o time já acompanha, calculado pelo poller (dedup +
-        # exclusão de admin). Sem isso, cai no cálculo daqui (tabela de
-        # leads acumulada), que pode divergir por causa do LID do WhatsApp.
-        from frontend.db_readers.sheets_contagem import ler_contagem_sheets  # noqa: PLC0415
-        contagem_sheets = ler_contagem_sheets(code) or {}
-        if normal and contagem_sheets.get("normal"):
-            normal.update(contagem_sheets["normal"])
-        if vip and contagem_sheets.get("vip"):
-            vip.update(contagem_sheets["vip"])
+        # Total/Total Limpo/Entrada/Saída vêm direto da SendFlow quando
+        # disponível — mesmo padrão de cálculo do sendflow-analytics-poller
+        # (dedup por telefone + exclusão de admin), independente do Sheets e
+        # da tabela de leads acumulada (que diverge com o tempo por causa do
+        # LID do WhatsApp não ser estável entre sincronizações).
+        from frontend.db_readers.sendflow_contagem import contar_lancamento  # noqa: PLC0415
+        contagem_sf = contar_lancamento(code) or {}
+        if normal and contagem_sf.get("normal"):
+            normal.update(contagem_sf["normal"])
+        if vip and contagem_sf.get("vip"):
+            vip.update(contagem_sf["vip"])
 
         overlap = 0
         if tem_normal and tem_vip:

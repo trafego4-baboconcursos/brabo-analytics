@@ -21,7 +21,14 @@ def _build_clima_breakdown(obj: Any, attr: str, leads_key: str = "leads") -> lis
         leads = v.get(leads_key)
         if leads is None:
             leads = v.get("conversoes") or 0
-        rows.append({"clima": c, "gasto": gasto, "leads": float(leads or 0)})
+        thruplays = int(v.get("thruplays") or 0)
+        views_50 = int(v.get("views_50") or 0)
+        rows.append({
+            "clima": c, "gasto": gasto, "leads": float(leads or 0),
+            "thruplays": thruplays, "views_50": views_50,
+            "custo_thruplay": (gasto / thruplays) if thruplays > 0 else 0.0,
+            "pct_50": (views_50 / thruplays * 100) if thruplays > 0 else 0.0,
+        })
     total = sum(r["gasto"] for r in rows) or 1
     for r in rows:
         r["pct"] = r["gasto"] / total * 100 if r["gasto"] > 0 else 0.0

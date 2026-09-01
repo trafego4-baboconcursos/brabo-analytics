@@ -638,12 +638,15 @@
     <div class="dbf-section-title"><i class="ti ti-target-arrow"></i> Investimento em Pré-Qualificação</div>
     {% set preq_dates = [dbf.prequali_invest.meta.data_inicio, dbf.prequali_invest.google.data_inicio] | select | unique | list %}
     {% if preq_dates %}<div class="note" style="margin-bottom:10px">Início: {{ preq_dates | map('br_date') | join(' / ') }}</div>{% endif %}
-    <div class="table-wrap">
+    <div class="table-wrap" data-no-filter>
       <table class="dbf-table">
         <thead>
           <tr>
             <th>Público</th>
             <th class="num">Investimento</th>
+            <th class="num">ThruViews</th>
+            <th class="num">Custo/ThruView</th>
+            <th class="num">Viu 50%+</th>
           </tr>
         </thead>
         <tbody>
@@ -653,10 +656,20 @@
           <tr class="ldt-main">
             <td><span class="aud-tag{{ ' g' if plat_prefix == 'YT' else '' }}">{{ plat_prefix }} {{ c.clima }}</span></td>
             <td class="num">{{ c.gasto | brl }}</td>
+            {% if plat_key == 'meta' %}
+            <td class="num">{{ c.thruplays | num }}</td>
+            <td class="num">{{ c.custo_thruplay | brl(3) if c.thruplays > 0 else '—' }}</td>
+            <td class="num">{{ c.views_50 | num }} <span class="ldt-pct">({{ c.pct_50 | round(1) }}%)</span></td>
+            {% else %}
+            <td class="num" colspan="3" style="color:var(--bs-ink-subtle);font-size:11px">Google não expõe ThruPlay comparável</td>
+            {% endif %}
           </tr>
           <tr class="ldt-sub">
             <td><span class="ldt-pct">{{ c.pct | round(1) }}% do investimento em {{ 'Facebook Ads' if plat_key == 'meta' else 'Google Ads' }}</span></td>
             <td class="num">{% if c.prev_gasto %}{{ dbadge(c.gasto, c.prev_gasto, 'up') }}{% endif %}</td>
+            <td class="num"></td>
+            <td class="num"></td>
+            <td class="num"></td>
           </tr>
           {% endif %}{% endfor %}
           {% endfor %}

@@ -204,7 +204,7 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
     code = _extract_launch_code(launch_folder_or_code)
     engine = _get_engine()
 
-    _COLS = "date, ad_id, ad_name, adset_name, campaign_name, impressions, clicks, spend, leads, video_thruplays"
+    _COLS = "date, ad_id, ad_name, adset_name, campaign_name, impressions, clicks, spend, leads, video_thruplays, video_views_50"
     if start_date and end_date:
         df = pd.read_sql(
             text(f"SELECT {_COLS} FROM meta_ads_daily WHERE lancamento_codigo = :code AND date BETWEEN :start AND :end"),
@@ -301,16 +301,23 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
         }
 
     df_preq = df[df["etapa"] == "Pré-Qualificação"]
-    preq_grouped = df_preq.groupby("temperatura").agg(custo=("spend", "sum"), leads=("leads", "sum")).reset_index()
+    preq_grouped = df_preq.groupby("temperatura").agg(
+        custo=("spend", "sum"), leads=("leads", "sum"),
+        thruplays=("video_thruplays", "sum"), views_50=("video_views_50", "sum"),
+    ).reset_index()
     total_spend_preq = preq_grouped["custo"].sum() or 1
     for _, r in preq_grouped.iterrows():
+        thruplays = int(r["thruplays"])
         summary.por_temperatura_prequali[r["temperatura"]] = {
             "temperatura": r["temperatura"],
             "custo": float(r["custo"]),
             "gasto": float(r["custo"]),
             "leads": int(r["leads"]),
             "cpl": float(r["custo"] / r["leads"]) if r["leads"] > 0 else 0.0,
-            "pct": float(r["custo"] / total_spend_preq * 100)
+            "pct": float(r["custo"] / total_spend_preq * 100),
+            "thruplays": thruplays,
+            "custo_thruplay": float(r["custo"] / thruplays) if thruplays > 0 else 0.0,
+            "views_50": int(r["views_50"]),
         }
 
     bucket_grouped = df.groupby("bucket").agg(custo=("spend", "sum"), leads=("leads", "sum")).reset_index()

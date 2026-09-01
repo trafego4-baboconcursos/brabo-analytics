@@ -94,7 +94,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
     code = _extract_launch_code(launch_folder_or_code)
     engine = _get_engine()
 
-    _COLS = "date, ad_name, campaign_name, impressions, clicks, cost, conversions, video_views, video_views_100, video_id"
+    _COLS = "date, ad_name, campaign_name, impressions, clicks, cost, conversions, video_views, video_views_50, video_views_100, video_id"
     if start_date and end_date:
         df = pd.read_sql(
             text(f"SELECT {_COLS} FROM google_ads_daily WHERE lancamento_codigo = :code AND date BETWEEN :start AND :end"),
@@ -274,17 +274,22 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
 
     # Agrega por temperatura — pré-qualificação
     preq_grouped = df[df["etapa"] == "Pré-Qualificação"].groupby("temperatura").agg(
-        custo=("cost", "sum"), conversoes=("conversions", "sum")
+        custo=("cost", "sum"), conversoes=("conversions", "sum"),
+        views=("video_views", "sum"), views_50=("video_views_50", "sum"),
     ).reset_index()
     for _, r in preq_grouped.iterrows():
         conv = float(r["conversoes"])
+        views = int(r["views"])
         summary.por_temperatura_prequali[r["temperatura"]] = {
             "temperatura": r["temperatura"],
             "custo": float(r["custo"]),
             "gasto": float(r["custo"]),
             "conversoes": conv,
             "leads": conv,
-            "custo_conv": float(r["custo"] / conv) if conv > 0 else 0.0
+            "custo_conv": float(r["custo"] / conv) if conv > 0 else 0.0,
+            "thruplays": views,
+            "custo_thruplay": float(r["custo"] / views) if views > 0 else 0.0,
+            "views_50": int(r["views_50"]),
         }
 
     # Segmento Google (temperatura + bucket) — apenas captação

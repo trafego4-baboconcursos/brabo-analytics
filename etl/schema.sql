@@ -365,6 +365,16 @@ CREATE TRIGGER tr_processar_comissao_hotmart
 AFTER INSERT OR UPDATE OR DELETE ON hotmart_clean_oficial
 FOR EACH ROW EXECUTE FUNCTION processar_comissao_hotmart();
 
+-- Índices de performance para view_atribuicao (ROAS/vendas por criativo):
+-- sem eles, toda leitura de Dashboard/Criativos/Vendas com cache frio fazia
+-- table scan completo nas duas tabelas de vendas, que só crescem a cada
+-- lançamento. Índices de expressão casam exatamente com lower(trim(email))
+-- usado no JOIN/GROUP BY da view; não altera nenhum dado, só acelera leitura.
+CREATE INDEX IF NOT EXISTS idx_hotmart_status ON hotmart_clean_oficial (status_da_transacao);
+CREATE INDEX IF NOT EXISTS idx_hotmart_email  ON hotmart_clean_oficial (lower(trim(email_do_a_comprador_a)));
+CREATE INDEX IF NOT EXISTS idx_tmb_status     ON tmb_clean_oficial (status);
+CREATE INDEX IF NOT EXISTS idx_tmb_email      ON tmb_clean_oficial (lower(trim(email_cliente)));
+
 
 -- ── DIMENSÃO LANÇAMENTOS ────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS dim_lancamentos (

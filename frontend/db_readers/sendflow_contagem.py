@@ -21,6 +21,7 @@ from __future__ import annotations
 import csv
 import io
 import os
+import threading
 import time
 from datetime import datetime
 from pathlib import Path
@@ -38,7 +39,10 @@ _CONFIG_PATH = Path(__file__).parent.parent.parent / "config" / "sendflow_contag
 _BASE_URL = "https://sendapi.sendflow.pro"
 _CACHE_TTL = 1800  # 30 minutos — export-leads é pesado (campanha grande demora),
                     # e a SendFlow tem rate limit; não vale a pena bater toda hora
-_cache: dict[str, tuple[float, dict | None]] = {}
+_CACHE_TTL_FALHA = 120  # se a consulta falhar (rate limit, timeout), tenta de
+                         # novo em 2 min em vez de ficar preso 30 min mostrando
+                         # fallback (dados da tabela acumulada) sem necessidade
+_cache: dict[str, tuple[float, dict | None, bool]] = {}
 
 # Mesma lista do sendflow-analytics-poller (app/config.py::ADMIN_NUMBERS_BASE) —
 # contas de marketing/staff da empresa, sempre excluídas do Total Limpo.
@@ -155,34 +159,65 @@ def _contar(token: str, release_id: str) -> dict | None:
     }
 
 
+_cache_locks: dict[str, threading.Lock] = {}
+_cache_locks_guard = threading.Lock()
+
+
+def _lock_for(code: str) -> threading.Lock:
+    with _cache_locks_guard:
+        return _cache_locks.setdefault(code, threading.Lock())
+
+
+# Cache guarda (timestamp, resultado, completo) — "completo" indica se TODOS
+# os blocos esperados (normal/vip) vieram com sucesso. Incompleto usa TTL
+# curto, pra não ficar preso 30 min mostrando fallback por causa de uma
+# falha pontual (rate limit, timeout) na SendFlow.
+def _cache_valido(cached: tuple[float, dict | None, bool]) -> bool:
+    _, _, completo = cached
+    ttl = _CACHE_TTL if completo else _CACHE_TTL_FALHA
+    return (time.time() - cached[0]) < ttl
+
+
 def contar_lancamento(code: str) -> dict | None:
     """Retorna {"normal": {...}, "vip": {...}} pro lançamento, calculado
-    direto da SendFlow. None se não houver mapeamento pra esse código."""
+    direto da SendFlow. None se não houver mapeamento pra esse código.
+
+    Single-flight: se duas requisições baterem no mesmo lançamento com cache
+    frio ao mesmo tempo, só a primeira consulta a SendFlow (export-leads é
+    lento e tem rate limit) — a segunda espera e reaproveita o resultado
+    em vez de disparar uma chamada duplicada.
+    """
     cached = _cache.get(code)
-    if cached and (time.time() - cached[0]) < _CACHE_TTL:
+    if cached and _cache_valido(cached):
         return cached[1]
 
-    cfg = _load_config().get(code)
-    if not cfg:
-        return None
+    with _lock_for(code):
+        # outra thread pode ter computado enquanto esperávamos o lock
+        cached = _cache.get(code)
+        if cached and _cache_valido(cached):
+            return cached[1]
 
-    resultado = {}
-    primeira = True
-    for chave in ("normal", "vip"):
-        bloco = cfg.get(chave)
-        if not bloco:
-            continue
-        token = os.environ.get(bloco["token_env"])
-        if not token:
-            logger.warning("sendflow_contagem: env var %s não configurada", bloco["token_env"])
-            continue
-        if not primeira:
-            time.sleep(1.5)  # espaça chamadas ao mesmo token (rate limit da SendFlow)
-        primeira = False
-        r = _contar(token, bloco["release_id"])
-        if r:
-            resultado[chave] = r
+        cfg = _load_config().get(code)
+        if not cfg:
+            return None
 
-    resultado = resultado or None
-    _cache[code] = (time.time(), resultado)
-    return resultado
+        blocos_esperados = [c for c in ("normal", "vip") if cfg.get(c)]
+        resultado = {}
+        primeira = True
+        for chave in blocos_esperados:
+            bloco = cfg[chave]
+            token = os.environ.get(bloco["token_env"])
+            if not token:
+                logger.warning("sendflow_contagem: env var %s não configurada", bloco["token_env"])
+                continue
+            if not primeira:
+                time.sleep(1.5)  # espaça chamadas ao mesmo token (rate limit da SendFlow)
+            primeira = False
+            r = _contar(token, bloco["release_id"])
+            if r:
+                resultado[chave] = r
+
+        completo = len(resultado) == len(blocos_esperados)
+        resultado_final = resultado or None
+        _cache[code] = (time.time(), resultado_final, completo)
+        return resultado_final

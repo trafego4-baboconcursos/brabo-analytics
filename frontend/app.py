@@ -154,6 +154,17 @@ async def pre_warm_cache():
         except Exception:
             logger.exception("Falha no pre-warming de %s", launch.code)
 
+        # Contagem SendFlow (/whatsapp) fica de fora do _fetch_all_data porque é
+        # uma fonte externa lenta (export-leads da SendFlow) — sem aquecer aqui,
+        # a primeira pessoa a abrir /whatsapp depois de cada deploy pagava esse
+        # custo na hora, na própria requisição.
+        try:
+            from frontend.db_readers.whatsapp_groups import read_whatsapp_groups  # noqa: PLC0415
+            await run_in_threadpool(read_whatsapp_groups, launch.code)
+            logger.info("Pre-warming de WhatsApp/SendFlow para %s concluído.", launch.code)
+        except Exception:
+            logger.exception("Falha no pre-warming de WhatsApp/SendFlow para %s", launch.code)
+
     async def warm():
         launches = await run_in_threadpool(get_launches)
         if not launches:

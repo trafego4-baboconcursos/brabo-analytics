@@ -94,7 +94,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
     code = _extract_launch_code(launch_folder_or_code)
     engine = _get_engine()
 
-    _COLS = "date, ad_name, campaign_name, impressions, clicks, cost, conversions, video_views, video_views_50, video_views_100, video_id"
+    _COLS = "date, ad_name, campaign_name, impressions, clicks, cost, conversions, video_views, video_views_50, video_views_100, video_id, avg_cpv"
     if start_date and end_date:
         df = pd.read_sql(
             text(f"SELECT {_COLS} FROM google_ads_daily WHERE lancamento_codigo = :code AND date BETWEEN :start AND :end"),

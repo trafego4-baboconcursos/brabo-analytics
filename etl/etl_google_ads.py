@@ -88,6 +88,7 @@ SELECT
   metrics.video_quartile_p50_rate,
   metrics.video_quartile_p75_rate,
   metrics.video_quartile_p100_rate,
+  metrics.average_cpv,
   segments.date
 FROM ad_group_ad
 WHERE segments.date BETWEEN '{since}' AND '{until}'
@@ -371,6 +372,7 @@ def build_df_from_pmax_api(rows: list[dict]) -> pd.DataFrame:
             "video_views_50":  0,
             "video_views_75":  0,
             "video_views_100": 0,
+            "avg_cpv":         0.0,
         })
     return pd.DataFrame(records)
 
@@ -573,6 +575,7 @@ def build_df_from_api(rows: list[dict]) -> pd.DataFrame:
             "video_views_75":  round(imp * q75),
             "video_views_100": round(imp * q100),
             "video_id":        video_id,
+            "avg_cpv":         round(int(met.get("averageCpv", 0)) / 1_000_000, 4),
         })
     return pd.DataFrame(records)
 
@@ -611,17 +614,17 @@ def build_df_from_csv(filepath: str, period: str) -> pd.DataFrame:
             df = df.rename(columns={k: v})
             
     # Cria colunas de destino que não existirem no CSV original
-    dest_cols = ["date", "ad_name", "campaign_name", "ad_group_name", "clicks", 
-                 "impressions", "cost", "conversions", "video_views", 
-                 "video_views_25", "video_views_50", "video_views_75", "video_views_100"]
-                 
+    dest_cols = ["date", "ad_name", "campaign_name", "ad_group_name", "clicks",
+                 "impressions", "cost", "conversions", "video_views",
+                 "video_views_25", "video_views_50", "video_views_75", "video_views_100", "avg_cpv"]
+
     for col in dest_cols:
         if col not in df.columns:
             df[col] = "0"
 
     # Normaliza números (formato pt-BR)
-    numeric_cols = ["clicks", "impressions", "cost", "conversions", "video_views", 
-                    "video_views_25", "video_views_50", "video_views_75", "video_views_100"]
+    numeric_cols = ["clicks", "impressions", "cost", "conversions", "video_views",
+                    "video_views_25", "video_views_50", "video_views_75", "video_views_100", "avg_cpv"]
                     
     for col in numeric_cols:
         df[col] = df[col].apply(parse_number)

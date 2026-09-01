@@ -114,6 +114,8 @@ CREATE TABLE IF NOT EXISTS google_ads_daily (
     video_views_50  INTEGER      DEFAULT 0,   -- views estimadas de 50%
     video_views_75  INTEGER      DEFAULT 0,   -- views estimadas de 75%
     video_views_100 INTEGER      DEFAULT 0,   -- views estimadas de 100%
+    video_id        VARCHAR,                  -- YouTube video ID do criativo (quando identificável)
+    avg_cpv         NUMERIC(10,4) DEFAULT 0,  -- custo médio por view (metrics.average_cpv da API)
     lancamento_codigo TEXT,
     updated_at      TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (ad_id, date, lancamento_codigo)

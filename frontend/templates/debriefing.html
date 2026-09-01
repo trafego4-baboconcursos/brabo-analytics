@@ -656,12 +656,12 @@
           <tr class="ldt-main">
             <td><span class="aud-tag{{ ' g' if plat_prefix == 'YT' else '' }}">{{ plat_prefix }} {{ c.clima }}</span></td>
             <td class="num">{{ c.gasto | brl }}</td>
-            {% if plat_key == 'meta' %}
             <td class="num">{{ c.thruplays | num }}</td>
             <td class="num">{{ c.custo_thruplay | brl(3) if c.thruplays > 0 else '—' }}</td>
+            {% if plat_key == 'meta' %}
             <td class="num">{{ c.views_50 | num }} <span class="ldt-pct">({{ c.pct_50 | round(1) }}%)</span></td>
             {% else %}
-            <td class="num" colspan="3" style="color:var(--bs-ink-subtle);font-size:11px">Google não expõe ThruPlay comparável</td>
+            <td class="num">{{ c.views_50 | num }} <span class="ldt-pct" title="Estimativa do Google (impressões × taxa de quartil) — não é um contador direto como o Meta, pode passar de 100% das views">≈{{ c.pct_50 | round(1) }}%*</span></td>
             {% endif %}
           </tr>
           <tr class="ldt-sub">
@@ -676,6 +676,7 @@
         </tbody>
       </table>
     </div>
+    <div style="font-size:11px;color:var(--bs-ink-subtle);margin-top:6px">* Google: "Viu 50%+" é estimado (impressões × taxa de quartil da API), não um contador direto como o ThruPlay do Meta — pode ultrapassar 100% do total de views.</div>
     <div class="dbf-alloc-row total" style="margin-top:14px;border-radius:8px">
       <span>Total Investido — Pré-Qualificação</span>
       <span><span class="amt">{{ dbf.prequali_invest.total | brl(0) }}</span>{% if dbf.prequali_invest.prev_total %} {{ dbadge(dbf.prequali_invest.total, dbf.prequali_invest.prev_total, 'up') }}{% endif %}</span>

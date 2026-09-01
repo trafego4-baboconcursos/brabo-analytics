@@ -56,8 +56,10 @@ from frontend.services.fetch import (  # noqa: E402
     _fetch_all_data, _fetch_prev_for_debriefing,
 )
 from frontend.services.debriefing import _compute_debriefing_ctx  # noqa: F401,E402
-from frontend.services.instagram import get_instagram_profiles  # noqa: F401,E402
+from frontend.services.instagram import get_instagram_profiles, _load_experts  # noqa: F401,E402
 from frontend.db_readers.instagram_detail import read_instagram_detail  # noqa: F401,E402
+from frontend.db_readers.perpetuo import read_perpetuo, VERTICALS as PERPETUO_VERTICALS  # noqa: F401,E402
+from frontend.db_readers.distribuicao import read_distribuicao  # noqa: F401,E402
 from logger import get_logger
 
 logger = get_logger("frontend")
@@ -311,6 +313,49 @@ def _build_funis_nav_groups(launch, active_code, page, current_user, previous_la
     return groups
 
 
+def _build_perpetuo_nav_items(current_path: str, active_code: str | None) -> list[dict]:
+    """Submenu fixo do modo Perpétuo — as 4 verticais (Mestre em Questões
+    TJ-SP/INSS/BB + Planner), pedido explicitamente pelo usuário (diferente
+    do modo Redes Sociais, que só linka de volta pro índice)."""
+    items = []
+    for slug, info in PERPETUO_VERTICALS.items():
+        href = f"/perpetuo/{slug}"
+        if active_code:
+            href += f"?launch_code={active_code}"
+        items.append({"slug": slug, "label": info["nome"], "href": href,
+                      "active": current_path == f"/perpetuo/{slug}"})
+    return items
+
+
+def _build_distribuicao_nav_items(current_path: str, active_code: str | None) -> list[dict]:
+    """Submenu do modo Distribuição de Conteúdo — um item por expert já
+    cadastrado em config/instagram_accounts.yaml (mesma fonte da aba
+    Redes Sociais/Instagram, lado pago em vez do orgânico)."""
+    items = []
+    for account in _load_experts():
+        username = account["username"]
+        href = f"/distribuicao/{username}"
+        if active_code:
+            href += f"?launch_code={active_code}"
+        items.append({"username": username, "label": account["name"], "href": href,
+                      "active": current_path == f"/distribuicao/{username}"})
+    return items
+
+
+def _build_redes_sociais_nav_items(current_path: str, active_code: str | None) -> list[dict]:
+    """Submenu do modo Redes Sociais — mesma lista de experts da Distribuição
+    (lado orgânico, em vez do pago), um item por perfil cadastrado."""
+    items = []
+    for account in _load_experts():
+        username = account["username"]
+        href = f"/instagram/{username}"
+        if active_code:
+            href += f"?launch_code={active_code}"
+        items.append({"username": username, "label": account["name"], "href": href,
+                      "active": current_path == f"/instagram/{username}"})
+    return items
+
+
 def _base_ctx(
     request: Request,
     page: str,
@@ -343,6 +388,10 @@ def _base_ctx(
 
     if page == "instagram":
         nav_mode = "redes_sociais"
+    elif page == "perpetuo":
+        nav_mode = "perpetuo"
+    elif page == "distribuicao":
+        nav_mode = "distribuicao"
     elif page == "lancamentos":
         nav_mode = "lancamentos"
     elif page == "calendario":
@@ -355,18 +404,37 @@ def _base_ctx(
         _build_funis_nav_groups(launch, launch.code if launch else None, page, current_user, previous_launch)
         if nav_mode == "funis" else []
     )
+    active_code = launch.code if launch else None
+    # Sempre computados (não só quando já está no modo) — o picker de cada
+    # modo, na trilha, precisa da lista pra abrir o dropdown de qualquer
+    # página do sistema, igual o seletor de lançamento.
+    perpetuo_nav_items = _build_perpetuo_nav_items(request.url.path, active_code)
+    distribuicao_nav_items = _build_distribuicao_nav_items(request.url.path, active_code)
+    redes_sociais_nav_items = _build_redes_sociais_nav_items(request.url.path, active_code)
+    perpetuo_current = next((i for i in perpetuo_nav_items if i["active"]), None)
+    distribuicao_current = next((i for i in distribuicao_nav_items if i["active"]), None)
+    redes_sociais_current = next((i for i in redes_sociais_nav_items if i["active"]), None)
+    _experts = _load_experts()
+    distribuicao_first_username = _experts[0]["username"] if _experts else None
 
     return {
         "request":         request,
         "page":            page,
         "nav_mode":        nav_mode,
         "nav_groups":      nav_groups,
+        "perpetuo_nav_items":      perpetuo_nav_items,
+        "distribuicao_nav_items":  distribuicao_nav_items,
+        "redes_sociais_nav_items": redes_sociais_nav_items,
+        "perpetuo_current":        perpetuo_current,
+        "distribuicao_current":    distribuicao_current,
+        "redes_sociais_current":   redes_sociais_current,
+        "distribuicao_first_username": distribuicao_first_username,
         "title":           title,
         "launch":          launch,
         "launches":        visible_launches,
         "launch_groups":   launch_groups,
         "v1_launch_url":   v1_launch_url,
-        "active_code":     launch.code if launch else None,
+        "active_code":     active_code,
         "accent":          launch.accent if launch else "#2f5ee3",
         "previous_launch": previous_launch,
         "current_user":    current_user,

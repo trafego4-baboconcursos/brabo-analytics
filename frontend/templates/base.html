@@ -204,6 +204,8 @@ html, body { margin: 0 !important; padding: 0 !important; font-family: 'Inter','
 .bs-subnav-btn .bs-subnav-chevron { font-size:12px; margin-left:2px; transition:transform .15s; opacity:.7; }
 .bs-subnav-btn:hover { color:#fff; background:rgba(255,255,255,.08); }
 .bs-subnav-btn.active { color:#fff; border-bottom-color:var(--bs-accent); background:rgba(255,255,255,.06); }
+.bs-subnav-btn.disabled { opacity:.4; cursor:default; pointer-events:none; }
+.bs-subnav-btn .bs-mode-soon { margin-left:2px; }
 .bs-subnav-group.open .bs-subnav-btn .bs-subnav-chevron { transform:rotate(180deg); }
 .bs-subnav-dropdown {
   display:none; position:absolute; top:100%; left:0; min-width:220px;
@@ -1117,7 +1119,12 @@ kbd {
        específico — escolher um lançamento a partir delas deve levar pra
        home do lançamento (Índice), não recarregar a página atual com
        launch_code colado. #}
-    {% set _switch_base = '/' if nav_mode in ('lancamentos', 'calendario') else request.url.path %}
+    {# Só em modo Funis (já dentro de um lançamento) a troca de lançamento
+       mantém a página atual (ex.: trocar de lançamento no Meta Ads). Em
+       qualquer outro modo (Calendário/Lançamentos/Perpétuo/Distribuição/
+       Redes Sociais), a página atual não é do lançamento — trocar deve
+       levar pra home do lançamento (Índice). #}
+    {% set _switch_base = request.url.path if nav_mode == 'funis' else '/' %}
     <nav class="bs-mode-rail">
       <a class="bs-mode-btn {% if nav_mode == 'calendario' %}active{% endif %}"
          href="/calendario">
@@ -1134,7 +1141,7 @@ kbd {
       <div class="bs-launch-picker" id="bs-launch-picker">
         <button type="button"
                 class="bs-mode-btn bs-launch-picker-btn {% if nav_mode == 'lancamentos' %}active{% endif %}"
-                onclick="bsLaunchPickerToggle()">
+                onclick="bsPickerToggle(this)">
           <span class="bs-launch-picker-label"><i class="ti ti-rocket"></i> Lançamento{% if not active_code %}s{% endif %}</span>
           {% if active_code %}
           <span class="bs-live-badge"><span class="bs-live-dot"></span> {{ active_code }}</span>
@@ -1160,20 +1167,67 @@ kbd {
         </div>
       </div>
 
-      <a class="bs-mode-btn {% if nav_mode == 'perpetuo' %}active{% endif %}"
-         href="/perpetuo/pmq-tjsp{% if active_code %}?launch_code={{ active_code }}{% endif %}">
-        <i class="ti ti-infinity"></i> Perpétuo
-      </a>
-      {% if distribuicao_first_username %}
-      <a class="bs-mode-btn {% if nav_mode == 'distribuicao' %}active{% endif %}"
-         href="/distribuicao/{{ distribuicao_first_username }}{% if active_code %}?launch_code={{ active_code }}{% endif %}">
-        <i class="ti ti-speakerphone"></i> Distribuição
-      </a>
+      <!-- Perpétuo, Distribuição e Redes Sociais seguem o mesmo padrão do
+           Lançamento: botão vira picker, mostra o item atual como badge
+           quando dentro do modo. -->
+      <div class="bs-launch-picker" id="bs-perpetuo-picker">
+        <button type="button"
+                class="bs-mode-btn bs-launch-picker-btn {% if nav_mode == 'perpetuo' %}active{% endif %}"
+                onclick="bsPickerToggle(this)">
+          <span class="bs-launch-picker-label"><i class="ti ti-infinity"></i> Perpétuo</span>
+          {% if nav_mode == 'perpetuo' and perpetuo_current %}
+          <span class="bs-live-badge"><span class="bs-live-dot"></span> {{ perpetuo_current.label }}</span>
+          {% endif %}
+          <i class="ti ti-chevron-down bs-launch-picker-chevron"></i>
+        </button>
+        <div class="bs-launch-picker-menu">
+          {% for item in perpetuo_nav_items %}
+          <a class="bs-launch-picker-item {% if item.active %}active{% endif %}" href="{{ item.href }}">{{ item.label }}</a>
+          {% endfor %}
+        </div>
+      </div>
+
+      {% if distribuicao_nav_items %}
+      <div class="bs-launch-picker" id="bs-distribuicao-picker">
+        <button type="button"
+                class="bs-mode-btn bs-launch-picker-btn {% if nav_mode == 'distribuicao' %}active{% endif %}"
+                onclick="bsPickerToggle(this)">
+          <span class="bs-launch-picker-label"><i class="ti ti-speakerphone"></i> Distribuição</span>
+          {% if nav_mode == 'distribuicao' and distribuicao_current %}
+          <span class="bs-live-badge"><span class="bs-live-dot"></span> {{ distribuicao_current.label }}</span>
+          {% endif %}
+          <i class="ti ti-chevron-down bs-launch-picker-chevron"></i>
+        </button>
+        <div class="bs-launch-picker-menu">
+          {% for item in distribuicao_nav_items %}
+          <a class="bs-launch-picker-item {% if item.active %}active{% endif %}" href="{{ item.href }}">{{ item.label }}</a>
+          {% endfor %}
+        </div>
+      </div>
       {% endif %}
-      <a class="bs-mode-btn {% if nav_mode == 'redes_sociais' %}active{% endif %}"
-         href="/instagram{% if active_code %}?launch_code={{ active_code }}{% endif %}">
-        <i class="ti ti-share"></i> Redes Sociais
-      </a>
+
+      <div class="bs-launch-picker" id="bs-redes-sociais-picker">
+        <button type="button"
+                class="bs-mode-btn bs-launch-picker-btn {% if nav_mode == 'redes_sociais' %}active{% endif %}"
+                onclick="bsPickerToggle(this)">
+          <span class="bs-launch-picker-label"><i class="ti ti-share"></i> Redes Sociais</span>
+          {% if nav_mode == 'redes_sociais' and redes_sociais_current %}
+          <span class="bs-live-badge"><span class="bs-live-dot"></span> {{ redes_sociais_current.label }}</span>
+          {% endif %}
+          <i class="ti ti-chevron-down bs-launch-picker-chevron"></i>
+        </button>
+        <div class="bs-launch-picker-menu">
+          <a class="bs-launch-picker-all" href="/instagram{% if active_code %}?launch_code={{ active_code }}{% endif %}">
+            <i class="ti ti-layout-grid"></i> Ver todos os perfis
+          </a>
+          {% if redes_sociais_nav_items %}
+          <div class="bs-launch-picker-sep"></div>
+          {% for item in redes_sociais_nav_items %}
+          <a class="bs-launch-picker-item {% if item.active %}active{% endif %}" href="{{ item.href }}">{{ item.label }}</a>
+          {% endfor %}
+          {% endif %}
+        </div>
+      </div>
     </nav>
 
     <!-- Navegação do modo Funis — versão vertical, só visível na gaveta mobile
@@ -1189,42 +1243,6 @@ kbd {
         <span class="bs-nav-icon"><i class="ti {{ item.icon }}"></i></span>{{ item.label }}
       </a>
       {% endfor %}
-      {% endfor %}
-    </nav>
-    {% endif %}
-
-    <!-- Navegação — modo Redes Sociais -->
-    {% if nav_mode == 'redes_sociais' %}
-    <nav class="bs-nav">
-      <div class="bs-nav-group">Redes Sociais</div>
-      <a class="bs-nav-link {% if page == 'instagram' %}active{% endif %}"
-         href="/instagram{% if active_code %}?launch_code={{ active_code }}{% endif %}">
-        <span class="bs-nav-icon"><i class="ti ti-brand-instagram"></i></span>Perfil Instagram
-      </a>
-    </nav>
-    {% endif %}
-
-    <!-- Navegação — modo Perpétuo (4 verticais: Mestre em Questões TJ-SP/INSS/BB + Planner) -->
-    {% if nav_mode == 'perpetuo' %}
-    <nav class="bs-nav">
-      <div class="bs-nav-group">Perpétuo</div>
-      {% for item in perpetuo_nav_items %}
-      <a class="bs-nav-link {% if item.active %}active{% endif %}" href="{{ item.href }}">
-        <span class="bs-nav-icon"><i class="ti ti-infinity"></i></span>{{ item.label }}
-      </a>
-      {% endfor %}
-    </nav>
-    {% endif %}
-
-    <!-- Navegação — modo Distribuição de Conteúdo (1 item por expert, mesmos
-         perfis da aba Redes Sociais — aqui é o lado pago, não o orgânico) -->
-    {% if nav_mode == 'distribuicao' %}
-    <nav class="bs-nav">
-      <div class="bs-nav-group">Distribuição de Conteúdo</div>
-      {% for item in distribuicao_nav_items %}
-      <a class="bs-nav-link {% if item.active %}active{% endif %}" href="{{ item.href }}">
-        <span class="bs-nav-icon"><i class="ti ti-speakerphone"></i></span>{{ item.label }}
-      </a>
       {% endfor %}
     </nav>
     {% endif %}
@@ -1294,7 +1312,8 @@ kbd {
   </aside>
 
   <!-- ── CONTEÚDO PRINCIPAL ────────────────────────────────────────── -->
-  <main id="bs-main" class="{% if nav_mode == 'funis' and nav_groups %}has-subnav{% endif %}">
+  {% set _has_subnav = (nav_mode == 'funis' and nav_groups) or nav_mode in ('perpetuo', 'distribuicao', 'redes_sociais') %}
+  <main id="bs-main" class="{% if _has_subnav %}has-subnav{% endif %}">
     {% if nav_mode == 'funis' and nav_groups %}
     <nav class="bs-subnav" id="bs-subnav">
       {% for group in nav_groups %}
@@ -1311,6 +1330,35 @@ kbd {
         </div>
       </div>
       {% endfor %}
+    </nav>
+    {% endif %}
+
+    <!-- Barra placeholder — Perpétuo/Distribuição/Redes Sociais ainda não têm
+         essas sub-páginas; só "Visão Geral" funciona (mostra a página atual),
+         o resto fica marcado "em breve" até serem desenvolvidas. -->
+    {% if nav_mode in ('perpetuo', 'distribuicao', 'redes_sociais') %}
+    <nav class="bs-subnav" id="bs-subnav-placeholder">
+      <div class="bs-subnav-group">
+        <a class="bs-subnav-btn active"
+           href="{{ request.url.path }}{% if active_code %}?launch_code={{ active_code }}{% endif %}">
+          <i class="ti ti-layout-grid"></i> Visão Geral
+        </a>
+      </div>
+      <div class="bs-subnav-group">
+        <span class="bs-subnav-btn disabled" title="Em desenvolvimento">
+          <i class="ti ti-speakerphone"></i> Mídia Paga <span class="bs-mode-soon">em breve</span>
+        </span>
+      </div>
+      <div class="bs-subnav-group">
+        <span class="bs-subnav-btn disabled" title="Em desenvolvimento">
+          <i class="ti ti-users"></i> Leads e Audiências <span class="bs-mode-soon">em breve</span>
+        </span>
+      </div>
+      <div class="bs-subnav-group">
+        <span class="bs-subnav-btn disabled" title="Em desenvolvimento">
+          <i class="ti ti-coin"></i> Vendas <span class="bs-mode-soon">em breve</span>
+        </span>
+      </div>
     </nav>
     {% endif %}
     {% if db_ok == false %}
@@ -1505,16 +1553,17 @@ window.addEventListener('resize', function() {
   if (window.innerWidth > 1024) bsMenuToggle(false);
 });
 
-/* ── Seletor de lançamento (botão Lançamentos na trilha) ─────────────── */
-window.bsLaunchPickerToggle = function() {
-  var picker = document.getElementById('bs-launch-picker');
+/* ── Pickers da trilha (Lançamento/Perpétuo/Distribuição/Redes Sociais) ── */
+window.bsPickerToggle = function(btn) {
+  var picker = btn.closest('.bs-launch-picker');
   if (!picker) return;
-  picker.classList.toggle('open');
+  var open = picker.classList.contains('open');
+  document.querySelectorAll('.bs-launch-picker.open').forEach(function(p) { p.classList.remove('open'); });
+  picker.classList.toggle('open', !open);
 };
 document.addEventListener('click', function(e) {
-  if (!e.target.closest('#bs-launch-picker')) {
-    var picker = document.getElementById('bs-launch-picker');
-    if (picker) picker.classList.remove('open');
+  if (!e.target.closest('.bs-launch-picker')) {
+    document.querySelectorAll('.bs-launch-picker.open').forEach(function(p) { p.classList.remove('open'); });
   }
 });
 

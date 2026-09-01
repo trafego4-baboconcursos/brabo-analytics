@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1><i class="ti ti-infinity"></i> {{ title }}</h1>
+      <p>Perpétuo — tráfego pago contínuo</p>
+    </div>
+  </div>
+
+  <div class="content">
+
+  {% if not perpetuo %}
+    <div class="no-data">
+      <i class="ti ti-infinity"></i>
+      <h3>Vertical não encontrada</h3>
+      <p>Não achei essa vertical de Perpétuo.</p>
+    </div>
+  {% else %}
+
+    {% set base_url = "/perpetuo/" ~ perpetuo.vertical ~ (("?launch_code=" ~ active_code) if active_code else "") %}
+    {% set sep = "&" if active_code else "?" %}
+    <div class="section" style="margin-bottom:20px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div style="display:flex;gap:6px;">
+          {% for d, label in [(7,"7 dias"), (30,"30 dias"), (90,"90 dias")] %}
+          <a href="{{ base_url }}{{ sep }}days={{ d }}{% if perpetuo.compare %}&compare=1{% endif %}"
+             class="bs-pill {% if perpetuo.days == d %}accent{% else %}neutral{% endif %}"
+             style="text-decoration:none;">{{ label }}</a>
+          {% endfor %}
+        </div>
+        <a href="{{ base_url }}{{ sep }}days={{ perpetuo.days }}&compare={{ 0 if perpetuo.compare else 1 }}"
+           class="bs-pill {% if perpetuo.compare %}accent{% else %}neutral{% endif %}"
+           style="text-decoration:none;display:inline-flex;align-items:center;gap:5px;">
+          <i class="ti ti-arrows-exchange" style="font-size:12px;"></i> Comparar com período anterior
+        </a>
+      </div>
+      <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:8px;">
+        Período: <strong>{{ perpetuo.range_start | br_date }}</strong> a <strong>{{ perpetuo.range_end | br_date }}</strong>
+        {% if perpetuo.compare %} · comparado com <strong>{{ perpetuo.prev_range_start | br_date }}</strong> a <strong>{{ perpetuo.prev_range_end | br_date }}</strong>{% endif %}
+      </div>
+    </div>
+
+    {% if perpetuo.no_data %}
+    <div class="note warning">Nenhum dado no período selecionado — a campanha dessa vertical ainda não foi renomeada
+      com a tag <code>[perpétuo]</code>, ou a conta de anúncio ainda não está incluída no ETL. Ver
+      <code>performance-manager/LEVANTAMENTO_PERPETUO_DISTRIBUICAO.md</code>.</div>
+    {% endif %}
+
+    <div class="section">
+      <div class="tp-kpi-grid">
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon"><i class="ti ti-coin"></i></div>
+            {% if perpetuo.compare and perpetuo.deltas.investimento_total is not none %}
+            <div class="tp-delta {{ 'up' if perpetuo.deltas.investimento_total >= 0 else 'down' }}">
+              {{ '+' if perpetuo.deltas.investimento_total >= 0 }}{{ perpetuo.deltas.investimento_total }}%
+            </div>
+            {% endif %}
+          </div>
+          <div class="tp-value">{{ perpetuo.investimento_total | brl }}</div>
+          <div class="tp-label">Investimento total</div>
+          <div class="tp-compare">Meta {{ perpetuo.investimento_meta | brl }} · Google {{ perpetuo.investimento_google | brl }}</div>
+        </div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon success"><i class="ti ti-users"></i></div>
+            {% if perpetuo.compare and perpetuo.deltas.leads_total is not none %}
+            <div class="tp-delta {{ 'up' if perpetuo.deltas.leads_total >= 0 else 'down' }}">
+              {{ '+' if perpetuo.deltas.leads_total >= 0 }}{{ perpetuo.deltas.leads_total }}%
+            </div>
+            {% endif %}
+          </div>
+          <div class="tp-value">{{ perpetuo.leads_total | num }}</div>
+          <div class="tp-label">Leads/conversões</div>
+          <div class="tp-compare">Meta {{ perpetuo.leads_meta | num }} · Google {{ perpetuo.conversoes_google | num }}</div>
+        </div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon warning"><i class="ti ti-target-arrow"></i></div></div>
+          <div class="tp-value">{{ perpetuo.cpl | brl if perpetuo.cpl is not none else "—" }}</div>
+          <div class="tp-label">CPL</div>
+        </div>
+      </div>
+    </div>
+
+    {% if perpetuo.criativos_meta %}
+    <div class="section">
+      <div class="section-title">Criativos — Meta Ads</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Criativo</th>
+              <th class="th-num">Investimento</th>
+              <th class="th-num">Impressões</th>
+              <th class="th-num">Viu 3s</th>
+              <th class="th-num">ThruPlays</th>
+              <th class="th-num">Viu 50%</th>
+              <th class="th-num">Viu 100%</th>
+              <th class="th-num">Hook rate</th>
+              <th class="th-num">Hold rate</th>
+              <th class="th-num">Custo/ThruPlay</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in perpetuo.criativos_meta %}
+            <tr>
+              <td>{{ c.ad_name }}</td>
+              <td class="numero">{{ c.spend | brl }}</td>
+              <td class="numero">{{ c.impressions | num }}</td>
+              <td class="numero">{{ c.views_3s | num }}</td>
+              <td class="numero">{{ c.thruplays | num }}</td>
+              <td class="numero">{{ c.views_50 | num }}</td>
+              <td class="numero">{{ c.views_100 | num }}</td>
+              <td class="numero">{{ c.hook_rate }}%</td>
+              <td class="numero">{{ c.hold_rate }}%</td>
+              <td class="numero">{{ c.custo_por_thruplay | brl if c.custo_por_thruplay is not none else "—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if perpetuo.criativos_google %}
+    <div class="section">
+      <div class="section-title">Criativos — Google Ads</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Criativo</th>
+              <th class="th-num">Investimento</th>
+              <th class="th-num">Impressões</th>
+              <th class="th-num">Views</th>
+              <th class="th-num">Viu 50%</th>
+              <th class="th-num">Viu 100%</th>
+              <th class="th-num">Completion rate</th>
+              <th class="th-num">CPV</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in perpetuo.criativos_google %}
+            <tr>
+              <td>{{ c.ad_name }}</td>
+              <td class="numero">{{ c.cost | brl }}</td>
+              <td class="numero">{{ c.impressions | num }}</td>
+              <td class="numero">{{ c.views | num }}</td>
+              <td class="numero">{{ c.views_50 | num }}</td>
+              <td class="numero">{{ c.views_100 | num }}</td>
+              <td class="numero">{{ c.completion_rate }}%</td>
+              <td class="numero">{{ c.cpv | brl if c.cpv is not none else "—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if perpetuo.publico_meta %}
+    <div class="section">
+      <div class="section-title">Público — Meta Ads (por ad set)</div>
+      <div class="note info">Meta não expõe uma tabela de interesse/público por anúncio — o nome do ad set já carrega a segmentação.</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Ad set</th>
+              <th class="th-num">Investimento</th>
+              <th class="th-num">Impressões</th>
+              <th class="th-num">Leads</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in perpetuo.publico_meta %}
+            <tr>
+              <td>{{ p.adset_name }}</td>
+              <td class="numero">{{ p.spend | brl }}</td>
+              <td class="numero">{{ p.impressions | num }}</td>
+              <td class="numero">{{ p.leads | num }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if perpetuo.publico_google %}
+    <div class="section">
+      <div class="section-title">Público — Google Ads</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Público</th>
+              <th class="th-num">Investimento</th>
+              <th class="th-num">Impressões</th>
+              <th class="th-num">Conversões</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in perpetuo.publico_google %}
+            <tr>
+              <td>{{ p.audience_name }}</td>
+              <td class="numero">{{ p.spend | brl }}</td>
+              <td class="numero">{{ p.impressions | num }}</td>
+              <td class="numero">{{ p.conversions | num }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+  {% endif %}
+
+  </div><!-- /content -->
+</div><!-- /wrap -->
+{% endblock %}

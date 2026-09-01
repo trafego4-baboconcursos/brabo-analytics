@@ -16,6 +16,7 @@ from frontend.utils import _extract_launch_code
 from frontend.db import _get_engine
 from frontend.models import GoogleCampanha, GoogleSummary
 from frontend.db_readers.ads_meta import get_historico_ad_codes
+from frontend.db_readers.publicos import read_sales_by_publico as _read_sales_by_publico
 from src.constants import ETAPAS_ORDEM
 
 logger = get_logger("db")
@@ -321,25 +322,27 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
         logger.exception("Falha ao buscar audiências Google; usando DataFrame vazio")
         df_aud = pd.DataFrame()
 
-    # Cruzamento de Vendas via Leads (Google)
-    # Mesma janela usada pela query principal deste reader — evita duplicar a
-    # consulta inteira de Hotmart+TMB com uma cache-key diferente (start=None).
-    vendas = read_vendas(code, start_date=start_date, end_date=end_date)
-    buyers = (vendas.emails_hotmart | vendas.emails_tmb) if vendas else set()
-    sales_by_content = {}
-    if buyers:
-        df_leads = pd.read_sql(
-            text("SELECT utm_content, email FROM leads WHERE lancamento_codigo = :code AND (utm_source ILIKE '%google%' OR utm_source ILIKE '%youtube%')"),
-            engine,
-            params={"code": code}
-        )
-        if not df_leads.empty:
-            df_leads["is_buyer"] = df_leads["email"].isin(buyers)
-            df_leads["receita"] = df_leads["email"].map(lambda e: vendas.receita_por_email.get(e, 0.0))
-            sales_by_content = df_leads[df_leads["is_buyer"]].groupby("utm_content").agg(
-                sales=("is_buyer", "sum"),
-                receita=("receita", "sum")
-            ).to_dict("index")
+    # Cruzamento de Vendas via Leads (Google) — mv_atribuicao_publicos (e-mail
+    # distinto + trava de projeto). Fallback em pandas se a MV não existir.
+    sales_by_content = _read_sales_by_publico(code, "google")
+    if sales_by_content is None:
+        vendas = read_vendas(code, start_date=start_date, end_date=end_date)
+        buyers = (vendas.emails_hotmart | vendas.emails_tmb) if vendas else set()
+        sales_by_content = {}
+        if buyers:
+            df_leads = pd.read_sql(
+                text("SELECT utm_content, email FROM leads WHERE lancamento_codigo = :code AND (utm_source ILIKE '%google%' OR utm_source ILIKE '%youtube%')"),
+                engine,
+                params={"code": code}
+            )
+            if not df_leads.empty:
+                df_leads = df_leads.drop_duplicates(subset="email")
+                df_leads["is_buyer"] = df_leads["email"].isin(buyers)
+                df_leads["receita"] = df_leads["email"].map(lambda e: vendas.receita_por_email.get(e, 0.0))
+                sales_by_content = df_leads[df_leads["is_buyer"]].groupby("utm_content").agg(
+                    sales=("is_buyer", "sum"),
+                    receita=("receita", "sum")
+                ).to_dict("index")
 
     def _clean_str(s):
         if not s:

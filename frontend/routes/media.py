@@ -7,7 +7,7 @@ from fastapi.concurrency import run_in_threadpool
 from frontend.core import (
     templates, logger, get_launches, resolve_launch, _base_ctx,
     _fetch_all_data, _creative_overview, get_instagram_profiles,
-    read_instagram_detail,
+    read_instagram_detail, read_perpetuo, PERPETUO_VERTICALS, read_distribuicao,
 )
 
 router = APIRouter()
@@ -103,6 +103,27 @@ async def instagram_detail_page(request: Request, username: str, launch_code: st
     detail = await run_in_threadpool(read_instagram_detail, username, days, bool(compare))
     ctx = _base_ctx(request, "instagram", f"@{username}", launch, launches, ig=detail)
     return templates.TemplateResponse("instagram_detail.html", ctx)
+
+
+@router.get("/perpetuo/{vertical}", response_class=HTMLResponse)
+async def perpetuo_page(request: Request, vertical: str, launch_code: str | None = None,
+                         days: int = 30, compare: int = 0):
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    detail = await run_in_threadpool(read_perpetuo, vertical, days, bool(compare))
+    nome = PERPETUO_VERTICALS.get(vertical, {}).get("nome", vertical)
+    ctx = _base_ctx(request, "perpetuo", nome, launch, launches, perpetuo=detail)
+    return templates.TemplateResponse("perpetuo.html", ctx)
+
+
+@router.get("/distribuicao/{username}", response_class=HTMLResponse)
+async def distribuicao_page(request: Request, username: str, launch_code: str | None = None,
+                             days: int = 30, compare: int = 0):
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    detail = await run_in_threadpool(read_distribuicao, username, days, bool(compare))
+    ctx = _base_ctx(request, "distribuicao", f"@{username}", launch, launches, distrib=detail)
+    return templates.TemplateResponse("distribuicao.html", ctx)
 
 
 @router.get("/meta-audiences", response_class=HTMLResponse)

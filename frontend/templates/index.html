@@ -61,33 +61,11 @@
       <div class="section-title">Datas por Etapa</div>
       <div class="highlights">
         <div class="highlight-box">
-          <h3>Captação</h3>
-          <div class="highlight-item"><span>Início</span><span class="value">{{ cfg.captacao_start_date | br_date }}</span></div>
-          <div class="highlight-item"><span>Fim</span><span class="value">{{ cfg.captacao_end_date | br_date }}</span></div>
-          <div class="highlight-item"><span>Meta de Leads</span><span class="value">{{ cfg.meta_leads | num if cfg.meta_leads else '—' }}</span></div>
-          <div class="highlight-item"><span>Meta de Investimento</span><span class="value">{{ cfg.meta_investimento_captacao | brl if cfg.meta_investimento_captacao else '—' }}</span></div>
-        </div>
-        <div class="highlight-box">
-          <h3>Pré-Qualificação</h3>
-          <div class="highlight-item"><span>Início</span><span class="value">{{ cfg.pre_quali_start_date | br_date }}</span></div>
-          <div class="highlight-item"><span>Fim</span><span class="value">{{ cfg.pre_quali_end_date | br_date }}</span></div>
-          <div class="highlight-item"><span>Meta de Leads</span><span class="value">{{ cfg.meta_leads_pre_quali | num if cfg.meta_leads_pre_quali else '—' }}</span></div>
-          <div class="highlight-item"><span>Meta de Investimento</span><span class="value">{{ cfg.meta_investimento_pre_quali | brl if cfg.meta_investimento_pre_quali else '—' }}</span></div>
-        </div>
-        <div class="highlight-box">
-          <h3>Carrinho / Vendas</h3>
-          <div class="highlight-item"><span>Abertura</span><span class="value">{{ cfg.carrinho_start_date | br_date }}</span></div>
-          <div class="highlight-item"><span>Fechamento</span><span class="value">{{ cfg.carrinho_end_date | br_date }}</span></div>
-          <div class="highlight-item"><span>Produtos Hotmart</span><span class="value">{{ cfg.hotmart_produto_ids | join(', ') if cfg.hotmart_produto_ids else '—' }}</span></div>
-          <div class="highlight-item"><span>Produtos TMB</span><span class="value">{{ cfg.tmb_produto_ids | join(', ') if cfg.tmb_produto_ids else '—' }}</span></div>
-        </div>
-        <div class="highlight-box">
-          <h3>Evento / Aulas</h3>
-          <div class="highlight-item"><span>Aulas cadastradas</span><span class="value">{{ cfg.youtube_aulas | length if cfg.youtube_aulas else 0 }}</span></div>
-          {% for aula in cfg.youtube_aulas %}
-          <div class="highlight-item"><span>{{ aula.label or aula.id }}</span><span class="value">{{ aula.id }}</span></div>
-          {% endfor %}
-          <div class="highlight-item"><span>Datas do evento</span><span class="value">ver tabela de etapas abaixo</span></div>
+          <div class="highlight-item"><span>Pré-Quali</span><span class="value">{% if cfg.pre_quali_start_date %}De {{ cfg.pre_quali_start_date | br_date }} a {{ cfg.pre_quali_end_date | br_date }}{% else %}—{% endif %}</span></div>
+          <div class="highlight-item"><span>Captação</span><span class="value">{% if cfg.captacao_start_date %}De {{ cfg.captacao_start_date | br_date }} a {{ cfg.captacao_end_date | br_date }}{% else %}—{% endif %}</span></div>
+          <div class="highlight-item"><span>Aulas Ao Vivo</span><span class="value">{% if cfg.aulas_start_date %}De {{ cfg.aulas_start_date | br_date }} a {{ cfg.aulas_end_date | br_date }}{% else %}—{% endif %}</span></div>
+          <div class="highlight-item"><span>Abertura do Carrinho</span><span class="value">{{ (cfg.abertura_oficial_carrinho or cfg.carrinho_start_date) | br_date }}</span></div>
+          <div class="highlight-item"><span>Fechamento do Carrinho</span><span class="value">{{ cfg.carrinho_end_date | br_date }}</span></div>
         </div>
       </div>
     </div>

@@ -1142,8 +1142,8 @@ kbd {
         <button type="button"
                 class="bs-mode-btn bs-launch-picker-btn {% if nav_mode == 'lancamentos' %}active{% endif %}"
                 onclick="bsPickerToggle(this)">
-          <span class="bs-launch-picker-label"><i class="ti ti-rocket"></i> Lançamento{% if not active_code %}s{% endif %}</span>
-          {% if active_code %}
+          <span class="bs-launch-picker-label"><i class="ti ti-rocket"></i> Lançamento{% if not (active_code and nav_mode == 'funis') %}s{% endif %}</span>
+          {% if active_code and nav_mode == 'funis' %}
           <span class="bs-live-badge"><span class="bs-live-dot"></span> {{ active_code }}</span>
           {% endif %}
           <i class="ti ti-chevron-down bs-launch-picker-chevron"></i>
@@ -1157,7 +1157,7 @@ kbd {
           {% for group in launch_groups %}
           <div class="bs-launch-picker-group">{{ group.product or group.product_name }}</div>
           {% for l in group.launches %}
-          <a class="bs-launch-picker-item {% if active_code == l.code %}active{% endif %}"
+          <a class="bs-launch-picker-item {% if nav_mode == 'funis' and active_code == l.code %}active{% endif %}"
              href="{{ _switch_base }}?launch_code={{ l.code }}">
             {{ l.code }}
           </a>

@@ -76,6 +76,12 @@ def run_api_mode(since: str, until: str, only: str | None):
         "instagram":       [sys.executable, str(BASE / "etl_instagram.py")],
         "ga4":             [sys.executable, str(BASE / "etl_ga4.py"),
                             "--since", since, "--until", until],
+        # DESATIVADO 01/09/26: a mv_atribuicao_publicos depende das cópias de
+        # hotmart/tmb do banco analytics, que estão desatualizadas (43 vendas
+        # vs 2502 reais no PI-AGO-26). Reativar só depois de existir sync de
+        # vendas pro banco analytics. Atribuição por público no frontend usa
+        # read_vendas (banco operacional), que é a fonte correta.
+        # "refresh_views": [sys.executable, str(BASE / "refresh_views.py")],
     }
 
     targets = {only: scripts[only]} if only else scripts

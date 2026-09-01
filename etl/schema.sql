@@ -16,6 +16,11 @@ CREATE TABLE IF NOT EXISTS leads (
     utm_campaign TEXT,
     utm_content  TEXT,                      -- chave de atribuição (ex: "AD110 - ...")
     utm_term     TEXT,
+    gclid        TEXT,                      -- Google click ID (campo AC id 24)
+    fbclid       TEXT,                      -- Meta click ID (campo AC id 25)
+    ttclid       TEXT,                      -- TikTok click ID (campo AC id 26)
+    vk_source    TEXT,                      -- plataforma da UTM padrão (campo AC id 9)
+    vk_ad_id     TEXT,                      -- ID real do anúncio na plataforma (campo AC id 10)
     nome         TEXT,
     sobrenome    TEXT,
     phone        TEXT,                      -- só dígitos, últimos 11 (DDD+número)
@@ -629,6 +634,85 @@ LEFT JOIN vendas_tmb     t  ON t.email = lower(trim(l.email)) AND t.projeto_vend
 LEFT JOIN view_investimento_total_por_ad sp ON sp.ad_code = l.ad_code AND sp.lancamento_codigo = l.lancamento_codigo
 GROUP BY l.ad_code, l.utm_ad_name, l.lancamento_codigo, sp.investimento_total;
 
+-- ════════════════════════════════════════════════════════════════════════════
+-- ATRIBUIÇÃO POR PÚBLICO (LEAD → VENDA por conjunto de anúncios)
+-- Na UTM padrão nova (utm_term = ADxxx), o utm_content carrega o NOME DO
+-- CONJUNTO/PÚBLICO (grupos 00-06 do cascateamento). Esta view só considera
+-- leads dessa era (utm_term preenchido) — em lançamentos antigos o
+-- utm_content carregava o nome do anúncio e não representa público.
+-- ════════════════════════════════════════════════════════════════════════════
+
+CREATE OR REPLACE VIEW view_atribuicao_publicos AS
+WITH
+
+leads_por_publico AS (
+    SELECT
+        NULLIF(l.utm_content, '') AS publico,
+        CASE
+            WHEN l.utm_source ILIKE '%google%' OR l.utm_source ILIKE '%youtube%' THEN 'google'
+            WHEN l.utm_source ILIKE '%facebook%' OR l.utm_source ILIKE '%meta%'
+                 OR l.utm_source ILIKE '%ig%' OR l.utm_source ILIKE '%instagram%' THEN 'meta'
+            ELSE 'outro'
+        END AS fonte,
+        l.email,
+        l.lancamento_codigo,
+        dl.projeto
+    FROM leads l
+    LEFT JOIN dim_lancamentos dl ON dl.codigo = l.lancamento_codigo
+    WHERE l.utm_term    IS NOT NULL AND l.utm_term    <> ''
+      AND l.utm_content IS NOT NULL AND l.utm_content <> ''
+),
+
+vendas_hotmart AS (
+    SELECT
+        lower(trim(email_do_a_comprador_a))  AS email,
+        CASE
+            WHEN produto ILIKE '%inss%' THEN 'INSS'
+            WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%') THEN 'TJ'
+            WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'
+            ELSE 'OUTRO'
+        END AS projeto_venda,
+        SUM(CAST(NULLIF(faturamento_liquido, '') AS NUMERIC)) AS faturamento,
+        COUNT(*)            AS transacoes
+    FROM hotmart_clean_oficial
+    WHERE status_da_transacao IN ('Completa', 'Aprovada', 'Paga', 'Completo', 'Aprovado', 'Pago', 'approved', 'complete', 'Completo')
+    GROUP BY 1, 2
+),
+
+vendas_tmb AS (
+    SELECT
+        lower(trim(email_cliente))  AS email,
+        CASE
+            WHEN produto ILIKE '%inss%' THEN 'INSS'
+            WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%') THEN 'TJ'
+            WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'
+            ELSE 'OUTRO'
+        END AS projeto_venda,
+        SUM(valor_liquido)          AS faturamento,
+        COUNT(*)            AS transacoes
+    FROM tmb_clean_oficial
+    WHERE status IN ('Vigente', 'Efetivado', 'Pago', 'Em dia', 'Integralizado', 'Aprovado', 'Concluido', 'Active')
+    GROUP BY 1, 2
+)
+
+SELECT
+    l.publico,
+    l.fonte,
+    l.lancamento_codigo,
+    COUNT(DISTINCT l.email)                                                 AS leads,
+    COUNT(DISTINCT CASE WHEN (h.email IS NOT NULL OR t.email IS NOT NULL)
+                        THEN l.email END)                                   AS vendas,
+    COALESCE(SUM(h.faturamento), 0) + COALESCE(SUM(t.faturamento), 0)      AS faturamento_total
+FROM leads_por_publico l
+LEFT JOIN vendas_hotmart h  ON h.email = lower(trim(l.email)) AND h.projeto_venda = l.projeto
+LEFT JOIN vendas_tmb     t  ON t.email = lower(trim(l.email)) AND t.projeto_venda = l.projeto
+GROUP BY l.publico, l.fonte, l.lancamento_codigo;
+
+-- Versão materializada (o frontend lê desta; refresh horário via etl/refresh_views.py)
+-- CREATE MATERIALIZED VIEW mv_atribuicao_publicos AS SELECT * FROM view_atribuicao_publicos;
+-- CREATE UNIQUE INDEX idx_mv_atrib_pub ON mv_atribuicao_publicos (lancamento_codigo, fonte, publico);
+
+
 -- -- TABELA DE PÚBLICOS GOOGLE ADS -------------------------------------------
 
 CREATE TABLE IF NOT EXISTS google_ads_audiences_daily (
@@ -748,3 +832,29 @@ CREATE TABLE IF NOT EXISTS etl_runs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_etl_runs_source ON etl_runs (source, finished_at DESC);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- GA4 (Google Analytics Data API) — sessoes/usuarios por dia x propriedade x
+-- fonte/midia/campanha x utm_term (ADxxx) x landing page. Populada por etl_ga4.py.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS ga4_daily (
+  date DATE NOT NULL,
+  property_id TEXT NOT NULL,
+  property_name TEXT,
+  hostname TEXT,
+  source TEXT,
+  medium TEXT,
+  campaign TEXT,
+  utm_term TEXT,
+  landing_page TEXT,
+  lancamento_codigo TEXT,
+  sessions BIGINT DEFAULT 0,
+  users BIGINT DEFAULT 0,
+  engaged_sessions BIGINT DEFAULT 0,
+  key_events DOUBLE PRECISION DEFAULT 0,
+  avg_session_duration DOUBLE PRECISION DEFAULT 0,
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_ga4_daily_date ON ga4_daily(date);
+CREATE INDEX IF NOT EXISTS idx_ga4_daily_launch ON ga4_daily(lancamento_codigo);
+CREATE INDEX IF NOT EXISTS idx_ga4_daily_property ON ga4_daily(property_id);

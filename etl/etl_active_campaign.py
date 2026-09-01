@@ -75,6 +75,13 @@ UTM_FIELD_IDS = {
     "utm_medium":   int(os.getenv("AC_FIELD_UTM_MEDIUM") or "0"),
     "utm_content":  int(os.getenv("AC_FIELD_UTM_CONTENT") or "0"),
     "utm_term":     int(os.getenv("AC_FIELD_UTM_TERM") or "0"),
+    # Click IDs (campos criados na conta em ago/26; IDs via --discover-fields)
+    "gclid":        int(os.getenv("AC_FIELD_GCLID") or "24"),
+    "fbclid":       int(os.getenv("AC_FIELD_FBCLID") or "25"),
+    "ttclid":       int(os.getenv("AC_FIELD_TTCLID") or "26"),
+    # IDs reais de anúncio/plataforma vindos da UTM padrão (vk_source/vk_ad_id)
+    "vk_source":    int(os.getenv("AC_FIELD_VK_SOURCE") or "9"),
+    "vk_ad_id":     int(os.getenv("AC_FIELD_VK_AD_ID") or "10"),
 }
 
 TABLE = "leads"
@@ -100,7 +107,7 @@ def load_from_csv(filepath: str, launch_code: str | None = None) -> pd.DataFrame
         df["created_at"] = pd.to_datetime(df["created_at"], errors="coerce", dayfirst=True)
 
     # Adiciona colunas ausentes como nulo para compatibilidade com o schema
-    for col in ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "nome", "sobrenome", "phone"]:
+    for col in ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "gclid", "fbclid", "ttclid", "vk_source", "vk_ad_id", "nome", "sobrenome", "phone"]:
         if col not in df.columns:
             df[col] = None
 
@@ -227,6 +234,11 @@ def load_from_api(since: str, until: str) -> pd.DataFrame:
             "utm_medium":        utms.get("utm_medium"),
             "utm_content":       utm_content,
             "utm_term":          utm_term,
+            "gclid":             utms.get("gclid") or None,
+            "fbclid":            utms.get("fbclid") or None,
+            "ttclid":            utms.get("ttclid") or None,
+            "vk_source":         utms.get("vk_source") or None,
+            "vk_ad_id":          utms.get("vk_ad_id") or None,
             "updated_at":        datetime.now(timezone.utc).isoformat(),
         })
 

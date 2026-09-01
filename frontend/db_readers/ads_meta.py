@@ -14,7 +14,6 @@ from logger import get_logger
 from frontend.utils import _extract_launch_code
 from frontend.db import _get_engine
 from frontend.models import MetaCriativo, MetaSummary
-from frontend.db_readers.publicos import read_sales_by_publico as _read_sales_by_publico
 from src.constants import ETAPAS_ORDEM
 
 logger = get_logger("db")
@@ -336,28 +335,28 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
     # Segmento — apenas campanhas de Captação
     df_cap = df[df["etapa"] == "Captação"]
     if not df_cap.empty:
-        # Atribuição por público via mv_atribuicao_publicos (e-mail distinto +
-        # trava de projeto; refresh horário no ETL). Fallback: cruzamento em
-        # pandas com a janela do reader, se a MV ainda não existir no banco.
-        sales_by_content = _read_sales_by_publico(code, "meta")
-        if sales_by_content is None:
-            vendas = read_vendas(code, start_date=start_date, end_date=end_date)
-            buyers = (vendas.emails_hotmart | vendas.emails_tmb) if vendas else set()
-            sales_by_content = {}
-            if buyers:
-                df_leads = pd.read_sql(
-                    text("SELECT utm_content, email FROM leads WHERE lancamento_codigo = :code AND (utm_source ILIKE '%facebook%' OR utm_source ILIKE '%ig%' OR utm_source ILIKE '%meta%')"),
-                    engine,
-                    params={"code": code}
-                )
-                if not df_leads.empty:
-                    df_leads = df_leads.drop_duplicates(subset="email")
-                    df_leads["is_buyer"] = df_leads["email"].isin(buyers)
-                    df_leads["receita"] = df_leads["email"].map(lambda e: vendas.receita_por_email.get(e, 0.0))
-                    sales_by_content = df_leads[df_leads["is_buyer"]].groupby("utm_content").agg(
-                        sales=("is_buyer", "sum"),
-                        receita=("receita", "sum")
-                    ).to_dict("index")
+        # Mesma janela usada pela query principal deste reader — evita duplicar a
+        # consulta inteira de Hotmart+TMB com uma cache-key diferente (start=None).
+        # NÃO trocar pela mv_atribuicao_publicos: as tabelas de vendas do banco
+        # analytics que a alimentam estão desatualizadas; a fonte correta é o
+        # read_vendas (banco operacional + IDs de produto do launch_config).
+        vendas = read_vendas(code, start_date=start_date, end_date=end_date)
+        buyers = (vendas.emails_hotmart | vendas.emails_tmb) if vendas else set()
+        sales_by_content = {}
+        if buyers:
+            df_leads = pd.read_sql(
+                text("SELECT utm_content, email FROM leads WHERE lancamento_codigo = :code AND (utm_source ILIKE '%facebook%' OR utm_source ILIKE '%ig%' OR utm_source ILIKE '%meta%')"),
+                engine,
+                params={"code": code}
+            )
+            if not df_leads.empty:
+                df_leads = df_leads.drop_duplicates(subset="email")
+                df_leads["is_buyer"] = df_leads["email"].isin(buyers)
+                df_leads["receita"] = df_leads["email"].map(lambda e: vendas.receita_por_email.get(e, 0.0))
+                sales_by_content = df_leads[df_leads["is_buyer"]].groupby("utm_content").agg(
+                    sales=("is_buyer", "sum"),
+                    receita=("receita", "sum")
+                ).to_dict("index")
 
         seg_grouped = df_cap.groupby("segmento").agg(
             custo=("spend", "sum"), leads=("leads", "sum"),

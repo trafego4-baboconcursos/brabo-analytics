@@ -74,7 +74,7 @@ async def captacao(request: Request, launch_code: str | None = None):
 async def pre_qualificacao(request: Request, launch_code: str | None = None):
     launches = await run_in_threadpool(get_launches)
     launch = resolve_launch(launch_code, launches)
-    d = await _fetch_all_data(launch, needs_daily=True)
+    d = await _fetch_all_data(launch, needs_daily=True, needs_thumbnails=True)
     meta, google = d["meta"], d["google"]
     daily_breakdown_preq = d.get("daily_breakdown_preq") or []
     meta_ads_preq = meta.preq_por_ad if meta else []
@@ -84,6 +84,7 @@ async def pre_qualificacao(request: Request, launch_code: str | None = None):
         daily_breakdown_preq=daily_breakdown_preq,
         meta_ads_preq=meta_ads_preq,
         youtube_ads_preq=youtube_ads_preq,
+        drive_thumbnails=d.get("drive_thumbnails") or {},
         data_errors=d.get("_errors", []),
     )
     return templates.TemplateResponse("pre_qualificacao.html", ctx)

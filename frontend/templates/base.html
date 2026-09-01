@@ -1124,6 +1124,9 @@ kbd {
         <i class="ti ti-calendar"></i> Calendário
       </a>
 
+      <div class="bs-nav-sep"></div>
+      <div class="bs-nav-group">Análises</div>
+
       <!-- Lançamentos — duplo papel: navega pra /lancamentos E troca o
            lançamento atual (substitui o antigo seletor separado). Uma vez
            com lançamento escolhido, o próprio botão vira o badge do
@@ -1161,16 +1164,16 @@ kbd {
          href="/perpetuo/pmq-tjsp{% if active_code %}?launch_code={{ active_code }}{% endif %}">
         <i class="ti ti-infinity"></i> Perpétuo
       </a>
-      <a class="bs-mode-btn {% if nav_mode == 'redes_sociais' %}active{% endif %}"
-         href="/instagram{% if active_code %}?launch_code={{ active_code }}{% endif %}">
-        <i class="ti ti-share"></i> Redes Sociais
-      </a>
       {% if distribuicao_first_username %}
       <a class="bs-mode-btn {% if nav_mode == 'distribuicao' %}active{% endif %}"
          href="/distribuicao/{{ distribuicao_first_username }}{% if active_code %}?launch_code={{ active_code }}{% endif %}">
         <i class="ti ti-speakerphone"></i> Distribuição
       </a>
       {% endif %}
+      <a class="bs-mode-btn {% if nav_mode == 'redes_sociais' %}active{% endif %}"
+         href="/instagram{% if active_code %}?launch_code={{ active_code }}{% endif %}">
+        <i class="ti ti-share"></i> Redes Sociais
+      </a>
     </nav>
 
     <!-- Navegação do modo Funis — versão vertical, só visível na gaveta mobile

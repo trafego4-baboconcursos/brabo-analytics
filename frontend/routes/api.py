@@ -14,7 +14,7 @@ from frontend.core import (
     get_launches,
     read_launch_config, save_launch_config, create_launch,
     count_campaigns_for_filter, get_drive_thumbnails,
-    KNOWN_META_ACCOUNTS, KNOWN_GOOGLE_ACCOUNTS,
+    get_ad_accounts_for_wizard,
     _compute_launch_defaults,
     get_user_by_id, list_users, update_user,
     create_invite, delete_invite,
@@ -92,7 +92,7 @@ def api_delete_invite(request: Request, invite_id: str):
 # ── Launch Config ──────────────────────────────────────────────────────────────
 
 @router.get("/api/launch-config/{launch_code}")
-def api_get_launch_config(launch_code: str):
+async def api_get_launch_config(launch_code: str):
     config = read_launch_config(launch_code)
     defaults = _compute_launch_defaults(launch_code)
 
@@ -101,12 +101,20 @@ def api_get_launch_config(launch_code: str):
         if v not in (None, "", [], {}):
             merged[k] = v
 
+    meta_accounts, google_accounts = await run_in_threadpool(get_ad_accounts_for_wizard)
+
     return {
         "launch_code": launch_code,
         "config": merged,
-        "meta_accounts": KNOWN_META_ACCOUNTS,
-        "google_accounts": KNOWN_GOOGLE_ACCOUNTS,
+        "meta_accounts": meta_accounts,
+        "google_accounts": google_accounts,
     }
+
+
+@router.post("/api/ad-accounts/refresh")
+async def api_refresh_ad_accounts():
+    meta_accounts, google_accounts = await run_in_threadpool(get_ad_accounts_for_wizard, True)
+    return {"meta_accounts": meta_accounts, "google_accounts": google_accounts}
 
 
 @router.post("/api/launch-config/{launch_code}")

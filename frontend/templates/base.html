@@ -886,17 +886,23 @@ kbd {
 /* Stepper */
 #lc-stepper {
   display:flex; align-items:center; gap:0; padding:20px 28px 0; flex-shrink:0;
+  overflow-x:auto; scrollbar-width:none;
 }
+#lc-stepper::-webkit-scrollbar { display:none; }
 .lc-step {
-  display:flex; align-items:center; gap:8px;
-  font-size:13px; font-weight:600; color:var(--bs-ink-subtle);
+  display:flex; align-items:center; gap:6px; flex-shrink:0; white-space:nowrap;
+  font-size:12px; font-weight:600; color:var(--bs-ink-subtle);
 }
 .lc-step.active { color:var(--bs-accent); }
 .lc-step.done   { color:var(--bs-success); }
+/* Só o passo ativo mostra o rótulo por extenso — com 6+ passos o texto
+   de todos ao mesmo tempo não cabe nos 560px do modal (ver título hover). */
+.lc-step span { display:none; }
+.lc-step.active span { display:inline; }
 .lc-step-circle {
-  width:28px; height:28px; border-radius:50%; border:2px solid var(--bs-border-s);
+  width:24px; height:24px; border-radius:50%; border:2px solid var(--bs-border-s);
   display:flex; align-items:center; justify-content:center;
-  font-size:12px; font-weight:800; flex-shrink:0;
+  font-size:11px; font-weight:800; flex-shrink:0;
   background:#fff; color:var(--bs-ink-subtle);
   transition:all .2s;
 }
@@ -907,7 +913,7 @@ kbd {
   border-color:var(--bs-success); background:var(--bs-success); color:#fff;
 }
 .lc-step-line {
-  flex:1; height:2px; background:var(--bs-border); margin:0 8px;
+  flex:1 1 12px; min-width:12px; height:2px; background:var(--bs-border); margin:0 4px;
   transition:background .2s;
 }
 .lc-step-line.done { background:var(--bs-success); }
@@ -1727,32 +1733,32 @@ document.addEventListener('keydown', function (e) {
 
         <!-- Stepper -->
     <div id="lc-stepper">
-      <div class="lc-step active" id="lc-step-1">
+      <div class="lc-step active" id="lc-step-1" title="Pré-Qualificação">
         <div class="lc-step-circle">1</div>
         <span>Pré-Quali</span>
       </div>
       <div class="lc-step-line" id="lc-line-1"></div>
-      <div class="lc-step" id="lc-step-2">
+      <div class="lc-step" id="lc-step-2" title="Captação">
         <div class="lc-step-circle">2</div>
         <span>Captação</span>
       </div>
       <div class="lc-step-line" id="lc-line-2"></div>
-      <div class="lc-step" id="lc-step-3">
+      <div class="lc-step" id="lc-step-3" title="Evento">
         <div class="lc-step-circle">3</div>
         <span>Evento</span>
       </div>
       <div class="lc-step-line" id="lc-line-3"></div>
-      <div class="lc-step" id="lc-step-4">
+      <div class="lc-step" id="lc-step-4" title="Vendas">
         <div class="lc-step-circle">4</div>
         <span>Vendas</span>
       </div>
       <div class="lc-step-line" id="lc-line-4"></div>
-      <div class="lc-step" id="lc-step-5">
+      <div class="lc-step" id="lc-step-5" title="YouTube">
         <div class="lc-step-circle">5</div>
         <span>YouTube</span>
       </div>
       <div class="lc-step-line" id="lc-line-5"></div>
-      <div class="lc-step" id="lc-step-6">
+      <div class="lc-step" id="lc-step-6" title="Provisão de Verba">
         <div class="lc-step-circle">6</div>
         <span>Verba</span>
       </div>
@@ -1835,7 +1841,12 @@ document.addEventListener('keydown', function (e) {
         </div>
 
         <div class="lc-section">
-          <div class="lc-section-title">Contas de Anúncio</div>
+          <div class="lc-section-title">
+            Contas de Anúncio
+            <button type="button" class="lc-camp-badge" style="float:right;margin-top:-2px" onclick="lcRefreshAccounts(this)">
+              <i class="ti ti-refresh"></i> Atualizar contas
+            </button>
+          </div>
           <div class="lc-accounts-grid">
             <!-- Meta Ads -->
             <div class="lc-acc-group">
@@ -1845,20 +1856,7 @@ document.addEventListener('keydown', function (e) {
                   <span id="lc-meta-trigger-txt">Selecionar contas</span>
                   <i class="ti ti-chevron-down"></i>
                 </button>
-                <div class="lc-acc-menu" id="lc-meta-menu">
-                  <label class="lc-acc-option">
-                    <input type="checkbox" value="act_438212624024216" onchange="lcAccChange('meta')">
-                    <div><div class="lc-acc-option-name">CA - Anunciante Felipe Graton</div><div class="lc-acc-option-id">act_438212624024216</div></div>
-                  </label>
-                  <label class="lc-acc-option">
-                    <input type="checkbox" value="act_1175937361058463" onchange="lcAccChange('meta')">
-                    <div><div class="lc-acc-option-name">CA - Criadora de Públicos 2</div><div class="lc-acc-option-id">act_1175937361058463</div></div>
-                  </label>
-                  <label class="lc-acc-option">
-                    <input type="checkbox" value="act_1407542209639031" onchange="lcAccChange('meta')">
-                    <div><div class="lc-acc-option-name">CA2 - Anunciante (TJSP/INSS)</div><div class="lc-acc-option-id">act_1407542209639031</div></div>
-                  </label>
-                </div>
+                <div class="lc-acc-menu" id="lc-meta-menu"></div>
               </div>
             </div>
             <!-- Google Ads -->
@@ -1869,16 +1867,7 @@ document.addEventListener('keydown', function (e) {
                   <span id="lc-google-trigger-txt">Selecionar contas</span>
                   <i class="ti ti-chevron-down"></i>
                 </button>
-                <div class="lc-acc-menu" id="lc-google-menu">
-                  <label class="lc-acc-option">
-                    <input type="checkbox" value="1450466453" onchange="lcAccChange('google')">
-                    <div><div class="lc-acc-option-name">Felipe Graton - Brabo Concursos</div><div class="lc-acc-option-id">1450466453</div></div>
-                  </label>
-                  <label class="lc-acc-option">
-                    <input type="checkbox" value="6482320788" onchange="lcAccChange('google')">
-                    <div><div class="lc-acc-option-name">Lançamentos - Brabo Concursos</div><div class="lc-acc-option-id">6482320788</div></div>
-                  </label>
-                </div>
+                <div class="lc-acc-menu" id="lc-google-menu"></div>
               </div>
             </div>
           </div>
@@ -2121,20 +2110,59 @@ document.addEventListener('keydown', function (e) {
     lcPopulateEtapas([]);
     document.getElementById("lc-outras-body").classList.remove("open");
     document.getElementById("lc-outras-toggle").classList.remove("open");
-    document.querySelectorAll(".lc-acc-menu input[type=checkbox]").forEach(function(cb){ cb.checked = false; });
+    document.getElementById("lc-meta-menu").innerHTML = "";
+    document.getElementById("lc-google-menu").innerHTML = "";
     lcAccChange("meta"); lcAccChange("google");
     document.querySelectorAll(".lc-input").forEach(function(el){ el.value = ""; });
     document.querySelectorAll(".lc-camp-badge[id]").forEach(function(b){ b.textContent = "— campanhas"; });
     lcRenderStep();
-    // Carrega config existente
+    // Carrega config existente + contas de anúncio disponíveis (Meta/Google, ao vivo via API)
     fetch("/api/launch-config/" + encodeURIComponent(code))
       .then(function(r){ return r.json(); })
-      .then(function(data){ lcPopulate(data.config || {}); })
+      .then(function(data){
+        lcRenderAccountOptions("meta", data.meta_accounts || []);
+        lcRenderAccountOptions("google", data.google_accounts || []);
+        lcPopulate(data.config || {});
+      })
       .catch(function(){});
   };
 
   window.lcClose = function() {
     document.getElementById("lc-overlay").style.display = "none";
+  };
+
+  function lcRenderAccountOptions(platform, accounts) {
+    var menu = document.getElementById("lc-" + platform + "-menu");
+    var checkedBefore = new Set(Array.from(menu.querySelectorAll("input:checked")).map(function(cb){ return cb.value; }));
+    menu.innerHTML = "";
+    if (!accounts.length) {
+      menu.innerHTML = '<div style="padding:8px;font-size:12px;color:var(--bs-ink-muted)">Nenhuma conta encontrada — verifique as credenciais no .env</div>';
+      return;
+    }
+    accounts.forEach(function(acc){
+      var label = document.createElement("label");
+      label.className = "lc-acc-option";
+      label.innerHTML =
+        '<input type="checkbox" value="' + acc.id + '" onchange="lcAccChange(\'' + platform + '\')">' +
+        '<div><div class="lc-acc-option-name">' + acc.name + '</div><div class="lc-acc-option-id">' + acc.id + '</div></div>';
+      if (checkedBefore.has(acc.id)) label.querySelector("input").checked = true;
+      menu.appendChild(label);
+    });
+    lcAccChange(platform);
+  }
+
+  window.lcRefreshAccounts = function(btn) {
+    var original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="ti ti-loader-2"></i> Atualizando...';
+    fetch("/api/ad-accounts/refresh", { method: "POST" })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        lcRenderAccountOptions("meta", data.meta_accounts || []);
+        lcRenderAccountOptions("google", data.google_accounts || []);
+      })
+      .catch(function(){ alert("Erro ao atualizar contas de anúncio."); })
+      .finally(function(){ btn.disabled = false; btn.innerHTML = original; });
   };
 
   function lcRenderStep() {

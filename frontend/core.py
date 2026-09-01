@@ -35,6 +35,7 @@ from frontend.database_reader import (
     ROLE_LABELS, PRODUCT_LABELS,
     get_etl_status as _db_get_etl_status,
 )
+from frontend.ad_accounts import get_meta_accounts, get_google_accounts
 from frontend.calendar_parser import parse_calendar
 from frontend.utils import _norm_text
 from frontend.formatters import fmt_brl, fmt_num, fmt_pct, fmt_br_date
@@ -389,6 +390,17 @@ def _project_accounts() -> dict:
             logger.error("config/project_accounts.yaml não encontrado — contas de anúncio ficarão vazias")
             _PROJECT_ACCOUNTS_CACHE = {}
     return _PROJECT_ACCOUNTS_CACHE
+
+# ── Contas de anúncio (wizard) ──────────────────────────────────────────────────
+
+def get_ad_accounts_for_wizard(force: bool = False) -> tuple[list[dict], list[dict]]:
+    """Contas de anúncio Meta/Google disponíveis pro token configurado no .env.
+    Cai pra lista estática (KNOWN_*) se a API externa falhar ou não tiver
+    credencial configurada, pra não deixar o wizard sem nenhuma opção."""
+    meta = get_meta_accounts(force=force) or KNOWN_META_ACCOUNTS
+    google = get_google_accounts(force=force) or KNOWN_GOOGLE_ACCOUNTS
+    return meta, google
+
 
 # ── Defaults de lançamento ─────────────────────────────────────────────────────
 

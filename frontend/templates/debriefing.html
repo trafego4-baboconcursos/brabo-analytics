@@ -636,27 +636,32 @@
   {% if dbf.prequali_invest and dbf.prequali_invest.total > 0 %}
   <div class="dbf-section">
     <div class="dbf-section-title"><i class="ti ti-target-arrow"></i> Investimento em Pré-Qualificação</div>
-    <div class="platform-split">
-      {% for plat_key, plat_label, plat_color in [('meta', 'Facebook Ads', 'var(--meta-color)'), ('google', 'Google Ads', 'var(--yt-color)')] %}
-      {% set p = dbf.prequali_invest[plat_key] %}
-      {% if p.total > 0 %}
-      <div class="platform-card">
-        <span class="pc-header" style="background:{{ plat_color }}">{{ plat_label }}</span>
-        {% if p.data_inicio %}<div style="font-size:11px;color:var(--bs-ink-muted);margin-bottom:8px">Início: {{ p.data_inicio | br_date }}</div>{% endif %}
-        <div class="dbf-plat-row" style="font-weight:700">
-          <span>Total investido</span>
-          <span class="amt">{{ p.total | brl(0) }}{% if p.prev_total %} {{ dbadge(p.total, p.prev_total, 'up') }}{% endif %}</span>
-        </div>
-        {% for c in p.climas %}{% if c.gasto > 0 %}
-        <div class="dbf-plat-row">
-          <span>{{ c.clima }}</span>
-          <span><span class="amt">{{ c.gasto | brl(0) }}</span> <span class="pct">({{ c.pct | round(1) }}%)</span>{% if c.prev_gasto %} {{ dbadge(c.gasto, c.prev_gasto, 'up') }}{% endif %}</span>
-        </div>
-        <div class="alloc-bar-wrap" style="height:6px;margin:2px 0 10px"><div class="alloc-bar" style="height:6px;width:{{ c.pct | round(1) }}%;background:{{ TEMP_COLORS.get(c.clima, '#9ca3af') }}"></div></div>
-        {% endif %}{% endfor %}
-      </div>
-      {% endif %}
-      {% endfor %}
+    {% set preq_dates = [dbf.prequali_invest.meta.data_inicio, dbf.prequali_invest.google.data_inicio] | select | unique | list %}
+    {% if preq_dates %}<div class="note" style="margin-bottom:10px">Início: {{ preq_dates | map('br_date') | join(' / ') }}</div>{% endif %}
+    <div class="table-wrap">
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            <th>Público</th>
+            <th class="num">Investimento</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for plat_key, plat_prefix in [('meta', 'FB'), ('google', 'YT')] %}
+          {% set p = dbf.prequali_invest[plat_key] %}
+          {% for c in p.climas %}{% if c.gasto > 0 %}
+          <tr class="ldt-main">
+            <td><span class="aud-tag{{ ' g' if plat_prefix == 'YT' else '' }}">{{ plat_prefix }} {{ c.clima }}</span></td>
+            <td class="num">{{ c.gasto | brl }}</td>
+          </tr>
+          <tr class="ldt-sub">
+            <td><span class="ldt-pct">{{ c.pct | round(1) }}% do investimento em {{ 'Facebook Ads' if plat_key == 'meta' else 'Google Ads' }}</span></td>
+            <td class="num">{% if c.prev_gasto %}{{ dbadge(c.gasto, c.prev_gasto, 'up') }}{% endif %}</td>
+          </tr>
+          {% endif %}{% endfor %}
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
     <div class="dbf-alloc-row total" style="margin-top:14px;border-radius:8px">
       <span>Total Investido — Pré-Qualificação</span>

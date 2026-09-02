@@ -2,7 +2,7 @@
 Agendador de ETL — executa as rotinas via APScheduler.
 Mantém o banco de dados do Supabase atualizado com duas cargas:
 - a cada 30 min, janela móvel de 3 dias (hoje e os 2 anteriores) para conversões;
-- 1x/dia (3h40), janela profunda de 14 dias para capturar restatements
+- 1x/dia (3h40), janela profunda de 18 dias para capturar restatements
   retroativos das plataformas (gasto corrigido dias depois pelo Meta/Google).
 
 Uso:
@@ -170,19 +170,23 @@ def main() -> None:
         next_run_time=datetime.now(),  # executa imediatamente ao iniciar
     )
 
-    # Reprocessamento profundo diário (janela de 14 dias), 3h40 da madrugada:
+    # Reprocessamento profundo diário (janela de 18 dias), 3h40 da madrugada:
     # captura restatements retroativos das plataformas — ex.: em 07/08/26 o Meta
     # corrigiu o gasto do AD322 dias depois, quando o dia já estava fora da
-    # janela móvel curta. O _job_lock garante que não sobrepõe a carga horária.
+    # janela móvel curta. 18 dias (era 14) porque o Google Ads às vezes revisa
+    # o custo de campanhas de Vídeo/Display mais de 14 dias depois (achado em
+    # 02/09/26 no PI-AGO-26: ~R$18k de gasto revisado que ficou fora da janela
+    # antiga e nunca foi capturado). O _job_lock garante que não sobrepõe a
+    # carga horária.
     scheduler.add_job(
-        partial(rodar_carga, dias_janela=14),
+        partial(rodar_carga, dias_janela=18),
         trigger="cron",
         hour=3,
         minute=40,
         coalesce=True,
         misfire_grace_time=3600,
         id="etl_carga_profunda",
-        name="ETL janela profunda diária (14 dias)",
+        name="ETL janela profunda diária (18 dias)",
     )
 
     # Alerta de orçamento (planejado x real), 3x/dia — minute=15 propositalmente

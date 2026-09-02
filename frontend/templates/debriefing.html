@@ -9,8 +9,22 @@
   margin-bottom: 20px; padding-bottom: 10px;
   border-bottom: 2px solid var(--bs-accent);
   display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  cursor: pointer; user-select: none;
 }
 .dbf-section-title i { color: var(--bs-accent); font-size: 17px; }
+.dbf-section-title .dbf-chevron {
+  margin-left: auto; transition: transform .15s;
+}
+.dbf-section.collapsed .dbf-section-title { margin-bottom: 0; border-bottom-color: var(--bs-border); }
+.dbf-section.collapsed .dbf-section-title .dbf-chevron { transform: rotate(-90deg); }
+.dbf-section.collapsed > *:not(.dbf-section-title) { display: none !important; }
+.dbf-accordion-controls { display: flex; gap: 10px; margin-bottom: 28px; }
+.dbf-accordion-controls button {
+  background: var(--bs-accent-bg); color: var(--bs-accent); border: 1px solid var(--bs-border-s);
+  padding: 7px 16px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.dbf-accordion-controls button:hover { filter: brightness(0.95); }
 .dbf-launch-badge {
   font-size: 11px; font-weight: 700; padding: 2px 8px;
   border-radius: 20px; background: var(--bs-accent); color: #fff;
@@ -332,6 +346,11 @@
         <span>Importe os CSVs ou aguarde a sincronização via API.</span></div>
     </div>
   {% else %}
+
+  <div class="dbf-accordion-controls">
+    <button type="button" id="dbf-collapse-all"><i class="ti ti-arrows-minimize"></i> Recolher todas</button>
+    <button type="button" id="dbf-expand-all"><i class="ti ti-arrows-maximize"></i> Expandir todas</button>
+  </div>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 1. MATRÍCULAS                                              -->
@@ -1582,4 +1601,51 @@
   {% endif %}{# end has_data #}
   </div><!-- /.content -->
 </div><!-- /.wrap -->
+
+<script>
+(function () {
+  var STORAGE_KEY = 'dbf-collapsed-sections';
+  function getState() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch (e) { return {}; }
+  }
+  function setState(state) {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+  }
+
+  var state = getState();
+  var sections = Array.prototype.slice.call(document.querySelectorAll('.dbf-section'));
+
+  sections.forEach(function (section, idx) {
+    var title = section.querySelector(':scope > .dbf-section-title');
+    if (!title) return;
+    var key = 'section-' + idx;
+
+    var chev = document.createElement('i');
+    chev.className = 'ti ti-chevron-down dbf-chevron';
+    title.appendChild(chev);
+
+    if (state[key]) section.classList.add('collapsed');
+
+    title.addEventListener('click', function () {
+      section.classList.toggle('collapsed');
+      state[key] = section.classList.contains('collapsed');
+      setState(state);
+    });
+  });
+
+  function setAll(collapsed) {
+    sections.forEach(function (section, idx) {
+      if (!section.querySelector(':scope > .dbf-section-title')) return;
+      section.classList.toggle('collapsed', collapsed);
+      state['section-' + idx] = collapsed;
+    });
+    setState(state);
+  }
+
+  var btnCollapse = document.getElementById('dbf-collapse-all');
+  var btnExpand = document.getElementById('dbf-expand-all');
+  if (btnCollapse) btnCollapse.addEventListener('click', function () { setAll(true); });
+  if (btnExpand) btnExpand.addEventListener('click', function () { setAll(false); });
+})();
+</script>
 {% endblock %}

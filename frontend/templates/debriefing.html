@@ -1624,7 +1624,9 @@
     chev.className = 'ti ti-chevron-down dbf-chevron';
     title.appendChild(chev);
 
-    if (state[key]) section.classList.add('collapsed');
+    // Primeira visita (sem estado salvo ainda): só Matrículas (idx 0) começa aberta.
+    var collapsed = (key in state) ? state[key] : (idx !== 0);
+    if (collapsed) section.classList.add('collapsed');
 
     title.addEventListener('click', function () {
       section.classList.toggle('collapsed');

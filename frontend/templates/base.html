@@ -157,7 +157,10 @@ html, body { margin: 0 !important; padding: 0 !important; font-family: 'Inter','
 /* Lançamentos — botão que dobra de navegação de modo + troca de lançamento */
 .bs-launch-picker { position:relative; }
 .bs-launch-picker-btn { flex-wrap:wrap; row-gap:6px; justify-content:flex-start; }
-.bs-launch-picker-label { display:flex; align-items:center; gap:9px; flex:0 0 100%; }
+.bs-launch-picker-label { display:flex; align-items:center; gap:9px; }
+/* Só quebra o rótulo pra linha própria quando tem badge junto (2 linhas);
+   sem badge, o ícone de seta fica alinhado na mesma linha do texto. */
+.bs-launch-picker-btn.bs-has-badge .bs-launch-picker-label { flex:0 0 100%; }
 .bs-launch-picker-btn .bs-live-badge { margin-right:2px; }
 .bs-launch-picker-chevron { margin-left:auto; font-size:12px; opacity:.6; transition:transform .15s; flex-shrink:0; }
 .bs-launch-picker.open .bs-launch-picker-chevron { transform:rotate(180deg); }
@@ -1140,7 +1143,7 @@ kbd {
            lançamento ativo. -->
       <div class="bs-launch-picker" id="bs-launch-picker">
         <button type="button"
-                class="bs-mode-btn bs-launch-picker-btn {% if nav_mode == 'lancamentos' %}active{% endif %}"
+                class="bs-mode-btn bs-launch-picker-btn {% if nav_mode == 'lancamentos' %}active{% endif %} {% if active_code and nav_mode == 'funis' %}bs-has-badge{% endif %}"
                 onclick="bsPickerToggle(this)">
           <span class="bs-launch-picker-label"><i class="ti ti-rocket"></i> Lançamento{% if not (active_code and nav_mode == 'funis') %}s{% endif %}</span>
           {% if active_code and nav_mode == 'funis' %}
@@ -1172,7 +1175,7 @@ kbd {
            quando dentro do modo. -->
       <div class="bs-launch-picker" id="bs-perpetuo-picker">
         <button type="button"
-                class="bs-mode-btn bs-launch-picker-btn {% if nav_mode == 'perpetuo' %}active{% endif %}"
+                class="bs-mode-btn bs-launch-picker-btn {% if nav_mode == 'perpetuo' %}active{% endif %} {% if nav_mode == 'perpetuo' and perpetuo_current %}bs-has-badge{% endif %}"
                 onclick="bsPickerToggle(this)">
           <span class="bs-launch-picker-label"><i class="ti ti-infinity"></i> Perpétuo</span>
           {% if nav_mode == 'perpetuo' and perpetuo_current %}
@@ -1190,7 +1193,7 @@ kbd {
       {% if distribuicao_nav_items %}
       <div class="bs-launch-picker" id="bs-distribuicao-picker">
         <button type="button"
-                class="bs-mode-btn bs-launch-picker-btn {% if nav_mode == 'distribuicao' %}active{% endif %}"
+                class="bs-mode-btn bs-launch-picker-btn {% if nav_mode == 'distribuicao' %}active{% endif %} {% if nav_mode == 'distribuicao' and distribuicao_current %}bs-has-badge{% endif %}"
                 onclick="bsPickerToggle(this)">
           <span class="bs-launch-picker-label"><i class="ti ti-speakerphone"></i> Distribuição</span>
           {% if nav_mode == 'distribuicao' and distribuicao_current %}
@@ -1208,7 +1211,7 @@ kbd {
 
       <div class="bs-launch-picker" id="bs-redes-sociais-picker">
         <button type="button"
-                class="bs-mode-btn bs-launch-picker-btn {% if nav_mode == 'redes_sociais' %}active{% endif %}"
+                class="bs-mode-btn bs-launch-picker-btn {% if nav_mode == 'redes_sociais' %}active{% endif %} {% if nav_mode == 'redes_sociais' and redes_sociais_current %}bs-has-badge{% endif %}"
                 onclick="bsPickerToggle(this)">
           <span class="bs-launch-picker-label"><i class="ti ti-share"></i> Redes Sociais</span>
           {% if nav_mode == 'redes_sociais' and redes_sociais_current %}

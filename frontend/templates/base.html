@@ -10,7 +10,7 @@
 
   <style id="brabo-ds-style">
 /* ── Basis Design System — Brabo Analytics ──────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&family=Archivo+Black&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&family=Archivo+Black&family=Orbitron:wght@600;700;800&display=swap');
 
 :root {
   --bs-ink:          #1f2330;
@@ -165,9 +165,14 @@ html, body { margin: 0 !important; padding: 0 !important; font-family: 'Inter','
 .bs-launch-picker-chevron { margin-left:auto; font-size:12px; opacity:.6; transition:transform .15s; flex-shrink:0; }
 .bs-launch-picker.open .bs-launch-picker-chevron { transform:rotate(180deg); }
 .bs-launch-picker-menu {
-  display:none; position:absolute; top:calc(100% + 4px); left:0; right:-40px;
+  /* position:fixed (não absolute) de propósito — a sidebar tem overflow-y:auto
+     pra rolar a lista de navegação, e um ancestral com overflow corta
+     qualquer descendente position:absolute que vaze pra fora da própria
+     largura. fixed escapa desse corte; top/left exatos vêm do JS
+     (bsPickerToggle), calculados a partir do botão no momento do clique. */
+  display:none; position:fixed; min-width:220px;
   background:var(--bs-card); border-radius:12px; box-shadow:0 12px 30px rgba(20,26,52,.24);
-  border:1px solid var(--bs-border); z-index:220; max-height:70vh; overflow-y:auto;
+  border:1px solid var(--bs-border); z-index:500; max-height:70vh; overflow-y:auto;
   padding:6px;
 }
 .bs-launch-picker.open .bs-launch-picker-menu { display:block; }
@@ -1154,6 +1159,40 @@ html[data-bs-theme="d"] {
 html[data-bs-theme="b"] body, html[data-bs-theme="c"] body, html[data-bs-theme="d"] body {
   font-family: 'Manrope', 'Segoe UI', system-ui, sans-serif;
 }
+
+/* "Outatime" — easter egg De Volta para o Futuro: painel dos circuitos
+   temporais (laranja=destino, verde=presente, âmbar=passado) + Orbitron
+   nos números pra lembrar mostrador digital. Escondido de propósito —
+   não faz parte do rebranding "sério", é só diversão. */
+html[data-bs-theme="outatime"] {
+  --bs-accent: #ff7a00; --bs-accent-2: #ffb347; --bs-accent-bg: #2a2510;
+  --bs-sidebar: #0a1330; --bs-sidebar-dark: #050a1a;
+  --bs-bg: #0a1330; --bs-surface: #0f1a3d; --bs-card: #142248;
+  --bs-ink: #f2f2f6; --bs-ink-muted: #98a2c4; --bs-ink-subtle: #66709a;
+  --bs-border: #263566; --bs-border-s: #324278;
+  --bs-success: #00e64d; --bs-success-bg: #0a2414;
+  --bs-warning: #ffd400; --bs-warning-bg: #2e2500;
+  --bs-danger: #ff2222; --bs-danger-bg: #2e0a0a;
+  --bs-info: #33c9ff; --bs-info-bg: #0a1f2e;
+  --bs-sh-sm: 0 0 4px rgba(255,122,0,.15); --bs-sh-md: 0 0 16px rgba(255,122,0,.18);
+  --bs-sh-lg: 0 0 32px rgba(255,122,0,.22); --bs-sh-xl: 0 0 60px rgba(255,122,0,.28);
+}
+html[data-bs-theme="outatime"] body {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+html[data-bs-theme="outatime"] .hdr h1,
+html[data-bs-theme="outatime"] h1,
+html[data-bs-theme="outatime"] .tp-value,
+html[data-bs-theme="outatime"] .kpi-val,
+html[data-bs-theme="outatime"] .dbf-kpi .val,
+html[data-bs-theme="outatime"] .mat-num {
+  font-family: 'Orbitron', 'Inter', sans-serif;
+  text-shadow: 0 0 8px currentColor;
+  letter-spacing: .03em;
+}
+html[data-bs-theme="outatime"] .bs-live-dot {
+  background: #00e64d; box-shadow: 0 0 6px #00e64d;
+}
   </style>
   <script>
   (function() {
@@ -1369,6 +1408,10 @@ html[data-bs-theme="b"] body, html[data-bs-theme="c"] body, html[data-bs-theme="
           </button>
           <button type="button" class="bs-theme-opt" data-theme-val="d" onclick="bsSetTheme('d')">
             <span class="bs-theme-dot" style="background:#1d4ed8"></span> Midnight Indigo
+          </button>
+          <div class="bs-launch-picker-sep"></div>
+          <button type="button" class="bs-theme-opt" data-theme-val="outatime" onclick="bsSetTheme('outatime')">
+            <span class="bs-theme-dot" style="background:#0d0d0f;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08), inset 0 0 0 3px #ff7a00"></span> Outatime <i class="ti ti-car" style="margin-left:auto;font-size:13px;opacity:.6"></i>
           </button>
         </div>
       </div>
@@ -1676,13 +1719,14 @@ document.addEventListener('click', function(e) {
    (ver <style id="brabo-theme-variant"> no <head>). Persiste só no
    navegador (localStorage) por enquanto — cada pessoa escolhe o seu. ── */
 window.bsSetTheme = function(v) {
-  if (v === 'a') document.documentElement.removeAttribute('data-bs-theme');
-  else document.documentElement.setAttribute('data-bs-theme', v);
   try { localStorage.setItem('bs-theme-variant', v); } catch (e) {}
-  bsThemeSyncActive();
-  document.querySelectorAll('.bs-launch-picker.open').forEach(function(p) { p.classList.remove('open'); });
+  /* Gráficos são desenhados em <canvas> com cores fixas no momento do
+     draw (Chart.js não escuta mudança de CSS custom property) — não dá
+     pra "retintar" ao vivo sem recriar cada gráfico da página. Recarrega
+     pra tudo (inclusive canvas) nascer já com os tokens do tema novo. */
+  location.reload();
 };
-var BS_THEME_LABELS = { a: 'Colorful', brabo: "Orange's New Black", b: 'Deep Lagoon', c: 'Slate Teal', d: 'Midnight Indigo' };
+var BS_THEME_LABELS = { a: 'Colorful', brabo: "Orange's New Black", b: 'Deep Lagoon', c: 'Slate Teal', d: 'Midnight Indigo', outatime: 'Outatime' };
 window.bsThemeSyncActive = function() {
   var current = document.documentElement.getAttribute('data-bs-theme') || 'a';
   document.querySelectorAll('#bs-theme-picker .bs-theme-opt').forEach(function(b) {

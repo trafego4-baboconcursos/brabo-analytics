@@ -486,6 +486,7 @@
           const vendas  = [{% for t in dbf.timeline %}{{ t.vendas }}{% if not loop.last %},{% endif %}{% endfor %}];
           const accent  = getComputedStyle(document.documentElement).getPropertyValue('--bs-accent').trim() || '#f97316';
           const surface = getComputedStyle(document.documentElement).getPropertyValue('--bs-surface').trim() || '#f6f7fb';
+          const ink     = getComputedStyle(document.documentElement).getPropertyValue('--bs-ink').trim() || '#1f2330';
           new Chart(document.getElementById('timelineChart'), {
             type: 'line',
             plugins: [ChartDataLabels],
@@ -515,7 +516,7 @@
                   align: 'top',
                   offset: 4,
                   font: { size: 11, weight: '700' },
-                  color: accent,
+                  color: ink,
                   formatter: v => v,
                 }
               },
@@ -910,7 +911,7 @@
             datalabels: {
               anchor: 'end', align: 'top', offset: 2,
               font: { size: 12, weight: '700' },
-              color: cssVar('--bs-sidebar', '#374151'),
+              color: cssVar('--bs-ink', '#1f2330'),
               formatter: (v, ctx) => {
                 const varPct = vars[ctx.dataIndex];
                 if (varPct === null || varPct === undefined) return String(v);
@@ -1379,7 +1380,7 @@
               datalabels: {
                 anchor: 'end', align: 'top', offset: 2,
                 font: { size: 11, weight: '700' },
-                color: cssVar('--bs-sidebar', '#374151'),
+                color: cssVar('--bs-ink', '#1f2330'),
                 formatter: v => v,
               }
             },

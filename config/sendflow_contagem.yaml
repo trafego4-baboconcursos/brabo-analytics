@@ -4,28 +4,30 @@
 # número único via export-leads, admin excluído, entradas/saídas do dia
 # via /analytics) — sem depender do Sheets nem da tabela acumulada.
 #
-# token_env = nome da variável de ambiente que guarda o SENDFLOW_API_TOKEN
-# (o valor em si fica só no .env/EasyPanel, nunca aqui — mesmo padrão do
-# resto do projeto, ver config/whatsapp_accounts.yaml)
+# token_env = nome da variável de ambiente que guarda o token Bearer da
+# SendFlow (o valor em si fica só no .env/EasyPanel, nunca aqui — mesmo
+# padrão do resto do projeto, ver config/whatsapp_accounts.yaml). É um único
+# token pra todos os lançamentos (SENDFLOW_API_TOKEN), confirmado com o
+# usuário em 2026-09-01.
 # release_id = SENDFLOW_RELEASE_ID do app correspondente no EasyPanel
 
 PI-AGO-26:
   normal:
-    token_env: "SENDFLOW_TOKEN_PI_AGO_26"
+    token_env: "SENDFLOW_API_TOKEN"
     release_id: "8AZ6TTPsLRzqAgJgYUt7"
   vip:
-    token_env: "SENDFLOW_TOKEN_PI_AGO_26"
+    token_env: "SENDFLOW_API_TOKEN"
     release_id: "6LROa8Id5S2VZ86TGUoH"
 
 PBB-AGO-26:
   normal:
-    token_env: "SENDFLOW_TOKEN_PBB_AGO_26"
+    token_env: "SENDFLOW_API_TOKEN"
     release_id: "oEDlHaROrKaX3Vgnk0gY"
   vip:
-    token_env: "SENDFLOW_TOKEN_PBB_AGO_26"
+    token_env: "SENDFLOW_API_TOKEN"
     release_id: "17lIw0cmuPhqdMoMp2tT"
 
 PES-SET-26:
   normal:
-    token_env: "SENDFLOW_TOKEN_PES_SET_26"
+    token_env: "SENDFLOW_API_TOKEN"
     release_id: "ydlsqyyanKZ3DNxImAlj"

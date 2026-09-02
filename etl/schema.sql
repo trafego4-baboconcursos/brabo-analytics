@@ -177,6 +177,27 @@ ALTER TABLE whatsapp_messages_daily ADD COLUMN IF NOT EXISTS cost_brl    NUMERIC
 -- valor "real" que entra no Investimento Total do painel.
 ALTER TABLE whatsapp_messages_daily ADD COLUMN IF NOT EXISTS cost_brl_iof NUMERIC(12,2);
 
+-- Quebra por categoria de cobrança (pricing_analytics com dimensão
+-- PRICING_CATEGORY) — SERVICE (janela de 24h aberta pelo lead, sempre
+-- grátis), UTILITY, MARKETING, AUTHENTICATION, etc. Validado em 2026-09-01
+-- batendo exato com o WhatsApp Manager oficial (Preços das mensagens).
+CREATE TABLE IF NOT EXISTS whatsapp_pricing_category_daily (
+    id            BIGSERIAL PRIMARY KEY,
+    date          DATE NOT NULL,
+    waba_id       TEXT NOT NULL,
+    category      TEXT NOT NULL,           -- SERVICE | UTILITY | MARKETING | AUTHENTICATION | ...
+    volume        INTEGER DEFAULT 0,
+    cost_usd      NUMERIC(12,4),
+    ptax_venda    NUMERIC(10,4),
+    cost_brl      NUMERIC(12,2),
+    cost_brl_iof  NUMERIC(12,2),           -- com IOF de 3,5% (compra internacional no cartão)
+    updated_at    TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (date, waba_id, category)
+);
+
+CREATE INDEX IF NOT EXISTS idx_wa_cat_date    ON whatsapp_pricing_category_daily (date);
+CREATE INDEX IF NOT EXISTS idx_wa_cat_waba_id ON whatsapp_pricing_category_daily (waba_id);
+
 
 -- ── INSTAGRAM — snapshot diário de perfil + posts (Graph API, contas próprias) ──
 -- Contas configuradas em config/instagram_accounts.yaml. followers_count é uma

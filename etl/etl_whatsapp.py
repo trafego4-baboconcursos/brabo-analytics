@@ -38,6 +38,7 @@ logger = get_logger("etl.whatsapp")
 
 API_VERSION = "v22.0"
 TABLE = "whatsapp_messages_daily"
+CATEGORY_TABLE = "whatsapp_pricing_category_daily"
 CONFIG_PATH = Path(__file__).parent.parent / "config" / "whatsapp_accounts.yaml"
 
 # IOF sobre compra internacional no cartão de crédito (Decreto 12.499/2025,
@@ -89,6 +90,36 @@ def fetch_pricing(waba_id: str, since: str, until: str) -> dict[str, float]:
     return out
 
 
+def fetch_pricing_by_category(waba_id: str, since: str, until: str) -> list[dict]:
+    """[{date, category, volume, cost_usd}] via pricing_analytics com a
+    dimensão PRICING_CATEGORY (SERVICE=janela de 24h aberta pelo lead, sempre
+    grátis; UTILITY; MARKETING; AUTHENTICATION; etc.) — validado em 2026-09-01
+    batendo dígito a dígito com o WhatsApp Manager oficial (Preços das
+    mensagens)."""
+    token = os.environ["META_ACCESS_TOKEN"]
+    start_ts = int(datetime.strptime(since, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp())
+    end_ts = int(datetime.strptime(until, "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp()) + 86400
+
+    r = http_get(
+        f"https://graph.facebook.com/{API_VERSION}/{waba_id}/pricing_analytics",
+        params={
+            "start": start_ts, "end": end_ts, "granularity": "DAILY",
+            "dimensions": '["PRICING_CATEGORY"]',
+            "access_token": token,
+        },
+    )
+    agg: dict[tuple[str, str], dict] = {}
+    for block in r.json().get("data") or []:
+        for p in block.get("data_points", []):
+            date = datetime.fromtimestamp(p["start"], tz=timezone.utc).strftime("%Y-%m-%d")
+            category = p.get("pricing_category") or "UNKNOWN"
+            key = (date, category)
+            row = agg.setdefault(key, {"date": date, "category": category, "volume": 0, "cost_usd": 0.0})
+            row["volume"] += int(p.get("volume") or 0)
+            row["cost_usd"] += float(p.get("cost") or 0)
+    return list(agg.values())
+
+
 def build_df(accounts: list[dict], since: str, until: str) -> pd.DataFrame:
     records = []
     for acc in accounts:
@@ -124,19 +155,45 @@ def build_df(accounts: list[dict], since: str, until: str) -> pd.DataFrame:
     return pd.DataFrame(records)
 
 
-def upsert(df: pd.DataFrame, since: str, until: str):
+def build_category_df(accounts: list[dict], since: str, until: str) -> pd.DataFrame:
+    records = []
+    for acc in accounts:
+        waba_id = acc["waba_id"]
+        try:
+            rows = fetch_pricing_by_category(waba_id, since, until)
+        except Exception:
+            logger.warning("WhatsApp: falha ao buscar categorias de %s (%s)", acc.get("name"), waba_id, exc_info=True)
+            continue
+        for r in rows:
+            ptax = get_ptax_venda(r["date"]) if r["cost_usd"] else None
+            cost_brl = (r["cost_usd"] * ptax) if (r["cost_usd"] and ptax is not None) else 0.0
+            records.append({
+                "date": r["date"],
+                "waba_id": waba_id,
+                "category": r["category"],
+                "volume": r["volume"],
+                "cost_usd": r["cost_usd"],
+                "ptax_venda": ptax,
+                "cost_brl": cost_brl,
+                "cost_brl_iof": cost_brl * (1 + IOF_CARTAO_INTERNACIONAL),
+            })
+        logger.info("WhatsApp: %s (%s) -> %d linhas de categoria", acc.get("name"), waba_id, len(rows))
+    return pd.DataFrame(records)
+
+
+def upsert(df: pd.DataFrame, since: str, until: str, table: str = TABLE):
     if df.empty:
-        logger.warning("Nenhum dado de volume WhatsApp para gravar.")
+        logger.warning("Nenhum dado pra gravar em '%s'.", table)
         return
     df["updated_at"] = datetime.now(timezone.utc).isoformat()
     engine = get_engine()
     with engine.begin() as conn:
         conn.execute(
-            text(f"DELETE FROM {TABLE} WHERE date BETWEEN :s AND :u"),
+            text(f"DELETE FROM {table} WHERE date BETWEEN :s AND :u"),
             {"s": since, "u": until},
         )
-    df.to_sql(TABLE, engine, if_exists="append", index=False, method="multi", chunksize=500)
-    logger.info("Upsert concluído: %d linhas gravadas em '%s'", len(df), TABLE)
+    df.to_sql(table, engine, if_exists="append", index=False, method="multi", chunksize=500)
+    logger.info("Upsert concluído: %d linhas gravadas em '%s'", len(df), table)
 
 
 def main():
@@ -152,6 +209,9 @@ def main():
 
     df = build_df(accounts, args.since, args.until)
     upsert(df, args.since, args.until)
+
+    cat_df = build_category_df(accounts, args.since, args.until)
+    upsert(cat_df, args.since, args.until, table=CATEGORY_TABLE)
 
 
 if __name__ == "__main__":

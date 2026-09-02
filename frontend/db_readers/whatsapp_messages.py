@@ -56,6 +56,47 @@ def _allowed_waba_ids(prefix: str) -> set[str] | None:
     return out
 
 
+_CATEGORY_LABELS = {
+    "SERVICE": "Serviço (janela grátis)",
+    "UTILITY": "Utilidade",
+    "MARKETING": "Marketing",
+    "AUTHENTICATION": "Autenticação",
+    "AUTHENTICATION_INTERNATIONAL": "Autenticação internacional",
+    "REFERRAL_CONVERSION": "Conversão via anúncio",
+    "UNKNOWN": "Não categorizado",
+}
+
+
+def _read_categorias(conn, start: date, end: date, allowed: set[str] | None) -> list[dict]:
+    """Volume/custo agrupado por categoria de cobrança (SERVICE/UTILITY/
+    MARKETING/...), somando todas as contas permitidas no período."""
+    rows = conn.execute(
+        text(
+            "SELECT waba_id, category, SUM(volume) AS volume, "
+            "SUM(cost_brl_iof) AS cost_brl, SUM(cost_usd) AS cost_usd "
+            "FROM whatsapp_pricing_category_daily WHERE date BETWEEN :s AND :e "
+            "GROUP BY waba_id, category"
+        ),
+        {"s": start, "e": end},
+    ).fetchall()
+
+    agg: dict[str, dict] = {}
+    for r in rows:
+        if allowed is not None and r.waba_id not in allowed:
+            continue
+        cat = agg.setdefault(r.category, {"category": r.category, "label": _CATEGORY_LABELS.get(r.category, r.category),
+                                           "volume": 0, "cost_brl": 0.0, "cost_usd": 0.0})
+        cat["volume"] += int(r.volume or 0)
+        cat["cost_brl"] += float(r.cost_brl or 0)
+        cat["cost_usd"] += float(r.cost_usd or 0)
+
+    cats = sorted(agg.values(), key=lambda c: -c["cost_brl"])
+    total_cost = sum(c["cost_brl"] for c in cats) or 1.0
+    for c in cats:
+        c["pct_cost"] = c["cost_brl"] / total_cost * 100
+    return cats
+
+
 def _read_uncached(launch_code: str, start: date, end: date) -> dict | None:
     if not start or not end:
         return None
@@ -72,6 +113,7 @@ def _read_uncached(launch_code: str, start: date, end: date) -> dict | None:
                 ),
                 {"s": start, "e": end},
             ).fetchall()
+            by_category = _read_categorias(conn, start, end, allowed)
     except Exception:
         logger.exception("read_whatsapp_messages: falha para %s", launch_code)
         return None
@@ -80,7 +122,8 @@ def _read_uncached(launch_code: str, start: date, end: date) -> dict | None:
         rows = [r for r in rows if r.waba_id in allowed]
 
     if not rows:
-        return {"accounts": [], "total_sent": 0, "total_delivered": 0, "start": str(start), "end": str(end)}
+        return {"accounts": [], "total_sent": 0, "total_delivered": 0, "by_category": by_category,
+                "start": str(start), "end": str(end)}
 
     by_account: dict[str, dict] = {}
     for r in rows:
@@ -121,6 +164,7 @@ def _read_uncached(launch_code: str, start: date, end: date) -> dict | None:
         "total_cost_usd": total_cost_usd,
         "total_cost_brl": total_cost_brl,
         "total_cost_brl_sem_iof": total_cost_brl_sem_iof,
+        "by_category": by_category,
         "start": str(start),
         "end": str(end),
     }

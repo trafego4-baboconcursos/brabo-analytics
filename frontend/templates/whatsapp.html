@@ -88,6 +88,37 @@
         </tbody>
       </table>
     </div>
+
+    {% if wa_msgs.by_category %}
+    <div class="section-title" style="margin-top:24px;">Por Categoria de Cobrança</div>
+    <div class="note info" style="margin-bottom:12px;">
+      Categoria oficial do Meta (<code>pricing_analytics</code>). "Serviço" é a mensagem dentro da janela
+      de 24h aberta pelo lead — sempre grátis. "Utilidade" e "Marketing" são as iniciadas por template
+      fora da janela — as únicas que geram custo.
+    </div>
+    <div class="funil-table-wrap">
+      <table class="funil-table">
+        <thead>
+          <tr>
+            <th class="col-label">Categoria</th>
+            <th class="th-num col-count">Volume</th>
+            <th class="th-num col-count">Custo (R$)</th>
+            <th class="th-num col-count">% do custo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in wa_msgs.by_category %}
+          <tr>
+            <td>{{ c.label }}</td>
+            <td class="numero">{{ c.volume | num }}</td>
+            <td class="numero">{{ c.cost_brl | brl }}</td>
+            <td class="numero">{{ c.pct_cost | round(1) }}%</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>

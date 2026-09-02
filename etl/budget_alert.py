@@ -422,7 +422,14 @@ def _processar_lancamento(codigo: str, cfg: dict, hoje: date, state: dict) -> tu
         ) if google_ids else []
     except Exception as exc:
         logger.exception("Falha ao consultar APIs de anúncios para %s", codigo)
-        return None, [f"• *{codigo}*: {exc}"]
+        detalhe = str(exc)
+        resp = getattr(exc, "response", None)
+        if resp is not None:
+            try:
+                detalhe += f" — {resp.text[:300]}"
+            except Exception:
+                pass
+        return None, [f"• *{codigo}*: {detalhe}"]
 
     real_hoje = _categorizar_gasto(rows_meta_hoje, rows_google_hoje, codigo)
     state_launch = state.setdefault(codigo, {})

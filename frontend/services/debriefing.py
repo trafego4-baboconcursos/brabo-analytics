@@ -132,7 +132,7 @@ def _build_leads_detail_table(
     return curr_rows
 
 
-def _build_rmkt_adsets(meta: Any) -> list:
+def _build_rmkt_adsets(meta: Any, whatsapp: float = 0.0) -> list:
     _order = ["Lembrete", "Depoimento", "Aulas no Ar", "Replay", "Matrículas Abertas"]
     por_etapa = getattr(meta, "por_etapa", {}) or {}
     rows = []
@@ -140,10 +140,82 @@ def _build_rmkt_adsets(meta: Any) -> list:
         d = por_etapa.get(e) or {}
         gasto = float(d.get("gasto") or d.get("custo") or 0)
         rows.append({"adset": e, "gasto": gasto, "leads": int(d.get("leads") or 0), "pct": 0.0})
+    if whatsapp > 0:
+        rows.append({"adset": "WhatsApp", "gasto": whatsapp, "leads": 0, "pct": 0.0})
     total = sum(r["gasto"] for r in rows) or 1
     for r in rows:
         r["pct"] = r["gasto"] / total * 100 if r["gasto"] > 0 else 0.0
     return rows
+
+
+def _build_top_ads_captacao(meta: Any, google: Any, sales_attr: Any = None, n: int = 5) -> dict:
+    """Top N anúncios de Captação por quantidade de vendas (atribuição UTM
+    por ad_code), em 3 recortes: combinado (Meta + Google somados pelo mesmo
+    código ADxxx), só Meta, só Google."""
+    por_criativo = (sales_attr or {}).get("por_criativo", {}) or {}
+    meta_ads = getattr(meta, "captacao_por_ad", None) or []
+    google_ads = getattr(google, "anuncios_por_ad", None) or []
+
+    def _row(code: str, nome: str, gasto: float, leads: int) -> dict:
+        venda = por_criativo.get(code, {})
+        vendas = int(venda.get("vendas") or 0)
+        receita = float(venda.get("faturamento") or 0)
+        return {
+            "ad_code": code, "nome": nome, "gasto": gasto, "leads": leads,
+            "vendas": vendas, "receita": receita,
+            "roas": receita / gasto if gasto > 0 else 0.0,
+        }
+
+    def _top(ads: list) -> list:
+        rows = [
+            _row(str(a.get("ad_code") or "").upper(), a.get("nome"), float(a.get("gasto") or 0), int(a.get("leads") or 0))
+            for a in ads
+        ]
+        return sorted(rows, key=lambda x: x["vendas"], reverse=True)[:n]
+
+    combinado_acc: dict[str, dict] = {}
+    for a in meta_ads + google_ads:
+        code = str(a.get("ad_code") or "").upper()
+        if not code:
+            continue
+        c = combinado_acc.setdefault(code, {"nome": a.get("nome"), "gasto": 0.0, "leads": 0})
+        c["gasto"] += float(a.get("gasto") or 0)
+        c["leads"] += int(a.get("leads") or 0)
+    combinado_rows = sorted(
+        (_row(code, c["nome"], c["gasto"], c["leads"]) for code, c in combinado_acc.items()),
+        key=lambda x: x["vendas"], reverse=True,
+    )[:n]
+
+    return {"combinado": combinado_rows, "meta": _top(meta_ads), "google": _top(google_ads)}
+
+
+def _enrich_perfil_por_anuncio(perfil: dict | None, meta: Any, google: Any, sales_attr: Any = None) -> dict | None:
+    """Completa cada linha de perfil_por_anuncio (que só tem ad_code/leads/
+    respostas/dist, vindos da pesquisa) com nome, investimento e vendas —
+    somando Meta + Google quando o mesmo ADxxx roda nas duas plataformas."""
+    if not perfil or not perfil.get("ads"):
+        return perfil
+    por_criativo = (sales_attr or {}).get("por_criativo", {}) or {}
+    todos_ads = [
+        *(getattr(meta, "preq_por_ad", None) or []),
+        *(getattr(meta, "captacao_por_ad", None) or []),
+        *(getattr(google, "preq_por_ad", None) or []),
+        *(getattr(google, "anuncios_por_ad", None) or []),
+    ]
+    info: dict[str, dict] = {}
+    for a in todos_ads:
+        code = str(a.get("ad_code") or "").upper()
+        if not code:
+            continue
+        d = info.setdefault(code, {"nome": a.get("nome"), "gasto": 0.0})
+        d["gasto"] += float(a.get("gasto") or 0)
+    for row in perfil["ads"]:
+        code = str(row.get("ad_code") or "").upper()
+        d = info.get(code, {})
+        row["nome"] = d.get("nome") or code
+        row["gasto"] = d.get("gasto") or 0.0
+        row["vendas"] = int((por_criativo.get(code) or {}).get("vendas") or 0)
+    return perfil
 
 
 def _build_antigo_novo(meta: Any, google: Any, sales_attr: Any = None) -> dict:
@@ -279,10 +351,12 @@ def _compute_debriefing_ctx(
          "prev_leads": 0, "prev_cpl": 0.0, "has_data": False},
     ]
 
-    def get_etapa(m, g, name):
+    def get_etapa(m, g, name, whatsapp=0.0):
         # "Remarketing" não existe como chave própria em por_etapa — Meta/Google
         # classificam essas campanhas nas sub-etapas (Lembrete, Depoimento, etc.),
-        # então somamos todas elas para compor o total de Remarketing.
+        # então somamos todas elas para compor o total de Remarketing. O WhatsApp
+        # também é 100% remarketing (só dispara pra quem já é lead), então entra
+        # no mesmo bucket.
         names = _REMARKETING_SUBETAPAS if name == "Remarketing" else [name]
         m_por = (getattr(m, "por_etapa", {}) or {}) if m else {}
         g_por = (getattr(g, "por_etapa", {}) or {}) if g else {}
@@ -294,13 +368,13 @@ def _compute_debriefing_ctx(
             g_c += _f(g_d.get("custo"))
             m_l += _i(m_d.get("leads"))
             g_l += _i(g_d.get("conversoes"))
-        total = m_c + g_c
-        return {"nome": name, "invest": total, "meta": m_c, "google": g_c, "tiktok": 0.0, "leads": m_l + g_l}
+        total = m_c + g_c + whatsapp
+        return {"nome": name, "invest": total, "meta": m_c, "google": g_c, "tiktok": 0.0, "whatsapp": whatsapp, "leads": m_l + g_l}
 
     base = invest or 1.0
     etapas = []
     for name in ["Pré-Qualificação", "Captação", "Remarketing"]:
-        e = get_etapa(meta, google, name)
+        e = get_etapa(meta, google, name, whatsapp=wa_gasto if name == "Remarketing" else 0.0)
         e["pct"] = e["invest"] / base * 100
         etapas.append(e)
 
@@ -308,7 +382,7 @@ def _compute_debriefing_ctx(
     if prev_meta or prev_google:
         prev_base = prev_invest or 1.0
         for name in ["Pré-Qualificação", "Captação", "Remarketing"]:
-            e = get_etapa(prev_meta, prev_google, name)
+            e = get_etapa(prev_meta, prev_google, name, whatsapp=prev_wa_gasto if name == "Remarketing" else 0.0)
             e["pct"] = e["invest"] / prev_base * 100
             prev_etapas.append(e)
 
@@ -432,6 +506,14 @@ def _compute_debriefing_ctx(
     prequali_invest["total"] = prequali_invest["meta"]["total"] + prequali_invest["google"]["total"]
     prequali_invest["prev_total"] = prequali_invest["meta"]["prev_total"] + prequali_invest["google"]["prev_total"]
 
+    # Top 3 anúncios (por leads) da Pré-Qualificação, por plataforma — TikTok
+    # fica vazio até existir integração.
+    preq_top_ads = {
+        "meta":   (getattr(meta, "preq_por_ad", None) or [])[:3],
+        "google": (getattr(google, "preq_por_ad", None) or [])[:3],
+        "tiktok": [],
+    }
+
     leads_detail_table = _build_leads_detail_table(
         meta, google, prev_meta, prev_google, sales_attr, prev_sales_attr,
     )
@@ -477,6 +559,8 @@ def _compute_debriefing_ctx(
         "meta_segmentos": meta_segmentos, "google_segmentos": google_segmentos,
         "meta_clima": meta_clima, "google_clima": google_clima,
         "prequali_invest": prequali_invest,
+        "preq_top_ads": preq_top_ads,
+        "top_ads_captacao": _build_top_ads_captacao(meta, google, sales_attr),
         "leads_detail_table": leads_detail_table,
         # Detalhamento dos públicos (categoria de adset) por clima — Captação Meta
         "publicos_captacao": {
@@ -492,8 +576,8 @@ def _compute_debriefing_ctx(
                 for c in _CLIMA_ORDER
             ) if v
         },
-        "rmkt_adsets": _build_rmkt_adsets(meta),
-        "prev_rmkt_adsets": _build_rmkt_adsets(prev_meta),
+        "rmkt_adsets": _build_rmkt_adsets(meta, whatsapp=wa_gasto),
+        "prev_rmkt_adsets": _build_rmkt_adsets(prev_meta, whatsapp=prev_wa_gasto),
         # Sales por temperatura/tipo
         "meta_temp_sales": meta_temp_sales, "google_tipo_sales": google_tipo_sales,
         "prev_meta_temp_sales": prev_meta_temp_sales, "prev_google_tipo_sales": prev_google_tipo_sales,
@@ -505,7 +589,7 @@ def _compute_debriefing_ctx(
         # Compradores × histórico de lead (novo/antigo/sem cadastro)
         "leads_antigos": leads_antigos,
         # Perfil do lead por anúncio (top 5 × pesquisa)
-        "perfil_por_anuncio": perfil_por_anuncio,
+        "perfil_por_anuncio": _enrich_perfil_por_anuncio(perfil_por_anuncio, meta, google, sales_attr),
         # Engajamento da pesquisa (respostas × base de leads)
         "pesquisa_engajamento": pesquisa_engajamento,
         # Comercial × IA × Orgânico (sck Hotmart / utm_source TMB)

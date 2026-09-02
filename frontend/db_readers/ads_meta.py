@@ -11,7 +11,7 @@ import pandas as pd
 from sqlalchemy import text
 
 from logger import get_logger
-from frontend.utils import _extract_launch_code
+from frontend.utils import _extract_launch_code, _normalize_ad_code
 from frontend.db import _get_engine
 from frontend.models import MetaCriativo, MetaSummary
 from src.constants import ETAPAS_ORDEM
@@ -42,7 +42,7 @@ def get_historico_ad_codes(code: str) -> set[str]:
                 for row in rows:
                     m = re.search(r"\bAD\d+\b", str(row[0] or ""), flags=re.IGNORECASE)
                     if m:
-                        vistos.add(m.group(0).upper())
+                        vistos.add(_normalize_ad_code(m.group(0)))
     except Exception:
         logger.exception("Falha ao buscar histórico de ad codes; retornando vazio")
     return vistos
@@ -523,7 +523,7 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
             custo_thruplay=float(r["gasto"] / r["thruplays"]) if r["thruplays"] > 0 else 0.0
         )
 
-        antigo = bool(ad_code and ad_code in _ad_codes_vistos_antes)
+        antigo = bool(ad_code and _normalize_ad_code(ad_code) in _ad_codes_vistos_antes)
         ad_dict = {
             "ad_code": ad_code,
             "nome": c.nome,

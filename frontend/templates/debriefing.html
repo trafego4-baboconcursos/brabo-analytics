@@ -329,6 +329,15 @@
 </div>
 {% endmacro %}
 
+{% set has_thumbs = drive_thumbnails is defined and drive_thumbnails | length > 0 %}
+{% macro thumb_th() %}{% if has_thumbs %}<th style="width:72px"></th>{% endif %}{% endmacro %}
+{% macro thumb_td(ad_code, extra={}) %}
+  {% if has_thumbs %}
+  {% set td = drive_thumbnails.get(ad_code) %}
+  <td style="padding:4px 6px">{% if td %}<img src="{{ td.thumb }}" data-preview="{{ td.preview }}" data-title="{{ ad_code }}"{% for k, v in extra.items() %} data-{{ k }}="{{ v }}"{% endfor %} onclick="openVideoModalFromEl(this)" style="width:64px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer;display:block" loading="lazy" onerror="this.style.display='none'">{% endif %}</td>
+  {% endif %}
+{% endmacro %}
+
 <div class="wrap">
   <div class="hdr">
     <img src="/img/logo-b-brabo-concursos.png" alt="Brabo">
@@ -359,23 +368,29 @@
     <div class="dbf-section-title"><i class="ti ti-school"></i> Matrículas</div>
     <div class="mat-cmp">
       <div class="mat-card curr">
-        <div class="mat-num">{{ dbf.total_vendas | num }}</div>
-        <div style="font-size:22px;font-weight:700;color:rgba(255,255,255,.9)">matrículas</div>
-        <span class="mat-tag">{{ launch.code if launch else '—' }}</span>
-        {% if dbf.has_prev and dbf.prev_total_vendas > 0 %}
-          {% set dd = ((dbf.total_vendas - dbf.prev_total_vendas) / dbf.prev_total_vendas * 100) | round(1) %}
-          <span class="mat-var-badge {{ 'up' if dd > 0 else ('down' if dd < 0 else '') }}">
-            {% if dd > 0 %}▲ +{% elif dd < 0 %}▼ {% else %}= {% endif %}{{ dd }}% vs anterior
-          </span>
-        {% endif %}
+        <div style="display:flex;align-items:baseline;gap:10px">
+          <div class="mat-num">{{ dbf.total_vendas | num }}</div>
+          <span class="mat-tag" style="margin-top:0">{{ launch.code if launch else '—' }}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:22px;font-weight:700;color:rgba(255,255,255,.9)">matrículas</div>
+          {% if dbf.has_prev and dbf.prev_total_vendas > 0 %}
+            {% set dd = ((dbf.total_vendas - dbf.prev_total_vendas) / dbf.prev_total_vendas * 100) | round(1) %}
+            <span class="mat-var-badge {{ 'up' if dd > 0 else ('down' if dd < 0 else '') }}" style="margin-top:0;margin-left:0">
+              {% if dd > 0 %}▲ +{% elif dd < 0 %}▼ {% else %}= {% endif %}{{ dd }}% vs anterior
+            </span>
+          {% endif %}
+        </div>
         {% if dbf.periodo_atual %}<div style="font-size:12px;color:rgba(255,255,255,.65);margin-top:8px"><i class="ti ti-calendar"></i> {{ dbf.periodo_atual }}</div>{% endif %}
       </div>
       <div class="mat-card prev">
-        <div class="mat-num" style="font-size:48px;{% if not dbf.has_prev %}color:var(--bs-ink-subtle){% endif %}">
-          {% if dbf.has_prev %}{{ dbf.prev_total_vendas | num }}{% else %}—{% endif %}
+        <div style="display:flex;align-items:baseline;gap:10px">
+          <div class="mat-num" style="font-size:48px;{% if not dbf.has_prev %}color:var(--bs-ink-subtle){% endif %}">
+            {% if dbf.has_prev %}{{ dbf.prev_total_vendas | num }}{% else %}—{% endif %}
+          </div>
+          <span class="mat-tag" style="margin-top:0">{% if dbf.has_prev %}{{ dbf.prev_code }}{% else %}Lançamento anterior{% endif %}</span>
         </div>
         <div style="font-size:18px;font-weight:700;color:#4b5563">matrículas</div>
-        <span class="mat-tag">{% if dbf.has_prev %}{{ dbf.prev_code }}{% else %}Lançamento anterior{% endif %}</span>
         {% if dbf.has_prev and dbf.periodo_prev %}<div style="font-size:12px;color:var(--bs-ink-subtle);margin-top:8px"><i class="ti ti-calendar"></i> {{ dbf.periodo_prev }}</div>{% endif %}
       </div>
     </div>
@@ -704,6 +719,221 @@
   {% endif %}
 
   <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4b1. ANÚNCIOS ANTIGOS × NOVOS — PRÉ-QUALIFICAÇÃO           -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.antigo_novo and dbf.antigo_novo.get('Pré-Qualificação') %}
+  {% set g = dbf.antigo_novo['Pré-Qualificação'] %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-recycle"></i> Novos × Antigos — Pré-Qualificação</div>
+    <div class="table-wrap">
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th class="num">Invest.</th>
+            <th class="num">%</th>
+            <th class="num">Leads</th>
+            <th class="num">CPL</th>
+            <th class="num">Anúncios</th>
+            <th class="num">Vendas</th>
+            <th class="num">Receita</th>
+            <th class="num">ROAS</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Antigos (validados)</td>
+            <td class="num">{{ g.antigo.gasto | brl }}</td>
+            <td class="num">{{ g.antigo.pct | round(1) }}%</td>
+            <td class="num">{{ g.antigo.leads | num }}</td>
+            <td class="num">{{ g.antigo.cpl | brl if g.antigo.leads > 0 else '—' }}</td>
+            <td class="num">{{ g.antigo.n }}</td>
+            <td class="num">{{ g.antigo.vendas | num }}</td>
+            <td class="num">{{ g.antigo.receita | brl }}</td>
+            <td class="num">{{ g.antigo.roas | round(2) if g.antigo.gasto > 0 else '—' }}{% if g.antigo.gasto > 0 %}x{% endif %}</td>
+          </tr>
+          <tr>
+            <td>Novos</td>
+            <td class="num">{{ g.novo.gasto | brl }}</td>
+            <td class="num">{{ g.novo.pct | round(1) }}%</td>
+            <td class="num">{{ g.novo.leads | num }}</td>
+            <td class="num">{{ g.novo.cpl | brl if g.novo.leads > 0 else '—' }}</td>
+            <td class="num">{{ g.novo.n }}</td>
+            <td class="num">{{ g.novo.vendas | num }}</td>
+            <td class="num">{{ g.novo.receita | brl }}</td>
+            <td class="num">{{ g.novo.roas | round(2) if g.novo.gasto > 0 else '—' }}{% if g.novo.gasto > 0 %}x{% endif %}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+      "Antigo" = código ADxxx já usado em algum lançamento anterior do mesmo produto.
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4b1b. TOP 3 MELHORES ADS — PRÉ-QUALIFICAÇÃO (META)         -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.preq_top_ads and dbf.preq_top_ads.meta %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-trophy"></i> Top 3 Melhores Ads — Pré-Qualificação (Meta)</div>
+    <div class="table-wrap">
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            {{ thumb_th() }}
+            <th>Anúncio</th>
+            <th class="num">Invest.</th>
+            <th class="num">Leads</th>
+            <th class="num">CPL</th>
+            <th class="num">CTR</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in dbf.preq_top_ads.meta %}
+          <tr>
+            {{ thumb_td(a.ad_code, {"gasto": a.gasto | brl, "leads": a.leads | num, "cpl": a.cpl | brl}) }}
+            <td>{{ a.ad_code }}{% if a.nome and a.nome != a.ad_code %} — {{ a.nome }}{% endif %}{% if a.antigo %} <span class="ldt-pct">(antigo)</span>{% endif %}</td>
+            <td class="num">{{ a.gasto | brl }}</td>
+            <td class="num">{{ a.leads | num }}</td>
+            <td class="num">{{ a.cpl | brl if a.leads > 0 else '—' }}</td>
+            <td class="num">{{ a.ctr | round(2) }}%</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4b1c. TOP 3 MELHORES ADS — PRÉ-QUALIFICAÇÃO (YOUTUBE)      -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.preq_top_ads and dbf.preq_top_ads.google %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-trophy"></i> Top 3 Melhores Ads — Pré-Qualificação (YouTube)</div>
+    <div class="table-wrap">
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            {{ thumb_th() }}
+            <th>Anúncio</th>
+            <th class="num">Invest.</th>
+            <th class="num">Leads</th>
+            <th class="num">CPL</th>
+            <th class="num">CTR</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in dbf.preq_top_ads.google %}
+          <tr>
+            {{ thumb_td(a.ad_code, {"gasto": a.gasto | brl, "leads": a.leads | num, "cpl": a.cpl | brl}) }}
+            <td>{{ a.ad_code }}{% if a.nome and a.nome != a.ad_code %} — {{ a.nome }}{% endif %}{% if a.antigo %} <span class="ldt-pct">(antigo)</span>{% endif %}</td>
+            <td class="num">{{ a.gasto | brl }}</td>
+            <td class="num">{{ a.leads | num }}</td>
+            <td class="num">{{ a.cpl | brl if a.leads > 0 else '—' }}</td>
+            <td class="num">{{ a.ctr | round(2) }}%</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4b1d. TOP 3 MELHORES ADS — PRÉ-QUALIFICAÇÃO (TIKTOK)       -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.preq_top_ads and dbf.preq_top_ads.tiktok %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-trophy"></i> Top 3 Melhores Ads — Pré-Qualificação (TikTok)</div>
+    <div class="table-wrap">
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            {{ thumb_th() }}
+            <th>Anúncio</th>
+            <th class="num">Invest.</th>
+            <th class="num">Leads</th>
+            <th class="num">CPL</th>
+            <th class="num">CTR</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in dbf.preq_top_ads.tiktok %}
+          <tr>
+            {{ thumb_td(a.ad_code, {"gasto": a.gasto | brl, "leads": a.leads | num, "cpl": a.cpl | brl}) }}
+            <td>{{ a.ad_code }}{% if a.nome and a.nome != a.ad_code %} — {{ a.nome }}{% endif %}{% if a.antigo %} <span class="ldt-pct">(antigo)</span>{% endif %}</td>
+            <td class="num">{{ a.gasto | brl }}</td>
+            <td class="num">{{ a.leads | num }}</td>
+            <td class="num">{{ a.cpl | brl if a.leads > 0 else '—' }}</td>
+            <td class="num">{{ a.ctr | round(2) }}%</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 3.9 DETALHAMENTO DA CAPTAÇÃO — vendas por público (barra)  -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.leads_detail_table and (dbf.leads_detail_table | sum(attribute='vendas')) > 0 %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-chart-bar"></i> Detalhamento da Captação</div>
+    <div class="pub-chart-wrap" style="height:320px">
+      <canvas id="captacaoDetalheChart"></canvas>
+    </div>
+    <script>
+    (function() {
+      const el = document.getElementById('captacaoDetalheChart');
+      if (!el) return;
+      const cssVar = (name, fallback) => (getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback);
+      const metaColor = cssVar('--meta-color', '#1877F2');
+      const googleColor = cssVar('--google-color', '#dc2626');
+      const labels = [{% for r in dbf.leads_detail_table %}"{{ r.label | e }}"{% if not loop.last %},{% endif %}{% endfor %}];
+      const vendas = [{% for r in dbf.leads_detail_table %}{{ r.vendas | int }}{% if not loop.last %},{% endif %}{% endfor %}];
+      const vars   = [{% for r in dbf.leads_detail_table %}{{ (r.vendas_var | round(1)) if r.vendas_var is not none else 'null' }}{% if not loop.last %},{% endif %}{% endfor %}];
+      const colors = labels.map(l => l.startsWith('YT') ? googleColor : metaColor);
+      new Chart(el, {
+        type: 'bar',
+        plugins: [ChartDataLabels],
+        data: { labels, datasets: [{ data: vendas, backgroundColor: colors, borderRadius: 4, maxBarThickness: 64 }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { enabled: false },
+            datalabels: {
+              anchor: 'end', align: 'top', offset: 2,
+              font: { size: 12, weight: '700' },
+              color: cssVar('--bs-sidebar', '#374151'),
+              formatter: (v, ctx) => {
+                const varPct = vars[ctx.dataIndex];
+                if (varPct === null || varPct === undefined) return String(v);
+                const arrow = varPct > 0 ? '▲' : (varPct < 0 ? '▼' : '=');
+                const sign = varPct > 0 ? '+' : '';
+                return [String(v), `${arrow} ${sign}${varPct}%`];
+              },
+            }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+            y: { beginAtZero: true, grid: { color: cssVar('--bs-surface', '#f6f7fb') }, ticks: { font: { size: 11 }, precision: 0 } }
+          },
+          layout: { padding: { top: 34 } }
+        }
+      });
+    })();
+    </script>
+    <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:8px">Vendas atribuídas por público (UTM) na etapa de Captação, com variação % vs {{ dbf.prev_code or 'lançamento anterior' }}.</div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 4. LEADS POR PÚBLICO — CAPTAÇÃO                           -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <div class="dbf-section">
@@ -760,6 +990,124 @@
     {{ sem_dados("Campanhas de Captação sem clima (Quente/Frio/Específico) identificado no nome") }}
     {% endif %}
   </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4a1. ANÚNCIOS ANTIGOS × NOVOS — CAPTAÇÃO                   -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.antigo_novo and dbf.antigo_novo.get('Captação') %}
+  {% set g = dbf.antigo_novo['Captação'] %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-recycle"></i> Novos × Antigos — Captação</div>
+    <div class="table-wrap">
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th class="num">Invest.</th>
+            <th class="num">%</th>
+            <th class="num">Leads</th>
+            <th class="num">CPL</th>
+            <th class="num">Anúncios</th>
+            <th class="num">Vendas</th>
+            <th class="num">Receita</th>
+            <th class="num">ROAS</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Antigos (validados)</td>
+            <td class="num">{{ g.antigo.gasto | brl }}</td>
+            <td class="num">{{ g.antigo.pct | round(1) }}%</td>
+            <td class="num">{{ g.antigo.leads | num }}</td>
+            <td class="num">{{ g.antigo.cpl | brl if g.antigo.leads > 0 else '—' }}</td>
+            <td class="num">{{ g.antigo.n }}</td>
+            <td class="num">{{ g.antigo.vendas | num }}</td>
+            <td class="num">{{ g.antigo.receita | brl }}</td>
+            <td class="num">{{ g.antigo.roas | round(2) if g.antigo.gasto > 0 else '—' }}{% if g.antigo.gasto > 0 %}x{% endif %}</td>
+          </tr>
+          <tr>
+            <td>Novos</td>
+            <td class="num">{{ g.novo.gasto | brl }}</td>
+            <td class="num">{{ g.novo.pct | round(1) }}%</td>
+            <td class="num">{{ g.novo.leads | num }}</td>
+            <td class="num">{{ g.novo.cpl | brl if g.novo.leads > 0 else '—' }}</td>
+            <td class="num">{{ g.novo.n }}</td>
+            <td class="num">{{ g.novo.vendas | num }}</td>
+            <td class="num">{{ g.novo.receita | brl }}</td>
+            <td class="num">{{ g.novo.roas | round(2) if g.novo.gasto > 0 else '—' }}{% if g.novo.gasto > 0 %}x{% endif %}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+      "Antigo" = código ADxxx já usado em algum lançamento anterior do mesmo produto.
+    </div>
+  </div>
+  {% endif %}
+
+  {% macro top_ads_table(ads, header_bg) %}
+    <div class="table-wrap">
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            {% if has_thumbs %}<th style="width:72px;background:{{ header_bg }}"></th>{% endif %}
+            <th style="background:{{ header_bg }}">Anúncio</th>
+            <th class="num" style="background:{{ header_bg }}">Invest.</th>
+            <th class="num" style="background:{{ header_bg }}">Leads</th>
+            <th class="num" style="background:{{ header_bg }}">Vendas</th>
+            <th class="num" style="background:{{ header_bg }}">Receita</th>
+            <th class="num" style="background:{{ header_bg }}">ROAS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in ads %}
+          <tr>
+            {{ thumb_td(a.ad_code, {"gasto": a.gasto | brl, "leads": a.leads | num, "vendas": a.vendas | num, "roas": ('%.2f'|format(a.roas) | replace('.', ',')) + 'x'}) }}
+            <td>{{ a.ad_code }}{% if a.nome and a.nome != a.ad_code %} — {{ a.nome }}{% endif %}</td>
+            <td class="num">{{ a.gasto | brl }}</td>
+            <td class="num">{{ a.leads | num }}</td>
+            <td class="num"><strong>{{ a.vendas | num }}</strong></td>
+            <td class="num">{{ a.receita | brl }}</td>
+            <td class="num {{ 'roas-good' if a.roas >= 2 else ('roas-ok' if a.roas >= 1 else ('roas-bad' if a.roas > 0 else '')) }}">{{ "%.2f"|format(a.roas) | replace(".", ",") }}x</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endmacro %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4a2. TOP 5 MELHORES ADS — CAPTAÇÃO (COMBINADO META+GOOGLE) -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.top_ads_captacao and dbf.top_ads_captacao.combinado %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-trophy"></i> Top 5 Melhores Ads — Captação (Meta + Google)</div>
+    {{ top_ads_table(dbf.top_ads_captacao.combinado, '#6b7280') }}
+    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+      Investimento/leads somados por código ADxxx entre as duas plataformas; vendas por atribuição UTM (mesmo código).
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4a3. TOP 5 MELHORES ADS — CAPTAÇÃO (META)                 -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.top_ads_captacao and dbf.top_ads_captacao.meta %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-brand-meta"></i> Top 5 Melhores Ads — Captação (Meta)</div>
+    {{ top_ads_table(dbf.top_ads_captacao.meta, 'var(--meta-color)') }}
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4a4. TOP 5 MELHORES ADS — CAPTAÇÃO (YOUTUBE)               -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.top_ads_captacao and dbf.top_ads_captacao.google %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-brand-youtube"></i> Top 5 Melhores Ads — Captação (YouTube)</div>
+    {{ top_ads_table(dbf.top_ads_captacao.google, 'var(--google-color)') }}
+  </div>
+  {% endif %}
 
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 4b. DETALHAMENTO DOS PÚBLICOS — categoria de adset (Meta)  -->
@@ -858,66 +1206,6 @@
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
-  <!-- 4b1. ANÚNCIOS ANTIGOS × NOVOS — PRÉ-QUALI E CAPTAÇÃO       -->
-  <!-- ═══════════════════════════════════════════════════════════ -->
-  {% if dbf.antigo_novo %}
-  <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-recycle"></i> Anúncios Antigos × Novos</div>
-    <div class="cmp-grid-3">
-      {% for etapa, g in dbf.antigo_novo.items() %}
-      <div>
-        <div class="cmp-label">{{ etapa }}</div>
-        <div class="table-wrap">
-          <table class="dbf-table">
-            <thead>
-              <tr>
-                <th></th>
-                <th class="num">Invest.</th>
-                <th class="num">%</th>
-                <th class="num">Leads</th>
-                <th class="num">CPL</th>
-                <th class="num">Anúncios</th>
-                <th class="num">Vendas</th>
-                <th class="num">Receita</th>
-                <th class="num">ROAS</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Antigos (validados)</td>
-                <td class="num">{{ g.antigo.gasto | brl }}</td>
-                <td class="num">{{ g.antigo.pct | round(1) }}%</td>
-                <td class="num">{{ g.antigo.leads | num }}</td>
-                <td class="num">{{ g.antigo.cpl | brl if g.antigo.leads > 0 else '—' }}</td>
-                <td class="num">{{ g.antigo.n }}</td>
-                <td class="num">{{ g.antigo.vendas | num }}</td>
-                <td class="num">{{ g.antigo.receita | brl }}</td>
-                <td class="num">{{ g.antigo.roas | round(2) if g.antigo.gasto > 0 else '—' }}{% if g.antigo.gasto > 0 %}x{% endif %}</td>
-              </tr>
-              <tr>
-                <td>Novos</td>
-                <td class="num">{{ g.novo.gasto | brl }}</td>
-                <td class="num">{{ g.novo.pct | round(1) }}%</td>
-                <td class="num">{{ g.novo.leads | num }}</td>
-                <td class="num">{{ g.novo.cpl | brl if g.novo.leads > 0 else '—' }}</td>
-                <td class="num">{{ g.novo.n }}</td>
-                <td class="num">{{ g.novo.vendas | num }}</td>
-                <td class="num">{{ g.novo.receita | brl }}</td>
-                <td class="num">{{ g.novo.roas | round(2) if g.novo.gasto > 0 else '—' }}{% if g.novo.gasto > 0 %}x{% endif %}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
-      "Antigo" = código ADxxx já usado em algum lançamento anterior do mesmo produto (Meta + Google combinados).
-    </div>
-  </div>
-  {% endif %}
-
-  <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 4b2. PESQUISA — ENGAJAMENTO (RESPOSTAS × BASE)             -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.pesquisa_engajamento %}
@@ -996,18 +1284,24 @@
       <table class="dbf-table">
         <thead>
           <tr>
+            {{ thumb_th() }}
             <th>Anúncio</th>
+            <th class="num">Invest.</th>
             <th class="num">Leads</th>
             <th class="num">Respostas</th>
+            <th class="num">Vendas</th>
             {% for q in pa.perguntas %}<th>{{ q }}</th>{% endfor %}
           </tr>
         </thead>
         <tbody>
           {% for a in pa.ads %}
           <tr>
-            <td><span class="aud-tag">{{ a.ad_code }}</span></td>
+            {{ thumb_td(a.ad_code, {"gasto": a.gasto | brl, "leads": a.leads | num, "respostas": a.respostas | num, "vendas": a.vendas | num}) }}
+            <td>{{ a.ad_code }}{% if a.nome and a.nome != a.ad_code %} — {{ a.nome }}{% endif %}</td>
+            <td class="num">{{ a.gasto | brl }}</td>
             <td class="num">{{ a.leads | num }}</td>
             <td class="num">{{ a.respostas | num }}</td>
+            <td class="num"><strong>{{ a.vendas | num }}</strong></td>
             {% for q in pa.perguntas %}
             <td style="font-size:12px; line-height:1.5;">
               {% for o in a.dist.get(q, []) %}
@@ -1160,7 +1454,7 @@
               {% if has_thumbs %}
               <td style="padding:4px 6px">{% if td %}<img src="{{ td.thumb }}" data-preview="{{ td.preview }}" data-title="{{ row.ad_code }}" data-gasto="{{ row.gasto | brl }}" data-leads="{{ row.leads | num }}" data-cpl="{{ row.cpl | brl }}" data-vendas="{{ row.vendas | num }}" data-roas="{{ '%.2f'|format(row.roas) | replace('.', ',') }}x" data-hook="{{ '%.2f'|format(row.hook_rate) | replace('.', ',') if row.hook_rate is defined }}" data-hold="{{ '%.2f'|format(row.hold_rate) | replace('.', ',') if row.hold_rate is defined and row.hold_rate is not none }}" data-body="{{ '%.2f'|format(row.body_rate) | replace('.', ',') if row.body_rate is defined }}" onclick="openVideoModalFromEl(this)" style="width:64px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer;display:block" loading="lazy" onerror="this.style.display='none'">{% endif %}</td>
               {% endif %}
-              <td title="{{ row.nome }}">{{ row.ad_code }}{% if row.nome and row.nome != row.ad_code %} — {{ row.nome[:48] }}{% if row.nome|length > 48 %}…{% endif %}{% endif %}</td>
+              <td>{{ row.ad_code }}{% if row.nome and row.nome != row.ad_code %} — {{ row.nome }}{% endif %}</td>
               <td class="num">{{ row.gasto | brl }}</td>
               <td class="num">{{ row.leads | num }}</td>
               <td class="num">{{ row.cpl | brl }}</td>
@@ -1191,7 +1485,7 @@
                 {% if has_thumbs %}
                 <td style="padding:4px 6px">{% if td %}<img src="{{ td.thumb }}" data-preview="{{ td.preview }}" data-title="{{ row.ad_code }}" data-gasto="{{ row.gasto | brl }}" data-leads="{{ row.leads | num }}" data-cpl="{{ row.cpl | brl }}" data-vendas="{{ row.vendas | num }}" data-roas="{{ '%.2f'|format(row.roas) | replace('.', ',') }}x" data-ctr="{{ '%.2f'|format(row.ctr) | replace('.', ',') if row.ctr is defined }}" data-hook="{{ '%.2f'|format(row.hook_rate) | replace('.', ',') if row.hook_rate is defined }}" data-hold="{{ '%.2f'|format(row.hold_rate) | replace('.', ',') if row.hold_rate is defined and row.hold_rate is not none }}" data-body="{{ '%.2f'|format(row.body_rate) | replace('.', ',') if row.body_rate is defined }}" onclick="openVideoModalFromEl(this)" style="width:64px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer;display:block" loading="lazy" onerror="this.style.display='none'">{% endif %}</td>
                 {% endif %}
-                <td title="{{ row.nome }}">{{ row.ad_code }}</td>
+                <td>{{ row.ad_code }}{% if row.nome and row.nome != row.ad_code %} — {{ row.nome }}{% endif %}</td>
                 <td class="num">{{ row.leads | num }}</td>
                 <td class="num">{{ row.cpl | brl }}</td>
                 <td class="num"><strong>{{ row.vendas }}</strong></td>
@@ -1216,7 +1510,7 @@
                 {% if has_thumbs %}
                 <td style="padding:4px 6px">{% if td %}<img src="{{ td.thumb }}" data-preview="{{ td.preview }}" data-title="{{ row.ad_code }}" data-gasto="{{ row.gasto | brl }}" data-leads="{{ row.leads | num }}" data-cpl="{{ row.cpl | brl }}" data-vendas="{{ row.vendas | num }}" data-roas="{{ '%.2f'|format(row.roas) | replace('.', ',') }}x" data-ctr="{{ '%.2f'|format(row.ctr) | replace('.', ',') if row.ctr is defined }}" data-hook="{{ '%.2f'|format(row.hook_rate) | replace('.', ',') if row.hook_rate is defined }}" data-body="{{ '%.2f'|format(row.body_rate) | replace('.', ',') if row.body_rate is defined }}" onclick="openVideoModalFromEl(this)" style="width:64px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer;display:block" loading="lazy" onerror="this.style.display='none'">{% endif %}</td>
                 {% endif %}
-                <td title="{{ row.nome }}">{{ row.ad_code }}</td>
+                <td>{{ row.ad_code }}{% if row.nome and row.nome != row.ad_code %} — {{ row.nome }}{% endif %}</td>
                 <td class="num">{{ row.leads | num }}</td>
                 <td class="num">{{ row.cpl | brl }}</td>
                 <td class="num"><strong>{{ row.vendas }}</strong></td>

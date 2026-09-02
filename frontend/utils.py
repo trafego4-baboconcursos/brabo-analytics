@@ -32,6 +32,14 @@ def _safe_div(num: float, den: float) -> float:
     return round(num / den, 2) if den else 0.0
 
 
+def _normalize_ad_code(code: str) -> str:
+    """Normaliza ADxxx pro número sem zero-padding (AD004/AD04/AD4 -> AD4) —
+    lançamentos antigos nomeavam sem padronização de zeros, então a
+    comparação "já usado antes" tem que ignorar isso."""
+    match = re.match(r"AD0*(\d+)$", str(code or "").strip(), re.IGNORECASE)
+    return f"AD{match.group(1)}" if match else str(code or "").upper()
+
+
 def _delta(a: float, b: float) -> float:
     """Retorna Δ% de a→b. Positivo = crescimento."""
     if not a or a == 0:

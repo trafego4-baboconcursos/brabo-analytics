@@ -147,6 +147,39 @@ def _fetch_prev_for_debriefing(launch: Any) -> dict:
     wa_cost = _wa_cost(launch)
     return {"meta": meta, "google": google, "vendas": vendas, "wa_cost": wa_cost}
 
+async def _warm_debriefing(launch: Any, previous: Any, vendas: Any) -> None:
+    """Aquece as leituras que só a página /debriefing usa (Typeform perfil e
+    engajamento, leads antigos, qualidade por região, caminho do comprador,
+    dados do lançamento anterior). Ficavam fora do pre-warm de boot, então a
+    primeira pessoa a abrir o debriefing depois de um deploy pagava tudo
+    isso na própria requisição (25-90s medidos)."""
+    async def _safe(name, fn, *args):
+        try:
+            await run_in_threadpool(fn, *args)
+        except Exception:
+            logger.exception("Pre-warming debriefing (%s) falhou para %s", name, launch.code)
+
+    tasks = [
+        _safe("perfil_por_anuncio", _perfil_por_anuncio, launch),
+        _safe("pesquisa_engajamento", _pesquisa_engajamento, launch),
+    ]
+    if vendas:
+        tasks += [
+            _safe("leads_antigos", _leads_antigos_compradores, launch, vendas),
+            _safe("qualidade_regiao", _qualidade_regiao, launch, vendas),
+            _safe("caminho_comprador", _caminho_comprador, launch, vendas),
+        ]
+    if previous:
+        async def _prev():
+            try:
+                prev_d = await run_in_threadpool(_fetch_prev_for_debriefing, previous)
+                if getattr(previous, "has_ac", False) and prev_d.get("vendas"):
+                    await run_in_threadpool(_sales_attribution, previous, prev_d["vendas"])
+            except Exception:
+                logger.exception("Pre-warming debriefing (anterior %s) falhou", previous.code)
+        tasks.append(_prev())
+    await asyncio.gather(*tasks)
+
 # ── Orquestrador assíncrono ────────────────────────────────────────────────────
 
 async def _fetch_all_data(

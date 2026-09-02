@@ -1745,13 +1745,92 @@ document.addEventListener('click', function(e) {
    Troca os tokens --bs-* globalmente via atributo data-bs-theme no <html>
    (ver <style id="brabo-theme-variant"> no <head>). Persiste só no
    navegador (localStorage) por enquanto — cada pessoa escolhe o seu. ── */
+/* Lê o valor atual de todos os custom properties (--*) declarados nos
+   <style> inline da página — é o conjunto de tokens que os gráficos
+   copiam na hora do draw. Snapshot antes/depois de trocar o atributo
+   diz exatamente qual cor virou qual. */
+function bsThemeTokens() {
+  var names = {};
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    var rules;
+    try { rules = sheets[i].cssRules; } catch (e) { continue; }  /* cross-origin */
+    if (!rules) continue;
+    for (var j = 0; j < rules.length; j++) {
+      var st = rules[j].style;
+      if (!st) continue;
+      for (var k = 0; k < st.length; k++) {
+        if (st[k].indexOf('--') === 0) names[st[k]] = 1;
+      }
+    }
+  }
+  var cs = getComputedStyle(document.documentElement);
+  var out = {};
+  Object.keys(names).forEach(function(n) { out[n] = cs.getPropertyValue(n).trim(); });
+  return out;
+}
+
+/* Gráficos Chart.js copiam a cor dos tokens no momento da criação
+   (canvas não escuta mudança de CSS custom property). Em vez de recarregar
+   a página — que no debriefing custa uma requisição inteira ao servidor —
+   troca, dentro da config de cada gráfico vivo, toda cor antiga pela nova
+   (mantendo sufixo de alpha tipo "#f9731622") e manda o Chart.js redesenhar. */
+function bsRetintCharts(before, after) {
+  if (typeof Chart === 'undefined' || !Chart.instances) return;
+  var pairs = [];
+  Object.keys(before).forEach(function(n) {
+    var o = before[n], nw = after[n];
+    if (!o || !nw || o === nw) return;
+    if (!/^(#|rgb|hsl)/i.test(o) || o.length < 4) return;  /* só cores */
+    pairs.push([o.toLowerCase(), nw]);
+  });
+  if (!pairs.length) return;
+  pairs.sort(function(a, b) { return b[0].length - a[0].length; });  /* mais longa primeiro (#rrggbb antes de #rgb) */
+  function swap(s) {
+    var low = s.toLowerCase();
+    for (var i = 0; i < pairs.length; i++) {
+      if (low.indexOf(pairs[i][0]) === 0) return pairs[i][1] + s.slice(pairs[i][0].length);
+    }
+    return s;
+  }
+  var seen = typeof WeakSet !== 'undefined' ? new WeakSet() : null;
+  function walk(obj, depth) {
+    if (!obj || typeof obj !== 'object' || depth > 12) return;
+    if (seen) { if (seen.has(obj)) return; seen.add(obj); }
+    if (obj instanceof HTMLElement || obj instanceof CanvasRenderingContext2D) return;
+    var keys = Object.keys(obj);
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i], v = obj[k];
+      if (typeof v === 'string') { var nv = swap(v); if (nv !== v) obj[k] = nv; }
+      else if (v && typeof v === 'object') walk(v, depth + 1);
+    }
+  }
+  Object.keys(Chart.instances).forEach(function(id) {
+    var ch = Chart.instances[id];
+    if (!ch) return;
+    try {
+      /* v4: config._config é o objeto cru passado em new Chart(); data/options
+         resolvidos derivam dele no update(). Anda nos dois pra cobrir v3/v4. */
+      walk(ch.config && ch.config._config ? ch.config._config : ch.config, 0);
+      walk(ch.data, 0);
+      ch.update('none');
+    } catch (e) {}
+  });
+}
+
 window.bsSetTheme = function(v) {
   try { localStorage.setItem('bs-theme-variant', v); } catch (e) {}
-  /* Gráficos são desenhados em <canvas> com cores fixas no momento do
-     draw (Chart.js não escuta mudança de CSS custom property) — não dá
-     pra "retintar" ao vivo sem recriar cada gráfico da página. Recarrega
-     pra tudo (inclusive canvas) nascer já com os tokens do tema novo. */
-  location.reload();
+  try {
+    var before = bsThemeTokens();
+    if (v === 'a') document.documentElement.removeAttribute('data-bs-theme');
+    else document.documentElement.setAttribute('data-bs-theme', v);
+    bsRetintCharts(before, bsThemeTokens());
+    bsThemeSyncActive();
+    document.querySelectorAll('.bs-launch-picker.open').forEach(function(p) { p.classList.remove('open'); });
+  } catch (e) {
+    /* Qualquer imprevisto: cai no comportamento antigo, que sempre funciona. */
+    location.reload();
+  }
 };
 var BS_THEME_LABELS = { a: 'Colorful', brabo: "Orange's New Black", b: 'Deep Lagoon', c: 'Slate Teal', d: 'Midnight Indigo', outatime: 'Outatime' };
 window.bsThemeSyncActive = function() {

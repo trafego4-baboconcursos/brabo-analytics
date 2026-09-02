@@ -136,8 +136,9 @@ async def pre_warm_cache():
 
     async def warm_one(launch, previous):
         logger.info("Pre-warming cache para %s...", launch.code)
+        d = {}
         try:
-            await _fetch_all_data(
+            d = await _fetch_all_data(
                 launch,
                 needs_tf=True,
                 needs_daily=True,
@@ -149,10 +150,21 @@ async def pre_warm_cache():
                 needs_tmb=True,
                 needs_ac_camps=True,
                 needs_sales_attr=True,
+                needs_youtube=True,
             )
             logger.info("Pre-warming de %s concluído com sucesso!", launch.code)
         except Exception:
             logger.exception("Falha no pre-warming de %s", launch.code)
+
+        # Leituras exclusivas do /debriefing (Typeform, caminho do comprador,
+        # etc.) — sem isso, a primeira abertura do debriefing após o deploy
+        # pagava 25-90s na própria requisição.
+        try:
+            from frontend.services.fetch import _warm_debriefing  # noqa: PLC0415
+            await _warm_debriefing(launch, previous, d.get("vendas"))
+            logger.info("Pre-warming do debriefing de %s concluído.", launch.code)
+        except Exception:
+            logger.exception("Falha no pre-warming do debriefing de %s", launch.code)
 
         # Contagem SendFlow (/whatsapp) fica de fora do _fetch_all_data porque é
         # uma fonte externa lenta (export-leads da SendFlow) — sem aquecer aqui,

@@ -13,7 +13,10 @@ from frontend.core import (
     _fetch_prev_for_debriefing, _compute_debriefing_ctx,
     _sales_attribution,
 )
-from frontend.services.fetch import _launch_cfg
+from frontend.services.fetch import (
+    _launch_cfg, _perfil_por_anuncio, _pesquisa_engajamento,
+    _leads_antigos_compradores, _qualidade_regiao, _caminho_comprador,
+)
 from frontend.services.calendario import build_calendario_ctx
 
 router = APIRouter()
@@ -328,66 +331,93 @@ async def debriefing(request: Request, launch_code: str | None = None):
     thumb         = d.get("drive_thumbnails") or {}
 
     data_errors = list(d.get("_errors", []))
-    creative_data = None
-    creative_data_error = False
-    if launch and (meta or google):
+
+    # Os blocos abaixo (creative overview, leads antigos, perfil/pesquisa,
+    # qualidade por região, caminho do comprador, dados do lançamento
+    # anterior) são independentes entre si — só dependem do que já foi
+    # buscado acima — então rodam em paralelo via asyncio.gather em vez de
+    # sequencialmente, o que era o principal gargalo de carregamento da página.
+
+    async def f_creative():
+        if not (launch and (meta or google)):
+            return None, False
         try:
-            creative_data = await run_in_threadpool(
+            data = await run_in_threadpool(
                 _creative_overview, meta, google, vendas, sales_attr,
                 launch_code=launch.code if launch else "",
             )
+            return data, False
         except Exception:
             logger.exception("Debriefing: falha ao montar creative overview")
-            creative_data_error = True
+            return None, True
 
-    leads_antigos = None
-    if launch and vendas:
+    async def f_leads_antigos():
+        if not (launch and vendas):
+            return None
         try:
-            from frontend.db_readers.leads import read_leads_antigos_compradores  # noqa: PLC0415
-            leads_antigos = await run_in_threadpool(read_leads_antigos_compradores, launch.code, vendas)
+            return await run_in_threadpool(_leads_antigos_compradores, launch, vendas)
         except Exception:
             logger.exception("Debriefing: falha ao classificar leads antigos × novos")
+            return None
 
-    perfil_por_anuncio = None
-    pesquisa_engajamento = None
-    if launch:
+    async def f_perfil_pesquisa():
+        if not launch:
+            return None, None
         try:
-            from frontend.db_readers.typeform import read_perfil_por_anuncio, read_pesquisa_engajamento  # noqa: PLC0415
-            perfil_por_anuncio = await run_in_threadpool(read_perfil_por_anuncio, launch.code)
-            pesquisa_engajamento = await run_in_threadpool(read_pesquisa_engajamento, launch.code)
+            return await asyncio.gather(
+                run_in_threadpool(_perfil_por_anuncio, launch),
+                run_in_threadpool(_pesquisa_engajamento, launch),
+            )
         except Exception:
             logger.exception("Debriefing: falha ao montar perfil do lead por anúncio")
+            return None, None
 
-    qualidade_regiao = None
-    if launch:
+    async def f_qualidade_regiao():
+        if not launch:
+            return None
         try:
-            from frontend.db_readers.sales import read_qualidade_regiao  # noqa: PLC0415
-            qualidade_regiao = await run_in_threadpool(read_qualidade_regiao, launch.code, vendas)
+            return await run_in_threadpool(_qualidade_regiao, launch, vendas)
         except Exception:
             logger.exception("Debriefing: falha ao montar qualidade por regiao")
+            return None
 
-    caminho_comprador = None
-    if launch and vendas:
+    async def f_caminho_comprador():
+        if not (launch and vendas):
+            return None
         try:
-            from frontend.db_readers.caminho_comprador import read_caminho_comprador  # noqa: PLC0415
-            caminho_comprador = await run_in_threadpool(read_caminho_comprador, launch.code, vendas)
+            return await run_in_threadpool(_caminho_comprador, launch, vendas)
         except Exception:
             logger.exception("Debriefing: falha ao montar caminho do comprador")
+            return None
 
-    prev_meta = prev_google = prev_vendas = None
-    prev_sales_attr = None
-    prev_wa_cost = None
-    if previous:
+    async def f_previous():
+        if not previous:
+            return None, None, None, None, None
         try:
             prev_d = await run_in_threadpool(_fetch_prev_for_debriefing, previous)
-            prev_meta    = prev_d.get("meta")
-            prev_google  = prev_d.get("google")
-            prev_vendas  = prev_d.get("vendas")
-            prev_wa_cost = prev_d.get("wa_cost")
-            if getattr(previous, "has_ac", False) and prev_vendas:
-                prev_sales_attr = await run_in_threadpool(_sales_attribution, previous, prev_vendas)
+            p_meta    = prev_d.get("meta")
+            p_google  = prev_d.get("google")
+            p_vendas  = prev_d.get("vendas")
+            p_wa_cost = prev_d.get("wa_cost")
+            p_sales_attr = None
+            if getattr(previous, "has_ac", False) and p_vendas:
+                p_sales_attr = await run_in_threadpool(_sales_attribution, previous, p_vendas)
+            return p_meta, p_google, p_vendas, p_wa_cost, p_sales_attr
         except Exception:
             logger.exception("Debriefing: falha ao buscar dados do lançamento anterior")
+            return None, None, None, None, None
+
+    (
+        (creative_data, creative_data_error),
+        leads_antigos,
+        (perfil_por_anuncio, pesquisa_engajamento),
+        qualidade_regiao,
+        caminho_comprador,
+        (prev_meta, prev_google, prev_vendas, prev_wa_cost, prev_sales_attr),
+    ) = await asyncio.gather(
+        f_creative(), f_leads_antigos(), f_perfil_pesquisa(),
+        f_qualidade_regiao(), f_caminho_comprador(), f_previous(),
+    )
 
     dbf = _compute_debriefing_ctx(
         launch, previous,
@@ -424,8 +454,7 @@ async def api_caminho_comprador_csv(launch_code: str | None = None):
     if not launch:
         return Response("lancamento nao encontrado", status_code=404, media_type="text/plain")
 
-    from frontend.db_readers.caminho_comprador import read_caminho_comprador  # noqa: PLC0415
-    data = await run_in_threadpool(read_caminho_comprador, launch.code)
+    data = await run_in_threadpool(_caminho_comprador, launch, None)
     if not data or not data.get("rows"):
         return Response("sem dados", status_code=404, media_type="text/plain")
 

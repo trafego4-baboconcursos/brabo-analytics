@@ -94,6 +94,36 @@ def _typeform_count(launch: Any) -> int:
                            lambda: read_typeform_count(launch.folder))
 
 
+def _perfil_por_anuncio(launch: Any):
+    from frontend.db_readers.typeform import read_perfil_por_anuncio
+    return _get_or_compute(launch.code, "perfil_por_anuncio",
+                           lambda: read_perfil_por_anuncio(launch.code))
+
+
+def _pesquisa_engajamento(launch: Any):
+    from frontend.db_readers.typeform import read_pesquisa_engajamento
+    return _get_or_compute(launch.code, "pesquisa_engajamento",
+                           lambda: read_pesquisa_engajamento(launch.code))
+
+
+def _leads_antigos_compradores(launch: Any, vendas_data: Any):
+    from frontend.db_readers.leads import read_leads_antigos_compradores
+    return _get_or_compute(launch.code, "leads_antigos_compradores",
+                           lambda: read_leads_antigos_compradores(launch.code, vendas_data))
+
+
+def _qualidade_regiao(launch: Any, vendas_data: Any):
+    from frontend.db_readers.sales import read_qualidade_regiao
+    return _get_or_compute(launch.code, "qualidade_regiao",
+                           lambda: read_qualidade_regiao(launch.code, vendas_data))
+
+
+def _caminho_comprador(launch: Any, vendas_data: Any):
+    from frontend.db_readers.caminho_comprador import read_caminho_comprador
+    return _get_or_compute(launch.code, "caminho_comprador",
+                           lambda: read_caminho_comprador(launch.code, vendas_data))
+
+
 def _wa_cost(launch: Any):
     """Custo de WhatsApp (config/whatsapp_accounts.yaml, filtrado por produto)
     na MESMA janela usada pro investimento de Meta/Google (_window), pra somar

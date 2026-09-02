@@ -21,7 +21,10 @@ from src.constants import PRODUCT_BY_PREFIX, LAUNCH_ACCENT, LAUNCH_SHORT, LAUNCH
 
 logger = get_logger("db")
 
-_ETL_SOURCES = ("meta_ads", "google_ads", "active_campaign", "typeform")
+_ETL_SOURCES = ("meta_ads", "google_ads", "active_campaign")
+# "typeform" retirado em 2026-08 (conta cancelada, etl_typeform.py não roda
+# mais automaticamente — ver frontend/db_readers/typeform.py); mantê-lo aqui
+# faria o alerta de "dados desatualizados" disparar pra sempre sem solução.
 
 _drive_cache: dict[str, tuple[float, dict]] = {}
 _DRIVE_CACHE_TTL = 300  # 5 minutos

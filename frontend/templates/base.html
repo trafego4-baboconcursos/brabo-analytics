@@ -1700,18 +1700,45 @@ window.addEventListener('resize', function() {
   if (window.innerWidth > 1024) bsMenuToggle(false);
 });
 
-/* ── Pickers da trilha (Lançamento/Perpétuo/Distribuição/Redes Sociais) ── */
+/* ── Pickers da trilha (Lançamento/Perpétuo/Distribuição/Redes Sociais) ──
+   O menu usa position:fixed (ver CSS) pra escapar do overflow:auto da
+   sidebar, então a posição precisa ser calculada em JS a partir do botão
+   toda vez que o menu abre (e recalculada em scroll/resize enquanto aberto,
+   já que fixed não acompanha o scroll interno da sidebar). ── */
+function bsPositionPickerMenu(picker) {
+  var btn = picker.querySelector('.bs-launch-picker-btn');
+  var menu = picker.querySelector('.bs-launch-picker-menu');
+  if (!btn || !menu) return;
+  var rect = btn.getBoundingClientRect();
+  var top = rect.bottom + 4;
+  var left = rect.left;
+  menu.style.top = top + 'px';
+  menu.style.left = left + 'px';
+  var maxLeft = window.innerWidth - menu.offsetWidth - 8;
+  if (left > maxLeft) left = Math.max(8, maxLeft);
+  var maxTop = window.innerHeight - menu.offsetHeight - 8;
+  if (top > maxTop) top = Math.max(8, maxTop);
+  menu.style.left = left + 'px';
+  menu.style.top = top + 'px';
+}
 window.bsPickerToggle = function(btn) {
   var picker = btn.closest('.bs-launch-picker');
   if (!picker) return;
   var open = picker.classList.contains('open');
   document.querySelectorAll('.bs-launch-picker.open').forEach(function(p) { p.classList.remove('open'); });
   picker.classList.toggle('open', !open);
+  if (!open) bsPositionPickerMenu(picker);
 };
 document.addEventListener('click', function(e) {
   if (!e.target.closest('.bs-launch-picker')) {
     document.querySelectorAll('.bs-launch-picker.open').forEach(function(p) { p.classList.remove('open'); });
   }
+});
+['scroll', 'resize'].forEach(function(evt) {
+  window.addEventListener(evt, function() {
+    var open = document.querySelector('.bs-launch-picker.open');
+    if (open) bsPositionPickerMenu(open);
+  }, true);
 });
 
 /* ── Seletor de tema (em teste) ────────────────────────────────────────

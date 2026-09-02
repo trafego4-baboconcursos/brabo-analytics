@@ -77,6 +77,27 @@ def enviar_alerta_webhook(mensagem: str, erro_detalhado: str = "") -> None:
         logger.error("Erro ao disparar webhook de alerta: %s", e)
 
 
+def notificar_frontend_refresh() -> None:
+    """Avisa o dashboard que o banco mudou, pra ele invalidar e re-aquecer o
+    cache em memória dos lançamentos ativos (POST /api/etl/refresh). Sem
+    isso, a página mostrava dado de até 1h atrás (TTL do cache) e a
+    primeira pessoa a abrir depois do ETL pagava a recarga inteira."""
+    token = os.environ.get("ETL_REFRESH_TOKEN", "")
+    if not token:
+        logger.info("ETL_REFRESH_TOKEN não definido — dashboard não será avisado (cache expira sozinho em 1h).")
+        return
+    base = os.environ.get("FRONTEND_URL", "http://127.0.0.1:8000").rstrip("/")
+    try:
+        import requests
+        r = requests.post(f"{base}/api/etl/refresh", headers={"X-ETL-Token": token}, timeout=15)
+        if r.ok:
+            logger.info("Dashboard avisado: cache dos lançamentos ativos será re-aquecido.")
+        else:
+            logger.warning("Dashboard respondeu %s ao pedido de refresh: %s", r.status_code, r.text[:300])
+    except Exception as e:
+        logger.warning("Não foi possível avisar o dashboard (%s): %s", base, e)
+
+
 def rodar_carga(dias_janela: int = 2) -> None:
     global _FALHAS_CONSECUTIVAS, _DESABILITADO_ATE
     import time as _time
@@ -114,6 +135,7 @@ def rodar_carga(dias_janela: int = 2) -> None:
                 logger.info("Saída do ETL:\n%s", result.stdout.strip())
             _FALHAS_CONSECUTIVAS = 0
             _DESABILITADO_ATE = 0.0
+            notificar_frontend_refresh()
         else:
             _FALHAS_CONSECUTIVAS += 1
             msg_erro = f"Erro ao executar ETL (Código de Saída: {result.returncode}) — falha {_FALHAS_CONSECUTIVAS}/{_MAX_FALHAS}"

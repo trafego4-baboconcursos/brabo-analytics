@@ -29,7 +29,6 @@ from frontend.core import (
     logger,
     ROUTE_PERMISSIONS, BRABO_PASS, BRABO_USER,
     _decode_session,
-    get_launches, _fetch_all_data, find_previous_launch,
     _hash_password, bootstrap_admin_if_needed,
 )
 import os
@@ -78,6 +77,7 @@ async def auth_middleware(request: Request, call_next):
 
     if (
         path in ("/login", "/logout")
+        or path == "/api/etl/refresh"  # autenticado por token no próprio handler (chamado pelo ETL, não por pessoa)
         or path.startswith("/invite/")
         or path.startswith("/img")
         or path.startswith("/static")
@@ -130,78 +130,11 @@ async def pre_warm_cache():
         logger.info("Pre-warming de cache desativado")
         return
 
-    import asyncio
-    from datetime import date, timedelta
-    from fastapi.concurrency import run_in_threadpool
+    from frontend.services.prewarm import schedule_warm  # noqa: PLC0415
 
-    async def warm_one(launch, previous):
-        logger.info("Pre-warming cache para %s...", launch.code)
-        d = {}
-        try:
-            d = await _fetch_all_data(
-                launch,
-                needs_tf=True,
-                needs_daily=True,
-                needs_thumbnails=True,
-                needs_comparativo=True,
-                previous=previous,
-                needs_vendas_con=True,
-                needs_hotmart=True,
-                needs_tmb=True,
-                needs_ac_camps=True,
-                needs_sales_attr=True,
-                needs_youtube=True,
-            )
-            logger.info("Pre-warming de %s concluído com sucesso!", launch.code)
-        except Exception:
-            logger.exception("Falha no pre-warming de %s", launch.code)
-
-        # Leituras exclusivas do /debriefing (Typeform, caminho do comprador,
-        # etc.) — sem isso, a primeira abertura do debriefing após o deploy
-        # pagava 25-90s na própria requisição.
-        try:
-            from frontend.services.fetch import _warm_debriefing  # noqa: PLC0415
-            await _warm_debriefing(launch, previous, d.get("vendas"))
-            logger.info("Pre-warming do debriefing de %s concluído.", launch.code)
-        except Exception:
-            logger.exception("Falha no pre-warming do debriefing de %s", launch.code)
-
-        # Contagem SendFlow (/whatsapp) fica de fora do _fetch_all_data porque é
-        # uma fonte externa lenta (export-leads da SendFlow) — sem aquecer aqui,
-        # a primeira pessoa a abrir /whatsapp depois de cada deploy pagava esse
-        # custo na hora, na própria requisição.
-        try:
-            from frontend.db_readers.whatsapp_groups import read_whatsapp_groups  # noqa: PLC0415
-            await run_in_threadpool(read_whatsapp_groups, launch.code)
-            logger.info("Pre-warming de WhatsApp/SendFlow para %s concluído.", launch.code)
-        except Exception:
-            logger.exception("Falha no pre-warming de WhatsApp/SendFlow para %s", launch.code)
-
-    async def warm():
-        launches = await run_in_threadpool(get_launches)
-        if not launches:
-            return
-        # Aquece o mais recente por produto + qualquer lançamento ainda em andamento
-        # (data_fim no futuro ou nos últimos 7 dias). O mais recente de cada produto
-        # nunca é cortado pelo teto; só o excedente de "em andamento" é limitado.
-        cutoff = date.today() - timedelta(days=7)
-        latest_by_product = {}
-        for l in launches:
-            latest_by_product[l.product] = l  # get_launches retorna em ordem cronológica; o último de cada produto fica
-        to_warm_by_code = {l.code: l for l in latest_by_product.values()}
-        active = [l for l in launches if l.data_fim and l.data_fim >= cutoff and l.code not in to_warm_by_code]
-        remaining_slots = max(0, 5 - len(to_warm_by_code))
-        for l in active[:remaining_slots]:
-            to_warm_by_code[l.code] = l
-        to_warm = list(to_warm_by_code.values())
-        # Sequencial (não gather): cada warm_one já dispara ~15 leituras paralelas
-        # via _fetch_all_data; aquecer vários lançamentos ao mesmo tempo satura o
-        # pool de conexões do banco (pool_size=10+5, ver src/db_engine.py) e atrasa
-        # as primeiras requisições reais logo após o deploy.
-        for l in to_warm:
-            await warm_one(l, find_previous_launch(l, launches))
-
-    asyncio.create_task(warm())
+    # A mesma rotina roda de novo depois de cada rodada do ETL, via
+    # POST /api/etl/refresh (ver frontend/services/prewarm.py).
+    schedule_warm(origem="boot")
 
 # ── Handler global de erros ────────────────────────────────────────────────────
 @app.exception_handler(Exception)

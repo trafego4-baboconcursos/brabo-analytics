@@ -156,3 +156,4 @@ See `.env.example` for the full list. Key vars:
 - `BRABO_USER` / `BRABO_PASS` — legacy admin credentials (fallback when DB unavailable)
 - `SECRET_KEY` — HMAC session signing key (change in production)
 - `ERROR_WEBHOOK_URL` — optional Discord/Slack webhook for ETL failure alerts
+- `FRONTEND_URL` / `ETL_REFRESH_TOKEN` — after each successful ETL run, `scheduler.py` POSTs to `/api/etl/refresh` on the dashboard so it invalidates and re-warms the in-memory cache of active launches (`frontend/services/prewarm.py`); without the token the call is skipped and the cache expires on its own (1h)

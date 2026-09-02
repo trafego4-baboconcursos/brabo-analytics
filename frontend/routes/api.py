@@ -268,6 +268,38 @@ def clear_cache(launch_code: str | None = None):
     return {"cleared": "all", "readers": readers, "entries": count}
 
 
+@router.post("/api/etl/refresh")
+async def api_etl_refresh(request: Request):
+    """Chamado pelo etl/scheduler.py ao fim de cada rodada bem-sucedida:
+    invalida o cache dos lançamentos ativos e re-aquece em background, pra
+    os dados novos aparecerem na hora — sem esperar o TTL de 1h e sem a
+    primeira pessoa a abrir a página pagar a recarga.
+
+    Autenticação por token (header X-ETL-Token == ETL_REFRESH_TOKEN), não
+    por sessão: quem chama é um processo, não uma pessoa. Sem a variável no
+    .env, o endpoint fica desligado."""
+    import hmac as _hmac
+    import json as _json
+    from fastapi.responses import JSONResponse
+
+    expected = os.environ.get("ETL_REFRESH_TOKEN", "")
+    given = request.headers.get("X-ETL-Token", "")
+    if not expected or not _hmac.compare_digest(given, expected):
+        return JSONResponse({"ok": False, "error": "não autorizado"}, status_code=403)
+
+    codes = None
+    body = await request.body()
+    if body:
+        try:
+            codes = (_json.loads(body) or {}).get("launch_codes") or None
+        except Exception:
+            return JSONResponse({"ok": False, "error": "body inválido"}, status_code=400)
+
+    from frontend.services.prewarm import schedule_warm  # noqa: PLC0415
+    schedule_warm(codes, invalidate=True, origem="etl")
+    return {"ok": True, "scheduled": codes or "ativos"}
+
+
 # ── Health ─────────────────────────────────────────────────────────────────────
 
 @router.get("/health")

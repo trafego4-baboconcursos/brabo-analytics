@@ -271,14 +271,29 @@
   {% if linhas %}
   <div class="section">
     <div class="section-title">Contagem Diária — {{ tipo }}</div>
-    <div class="table-wrap">
+
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
+      <label for="wa-date-{{ chave }}" style="font-size:12px; font-weight:600; color:var(--bs-ink-muted);">Buscar um dia:</label>
+      <input type="date" id="wa-date-{{ chave }}"
+             min="{{ linhas[0].data }}" max="{{ linhas[-1].data }}"
+             style="padding:6px 10px; border:1px solid var(--bs-border); border-radius:8px; background:var(--bs-card); color:var(--bs-ink); font-size:13px;">
+      <button type="button" id="wa-date-clear-{{ chave }}"
+              style="padding:6px 12px; border:1px solid var(--bs-border); border-radius:8px; background:var(--bs-card); color:var(--bs-ink-muted); font-size:12px; cursor:pointer; display:none;">
+        Limpar
+      </button>
+    </div>
+
+    <div id="wa-date-result-{{ chave }}" class="tp-kpi-grid" style="display:none; margin-bottom:16px;"></div>
+    <div id="wa-date-empty-{{ chave }}" class="note warning" style="display:none;">Sem dado registrado para esse dia.</div>
+
+    <div class="table-wrap" id="wa-date-tablewrap-{{ chave }}">
       <table>
         <thead>
           <tr><th>Data</th><th class="th-num">Entradas</th><th class="th-num">Saídas</th><th class="th-num">Relação (E/S)</th><th class="th-num">Leads no dia</th></tr>
         </thead>
-        <tbody>
+        <tbody id="wa-diario-{{ chave }}">
           {% for l in linhas %}
-          <tr>
+          <tr data-date="{{ l.data }}">
             <td>{{ l.data_str }}</td>
             <td class="numero">{{ l.entradas | num }}</td>
             <td class="numero {% if l.saidas %}negativo{% endif %}">{{ l.saidas | num }}</td>
@@ -296,6 +311,72 @@
   </div>
   {% endif %}
   {% endfor %}
+
+  <script>
+  (function() {
+    const num = (n) => Number(n).toLocaleString('pt-BR');
+    ['normal', 'vip'].forEach(function(chave) {
+      const input = document.getElementById('wa-date-' + chave);
+      if (!input) return;
+      const clearBtn = document.getElementById('wa-date-clear-' + chave);
+      const result = document.getElementById('wa-date-result-' + chave);
+      const empty = document.getElementById('wa-date-empty-' + chave);
+      const tableWrap = document.getElementById('wa-date-tablewrap-' + chave);
+      const rows = Array.from(document.querySelectorAll('#wa-diario-' + chave + ' tr'));
+
+      function aplicar() {
+        const data = input.value;
+        if (!data) {
+          clearBtn.style.display = 'none';
+          result.style.display = 'none';
+          empty.style.display = 'none';
+          tableWrap.style.display = '';
+          rows.forEach(r => r.style.display = '');
+          return;
+        }
+        clearBtn.style.display = '';
+        tableWrap.style.display = 'none';
+        const linha = rows.find(r => r.dataset.date === data);
+        if (!linha) {
+          result.style.display = 'none';
+          empty.style.display = '';
+          return;
+        }
+        empty.style.display = 'none';
+        const c = linha.children;
+        const entradas = parseInt(c[1].textContent.replace(/\D/g, '') || '0', 10);
+        const saidas = parseInt(c[2].textContent.replace(/\D/g, '') || '0', 10);
+        const relacaoTxt = c[3].textContent.trim();
+        const leadsNoDia = c[4].textContent.trim();
+        result.style.display = '';
+        result.innerHTML = `
+          <div class="tp-kpi">
+            <div class="tp-value">${num(entradas)}</div>
+            <div class="tp-label">Entrada</div>
+            <div class="tp-compare">${c[0].textContent}</div>
+          </div>
+          <div class="tp-kpi">
+            <div class="tp-value${saidas ? ' negativo' : ''}">${num(saidas)}</div>
+            <div class="tp-label">Saída</div>
+            <div class="tp-compare">${c[0].textContent}</div>
+          </div>
+          <div class="tp-kpi">
+            <div class="tp-value${relacaoTxt.startsWith('-') ? ' negativo' : ''}">${relacaoTxt}</div>
+            <div class="tp-label">Relação (E/S)</div>
+            <div class="tp-compare">${c[0].textContent}</div>
+          </div>
+          <div class="tp-kpi">
+            <div class="tp-value">${leadsNoDia}</div>
+            <div class="tp-label">Leads no dia</div>
+            <div class="tp-compare">Total Limpo naquele dia</div>
+          </div>`;
+      }
+
+      input.addEventListener('change', aplicar);
+      clearBtn.addEventListener('click', function() { input.value = ''; aplicar(); });
+    });
+  })();
+  </script>
 
   {% if wa.compradores %}
   {% set cp = wa.compradores %}

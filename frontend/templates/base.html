@@ -318,6 +318,21 @@ html, body { margin: 0 !important; padding: 0 !important; font-family: 'Inter','
   opacity:1; visibility:visible; pointer-events:auto;
   transition:opacity .18s ease;
 }
+.bs-loading-clock { display:none; }
+/* Easter egg "Outatime": troca o spinner pelo relógio da torre de Hill
+   Valley, ponteiros girando feito no salto no tempo. */
+html[data-bs-theme="outatime"] .bs-loading-spinner { display:none; }
+html[data-bs-theme="outatime"] .bs-loading-clock {
+  display:block; color:var(--bs-accent);
+  filter:drop-shadow(0 0 8px var(--bs-accent));
+}
+html[data-bs-theme="outatime"] .bs-clock-hour {
+  transform-origin:50px 60px; animation:bs-clock-spin 2.4s linear infinite;
+}
+html[data-bs-theme="outatime"] .bs-clock-min {
+  transform-origin:50px 60px; animation:bs-clock-spin 1s linear infinite;
+}
+@keyframes bs-clock-spin { to { transform:rotate(360deg); } }
 .bs-loading-spinner {
   width:44px; height:44px;
   border:4px solid rgba(0,0,0,.08);
@@ -1314,6 +1329,18 @@ html[data-bs-theme="outatime"] .bs-live-dot {
 <div id="bs-topbar"><div id="bs-topbar-fill"></div></div>
 <div id="bs-loading-overlay">
   <div class="bs-loading-spinner"></div>
+  <svg class="bs-loading-clock" viewBox="0 0 100 112" width="64" height="72" aria-hidden="true">
+    <path d="M50 2 L74 22 H26 Z" fill="currentColor"/>
+    <circle cx="50" cy="60" r="46" fill="none" stroke="currentColor" stroke-width="4"/>
+    <circle cx="50" cy="60" r="38" fill="none" stroke="currentColor" stroke-width="1" opacity=".4"/>
+    <line x1="50" y1="18" x2="50" y2="25" stroke="currentColor" stroke-width="3"/>
+    <line x1="50" y1="95" x2="50" y2="102" stroke="currentColor" stroke-width="3"/>
+    <line x1="8" y1="60" x2="15" y2="60" stroke="currentColor" stroke-width="3"/>
+    <line x1="85" y1="60" x2="92" y2="60" stroke="currentColor" stroke-width="3"/>
+    <line class="bs-clock-hour" x1="50" y1="60" x2="50" y2="38" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+    <line class="bs-clock-min" x1="50" y1="60" x2="50" y2="27" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="50" cy="60" r="3.5" fill="currentColor"/>
+  </svg>
   <div class="bs-loading-quote" id="bs-loading-quote" aria-live="polite"><div class="q"></div><div class="a"></div></div>
 </div>
 
@@ -1692,18 +1719,47 @@ html[data-bs-theme="outatime"] .bs-live-dot {
     ["A educação é a arma mais poderosa que você pode usar para mudar o mundo.", "Nelson Mandela"],
     ["Ensinar não é transferir conhecimento, mas criar as possibilidades para a sua própria produção.", "Paulo Freire"],
   ];
+  // Easter egg: no tema "Outatime" (De Volta para o Futuro), as frases de
+  // pensador viram falas do filme — trocam junto quando o tema muda
+  // (bsSetTheme recarrega a página, então isso já pega o valor certo).
+  var BF_QUOTES = [
+    ["Estradas? Aonde vamos, não precisamos de estradas.", "Doc Brown, De Volta para o Futuro"],
+    ["Grande Scott!", "Doc Brown, De Volta para o Futuro"],
+    ["Se pudermos gerar 1,21 gigawatts de eletricidade...", "Doc Brown, De Volta para o Futuro"],
+    ["O seu futuro ainda não foi escrito. O de ninguém foi. Faça dele um bom futuro.", "Doc Brown, De Volta para o Futuro"],
+    ["Se você põe sua mente nisso, você pode realizar qualquer coisa.", "Doc Brown, De Volta para o Futuro"],
+    ["Ninguém me chama de covarde.", "Marty McFly, De Volta para o Futuro"],
+    ["Espera um pouco, Doc. Você está me dizendo que construiu uma máquina do tempo... com um DeLorean?", "Marty McFly, De Volta para o Futuro"],
+    ["É isso aí, McFly, seu covarde.", "Biff Tannen, De Volta para o Futuro"],
+    ["Isso é pesado.", "Marty McFly, De Volta para o Futuro"],
+    ["Enquanto eu estiver aqui, sob nenhuma circunstância entre na casa dos seus pais.", "Doc Brown, De Volta para o Futuro"],
+    ["Você é minha densidade... quer dizer, meu destino.", "George McFly, De Volta para o Futuro"],
+    ["Faz que nem árvore e sai daqui.", "George McFly, De Volta para o Futuro"],
+    ["Finalmente inventei uma coisa que funciona!", "Doc Brown, De Volta para o Futuro"],
+    ["Do jeito que eu penso, se vai construir uma máquina do tempo dentro de um carro, por que não fazer com estilo?", "Doc Brown, De Volta para o Futuro"],
+    ["Alô? Alô? Tem alguém aí? Pensa, McFly, pensa!", "Biff Tannen, De Volta para o Futuro"],
+    ["Espera um instante, Doc. Você está dizendo que minha mãe está caidinha por mim?", "Marty McFly, De Volta para o Futuro"],
+    ["Salvem a torre do relógio!", "De Volta para o Futuro"],
+    ["Vinte e cinco anos atrás, quase morri por causa daquele maldito relógio.", "Doc Brown, De Volta para o Futuro"],
+    ["Seus filhos, Marty! Precisa fazer alguma coisa com os seus filhos!", "Doc Brown, De Volta para o Futuro II"],
+    ["Acho que vocês não estão prontos pra isso ainda. Mas os seus filhos vão adorar.", "Marty McFly, De Volta para o Futuro"],
+  ];
+  function activeQuotes() {
+    return document.documentElement.getAttribute('data-bs-theme') === 'outatime' ? BF_QUOTES : BS_QUOTES;
+  }
   var quoteBox = document.getElementById('bs-loading-quote');
   var _qDelay = null, _qRotate = null, _qLast = -1;
 
   function bsQuoteShow() {
-    if (!quoteBox || BS_QUOTES.length === 0) return;
+    var quotes = activeQuotes();
+    if (!quoteBox || quotes.length === 0) return;
     var i;
-    do { i = Math.floor(Math.random() * BS_QUOTES.length); } while (i === _qLast && BS_QUOTES.length > 1);
+    do { i = Math.floor(Math.random() * quotes.length); } while (i === _qLast && quotes.length > 1);
     _qLast = i;
     quoteBox.classList.remove('in');
     setTimeout(function() {
-      quoteBox.querySelector('.q').textContent = BS_QUOTES[i][0];
-      quoteBox.querySelector('.a').textContent = BS_QUOTES[i][1];
+      quoteBox.querySelector('.q').textContent = quotes[i][0];
+      quoteBox.querySelector('.a').textContent = quotes[i][1];
       quoteBox.classList.add('in');
     }, quoteBox.classList.contains('in') ? 300 : 0);
   }

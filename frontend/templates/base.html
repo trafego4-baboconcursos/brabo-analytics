@@ -364,9 +364,9 @@ html, body { margin: 0 !important; padding: 0 !important; font-family: 'Inter','
    aplicado automaticamente em qualquer página com .section/.section-title
    (ver bsInitAccordion() no <script> do fim do body). ── */
 .bs-chevron { margin-left:auto; transition:transform .15s; flex-shrink:0; }
-.section.collapsed .section-title { margin-bottom:0; border-bottom-color:var(--bs-border); }
-.section.collapsed .section-title .bs-chevron { transform:rotate(-90deg); }
-.section.collapsed > *:not(.section-title) { display:none !important; }
+.collapsed > .section-title, .collapsed > .dbf-section-title { margin-bottom:0; border-bottom-color:var(--bs-border); }
+.collapsed > .section-title .bs-chevron, .collapsed > .dbf-section-title .bs-chevron { transform:rotate(-90deg); }
+.collapsed > *:not(.section-title):not(.dbf-section-title) { display:none !important; }
 .bs-accordion-controls { display:flex; gap:10px; margin-bottom:24px; }
 .bs-accordion-controls button {
   background:var(--bs-accent-bg); color:var(--bs-accent); border:1px solid var(--bs-border-s);
@@ -374,7 +374,7 @@ html, body { margin: 0 !important; padding: 0 !important; font-family: 'Inter','
   display:inline-flex; align-items:center; gap:6px; font-family:inherit;
 }
 .bs-accordion-controls button:hover { filter:brightness(0.95); }
-.section.bs-hidden-section { display:none !important; }
+.bs-hidden-section { display:none !important; }
 
 /* ── Dropdown "Seções" (ordem/visibilidade + visualizações salvas) ──── */
 .bs-sec-picker-btn {
@@ -2029,6 +2029,10 @@ document.addEventListener('DOMContentLoaded', bsThemeSyncActive);
   var SKIP_PAGES = ['settings', 'login', 'invite', 'index'];
   var PAGE = '{{ page|default("page") }}';
   if (SKIP_PAGES.indexOf(PAGE) !== -1) return;
+  // Modo apresentação/PDF (debriefing ?modo=slides) monta os slides
+  // clonando as seções originais — não mexe nelas antes, senão o
+  // chevron/tag/etc. vazam pro clone exportado.
+  if (document.documentElement.classList.contains('bs-slides')) return;
 
   function load(key, fallback) {
     try { var v = JSON.parse(localStorage.getItem(key)); return (v === null || v === undefined) ? fallback : v; }
@@ -2062,14 +2066,18 @@ document.addEventListener('DOMContentLoaded', bsThemeSyncActive);
   }
 
   function initAccordion() {
-    var allSections = Array.prototype.slice.call(document.querySelectorAll('.section'))
-      .filter(function (s) { return s.querySelector(':scope > .section-title'); });
+    // .dbf-section/.dbf-section-title é o padrão mais antigo do Debriefing —
+    // reconhecido junto do genérico .section/.section-title, sem precisar
+    // renomear nada lá (evita quebrar o modo apresentação/PDF, que depende
+    // desses nomes de classe pra clonar as seções em slides).
+    var allSections = Array.prototype.slice.call(document.querySelectorAll('.section, .dbf-section'))
+      .filter(function (s) { return s.querySelector(':scope > .section-title, :scope > .dbf-section-title'); });
     if (allSections.length < 2) return; // 0 ou 1 seção: nada pra organizar
 
     // key baseada na ordem ORIGINAL do documento — fica estável mesmo
     // depois de arrastar, então o estado salvo nunca perde a referência.
     var meta = allSections.map(function (section, idx) {
-      var title = section.querySelector(':scope > .section-title');
+      var title = section.querySelector(':scope > .section-title, :scope > .dbf-section-title');
       var label = title.textContent.trim();
       return { el: section, title: title, key: 'section-' + idx, label: label, autoTag: detectTag(label) };
     });

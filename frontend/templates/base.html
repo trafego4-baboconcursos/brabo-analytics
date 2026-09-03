@@ -374,6 +374,67 @@ html, body { margin: 0 !important; padding: 0 !important; font-family: 'Inter','
   display:inline-flex; align-items:center; gap:6px; font-family:inherit;
 }
 .bs-accordion-controls button:hover { filter:brightness(0.95); }
+.section.bs-hidden-section { display:none !important; }
+
+/* ── Dropdown "Seções" (ordem/visibilidade + visualizações salvas) ──── */
+.bs-sec-picker-btn {
+  background:var(--bs-accent-bg); color:var(--bs-accent); border:1px solid var(--bs-border-s);
+  padding:7px 16px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;
+  display:inline-flex; align-items:center; gap:6px; font-family:inherit;
+}
+.bs-sec-picker-btn:hover { filter:brightness(0.95); }
+.bs-sec-menu { min-width:280px; padding:6px 0; }
+.bs-sec-list { display:flex; flex-direction:column; gap:2px; padding:2px 6px; max-height:280px; overflow-y:auto; }
+.bs-sec-row {
+  display:flex; align-items:center; gap:8px; padding:7px 8px; border-radius:8px;
+  font-size:12.5px; font-weight:600; color:var(--bs-ink); border-top:2px solid transparent;
+}
+.bs-sec-row:hover { background:var(--bs-surface); }
+.bs-sec-row.dragging { opacity:.4; }
+.bs-sec-row.drag-over { border-top-color:var(--bs-accent); }
+.bs-sec-drag { cursor:grab; color:var(--bs-ink-subtle); flex-shrink:0; font-size:15px; }
+.bs-sec-row input[type=checkbox] { accent-color:var(--bs-accent); width:15px; height:15px; cursor:pointer; flex-shrink:0; }
+.bs-sec-row .lbl { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.bs-sec-row.is-hidden .lbl { color:var(--bs-ink-subtle); text-decoration:line-through; }
+.bs-sec-row-tag {
+  flex-shrink:0; font-size:9.5px; font-weight:800; padding:2px 8px; border-radius:999px;
+  cursor:pointer; white-space:nowrap; letter-spacing:.01em;
+}
+.bs-sec-row-btn {
+  border:none; background:none; cursor:pointer; color:var(--bs-ink-subtle);
+  display:flex; align-items:center; padding:3px; border-radius:5px; font-size:13px;
+  flex-shrink:0; opacity:0; transition:opacity .1s;
+}
+.bs-sec-row:hover .bs-sec-row-btn { opacity:1; }
+.bs-sec-row-btn:hover { background:var(--bs-accent-bg); color:var(--bs-accent); }
+/* Tag na própria seção da página (aparece mesmo com a seção recolhida) */
+.bs-sec-tag {
+  align-items:center; font-size:10px; font-weight:800; letter-spacing:.02em;
+  padding:2px 9px; border-radius:999px; margin-left:2px; cursor:default;
+}
+.bs-sec-sep { height:1px; background:var(--bs-border); margin:8px 6px; }
+.bs-view-list { display:flex; flex-direction:column; gap:2px; padding:2px 6px; max-height:160px; overflow-y:auto; }
+.bs-view-item {
+  display:flex; align-items:center; gap:8px; padding:7px 8px; border-radius:8px;
+  font-size:12.5px; font-weight:600; color:var(--bs-ink); cursor:pointer;
+}
+.bs-view-item:hover { background:var(--bs-surface); }
+.bs-view-item .name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.bs-view-item .del { flex-shrink:0; opacity:0; color:var(--bs-ink-subtle); cursor:pointer; padding:2px; border-radius:4px; transition:opacity .1s; }
+.bs-view-item:hover .del { opacity:1; }
+.bs-view-item .del:hover { color:var(--bs-danger); background:var(--bs-danger-bg); }
+.bs-view-save-row { display:flex; gap:6px; padding:8px 8px 2px; }
+.bs-view-save-row input {
+  flex:1; min-width:0; border:1px solid var(--bs-border-s); border-radius:8px;
+  padding:7px 10px; font-size:12.5px; font-family:inherit; color:var(--bs-ink);
+  background:var(--bs-card); outline:none;
+}
+.bs-view-save-row input:focus { border-color:var(--bs-accent); }
+.bs-view-save-row button {
+  border:none; background:var(--bs-accent); color:#fff; border-radius:8px;
+  padding:0 12px; cursor:pointer; font-size:14px; flex-shrink:0; display:flex; align-items:center;
+}
+.bs-view-save-row button:hover { filter:brightness(1.08); }
 .footing { padding:16px 32px; font-size:11px; color:var(--bs-ink-muted); text-align:right; border-top:1px solid var(--bs-border); }
 
 /* ── Métricas grid (padrão das análises manuais) ────────────────────── */
@@ -1958,56 +2019,299 @@ window.bsThemeSyncActive = function() {
 document.addEventListener('DOMContentLoaded', bsThemeSyncActive);
 
 /* ── Accordion de seções (.section / .section-title) ──────────────────
-   Mesmo padrão implantado no Debriefing, generalizado pra qualquer
-   página que já usa o bloco .section/.section-title do design system —
-   não precisa mudar nada no template da página, só funciona. Estado
-   (o que está fechado) persiste por página em localStorage. ── */
+   Generalizado pra qualquer página que já usa o bloco .section/.section-
+   title do design system — não precisa mudar nada no template da página.
+   Além de recolher/expandir, dá pra arrastar a ordem, ocultar seções e
+   salvar tudo isso como uma "visualização" nomeada (igual o gerenciador
+   de colunas do Google Ads). Tudo persiste por página em localStorage —
+   é por navegador, não sincroniza entre pessoas/dispositivos. ── */
 (function () {
   var SKIP_PAGES = ['settings', 'login', 'invite', 'index'];
-  if (SKIP_PAGES.indexOf('{{ page|default("") }}') !== -1) return;
+  var PAGE = '{{ page|default("page") }}';
+  if (SKIP_PAGES.indexOf(PAGE) !== -1) return;
+
+  function load(key, fallback) {
+    try { var v = JSON.parse(localStorage.getItem(key)); return (v === null || v === undefined) ? fallback : v; }
+    catch (e) { return fallback; }
+  }
+  function save(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {} }
+  function esc(s) { return String(s).replace(/</g, '&lt;'); }
+
+  // Tags de etapa — detectadas por palavra-chave no título da seção. Sem
+  // match, fica em branco (o usuário atribui manualmente no painel).
+  var TAG_DEFS = [
+    { name: 'Pré-Quali',       kw: ['pré-qual', 'pre-qual', 'prequal'],                       bg: '#cffafe', fg: '#0e7490' },
+    { name: 'Captação',        kw: ['captação', 'captacao'],                                  bg: '#dbeafe', fg: '#1d4ed8' },
+    { name: 'Remarketing',     kw: ['remarketing'],                                           bg: '#fee2e2', fg: '#dc2626' },
+    { name: 'WhatsApp',        kw: ['whatsapp', 'grupo'],                                     bg: '#dcfce7', fg: '#16a34a' },
+    { name: 'Active Campaign', kw: ['active campaign'],                                       bg: '#ede9fe', fg: '#7c3aed' },
+    { name: 'Vendas',          kw: ['venda', 'pagamento', 'faturamento', 'matrícul', 'matricul'], bg: '#fef3c7', fg: '#92400e' },
+  ];
+  function detectTag(label) {
+    var l = label.toLowerCase();
+    for (var i = 0; i < TAG_DEFS.length; i++) {
+      for (var j = 0; j < TAG_DEFS[i].kw.length; j++) {
+        if (l.indexOf(TAG_DEFS[i].kw[j]) !== -1) return TAG_DEFS[i].name;
+      }
+    }
+    return '';
+  }
+  function tagColors(name) {
+    var found = TAG_DEFS.filter(function (t) { return t.name.toLowerCase() === String(name).toLowerCase(); })[0];
+    return found ? { bg: found.bg, fg: found.fg } : { bg: '#f3f4f6', fg: '#4b5563' };
+  }
 
   function initAccordion() {
-    var sections = Array.prototype.slice.call(document.querySelectorAll('.section'))
+    var allSections = Array.prototype.slice.call(document.querySelectorAll('.section'))
       .filter(function (s) { return s.querySelector(':scope > .section-title'); });
-    if (sections.length < 2) return; // 0 ou 1 seção: nada pra recolher
+    if (allSections.length < 2) return; // 0 ou 1 seção: nada pra organizar
 
-    var storageKey = 'bs-collapsed-sections:{{ page|default("page") }}';
-    var state;
-    try { state = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch (e) { state = {}; }
-    function persist() { try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch (e) {} }
-
-    sections.forEach(function (section, idx) {
+    // key baseada na ordem ORIGINAL do documento — fica estável mesmo
+    // depois de arrastar, então o estado salvo nunca perde a referência.
+    var meta = allSections.map(function (section, idx) {
       var title = section.querySelector(':scope > .section-title');
-      var key = 'section-' + idx;
+      var label = title.textContent.trim();
+      return { el: section, title: title, key: 'section-' + idx, label: label, autoTag: detectTag(label) };
+    });
+    var byKey = {}; meta.forEach(function (m) { byKey[m.key] = m; });
+    var defaultOrder = meta.map(function (m) { return m.key; });
+
+    // só reordena o DOM se todas as seções tiverem o mesmo elemento pai —
+    // layout fora do padrão não é mexido, só perde a reordenação.
+    var container = meta[0].el.parentNode;
+    var sameParent = meta.every(function (m) { return m.el.parentNode === container; });
+
+    var collapsedKey = 'bs-collapsed-sections:' + PAGE;
+    var stateKey = 'bs-section-state:' + PAGE;
+    var viewsKey = 'bs-saved-views:' + PAGE;
+    var customKey = 'bs-section-custom:' + PAGE;
+
+    var collapsed = load(collapsedKey, {});
+    var working = load(stateKey, { order: defaultOrder, hidden: {} });
+    var views = load(viewsKey, {});
+    var customs = load(customKey, {}); // { key: { tag?: string, name?: string } } — só overrides manuais
+
+    function getLabel(key) { var c = customs[key]; return (c && c.name) ? c.name : (byKey[key] ? byKey[key].label : ''); }
+    function getTag(key) { var c = customs[key]; if (c && c.tag !== undefined) return c.tag; return byKey[key] ? byKey[key].autoTag : ''; }
+    function applyCustom(key) {
+      var m = byKey[key]; if (!m) return;
+      var custom = customs[key] || {};
+      if (custom.name) { m.override.textContent = custom.name; m.override.style.display = ''; m.orig.style.display = 'none'; }
+      else { m.override.style.display = 'none'; m.orig.style.display = ''; }
+      var tag = getTag(key);
+      if (tag) {
+        var c = tagColors(tag);
+        m.tagBadge.textContent = tag;
+        m.tagBadge.style.cssText = 'background:' + c.bg + ';color:' + c.fg + ';display:inline-flex';
+      } else {
+        m.tagBadge.style.display = 'none';
+      }
+    }
+    function saveCustom(key, patch) {
+      var c = Object.assign({}, customs[key] || {}, patch);
+      Object.keys(c).forEach(function (k) { if (c[k] === undefined || c[k] === '') delete c[k]; });
+      if (Object.keys(c).length) customs[key] = c; else delete customs[key];
+      save(customKey, customs);
+      applyCustom(key);
+    }
+
+    function applyState(st, coll) {
+      working = { order: (st.order || defaultOrder).slice(), hidden: Object.assign({}, st.hidden || {}) };
+      collapsed = Object.assign({}, coll || {});
+      if (sameParent) {
+        working.order.forEach(function (key) { if (byKey[key]) container.appendChild(byKey[key].el); });
+        // seção nova na página (não existia quando a view foi salva) vai pro final.
+        meta.forEach(function (m) { if (working.order.indexOf(m.key) === -1) container.appendChild(m.el); });
+      }
+      meta.forEach(function (m, idx) {
+        var isCollapsed = (m.key in collapsed) ? collapsed[m.key] : (idx !== 0);
+        m.el.classList.toggle('collapsed', isCollapsed);
+        m.el.classList.toggle('bs-hidden-section', !!working.hidden[m.key]);
+      });
+      save(stateKey, working);
+      save(collapsedKey, collapsed);
+      renderSecPanel();
+      renderViewsPanel();
+    }
+
+    // Reagrupa o conteúdo original do título (ícone + texto) num wrapper —
+    // permite trocar por um nome customizado sem perder a marcação original
+    // — e adiciona o badge de tag + chevron. Clique no título recolhe/expande.
+    meta.forEach(function (m) {
+      var orig = document.createElement('span');
+      orig.className = 'bs-sec-orig';
+      while (m.title.firstChild) orig.appendChild(m.title.firstChild);
+      m.title.appendChild(orig);
+      var override = document.createElement('span');
+      override.className = 'bs-sec-label-override';
+      override.style.display = 'none';
+      m.title.appendChild(override);
+      var tagBadge = document.createElement('span');
+      tagBadge.className = 'bs-sec-tag';
+      tagBadge.style.display = 'none';
+      m.title.appendChild(tagBadge);
+      m.orig = orig; m.override = override; m.tagBadge = tagBadge;
       var chev = document.createElement('i');
       chev.className = 'ti ti-chevron-down bs-chevron';
-      title.appendChild(chev);
-      // Primeira visita (sem estado salvo): só a primeira seção começa aberta.
-      var collapsed = (key in state) ? state[key] : (idx !== 0);
-      section.classList.toggle('collapsed', collapsed);
-      title.addEventListener('click', function () {
-        section.classList.toggle('collapsed');
-        state[key] = section.classList.contains('collapsed');
-        persist();
+      m.title.appendChild(chev);
+      m.title.addEventListener('click', function () {
+        m.el.classList.toggle('collapsed');
+        collapsed[m.key] = m.el.classList.contains('collapsed');
+        save(collapsedKey, collapsed);
       });
+      applyCustom(m.key);
     });
 
+    applyState(working, collapsed);
+
+    // ── Barra de controles (Recolher/Expandir + dropdown Seções) ─────
     var controls = document.createElement('div');
     controls.className = 'bs-accordion-controls';
     controls.innerHTML =
       '<button type="button" data-act="collapse"><i class="ti ti-arrows-minimize"></i> Recolher todas</button>' +
-      '<button type="button" data-act="expand"><i class="ti ti-arrows-maximize"></i> Expandir todas</button>';
-    sections[0].parentNode.insertBefore(controls, sections[0]);
-    controls.addEventListener('click', function (e) {
-      var btn = e.target.closest('button[data-act]');
-      if (!btn) return;
-      var collapsed = btn.dataset.act === 'collapse';
-      sections.forEach(function (section, idx) {
-        section.classList.toggle('collapsed', collapsed);
-        state['section-' + idx] = collapsed;
+      '<button type="button" data-act="expand"><i class="ti ti-arrows-maximize"></i> Expandir todas</button>' +
+      '<div class="bs-launch-picker" id="bs-sec-picker">' +
+        '<button type="button" class="bs-sec-picker-btn" onclick="bsPickerToggle(this)">' +
+          '<i class="ti ti-layout-list"></i> Seções<i class="ti ti-chevron-down bs-launch-picker-chevron"></i>' +
+        '</button>' +
+        '<div class="bs-launch-picker-menu bs-sec-menu">' +
+          '<div class="bs-launch-picker-group">Ordem e visibilidade</div>' +
+          '<div class="bs-sec-list" id="bs-sec-list"></div>' +
+          '<div class="bs-sec-sep"></div>' +
+          '<div class="bs-launch-picker-group">Visualizações salvas</div>' +
+          '<div class="bs-view-list" id="bs-view-list"></div>' +
+          '<div class="bs-view-save-row">' +
+            '<input type="text" id="bs-view-name" placeholder="Nome da visualização..." maxlength="40">' +
+            '<button type="button" id="bs-view-save" title="Salvar visualização atual"><i class="ti ti-plus"></i></button>' +
+          '</div>' +
+        '</div>' +
+      '</div>';
+    var firstEl = sameParent ? byKey[working.order[0]].el : meta[0].el;
+    firstEl.parentNode.insertBefore(controls, firstEl);
+
+    controls.querySelector('[data-act="collapse"]').addEventListener('click', function () { setAllCollapsed(true); });
+    controls.querySelector('[data-act="expand"]').addEventListener('click', function () { setAllCollapsed(false); });
+    function setAllCollapsed(v) {
+      meta.forEach(function (m) { m.el.classList.toggle('collapsed', v); collapsed[m.key] = v; });
+      save(collapsedKey, collapsed);
+    }
+
+    // ── Lista de seções: arrastar pra reordenar, checkbox pra ocultar ─
+    var dragKey = null;
+    function renderSecPanel() {
+      var list = document.getElementById('bs-sec-list');
+      if (!list) return;
+      list.innerHTML = '';
+      working.order.forEach(function (key) {
+        var m = byKey[key];
+        if (!m) return;
+        var row = document.createElement('div');
+        row.className = 'bs-sec-row' + (working.hidden[key] ? ' is-hidden' : '');
+        row.draggable = true;
+        var tag = getTag(key);
+        var tc = tagColors(tag || '—');
+        row.innerHTML =
+          '<i class="ti ti-grip-vertical bs-sec-drag"></i>' +
+          '<input type="checkbox" ' + (working.hidden[key] ? '' : 'checked') + '>' +
+          '<span class="lbl">' + esc(getLabel(key)) + '</span>' +
+          '<span class="bs-sec-row-tag" data-act="tag" style="background:' + tc.bg + ';color:' + tc.fg + '">' +
+            esc(tag || '+ tag') + '</span>' +
+          '<button type="button" class="bs-sec-row-btn" data-act="rename" title="Renomear seção"><i class="ti ti-pencil"></i></button>';
+        row.querySelector('input').addEventListener('change', function (e) {
+          if (e.target.checked) delete working.hidden[key]; else working.hidden[key] = true;
+          m.el.classList.toggle('bs-hidden-section', !e.target.checked);
+          row.classList.toggle('is-hidden', !e.target.checked);
+          save(stateKey, working);
+        });
+        row.querySelector('[data-act="tag"]').addEventListener('click', function (e) {
+          e.stopPropagation();
+          var val = prompt('Tag da seção — sugestões: Pré-Quali, Captação, Remarketing, WhatsApp, Active Campaign, Vendas.\nDeixe vazio pra remover a tag.', getTag(key));
+          if (val === null) return;
+          saveCustom(key, { tag: val.trim() });
+          renderSecPanel();
+        });
+        row.querySelector('[data-act="rename"]').addEventListener('click', function (e) {
+          e.stopPropagation();
+          var val = prompt('Novo nome pra essa seção — deixe vazio pra voltar ao original ("' + m.label + '"):', (customs[key] && customs[key].name) || '');
+          if (val === null) return;
+          saveCustom(key, { name: val.trim() });
+          renderSecPanel();
+        });
+        row.addEventListener('dragstart', function () { dragKey = key; row.classList.add('dragging'); });
+        row.addEventListener('dragend', function () {
+          row.classList.remove('dragging');
+          dragKey = null;
+          list.querySelectorAll('.bs-sec-row').forEach(function (r) { r.classList.remove('drag-over'); });
+        });
+        row.addEventListener('dragover', function (e) {
+          e.preventDefault();
+          if (dragKey && key !== dragKey) row.classList.add('drag-over');
+        });
+        row.addEventListener('dragleave', function () { row.classList.remove('drag-over'); });
+        row.addEventListener('drop', function (e) {
+          e.preventDefault();
+          row.classList.remove('drag-over');
+          if (!dragKey || dragKey === key) return;
+          var order = working.order.slice();
+          var from = order.indexOf(dragKey), to = order.indexOf(key);
+          order.splice(from, 1);
+          order.splice(to, 0, dragKey);
+          working.order = order;
+          if (sameParent) order.forEach(function (k) { if (byKey[k]) container.appendChild(byKey[k].el); });
+          save(stateKey, working);
+          renderSecPanel();
+        });
+        list.appendChild(row);
       });
-      persist();
+    }
+
+    // ── Visualizações salvas: aplicar / salvar / excluir ──────────────
+    function renderViewsPanel() {
+      var list = document.getElementById('bs-view-list');
+      if (!list) return;
+      list.innerHTML = '';
+      var names = ['Padrão'].concat(Object.keys(views).sort());
+      names.forEach(function (name) {
+        var item = document.createElement('div');
+        item.className = 'bs-view-item';
+        item.innerHTML =
+          '<i class="ti ' + (name === 'Padrão' ? 'ti-restore' : 'ti-bookmark') + '"></i>' +
+          '<span class="name">' + esc(name) + '</span>' +
+          (name === 'Padrão' ? '' : '<i class="ti ti-x del" title="Excluir"></i>');
+        item.addEventListener('click', function (e) {
+          if (e.target.closest('.del')) return;
+          if (name === 'Padrão') applyState({ order: defaultOrder, hidden: {} }, {});
+          else applyState(views[name], views[name].collapsed || {});
+        });
+        var del = item.querySelector('.del');
+        if (del) del.addEventListener('click', function (e) {
+          e.stopPropagation();
+          if (!confirm('Excluir a visualização "' + name + '"?')) return;
+          delete views[name];
+          save(viewsKey, views);
+          renderViewsPanel();
+        });
+        list.appendChild(item);
+      });
+    }
+
+    document.getElementById('bs-view-save').addEventListener('click', function () {
+      var input = document.getElementById('bs-view-name');
+      var name = input.value.trim();
+      if (!name) return;
+      views[name] = { order: working.order.slice(), hidden: Object.assign({}, working.hidden), collapsed: Object.assign({}, collapsed) };
+      save(viewsKey, views);
+      input.value = '';
+      renderViewsPanel();
     });
+    document.getElementById('bs-view-name').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') document.getElementById('bs-view-save').click();
+    });
+
+    // primeira renderização dos painéis (applyState() já tentou antes de
+    // #bs-sec-list/#bs-view-list existirem no DOM — refaz agora que existem).
+    renderSecPanel();
+    renderViewsPanel();
   }
   if (document.readyState !== 'loading') initAccordion();
   else document.addEventListener('DOMContentLoaded', initAccordion);

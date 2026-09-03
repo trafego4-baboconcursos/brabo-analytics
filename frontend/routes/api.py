@@ -347,11 +347,12 @@ def health_check(request: Request):
 # ── ETL manual ─────────────────────────────────────────────────────────────────
 
 @router.post("/api/run-etl")
-def api_run_etl(request: Request):
+async def api_run_etl(request: Request):
     user = _get_current_user(request)
     if not user or user.get("role") != "admin":
         return {"error": "Sem permissão"}
 
+    import asyncio
     import subprocess
     import sys as _sys
     from datetime import datetime, timedelta
@@ -375,11 +376,27 @@ def api_run_etl(request: Request):
     fim = hoje.strftime("%Y-%m-%d")
     run_all_path = WORKSPACE_ROOT / "etl" / "run_all.py"
 
-    subprocess.Popen(
+    proc = subprocess.Popen(
         [_sys.executable, str(run_all_path), "--since", inicio, "--until", fim],
         cwd=str(WORKSPACE_ROOT),
     )
     logger.info("ETL manual disparado por %s (janela %s a %s)", user.get("email"), inicio, fim)
+
+    async def _invalidate_cache_when_done():
+        # O scheduler.py automático já faz isso via /api/etl/refresh (chamada
+        # HTTP externa, autenticada por ETL_REFRESH_TOKEN); aqui é a mesma
+        # rodada de run_all.py só que disparada de dentro do próprio processo
+        # do dashboard, então basta esperar o subprocesso encerrar e invalidar
+        # direto — sem precisar do round-trip HTTP nem do token.
+        returncode = await run_in_threadpool(proc.wait)
+        if returncode == 0:
+            logger.info("ETL manual concluído com sucesso — invalidando cache dos lançamentos ativos.")
+            from frontend.services.prewarm import schedule_warm
+            schedule_warm(invalidate=True, origem="etl-manual")
+        else:
+            logger.warning("ETL manual terminou com erro (rc=%s) — cache não invalidado.", returncode)
+
+    asyncio.create_task(_invalidate_cache_when_done())
     return {"ok": True, "message": f"ETL disparado. Janela: {inicio} até {fim}. Pode levar alguns minutos."}
 
 

@@ -68,10 +68,10 @@
   gap: 14px;
   font-size: 13px;
 }
-.ins-alert.danger  { background: var(--bs-danger-bg);  border-left: 4px solid var(--bs-danger);  color: #7f1d1d; }
-.ins-alert.warn    { background: var(--bs-warning-bg); border-left: 4px solid var(--bs-warning); color: #78350f; }
-.ins-alert.success { background: var(--bs-success-bg); border-left: 4px solid var(--bs-success); color: #14532d; }
-.ins-alert.info    { background: var(--bs-info-bg);    border-left: 4px solid var(--bs-info);    color: #1e3a5f; }
+.ins-alert.danger  { background: var(--bs-danger-bg);  border-left: 4px solid var(--bs-danger);  color: var(--bs-ink); }
+.ins-alert.warn    { background: var(--bs-warning-bg); border-left: 4px solid var(--bs-warning); color: var(--bs-ink); }
+.ins-alert.success { background: var(--bs-success-bg); border-left: 4px solid var(--bs-success); color: var(--bs-ink); }
+.ins-alert.info    { background: var(--bs-info-bg);    border-left: 4px solid var(--bs-info);    color: var(--bs-ink); }
 .ins-alert-icon    { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
 .ins-alert-content strong { display: block; font-weight: 800; margin-bottom: 3px; }
 
@@ -88,7 +88,7 @@
 .ins-rank-item:last-child { border-bottom: none; }
 .ins-rank-pos { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 800; flex-shrink: 0; background: var(--bs-surface); color: var(--bs-ink-muted); }
 .ins-rank-pos.gold   { background: #fef3c7; color: #92400e; }
-.ins-rank-pos.silver { background: var(--bs-accent-bg); color: var(--bs-sidebar); }
+.ins-rank-pos.silver { background: var(--bs-accent-bg); color: var(--bs-ink); }
 .ins-rank-pos.bronze { background: #fef3c7; color: #78350f; }
 .ins-rank-info { flex: 1; min-width: 0; }
 .ins-rank-name { font-size: 12px; font-weight: 700; color: var(--bs-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -99,7 +99,7 @@
 
 /* Score geral */
 .ins-score-box {
-  background: linear-gradient(135deg, var(--bs-sidebar-dark) 0%, var(--bs-ink) 100%);
+  background: linear-gradient(135deg, var(--bs-sidebar-dark) 0%, var(--bs-sidebar) 100%);
   border-radius: var(--bs-r-xl);
   padding: 28px 32px;
   color: #fff;
@@ -587,11 +587,11 @@
             <td class="numero"><strong class="{{ 'positivo' if roas_v >= 2 else ('negativo' if roas_v < 1 else '') }}">{{ "%.2f"|format(roas_v) | replace(".", ",") }}x</strong></td>
             <td style="text-align:center">
               {% if roas_v >= 3 %}
-              <span style="background:var(--bs-success-bg);color:#14532d;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">🔥 Escalar</span>
+              <span style="background:var(--bs-success-bg);color:var(--bs-success);padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">🔥 Escalar</span>
               {% elif roas_v >= 1.5 %}
-              <span style="background:var(--bs-warning-bg);color:#78350f;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">📈 Otimizar</span>
+              <span style="background:var(--bs-warning-bg);color:var(--bs-warning);padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">📈 Otimizar</span>
               {% else %}
-              <span style="background:var(--bs-danger-bg);color:#7f1d1d;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">⚠️ Revisar</span>
+              <span style="background:var(--bs-danger-bg);color:var(--bs-danger);padding:2px 8px;border-radius:12px;font-size:11px;font-weight:700">⚠️ Revisar</span>
               {% endif %}
             </td>
           </tr>

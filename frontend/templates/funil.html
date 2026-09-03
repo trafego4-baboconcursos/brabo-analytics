@@ -497,16 +497,16 @@
         {% set principal = meta.por_bucket.get('Principal') %}
         {% set reels = meta.por_bucket.get('Reels') %}
         {% if principal and principal.pct < 60 %}
-        <div style="border-left:4px solid #dc3545;background:#dc354518;padding:14px 16px;border-radius:4px;margin-bottom:12px"><div style="font-weight:700;color:#dc3545;margin-bottom:4px">Distribuição Meta - Principal abaixo do target</div><div style="color:#444;font-size:13px">Campanha Principal recebeu {{ principal.pct|round(1) }}% da verba de captação (meta: 70%). Avaliar aumento de concentração se mantiver CPL competitivo.</div></div>
+        <div style="border-left:4px solid #dc3545;background:#dc354518;padding:14px 16px;border-radius:4px;margin-bottom:12px"><div style="font-weight:700;color:#dc3545;margin-bottom:4px">Distribuição Meta - Principal abaixo do target</div><div style="color:var(--bs-ink-muted);font-size:13px">Campanha Principal recebeu {{ principal.pct|round(1) }}% da verba de captação (meta: 70%). Avaliar aumento de concentração se mantiver CPL competitivo.</div></div>
         {% endif %}
         {% if reels and reels.pct > 10 %}
-        <div style="border-left:4px solid #ff9800;background:#ff980018;padding:14px 16px;border-radius:4px;margin-bottom:12px"><div style="font-weight:700;color:#ff9800;margin-bottom:4px">Reels com verba acima do estratégico</div><div style="color:#444;font-size:13px">Reels recebeu {{ reels.pct|round(1) }}% vs meta de 5%. Avaliar se o CPL de {{ reels.cpl|brl }} justifica a sobrealocação.</div></div>
+        <div style="border-left:4px solid #ff9800;background:#ff980018;padding:14px 16px;border-radius:4px;margin-bottom:12px"><div style="font-weight:700;color:#ff9800;margin-bottom:4px">Reels com verba acima do estratégico</div><div style="color:var(--bs-ink-muted);font-size:13px">Reels recebeu {{ reels.pct|round(1) }}% vs meta de 5%. Avaliar se o CPL de {{ reels.cpl|brl }} justifica a sobrealocação.</div></div>
         {% endif %}
       {% endif %}
       {% if google_preq and google and google.total_custo > 0 and (google_preq.custo / google.total_custo * 100) > 10 %}
-      <div style="border-left:4px solid #ff9800;background:#ff980018;padding:14px 16px;border-radius:4px;margin-bottom:12px"><div style="font-weight:700;color:#ff9800;margin-bottom:4px">Google Ads - Pré-Qualificação com alto % da verba</div><div style="color:#444;font-size:13px">Pré-Qualificação Google consumiu {{ (google_preq.custo / google.total_custo * 100)|round(1) }}% do investimento Google ({{ google_preq.custo|brl }}). Reavaliar orçamento se o ROAS não for rastreável.</div></div>
+      <div style="border-left:4px solid #ff9800;background:#ff980018;padding:14px 16px;border-radius:4px;margin-bottom:12px"><div style="font-weight:700;color:#ff9800;margin-bottom:4px">Google Ads - Pré-Qualificação com alto % da verba</div><div style="color:var(--bs-ink-muted);font-size:13px">Pré-Qualificação Google consumiu {{ (google_preq.custo / google.total_custo * 100)|round(1) }}% do investimento Google ({{ google_preq.custo|brl }}). Reavaliar orçamento se o ROAS não for rastreável.</div></div>
       {% endif %}
-      <div style="border-left:4px solid var(--bs-accent);background:var(--bs-accent-bg);padding:14px 16px;border-radius:4px;margin-bottom:12px"><div style="font-weight:700;color:var(--bs-accent);margin-bottom:4px">Validação V1/V2</div><div style="color:#444;font-size:13px">Esta página agora segue a hierarquia da V1. Divergências remanescentes devem ser tratadas nos readers ou nas regras comerciais de vendas.</div></div>
+      <div style="border-left:4px solid var(--bs-accent);background:var(--bs-accent-bg);padding:14px 16px;border-radius:4px;margin-bottom:12px"><div style="font-weight:700;color:var(--bs-accent);margin-bottom:4px">Validação V1/V2</div><div style="color:var(--bs-ink-muted);font-size:13px">Esta página agora segue a hierarquia da V1. Divergências remanescentes devem ser tratadas nos readers ou nas regras comerciais de vendas.</div></div>
     </div>
   </div>
   <div class="footing">Gerado em tempo real | Brabo Analytics{% if launch %} &mdash; {{ launch.code }}{% endif %}</div>

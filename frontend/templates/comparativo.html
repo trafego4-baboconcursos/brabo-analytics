@@ -358,34 +358,34 @@
           {% set gconv = funil.get('google', 0) %}
           {% set vnd   = funil.get('vendas', 0) %}
           <div class="cmp-funnel-step" style="background:{{ color }}22;color:{{ color }}">
-            <span class="cmp-funnel-step-name" style="color:#333">Leads CRM</span>
+            <span class="cmp-funnel-step-name" style="color:var(--bs-ink)">Leads CRM</span>
             <span>
               <span class="cmp-funnel-step-val" style="color:{{ color }}">{{ leads | num }}</span>
-              <span class="cmp-funnel-step-pct" style="color:#666">100%</span>
+              <span class="cmp-funnel-step-pct" style="color:var(--bs-ink-muted)">100%</span>
             </span>
           </div>
           <div class="cmp-funnel-step" style="background:#1877F222;">
-            <span class="cmp-funnel-step-name" style="color:#333"><i class="ti ti-brand-meta" style="color:var(--meta-color);margin-right:4px;"></i>Leads Meta</span>
+            <span class="cmp-funnel-step-name" style="color:var(--bs-ink)"><i class="ti ti-brand-meta" style="color:var(--meta-color);margin-right:4px;"></i>Leads Meta</span>
             <span>
               {% set mp = (meta / leads * 100) | round(1) if leads else 0 %}
               <span class="cmp-funnel-step-val" style="color:var(--meta-color)">{{ meta | num }}</span>
-              <span class="cmp-funnel-step-pct" style="color:#666">{{ mp }}% do CRM</span>
+              <span class="cmp-funnel-step-pct" style="color:var(--bs-ink-muted)">{{ mp }}% do CRM</span>
             </span>
           </div>
           <div class="cmp-funnel-step" style="background:#EA433522;">
-            <span class="cmp-funnel-step-name" style="color:#333"><i class="ti ti-brand-google" style="color:var(--google-color);margin-right:4px;"></i>Conv. Google</span>
+            <span class="cmp-funnel-step-name" style="color:var(--bs-ink)"><i class="ti ti-brand-google" style="color:var(--google-color);margin-right:4px;"></i>Conv. Google</span>
             <span>
               {% set gp = (gconv / leads * 100) | round(1) if leads else 0 %}
               <span class="cmp-funnel-step-val" style="color:var(--google-color)">{{ gconv | num }}</span>
-              <span class="cmp-funnel-step-pct" style="color:#666">{{ gp }}% do CRM</span>
+              <span class="cmp-funnel-step-pct" style="color:var(--bs-ink-muted)">{{ gp }}% do CRM</span>
             </span>
           </div>
           <div class="cmp-funnel-step" style="background:{{ color }}44;color:#fff">
-            <span class="cmp-funnel-step-name" style="color:#333">Vendas realizadas</span>
+            <span class="cmp-funnel-step-name" style="color:var(--bs-ink)">Vendas realizadas</span>
             <span>
               {% set vp = (vnd / leads * 100) | round(2) if leads else 0 %}
               <span class="cmp-funnel-step-val" style="color:{{ color }}">{{ vnd | num }}</span>
-              <span class="cmp-funnel-step-pct" style="color:#666">{{ vp }}% conv.</span>
+              <span class="cmp-funnel-step-pct" style="color:var(--bs-ink-muted)">{{ vp }}% conv.</span>
             </span>
           </div>
           {% if funil.get('tx_crm', 0) > 0 %}

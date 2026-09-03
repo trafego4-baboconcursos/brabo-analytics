@@ -522,7 +522,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
           </div>
           <span class="mat-tag" style="margin-top:0">{% if dbf.has_prev %}{{ dbf.prev_code }}{% else %}Lançamento anterior{% endif %}</span>
         </div>
-        <div style="font-size:18px;font-weight:700;color:#4b5563">matrículas</div>
+        <div style="font-size:18px;font-weight:700;color:var(--bs-ink)">matrículas</div>
         {% if dbf.has_prev and dbf.periodo_prev %}<div style="font-size:12px;color:var(--bs-ink-subtle);margin-top:8px"><i class="ti ti-calendar"></i> {{ dbf.periodo_prev }}</div>{% endif %}
       </div>
     </div>

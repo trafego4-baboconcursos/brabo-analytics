@@ -199,34 +199,6 @@ CREATE INDEX IF NOT EXISTS idx_wa_cat_date    ON whatsapp_pricing_category_daily
 CREATE INDEX IF NOT EXISTS idx_wa_cat_waba_id ON whatsapp_pricing_category_daily (waba_id);
 
 
--- ── WHATSAPP GRUPOS — snapshot diário de Total/Total Limpo/Grupos Cheios ──────
--- Mesma regra de contagem do sendflow-analytics-poller (o que alimenta o
--- Sheets): total = linhas do export-leads, total_limpo = únicos sem admin,
--- grupos_cheios = GET /releases/{id}/groups com full=true. Ver
--- src/sendflow_grupos.py e etl/etl_whatsapp_grupos.py.
---
--- total/total_limpo/grupos_cheios são uma FOTO do dia (a SendFlow só retorna
--- o estado atual, não histórico de dias passados) — mesma limitação do
--- instagram_profile_daily acima. O gráfico/tabela de "Leads no dia" só tem
--- dado real a partir do dia em que essa tabela começou a ser alimentada;
--- Entradas/Saídas por dia, ao contrário, vêm de GET /analytics, que devolve
--- o histórico diário completo desde o início da campanha — não precisa de
--- snapshot pra isso, é lido ao vivo direto da SendFlow em qualquer request.
-CREATE TABLE IF NOT EXISTS whatsapp_grupos_diario (
-    id             BIGSERIAL PRIMARY KEY,
-    date           DATE NOT NULL,
-    launch_code    TEXT NOT NULL,
-    bloco          TEXT NOT NULL,  -- 'normal' | 'vip'
-    total          INTEGER,
-    total_limpo    INTEGER,
-    grupos_cheios  INTEGER,
-    updated_at     TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE (date, launch_code, bloco)
-);
-
-CREATE INDEX IF NOT EXISTS idx_wa_grupos_diario_launch ON whatsapp_grupos_diario (launch_code, bloco);
-
-
 -- ── INSTAGRAM — snapshot diário de perfil + posts (Graph API, contas próprias) ──
 -- Contas configuradas em config/instagram_accounts.yaml. followers_count é uma
 -- foto diária (a API não dá histórico retroativo de seguidores com o escopo

@@ -22,7 +22,6 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_MISSED
 
 from budget_alert import rodar_alerta_orcamento, alerta_pendente
-from etl_whatsapp_grupos import main as rodar_snapshot_whatsapp_grupos
 
 BASE_DIR     = Path(__file__).parent
 ORQUESTRADOR = BASE_DIR / "run_all.py"
@@ -161,21 +160,6 @@ def rodar_carga(dias_janela: int = 2) -> None:
         _job_lock.release()
 
 
-def rodar_snapshot_grupos() -> None:
-    """Snapshot diário de Total/Total Limpo/Grupos Cheios dos grupos de
-    WhatsApp (whatsapp_grupos_diario) — mesma regra de contagem do Sheets,
-    calculada direto da SendFlow. Roda 1x/dia (não no ciclo de 30 min do
-    run_all.py) pra não somar mais uma fonte de chamadas à SendFlow — o
-    poller já consulta os mesmos releases o dia inteiro."""
-    try:
-        rodar_snapshot_whatsapp_grupos()
-        logger.info("Snapshot diário de grupos de WhatsApp concluído.")
-    except Exception as exc:
-        import traceback
-        logger.error("Falha no snapshot diário de grupos de WhatsApp: %s", exc)
-        enviar_alerta_webhook("Falha no snapshot diário de grupos de WhatsApp.", traceback.format_exc())
-
-
 def _on_job_event(event) -> None:
     """Callback do APScheduler para erros e jobs perdidos (misfire)."""
     if event.code == EVENT_JOB_MISSED:
@@ -257,20 +241,6 @@ def main() -> None:
         run_date=datetime.now() + timedelta(minutes=2),
         id="alerta_orcamento_catchup",
         name="Catch-up do Alerta de Orçamento (boot)",
-    )
-
-    # Snapshot diário dos grupos de WhatsApp (Total/Total Limpo/Grupos Cheios),
-    # 23h50 — perto do fechamento do dia, pra "Leads no dia" refletir o total
-    # do dia corrente em vez de um corte no meio da tarde.
-    scheduler.add_job(
-        rodar_snapshot_grupos,
-        trigger="cron",
-        hour=23,
-        minute=50,
-        coalesce=True,
-        misfire_grace_time=3600,
-        id="snapshot_whatsapp_grupos",
-        name="Snapshot diário de grupos de WhatsApp (23h50)",
     )
 
     try:

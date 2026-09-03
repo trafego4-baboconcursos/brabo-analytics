@@ -44,6 +44,20 @@ _CACHE_TTL_FALHA = 120  # se a consulta falhar (rate limit, timeout), tenta de
                          # fallback (dados da tabela acumulada) sem necessidade
 _cache: dict[str, tuple[float, dict | None, bool]] = {}
 
+# Releases que devolveram erro de CONFIGURAÇÃO (400/404) — ex: "Campanha sem
+# contas associadas!", release inexistente. Não adianta tentar de novo: só
+# se resolve mexendo na configuração lá no SendFlow. Uma vez bloqueado, para
+# de bater na API pra esse release_id até o processo reiniciar (ex: próximo
+# deploy, depois de alguém corrigir lá).
+#
+# 401/403 ficam DE FORA de propósito: a SendFlow devolve 403 quando está
+# limitando taxa (não 429), então tratar 403 como permanente bloquearia pra
+# sempre um release que só estava momentaneamente limitado — confirmado em
+# 2026-09-03, quando PBB-AGO-26 normal deu 403 numa chamada e 200 na
+# seguinte. Esses continuam no retry curto (_CACHE_TTL_FALHA).
+_releases_bloqueados: set[str] = set()
+_STATUS_PERMANENTES = {400, 404}
+
 # Mesma lista do sendflow-analytics-poller (app/config.py::ADMIN_NUMBERS_BASE) —
 # contas de marketing/staff da empresa, sempre excluídas do Total Limpo.
 ADMIN_NUMBERS_BASE = {
@@ -128,6 +142,25 @@ def _get_analytics(token: str, release_id: str) -> dict:
 def _contar(token: str, release_id: str, total_limpo_anterior: int | None = None) -> dict | None:
     try:
         leads = _export_leads(token, release_id)
+    except requests.exceptions.HTTPError as e:
+        status = e.response.status_code if e.response is not None else None
+        if status in _STATUS_PERMANENTES:
+            _releases_bloqueados.add(release_id)
+            corpo = ""
+            if e.response is not None:
+                try:
+                    corpo = (e.response.json() or {}).get("message") or ""
+                except Exception:
+                    pass
+            logger.warning(
+                "sendflow_contagem: release %s devolveu %s%s — erro de configuração no "
+                "SendFlow, não adianta repetir; parando de consultar esse release até o "
+                "processo reiniciar",
+                release_id, status, f' ("{corpo}")' if corpo else "",
+            )
+        else:
+            logger.exception("sendflow_contagem: falha ao consultar export-leads (release %s)", release_id)
+        return None
     except Exception:
         logger.exception("sendflow_contagem: falha ao consultar export-leads (release %s)", release_id)
         return None
@@ -229,6 +262,8 @@ def contar_lancamento(code: str) -> dict | None:
         primeira = True
         for chave in blocos_esperados:
             bloco = cfg[chave]
+            if bloco["release_id"] in _releases_bloqueados:
+                continue  # já sabemos que dá 400/401/403/404 — não bate na API de novo
             token = os.environ.get(bloco["token_env"])
             if not token:
                 logger.warning("sendflow_contagem: env var %s não configurada", bloco["token_env"])
@@ -246,10 +281,13 @@ def contar_lancamento(code: str) -> dict | None:
                 # valor bom conhecido em vez de mostrar zero/fallback errado
                 resultado[chave] = resultado_anterior[chave]
 
-        # completo = toda chave esperada veio de uma leitura NOVA bem-sucedida
-        # nesse ciclo — se alguma foi reaproveitada do anterior (ou faltou),
-        # cache curto pra tentar de novo em breve.
-        completo = blocos_frescos == len(blocos_esperados)
+        # completo = toda chave ATIVA (exclui as já bloqueadas por 400/401/
+        # 403/404 — essas nunca vão ficar "frescas" de novo) veio de uma
+        # leitura NOVA bem-sucedida nesse ciclo. Sem isso, um release
+        # permanentemente bloqueado forçaria cache curto pra sempre, fazendo
+        # bater na API a cada 2 min até pros releases que estão funcionando.
+        blocos_ativos = [c for c in blocos_esperados if cfg[c]["release_id"] not in _releases_bloqueados]
+        completo = blocos_frescos == len(blocos_ativos)
         resultado_final = resultado or None
         _cache[code] = (time.time(), resultado_final, completo)
         return resultado_final

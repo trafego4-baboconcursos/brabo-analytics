@@ -2030,9 +2030,15 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
         <div class="val">{{ la.sem_lead.n | num }} <span class="ldt-pct">({{ la.sem_lead.pct | round(1) }}%)</span></div>
         <div class="lbl">{{ la.sem_lead.receita | brl }}</div>
       </div>
+      <div class="dbf-kpi">
+        <div class="lbl">CPA real (só leads novos)</div>
+        <div class="val">{{ (dbf.invest / la.novo.n) | brl if la.novo.n > 0 else '—' }}</div>
+        <div class="lbl">invest. ÷ {{ la.novo.n | num }} leads novos</div>
+      </div>
     </div>
     <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
       "Antigo" = contato do Active Campaign criado antes de {{ la.inicio }} (início do lançamento). Cruzamento por e-mail com as vendas Hotmart/TMB.
+      O CPA padrão (investimento ÷ total de vendas) dilui o custo com vendas de contatos que a mídia paga deste lançamento não originou — o CPA real acima soma só quem virou lead dentro da janela do lançamento.
     </div>
   </div>
   {% endif %}

@@ -371,19 +371,42 @@ def _compute_debriefing_ctx(
         total = m_c + g_c + whatsapp
         return {"nome": name, "invest": total, "meta": m_c, "google": g_c, "tiktok": 0.0, "whatsapp": whatsapp, "leads": m_l + g_l}
 
+    def _previsto_por_etapa(cfg: dict) -> dict:
+        """Verba planejada por etapa (cadastrada no wizard) — Pré-Qualificação e
+        Captação têm campo próprio; Remarketing soma o 'total' de cada
+        sub-etapa (Lembrete/Depoimento/Aulas no Ar/Replay/Matrículas Abertas)
+        provisionada na aba Evento."""
+        cfg = cfg or {}
+        remarketing_previsto = sum(
+            _f(et.get("total")) for et in (cfg.get("etapas") or [])
+            if et.get("nome") in _REMARKETING_SUBETAPAS
+        )
+        return {
+            "Pré-Qualificação": _f(cfg.get("meta_investimento_pre_quali")),
+            "Captação": _f(cfg.get("meta_investimento_captacao")),
+            "Remarketing": remarketing_previsto,
+        }
+
+    cfg = _launch_cfg(launch.code) if launch else {}
+    previsto_map = _previsto_por_etapa(cfg)
+
     base = invest or 1.0
     etapas = []
     for name in ["Pré-Qualificação", "Captação", "Remarketing"]:
         e = get_etapa(meta, google, name, whatsapp=wa_gasto if name == "Remarketing" else 0.0)
         e["pct"] = e["invest"] / base * 100
+        e["previsto"] = previsto_map.get(name, 0.0)
         etapas.append(e)
 
     prev_etapas: list = []
     if prev_meta or prev_google:
+        prev_cfg = _launch_cfg(previous.code) if previous else {}
+        prev_previsto_map = _previsto_por_etapa(prev_cfg)
         prev_base = prev_invest or 1.0
         for name in ["Pré-Qualificação", "Captação", "Remarketing"]:
             e = get_etapa(prev_meta, prev_google, name, whatsapp=prev_wa_gasto if name == "Remarketing" else 0.0)
             e["pct"] = e["invest"] / prev_base * 100
+            e["previsto"] = prev_previsto_map.get(name, 0.0)
             prev_etapas.append(e)
 
     top_geral  = ((creative_data or {}).get("rows")        or [])[:5]

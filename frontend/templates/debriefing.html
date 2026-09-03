@@ -122,6 +122,24 @@
 .bg-capt { background: #2563eb; }
 .bg-rmkt { background: #dc2626; }
 
+/* ── Traffic allocation — variante com Previsto × Realizado ─────── */
+.alloc-row.alloc-row-budget {
+  grid-template-columns: 140px 1fr 56px 92px 92px 84px 74px;
+}
+.alloc-row-budget .alloc-lbl-wrap { min-width: 0; }
+.alloc-row-budget .alloc-lbl-sub {
+  display: block; font-size: 10px; font-weight: 600; color: var(--bs-ink-subtle);
+  text-transform: uppercase; letter-spacing: .03em; margin-top: 1px;
+}
+.alloc-previsto { font-size: 12px; color: var(--bs-ink-muted); text-align: right; }
+.alloc-previsto .alloc-col-lbl, .alloc-realizado .alloc-col-lbl, .alloc-variacao .alloc-col-lbl {
+  display: block; font-size: 9px; font-weight: 700; color: var(--bs-ink-subtle);
+  text-transform: uppercase; letter-spacing: .04em; margin-bottom: 1px;
+}
+.alloc-realizado { font-size: 12px; font-weight: 700; color: var(--bs-ink); text-align: right; }
+.alloc-variacao { font-size: 12px; font-weight: 700; text-align: right; }
+.alloc-row-budget.total .alloc-realizado { font-weight: 800; }
+
 /* ── Traffic allocation — linha de total (estilo footer) ─────────── */
 .dbf-alloc-row {
   display: flex; justify-content: space-between; align-items: center;
@@ -274,6 +292,9 @@
 @media (max-width: 640px) {
   .alloc-row { grid-template-columns: 120px 1fr 60px; }
   .alloc-val, .alloc-badge { display: none; }
+  .alloc-row.alloc-row-budget { grid-template-columns: 110px 1fr 50px; }
+  .alloc-row-budget .alloc-previsto, .alloc-row-budget .alloc-realizado,
+  .alloc-row-budget .alloc-variacao, .alloc-row-budget .alloc-badge { display: none; }
   .pay-grid { grid-template-columns: 1fr 1fr; }
   .dbf-kpi-grid { grid-template-columns: repeat(2, 1fr); }
 }
@@ -681,21 +702,26 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
     {% set color_map = {"Pré-Qualificação": "#16a34a", "Captação": "#2563eb",  "Remarketing": "#dc2626"} %}
 
     {% macro alloc_table(etapas, total_invest, prev_etapas=None, prev_total_invest=None) %}
+      {% set total_previsto = etapas | sum(attribute='previsto') %}
       {% for e in etapas %}
       {% set pe = (prev_etapas | selectattr('nome', 'equalto', e.nome) | first) if prev_etapas else None %}
-      <div class="alloc-row">
+      <div class="alloc-row alloc-row-budget">
         <div class="alloc-lbl">{{ e.nome }}</div>
         <div class="alloc-bar-wrap"><div class="alloc-bar" style="width:{{ e.pct | round(1) }}%;background:{{ color_map.get(e.nome, '#2563eb') }}"></div></div>
         <div class="alloc-pct" style="color:{{ color_map.get(e.nome, '#2563eb') }}">{{ e.pct | round(1) }}%</div>
-        <div class="alloc-val">{{ e.invest | brl(0) }}</div>
+        <div class="alloc-previsto"><span class="alloc-col-lbl">Previsto</span>{{ e.previsto | brl(0) if e.previsto > 0 else '—' }}</div>
+        <div class="alloc-realizado"><span class="alloc-col-lbl">Realizado</span>{{ e.invest | brl(0) }}</div>
+        <div class="alloc-variacao"><span class="alloc-col-lbl">Var.</span>{% if e.previsto > 0 %}{{ dbadge(e.invest, e.previsto, 'down') }}{% else %}—{% endif %}</div>
         <div class="alloc-badge">{% if pe %}{{ dbadge(e.invest, pe.invest, 'up') }}{% endif %}</div>
       </div>
       {% endfor %}
-      <div class="alloc-row" style="border-top:1px solid var(--bs-border);margin-top:6px;padding-top:6px;font-weight:600">
+      <div class="alloc-row alloc-row-budget total" style="border-top:1px solid var(--bs-border);margin-top:6px;padding-top:6px;font-weight:600">
         <div class="alloc-lbl">Total Investido</div>
         <div class="alloc-bar-wrap" style="visibility:hidden"></div>
         <div class="alloc-pct">100%</div>
-        <div class="alloc-val">{{ total_invest | brl(0) }}</div>
+        <div class="alloc-previsto"><span class="alloc-col-lbl">Previsto</span>{{ total_previsto | brl(0) if total_previsto > 0 else '—' }}</div>
+        <div class="alloc-realizado"><span class="alloc-col-lbl">Realizado</span>{{ total_invest | brl(0) }}</div>
+        <div class="alloc-variacao"><span class="alloc-col-lbl">Var.</span>{% if total_previsto > 0 %}{{ dbadge(total_invest, total_previsto, 'down') }}{% else %}—{% endif %}</div>
         <div class="alloc-badge">{% if prev_total_invest %}{{ dbadge(total_invest, prev_total_invest, 'up') }}{% endif %}</div>
       </div>
     {% endmacro %}

@@ -51,6 +51,10 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
     thumb         = d.get("drive_thumbnails") or {}
 
     data_errors = list(d.get("_errors", []))
+    # Blocos que falharam nesta montagem (além dos _errors do _fetch_all_data).
+    # O snapshot usa isso pra não gravar por cima de um snapshot completo com
+    # um degradado por falha transitória (pooler caiu, consulta estourou).
+    falhas: list[str] = list(data_errors)
 
     # Blocos independentes entre si (só dependem do que já foi buscado acima):
     # rodam em paralelo.
@@ -66,6 +70,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
             return data, False
         except Exception:
             logger.exception("Debriefing: falha ao montar creative overview")
+            falhas.append("creative_overview")
             return None, True
 
     async def f_leads_antigos():
@@ -75,6 +80,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
             return await run_in_threadpool(_leads_antigos_compradores, launch, vendas)
         except Exception:
             logger.exception("Debriefing: falha ao classificar leads antigos × novos")
+            falhas.append("leads_antigos")
             return None
 
     async def f_perfil_pesquisa():
@@ -87,6 +93,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
             )
         except Exception:
             logger.exception("Debriefing: falha ao montar perfil do lead por anúncio")
+            falhas.append("perfil_pesquisa")
             return None, None
 
     async def f_qualidade_regiao():
@@ -96,6 +103,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
             return await run_in_threadpool(_qualidade_regiao, launch, vendas)
         except Exception:
             logger.exception("Debriefing: falha ao montar qualidade por regiao")
+            falhas.append("qualidade_regiao")
             return None
 
     async def f_caminho_comprador():
@@ -105,6 +113,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
             return await run_in_threadpool(_caminho_comprador, launch, vendas)
         except Exception:
             logger.exception("Debriefing: falha ao montar caminho do comprador")
+            falhas.append("caminho_comprador")
             return None
 
     async def f_landing_pages():
@@ -114,6 +123,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
             return await run_in_threadpool(_landing_pages_por_etapa, launch)
         except Exception:
             logger.exception("Debriefing: falha ao montar landing pages por etapa (GA4)")
+            falhas.append("landing_pages")
             return None
 
     async def f_leads_x_whatsapp():
@@ -123,6 +133,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
             return await run_in_threadpool(_leads_x_whatsapp, launch)
         except Exception:
             logger.exception("Debriefing: falha ao montar leads x grupos de WhatsApp")
+            falhas.append("leads_x_whatsapp")
             return None
 
     async def f_previous():
@@ -140,6 +151,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
             return p_meta, p_google, p_vendas, p_wa_cost, p_sales_attr
         except Exception:
             logger.exception("Debriefing: falha ao buscar dados do lançamento anterior")
+            falhas.append("lancamento_anterior")
             return None, None, None, None, None
 
     (
@@ -179,16 +191,31 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         "drive_thumbnails": thumb,
         "data_errors": data_errors,
         "creative_data_error": creative_data_error,
+        "falhas": falhas,
     }
 
 
 async def refresh_debriefing_snapshot(launch: Any, launches: list) -> None:
     """Calcula o contexto completo (tudo inline) e grava em debriefing_snapshot.
-    Chamado pelo aquecimento, com os caches já quentes — custa só a montagem."""
-    from frontend.db_readers.debriefing_snapshot import write_snapshot  # noqa: PLC0415
+    Chamado pelo aquecimento, com os caches já quentes — custa só a montagem.
+
+    Se algum bloco falhou nesta montagem (falha transitória: pooler caiu,
+    consulta estourou memória), NÃO grava por cima de um snapshot já
+    existente — senão uma seção some da página por 30 min até o próximo
+    aquecimento. Sem snapshot anterior, grava mesmo assim (melhor que nada)."""
+    from frontend.db_readers.debriefing_snapshot import read_snapshot, write_snapshot  # noqa: PLC0415
 
     t0 = time.perf_counter()
     built = await build_debriefing_context(launch, launches, lazy=False)
     duration_ms = int((time.perf_counter() - t0) * 1000)
+    falhas = built.get("falhas") or []
+    if falhas:
+        existente = await run_in_threadpool(read_snapshot, launch.code)
+        if existente:
+            logger.warning("Snapshot do debriefing de %s NÃO regravado: falhas em %s (mantido o de %s).",
+                           launch.code, ", ".join(falhas), existente.get("computed_at"))
+            return
+        logger.warning("Snapshot do debriefing de %s gravado com falhas em %s (não havia snapshot anterior).",
+                       launch.code, ", ".join(falhas))
     size = await run_in_threadpool(write_snapshot, launch.code, built, duration_ms)
     logger.info("Snapshot do debriefing de %s gravado (%d KB, montado em %d ms).", launch.code, size // 1024, duration_ms)

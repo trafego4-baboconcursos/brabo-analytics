@@ -138,14 +138,22 @@ def _read_novo_sistema_respostas(formulario_ids: list[int]) -> pd.DataFrame:
         return pd.DataFrame()
 
     engine = _get_engine()
-    raw = pd.read_sql(text("""
-        SELECT s.id AS submissao_id, p.titulo AS pergunta, r.valor
-        FROM submissoes s
-        JOIN respostas r ON r.submissao_id = s.id
-        JOIN perguntas p ON p.id = r.pergunta_id
-        WHERE s.formulario_id = ANY(:fids)
-    """), engine, params={"fids": formulario_ids})
-    if raw.empty:
+    # Agrega no banco: UMA linha por submissão com {titulo_da_pergunta: valor}.
+    # A versão anterior trazia uma linha por resposta (514 mil linhas / ~110 MB
+    # pro formulário 9) e estourava a memória do cliente psycopg2 ("out of
+    # memory for query result"), derrubando a seção Perfil do Lead. Agora
+    # vêm ~27 mil linhas e o pivot é feito aqui em cima de dicts.
+    with engine.connect() as conn:
+        rows = conn.execute(text("""
+            SELECT s.id AS submissao_id,
+                   jsonb_object_agg(p.titulo, r.valor) AS respostas
+            FROM submissoes s
+            JOIN respostas r ON r.submissao_id = s.id
+            JOIN perguntas p ON p.id = r.pergunta_id
+            WHERE s.formulario_id = ANY(:fids)
+            GROUP BY s.id
+        """), {"fids": formulario_ids}).fetchall()
+    if not rows:
         return pd.DataFrame()
 
     def _extract_valor(v: Any) -> str:
@@ -163,12 +171,16 @@ def _read_novo_sistema_respostas(formulario_ids: list[int]) -> pd.DataFrame:
             return f"{val} ({outro})" if outro else val
         return str(v.get("texto") or "")
 
-    raw["valor_str"] = raw["valor"].apply(_extract_valor)
-    # Se duas perguntas de formulários diferentes casados pelo mesmo código
-    # tiverem o título idêntico, aggfunc="first" evita erro de pivot — não é
-    # o caso hoje (1 formulário por código), mas não quebra se acontecer.
-    wide = raw.pivot_table(index="submissao_id", columns="pergunta", values="valor_str", aggfunc="first")
-    wide = wide.reset_index(drop=True)
+    # Uma linha por submissão, colunas = título da pergunta, valor = texto
+    # extraído do jsonb (mesmo formato do pivot antigo). Título repetido entre
+    # formulários casados pelo mesmo código: o jsonb_object_agg fica com o
+    # último — não é o caso hoje (1 formulário por código).
+    wide = pd.DataFrame.from_records([
+        {pergunta: _extract_valor(valor) for pergunta, valor in (resp or {}).items()}
+        for _sid, resp in rows
+    ])
+    if wide.empty:
+        return pd.DataFrame()
 
     email_col = next((c for c in wide.columns if "mail" in _norm_text(c)), None)
     if not email_col:

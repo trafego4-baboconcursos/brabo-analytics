@@ -156,4 +156,7 @@ See `.env.example` for the full list. Key vars:
 - `BRABO_USER` / `BRABO_PASS` — legacy admin credentials (fallback when DB unavailable)
 - `SECRET_KEY` — HMAC session signing key (change in production)
 - `ERROR_WEBHOOK_URL` — optional Discord/Slack webhook for ETL failure alerts
-- `FRONTEND_URL` / `ETL_REFRESH_TOKEN` — after each successful ETL run, `scheduler.py` POSTs to `/api/etl/refresh` on the dashboard so it invalidates and re-warms the in-memory cache of active launches (`frontend/services/prewarm.py`); without the token the call is skipped and the cache expires on its own (1h)
+- `FRONTEND_URL` / `ETL_REFRESH_TOKEN` — after each successful ETL run, `scheduler.py` POSTs to `/api/etl/refresh` on the dashboard so it re-warms the in-memory cache of active launches in place (`frontend/services/prewarm.py`); without the token the call is skipped and the cache expires on its own (1h)
+
+## Debriefing snapshot
+`/debriefing` reads a pre-computed context from the `debriefing_snapshot` table (analytics DB, one JSONB row per launch) and renders in ~0.2s. The row is written by the warm-up (`frontend/services/prewarm.py` → `frontend/services/debriefing_build.py::refresh_debriefing_snapshot`) at boot and after every ETL run; a build with failed blocks never overwrites an existing snapshot. Without a snapshot the route computes live (heavy sections lazy-loaded via `/debriefing/secao/<nome>`); `?ao_vivo=1` forces the live path. The header shows "dados de DD/MM HH:MM" when a snapshot is used.

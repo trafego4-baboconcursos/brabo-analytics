@@ -255,10 +255,17 @@ def _mesclar_contagem_sheets(alvo: dict | None, contagem: dict | None) -> None:
 
 def historico_diario(launch_folder_or_code: Any) -> dict[str, list[dict]]:
     """Tabela diária (Data/Entradas/Saídas/Relação/Leads no dia) por bloco —
-    cópia literal do Sheets, ver frontend/db_readers/whatsapp_sheets.py."""
+    cópia literal do Sheets, ver frontend/db_readers/whatsapp_sheets.py.
+    Mesmo TTL curto (5 min) do resto da contagem via Sheets, ver read_whatsapp_groups."""
+    from frontend.cache import _get_or_compute  # noqa: PLC0415 — evita import circular
     from frontend.db_readers.whatsapp_sheets import historico_diario as _historico  # noqa: PLC0415
 
-    return _historico(launch_folder_or_code)
+    code = _extract_launch_code(launch_folder_or_code)
+    try:
+        return _get_or_compute(code, "whatsapp_sheets_diario", lambda: _historico(code), ttl=300) or {}
+    except Exception:
+        logger.exception("historico_diario: falha para %s", code)
+        return {}
 
 
 def _read_whatsapp_uncached(code: str, start_date=None, end_date=None) -> dict | None:
@@ -303,16 +310,6 @@ def _read_whatsapp_uncached(code: str, start_date=None, end_date=None) -> dict |
             tem_lead_numero=_tem_coluna(conn, t_vip, "LEAD NÚMERO"),
         ) if tem_vip else None
 
-        # Total/Total Limpo/Grupos/Entrada/Saída vêm do Sheets (via
-        # whatsapp_sheets_resumo/whatsapp_sheets_diario, alimentadas por
-        # etl/etl_sheets_contagem.py) — cópia literal do que o
-        # sendflow-analytics-poller já calculou e escreveu na planilha, sem
-        # recálculo aqui e sem chamada à SendFlow nem ao Sheets nesta hora.
-        from frontend.db_readers.whatsapp_sheets import contar_lancamento as contar_sheets  # noqa: PLC0415
-        contagem_sheets = contar_sheets(code) or {}
-        _mesclar_contagem_sheets(normal, contagem_sheets.get("normal"))
-        _mesclar_contagem_sheets(vip, contagem_sheets.get("vip"))
-
         overlap = 0
         if tem_normal and tem_vip:
             overlap = conn.execute(text(f'''
@@ -343,7 +340,7 @@ def read_whatsapp_groups(launch_folder_or_code: Any, start_date=None, end_date=N
 
     code = _extract_launch_code(launch_folder_or_code)
     try:
-        return _get_or_compute(
+        wa = _get_or_compute(
             code,
             f"whatsapp::{start_date}::{end_date}",
             lambda: _read_whatsapp_uncached(code, start_date, end_date),
@@ -351,3 +348,30 @@ def read_whatsapp_groups(launch_folder_or_code: Any, start_date=None, end_date=N
     except Exception:
         logger.exception("read_whatsapp_groups: falha para %s", code)
         return None
+    if not wa:
+        return wa
+
+    # Total/Total Limpo/Grupos/Entrada/Saída vêm do Sheets (via
+    # whatsapp_sheets_resumo/whatsapp_sheets_diario, alimentadas por
+    # etl/etl_sheets_contagem.py) — cópia literal do que o
+    # sendflow-analytics-poller já calculou e escreveu na planilha. Cacheado
+    # À PARTE com TTL curto (5 min, não a 1h do resto desta função): é uma
+    # consulta leve (SELECT indexado em tabela pequena) alimentada por um ETL
+    # que roda a cada 30 min, então não faz sentido segurar 1h pra refletir —
+    # mas também não convém baratear o cache da agregação pesada acima só
+    # por causa disso.
+    from frontend.db_readers.whatsapp_sheets import contar_lancamento as contar_sheets  # noqa: PLC0415
+    try:
+        contagem_sheets = _get_or_compute(code, "whatsapp_sheets", lambda: contar_sheets(code), ttl=300) or {}
+    except Exception:
+        logger.exception("read_whatsapp_groups: falha ao ler contagem do Sheets para %s", code)
+        contagem_sheets = {}
+
+    # Copia antes de mesclar — wa/normal/vip vêm do cache de 1h; mutar em
+    # lugar sujaria o objeto cacheado com o snapshot de agora até ele expirar.
+    wa = dict(wa)
+    wa["normal"] = dict(wa["normal"]) if wa.get("normal") else wa.get("normal")
+    wa["vip"] = dict(wa["vip"]) if wa.get("vip") else wa.get("vip")
+    _mesclar_contagem_sheets(wa["normal"], contagem_sheets.get("normal"))
+    _mesclar_contagem_sheets(wa["vip"], contagem_sheets.get("vip"))
+    return wa

@@ -68,19 +68,24 @@ def _lock_for(key: str) -> threading.Lock:
 _NONE_RESULT = object()
 
 
-def _store(launch_code: str, reader: str, value: Any) -> None:
+def _store(launch_code: str, reader: str, value: Any, ttl: int | None = None) -> None:
     # "sem dados" expira em 10 min: quando o dado aparecer (ex: carrinho
-    # abriu, ETL upsertou), a página reflete logo, sem esperar o TTL de 1h.
+    # abriu, ETL upsertou), a página reflete logo, sem esperar o TTL padrão.
     if value is None:
-        _set_cached(launch_code, reader, _NONE_RESULT, ttl=600)
+        _set_cached(launch_code, reader, _NONE_RESULT, ttl=min(ttl, 600) if ttl else 600)
     else:
-        _set_cached(launch_code, reader, value)
+        _set_cached(launch_code, reader, value, ttl=ttl)
 
 
-def _get_or_compute(launch_code: str, reader: str, compute: Callable[[], Any]) -> Any:
+def _get_or_compute(launch_code: str, reader: str, compute: Callable[[], Any], ttl: int | None = None) -> Any:
     """Cache com single-flight e stale-while-revalidate: com a entrada expirada,
     devolve o valor antigo na hora e recomputa num thread de fundo — nenhum
-    request paga a consulta pesada, exceto no primeiro acesso pós-boot."""
+    request paga a consulta pesada, exceto no primeiro acesso pós-boot.
+
+    `ttl` (segundos) sobrescreve o padrão de 1h — usar em leitores baratos que
+    são alimentados por um ETL periódico (ex.: whatsapp_sheets_*, consulta
+    leve e atualizada a cada 30 min), pra refletir o dado novo mais rápido
+    sem precisar esperar o TTL longo pensado pras consultas pesadas."""
     key = _cache_key(launch_code, reader)
     entry = _CACHE.get(key)
     if entry is not None:
@@ -91,7 +96,7 @@ def _get_or_compute(launch_code: str, reader: str, compute: Callable[[], Any]) -
         if lock.acquire(blocking=False):
             def _bg():
                 try:
-                    _store(launch_code, reader, compute())
+                    _store(launch_code, reader, compute(), ttl=ttl)
                 except Exception:
                     from logger import get_logger  # noqa: PLC0415 — evita import na carga do módulo
                     get_logger("cache").exception("Refresh em background falhou: %s", key)
@@ -105,5 +110,5 @@ def _get_or_compute(launch_code: str, reader: str, compute: Callable[[], Any]) -
             value, _ = entry
             return None if value is _NONE_RESULT else value
         value = compute()
-        _store(launch_code, reader, value)
+        _store(launch_code, reader, value, ttl=ttl)
         return value

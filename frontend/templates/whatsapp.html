@@ -266,37 +266,6 @@
   {% endif %}
   {% endfor %}
 
-  {% for tipo, chave in [("Grupos Normais", "normal"), ("Grupos VIP", "vip")] %}
-  {% set linhas = wa_hist.get(chave) if wa_hist else None %}
-  {% if linhas %}
-  <div class="section">
-    <div class="section-title">Contagem Diária — {{ tipo }}</div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr><th>Data</th><th class="th-num">Entradas</th><th class="th-num">Saídas</th><th class="th-num">Relação (E/S)</th><th class="th-num">Leads no dia</th></tr>
-        </thead>
-        <tbody>
-          {% for l in linhas %}
-          <tr>
-            <td>{{ l.data_str }}</td>
-            <td class="numero">{{ l.entradas | num }}</td>
-            <td class="numero {% if l.saidas %}negativo{% endif %}">{{ l.saidas | num }}</td>
-            <td class="numero{% if l.relacao < 0 %} negativo{% endif %}">{{ "%+d"|format(l.relacao) }}</td>
-            <td class="numero">{{ (l.leads_no_dia | num) if l.leads_no_dia is not none else "—" }}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:6px;">
-      Entradas/Saídas: histórico real da SendFlow, desde o início da campanha (mesma regra do Sheets).
-      "Leads no dia" é uma foto diária — só existe a partir do dia em que passamos a registrar; dias anteriores ficam em branco.
-    </div>
-  </div>
-  {% endif %}
-  {% endfor %}
-
   {% if wa.compradores %}
   {% set cp = wa.compradores %}
   <div class="section">
@@ -378,10 +347,10 @@
     const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
     return v || fallback;
   };
-  const normal = {{ (wa_hist.get('normal', []) if wa_hist else []) | tojson }};
-  const vip    = {{ (wa_hist.get('vip', [])    if wa_hist else []) | tojson }};
+  const normal = {{ (wa.normal.timeline if wa.normal else []) | tojson }};
+  const vip    = {{ (wa.vip.timeline    if wa.vip    else []) | tojson }};
 
-  // eixo único de datas (união das duas séries) — histórico real da SendFlow
+  // eixo único de datas (união das duas séries)
   const dias = [...new Set([...normal.map(d => d.data), ...vip.map(d => d.data)])].sort();
   const lbl  = dias.map(d => { const [y,m,dd] = d.split('-'); return dd + '/' + m; });
   const mapa = (serie) => { const m = Object.fromEntries(serie.map(d => [d.data, d.entradas])); return dias.map(d => m[d] || 0); };

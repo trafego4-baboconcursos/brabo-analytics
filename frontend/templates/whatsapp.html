@@ -289,7 +289,7 @@
     <div class="table-wrap" id="wa-date-tablewrap-{{ chave }}">
       <table>
         <thead>
-          <tr><th>Data</th><th class="th-num">Entradas</th><th class="th-num">Saídas</th><th class="th-num">Relação (E/S)</th><th class="th-num">Leads no dia</th></tr>
+          <tr><th>Data</th><th class="th-num">Entradas</th><th class="th-num">Saídas</th><th class="th-num">Relação (E/S)</th><th class="th-num">Leads Totais</th></tr>
         </thead>
         <tbody id="wa-diario-{{ chave }}">
           {% for l in linhas %}
@@ -305,7 +305,8 @@
       </table>
     </div>
     <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:6px;">
-      Cópia literal do Sheets (aba "LEAD TOTAL") — Entradas/Saídas/Leads no dia não são recalculados aqui.
+      Cópia literal do Sheets (aba "LEAD TOTAL", coluna "LEADS NO DIA") — Entradas/Saídas/Leads Totais não são recalculados aqui.
+      "Leads Totais" é o total limpo acumulado até aquele dia, não só quem entrou naquele dia.
       "Relação (E/S)" é a única conta feita na exibição: Entradas − Saídas.
     </div>
   </div>

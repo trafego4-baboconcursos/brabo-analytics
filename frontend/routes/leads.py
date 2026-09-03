@@ -43,17 +43,18 @@ async def typeform_page_legacy(request: Request, launch_code: str | None = None)
 
 @router.get("/whatsapp", response_class=HTMLResponse)
 async def whatsapp_page(request: Request, launch_code: str | None = None):
-    from frontend.db_readers.whatsapp_groups import read_whatsapp_groups  # noqa: PLC0415
+    from frontend.db_readers.whatsapp_groups import read_whatsapp_groups, historico_diario  # noqa: PLC0415
     from frontend.db_readers.whatsapp_messages import read_whatsapp_messages  # noqa: PLC0415
     from frontend.db_readers.launches import read_launch_config  # noqa: PLC0415
 
     launches = await run_in_threadpool(get_launches)
     launch = resolve_launch(launch_code, launches)
     wa = await run_in_threadpool(read_whatsapp_groups, launch.code if launch else "") if launch else None
+    wa_hist = await run_in_threadpool(historico_diario, launch.code if launch else "") if launch else None
     wa_msgs = await run_in_threadpool(read_whatsapp_messages, launch) if launch else None
     launch_cfg = await run_in_threadpool(read_launch_config, launch.code) if launch else {}
     ctx = _base_ctx(request, "whatsapp", "Grupos de WhatsApp", launch, launches,
-                    wa=wa, wa_msgs=wa_msgs, launch_cfg=launch_cfg, data_errors=[])
+                    wa=wa, wa_hist=wa_hist, wa_msgs=wa_msgs, launch_cfg=launch_cfg, data_errors=[])
     return templates.TemplateResponse("whatsapp.html", ctx)
 
 

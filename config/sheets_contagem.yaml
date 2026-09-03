@@ -1,0 +1,48 @@
+# Mapeamento lançamento -> planilha do Google Sheets que o
+# sendflow-analytics-poller mantém atualizada (Total/Total Limpo/Grupos
+# Cheios/Entradas/Saídas — tudo calculado lá, aqui só lemos).
+#
+# Usado por etl/etl_sheets_contagem.py, que lê essas células/colunas e grava
+# em whatsapp_sheets_resumo / whatsapp_sheets_diario (banco do brabo-analytics)
+# — nunca escreve na planilha, só leitura. O Brabo Analytics não fala com a
+# SendFlow nem com o Sheets na hora de renderizar a página, só consulta essas
+# duas tabelas.
+#
+# linha_resumo = linha onde ficam TOTAL GRUPOS CHEIOS (col F) / TOTAL LEADS
+# bruto (col G)
+# linha_total_limpo = linha onde fica TOTAL LIMPO (col G) — varia por aba,
+# abas "LEAD TOTAL VIPS" mais antigas usam linha 4 em vez de 3 (ver
+# sendflow-analytics-poller/app/config.py)
+#
+# O histórico diário (colunas A:D — Data2/Entradas/Saídas/Relação — e I:J —
+# Data/Leads no dia) tem o mesmo layout de colunas em todas as abas, não
+# precisa de config por lançamento pra isso.
+
+PI-AGO-26:
+  sheet_id: "1QPpVLzJtREtyOTNYBvq8RNNtGq8DV62i744FVQ2NQj4"
+  normal:
+    aba: "LEAD TOTAL"
+    linha_resumo: 2
+    linha_total_limpo: 3
+  vip:
+    aba: "LEAD TOTAL VIPS"
+    linha_resumo: 2
+    linha_total_limpo: 4
+
+PBB-AGO-26:
+  sheet_id: "1biviq9SGGPhvy6LwjR69-LpJLOLuPPhVnQ20oAVgOps"
+  normal:
+    aba: "LEAD TOTAL"
+    linha_resumo: 2
+    linha_total_limpo: 3
+  vip:
+    aba: "LEAD TOTAL VIPS"
+    linha_resumo: 2
+    linha_total_limpo: 4
+
+PES-SET-26:
+  sheet_id: "1bNcl2FV-MwJ38prqUPj3xoT-lQ1X76ubr4DTd3Zc2GY"
+  normal:
+    aba: "LEAD TOTAL"
+    linha_resumo: 2
+    linha_total_limpo: 3

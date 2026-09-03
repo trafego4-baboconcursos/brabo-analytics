@@ -241,6 +241,26 @@ def _resumo_tabela(conn, tabela: str, start, end, tem_lead_numero: bool) -> dict
     }
 
 
+def _mesclar_contagem_sheets(alvo: dict | None, contagem: dict | None) -> None:
+    """Mescla total/total_limpo/grupos/entradas_hoje/saidas_hoje (vindos do
+    Sheets) no dict de resumo da tabela acumulada, sem deixar um campo que
+    faltou (None) sobrescrever um valor bom que já estava lá."""
+    if not alvo or not contagem:
+        return
+    for chave, valor in contagem.items():
+        if valor is None:
+            continue
+        alvo[chave] = valor
+
+
+def historico_diario(launch_folder_or_code: Any) -> dict[str, list[dict]]:
+    """Tabela diária (Data/Entradas/Saídas/Relação/Leads no dia) por bloco —
+    cópia literal do Sheets, ver frontend/db_readers/whatsapp_sheets.py."""
+    from frontend.db_readers.whatsapp_sheets import historico_diario as _historico  # noqa: PLC0415
+
+    return _historico(launch_folder_or_code)
+
+
 def _read_whatsapp_uncached(code: str, start_date=None, end_date=None) -> dict | None:
     from frontend.db_readers.launches import read_launch_config  # noqa: PLC0415
 
@@ -283,17 +303,15 @@ def _read_whatsapp_uncached(code: str, start_date=None, end_date=None) -> dict |
             tem_lead_numero=_tem_coluna(conn, t_vip, "LEAD NÚMERO"),
         ) if tem_vip else None
 
-        # Total/Total Limpo/Entrada/Saída vêm direto da SendFlow quando
-        # disponível — mesmo padrão de cálculo do sendflow-analytics-poller
-        # (dedup por telefone + exclusão de admin), independente do Sheets e
-        # da tabela de leads acumulada (que diverge com o tempo por causa do
-        # LID do WhatsApp não ser estável entre sincronizações).
-        from frontend.db_readers.sendflow_contagem import contar_lancamento  # noqa: PLC0415
-        contagem_sf = contar_lancamento(code) or {}
-        if normal and contagem_sf.get("normal"):
-            normal.update(contagem_sf["normal"])
-        if vip and contagem_sf.get("vip"):
-            vip.update(contagem_sf["vip"])
+        # Total/Total Limpo/Grupos/Entrada/Saída vêm do Sheets (via
+        # whatsapp_sheets_resumo/whatsapp_sheets_diario, alimentadas por
+        # etl/etl_sheets_contagem.py) — cópia literal do que o
+        # sendflow-analytics-poller já calculou e escreveu na planilha, sem
+        # recálculo aqui e sem chamada à SendFlow nem ao Sheets nesta hora.
+        from frontend.db_readers.whatsapp_sheets import contar_lancamento as contar_sheets  # noqa: PLC0415
+        contagem_sheets = contar_sheets(code) or {}
+        _mesclar_contagem_sheets(normal, contagem_sheets.get("normal"))
+        _mesclar_contagem_sheets(vip, contagem_sheets.get("vip"))
 
         overlap = 0
         if tem_normal and tem_vip:

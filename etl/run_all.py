@@ -84,6 +84,9 @@ def run_api_mode(since: str, until: str, only: str | None):
                             "--since", since, "--until", until],
         # Perfil + posts nao usam --since/--until (sempre pega o snapshot atual).
         "instagram":       [sys.executable, str(BASE / "etl_instagram.py")],
+        # Só leitura do Sheets do sendflow-analytics-poller (Total/Total
+        # Limpo/Grupos Cheios/Entradas/Saídas) — leve, sem --since/--until.
+        "sheets_contagem": [sys.executable, str(BASE / "etl_sheets_contagem.py")],
         "ga4":             [sys.executable, str(BASE / "etl_ga4.py"),
                             "--since", since, "--until", until],
         # DESATIVADO 01/09/26: a mv_atribuicao_publicos depende das cópias de
@@ -165,7 +168,7 @@ def main():
     mode.add_argument("--csv-mode",        action="store_true",  help="Importa via CSVs exportados manualmente")
 
     parser.add_argument("--until",          metavar="YYYY-MM-DD", default=datetime.now().strftime("%Y-%m-%d"))
-    parser.add_argument("--only",           metavar="SCRIPT",    help="Roda somente: active_campaign | meta_ads | google_ads | ac_campaigns | whatsapp | instagram | ga4")
+    parser.add_argument("--only",           metavar="SCRIPT",    help="Roda somente: active_campaign | meta_ads | google_ads | ac_campaigns | whatsapp | instagram | sheets_contagem | ga4")
     parser.add_argument("--campaign-folder", metavar="PATH",      help="Pasta da campanha (modo --csv-mode), ex: analises/[PBB-ABR-26]")
     parser.add_argument("--period",          metavar="YYYY-MM",   help="Período da campanha (modo --csv-mode), ex: 2026-04")
     args = parser.parse_args()

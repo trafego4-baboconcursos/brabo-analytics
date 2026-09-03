@@ -199,6 +199,43 @@ CREATE INDEX IF NOT EXISTS idx_wa_cat_date    ON whatsapp_pricing_category_daily
 CREATE INDEX IF NOT EXISTS idx_wa_cat_waba_id ON whatsapp_pricing_category_daily (waba_id);
 
 
+-- ── WHATSAPP GRUPOS (via Sheets) — espelho fiel da planilha, sem cálculo
+-- próprio ──────────────────────────────────────────────────────────────
+-- O sendflow-analytics-poller calcula tudo (dedup por telefone, exclusão de
+-- admin, entradas/saídas diárias) e escreve na planilha do Google Sheets.
+-- etl/etl_sheets_contagem.py só LÊ essas células/colunas (config em
+-- config/sheets_contagem.yaml) e grava aqui — nunca escreve no Sheets. O
+-- Brabo Analytics não fala com a SendFlow nem com o Sheets na hora de
+-- renderizar a página, só consulta estas duas tabelas.
+CREATE TABLE IF NOT EXISTS whatsapp_sheets_resumo (
+    id                  BIGSERIAL PRIMARY KEY,
+    launch_code         TEXT NOT NULL,
+    bloco               TEXT NOT NULL,  -- 'normal' | 'vip'
+    total_grupos_cheios INTEGER,
+    total_leads         INTEGER,        -- bruto (linha do export-leads, igual o Sheets)
+    total_limpo         INTEGER,
+    updated_at          TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (launch_code, bloco)
+);
+
+-- Histórico diário — colunas A:D (Data2/Entradas/Saídas/Relação) e I:J
+-- (Data/Leads no dia) da aba, mescladas por data. "Relação" não é gravada
+-- aqui (é entradas − saídas, calculada na hora de exibir).
+CREATE TABLE IF NOT EXISTS whatsapp_sheets_diario (
+    id             BIGSERIAL PRIMARY KEY,
+    date           DATE NOT NULL,
+    launch_code    TEXT NOT NULL,
+    bloco          TEXT NOT NULL,  -- 'normal' | 'vip'
+    entradas       INTEGER,
+    saidas         INTEGER,
+    leads_no_dia   INTEGER,
+    updated_at     TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (date, launch_code, bloco)
+);
+
+CREATE INDEX IF NOT EXISTS idx_wa_sheets_diario_launch ON whatsapp_sheets_diario (launch_code, bloco);
+
+
 -- ── INSTAGRAM — snapshot diário de perfil + posts (Graph API, contas próprias) ──
 -- Contas configuradas em config/instagram_accounts.yaml. followers_count é uma
 -- foto diária (a API não dá histórico retroativo de seguidores com o escopo

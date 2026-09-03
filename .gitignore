@@ -50,8 +50,9 @@ htmlcov/
 # Node
 node_modules/
 
-# Dados de lançamentos (CSVs grandes, contêm PII de leads/compradores)
+# Dados de lançamentos (CSVs/planilhas grandes, contêm PII de leads/compradores)
 analises/**/*.csv
+analises/**/*.xlsx
 active-campaign/
 
 # Temporários
@@ -61,6 +62,18 @@ temp/
 # Claude Code (configurações locais)
 .claude/settings.local.json
 claude-memory-export/
+
+# Logs rotacionados (etl/scheduler.log.1, etc.)
+*.log.[0-9]*
+
+# Credenciais renomeadas/removidas manualmente (não pega no client_secret*.json)
+*.old_deleted
+
+# Artefatos de automação de browser (screenshots/snapshots podem conter dados reais da tela)
+.playwright-mcp/
+
+# Performance Manager: criativos e docs de trabalho, só local (pedido do usuário 03/09/26)
+performance-manager/
 
 # Estado do alerta de orçamento (runtime, não versionar)
 etl/budget_alert_state.json

@@ -1,0 +1,8 @@
+Vendas BB na TMB desde 01/08/2026:
+('2253840', 'Mentoria Vitalícia - BBSA', None, datetime.datetime(2026, 8, 12, 11, 37, 29), Decimal('2610.6'))
+('2218622', 'Mentoria Vitalícia - BBSA', None, datetime.datetime(2026, 8, 9, 15, 46, 43), Decimal('939.67'))
+('2246261', 'Mentoria Vitalícia - BBSA', None, datetime.datetime(2026, 8, 6, 17, 54, 48), Decimal('2610.6'))
+('2228990', 'Mentoria Vitalícia - BBSA', None, datetime.datetime(2026, 8, 5, 20, 53, 34), Decimal('1879.34'))
+('2244342', 'Mentoria Vitalícia - BBSA', None, datetime.datetime(2026, 8, 5, 13, 15, 18), Decimal('1879.34'))
+('2241422', 'Mentoria Vitalícia - BBSA', None, datetime.datetime(2026, 8, 4, 14, 22, 24), Decimal('939.67'))
+('2241195', 'Mentoria Vitalícia - BBSA', None, datetime.datetime(2026, 8, 3, 9, 20, 33), Decimal('495.68'))

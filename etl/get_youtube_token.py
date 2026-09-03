@@ -199,7 +199,7 @@ Depois que receber a URL, rode:
     print("Trocando codigo por refresh token...")
     token = _exchange_code(OAuthCallbackHandler.auth_code, client_id, client_secret)
     if token:
-        _update_env(token)
+        _update_env(token, args.env_var)
         print("\nAutorizacao concluida! Agora execute:")
         print("  .venv\\Scripts\\python etl/etl_youtube_analytics.py --launch-code PBB-JUN-26\n")
 

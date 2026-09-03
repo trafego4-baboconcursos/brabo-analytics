@@ -1,0 +1,23 @@
+{
+  "name": "Projeto BB | 08 a 11 de Junho 2026-05-25-6f1951225f51a7e6fc8afed395805404",
+  "object_story_spec": {
+    "page_id": "418887747980692",
+    "instagram_user_id": "17841460679248187",
+    "video_data": {
+      "video_id": "3955410454762010",
+      "title": "Projeto BB | 08 a 11 de Junho",
+      "message": "Concurso do Banco do Brasil 🎯\n\n✅ + 6.000 Vagas\n✅ Nível Médio\n✅ Salário R$ 6.412,00 + Bônus\n\nSe você quer ser aprovado mesmo que esteja começando do ZERO, eu vou te ajudar...\n\nEu vou fazer um evento com 4 aulas gratuitas, onde eu vou mostrar o passo a passo pra ser aprovado no Concurso do Banco do Brasil, mesmo que você esteja começando do zero.\n\nLá eu vou compartilhar o plano que me fez ser aprovado em 3 concursos, 2 deles com mais de 90% de acertos.\n\nPara participar, basta apertar no botão de “saiba mais”, se cadastrar e entrar no Grupo de Estudo do WhatsApp, lá eu vou te enviar os materiais gratuitos e o acesso às aulas.",
+      "link_description": "Clique em \"Saiba mais\"",
+      "call_to_action": {
+        "type": "LEARN_MORE",
+        "value": {
+          "link": "https://lp.braboconcursos.com.br/projeto-bb-jun-26-v2/"
+        }
+      },
+      "image_url": "https://www.facebook.com/ads/image/?d=AQI5EiMCOVXqLgIaBgNW5dZ708NRlMeVhFz5NqsyMDIDAYtD9YkWFIOknBuTSTu8mvRE-uqXSY4rYoXntXVxc0221J2CP7asLQ2Ol9zRUDSBbEmGqgNKNk3eRi9_3QwPA55fnCswcnuVpvBorg3Qv0gm",
+      "image_hash": "af1d32341dfa2b922af0dc02bd70283a"
+    }
+  },
+  "effective_object_story_id": "418887747980692_122222474528542386",
+  "id": "1690394545508147"
+}

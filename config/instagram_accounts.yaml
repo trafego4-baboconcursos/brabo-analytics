@@ -8,6 +8,11 @@ accounts:
   - name: "Brabo Concursos"
     username: "braboconcursos"
     ig_id: "17841456180884668"
+    # Ivan Neto (expert TJ-SP) posta pelo perfil compartilhado @braboconcursos,
+    # não tem Instagram próprio — campanhas de distribuição dele usam a tag
+    # [distribuição][ivan neto], por isso o alias abaixo (usado só pelo
+    # matching de Perpétuo/Distribuição em etl/launch_resolver.py).
+    aliases: ["ivan neto"]
   - name: "Felipe Graton"
     username: "felipegraton"
     ig_id: "17841460679248187"

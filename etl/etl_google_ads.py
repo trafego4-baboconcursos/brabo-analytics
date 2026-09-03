@@ -88,7 +88,6 @@ SELECT
   metrics.video_quartile_p50_rate,
   metrics.video_quartile_p75_rate,
   metrics.video_quartile_p100_rate,
-  metrics.average_cpv,
   segments.date
 FROM ad_group_ad
 WHERE segments.date BETWEEN '{since}' AND '{until}'
@@ -555,6 +554,8 @@ def build_df_from_api(rows: list[dict]) -> pd.DataFrame:
         # usado nas UTMs (tracking template não consegue inserir ADxxx por anúncio
         # em Search, só por grupo de anúncios — por isso o AD400 genérico).
         ad_name = ad.get("name") or "AD400 - Busca Genérica"
+        cost = round(int(met.get("costMicros", 0)) / 1_000_000, 2)
+        video_views = int(met.get("videoTrueviewViews", 0))
 
         records.append({
             "date":           seg.get("date"),
@@ -567,15 +568,19 @@ def build_df_from_api(rows: list[dict]) -> pd.DataFrame:
             "lancamento_codigo": resolve_launch_code(camp.get("name"), seg.get("date")),
             "impressions":    imp,
             "clicks":         int(met.get("clicks", 0)),
-            "cost":           round(int(met.get("costMicros", 0)) / 1_000_000, 2),
+            "cost":           cost,
             "conversions":    float(met.get("conversions", 0)),
-            "video_views":     int(met.get("videoTrueviewViews", 0)),
+            "video_views":     video_views,
             "video_views_25":  round(imp * q25),
             "video_views_50":  round(imp * q50),
             "video_views_75":  round(imp * q75),
             "video_views_100": round(imp * q100),
             "video_id":        video_id,
-            "avg_cpv":         round(int(met.get("averageCpv", 0)) / 1_000_000, 4),
+            # metrics.average_cpv não existe no resource ad_group_ad (só em
+            # campaign/ad_group) — API retorna erro se pedido aqui (ver
+            # traceback do run de 2026-09-01). Calculado a partir do custo e
+            # das views TrueView, mesma unidade que o nativo.
+            "avg_cpv":         round(cost / video_views, 4) if video_views else 0.0,
         })
     return pd.DataFrame(records)
 

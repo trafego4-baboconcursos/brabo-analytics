@@ -1625,6 +1625,21 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 5b. LEADS X GRUPOS DE WHATSAPP                              -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if lazy %}
+  <div class="dbf-section" data-lazy-section="leads_x_whatsapp">
+    <div class="dbf-section-title"><i class="ti ti-brand-whatsapp"></i> Leads X Grupos de WhatsApp</div>
+    {{ lazy_skeleton() }}
+  </div>
+  {% elif dbf.leads_x_whatsapp %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-brand-whatsapp"></i> Leads X Grupos de WhatsApp</div>
+    {% include "debriefing/_secao_leads_x_whatsapp.html" %}
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 6. MELHORES ANÚNCIOS                                       -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <div class="dbf-section">

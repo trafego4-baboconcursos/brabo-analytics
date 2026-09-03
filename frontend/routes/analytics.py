@@ -16,7 +16,7 @@ from frontend.core import (
 from frontend.services.fetch import (
     _launch_cfg, _perfil_por_anuncio, _pesquisa_engajamento,
     _leads_antigos_compradores, _qualidade_regiao, _caminho_comprador,
-    _landing_pages_por_etapa,
+    _landing_pages_por_etapa, _leads_x_whatsapp,
 )
 from frontend.services.calendario import build_calendario_ctx
 
@@ -410,6 +410,15 @@ async def debriefing(request: Request, launch_code: str | None = None, modo: str
             logger.exception("Debriefing: falha ao montar landing pages por etapa (GA4)")
             return None
 
+    async def f_leads_x_whatsapp():
+        if not launch or lazy:
+            return None
+        try:
+            return await run_in_threadpool(_leads_x_whatsapp, launch)
+        except Exception:
+            logger.exception("Debriefing: falha ao montar leads x grupos de WhatsApp")
+            return None
+
     async def f_previous():
         if not previous:
             return None, None, None, None, None
@@ -435,10 +444,11 @@ async def debriefing(request: Request, launch_code: str | None = None, modo: str
         caminho_comprador,
         (prev_meta, prev_google, prev_vendas, prev_wa_cost, prev_sales_attr),
         landing_pages_por_etapa,
+        leads_x_whatsapp,
     ) = await asyncio.gather(
         f_creative(), f_leads_antigos(), f_perfil_pesquisa(),
         f_qualidade_regiao(), f_caminho_comprador(), f_previous(),
-        f_landing_pages(),
+        f_landing_pages(), f_leads_x_whatsapp(),
     )
 
     dbf = _compute_debriefing_ctx(
@@ -454,6 +464,7 @@ async def debriefing(request: Request, launch_code: str | None = None, modo: str
         qualidade_regiao=qualidade_regiao,
         caminho_comprador=caminho_comprador,
         landing_pages_por_etapa=landing_pages_por_etapa,
+        leads_x_whatsapp=leads_x_whatsapp,
         wa_cost=d.get("wa_cost"),
         prev_wa_cost=prev_wa_cost,
     )
@@ -466,7 +477,7 @@ async def debriefing(request: Request, launch_code: str | None = None, modo: str
     return templates.TemplateResponse("debriefing.html", ctx)
 
 
-_DEBRIEFING_SECOES_LAZY = ("pesquisa_engajamento", "qualidade_regiao", "perfil_por_anuncio", "caminho_comprador")
+_DEBRIEFING_SECOES_LAZY = ("pesquisa_engajamento", "qualidade_regiao", "perfil_por_anuncio", "caminho_comprador", "leads_x_whatsapp")
 
 
 @router.get("/debriefing/secao/{secao}", response_class=HTMLResponse)
@@ -488,6 +499,8 @@ async def debriefing_secao(request: Request, secao: str, launch_code: str | None
     try:
         if secao == "pesquisa_engajamento":
             dbf[secao] = await run_in_threadpool(_pesquisa_engajamento, launch)
+        elif secao == "leads_x_whatsapp":
+            dbf[secao] = await run_in_threadpool(_leads_x_whatsapp, launch)
         elif secao == "qualidade_regiao":
             dbf[secao] = await run_in_threadpool(_qualidade_regiao, launch, None)
         elif secao == "caminho_comprador":

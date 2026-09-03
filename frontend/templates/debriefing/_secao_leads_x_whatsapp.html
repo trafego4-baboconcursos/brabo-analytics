@@ -1,0 +1,24 @@
+{# Corpo da seção "Leads X Grupos de WhatsApp". Vazio quando não há dado
+   (no carregamento sob demanda o JS remove a seção inteira nesse caso). #}
+{% if dbf.leads_x_whatsapp %}
+{% set lw = dbf.leads_x_whatsapp %}
+<div class="dbf-lazy-body">
+  <div class="dbf-kpi-grid">
+    <div class="dbf-kpi">
+      <div class="lbl">Total de leads (Active Campaign)</div>
+      <div class="val">{{ lw.total_leads | num }}</div>
+    </div>
+    <div class="dbf-kpi">
+      <div class="lbl">Total nos grupos de WhatsApp</div>
+      <div class="val">{{ lw.total_whatsapp | num }}</div>
+    </div>
+    <div class="dbf-kpi">
+      <div class="lbl">Taxa de entrada</div>
+      <div class="val">{{ lw.taxa_entrada | round(1) }}%</div>
+    </div>
+  </div>
+  <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+    Leads = linhas da tabela de leads (Active Campaign). Grupos de WhatsApp = pessoas ativas (deduplicado por telefone, normal + VIP). Taxa de entrada = grupos ÷ leads.
+  </div>
+</div>
+{% endif %}

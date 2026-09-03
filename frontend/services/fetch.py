@@ -106,6 +106,12 @@ def _pesquisa_engajamento(launch: Any):
                            lambda: read_pesquisa_engajamento(launch.code))
 
 
+def _leads_x_whatsapp(launch: Any):
+    from frontend.db_readers.whatsapp_groups import read_leads_x_whatsapp
+    return _get_or_compute(launch.code, "leads_x_whatsapp",
+                           lambda: read_leads_x_whatsapp(launch.code))
+
+
 def _leads_antigos_compradores(launch: Any, vendas_data: Any):
     from frontend.db_readers.leads import read_leads_antigos_compradores
     return _get_or_compute(launch.code, "leads_antigos_compradores",

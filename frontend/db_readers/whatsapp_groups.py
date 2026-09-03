@@ -375,3 +375,29 @@ def read_whatsapp_groups(launch_folder_or_code: Any, start_date=None, end_date=N
     _mesclar_contagem_sheets(wa["normal"], contagem_sheets.get("normal"))
     _mesclar_contagem_sheets(wa["vip"], contagem_sheets.get("vip"))
     return wa
+
+
+def read_leads_x_whatsapp(launch_folder_or_code: Any) -> dict | None:
+    """Total de leads (Active Campaign, tabela `leads`) × total de pessoas
+    ativas nos grupos de WhatsApp (normal + VIP, deduplicado) × taxa de
+    entrada. Pauta debriefing — quantos leads efetivamente entraram no grupo."""
+    code = _extract_launch_code(launch_folder_or_code)
+    wa = read_whatsapp_groups(code)
+    if not wa:
+        return None
+    total_wa = int((wa.get("normal") or {}).get("total_limpo") or 0) + int((wa.get("vip") or {}).get("total_limpo") or 0)
+    if not total_wa:
+        return None
+
+    engine = _get_engine()
+    with engine.connect() as conn:
+        total_leads = conn.execute(
+            text("SELECT COUNT(*) FROM leads WHERE lancamento_codigo = :code"), {"code": code}
+        ).fetchone()[0]
+    total_leads = int(total_leads or 0)
+
+    return {
+        "total_leads": total_leads,
+        "total_whatsapp": total_wa,
+        "taxa_entrada": (total_wa / total_leads * 100) if total_leads > 0 else 0.0,
+    }

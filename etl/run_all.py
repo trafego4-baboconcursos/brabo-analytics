@@ -40,15 +40,25 @@ def run(cmd: list[str], label: str, source: str | None = None, timeout: int = _T
     logger.info("Iniciando: %s", label)
     run_id = start_run(source) if source else None
     try:
-        result = subprocess.run(cmd, timeout=timeout)
+        # capture_output pra guardar o stderr real em etl_runs.error_message —
+        # sem isso, uma falha só vira "exit code 1" sem detalhe nenhum (foi o
+        # caso do google_ads falhando silenciosamente em 03/09, sem dar pra
+        # saber o motivo depois). Ainda ecoa tudo pro stdout/stderr do processo
+        # pai, então o scheduler continua capturando a saída completa também.
+        result = subprocess.run(cmd, timeout=timeout, capture_output=True, text=True, encoding="utf-8", errors="ignore")
         returncode = result.returncode
+        if result.stdout:
+            sys.stdout.write(result.stdout)
+        if result.stderr:
+            sys.stderr.write(result.stderr)
     except subprocess.TimeoutExpired:
         logger.error("Timeout em '%s' após %ds — processo travado, seguindo para a próxima fonte.", label, timeout)
         finish_run(run_id, status="error", error=f"timeout apos {timeout}s")
         return -1
     if returncode != 0:
         logger.error("Falha em '%s' (código %d)", label, returncode)
-        finish_run(run_id, status="error", error=f"exit code {returncode}")
+        detalhe = (result.stderr or result.stdout or "").strip()[-3000:]
+        finish_run(run_id, status="error", error=f"exit code {returncode}: {detalhe}" if detalhe else f"exit code {returncode}")
     else:
         logger.info("Concluído: %s", label)
         finish_run(run_id, status="ok")

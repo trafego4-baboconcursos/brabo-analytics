@@ -3,14 +3,35 @@ frontend/cache.py — Cache em memória com TTL para o Brabo Analytics.
 """
 from __future__ import annotations
 
+import contextvars
 import threading
 import time as _time_module
 from typing import Any, Callable
 
 # ── Cache com TTL ──────────────────────────────────────────────────────────────
 _CACHE: dict[str, tuple[Any, float]] = {}
+_STORED_AT: dict[str, float] = {}   # quando cada chave foi gravada (ver refresh forçado)
 _CACHE_TTL: int = 3600       # 60 minutos
 _CACHE_MAX_SIZE: int = 2000  # máx de entradas; evicta 20% das mais antigas ao exceder
+
+# ── Refresh forçado (re-aquecimento pós-ETL) ───────────────────────────────────
+# Depois do ETL o dado no banco mudou, mas apagar o cache e re-aquecer abria
+# uma janela fria de minutos a cada rodada (30 min): quem abrisse a página
+# nesse meio-tempo pagava tudo do zero. Em vez disso, o aquecimento roda com
+# este contextvar setado (propaga pros threads do run_in_threadpool): dentro
+# dele, _get_or_compute recomputa de forma síncrona e grava por cima; fora
+# dele, as requisições normais continuam recebendo o valor antigo na hora.
+# O timestamp evita recomputar duas vezes a mesma chave num mesmo
+# aquecimento (ex.: read_vendas chamado por meta, google e vendas).
+_FORCE_REFRESH_SINCE: contextvars.ContextVar[float | None] = contextvars.ContextVar("bs_force_refresh_since", default=None)
+
+
+def force_refresh_start() -> contextvars.Token:
+    return _FORCE_REFRESH_SINCE.set(_time_module.time())
+
+
+def force_refresh_end(token: contextvars.Token) -> None:
+    _FORCE_REFRESH_SINCE.reset(token)
 
 
 def _cache_key(launch_code: str, reader: str) -> str:
@@ -33,7 +54,11 @@ def _set_cached(launch_code: str, reader: str, value: Any, ttl: int | None = Non
         sorted_keys = sorted(_CACHE, key=lambda k: _CACHE[k][1])
         for k in sorted_keys[:_CACHE_MAX_SIZE // 5]:
             del _CACHE[k]
-    _CACHE[_cache_key(launch_code, reader)] = (value, _time_module.time() + (ttl or _CACHE_TTL))
+            _STORED_AT.pop(k, None)
+    key = _cache_key(launch_code, reader)
+    now = _time_module.time()
+    _CACHE[key] = (value, now + (ttl or _CACHE_TTL))
+    _STORED_AT[key] = now
 
 
 def _invalidate(launch_code: str) -> list[str]:
@@ -44,6 +69,7 @@ def _invalidate(launch_code: str) -> list[str]:
     keys = [k for k in _CACHE if launch_code in k.split("::", 1)[0].split("_")]
     for k in keys:
         del _CACHE[k]
+        _STORED_AT.pop(k, None)
     return sorted({k.split("::", 1)[1] if "::" in k else k for k in keys})
 
 
@@ -87,6 +113,15 @@ def _get_or_compute(launch_code: str, reader: str, compute: Callable[[], Any], t
     leve e atualizada a cada 30 min), pra refletir o dado novo mais rápido
     sem precisar esperar o TTL longo pensado pras consultas pesadas."""
     key = _cache_key(launch_code, reader)
+    force_since = _FORCE_REFRESH_SINCE.get()
+    if force_since is not None and _STORED_AT.get(key, 0.0) < force_since:
+        # Re-aquecimento pós-ETL: recomputa agora e grava por cima (quem está
+        # fora deste contexto segue lendo o valor antigo até a gravação).
+        with _lock_for(key):
+            if _STORED_AT.get(key, 0.0) < force_since:  # outro thread do mesmo aquecimento pode ter gravado
+                _store(launch_code, reader, compute(), ttl=ttl)
+        value, _ = _CACHE[key]
+        return None if value is _NONE_RESULT else value
     entry = _CACHE.get(key)
     if entry is not None:
         value, expires_at = entry

@@ -20,8 +20,9 @@ from fastapi.concurrency import run_in_threadpool
 from frontend.core import (
     logger,
     get_launches, _fetch_all_data, find_previous_launch,
-    _invalidate, reset_launches_cache,
+    reset_launches_cache,
 )
+from frontend.cache import force_refresh_start, force_refresh_end
 from frontend.services.fetch import _warm_debriefing
 
 # Um aquecimento por vez: cada warm_launch já dispara ~15 leituras paralelas;
@@ -93,18 +94,24 @@ async def warm_launch(launch: Any, previous: Any) -> None:
 
 async def warm_active(codes: Iterable[str] | None = None, invalidate: bool = False, origem: str = "boot") -> list[str]:
     """Aquece os lançamentos ativos (ou só `codes`), um por vez. Com
-    `invalidate=True`, apaga antes o cache de cada um — é o caminho pós-ETL:
-    os dados no banco mudaram e o valor em memória está desatualizado."""
+    `invalidate=True` (caminho pós-ETL: o banco mudou), recomputa cada
+    leitura NO LUGAR — quem abrir a página durante o re-aquecimento segue
+    recebendo o valor anterior na hora, sem janela fria (ver
+    force_refresh_start em frontend/cache.py). Apagar o cache antes, como
+    era feito, deixava a página fria por minutos a cada rodada do ETL."""
     async with _WARM_LOCK:
         if invalidate:
             reset_launches_cache()  # lançamento criado/renomeado pelo ETL aparece na lista
         launches = await run_in_threadpool(get_launches)
         to_warm = select_launches_to_warm(launches, codes)
         logger.info("Aquecimento (%s) de %d lançamento(s): %s", origem, len(to_warm), ", ".join(l.code for l in to_warm) or "-")
-        for l in to_warm:
-            if invalidate:
-                _invalidate(l.code)
-            await warm_launch(l, find_previous_launch(l, launches))
+        token = force_refresh_start() if invalidate else None
+        try:
+            for l in to_warm:
+                await warm_launch(l, find_previous_launch(l, launches))
+        finally:
+            if token is not None:
+                force_refresh_end(token)
         logger.info("Aquecimento (%s) concluído.", origem)
         return [l.code for l in to_warm]
 

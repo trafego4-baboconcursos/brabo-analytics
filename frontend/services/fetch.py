@@ -241,7 +241,18 @@ async def _fetch_all_data(
         return await run_in_threadpool(_typeform, launch) if launch and needs_tf and launch.has_typeform else None
 
     async def f_daily():
+        # Único f_* que não tinha try/except: uma queda de conexão do pooler
+        # aqui (psycopg2 OperationalError) virava 500 na página inteira em vez
+        # de só o breakdown diário vazio + aviso (500 real em /debriefing 03/09).
         if not (launch and needs_daily): return ([], [])
+        try:
+            return await _f_daily_inner()
+        except Exception:
+            logger.exception("Falha ao ler breakdown diário")
+            _errors.append("Breakdown diário")
+            return ([], [])
+
+    async def _f_daily_inner():
         _cfg = await run_in_threadpool(_launch_cfg, launch.code)
         capt_filter = _cfg.get("filtro_captacao") or "captação"
         preq_filter = _cfg.get("filtro_pre_quali") or "pré-qualificação"

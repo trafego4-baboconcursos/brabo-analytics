@@ -40,6 +40,7 @@ PAGINAS = [
     "/funil",
     "/insights",
     "/debriefing",
+    "/debriefing?modo=slides",  # modo apresentação (botão "Gerar PDF")
     "/comparativo",
     "/meta",
     "/google",

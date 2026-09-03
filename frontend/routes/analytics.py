@@ -314,7 +314,11 @@ async def comparativo_v1_v2(request: Request, launch_code: str | None = None):
 
 
 @router.get("/debriefing", response_class=HTMLResponse)
-async def debriefing(request: Request, launch_code: str | None = None):
+async def debriefing(request: Request, launch_code: str | None = None, modo: str | None = None):
+    """``modo=slides`` renderiza o mesmo conteúdo em modo apresentação
+    (um slide 1920x1080 por seção, pronto pra "Salvar como PDF" no Chrome);
+    é o que o botão "Gerar PDF" da aba abre."""
+    slides = modo == "slides"
     launches = await run_in_threadpool(get_launches)
     launch = resolve_launch(launch_code, launches)
     previous = find_previous_launch(launch, launches) if launch else None
@@ -438,7 +442,8 @@ async def debriefing(request: Request, launch_code: str | None = None):
     ctx = _base_ctx(request, "debriefing", "Debriefing", launch, launches,
                     dbf=dbf, drive_thumbnails=thumb,
                     data_errors=data_errors,
-                    creative_data_error=creative_data_error)
+                    creative_data_error=creative_data_error,
+                    slides=slides)
     return templates.TemplateResponse("debriefing.html", ctx)
 
 

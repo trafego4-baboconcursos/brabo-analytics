@@ -280,6 +280,102 @@
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+
+{% if slides %}
+{# ── Modo apresentação (?modo=slides) ──────────────────────────────────
+   Mesmo template, mesma página: cada .dbf-section vira um slide 1920x1080
+   (1536x864 com zoom 1.25 — mantém os tamanhos de fonte da tela numa
+   escala legível em projetor/PDF). O JS no fim da página pagina as seções
+   que não cabem (quebra tabelas por linha, encolhe blocos indivisíveis) e
+   congela os gráficos em imagem antes de imprimir. O PDF sai pelo
+   "Salvar como PDF" do Chrome — @page fixa o tamanho da folha. #}
+<script>document.documentElement.classList.add('bs-slides');</script>
+<script>
+  Chart.defaults.animation = false;
+  Chart.defaults.devicePixelRatio = 2;
+</script>
+<style>
+@page { size: 1920px 1080px; margin: 0; }
+html.bs-slides, html.bs-slides body { background: #2b2f38; margin: 0; }
+html.bs-slides #bs-drawer, html.bs-slides #bs-mobile-topbar, html.bs-slides #bs-topbar,
+html.bs-slides #bs-loading-overlay, html.bs-slides #bs-drawer-overlay,
+html.bs-slides #bs-main > *:not(.wrap),
+html.bs-slides .hdr, html.bs-slides .dbf-accordion-controls { display: none !important; }
+html.bs-slides #bs-main { margin-left: 0; height: auto; overflow: visible; background: transparent; }
+
+html.bs-slides .wrap { animation: none; }
+html.bs-slides .content { padding: 0; }
+html.bs-slides .section, html.bs-slides .info-box { animation: none; opacity: 1; transform: none; }
+
+/* toolbar (só na tela) */
+.dbf-slides-toolbar {
+  position: fixed; top: 16px; right: 16px; z-index: 100;
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(20,22,28,.92); color: #fff; padding: 10px 14px;
+  border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.35); font-size: 13px;
+}
+.dbf-slides-toolbar .hint { color: rgba(255,255,255,.7); max-width: 320px; line-height: 1.35; }
+.dbf-slides-toolbar button, .dbf-slides-toolbar a {
+  background: var(--bs-accent); color: #fff; border: 0; padding: 9px 16px; border-radius: 8px;
+  font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  text-decoration: none; white-space: nowrap;
+}
+.dbf-slides-toolbar a.sec { background: rgba(255,255,255,.12); }
+
+/* slide */
+#dbf-slides { display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 24px 0; }
+.dbf-slide {
+  width: 1536px; height: 864px; zoom: 1.25;
+  box-sizing: border-box; padding: 44px 64px 36px;
+  background: var(--bs-surface); color: var(--bs-ink);
+  display: flex; flex-direction: column; overflow: hidden; position: relative;
+  box-shadow: 0 10px 40px rgba(0,0,0,.35);
+  /* quebra ANTES de cada slide (menos o primeiro): com break-after o Chrome
+     gerava uma página em branco depois da capa */
+  page-break-before: always; break-before: page;
+}
+.dbf-slide:first-child { page-break-before: auto; break-before: auto; }
+.dbf-slide .dbf-section-title { cursor: default; margin-bottom: 18px; flex-shrink: 0; font-size: 17px; }
+.dbf-slide .dbf-slide-body { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.dbf-slide .dbf-slide-foot {
+  flex-shrink: 0; margin-top: 12px; display: flex; justify-content: space-between; align-items: center;
+  font-size: 10px; color: var(--bs-ink-subtle); letter-spacing: .04em; text-transform: uppercase; font-weight: 700;
+}
+.dbf-slide .dbf-section { margin-bottom: 0; }
+.dbf-slide .dbf-section-title .dbf-chevron { display: none; }
+
+/* capa */
+.dbf-slide.cover { justify-content: center; background: var(--bs-sidebar, #1f2330); color: #fff; padding: 80px 110px; }
+.dbf-slide.cover img { height: 48px; margin-bottom: 48px; align-self: flex-start; }
+.dbf-slide.cover .cv-kicker { font-size: 15px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--bs-accent); margin-bottom: 14px; }
+.dbf-slide.cover h1 { font-size: 64px; font-weight: 900; margin: 0 0 12px; line-height: 1.05; color: #fff; }
+.dbf-slide.cover .cv-sub { font-size: 24px; color: rgba(255,255,255,.75); margin-bottom: 44px; }
+.dbf-slide.cover .cv-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+.dbf-slide.cover .cv-kpi { background: rgba(255,255,255,.08); border-radius: 12px; padding: 18px 20px; }
+.dbf-slide.cover .cv-kpi .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.6); font-weight: 700; margin-bottom: 6px; }
+.dbf-slide.cover .cv-kpi .val { font-size: 32px; font-weight: 800; color: #fff; line-height: 1.1; }
+.dbf-slide.cover .cv-foot { margin-top: 56px; font-size: 13px; color: rgba(255,255,255,.5); }
+
+/* no PDF: sem sombra/espaçamento entre slides e tudo com cor de fundo */
+@media print {
+  html.bs-slides, html.bs-slides body { background: #fff; }
+  /* Os wrappers do layout (frame/main/wrap/content) saem da árvore de caixas
+     na impressão: com eles como caixas, o Chrome gerava uma página em branco
+     depois da capa (o #bs-main é um contêiner de rolagem no CSS global). */
+  html.bs-slides #bs-frame, html.bs-slides #bs-main, html.bs-slides .wrap, html.bs-slides .content { display: contents; }
+  #dbf-slides { display: block; padding: 0; gap: 0; zoom: 1 !important; }
+  .dbf-slide { box-shadow: none; margin: 0; }
+  .dbf-slides-toolbar { display: none !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+/* tabelas: sem hover/scroll, thumbnails sem clique */
+html.bs-slides .table-wrap { overflow: visible; }
+html.bs-slides .bs-table-filter-wrap { display: none !important; }
+.dbf-slide .dbf-slide-foot { min-height: 15px; }
+html.bs-slides .dbf-table tbody tr:hover td { background: transparent; }
+html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
+</style>
+{% endif %}
 {% endblock head %}
 
 {% block content %}
@@ -359,7 +455,38 @@
   <div class="dbf-accordion-controls">
     <button type="button" id="dbf-collapse-all"><i class="ti ti-arrows-minimize"></i> Recolher todas</button>
     <button type="button" id="dbf-expand-all"><i class="ti ti-arrows-maximize"></i> Expandir todas</button>
+    {% if launch %}
+    <a href="/debriefing?launch_code={{ launch.code }}&modo=slides&auto=1" target="_blank" rel="noopener"
+       style="margin-left:auto;background:var(--bs-accent);color:#fff;border:1px solid var(--bs-accent);padding:7px 16px;border-radius:8px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:6px;text-decoration:none"
+       title="Abre a apresentação (slides 1920x1080) e o diálogo de impressão — escolha 'Salvar como PDF'">
+      <i class="ti ti-file-type-pdf"></i> Gerar PDF
+    </a>
+    {% endif %}
   </div>
+
+  {% if slides %}
+  <div class="dbf-slides-toolbar">
+    <span class="hint">No diálogo de impressão escolha <strong>Salvar como PDF</strong>, margens <strong>Nenhuma</strong> e marque <strong>Gráficos de fundo</strong>.</span>
+    <a class="sec" href="/debriefing?launch_code={{ launch.code if launch else '' }}"><i class="ti ti-arrow-left"></i> Voltar</a>
+    <button type="button" onclick="window.print()"><i class="ti ti-file-type-pdf"></i> Salvar PDF</button>
+  </div>
+
+  <div id="dbf-slides">
+    <div class="dbf-slide cover">
+      <img src="/img/logo-brabo-concursos-white.svg" alt="Brabo">
+      <div class="cv-kicker">Debriefing de lançamento</div>
+      <h1>{{ launch.code if launch else 'Debriefing' }}</h1>
+      <div class="cv-sub">{{ launch.name if launch else '' }}{% if dbf.periodo_atual %} · {{ dbf.periodo_atual }}{% endif %}{% if dbf.has_prev %} · comparativo vs {{ dbf.prev_code }}{% endif %}</div>
+      <div class="cv-kpis">
+        <div class="cv-kpi"><div class="lbl">Matrículas</div><div class="val">{{ dbf.total_vendas | num }}</div></div>
+        <div class="cv-kpi"><div class="lbl">Total investido</div><div class="val">{{ dbf.invest | brl(0) }}</div></div>
+        <div class="cv-kpi"><div class="lbl">Receita líquida</div><div class="val">{{ dbf.receita | brl(0) }}</div></div>
+        <div class="cv-kpi"><div class="lbl">ROAS</div><div class="val">{{ "%.2f"|format(dbf.roas) }}x</div></div>
+      </div>
+      <div class="cv-foot">Brabo Analytics · gerado em <span id="dbf-cover-date"></span></div>
+    </div>
+  </div>
+  {% endif %}
 
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 1. MATRÍCULAS                                              -->
@@ -1897,6 +2024,181 @@
   </div><!-- /.content -->
 </div><!-- /.wrap -->
 
+{% if slides %}
+<script>
+// ── Modo apresentação: monta os slides a partir das .dbf-section ──────────
+(function () {
+  var container = document.getElementById('dbf-slides');
+  if (!container) return;
+  var launchCode = "{{ (launch.code if launch else '') | e }}";
+
+  var d = new Date(), pad = function (n) { return String(n).padStart(2, '0'); };
+  var cd = document.getElementById('dbf-cover-date');
+  if (cd) cd.textContent = pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+
+  // Thumbnails: sem lazy-load, senão o PDF sai com células vazias.
+  document.querySelectorAll('img[loading="lazy"]').forEach(function (img) { img.loading = 'eager'; });
+
+  // Gráficos viram imagem (2x) — canvas não sobrevive a clone e o Chart.js
+  // tentaria redimensionar a cada mudança de layout durante a paginação.
+  function freezeCharts() {
+    document.querySelectorAll('canvas').forEach(function (cv) {
+      var img = document.createElement('img');
+      try { img.src = cv.toDataURL('image/png'); } catch (e) { return; }
+      img.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block';
+      cv.parentNode.replaceChild(img, cv);
+    });
+    if (window.Chart && Chart.instances) {
+      Object.keys(Chart.instances).forEach(function (k) { try { Chart.instances[k].destroy(); } catch (e) {} });
+    }
+  }
+
+  function fits(body) { return body.scrollHeight <= body.clientHeight + 1; }
+
+  function newSlide(titleEl, cont) {
+    var slide = document.createElement('div');
+    slide.className = 'dbf-slide';
+    var t = titleEl.cloneNode(true);
+    if (cont) {
+      var c = document.createElement('span');
+      c.style.cssText = 'font-size:12px;font-weight:600;color:var(--bs-ink-muted);margin-left:6px';
+      c.textContent = '(continuação)';
+      t.appendChild(c);
+    }
+    var body = document.createElement('div');
+    body.className = 'dbf-slide-body';
+    // Rodapé entra já na criação pra contar na medição de altura do corpo
+    // (o texto é preenchido no fim, quando o total de slides é conhecido).
+    var foot = document.createElement('div');
+    foot.className = 'dbf-slide-foot';
+    foot.innerHTML = '<span>Debriefing · ' + launchCode + '</span><span>&nbsp;</span>';
+    slide.appendChild(t);
+    slide.appendChild(body);
+    slide.appendChild(foot);
+    container.appendChild(slide);
+    slide._body = body;
+    return slide;
+  }
+
+  // Encolhe um bloco indivisível (grid, card único...) até caber no slide.
+  function scaleToFit(block, body) {
+    var r = body.clientHeight / block.scrollHeight;
+    if (r >= 1) return;
+    r = Math.max(r, 0.4);
+    block.style.transformOrigin = 'top left';
+    block.style.transform = 'scale(' + r + ')';
+    block.style.width = (100 / r) + '%';
+  }
+
+  // Divide um bloco com tabela: mantém as linhas que cabem, devolve um clone
+  // (mesmo thead) com as restantes pra ir pro próximo slide.
+  function splitTable(block, body) {
+    if (block.querySelectorAll('tbody').length !== 1) return null;
+    var tbody = block.querySelector('tbody');
+    if (tbody.rows.length < 2) return null;
+    var moved = [];
+    while (!fits(body) && tbody.rows.length > 1) {
+      var last = tbody.rows[tbody.rows.length - 1];
+      moved.unshift(last);
+      tbody.removeChild(last);
+      // Linhas "principal + sub" (ldt-main/ldt-sub) andam juntas.
+      if (last.classList.contains('ldt-sub') && tbody.rows.length > 1) {
+        var main = tbody.rows[tbody.rows.length - 1];
+        moved.unshift(main); tbody.removeChild(main);
+      }
+    }
+    if (!moved.length) return null;
+    if (!fits(body)) scaleToFit(block, body);
+    var clone = block.cloneNode(true);
+    var ctb = clone.querySelector('tbody');
+    ctb.innerHTML = '';
+    moved.forEach(function (r) { ctb.appendChild(r); });
+    return clone;
+  }
+
+  function isSplittableContainer(block) {
+    var d = getComputedStyle(block).display;
+    if (d === 'grid' || d === 'table' || block.tagName === 'TABLE') return false;
+    if (block.classList.contains('table-wrap')) return false;
+    return block.children.length > 1;
+  }
+
+  function paginate(section) {
+    var title = section.querySelector(':scope > .dbf-section-title');
+    if (!title) return;
+    var blocks = Array.prototype.slice.call(section.children).filter(function (el) {
+      return el !== title && el.tagName !== 'SCRIPT';
+    });
+    section.parentNode.removeChild(section);
+    var slide = newSlide(title, false);
+    var queue = blocks.slice();
+    var guard = 0;
+    while (queue.length && guard++ < 500) {
+      var block = queue.shift();
+      slide._body.appendChild(block);
+      if (fits(slide._body)) continue;
+
+      // Não coube: se o slide já tem coisa, tenta num slide novo.
+      slide._body.removeChild(block);
+      if (slide._body.children.length) {
+        slide = newSlide(title, true);
+        slide._body.appendChild(block);
+        if (fits(slide._body)) continue;
+        slide._body.removeChild(block);
+      }
+      // Sozinho num slide vazio e ainda não cabe: quebra tabela, desce em
+      // containers empilhados ou encolhe.
+      slide._body.appendChild(block);
+      var rest = splitTable(block, slide._body);
+      if (rest) { queue.unshift(rest); continue; }
+      if (isSplittableContainer(block)) {
+        var kids = Array.prototype.slice.call(block.children);
+        slide._body.removeChild(block);
+        queue = kids.concat(queue);
+        continue;
+      }
+      scaleToFit(block, slide._body);
+    }
+  }
+
+  // Na tela, encolhe a pré-visualização pra caber na largura da janela
+  // (o PDF ignora: zoom 1 forçado no @media print).
+  function fitPreview() {
+    var z = Math.min(1, (window.innerWidth - 48) / 1920);
+    container.style.zoom = z < 1 ? z.toFixed(3) : '';
+  }
+
+  function addFooters() {
+    var slides = container.querySelectorAll('.dbf-slide');
+    slides.forEach(function (sl, i) {
+      var f = sl.querySelector(':scope > .dbf-slide-foot');
+      if (!f) return;
+      f.innerHTML = '<span>Debriefing · ' + launchCode + '</span><span>' + (i + 1) + ' / ' + slides.length + '</span>';
+    });
+  }
+
+  function build() {
+    freezeCharts();
+    var sections = Array.prototype.slice.call(document.querySelectorAll('.content > .dbf-section'));
+    sections.forEach(paginate);
+    addFooters();
+    fitPreview();
+    window.addEventListener('resize', fitPreview);
+    document.documentElement.classList.add('bs-slides-ready');
+    if (/[?&]auto=1/.test(location.search)) {
+      // Deixa fontes/thumbnails assentarem antes de abrir o diálogo.
+      setTimeout(function () { window.print(); }, 800);
+    }
+  }
+
+  function whenFontsReady(cb) {
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(cb, cb); else cb();
+  }
+  if (document.readyState === 'complete') whenFontsReady(build);
+  else window.addEventListener('load', function () { whenFontsReady(build); });
+})();
+</script>
+{% else %}
 <script>
 (function () {
   var STORAGE_KEY = 'dbf-collapsed-sections';
@@ -1945,4 +2247,5 @@
   if (btnExpand) btnExpand.addEventListener('click', function () { setAll(false); });
 })();
 </script>
+{% endif %}
 {% endblock %}

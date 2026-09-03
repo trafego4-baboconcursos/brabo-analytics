@@ -1,7 +1,7 @@
 # Brabo Analytics — Defesa Técnica e Estratégica
 
-> Documento atualizado em: 2026-08-31  
-> Última versão do sistema: conta do Typeform cancelada — pesquisas de lançamento migraram para um sistema de formulários interno a partir do PBB-AGO-26; dados de pesquisas antigas preservados via backup no Supabase
+> Documento atualizado em: 2026-09-03  
+> Última versão do sistema: botão "Gerar PDF" no Debriefing — exporta a apresentação completa em slides 1920x1080 (capa + uma seção por slide, tabelas longas quebradas automaticamente) via "Salvar como PDF" do navegador
 
 ---
 
@@ -56,6 +56,7 @@ A plataforma conecta e unifica automaticamente:
 | **Vendas** | Hotmart vs TMB, consolidado por lançamento |
 | **Leads (CRM)** | Qualidade da base por canal, etapa e temperatura; série histórica de 90 dias |
 | **Comparativo** | Dois lançamentos lado a lado em todas as métricas — investimento, ROAS, funil, top criativos |
+| **Debriefing** | Fechamento do lançamento: matrículas, resumo executivo vs anterior, alocação por etapa, públicos, top ads, dia a dia, aulas, vendas — com botão **Gerar PDF** que monta a apresentação em slides 1920x1080 |
 | **Insights** | Consolidação rápida para briefings |
 
 ---
@@ -98,6 +99,10 @@ Qualquer dois lançamentos lado a lado, com todas as métricas comparadas — in
 ### 6. Wizard de configuração de lançamento
 
 Ao iniciar um novo lançamento, o admin preenche um modal de 3 passos dentro da plataforma — sem tocar em código, sem acessar banco de dados. O sistema passa a reconhecer e exibir o novo lançamento automaticamente.
+
+### 7. Debriefing em PDF com um clique
+
+O botão **Gerar PDF** na aba Debriefing abre a mesma página em modo apresentação (`/debriefing?modo=slides`): capa com os KPIs do lançamento e um slide 1920x1080 por seção, na ordem da aba. Seções que não cabem num slide são divididas automaticamente (tabelas quebram por linha, com cabeçalho repetido) e os gráficos são congelados em imagem de alta resolução. O PDF sai pelo "Salvar como PDF" do Chrome, sem dependência no servidor — o deck de fechamento que antes era montado à mão sai pronto em segundos.
 
 ---
 

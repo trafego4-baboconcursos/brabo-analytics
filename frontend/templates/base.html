@@ -338,7 +338,23 @@ html, body { margin: 0 !important; padding: 0 !important; font-family: 'Inter','
   font-size:16px; font-weight:700; color:var(--bs-ink);
   border-bottom:2px solid var(--bs-accent);
   padding-bottom:8px; margin-bottom:16px;
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  cursor:pointer; user-select:none;
 }
+/* ── Seções recolhíveis (accordion) — mesmo padrão do Debriefing,
+   aplicado automaticamente em qualquer página com .section/.section-title
+   (ver bsInitAccordion() no <script> do fim do body). ── */
+.bs-chevron { margin-left:auto; transition:transform .15s; flex-shrink:0; }
+.section.collapsed .section-title { margin-bottom:0; border-bottom-color:var(--bs-border); }
+.section.collapsed .section-title .bs-chevron { transform:rotate(-90deg); }
+.section.collapsed > *:not(.section-title) { display:none !important; }
+.bs-accordion-controls { display:flex; gap:10px; margin-bottom:24px; }
+.bs-accordion-controls button {
+  background:var(--bs-accent-bg); color:var(--bs-accent); border:1px solid var(--bs-border-s);
+  padding:7px 16px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;
+  display:inline-flex; align-items:center; gap:6px; font-family:inherit;
+}
+.bs-accordion-controls button:hover { filter:brightness(0.95); }
 .footing { padding:16px 32px; font-size:11px; color:var(--bs-ink-muted); text-align:right; border-top:1px solid var(--bs-border); }
 
 /* ── Métricas grid (padrão das análises manuais) ────────────────────── */
@@ -1848,6 +1864,62 @@ window.bsThemeSyncActive = function() {
   if (btn) btn.classList.add('bs-has-badge');
 };
 document.addEventListener('DOMContentLoaded', bsThemeSyncActive);
+
+/* ── Accordion de seções (.section / .section-title) ──────────────────
+   Mesmo padrão implantado no Debriefing, generalizado pra qualquer
+   página que já usa o bloco .section/.section-title do design system —
+   não precisa mudar nada no template da página, só funciona. Estado
+   (o que está fechado) persiste por página em localStorage. ── */
+(function () {
+  var SKIP_PAGES = ['settings', 'login', 'invite', 'index'];
+  if (SKIP_PAGES.indexOf('{{ page|default("") }}') !== -1) return;
+
+  function initAccordion() {
+    var sections = Array.prototype.slice.call(document.querySelectorAll('.section'))
+      .filter(function (s) { return s.querySelector(':scope > .section-title'); });
+    if (sections.length < 2) return; // 0 ou 1 seção: nada pra recolher
+
+    var storageKey = 'bs-collapsed-sections:{{ page|default("page") }}';
+    var state;
+    try { state = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch (e) { state = {}; }
+    function persist() { try { localStorage.setItem(storageKey, JSON.stringify(state)); } catch (e) {} }
+
+    sections.forEach(function (section, idx) {
+      var title = section.querySelector(':scope > .section-title');
+      var key = 'section-' + idx;
+      var chev = document.createElement('i');
+      chev.className = 'ti ti-chevron-down bs-chevron';
+      title.appendChild(chev);
+      // Primeira visita (sem estado salvo): só a primeira seção começa aberta.
+      var collapsed = (key in state) ? state[key] : (idx !== 0);
+      section.classList.toggle('collapsed', collapsed);
+      title.addEventListener('click', function () {
+        section.classList.toggle('collapsed');
+        state[key] = section.classList.contains('collapsed');
+        persist();
+      });
+    });
+
+    var controls = document.createElement('div');
+    controls.className = 'bs-accordion-controls';
+    controls.innerHTML =
+      '<button type="button" data-act="collapse"><i class="ti ti-arrows-minimize"></i> Recolher todas</button>' +
+      '<button type="button" data-act="expand"><i class="ti ti-arrows-maximize"></i> Expandir todas</button>';
+    sections[0].parentNode.insertBefore(controls, sections[0]);
+    controls.addEventListener('click', function (e) {
+      var btn = e.target.closest('button[data-act]');
+      if (!btn) return;
+      var collapsed = btn.dataset.act === 'collapse';
+      sections.forEach(function (section, idx) {
+        section.classList.toggle('collapsed', collapsed);
+        state['section-' + idx] = collapsed;
+      });
+      persist();
+    });
+  }
+  if (document.readyState !== 'loading') initAccordion();
+  else document.addEventListener('DOMContentLoaded', initAccordion);
+})();
 
 /* ── Subnav horizontal (modo Funis, desktop) — clique abre/fecha ─────── */
 window.bsSubnavToggle = function(btn) {

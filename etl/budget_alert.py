@@ -426,9 +426,17 @@ def _processar_lancamento(codigo: str, cfg: dict, hoje: date, state: dict) -> tu
         resp = getattr(exc, "response", None)
         if resp is not None:
             try:
-                detalhe += f" — {resp.text[:300]}"
+                body = resp.json()
+                erros = (body.get("error") or {}).get("details", [{}])[0].get("errors") or []
+                if erros:
+                    codes = ", ".join(
+                        f"{e.get('errorCode')} — {e.get('message')}" for e in erros
+                    )
+                    detalhe += f" — {codes}"
+                else:
+                    detalhe += f" — {resp.text[:500]}"
             except Exception:
-                pass
+                detalhe += f" — {resp.text[:500]}"
         return None, [f"• *{codigo}*: {detalhe}"]
 
     real_hoje = _categorizar_gasto(rows_meta_hoje, rows_google_hoje, codigo)

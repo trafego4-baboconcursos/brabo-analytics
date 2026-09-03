@@ -18,25 +18,26 @@ Credenciais por lançamento em config/sendflow_contagem.yaml.
 """
 from __future__ import annotations
 
-import csv
-import io
 import os
 import threading
 import time
 from datetime import datetime
-from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
-import requests
-import yaml
-
 from logger import get_logger
+from sendflow_grupos import (
+    load_config as _load_config,
+    export_leads as _export_leads,
+    get_analytics as _get_analytics,
+    contar_grupos_cheios as _contar_grupos_cheios,
+    contar_numeros as _contar_numeros,
+    tratar_falha_export_leads as _tratar_falha_export_leads,
+    RELEASES_BLOQUEADOS as _releases_bloqueados,
+)
 
 logger = get_logger("db")
 
-_CONFIG_PATH = Path(__file__).parent.parent.parent / "config" / "sendflow_contagem.yaml"
-_BASE_URL = "https://sendapi.sendflow.pro"
 _CACHE_TTL = 1800  # 30 minutos — export-leads é pesado (campanha grande demora),
                     # e a SendFlow tem rate limit; não vale a pena bater toda hora
 _CACHE_TTL_FALHA = 120  # se a consulta falhar (rate limit, timeout), tenta de
@@ -44,136 +45,15 @@ _CACHE_TTL_FALHA = 120  # se a consulta falhar (rate limit, timeout), tenta de
                          # fallback (dados da tabela acumulada) sem necessidade
 _cache: dict[str, tuple[float, dict | None, bool]] = {}
 
-# Releases que devolveram erro de CONFIGURAÇÃO (400/404) — ex: "Campanha sem
-# contas associadas!", release inexistente. Não adianta tentar de novo: só
-# se resolve mexendo na configuração lá no SendFlow. Uma vez bloqueado, para
-# de bater na API pra esse release_id até o processo reiniciar (ex: próximo
-# deploy, depois de alguém corrigir lá).
-#
-# 401/403 ficam DE FORA de propósito: a SendFlow devolve 403 quando está
-# limitando taxa (não 429), então tratar 403 como permanente bloquearia pra
-# sempre um release que só estava momentaneamente limitado — confirmado em
-# 2026-09-03, quando PBB-AGO-26 normal deu 403 numa chamada e 200 na
-# seguinte. Esses continuam no retry curto (_CACHE_TTL_FALHA).
-_releases_bloqueados: set[str] = set()
-_STATUS_PERMANENTES = {400, 404}
-
-# Mesma lista do sendflow-analytics-poller (app/config.py::ADMIN_NUMBERS_BASE) —
-# contas de marketing/staff da empresa, sempre excluídas do Total Limpo.
-ADMIN_NUMBERS_BASE = {
-    "5516991876538", "5516991320600", "5516992314699", "5516991525260",
-    "5516997353630", "5516993910017", "5516992352349", "5516991081133",
-    "5516992345997", "5516993966587", "5516996544873", "5516997384603",
-    "5516992359626", "5516994054610", "5516992712899", "5516993678375",
-    "5516991268108", "5516992342427", "5516991880994", "5516992162853",
-    "5516993230455", "5516992580599", "5516994109165", "5516991262116",
-    "5516992243112", "5516994330869", "5516992932850", "5516993643159",
-    "5516994602791", "5516991628640",
-    # SUNSET
-    "5516992346621", "5516994062017", "5516997046751", "5516992308913",
-    "5516992365749",
-    # DICE
-    "5516996101548", "5516992287856", "5516991721165", "5516991047065",
-    "5516992718950",
-    # SHADOW
-    "5516994278676", "5516994081940", "5516992282631", "5516992193391",
-    "5516992205157",
-    # KNIGHT
-    "5516997785568", "5516997901145", "5516994084569", "5516994066837",
-    "5516994153971", "5516994081948",
-    # DARK
-    "5516994338328", "5516994196958", "5516994188660", "5516997263099",
-    "5516997080885", "5516997336857",
-    # SWORD
-    "5516996542640", "5516999921639", "5516994307722", "5516993017738",
-    "5516992142972", "5516997068492",
-}
-
-
-def _load_config() -> dict[str, Any]:
-    if not _CONFIG_PATH.exists():
-        return {}
-    return yaml.safe_load(_CONFIG_PATH.read_text(encoding="utf-8")) or {}
-
-
-def _headers(token: str) -> dict:
-    return {"accept": "application/json", "Authorization": f"Bearer {token}"}
-
-
-def _numero_do_lead(lead: dict) -> str:
-    # Mesma lógica do poller — CSV com colunas Posição;Grupo;Nome;Número.
-    raw = lead.get("Número") or lead.get("Numero") or lead.get("number") or ""
-    raw = str(raw).lstrip("'").split("@")[0]
-    return "".join(ch for ch in raw if ch.isdigit())
-
-
-def _export_leads(token: str, release_id: str) -> list[dict]:
-    resp = requests.post(
-        f"{_BASE_URL}/actions/export-leads",
-        headers=_headers(token),
-        json={"releaseId": release_id},
-        timeout=300,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    csv_url = data.get("url")
-    if not csv_url:
-        return []
-    csv_resp = requests.get(csv_url, timeout=300)
-    csv_resp.raise_for_status()
-    content = csv_resp.content.decode("utf-8-sig")
-    reader = csv.DictReader(io.StringIO(content), delimiter=";")
-    return list(reader)
-
-
-def _get_analytics(token: str, release_id: str) -> dict:
-    resp = requests.get(
-        f"{_BASE_URL}/releases/{release_id}/analytics",
-        headers=_headers(token),
-        timeout=30,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    if isinstance(data, list):
-        data = data[0] if data else {}
-    return data
-
 
 def _contar(token: str, release_id: str, total_limpo_anterior: int | None = None) -> dict | None:
     try:
         leads = _export_leads(token, release_id)
-    except requests.exceptions.HTTPError as e:
-        status = e.response.status_code if e.response is not None else None
-        if status in _STATUS_PERMANENTES:
-            _releases_bloqueados.add(release_id)
-            corpo = ""
-            if e.response is not None:
-                try:
-                    corpo = (e.response.json() or {}).get("message") or ""
-                except Exception:
-                    pass
-            logger.warning(
-                "sendflow_contagem: release %s devolveu %s%s — erro de configuração no "
-                "SendFlow, não adianta repetir; parando de consultar esse release até o "
-                "processo reiniciar",
-                release_id, status, f' ("{corpo}")' if corpo else "",
-            )
-        else:
-            logger.exception("sendflow_contagem: falha ao consultar export-leads (release %s)", release_id)
-        return None
-    except Exception:
-        logger.exception("sendflow_contagem: falha ao consultar export-leads (release %s)", release_id)
+    except Exception as e:
+        _tratar_falha_export_leads(e, release_id, logger)
         return None
 
-    numeros_todos: set[str] = set()
-    numeros_limpo: set[str] = set()
-    for lead in leads:
-        numero = _numero_do_lead(lead)
-        if not numero:
-            continue
-        numeros_todos.add(numero)
-        if numero not in ADMIN_NUMBERS_BASE:
-            numeros_limpo.add(numero)
+    numeros_todos, numeros_limpo = _contar_numeros(leads)
 
     # Proteção contra leitura parcial (mesma lógica do sendflow-analytics-
     # poller): o CSV do export-leads vem de um download separado do Firebase
@@ -190,13 +70,23 @@ def _contar(token: str, release_id: str, total_limpo_anterior: int | None = None
         return None
 
     entradas_hoje = saidas_hoje = 0
+    historico_entradas: dict[str, int] = {}
+    historico_saidas: dict[str, int] = {}
     try:
         analytics = _get_analytics(token, release_id)
         hoje = datetime.now(ZoneInfo("America/Sao_Paulo")).strftime("%d%m%Y")
-        entradas_hoje = analytics.get("add", {}).get("dates", {}).get(hoje, 0)
-        saidas_hoje = analytics.get("remove", {}).get("dates", {}).get(hoje, 0)
+        historico_entradas = analytics.get("add", {}).get("dates", {}) or {}
+        historico_saidas = analytics.get("remove", {}).get("dates", {}) or {}
+        entradas_hoje = historico_entradas.get(hoje, 0)
+        saidas_hoje = historico_saidas.get(hoje, 0)
     except Exception:
         logger.exception("sendflow_contagem: falha ao consultar /analytics (release %s)", release_id)
+
+    grupos_cheios = None
+    try:
+        grupos_cheios = _contar_grupos_cheios(token, release_id)
+    except Exception:
+        logger.exception("sendflow_contagem: falha ao consultar /groups (release %s)", release_id)
 
     return {
         # "Total" replica o que o Sheets mostra hoje: contagem de LINHA do
@@ -209,6 +99,17 @@ def _contar(token: str, release_id: str, total_limpo_anterior: int | None = None
         "total_limpo": len(numeros_limpo),
         "entradas_hoje": int(entradas_hoje or 0),
         "saidas_hoje": int(saidas_hoje or 0),
+        # TOTAL GRUPOS CHEIOS do Sheets: GET /releases/{id}/groups, conta
+        # quem tem full=true — None (não 0) se a consulta falhar, pra não
+        # sobrescrever um valor bom anterior com zero errado.
+        "grupos_cheios": grupos_cheios,
+        # Histórico diário completo (chave "ddmmyyyy") de entradas/saídas —
+        # a SendFlow devolve isso retroativo desde o início da campanha, não
+        # precisa de snapshot pra ter esse dado (ao contrário de total/total
+        # limpo, que só existem "ao vivo"). Vem de graça no mesmo /analytics
+        # já consultado acima pra "hoje" — não é uma chamada extra.
+        "historico_entradas": historico_entradas,
+        "historico_saidas": historico_saidas,
     }
 
 

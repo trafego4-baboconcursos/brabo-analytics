@@ -241,6 +241,23 @@ def _resumo_tabela(conn, tabela: str, start, end, tem_lead_numero: bool) -> dict
     }
 
 
+def _mesclar_contagem_sf(alvo: dict | None, contagem: dict | None) -> None:
+    """Mescla o resultado da SendFlow (total/total_limpo/entradas.../
+    grupos_cheios) no dict de resumo da tabela acumulada, sem deixar um
+    campo que falhou (None) sobrescrever um valor bom que já estava lá."""
+    if not alvo or not contagem:
+        return
+    for chave, valor in contagem.items():
+        if valor is None:
+            continue
+        alvo[chave] = valor
+    # "grupos_cheios" da SendFlow substitui o "grupos" (contagem de grupos
+    # distintos na tabela acumulada) pro card bater com a regra do Sheets
+    # (TOTAL GRUPOS CHEIOS = só quem tem full=true, não qualquer grupo).
+    if contagem.get("grupos_cheios") is not None:
+        alvo["grupos"] = contagem["grupos_cheios"]
+
+
 def _read_whatsapp_uncached(code: str, start_date=None, end_date=None) -> dict | None:
     from frontend.db_readers.launches import read_launch_config  # noqa: PLC0415
 
@@ -290,10 +307,8 @@ def _read_whatsapp_uncached(code: str, start_date=None, end_date=None) -> dict |
         # LID do WhatsApp não ser estável entre sincronizações).
         from frontend.db_readers.sendflow_contagem import contar_lancamento  # noqa: PLC0415
         contagem_sf = contar_lancamento(code) or {}
-        if normal and contagem_sf.get("normal"):
-            normal.update(contagem_sf["normal"])
-        if vip and contagem_sf.get("vip"):
-            vip.update(contagem_sf["vip"])
+        _mesclar_contagem_sf(normal, contagem_sf.get("normal"))
+        _mesclar_contagem_sf(vip, contagem_sf.get("vip"))
 
         overlap = 0
         if tem_normal and tem_vip:
@@ -317,6 +332,89 @@ def _read_whatsapp_uncached(code: str, start_date=None, end_date=None) -> dict |
         "overlap_vip": int(overlap or 0),
         "compradores": compradores,
     }
+
+
+def _monta_historico_bloco(historico_entradas: dict, historico_saidas: dict, snapshots: dict[str, dict]) -> list[dict]:
+    """Uma linha por dia, igual à aba do Sheets: Data | Entradas | Saídas |
+    Relação (E/S) | Leads no dia.
+
+    Entradas/Saídas vêm do histórico retroativo real da SendFlow (/analytics
+    devolve isso desde o início da campanha). "Leads no dia" só existe a
+    partir do dia em que o snapshot diário (whatsapp_grupos_diario) começou
+    a rodar — dias anteriores ficam None (sem gambiarra pra estimar retroativo).
+    """
+    from datetime import datetime as _dt
+
+    # Normaliza as duas fontes pra chave ISO ("yyyy-mm-dd") ANTES de unir —
+    # SendFlow usa "ddmmyyyy", o snapshot no banco já usa ISO; sem isso o
+    # mesmo dia vira duas linhas (uma por formato) em vez de mesclar.
+    def _para_iso(chave_sendflow: str) -> str | None:
+        try:
+            return _dt.strptime(chave_sendflow, "%d%m%Y").date().isoformat()
+        except ValueError:
+            return None
+
+    entradas_iso = {iso: v for k, v in historico_entradas.items() if (iso := _para_iso(k))}
+    saidas_iso = {iso: v for k, v in historico_saidas.items() if (iso := _para_iso(k))}
+
+    dias_iso = set(entradas_iso) | set(saidas_iso) | set(snapshots)
+    linhas = []
+    for iso in dias_iso:
+        try:
+            dia = _dt.strptime(iso, "%Y-%m-%d").date()
+        except ValueError:
+            continue
+        entradas = int(entradas_iso.get(iso, 0) or 0)
+        saidas = int(saidas_iso.get(iso, 0) or 0)
+        snap = snapshots.get(iso)
+        linhas.append({
+            "data": iso,
+            "data_str": dia.strftime("%d/%m/%Y"),
+            "entradas": entradas,
+            "saidas": saidas,
+            "relacao": entradas - saidas,
+            "leads_no_dia": snap["total_limpo"] if snap else None,
+            "total_bruto": snap["total"] if snap else None,
+        })
+    linhas.sort(key=lambda r: r["data"])
+    return linhas
+
+
+def historico_diario(launch_folder_or_code: Any) -> dict[str, list[dict]]:
+    """Tabela diária (Data/Entradas/Saídas/Relação/Leads no dia) por bloco,
+    replicando a estrutura da aba do Sheets — ver _monta_historico_bloco."""
+    from frontend.db_readers.sendflow_contagem import contar_lancamento  # noqa: PLC0415
+
+    code = _extract_launch_code(launch_folder_or_code)
+    contagem_sf = contar_lancamento(code) or {}
+
+    engine = _get_engine()
+    with engine.connect() as conn:
+        rows = conn.execute(
+            text("""
+                SELECT bloco, date::text AS data, total, total_limpo
+                FROM whatsapp_grupos_diario
+                WHERE launch_code = :code
+            """),
+            {"code": code},
+        ).fetchall()
+
+    snapshots_por_bloco: dict[str, dict[str, dict]] = {"normal": {}, "vip": {}}
+    for bloco, data_iso, total, total_limpo in rows:
+        if bloco in snapshots_por_bloco:
+            snapshots_por_bloco[bloco][data_iso] = {"total": total, "total_limpo": total_limpo}
+
+    out: dict[str, list[dict]] = {}
+    for bloco in ("normal", "vip"):
+        info = contagem_sf.get(bloco)
+        if not info:
+            continue
+        out[bloco] = _monta_historico_bloco(
+            info.get("historico_entradas") or {},
+            info.get("historico_saidas") or {},
+            snapshots_por_bloco[bloco],
+        )
+    return out
 
 
 def read_whatsapp_groups(launch_folder_or_code: Any, start_date=None, end_date=None) -> dict | None:

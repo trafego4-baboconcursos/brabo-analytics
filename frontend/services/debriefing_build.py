@@ -1,0 +1,194 @@
+"""
+frontend/services/debriefing_build.py — Monta o contexto completo do /debriefing.
+
+Extraído da rota pra ser usado em dois lugares:
+- pela própria rota, quando não há snapshot gravado (cálculo ao vivo);
+- pelo aquecimento (frontend/services/prewarm.py), que calcula com tudo
+  inline (lazy=False) e grava o resultado em `debriefing_snapshot` — a
+  página então lê uma linha só, sem as dezenas de consultas sequenciais.
+"""
+from __future__ import annotations
+
+import asyncio
+import time
+from typing import Any
+
+from fastapi.concurrency import run_in_threadpool
+
+from frontend.core import (
+    logger,
+    find_previous_launch,
+    _fetch_all_data, _creative_overview,
+    _fetch_prev_for_debriefing, _compute_debriefing_ctx,
+    _sales_attribution,
+)
+from frontend.services.fetch import (
+    _perfil_por_anuncio, _pesquisa_engajamento,
+    _leads_antigos_compradores, _qualidade_regiao, _caminho_comprador,
+    _landing_pages_por_etapa, _leads_x_whatsapp,
+)
+
+
+async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> dict:
+    """Devolve {dbf, drive_thumbnails, data_errors, creative_data_error}.
+
+    `lazy=True` deixa de fora as seções pesadas (Typeform perfil/engajamento,
+    qualidade por estado, caminho do comprador, leads × WhatsApp) — o
+    template as renderiza como esqueleto e o navegador busca cada uma em
+    /debriefing/secao/<nome>. `lazy=False` calcula tudo inline (slides/PDF
+    e snapshot)."""
+    previous = find_previous_launch(launch, launches) if launch else None
+
+    d = await _fetch_all_data(launch, needs_daily=True, needs_hotmart=True, needs_tmb=True, needs_sales_attr=True, needs_youtube=True, needs_thumbnails=True) if launch else {}
+    meta          = d.get("meta")
+    google        = d.get("google")
+    vendas        = d.get("vendas")
+    sales_attr    = d.get("sales_attr")
+    daily         = d.get("daily_breakdown") or []
+    hotmart       = d.get("hotmart")
+    tmb           = d.get("tmb")
+    youtube_aulas = d.get("youtube_aulas") or []
+    thumb         = d.get("drive_thumbnails") or {}
+
+    data_errors = list(d.get("_errors", []))
+
+    # Blocos independentes entre si (só dependem do que já foi buscado acima):
+    # rodam em paralelo.
+
+    async def f_creative():
+        if not (launch and (meta or google)):
+            return None, False
+        try:
+            data = await run_in_threadpool(
+                _creative_overview, meta, google, vendas, sales_attr,
+                launch_code=launch.code if launch else "",
+            )
+            return data, False
+        except Exception:
+            logger.exception("Debriefing: falha ao montar creative overview")
+            return None, True
+
+    async def f_leads_antigos():
+        if not (launch and vendas):
+            return None
+        try:
+            return await run_in_threadpool(_leads_antigos_compradores, launch, vendas)
+        except Exception:
+            logger.exception("Debriefing: falha ao classificar leads antigos × novos")
+            return None
+
+    async def f_perfil_pesquisa():
+        if not launch or lazy:
+            return None, None
+        try:
+            return await asyncio.gather(
+                run_in_threadpool(_perfil_por_anuncio, launch),
+                run_in_threadpool(_pesquisa_engajamento, launch),
+            )
+        except Exception:
+            logger.exception("Debriefing: falha ao montar perfil do lead por anúncio")
+            return None, None
+
+    async def f_qualidade_regiao():
+        if not launch or lazy:
+            return None
+        try:
+            return await run_in_threadpool(_qualidade_regiao, launch, vendas)
+        except Exception:
+            logger.exception("Debriefing: falha ao montar qualidade por regiao")
+            return None
+
+    async def f_caminho_comprador():
+        if not (launch and vendas) or lazy:
+            return None
+        try:
+            return await run_in_threadpool(_caminho_comprador, launch, vendas)
+        except Exception:
+            logger.exception("Debriefing: falha ao montar caminho do comprador")
+            return None
+
+    async def f_landing_pages():
+        if not launch:
+            return None
+        try:
+            return await run_in_threadpool(_landing_pages_por_etapa, launch)
+        except Exception:
+            logger.exception("Debriefing: falha ao montar landing pages por etapa (GA4)")
+            return None
+
+    async def f_leads_x_whatsapp():
+        if not launch or lazy:
+            return None
+        try:
+            return await run_in_threadpool(_leads_x_whatsapp, launch)
+        except Exception:
+            logger.exception("Debriefing: falha ao montar leads x grupos de WhatsApp")
+            return None
+
+    async def f_previous():
+        if not previous:
+            return None, None, None, None, None
+        try:
+            prev_d = await run_in_threadpool(_fetch_prev_for_debriefing, previous)
+            p_meta    = prev_d.get("meta")
+            p_google  = prev_d.get("google")
+            p_vendas  = prev_d.get("vendas")
+            p_wa_cost = prev_d.get("wa_cost")
+            p_sales_attr = None
+            if getattr(previous, "has_ac", False) and p_vendas:
+                p_sales_attr = await run_in_threadpool(_sales_attribution, previous, p_vendas)
+            return p_meta, p_google, p_vendas, p_wa_cost, p_sales_attr
+        except Exception:
+            logger.exception("Debriefing: falha ao buscar dados do lançamento anterior")
+            return None, None, None, None, None
+
+    (
+        (creative_data, creative_data_error),
+        leads_antigos,
+        (perfil_por_anuncio, pesquisa_engajamento),
+        qualidade_regiao,
+        caminho_comprador,
+        (prev_meta, prev_google, prev_vendas, prev_wa_cost, prev_sales_attr),
+        landing_pages_por_etapa,
+        leads_x_whatsapp,
+    ) = await asyncio.gather(
+        f_creative(), f_leads_antigos(), f_perfil_pesquisa(),
+        f_qualidade_regiao(), f_caminho_comprador(), f_previous(),
+        f_landing_pages(), f_leads_x_whatsapp(),
+    )
+
+    dbf = _compute_debriefing_ctx(
+        launch, previous,
+        meta, google, vendas, sales_attr, daily, hotmart, creative_data,
+        prev_meta, prev_google, prev_vendas,
+        youtube_aulas=youtube_aulas,
+        prev_sales_attr=prev_sales_attr,
+        tmb=tmb,
+        leads_antigos=leads_antigos,
+        perfil_por_anuncio=perfil_por_anuncio,
+        pesquisa_engajamento=pesquisa_engajamento,
+        qualidade_regiao=qualidade_regiao,
+        caminho_comprador=caminho_comprador,
+        landing_pages_por_etapa=landing_pages_por_etapa,
+        leads_x_whatsapp=leads_x_whatsapp,
+        wa_cost=d.get("wa_cost"),
+        prev_wa_cost=prev_wa_cost,
+    )
+    return {
+        "dbf": dbf,
+        "drive_thumbnails": thumb,
+        "data_errors": data_errors,
+        "creative_data_error": creative_data_error,
+    }
+
+
+async def refresh_debriefing_snapshot(launch: Any, launches: list) -> None:
+    """Calcula o contexto completo (tudo inline) e grava em debriefing_snapshot.
+    Chamado pelo aquecimento, com os caches já quentes — custa só a montagem."""
+    from frontend.db_readers.debriefing_snapshot import write_snapshot  # noqa: PLC0415
+
+    t0 = time.perf_counter()
+    built = await build_debriefing_context(launch, launches, lazy=False)
+    duration_ms = int((time.perf_counter() - t0) * 1000)
+    size = await run_in_threadpool(write_snapshot, launch.code, built, duration_ms)
+    logger.info("Snapshot do debriefing de %s gravado (%d KB, montado em %d ms).", launch.code, size // 1024, duration_ms)

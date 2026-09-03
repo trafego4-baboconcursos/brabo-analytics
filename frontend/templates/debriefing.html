@@ -503,7 +503,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
     <img src="/img/logo-b-brabo-concursos.png" alt="Brabo">
     <div>
       <h1>Debriefing{% if launch %} — {{ launch.code }}{% endif %}</h1>
-      <p>{% if launch %}{{ launch.name }}{% endif %}{% if dbf.has_prev %} · comparativo vs {{ dbf.prev_code }}{% endif %}</p>
+      <p>{% if launch %}{{ launch.name }}{% endif %}{% if dbf.has_prev %} · comparativo vs {{ dbf.prev_code }}{% endif %}{% if snapshot_label %} · <span title="Dados pré-calculados pelo último aquecimento (boot ou fim da rodada do ETL). Acrescente ?ao_vivo=1 na URL para recalcular agora.">dados de {{ snapshot_label }}</span>{% endif %}</p>
     </div>
   </div>
 

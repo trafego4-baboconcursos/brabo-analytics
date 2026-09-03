@@ -19,6 +19,7 @@ from frontend.services.fetch import (
     _landing_pages_por_etapa, _leads_x_whatsapp,
 )
 from frontend.services.calendario import build_calendario_ctx
+from frontend.services.debriefing_build import build_debriefing_context
 
 router = APIRouter()
 
@@ -320,160 +321,43 @@ async def debriefing(request: Request, launch_code: str | None = None, modo: str
     (um slide 1920x1080 por seção, pronto pra "Salvar como PDF" no Chrome);
     é o que o botão "Gerar PDF" da aba abre."""
     slides = modo == "slides"
-    # Carregamento progressivo: fora do modo slides, as seções mais pesadas
-    # (Typeform perfil/engajamento, qualidade por estado, caminho do comprador)
-    # não entram nesta requisição — o template renderiza um esqueleto e o
-    # navegador busca cada uma em /debriefing/secao/<nome> depois que a página
-    # já apareceu. O PDF/slides precisa de tudo de uma vez, então lá é inline.
-    lazy = not slides
     launches = await run_in_threadpool(get_launches)
     launch = resolve_launch(launch_code, launches)
-    previous = find_previous_launch(launch, launches) if launch else None
 
-    d = await _fetch_all_data(launch, needs_daily=True, needs_hotmart=True, needs_tmb=True, needs_sales_attr=True, needs_youtube=True, needs_thumbnails=True) if launch else {}
-    meta          = d.get("meta")
-    google        = d.get("google")
-    vendas        = d.get("vendas")
-    sales_attr    = d.get("sales_attr")
-    daily         = d.get("daily_breakdown") or []
-    hotmart       = d.get("hotmart")
-    tmb           = d.get("tmb")
-    youtube_aulas = d.get("youtube_aulas") or []
-    thumb         = d.get("drive_thumbnails") or {}
+    # 1) Caminho rápido: snapshot pré-calculado pelo aquecimento (boot + após
+    #    cada rodada do ETL), gravado em debriefing_snapshot. Uma consulta e
+    #    tudo inline — nada de esqueleto nem cálculo. `?ao_vivo=1` ignora o
+    #    snapshot (depuração / conferir dado recém-carregado).
+    snapshot_at = None
+    built = None
+    if launch and request.query_params.get("ao_vivo") != "1":
+        from frontend.db_readers.debriefing_snapshot import read_snapshot  # noqa: PLC0415
+        snap = await run_in_threadpool(read_snapshot, launch.code)
+        if snap and isinstance(snap.get("payload"), dict) and snap["payload"].get("dbf"):
+            built = snap["payload"]
+            snapshot_at = snap["computed_at"]
 
-    data_errors = list(d.get("_errors", []))
+    # 2) Sem snapshot: cálculo ao vivo. Fora do modo slides, as seções mais
+    #    pesadas viram esqueleto e o navegador busca cada uma em
+    #    /debriefing/secao/<nome> depois que a página já apareceu (lazy).
+    lazy = False
+    if built is None:
+        lazy = not slides
+        built = await build_debriefing_context(launch, launches, lazy=lazy)
 
-    # Os blocos abaixo (creative overview, leads antigos, perfil/pesquisa,
-    # qualidade por região, caminho do comprador, dados do lançamento
-    # anterior) são independentes entre si — só dependem do que já foi
-    # buscado acima — então rodam em paralelo via asyncio.gather em vez de
-    # sequencialmente, o que era o principal gargalo de carregamento da página.
-
-    async def f_creative():
-        if not (launch and (meta or google)):
-            return None, False
+    snapshot_label = ""
+    if snapshot_at:
         try:
-            data = await run_in_threadpool(
-                _creative_overview, meta, google, vendas, sales_attr,
-                launch_code=launch.code if launch else "",
-            )
-            return data, False
+            from zoneinfo import ZoneInfo  # noqa: PLC0415
+            snapshot_label = snapshot_at.astimezone(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m %H:%M")
         except Exception:
-            logger.exception("Debriefing: falha ao montar creative overview")
-            return None, True
-
-    async def f_leads_antigos():
-        if not (launch and vendas):
-            return None
-        try:
-            return await run_in_threadpool(_leads_antigos_compradores, launch, vendas)
-        except Exception:
-            logger.exception("Debriefing: falha ao classificar leads antigos × novos")
-            return None
-
-    async def f_perfil_pesquisa():
-        if not launch or lazy:
-            return None, None
-        try:
-            return await asyncio.gather(
-                run_in_threadpool(_perfil_por_anuncio, launch),
-                run_in_threadpool(_pesquisa_engajamento, launch),
-            )
-        except Exception:
-            logger.exception("Debriefing: falha ao montar perfil do lead por anúncio")
-            return None, None
-
-    async def f_qualidade_regiao():
-        if not launch or lazy:
-            return None
-        try:
-            return await run_in_threadpool(_qualidade_regiao, launch, vendas)
-        except Exception:
-            logger.exception("Debriefing: falha ao montar qualidade por regiao")
-            return None
-
-    async def f_caminho_comprador():
-        if not (launch and vendas) or lazy:
-            return None
-        try:
-            return await run_in_threadpool(_caminho_comprador, launch, vendas)
-        except Exception:
-            logger.exception("Debriefing: falha ao montar caminho do comprador")
-            return None
-
-    async def f_landing_pages():
-        if not launch:
-            return None
-        try:
-            return await run_in_threadpool(_landing_pages_por_etapa, launch)
-        except Exception:
-            logger.exception("Debriefing: falha ao montar landing pages por etapa (GA4)")
-            return None
-
-    async def f_leads_x_whatsapp():
-        if not launch or lazy:
-            return None
-        try:
-            return await run_in_threadpool(_leads_x_whatsapp, launch)
-        except Exception:
-            logger.exception("Debriefing: falha ao montar leads x grupos de WhatsApp")
-            return None
-
-    async def f_previous():
-        if not previous:
-            return None, None, None, None, None
-        try:
-            prev_d = await run_in_threadpool(_fetch_prev_for_debriefing, previous)
-            p_meta    = prev_d.get("meta")
-            p_google  = prev_d.get("google")
-            p_vendas  = prev_d.get("vendas")
-            p_wa_cost = prev_d.get("wa_cost")
-            p_sales_attr = None
-            if getattr(previous, "has_ac", False) and p_vendas:
-                p_sales_attr = await run_in_threadpool(_sales_attribution, previous, p_vendas)
-            return p_meta, p_google, p_vendas, p_wa_cost, p_sales_attr
-        except Exception:
-            logger.exception("Debriefing: falha ao buscar dados do lançamento anterior")
-            return None, None, None, None, None
-
-    (
-        (creative_data, creative_data_error),
-        leads_antigos,
-        (perfil_por_anuncio, pesquisa_engajamento),
-        qualidade_regiao,
-        caminho_comprador,
-        (prev_meta, prev_google, prev_vendas, prev_wa_cost, prev_sales_attr),
-        landing_pages_por_etapa,
-        leads_x_whatsapp,
-    ) = await asyncio.gather(
-        f_creative(), f_leads_antigos(), f_perfil_pesquisa(),
-        f_qualidade_regiao(), f_caminho_comprador(), f_previous(),
-        f_landing_pages(), f_leads_x_whatsapp(),
-    )
-
-    dbf = _compute_debriefing_ctx(
-        launch, previous,
-        meta, google, vendas, sales_attr, daily, hotmart, creative_data,
-        prev_meta, prev_google, prev_vendas,
-        youtube_aulas=youtube_aulas,
-        prev_sales_attr=prev_sales_attr,
-        tmb=tmb,
-        leads_antigos=leads_antigos,
-        perfil_por_anuncio=perfil_por_anuncio,
-        pesquisa_engajamento=pesquisa_engajamento,
-        qualidade_regiao=qualidade_regiao,
-        caminho_comprador=caminho_comprador,
-        landing_pages_por_etapa=landing_pages_por_etapa,
-        leads_x_whatsapp=leads_x_whatsapp,
-        wa_cost=d.get("wa_cost"),
-        prev_wa_cost=prev_wa_cost,
-    )
+            snapshot_label = str(snapshot_at)[:16]
 
     ctx = _base_ctx(request, "debriefing", "Debriefing", launch, launches,
-                    dbf=dbf, drive_thumbnails=thumb,
-                    data_errors=data_errors,
-                    creative_data_error=creative_data_error,
-                    slides=slides, lazy=lazy)
+                    dbf=built["dbf"], drive_thumbnails=built.get("drive_thumbnails") or {},
+                    data_errors=built.get("data_errors") or [],
+                    creative_data_error=bool(built.get("creative_data_error")),
+                    slides=slides, lazy=lazy, snapshot_label=snapshot_label)
     return templates.TemplateResponse("debriefing.html", ctx)
 
 

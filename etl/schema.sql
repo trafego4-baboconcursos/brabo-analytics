@@ -916,3 +916,15 @@ CREATE TABLE IF NOT EXISTS ga4_daily (
 CREATE INDEX IF NOT EXISTS idx_ga4_daily_date ON ga4_daily(date);
 CREATE INDEX IF NOT EXISTS idx_ga4_daily_launch ON ga4_daily(lancamento_codigo);
 CREATE INDEX IF NOT EXISTS idx_ga4_daily_property ON ga4_daily(property_id);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Snapshot pré-calculado do /debriefing (frontend/db_readers/debriefing_snapshot.py)
+-- Gravado pelo aquecimento do dashboard (boot + após cada rodada do ETL);
+-- a página lê uma linha e renderiza, sem recomputar tudo no cache frio.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS debriefing_snapshot (
+    lancamento_codigo TEXT PRIMARY KEY,
+    payload           JSONB NOT NULL,
+    computed_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    duration_ms       INTEGER
+);

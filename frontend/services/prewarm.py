@@ -52,8 +52,9 @@ def select_launches_to_warm(launches: list, codes: Iterable[str] | None = None) 
     return list(to_warm.values())
 
 
-async def warm_launch(launch: Any, previous: Any) -> None:
+async def warm_launch(launch: Any, previous: Any, launches: list | None = None) -> None:
     logger.info("Pre-warming cache para %s...", launch.code)
+    launches = launches if launches is not None else ([previous] if previous else [])
     d: dict = {}
     try:
         d = await _fetch_all_data(
@@ -82,6 +83,15 @@ async def warm_launch(launch: Any, previous: Any) -> None:
     except Exception:
         logger.exception("Falha no pre-warming do debriefing de %s", launch.code)
 
+    # Com os caches quentes, monta o contexto completo do /debriefing e grava
+    # em debriefing_snapshot: a página passa a ler uma linha e renderizar,
+    # mesmo depois de um restart (cache frio) — ver debriefing_build.py.
+    try:
+        from frontend.services.debriefing_build import refresh_debriefing_snapshot  # noqa: PLC0415
+        await refresh_debriefing_snapshot(launch, launches)
+    except Exception:
+        logger.exception("Falha ao gravar snapshot do debriefing de %s", launch.code)
+
     # Contagem SendFlow (/whatsapp) fica de fora do _fetch_all_data porque é
     # uma fonte externa lenta (export-leads da SendFlow).
     try:
@@ -108,7 +118,7 @@ async def warm_active(codes: Iterable[str] | None = None, invalidate: bool = Fal
         token = force_refresh_start() if invalidate else None
         try:
             for l in to_warm:
-                await warm_launch(l, find_previous_launch(l, launches))
+                await warm_launch(l, find_previous_launch(l, launches), launches)
         finally:
             if token is not None:
                 force_refresh_end(token)

@@ -17,7 +17,10 @@ import re
 import pandas as pd
 from datetime import datetime, timezone
 from pathlib import Path
+import logging
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, before_sleep_log
 from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -102,9 +105,16 @@ def load_from_csv(filepath: str, launch_code: str | None = None) -> pd.DataFrame
     df["email"] = df["email"].str.lower().str.strip()
     df["id"]    = df["id"].astype(str)
 
-    # Converte data de criação para ISO
+    # Converte data de criação para ISO — o export do Active Campaign (conta
+    # hospedada em api-us1.com) já vem em "YYYY-MM-DD HH:MM:SS" (formato
+    # fechado, sem ambiguidade). dayfirst=True quebrava isso: o pandas troca
+    # mês e dia mesmo em datas ISO quando o dia é <=12 (ex.: "2026-05-12" virava
+    # 2026-12-05), e descarta a linha inteira (NaT) quando o dia é >12 (o "mês"
+    # resultante fica inválido) — achado em 02/09/26 no PI-AGO-26: ~108 mil
+    # leads com created_at nulo e outros milhares com data errada por causa
+    # disso. Formato explícito é mais rápido e não tem essa ambiguidade.
     if "created_at" in df.columns:
-        df["created_at"] = pd.to_datetime(df["created_at"], errors="coerce", dayfirst=True)
+        df["created_at"] = pd.to_datetime(df["created_at"], format="%Y-%m-%d %H:%M:%S", errors="coerce")
 
     # Adiciona colunas ausentes como nulo para compatibilidade com o schema
     for col in ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "gclid", "fbclid", "ttclid", "vk_source", "vk_ad_id", "nome", "sobrenome", "phone"]:
@@ -260,10 +270,35 @@ def load_from_api(since: str, until: str) -> pd.DataFrame:
 
 _AC_REQUIRED_COLS = ["id", "email", "created_at", "lancamento_codigo"]
 
+# Cargas grandes (200k+ leads, ex.: reload de lançamento inteiro via CSV) têm
+# derrubado a conexão com o Supabase no meio do processo (server closed the
+# connection unexpectedly) — achado em 02/09/26 reprocessando o PI-AGO-26.
+# Cada lote já é atômico (DELETE+INSERT na mesma transação), então um retry
+# simples no lote que falhou é seguro: não duplica nem perde linha.
+@retry(
+    stop=stop_after_attempt(4),
+    wait=wait_exponential(multiplier=2, min=2, max=30),
+    retry=retry_if_exception_type(OperationalError),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
+def _upsert_batch(engine, ids: list, chunk: list, col_list: str, placeholders: str) -> None:
+    with engine.begin() as conn:
+        conn.execute(
+            text(f"DELETE FROM {TABLE} WHERE id = ANY(:ids)"),
+            {"ids": ids},
+        )
+        conn.execute(
+            text(f"INSERT INTO {TABLE} ({col_list}) VALUES ({placeholders})"),
+            chunk,
+        )
+
+
 def upsert(df: pd.DataFrame, label: str = ""):
     """DELETE + INSERT atômicos por lote: se o INSERT falhar no meio, o DELETE
     daquele lote também é desfeito — nunca perde leads já gravados por causa
-    de uma queda de conexão no meio do processo."""
+    de uma queda de conexão no meio do processo. Lotes já commitados antes de
+    uma falha continuam válidos; só o lote em andamento é re-tentado."""
     if not validate_dataframe(df, _AC_REQUIRED_COLS, "leads", logger):
         return
     df = df.drop_duplicates(subset="id", keep="last")
@@ -273,19 +308,11 @@ def upsert(df: pd.DataFrame, label: str = ""):
     col_list = ", ".join(cols)
     placeholders = ", ".join(f":{c}" for c in cols)
     records = df.to_dict("records")
-    batch_size = 500
+    batch_size = 200
     for i in range(0, len(records), batch_size):
         chunk = records[i:i + batch_size]
         ids = [r["id"] for r in chunk]
-        with engine.begin() as conn:
-            conn.execute(
-                text(f"DELETE FROM {TABLE} WHERE id = ANY(:ids)"),
-                {"ids": ids},
-            )
-            conn.execute(
-                text(f"INSERT INTO {TABLE} ({col_list}) VALUES ({placeholders})"),
-                chunk,
-            )
+        _upsert_batch(engine, ids, chunk, col_list, placeholders)
     logger.info("Upsert concluído: %d leads gravados em '%s'%s", len(df), TABLE, label)
 
 

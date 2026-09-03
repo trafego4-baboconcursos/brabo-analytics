@@ -775,22 +775,27 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
       <div class="cmp-curr">
         <div class="cmp-title">{{ launch.code if launch else '—' }} — Remarketing</div>
         {% set rmkt_total = dbf.rmkt_adsets | sum(attribute='gasto') %}
+        {% set rmkt_previsto_total = dbf.rmkt_adsets | sum(attribute='previsto') %}
         {% set prev_rmkt_total = dbf.prev_rmkt_adsets | sum(attribute='gasto') if dbf.prev_rmkt_adsets else 0 %}
         {% for a in dbf.rmkt_adsets %}
         {% set pa = dbf.prev_rmkt_adsets[loop.index0] if dbf.prev_rmkt_adsets and loop.index0 < (dbf.prev_rmkt_adsets | length) else None %}
-        <div class="alloc-row">
+        <div class="alloc-row alloc-row-budget">
           <div class="alloc-lbl" title="{{ a.adset }}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px">{{ a.adset }}</div>
           <div class="alloc-bar-wrap"><div class="alloc-bar" style="width:{{ a.pct | round(1) }}%;background:#f97316"></div></div>
           <div class="alloc-pct" style="color:{{ '#f97316' if a.gasto > 0 else 'var(--bs-ink-subtle)' }}">{{ a.pct | round(1) }}%</div>
-          <div class="alloc-val">{{ a.gasto | brl(0) }}</div>
+          <div class="alloc-previsto"><span class="alloc-col-lbl">Previsto</span>{{ a.previsto | brl(0) if a.previsto > 0 else '—' }}</div>
+          <div class="alloc-realizado"><span class="alloc-col-lbl">Realizado</span>{{ a.gasto | brl(0) }}</div>
+          <div class="alloc-variacao"><span class="alloc-col-lbl">Var.</span>{% if a.previsto > 0 %}{{ dbadge(a.gasto, a.previsto, 'down') }}{% else %}—{% endif %}</div>
           <div class="alloc-badge">{% if pa and pa.gasto %}{{ dbadge(a.gasto, pa.gasto, 'up') }}{% endif %}</div>
         </div>
         {% endfor %}
-        <div class="alloc-row" style="border-top:1px solid var(--bs-border);margin-top:6px;padding-top:6px;font-weight:600">
+        <div class="alloc-row alloc-row-budget total" style="border-top:1px solid var(--bs-border);margin-top:6px;padding-top:6px;font-weight:600">
           <div class="alloc-lbl">Total</div>
           <div class="alloc-bar-wrap" style="visibility:hidden"></div>
           <div class="alloc-pct" style="color:#f97316">100%</div>
-          <div class="alloc-val">{{ rmkt_total | brl(0) }}</div>
+          <div class="alloc-previsto"><span class="alloc-col-lbl">Previsto</span>{{ rmkt_previsto_total | brl(0) if rmkt_previsto_total > 0 else '—' }}</div>
+          <div class="alloc-realizado"><span class="alloc-col-lbl">Realizado</span>{{ rmkt_total | brl(0) }}</div>
+          <div class="alloc-variacao"><span class="alloc-col-lbl">Var.</span>{% if rmkt_previsto_total > 0 %}{{ dbadge(rmkt_total, rmkt_previsto_total, 'down') }}{% else %}—{% endif %}</div>
           <div class="alloc-badge">{% if prev_rmkt_total %}{{ dbadge(rmkt_total, prev_rmkt_total, 'up') }}{% endif %}</div>
         </div>
       </div>
@@ -799,20 +804,25 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
       <div class="cmp-prev">
         <div class="cmp-title">{{ dbf.prev_code }} — Remarketing</div>
         {% set prev_rmkt_total = dbf.prev_rmkt_adsets | sum(attribute='gasto') %}
+        {% set prev_rmkt_previsto_total = dbf.prev_rmkt_adsets | sum(attribute='previsto') %}
         {% for a in dbf.prev_rmkt_adsets %}
-        <div class="alloc-row">
+        <div class="alloc-row alloc-row-budget">
           <div class="alloc-lbl" title="{{ a.adset }}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px">{{ a.adset }}</div>
           <div class="alloc-bar-wrap"><div class="alloc-bar" style="width:{{ a.pct | round(1) }}%;background:var(--bs-ink-subtle)"></div></div>
           <div class="alloc-pct" style="color:{{ 'var(--bs-ink-muted)' if a.gasto > 0 else 'var(--bs-ink-subtle)' }}">{{ a.pct | round(1) }}%</div>
-          <div class="alloc-val">{{ a.gasto | brl(0) }}</div>
+          <div class="alloc-previsto"><span class="alloc-col-lbl">Previsto</span>{{ a.previsto | brl(0) if a.previsto > 0 else '—' }}</div>
+          <div class="alloc-realizado"><span class="alloc-col-lbl">Realizado</span>{{ a.gasto | brl(0) }}</div>
+          <div class="alloc-variacao"><span class="alloc-col-lbl">Var.</span>{% if a.previsto > 0 %}{{ dbadge(a.gasto, a.previsto, 'down') }}{% else %}—{% endif %}</div>
           <div class="alloc-badge"></div>
         </div>
         {% endfor %}
-        <div class="alloc-row" style="border-top:1px solid var(--bs-border);margin-top:6px;padding-top:6px;font-weight:600">
+        <div class="alloc-row alloc-row-budget total" style="border-top:1px solid var(--bs-border);margin-top:6px;padding-top:6px;font-weight:600">
           <div class="alloc-lbl">Total</div>
           <div class="alloc-bar-wrap" style="visibility:hidden"></div>
           <div class="alloc-pct" style="color:var(--bs-ink-muted)">100%</div>
-          <div class="alloc-val">{{ prev_rmkt_total | brl(0) }}</div>
+          <div class="alloc-previsto"><span class="alloc-col-lbl">Previsto</span>{{ prev_rmkt_previsto_total | brl(0) if prev_rmkt_previsto_total > 0 else '—' }}</div>
+          <div class="alloc-realizado"><span class="alloc-col-lbl">Realizado</span>{{ prev_rmkt_total | brl(0) }}</div>
+          <div class="alloc-variacao"><span class="alloc-col-lbl">Var.</span>{% if prev_rmkt_previsto_total > 0 %}{{ dbadge(prev_rmkt_total, prev_rmkt_previsto_total, 'down') }}{% else %}—{% endif %}</div>
           <div class="alloc-badge"></div>
         </div>
       </div>

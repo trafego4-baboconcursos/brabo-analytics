@@ -132,16 +132,23 @@ def _build_leads_detail_table(
     return curr_rows
 
 
-def _build_rmkt_adsets(meta: Any, whatsapp: float = 0.0) -> list:
+def _build_rmkt_adsets(meta: Any, whatsapp: float = 0.0, cfg: dict | None = None) -> list:
     _order = ["Lembrete", "Depoimento", "Aulas no Ar", "Replay", "Matrículas Abertas"]
     por_etapa = getattr(meta, "por_etapa", {}) or {}
+    previsto_por_subetapa = {
+        et.get("nome"): float(et.get("total") or 0)
+        for et in ((cfg or {}).get("etapas") or [])
+    }
     rows = []
     for e in _order:
         d = por_etapa.get(e) or {}
         gasto = float(d.get("gasto") or d.get("custo") or 0)
-        rows.append({"adset": e, "gasto": gasto, "leads": int(d.get("leads") or 0), "pct": 0.0})
+        rows.append({
+            "adset": e, "gasto": gasto, "leads": int(d.get("leads") or 0), "pct": 0.0,
+            "previsto": previsto_por_subetapa.get(e, 0.0),
+        })
     if whatsapp > 0:
-        rows.append({"adset": "WhatsApp", "gasto": whatsapp, "leads": 0, "pct": 0.0})
+        rows.append({"adset": "WhatsApp", "gasto": whatsapp, "leads": 0, "pct": 0.0, "previsto": 0.0})
     total = sum(r["gasto"] for r in rows) or 1
     for r in rows:
         r["pct"] = r["gasto"] / total * 100 if r["gasto"] > 0 else 0.0
@@ -599,8 +606,8 @@ def _compute_debriefing_ctx(
                 for c in _CLIMA_ORDER
             ) if v
         },
-        "rmkt_adsets": _build_rmkt_adsets(meta, whatsapp=wa_gasto),
-        "prev_rmkt_adsets": _build_rmkt_adsets(prev_meta, whatsapp=prev_wa_gasto),
+        "rmkt_adsets": _build_rmkt_adsets(meta, whatsapp=wa_gasto, cfg=cfg),
+        "prev_rmkt_adsets": _build_rmkt_adsets(prev_meta, whatsapp=prev_wa_gasto, cfg=_launch_cfg(previous.code) if previous else None),
         # Sales por temperatura/tipo
         "meta_temp_sales": meta_temp_sales, "google_tipo_sales": google_tipo_sales,
         "prev_meta_temp_sales": prev_meta_temp_sales, "prev_google_tipo_sales": prev_google_tipo_sales,

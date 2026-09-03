@@ -12,19 +12,11 @@
   cursor: pointer; user-select: none;
 }
 .dbf-section-title i { color: var(--bs-accent); font-size: 17px; }
-.dbf-section-title .dbf-chevron {
-  margin-left: auto; transition: transform .15s;
-}
-.dbf-section.collapsed .dbf-section-title { margin-bottom: 0; border-bottom-color: var(--bs-border); }
-.dbf-section.collapsed .dbf-section-title .dbf-chevron { transform: rotate(-90deg); }
-.dbf-section.collapsed > *:not(.dbf-section-title) { display: none !important; }
+/* Recolher/expandir, reordenar, ocultar e tags agora são genéricos —
+   ver o accordion em base.html (reconhece .dbf-section/.dbf-section-title
+   junto com .section/.section-title). Fica só o wrapper de layout do
+   botão "Gerar PDF" abaixo. */
 .dbf-accordion-controls { display: flex; gap: 10px; margin-bottom: 28px; }
-.dbf-accordion-controls button {
-  background: var(--bs-accent-bg); color: var(--bs-accent); border: 1px solid var(--bs-border-s);
-  padding: 7px 16px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer;
-  display: inline-flex; align-items: center; gap: 6px;
-}
-.dbf-accordion-controls button:hover { filter: brightness(0.95); }
 .dbf-launch-badge {
   font-size: 11px; font-weight: 700; padding: 2px 8px;
   border-radius: 20px; background: var(--bs-accent); color: #fff;
@@ -441,24 +433,62 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
 
 {% macro roas_cls(v) %}{% if v >= 3 %}roas-good{% elif v >= 2 %}roas-ok{% else %}roas-bad{% endif %}{% endmacro %}
 
-{% macro sem_dados(fonte) %}
-<div class="dbf-sem-dados">
-  <i class="ti ti-alert-triangle"></i>
-  <div>
-    <strong>Dados não disponíveis</strong>
-    <span>Fonte necessária: <em>{{ fonte }}</em></span>
-  </div>
-</div>
-{% endmacro %}
-
+{# sem_dados/thumb_th/thumb_td vivem em debriefing/_macros.html porque os
+   fragmentos de seção carregados sob demanda (debriefing/_secao_*.html)
+   também precisam delas. #}
+{% from "debriefing/_macros.html" import sem_dados, thumb_th, thumb_td with context %}
 {% set has_thumbs = drive_thumbnails is defined and drive_thumbnails | length > 0 %}
-{% macro thumb_th() %}{% if has_thumbs %}<th style="width:72px"></th>{% endif %}{% endmacro %}
-{% macro thumb_td(ad_code, extra={}) %}
-  {% if has_thumbs %}
-  {% set td = drive_thumbnails.get(ad_code) %}
-  <td style="padding:4px 6px">{% if td %}<img src="{{ td.thumb }}" data-preview="{{ td.preview }}" data-title="{{ ad_code }}"{% for k, v in extra.items() %} data-{{ k }}="{{ v }}"{% endfor %} onclick="openVideoModalFromEl(this)" style="width:64px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer;display:block" loading="lazy" onerror="this.style.display='none'">{% endif %}</td>
-  {% endif %}
-{% endmacro %}
+
+{% if lazy %}
+{# ── Carregamento progressivo ─────────────────────────────────────────
+   As seções mais pesadas (Typeform, caminho do comprador, qualidade por
+   estado) NÃO são calculadas na requisição da página: entram como
+   "esqueleto" e o JS abaixo busca cada uma, uma por vez, em
+   /debriefing/secao/<nome> depois que a página já apareceu. Assim a página
+   responde sem esperar a leitura mais lenta, e erro numa seção fica só
+   nela. No modo apresentação (?modo=slides) tudo vem inline. #}
+<style>
+.dbf-lazy-body { min-height: 96px; }
+.dbf-skel { display: flex; flex-direction: column; gap: 10px; padding: 4px 0 8px; }
+.dbf-skel span {
+  display: block; height: 14px; border-radius: 6px;
+  background: linear-gradient(90deg, var(--bs-surface) 25%, var(--bs-border) 50%, var(--bs-surface) 75%);
+  background-size: 200% 100%; animation: dbf-shimmer 1.4s ease-in-out infinite;
+}
+.dbf-skel span:nth-child(1) { width: 38%; } .dbf-skel span:nth-child(2) { width: 92%; }
+.dbf-skel span:nth-child(3) { width: 84%; } .dbf-skel span:nth-child(4) { width: 61%; }
+@keyframes dbf-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.dbf-lazy-err { font-size: 12.5px; color: var(--bs-ink-muted); padding: 6px 0; }
+.dbf-lazy-err a { color: var(--bs-accent); }
+</style>
+<script>
+(function () {
+  var launchCode = {{ (launch.code if launch else '') | tojson }};
+  function run() {
+    var secs = Array.prototype.slice.call(document.querySelectorAll('[data-lazy-section]'));
+    function next(i) {
+      if (i >= secs.length) return;
+      var sec = secs[i], body = sec.querySelector('.dbf-lazy-body');
+      var url = '/debriefing/secao/' + sec.getAttribute('data-lazy-section') + '?launch_code=' + encodeURIComponent(launchCode);
+      fetch(url, { credentials: 'same-origin' })
+        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+        .then(function (html) {
+          if (!html.trim()) { sec.remove(); return; }   /* sem dado pra esse lançamento: some, como antes */
+          body.outerHTML = html;
+        })
+        .catch(function () {
+          body.innerHTML = '<div class="dbf-lazy-err"><i class="ti ti-alert-triangle"></i> Não foi possível carregar esta seção agora. '
+            + '<a href="#" onclick="location.reload();return false;">Recarregar a página</a></div>';
+        })
+        .then(function () { next(i + 1); });
+    }
+    next(0);
+  }
+  if (document.readyState !== 'loading') run(); else document.addEventListener('DOMContentLoaded', run);
+})();
+</script>
+{% endif %}
+{% macro lazy_skeleton() %}<div class="dbf-lazy-body"><div class="dbf-skel"><span></span><span></span><span></span><span></span></div></div>{% endmacro %}
 
 <div class="wrap">
   <div class="hdr">
@@ -479,8 +509,6 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
   {% else %}
 
   <div class="dbf-accordion-controls">
-    <button type="button" id="dbf-collapse-all"><i class="ti ti-arrows-minimize"></i> Recolher todas</button>
-    <button type="button" id="dbf-expand-all"><i class="ti ti-arrows-maximize"></i> Expandir todas</button>
     {% if launch %}
     <a href="/debriefing?launch_code={{ launch.code }}&modo=slides&auto=1" target="_blank" rel="noopener"
        style="margin-left:auto;background:var(--bs-accent);color:#fff;border:1px solid var(--bs-accent);padding:7px 16px;border-radius:8px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:6px;text-decoration:none"
@@ -1441,115 +1469,45 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 4b2. PESQUISA — ENGAJAMENTO (RESPOSTAS × BASE)             -->
   <!-- ═══════════════════════════════════════════════════════════ -->
-  {% if dbf.pesquisa_engajamento %}
-  {% set pe = dbf.pesquisa_engajamento %}
+  {% if lazy %}
+  <div class="dbf-section" data-lazy-section="pesquisa_engajamento">
+    <div class="dbf-section-title"><i class="ti ti-clipboard-check"></i> Pesquisa — Engajamento da Base</div>
+    {{ lazy_skeleton() }}
+  </div>
+  {% elif dbf.pesquisa_engajamento %}
   <div class="dbf-section">
     <div class="dbf-section-title"><i class="ti ti-clipboard-check"></i> Pesquisa — Engajamento da Base</div>
-    <div class="dbf-kpi-grid">
-      <div class="dbf-kpi">
-        <div class="lbl">Base de leads</div>
-        <div class="val">{{ pe.base_leads | num }}</div>
-      </div>
-      <div class="dbf-kpi">
-        <div class="lbl">Responderam a pesquisa</div>
-        <div class="val">{{ pe.respostas | num }}</div>
-      </div>
-      <div class="dbf-kpi">
-        <div class="lbl">Respostas da base (e-mail no CRM)</div>
-        <div class="val">{{ pe.respostas_da_base | num }}</div>
-      </div>
-      <div class="dbf-kpi">
-        <div class="lbl">Taxa de resposta da base</div>
-        <div class="val">{{ pe.taxa_resposta | round(1) }}%</div>
-      </div>
-    </div>
-    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
-      A resposta à pesquisa funciona como indicador de engajamento. "Quantos receberam" depende dos dados de disparo (WhatsApp/automação) — ainda não coletados.
-    </div>
+    {% include "debriefing/_secao_pesquisa_engajamento.html" %}
   </div>
   {% endif %}
 
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 4b3. QUALIDADE POR ESTADO (INVEST. META + COMPRADORES)     -->
   <!-- ═══════════════════════════════════════════════════════════ -->
-  {% if dbf.qualidade_regiao and dbf.qualidade_regiao.rows %}
+  {% if lazy %}
+  <div class="dbf-section" data-lazy-section="qualidade_regiao">
+    <div class="dbf-section-title"><i class="ti ti-map-pin"></i> Qualidade por Estado — Captação</div>
+    {{ lazy_skeleton() }}
+  </div>
+  {% elif dbf.qualidade_regiao and dbf.qualidade_regiao.rows %}
   <div class="dbf-section">
     <div class="dbf-section-title"><i class="ti ti-map-pin"></i> Qualidade por Estado — Captação</div>
-    <div class="table-wrap">
-      <table class="dbf-table">
-        <thead>
-          <tr>
-            <th>Estado</th>
-            <th class="num">Invest. (Meta)</th>
-            <th class="num">Compradores</th>
-            <th class="num">Receita</th>
-            <th class="num">ROAS</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for r in dbf.qualidade_regiao.rows[:15] %}
-          <tr>
-            <td><span class="aud-tag">{{ r.estado }}</span></td>
-            <td class="num">{{ r.invest | brl if r.invest > 0 else '—' }}</td>
-            <td class="num"><strong>{{ r.compradores | num }}</strong></td>
-            <td class="num">{{ r.receita | brl }}</td>
-            <td class="num">{{ r.roas | round(2) if r.invest > 0 else '—' }}{% if r.invest > 0 %}x{% endif %}</td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
-      Investimento por estado só disponível para o Meta — a API do Google Ads não expõe estado/cidade em nenhuma view de relatório. O próprio Meta não devolve leads/CPL quando quebrado por estado (só spend e ações de engajamento), por isso o cruzamento aqui é investimento × compradores/receita das vendas. Nenhuma das duas plataformas oferece granularidade de cidade.
-      {% if not dbf.qualidade_regiao.tem_invest_meta %}Sem dados de investimento por estado do Meta para este lançamento ainda.{% endif %}
-    </div>
+    {% include "debriefing/_secao_qualidade_regiao.html" %}
   </div>
   {% endif %}
 
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 4c. PERFIL DO LEAD POR ANÚNCIO (TOP 5 × PESQUISA)          -->
   <!-- ═══════════════════════════════════════════════════════════ -->
-  {% if dbf.perfil_por_anuncio and dbf.perfil_por_anuncio.ads %}
-  {% set pa = dbf.perfil_por_anuncio %}
+  {% if lazy %}
+  <div class="dbf-section" data-lazy-section="perfil_por_anuncio">
+    <div class="dbf-section-title"><i class="ti ti-id-badge-2"></i> Perfil do Lead por Anúncio — Top 5 × Pesquisa</div>
+    {{ lazy_skeleton() }}
+  </div>
+  {% elif dbf.perfil_por_anuncio and dbf.perfil_por_anuncio.ads %}
   <div class="dbf-section">
     <div class="dbf-section-title"><i class="ti ti-id-badge-2"></i> Perfil do Lead por Anúncio — Top 5 × Pesquisa</div>
-    <div class="table-wrap">
-      <table class="dbf-table">
-        <thead>
-          <tr>
-            {{ thumb_th() }}
-            <th>Anúncio</th>
-            <th class="num">Invest.</th>
-            <th class="num">Leads</th>
-            <th class="num">Respostas</th>
-            <th class="num">Vendas</th>
-            {% for q in pa.perguntas %}<th>{{ q }}</th>{% endfor %}
-          </tr>
-        </thead>
-        <tbody>
-          {% for a in pa.ads %}
-          <tr>
-            {{ thumb_td(a.ad_code, {"gasto": a.gasto | brl, "leads": a.leads | num, "respostas": a.respostas | num, "vendas": a.vendas | num}) }}
-            <td>{{ a.ad_code }}{% if a.nome and a.nome != a.ad_code %} — {{ a.nome }}{% endif %}</td>
-            <td class="num">{{ a.gasto | brl }}</td>
-            <td class="num">{{ a.leads | num }}</td>
-            <td class="num">{{ a.respostas | num }}</td>
-            <td class="num"><strong>{{ a.vendas | num }}</strong></td>
-            {% for q in pa.perguntas %}
-            <td style="font-size:12px; line-height:1.5;">
-              {% for o in a.dist.get(q, []) %}
-                {{ o.opcao }} <strong>{{ o.pct | round(0) | int }}%</strong>{% if not loop.last %}<br>{% endif %}
-              {% else %}—{% endfor %}
-            </td>
-            {% endfor %}
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
-    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
-      Cruzamento por e-mail entre leads (código do anúncio no utm_term) e as respostas da pesquisa — {{ pa.total_cruzado | num }} respostas cruzadas.
-    </div>
+    {% include "debriefing/_secao_perfil_por_anuncio.html" %}
   </div>
   {% endif %}
 
@@ -1991,37 +1949,15 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 9a2. CAMINHO DO COMPRADOR — FUNIL UNIFICADO POR PESSOA     -->
   <!-- ═══════════════════════════════════════════════════════════ -->
-  {% if dbf.caminho_comprador %}
-  {% set cc = dbf.caminho_comprador %}
+  {% if lazy %}
+  <div class="dbf-section" data-lazy-section="caminho_comprador">
+    <div class="dbf-section-title"><i class="ti ti-route"></i> Caminho do Comprador</div>
+    {{ lazy_skeleton() }}
+  </div>
+  {% elif dbf.caminho_comprador %}
   <div class="dbf-section">
     <div class="dbf-section-title"><i class="ti ti-route"></i> Caminho do Comprador</div>
-    <div class="dbf-kpi-grid">
-      <div class="dbf-kpi">
-        <div class="lbl">Origem/anúncio identificado</div>
-        <div class="val">{{ cc.com_lead | num }} <span class="ldt-pct">({{ cc.pct_lead | round(1) }}%)</span></div>
-      </div>
-      <div class="dbf-kpi">
-        <div class="lbl">Entrou em grupo (Normal ou VIP)</div>
-        <div class="val">{{ cc.com_grupo | num }} <span class="ldt-pct">({{ cc.pct_grupo | round(1) }}%)</span></div>
-        <div class="lbl">{{ cc.vip | num }} no VIP</div>
-      </div>
-      <div class="dbf-kpi">
-        <div class="lbl">Respondeu pesquisa</div>
-        <div class="val">{{ cc.com_pesquisa | num }} <span class="ldt-pct">({{ cc.pct_pesquisa | round(1) }}%)</span></div>
-      </div>
-      <div class="dbf-kpi">
-        <div class="lbl">Comercial ou IA</div>
-        <div class="val">{{ cc.comercial_ia | num }} <span class="ldt-pct">({{ cc.pct_comercial_ia | round(1) }}%)</span></div>
-      </div>
-    </div>
-    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
-      <span>Base de {{ cc.total | num }} compradores, unindo por e-mail/telefone: lead (anúncio + data de cadastro) → grupo WhatsApp → pesquisa → canal de venda. Participação em sorteio/live ainda não tem fonte de dados.</span>
-      <a href="/api/caminho-comprador.csv?launch_code={{ launch.code if launch else '' }}"
-         style="white-space:nowrap; display:inline-flex; align-items:center; gap:6px; padding:6px 12px;
-                border:1px solid var(--bs-accent); border-radius:8px; color:var(--bs-accent); text-decoration:none;">
-        <i class="ti ti-download"></i> Baixar base (CSV)
-      </a>
-    </div>
+    {% include "debriefing/_secao_caminho_comprador.html" %}
   </div>
   {% endif %}
 
@@ -2328,54 +2264,8 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
   else window.addEventListener('load', function () { whenFontsReady(build); });
 })();
 </script>
-{% else %}
-<script>
-(function () {
-  var STORAGE_KEY = 'dbf-collapsed-sections';
-  function getState() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch (e) { return {}; }
-  }
-  function setState(state) {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
-  }
-
-  var state = getState();
-  var sections = Array.prototype.slice.call(document.querySelectorAll('.dbf-section'));
-
-  sections.forEach(function (section, idx) {
-    var title = section.querySelector(':scope > .dbf-section-title');
-    if (!title) return;
-    var key = 'section-' + idx;
-
-    var chev = document.createElement('i');
-    chev.className = 'ti ti-chevron-down dbf-chevron';
-    title.appendChild(chev);
-
-    // Primeira visita (sem estado salvo ainda): só Matrículas (idx 0) começa aberta.
-    var collapsed = (key in state) ? state[key] : (idx !== 0);
-    if (collapsed) section.classList.add('collapsed');
-
-    title.addEventListener('click', function () {
-      section.classList.toggle('collapsed');
-      state[key] = section.classList.contains('collapsed');
-      setState(state);
-    });
-  });
-
-  function setAll(collapsed) {
-    sections.forEach(function (section, idx) {
-      if (!section.querySelector(':scope > .dbf-section-title')) return;
-      section.classList.toggle('collapsed', collapsed);
-      state['section-' + idx] = collapsed;
-    });
-    setState(state);
-  }
-
-  var btnCollapse = document.getElementById('dbf-collapse-all');
-  var btnExpand = document.getElementById('dbf-expand-all');
-  if (btnCollapse) btnCollapse.addEventListener('click', function () { setAll(true); });
-  if (btnExpand) btnExpand.addEventListener('click', function () { setAll(false); });
-})();
-</script>
 {% endif %}
+{# Fora do modo slides, recolher/expandir/reordenar/ocultar/tags das
+   seções vem do accordion genérico em base.html (reconhece .dbf-section
+   junto com .section). Nada a fazer aqui. #}
 {% endblock %}

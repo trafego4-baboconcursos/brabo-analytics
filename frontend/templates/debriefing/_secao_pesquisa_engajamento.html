@@ -1,0 +1,28 @@
+{# Corpo da seção "Pesquisa — Engajamento da Base". Vazio quando não há dado
+   (no carregamento sob demanda o JS remove a seção inteira nesse caso). #}
+{% if dbf.pesquisa_engajamento %}
+{% set pe = dbf.pesquisa_engajamento %}
+<div class="dbf-lazy-body">
+  <div class="dbf-kpi-grid">
+    <div class="dbf-kpi">
+      <div class="lbl">Base de leads</div>
+      <div class="val">{{ pe.base_leads | num }}</div>
+    </div>
+    <div class="dbf-kpi">
+      <div class="lbl">Responderam a pesquisa</div>
+      <div class="val">{{ pe.respostas | num }}</div>
+    </div>
+    <div class="dbf-kpi">
+      <div class="lbl">Respostas da base (e-mail no CRM)</div>
+      <div class="val">{{ pe.respostas_da_base | num }}</div>
+    </div>
+    <div class="dbf-kpi">
+      <div class="lbl">Taxa de resposta da base</div>
+      <div class="val">{{ pe.taxa_resposta | round(1) }}%</div>
+    </div>
+  </div>
+  <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+    A resposta à pesquisa funciona como indicador de engajamento. "Quantos receberam" depende dos dados de disparo (WhatsApp/automação) — ainda não coletados.
+  </div>
+</div>
+{% endif %}

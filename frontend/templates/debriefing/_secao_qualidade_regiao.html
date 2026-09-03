@@ -1,0 +1,33 @@
+{# Corpo da seção "Qualidade por Estado — Captação". Vazio quando não há dado. #}
+{% if dbf.qualidade_regiao and dbf.qualidade_regiao.rows %}
+<div class="dbf-lazy-body">
+  <div class="table-wrap">
+    <table class="dbf-table">
+      <thead>
+        <tr>
+          <th>Estado</th>
+          <th class="num">Invest. (Meta)</th>
+          <th class="num">Compradores</th>
+          <th class="num">Receita</th>
+          <th class="num">ROAS</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in dbf.qualidade_regiao.rows[:15] %}
+        <tr>
+          <td><span class="aud-tag">{{ r.estado }}</span></td>
+          <td class="num">{{ r.invest | brl if r.invest > 0 else '—' }}</td>
+          <td class="num"><strong>{{ r.compradores | num }}</strong></td>
+          <td class="num">{{ r.receita | brl }}</td>
+          <td class="num">{{ r.roas | round(2) if r.invest > 0 else '—' }}{% if r.invest > 0 %}x{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+    Investimento por estado só disponível para o Meta — a API do Google Ads não expõe estado/cidade em nenhuma view de relatório. O próprio Meta não devolve leads/CPL quando quebrado por estado (só spend e ações de engajamento), por isso o cruzamento aqui é investimento × compradores/receita das vendas. Nenhuma das duas plataformas oferece granularidade de cidade.
+    {% if not dbf.qualidade_regiao.tem_invest_meta %}Sem dados de investimento por estado do Meta para este lançamento ainda.{% endif %}
+  </div>
+</div>
+{% endif %}

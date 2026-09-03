@@ -1,0 +1,22 @@
+{# Macros compartilhadas entre debriefing.html e os fragmentos de seção
+   (debriefing/_secao_*.html) carregados sob demanda. Importar com
+   `{% from "debriefing/_macros.html" import sem_dados, thumb_th, thumb_td with context %}`. #}
+{% set has_thumbs = drive_thumbnails is defined and drive_thumbnails | length > 0 %}
+
+{% macro sem_dados(fonte) %}
+<div class="dbf-sem-dados">
+  <i class="ti ti-alert-triangle"></i>
+  <div>
+    <strong>Dados não disponíveis</strong>
+    <span>Fonte necessária: <em>{{ fonte }}</em></span>
+  </div>
+</div>
+{% endmacro %}
+
+{% macro thumb_th() %}{% if has_thumbs %}<th style="width:72px"></th>{% endif %}{% endmacro %}
+{% macro thumb_td(ad_code, extra={}) %}
+  {% if has_thumbs %}
+  {% set td = drive_thumbnails.get(ad_code) %}
+  <td style="padding:4px 6px">{% if td %}<img src="{{ td.thumb }}" data-preview="{{ td.preview }}" data-title="{{ ad_code }}"{% for k, v in extra.items() %} data-{{ k }}="{{ v }}"{% endfor %} onclick="openVideoModalFromEl(this)" style="width:64px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer;display:block" loading="lazy" onerror="this.style.display='none'">{% endif %}</td>
+  {% endif %}
+{% endmacro %}

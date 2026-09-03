@@ -1,0 +1,44 @@
+{# Corpo da seção "Perfil do Lead por Anúncio — Top 5 × Pesquisa". Vazio quando não há dado. #}
+{% from "debriefing/_macros.html" import thumb_th, thumb_td with context %}
+{% if dbf.perfil_por_anuncio and dbf.perfil_por_anuncio.ads %}
+{% set pa = dbf.perfil_por_anuncio %}
+<div class="dbf-lazy-body">
+  <div class="table-wrap">
+    <table class="dbf-table">
+      <thead>
+        <tr>
+          {{ thumb_th() }}
+          <th>Anúncio</th>
+          <th class="num">Invest.</th>
+          <th class="num">Leads</th>
+          <th class="num">Respostas</th>
+          <th class="num">Vendas</th>
+          {% for q in pa.perguntas %}<th>{{ q }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in pa.ads %}
+        <tr>
+          {{ thumb_td(a.ad_code, {"gasto": a.gasto | brl, "leads": a.leads | num, "respostas": a.respostas | num, "vendas": a.vendas | num}) }}
+          <td>{{ a.ad_code }}{% if a.nome and a.nome != a.ad_code %} — {{ a.nome }}{% endif %}</td>
+          <td class="num">{{ a.gasto | brl }}</td>
+          <td class="num">{{ a.leads | num }}</td>
+          <td class="num">{{ a.respostas | num }}</td>
+          <td class="num"><strong>{{ a.vendas | num }}</strong></td>
+          {% for q in pa.perguntas %}
+          <td style="font-size:12px; line-height:1.5;">
+            {% for o in a.dist.get(q, []) %}
+              {{ o.opcao }} <strong>{{ o.pct | round(0) | int }}%</strong>{% if not loop.last %}<br>{% endif %}
+            {% else %}—{% endfor %}
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+    Cruzamento por e-mail entre leads (código do anúncio no utm_term) e as respostas da pesquisa — {{ pa.total_cruzado | num }} respostas cruzadas.
+  </div>
+</div>
+{% endif %}

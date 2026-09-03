@@ -320,6 +320,12 @@ async def debriefing(request: Request, launch_code: str | None = None, modo: str
     (um slide 1920x1080 por seção, pronto pra "Salvar como PDF" no Chrome);
     é o que o botão "Gerar PDF" da aba abre."""
     slides = modo == "slides"
+    # Carregamento progressivo: fora do modo slides, as seções mais pesadas
+    # (Typeform perfil/engajamento, qualidade por estado, caminho do comprador)
+    # não entram nesta requisição — o template renderiza um esqueleto e o
+    # navegador busca cada uma em /debriefing/secao/<nome> depois que a página
+    # já apareceu. O PDF/slides precisa de tudo de uma vez, então lá é inline.
+    lazy = not slides
     launches = await run_in_threadpool(get_launches)
     launch = resolve_launch(launch_code, launches)
     previous = find_previous_launch(launch, launches) if launch else None
@@ -366,7 +372,7 @@ async def debriefing(request: Request, launch_code: str | None = None, modo: str
             return None
 
     async def f_perfil_pesquisa():
-        if not launch:
+        if not launch or lazy:
             return None, None
         try:
             return await asyncio.gather(
@@ -378,7 +384,7 @@ async def debriefing(request: Request, launch_code: str | None = None, modo: str
             return None, None
 
     async def f_qualidade_regiao():
-        if not launch:
+        if not launch or lazy:
             return None
         try:
             return await run_in_threadpool(_qualidade_regiao, launch, vendas)
@@ -387,7 +393,7 @@ async def debriefing(request: Request, launch_code: str | None = None, modo: str
             return None
 
     async def f_caminho_comprador():
-        if not (launch and vendas):
+        if not (launch and vendas) or lazy:
             return None
         try:
             return await run_in_threadpool(_caminho_comprador, launch, vendas)
@@ -456,8 +462,53 @@ async def debriefing(request: Request, launch_code: str | None = None, modo: str
                     dbf=dbf, drive_thumbnails=thumb,
                     data_errors=data_errors,
                     creative_data_error=creative_data_error,
-                    slides=slides)
+                    slides=slides, lazy=lazy)
     return templates.TemplateResponse("debriefing.html", ctx)
+
+
+_DEBRIEFING_SECOES_LAZY = ("pesquisa_engajamento", "qualidade_regiao", "perfil_por_anuncio", "caminho_comprador")
+
+
+@router.get("/debriefing/secao/{secao}", response_class=HTMLResponse)
+async def debriefing_secao(request: Request, secao: str, launch_code: str | None = None):
+    """Fragmento HTML de uma seção pesada do debriefing, buscado pelo
+    navegador depois que a página já carregou (ver `lazy` em debriefing()).
+    Resposta vazia = sem dado pra esse lançamento (o JS remove a seção).
+    Usa os mesmos leitores cacheados da página inteira, então na segunda
+    visita dentro do TTL sai da memória."""
+    if secao not in _DEBRIEFING_SECOES_LAZY:
+        return Response("seção desconhecida", status_code=404, media_type="text/plain")
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    if not launch:
+        return HTMLResponse("")
+
+    dbf: dict = {}
+    thumbs: dict = {}
+    try:
+        if secao == "pesquisa_engajamento":
+            dbf[secao] = await run_in_threadpool(_pesquisa_engajamento, launch)
+        elif secao == "qualidade_regiao":
+            dbf[secao] = await run_in_threadpool(_qualidade_regiao, launch, None)
+        elif secao == "caminho_comprador":
+            cc = await run_in_threadpool(_caminho_comprador, launch, None)
+            dbf[secao] = (cc or {}).get("resumo")
+        elif secao == "perfil_por_anuncio":
+            # A pesquisa só traz ad_code/leads/respostas; nome, investimento e
+            # vendas vêm de Meta/Google/atribuição (todos cacheados, rápido).
+            from frontend.services.debriefing import _enrich_perfil_por_anuncio  # noqa: PLC0415
+            d, perfil = await asyncio.gather(
+                _fetch_all_data(launch, needs_sales_attr=True, needs_thumbnails=True),
+                run_in_threadpool(_perfil_por_anuncio, launch),
+            )
+            dbf[secao] = _enrich_perfil_por_anuncio(perfil, d.get("meta"), d.get("google"), d.get("sales_attr"))
+            thumbs = d.get("drive_thumbnails") or {}
+    except Exception:
+        logger.exception("Debriefing: falha ao carregar seção %s", secao)
+        return Response("falha ao carregar seção", status_code=500, media_type="text/plain")
+
+    ctx = {"request": request, "dbf": dbf, "launch": launch, "drive_thumbnails": thumbs}
+    return templates.TemplateResponse(f"debriefing/_secao_{secao}.html", ctx)
 
 
 @router.get("/api/caminho-comprador.csv")

@@ -289,11 +289,30 @@ html, body { margin: 0 !important; padding: 0 !important; font-family: 'Inter','
 /* ── Overlay de carregamento (navegação entre páginas) ──────────────── */
 #bs-loading-overlay {
   position:fixed; inset:0; z-index:9998;
-  display:flex; align-items:center; justify-content:center;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:26px;
   background:rgba(241,243,245,.6);
+  background:color-mix(in srgb, var(--bs-bg, #f1f3f5) 72%, transparent);  /* segue o tema (claro/escuro) */
   backdrop-filter:blur(2px);
   opacity:0; visibility:hidden; pointer-events:none;
   transition:opacity .18s ease, visibility 0s linear .18s;
+}
+/* Frase de pensador enquanto a página carrega — só aparece se a espera
+   passar de ~400ms (bsQuoteStart), pra não piscar em navegação rápida. */
+.bs-loading-quote {
+  max-width:min(560px, 86vw); text-align:center; padding:0 12px;
+  opacity:0; transform:translateY(6px);
+  transition:opacity .45s ease, transform .45s ease;
+}
+.bs-loading-quote.in { opacity:1; transform:none; }
+.bs-loading-quote .q {
+  font-family:'Manrope','Inter',sans-serif; font-size:17px; font-weight:600; line-height:1.45;
+  color:var(--bs-ink); letter-spacing:-.005em;
+}
+.bs-loading-quote .q::before { content:'\201C'; color:var(--bs-accent); margin-right:2px; }
+.bs-loading-quote .q::after  { content:'\201D'; color:var(--bs-accent); margin-left:2px; }
+.bs-loading-quote .a {
+  margin-top:8px; font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--bs-ink-muted);
 }
 #bs-loading-overlay.show {
   opacity:1; visibility:visible; pointer-events:auto;
@@ -1223,7 +1242,10 @@ html[data-bs-theme="outatime"] .bs-live-dot {
 </head>
 <body>
 <div id="bs-topbar"><div id="bs-topbar-fill"></div></div>
-<div id="bs-loading-overlay"><div class="bs-loading-spinner"></div></div>
+<div id="bs-loading-overlay">
+  <div class="bs-loading-spinner"></div>
+  <div class="bs-loading-quote" id="bs-loading-quote" aria-live="polite"><div class="q"></div><div class="a"></div></div>
+</div>
 
 <!-- ── TOPBAR MOBILE (hambúrguer) ─────────────────────────────────────── -->
 <div id="bs-mobile-topbar">
@@ -1560,8 +1582,77 @@ html[data-bs-theme="outatime"] .bs-live-dot {
   var overlay = document.getElementById('bs-loading-overlay');
   var _timer = null;
 
+  /* ── Frases de pensadores enquanto carrega ──────────────────────────
+     Só frases de atribuição consolidada (evita as "de internet"). A primeira
+     aparece depois de ~400ms — navegação rápida não pisca frase — e troca a
+     cada 7s enquanto a espera durar. */
+  var BS_QUOTES = [
+    ["Não é porque as coisas são difíceis que não ousamos; é porque não ousamos que elas são difíceis.", "Sêneca"],
+    ["Nenhum vento é favorável para quem não sabe a que porto se dirige.", "Sêneca"],
+    ["Somos o que fazemos repetidamente. A excelência, portanto, não é um ato, mas um hábito.", "Aristóteles"],
+    ["A felicidade da sua vida depende da qualidade dos seus pensamentos.", "Marco Aurélio"],
+    ["O que atrapalha o caminho torna-se o caminho.", "Marco Aurélio"],
+    ["Não é o que acontece com você, mas como você reage, que importa.", "Epicteto"],
+    ["Só sei que nada sei.", "Sócrates"],
+    ["Uma vida sem reflexão não merece ser vivida.", "Sócrates"],
+    ["O começo é a parte mais importante do trabalho.", "Platão"],
+    ["Escolhe um trabalho de que gostes, e não terás que trabalhar nem um dia na tua vida.", "Confúcio"],
+    ["Não importa quão devagar você vá, desde que não pare.", "Confúcio"],
+    ["Uma viagem de mil milhas começa com um único passo.", "Lao Tsé"],
+    ["Conhece o inimigo e conhece a ti mesmo; em cem batalhas, nunca correrás perigo.", "Sun Tzu"],
+    ["A simplicidade é a sofisticação máxima.", "Leonardo da Vinci"],
+    ["A imaginação é mais importante que o conhecimento.", "Albert Einstein"],
+    ["No meio da dificuldade encontra-se a oportunidade.", "Albert Einstein"],
+    ["Penso, logo existo.", "René Descartes"],
+    ["Ousa saber.", "Immanuel Kant"],
+    ["Quem tem um porquê para viver suporta quase qualquer como.", "Friedrich Nietzsche"],
+    ["A dúvida é o princípio da sabedoria.", "Aristóteles"],
+    ["O que não se pode medir não se pode melhorar.", "Peter Drucker"],
+    ["A melhor maneira de prever o futuro é criá-lo.", "Peter Drucker"],
+    ["A paciência é amarga, mas o seu fruto é doce.", "Jean-Jacques Rousseau"],
+    ["O homem é a medida de todas as coisas.", "Protágoras"],
+    ["Bem começado, metade feito.", "Aristóteles"],
+    ["Feliz aquele que transfere o que sabe e aprende o que ensina.", "Cora Coralina"],
+    ["Tudo vale a pena se a alma não é pequena.", "Fernando Pessoa"],
+    ["Navegar é preciso; viver não é preciso.", "Fernando Pessoa"],
+    ["O saber a gente aprende com os mestres e os livros. A sabedoria, se aprende é com a vida e com os humildes.", "Cora Coralina"],
+    ["A leitura é para o intelecto o que o exercício é para o corpo.", "Joseph Addison"],
+    ["Conhecimento é poder.", "Francis Bacon"],
+    ["Quem não conhece a história está condenado a repeti-la.", "George Santayana"],
+    ["A educação é a arma mais poderosa que você pode usar para mudar o mundo.", "Nelson Mandela"],
+    ["Ensinar não é transferir conhecimento, mas criar as possibilidades para a sua própria produção.", "Paulo Freire"],
+  ];
+  var quoteBox = document.getElementById('bs-loading-quote');
+  var _qDelay = null, _qRotate = null, _qLast = -1;
+
+  function bsQuoteShow() {
+    if (!quoteBox || BS_QUOTES.length === 0) return;
+    var i;
+    do { i = Math.floor(Math.random() * BS_QUOTES.length); } while (i === _qLast && BS_QUOTES.length > 1);
+    _qLast = i;
+    quoteBox.classList.remove('in');
+    setTimeout(function() {
+      quoteBox.querySelector('.q').textContent = BS_QUOTES[i][0];
+      quoteBox.querySelector('.a').textContent = BS_QUOTES[i][1];
+      quoteBox.classList.add('in');
+    }, quoteBox.classList.contains('in') ? 300 : 0);
+  }
+  function bsQuoteStart() {
+    bsQuoteStop();
+    _qDelay = setTimeout(function() {
+      bsQuoteShow();
+      _qRotate = setInterval(bsQuoteShow, 7000);
+    }, 400);
+  }
+  function bsQuoteStop() {
+    clearTimeout(_qDelay); clearInterval(_qRotate);
+    _qDelay = _qRotate = null;
+    if (quoteBox) quoteBox.classList.remove('in');
+  }
+
   function startProgress() {
     if (overlay) overlay.classList.add('show');
+    bsQuoteStart();
     if (!fill) return;
     fill.style.transition = 'none';
     fill.style.width = '0%';
@@ -1573,6 +1664,7 @@ html[data-bs-theme="outatime"] .bs-live-dot {
 
   function finishProgress() {
     if (overlay) overlay.classList.remove('show');
+    bsQuoteStop();
     if (!fill) return;
     fill.style.transition = 'width .2s ease';
     fill.style.width = '100%';

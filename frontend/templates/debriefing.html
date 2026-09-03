@@ -1927,6 +1927,23 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
   <!-- ═══════════════════════════════════════════════════════════ -->
   <div class="dbf-section">
     <div class="dbf-section-title"><i class="ti ti-gift"></i> Oferta & Bônus</div>
+    {% if dbf.oferta_produto_nome or dbf.oferta_bonus %}
+    <div class="oferta-grid" style="margin-top:16px">
+      <div class="oferta-card">
+        <div class="oferta-title">Produto principal</div>
+        <div class="oferta-item"><i class="ti ti-circle-check"></i> Nome do produto — {{ dbf.oferta_produto_nome or "não configurado" }}</div>
+        <div class="oferta-item"><i class="ti ti-circle-check"></i> Preço à vista — {{ dbf.oferta_preco_vista | brl if dbf.oferta_preco_vista else "não configurado" }}</div>
+        <div class="oferta-item"><i class="ti ti-circle-check"></i> Preço parcelado — {{ dbf.oferta_preco_parcelado | brl if dbf.oferta_preco_parcelado else "não configurado" }}</div>
+        <div class="oferta-item"><i class="ti ti-circle-check"></i> Período do carrinho — {% if dbf.oferta_carrinho_start and dbf.oferta_carrinho_end %}{{ dbf.oferta_carrinho_start | br_date }} a {{ dbf.oferta_carrinho_end | br_date }}{% else %}não configurado{% endif %}</div>
+      </div>
+      <div class="oferta-card">
+        <div class="oferta-title">Bônus da oferta</div>
+        {% for i in range(4) %}
+        <div class="oferta-item"><i class="ti ti-circle-check"></i> Bônus {{ i + 1 }} — {{ dbf.oferta_bonus[i] if dbf.oferta_bonus|length > i else "não configurado" }}</div>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}
     {{ sem_dados("Dados de oferta e bônus ainda não integrados ao banco — preencher manualmente via configuração do lançamento") }}
     <div class="oferta-grid" style="margin-top:16px">
       <div class="oferta-card">
@@ -1944,6 +1961,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
         <div class="oferta-item"><i class="ti ti-circle-dashed"></i> Bônus 4 — não configurado</div>
       </div>
     </div>
+    {% endif %}
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════ -->

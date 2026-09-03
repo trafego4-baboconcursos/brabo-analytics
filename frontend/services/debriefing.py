@@ -634,4 +634,11 @@ def _compute_debriefing_ctx(
         # Landing pages que mais converteram (GA4), por etapa
         "landing_pages_preq": (landing_pages_por_etapa or {}).get("Pré-Qualificação") or [],
         "landing_pages_capt": (landing_pages_por_etapa or {}).get("Captação") or [],
+        # Oferta & bônus — preenchido manualmente no wizard de configuração
+        "oferta_produto_nome": cfg.get("produto_nome"),
+        "oferta_preco_vista": cfg.get("produto_preco_vista"),
+        "oferta_preco_parcelado": cfg.get("produto_preco_parcelado"),
+        "oferta_carrinho_start": cfg.get("carrinho_start_date"),
+        "oferta_carrinho_end": cfg.get("carrinho_end_date"),
+        "oferta_bonus": cfg.get("bonus_oferta") or [],
     }

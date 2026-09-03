@@ -123,6 +123,14 @@ def read_launch_config(launch_code: str) -> dict:
             d["etapas"] = _j.loads(d["etapas"])
         except Exception:
             d["etapas"] = []
+    if d.get("bonus_oferta") is None:
+        d["bonus_oferta"] = []
+    elif isinstance(d["bonus_oferta"], str):
+        import json as _j
+        try:
+            d["bonus_oferta"] = _j.loads(d["bonus_oferta"])
+        except Exception:
+            d["bonus_oferta"] = []
     return d
 
 
@@ -144,6 +152,7 @@ def save_launch_config(launch_code: str, config: dict) -> None:
             drive_folder_url,
             youtube_aulas,
             etapas,
+            produto_nome, produto_preco_vista, produto_preco_parcelado, bonus_oferta,
             updated_at
         ) VALUES (
             :lancamento_codigo,
@@ -160,6 +169,7 @@ def save_launch_config(launch_code: str, config: dict) -> None:
             :drive_folder_url,
             :youtube_aulas,
             :etapas,
+            :produto_nome, :produto_preco_vista, :produto_preco_parcelado, :bonus_oferta,
             NOW()
         )
         ON CONFLICT (lancamento_codigo) DO UPDATE SET
@@ -193,6 +203,10 @@ def save_launch_config(launch_code: str, config: dict) -> None:
             drive_folder_url           = EXCLUDED.drive_folder_url,
             youtube_aulas              = EXCLUDED.youtube_aulas,
             etapas                     = EXCLUDED.etapas,
+            produto_nome               = EXCLUDED.produto_nome,
+            produto_preco_vista        = EXCLUDED.produto_preco_vista,
+            produto_preco_parcelado    = EXCLUDED.produto_preco_parcelado,
+            bonus_oferta               = EXCLUDED.bonus_oferta,
             updated_at                 = NOW()
     """)
 
@@ -243,6 +257,10 @@ def save_launch_config(launch_code: str, config: dict) -> None:
         "drive_folder_url":               _or_none(config.get("drive_folder_url")),
         "youtube_aulas":                  _json.dumps(config.get("youtube_aulas") or []),
         "etapas":                         _json.dumps(config.get("etapas") or []),
+        "produto_nome":                   _or_none(config.get("produto_nome")),
+        "produto_preco_vista":            _or_zero(config.get("produto_preco_vista")),
+        "produto_preco_parcelado":        _or_zero(config.get("produto_preco_parcelado")),
+        "bonus_oferta":                   _json.dumps([b for b in (config.get("bonus_oferta") or []) if b]),
     }
 
     with _get_users_engine().connect() as conn:

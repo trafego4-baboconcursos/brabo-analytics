@@ -2866,6 +2866,34 @@ document.addEventListener('keydown', function (e) {
         </div>
 
         <div class="lc-section">
+          <div class="lc-section-title">Oferta & Bônus</div>
+          <div class="lc-date-row">
+            <div class="lc-field">
+              <span class="lc-label">Nome do produto</span>
+              <input class="lc-input" type="text" id="lc_produto_nome" placeholder="Ex: Projeto Escrevente TJ-SP">
+            </div>
+            <div class="lc-field">
+              <span class="lc-label">Preço à vista</span>
+              <input class="lc-input" type="number" id="lc_produto_preco_vista" placeholder="Ex: 997" min="0" step="1">
+            </div>
+            <div class="lc-field">
+              <span class="lc-label">Preço parcelado (total)</span>
+              <input class="lc-input" type="number" id="lc_produto_preco_parcelado" placeholder="Ex: 1194" min="0" step="1">
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--bs-ink-muted);margin:8px 0 4px">O período do carrinho usado no debriefing vem das datas acima.</div>
+          <div class="lc-label" style="margin-top:10px;display:block">Bônus da oferta (até 4)</div>
+          <div class="lc-date-row">
+            <input class="lc-input" type="text" id="lc_bonus_1" placeholder="Bônus 1">
+            <input class="lc-input" type="text" id="lc_bonus_2" placeholder="Bônus 2">
+          </div>
+          <div class="lc-date-row" style="margin-top:6px">
+            <input class="lc-input" type="text" id="lc_bonus_3" placeholder="Bônus 3">
+            <input class="lc-input" type="text" id="lc_bonus_4" placeholder="Bônus 4">
+          </div>
+        </div>
+
+        <div class="lc-section">
           <div class="lc-section-title">Produtos Hotmart</div>
           <div class="lc-product-list" id="lc-product-list"></div>
           <div class="lc-product-add" style="margin-top:8px">
@@ -3049,6 +3077,15 @@ document.addEventListener('keydown', function (e) {
     setVal("lc_aulas_start_date",      cfg.aulas_start_date      || "");
     setVal("lc_aulas_end_date",        cfg.aulas_end_date        || "");
     setVal("lc_drive_folder_url",     cfg.drive_folder_url    || "");
+
+    setVal("lc_produto_nome",           cfg.produto_nome            || "");
+    setVal("lc_produto_preco_vista",    cfg.produto_preco_vista     || "");
+    setVal("lc_produto_preco_parcelado",cfg.produto_preco_parcelado || "");
+    var bonusList = cfg.bonus_oferta || [];
+    setVal("lc_bonus_1", bonusList[0] || "");
+    setVal("lc_bonus_2", bonusList[1] || "");
+    setVal("lc_bonus_3", bonusList[2] || "");
+    setVal("lc_bonus_4", bonusList[3] || "");
 
     var metaIds = cfg.meta_ad_account_ids || [];
     document.querySelectorAll("#lc-meta-menu input[type=checkbox]").forEach(function(cb){
@@ -3589,6 +3626,10 @@ document.addEventListener('keydown', function (e) {
       hotmart_produto_ids:        productIds,
       tmb_produto_ids:            tmbIds,
       drive_folder_url:           v("lc_drive_folder_url"),
+      produto_nome:               v("lc_produto_nome"),
+      produto_preco_vista:        v("lc_produto_preco_vista"),
+      produto_preco_parcelado:    v("lc_produto_preco_parcelado"),
+      bonus_oferta:               [v("lc_bonus_1"), v("lc_bonus_2"), v("lc_bonus_3"), v("lc_bonus_4")].filter(Boolean),
       youtube_aulas:              Array.from(document.querySelectorAll("#lc-yt-list .lc-product-row")).map(function(row){
         return {
           id:    (row.querySelector(".lc-yt-id")    || {}).value || "",

@@ -124,6 +124,12 @@ def _caminho_comprador(launch: Any, vendas_data: Any):
                            lambda: read_caminho_comprador(launch.code, vendas_data))
 
 
+def _landing_pages_por_etapa(launch: Any):
+    from frontend.db_readers.ga4 import read_landing_pages_por_etapa
+    return _get_or_compute(launch.code, "landing_pages_por_etapa",
+                           lambda: read_landing_pages_por_etapa(launch.code))
+
+
 def _wa_cost(launch: Any):
     """Custo de WhatsApp (config/whatsapp_accounts.yaml, filtrado por produto)
     na MESMA janela usada pro investimento de Meta/Google (_window), pra somar

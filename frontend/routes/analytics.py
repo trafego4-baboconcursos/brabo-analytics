@@ -16,6 +16,7 @@ from frontend.core import (
 from frontend.services.fetch import (
     _launch_cfg, _perfil_por_anuncio, _pesquisa_engajamento,
     _leads_antigos_compradores, _qualidade_regiao, _caminho_comprador,
+    _landing_pages_por_etapa,
 )
 from frontend.services.calendario import build_calendario_ctx
 
@@ -394,6 +395,15 @@ async def debriefing(request: Request, launch_code: str | None = None, modo: str
             logger.exception("Debriefing: falha ao montar caminho do comprador")
             return None
 
+    async def f_landing_pages():
+        if not launch:
+            return None
+        try:
+            return await run_in_threadpool(_landing_pages_por_etapa, launch)
+        except Exception:
+            logger.exception("Debriefing: falha ao montar landing pages por etapa (GA4)")
+            return None
+
     async def f_previous():
         if not previous:
             return None, None, None, None, None
@@ -418,9 +428,11 @@ async def debriefing(request: Request, launch_code: str | None = None, modo: str
         qualidade_regiao,
         caminho_comprador,
         (prev_meta, prev_google, prev_vendas, prev_wa_cost, prev_sales_attr),
+        landing_pages_por_etapa,
     ) = await asyncio.gather(
         f_creative(), f_leads_antigos(), f_perfil_pesquisa(),
         f_qualidade_regiao(), f_caminho_comprador(), f_previous(),
+        f_landing_pages(),
     )
 
     dbf = _compute_debriefing_ctx(
@@ -435,6 +447,7 @@ async def debriefing(request: Request, launch_code: str | None = None, modo: str
         pesquisa_engajamento=pesquisa_engajamento,
         qualidade_regiao=qualidade_regiao,
         caminho_comprador=caminho_comprador,
+        landing_pages_por_etapa=landing_pages_por_etapa,
         wa_cost=d.get("wa_cost"),
         prev_wa_cost=prev_wa_cost,
     )

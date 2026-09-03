@@ -1047,6 +1047,38 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
   {% endif %}
 
   <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- LANDING PAGES QUE MAIS CONVERTERAM — PRÉ-QUALIFICAÇÃO (GA4) -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.landing_pages_preq %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-world"></i> Landing Pages que Mais Converteram — Pré-Qualificação</div>
+    <div class="table-wrap" data-no-filter>
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            <th>Página</th>
+            <th class="num">Sessões</th>
+            <th class="num">Conversões</th>
+            <th class="num">Taxa de Conversão</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for lp in dbf.landing_pages_preq %}
+          <tr>
+            <td style="max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ lp.landing_page }}">{{ lp.landing_page }}</td>
+            <td class="num">{{ lp.sessions | num }}</td>
+            <td class="num"><strong>{{ lp.conversoes | num }}</strong></td>
+            <td class="num">{{ lp.taxa_conversao | round(2) }}%</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="note" style="margin-top:10px">Fonte: Google Analytics 4 (sessões por landing page × campanha, classificadas pela mesma tag [Pré-Qualificação] das campanhas de mídia).</div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 3.9 DETALHAMENTO DA CAPTAÇÃO — vendas por público (barra)  -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.leads_detail_table and (dbf.leads_detail_table | sum(attribute='vendas')) > 0 %}
@@ -1373,6 +1405,38 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
     {{ sem_dados("Sem audiências de Captação com investimento no Google Ads") }}
     {% endif %}
   </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- LANDING PAGES QUE MAIS CONVERTERAM — CAPTAÇÃO (GA4)        -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.landing_pages_capt %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-world"></i> Landing Pages que Mais Converteram — Captação</div>
+    <div class="table-wrap" data-no-filter>
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            <th>Página</th>
+            <th class="num">Sessões</th>
+            <th class="num">Conversões</th>
+            <th class="num">Taxa de Conversão</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for lp in dbf.landing_pages_capt %}
+          <tr>
+            <td style="max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ lp.landing_page }}">{{ lp.landing_page }}</td>
+            <td class="num">{{ lp.sessions | num }}</td>
+            <td class="num"><strong>{{ lp.conversoes | num }}</strong></td>
+            <td class="num">{{ lp.taxa_conversao | round(2) }}%</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="note" style="margin-top:10px">Fonte: Google Analytics 4 (sessões por landing page × campanha, classificadas pela mesma tag [Captação] das campanhas de mídia).</div>
+  </div>
+  {% endif %}
 
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 4b2. PESQUISA — ENGAJAMENTO (RESPOSTAS × BASE)             -->

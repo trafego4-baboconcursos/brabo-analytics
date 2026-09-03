@@ -287,6 +287,7 @@ def _compute_debriefing_ctx(
     pesquisa_engajamento: Any = None,
     qualidade_regiao: Any = None,
     caminho_comprador: Any = None,
+    landing_pages_por_etapa: Any = None,
     wa_cost: Any = None,
     prev_wa_cost: Any = None,
 ) -> dict:
@@ -630,4 +631,7 @@ def _compute_debriefing_ctx(
         "qualidade_regiao": qualidade_regiao,
         # Caminho do comprador — funil unificado por pessoa (lead→grupo→pesquisa→compra)
         "caminho_comprador": (caminho_comprador or {}).get("resumo"),
+        # Landing pages que mais converteram (GA4), por etapa
+        "landing_pages_preq": (landing_pages_por_etapa or {}).get("Pré-Qualificação") or [],
+        "landing_pages_capt": (landing_pages_por_etapa or {}).get("Captação") or [],
     }

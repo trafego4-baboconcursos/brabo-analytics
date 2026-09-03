@@ -496,12 +496,32 @@ async def debriefing_secao(request: Request, secao: str, launch_code: str | None
         elif secao == "perfil_por_anuncio":
             # A pesquisa só traz ad_code/leads/respostas; nome, investimento e
             # vendas vêm de Meta/Google/atribuição (todos cacheados, rápido).
+            # ROAS comparativo (criativo "antigo"/validado) precisa também dos
+            # mesmos dados do lançamento anterior.
             from frontend.services.debriefing import _enrich_perfil_por_anuncio  # noqa: PLC0415
-            d, perfil = await asyncio.gather(
+
+            async def _prev_data():
+                previous = find_previous_launch(launch, launches)
+                if not previous:
+                    return None, None, None
+                prev_d = await run_in_threadpool(_fetch_prev_for_debriefing, previous)
+                p_meta = prev_d.get("meta")
+                p_google = prev_d.get("google")
+                p_vendas = prev_d.get("vendas")
+                p_sales_attr = None
+                if getattr(previous, "has_ac", False) and p_vendas:
+                    p_sales_attr = await run_in_threadpool(_sales_attribution, previous, p_vendas)
+                return p_meta, p_google, p_sales_attr
+
+            d, perfil, (prev_meta, prev_google, prev_sales_attr) = await asyncio.gather(
                 _fetch_all_data(launch, needs_sales_attr=True, needs_thumbnails=True),
                 run_in_threadpool(_perfil_por_anuncio, launch),
+                _prev_data(),
             )
-            dbf[secao] = _enrich_perfil_por_anuncio(perfil, d.get("meta"), d.get("google"), d.get("sales_attr"))
+            dbf[secao] = _enrich_perfil_por_anuncio(
+                perfil, d.get("meta"), d.get("google"), d.get("sales_attr"),
+                prev_meta=prev_meta, prev_google=prev_google, prev_sales_attr=prev_sales_attr,
+            )
             thumbs = d.get("drive_thumbnails") or {}
     except Exception:
         logger.exception("Debriefing: falha ao carregar seção %s", secao)

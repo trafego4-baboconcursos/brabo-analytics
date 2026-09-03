@@ -245,6 +245,14 @@
 .aud-tag { background:#e0f2fe; color:#0369a1; border-radius:4px; padding:2px 7px; font-size:11px; font-weight:700; }
 .aud-tag.g { background:#fef3c7; color:#92400e; }
 
+/* ── Tag Validado/Novo (Perfil do Lead por Anúncio) ──────────────── */
+.pa-tag {
+  display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 700;
+  padding: 1px 7px; border-radius: 20px; letter-spacing: .03em; vertical-align: middle;
+}
+.pa-tag-validado { background: var(--bs-success-bg); color: var(--bs-success); }
+.pa-tag-novo { background: var(--bs-surface); color: var(--bs-ink-muted); }
+
 /* ── Pub chart (vendas por público) ──────────────────────────────── */
 .cmp-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
 @media (max-width: 900px) { .cmp-grid-3 { grid-template-columns: 1fr; } }

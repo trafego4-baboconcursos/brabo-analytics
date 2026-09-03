@@ -196,13 +196,20 @@ def _build_top_ads_captacao(meta: Any, google: Any, sales_attr: Any = None, n: i
     return {"combinado": combinado_rows, "meta": _top(meta_ads), "google": _top(google_ads)}
 
 
-def _enrich_perfil_por_anuncio(perfil: dict | None, meta: Any, google: Any, sales_attr: Any = None) -> dict | None:
+def _enrich_perfil_por_anuncio(
+    perfil: dict | None, meta: Any, google: Any, sales_attr: Any = None,
+    prev_meta: Any = None, prev_google: Any = None, prev_sales_attr: Any = None,
+) -> dict | None:
     """Completa cada linha de perfil_por_anuncio (que só tem ad_code/leads/
-    respostas/dist, vindos da pesquisa) com nome, investimento e vendas —
-    somando Meta + Google quando o mesmo ADxxx roda nas duas plataformas."""
+    respostas/dist, vindos da pesquisa) com nome, investimento, vendas e ROAS —
+    somando Meta + Google quando o mesmo ADxxx roda nas duas plataformas.
+    Também marca se o criativo é "antigo" (já rodou no lançamento anterior,
+    ou seja, validado) ou "novo" (sem histórico pra comparar) e, quando
+    antigo, traz o ROAS do lançamento passado pro mesmo ad_code."""
     if not perfil or not perfil.get("ads"):
         return perfil
     por_criativo = (sales_attr or {}).get("por_criativo", {}) or {}
+    prev_por_criativo = (prev_sales_attr or {}).get("por_criativo", {}) or {}
     todos_ads = [
         *(getattr(meta, "preq_por_ad", None) or []),
         *(getattr(meta, "captacao_por_ad", None) or []),
@@ -214,14 +221,40 @@ def _enrich_perfil_por_anuncio(perfil: dict | None, meta: Any, google: Any, sale
         code = str(a.get("ad_code") or "").upper()
         if not code:
             continue
-        d = info.setdefault(code, {"nome": a.get("nome"), "gasto": 0.0})
+        d = info.setdefault(code, {"nome": a.get("nome"), "gasto": 0.0, "antigo": False})
         d["gasto"] += float(a.get("gasto") or 0)
+        if a.get("antigo"):
+            d["antigo"] = True
+
+    prev_todos_ads = [
+        *(getattr(prev_meta, "preq_por_ad", None) or []),
+        *(getattr(prev_meta, "captacao_por_ad", None) or []),
+        *(getattr(prev_google, "preq_por_ad", None) or []),
+        *(getattr(prev_google, "anuncios_por_ad", None) or []),
+    ]
+    prev_gasto_por_ad: dict[str, float] = {}
+    for a in prev_todos_ads:
+        code = str(a.get("ad_code") or "").upper()
+        if not code:
+            continue
+        prev_gasto_por_ad[code] = prev_gasto_por_ad.get(code, 0.0) + float(a.get("gasto") or 0)
+
     for row in perfil["ads"]:
         code = str(row.get("ad_code") or "").upper()
         d = info.get(code, {})
         row["nome"] = d.get("nome") or code
         row["gasto"] = d.get("gasto") or 0.0
-        row["vendas"] = int((por_criativo.get(code) or {}).get("vendas") or 0)
+        venda = por_criativo.get(code) or {}
+        row["vendas"] = int(venda.get("vendas") or 0)
+        row["receita"] = float(venda.get("faturamento") or 0)
+        row["roas"] = (row["receita"] / row["gasto"]) if row["gasto"] > 0 else 0.0
+        row["antigo"] = bool(d.get("antigo"))
+        row["prev_roas"] = None
+        if row["antigo"]:
+            prev_gasto = prev_gasto_por_ad.get(code) or 0.0
+            prev_receita = float((prev_por_criativo.get(code) or {}).get("faturamento") or 0)
+            if prev_gasto > 0:
+                row["prev_roas"] = prev_receita / prev_gasto
     return perfil
 
 
@@ -620,7 +653,10 @@ def _compute_debriefing_ctx(
         # Compradores × histórico de lead (novo/antigo/sem cadastro)
         "leads_antigos": leads_antigos,
         # Perfil do lead por anúncio (top 5 × pesquisa)
-        "perfil_por_anuncio": _enrich_perfil_por_anuncio(perfil_por_anuncio, meta, google, sales_attr),
+        "perfil_por_anuncio": _enrich_perfil_por_anuncio(
+            perfil_por_anuncio, meta, google, sales_attr,
+            prev_meta=prev_meta, prev_google=prev_google, prev_sales_attr=prev_sales_attr,
+        ),
         # Engajamento da pesquisa (respostas × base de leads)
         "pesquisa_engajamento": pesquisa_engajamento,
         # Comercial × IA × Orgânico (sck Hotmart / utm_source TMB)

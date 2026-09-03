@@ -13,6 +13,7 @@
           <th class="num">Leads</th>
           <th class="num">Respostas</th>
           <th class="num">Vendas</th>
+          <th class="num">ROAS</th>
           {% for q in pa.perguntas %}<th>{{ q }}</th>{% endfor %}
         </tr>
       </thead>
@@ -20,11 +21,31 @@
         {% for a in pa.ads %}
         <tr>
           {{ thumb_td(a.ad_code, {"gasto": a.gasto | brl, "leads": a.leads | num, "respostas": a.respostas | num, "vendas": a.vendas | num}) }}
-          <td>{{ a.ad_code }}{% if a.nome and a.nome != a.ad_code %} — {{ a.nome }}{% endif %}</td>
+          <td>
+            {{ a.ad_code }}{% if a.nome and a.nome != a.ad_code %} — {{ a.nome }}{% endif %}
+            {% if a.antigo %}
+              <span class="pa-tag pa-tag-validado" title="Criativo já rodou no lançamento anterior">Validado</span>
+            {% else %}
+              <span class="pa-tag pa-tag-novo" title="Criativo sem histórico em lançamento anterior — não há comparativo">Novo</span>
+            {% endif %}
+          </td>
           <td class="num">{{ a.gasto | brl }}</td>
           <td class="num">{{ a.leads | num }}</td>
           <td class="num">{{ a.respostas | num }}</td>
           <td class="num"><strong>{{ a.vendas | num }}</strong></td>
+          <td class="num">
+            <span class="{{ 'roas-good' if a.roas >= 2 else ('roas-ok' if a.roas >= 1 else ('roas-bad' if a.roas > 0 else '')) }}">{{ "%.2f"|format(a.roas) | replace(".", ",") }}x</span>
+            {% if a.antigo %}
+              {% if a.prev_roas %}
+                {% set roas_delta = ((a.roas - a.prev_roas) / a.prev_roas * 100) | round(1) %}
+                <br><span class="delta {{ 'up' if roas_delta > 0 else ('dn' if roas_delta < 0 else 'neut') }}" style="font-size:10px" title="ROAS do lançamento anterior: {{ ('%.2f'|format(a.prev_roas))|replace('.', ',') }}x">
+                  {{ '▲' if roas_delta > 0 else ('▼' if roas_delta < 0 else '=') }} {{ roas_delta | abs }}% vs. passado
+                </span>
+              {% else %}
+                <br><span class="delta neut" style="font-size:10px">sem ROAS anterior</span>
+              {% endif %}
+            {% endif %}
+          </td>
           {% for q in pa.perguntas %}
           <td style="font-size:12px; line-height:1.5;">
             {% for o in a.dist.get(q, []) %}

@@ -501,19 +501,24 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
             valor_bruto = valor
         eh_por_parcela, cobrancas, parcelas = _parcela_unica_info(row)
         if eh_por_parcela:
-            if cobrancas != 1:
-                # Retentativa de cobrança de assinatura (recorrência): valor
-                # gravado é o da PARCELA — vira faturamento real multiplicando
-                # pelo número de parcelas, igual à venda "de parcela única"
-                # abaixo. Não soma no total_vendas/receita_liquida (mantém o
-                # comportamento já existente, usado no resto do debriefing) —
-                # só entra no bucket separado details.recorrencia_qtd/receita.
-                recorrencia_qtd += 1
-                recorrencia_receita += valor * max(1, parcelas)
-                recorrencia_idx.append(idx)
-                continue
+            # Venda "de parcela única" (tipo_de_cobranca = Recuperador
+            # Inteligente, ou tipo vazio com quantidade_de_cobrancas
+            # presente): valor gravado é o da PARCELA (ex: R$149,90) — vira
+            # faturamento real multiplicando pelo número de parcelas. Essas
+            # são as vendas de RECORRÊNCIA (produtos tipo "INSS 360
+            # (Recorrência)", cobrados em ciclo) — contam à parte no bucket
+            # details.recorrencia_qtd/receita, além de entrarem no
+            # total_vendas normal como sempre (não muda nada pro resto do
+            # debriefing).
             valor *= max(1, parcelas)
             valor_bruto *= max(1, parcelas)
+            recorrencia_qtd += 1
+            recorrencia_receita += valor
+            recorrencia_idx.append(idx)
+            if cobrancas != 1:
+                # Retentativa de cobrança de um ciclo já contado — não é
+                # venda nova, não soma no total_vendas/receita_liquida.
+                continue
         df_paid.at[idx, "valor_liq"] = valor
         df_paid.at[idx, "valor_bruto"] = valor_bruto
 

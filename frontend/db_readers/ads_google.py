@@ -4,6 +4,7 @@ frontend/db_readers/ads_google.py — Leitor de dados do Google Ads (banco analy
 from __future__ import annotations
 
 import re
+import unicodedata
 from difflib import SequenceMatcher
 from typing import Any
 
@@ -57,6 +58,17 @@ MODIFIER_MAP_G = {
 }
 
 
+def _slug(s: Any) -> str:
+    """Normaliza pra comparar utm_content (slug: "01-cadastrados-inss-anteriores")
+    com ad_group_name real da API ("01 - Cadastrados INSS Anteriores") — mesma
+    transformação (minúsculo, sem acento, não-alfanumérico vira hífen) dos dois
+    lados, então bate mesmo com casing/pontuação diferentes."""
+    s = unicodedata.normalize("NFKD", str(s or ""))
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    s = re.sub(r"[^a-z0-9]+", "-", s.lower()).strip("-")
+    return s
+
+
 def _categorize_campaign(camp: str) -> tuple[str, str, str]:
     camp = str(camp).lower()
     etapa = "Outros"
@@ -94,7 +106,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
     code = _extract_launch_code(launch_folder_or_code)
     engine = _get_engine()
 
-    _COLS = "date, ad_name, campaign_name, impressions, clicks, cost, conversions, video_views, video_views_50, video_views_100, video_id, avg_cpv"
+    _COLS = "date, ad_name, ad_group_name, campaign_name, impressions, clicks, cost, conversions, video_views, video_views_50, video_views_100, video_id, avg_cpv"
     if start_date and end_date:
         df = pd.read_sql(
             text(f"SELECT {_COLS} FROM google_ads_daily WHERE lancamento_codigo = :code AND date BETWEEN :start AND :end"),
@@ -417,48 +429,39 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
             })
 
     # Detalhamento dos públicos por clima — Captação (pauta debriefing, igual
-    # à seção já existente do Meta). Reaproveita o cruzamento de vendas por
-    # audiência (api_to_sales) já calculado acima.
-    try:
-        df_aud_temp = pd.read_sql(
-            text("""
-                SELECT audience_name, campaign_name, SUM(cost) as cost,
-                       SUM(conversions) as conversions
-                FROM google_ads_audiences_daily
-                WHERE lancamento_codigo = :code
-                GROUP BY audience_name, campaign_name
-            """),
-            engine, params={"code": code},
-        )
-    except Exception:
-        logger.exception("Falha ao buscar audiências por campanha (Google); usando DataFrame vazio")
-        df_aud_temp = pd.DataFrame()
+    # à seção já existente do Meta). Atribuição por GRUPO DE ANÚNCIO
+    # (ad_group_name), não pela audiência-alvo declarada na API — o nome da
+    # audiência raramente bate com o texto do UTM. utm_content nas leads do
+    # Google é o slug do nome do grupo (ex.: "01-cadastrados-inss-anteriores"
+    # para o grupo "01 - Cadastrados INSS Anteriores"); comparamos normalizado
+    # (_slug) dos dois lados em vez do fuzzy-match por similaridade de texto
+    # que era usado antes (achado no fechamento de 05/09/26: a maioria das
+    # linhas dava 0 vendas por causa disso).
+    sales_by_slug: dict[str, dict] = {}
+    for utm_content, data in sales_by_content.items():
+        chave = _slug(utm_content)
+        if not chave:
+            continue
+        acc = sales_by_slug.setdefault(chave, {"sales": 0, "receita": 0.0})
+        acc["sales"] += int(data.get("sales") or 0)
+        acc["receita"] += float(data.get("receita") or 0.0)
 
-    if not df_aud_temp.empty:
-        df_aud_temp["etapa"], df_aud_temp["temperatura"], _ = zip(
-            *df_aud_temp["campaign_name"].map(_categorize_campaign)
-        )
-        df_aud_cap = df_aud_temp[df_aud_temp["etapa"] == "Captação"].copy()
-        if not df_aud_cap.empty:
-            def _label_publico(nome):
-                if isinstance(nome, str) and nome.startswith("uservertical::"):
-                    return f"Público de Afinidade/Mercado ({nome.split('::')[-1]})"
-                return nome or "Sem Nome"
-            df_aud_cap["publico"] = df_aud_cap["audience_name"].map(_label_publico)
-
-            pub_grouped_g = df_aud_cap.groupby(["temperatura", "publico"]).agg(
+    if not df_cap_g.empty and "ad_group_name" in df_cap_g.columns:
+        df_pub_g = df_cap_g.copy()
+        df_pub_g["publico"] = df_pub_g["ad_group_name"].fillna("Sem Nome")
+        if not df_pub_g["publico"].eq("Sem Nome").all():
+            pub_grouped_g = df_pub_g.groupby(["temperatura", "publico"]).agg(
                 custo=("cost", "sum"), conversoes=("conversions", "sum"),
-                num_audiencias=("audience_name", "nunique"),
+                num_campanhas=("campaign_name", "nunique"),
             ).reset_index()
-            aud_by_group = df_aud_cap.groupby(["temperatura", "publico"])["audience_name"].unique()
             for temp in pub_grouped_g["temperatura"].unique():
                 sub = pub_grouped_g[pub_grouped_g["temperatura"] == temp].sort_values("custo", ascending=False)
                 total_temp = sub["custo"].sum() or 1
                 rows = []
                 for _, r in sub.iterrows():
-                    audiencias = aud_by_group.get((temp, r["publico"]), [])
-                    vendas_pub = sum(int(api_to_sales.get(a, {}).get("sales", 0) or 0) for a in audiencias)
-                    receita_pub = sum(float(api_to_sales.get(a, {}).get("receita", 0.0) or 0.0) for a in audiencias)
+                    agg_data = sales_by_slug.get(_slug(r["publico"]), {"sales": 0, "receita": 0.0})
+                    vendas_pub = int(agg_data["sales"])
+                    receita_pub = float(agg_data["receita"])
                     custo = float(r["custo"])
                     leads = float(r["conversoes"])
                     rows.append({
@@ -467,7 +470,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
                         "leads": leads,
                         "cpl": custo / leads if leads > 0 else 0.0,
                         "pct": custo / total_temp * 100,
-                        "num_adsets": int(r["num_audiencias"]),
+                        "num_adsets": int(r["num_campanhas"]),
                         "vendas": vendas_pub,
                         "receita": receita_pub,
                         "roas": (receita_pub / custo) if custo > 0 else 0.0,

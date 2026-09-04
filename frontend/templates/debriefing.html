@@ -967,8 +967,8 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
             <td class="num">{{ g.antigo.vendas | num }}</td>
             <td class="num">{{ g.antigo.receita | brl }}</td>
             <td class="num">{{ g.antigo.roas | round(2) if g.antigo.gasto > 0 else '—' }}{% if g.antigo.gasto > 0 %}x{% endif %}</td>
-            <td class="num">{{ g.antigo.thruview | num if g.antigo.thruview > 0 else '—' }}</td>
-            <td class="num">{{ g.antigo.pct_50 | round(1) ~ '%' if g.antigo.thruview > 0 else '—' }}</td>
+            <td class="num">{{ g.antigo.get('thruview', 0) | num if g.antigo.get('thruview', 0) > 0 else '—' }}</td>
+            <td class="num">{{ g.antigo.get('pct_50', 0) | round(1) ~ '%' if g.antigo.get('thruview', 0) > 0 else '—' }}</td>
           </tr>
           <tr>
             <td>Novos</td>
@@ -980,8 +980,8 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
             <td class="num">{{ g.novo.vendas | num }}</td>
             <td class="num">{{ g.novo.receita | brl }}</td>
             <td class="num">{{ g.novo.roas | round(2) if g.novo.gasto > 0 else '—' }}{% if g.novo.gasto > 0 %}x{% endif %}</td>
-            <td class="num">{{ g.novo.thruview | num if g.novo.thruview > 0 else '—' }}</td>
-            <td class="num">{{ g.novo.pct_50 | round(1) ~ '%' if g.novo.thruview > 0 else '—' }}</td>
+            <td class="num">{{ g.novo.get('thruview', 0) | num if g.novo.get('thruview', 0) > 0 else '—' }}</td>
+            <td class="num">{{ g.novo.get('pct_50', 0) | round(1) ~ '%' if g.novo.get('thruview', 0) > 0 else '—' }}</td>
           </tr>
         </tbody>
       </table>

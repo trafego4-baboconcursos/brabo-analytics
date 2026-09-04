@@ -30,8 +30,9 @@ TABLE = "debriefing_snapshot"
 # Um snapshot gravado com versão diferente é ignorado — a página cai no
 # cálculo ao vivo em vez de estourar 500 no template — até o próximo
 # aquecimento regravar. (Ex.: 2 = saída dos grupos de WhatsApp, vendas x
-# grupos e detalhamento do disparo.)
-SNAPSHOT_VERSION = 3
+# grupos e detalhamento do disparo; 4 = thruview/pct_50 no Novos x Antigos
+# de Pré-Qualificação.)
+SNAPSHOT_VERSION = 4
 
 DDL = f"""
 CREATE TABLE IF NOT EXISTS {TABLE} (

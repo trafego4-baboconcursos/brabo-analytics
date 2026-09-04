@@ -380,12 +380,16 @@ def read_whatsapp_groups(launch_folder_or_code: Any, start_date=None, end_date=N
 def read_leads_x_whatsapp(launch_folder_or_code: Any) -> dict | None:
     """Total de leads (Active Campaign, tabela `leads`) × total de pessoas
     ativas nos grupos de WhatsApp (normal + VIP, deduplicado) × taxa de
-    entrada. Pauta debriefing — quantos leads efetivamente entraram no grupo."""
+    entrada × saída dos grupos (geral e por tipo normal/VIP). Pauta
+    debriefing — quantos leads efetivamente entraram no grupo, e quantos já
+    saíram."""
     code = _extract_launch_code(launch_folder_or_code)
     wa = read_whatsapp_groups(code)
     if not wa:
         return None
-    total_wa = int((wa.get("normal") or {}).get("total_limpo") or 0) + int((wa.get("vip") or {}).get("total_limpo") or 0)
+    wa_normal = wa.get("normal") or {}
+    wa_vip = wa.get("vip") or {}
+    total_wa = int(wa_normal.get("total_limpo") or 0) + int(wa_vip.get("total_limpo") or 0)
     if not total_wa:
         return None
 
@@ -396,10 +400,16 @@ def read_leads_x_whatsapp(launch_folder_or_code: Any) -> dict | None:
         ).fetchone()[0]
     total_leads = int(total_leads or 0)
 
+    saida_normal = int(wa_normal.get("saida_total") or 0)
+    saida_vip = int(wa_vip.get("saida_total") or 0)
+
     return {
         "total_leads": total_leads,
         "total_whatsapp": total_wa,
         "taxa_entrada": (total_wa / total_leads * 100) if total_leads > 0 else 0.0,
+        "saida_total": saida_normal + saida_vip,
+        "saida_normal": saida_normal,
+        "saida_vip": saida_vip,
     }
 
 

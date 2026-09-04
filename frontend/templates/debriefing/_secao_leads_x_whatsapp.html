@@ -16,9 +16,21 @@
       <div class="lbl">Taxa de entrada</div>
       <div class="val">{{ lw.taxa_entrada | round(1) }}%</div>
     </div>
+    <div class="dbf-kpi">
+      <div class="lbl">Saída dos grupos (geral)</div>
+      <div class="val">{{ lw.saida_total | num }}</div>
+    </div>
+    <div class="dbf-kpi">
+      <div class="lbl">Saída — Grupos Normais</div>
+      <div class="val">{{ lw.saida_normal | num }}</div>
+    </div>
+    <div class="dbf-kpi">
+      <div class="lbl">Saída — Grupos VIP</div>
+      <div class="val">{{ lw.saida_vip | num }}</div>
+    </div>
   </div>
   <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
-    Leads = linhas da tabela de leads (Active Campaign). Grupos de WhatsApp = pessoas ativas (deduplicado por telefone, normal + VIP). Taxa de entrada = grupos ÷ leads.
+    Leads = linhas da tabela de leads (Active Campaign). Grupos de WhatsApp = pessoas ativas (deduplicado por telefone, normal + VIP). Taxa de entrada = grupos ÷ leads. Saída = total histórico de quem já entrou e não está mais ativo em nenhum grupo daquele tipo.
   </div>
 </div>
 {% endif %}

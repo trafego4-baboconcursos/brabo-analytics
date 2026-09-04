@@ -910,11 +910,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
             <td class="num">{{ c.gasto | brl }}</td>
             <td class="num">{{ c.thruplays | num }}</td>
             <td class="num">{{ c.custo_thruplay | brl(3) if c.thruplays > 0 else '—' }}</td>
-            {% if plat_key == 'meta' %}
             <td class="num">{{ c.views_50 | num }} <span class="ldt-pct">({{ c.pct_50 | round(1) }}%)</span></td>
-            {% else %}
-            <td class="num">{{ c.views_50 | num }} <span class="ldt-pct" title="Estimativa do Google (impressões × taxa de quartil) — não é um contador direto como o Meta, pode passar de 100% das views">≈{{ c.pct_50 | round(1) }}%*</span></td>
-            {% endif %}
           </tr>
           <tr class="ldt-sub">
             <td><span class="ldt-pct">{{ c.pct | round(1) }}% do investimento em {{ 'Facebook Ads' if plat_key == 'meta' else 'Google Ads' }}</span></td>
@@ -928,7 +924,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
         </tbody>
       </table>
     </div>
-    <div style="font-size:11px;color:var(--bs-ink-subtle);margin-top:6px">* Google: "Viu 50%+" é estimado (impressões × taxa de quartil da API), não um contador direto como o ThruPlay do Meta — pode ultrapassar 100% do total de views.</div>
+    <div style="font-size:11px;color:var(--bs-ink-subtle);margin-top:6px">Meta: "Viu 50%+" é contagem direta (ThruPlay). Google não expõe contagem, só a taxa de quartil da API — o % aqui é sobre quem iniciou o vídeo (impressões), não sobre ThruViews.</div>
     <div class="dbf-alloc-row total" style="margin-top:14px;border-radius:8px">
       <span>Total Investido — Pré-Qualificação</span>
       <span><span class="amt">{{ dbf.prequali_invest.total | brl(0) }}</span>{% if dbf.prequali_invest.prev_total %} {{ dbadge(dbf.prequali_invest.total, dbf.prequali_invest.prev_total, 'up') }}{% endif %}</span>
@@ -991,7 +987,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
       </table>
     </div>
     <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
-      "Antigo" = código ADxxx já usado em algum lançamento anterior do mesmo produto. ThruView = visualização completa do vídeo (contagem real no Meta; no Google, "Viu 50%" é estimativa por quartil de impressões, não contagem exata).
+      "Antigo" = código ADxxx já usado em algum lançamento anterior do mesmo produto. ThruView = visualização completa do vídeo (contagem real no Meta; no Google é o video_views/TrueView). "Viu 50%" no Google vem da taxa de quartil da API sobre quem iniciou o vídeo (impressões), não sobre ThruViews — por isso a base é diferente do Meta.
     </div>
   </div>
   {% endif %}

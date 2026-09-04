@@ -23,11 +23,18 @@ def _build_clima_breakdown(obj: Any, attr: str, leads_key: str = "leads") -> lis
             leads = v.get("conversoes") or 0
         thruplays = int(v.get("thruplays") or 0)
         views_50 = int(v.get("views_50") or 0)
+        # Base do "% viu 50%": no Meta, thruplays é contagem real (ThruPlay),
+        # mesma base do numerador. No Google, video_views_50 é impressões ×
+        # taxa de quartil da API — dividir por "views" (TrueView, uma base
+        # menor e de conceito diferente) passava de 100%; a base correta é
+        # impressões (mesmo universo usado pra calcular o numerador).
+        impressoes = int(v.get("impressoes") or 0)
+        base_50 = impressoes if impressoes > 0 else thruplays
         rows.append({
             "clima": c, "gasto": gasto, "leads": float(leads or 0),
             "thruplays": thruplays, "views_50": views_50,
             "custo_thruplay": (gasto / thruplays) if thruplays > 0 else 0.0,
-            "pct_50": (views_50 / thruplays * 100) if thruplays > 0 else 0.0,
+            "pct_50": (views_50 / base_50 * 100) if base_50 > 0 else 0.0,
         })
     total = sum(r["gasto"] for r in rows) or 1
     for r in rows:
@@ -279,20 +286,26 @@ def _build_antigo_novo(meta: Any, google: Any, sales_attr: Any = None) -> dict:
         if not ads:
             continue
         grupos = {
-            "antigo": {"gasto": 0.0, "leads": 0, "n": 0, "vendas": 0, "receita": 0.0, "thruview": 0, "views_50": 0},
-            "novo": {"gasto": 0.0, "leads": 0, "n": 0, "vendas": 0, "receita": 0.0, "thruview": 0, "views_50": 0},
+            "antigo": {"gasto": 0.0, "leads": 0, "n": 0, "vendas": 0, "receita": 0.0, "thruview": 0, "views_50": 0, "base_50": 0},
+            "novo": {"gasto": 0.0, "leads": 0, "n": 0, "vendas": 0, "receita": 0.0, "thruview": 0, "views_50": 0, "base_50": 0},
         }
         for a in ads:
             key = "antigo" if a.get("antigo") else "novo"
             grupos[key]["gasto"] += float(a.get("gasto") or 0)
             grupos[key]["leads"] += int(a.get("leads") or 0)
             grupos[key]["n"] += 1
-            # ThruView: contador real no Meta (thruplays); no Google é o
-            # video_views (TrueView) — mesmo conceito, campos com nomes
-            # diferentes por plataforma. views_50 no Google é estimativa
-            # (impressões × taxa do quartil), não contagem real.
+            # ThruView (custo/view): contador real no Meta (thruplays); no
+            # Google é o video_views (TrueView) — mesmo conceito, campos com
+            # nomes diferentes por plataforma.
+            eh_meta = "thruplays" in a
             grupos[key]["thruview"] += int(a.get("thruplays") or a.get("video_views") or 0)
             grupos[key]["views_50"] += int(a.get("views_50") or 0)
+            # Base do "% viu 50%": no Meta é a mesma ThruPlay (numerador e
+            # base já no mesmo contador real); no Google, video_views_50 é
+            # impressões × taxa de quartil da API — a base correta é
+            # impressões, não video_views (TrueView, universo menor e de
+            # conceito diferente, que fazia passar de 100%).
+            grupos[key]["base_50"] += int(a.get("thruplays") or 0) if eh_meta else int(a.get("impressoes") or 0)
             venda = por_criativo.get(str(a.get("ad_code") or "").upper(), {})
             grupos[key]["vendas"] += int(venda.get("vendas") or 0)
             grupos[key]["receita"] += float(venda.get("faturamento") or 0)
@@ -302,7 +315,7 @@ def _build_antigo_novo(meta: Any, google: Any, sales_attr: Any = None) -> dict:
             g["pct"] = g["gasto"] / total_gasto * 100
             g["roas"] = g["receita"] / g["gasto"] if g["gasto"] > 0 else 0.0
             g["custo_thruview"] = g["gasto"] / g["thruview"] if g["thruview"] > 0 else 0.0
-            g["pct_50"] = g["views_50"] / g["thruview"] * 100 if g["thruview"] > 0 else 0.0
+            g["pct_50"] = g["views_50"] / g["base_50"] * 100 if g["base_50"] > 0 else 0.0
         out[etapa] = grupos
     return out
 

@@ -292,6 +292,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
     preq_grouped = df[df["etapa"] == "Pré-Qualificação"].groupby("temperatura").agg(
         custo=("cost", "sum"), conversoes=("conversions", "sum"),
         views=("video_views", "sum"), views_50=("video_views_50", "sum"),
+        impressoes=("impressions", "sum"),
     ).reset_index()
     for _, r in preq_grouped.iterrows():
         conv = float(r["conversoes"])
@@ -306,6 +307,10 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
             "thruplays": views,
             "custo_thruplay": float(r["custo"] / views) if views > 0 else 0.0,
             "views_50": int(r["views_50"]),
+            # base correta pro % de "viu 50%": video_views_50 é impressões ×
+            # taxa de quartil da API do Google (starts, não views TrueView) —
+            # dividir por impressões em vez de "views" evita passar de 100%.
+            "impressoes": int(r["impressoes"]),
         }
 
     # Segmento Google (temperatura + bucket) — apenas captação

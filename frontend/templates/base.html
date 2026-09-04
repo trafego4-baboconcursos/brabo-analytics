@@ -196,6 +196,34 @@ html, body { margin: 0 !important; padding: 0 !important; font-family: 'Inter','
 .bs-launch-picker-item:hover { background:var(--bs-surface); }
 .bs-launch-picker-item.active { background:var(--bs-accent-bg); color:var(--bs-accent); }
 
+/* Painel do Lançamento (mobile): breadcrumb indicando que os grupos de
+   página (Visão Geral/Mídia Paga/...) abaixo pertencem ao lançamento atual,
+   não são itens soltos do menu principal — e cada grupo abre em acordeão
+   (expande no próprio painel) em vez de virar outro nível de drill-down. */
+.bs-picker-mobile-only { display:none; }
+.bs-picker-breadcrumb { display:flex; align-items:center; gap:4px; }
+.bs-picker-breadcrumb i:last-child { font-size:11px; opacity:.5; }
+.bs-picker-subgroup-btn {
+  display:flex; align-items:center; gap:9px; width:100%;
+  border:none; background:none; cursor:pointer; font-family:inherit;
+  padding:9px 10px; border-radius:8px;
+  color:var(--bs-ink); font-size:13px; font-weight:600; text-align:left;
+}
+.bs-picker-subgroup-btn:hover { background:var(--bs-surface); }
+.bs-picker-subgroup-btn.active { color:var(--bs-accent); }
+.bs-picker-subgroup-btn > i:first-child { font-size:15px; opacity:.8; flex-shrink:0; }
+.bs-picker-subgroup-label { flex:1; }
+.bs-picker-subgroup-chevron { font-size:12px; opacity:.6; transition:transform .15s; flex-shrink:0; }
+.bs-picker-subgroup.open .bs-picker-subgroup-chevron { transform:rotate(180deg); }
+.bs-picker-subgroup-body { display:none; padding-left:10px; }
+.bs-picker-subgroup.open .bs-picker-subgroup-body { display:block; }
+/* Variante do "Voltar" no fim do painel (não no topo) — separa com borda
+   em cima em vez de embaixo. Seletor composto (2 classes) de propósito:
+   precisa ganhar de ".bs-picker-back" sozinho, que também seta border-bottom
+   dentro da media query mobile (mesma especificidade, mas depois no
+   arquivo — sem o composto, a ordem de origem faria o border-bottom voltar). */
+.bs-picker-back.bs-picker-back-bottom { border-bottom:none; border-top:1px solid var(--bs-border); margin-top:6px; margin-bottom:0; }
+
 /* Item de tema (reaproveita o picker acima, mas é <button>, não <a>) */
 .bs-theme-opt {
   display:flex; align-items:center; gap:9px; width:100%;
@@ -1097,6 +1125,7 @@ kbd {
     background:none; cursor:pointer; font-size:13px; font-weight:700; color:var(--bs-ink-muted);
   }
   .bs-picker-back:active { color:var(--bs-ink); }
+  .bs-picker-mobile-only { display:block; }
 }
 
 @media (max-width:520px) {
@@ -1715,9 +1744,41 @@ html[data-bs-theme="custom"] .mat-num {
           <i class="ti ti-chevron-down bs-launch-picker-chevron"></i>
         </button>
         <div class="bs-launch-picker-menu" id="bs-launch-picker-menu">
-          <button type="button" class="bs-picker-back" onclick="bsPickerToggle(this)">
-            <i class="ti ti-arrow-left"></i> Voltar
-          </button>
+          {% if nav_mode == 'funis' and active_code and nav_groups %}
+          <!-- Dentro de um lançamento, o painel de Lançamento também é a porta
+               de entrada pras páginas dele (Visão Geral/Mídia Paga/...) — o
+               breadcrumb deixa claro que esses grupos são "filhos" do
+               lançamento atual, não itens soltos do menu principal. Cada
+               grupo abre em acordeão (não muda de painel) pra não misturar
+               com a troca de lançamento logo abaixo. Só no celular — no
+               desktop essa mesma navegação já é a barra horizontal
+               #bs-subnav, não precisa duplicar aqui. -->
+          <div class="bs-picker-mobile-only">
+            <div class="bs-launch-picker-group bs-picker-breadcrumb">
+              <i class="ti ti-rocket"></i> Lançamento <i class="ti ti-chevron-right"></i>
+            </div>
+            {% for group in nav_groups %}
+            {% set _active_item = (group.links | selectattr('page', 'equalto', page) | list | first) if group.active else None %}
+            <div class="bs-picker-subgroup {% if group.active %}open{% endif %}">
+              <button type="button" class="bs-picker-subgroup-btn {% if group.active %}active{% endif %}" onclick="bsPickerSubToggle(this)">
+                <i class="ti {{ group.icon }}"></i>
+                <span class="bs-picker-subgroup-label">{{ group.label }}</span>
+                {% if _active_item %}<span class="bs-live-badge"><span class="bs-live-dot"></span> {{ _active_item.label }}</span>{% endif %}
+                <i class="ti ti-chevron-down bs-picker-subgroup-chevron"></i>
+              </button>
+              <div class="bs-picker-subgroup-body">
+                {% for item in group.links %}
+                <a class="bs-subnav-link {% if page == item.page %}active{% endif %} {% if not item.enabled %}disabled{% endif %}"
+                   href="{{ item.href }}">
+                  <i class="ti {{ item.icon }}"></i> {{ item.label }}
+                </a>
+                {% endfor %}
+              </div>
+            </div>
+            {% endfor %}
+            <div class="bs-launch-picker-sep"></div>
+          </div>
+          {% endif %}
           <a class="bs-launch-picker-all" href="/lancamentos">
             <i class="ti ti-layout-grid"></i> Ver todos os lançamentos
           </a>
@@ -1733,6 +1794,9 @@ html[data-bs-theme="custom"] .mat-num {
           {% endfor %}
           {% endfor %}
           {% endif %}
+          <button type="button" class="bs-picker-back bs-picker-back-bottom" onclick="bsPickerToggle(this)">
+            <i class="ti ti-arrow-left"></i> Voltar para o menu principal
+          </button>
         </div>
       </div>
 
@@ -1807,41 +1871,6 @@ html[data-bs-theme="custom"] .mat-num {
         </div>
       </div>
     </nav>
-
-    <!-- Navegação do modo Funis — versão vertical, só visível na gaveta mobile
-         (no desktop a mesma nav_groups vira a barra horizontal em #bs-subnav).
-         Cada grupo (Visão Geral/Mídia Paga/...) é um picker igual aos de
-         cima — alguns grupos têm 6-7 páginas, não cabiam soltos numa lista
-         achatada dentro da gaveta; agora abrem em drill-down como o resto. -->
-    {% if nav_mode == 'funis' and nav_groups %}
-    <nav class="bs-nav bs-nav-mobile-only">
-      {% for group in nav_groups %}
-      {% set _active_item = (group.links | selectattr('page', 'equalto', page) | list | first) if group.active else None %}
-      <div class="bs-launch-picker" id="bs-subnavgroup-picker-{{ loop.index }}">
-        <button type="button"
-                class="bs-mode-btn bs-launch-picker-btn {% if group.active %}active{% endif %} {% if _active_item %}bs-has-badge{% endif %}"
-                onclick="bsPickerToggle(this)">
-          <span class="bs-launch-picker-label"><i class="ti {{ group.icon }}"></i> {{ group.label }}</span>
-          {% if _active_item %}
-          <span class="bs-live-badge"><span class="bs-live-dot"></span> {{ _active_item.label }}</span>
-          {% endif %}
-          <i class="ti ti-chevron-down bs-launch-picker-chevron"></i>
-        </button>
-        <div class="bs-launch-picker-menu">
-          <button type="button" class="bs-picker-back" onclick="bsPickerToggle(this)">
-            <i class="ti ti-arrow-left"></i> Voltar
-          </button>
-          {% for item in group.links %}
-          <a class="bs-subnav-link {% if page == item.page %}active{% endif %} {% if not item.enabled %}disabled{% endif %}"
-             href="{{ item.href }}">
-            <i class="ti {{ item.icon }}"></i> {{ item.label }}
-          </a>
-          {% endfor %}
-        </div>
-      </div>
-      {% endfor %}
-    </nav>
-    {% endif %}
 
     <!-- Sistema — fora dos modos, só pra admin -->
     {% if current_user and current_user.role == 'admin' %}
@@ -2363,7 +2392,19 @@ document.querySelectorAll('#bs-drawer .bs-nav-link, #bs-drawer .bs-camp-select, 
        daquele item (Visão Geral/Captação...) se reabrisse o hambúrguer na
        mão. O flag sobrevive o reload e reabre a gaveta já na página nova. */
     if (el.classList.contains('bs-launch-picker-item') || el.classList.contains('bs-launch-picker-all') || el.classList.contains('bs-subnav-link')) {
-      try { sessionStorage.setItem('bs-reopen-menu', '1'); } catch (e) {}
+      try {
+        sessionStorage.setItem('bs-reopen-menu', '1');
+        /* Página de dentro do painel de Lançamento (Visão Geral/Mídia Paga/...)
+           — reabrir já direto nesse painel, não só no menu principal, senão
+           some o contexto de onde a pessoa estava. */
+        if (el.classList.contains('bs-subnav-link')) {
+          var picker = el.closest('.bs-launch-picker');
+          if (picker && picker.id) sessionStorage.setItem('bs-reopen-picker', picker.id);
+          else sessionStorage.removeItem('bs-reopen-picker');
+        } else {
+          sessionStorage.removeItem('bs-reopen-picker');
+        }
+      } catch (e) {}
     }
     bsMenuToggle(false);
   });
@@ -2371,14 +2412,6 @@ document.querySelectorAll('#bs-drawer .bs-nav-link, #bs-drawer .bs-camp-select, 
 window.addEventListener('resize', function() {
   if (window.innerWidth > 1024) bsMenuToggle(false);
 });
-if (window.innerWidth <= 1024) {
-  try {
-    if (sessionStorage.getItem('bs-reopen-menu')) {
-      sessionStorage.removeItem('bs-reopen-menu');
-      bsMenuToggle(true);
-    }
-  } catch (e) {}
-}
 
 /* ── Pickers da trilha (Lançamento/Perpétuo/Distribuição/Redes Sociais) ──
    O menu usa position:fixed (ver CSS) pra escapar do overflow:auto da
@@ -2425,6 +2458,37 @@ document.addEventListener('click', function(e) {
     if (drawer) drawer.classList.remove('bs-drilled');
   }
 });
+/* Acordeão dos grupos de página (Visão Geral/Mídia Paga/...) dentro do
+   painel de Lançamento no celular — expande no próprio painel, não abre
+   outro nível de drill-down (só um grupo aberto por vez). */
+window.bsPickerSubToggle = function(btn) {
+  var sub = btn.closest('.bs-picker-subgroup');
+  if (!sub) return;
+  var open = sub.classList.contains('open');
+  var parent = sub.parentElement;
+  if (parent) {
+    parent.querySelectorAll('.bs-picker-subgroup.open').forEach(function(s) { s.classList.remove('open'); });
+  }
+  sub.classList.toggle('open', !open);
+};
+/* Reabre a gaveta (e redrilla no picker certo, se houver) depois de um
+   reload disparado por um item dentro dela — precisa vir depois de
+   bsPickerToggle/bsPickerSubToggle estarem definidos, já que chama eles. */
+if (window.innerWidth <= 1024) {
+  try {
+    if (sessionStorage.getItem('bs-reopen-menu')) {
+      sessionStorage.removeItem('bs-reopen-menu');
+      bsMenuToggle(true);
+      var pickerId = sessionStorage.getItem('bs-reopen-picker');
+      sessionStorage.removeItem('bs-reopen-picker');
+      if (pickerId) {
+        var pickerEl = document.getElementById(pickerId);
+        var pickerBtn = pickerEl && pickerEl.querySelector('.bs-launch-picker-btn');
+        if (pickerBtn) bsPickerToggle(pickerBtn);
+      }
+    }
+  } catch (e) {}
+}
 ['scroll', 'resize'].forEach(function(evt) {
   window.addEventListener(evt, function() {
     if (bsIsMobileDrawer()) return;

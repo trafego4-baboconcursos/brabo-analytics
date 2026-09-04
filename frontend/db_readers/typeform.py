@@ -737,10 +737,23 @@ def read_perfil_por_anuncio(launch_folder_or_code: Any, top_n: int = 5) -> dict 
     proj_id, _ = _resolve_typeform_ids(code)
     if not proj_id:
         proj_id = code
-    tf_df_raw = pd.read_sql(
-        text("SELECT * FROM " + _tf_source("upper(coalesce(form_id, '')) = :fid") + " t"),
-        engine, params={"fid": proj_id.upper()},
+    # Só respostas de quem é lead do lançamento: o cruzamento abaixo é um
+    # inner join por e-mail com `leads`, então o resto seria descartado de
+    # qualquer jeito. Sem esse filtro o PI-AGO-26 trazia 48 mil linhas com o
+    # JSON completo (152 MB, 37s) e estourava o statement_timeout de 30s.
+    # O timeout maior vale só nesta conexão (o pool volta a 30s no próximo
+    # checkout, ver src/db_engine.py) — a leitura é cacheada/snapshot, roda
+    # uma vez por aquecimento, então pode demorar em segundo plano.
+    _where = (
+        "upper(coalesce(form_id, '')) = :fid "
+        "AND lower(email) IN (SELECT lower(email) FROM leads WHERE lancamento_codigo = :code AND email IS NOT NULL)"
     )
+    with engine.connect() as conn:
+        conn.execute(text("SET statement_timeout = 180000"))
+        tf_df_raw = pd.read_sql(
+            text("SELECT response_id, form_id, email, answers FROM " + _tf_source(_where) + " t"),
+            conn, params={"fid": proj_id.upper(), "code": code},
+        )
     records = _reconstruct_tabular_df(tf_df_raw) if not tf_df_raw.empty else []
     tf_df_typeform = pd.DataFrame(records)
 

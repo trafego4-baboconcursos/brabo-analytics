@@ -136,3 +136,31 @@ def schedule_warm(codes: Iterable[str] | None = None, invalidate: bool = False, 
     _TASKS.add(task)
     task.add_done_callback(_TASKS.discard)
     return task
+
+
+async def _periodic_warm(interval_min: int) -> None:
+    """Re-aquece sozinho a cada `interval_min`, independente do scheduler do
+    ETL avisar via /api/etl/refresh (que exige ETL_REFRESH_TOKEN nos dois
+    processos). Sem isso, num deploy sem o token o snapshot do debriefing
+    ficaria com os dados do boot pra sempre. O lock em warm_active serializa
+    com o aviso do ETL quando os dois coincidem."""
+    import os  # noqa: PLC0415
+    while True:
+        await asyncio.sleep(interval_min * 60)
+        if os.environ.get("PRE_WARM_CACHE", "true").lower() != "true":
+            continue
+        try:
+            await warm_active(invalidate=True, origem=f"periodico/{interval_min}min")
+        except Exception:
+            logger.exception("Re-aquecimento periódico falhou")
+
+
+def schedule_periodic_warm(interval_min: int) -> asyncio.Task | None:
+    if interval_min <= 0:
+        logger.info("Re-aquecimento periódico desativado (PRE_WARM_INTERVAL_MIN=%s)", interval_min)
+        return None
+    task = asyncio.create_task(_periodic_warm(interval_min))
+    _TASKS.add(task)
+    task.add_done_callback(_TASKS.discard)
+    logger.info("Re-aquecimento periódico agendado a cada %d min.", interval_min)
+    return task

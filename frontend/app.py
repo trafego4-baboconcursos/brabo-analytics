@@ -130,11 +130,14 @@ async def pre_warm_cache():
         logger.info("Pre-warming de cache desativado")
         return
 
-    from frontend.services.prewarm import schedule_warm  # noqa: PLC0415
+    from frontend.services.prewarm import schedule_warm, schedule_periodic_warm  # noqa: PLC0415
 
     # A mesma rotina roda de novo depois de cada rodada do ETL, via
-    # POST /api/etl/refresh (ver frontend/services/prewarm.py).
+    # POST /api/etl/refresh (ver frontend/services/prewarm.py), e também
+    # sozinha a cada PRE_WARM_INTERVAL_MIN (padrão 30), pra não depender
+    # do token do ETL estar configurado.
     schedule_warm(origem="boot")
+    schedule_periodic_warm(int(os.environ.get("PRE_WARM_INTERVAL_MIN", "30") or 0))
 
 # ── Handler global de erros ────────────────────────────────────────────────────
 @app.exception_handler(Exception)

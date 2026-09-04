@@ -426,6 +426,12 @@ html[data-bs-theme="aranhaverso"] .bs-web-spokes {
    aplicado automaticamente em qualquer página com .section/.section-title
    (ver bsInitAccordion() no <script> do fim do body). ── */
 .bs-chevron { margin-left:auto; transition:transform .15s; flex-shrink:0; }
+/* Ícone+texto+badges do título ficam soltos no flex do .section-title/
+   .dbf-section-title (ver bsInitAccordion() no fim do body — agrupa o
+   conteúdo original em .bs-sec-orig) — sem isto, quando não cabe numa
+   linha só, o texto quebra como parágrafo em vez de badge inteiro pulando
+   de linha. */
+.bs-sec-orig { display:inline-flex; flex-wrap:wrap; align-items:center; gap:6px 10px; }
 .collapsed > .section-title, .collapsed > .dbf-section-title { margin-bottom:0; border-bottom-color:var(--bs-border); }
 .collapsed > .section-title .bs-chevron, .collapsed > .dbf-section-title .bs-chevron { transform:rotate(-90deg); }
 .collapsed > *:not(.section-title):not(.dbf-section-title) { display:none !important; }
@@ -1077,6 +1083,19 @@ kbd {
   .content { padding:12px; }
   .metrics-grid, .tp-kpi-grid, .highlights { grid-template-columns:1fr; }
   table, .table-wrap table { font-size:12px; }
+
+  /* Título de seção (accordion) no celular: ícone+texto+badges raramente
+     cabem numa linha só. Antes o texto quebrava feito parágrafo e o
+     chevron pulava pra qualquer linha sobrasse espaço — bagunçado e
+     assimétrico. Agora o chevron fica fixo no canto (sai do fluxo do
+     flex-wrap) e o resto quebra em linhas completas por baixo. */
+  .section-title, .dbf-section-title {
+    position:relative; padding-right:26px; row-gap:6px;
+  }
+  .bs-sec-orig { row-gap:6px; }
+  .bs-chevron {
+    position:absolute; top:1px; right:0; margin-left:0;
+  }
 }
 
 /* ── Launch Config Modal ─────────────────────────────────────────────── */

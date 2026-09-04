@@ -345,6 +345,12 @@ async def debriefing(request: Request, launch_code: str | None = None, modo: str
     if built is None:
         lazy = not slides
         built = await build_debriefing_context(launch, launches, lazy=lazy)
+        # Sem snapshot (lançamento antigo, fora do aquecimento) ou ?ao_vivo=1:
+        # grava um em segundo plano com os caches que esta visita acabou de
+        # aquecer — a próxima abertura já vem do snapshot.
+        if launch:
+            from frontend.services.prewarm import schedule_snapshot_only  # noqa: PLC0415
+            schedule_snapshot_only(launch, launches)
 
     snapshot_label = ""
     if snapshot_at:

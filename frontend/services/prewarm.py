@@ -49,6 +49,14 @@ def select_launches_to_warm(launches: list, codes: Iterable[str] | None = None) 
     active = [l for l in launches if l.data_fim and l.data_fim >= cutoff and l.code not in to_warm]
     for l in active[: max(0, MAX_LAUNCHES - len(to_warm))]:
         to_warm[l.code] = l
+    # O lançamento anterior de cada ativo também: o debriefing do ativo compara
+    # com ele (meta/google/vendas já eram aquecidos por tabela) e é o segundo
+    # debriefing mais aberto — sem snapshot ele caía no cálculo ao vivo
+    # (PI-AGO-26: 60-100s em toda visita).
+    for l in list(to_warm.values()):
+        prev = find_previous_launch(l, launches)
+        if prev and prev.code not in to_warm:
+            to_warm[prev.code] = prev
     return list(to_warm.values())
 
 
@@ -135,6 +143,34 @@ def schedule_warm(codes: Iterable[str] | None = None, invalidate: bool = False, 
     task = asyncio.create_task(warm_active(codes, invalidate=invalidate, origem=origem))
     _TASKS.add(task)
     task.add_done_callback(_TASKS.discard)
+    return task
+
+
+# Snapshot sob demanda: lançamento aberto sem snapshot (antigo, fora do
+# conjunto aquecido) é servido ao vivo nesta visita e ganha snapshot em
+# segundo plano — a próxima visita já é instantânea. Um por código por vez.
+_SNAPSHOT_INFLIGHT: set[str] = set()
+
+
+def schedule_snapshot_only(launch: Any, launches: list) -> asyncio.Task | None:
+    code = launch.code
+    if code in _SNAPSHOT_INFLIGHT:
+        return None
+    _SNAPSHOT_INFLIGHT.add(code)
+
+    async def _run():
+        try:
+            from frontend.services.debriefing_build import refresh_debriefing_snapshot  # noqa: PLC0415
+            await refresh_debriefing_snapshot(launch, launches)
+        except Exception:
+            logger.exception("Snapshot sob demanda falhou para %s", code)
+        finally:
+            _SNAPSHOT_INFLIGHT.discard(code)
+
+    task = asyncio.create_task(_run())
+    _TASKS.add(task)
+    task.add_done_callback(_TASKS.discard)
+    logger.info("Snapshot sob demanda agendado para %s.", code)
     return task
 
 

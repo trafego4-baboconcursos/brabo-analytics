@@ -324,6 +324,7 @@ def _compute_debriefing_ctx(
     leads_x_whatsapp: Any = None,
     vendas_grupos_whatsapp: Any = None,
     disparo_resumo: Any = None,
+    prev_hotmart: Any = None,
     wa_cost: Any = None,
     prev_wa_cost: Any = None,
 ) -> dict:
@@ -511,6 +512,22 @@ def _compute_debriefing_ctx(
     total_tmb  = _i(getattr(vendas, "tmb_vendas",    0))
     total_hm_v = _i(getattr(vendas, "hotmart_vendas", 0))
 
+    # Detalhamento de Vendas por forma (pauta debriefing) — à vista, 12x,
+    # outros parcelamentos e recorrência vêm do Hotmart (read_hotmart_details);
+    # "Entrada (boleto parcelado)" é o TMB, já usado em total_tmb acima.
+    prev_total_tmb = _i(getattr(prev_vendas, "tmb_vendas", 0))
+    vendas_forma = [
+        {"label": "À vista", "qtd": _i(getattr(hotmart, "a_vista_qtd", 0)),
+         "prev_qtd": _i(getattr(prev_hotmart, "a_vista_qtd", 0))},
+        {"label": "Parcelado em 12x", "qtd": _i(getattr(hotmart, "parcelado_12x_qtd", 0)),
+         "prev_qtd": _i(getattr(prev_hotmart, "parcelado_12x_qtd", 0))},
+        {"label": "Outros parcelamentos", "qtd": _i(getattr(hotmart, "outros_parcelamentos_qtd", 0)),
+         "prev_qtd": _i(getattr(prev_hotmart, "outros_parcelamentos_qtd", 0))},
+        {"label": "Recorrência", "qtd": _i(getattr(hotmart, "recorrencia_qtd", 0)),
+         "prev_qtd": _i(getattr(prev_hotmart, "recorrencia_qtd", 0))},
+        {"label": "Entrada (boleto parcelado)", "qtd": total_tmb, "prev_qtd": prev_total_tmb},
+    ]
+
     def _find_pay(metodo_keywords):
         for p in pagamentos_hm:
             m = (p.get("metodo") or "").lower()
@@ -620,6 +637,7 @@ def _compute_debriefing_ctx(
         "timeline": timeline, "max_vendas_dia": max_vendas_dia,
         # Pagamentos
         "pagamentos_hm": pagamentos_hm, "total_tmb": total_tmb,
+        "vendas_forma": vendas_forma,
         "total_hm": total_hm_v, "total_vendas_pay": total_tmb + total_hm_v,
         "boleto_hm": boleto_hm, "cartao_hm": cartao_hm, "pix_hm": pix_hm,
         # Audiences (captação only)

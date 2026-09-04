@@ -25,6 +25,14 @@ logger = get_logger("db")
 
 TABLE = "debriefing_snapshot"
 
+# Versão do formato do payload. Suba este número toda vez que o `dbf` que o
+# template consome mudar de forma (campo novo obrigatório, seção nova...).
+# Um snapshot gravado com versão diferente é ignorado — a página cai no
+# cálculo ao vivo em vez de estourar 500 no template — até o próximo
+# aquecimento regravar. (Ex.: 2 = saída dos grupos de WhatsApp, vendas x
+# grupos e detalhamento do disparo.)
+SNAPSHOT_VERSION = 2
+
 DDL = f"""
 CREATE TABLE IF NOT EXISTS {TABLE} (
     lancamento_codigo TEXT PRIMARY KEY,
@@ -59,6 +67,7 @@ def ensure_table() -> None:
 
 def write_snapshot(launch_code: str, payload: dict, duration_ms: int | None = None) -> int:
     """Grava (upsert) o snapshot. Devolve o tamanho do JSON em bytes."""
+    payload = {**payload, "_version": SNAPSHOT_VERSION}
     body = json.dumps(payload, default=_json_default, ensure_ascii=False)
     with _get_engine().begin() as conn:
         conn.execute(text(f"""
@@ -84,4 +93,9 @@ def read_snapshot(launch_code: str) -> dict | None:
     if not row:
         return None
     payload = row[0] if isinstance(row[0], dict) else json.loads(row[0])
+    versao = payload.get("_version")
+    if versao != SNAPSHOT_VERSION:
+        logger.warning("debriefing_snapshot: snapshot de %s tem versão %s (esperada %s); ignorado, seguindo ao vivo",
+                       launch_code, versao, SNAPSHOT_VERSION)
+        return None
     return {"payload": payload, "computed_at": row[1]}

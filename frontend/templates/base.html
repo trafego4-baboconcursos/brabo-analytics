@@ -10,7 +10,7 @@
 
   <style id="brabo-ds-style">
 /* ── Basis Design System — Brabo Analytics ──────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&family=Archivo+Black&family=Orbitron:wght@600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&family=Archivo+Black&family=Orbitron:wght@600;700;800&family=Black+Ops+One&display=swap');
 
 :root {
   --bs-ink:          #1f2330;
@@ -333,6 +333,18 @@ html[data-bs-theme="outatime"] .bs-clock-min {
   transform-origin:50px 60px; animation:bs-clock-spin 1s linear infinite;
 }
 @keyframes bs-clock-spin { to { transform:rotate(360deg); } }
+.bs-loading-reticle { display:none; }
+/* Easter egg "Predador": troca o spinner pela mira/retículo de caça
+   térmica, anel pontilhado girando feito escaneando o alvo. */
+html[data-bs-theme="predador"] .bs-loading-spinner { display:none; }
+html[data-bs-theme="predador"] .bs-loading-reticle {
+  display:block; color:var(--bs-accent);
+  filter:drop-shadow(0 0 8px var(--bs-accent));
+}
+html[data-bs-theme="predador"] .bs-ret-ring {
+  transform-origin:50px 50px; animation:bs-ret-spin 2.5s linear infinite;
+}
+@keyframes bs-ret-spin { to { transform:rotate(360deg); } }
 .bs-loading-spinner {
   width:44px; height:44px;
   border:4px solid rgba(0,0,0,.08);
@@ -1313,6 +1325,40 @@ html[data-bs-theme="outatime"] .mat-num {
 html[data-bs-theme="outatime"] .bs-live-dot {
   background: #00e64d; box-shadow: 0 0 6px #00e64d;
 }
+
+/* "Predador" — easter egg Predador (1987): paleta de visão térmica
+   (laranja/vermelho quente sobre fundo escuro esverdeado), verde neon
+   de visão noturna no sucesso, estêncil militar (Black Ops One) nos
+   números — mesma ideia do Outatime, tema diferente. */
+html[data-bs-theme="predador"] {
+  --bs-accent: #ff4500; --bs-accent-2: #ffae00; --bs-accent-bg: #2b1608;
+  --bs-sidebar: #0c1a10; --bs-sidebar-dark: #050a06;
+  --bs-bg: #0b0f0c; --bs-surface: #121712; --bs-card: #171d17;
+  --bs-ink: #eef0ea; --bs-ink-muted: #9aa393; --bs-ink-subtle: #67705f;
+  --bs-border: #263025; --bs-border-s: #344031;
+  --bs-success: #39ff14; --bs-success-bg: #0f2a08;
+  --bs-warning: #ffcc00; --bs-warning-bg: #2e2400;
+  --bs-danger: #ff2b2b; --bs-danger-bg: #300a0a;
+  --bs-info: #ffae00; --bs-info-bg: #241a06;
+  --bs-sh-sm: 0 0 4px rgba(255,69,0,.18); --bs-sh-md: 0 0 16px rgba(255,69,0,.2);
+  --bs-sh-lg: 0 0 32px rgba(255,69,0,.24); --bs-sh-xl: 0 0 60px rgba(255,69,0,.3);
+}
+html[data-bs-theme="predador"] body {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+html[data-bs-theme="predador"] .hdr h1,
+html[data-bs-theme="predador"] h1,
+html[data-bs-theme="predador"] .tp-value,
+html[data-bs-theme="predador"] .kpi-val,
+html[data-bs-theme="predador"] .dbf-kpi .val,
+html[data-bs-theme="predador"] .mat-num {
+  font-family: 'Black Ops One', 'Inter', sans-serif;
+  text-shadow: 0 0 8px currentColor;
+  letter-spacing: .02em;
+}
+html[data-bs-theme="predador"] .bs-live-dot {
+  background: #39ff14; box-shadow: 0 0 6px #39ff14;
+}
   </style>
   <script>
   (function() {
@@ -1340,6 +1386,15 @@ html[data-bs-theme="outatime"] .bs-live-dot {
     <line class="bs-clock-hour" x1="50" y1="60" x2="50" y2="38" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
     <line class="bs-clock-min" x1="50" y1="60" x2="50" y2="27" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
     <circle cx="50" cy="60" r="3.5" fill="currentColor"/>
+  </svg>
+  <svg class="bs-loading-reticle" viewBox="0 0 100 100" width="64" height="64" aria-hidden="true">
+    <circle class="bs-ret-ring" cx="50" cy="50" r="44" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="6 6"/>
+    <circle cx="50" cy="50" r="30" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".5"/>
+    <circle cx="50" cy="50" r="3" fill="currentColor"/>
+    <line x1="50" y1="2" x2="50" y2="16" stroke="currentColor" stroke-width="2.5"/>
+    <line x1="50" y1="84" x2="50" y2="98" stroke="currentColor" stroke-width="2.5"/>
+    <line x1="2" y1="50" x2="16" y2="50" stroke="currentColor" stroke-width="2.5"/>
+    <line x1="84" y1="50" x2="98" y2="50" stroke="currentColor" stroke-width="2.5"/>
   </svg>
   <div class="bs-loading-quote" id="bs-loading-quote" aria-live="polite"><div class="q"></div><div class="a"></div></div>
 </div>
@@ -1548,6 +1603,9 @@ html[data-bs-theme="outatime"] .bs-live-dot {
           <button type="button" class="bs-theme-opt" data-theme-val="outatime" onclick="bsSetTheme('outatime')">
             <span class="bs-theme-dot" style="background:#0d0d0f;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08), inset 0 0 0 3px #ff7a00"></span> Outatime <i class="ti ti-car" style="margin-left:auto;font-size:13px;opacity:.6"></i>
           </button>
+          <button type="button" class="bs-theme-opt" data-theme-val="predador" onclick="bsSetTheme('predador')">
+            <span class="bs-theme-dot" style="background:#0b0f0c;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08), inset 0 0 0 3px #ff4500"></span> Predador <i class="ti ti-target" style="margin-left:auto;font-size:13px;opacity:.6"></i>
+          </button>
         </div>
       </div>
     </div>
@@ -1744,8 +1802,24 @@ html[data-bs-theme="outatime"] .bs-live-dot {
     ["Seus filhos, Marty! Precisa fazer alguma coisa com os seus filhos!", "Doc Brown, De Volta para o Futuro II"],
     ["Acho que vocês não estão prontos pra isso ainda. Mas os seus filhos vão adorar.", "Marty McFly, De Volta para o Futuro"],
   ];
+  // Easter egg do tema "Predador" — mesma ideia do Outatime, filme diferente.
+  var PD_QUOTES = [
+    ["Se sangra, a gente pode matar.", "Dutch, Predador"],
+    ["Vai pro helicóptero!", "Dutch, Predador"],
+    ["Não tenho tempo pra sangrar.", "Blain, Predador"],
+    ["Tem alguma coisa lá fora esperando por nós, e não é gente.", "Dutch, Predador"],
+    ["O que diabos você é?", "Dutch, Predador"],
+    ["Dillon, seu filho da mãe!", "Dutch, Predador"],
+    ["Qualquer hora, qualquer lugar.", "Dutch e Dillon, Predador"],
+    ["Fica aí!", "Dutch, Predador"],
+    ["Anda logo, vamos embora daqui.", "Dutch, Predador"],
+    ["Nós somos os caçadores, mas dessa vez fomos caçados.", "Dutch, Predador"],
+  ];
   function activeQuotes() {
-    return document.documentElement.getAttribute('data-bs-theme') === 'outatime' ? BF_QUOTES : BS_QUOTES;
+    var t = document.documentElement.getAttribute('data-bs-theme');
+    if (t === 'outatime') return BF_QUOTES;
+    if (t === 'predador') return PD_QUOTES;
+    return BS_QUOTES;
   }
   var quoteBox = document.getElementById('bs-loading-quote');
   var _qDelay = null, _qRotate = null, _qLast = -1;
@@ -2066,7 +2140,7 @@ window.bsSetTheme = function(v) {
     location.reload();
   }
 };
-var BS_THEME_LABELS = { a: 'Colorful', brabo: "Orange's New Black", b: 'Deep Lagoon', c: 'Slate Teal', d: 'Midnight Indigo', outatime: 'Outatime' };
+var BS_THEME_LABELS = { a: 'Colorful', brabo: "Orange's New Black", b: 'Deep Lagoon', c: 'Slate Teal', d: 'Midnight Indigo', outatime: 'Outatime', predador: 'Predador' };
 window.bsThemeSyncActive = function() {
   var current = document.documentElement.getAttribute('data-bs-theme') || 'a';
   document.querySelectorAll('#bs-theme-picker .bs-theme-opt').forEach(function(b) {

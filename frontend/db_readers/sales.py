@@ -487,6 +487,9 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
 
     df_paid["valor_liq"] = 0.0
     df_paid["valor_bruto"] = 0.0
+    recorrencia_qtd = 0
+    recorrencia_receita = 0.0
+    recorrencia_idx = []
     for idx, row in df_paid.iterrows():
         valor = _hmd_num(row.get("faturamento_liquido"))
         if valor is None:
@@ -499,12 +502,23 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
         eh_por_parcela, cobrancas, parcelas = _parcela_unica_info(row)
         if eh_por_parcela:
             if cobrancas != 1:
+                # Retentativa de cobrança de assinatura (recorrência): valor
+                # gravado é o da PARCELA — vira faturamento real multiplicando
+                # pelo número de parcelas, igual à venda "de parcela única"
+                # abaixo. Não soma no total_vendas/receita_liquida (mantém o
+                # comportamento já existente, usado no resto do debriefing) —
+                # só entra no bucket separado details.recorrencia_qtd/receita.
+                recorrencia_qtd += 1
+                recorrencia_receita += valor * max(1, parcelas)
+                recorrencia_idx.append(idx)
                 continue
             valor *= max(1, parcelas)
             valor_bruto *= max(1, parcelas)
         df_paid.at[idx, "valor_liq"] = valor
         df_paid.at[idx, "valor_bruto"] = valor_bruto
 
+    details.recorrencia_qtd = recorrencia_qtd
+    details.recorrencia_receita = recorrencia_receita
     details.total_vendas = len(df_paid)
     details.receita_liquida = float(df_paid["valor_liq"].sum())
     details.receita_bruta = float(df_paid["valor_bruto"].sum())
@@ -532,6 +546,16 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
                 "qtd": int(cnt),
                 "pct_vendas": float(cnt / len(card_df) * 100)
             })
+
+    # Detalhamento de vendas por forma (pauta debriefing) — à vista (qualquer
+    # método com 1 parcela) x parcelado em 12x x outros parcelamentos, SEM as
+    # linhas de recorrência (já contadas à parte acima, não são venda nova).
+    df_regular = df_paid.drop(index=recorrencia_idx, errors="ignore")
+    if not df_regular.empty:
+        parcelas_regular = pd.to_numeric(df_regular["quantidade_total_de_parcelas"], errors="coerce").fillna(1).astype(int)
+        details.a_vista_qtd = int((parcelas_regular == 1).sum())
+        details.parcelado_12x_qtd = int((parcelas_regular == 12).sum())
+        details.outros_parcelamentos_qtd = int(((parcelas_regular > 1) & (parcelas_regular != 12)).sum())
 
     if not df_paid.empty and "metodo_de_pagamento" in df_paid.columns:
         pay_grouped = df_paid.groupby(df_paid["metodo_de_pagamento"].fillna("Nao informado"))

@@ -218,6 +218,11 @@ class HotmartDetails:
     card_ticket: float = 0.0
     pix_premium: float = 0.0
     vendas_12x_pct: float = 0.0
+    recorrencia_qtd: int = 0
+    recorrencia_receita: float = 0.0
+    a_vista_qtd: int = 0
+    parcelado_12x_qtd: int = 0
+    outros_parcelamentos_qtd: int = 0
     pagamentos: list[dict] = field(default_factory=list)
     parcelas: list[dict] = field(default_factory=list)
     fluxo_caixa: dict = field(default_factory=dict)

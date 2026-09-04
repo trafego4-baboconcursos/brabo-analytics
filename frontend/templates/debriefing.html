@@ -259,6 +259,15 @@
 .dbf-publicos-stack { display: flex; flex-direction: column; gap: 20px; }
 .pub-chart-wrap { position: relative; height: 260px; margin-top: 6px; }
 
+/* ── Detalhamento de Vendas (forma de pagamento) ─────────────────── */
+.vf-badges { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 16px; margin-bottom: 8px; }
+.vf-badge-item { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.vf-badge-lbl { font-size: 11px; font-weight: 700; color: var(--bs-ink-muted); text-transform: uppercase; letter-spacing: .03em; }
+.vf-layout { display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; margin-top: 8px; }
+@media (max-width: 900px) { .vf-layout { grid-template-columns: 1fr; } }
+.vf-chart-wrap { position: relative; height: 300px; }
+.vf-chart-wrap.vf-pie { height: 280px; }
+
 /* ── Engajamento (aulas) ──────────────────────────────────────── */
 .aula-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
 .aula-card {
@@ -1736,6 +1745,89 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
     </div>
     {% else %}
     {{ sem_dados("Dados de oferta ainda não cadastrados — preencher em Descrição do Bônus na configuração do lançamento") }}
+    {% endif %}
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 5h. DETALHAMENTO DE VENDAS (FORMA DE PAGAMENTO)             -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% set vf = dbf.vendas_forma or [] %}
+  {% set vf_total = vf | sum(attribute='qtd') %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-report-money"></i> Detalhamento de Vendas (Forma de Pagamento)</div>
+    {% if vf_total > 0 %}
+    <div class="vf-badges">
+      {% for f in vf %}
+      <div class="vf-badge-item">
+        <span class="vf-badge-lbl">{{ f.label }}</span>
+        {{ dbadge(f.qtd, f.prev_qtd, 'up') }}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="vf-layout">
+      <div class="vf-chart-wrap"><canvas id="vfBarChart"></canvas></div>
+      <div class="vf-chart-wrap vf-pie"><canvas id="vfPieChart"></canvas></div>
+    </div>
+    <script>
+    (function() {
+      const labels = [{% for f in vf %}"{{ f.label | e }}"{% if not loop.last %},{% endif %}{% endfor %}];
+      const values = [{% for f in vf %}{{ f.qtd }}{% if not loop.last %},{% endif %}{% endfor %}];
+      const colors = ['#3b82f6', '#22c55e', '#a855f7', '#f97316', '#ef4444'];
+      const cssVar = (name, fallback) => (getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback);
+      const inkColor = cssVar('--bs-ink', '#1f2330');
+
+      const barEl = document.getElementById('vfBarChart');
+      if (barEl) {
+        new Chart(barEl, {
+          type: 'bar',
+          plugins: [ChartDataLabels],
+          data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 4, maxBarThickness: 56 }] },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: { enabled: false },
+              datalabels: {
+                anchor: 'end', align: 'top', offset: 2,
+                font: { size: 12, weight: '700' }, color: inkColor,
+                formatter: v => v,
+              }
+            },
+            scales: {
+              x: { grid: { display: false }, ticks: { font: { size: 11 }, color: inkColor } },
+              y: { beginAtZero: true, grid: { color: cssVar('--bs-surface', '#f6f7fb') }, ticks: { font: { size: 11 }, precision: 0, color: inkColor } }
+            },
+            layout: { padding: { top: 22 } }
+          }
+        });
+      }
+
+      const pieEl = document.getElementById('vfPieChart');
+      if (pieEl) {
+        new Chart(pieEl, {
+          type: 'doughnut',
+          plugins: [ChartDataLabels],
+          data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: cssVar('--bs-card', '#fff') }] },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10, color: inkColor } },
+              tooltip: { enabled: true },
+              datalabels: {
+                color: '#fff', font: { size: 10, weight: '700' },
+                formatter: (v, ctx) => {
+                  const total = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                  return total > 0 ? (v / total * 100).toFixed(1) + '%' : '';
+                }
+              }
+            }
+          }
+        });
+      }
+    })();
+    </script>
+    {% else %}
+    {{ sem_dados("Detalhamento por forma de pagamento (Hotmart parcelas/recorrência + TMB) ainda não disponível para este lançamento") }}
     {% endif %}
   </div>
 

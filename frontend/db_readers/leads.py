@@ -3,6 +3,7 @@ frontend/db_readers/leads.py — leitores de leads, Active Campaign e confronto 
 """
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import pandas as pd
@@ -302,9 +303,20 @@ def read_ebook_compradores(launch_folder_or_code: Any, vendas: VendasSummary | N
 
     contatos = {r[0] for r in cliques}
     emails = {r[1] for r in cliques if r[1]}
+
+    def _label_link(url: str, camp: str) -> str:
+        # Distingue PDFs da mesma campanha/automação pela data no path do
+        # content.app-us1.com (ex.: .../2026/08/05/<hash>.pdf → "05/08/2026");
+        # sem esse padrão (ex.: link do Drive), cai no nome da campanha.
+        m = re.search(r"/(\d{4})/(\d{2})/(\d{2})/", url)
+        if m:
+            ano, mes, dia = m.groups()
+            return f"{camp} — {dia}/{mes}/{ano}"
+        return camp
+
     por_link: dict[str, dict] = {}
     for cid, _email, url, camp in cliques:
-        d = por_link.setdefault(url, {"url": url, "campanha": camp, "contatos": set()})
+        d = por_link.setdefault(url, {"url": url, "campanha": _label_link(url, camp), "contatos": set()})
         d["contatos"].add(cid)
 
     if vendas is None:

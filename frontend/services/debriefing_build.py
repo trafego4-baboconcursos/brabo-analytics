@@ -26,7 +26,7 @@ from frontend.services.fetch import (
     _perfil_por_anuncio, _pesquisa_engajamento,
     _leads_antigos_compradores, _qualidade_regiao, _caminho_comprador,
     _landing_pages_por_etapa, _leads_x_whatsapp, _vendas_grupos_whatsapp,
-    _disparo_resumo,
+    _disparo_resumo, _ebook_compradores, _hotmart_recompra,
 )
 
 
@@ -157,6 +157,26 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
             falhas.append("disparo_resumo")
             return None
 
+    async def f_ebook():
+        if not (launch and vendas):
+            return None
+        try:
+            return await run_in_threadpool(_ebook_compradores, launch, vendas)
+        except Exception:
+            logger.exception("Debriefing: falha ao montar ebook × compra")
+            falhas.append("ebook_compradores")
+            return None
+
+    async def f_hotmart_recompra():
+        if not (launch and launch.has_hotmart):
+            return None
+        try:
+            return await run_in_threadpool(_hotmart_recompra, launch, vendas)
+        except Exception:
+            logger.exception("Debriefing: falha ao montar recompra boleto/cartão")
+            falhas.append("hotmart_recompra")
+            return None
+
     async def f_previous():
         if not previous:
             return None, None, None, None, None, None
@@ -187,11 +207,13 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         leads_x_whatsapp,
         vendas_grupos_whatsapp,
         disparo_resumo,
+        ebook_compradores,
+        hotmart_recompra,
     ) = await asyncio.gather(
         f_creative(), f_leads_antigos(), f_perfil_pesquisa(),
         f_qualidade_regiao(), f_caminho_comprador(), f_previous(),
         f_landing_pages(), f_leads_x_whatsapp(), f_vendas_grupos_whatsapp(),
-        f_disparo_resumo(),
+        f_disparo_resumo(), f_ebook(), f_hotmart_recompra(),
     )
 
     dbf = _compute_debriefing_ctx(
@@ -210,6 +232,8 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         leads_x_whatsapp=leads_x_whatsapp,
         vendas_grupos_whatsapp=vendas_grupos_whatsapp,
         disparo_resumo=disparo_resumo,
+        ebook_compradores=ebook_compradores,
+        hotmart_recompra=hotmart_recompra,
         prev_hotmart=prev_hotmart,
         wa_cost=d.get("wa_cost"),
         prev_wa_cost=prev_wa_cost,

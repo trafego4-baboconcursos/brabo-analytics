@@ -2200,6 +2200,94 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
   {% endif %}
 
   <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 9c. EBOOK → COMPRA                                          -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.ebook_compradores %}
+  {% set eb = dbf.ebook_compradores %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-file-download"></i> Ebook → Compra</div>
+    <div class="dbf-kpi-grid">
+      <div class="dbf-kpi">
+        <div class="lbl">Baixaram (clicaram no PDF)</div>
+        <div class="val">{{ eb.downloads | num }}</div>
+        {% if eb.sem_email %}<div class="lbl">{{ eb.sem_email | num }} sem e-mail rastreado</div>{% endif %}
+      </div>
+      <div class="dbf-kpi">
+        <div class="lbl">Compraram depois</div>
+        <div class="val">{{ eb.compradores | num }} <span class="ldt-pct">({{ eb.pct_compra | round(1) }}%)</span></div>
+        <div class="lbl">{{ eb.receita | brl }}</div>
+      </div>
+      <div class="dbf-kpi">
+        <div class="lbl">% dos compradores do lançamento</div>
+        <div class="val">{{ eb.pct_dos_compradores | round(1) }}%</div>
+        <div class="lbl">{{ eb.compradores | num }} de {{ eb.total_compradores | num }}</div>
+      </div>
+    </div>
+    {% if eb.links|length > 1 %}
+    <table class="dbf-table" style="margin-top:8px">
+      <thead><tr><th>E-mail / campanha</th><th class="num">Downloads</th></tr></thead>
+      <tbody>
+        {% for lk in eb.links %}
+        <tr><td>{{ lk.campanha }}</td><td class="num">{{ lk.downloads | num }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+      "Baixou" = clicou no link do PDF dentro do e-mail da automação do lançamento (Active Campaign). Cruzamento por e-mail com as vendas Hotmart/TMB.
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 9d. RECOMPRA APÓS BOLETO NÃO PAGO / CARTÃO CANCELADO        -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.hotmart_recompra %}
+  {% set hr = dbf.hotmart_recompra %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-refresh-dot"></i> Recompra após Boleto/Cartão</div>
+    <div class="dbf-kpi-grid">
+      <div class="dbf-kpi">
+        <div class="lbl">Geraram boleto e não pagaram</div>
+        <div class="val">{{ hr.boleto.pessoas | num }} <span class="ldt-pct">({{ hr.boleto.transacoes | num }} transações)</span></div>
+        <div class="lbl">{{ hr.boleto.recompraram | num }} recompraram ({{ hr.boleto.pct_recompra | round(1) }}%) · {{ hr.boleto.nao_recompraram | num }} não</div>
+      </div>
+      <div class="dbf-kpi">
+        <div class="lbl">Cartão cancelado</div>
+        <div class="val">{{ hr.cartao.pessoas | num }} <span class="ldt-pct">({{ hr.cartao.transacoes | num }} transações)</span></div>
+        <div class="lbl">{{ hr.cartao.recompraram | num }} recompraram ({{ hr.cartao.pct_recompra | round(1) }}%) · {{ hr.cartao.nao_recompraram | num }} não</div>
+      </div>
+      {% if hr.cartao_atrasado.pessoas %}
+      <div class="dbf-kpi">
+        <div class="lbl">Cartão atrasado (ainda em cobrança)</div>
+        <div class="val">{{ hr.cartao_atrasado.pessoas | num }}</div>
+        <div class="lbl">{{ hr.cartao_atrasado.transacoes | num }} transações</div>
+      </div>
+      {% endif %}
+    </div>
+    {% if hr.boleto.por_meio or hr.cartao.por_meio %}
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:8px;">
+      {% if hr.boleto.por_meio %}
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--bs-ink-muted);margin-bottom:4px">Boleto — recompraram por</div>
+        {% for m in hr.boleto.por_meio %}<div style="font-size:12px">{{ m.meio }}: {{ m.qtd | num }}</div>{% endfor %}
+      </div>
+      {% endif %}
+      {% if hr.cartao.por_meio %}
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--bs-ink-muted);margin-bottom:4px">Cartão — recompraram por</div>
+        {% for m in hr.cartao.por_meio %}<div style="font-size:12px">{{ m.meio }}: {{ m.qtd | num }}</div>{% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+      Janela: {{ hr.janela }}. Fonte: hotmart_oficial (todos os status, banco operacional) — a base usada no resto do dashboard só guarda venda paga.
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 10. DETALHAMENTO DE VENDAS POR PAGAMENTO                  -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <div class="dbf-section">

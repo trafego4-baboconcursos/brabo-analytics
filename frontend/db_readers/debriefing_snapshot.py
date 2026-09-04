@@ -31,7 +31,7 @@ TABLE = "debriefing_snapshot"
 # cálculo ao vivo em vez de estourar 500 no template — até o próximo
 # aquecimento regravar. (Ex.: 2 = saída dos grupos de WhatsApp, vendas x
 # grupos e detalhamento do disparo.)
-SNAPSHOT_VERSION = 2
+SNAPSHOT_VERSION = 3
 
 DDL = f"""
 CREATE TABLE IF NOT EXISTS {TABLE} (

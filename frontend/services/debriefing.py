@@ -324,6 +324,8 @@ def _compute_debriefing_ctx(
     leads_x_whatsapp: Any = None,
     vendas_grupos_whatsapp: Any = None,
     disparo_resumo: Any = None,
+    ebook_compradores: Any = None,
+    hotmart_recompra: Any = None,
     prev_hotmart: Any = None,
     wa_cost: Any = None,
     prev_wa_cost: Any = None,
@@ -695,6 +697,8 @@ def _compute_debriefing_ctx(
         "leads_x_whatsapp": leads_x_whatsapp,
         "vendas_grupos_whatsapp": vendas_grupos_whatsapp,
         "disparo_resumo": disparo_resumo,
+        "ebook_compradores": ebook_compradores,
+        "hotmart_recompra": hotmart_recompra,
         # Oferta & bônus — preenchido manualmente no wizard de configuração
         "oferta_descricao": cfg.get("produto_nome"),
         "oferta_preco_vista": cfg.get("produto_preco_vista"),

@@ -24,7 +24,6 @@ from datetime import datetime, timezone, date, timedelta
 from pathlib import Path
 
 import pandas as pd
-import requests
 from sqlalchemy import text
 from dotenv import load_dotenv
 
@@ -126,7 +125,7 @@ def clicks_for_links(code: str, links: list[dict]) -> pd.DataFrame:
                 "clicked_at": r.get("tstamp") or r.get("cdate"),
                 "updated_at": now,
             })
-        logger.info("%s: link %s → %d cliques", code, lk["link_id"], len(rows))
+        logger.info("%s: link %s - %d cliques", code, lk["link_id"], len(rows))
     df = pd.DataFrame(records)
     if not df.empty:
         df = df.drop_duplicates(subset=["lancamento_codigo", "link_id", "contact_id"], keep="last")

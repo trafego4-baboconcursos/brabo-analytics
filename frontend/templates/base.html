@@ -1768,18 +1768,36 @@ html[data-bs-theme="custom"] .mat-num {
     </nav>
 
     <!-- Navegação do modo Funis — versão vertical, só visível na gaveta mobile
-         (no desktop a mesma nav_groups vira a barra horizontal em #bs-subnav) -->
+         (no desktop a mesma nav_groups vira a barra horizontal em #bs-subnav).
+         Cada grupo (Visão Geral/Mídia Paga/...) é um picker igual aos de
+         cima — alguns grupos têm 6-7 páginas, não cabiam soltos numa lista
+         achatada dentro da gaveta; agora abrem em drill-down como o resto. -->
     {% if nav_mode == 'funis' and nav_groups %}
     <nav class="bs-nav bs-nav-mobile-only">
       {% for group in nav_groups %}
-      {% if not loop.first %}<div class="bs-nav-sep"></div>{% endif %}
-      <div class="bs-nav-group">{{ group.label }}</div>
-      {% for item in group.links %}
-      <a class="bs-nav-link {% if page == item.page %}active{% endif %} {% if not item.enabled %}disabled{% endif %}"
-         href="{{ item.href }}">
-        <span class="bs-nav-icon"><i class="ti {{ item.icon }}"></i></span>{{ item.label }}
-      </a>
-      {% endfor %}
+      {% set _active_item = (group.links | selectattr('page', 'equalto', page) | list | first) if group.active else None %}
+      <div class="bs-launch-picker" id="bs-subnavgroup-picker-{{ loop.index }}">
+        <button type="button"
+                class="bs-mode-btn bs-launch-picker-btn {% if group.active %}active{% endif %} {% if _active_item %}bs-has-badge{% endif %}"
+                onclick="bsPickerToggle(this)">
+          <span class="bs-launch-picker-label"><i class="ti {{ group.icon }}"></i> {{ group.label }}</span>
+          {% if _active_item %}
+          <span class="bs-live-badge"><span class="bs-live-dot"></span> {{ _active_item.label }}</span>
+          {% endif %}
+          <i class="ti ti-chevron-down bs-launch-picker-chevron"></i>
+        </button>
+        <div class="bs-launch-picker-menu">
+          <button type="button" class="bs-picker-back" onclick="bsPickerToggle(this)">
+            <i class="ti ti-arrow-left"></i> Voltar
+          </button>
+          {% for item in group.links %}
+          <a class="bs-subnav-link {% if page == item.page %}active{% endif %} {% if not item.enabled %}disabled{% endif %}"
+             href="{{ item.href }}">
+            <i class="ti {{ item.icon }}"></i> {{ item.label }}
+          </a>
+          {% endfor %}
+        </div>
+      </div>
       {% endfor %}
     </nav>
     {% endif %}
@@ -2296,14 +2314,14 @@ window.bsMenuToggle = function(force) {
     drawer.classList.remove('bs-drilled');
   }
 };
-document.querySelectorAll('#bs-drawer .bs-nav-link, #bs-drawer .bs-camp-select, #bs-drawer .bs-launch-picker-item, #bs-drawer .bs-launch-picker-all').forEach(function(el) {
+document.querySelectorAll('#bs-drawer .bs-nav-link, #bs-drawer .bs-camp-select, #bs-drawer .bs-launch-picker-item, #bs-drawer .bs-launch-picker-all, #bs-drawer .bs-subnav-link').forEach(function(el) {
   el.addEventListener('click', function() {
     if (window.innerWidth > 1024) return;
-    /* Escolher um lançamento/perpétuo/distribuição/rede fecha a gaveta pra
-       navegar (recarrega a página) — sem isso o usuário só via o menu do
-       lançamento (Visão Geral/Captação...) se reabrisse o hambúrguer na mão.
-       O flag sobrevive o reload e reabre a gaveta já na página nova. */
-    if (el.classList.contains('bs-launch-picker-item') || el.classList.contains('bs-launch-picker-all')) {
+    /* Escolher um lançamento/perpétuo/distribuição/rede/página fecha a gaveta
+       pra navegar (recarrega a página) — sem isso o usuário só via o menu
+       daquele item (Visão Geral/Captação...) se reabrisse o hambúrguer na
+       mão. O flag sobrevive o reload e reabre a gaveta já na página nova. */
+    if (el.classList.contains('bs-launch-picker-item') || el.classList.contains('bs-launch-picker-all') || el.classList.contains('bs-subnav-link')) {
       try { sessionStorage.setItem('bs-reopen-menu', '1'); } catch (e) {}
     }
     bsMenuToggle(false);

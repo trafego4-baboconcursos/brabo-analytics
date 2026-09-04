@@ -1047,7 +1047,14 @@ kbd {
      o .hdr "grudado" parecendo flutuar solto em vez de ficar preso no
      topo. Solução: no celular, deixa a PÁGINA rolar (padrão robusto), o
      sticky do .hdr passa a colar direto na tela. */
-  #bs-main   { margin-left:0; padding-top:56px; height:auto; overflow-y:visible; }
+  /* overflow-y:visible sozinho não funciona aqui: overflow-x:hidden continua
+     valendo (herdado da regra de desktop), e a spec do CSS força o eixo
+     "visible" a virar "auto" de novo quando o outro eixo não é visible —
+     então #bs-main continuava sendo o próprio scroller, e o position:sticky
+     do .hdr (relativo a esse scroller) empurrava o título 56px pra baixo da
+     posição normal antes de rolar (efeito "grudado" solto, com vão acima).
+     overflow:visible (os dois eixos) tira #bs-main de vez da equação. */
+  #bs-main   { margin-left:0; padding-top:56px; height:auto; overflow:visible; }
   #bs-topbar { left:0; top:56px; }
   .hdr       { top:56px; }
   #bs-main.has-subnav .hdr { top:56px; }

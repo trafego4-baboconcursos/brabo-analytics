@@ -2297,11 +2297,29 @@ window.bsMenuToggle = function(force) {
   }
 };
 document.querySelectorAll('#bs-drawer .bs-nav-link, #bs-drawer .bs-camp-select, #bs-drawer .bs-launch-picker-item, #bs-drawer .bs-launch-picker-all').forEach(function(el) {
-  el.addEventListener('click', function() { if (window.innerWidth <= 1024) bsMenuToggle(false); });
+  el.addEventListener('click', function() {
+    if (window.innerWidth > 1024) return;
+    /* Escolher um lançamento/perpétuo/distribuição/rede fecha a gaveta pra
+       navegar (recarrega a página) — sem isso o usuário só via o menu do
+       lançamento (Visão Geral/Captação...) se reabrisse o hambúrguer na mão.
+       O flag sobrevive o reload e reabre a gaveta já na página nova. */
+    if (el.classList.contains('bs-launch-picker-item') || el.classList.contains('bs-launch-picker-all')) {
+      try { sessionStorage.setItem('bs-reopen-menu', '1'); } catch (e) {}
+    }
+    bsMenuToggle(false);
+  });
 });
 window.addEventListener('resize', function() {
   if (window.innerWidth > 1024) bsMenuToggle(false);
 });
+if (window.innerWidth <= 1024) {
+  try {
+    if (sessionStorage.getItem('bs-reopen-menu')) {
+      sessionStorage.removeItem('bs-reopen-menu');
+      bsMenuToggle(true);
+    }
+  } catch (e) {}
+}
 
 /* ── Pickers da trilha (Lançamento/Perpétuo/Distribuição/Redes Sociais) ──
    O menu usa position:fixed (ver CSS) pra escapar do overflow:auto da

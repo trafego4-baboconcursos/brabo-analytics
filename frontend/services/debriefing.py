@@ -613,11 +613,42 @@ def _compute_debriefing_ctx(
     prequali_invest["total"] = prequali_invest["meta"]["total"] + prequali_invest["google"]["total"]
     prequali_invest["prev_total"] = prequali_invest["meta"]["prev_total"] + prequali_invest["google"]["prev_total"]
 
-    # Top 3 anúncios (por leads) da Pré-Qualificação, por plataforma — TikTok
+    # Top 5 anúncios (por leads) da Pré-Qualificação, por plataforma — TikTok
     # fica vazio até existir integração.
+    # Nome: o do Facebook vem completo (descreve o criativo); o do Google/
+    # YouTube costuma só repetir o ADxxx sem descrição — usa o nome do Meta
+    # como preferência quando o mesmo ad_code roda nas duas plataformas.
+    _meta_nome_por_code: dict[str, str] = {}
+    for _a in (getattr(meta, "preq_por_ad", None) or []) + (getattr(meta, "captacao_por_ad", None) or []):
+        _code = str(_a.get("ad_code") or "").upper()
+        if _code and _code not in _meta_nome_por_code and _a.get("nome"):
+            _meta_nome_por_code[_code] = _a["nome"]
+
+    def _preq_top_ads_view(ads: list, prefer_meta_nome: bool = False, n: int = 5) -> list:
+        out = []
+        for a in ads[:n]:
+            row = dict(a)
+            if prefer_meta_nome:
+                nome_meta = _meta_nome_por_code.get(str(row.get("ad_code") or "").upper())
+                if nome_meta:
+                    row["nome"] = nome_meta
+            # ThruView: contador real no Meta (thruplays) ou video_views no
+            # Google (TrueView). "Viu 50%" divide sobre impressões (mesma
+            # base usada em "Investimento em Pré-Qualificação") — no Google,
+            # video_views_50 é estimativa por quartil de impressões, não
+            # contagem real, então dividir por thruview/views passava de 100%.
+            thruview = int(row.get("thruplays") or row.get("video_views") or 0)
+            views_50 = int(row.get("views_50") or 0)
+            impressoes = int(row.get("impressoes") or 0)
+            base_50 = impressoes if impressoes > 0 else thruview
+            row["thruview"] = thruview
+            row["pct_50"] = (views_50 / base_50 * 100) if base_50 > 0 else 0.0
+            out.append(row)
+        return out
+
     preq_top_ads = {
-        "meta":   (getattr(meta, "preq_por_ad", None) or [])[:3],
-        "google": (getattr(google, "preq_por_ad", None) or [])[:3],
+        "meta":   _preq_top_ads_view(getattr(meta, "preq_por_ad", None) or []),
+        "google": _preq_top_ads_view(getattr(google, "preq_por_ad", None) or [], prefer_meta_nome=True),
         "tiktok": [],
     }
 

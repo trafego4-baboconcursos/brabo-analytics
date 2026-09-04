@@ -997,7 +997,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.preq_top_ads and dbf.preq_top_ads.meta %}
   <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-trophy"></i> Top 3 Melhores Ads — Pré-Qualificação (Meta)</div>
+    <div class="dbf-section-title"><i class="ti ti-trophy"></i> Top 5 Melhores Ads — Pré-Qualificação (Meta)</div>
     <div class="table-wrap">
       <table class="dbf-table">
         <thead>
@@ -1008,6 +1008,8 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
             <th class="num">Leads</th>
             <th class="num">CPL</th>
             <th class="num">CTR</th>
+            <th class="num">ThruView</th>
+            <th class="num">Viu 50%</th>
           </tr>
         </thead>
         <tbody>
@@ -1019,6 +1021,8 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
             <td class="num">{{ a.leads | num }}</td>
             <td class="num">{{ a.cpl | brl if a.leads > 0 else '—' }}</td>
             <td class="num">{{ a.ctr | round(2) }}%</td>
+            <td class="num">{{ a.thruview | num if a.thruview > 0 else '—' }}</td>
+            <td class="num">{{ a.pct_50 | round(1) ~ '%' if a.thruview > 0 else '—' }}</td>
           </tr>
           {% endfor %}
         </tbody>
@@ -1032,7 +1036,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.preq_top_ads and dbf.preq_top_ads.google %}
   <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-trophy"></i> Top 3 Melhores Ads — Pré-Qualificação (YouTube)</div>
+    <div class="dbf-section-title"><i class="ti ti-trophy"></i> Top 5 Melhores Ads — Pré-Qualificação (YouTube)</div>
     <div class="table-wrap">
       <table class="dbf-table">
         <thead>
@@ -1043,6 +1047,8 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
             <th class="num">Leads</th>
             <th class="num">CPL</th>
             <th class="num">CTR</th>
+            <th class="num">ThruView</th>
+            <th class="num">Viu 50%</th>
           </tr>
         </thead>
         <tbody>
@@ -1054,6 +1060,8 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
             <td class="num">{{ a.leads | num }}</td>
             <td class="num">{{ a.cpl | brl if a.leads > 0 else '—' }}</td>
             <td class="num">{{ a.ctr | round(2) }}%</td>
+            <td class="num">{{ a.thruview | num if a.thruview > 0 else '—' }}</td>
+            <td class="num">{{ a.pct_50 | round(1) ~ '%' if a.thruview > 0 else '—' }}</td>
           </tr>
           {% endfor %}
         </tbody>

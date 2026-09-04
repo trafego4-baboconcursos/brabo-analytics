@@ -80,6 +80,10 @@ def run_api_mode(since: str, until: str, only: str | None):
         # Estatísticas de campanhas de e-mail do AC (envios/aberturas/cliques).
         # A API devolve o histórico completo — não usa --since/--until.
         "ac_campaigns":    [sys.executable, str(BASE / "etl_ac_campaigns.py"), "--api"],
+        # Cliques no PDF do ebook (e-mail da automação do lançamento), contato
+        # a contato — alimenta "Ebook → compra" no debriefing. Só lançamentos
+        # ativos/recentes; não usa --since/--until.
+        "ac_ebook":        [sys.executable, str(BASE / "etl_ac_ebook.py"), "--api"],
         "whatsapp":        [sys.executable, str(BASE / "etl_whatsapp.py"),
                             "--since", since, "--until", until],
         # Perfil + posts nao usam --since/--until (sempre pega o snapshot atual).
@@ -168,7 +172,7 @@ def main():
     mode.add_argument("--csv-mode",        action="store_true",  help="Importa via CSVs exportados manualmente")
 
     parser.add_argument("--until",          metavar="YYYY-MM-DD", default=datetime.now().strftime("%Y-%m-%d"))
-    parser.add_argument("--only",           metavar="SCRIPT",    help="Roda somente: active_campaign | meta_ads | google_ads | ac_campaigns | whatsapp | instagram | sheets_contagem | ga4")
+    parser.add_argument("--only",           metavar="SCRIPT",    help="Roda somente: active_campaign | meta_ads | google_ads | ac_campaigns | ac_ebook | whatsapp | instagram | sheets_contagem | ga4")
     parser.add_argument("--campaign-folder", metavar="PATH",      help="Pasta da campanha (modo --csv-mode), ex: analises/[PBB-ABR-26]")
     parser.add_argument("--period",          metavar="YYYY-MM",   help="Período da campanha (modo --csv-mode), ex: 2026-04")
     args = parser.parse_args()

@@ -130,6 +130,18 @@ def _leads_antigos_compradores(launch: Any, vendas_data: Any):
                            lambda: read_leads_antigos_compradores(launch.code, vendas_data))
 
 
+def _ebook_compradores(launch: Any, vendas_data: Any):
+    from frontend.db_readers.leads import read_ebook_compradores
+    return _get_or_compute(launch.code, "ebook_compradores",
+                           lambda: read_ebook_compradores(launch.code, vendas_data))
+
+
+def _hotmart_recompra(launch: Any, vendas_data: Any):
+    from frontend.db_readers.sales import read_hotmart_recompra
+    return _get_or_compute(launch.code, "hotmart_recompra",
+                           lambda: read_hotmart_recompra(launch.code, vendas_data))
+
+
 def _qualidade_regiao(launch: Any, vendas_data: Any):
     from frontend.db_readers.sales import read_qualidade_regiao
     return _get_or_compute(launch.code, "qualidade_regiao",

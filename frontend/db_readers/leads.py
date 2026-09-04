@@ -271,6 +271,64 @@ def read_leads_antigos_compradores(launch_folder_or_code: Any, vendas: VendasSum
     return {"total": total, "inicio": inicio[:10], **cats}
 
 
+def read_ebook_compradores(launch_folder_or_code: Any, vendas: VendasSummary | None = None) -> dict | None:
+    """Ebook → compra. "Baixou" = clicou no link do PDF do e-mail da automação
+    do lançamento (tabela `ac_ebook_clicks`, alimentada por etl/etl_ac_ebook.py).
+    O contato do AC vira e-mail pela tabela `leads` (leads.id = id do contato)
+    e o e-mail cruza com os compradores Hotmart+TMB.
+
+    None quando não há cliques gravados pro lançamento (tabela ausente ou
+    ETL ainda não rodou) — a seção some do debriefing."""
+    from frontend.db_readers.sales import read_vendas  # noqa: PLC0415 — evita import circular
+
+    code = _extract_launch_code(launch_folder_or_code)
+    engine = _get_engine()
+    try:
+        with engine.connect() as conn:
+            cliques = conn.execute(
+                text("""
+                    SELECT c.contact_id, LOWER(l.email) AS email, c.link_url, c.campaign_name
+                    FROM ac_ebook_clicks c
+                    LEFT JOIN leads l ON l.id = c.contact_id
+                    WHERE c.lancamento_codigo = :code
+                """),
+                {"code": code},
+            ).fetchall()
+    except Exception:
+        logger.debug("ac_ebook_clicks indisponível pra %s", code, exc_info=True)
+        return None
+    if not cliques:
+        return None
+
+    contatos = {r[0] for r in cliques}
+    emails = {r[1] for r in cliques if r[1]}
+    por_link: dict[str, dict] = {}
+    for cid, _email, url, camp in cliques:
+        d = por_link.setdefault(url, {"url": url, "campanha": camp, "contatos": set()})
+        d["contatos"].add(cid)
+
+    if vendas is None:
+        vendas = read_vendas(code)
+    buyers = {e.lower() for e in ((vendas.emails_hotmart | vendas.emails_tmb) if vendas else set()) if e}
+    receita = (vendas.receita_por_email if vendas else {}) or {}
+    compradores = emails & buyers
+    n_emails = len(emails)
+    return {
+        "downloads": len(contatos),
+        "com_email": n_emails,
+        "sem_email": len(contatos) - n_emails,
+        "compradores": len(compradores),
+        "pct_compra": (len(compradores) / n_emails * 100) if n_emails else 0.0,
+        "receita": float(sum(receita.get(e, 0.0) or 0.0 for e in compradores)),
+        "total_compradores": len(buyers),
+        "pct_dos_compradores": (len(compradores) / len(buyers) * 100) if buyers else 0.0,
+        "links": sorted(
+            ({"url": d["url"], "campanha": d["campanha"], "downloads": len(d["contatos"])} for d in por_link.values()),
+            key=lambda x: x["downloads"], reverse=True,
+        ),
+    }
+
+
 def read_ac_campaigns(launch: Launch) -> AcCampaignSummary:
     """Busca estatísticas de campanhas de e-mail do Active Campaign filtradas por datas e keywords."""
     engine = _get_engine()

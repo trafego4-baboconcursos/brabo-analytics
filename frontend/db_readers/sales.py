@@ -653,6 +653,137 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
     return details
 
 
+_HM_PAGO = {"completo", "completa", "complete", "completed", "aprovado", "aprovada", "approved", "pago", "paga"}
+_HM_CANCELADO = {"cancelado", "cancelada", "canceled", "cancelled"}
+
+
+def _hm_parse_date(v: Any):
+    s = str(v or "").strip()
+    try:
+        if re.match(r"^\d{2}/\d{2}/\d{4}", s):
+            return pd.to_datetime(s[:10], format="%d/%m/%Y")
+        if re.match(r"^\d{10,13}$", s):
+            return pd.Timestamp(int(s) / 1000 if len(s) == 13 else int(s), unit="s")
+        x = pd.to_datetime(s, errors="coerce", utc=True)
+        return x.tz_convert(None) if pd.notna(x) else pd.NaT
+    except Exception:
+        return pd.NaT
+
+
+def _hm_metodo_label(metodo: Any, tipo_cobranca: Any = None) -> str:
+    m = _norm_text(str(metodo or ""))
+    t = _norm_text(str(tipo_cobranca or ""))
+    recorrente = "recurr" in t or "subscri" in t or "recorr" in t
+    if "boleto" in m or "billet" in m:
+        return "Boleto"
+    if "pix" in m:
+        return "Pix"
+    if "installment" in m or "parcel" in m:
+        return "Recorrência"
+    if "cart" in m or "credit" in m or "card" in m:
+        return "Cartão Recorrente" if recorrente else "Cartão de Crédito"
+    return str(metodo or "Outro").strip() or "Outro"
+
+
+def read_hotmart_recompra(launch_folder_or_code: Any, vendas: Any = None) -> dict | None:
+    """Boleto gerado e não pago / cartão cancelado → quantos recompraram por
+    outro meio (Hotmart ou TMB). Precisa de TODOS os status, então lê
+    `hotmart_oficial` (banco operacional) — a `hotmart_clean_oficial` usada
+    no resto do dashboard só tem venda paga. Pauta do fechamento do
+    debriefing (PI-AGO-26, 04/09/26).
+
+    Janela: dim_lancamentos [data_inicio, data_fim + 7 dias] (boleto vence
+    depois do carrinho). "Recomprou" = tem venda paga em qualquer método na
+    Hotmart (dentro da janela) ou está entre os compradores TMB do lançamento;
+    o meio da recompra é o da PRIMEIRA venda paga da pessoa (1 por pessoa)."""
+    code = _extract_launch_code(launch_folder_or_code)
+    with _get_engine().connect() as conn:
+        l_row = conn.execute(text("SELECT projeto, data_inicio, data_fim FROM dim_lancamentos WHERE codigo = :code"), {"code": code}).fetchone()
+    if not l_row:
+        return None
+    project, dim_start, dim_end = l_row
+    start = _safe_date(dim_start)
+    end = _safe_date(dim_end)
+    if not start or not end:
+        return None
+    end_grace = end + pd.Timedelta(days=7).to_pytimedelta()
+
+    from frontend.db_readers.launches import read_launch_config  # noqa: PLC0415
+    cfg = read_launch_config(code)
+    hotmart_ids = _normalize_product_ids(cfg.get("hotmart_produto_ids"))
+
+    sql = r"""
+        SELECT codigo_da_transacao, status_da_transacao, data_da_transacao,
+               metodo_de_pagamento, tipo_de_cobranca, email_do_a_comprador_a AS email
+        FROM hotmart_oficial
+        WHERE CASE
+              WHEN produto ILIKE '%inss%' THEN 'INSS'
+              WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%') THEN 'TJ'
+              WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'
+              ELSE 'OUTRO'
+          END = :project
+          AND (email_do_a_comprador_a IS NULL OR (
+              email_do_a_comprador_a NOT ILIKE '%+teste%'
+              AND email_do_a_comprador_a NOT ILIKE '%@aprovasim.com'
+          ))
+    """
+    params: dict = {"project": project}
+    if hotmart_ids:
+        sql += " AND codigo_do_produto::text = ANY(:product_ids)"
+        params["product_ids"] = [str(i) for i in hotmart_ids]
+    try:
+        df = pd.read_sql(text(sql), _get_users_engine(), params=params)
+    except Exception:
+        logger.exception("read_hotmart_recompra: falha ao ler hotmart_oficial (%s)", code)
+        return None
+    if df.empty:
+        return None
+
+    df["dt"] = pd.to_datetime(df["data_da_transacao"].apply(_hm_parse_date), errors="coerce")
+    df = df[(df["dt"] >= pd.Timestamp(start)) & (df["dt"] <= pd.Timestamp(end_grace) + pd.Timedelta(hours=23, minutes=59))].copy()
+    if df.empty:
+        return None
+    df["email"] = df["email"].astype(str).str.lower().str.strip()
+    df["status_norm"] = df["status_da_transacao"].astype(str).apply(_norm_text)
+    df["metodo_norm"] = df["metodo_de_pagamento"].astype(str).apply(_norm_text)
+    df["metodo_label"] = [_hm_metodo_label(m, t) for m, t in zip(df["metodo_de_pagamento"], df["tipo_de_cobranca"])]
+
+    pagos = df[df["status_norm"].isin(_HM_PAGO)].sort_values("dt")
+    primeiro_pago = pagos.drop_duplicates(subset="email", keep="first").set_index("email")["metodo_label"].to_dict()
+
+    if vendas is None:
+        vendas = read_vendas(code)
+    tmb_emails = {e.lower() for e in (getattr(vendas, "emails_tmb", set()) or set()) if e}
+    pagos_emails = set(primeiro_pago) | tmb_emails
+
+    def _bloco(sub: pd.DataFrame) -> dict:
+        pessoas = {e for e in sub["email"] if e and e != "nan"}
+        recomp = pessoas & pagos_emails
+        por_meio: dict[str, int] = {}
+        for e in recomp:
+            meio = primeiro_pago.get(e) or "TMB"
+            por_meio[meio] = por_meio.get(meio, 0) + 1
+        return {
+            "transacoes": int(len(sub)),
+            "pessoas": len(pessoas),
+            "recompraram": len(recomp),
+            "nao_recompraram": len(pessoas - recomp),
+            "pct_recompra": (len(recomp) / len(pessoas) * 100) if pessoas else 0.0,
+            "por_meio": sorted(({"meio": k, "qtd": v} for k, v in por_meio.items()), key=lambda x: x["qtd"], reverse=True),
+        }
+
+    boleto = df[df["metodo_norm"].str.contains("boleto|billet", na=False) & ~df["status_norm"].isin(_HM_PAGO)]
+    cartao_canc = df[df["metodo_norm"].str.contains("cart|credit|card|installment", na=False) & df["status_norm"].isin(_HM_CANCELADO)]
+    cartao_atrasado = df[df["metodo_norm"].str.contains("cart|credit|card|installment", na=False) & df["status_norm"].isin({"atrasado", "delayed"})]
+
+    return {
+        "janela": f"{start.strftime('%d/%m')} a {end_grace.strftime('%d/%m/%Y')}",
+        "boleto": _bloco(boleto),
+        "cartao": _bloco(cartao_canc),
+        "cartao_atrasado": {"transacoes": int(len(cartao_atrasado)), "pessoas": int(cartao_atrasado["email"].nunique())},
+    }
+
+
 def read_tmb_details(launch_folder_or_code: Any, start_date=None, end_date=None) -> TmbDetails:
     code = _extract_launch_code(launch_folder_or_code)
 

@@ -405,11 +405,14 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
                 "ctr": clicks / impr * 100 if impr > 0 else 0.0
             })
 
-    # Categorias de público por clima — só Captação (pauta debriefing:
-    # "Detalhamento dos públicos", ex. Quente: Envolvimento 30D/180D, Vídeo, Lista)
+    # Público por clima — só Captação (pauta debriefing: "Detalhamento dos
+    # públicos"). Um por conjunto de anúncios (grupo de anúncios do Meta) —
+    # antes agrupava por categoria detectada no nome (_categorize_publico),
+    # o que escondia qual público específico gerou o resultado quando 2+
+    # conjuntos caíam na mesma categoria.
     if not df_cap.empty:
         df_pub = df_cap.copy()
-        df_pub["publico"] = df_pub["adset_name"].map(_categorize_publico)
+        df_pub["publico"] = df_pub["adset_name"]
         pub_grouped = df_pub.groupby(["temperatura", "publico"]).agg(
             custo=("spend", "sum"), leads=("leads", "sum"),
             num_adsets=("adset_name", "nunique"),

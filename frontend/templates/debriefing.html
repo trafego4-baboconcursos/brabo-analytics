@@ -1373,7 +1373,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
           <table class="dbf-table">
             <thead>
               <tr>
-                <th>Público</th>
+                <th>Grupo de Anúncios</th>
                 <th class="num">Invest.</th>
                 <th class="num">%</th>
                 <th class="num">Leads</th>
@@ -1386,7 +1386,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
             <tbody>
               {% for p in pubs %}
               <tr>
-                <td>{{ p.publico }}{% if p.num_adsets > 1 %} <span class="ldt-pct">({{ p.num_adsets }} conj.)</span>{% endif %}</td>
+                <td>{{ p.publico }}</td>
                 <td class="num">{{ p.gasto | brl }}</td>
                 <td class="num">{{ p.pct | round(1) }}%</td>
                 <td class="num">{{ p.leads | num }}</td>

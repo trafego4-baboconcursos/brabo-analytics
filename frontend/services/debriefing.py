@@ -279,14 +279,20 @@ def _build_antigo_novo(meta: Any, google: Any, sales_attr: Any = None) -> dict:
         if not ads:
             continue
         grupos = {
-            "antigo": {"gasto": 0.0, "leads": 0, "n": 0, "vendas": 0, "receita": 0.0},
-            "novo": {"gasto": 0.0, "leads": 0, "n": 0, "vendas": 0, "receita": 0.0},
+            "antigo": {"gasto": 0.0, "leads": 0, "n": 0, "vendas": 0, "receita": 0.0, "thruview": 0, "views_50": 0},
+            "novo": {"gasto": 0.0, "leads": 0, "n": 0, "vendas": 0, "receita": 0.0, "thruview": 0, "views_50": 0},
         }
         for a in ads:
             key = "antigo" if a.get("antigo") else "novo"
             grupos[key]["gasto"] += float(a.get("gasto") or 0)
             grupos[key]["leads"] += int(a.get("leads") or 0)
             grupos[key]["n"] += 1
+            # ThruView: contador real no Meta (thruplays); no Google é o
+            # video_views (TrueView) — mesmo conceito, campos com nomes
+            # diferentes por plataforma. views_50 no Google é estimativa
+            # (impressões × taxa do quartil), não contagem real.
+            grupos[key]["thruview"] += int(a.get("thruplays") or a.get("video_views") or 0)
+            grupos[key]["views_50"] += int(a.get("views_50") or 0)
             venda = por_criativo.get(str(a.get("ad_code") or "").upper(), {})
             grupos[key]["vendas"] += int(venda.get("vendas") or 0)
             grupos[key]["receita"] += float(venda.get("faturamento") or 0)
@@ -295,6 +301,8 @@ def _build_antigo_novo(meta: Any, google: Any, sales_attr: Any = None) -> dict:
             g["cpl"] = g["gasto"] / g["leads"] if g["leads"] > 0 else 0.0
             g["pct"] = g["gasto"] / total_gasto * 100
             g["roas"] = g["receita"] / g["gasto"] if g["gasto"] > 0 else 0.0
+            g["custo_thruview"] = g["gasto"] / g["thruview"] if g["thruview"] > 0 else 0.0
+            g["pct_50"] = g["views_50"] / g["thruview"] * 100 if g["thruview"] > 0 else 0.0
         out[etapa] = grupos
     return out
 

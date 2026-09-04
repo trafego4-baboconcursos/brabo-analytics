@@ -498,7 +498,7 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
         temperatura=("temperatura", "first"), bucket=("bucket", "first"),
         gasto=("spend", "sum"), impressoes=("impressions", "sum"),
         cliques=("clicks", "sum"), leads=("leads", "sum"),
-        thruplays=("video_thruplays", "sum")
+        thruplays=("video_thruplays", "sum"), views_50=("video_views_50", "sum")
     ).reset_index()
 
     for _, r in ad_grouped.iterrows():
@@ -536,6 +536,7 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
             "ctr": c.ctr,
             "cpm": c.cpm,
             "thruplays": c.thruplays,
+            "views_50": int(r["views_50"]),
             "cliques": c.cliques,
             "impressoes": c.impressoes,
             "origem": "Meta Ads",

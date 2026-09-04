@@ -181,6 +181,8 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
                 "video_views": ("video_views", "sum")}
     if "video_views_100" in df.columns:
         agg_cols["views_100"] = ("video_views_100", "sum")
+    if "video_views_50" in df.columns:
+        agg_cols["views_50"] = ("video_views_50", "sum")
     ad_grouped = df.groupby("ad_name").agg(**agg_cols).reset_index()
 
     _ad_codes_vistos_antes = get_historico_ad_codes(code)
@@ -206,6 +208,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
         impr = int(r["impressoes"])
         vviews = int(r["video_views"])
         views_100 = int(r["views_100"]) if "views_100" in r else 0
+        views_50 = int(r["views_50"]) if "views_50" in r else 0
         video_id = _video_id_by_ad_name.get(name)
         if not video_id:
             for k, v in _video_id_by_ad_name.items():
@@ -226,6 +229,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
             "cpm": gasto / impr * 1000 if impr > 0 else 0.0,
             "video_views": vviews,
             "video_views_100": views_100,
+            "views_50": views_50,
             "hook_rate": vviews / impr * 100 if impr > 0 else 0.0,
             "body_rate": views_100 / vviews * 100 if vviews > 0 else 0.0,
             "origem": "Google Ads",

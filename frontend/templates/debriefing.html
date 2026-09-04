@@ -1670,6 +1670,45 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
   {% endif %}
 
   <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 5e. BLOCO PESQUISAS — FUNIL DA PESQUISA (LEADS)             -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if lazy %}
+  <div class="dbf-section" data-lazy-section="funil_pesquisa">
+    <div class="dbf-section-title"><i class="ti ti-clipboard-list"></i> Funil da Pesquisa — Leads</div>
+    {{ lazy_skeleton() }}
+  </div>
+  {% elif dbf.pesquisa_engajamento %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-clipboard-list"></i> Funil da Pesquisa — Leads</div>
+    {% include "debriefing/_secao_funil_pesquisa.html" %}
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 5f. BLOCO PESQUISAS — SORTEIO (SEM FONTE, PLACEHOLDER)      -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-gift"></i> Sorteio</div>
+    {{ sem_dados("Dados do sorteio ainda não integrados ao banco — sem fonte hoje (precisa de export/planilha da ferramenta que roda o sorteio e da automação de disparo)") }}
+    <div class="oferta-grid" style="margin-top:16px">
+      <div class="oferta-card">
+        <div class="oferta-title">Participantes por Aula</div>
+        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> Aula 1 — não configurado</div>
+        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> Aula 2 — não configurado</div>
+        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> Aula 3 — não configurado</div>
+        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> Aula 4 — não configurado</div>
+        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> Aula 5 — não configurado</div>
+        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> reSUMÃO — não configurado</div>
+      </div>
+      <div class="oferta-card">
+        <div class="oferta-title">Engajamento do Sorteio</div>
+        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> % da base que participou — não configurado</div>
+        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> Abriram a janela da automação (domingo) — não configurado</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 6. MELHORES ANÚNCIOS                                       -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <div class="dbf-section">

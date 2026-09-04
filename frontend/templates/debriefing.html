@@ -124,7 +124,7 @@
   text-transform: uppercase; letter-spacing: .03em; margin-top: 1px;
 }
 .alloc-previsto { font-size: 12px; color: var(--bs-ink-muted); text-align: right; }
-.alloc-previsto .alloc-col-lbl, .alloc-realizado .alloc-col-lbl, .alloc-variacao .alloc-col-lbl {
+.alloc-previsto .alloc-col-lbl, .alloc-realizado .alloc-col-lbl, .alloc-variacao .alloc-col-lbl, .alloc-badge .alloc-col-lbl {
   display: block; font-size: 9px; font-weight: 700; color: var(--bs-ink-subtle);
   text-transform: uppercase; letter-spacing: .04em; margin-bottom: 1px;
 }
@@ -761,7 +761,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
         <div class="alloc-previsto"><span class="alloc-col-lbl">Previsto</span>{{ e.previsto | brl(0) if e.previsto > 0 else '—' }}</div>
         <div class="alloc-realizado"><span class="alloc-col-lbl">Realizado</span>{{ e.invest | brl(0) }}</div>
         <div class="alloc-variacao"><span class="alloc-col-lbl">Var.</span>{% if e.previsto > 0 %}{{ dbadge(e.invest, e.previsto, 'down') }}{% else %}—{% endif %}</div>
-        <div class="alloc-badge">{% if pe %}{{ dbadge(e.invest, pe.invest, 'up') }}{% endif %}</div>
+        <div class="alloc-badge"><span class="alloc-col-lbl">Lanç. Ant.</span>{% if pe %}{{ dbadge(e.invest, pe.invest, 'up') }}{% endif %}</div>
       </div>
       {% endfor %}
       <div class="alloc-row alloc-row-budget total" style="border-top:1px solid var(--bs-border);margin-top:6px;padding-top:6px;font-weight:600">
@@ -771,7 +771,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
         <div class="alloc-previsto"><span class="alloc-col-lbl">Previsto</span>{{ total_previsto | brl(0) if total_previsto > 0 else '—' }}</div>
         <div class="alloc-realizado"><span class="alloc-col-lbl">Realizado</span>{{ total_invest | brl(0) }}</div>
         <div class="alloc-variacao"><span class="alloc-col-lbl">Var.</span>{% if total_previsto > 0 %}{{ dbadge(total_invest, total_previsto, 'down') }}{% else %}—{% endif %}</div>
-        <div class="alloc-badge">{% if prev_total_invest %}{{ dbadge(total_invest, prev_total_invest, 'up') }}{% endif %}</div>
+        <div class="alloc-badge"><span class="alloc-col-lbl">Lanç. Ant.</span>{% if prev_total_invest %}{{ dbadge(total_invest, prev_total_invest, 'up') }}{% endif %}</div>
       </div>
     {% endmacro %}
 
@@ -835,7 +835,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
           <div class="alloc-previsto"><span class="alloc-col-lbl">Previsto</span>{{ a.previsto | brl(0) if a.previsto > 0 else '—' }}</div>
           <div class="alloc-realizado"><span class="alloc-col-lbl">Realizado</span>{{ a.gasto | brl(0) }}</div>
           <div class="alloc-variacao"><span class="alloc-col-lbl">Var.</span>{% if a.previsto > 0 %}{{ dbadge(a.gasto, a.previsto, 'down') }}{% else %}—{% endif %}</div>
-          <div class="alloc-badge">{% if pa and pa.gasto %}{{ dbadge(a.gasto, pa.gasto, 'up') }}{% endif %}</div>
+          <div class="alloc-badge"><span class="alloc-col-lbl">Lanç. Ant.</span>{% if pa and pa.gasto %}{{ dbadge(a.gasto, pa.gasto, 'up') }}{% endif %}</div>
         </div>
         {% endfor %}
         <div class="alloc-row alloc-row-budget total" style="border-top:1px solid var(--bs-border);margin-top:6px;padding-top:6px;font-weight:600">
@@ -845,7 +845,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
           <div class="alloc-previsto"><span class="alloc-col-lbl">Previsto</span>{{ rmkt_previsto_total | brl(0) if rmkt_previsto_total > 0 else '—' }}</div>
           <div class="alloc-realizado"><span class="alloc-col-lbl">Realizado</span>{{ rmkt_total | brl(0) }}</div>
           <div class="alloc-variacao"><span class="alloc-col-lbl">Var.</span>{% if rmkt_previsto_total > 0 %}{{ dbadge(rmkt_total, rmkt_previsto_total, 'down') }}{% else %}—{% endif %}</div>
-          <div class="alloc-badge">{% if prev_rmkt_total %}{{ dbadge(rmkt_total, prev_rmkt_total, 'up') }}{% endif %}</div>
+          <div class="alloc-badge"><span class="alloc-col-lbl">Lanç. Ant.</span>{% if prev_rmkt_total %}{{ dbadge(rmkt_total, prev_rmkt_total, 'up') }}{% endif %}</div>
         </div>
       </div>
       {% endif %}

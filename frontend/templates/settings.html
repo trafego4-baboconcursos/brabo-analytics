@@ -300,12 +300,195 @@
       </div>
     </div>
 
+    <div class="section">
+      <div class="section-title"><i class="ti ti-palette"></i> Gerador de Temas</div>
+      <p style="font-size:12px;color:var(--bs-ink-muted);margin:-8px 0 16px;max-width:640px">
+        Escolhe as cores e a fonte, vê a prévia ao vivo, e salva com um nome. O tema salvo passa a
+        aparecer no seletor "Tema" do menu lateral — mas fica salvo só neste navegador (não
+        sincroniza entre pessoas ou dispositivos).
+      </p>
+
+      <div class="tg-layout">
+        <div class="tg-controls">
+
+          <div class="tg-group">
+            <div class="tg-group-title">Marca</div>
+            <label class="tg-color"><span>Accent</span><input type="color" id="tg-accent" value="#2f5ee3"></label>
+            <label class="tg-color"><span>Accent secundário</span><input type="color" id="tg-accent-2" value="#6aa8ff"></label>
+          </div>
+
+          <div class="tg-group">
+            <div class="tg-group-title">Menu lateral</div>
+            <label class="tg-color"><span>Topo do gradiente</span><input type="color" id="tg-sidebar" value="#374151"></label>
+            <label class="tg-color"><span>Base do gradiente</span><input type="color" id="tg-sidebar-dark" value="#1f2937"></label>
+          </div>
+
+          <div class="tg-group">
+            <div class="tg-group-title">Fundo</div>
+            <label class="tg-color"><span>Fundo da página</span><input type="color" id="tg-bg" value="#f1f3f5"></label>
+            <label class="tg-color"><span>Superfície</span><input type="color" id="tg-surface" value="#f6f7fb"></label>
+            <label class="tg-color"><span>Card</span><input type="color" id="tg-card" value="#ffffff"></label>
+          </div>
+
+          <div class="tg-group">
+            <div class="tg-group-title">Texto</div>
+            <label class="tg-color"><span>Principal</span><input type="color" id="tg-ink" value="#1f2330"></label>
+            <label class="tg-color"><span>Secundário</span><input type="color" id="tg-ink-muted" value="#6b7280"></label>
+            <label class="tg-color"><span>Discreto</span><input type="color" id="tg-ink-subtle" value="#9ca3af"></label>
+          </div>
+
+          <div class="tg-group">
+            <div class="tg-group-title">Bordas</div>
+            <label class="tg-color"><span>Borda</span><input type="color" id="tg-border" value="#e5e7eb"></label>
+            <label class="tg-color"><span>Borda forte</span><input type="color" id="tg-border-s" value="#d1d5db"></label>
+          </div>
+
+          <div class="tg-group">
+            <div class="tg-group-title">Status</div>
+            <label class="tg-color"><span>Sucesso</span><input type="color" id="tg-success" value="#31c16c"></label>
+            <label class="tg-color"><span>Alerta</span><input type="color" id="tg-warning" value="#f4b740"></label>
+            <label class="tg-color"><span>Erro</span><input type="color" id="tg-danger" value="#f05454"></label>
+          </div>
+
+          <div class="tg-group">
+            <div class="tg-group-title">Tipografia (números e títulos)</div>
+            <select id="tg-font" class="tg-select">
+              <option value="'Inter','Segoe UI',system-ui,sans-serif">Inter (padrão)</option>
+              <option value="'Manrope','Segoe UI',system-ui,sans-serif">Manrope</option>
+              <option value="'Archivo Black','Inter',sans-serif">Archivo Black</option>
+              <option value="'Orbitron','Inter',sans-serif">Orbitron</option>
+              <option value="'Black Ops One','Inter',sans-serif">Black Ops One</option>
+              <option value="'Bangers','Inter',sans-serif">Bangers</option>
+              <option value="'Bungee','Inter',sans-serif">Bungee</option>
+              <option value="'Luckiest Guy','Inter',sans-serif">Luckiest Guy</option>
+            </select>
+          </div>
+
+          <div class="tg-save-row">
+            <input type="text" id="tg-name" placeholder="Nome do tema..." maxlength="30">
+            <button type="button" id="tg-save-btn"><i class="ti ti-device-floppy"></i> Salvar</button>
+          </div>
+
+          <div id="tg-saved-list" class="tg-saved-list"></div>
+        </div>
+
+        <div class="tg-preview" id="tg-preview">
+          <div class="tg-p-sidebar">
+            <div class="tg-p-brand"><span class="tg-p-brand-mark"></span> Brabo Analytics</div>
+            <span class="tg-p-live">PES-SET-26</span>
+            <div class="tg-p-nav">
+              <span class="on">Dashboard</span>
+              <span>Debriefing</span>
+              <span>Vendas</span>
+            </div>
+          </div>
+          <div class="tg-p-main">
+            <div class="tg-p-topbar">
+              <div><h2>Debriefing</h2><div class="tg-p-sub">PES-SET-26 · comparativo vs PES-MAI-26</div></div>
+              <div class="tg-p-avatar">BA</div>
+            </div>
+            <div class="tg-p-body">
+              <div class="tg-p-kpis">
+                <div class="tg-p-kpi"><div class="tg-p-kpi-lbl">ROAS</div><div class="tg-p-kpi-val">2,84x</div><span class="tg-p-delta up">▲ 6,2%</span></div>
+                <div class="tg-p-kpi"><div class="tg-p-kpi-lbl">CPL Captação</div><div class="tg-p-kpi-val">R$ 34</div><span class="tg-p-delta dn">▼ 3,1%</span></div>
+                <div class="tg-p-kpi"><div class="tg-p-kpi-lbl">Leads</div><div class="tg-p-kpi-val">9.240</div><span class="tg-p-delta up">▲ 11%</span></div>
+              </div>
+              <div class="tg-p-table">
+                <table>
+                  <thead><tr><th>Anúncio</th><th>Leads</th><th>CPL</th><th>Vendas</th><th>ROAS</th></tr></thead>
+                  <tbody>
+                    <tr><td>AD127</td><td>1.840</td><td>R$ 29</td><td>52</td><td class="tg-p-good">3,41x</td></tr>
+                    <tr><td>AD098</td><td>1.205</td><td>R$ 41</td><td>18</td><td class="tg-p-bad">1,12x</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
   <div class="footing">Brabo Analytics — Sistema de Análise de Lançamentos</div>
 </div>
 
 <style>
   .hidden { display: none !important; }
+
+  /* ── Gerador de Temas ──────────────────────────────────────────── */
+  .tg-layout { display:grid; grid-template-columns:280px 1fr; gap:20px; align-items:start; }
+  .tg-controls { display:flex; flex-direction:column; gap:14px; }
+  .tg-group { background:var(--bs-surface); border-radius:10px; padding:10px 12px; }
+  .tg-group-title { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.06em; color:var(--bs-ink-muted); margin-bottom:8px; }
+  .tg-color { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:4px 0; font-size:12.5px; font-weight:600; color:var(--bs-ink); }
+  .tg-color input[type=color] { width:34px; height:24px; border:1px solid var(--bs-border-s); border-radius:6px; padding:0; cursor:pointer; background:none; }
+  .tg-select {
+    width:100%; border:1px solid var(--bs-border-s); border-radius:8px; padding:7px 10px;
+    font-family:inherit; font-size:12.5px; color:var(--bs-ink); background:var(--bs-card); cursor:pointer;
+  }
+  .tg-save-row { display:flex; gap:6px; }
+  .tg-save-row input {
+    flex:1; min-width:0; border:1px solid var(--bs-border-s); border-radius:8px;
+    padding:8px 10px; font-family:inherit; font-size:12.5px; color:var(--bs-ink); background:var(--bs-card); outline:none;
+  }
+  .tg-save-row input:focus { border-color:var(--bs-accent); }
+  .tg-save-row button {
+    border:none; background:var(--bs-accent); color:#fff; border-radius:8px;
+    padding:0 14px; font-size:12.5px; font-weight:700; cursor:pointer; white-space:nowrap;
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  .tg-save-row button:hover { filter:brightness(1.08); }
+  .tg-saved-list { display:flex; flex-direction:column; gap:4px; }
+  .tg-saved-item {
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:7px 10px; border-radius:8px; background:var(--bs-card); border:1px solid var(--bs-border);
+    font-size:12px; font-weight:600; color:var(--bs-ink);
+  }
+  .tg-saved-actions { display:flex; gap:2px; flex-shrink:0; }
+  .tg-saved-actions button {
+    border:none; background:none; cursor:pointer; color:var(--bs-ink-subtle);
+    padding:4px; border-radius:5px; display:flex; align-items:center; font-size:13px;
+  }
+  .tg-saved-actions button:hover { background:var(--bs-accent-bg); color:var(--bs-accent); }
+  .tg-saved-actions button[data-act="del"]:hover { background:var(--bs-danger-bg); color:var(--bs-danger); }
+
+  /* Prévia ao vivo — mini mockup dos componentes reais, recolorido via
+     as mesmas variáveis --bs-* setadas só neste wrapper (não vaza pro
+     resto da página enquanto edita). */
+  .tg-preview {
+    display:grid; grid-template-columns:150px 1fr; border-radius:14px; overflow:hidden;
+    box-shadow:0 8px 24px rgba(20,26,52,.12); border:1px solid var(--bs-border);
+    font-family:'Inter',system-ui,sans-serif;
+  }
+  .tg-p-sidebar { background:linear-gradient(180deg, var(--bs-sidebar) 0%, var(--bs-sidebar-dark) 100%); padding:14px 10px; display:flex; flex-direction:column; gap:12px; }
+  .tg-p-brand { display:flex; align-items:center; gap:7px; color:#fff; font-weight:800; font-size:11.5px; }
+  .tg-p-brand-mark { width:18px; height:18px; border-radius:5px; background:rgba(255,255,255,.22); flex-shrink:0; }
+  .tg-p-live { display:inline-flex; align-self:flex-start; font-size:8.5px; font-weight:700; color:#fff; background:rgba(255,255,255,.15); border:1px solid rgba(255,255,255,.25); border-radius:999px; padding:2px 6px; }
+  .tg-p-nav { display:flex; flex-direction:column; gap:2px; margin-top:2px; }
+  .tg-p-nav span { font-size:10px; font-weight:600; color:rgba(255,255,255,.72); padding:5px 7px; border-radius:6px; }
+  .tg-p-nav span.on { background:rgba(255,255,255,.18); color:#fff; }
+  .tg-p-main { background:var(--bs-surface); }
+  .tg-p-topbar { background:var(--bs-card); padding:10px 14px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--bs-border); }
+  .tg-p-topbar h2 { margin:0; font-size:13px; font-weight:800; color:var(--bs-ink); font-family:var(--bs-custom-font-preview, inherit); }
+  .tg-p-sub { font-size:10px; color:var(--bs-ink-muted); margin-top:1px; }
+  .tg-p-avatar { width:24px; height:24px; border-radius:7px; background:var(--bs-accent); color:#fff; font-size:9px; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .tg-p-body { padding:14px; display:flex; flex-direction:column; gap:12px; }
+  .tg-p-kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:9px; }
+  .tg-p-kpi { background:var(--bs-card); border-radius:9px; padding:10px 11px; border-bottom:3px solid var(--bs-accent); box-shadow:0 1px 2px rgba(0,0,0,.05); }
+  .tg-p-kpi-lbl { font-size:8.5px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--bs-ink-muted); }
+  .tg-p-kpi-val { font-size:16px; font-weight:800; color:var(--bs-ink); margin-top:2px; font-family:var(--bs-custom-font-preview, inherit); }
+  .tg-p-delta { display:inline-block; margin-top:4px; font-size:9px; font-weight:700; padding:1px 6px; border-radius:999px; }
+  .tg-p-delta.up { background:var(--bs-success-bg); color:var(--bs-success); }
+  .tg-p-delta.dn { background:var(--bs-danger-bg); color:var(--bs-danger); }
+  .tg-p-table { background:var(--bs-card); border-radius:9px; overflow:hidden; box-shadow:0 1px 2px rgba(0,0,0,.05); }
+  .tg-p-table table { width:100%; border-collapse:collapse; font-size:10.5px; }
+  .tg-p-table th { background:var(--bs-accent); color:#fff; text-align:left; font-weight:700; padding:6px 9px; font-size:9px; text-transform:uppercase; letter-spacing:.04em; }
+  .tg-p-table td { padding:6px 9px; border-bottom:1px solid var(--bs-border); color:var(--bs-ink); }
+  .tg-p-table tr:last-child td { border-bottom:none; }
+  .tg-p-good { color:var(--bs-success); font-weight:800; }
+  .tg-p-bad { color:var(--bs-danger); font-weight:800; }
+
+  @media (max-width:900px) { .tg-layout { grid-template-columns:1fr; } .tg-preview { grid-template-columns:1fr; } }
 </style>
 
 <script>
@@ -461,5 +644,101 @@ async function invRevoke(inviteId) {
   if (res.ok) document.getElementById(`inv-row-${inviteId}`).remove();
   else alert('Erro ao revogar convite.');
 }
+</script>
+
+<script>
+// ── Gerador de Temas ────────────────────────────────────────────────
+// Os campos abaixo cobrem os tokens --bs-* "base"; os companheiros
+// (accent-bg, success-bg, sombras etc.) são derivados via color-mix()
+// direto no CSS aplicado — não precisa recalcular em JS, e acompanha
+// qualquer ajuste de cor ao vivo.
+(function () {
+  var FIELDS = ['accent', 'accent-2', 'sidebar', 'sidebar-dark', 'bg', 'surface', 'card',
+                'ink', 'ink-muted', 'ink-subtle', 'border', 'border-s', 'success', 'warning', 'danger'];
+  var preview = document.getElementById('tg-preview');
+  var fontSel = document.getElementById('tg-font');
+  var nameInput = document.getElementById('tg-name');
+  if (!preview || !fontSel) return;
+
+  function currentTokens() {
+    var t = {};
+    FIELDS.forEach(function (f) {
+      var el = document.getElementById('tg-' + f);
+      if (el) t[f] = el.value;
+    });
+    t.font = fontSel.value;
+    return t;
+  }
+  function applyToPreview() {
+    var t = currentTokens();
+    FIELDS.forEach(function (f) { preview.style.setProperty('--bs-' + f, t[f]); });
+    preview.style.setProperty('--bs-custom-font-preview', t.font);
+    // Derivados — mesma fórmula usada de verdade quando o tema é aplicado
+    // no app inteiro (ver DERIVED_CSS mais abaixo).
+    preview.style.setProperty('--bs-accent-bg', 'color-mix(in srgb, ' + t['accent'] + ' 12%, ' + t['card'] + ')');
+    preview.style.setProperty('--bs-success-bg', 'color-mix(in srgb, ' + t['success'] + ' 15%, ' + t['card'] + ')');
+    preview.style.setProperty('--bs-warning-bg', 'color-mix(in srgb, ' + t['warning'] + ' 15%, ' + t['card'] + ')');
+    preview.style.setProperty('--bs-danger-bg', 'color-mix(in srgb, ' + t['danger'] + ' 15%, ' + t['card'] + ')');
+  }
+  document.querySelectorAll('.tg-controls input, .tg-controls select').forEach(function (el) {
+    el.addEventListener('input', applyToPreview);
+  });
+  applyToPreview();
+
+  function loadSaved() {
+    try { return JSON.parse(localStorage.getItem('bs-custom-themes') || '{}'); } catch (e) { return {}; }
+  }
+  function saveSaved(v) {
+    try { localStorage.setItem('bs-custom-themes', JSON.stringify(v)); } catch (e) {}
+  }
+  function loadIntoForm(t) {
+    FIELDS.forEach(function (f) {
+      var el = document.getElementById('tg-' + f);
+      if (el && t[f]) el.value = t[f];
+    });
+    if (t.font) fontSel.value = t.font;
+    applyToPreview();
+  }
+  function renderSavedList() {
+    var themes = loadSaved();
+    var wrap = document.getElementById('tg-saved-list');
+    if (!wrap) return;
+    wrap.innerHTML = '';
+    Object.keys(themes).sort().forEach(function (name) {
+      var row = document.createElement('div');
+      row.className = 'tg-saved-item';
+      row.innerHTML =
+        '<span>' + String(name).replace(/</g, '&lt;') + '</span>' +
+        '<span class="tg-saved-actions">' +
+          '<button type="button" data-act="load" title="Carregar pra edição"><i class="ti ti-edit"></i></button>' +
+          '<button type="button" data-act="del" title="Excluir"><i class="ti ti-trash"></i></button>' +
+        '</span>';
+      row.querySelector('[data-act="load"]').addEventListener('click', function () {
+        loadIntoForm(themes[name]);
+        nameInput.value = name;
+      });
+      row.querySelector('[data-act="del"]').addEventListener('click', function () {
+        if (!confirm('Excluir o tema "' + name + '"?')) return;
+        delete themes[name];
+        saveSaved(themes);
+        renderSavedList();
+        if (typeof bsThemeSyncActive === 'function') bsThemeSyncActive();
+      });
+      wrap.appendChild(row);
+    });
+  }
+  var saveBtn = document.getElementById('tg-save-btn');
+  if (saveBtn) saveBtn.addEventListener('click', function () {
+    var name = nameInput.value.trim();
+    if (!name) { alert('Dá um nome pro tema antes de salvar.'); nameInput.focus(); return; }
+    var themes = loadSaved();
+    themes[name] = currentTokens();
+    saveSaved(themes);
+    renderSavedList();
+    if (typeof bsThemeSyncActive === 'function') bsThemeSyncActive();
+    alert('Tema "' + name + '" salvo! Agora ele aparece no seletor "Tema" do menu lateral, em "Meus temas".');
+  });
+  renderSavedList();
+})();
 </script>
 {% endblock %}

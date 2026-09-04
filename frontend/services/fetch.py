@@ -118,6 +118,12 @@ def _vendas_grupos_whatsapp(launch: Any):
                            lambda: read_vendas_grupos_whatsapp(launch.code))
 
 
+def _disparo_resumo(launch: Any):
+    from frontend.db_readers.whatsapp_messages import read_disparo_resumo
+    return _get_or_compute(launch.code, "disparo_resumo",
+                           lambda: read_disparo_resumo(launch))
+
+
 def _leads_antigos_compradores(launch: Any, vendas_data: Any):
     from frontend.db_readers.leads import read_leads_antigos_compradores
     return _get_or_compute(launch.code, "leads_antigos_compradores",

@@ -176,3 +176,26 @@ def read_whatsapp_messages(launch: Launch | None) -> dict | None:
     end = launch.data_fim or date.today()
     end = min(end, date.today())
     return _read_uncached(launch.code, launch.data_inicio, end)
+
+
+def read_disparo_resumo(launch: Launch | None) -> dict | None:
+    """Resumo do disparo via API do WhatsApp Business pra pauta do
+    debriefing: volume de janela aberta (SERVICE, grátis) × Marketing ×
+    Utilidade, custo total e taxa de entrega. A API não expõe leitura
+    (visualização) em relatório agregado, só envio/entrega — taxa de
+    entrega é o melhor proxy disponível de engajamento."""
+    wm = read_whatsapp_messages(launch)
+    if not wm or not wm.get("total_sent"):
+        return None
+    by_cat = {c["category"]: c for c in (wm.get("by_category") or [])}
+    total_sent = int(wm.get("total_sent") or 0)
+    total_delivered = int(wm.get("total_delivered") or 0)
+    return {
+        "janela_aberta": int((by_cat.get("SERVICE") or {}).get("volume") or 0),
+        "marketing": int((by_cat.get("MARKETING") or {}).get("volume") or 0),
+        "utilitario": int((by_cat.get("UTILITY") or {}).get("volume") or 0),
+        "total_sent": total_sent,
+        "total_delivered": total_delivered,
+        "custo_total": float(wm.get("total_cost_brl") or 0),
+        "taxa_entrega": (total_delivered / total_sent * 100) if total_sent > 0 else 0.0,
+    }

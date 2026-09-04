@@ -323,6 +323,7 @@ def _compute_debriefing_ctx(
     landing_pages_por_etapa: Any = None,
     leads_x_whatsapp: Any = None,
     vendas_grupos_whatsapp: Any = None,
+    disparo_resumo: Any = None,
     wa_cost: Any = None,
     prev_wa_cost: Any = None,
 ) -> dict:
@@ -675,6 +676,7 @@ def _compute_debriefing_ctx(
         # Leads (Active Campaign) × pessoas nos grupos de WhatsApp
         "leads_x_whatsapp": leads_x_whatsapp,
         "vendas_grupos_whatsapp": vendas_grupos_whatsapp,
+        "disparo_resumo": disparo_resumo,
         # Oferta & bônus — preenchido manualmente no wizard de configuração
         "oferta_descricao": cfg.get("produto_nome"),
         "oferta_preco_vista": cfg.get("produto_preco_vista"),

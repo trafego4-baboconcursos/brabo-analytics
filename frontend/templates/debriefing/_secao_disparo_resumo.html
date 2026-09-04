@@ -1,0 +1,33 @@
+{# Corpo da seção "Detalhamento do Disparo nos Grupos". Vazio quando não há
+   dado (no carregamento sob demanda o JS remove a seção inteira nesse caso). #}
+{% if dbf.disparo_resumo %}
+{% set dr = dbf.disparo_resumo %}
+<div class="dbf-lazy-body">
+  <div class="dbf-kpi-grid">
+    <div class="dbf-kpi">
+      <div class="lbl">Janela Aberta (grátis)</div>
+      <div class="val">{{ dr.janela_aberta | num }}</div>
+    </div>
+    <div class="dbf-kpi">
+      <div class="lbl">Envios como Marketing</div>
+      <div class="val">{{ dr.marketing | num }}</div>
+    </div>
+    <div class="dbf-kpi">
+      <div class="lbl">Envios como Utilitário</div>
+      <div class="val">{{ dr.utilitario | num }}</div>
+    </div>
+    <div class="dbf-kpi">
+      <div class="lbl">Valor Gasto no Disparo</div>
+      <div class="val">{{ dr.custo_total | brl }}</div>
+    </div>
+    <div class="dbf-kpi">
+      <div class="lbl">Taxa de Entrega</div>
+      <div class="val">{{ dr.taxa_entrega | round(1) }}%</div>
+      <div class="prev-val">{{ dr.total_delivered | num }} de {{ dr.total_sent | num }} envios</div>
+    </div>
+  </div>
+  <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+    Fonte: API do WhatsApp Business (categorias de cobrança Meta). A API não expõe leitura/visualização em relatório agregado, só envio e entrega — a Taxa de Entrega é o melhor proxy de engajamento disponível.
+  </div>
+</div>
+{% endif %}

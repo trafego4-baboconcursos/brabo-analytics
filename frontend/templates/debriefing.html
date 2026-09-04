@@ -1655,6 +1655,21 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
   {% endif %}
 
   <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 5d. DETALHAMENTO DO DISPARO NOS GRUPOS (API WHATSAPP)       -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if lazy %}
+  <div class="dbf-section" data-lazy-section="disparo_resumo">
+    <div class="dbf-section-title"><i class="ti ti-send"></i> Detalhamento do Disparo nos Grupos</div>
+    {{ lazy_skeleton() }}
+  </div>
+  {% elif dbf.disparo_resumo %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-send"></i> Detalhamento do Disparo nos Grupos</div>
+    {% include "debriefing/_secao_disparo_resumo.html" %}
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 6. MELHORES ANÚNCIOS                                       -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <div class="dbf-section">

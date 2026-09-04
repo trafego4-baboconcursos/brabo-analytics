@@ -176,6 +176,9 @@ html, body { margin: 0 !important; padding: 0 !important; font-family: 'Inter','
   padding:6px;
 }
 .bs-launch-picker.open .bs-launch-picker-menu { display:block; }
+/* Botão "Voltar" só aparece no modo drill-down mobile (ver media query
+   abaixo) — no desktop o dropdown flutua e fechar é só clicar fora/no botão. */
+.bs-picker-back { display:none; }
 .bs-launch-picker-all {
   display:flex; align-items:center; gap:8px; padding:9px 10px; border-radius:8px;
   color:var(--bs-accent); text-decoration:none; font-size:12.5px; font-weight:700;
@@ -1036,6 +1039,36 @@ kbd {
   .content   { padding:16px; }
   .bs-subnav { display:none; }
   .bs-nav.bs-nav-mobile-only { display:flex; }
+
+  /* Drill-down dos pickers (Lançamento/Perpétuo/Distribuição/Redes Sociais/
+     Tema) no celular: em vez de abrir um dropdown flutuando por cima do
+     menu principal inteiro (ilegível com tudo empilhado na gaveta), o
+     menu principal some e só o submenu do item escolhido ocupa a gaveta,
+     com um botão "Voltar" no topo pra retornar. :has() identifica qual
+     bloco (trilha de modo ou bloco Sistema) contém o picker aberto, pra
+     funcionar igual pros dois sem repetir regra pra cada item. */
+  #bs-drawer.bs-drilled > *:not(:has(.bs-launch-picker.open)) { display:none !important; }
+  #bs-drawer.bs-drilled > *:has(.bs-launch-picker.open) {
+    display:flex; flex-direction:column; flex:1 1 auto; min-height:0;
+  }
+  #bs-drawer.bs-drilled > *:has(.bs-launch-picker.open) > *:not(.bs-launch-picker) {
+    display:none !important;
+  }
+  #bs-drawer.bs-drilled .bs-launch-picker:not(.open) { display:none !important; }
+  #bs-drawer.bs-drilled .bs-launch-picker.open {
+    display:flex; flex-direction:column; min-height:0; flex:1 1 auto;
+  }
+  #bs-drawer.bs-drilled .bs-launch-picker-menu {
+    position:static !important; display:block !important; width:100% !important;
+    flex:1 1 auto; min-height:0; max-height:none; overflow-y:auto;
+    box-shadow:none; border:none; border-radius:0; background:transparent; padding:0;
+  }
+  .bs-picker-back {
+    display:flex; align-items:center; gap:8px; width:100%; font-family:inherit;
+    padding:12px 10px; margin-bottom:6px; border:none; border-bottom:1px solid var(--bs-border);
+    background:none; cursor:pointer; font-size:13px; font-weight:700; color:var(--bs-ink-muted);
+  }
+  .bs-picker-back:active { color:var(--bs-ink); }
 }
 
 @media (max-width:520px) {
@@ -1570,6 +1603,9 @@ html[data-bs-theme="aranhaverso"] .bs-live-dot {
           <i class="ti ti-chevron-down bs-launch-picker-chevron"></i>
         </button>
         <div class="bs-launch-picker-menu" id="bs-launch-picker-menu">
+          <button type="button" class="bs-picker-back" onclick="bsPickerToggle(this)">
+            <i class="ti ti-arrow-left"></i> Voltar
+          </button>
           <a class="bs-launch-picker-all" href="/lancamentos">
             <i class="ti ti-layout-grid"></i> Ver todos os lançamentos
           </a>
@@ -1602,6 +1638,9 @@ html[data-bs-theme="aranhaverso"] .bs-live-dot {
           <i class="ti ti-chevron-down bs-launch-picker-chevron"></i>
         </button>
         <div class="bs-launch-picker-menu">
+          <button type="button" class="bs-picker-back" onclick="bsPickerToggle(this)">
+            <i class="ti ti-arrow-left"></i> Voltar
+          </button>
           {% for item in perpetuo_nav_items %}
           <a class="bs-launch-picker-item {% if item.active %}active{% endif %}" href="{{ item.href }}">{{ item.label }}</a>
           {% endfor %}
@@ -1620,6 +1659,9 @@ html[data-bs-theme="aranhaverso"] .bs-live-dot {
           <i class="ti ti-chevron-down bs-launch-picker-chevron"></i>
         </button>
         <div class="bs-launch-picker-menu">
+          <button type="button" class="bs-picker-back" onclick="bsPickerToggle(this)">
+            <i class="ti ti-arrow-left"></i> Voltar
+          </button>
           {% for item in distribuicao_nav_items %}
           <a class="bs-launch-picker-item {% if item.active %}active{% endif %}" href="{{ item.href }}">{{ item.label }}</a>
           {% endfor %}
@@ -1638,6 +1680,9 @@ html[data-bs-theme="aranhaverso"] .bs-live-dot {
           <i class="ti ti-chevron-down bs-launch-picker-chevron"></i>
         </button>
         <div class="bs-launch-picker-menu">
+          <button type="button" class="bs-picker-back" onclick="bsPickerToggle(this)">
+            <i class="ti ti-arrow-left"></i> Voltar
+          </button>
           <a class="bs-launch-picker-all" href="/instagram{% if active_code %}?launch_code={{ active_code }}{% endif %}">
             <i class="ti ti-layout-grid"></i> Ver todos os perfis
           </a>
@@ -1697,6 +1742,9 @@ html[data-bs-theme="aranhaverso"] .bs-live-dot {
           <i class="ti ti-chevron-down bs-launch-picker-chevron"></i>
         </button>
         <div class="bs-launch-picker-menu">
+          <button type="button" class="bs-picker-back" onclick="bsPickerToggle(this)">
+            <i class="ti ti-arrow-left"></i> Voltar
+          </button>
           <div class="bs-launch-picker-group">Tema (em teste)</div>
           <button type="button" class="bs-theme-opt" data-theme-val="a" onclick="bsSetTheme('a')">
             <span class="bs-theme-dot" style="background:#2f5ee3"></span> Colorful
@@ -2166,6 +2214,12 @@ window.bsMenuToggle = function(force) {
   drawer.classList.toggle('open', open);
   if (overlay) overlay.classList.toggle('open', open);
   document.body.style.overflow = open ? 'hidden' : '';
+  if (!open) {
+    /* Fecha a gaveta sempre voltando pro menu principal — reabrir não
+       deve pular direto pro drill-down que estava aberto antes. */
+    document.querySelectorAll('.bs-launch-picker.open').forEach(function(p) { p.classList.remove('open'); });
+    drawer.classList.remove('bs-drilled');
+  }
 };
 document.querySelectorAll('#bs-drawer .bs-nav-link, #bs-drawer .bs-camp-select, #bs-drawer .bs-launch-picker-item, #bs-drawer .bs-launch-picker-all').forEach(function(el) {
   el.addEventListener('click', function() { if (window.innerWidth <= 1024) bsMenuToggle(false); });
@@ -2195,24 +2249,42 @@ function bsPositionPickerMenu(picker) {
   menu.style.left = left + 'px';
   menu.style.top = top + 'px';
 }
+/* No celular (≤1024px) o dropdown vira um painel drill-down ocupando a
+   gaveta inteira (ver CSS #bs-drawer.bs-drilled) em vez de flutuar por
+   cima do menu principal — abrir um picker esconde o resto do menu. */
+function bsIsMobileDrawer() { return window.innerWidth <= 1024; }
 window.bsPickerToggle = function(btn) {
   var picker = btn.closest('.bs-launch-picker');
   if (!picker) return;
   var open = picker.classList.contains('open');
   document.querySelectorAll('.bs-launch-picker.open').forEach(function(p) { p.classList.remove('open'); });
   picker.classList.toggle('open', !open);
-  if (!open) bsPositionPickerMenu(picker);
+  var drawer = document.getElementById('bs-drawer');
+  if (bsIsMobileDrawer()) {
+    if (drawer) drawer.classList.toggle('bs-drilled', !open);
+  } else if (!open) {
+    bsPositionPickerMenu(picker);
+  }
 };
 document.addEventListener('click', function(e) {
   if (!e.target.closest('.bs-launch-picker')) {
     document.querySelectorAll('.bs-launch-picker.open').forEach(function(p) { p.classList.remove('open'); });
+    var drawer = document.getElementById('bs-drawer');
+    if (drawer) drawer.classList.remove('bs-drilled');
   }
 });
 ['scroll', 'resize'].forEach(function(evt) {
   window.addEventListener(evt, function() {
+    if (bsIsMobileDrawer()) return;
     var open = document.querySelector('.bs-launch-picker.open');
     if (open) bsPositionPickerMenu(open);
   }, true);
+});
+window.addEventListener('resize', function() {
+  if (!bsIsMobileDrawer()) {
+    var drawer = document.getElementById('bs-drawer');
+    if (drawer) drawer.classList.remove('bs-drilled');
+  }
 });
 
 /* ── Seletor de tema (em teste) ────────────────────────────────────────

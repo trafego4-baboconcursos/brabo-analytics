@@ -742,7 +742,11 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
   <!-- 3. DETALHAMENTO DE TRÁFEGO                                 -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-chart-pie"></i> Detalhamento de Tráfego</div>
+    <div class="dbf-section-title">
+      <i class="ti ti-chart-pie"></i> Detalhamento de Tráfego
+      {% if launch %}<span class="dbf-launch-badge">{{ launch.code }}</span>{% endif %}
+      {% if dbf.has_prev %}<span class="dbf-launch-badge prev">vs {{ dbf.prev_code }}</span>{% endif %}
+    </div>
 
     {% set color_map = {"Pré-Qualificação": "#16a34a", "Captação": "#2563eb",  "Remarketing": "#dc2626"} %}
 

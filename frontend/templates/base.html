@@ -592,8 +592,12 @@ html[data-bs-theme="aranhaverso"] .bs-web-spokes {
 .note.success { border-color:var(--bs-success);  background:var(--bs-success-bg); }
 
 /* ── Tabelas ────────────────────────────────────────────────────────── */
-.table-wrap { border:1px solid var(--bs-border); border-radius:var(--bs-r-lg); overflow:hidden; margin-top:12px; }
-table { width:100%; border-collapse:collapse; font-size:13px; }
+/* Fundo próprio (--bs-card, sempre o tom mais claro da hierarquia
+   bg/surface/card) pra tabela nunca se misturar com o fundo da página —
+   principalmente nos temas escuros, onde sem isso a tabela "some" no
+   fundo em vez de aparecer como um bloco separado. */
+.table-wrap { background:var(--bs-card); border:1px solid var(--bs-border); border-radius:var(--bs-r-lg); overflow:hidden; margin-top:12px; }
+table { width:100%; border-collapse:collapse; font-size:13px; background:var(--bs-card); }
 .table-wrap table th { background:var(--bs-accent); color:#fff; padding:10px 12px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:normal; }
 table td { padding:10px 12px; border-bottom:1px solid var(--bs-border); vertical-align:middle; }
 table tr:last-child td { border-bottom:none; }
@@ -1036,7 +1040,14 @@ kbd {
   }
   #bs-drawer-overlay.open { opacity:1; pointer-events:auto; }
 
-  #bs-main   { margin-left:0; padding-top:56px; }
+  /* No desktop #bs-main rola sozinho (sidebar fixa do lado). No celular
+     isso quebra o header sticky: a barra de endereço do navegador some/
+     aparece e muda a altura real da tela, dessincronizando a rolagem do
+     #bs-main (height:100vh fixo) da rolagem da página — o resultado é
+     o .hdr "grudado" parecendo flutuar solto em vez de ficar preso no
+     topo. Solução: no celular, deixa a PÁGINA rolar (padrão robusto), o
+     sticky do .hdr passa a colar direto na tela. */
+  #bs-main   { margin-left:0; padding-top:56px; height:auto; overflow-y:visible; }
   #bs-topbar { left:0; top:56px; }
   .hdr       { top:56px; }
   #bs-main.has-subnav .hdr { top:56px; }

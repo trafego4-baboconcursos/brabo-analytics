@@ -46,11 +46,21 @@ async def captacao(request: Request, launch_code: str | None = None):
     wa_cost = d.get("wa_cost")
     wa_gasto = (wa_cost.get("total_cost_brl") or 0.0) if wa_cost else 0.0
 
+    # Esta página é só Captação — investimento/leads têm que vir escopados
+    # pela etapa (por_etapa["Captação"]), não pelo total do lançamento
+    # inteiro (que também soma Pré-Qualificação/Remarketing/etc).
+    meta_capt = (getattr(meta, "por_etapa", {}) or {}).get("Captação") or {}
+    google_capt = (getattr(google, "por_etapa", {}) or {}).get("Captação") or {}
+    meta_capt_gasto = float(meta_capt.get("gasto") or meta_capt.get("custo") or 0)
+    google_capt_gasto = float(google_capt.get("custo") or 0)
+    meta_capt_leads = int(meta_capt.get("leads") or 0)
+    google_capt_conv = float(google_capt.get("conversoes") or 0)
+
     # ads_invest é só Meta+Google (captação de lead de verdade) — CPL/valor por
     # lead e a meta de investimento de captação NUNCA podem incluir WhatsApp,
     # que não gera lead nenhum. wa_gasto só entra no invest/ROAS (KPI de
     # investimento total da campanha, não de custo por lead).
-    ads_invest = (meta.total_gasto if meta else 0.0) + (google.total_custo if google else 0.0)
+    ads_invest = meta_capt_gasto + google_capt_gasto
     receita = (vendas.total_receita if vendas else 0.0)
     invest  = ads_invest + wa_gasto
     roas    = receita / invest if invest > 0 else 0.0
@@ -58,13 +68,15 @@ async def captacao(request: Request, launch_code: str | None = None):
     cfg = await run_in_threadpool(_launch_cfg, launch.code) if launch else {}
     goal_leads  = int(cfg.get("meta_leads") or 0)
     goal_invest = float(cfg.get("meta_investimento_captacao") or 0)
-    leads_meta  = (meta.total_leads if meta else 0) + (int(round(google.total_conversoes)) if google else 0)
+    leads_meta  = meta_capt_leads + int(round(google_capt_conv))
     prog_leads  = min(100.0, leads_meta / goal_leads * 100) if goal_leads > 0 else None
     valor_medio_lead = ads_invest / leads_meta if leads_meta > 0 else 0.0
     prog_invest = min(100.0, ads_invest / goal_invest * 100) if goal_invest > 0 else None
 
     ctx = _base_ctx(request, "captacao", "Captação", launch, launches,
         meta=meta, google=google, vendas=vendas, wa_gasto=wa_gasto,
+        meta_capt_gasto=meta_capt_gasto, google_capt_gasto=google_capt_gasto,
+        meta_capt_leads=meta_capt_leads, google_capt_conv=google_capt_conv,
         receita=receita, invest=invest, roas=roas,
         goal_leads=goal_leads, goal_invest=goal_invest,
         leads_meta=leads_meta, valor_medio_lead=valor_medio_lead,
@@ -86,12 +98,28 @@ async def pre_qualificacao(request: Request, launch_code: str | None = None):
     meta_ads_preq = meta.preq_por_ad if meta else []
     youtube_ads_preq = google.preq_por_ad if google else []
 
+    # Resumo de investimento/leads — escopado pela etapa (por_etapa["Pré-
+    # Qualificação"]), igual ao fix da página de Captação (não pode somar o
+    # total do lançamento inteiro).
+    meta_preq = (getattr(meta, "por_etapa", {}) or {}).get("Pré-Qualificação") or {}
+    google_preq = (getattr(google, "por_etapa", {}) or {}).get("Pré-Qualificação") or {}
+    meta_preq_gasto = float(meta_preq.get("gasto") or meta_preq.get("custo") or 0)
+    google_preq_gasto = float(google_preq.get("custo") or 0)
+    meta_preq_leads = int(meta_preq.get("leads") or 0)
+    google_preq_conv = float(google_preq.get("conversoes") or 0)
+    invest_preq = meta_preq_gasto + google_preq_gasto
+    leads_preq = meta_preq_leads + int(round(google_preq_conv))
+    cpl_preq = invest_preq / leads_preq if leads_preq > 0 else 0.0
+
     ctx = _base_ctx(request, "pre_qualificacao", "Pré-Qualificação", launch, launches,
         daily_breakdown_preq=daily_breakdown_preq,
         meta_ads_preq=meta_ads_preq,
         youtube_ads_preq=youtube_ads_preq,
         drive_thumbnails=d.get("drive_thumbnails") or {},
         data_errors=d.get("_errors", []),
+        invest_preq=invest_preq, leads_preq=leads_preq, cpl_preq=cpl_preq,
+        meta_preq_gasto=meta_preq_gasto, google_preq_gasto=google_preq_gasto,
+        meta_preq_leads=meta_preq_leads, google_preq_conv=google_preq_conv,
     )
     return templates.TemplateResponse("pre_qualificacao.html", ctx)
 

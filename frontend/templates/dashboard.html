@@ -39,8 +39,8 @@
         </div>
         {% endif %}
         <div class="tp-compare">
-          {% if meta %}Meta: {{ meta.total_gasto | brl }}{% endif %}
-          {% if google %}{% if meta %} · {% endif %}Google: {{ google.total_custo | brl }}{% endif %}
+          {% if meta %}Meta: {{ meta_capt_gasto | brl }}{% endif %}
+          {% if google %}{% if meta %} · {% endif %}Google: {{ google_capt_gasto | brl }}{% endif %}
           {% if wa_gasto %}{% if meta or google %} · {% endif %}WhatsApp: {{ wa_gasto | brl }}{% endif %}
         </div>
       </div>
@@ -94,8 +94,8 @@
         </div>
         {% endif %}
         <div class="tp-compare">
-          {% if meta %}Meta: {{ meta.total_leads | num }}{% endif %}
-          {% if google %}{% if meta %} · {% endif %}Google: {{ "%.0f"|format(google.total_conversoes) }}{% endif %}
+          {% if meta %}Meta: {{ meta_capt_leads | num }}{% endif %}
+          {% if google %}{% if meta %} · {% endif %}Google: {{ "%.0f"|format(google_capt_conv) }}{% endif %}
         </div>
       </div>
 

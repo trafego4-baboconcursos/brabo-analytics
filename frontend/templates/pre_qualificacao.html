@@ -30,6 +30,42 @@
 
     {% else %}
 
+    {# ── Resumo de Investimento — Pré-Qualificação ───────────────────────── #}
+    <div class="tp-kpi-grid">
+      <div class="tp-kpi">
+        <div class="tp-kpi-top">
+          <div class="tp-icon warning"><i class="ti ti-coin"></i></div>
+        </div>
+        <div class="tp-value">{{ invest_preq | brl }}</div>
+        <div class="tp-label">Investimento — Pré-Qualificação</div>
+        <div class="tp-compare">
+          {% if meta %}Meta: {{ meta_preq_gasto | brl }}{% endif %}
+          {% if google %}{% if meta %} · {% endif %}Google: {{ google_preq_gasto | brl }}{% endif %}
+        </div>
+      </div>
+
+      <div class="tp-kpi">
+        <div class="tp-kpi-top">
+          <div class="tp-icon meta"><i class="ti ti-users"></i></div>
+        </div>
+        <div class="tp-value">{{ leads_preq | num }}</div>
+        <div class="tp-label">Leads — Pré-Qualificação</div>
+        <div class="tp-compare">
+          {% if meta %}Meta: {{ meta_preq_leads | num }}{% endif %}
+          {% if google %}{% if meta %} · {% endif %}Google: {{ "%.0f"|format(google_preq_conv) }}{% endif %}
+        </div>
+      </div>
+
+      <div class="tp-kpi">
+        <div class="tp-kpi-top">
+          <div class="tp-icon success"><i class="ti ti-report-money"></i></div>
+        </div>
+        <div class="tp-value">{{ cpl_preq | brl }}</div>
+        <div class="tp-label">CPL — Pré-Qualificação</div>
+        <div class="tp-compare">Investimento / leads (Meta + Google)</div>
+      </div>
+    </div>
+
     {% macro daily_table(rows, title) %}
     {% if rows %}
     <div class="info-box">

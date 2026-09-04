@@ -596,7 +596,11 @@ html[data-bs-theme="aranhaverso"] .bs-web-spokes {
    bg/surface/card) pra tabela nunca se misturar com o fundo da página —
    principalmente nos temas escuros, onde sem isso a tabela "some" no
    fundo em vez de aparecer como um bloco separado. */
-.table-wrap { background:var(--bs-card); border:1px solid var(--bs-border); border-radius:var(--bs-r-lg); overflow:hidden; margin-top:12px; }
+/* overflow-x:auto (não "hidden") — deixa arrastar a tabela pros lados
+   quando ela é mais larga que a tela (celular) em vez de cortar as
+   colunas que não cabem; overflow-y:hidden mantém os cantos
+   arredondados do wrapper recortando a tabela por cima/baixo. */
+.table-wrap { background:var(--bs-card); border:1px solid var(--bs-border); border-radius:var(--bs-r-lg); overflow-x:auto; overflow-y:hidden; margin-top:12px; -webkit-overflow-scrolling:touch; }
 table { width:100%; border-collapse:collapse; font-size:13px; background:var(--bs-card); }
 .table-wrap table th { background:var(--bs-accent); color:#fff; padding:10px 12px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:normal; }
 table td { padding:10px 12px; border-bottom:1px solid var(--bs-border); vertical-align:middle; }

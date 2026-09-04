@@ -311,11 +311,33 @@ def _read_whatsapp_uncached(code: str, start_date=None, end_date=None) -> dict |
         ) if tem_vip else None
 
         overlap = 0
+        overlap_ativo = 0
+        overlap_saida = 0
         if tem_normal and tem_vip:
             overlap = conn.execute(text(f'''
                 SELECT COUNT(DISTINCT a."NÚMERO")
                 FROM "{t_normal}" a
                 JOIN "{t_vip}" b ON a."NÚMERO"::text = b."NÚMERO"::text
+            ''')).fetchone()[0]
+            # Sobreposição só entre quem está ATIVO nos dois — é o que
+            # importa pra deduplicar "total_limpo(normal) + total_limpo(vip)"
+            # sem inflar quem está nos dois grupos ao mesmo tempo (overlap
+            # acima conta qualquer presença histórica, ativo ou não).
+            overlap_ativo = conn.execute(text(f'''
+                SELECT COUNT(DISTINCT a.fone)
+                FROM (SELECT "NÚMERO"::text AS fone, MAX("LEAD ÚNICO") AS ativo FROM "{t_normal}" GROUP BY 1) a
+                JOIN (SELECT "NÚMERO"::text AS fone, MAX("LEAD ÚNICO") AS ativo FROM "{t_vip}" GROUP BY 1) b
+                  ON a.fone = b.fone
+                WHERE a.ativo = 1 AND b.ativo = 1
+            ''')).fetchone()[0]
+            # Mesma lógica pra quem SAIU dos dois grupos — pra deduplicar
+            # "saida_total(normal) + saida_total(vip)".
+            overlap_saida = conn.execute(text(f'''
+                SELECT COUNT(DISTINCT a.fone)
+                FROM (SELECT "NÚMERO"::text AS fone, MAX("LEAD ÚNICO") AS ativo FROM "{t_normal}" GROUP BY 1) a
+                JOIN (SELECT "NÚMERO"::text AS fone, MAX("LEAD ÚNICO") AS ativo FROM "{t_vip}" GROUP BY 1) b
+                  ON a.fone = b.fone
+                WHERE a.ativo = 0 AND b.ativo = 0
             ''')).fetchone()[0]
 
         try:
@@ -330,6 +352,8 @@ def _read_whatsapp_uncached(code: str, start_date=None, end_date=None) -> dict |
         "normal": normal,
         "vip": vip,
         "overlap_vip": int(overlap or 0),
+        "overlap_ativo_vip": int(overlap_ativo or 0),
+        "overlap_saida_vip": int(overlap_saida or 0),
         "compradores": compradores,
     }
 
@@ -389,7 +413,12 @@ def read_leads_x_whatsapp(launch_folder_or_code: Any) -> dict | None:
         return None
     wa_normal = wa.get("normal") or {}
     wa_vip = wa.get("vip") or {}
-    total_wa = int(wa_normal.get("total_limpo") or 0) + int(wa_vip.get("total_limpo") or 0)
+    # total_limpo de cada tabela já é deduplicado DENTRO dela, mas quem está
+    # ativo nos dois grupos (normal + VIP) ao mesmo tempo conta 1x em cada —
+    # soma bruta infla o total. Subtrai a sobreposição de quem está ativo nos
+    # dois pra chegar no total de pessoas únicas.
+    overlap_ativo = int(wa.get("overlap_ativo_vip") or 0)
+    total_wa = int(wa_normal.get("total_limpo") or 0) + int(wa_vip.get("total_limpo") or 0) - overlap_ativo
     if not total_wa:
         return None
 
@@ -402,12 +431,13 @@ def read_leads_x_whatsapp(launch_folder_or_code: Any) -> dict | None:
 
     saida_normal = int(wa_normal.get("saida_total") or 0)
     saida_vip = int(wa_vip.get("saida_total") or 0)
+    overlap_saida = int(wa.get("overlap_saida_vip") or 0)
 
     return {
         "total_leads": total_leads,
         "total_whatsapp": total_wa,
         "taxa_entrada": (total_wa / total_leads * 100) if total_leads > 0 else 0.0,
-        "saida_total": saida_normal + saida_vip,
+        "saida_total": saida_normal + saida_vip - overlap_saida,
         "saida_normal": saida_normal,
         "saida_vip": saida_vip,
     }

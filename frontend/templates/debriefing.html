@@ -1640,6 +1640,21 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
   {% endif %}
 
   <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 5c. VENDAS × GRUPOS DE WHATSAPP (VIP / NORMAL / FORA)       -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if lazy %}
+  <div class="dbf-section" data-lazy-section="vendas_grupos_whatsapp">
+    <div class="dbf-section-title"><i class="ti ti-brand-whatsapp"></i> Vendas × Grupos de WhatsApp</div>
+    {{ lazy_skeleton() }}
+  </div>
+  {% elif dbf.vendas_grupos_whatsapp %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-brand-whatsapp"></i> Vendas × Grupos de WhatsApp</div>
+    {% include "debriefing/_secao_vendas_grupos_whatsapp.html" %}
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 6. MELHORES ANÚNCIOS                                       -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <div class="dbf-section">

@@ -25,7 +25,7 @@ from frontend.core import (
 from frontend.services.fetch import (
     _perfil_por_anuncio, _pesquisa_engajamento,
     _leads_antigos_compradores, _qualidade_regiao, _caminho_comprador,
-    _landing_pages_por_etapa, _leads_x_whatsapp,
+    _landing_pages_por_etapa, _leads_x_whatsapp, _vendas_grupos_whatsapp,
 )
 
 
@@ -136,6 +136,16 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
             falhas.append("leads_x_whatsapp")
             return None
 
+    async def f_vendas_grupos_whatsapp():
+        if not launch or lazy:
+            return None
+        try:
+            return await run_in_threadpool(_vendas_grupos_whatsapp, launch)
+        except Exception:
+            logger.exception("Debriefing: falha ao montar vendas x grupos de WhatsApp")
+            falhas.append("vendas_grupos_whatsapp")
+            return None
+
     async def f_previous():
         if not previous:
             return None, None, None, None, None
@@ -163,10 +173,11 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         (prev_meta, prev_google, prev_vendas, prev_wa_cost, prev_sales_attr),
         landing_pages_por_etapa,
         leads_x_whatsapp,
+        vendas_grupos_whatsapp,
     ) = await asyncio.gather(
         f_creative(), f_leads_antigos(), f_perfil_pesquisa(),
         f_qualidade_regiao(), f_caminho_comprador(), f_previous(),
-        f_landing_pages(), f_leads_x_whatsapp(),
+        f_landing_pages(), f_leads_x_whatsapp(), f_vendas_grupos_whatsapp(),
     )
 
     dbf = _compute_debriefing_ctx(
@@ -183,6 +194,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         caminho_comprador=caminho_comprador,
         landing_pages_por_etapa=landing_pages_por_etapa,
         leads_x_whatsapp=leads_x_whatsapp,
+        vendas_grupos_whatsapp=vendas_grupos_whatsapp,
         wa_cost=d.get("wa_cost"),
         prev_wa_cost=prev_wa_cost,
     )

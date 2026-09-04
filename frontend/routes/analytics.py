@@ -16,7 +16,7 @@ from frontend.core import (
 from frontend.services.fetch import (
     _launch_cfg, _perfil_por_anuncio, _pesquisa_engajamento,
     _leads_antigos_compradores, _qualidade_regiao, _caminho_comprador,
-    _landing_pages_por_etapa, _leads_x_whatsapp,
+    _landing_pages_por_etapa, _leads_x_whatsapp, _vendas_grupos_whatsapp,
 )
 from frontend.services.calendario import build_calendario_ctx
 from frontend.services.debriefing_build import build_debriefing_context
@@ -361,7 +361,7 @@ async def debriefing(request: Request, launch_code: str | None = None, modo: str
     return templates.TemplateResponse("debriefing.html", ctx)
 
 
-_DEBRIEFING_SECOES_LAZY = ("pesquisa_engajamento", "qualidade_regiao", "perfil_por_anuncio", "caminho_comprador", "leads_x_whatsapp")
+_DEBRIEFING_SECOES_LAZY = ("pesquisa_engajamento", "qualidade_regiao", "perfil_por_anuncio", "caminho_comprador", "leads_x_whatsapp", "vendas_grupos_whatsapp")
 
 
 @router.get("/debriefing/secao/{secao}", response_class=HTMLResponse)
@@ -385,6 +385,8 @@ async def debriefing_secao(request: Request, secao: str, launch_code: str | None
             dbf[secao] = await run_in_threadpool(_pesquisa_engajamento, launch)
         elif secao == "leads_x_whatsapp":
             dbf[secao] = await run_in_threadpool(_leads_x_whatsapp, launch)
+        elif secao == "vendas_grupos_whatsapp":
+            dbf[secao] = await run_in_threadpool(_vendas_grupos_whatsapp, launch)
         elif secao == "qualidade_regiao":
             dbf[secao] = await run_in_threadpool(_qualidade_regiao, launch, None)
         elif secao == "caminho_comprador":

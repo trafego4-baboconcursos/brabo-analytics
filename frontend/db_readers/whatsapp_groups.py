@@ -401,3 +401,16 @@ def read_leads_x_whatsapp(launch_folder_or_code: Any) -> dict | None:
         "total_whatsapp": total_wa,
         "taxa_entrada": (total_wa / total_leads * 100) if total_leads > 0 else 0.0,
     }
+
+
+def read_vendas_grupos_whatsapp(launch_folder_or_code: Any) -> dict | None:
+    """Vendas cruzadas com presença nos grupos de WhatsApp (por telefone):
+    quantas aconteceram com o comprador dentro de um grupo VIP, dentro de um
+    grupo normal (podem se sobrepor — pessoa em ambos conta nos dois) ou fora
+    de qualquer grupo. Pauta debriefing. Reaproveita o cruzamento já feito em
+    read_whatsapp_groups (compradores × grupos), sem nova consulta pesada."""
+    code = _extract_launch_code(launch_folder_or_code)
+    wa = read_whatsapp_groups(code)
+    if not wa:
+        return None
+    return wa.get("compradores")

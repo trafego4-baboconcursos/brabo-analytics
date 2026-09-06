@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="wrap">
+
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}">
+      <img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics">
+    </a>
+    <div>
+      <h1>Verba do Lançamento{% if launch %} — {{ launch.code }}{% endif %}</h1>
+      <p>{% if launch %}{{ launch.name }}{% endif %} | Previsto × realizado por etapa</p>
+    </div>
+  </div>
+
+  <div class="content">
+
+    {% if not launch %}
+    <div class="no-data">
+      <i class="ti ti-folder-off"></i>
+      <h3>Nenhum lançamento encontrado</h3>
+    </div>
+
+    {% else %}
+
+    {# ── Bloco 1: TOTAL — Previsto x Realizado por etapa ───────────────────── #}
+    <div class="info-box">
+      <h2>TOTAL — Previsto × Realizado</h2>
+      <div class="table-wrap">
+        <table class="table-compact" style="font-size:12px;">
+          <thead>
+            <tr>
+              <th class="th-dark">Etapa</th>
+              <th class="th-dark" style="text-align:right">Previsto</th>
+              <th class="th-dark" style="text-align:right">% Previsto</th>
+              <th class="th-dark" style="text-align:right">Realizado</th>
+              <th class="th-dark" style="text-align:right">% Realizado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for l in verba_linhas %}
+            <tr>
+              <td class="td-bold">{{ l.nome }}</td>
+              <td style="text-align:right;">{{ l.previsto | brl if l.previsto > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ l.pct_previsto | pct if l.previsto > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ l.realizado | brl if l.realizado > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ l.pct_realizado | pct if l.realizado > 0 else "–" }}</td>
+            </tr>
+            {% endfor %}
+            <tr style="background:var(--bs-sidebar-dark);color:#fff;font-weight:700;">
+              <td>TOTAL</td>
+              <td style="text-align:right;">{{ verba_total_previsto | brl }}</td>
+              <td style="text-align:right;">100%</td>
+              <td style="text-align:right;">{{ verba_total_realizado | brl }}</td>
+              <td style="text-align:right;">100%</td>
+            </tr>
+            <tr>
+              <td class="td-muted" style="font-style:italic">Remarketing (soma das sub-etapas + WhatsApp)</td>
+              <td class="td-muted" style="text-align:right;font-style:italic">{{ verba_pct_remarketing_previsto | pct }} do previsto</td>
+              <td colspan="3"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
+        Previsto vem da provisão de verba cadastrada no wizard do lançamento; Realizado é o gasto real Meta+Google por etapa.
+        "PQ / Impulsionar" da planilha de referência ainda não tem categorização própria neste sistema (cai dentro de outra etapa ou fica de fora) — não incluído aqui pra não misturar valores.
+      </div>
+    </div>
+
+    {% endif %}
+
+  </div>{# .content #}
+  <div class="footing">
+    Gerado em tempo real | Brabo Analytics{% if launch %} — {{ launch.code }}{% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -21,6 +21,7 @@ from frontend.services.fetch import (
 )
 from frontend.services.calendario import build_calendario_ctx
 from frontend.services.debriefing_build import build_debriefing_context
+from frontend.services.orcamento import get_etapa, previsto_por_etapa, previsto_por_subetapa, REMARKETING_SUBETAPAS
 
 router = APIRouter()
 
@@ -193,6 +194,57 @@ async def pre_qualificacao(request: Request, launch_code: str | None = None):
         google_preq_views=google_preq_views,
     )
     return templates.TemplateResponse("pre_qualificacao.html", ctx)
+
+
+@router.get("/verba", response_class=HTMLResponse)
+async def verba_page(request: Request, launch_code: str | None = None):
+    """Verba do Lançamento — espelha a planilha "Verba Diária" do usuário
+    (pauta 06/09/26). Construída em blocos: bloco 1 é Previsto x Realizado
+    por etapa (Pré-Qualificação, Captação, cada sub-etapa de remarketing e
+    WhatsApp)."""
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    d = await _fetch_all_data(launch)
+    meta, google = d["meta"], d["google"]
+    wa_cost = d.get("wa_cost")
+    wa_gasto = (wa_cost.get("total_cost_brl") or 0.0) if wa_cost else 0.0
+
+    cfg = await run_in_threadpool(_launch_cfg, launch.code) if launch else {}
+    previsto_map = previsto_por_etapa(cfg)
+    previsto_sub = previsto_por_subetapa(cfg)
+    # WhatsApp pode ter sido cadastrado como uma "etapa" própria no wizard
+    # (nome livre, ex: "WhatsApp") — usa o previsto de lá se existir.
+    previsto_whatsapp = next(
+        (float(et.get("total") or 0) for et in (cfg.get("etapas") or []) if et.get("nome") == "WhatsApp"),
+        0.0,
+    )
+
+    linhas = []
+    for nome in ["Pré-Qualificação", "Captação"]:
+        e = get_etapa(meta, google, nome)
+        linhas.append({"nome": nome, "previsto": previsto_map.get(nome, 0.0), "realizado": e["invest"]})
+    for nome in REMARKETING_SUBETAPAS:
+        e = get_etapa(meta, google, nome)
+        linhas.append({"nome": nome, "previsto": previsto_sub.get(nome, 0.0), "realizado": e["invest"]})
+    linhas.append({"nome": "WhatsApp", "previsto": previsto_whatsapp, "realizado": wa_gasto})
+
+    total_previsto = sum(l["previsto"] for l in linhas)
+    total_realizado = sum(l["realizado"] for l in linhas)
+    for l in linhas:
+        l["pct_previsto"] = (l["previsto"] / total_previsto * 100) if total_previsto > 0 else 0.0
+        l["pct_realizado"] = (l["realizado"] / total_realizado * 100) if total_realizado > 0 else 0.0
+
+    # % de Remarketing (5 sub-etapas + WhatsApp) sobre o previsto total —
+    # mesma conta da linha "Remarketing" solta no fim do bloco na planilha.
+    previsto_remarketing = sum(previsto_sub.values()) + previsto_whatsapp
+    pct_remarketing_previsto = (previsto_remarketing / total_previsto * 100) if total_previsto > 0 else 0.0
+
+    ctx = _base_ctx(request, "verba", "Verba do Lançamento", launch, launches,
+        verba_linhas=linhas, verba_total_previsto=total_previsto, verba_total_realizado=total_realizado,
+        verba_pct_remarketing_previsto=pct_remarketing_previsto,
+        data_errors=d.get("_errors", []),
+    )
+    return templates.TemplateResponse("verba.html", ctx)
 
 
 @router.get("/funil", response_class=HTMLResponse)

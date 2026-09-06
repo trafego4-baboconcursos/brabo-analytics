@@ -80,6 +80,49 @@ async def captacao(request: Request, launch_code: str | None = None):
         except Exception:
             logger.exception("Captação: falha ao montar conversão da página de captura (GA4)")
 
+    # % de Leads por Campanha — Facebook/YouTube por temperatura (só
+    # Captação; a segmentação por temperatura não existe em Pré-Qualificação
+    # neste sistema) + TikTok (sempre 0, sem fonte de dado ainda).
+    _clima_labels = ["Quente", "Frio", "Específico"]
+    meta_temp_capt = (getattr(meta, "por_temperatura_captacao", {}) or {})
+    google_temp = (getattr(google, "por_temperatura", {}) or {})
+    leads_por_campanha_raw = []
+    for c in _clima_labels:
+        m = meta_temp_capt.get(c) or {}
+        leads_por_campanha_raw.append({
+            "campanha": f"Facebook {c}",
+            "leads": int(m.get("leads") or 0),
+            "gasto": float(m.get("gasto") or m.get("custo") or 0),
+        })
+    for c in _clima_labels:
+        g = google_temp.get(c) or {}
+        leads_por_campanha_raw.append({
+            "campanha": f"YouTube {c}",
+            "leads": int(round(g.get("conversoes") or 0)),
+            "gasto": float(g.get("custo") or 0),
+        })
+    leads_por_campanha_raw.append({"campanha": "Tiktok", "leads": 0, "gasto": 0.0})
+    total_leads_camp = sum(r["leads"] for r in leads_por_campanha_raw) or 1
+    total_gasto_camp = sum(r["gasto"] for r in leads_por_campanha_raw) or 1
+    leads_por_campanha = []
+    for r in leads_por_campanha_raw:
+        leads_por_campanha.append({
+            **r,
+            "cpl": r["gasto"] / r["leads"] if r["leads"] > 0 else 0.0,
+            "pct_investimento": r["gasto"] / total_gasto_camp * 100,
+            "pct_leads": r["leads"] / total_leads_camp * 100,
+        })
+
+    # Taxa de Comparecimento WPP — reaproveita o mesmo cruzamento usado em
+    # "Leads X Grupos de WhatsApp" no debriefing (leads da AC × pessoas
+    # ativas nos grupos, deduplicado normal+VIP).
+    leads_x_whatsapp = None
+    if launch:
+        try:
+            leads_x_whatsapp = await run_in_threadpool(_leads_x_whatsapp, launch)
+        except Exception:
+            logger.exception("Captação: falha ao montar leads x WhatsApp")
+
     ctx = _base_ctx(request, "captacao", "Captação", launch, launches,
         meta=meta, google=google, vendas=vendas, wa_gasto=wa_gasto,
         meta_capt_gasto=meta_capt_gasto, google_capt_gasto=google_capt_gasto,
@@ -91,6 +134,9 @@ async def captacao(request: Request, launch_code: str | None = None):
         daily_breakdown=daily_breakdown,
         daily_breakdown_preq=daily_breakdown_preq,
         conversao_paginas=(conversao_pagina_captura or {}).get("Captação") or [],
+        leads_por_campanha=leads_por_campanha,
+        total_leads_camp=total_leads_camp, total_gasto_camp=total_gasto_camp,
+        leads_x_whatsapp=leads_x_whatsapp,
         data_errors=d.get("_errors", []),
     )
     return templates.TemplateResponse("dashboard.html", ctx)

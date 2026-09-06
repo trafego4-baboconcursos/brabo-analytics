@@ -160,6 +160,99 @@
     </div>
     {% endif %}
 
+    {# ── Taxa de Comparecimento WPP ────────────────────────────────────────── #}
+    {% if leads_x_whatsapp %}
+    <div class="info-box">
+      <h2>Taxa de Conversão da Página de Obrigado</h2>
+      <div class="table-wrap">
+        <table class="table-compact" style="font-size:12px;">
+          <thead>
+            <tr>
+              <th class="th-dark">Página</th>
+              <th class="th-dark" style="text-align:right">Taxa de Comparecimento WPP</th>
+              <th class="th-dark" style="text-align:right">Quantidade de leads nos grupos</th>
+              <th class="th-dark">Promessa</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="td-bold">Todas</td>
+              <td style="text-align:right;">{{ leads_x_whatsapp.taxa_entrada | pct }}</td>
+              <td style="text-align:right;">{{ leads_x_whatsapp.total_whatsapp | num }}</td>
+              <td class="td-muted" style="font-style:italic">— (preencher manualmente)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
+        Taxa de Comparecimento WPP = pessoas ativas nos grupos de WhatsApp ÷ total de leads (Active Campaign). "Promessa" é texto livre, ainda sem campo no wizard.
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── % de Leads por Campanha ──────────────────────────────────────────── #}
+    {% if leads_por_campanha %}
+    <div class="info-box">
+      <h2>% de Leads por Campanha</h2>
+      <div class="table-wrap">
+        <table class="table-compact" style="font-size:12px;">
+          <thead>
+            <tr>
+              <th class="th-dark">Campanhas</th>
+              <th class="th-dark" style="text-align:right">Qtd de Leads</th>
+              <th class="th-dark" style="text-align:right">Investimento</th>
+              <th class="th-dark" style="text-align:right">% Investimento</th>
+              <th class="th-dark" style="text-align:right">CPL</th>
+              <th class="th-dark" style="text-align:right">% Leads</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in leads_por_campanha %}
+            <tr>
+              <td class="td-bold">{{ r.campanha }}</td>
+              <td style="text-align:right;">{{ r.leads | num }}</td>
+              <td style="text-align:right;">{{ r.gasto | brl }}</td>
+              <td style="text-align:right;">{{ r.pct_investimento | pct }}</td>
+              <td style="text-align:right;">{{ r.cpl | brl if r.leads > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ r.pct_leads | pct }}</td>
+            </tr>
+            {% endfor %}
+            <tr style="background:var(--bs-sidebar-dark);color:#fff;font-weight:700;">
+              <td>Total</td>
+              <td style="text-align:right;">{{ total_leads_camp | num }}</td>
+              <td style="text-align:right;">{{ total_gasto_camp | brl }}</td>
+              <td style="text-align:right;">100%</td>
+              <td style="text-align:right;">{{ (total_gasto_camp / total_leads_camp) | brl if total_leads_camp > 0 else "–" }}</td>
+              <td style="text-align:right;">100%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="chart-wrap" style="height:280px;margin-top:16px">
+        <canvas id="leadsPorCampanhaChart"></canvas>
+      </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <script>
+    (function() {
+      const labels = [{% for r in leads_por_campanha %}"{{ r.campanha | e }}"{% if not loop.last %},{% endif %}{% endfor %}];
+      const values = [{% for r in leads_por_campanha %}{{ r.pct_leads | round(2) }}{% if not loop.last %},{% endif %}{% endfor %}];
+      const el = document.getElementById('leadsPorCampanhaChart');
+      if (el && window.Chart) {
+        new Chart(el, {
+          type: 'bar',
+          data: { labels, datasets: [{ label: 'Quantidade de Leads por Público (%)', data: values, backgroundColor: '#93d8c8' }] },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, title: { display: true, text: 'Quantidade de Leads por Público (%)' } },
+            scales: { y: { beginAtZero: true, ticks: { callback: v => v + '%' } } }
+          }
+        });
+      }
+    })();
+    </script>
+    {% endif %}
+
     {# ── Highlights ─────────────────────────────────────────────────────── #}
     {% if meta and meta.top_por_leads %}
     <div class="highlights">

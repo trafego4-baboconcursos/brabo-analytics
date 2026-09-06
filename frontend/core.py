@@ -54,6 +54,7 @@ from frontend.services.attribution import (  # noqa: F401
 )
 from frontend.services.fetch import (  # noqa: E402
     _fetch_all_data, _fetch_prev_for_debriefing,
+    _meta, _google, _vendas,
 )
 from frontend.services.debriefing import _compute_debriefing_ctx  # noqa: F401,E402
 from frontend.services.instagram import get_instagram_profiles, _load_experts  # noqa: F401,E402
@@ -171,6 +172,43 @@ def find_previous_launch(launch: Launch, all_launches: list[Launch]) -> Launch |
     if not same_product:
         return None
     return max(same_product, key=lambda l: l.data_inicio)
+
+
+def read_comparativo_historico(launch: Launch, all_launches: list[Launch], n: int = 8) -> list[dict]:
+    """Comparativo de Vendas (Comercial x Orgânico) multi-lançamento — pauta
+    debriefing (apresentação legada). Sobe a cadeia de lançamentos anteriores
+    do mesmo produto até `n` lançamentos (incluindo o atual), busca
+    meta/google/vendas de cada um (leitores cacheados 1h) e monta uma linha
+    por lançamento, mais antigo primeiro."""
+    if not launch:
+        return []
+    chain = []
+    cur = launch
+    for _ in range(n):
+        chain.append(cur)
+        cur = find_previous_launch(cur, all_launches)
+        if not cur:
+            break
+    chain.reverse()
+
+    def _linha(l):
+        m = _meta(l) if getattr(l, "has_meta", False) else None
+        g = _google(l) if getattr(l, "has_google", False) else None
+        v = _vendas(l) if getattr(l, "has_vendas", False) else None
+        invest = float(getattr(m, "total_gasto", 0) or 0) + float(getattr(g, "total_custo", 0) or 0)
+        total_vendas = int(getattr(v, "total_vendas", 0) or 0)
+        por_canal = getattr(v, "por_canal", {}) or {}
+        comercial_cs = int((por_canal.get("Comercial") or {}).get("vendas", 0)) + int((por_canal.get("IA") or {}).get("vendas", 0))
+        organicas = int((por_canal.get("Orgânico") or {}).get("vendas", 0))
+        return {
+            "code": l.code, "invest": invest, "vendas": total_vendas,
+            "custo_venda": (invest / total_vendas) if total_vendas > 0 else 0.0,
+            "comercial_cs": comercial_cs, "organicas": organicas,
+            "pct_comercial_cs": (comercial_cs / total_vendas * 100) if total_vendas > 0 else 0.0,
+            "pct_organicas": (organicas / total_vendas * 100) if total_vendas > 0 else 0.0,
+        }
+
+    return [_linha(l) for l in chain]
 
 # ── V1 Reports ────────────────────────────────────────────────────────────────
 V1_REPORTS = [

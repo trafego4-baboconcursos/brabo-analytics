@@ -2365,6 +2365,19 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
   </div>
   {% endif %}
 
+  <!-- Comparativo de Vendas (Comercial x Orgânico) multi-lançamento -->
+  {% if lazy %}
+  <div class="dbf-section" data-lazy-section="comparativo_historico">
+    <div class="dbf-section-title"><i class="ti ti-history"></i> Comparativo de Vendas — Comercial × Orgânico (Histórico)</div>
+    {{ lazy_skeleton() }}
+  </div>
+  {% elif dbf.comparativo_historico %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-history"></i> Comparativo de Vendas — Comercial × Orgânico (Histórico)</div>
+    {% include "debriefing/_secao_comparativo_historico.html" %}
+  </div>
+  {% endif %}
+
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 9a2. CAMINHO DO COMPRADOR — FUNIL UNIFICADO POR PESSOA     -->
   <!-- ═══════════════════════════════════════════════════════════ -->

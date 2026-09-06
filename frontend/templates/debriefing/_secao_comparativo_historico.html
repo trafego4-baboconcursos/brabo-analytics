@@ -1,0 +1,71 @@
+{# Corpo da seção "Comparativo de Vendas (Comercial x Orgânico)" — multi-lançamento.
+   Vazio quando não há dado (no carregamento sob demanda o JS remove a seção). #}
+{% if dbf.comparativo_historico and dbf.comparativo_historico | length > 1 %}
+{% set rows = dbf.comparativo_historico %}
+<div class="dbf-lazy-body">
+  <div class="table-wrap">
+    <table class="dbf-table">
+      <thead>
+        <tr>
+          <th>Lançamento</th>
+          <th class="num">Investimento</th>
+          <th class="num">Vendas</th>
+          <th class="num">Custo por Venda</th>
+          <th class="num">Vendas Comercial+CS</th>
+          <th class="num">Vendas Orgânicas</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td class="td-bold">{{ r.code }}</td>
+          <td class="num">{{ r.invest | brl }}</td>
+          <td class="num">{{ r.vendas | num }}</td>
+          <td class="num">{{ r.custo_venda | brl }}</td>
+          <td class="num">{{ r.comercial_cs | num }}</td>
+          <td class="num">{{ r.organicas | num }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="line-chart-wrap" style="margin-top:16px;height:260px">
+    <canvas id="comparativoHistoricoChart"></canvas>
+  </div>
+  <script>
+  (function() {
+    const rows = {{ rows | tojson }};
+    const labels = rows.map(r => r.code);
+    const comercial = rows.map(r => Math.round(r.pct_comercial_cs * 10) / 10);
+    const organico = rows.map(r => Math.round(r.pct_organicas * 10) / 10);
+    const ink = getComputedStyle(document.documentElement).getPropertyValue('--bs-ink').trim() || '#1f2330';
+    new Chart(document.getElementById('comparativoHistoricoChart'), {
+      type: 'bar',
+      plugins: [ChartDataLabels],
+      data: {
+        labels,
+        datasets: [
+          { label: 'Comercial+CS', data: comercial, backgroundColor: '#ef4444' },
+          { label: 'Orgânico', data: organico, backgroundColor: '#3b82f6' },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 11 }, color: ink } },
+          tooltip: { enabled: true, callbacks: { label: (ctx) => ctx.dataset.label + ': ' + ctx.parsed.y + '%' } },
+          datalabels: { font: { size: 9, weight: '700' }, color: '#fff', formatter: v => v > 5 ? v + '%' : '' }
+        },
+        scales: {
+          x: { stacked: true, grid: { display: false }, ticks: { font: { size: 10 }, color: ink } },
+          y: { stacked: true, beginAtZero: true, max: 100, ticks: { callback: v => v + '%' } }
+        }
+      }
+    });
+  })();
+  </script>
+  <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
+    Cadeia de até 8 lançamentos anteriores do mesmo produto (mais antigo à esquerda). Comercial+CS = vendas atribuídas a agente comercial ou IA (Hotmart codigo_sck / TMB utm_source); Orgânicas = todo o resto.
+  </div>
+</div>
+{% endif %}

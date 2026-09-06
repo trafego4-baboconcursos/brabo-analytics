@@ -11,7 +11,7 @@ from frontend.core import (
     _get_cached, _set_cached,
     read_comparativo, get_drive_thumbnails,
     _fetch_prev_for_debriefing, _compute_debriefing_ctx,
-    _sales_attribution,
+    _sales_attribution, read_comparativo_historico,
 )
 from frontend.services.fetch import (
     _launch_cfg, _perfil_por_anuncio, _pesquisa_engajamento,
@@ -519,7 +519,7 @@ async def debriefing(request: Request, launch_code: str | None = None, modo: str
     return templates.TemplateResponse("debriefing.html", ctx)
 
 
-_DEBRIEFING_SECOES_LAZY = ("pesquisa_engajamento", "qualidade_regiao", "perfil_por_anuncio", "caminho_comprador", "leads_x_whatsapp", "vendas_grupos_whatsapp", "disparo_resumo", "funil_pesquisa")
+_DEBRIEFING_SECOES_LAZY = ("pesquisa_engajamento", "qualidade_regiao", "perfil_por_anuncio", "caminho_comprador", "leads_x_whatsapp", "vendas_grupos_whatsapp", "disparo_resumo", "funil_pesquisa", "comparativo_historico")
 
 
 @router.get("/debriefing/secao/{secao}", response_class=HTMLResponse)
@@ -552,6 +552,8 @@ async def debriefing_secao(request: Request, secao: str, launch_code: str | None
             dbf[secao] = await run_in_threadpool(_vendas_grupos_whatsapp, launch)
         elif secao == "disparo_resumo":
             dbf[secao] = await run_in_threadpool(_disparo_resumo, launch)
+        elif secao == "comparativo_historico":
+            dbf[secao] = await run_in_threadpool(read_comparativo_historico, launch, launches)
         elif secao == "qualidade_regiao":
             dbf[secao] = await run_in_threadpool(_qualidade_regiao, launch, None)
         elif secao == "caminho_comprador":

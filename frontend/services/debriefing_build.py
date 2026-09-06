@@ -17,7 +17,7 @@ from fastapi.concurrency import run_in_threadpool
 
 from frontend.core import (
     logger,
-    find_previous_launch,
+    find_previous_launch, read_comparativo_historico,
     _fetch_all_data, _creative_overview,
     _fetch_prev_for_debriefing, _compute_debriefing_ctx,
     _sales_attribution,
@@ -179,6 +179,16 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
             falhas.append("hotmart_recompra")
             return None
 
+    async def f_comparativo_historico():
+        if not launch or lazy:
+            return []
+        try:
+            return await run_in_threadpool(read_comparativo_historico, launch, launches)
+        except Exception:
+            logger.exception("Debriefing: falha ao montar comparativo histórico multi-lançamento")
+            falhas.append("comparativo_historico")
+            return []
+
     async def f_forma_pagamento_entrada():
         if not (launch and launch.has_tmb):
             return None
@@ -273,13 +283,14 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         (hotmart_semana_seguinte, prev_hotmart_semana_seguinte),
         (compradores_por_dia_grupo, prev_compradores_por_dia_grupo),
         forma_pagamento_entrada,
+        comparativo_historico,
     ) = await asyncio.gather(
         f_creative(), f_leads_antigos(), f_perfil_pesquisa(),
         f_qualidade_regiao(), f_caminho_comprador(), f_previous(),
         f_landing_pages(), f_leads_x_whatsapp(), f_vendas_grupos_whatsapp(),
         f_disparo_resumo(), f_ebook(), f_hotmart_recompra(),
         f_hotmart_semana_seguinte(), f_compradores_por_dia_grupo(),
-        f_forma_pagamento_entrada(),
+        f_forma_pagamento_entrada(), f_comparativo_historico(),
     )
 
     dbf = _compute_debriefing_ctx(
@@ -309,6 +320,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         prev_compradores_por_dia_grupo=prev_compradores_por_dia_grupo,
         prev_daily_captacao=prev_daily_captacao,
         forma_pagamento_entrada=forma_pagamento_entrada,
+        comparativo_historico=comparativo_historico,
     )
     return {
         "dbf": dbf,

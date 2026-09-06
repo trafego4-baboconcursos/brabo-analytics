@@ -2378,6 +2378,19 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
   </div>
   {% endif %}
 
+  <!-- Tabela Histórica — comparativo grande multi-lançamento -->
+  {% if lazy %}
+  <div class="dbf-section" data-lazy-section="historico_grande">
+    <div class="dbf-section-title"><i class="ti ti-table"></i> Tabela Histórica — Comparativo entre Lançamentos</div>
+    {{ lazy_skeleton() }}
+  </div>
+  {% elif dbf.historico_grande %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-table"></i> Tabela Histórica — Comparativo entre Lançamentos</div>
+    {% include "debriefing/_secao_historico_grande.html" %}
+  </div>
+  {% endif %}
+
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 9a2. CAMINHO DO COMPRADOR — FUNIL UNIFICADO POR PESSOA     -->
   <!-- ═══════════════════════════════════════════════════════════ -->

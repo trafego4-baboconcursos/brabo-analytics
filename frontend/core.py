@@ -210,6 +210,81 @@ def read_comparativo_historico(launch: Launch, all_launches: list[Launch], n: in
 
     return [_linha(l) for l in chain]
 
+
+def read_historico_grande(launch: Launch, all_launches: list[Launch], n: int = 8) -> list[dict]:
+    """Tabela histórica grande multi-lançamento — pauta debriefing
+    (apresentação legada): Vendas/ROAS/Investimento/Receita/Lucro/Leads/CPL/
+    tamanho dos grupos de WhatsApp/Pico da Aula 1/Comparecimento da Aula 1/
+    Divisão Quente-Captação-Remarketing, por lançamento da mesma cadeia
+    (find_previous_launch) usada em read_comparativo_historico."""
+    from frontend.db_readers.whatsapp_groups import read_whatsapp_groups
+    from frontend.database_reader import read_youtube_aulas
+    from frontend.services.orcamento import get_etapa
+    from frontend.db import _get_engine
+    from sqlalchemy import text as _text
+
+    if not launch:
+        return []
+    chain = []
+    cur = launch
+    for _ in range(n):
+        chain.append(cur)
+        cur = find_previous_launch(cur, all_launches)
+        if not cur:
+            break
+    chain.reverse()
+
+    def _linha(l):
+        m = _meta(l) if getattr(l, "has_meta", False) else None
+        g = _google(l) if getattr(l, "has_google", False) else None
+        v = _vendas(l) if getattr(l, "has_vendas", False) else None
+
+        invest = float(getattr(m, "total_gasto", 0) or 0) + float(getattr(g, "total_custo", 0) or 0)
+        total_vendas = int(getattr(v, "total_vendas", 0) or 0)
+        receita_bruta = float(getattr(v, "total_receita_bruta", 0) or 0)
+        receita_liquida = float(getattr(v, "total_receita_liquida", 0) or 0)
+        lucro = receita_liquida - invest
+
+        try:
+            with _get_engine().connect() as conn:
+                total_leads = int(conn.execute(
+                    _text("SELECT COUNT(*) FROM leads WHERE lancamento_codigo = :code"), {"code": l.code}
+                ).fetchone()[0] or 0)
+        except Exception:
+            total_leads = 0
+        cpl = invest / total_leads if total_leads > 0 else 0.0
+
+        wa = read_whatsapp_groups(l.code) or {}
+        grupos_wpp = int((wa.get("normal") or {}).get("total_limpo") or 0)
+        grupos_vip = int((wa.get("vip") or {}).get("total_limpo") or 0)
+
+        aulas = read_youtube_aulas(l.code) or []
+        aula1 = next((a for a in aulas if a.aula_num == 1), aulas[0] if aulas else None)
+        pico_aula1 = int(getattr(aula1, "peak_concurrent", 0) or 0) if aula1 else None
+        comp_aula1 = (pico_aula1 / grupos_wpp * 100) if (pico_aula1 and grupos_wpp > 0) else None
+
+        e_pq = get_etapa(m, g, "Pré-Qualificação")
+        e_capt = get_etapa(m, g, "Captação")
+        e_rmk = get_etapa(m, g, "Remarketing")
+        div_total = e_pq["invest"] + e_capt["invest"] + e_rmk["invest"]
+        div_qcr = {
+            "quente": (e_pq["invest"] / div_total * 100) if div_total > 0 else 0.0,
+            "captacao": (e_capt["invest"] / div_total * 100) if div_total > 0 else 0.0,
+            "remarketing": (e_rmk["invest"] / div_total * 100) if div_total > 0 else 0.0,
+        }
+
+        return {
+            "code": l.code, "vendas": total_vendas,
+            "roas": (receita_bruta / invest) if invest > 0 else 0.0,
+            "invest": invest, "receita_bruta": receita_bruta, "receita_liquida": receita_liquida,
+            "lucro": lucro, "leads": total_leads, "cpl": cpl,
+            "grupos_wpp": grupos_wpp, "grupos_vip": grupos_vip,
+            "pico_aula1": pico_aula1, "comp_aula1": comp_aula1,
+            "div_qcr": div_qcr,
+        }
+
+    return [_linha(l) for l in chain]
+
 # ── V1 Reports ────────────────────────────────────────────────────────────────
 V1_REPORTS = [
     {"key": "dashboard", "label": "Dashboard / Indice", "v2_path": "/captacao", "v1_file": "INDEX_[{code}].html", "needs": []},

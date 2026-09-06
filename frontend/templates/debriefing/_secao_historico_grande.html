@@ -1,0 +1,53 @@
+{# Corpo da seção "Tabela Histórica" — Vendas/ROAS/Investimento/Receita/Lucro/
+   Leads/CPL/Grupos WhatsApp/Pico Aula 1/Comparecimento/Divisão Q-C-R,
+   multi-lançamento. Vazio quando não há dado (JS remove a seção). #}
+{% if dbf.historico_grande and dbf.historico_grande | length > 1 %}
+{% set rows = dbf.historico_grande %}
+<div class="dbf-lazy-body">
+  <div class="table-wrap">
+    <table class="dbf-table">
+      <thead>
+        <tr>
+          <th>Lançamento</th>
+          <th class="num">Vendas</th>
+          <th class="num">ROAS</th>
+          <th class="num">Investimento</th>
+          <th class="num">R. Bruta</th>
+          <th class="num">R. Líquida</th>
+          <th class="num">Lucro</th>
+          <th class="num">Leads</th>
+          <th class="num">CPL</th>
+          <th class="num">Grupos Wpp</th>
+          <th class="num">Grupos VIP</th>
+          <th class="num">Pico Aula 1</th>
+          <th class="num">Comp. Aula 1*</th>
+          <th class="num">Divisão (Q-C-R)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td class="td-bold">{{ r.code }}</td>
+          <td class="num">{{ r.vendas | num }}</td>
+          <td class="num">{{ "%.2f"|format(r.roas) }}</td>
+          <td class="num">{{ r.invest | brl }}</td>
+          <td class="num">{{ r.receita_bruta | brl }}</td>
+          <td class="num">{{ r.receita_liquida | brl }}</td>
+          <td class="num">{{ r.lucro | brl }}</td>
+          <td class="num">{{ r.leads | num }}</td>
+          <td class="num">{{ r.cpl | brl }}</td>
+          <td class="num">{{ r.grupos_wpp | num }}</td>
+          <td class="num">{{ r.grupos_vip | num }}</td>
+          <td class="num">{{ r.pico_aula1 | num if r.pico_aula1 is not none else "–" }}</td>
+          <td class="num">{{ (r.comp_aula1 | round(1) ~ "%") if r.comp_aula1 is not none else "–" }}</td>
+          <td class="num" style="white-space:nowrap">{{ r.div_qcr.quente | round(0) }}% - {{ r.div_qcr.captacao | round(0) }}% - {{ r.div_qcr.remarketing | round(0) }}%</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
+    Cadeia de até 8 lançamentos anteriores do mesmo produto (mais antigo à esquerda). * Comparecimento da Aula 1 = pico de espectadores simultâneos da Aula 1 ÷ tamanho do grupo de WhatsApp (Normal). Divisão (Q-C-R) = % do investimento em Pré-Qualificação (Quente) - Captação - Remarketing.
+  </div>
+</div>
+{% endif %}

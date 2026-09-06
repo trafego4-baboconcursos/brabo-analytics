@@ -17,7 +17,7 @@ from fastapi.concurrency import run_in_threadpool
 
 from frontend.core import (
     logger,
-    find_previous_launch, read_comparativo_historico,
+    find_previous_launch, read_comparativo_historico, read_historico_grande,
     _fetch_all_data, _creative_overview,
     _fetch_prev_for_debriefing, _compute_debriefing_ctx,
     _sales_attribution,
@@ -189,6 +189,16 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
             falhas.append("comparativo_historico")
             return []
 
+    async def f_historico_grande():
+        if not launch or lazy:
+            return []
+        try:
+            return await run_in_threadpool(read_historico_grande, launch, launches)
+        except Exception:
+            logger.exception("Debriefing: falha ao montar tabela histórica grande multi-lançamento")
+            falhas.append("historico_grande")
+            return []
+
     async def f_forma_pagamento_entrada():
         if not (launch and launch.has_tmb):
             return None
@@ -284,6 +294,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         (compradores_por_dia_grupo, prev_compradores_por_dia_grupo),
         forma_pagamento_entrada,
         comparativo_historico,
+        historico_grande,
     ) = await asyncio.gather(
         f_creative(), f_leads_antigos(), f_perfil_pesquisa(),
         f_qualidade_regiao(), f_caminho_comprador(), f_previous(),
@@ -291,6 +302,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         f_disparo_resumo(), f_ebook(), f_hotmart_recompra(),
         f_hotmart_semana_seguinte(), f_compradores_por_dia_grupo(),
         f_forma_pagamento_entrada(), f_comparativo_historico(),
+        f_historico_grande(),
     )
 
     dbf = _compute_debriefing_ctx(
@@ -321,6 +333,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         prev_daily_captacao=prev_daily_captacao,
         forma_pagamento_entrada=forma_pagamento_entrada,
         comparativo_historico=comparativo_historico,
+        historico_grande=historico_grande,
     )
     return {
         "dbf": dbf,

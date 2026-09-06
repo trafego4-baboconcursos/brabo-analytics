@@ -357,6 +357,7 @@ def _compute_debriefing_ctx(
     prev_daily_captacao: Any = None,
     forma_pagamento_entrada: Any = None,
     comparativo_historico: Any = None,
+    historico_grande: Any = None,
 ) -> dict:
     def _f(x): return float(x or 0)
     def _i(x): return int(x or 0)
@@ -866,6 +867,8 @@ def _compute_debriefing_ctx(
         "boleto_parcelado_curva": boleto_parcelado_curva,
         # Comparativo de Vendas (Comercial x Orgânico) multi-lançamento
         "comparativo_historico": comparativo_historico or [],
+        # Tabela histórica grande multi-lançamento
+        "historico_grande": historico_grande or [],
         # Pagamentos
         "pagamentos_hm": pagamentos_hm, "total_tmb": total_tmb,
         "vendas_forma": vendas_forma,

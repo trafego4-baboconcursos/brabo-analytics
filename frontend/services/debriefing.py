@@ -352,6 +352,8 @@ def _compute_debriefing_ctx(
     prev_wa_cost: Any = None,
     hotmart_semana_seguinte: Any = None,
     prev_hotmart_semana_seguinte: Any = None,
+    compradores_por_dia_grupo: Any = None,
+    prev_compradores_por_dia_grupo: Any = None,
 ) -> dict:
     def _f(x): return float(x or 0)
     def _i(x): return int(x or 0)
@@ -770,6 +772,9 @@ def _compute_debriefing_ctx(
         "timeline": timeline, "max_vendas_dia": max_vendas_dia,
         # Vendas por Período (antecipadas / carrinho aberto / semana seguinte)
         "vendas_por_periodo": vendas_por_periodo, "prev_vendas_por_periodo": prev_vendas_por_periodo,
+        # Compradores por dia que entraram no grupo (Pré-Quali x Captação)
+        "compradores_por_dia_grupo": compradores_por_dia_grupo,
+        "prev_compradores_por_dia_grupo": prev_compradores_por_dia_grupo,
         # Pagamentos
         "pagamentos_hm": pagamentos_hm, "total_tmb": total_tmb,
         "vendas_forma": vendas_forma,

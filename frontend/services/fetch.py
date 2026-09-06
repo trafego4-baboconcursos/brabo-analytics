@@ -118,6 +118,12 @@ def _vendas_grupos_whatsapp(launch: Any):
                            lambda: read_vendas_grupos_whatsapp(launch.code))
 
 
+def _compradores_por_dia_grupo(launch: Any):
+    from frontend.db_readers.whatsapp_groups import read_compradores_por_dia_grupo
+    return _get_or_compute(launch.code, "compradores_por_dia_grupo",
+                           lambda: read_compradores_por_dia_grupo(launch.code))
+
+
 def _disparo_resumo(launch: Any):
     from frontend.db_readers.whatsapp_messages import read_disparo_resumo
     return _get_or_compute(launch.code, "disparo_resumo",

@@ -454,3 +454,104 @@ def read_vendas_grupos_whatsapp(launch_folder_or_code: Any) -> dict | None:
     if not wa:
         return None
     return wa.get("compradores")
+
+
+def _fones_com_data(conn, tabela: str | None) -> dict[str, str]:
+    """{telefone normalizado: data (YYYY-MM-DD) da primeira entrada}."""
+    if not tabela:
+        return {}
+    rows = conn.execute(text(f'''
+        SELECT "NÚMERO"::text AS fone, MIN({_DATA_EXPR}) AS dia
+        FROM "{tabela}" GROUP BY 1
+    ''')).fetchall()
+    out: dict[str, str] = {}
+    for fone_raw, dia in rows:
+        p = _norm_phone(fone_raw)
+        if not p or dia is None:
+            continue
+        d = dia.isoformat() if hasattr(dia, "isoformat") else str(dia)
+        if p not in out or d < out[p]:
+            out[p] = d
+    return out
+
+
+def read_compradores_por_dia_grupo(launch_folder_or_code: Any) -> dict | None:
+    """Compradores (Hotmart+TMB) pelo dia em que entraram no grupo de
+    WhatsApp, separados em Pré-Qualificação × Captação conforme as datas
+    cadastradas no wizard do lançamento. Pauta debriefing (apresentação
+    legada "Compradores pelo Dia que Entraram no Grupo") — reaproveita o
+    padrão de cruzamento por telefone já usado em _compradores_grupos."""
+    from frontend.db_readers.sales import read_vendas  # noqa: PLC0415
+    from frontend.db_readers.launches import read_launch_config  # noqa: PLC0415
+
+    code = _extract_launch_code(launch_folder_or_code)
+    vendas = read_vendas(code)
+    if not vendas:
+        return None
+    buyers = vendas.emails_hotmart | vendas.emails_tmb
+    if not buyers:
+        return None
+    phone_por_email = vendas.phone_por_email or {}
+
+    cfg = read_launch_config(code)
+    pq_start = cfg.get("pre_quali_start_date") or ""
+    pq_end   = cfg.get("pre_quali_end_date") or ""
+    cp_start = cfg.get("captacao_start_date") or ""
+    cp_end   = cfg.get("captacao_end_date") or ""
+
+    base = code.replace("-", "_")
+    candidatos_normal = [f"{base}_API", base]
+    candidatos_vip = [f"{base}_VIP_API", f"{base}_VIPS", f"{base}_VIP",
+                      base.rsplit("_", 1)[0] + "_VIP"]
+
+    engine = _get_engine()
+    with engine.connect() as conn:
+        t_normal = _escolhe_tabela(conn, candidatos_normal)
+        t_vip = _escolhe_tabela(conn, candidatos_vip)
+        if not t_normal and not t_vip:
+            return None
+        datas_normal = _fones_com_data(conn, t_normal)
+        datas_vip = _fones_com_data(conn, t_vip)
+
+    datas_por_fone: dict[str, str] = dict(datas_normal)
+    for p, d in datas_vip.items():
+        if p not in datas_por_fone or d < datas_por_fone[p]:
+            datas_por_fone[p] = d
+
+    por_dia: dict[str, int] = {}
+    sem_data = 0
+    for email in buyers:
+        p = _norm_phone(phone_por_email.get(email))
+        dia = datas_por_fone.get(p) if p else None
+        if not dia:
+            sem_data += 1
+            continue
+        por_dia[dia] = por_dia.get(dia, 0) + 1
+
+    def _in_range(d: str, start: str, end: str) -> bool:
+        return bool(start and end and start <= d <= end)
+
+    pre_quali_total = sum(n for d, n in por_dia.items() if _in_range(d, pq_start, pq_end))
+    captacao_total  = sum(n for d, n in por_dia.items() if _in_range(d, cp_start, cp_end))
+    outro_total = sum(por_dia.values()) - pre_quali_total - captacao_total
+
+    def _periodo(d: str) -> str:
+        if _in_range(d, pq_start, pq_end):
+            return "pre_quali"
+        if _in_range(d, cp_start, cp_end):
+            return "captacao"
+        return "outro"
+
+    timeline = [
+        {"data": d, "data_str": d[8:10] + "/" + d[5:7], "compradores": n, "periodo": _periodo(d)}
+        for d, n in sorted(por_dia.items())
+    ]
+
+    return {
+        "timeline": timeline,
+        "sem_data": sem_data,
+        "pre_quali": {"total": pre_quali_total},
+        "captacao": {"total": captacao_total},
+        "outro": {"total": outro_total},
+        "total": sum(por_dia.values()),
+    }

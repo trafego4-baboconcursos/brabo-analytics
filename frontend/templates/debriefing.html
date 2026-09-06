@@ -790,6 +790,53 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
         {{ sem_dados("Datas de carrinho (início/abertura oficial/fim) não configuradas ou sem vendas Hotmart no período") }}
       {% endif %}
     </div>
+
+    <!-- Compradores pelo Dia que Entraram no Grupo -->
+    <div class="info-box" style="margin-top:0">
+      <h2>Compradores pelo Dia que Entraram no Grupo</h2>
+      {% set cpg = dbf.compradores_por_dia_grupo %}
+      {% set pcpg = dbf.prev_compradores_por_dia_grupo %}
+      {% if cpg and cpg.timeline %}
+        <div class="line-chart-wrap">
+          <canvas id="compradoresGrupoChart"></canvas>
+        </div>
+        <script>
+        (function() {
+          const rows = {{ cpg.timeline | tojson }};
+          const labels = rows.map(r => r.data_str);
+          const vals   = rows.map(r => r.compradores);
+          const colors = rows.map(r => r.periodo === 'pre_quali' ? '#3b82f6' : (r.periodo === 'captacao' ? '#db2777' : '#9ca3af'));
+          const ink = getComputedStyle(document.documentElement).getPropertyValue('--bs-ink').trim() || '#1f2330';
+          new Chart(document.getElementById('compradoresGrupoChart'), {
+            type: 'bar',
+            plugins: [ChartDataLabels],
+            data: { labels, datasets: [{ label: 'Compradores', data: vals, backgroundColor: colors }] },
+            options: {
+              responsive: true, maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false }, tooltip: { enabled: false },
+                datalabels: { anchor: 'end', align: 'top', offset: 2, font: { size: 10, weight: '700' }, color: ink, formatter: v => v || '' }
+              },
+              scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+                y: { beginAtZero: true, ticks: { precision: 0 } }
+              },
+              layout: { padding: { top: 20 } }
+            }
+          });
+        })();
+        </script>
+        <div class="dbf-kpi-grid" style="margin-top:16px;grid-template-columns:repeat(2,1fr)">
+          {{ kpi_card("Compradores — Pré-Qualificação", cpg.pre_quali.total, pcpg.pre_quali.total if pcpg else 0, "num", "up") }}
+          {{ kpi_card("Compradores — Captação", cpg.captacao.total, pcpg.captacao.total if pcpg else 0, "num", "up") }}
+        </div>
+        <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
+          Data de entrada = primeira entrada em grupo Normal ou VIP, cruzada por telefone com compradores Hotmart+TMB. {{ cpg.sem_data }} compradores sem telefone/entrada de grupo identificada não entram no gráfico.
+        </div>
+      {% else %}
+        {{ sem_dados("Tabelas de grupo de WhatsApp (Normal/VIP) do lançamento") }}
+      {% endif %}
+    </div>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════ -->

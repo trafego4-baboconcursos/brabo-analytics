@@ -251,6 +251,8 @@ def _build_funis_nav_groups(launch, active_code, page, current_user, previous_la
                  "href": f"/comparativo?launch_code={active_code}", "enabled": bool(previous_launch)},
                 {"page": "debriefing", "label": "Debriefing", "icon": "ti-clipboard-check",
                  "href": _href("/debriefing"), "enabled": True},
+                {"page": "verba", "label": "Verba do Lançamento", "icon": "ti-cash",
+                 "href": _href("/verba"), "enabled": True},
             ],
         },
         {

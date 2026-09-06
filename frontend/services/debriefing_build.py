@@ -27,7 +27,7 @@ from frontend.services.fetch import (
     _leads_antigos_compradores, _qualidade_regiao, _caminho_comprador,
     _landing_pages_por_etapa, _leads_x_whatsapp, _vendas_grupos_whatsapp,
     _disparo_resumo, _ebook_compradores, _hotmart_recompra,
-    _launch_cfg, _compradores_por_dia_grupo,
+    _launch_cfg, _compradores_por_dia_grupo, _forma_pagamento_entrada,
 )
 from frontend.database_reader import read_hotmart_details
 
@@ -179,6 +179,16 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
             falhas.append("hotmart_recompra")
             return None
 
+    async def f_forma_pagamento_entrada():
+        if not (launch and launch.has_tmb):
+            return None
+        try:
+            return await run_in_threadpool(_forma_pagamento_entrada, launch)
+        except Exception:
+            logger.exception("Debriefing: falha ao montar forma de pagamento da entrada (TMB)")
+            falhas.append("forma_pagamento_entrada")
+            return None
+
     async def f_compradores_por_dia_grupo():
         if not launch:
             return None, None
@@ -262,12 +272,14 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         hotmart_recompra,
         (hotmart_semana_seguinte, prev_hotmart_semana_seguinte),
         (compradores_por_dia_grupo, prev_compradores_por_dia_grupo),
+        forma_pagamento_entrada,
     ) = await asyncio.gather(
         f_creative(), f_leads_antigos(), f_perfil_pesquisa(),
         f_qualidade_regiao(), f_caminho_comprador(), f_previous(),
         f_landing_pages(), f_leads_x_whatsapp(), f_vendas_grupos_whatsapp(),
         f_disparo_resumo(), f_ebook(), f_hotmart_recompra(),
         f_hotmart_semana_seguinte(), f_compradores_por_dia_grupo(),
+        f_forma_pagamento_entrada(),
     )
 
     dbf = _compute_debriefing_ctx(
@@ -296,6 +308,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         compradores_por_dia_grupo=compradores_por_dia_grupo,
         prev_compradores_por_dia_grupo=prev_compradores_por_dia_grupo,
         prev_daily_captacao=prev_daily_captacao,
+        forma_pagamento_entrada=forma_pagamento_entrada,
     )
     return {
         "dbf": dbf,

@@ -2000,6 +2000,54 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
     {% endif %}
   </div>
 
+  <!-- Forma de Pagamento da Entrada (Boleto Parcelado / TMB) -->
+  {% set fpe = dbf.forma_pagamento_entrada %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-credit-card"></i> Forma de Pagamento da Entrada (Boleto Parcelado)</div>
+    {% if fpe and fpe.total %}
+    <div class="table-wrap">
+      <table class="table-compact" style="font-size:12px;max-width:420px">
+        <thead><tr><th class="th-dark">Forma</th><th class="th-dark" style="text-align:right">Vendas</th><th class="th-dark" style="text-align:right">%</th></tr></thead>
+        <tbody>
+          {% for r in fpe.rows %}
+          <tr><td class="td-bold">{{ r.metodo }}</td><td style="text-align:right">{{ r.qtd | num }}</td><td style="text-align:right">{{ r.pct | round(1) }}%</td></tr>
+          {% endfor %}
+          <tr style="background:var(--bs-sidebar-dark);color:#fff;font-weight:700;">
+            <td>TOTAL</td><td style="text-align:right">{{ fpe.total | num }}</td><td style="text-align:right">100%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    {% if dbf.boleto_parcelado_curva %}
+    <div style="margin-top:16px">
+      <div style="font-size:12px;font-weight:700;margin-bottom:6px">% de vendas do lançamento por Boleto Parcelado</div>
+      <div class="line-chart-wrap" style="height:220px">
+        <canvas id="boletoParceladoCurvaChart"></canvas>
+      </div>
+      <script>
+      (function() {
+        const rows = {{ dbf.boleto_parcelado_curva | tojson }};
+        const labels = rows.map(r => r.data_str);
+        const vals   = rows.map(r => Math.round(r.pct * 10) / 10);
+        const accent = getComputedStyle(document.documentElement).getPropertyValue('--bs-accent').trim() || '#f97316';
+        new Chart(document.getElementById('boletoParceladoCurvaChart'), {
+          type: 'line',
+          data: { labels, datasets: [{ label: '% Boleto Parcelado', data: vals, borderColor: accent, backgroundColor: accent + '22', borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3 }] },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: true, callbacks: { label: (ctx) => ctx.parsed.y + '%' } } },
+            scales: { x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 90 } }, y: { beginAtZero: true, ticks: { callback: v => v + '%' } } }
+          }
+        });
+      })();
+      </script>
+    </div>
+    {% endif %}
+    {% else %}
+    {{ sem_dados("Cruzamento de compradores TMB (boleto parcelado) com o método de pagamento da entrada no Hotmart") }}
+    {% endif %}
+  </div>
+
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 6. MELHORES ANÚNCIOS                                       -->
   <!-- ═══════════════════════════════════════════════════════════ -->

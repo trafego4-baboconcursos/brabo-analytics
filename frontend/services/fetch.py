@@ -118,6 +118,13 @@ def _vendas_grupos_whatsapp(launch: Any):
                            lambda: read_vendas_grupos_whatsapp(launch.code))
 
 
+def _forma_pagamento_entrada(launch: Any):
+    from frontend.db_readers.sales import read_forma_pagamento_entrada
+    start, end = _window(launch)
+    return _get_or_compute(launch.code, f"forma_pagamento_entrada::{start}::{end}",
+                           lambda: read_forma_pagamento_entrada(launch.code, start, end))
+
+
 def _compradores_por_dia_grupo(launch: Any):
     from frontend.db_readers.whatsapp_groups import read_compradores_por_dia_grupo
     return _get_or_compute(launch.code, "compradores_por_dia_grupo",

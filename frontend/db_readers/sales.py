@@ -904,6 +904,80 @@ def read_tmb_details(launch_folder_or_code: Any, start_date=None, end_date=None)
     return details
 
 
+def _bucket_metodo_pagamento(metodo: Any) -> str:
+    s = str(metodo or "").strip().lower()
+    if not s:
+        return "Outro"
+    if "boleto" in s or s == "billet":
+        return "Boleto"
+    if "pix" in s:
+        return "Pix"
+    if "cart" in s or "credit" in s or "nupay" in s:
+        return "Cartão de Crédito"
+    return "Outro"
+
+
+def read_forma_pagamento_entrada(launch_folder_or_code: Any, start_date=None, end_date=None) -> dict | None:
+    """Forma de pagamento da ENTRADA de quem comprou "boleto parcelado"
+    (produto rastreado 100% no TMB — checado que praticamente nenhum desses
+    compradores tem transação correspondente no Hotmart, então a entrada
+    não é rastreável por lá). O próprio TMB grava a forma da entrada no
+    campo forma_pagamento ("BOLETO" = entrada em boleto, "PIX Parcelado +
+    Boleto" = entrada em Pix e parcelas seguintes em boleto). Pauta
+    debriefing (apresentação legada "Forma de Pagamento da Entrada")."""
+    code = _extract_launch_code(launch_folder_or_code)
+
+    with _get_engine().connect() as conn:
+        l_row = conn.execute(text("SELECT projeto, data_inicio, data_fim FROM dim_lancamentos WHERE codigo = :code"), {"code": code}).fetchone()
+        if not l_row:
+            return None
+        project, dim_start, dim_end = l_row
+
+    effective_start = _safe_date(start_date) or _safe_date(dim_start)
+    effective_end   = _safe_date(end_date)   or _safe_date(dim_end)
+
+    ops_engine = _get_users_engine()
+    df = pd.read_sql(
+        text(r"""
+            SELECT forma_pagamento, status FROM tmb_clean_oficial
+            WHERE CASE
+                  WHEN produto ILIKE '%inss%' THEN 'INSS'
+                  WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%') THEN 'TJ'
+                  WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'
+                  ELSE 'OUTRO'
+              END = :project
+              AND CASE
+                  WHEN NULLIF(NULLIF(TRIM(data_efetivado::text),''),'""') ~ '^\d{2}/\d{2}/\d{4}' THEN to_date(TRIM(data_efetivado::text),'DD/MM/YYYY')
+                  WHEN NULLIF(NULLIF(TRIM(data_efetivado::text),''),'""') ~ '^\d{10,13}$' THEN to_timestamp(
+                      CASE WHEN length(NULLIF(NULLIF(TRIM(data_efetivado::text),''),'""')) = 13
+                           THEN TRIM(data_efetivado::text)::bigint / 1000
+                           ELSE TRIM(data_efetivado::text)::bigint END)::date
+                  WHEN NULLIF(NULLIF(TRIM(data_efetivado::text),''),'""') IS NOT NULL THEN TRIM(data_efetivado::text)::timestamptz::date
+                  END BETWEEN :start AND :end
+        """),
+        ops_engine,
+        params={"project": project, "start": effective_start, "end": effective_end}
+    )
+    if df.empty:
+        return None
+
+    df["status_norm"] = df["status"].fillna("").astype(str).apply(_norm_text)
+    df_paid = df[df["status_norm"].isin({"vigente", "efetivado", "pago", "em dia", "integralizado", "aprovado", "concluido", "active"})]
+    if df_paid.empty:
+        return None
+
+    df_paid = df_paid.copy()
+    df_paid["bucket"] = df_paid["forma_pagamento"].apply(_bucket_metodo_pagamento)
+    total = len(df_paid)
+    vc = df_paid["bucket"].value_counts()
+    rows = [
+        {"metodo": m, "qtd": int(n), "pct": float(n / total * 100)}
+        for m, n in vc.items()
+    ]
+    rows.sort(key=lambda r: r["qtd"], reverse=True)
+    return {"rows": rows, "total": total}
+
+
 def read_vendas_consolidado(launch_folder_or_code: Any, start_date=None, end_date=None) -> ConsolidadoVendasSummary:
     code = _extract_launch_code(launch_folder_or_code)
 

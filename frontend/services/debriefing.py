@@ -355,6 +355,7 @@ def _compute_debriefing_ctx(
     compradores_por_dia_grupo: Any = None,
     prev_compradores_por_dia_grupo: Any = None,
     prev_daily_captacao: Any = None,
+    forma_pagamento_entrada: Any = None,
 ) -> dict:
     def _f(x): return float(x or 0)
     def _i(x): return int(x or 0)
@@ -678,6 +679,22 @@ def _compute_debriefing_ctx(
             row["prev"] = prev_detalhamento_captacao[idx] if idx < len(prev_detalhamento_captacao) else None
         detalhamento_semanas.append(semana)
 
+    # Curva diária de % de vendas do lançamento que são Boleto Parcelado
+    # (TMB) — usa timeline_raw (todo o lançamento, não só carrinho aberto).
+    boleto_parcelado_curva: list = []
+    if launch:
+        tmb_por_dia: dict = {}
+        for t in (getattr(tmb, "timeline", []) or []):
+            tmb_por_dia[t.get("data", "")] = tmb_por_dia.get(t.get("data", ""), 0) + _i(t.get("vendas"))
+        for t in timeline_raw:
+            d = t.get("data", "")
+            total_dia = _i(t.get("vendas"))
+            tmb_dia = tmb_por_dia.get(d, 0)
+            boleto_parcelado_curva.append({
+                "data": d, "data_str": t.get("data_str", d),
+                "pct": (tmb_dia / total_dia * 100) if total_dia > 0 else 0.0,
+            })
+
     pagamentos_hm = getattr(hotmart, "pagamentos", []) or []
     total_tmb  = _i(getattr(vendas, "tmb_vendas",    0))
     total_hm_v = _i(getattr(vendas, "hotmart_vendas", 0))
@@ -843,6 +860,9 @@ def _compute_debriefing_ctx(
         "prev_compradores_por_dia_grupo": prev_compradores_por_dia_grupo,
         # Detalhamento por Dia de Captação (Investimento/Vendas/CPL/ROAS)
         "detalhamento_semanas": detalhamento_semanas,
+        # Forma de Pagamento da Entrada (Boleto Parcelado / TMB)
+        "forma_pagamento_entrada": forma_pagamento_entrada,
+        "boleto_parcelado_curva": boleto_parcelado_curva,
         # Pagamentos
         "pagamentos_hm": pagamentos_hm, "total_tmb": total_tmb,
         "vendas_forma": vendas_forma,

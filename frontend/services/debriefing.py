@@ -350,6 +350,8 @@ def _compute_debriefing_ctx(
     prev_hotmart: Any = None,
     wa_cost: Any = None,
     prev_wa_cost: Any = None,
+    hotmart_semana_seguinte: Any = None,
+    prev_hotmart_semana_seguinte: Any = None,
 ) -> dict:
     def _f(x): return float(x or 0)
     def _i(x): return int(x or 0)
@@ -496,6 +498,9 @@ def _compute_debriefing_ctx(
         else:
             _merged[d] = {"data": d, "data_str": t.get("data_str", d), "vendas": _i(t.get("vendas")), "faturamento": float(t.get("faturamento") or 0)}
     timeline_raw = sorted(_merged.values(), key=lambda x: x["data"])
+    cfg: dict = {}
+    prev_cfg: dict = {}
+    c_start = c_end = ""
     if launch:
         cfg = _launch_cfg(launch.code)
         c_start = cfg.get("carrinho_start_date") or ""
@@ -530,6 +535,80 @@ def _compute_debriefing_ctx(
         periodo_prev  = ""
 
     max_vendas_dia = max((_i(t.get("vendas")) for t in timeline), default=1) or 1
+
+    # Vendas por Período (pauta debriefing legado) — divide as vendas em 3
+    # janelas não sobrepostas: Antecipadas (entre a abertura da página do
+    # carrinho e a abertura oficial/aula que anuncia), Carrinho Aberto
+    # (oficial) e Semana Seguinte (7 dias corridos após o fechamento).
+    # Lançamento atual usa timeline_raw (Hotmart+TMB); o anterior usa só
+    # Hotmart, porque não temos a timeline diária do TMB de lançamentos
+    # passados (só o total agregado).
+    def _sum_janela(rows, start, end):
+        if not (start and end):
+            return {"vendas": 0, "faturamento": 0.0}
+        v = sum(_i(t.get("vendas")) for t in rows if start <= t.get("data", "") <= end)
+        f = sum(float(t.get("faturamento") or 0) for t in rows if start <= t.get("data", "") <= end)
+        return {"vendas": v, "faturamento": f}
+
+    def _vendas_por_periodo(rows, c_start_, c_end_, abertura_oficial):
+        from datetime import date, timedelta
+        antecipadas = {"vendas": 0, "faturamento": 0.0}
+        aberto_start = c_start_
+        if c_start_ and abertura_oficial and abertura_oficial > c_start_:
+            try:
+                fim_ant = (date.fromisoformat(str(abertura_oficial)) - timedelta(days=1)).isoformat()
+                antecipadas = _sum_janela(rows, c_start_, fim_ant)
+                aberto_start = abertura_oficial
+            except Exception:
+                pass
+        aberto = _sum_janela(rows, aberto_start, c_end_)
+        semana = {"vendas": 0, "faturamento": 0.0}
+        if c_end_:
+            try:
+                sem_start = (date.fromisoformat(str(c_end_)) + timedelta(days=1)).isoformat()
+                sem_end   = (date.fromisoformat(str(c_end_)) + timedelta(days=7)).isoformat()
+                semana = _sum_janela(rows, sem_start, sem_end)
+            except Exception:
+                pass
+        total = {
+            "vendas": antecipadas["vendas"] + aberto["vendas"] + semana["vendas"],
+            "faturamento": antecipadas["faturamento"] + aberto["faturamento"] + semana["faturamento"],
+        }
+        return {"antecipadas": antecipadas, "aberto": aberto, "semana_seguinte": semana, "total": total}
+
+    def _semana_seguinte_de(hotmart_obj) -> dict:
+        rows = getattr(hotmart_obj, "timeline", []) or []
+        v = sum(_i(t.get("vendas")) for t in rows)
+        f = sum(float(t.get("faturamento") or 0) for t in rows)
+        return {"vendas": v, "faturamento": f}
+
+    def _com_semana_seguinte(vpp: dict, semana: dict) -> dict:
+        if not vpp:
+            return vpp
+        vpp["semana_seguinte"] = semana
+        vpp["total"] = {
+            "vendas": vpp["antecipadas"]["vendas"] + vpp["aberto"]["vendas"] + semana["vendas"],
+            "faturamento": vpp["antecipadas"]["faturamento"] + vpp["aberto"]["faturamento"] + semana["faturamento"],
+        }
+        return vpp
+
+    vendas_por_periodo = {}
+    prev_vendas_por_periodo = {}
+    if launch:
+        vendas_por_periodo = _vendas_por_periodo(timeline_raw, c_start, c_end, cfg.get("abertura_oficial_carrinho") or "")
+        # A janela padrão do lançamento termina em carrinho_end_date, então
+        # "Semana Seguinte" (7 dias depois) nunca aparece na timeline normal
+        # — usa a consulta extra feita só pra esse bloco.
+        if hotmart_semana_seguinte is not None:
+            vendas_por_periodo = _com_semana_seguinte(vendas_por_periodo, _semana_seguinte_de(hotmart_semana_seguinte))
+        if previous:
+            prev_hm_tl = getattr(prev_hotmart, "timeline", []) or []
+            prev_vendas_por_periodo = _vendas_por_periodo(
+                prev_hm_tl, prev_cfg.get("carrinho_start_date") or "", prev_cfg.get("carrinho_end_date") or "",
+                prev_cfg.get("abertura_oficial_carrinho") or "",
+            )
+            if prev_hotmart_semana_seguinte is not None:
+                prev_vendas_por_periodo = _com_semana_seguinte(prev_vendas_por_periodo, _semana_seguinte_de(prev_hotmart_semana_seguinte))
 
     pagamentos_hm = getattr(hotmart, "pagamentos", []) or []
     total_tmb  = _i(getattr(vendas, "tmb_vendas",    0))
@@ -689,6 +768,8 @@ def _compute_debriefing_ctx(
         "daily": daily or [],
         # Timeline vendas (Hotmart)
         "timeline": timeline, "max_vendas_dia": max_vendas_dia,
+        # Vendas por Período (antecipadas / carrinho aberto / semana seguinte)
+        "vendas_por_periodo": vendas_por_periodo, "prev_vendas_por_periodo": prev_vendas_por_periodo,
         # Pagamentos
         "pagamentos_hm": pagamentos_hm, "total_tmb": total_tmb,
         "vendas_forma": vendas_forma,

@@ -27,7 +27,9 @@ from frontend.services.fetch import (
     _leads_antigos_compradores, _qualidade_regiao, _caminho_comprador,
     _landing_pages_por_etapa, _leads_x_whatsapp, _vendas_grupos_whatsapp,
     _disparo_resumo, _ebook_compradores, _hotmart_recompra,
+    _launch_cfg,
 )
+from frontend.database_reader import read_hotmart_details
 
 
 async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> dict:
@@ -177,6 +179,42 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
             falhas.append("hotmart_recompra")
             return None
 
+    async def f_hotmart_semana_seguinte():
+        """Vendas Hotmart nos 7 dias após o fechamento do carrinho — fora da
+        janela padrão do lançamento (que termina em carrinho_end_date), por
+        isso precisa de uma consulta à parte só pra alimentar o bloco
+        "Vendas por Período" (Semana Seguinte) do debriefing."""
+        if not launch:
+            return None, None
+
+        def _janela_pos_carrinho(code):
+            from datetime import date, timedelta
+            c_end = _launch_cfg(code).get("carrinho_end_date")
+            if not c_end:
+                return None
+            try:
+                start = (date.fromisoformat(str(c_end)) + timedelta(days=1)).isoformat()
+                end   = (date.fromisoformat(str(c_end)) + timedelta(days=7)).isoformat()
+                return start, end
+            except Exception:
+                return None
+
+        try:
+            curr = None
+            win = _janela_pos_carrinho(launch.code)
+            if win:
+                curr = await run_in_threadpool(read_hotmart_details, launch.code, win[0], win[1])
+            prev_r = None
+            if previous:
+                win_p = _janela_pos_carrinho(previous.code)
+                if win_p:
+                    prev_r = await run_in_threadpool(read_hotmart_details, previous.code, win_p[0], win_p[1])
+            return curr, prev_r
+        except Exception:
+            logger.exception("Debriefing: falha ao buscar vendas da semana seguinte ao carrinho")
+            falhas.append("hotmart_semana_seguinte")
+            return None, None
+
     async def f_previous():
         if not previous:
             return None, None, None, None, None, None
@@ -209,11 +247,13 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         disparo_resumo,
         ebook_compradores,
         hotmart_recompra,
+        (hotmart_semana_seguinte, prev_hotmart_semana_seguinte),
     ) = await asyncio.gather(
         f_creative(), f_leads_antigos(), f_perfil_pesquisa(),
         f_qualidade_regiao(), f_caminho_comprador(), f_previous(),
         f_landing_pages(), f_leads_x_whatsapp(), f_vendas_grupos_whatsapp(),
         f_disparo_resumo(), f_ebook(), f_hotmart_recompra(),
+        f_hotmart_semana_seguinte(),
     )
 
     dbf = _compute_debriefing_ctx(
@@ -237,6 +277,8 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         prev_hotmart=prev_hotmart,
         wa_cost=d.get("wa_cost"),
         prev_wa_cost=prev_wa_cost,
+        hotmart_semana_seguinte=hotmart_semana_seguinte,
+        prev_hotmart_semana_seguinte=prev_hotmart_semana_seguinte,
     )
     return {
         "dbf": dbf,

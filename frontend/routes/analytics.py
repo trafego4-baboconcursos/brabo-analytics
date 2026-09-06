@@ -111,6 +111,12 @@ async def pre_qualificacao(request: Request, launch_code: str | None = None):
     leads_preq = meta_preq_leads + int(round(google_preq_conv))
     cpl_preq = invest_preq / leads_preq if leads_preq > 0 else 0.0
 
+    # ThruViews (Meta) / Views (Google TrueView) — mesma etapa, sem TikTok
+    # ainda (sem fonte de dado integrada).
+    meta_preq_thruviews = int(meta_preq.get("thruplays") or 0)
+    google_preq_views = int(google_preq.get("visualizacoes") or 0)
+    thruviews_preq = meta_preq_thruviews + google_preq_views
+
     ctx = _base_ctx(request, "pre_qualificacao", "Pré-Qualificação", launch, launches,
         meta=meta, google=google,
         daily_breakdown_preq=daily_breakdown_preq,
@@ -121,6 +127,8 @@ async def pre_qualificacao(request: Request, launch_code: str | None = None):
         invest_preq=invest_preq, leads_preq=leads_preq, cpl_preq=cpl_preq,
         meta_preq_gasto=meta_preq_gasto, google_preq_gasto=google_preq_gasto,
         meta_preq_leads=meta_preq_leads, google_preq_conv=google_preq_conv,
+        thruviews_preq=thruviews_preq, meta_preq_thruviews=meta_preq_thruviews,
+        google_preq_views=google_preq_views,
     )
     return templates.TemplateResponse("pre_qualificacao.html", ctx)
 

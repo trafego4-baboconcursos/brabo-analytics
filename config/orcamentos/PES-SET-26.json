@@ -1,0 +1,436 @@
+{
+  "meta": {
+    "2026-08-31": {
+      "quente_principal": 7832.16,
+      "quente_potencial": 3356.64,
+      "quente_reels": 3196.8,
+      "quente_imagem": 1598.4,
+      "frio_principal": 4656.96,
+      "frio_potencial": 1995.84,
+      "frio_reels": 1900.8,
+      "frio_imagem": 950.4,
+      "especifico_principal": 1296.0
+    },
+    "2026-09-01": {
+      "quente_principal": 8321.67,
+      "quente_potencial": 3566.43,
+      "quente_reels": 3396.6,
+      "quente_imagem": 1698.3,
+      "frio_principal": 4948.02,
+      "frio_potencial": 2120.58,
+      "frio_reels": 2019.6,
+      "frio_imagem": 1009.8,
+      "especifico_principal": 1377.0
+    },
+    "2026-09-02": {
+      "quente_principal": 8321.67,
+      "quente_potencial": 3566.43,
+      "quente_reels": 3396.6,
+      "quente_imagem": 1698.3,
+      "frio_principal": 4948.02,
+      "frio_potencial": 2120.58,
+      "frio_reels": 2019.6,
+      "frio_imagem": 1009.8,
+      "especifico_principal": 1377.0
+    },
+    "2026-09-03": {
+      "quente_principal": 8321.67,
+      "quente_potencial": 3566.43,
+      "quente_reels": 3396.6,
+      "quente_imagem": 1698.3,
+      "frio_principal": 4948.02,
+      "frio_potencial": 2120.58,
+      "frio_reels": 2019.6,
+      "frio_imagem": 1009.8,
+      "especifico_principal": 1377.0
+    },
+    "2026-09-04": {
+      "quente_principal": 5660.0,
+      "quente_potencial": 2937.06,
+      "quente_reels": 2797.2,
+      "quente_imagem": 1398.6,
+      "frio_principal": 3365.41,
+      "frio_potencial": 1746.36,
+      "frio_reels": 1663.2,
+      "frio_imagem": 831.6,
+      "especifico_principal": 936.57,
+      "quente_principal_best_ads": 1200.0,
+      "frio_principal_best_ads": 900.0
+    },
+    "2026-09-05": {
+      "quente_principal": 4851.43,
+      "quente_potencial": 2517.48,
+      "quente_reels": 2397.6,
+      "quente_imagem": 1198.8,
+      "frio_principal": 2884.63,
+      "frio_potencial": 1496.88,
+      "frio_reels": 1425.6,
+      "frio_imagem": 712.8,
+      "especifico_principal": 802.77,
+      "quente_principal_best_ads": 1028.57,
+      "frio_principal_best_ads": 771.43
+    },
+    "2026-09-06": {
+      "quente_principal": 4447.15,
+      "quente_potencial": 2307.69,
+      "quente_reels": 2197.8,
+      "quente_imagem": 1098.9,
+      "frio_principal": 2644.25,
+      "frio_potencial": 1372.14,
+      "frio_reels": 1306.8,
+      "frio_imagem": 653.4,
+      "especifico_principal": 735.88,
+      "quente_principal_best_ads": 942.86,
+      "frio_principal_best_ads": 707.14
+    },
+    "2026-09-07": {
+      "quente_principal": 6064.29,
+      "quente_potencial": 3146.85,
+      "quente_reels": 2997.0,
+      "quente_imagem": 1498.5,
+      "frio_principal": 3605.79,
+      "frio_potencial": 1871.1,
+      "frio_reels": 1782.0,
+      "frio_imagem": 891.0,
+      "especifico_principal": 1003.47,
+      "quente_principal_best_ads": 1285.71,
+      "frio_principal_best_ads": 964.29
+    },
+    "2026-09-08": {
+      "quente_principal": 5660.0,
+      "quente_potencial": 2937.06,
+      "quente_reels": 2797.2,
+      "quente_imagem": 1398.6,
+      "frio_principal": 3365.41,
+      "frio_potencial": 1746.36,
+      "frio_reels": 1663.2,
+      "frio_imagem": 831.6,
+      "especifico_principal": 936.57,
+      "quente_principal_best_ads": 1200.0,
+      "frio_principal_best_ads": 900.0
+    },
+    "2026-09-09": {
+      "quente_principal": 5660.0,
+      "quente_potencial": 2937.06,
+      "quente_reels": 2797.2,
+      "quente_imagem": 1398.6,
+      "frio_principal": 3365.41,
+      "frio_potencial": 1746.36,
+      "frio_reels": 1663.2,
+      "frio_imagem": 831.6,
+      "especifico_principal": 936.57,
+      "quente_principal_best_ads": 1200.0,
+      "frio_principal_best_ads": 900.0
+    },
+    "2026-09-10": {
+      "quente_principal": 5255.72,
+      "quente_potencial": 2727.27,
+      "quente_reels": 2597.4,
+      "quente_imagem": 1298.7,
+      "frio_principal": 3125.02,
+      "frio_potencial": 1621.62,
+      "frio_reels": 1544.4,
+      "frio_imagem": 772.2,
+      "especifico_principal": 869.67,
+      "quente_principal_best_ads": 1114.29,
+      "frio_principal_best_ads": 835.71
+    },
+    "2026-09-11": {
+      "quente_principal": 4851.43,
+      "quente_potencial": 2517.48,
+      "quente_reels": 2397.6,
+      "quente_imagem": 1198.8,
+      "frio_principal": 2884.63,
+      "frio_potencial": 1496.88,
+      "frio_reels": 1425.6,
+      "frio_imagem": 712.8,
+      "especifico_principal": 802.77,
+      "quente_principal_best_ads": 1028.57,
+      "frio_principal_best_ads": 771.43
+    },
+    "2026-09-12": {
+      "quente_principal": 4851.43,
+      "quente_potencial": 2517.48,
+      "quente_reels": 2397.6,
+      "quente_imagem": 1198.8,
+      "frio_principal": 2884.63,
+      "frio_potencial": 1496.88,
+      "frio_reels": 1425.6,
+      "frio_imagem": 712.8,
+      "especifico_principal": 802.77,
+      "quente_principal_best_ads": 1028.57,
+      "frio_principal_best_ads": 771.43
+    },
+    "2026-09-13": {
+      "quente_principal": 4447.15,
+      "quente_potencial": 2307.69,
+      "quente_reels": 2197.8,
+      "quente_imagem": 1098.9,
+      "frio_principal": 2644.25,
+      "frio_potencial": 1372.14,
+      "frio_reels": 1306.8,
+      "frio_imagem": 653.4,
+      "especifico_principal": 735.88,
+      "quente_principal_best_ads": 942.86,
+      "frio_principal_best_ads": 707.14
+    },
+    "2026-09-14": {
+      "quente_principal": 2021.43,
+      "quente_potencial": 1048.95,
+      "quente_reels": 999.0,
+      "quente_imagem": 499.5,
+      "frio_principal": 1201.93,
+      "frio_potencial": 623.7,
+      "frio_reels": 594.0,
+      "frio_imagem": 297.0,
+      "especifico_principal": 334.49,
+      "quente_principal_best_ads": 428.57,
+      "frio_principal_best_ads": 321.43
+    }
+  },
+  "meta_campaign_ids": {
+    "quente_principal": "120247622216120014",
+    "quente_potencial": "120247626817370014",
+    "quente_reels": "120247626831850014",
+    "quente_imagem": "120247626823890014",
+    "frio_principal": "120247622471980014",
+    "frio_potencial": "120247626820480014",
+    "frio_reels": "120247626836220014",
+    "frio_imagem": "120247626828600014",
+    "especifico_principal": "120256239109830012",
+    "quente_principal_best_ads": "120247741819400014",
+    "frio_principal_best_ads": "120247741830090014"
+  },
+  "google_budget_ids": {
+    "quente_principal": "15835393096",
+    "quente_potencial": "15833484933",
+    "frio_principal": "15832025181",
+    "frio_potencial": "15828304478",
+    "especifico_principal": "15837069583",
+    "especifico_potencial": "15839810601",
+    "quente_principal_old": "15521095583"
+  },
+  "google": {
+    "2026-08-31": {
+      "quente_principal": 8769.6,
+      "quente_potencial": 3758.4,
+      "frio_principal": 907.2,
+      "frio_potencial": 388.8,
+      "especifico_principal": 2592.0
+    },
+    "2026-09-01": {
+      "quente_principal": 9317.7,
+      "quente_potencial": 3993.3,
+      "frio_principal": 963.9,
+      "frio_potencial": 413.1,
+      "especifico_principal": 1927.8,
+      "especifico_potencial": 826.2
+    },
+    "2026-09-02": {
+      "quente_principal": 9317.7,
+      "quente_potencial": 3993.3,
+      "frio_principal": 963.9,
+      "frio_potencial": 413.1,
+      "especifico_principal": 1927.8,
+      "especifico_potencial": 826.2
+    },
+    "2026-09-03": {
+      "quente_principal": 9317.7,
+      "quente_potencial": 3993.3,
+      "frio_principal": 963.9,
+      "frio_potencial": 413.1,
+      "especifico_principal": 1927.8,
+      "especifico_potencial": 826.2,
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-04": {
+      "quente_principal": 6973.4,
+      "quente_potencial": 2988.6,
+      "frio_principal": 793.8,
+      "frio_potencial": 340.2,
+      "especifico_principal": 1587.6,
+      "especifico_potencial": 680.4,
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-05": {
+      "quente_principal": 5877.2,
+      "quente_potencial": 2518.8,
+      "frio_principal": 680.4,
+      "frio_potencial": 291.6,
+      "especifico_principal": 1360.8,
+      "especifico_potencial": 583.2,
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-06": {
+      "quente_principal": 5329.1,
+      "quente_potencial": 2283.9,
+      "frio_principal": 623.7,
+      "frio_potencial": 267.3,
+      "especifico_principal": 1247.4,
+      "especifico_potencial": 534.6,
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-07": {
+      "quente_principal": 7521.5,
+      "quente_potencial": 3223.5,
+      "frio_principal": 850.5,
+      "frio_potencial": 364.5,
+      "especifico_principal": 1701.0,
+      "especifico_potencial": 729.0,
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-08": {
+      "quente_principal": 6973.4,
+      "quente_potencial": 2988.6,
+      "frio_principal": 793.8,
+      "frio_potencial": 340.2,
+      "especifico_principal": 1587.6,
+      "especifico_potencial": 680.4,
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-09": {
+      "quente_principal": 6973.4,
+      "quente_potencial": 2988.6,
+      "frio_principal": 793.8,
+      "frio_potencial": 340.2,
+      "especifico_principal": 1587.6,
+      "especifico_potencial": 680.4,
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-10": {
+      "quente_principal": 6425.3,
+      "quente_potencial": 2753.7,
+      "frio_principal": 737.1,
+      "frio_potencial": 315.9,
+      "especifico_principal": 1474.2,
+      "especifico_potencial": 631.8,
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-11": {
+      "quente_principal": 5877.2,
+      "quente_potencial": 2518.8,
+      "frio_principal": 680.4,
+      "frio_potencial": 291.6,
+      "especifico_principal": 1360.8,
+      "especifico_potencial": 583.2,
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-12": {
+      "quente_principal": 5877.2,
+      "quente_potencial": 2518.8,
+      "frio_principal": 680.4,
+      "frio_potencial": 291.6,
+      "especifico_principal": 1360.8,
+      "especifico_potencial": 583.2,
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-13": {
+      "quente_principal": 5329.1,
+      "quente_potencial": 2283.9,
+      "frio_principal": 623.7,
+      "frio_potencial": 267.3,
+      "especifico_principal": 1247.4,
+      "especifico_potencial": 534.6,
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-14": {
+      "quente_principal": 2040.5,
+      "quente_potencial": 874.5,
+      "frio_principal": 283.5,
+      "frio_potencial": 121.5,
+      "especifico_principal": 567.0,
+      "especifico_potencial": 243.0,
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-15": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-16": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-17": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-18": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-19": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-20": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-21": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-22": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-23": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-24": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-25": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-26": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-27": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-28": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-29": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-09-30": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-10-01": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-10-02": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-10-03": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-10-04": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-10-05": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-10-06": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-10-07": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-10-08": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-10-09": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-10-10": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-10-11": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-10-12": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-10-13": {
+      "quente_principal_old": 1000.0
+    },
+    "2026-10-14": {
+      "quente_principal_old": 1000.0
+    }
+  }
+}

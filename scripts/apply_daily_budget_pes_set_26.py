@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Aplica o orcamento diario (Facebook + Google) das campanhas de captacao do PES-SET-26,
-lendo o valor do dia em performance-manager/PES-SET-26/orcamento_diario.json.
+lendo o valor do dia em config/orcamentos/PES-SET-26.json.
 
 Uso:
     python scripts/apply_daily_budget_pes_set_26.py                # aplica o orcamento de hoje
@@ -24,7 +24,7 @@ import requests
 from dotenv import load_dotenv
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PLAN_PATH = os.path.join(ROOT, "performance-manager", "PES-SET-26", "orcamento_diario.json")
+PLAN_PATH = os.path.join(ROOT, "config", "orcamentos", "PES-SET-26.json")
 
 load_dotenv(os.path.join(ROOT, ".env"))
 

@@ -110,6 +110,56 @@
 
     </div>
 
+    {# ── Taxa de Conversão da Página de Captura ───────────────────────────── #}
+    {% if conversao_paginas %}
+    <div class="info-box">
+      <h2>Taxa de Conversão da Página de Captura</h2>
+      <div class="table-wrap" style="overflow-x:auto;">
+        <table class="table-compact" style="font-size:12px;">
+          <thead>
+            <tr>
+              <th class="th-dark">Página</th>
+              <th class="th-dark" style="text-align:right">Sessões da Pág Captura</th>
+              <th class="th-dark" style="text-align:right">CTR →</th>
+              <th class="th-dark" style="text-align:right">Sessões da Pág. Obrigado</th>
+              <th class="th-dark" style="text-align:right">CTR →</th>
+              <th class="th-dark" style="text-align:right">Clicaram em Entrar no grupo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set tot = namespace(captura=0, obrigado=0, grupo=0) %}
+            {% for p in conversao_paginas %}
+              {% set tot.captura = tot.captura + p.sessoes_captura %}
+              {% set tot.obrigado = tot.obrigado + p.sessoes_obrigado %}
+              {% set tot.grupo = tot.grupo + p.clicaram_grupo %}
+            {% endfor %}
+            <tr style="background:var(--bs-sidebar-dark);color:#fff;font-weight:700;">
+              <td>Total</td>
+              <td style="text-align:right;">{{ tot.captura | num }}</td>
+              <td style="text-align:right;">{{ (tot.obrigado / tot.captura * 100) | pct if tot.captura > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ tot.obrigado | num }}</td>
+              <td style="text-align:right;">{{ (tot.grupo / tot.obrigado * 100) | pct if tot.obrigado > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ tot.grupo | num }}</td>
+            </tr>
+            {% for p in conversao_paginas %}
+            <tr>
+              <td class="td-bold">{{ p.pagina }}</td>
+              <td style="text-align:right;">{{ p.sessoes_captura | num }}</td>
+              <td style="text-align:right;">{{ p.ctr_obrigado | pct }}</td>
+              <td style="text-align:right;">{{ p.sessoes_obrigado | num }}</td>
+              <td style="text-align:right;">{{ p.ctr_grupo | pct }}</td>
+              <td style="text-align:right;">{{ p.clicaram_grupo | num }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
+        Fonte: Google Analytics 4. "Sessões da Pág. Obrigado" e "Clicaram em Entrar no grupo" vêm dos eventos <code>generate_lead</code>/<code>qualify_lead</code> (disparados na própria página, sem navegação separada).
+      </div>
+    </div>
+    {% endif %}
+
     {# ── Highlights ─────────────────────────────────────────────────────── #}
     {% if meta and meta.top_por_leads %}
     <div class="highlights">

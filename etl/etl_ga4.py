@@ -139,6 +139,125 @@ def fetch_report(since: str, until: str, property_ids: list[str] | None = None) 
     return df
 
 
+TABLE_EVENTS = "ga4_events_daily"
+
+# Eventos específicos pro funil "Taxa de Conversão da Página de Captura"
+# (pauta: Captação/Pré-Qualificação) — generate_lead marca que a pessoa
+# chegou na etapa de "obrigado" (lead gerado); qualify_lead é o clique em
+# "Entrar no grupo" do WhatsApp (confirmado com o usuário em 06/09/26).
+# Os dois disparam na PRÓPRIA landing page (sem navegação pra uma URL
+# "/obg-..." separada — a página de obrigado é um passo client-side).
+EVENTOS_FUNIL = ["generate_lead", "qualify_lead"]
+
+EVENTS_DIMENSIONS = [
+    "date",
+    "sessionCampaignName",
+    "landingPage",
+    "eventName",
+]
+
+EVENTS_METRICS = ["eventCount", "sessions"]
+
+
+def fetch_events_report(since: str, until: str, property_ids: list[str] | None = None) -> pd.DataFrame:
+    """Sessões/eventos de generate_lead e qualify_lead por landing page —
+    alimenta o funil de conversão da página de captura (Captação/Pré-Quali).
+    Consulta separada do fetch_report principal: juntar eventName na mesma
+    tabela infla `sessions` (uma sessão pode disparar vários eventos)."""
+    property_ids = property_ids or [
+        p.strip() for p in os.environ["GA4_PROPERTY_IDS"].split(",") if p.strip()
+    ]
+    headers = {
+        "Authorization": f"Bearer {_get_access_token()}",
+        "Content-Type": "application/json",
+    }
+
+    records = []
+    for prop_id in property_ids:
+        offset = 0
+        while True:
+            payload = {
+                "dateRanges": [{"startDate": since, "endDate": until}],
+                "dimensions": [{"name": d} for d in EVENTS_DIMENSIONS],
+                "metrics": [{"name": m} for m in EVENTS_METRICS],
+                "dimensionFilter": {
+                    "filter": {
+                        "fieldName": "eventName",
+                        "inListFilter": {"values": EVENTOS_FUNIL},
+                    }
+                },
+                "limit": PAGE_SIZE,
+                "offset": offset,
+            }
+            r = http_post(f"{DATA_API}/properties/{prop_id}:runReport",
+                          headers=headers, json=payload)
+            data = r.json()
+            rows = data.get("rows", [])
+            for row in rows:
+                dims = [v.get("value", "") for v in row.get("dimensionValues", [])]
+                mets = [v.get("value", "0") for v in row.get("metricValues", [])]
+                raw_date = dims[0]
+                date_iso = f"{raw_date[:4]}-{raw_date[4:6]}-{raw_date[6:8]}" if len(raw_date) == 8 else raw_date
+                campaign = dims[1]
+                records.append({
+                    "date":              date_iso,
+                    "property_id":       prop_id,
+                    "landing_page":      dims[2],
+                    "event_name":        dims[3],
+                    "lancamento_codigo": resolve_launch_code(campaign, date_iso),
+                    "event_count":       int(mets[0] or 0),
+                    "sessions":          int(mets[1] or 0),
+                })
+            row_count = data.get("rowCount", 0)
+            offset += len(rows)
+            if not rows or offset >= row_count:
+                break
+
+    df = pd.DataFrame(records)
+    logger.info("GA4 eventos: %d linhas no total (%s a %s)", len(df), since, until)
+    return df
+
+
+DDL_EVENTS = f"""
+CREATE TABLE IF NOT EXISTS {TABLE_EVENTS} (
+  date DATE NOT NULL,
+  property_id TEXT NOT NULL,
+  landing_page TEXT,
+  event_name TEXT,
+  lancamento_codigo TEXT,
+  event_count BIGINT DEFAULT 0,
+  sessions BIGINT DEFAULT 0,
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_ga4_events_date ON {TABLE_EVENTS}(date);
+CREATE INDEX IF NOT EXISTS idx_ga4_events_launch ON {TABLE_EVENTS}(lancamento_codigo);
+"""
+
+_GA4_EVENTS_REQUIRED_COLS = ["date", "property_id", "event_name", "sessions"]
+
+
+def ensure_table_events(engine):
+    with engine.begin() as conn:
+        for stmt in DDL_EVENTS.strip().split(";"):
+            if stmt.strip():
+                conn.execute(text(stmt))
+
+
+def upsert_events(df: pd.DataFrame, since: str, until: str):
+    if not validate_dataframe(df, _GA4_EVENTS_REQUIRED_COLS, TABLE_EVENTS, logger):
+        return
+    df["updated_at"] = datetime.now(timezone.utc).isoformat()
+    engine = get_engine()
+    ensure_table_events(engine)
+    with engine.begin() as conn:
+        conn.execute(
+            text(f"DELETE FROM {TABLE_EVENTS} WHERE date BETWEEN :s AND :u"),
+            {"s": since, "u": until},
+        )
+    df.to_sql(TABLE_EVENTS, engine, if_exists="append", index=False, method="multi", chunksize=500)
+    logger.info("Upsert concluído: %d linhas gravadas em '%s'", len(df), TABLE_EVENTS)
+
+
 DDL = f"""
 CREATE TABLE IF NOT EXISTS {TABLE} (
   date DATE NOT NULL,
@@ -198,6 +317,9 @@ def main():
     props = [p.strip() for p in args.properties.split(",")] if args.properties else None
     df = fetch_report(args.since, args.until, props)
     upsert(df, args.since, args.until)
+
+    df_events = fetch_events_report(args.since, args.until, props)
+    upsert_events(df_events, args.since, args.until)
 
 
 if __name__ == "__main__":

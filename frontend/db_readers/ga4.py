@@ -80,3 +80,90 @@ def read_landing_pages_por_etapa(launch_folder_or_code: Any, top_n: int = 8) -> 
             for _, r in grouped.iterrows()
         ]
     return result
+
+
+_VERSAO_RE = re.compile(r"-(v\d+(?:-pq-(?:fb|yt))?)$")
+
+
+def _versao_da_pagina(landing_page: Any) -> str | None:
+    """Extrai a versão da página do path (ex: "v5-pq-fb", "v8") — mesmo
+    sufixo usado tanto na LP quanto na página de obrigado, então serve pra
+    agrupar as duas. None quando o path não segue o padrão."""
+    lp = str(landing_page or "").lower().rstrip("/")
+    m = _VERSAO_RE.search(lp)
+    return m.group(1) if m else None
+
+
+def _rotulo_versao(versao: str) -> str:
+    """"v5-pq-fb" -> "V5-PQ-FB" (Pré-Quali); "v8" -> "Versão 8" (Captação)."""
+    if "-pq-" in versao:
+        return versao.upper()
+    num = versao.lstrip("v")
+    return f"Versão {num}"
+
+
+def read_conversao_pagina_captura(launch_folder_or_code: Any, top_n: int = 10) -> dict[str, list[dict]]:
+    """Funil de conversão da página de captura, por etapa e versão de
+    página: Sessões da LP → CTR → "chegou no obrigado" (evento
+    generate_lead) → CTR → "clicou pra entrar no grupo" (evento
+    qualify_lead). Os dois eventos disparam na própria LP (client-side,
+    sem navegar pra uma URL de obrigado separada) — confirmado com o
+    usuário em 06/09/26. Pauta debriefing/Captação/Pré-Qualificação."""
+    code = _extract_launch_code(launch_folder_or_code)
+    code_slug = re.sub(r"[^a-z0-9]+", "-", code.lower()).strip("-") if code else ""
+    engine = _get_engine()
+
+    df_sessions = pd.read_sql(
+        text("SELECT landing_page, sessions FROM ga4_daily WHERE lancamento_codigo = :code"),
+        engine, params={"code": code},
+    )
+    df_events = pd.read_sql(
+        text("SELECT landing_page, event_name, sessions FROM ga4_events_daily WHERE lancamento_codigo = :code"),
+        engine, params={"code": code},
+    )
+    if df_sessions.empty:
+        return {etapa: [] for etapa in _ETAPAS}
+
+    df_sessions["etapa"] = df_sessions["landing_page"].map(lambda lp: _etapa_from_landing_page(lp, code_slug))
+    df_sessions["versao"] = df_sessions["landing_page"].map(_versao_da_pagina)
+    df_sessions = df_sessions.dropna(subset=["etapa", "versao"])
+
+    if not df_events.empty:
+        df_events["etapa"] = df_events["landing_page"].map(lambda lp: _etapa_from_landing_page(lp, code_slug))
+        df_events["versao"] = df_events["landing_page"].map(_versao_da_pagina)
+        df_events = df_events.dropna(subset=["etapa", "versao"])
+
+    result: dict[str, list[dict]] = {}
+    for etapa in _ETAPAS:
+        d = df_sessions[df_sessions["etapa"] == etapa]
+        if d.empty:
+            result[etapa] = []
+            continue
+        sessoes_por_versao = d.groupby("versao")["sessions"].sum()
+
+        if not df_events.empty:
+            de = df_events[df_events["etapa"] == etapa]
+            gen_lead = de[de["event_name"] == "generate_lead"].groupby("versao")["sessions"].sum()
+            qual_lead = de[de["event_name"] == "qualify_lead"].groupby("versao")["sessions"].sum()
+        else:
+            gen_lead = pd.Series(dtype=float)
+            qual_lead = pd.Series(dtype=float)
+
+        rows = []
+        for versao, sessoes in sessoes_por_versao.items():
+            sessoes = int(sessoes)
+            if sessoes <= 0:
+                continue
+            obrigado = int(gen_lead.get(versao, 0))
+            grupo = int(qual_lead.get(versao, 0))
+            rows.append({
+                "pagina": _rotulo_versao(versao),
+                "sessoes_captura": sessoes,
+                "ctr_obrigado": (obrigado / sessoes * 100) if sessoes > 0 else 0.0,
+                "sessoes_obrigado": obrigado,
+                "ctr_grupo": (grupo / obrigado * 100) if obrigado > 0 else 0.0,
+                "clicaram_grupo": grupo,
+            })
+        rows.sort(key=lambda r: r["sessoes_captura"], reverse=True)
+        result[etapa] = rows[:top_n]
+    return result

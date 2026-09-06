@@ -17,7 +17,7 @@ from frontend.services.fetch import (
     _launch_cfg, _perfil_por_anuncio, _pesquisa_engajamento,
     _leads_antigos_compradores, _qualidade_regiao, _caminho_comprador,
     _landing_pages_por_etapa, _leads_x_whatsapp, _vendas_grupos_whatsapp,
-    _disparo_resumo,
+    _disparo_resumo, _conversao_pagina_captura,
 )
 from frontend.services.calendario import build_calendario_ctx
 from frontend.services.debriefing_build import build_debriefing_context
@@ -73,6 +73,13 @@ async def captacao(request: Request, launch_code: str | None = None):
     valor_medio_lead = ads_invest / leads_meta if leads_meta > 0 else 0.0
     prog_invest = min(100.0, ads_invest / goal_invest * 100) if goal_invest > 0 else None
 
+    conversao_pagina_captura = None
+    if launch:
+        try:
+            conversao_pagina_captura = await run_in_threadpool(_conversao_pagina_captura, launch)
+        except Exception:
+            logger.exception("Captação: falha ao montar conversão da página de captura (GA4)")
+
     ctx = _base_ctx(request, "captacao", "Captação", launch, launches,
         meta=meta, google=google, vendas=vendas, wa_gasto=wa_gasto,
         meta_capt_gasto=meta_capt_gasto, google_capt_gasto=google_capt_gasto,
@@ -83,6 +90,7 @@ async def captacao(request: Request, launch_code: str | None = None):
         prog_leads=prog_leads, prog_invest=prog_invest,
         daily_breakdown=daily_breakdown,
         daily_breakdown_preq=daily_breakdown_preq,
+        conversao_paginas=(conversao_pagina_captura or {}).get("Captação") or [],
         data_errors=d.get("_errors", []),
     )
     return templates.TemplateResponse("dashboard.html", ctx)
@@ -117,12 +125,20 @@ async def pre_qualificacao(request: Request, launch_code: str | None = None):
     google_preq_views = int(google_preq.get("visualizacoes") or 0)
     thruviews_preq = meta_preq_thruviews + google_preq_views
 
+    conversao_pagina_captura = None
+    if launch:
+        try:
+            conversao_pagina_captura = await run_in_threadpool(_conversao_pagina_captura, launch)
+        except Exception:
+            logger.exception("Pré-Qualificação: falha ao montar conversão da página de captura (GA4)")
+
     ctx = _base_ctx(request, "pre_qualificacao", "Pré-Qualificação", launch, launches,
         meta=meta, google=google,
         daily_breakdown_preq=daily_breakdown_preq,
         meta_ads_preq=meta_ads_preq,
         youtube_ads_preq=youtube_ads_preq,
         drive_thumbnails=d.get("drive_thumbnails") or {},
+        conversao_paginas=(conversao_pagina_captura or {}).get("Pré-Qualificação") or [],
         data_errors=d.get("_errors", []),
         invest_preq=invest_preq, leads_preq=leads_preq, cpl_preq=cpl_preq,
         meta_preq_gasto=meta_preq_gasto, google_preq_gasto=google_preq_gasto,

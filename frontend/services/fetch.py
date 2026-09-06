@@ -160,6 +160,12 @@ def _landing_pages_por_etapa(launch: Any):
                            lambda: read_landing_pages_por_etapa(launch.code))
 
 
+def _conversao_pagina_captura(launch: Any):
+    from frontend.db_readers.ga4 import read_conversao_pagina_captura
+    return _get_or_compute(launch.code, "conversao_pagina_captura",
+                           lambda: read_conversao_pagina_captura(launch.code))
+
+
 def _wa_cost(launch: Any):
     """Custo de WhatsApp (config/whatsapp_accounts.yaml, filtrado por produto)
     na MESMA janela usada pro investimento de Meta/Google (_window), pra somar

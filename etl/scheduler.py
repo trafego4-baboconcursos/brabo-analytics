@@ -15,7 +15,7 @@ import threading
 import logging
 from functools import partial
 from logging.handlers import RotatingFileHandler
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from dotenv import load_dotenv
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -189,7 +189,11 @@ def main() -> None:
         misfire_grace_time=300,
         id="etl_carga",
         name="ETL Brabo Analytics",
-        next_run_time=datetime.now(),  # executa imediatamente ao iniciar
+        # datetime "aware" (UTC) — um datetime.now() ingênuo aqui é
+        # interpretado pelo APScheduler como já estando no timezone do
+        # scheduler (America/Sao_Paulo); como o relógio do container é UTC,
+        # isso empurrava a rodada "imediata" pra 3h no futuro a cada restart.
+        next_run_time=datetime.now(timezone.utc),
     )
 
     # Reprocessamento profundo diário (janela de 18 dias), 3h40 da madrugada:
@@ -238,7 +242,7 @@ def main() -> None:
     scheduler.add_job(
         _catch_up_alerta,
         trigger="date",
-        run_date=datetime.now() + timedelta(minutes=2),
+        run_date=datetime.now(timezone.utc) + timedelta(minutes=2),  # aware, mesmo motivo do job acima
         id="alerta_orcamento_catchup",
         name="Catch-up do Alerta de Orçamento (boot)",
     )

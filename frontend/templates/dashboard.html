@@ -176,7 +176,7 @@
           <tbody>
             {% set total_meta = meta.total_gasto or 1 %}
             {% for etapa, d in meta.por_etapa.items() %}
-            <tr {% if d.gasto == 0 %}style="opacity:0.45;"{% endif %}>
+            <tr {% if etapa != "Captação" %}style="opacity:0.45;"{% endif %}>
               <td><span class="bs-pill meta">{{ etapa }}</span></td>
               <td class="numero">{{ d.gasto | brl }}</td>
               <td>
@@ -219,7 +219,7 @@
           <tbody>
             {% set total_google = google.total_custo or 1 %}
             {% for etapa, d in google.por_etapa.items() %}
-            <tr {% if d.custo == 0 %}style="opacity:0.45;"{% endif %}>
+            <tr {% if etapa != "Captação" %}style="opacity:0.45;"{% endif %}>
               <td><span class="bs-pill google">{{ etapa }}</span></td>
               <td class="numero">{{ d.custo | brl }}</td>
               <td>

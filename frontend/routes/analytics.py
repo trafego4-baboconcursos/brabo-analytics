@@ -112,6 +112,7 @@ async def pre_qualificacao(request: Request, launch_code: str | None = None):
     cpl_preq = invest_preq / leads_preq if leads_preq > 0 else 0.0
 
     ctx = _base_ctx(request, "pre_qualificacao", "Pré-Qualificação", launch, launches,
+        meta=meta, google=google,
         daily_breakdown_preq=daily_breakdown_preq,
         meta_ads_preq=meta_ads_preq,
         youtube_ads_preq=youtube_ads_preq,

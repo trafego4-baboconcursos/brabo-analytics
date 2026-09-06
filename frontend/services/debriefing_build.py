@@ -229,7 +229,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
 
     async def f_previous():
         if not previous:
-            return None, None, None, None, None, None
+            return None, None, None, None, None, None, None
         try:
             prev_d = await run_in_threadpool(_fetch_prev_for_debriefing, previous)
             p_meta    = prev_d.get("meta")
@@ -237,14 +237,15 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
             p_vendas  = prev_d.get("vendas")
             p_wa_cost = prev_d.get("wa_cost")
             p_hotmart = prev_d.get("hotmart")
+            p_daily_captacao = prev_d.get("daily_captacao") or []
             p_sales_attr = None
             if getattr(previous, "has_ac", False) and p_vendas:
                 p_sales_attr = await run_in_threadpool(_sales_attribution, previous, p_vendas)
-            return p_meta, p_google, p_vendas, p_wa_cost, p_sales_attr, p_hotmart
+            return p_meta, p_google, p_vendas, p_wa_cost, p_sales_attr, p_hotmart, p_daily_captacao
         except Exception:
             logger.exception("Debriefing: falha ao buscar dados do lançamento anterior")
             falhas.append("lancamento_anterior")
-            return None, None, None, None, None, None
+            return None, None, None, None, None, None, None
 
     (
         (creative_data, creative_data_error),
@@ -252,7 +253,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         (perfil_por_anuncio, pesquisa_engajamento),
         qualidade_regiao,
         caminho_comprador,
-        (prev_meta, prev_google, prev_vendas, prev_wa_cost, prev_sales_attr, prev_hotmart),
+        (prev_meta, prev_google, prev_vendas, prev_wa_cost, prev_sales_attr, prev_hotmart, prev_daily_captacao),
         landing_pages_por_etapa,
         leads_x_whatsapp,
         vendas_grupos_whatsapp,
@@ -294,6 +295,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         prev_hotmart_semana_seguinte=prev_hotmart_semana_seguinte,
         compradores_por_dia_grupo=compradores_por_dia_grupo,
         prev_compradores_por_dia_grupo=prev_compradores_por_dia_grupo,
+        prev_daily_captacao=prev_daily_captacao,
     )
     return {
         "dbf": dbf,

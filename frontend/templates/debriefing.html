@@ -839,6 +839,59 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
     </div>
   </div>
 
+  <!-- Detalhamento por Dia de Captação -->
+  {% if dbf.detalhamento_semanas %}
+  <div class="dbf-section">
+    <div class="dbf-section-title">
+      <i class="ti ti-calendar-stats"></i> Detalhamento por Dia de Captação
+      {% if launch %}<span class="dbf-launch-badge">{{ launch.code }}</span>{% endif %}
+      {% if dbf.has_prev %}<span class="dbf-launch-badge prev">vs {{ dbf.prev_code }}</span>{% endif %}
+    </div>
+    <div class="info-box">
+      <div class="table-wrap">
+        <table class="table-compact" style="font-size:12px;">
+          {% for semana in dbf.detalhamento_semanas %}
+          <thead>
+            <tr>
+              <th class="th-dark" colspan="5">{{ loop.index }}ª Semana de Captação</th>
+            </tr>
+            <tr>
+              <th class="th-dark">Dia</th>
+              <th class="th-dark" style="text-align:right">Investimento</th>
+              <th class="th-dark" style="text-align:right">Vendas</th>
+              <th class="th-dark" style="text-align:right">CPL</th>
+              <th class="th-dark" style="text-align:right">ROAS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in semana %}
+            <tr>
+              <td class="td-bold">{{ d.date }} ({{ d.weekday[:3] }})</td>
+              <td style="text-align:right;">{{ d.invest | brl }}
+                {% if d.prev %}<br>{{ dbadge(d.invest, d.prev.invest, 'neutral') }}{% endif %}
+              </td>
+              <td style="text-align:right;">{{ d.vendas | num }}
+                {% if d.prev %}<br>{{ dbadge(d.vendas, d.prev.vendas) }}{% endif %}
+              </td>
+              <td style="text-align:right;">{{ d.cpl | brl }}
+                {% if d.prev and d.prev.cpl %}<br>{{ dbadge(d.cpl, d.prev.cpl, 'down') }}{% endif %}
+              </td>
+              <td style="text-align:right;">{{ "%.2f"|format(d.roas) }}
+                {% if d.prev and d.prev.roas %}<br>{{ dbadge(d.roas, d.prev.roas) }}{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          {% endfor %}
+        </table>
+      </div>
+      <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
+        Comparação com o lançamento anterior é por posição (dia 1 da Captação vs dia 1 da Captação anterior), não por data de calendário. CPL considera leads de anúncios; ROAS considera vendas Hotmart do dia sobre o investimento do dia.
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 3. DETALHAMENTO DE TRÁFEGO                                 -->

@@ -354,6 +354,7 @@ def _compute_debriefing_ctx(
     prev_hotmart_semana_seguinte: Any = None,
     compradores_por_dia_grupo: Any = None,
     prev_compradores_por_dia_grupo: Any = None,
+    prev_daily_captacao: Any = None,
 ) -> dict:
     def _f(x): return float(x or 0)
     def _i(x): return int(x or 0)
@@ -612,6 +613,71 @@ def _compute_debriefing_ctx(
             if prev_hotmart_semana_seguinte is not None:
                 prev_vendas_por_periodo = _com_semana_seguinte(prev_vendas_por_periodo, _semana_seguinte_de(prev_hotmart_semana_seguinte))
 
+    # Detalhamento por Dia de Captação (pauta debriefing legado) — Investimento/
+    # Vendas/CPL/ROAS por dia, em semanas de 7 dias, comparado dia-a-dia (por
+    # posição — "dia 1 da Captação" vs "dia 1 da Captação anterior", não por
+    # data de calendário) com o lançamento anterior.
+    def _com_iso(rows, start_iso):
+        if not rows or not start_iso:
+            return [dict(r, iso=None) for r in (rows or [])]
+        try:
+            from datetime import date as _date
+            ano = _date.fromisoformat(str(start_iso)).year
+        except Exception:
+            return [dict(r, iso=None) for r in rows]
+        out = []
+        mes_ant = None
+        for r in rows:
+            iso = None
+            try:
+                dd, mm = str(r.get("date", "")).split("/")
+                mm_i = int(mm)
+                if mes_ant is not None and mm_i < mes_ant - 1:
+                    ano += 1
+                mes_ant = mm_i
+                iso = f"{ano:04d}-{mm_i:02d}-{int(dd):02d}"
+            except Exception:
+                pass
+            out.append({**r, "iso": iso})
+        return out
+
+    def _detalhamento_dia_captacao(rows, hotmart_obj):
+        vendas_by_date: dict = {}
+        for t in (getattr(hotmart_obj, "timeline", []) or []):
+            d = t.get("data", "")
+            vendas_by_date.setdefault(d, {"vendas": 0, "faturamento": 0.0})
+            vendas_by_date[d]["vendas"] += _i(t.get("vendas"))
+            vendas_by_date[d]["faturamento"] += float(t.get("faturamento") or 0)
+        out = []
+        for r in rows:
+            v = vendas_by_date.get(r.get("iso"), {"vendas": 0, "faturamento": 0.0})
+            invest = _f(r.get("total_gasto"))
+            out.append({
+                "date": r.get("date"), "weekday": r.get("weekday"),
+                "invest": invest, "vendas": v["vendas"],
+                "cpl": _f(r.get("total_cpl")),
+                "roas": (v["faturamento"] / invest) if invest > 0 else 0.0,
+            })
+        return out
+
+    detalhamento_captacao: list = []
+    prev_detalhamento_captacao: list = []
+    if launch:
+        rows_com_iso = _com_iso(daily or [], cfg.get("captacao_start_date") or "")
+        detalhamento_captacao = _detalhamento_dia_captacao(rows_com_iso, hotmart)
+        if previous and prev_daily_captacao:
+            prev_rows_com_iso = _com_iso(prev_daily_captacao, prev_cfg.get("captacao_start_date") or "")
+            prev_detalhamento_captacao = _detalhamento_dia_captacao(prev_rows_com_iso, prev_hotmart)
+    # Semanas de 7 dias, cada linha com o dia correspondente (mesma posição)
+    # do lançamento anterior anexado em "prev".
+    detalhamento_semanas: list = []
+    for i in range(0, len(detalhamento_captacao), 7):
+        semana = detalhamento_captacao[i:i + 7]
+        for j, row in enumerate(semana):
+            idx = i + j
+            row["prev"] = prev_detalhamento_captacao[idx] if idx < len(prev_detalhamento_captacao) else None
+        detalhamento_semanas.append(semana)
+
     pagamentos_hm = getattr(hotmart, "pagamentos", []) or []
     total_tmb  = _i(getattr(vendas, "tmb_vendas",    0))
     total_hm_v = _i(getattr(vendas, "hotmart_vendas", 0))
@@ -775,6 +841,8 @@ def _compute_debriefing_ctx(
         # Compradores por dia que entraram no grupo (Pré-Quali x Captação)
         "compradores_por_dia_grupo": compradores_por_dia_grupo,
         "prev_compradores_por_dia_grupo": prev_compradores_por_dia_grupo,
+        # Detalhamento por Dia de Captação (Investimento/Vendas/CPL/ROAS)
+        "detalhamento_semanas": detalhamento_semanas,
         # Pagamentos
         "pagamentos_hm": pagamentos_hm, "total_tmb": total_tmb,
         "vendas_forma": vendas_forma,

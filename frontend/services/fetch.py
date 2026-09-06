@@ -187,14 +187,29 @@ def _wa_cost(launch: Any):
 
 
 def _fetch_prev_for_debriefing(launch: Any) -> dict:
-    """Sync: busca meta/google/vendas/custo WhatsApp/detalhes Hotmart do
-    lançamento anterior para comparações no debriefing."""
+    """Sync: busca meta/google/vendas/custo WhatsApp/detalhes Hotmart/
+    breakdown diário de Captação do lançamento anterior para comparações no
+    debriefing."""
     meta    = _meta(launch)    if getattr(launch, "has_meta",   False) else None
     google  = _google(launch)  if getattr(launch, "has_google", False) else None
     vendas  = _vendas(launch)  if getattr(launch, "has_vendas", False) else None
     wa_cost = _wa_cost(launch)
     hotmart = _hotmart_details(launch) if getattr(launch, "has_hotmart", False) else None
-    return {"meta": meta, "google": google, "vendas": vendas, "wa_cost": wa_cost, "hotmart": hotmart}
+    daily_captacao: list = []
+    try:
+        _cfg = _launch_cfg(launch.code)
+        capt_filter = _cfg.get("filtro_captacao") or "captação"
+        capt_start = _cfg.get("captacao_start_date") or _get_global_start(_cfg)
+        capt_end   = _cfg.get("captacao_end_date")   or _get_global_end(_cfg)
+        rows_capt, _ = read_daily_breakdown(
+            launch.code, start_date=capt_start, end_date=capt_end,
+            filtro_captacao=capt_filter, filtro_pre_quali=None,
+        )
+        daily_captacao = rows_capt or []
+    except Exception:
+        logger.exception("_fetch_prev_for_debriefing: falha ao buscar daily_breakdown de %s", launch.code)
+    return {"meta": meta, "google": google, "vendas": vendas, "wa_cost": wa_cost, "hotmart": hotmart,
+            "daily_captacao": daily_captacao}
 
 async def _warm_debriefing(launch: Any, previous: Any, vendas: Any) -> None:
     """Aquece as leituras que só a página /debriefing usa (Typeform perfil e

@@ -269,10 +269,10 @@
             <tr>
               <th class="th-dark">Dia</th>
               <th class="th-dark">Data</th>
-              <th class="th-dark" style="text-align:right">Leads</th>
+              <th class="th-dark" style="text-align:left">Leads</th>
               <th class="th-dark" style="text-align:right">CPL</th>
               <th class="th-dark" style="text-align:right">Gasto</th>
-              <th class="th-meta" style="text-align:right">Leads</th>
+              <th class="th-meta" style="text-align:left">Leads</th>
               <th class="th-meta" style="text-align:right">CPL</th>
               <th class="th-meta" style="text-align:right">Gasto</th>
               <th class="th-youtube" style="text-align:right">Conv.</th>
@@ -306,10 +306,10 @@
             {% endfor %}
             <tr style="background:var(--bs-sidebar-dark);color:#fff;font-weight:700;">
               <td colspan="2">TOTAL</td>
-              <td style="text-align:right;">{{ tot.leads | round(0) | int | num }}</td>
+              <td style="text-align:left;">{{ tot.leads | round(0) | int | num }}</td>
               <td style="text-align:right;">{{ (tot.gasto / tot.leads) | brl if tot.leads > 0 else "–" }}</td>
               <td style="text-align:right;">{{ tot.gasto | brl }}</td>
-              <td style="text-align:right;">{{ tot.ml | round(0) | int | num }}</td>
+              <td style="text-align:left;">{{ tot.ml | round(0) | int | num }}</td>
               <td style="text-align:right;">{{ (tot.mg / tot.ml) | brl if tot.ml > 0 else "–" }}</td>
               <td style="text-align:right;">{{ tot.mg | brl }}</td>
               <td style="text-align:right;">{{ tot.yl | round(0) | int | num }}</td>
@@ -331,10 +331,10 @@
             <tr>
               <td class="td-bold">{{ r.weekday }}</td>
               <td class="td-muted">{{ r.date }}</td>
-              <td style="text-align:right;">{{ r.total_leads | round(0) | int | num }}</td>
+              <td style="text-align:left;">{{ r.total_leads | round(0) | int | num }}</td>
               <td style="text-align:right;">{{ r.total_cpl | brl }}</td>
               <td style="text-align:right;">{{ r.total_gasto | brl }}</td>
-              <td class="td-meta" style="text-align:right;">{{ r.meta_leads | round(0) | int | num }}</td>
+              <td class="td-meta" style="text-align:left;">{{ r.meta_leads | round(0) | int | num }}</td>
               <td style="text-align:right;">{{ r.meta_cpl | brl if r.meta_leads > 0 else "–" }}</td>
               <td style="text-align:right;">{{ r.meta_gasto | brl }}</td>
               <td class="td-google" style="text-align:right;">{{ r.yt_leads | round(0) | int | num }}</td>

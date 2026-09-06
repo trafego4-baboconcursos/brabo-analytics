@@ -1,4 +1,8 @@
 {% extends "base.html" %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+{% endblock %}
 {% block content %}
 <div class="wrap">
 
@@ -66,6 +70,113 @@
         "PQ / Impulsionar" da planilha de referência ainda não tem categorização própria neste sistema (cai dentro de outra etapa ou fica de fora) — não incluído aqui pra não misturar valores.
       </div>
     </div>
+
+    {% macro bloco_publico(titulo, bloco) %}
+    <div class="section">
+      <div class="section-title">{{ titulo }}</div>
+      {% if bloco.linhas %}
+      <div class="table-wrap">
+        <table class="table-compact" style="font-size:12px;">
+          <thead>
+            <tr>
+              <th class="th-dark">Público</th>
+              <th class="th-dark" style="text-align:right">% Previsto</th>
+              <th class="th-dark" style="text-align:right">Previsto</th>
+              <th class="th-dark" style="text-align:right">Realizado</th>
+              <th class="th-dark" style="text-align:right">% Realizado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for l in bloco.linhas %}
+            <tr>
+              <td class="td-bold">{{ l.nome }}</td>
+              <td style="text-align:right;">{{ l.pct_previsto | round(1) }}%</td>
+              <td style="text-align:right;">{{ l.previsto | brl if l.previsto > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ l.realizado | brl if l.realizado > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ l.pct_realizado | round(1) if l.realizado > 0 else "–" }}{{ "%" if l.realizado > 0 }}</td>
+            </tr>
+            {% endfor %}
+            <tr style="background:var(--bs-sidebar-dark);color:#fff;font-weight:700;">
+              <td>TOTAL</td>
+              <td style="text-align:right;">100%</td>
+              <td style="text-align:right;">{{ bloco.total_previsto | brl }}</td>
+              <td style="text-align:right;">{{ bloco.total_realizado | brl }}</td>
+              <td style="text-align:right;">100%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top:12px;font-size:11px;color:var(--bs-ink-muted)">
+        Divisão por plataforma —
+        {% for p, v in bloco.por_plataforma_previsto.items() %}Previsto {{ p | capitalize }}: {{ v | brl }}{% if not loop.last %} · {% endif %}{% endfor %}
+        |
+        {% for p, v in bloco.por_plataforma_realizado.items() %}Realizado {{ p | capitalize }}: {{ v | brl }}{% if not loop.last %} · {% endif %}{% endfor %}
+      </div>
+      {% else %}
+      <div class="no-data" style="padding:24px">
+        <i class="ti ti-folder-off"></i>
+        <p>Público/plataforma ainda não configurados no wizard (Provisão de Verba) para esta etapa.</p>
+      </div>
+      {% endif %}
+    </div>
+    {% endmacro %}
+
+    {{ bloco_publico("2. Investimento em Captação por Público", bloco_capt_publico) }}
+    {{ bloco_publico("4. Investimento em Pré-Qualificação por Público", bloco_preq_publico) }}
+
+    {% macro bloco_curva(titulo, curva, chart_id) %}
+    <div class="section">
+      <div class="section-title">{{ titulo }}</div>
+      {% if curva.dias %}
+      <div class="table-wrap" style="margin-bottom:8px">
+        <table class="table-compact" style="font-size:11px">
+          <tbody>
+            <tr>
+              <td class="td-bold">Total</td>
+              <td style="text-align:right">Previsto: {{ curva.total | brl }}</td>
+              <td style="text-align:right">Realizado: {{ curva.total_realizado | brl }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="line-chart-wrap" style="height:260px">
+        <canvas id="{{ chart_id }}"></canvas>
+      </div>
+      <script>
+      (function() {
+        const dias = {{ curva.dias | tojson }};
+        const labels = dias.map(d => d.data_str);
+        const previsto = dias.map(d => Math.round(d.previsto));
+        const realizado = dias.map(d => Math.round(d.realizado));
+        const accent = getComputedStyle(document.documentElement).getPropertyValue('--bs-accent').trim() || '#f97316';
+        new Chart(document.getElementById('{{ chart_id }}'), {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              { label: 'Previsto', data: previsto, borderColor: '#9ca3af', borderDash: [4,4], borderWidth: 2, pointRadius: 0, fill: false, tension: 0.2 },
+              { label: 'Realizado', data: realizado, borderColor: accent, backgroundColor: accent + '22', borderWidth: 2.5, pointRadius: 2, fill: true, tension: 0.3 },
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom' }, tooltip: { enabled: true } },
+            scales: { x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 90 } }, y: { beginAtZero: true } }
+          }
+        });
+      })();
+      </script>
+      {% else %}
+      <div class="no-data" style="padding:24px">
+        <i class="ti ti-folder-off"></i>
+        <p>Datas de início/fim não configuradas no wizard para esta etapa.</p>
+      </div>
+      {% endif %}
+    </div>
+    {% endmacro %}
+
+    {{ bloco_curva("3. Verba Investida por Dia — Captação", curva_capt, "curvaCaptChart") }}
+    {{ bloco_curva("5. Verba Investida por Dia — Pré-Qualificação", curva_preq, "curvaPreqChart") }}
 
     {% endif %}
 

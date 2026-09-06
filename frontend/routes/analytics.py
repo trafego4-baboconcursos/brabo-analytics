@@ -21,7 +21,10 @@ from frontend.services.fetch import (
 )
 from frontend.services.calendario import build_calendario_ctx
 from frontend.services.debriefing_build import build_debriefing_context
-from frontend.services.orcamento import get_etapa, previsto_por_etapa, previsto_por_subetapa, REMARKETING_SUBETAPAS
+from frontend.services.orcamento import (
+    get_etapa, previsto_por_etapa, previsto_por_subetapa, REMARKETING_SUBETAPAS,
+    buckets_previsto_x_realizado, curva_diaria, com_realizado_diario,
+)
 
 router = APIRouter()
 
@@ -204,10 +207,12 @@ async def verba_page(request: Request, launch_code: str | None = None):
     WhatsApp)."""
     launches = await run_in_threadpool(get_launches)
     launch = resolve_launch(launch_code, launches)
-    d = await _fetch_all_data(launch)
+    d = await _fetch_all_data(launch, needs_daily=True)
     meta, google = d["meta"], d["google"]
     wa_cost = d.get("wa_cost")
     wa_gasto = (wa_cost.get("total_cost_brl") or 0.0) if wa_cost else 0.0
+    daily_capt = d.get("daily_breakdown") or []
+    daily_preq = d.get("daily_breakdown_preq") or []
 
     cfg = await run_in_threadpool(_launch_cfg, launch.code) if launch else {}
     previsto_map = previsto_por_etapa(cfg)
@@ -239,9 +244,21 @@ async def verba_page(request: Request, launch_code: str | None = None):
     previsto_remarketing = sum(previsto_sub.values()) + previsto_whatsapp
     pct_remarketing_previsto = (previsto_remarketing / total_previsto * 100) if total_previsto > 0 else 0.0
 
+    # Bloco 2/4: Investimento em Captação / Pré-Qualificação por Público
+    # (bucket previsto % x realizado real por temperatura Meta/Google).
+    bloco_capt_publico = buckets_previsto_x_realizado(meta, google, cfg, "Captação")
+    bloco_preq_publico = buckets_previsto_x_realizado(meta, google, cfg, "Pré-Qualificação")
+
+    # Curva diária de verba investida (previsto x realizado) — Captação e
+    # Pré-Qualificação.
+    curva_capt = com_realizado_diario(curva_diaria(cfg, "Captação"), daily_capt)
+    curva_preq = com_realizado_diario(curva_diaria(cfg, "Pré-Qualificação"), daily_preq)
+
     ctx = _base_ctx(request, "verba", "Verba do Lançamento", launch, launches,
         verba_linhas=linhas, verba_total_previsto=total_previsto, verba_total_realizado=total_realizado,
         verba_pct_remarketing_previsto=pct_remarketing_previsto,
+        bloco_capt_publico=bloco_capt_publico, bloco_preq_publico=bloco_preq_publico,
+        curva_capt=curva_capt, curva_preq=curva_preq,
         data_errors=d.get("_errors", []),
     )
     return templates.TemplateResponse("verba.html", ctx)

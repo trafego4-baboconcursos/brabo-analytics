@@ -19,6 +19,8 @@
     {% else %}
 
     {# ── KPIs (design system: tp-kpi) ── #}
+    <div class="section">
+    <div class="section-title">1. KPIs — Campanhas de E-mail</div>
     <div class="tp-kpi-grid">
       <div class="tp-kpi">
         <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-send"></i></div></div>
@@ -45,11 +47,12 @@
         <div class="tp-compare">Taxa média Click/Open</div>
       </div>
     </div>
+    </div>
 
     {# ── Curva Diária ── #}
     {% if ac_summary.por_dia %}
-    <div class="info-box">
-      <h2>Envios por Dia</h2>
+    <div class="section">
+      <div class="section-title">2. Envios por Dia</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -76,8 +79,8 @@
     {% endif %}
 
     {# ── Ranking de Campanhas ── #}
-    <div class="info-box">
-      <h2>Ranking de E-mails</h2>
+    <div class="section">
+      <div class="section-title">3. Ranking de E-mails</div>
       <div class="table-wrap">
         <table>
           <thead>

@@ -31,6 +31,8 @@
     {% else %}
 
     {# ── Resumo de Investimento — Pré-Qualificação ───────────────────────── #}
+    <div class="section">
+    <div class="section-title">1. Resumo de Investimento — Pré-Qualificação</div>
     <div class="tp-kpi-grid">
       <div class="tp-kpi">
         <div class="tp-kpi-top">
@@ -77,11 +79,12 @@
         </div>
       </div>
     </div>
+    </div>
 
     {# ── Taxa de Conversão da Página de Captura ───────────────────────────── #}
     {% if conversao_paginas %}
-    <div class="info-box">
-      <h2>Taxa de Conversão da Página de Captura</h2>
+    <div class="section">
+      <div class="section-title">2. Taxa de Conversão da Página de Captura</div>
       <div class="table-wrap" style="overflow-x:auto;">
         <table class="table-compact" style="font-size:12px;">
           <thead>
@@ -130,8 +133,8 @@
 
     {# ── Meta por etapa ──────────────────────────────────────────────────── #}
     {% if meta and meta.por_etapa %}
-    <div class="info-box">
-      <h2><i class="ti ti-brand-meta" style="color:var(--meta-color);vertical-align:middle;margin-right:6px;"></i>Meta Ads — Distribuição por Etapa</h2>
+    <div class="section">
+      <div class="section-title"><i class="ti ti-brand-meta" style="color:var(--meta-color)"></i>3. Meta Ads — Distribuição por Etapa</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -175,8 +178,8 @@
 
     {# ── Google por etapa ───────────────────────────────────────────────── #}
     {% if google and google.por_etapa %}
-    <div class="info-box">
-      <h2><i class="ti ti-brand-google" style="color:var(--google-color);vertical-align:middle;margin-right:6px;"></i>Google Ads — Distribuição por Etapa</h2>
+    <div class="section">
+      <div class="section-title"><i class="ti ti-brand-google" style="color:var(--google-color)"></i>4. Google Ads — Distribuição por Etapa</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -214,8 +217,8 @@
 
     {% macro daily_table(rows, title) %}
     {% if rows %}
-    <div class="info-box">
-      <h2>{{ title }}</h2>
+    <div class="section">
+      <div class="section-title">{{ title }}</div>
       <div class="table-wrap" style="overflow-x:auto;">
         <table class="table-compact" style="min-width:900px;font-size:12px;">
           <colgroup>
@@ -329,12 +332,12 @@
     {% endif %}
     {% endmacro %}
 
-    {{ daily_table(daily_breakdown_preq, "📅 Performance Diária por Plataforma — Pré-Qualificação") }}
+    {{ daily_table(daily_breakdown_preq, "5. Performance Diária por Plataforma — Pré-Qualificação") }}
 
     {# ── Ranking de Anúncios — Meta Ads ─────────────────────────────────── #}
     {% if meta_ads_preq %}
-    <div class="info-box">
-      <h2><i class="ti ti-brand-meta" style="color:var(--meta-color);vertical-align:middle;margin-right:6px;"></i>Ranking de Anúncios — Meta Ads (Pré-Qualificação)</h2>
+    <div class="section">
+      <div class="section-title"><i class="ti ti-brand-meta" style="color:var(--meta-color)"></i>6. Ranking de Anúncios — Meta Ads (Pré-Qualificação)</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -386,8 +389,8 @@
 
     {# ── Ranking de Anúncios — YouTube (Google Ads) ─────────────────────── #}
     {% if youtube_ads_preq %}
-    <div class="info-box">
-      <h2><i class="ti ti-brand-youtube" style="color:var(--yt-color);vertical-align:middle;margin-right:6px;"></i>Ranking de Anúncios — YouTube (Pré-Qualificação)</h2>
+    <div class="section">
+      <div class="section-title"><i class="ti ti-brand-youtube" style="color:var(--yt-color)"></i>7. Ranking de Anúncios — YouTube (Pré-Qualificação)</div>
       <div class="table-wrap">
         <table>
           <thead>

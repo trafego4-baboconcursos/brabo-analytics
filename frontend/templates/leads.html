@@ -19,6 +19,8 @@
     {% else %}
 
     {# ── KPIs (design system: tp-kpi) ── #}
+    <div class="section">
+    <div class="section-title">1. KPIs — Qualidade de Lead</div>
     <div class="tp-kpi-grid">
       <div class="tp-kpi">
         <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-users"></i></div></div>
@@ -50,11 +52,12 @@
         <div class="tp-compare">{{ (leads.compradores_sem_utm / leads.total_compradores * 100) | round(1) if leads.total_compradores > 0 else 0 }}% dos compradores sem rastreamento</div>
       </div>
     </div>
+    </div>
 
     {# ── Curva diária ── #}
     {% if leads.por_dia %}
-    <div class="info-box">
-      <h2>Leads por Dia</h2>
+    <div class="section">
+      <div class="section-title">2. Leads por Dia</div>
       {% set max_leads = leads.por_dia | map(attribute='leads') | max %}
       <div class="table-wrap" style="overflow-x:auto;">
         <table class="table-compact" style="min-width:600px;">
@@ -98,8 +101,8 @@
 
     {# ── Por canal ── #}
     {% if leads.por_canal %}
-    <div class="info-box">
-      <h2>Qualidade por Canal</h2>
+    <div class="section">
+      <div class="section-title">3. Qualidade por Canal</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -156,8 +159,8 @@
 
     {# ── Por etapa ── #}
     {% if leads.por_etapa %}
-    <div class="info-box">
-      <h2>Qualidade por Etapa do Funil</h2>
+    <div class="section">
+      <div class="section-title">4. Qualidade por Etapa do Funil</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -201,8 +204,8 @@
 
     {# ── Por temperatura ── #}
     {% if leads.por_temperatura %}
-    <div class="info-box">
-      <h2>Qualidade por Temperatura de Público</h2>
+    <div class="section">
+      <div class="section-title">5. Qualidade por Temperatura de Público</div>
       <div class="table-wrap">
         <table>
           <thead>

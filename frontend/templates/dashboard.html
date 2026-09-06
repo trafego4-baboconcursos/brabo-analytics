@@ -24,6 +24,8 @@
     {% else %}
 
     {# ── KPIs Principais (design system: tp-kpi) ─────────────────────────── #}
+    <div class="section">
+    <div class="section-title">1. KPIs Principais — Captação</div>
     <div class="tp-kpi-grid">
 
       <div class="tp-kpi">
@@ -109,11 +111,12 @@
       </div>
 
     </div>
+    </div>
 
     {# ── Taxa de Conversão da Página de Captura ───────────────────────────── #}
     {% if conversao_paginas %}
-    <div class="info-box">
-      <h2>Taxa de Conversão da Página de Captura</h2>
+    <div class="section">
+      <div class="section-title">2. Taxa de Conversão da Página de Captura</div>
       <div class="table-wrap" style="overflow-x:auto;">
         <table class="table-compact" style="font-size:12px;">
           <thead>
@@ -162,8 +165,8 @@
 
     {# ── Taxa de Comparecimento WPP ────────────────────────────────────────── #}
     {% if leads_x_whatsapp %}
-    <div class="info-box">
-      <h2>Taxa de Conversão da Página de Obrigado</h2>
+    <div class="section">
+      <div class="section-title">3. Taxa de Conversão da Página de Obrigado</div>
       <div class="table-wrap">
         <table class="table-compact" style="font-size:12px;">
           <thead>
@@ -192,8 +195,8 @@
 
     {# ── % de Leads por Campanha ──────────────────────────────────────────── #}
     {% if leads_por_campanha %}
-    <div class="info-box">
-      <h2>% de Leads por Campanha</h2>
+    <div class="section">
+      <div class="section-title">4. % de Leads por Campanha</div>
       <div class="table-wrap">
         <table class="table-compact" style="font-size:12px;">
           <thead>
@@ -255,6 +258,8 @@
 
     {# ── Highlights ─────────────────────────────────────────────────────── #}
     {% if meta and meta.top_por_leads %}
+    <div class="section">
+      <div class="section-title">5. Destaques de Criativos — Captação (Meta)</div>
     <div class="highlights">
 
       <div class="highlight-box">
@@ -297,12 +302,13 @@
       </div>
 
     </div>
+    </div>
     {% endif %}
 
     {# ── Distribuição por etapa Meta ─────────────────────────────────────── #}
     {% if meta and meta.por_etapa %}
-    <div class="info-box">
-      <h2><i class="ti ti-brand-meta" style="color:var(--meta-color);vertical-align:middle;margin-right:6px;"></i>Meta Ads — Distribuição por Etapa</h2>
+    <div class="section">
+      <div class="section-title"><i class="ti ti-brand-meta" style="color:var(--meta-color)"></i>6. Meta Ads — Distribuição por Etapa</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -346,8 +352,8 @@
 
     {# ── Google por etapa ───────────────────────────────────────────────── #}
     {% if google and google.por_etapa %}
-    <div class="info-box">
-      <h2><i class="ti ti-brand-google" style="color:var(--google-color);vertical-align:middle;margin-right:6px;"></i>Google Ads — Distribuição por Etapa</h2>
+    <div class="section">
+      <div class="section-title"><i class="ti ti-brand-google" style="color:var(--google-color)"></i>7. Google Ads — Distribuição por Etapa</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -386,8 +392,8 @@
     {# ── Breakdown diário por plataforma ────────────────────────────────────────── #}
     {% macro daily_table(rows, title) %}
     {% if rows %}
-    <div class="info-box">
-      <h2>{{ title }}</h2>
+    <div class="section">
+      <div class="section-title">{{ title }}</div>
       <div class="table-wrap" style="overflow-x:auto;">
         <table class="table-compact" style="min-width:900px;font-size:12px;">
           <colgroup>
@@ -501,12 +507,12 @@
     {% endif %}
     {% endmacro %}
 
-    {{ daily_table(daily_breakdown, "📅 Performance Diária por Plataforma — Captação") }}
+    {{ daily_table(daily_breakdown, "8. Performance Diária por Plataforma — Captação") }}
 
     {# ── Vendas detalhado ────────────────────────────────────────────────── #}
     {% if vendas %}
-    <div class="info-box">
-      <h2>Vendas — Hotmart × TMB</h2>
+    <div class="section">
+      <div class="section-title">9. Vendas — Hotmart × TMB</div>
       <div class="metrics-grid" style="margin-bottom:16px">
         <div class="metric-card">
           <div class="label">Hotmart — Vendas</div>

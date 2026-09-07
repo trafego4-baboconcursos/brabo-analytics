@@ -24,6 +24,7 @@ from frontend.services.debriefing_build import build_debriefing_context
 from frontend.services.orcamento import (
     get_etapa, previsto_por_etapa, previsto_por_subetapa, REMARKETING_SUBETAPAS,
     buckets_previsto_x_realizado, curva_diaria, com_realizado_diario,
+    publico_por_dia, previsto_publico_por_dia, investimento_diario_etapa, etapa_cfg,
 )
 
 router = APIRouter()
@@ -254,11 +255,32 @@ async def verba_page(request: Request, launch_code: str | None = None):
     curva_capt = com_realizado_diario(curva_diaria(cfg, "Captação"), daily_capt)
     curva_preq = com_realizado_diario(curva_diaria(cfg, "Pré-Qualificação"), daily_preq)
 
+    # Divisão de verba por público em cada dia (só Captação — é o único
+    # bloco que a planilha de referência detalha nesse nível).
+    dia_publico_realizado = await run_in_threadpool(publico_por_dia, launch.code, cfg, "Captação") if launch else {}
+    dia_publico_previsto = previsto_publico_por_dia(cfg, "Captação")
+
+    # Blocos por sub-etapa de remarketing: Previsto x Realizado total, split
+    # Facebook/Google (buckets) e curva diária própria.
+    subetapas_blocos = []
+    for nome in REMARKETING_SUBETAPAS:
+        et = etapa_cfg(cfg, nome)
+        if not et:
+            continue
+        bloco_pub = buckets_previsto_x_realizado(meta, google, cfg, nome)
+        daily_rows = await run_in_threadpool(
+            investimento_diario_etapa, launch.code, nome, et.get("start_date"), et.get("end_date"),
+        ) if launch else []
+        curva = com_realizado_diario(curva_diaria(cfg, nome), daily_rows)
+        subetapas_blocos.append({"nome": nome, "bucket": bloco_pub, "curva": curva})
+
     ctx = _base_ctx(request, "verba", "Verba do Lançamento", launch, launches,
         verba_linhas=linhas, verba_total_previsto=total_previsto, verba_total_realizado=total_realizado,
         verba_pct_remarketing_previsto=pct_remarketing_previsto,
         bloco_capt_publico=bloco_capt_publico, bloco_preq_publico=bloco_preq_publico,
         curva_capt=curva_capt, curva_preq=curva_preq,
+        dia_publico_realizado=dia_publico_realizado, dia_publico_previsto=dia_publico_previsto,
+        subetapas_blocos=subetapas_blocos,
         data_errors=d.get("_errors", []),
     )
     return templates.TemplateResponse("verba.html", ctx)

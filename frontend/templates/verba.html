@@ -178,6 +178,110 @@
     {{ bloco_curva("3. Verba Investida por Dia — Captação", curva_capt, "curvaCaptChart") }}
     {{ bloco_curva("5. Verba Investida por Dia — Pré-Qualificação", curva_preq, "curvaPreqChart") }}
 
+    {% macro tabela_dia_publico(titulo, dados) %}
+    <div class="section">
+      <div class="section-title">{{ titulo }}</div>
+      {% if dados.dias %}
+      <div class="table-wrap" style="overflow-x:auto">
+        <table class="table-compact" style="font-size:11px;white-space:nowrap">
+          <thead>
+            <tr>
+              <th class="th-dark" style="position:sticky;left:0;background:inherit">Público</th>
+              {% for d in dados.dias %}<th class="th-dark" style="text-align:right">{{ d.data_str }}</th>{% endfor %}
+              <th class="th-dark" style="text-align:right">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for pub in dados.buckets %}
+            <tr>
+              <td class="td-bold" style="position:sticky;left:0;background:var(--bs-card)">{{ pub }}</td>
+              {% for d in dados.dias %}
+              <td style="text-align:right">{{ d.publicos.get(pub, 0) | brl(0) if d.publicos.get(pub, 0) > 0 else "–" }}</td>
+              {% endfor %}
+              <td style="text-align:right;font-weight:700">{{ dados.totais.get(pub, 0) | brl(0) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="no-data" style="padding:24px">
+        <i class="ti ti-folder-off"></i>
+        <p>Sem dados suficientes (público/datas não configurados no wizard).</p>
+      </div>
+      {% endif %}
+    </div>
+    {% endmacro %}
+
+    {{ tabela_dia_publico("6. Divisão de Verba por Público em Cada Dia — Captação (Realizado)", dia_publico_realizado) }}
+    {{ tabela_dia_publico("7. Previsão da Divisão de Verba por Público — Captação", dia_publico_previsto) }}
+
+    {# ── Blocos 8+: Previsto x Realizado por sub-etapa de remarketing ──── #}
+    {% for sub in subetapas_blocos %}
+    <div class="section">
+      <div class="section-title">{{ 8 + loop.index0 }}. {{ sub.nome }} — Previsto × Realizado</div>
+      {% if sub.bucket.linhas %}
+      <div class="table-wrap">
+        <table class="table-compact" style="font-size:12px;max-width:480px">
+          <thead>
+            <tr>
+              <th class="th-dark">Plataforma</th>
+              <th class="th-dark" style="text-align:right">% Previsto</th>
+              <th class="th-dark" style="text-align:right">Previsto</th>
+              <th class="th-dark" style="text-align:right">Realizado</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for l in sub.bucket.linhas %}
+            <tr>
+              <td class="td-bold">{{ l.nome }}</td>
+              <td style="text-align:right">{{ l.pct_previsto | round(1) }}%</td>
+              <td style="text-align:right">{{ l.previsto | brl }}</td>
+              <td style="text-align:right">{{ l.realizado | brl if l.realizado > 0 else "–" }}</td>
+            </tr>
+            {% endfor %}
+            <tr style="background:var(--bs-sidebar-dark);color:#fff;font-weight:700;">
+              <td>TOTAL</td>
+              <td style="text-align:right">100%</td>
+              <td style="text-align:right">{{ sub.bucket.total_previsto | brl }}</td>
+              <td style="text-align:right">{{ sub.bucket.total_realizado | brl }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+      {% if sub.curva.dias %}
+      <div class="line-chart-wrap" style="height:180px;margin-top:12px">
+        <canvas id="curvaSub{{ loop.index0 }}Chart"></canvas>
+      </div>
+      <script>
+      (function() {
+        const dias = {{ sub.curva.dias | tojson }};
+        const labels = dias.map(d => d.data_str);
+        const previsto = dias.map(d => Math.round(d.previsto));
+        const realizado = dias.map(d => Math.round(d.realizado));
+        const accent = getComputedStyle(document.documentElement).getPropertyValue('--bs-accent').trim() || '#f97316';
+        new Chart(document.getElementById('curvaSub{{ loop.index0 }}Chart'), {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              { label: 'Previsto', data: previsto, borderColor: '#9ca3af', borderDash: [4,4], borderWidth: 2, pointRadius: 0, fill: false, tension: 0.2 },
+              { label: 'Realizado', data: realizado, borderColor: accent, backgroundColor: accent + '22', borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3 },
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }, tooltip: { enabled: true } },
+            scales: { x: { grid: { display: false }, ticks: { font: { size: 9 } } }, y: { beginAtZero: true, ticks: { font: { size: 9 } } } }
+          }
+        });
+      })();
+      </script>
+      {% endif %}
+    </div>
+    {% endfor %}
+
     {% endif %}
 
   </div>{# .content #}

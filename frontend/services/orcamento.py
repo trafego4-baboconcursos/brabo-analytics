@@ -95,22 +95,31 @@ def etapa_cfg(cfg: dict | None, nome: str) -> dict:
 
 
 def bucket_realizado(meta: Any, google: Any, bucket: dict, etapa_nome: str) -> float:
-    """Gasto real (Meta/Google) do público de um bucket, pela temperatura
-    extraída do nome ("FB Quente" → Meta/Quente) e pela plataforma marcada
-    no bucket. TikTok não tem fonte de dado ainda (sempre 0 — ver memória
-    project_tiktok_integracao_futura)."""
+    """Gasto real (Meta/Google) de um bucket. Em Captação/Pré-Qualificação o
+    bucket tem temperatura no nome ("FB Quente" → Meta/Quente); nas
+    sub-etapas de remarketing (Lembrete, etc.) o bucket é só a plataforma
+    ("Facebook ADS"/"Google ADS", sem temperatura) — usa o total já
+    calculado por get_etapa pra essa etapa. TikTok não tem fonte de dado
+    ainda (sempre 0 — ver memória project_tiktok_integracao_futura)."""
     plataforma = bucket.get("plataforma")
     temp = _temperatura_de_bucket(bucket.get("nome", ""))
-    if not temp:
+    if temp:
+        if plataforma == "meta":
+            attr = "por_temperatura_captacao" if etapa_nome == "Captação" else "por_temperatura_prequali"
+            d = (getattr(meta, attr, {}) or {}).get(temp) or {}
+            return _f(d.get("custo") or d.get("gasto"))
+        if plataforma == "google":
+            attr = "por_temperatura" if etapa_nome == "Captação" else "por_temperatura_prequali"
+            d = (getattr(google, attr, {}) or {}).get(temp) or {}
+            return _f(d.get("custo"))
         return 0.0
+    # Sem temperatura no nome — bucket de plataforma pura (sub-etapa de
+    # remarketing): usa o gasto já somado por get_etapa.
+    e = get_etapa(meta, google, etapa_nome)
     if plataforma == "meta":
-        attr = "por_temperatura_captacao" if etapa_nome == "Captação" else "por_temperatura_prequali"
-        d = (getattr(meta, attr, {}) or {}).get(temp) or {}
-        return _f(d.get("custo") or d.get("gasto"))
+        return e["meta"]
     if plataforma == "google":
-        attr = "por_temperatura" if etapa_nome == "Captação" else "por_temperatura_prequali"
-        d = (getattr(google, attr, {}) or {}).get(temp) or {}
-        return _f(d.get("custo"))
+        return e["google"]
     return 0.0
 
 
@@ -193,3 +202,131 @@ def com_realizado_diario(curva: dict, daily_rows: list) -> dict:
         total_realizado += realizado
     curva["total_realizado"] = total_realizado
     return curva
+
+
+def previsto_publico_por_dia(cfg: dict | None, etapa_nome: str) -> dict:
+    """Previsão da divisão de verba por público em cada dia — % do bucket ×
+    % do dia (curva) × total da etapa. Só faz sentido pra etapas com
+    buckets de temperatura (Captação); não tenta reconstruir uma curva
+    própria por público, assume a mesma curva diária do total da etapa."""
+    et = etapa_cfg(cfg, etapa_nome)
+    buckets = et.get("buckets") or []
+    curva = curva_diaria(cfg, etapa_nome)
+    dias_out = []
+    for d in curva.get("dias") or []:
+        publicos = {b.get("nome"): d["previsto"] * _f(b.get("pct")) / 100 for b in buckets}
+        dias_out.append({"data": d["data"], "data_str": d["data_str"], "publicos": publicos})
+    totais = {b.get("nome"): curva.get("total", 0.0) * _f(b.get("pct")) / 100 for b in buckets}
+    return {"dias": dias_out, "buckets": [b.get("nome") for b in buckets], "totais": totais}
+
+
+def publico_por_dia(code: str, cfg: dict | None, etapa_nome: str) -> dict:
+    """Gasto real por dia x público (bucket) — consulta direto
+    meta_ads_daily/google_ads_daily (não os summaries cacheados) e
+    classifica cada campanha com a mesma lógica de categorização usada no
+    resto do sistema, pra bater com os buckets configurados no wizard."""
+    import pandas as pd
+    from datetime import date as _date, timedelta
+    from sqlalchemy import text
+    from frontend.db import _get_engine
+    from frontend.db_readers.ads_meta import _categorize_campaign as _cat_meta
+    from frontend.db_readers.ads_google import _categorize_campaign as _cat_google
+
+    et = etapa_cfg(cfg, etapa_nome)
+    start, end = et.get("start_date"), et.get("end_date")
+    buckets = et.get("buckets") or []
+    if not (start and end) or not buckets:
+        return {"dias": [], "buckets": [], "totais": {}}
+
+    engine = _get_engine()
+    gasto_por_chave: dict = {}  # {(data_str, plataforma, temperatura): gasto}
+
+    meta_df = pd.read_sql(
+        text("SELECT date, campaign_name, spend FROM meta_ads_daily WHERE lancamento_codigo = :code AND date BETWEEN :start AND :end"),
+        engine, params={"code": code, "start": start, "end": end},
+    )
+    if not meta_df.empty:
+        cats = meta_df["campaign_name"].map(_cat_meta)
+        meta_df = meta_df.assign(etapa=[c[0] for c in cats], temperatura=[c[1] for c in cats])
+        meta_df = meta_df[meta_df["etapa"] == etapa_nome]
+        for _, r in meta_df.groupby(["date", "temperatura"])["spend"].sum().reset_index().iterrows():
+            key = (r["date"].strftime("%d/%m"), "meta", r["temperatura"])
+            gasto_por_chave[key] = gasto_por_chave.get(key, 0.0) + float(r["spend"])
+
+    google_df = pd.read_sql(
+        text("SELECT date, campaign_name, cost FROM google_ads_daily WHERE lancamento_codigo = :code AND date BETWEEN :start AND :end"),
+        engine, params={"code": code, "start": start, "end": end},
+    )
+    if not google_df.empty:
+        cats = google_df["campaign_name"].map(_cat_google)
+        google_df = google_df.assign(etapa=[c[0] for c in cats], temperatura=[c[1] for c in cats])
+        google_df = google_df[google_df["etapa"] == etapa_nome]
+        for _, r in google_df.groupby(["date", "temperatura"])["cost"].sum().reset_index().iterrows():
+            key = (r["date"].strftime("%d/%m"), "google", r["temperatura"])
+            gasto_por_chave[key] = gasto_por_chave.get(key, 0.0) + float(r["cost"])
+
+    try:
+        d0 = _date.fromisoformat(str(start))
+        d1 = _date.fromisoformat(str(end))
+    except Exception:
+        return {"dias": [], "buckets": [], "totais": {}}
+    n_dias = (d1 - d0).days + 1
+
+    dias = []
+    totais: dict = {b.get("nome"): 0.0 for b in buckets}
+    for i in range(n_dias):
+        d = d0 + timedelta(days=i)
+        data_str = d.strftime("%d/%m")
+        publicos = {}
+        for b in buckets:
+            temp = _temperatura_de_bucket(b.get("nome", ""))
+            gasto = gasto_por_chave.get((data_str, b.get("plataforma"), temp), 0.0)
+            publicos[b.get("nome")] = gasto
+            totais[b.get("nome")] += gasto
+        dias.append({"data": d.isoformat(), "data_str": data_str, "publicos": publicos})
+    return {"dias": dias, "buckets": [b.get("nome") for b in buckets], "totais": totais}
+
+
+def investimento_diario_etapa(code: str, etapa_nome: str, start: str | None, end: str | None) -> list[dict]:
+    """Gasto real por dia (Meta+Google) de uma etapa qualquer, classificando
+    cada campanha com a mesma categorização usada no resto do sistema.
+    Diferente de read_daily_breakdown (que filtra por substring do nome da
+    campanha, só serve pra Captação/Pré-Qualificação), esta função cobre
+    também as sub-etapas de remarketing (Lembrete, Depoimento, etc.), que
+    são identificadas pela tag [Etapa] no nome da campanha."""
+    import pandas as pd
+    from sqlalchemy import text
+    from frontend.db import _get_engine
+    from frontend.db_readers.ads_meta import _categorize_campaign as _cat_meta
+    from frontend.db_readers.ads_google import _categorize_campaign as _cat_google
+
+    if not (start and end):
+        return []
+    engine = _get_engine()
+    out: dict = {}
+
+    meta_df = pd.read_sql(
+        text("SELECT date, campaign_name, spend FROM meta_ads_daily WHERE lancamento_codigo = :code AND date BETWEEN :start AND :end"),
+        engine, params={"code": code, "start": start, "end": end},
+    )
+    if not meta_df.empty:
+        cats = meta_df["campaign_name"].map(_cat_meta)
+        meta_df = meta_df.assign(etapa=[c[0] for c in cats])
+        meta_df = meta_df[meta_df["etapa"] == etapa_nome]
+        for _, r in meta_df.groupby("date")["spend"].sum().reset_index().iterrows():
+            key = r["date"].strftime("%d/%m")
+            out[key] = out.get(key, 0.0) + float(r["spend"])
+
+    google_df = pd.read_sql(
+        text("SELECT date, campaign_name, cost FROM google_ads_daily WHERE lancamento_codigo = :code AND date BETWEEN :start AND :end"),
+        engine, params={"code": code, "start": start, "end": end},
+    )
+    if not google_df.empty:
+        cats = google_df["campaign_name"].map(_cat_google)
+        google_df = google_df.assign(etapa=[c[0] for c in cats])
+        google_df = google_df[google_df["etapa"] == etapa_nome]
+        for _, r in google_df.groupby("date")["cost"].sum().reset_index().iterrows():
+            key = r["date"].strftime("%d/%m")
+            out[key] = out.get(key, 0.0) + float(r["cost"])
+
+    return [{"date": k, "total_gasto": v} for k, v in out.items()]

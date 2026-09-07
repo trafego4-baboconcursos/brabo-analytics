@@ -44,6 +44,7 @@ def apply_meta(plan, date_str):
         print(f"[meta] sem plano pro dia {date_str}, pulando")
         return
     token = os.environ["META_ACCESS_TOKEN"]
+    failed = []
     for key, value_reais in day.items():
         campaign_id = plan["meta_campaign_ids"][key]
         cents = int(round(value_reais * 100))
@@ -51,6 +52,11 @@ def apply_meta(plan, date_str):
         resp = requests.post(url, data={"daily_budget": cents, "access_token": token})
         ok = resp.status_code == 200 and resp.json().get("success", True)
         print(f"[meta] {key} ({campaign_id}) -> R${value_reais:.2f} | status={resp.status_code} {'OK' if ok else resp.text[:200]}")
+        if not ok:
+            failed.append(key)
+    if failed:
+        print(f"[meta] ERRO: {len(failed)} campanha(s) falharam: {', '.join(failed)}")
+        sys.exit(1)
 
 
 def get_google_access_token():

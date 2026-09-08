@@ -25,7 +25,7 @@ from frontend.services.orcamento import (
     get_etapa, previsto_por_etapa, previsto_por_subetapa, REMARKETING_SUBETAPAS,
     buckets_previsto_x_realizado, curva_diaria, com_realizado_diario,
     publico_por_dia, previsto_publico_por_dia, investimento_diario_etapa, etapa_cfg,
-    com_percentuais, kpis_captacao_periodo_comparavel,
+    com_percentuais, kpis_captacao_periodo_comparavel, combinar_previsto_realizado,
 )
 
 router = APIRouter()
@@ -149,6 +149,7 @@ async def captacao(request: Request, launch_code: str | None = None):
     dia_publico_realizado = com_percentuais(
         await run_in_threadpool(publico_por_dia, launch.code, cfg, "Captação") if launch else {}
     )
+    verba_diaria_combinada = combinar_previsto_realizado(dia_publico_previsto, dia_publico_realizado)
 
     ctx = _base_ctx(request, "captacao", "Captação", launch, launches,
         meta=meta, google=google, vendas=vendas, wa_gasto=wa_gasto,
@@ -166,7 +167,7 @@ async def captacao(request: Request, launch_code: str | None = None):
         leads_x_whatsapp=leads_x_whatsapp,
         prev_kpis=prev_kpis,
         drive_thumbnails=d.get("drive_thumbnails") or {},
-        dia_publico_previsto=dia_publico_previsto, dia_publico_realizado=dia_publico_realizado,
+        verba_diaria_combinada=verba_diaria_combinada,
         data_errors=d.get("_errors", []),
     )
     return templates.TemplateResponse("dashboard.html", ctx)
@@ -321,6 +322,7 @@ async def verba_page(request: Request, launch_code: str | None = None):
         await run_in_threadpool(publico_por_dia, launch.code, cfg, "Captação") if launch else {}
     )
     dia_publico_previsto = com_percentuais(previsto_publico_por_dia(cfg, "Captação"))
+    verba_diaria_combinada = combinar_previsto_realizado(dia_publico_previsto, dia_publico_realizado)
 
     # Blocos por sub-etapa de remarketing: Previsto x Realizado total, split
     # Facebook/Google (buckets) e curva diária própria.
@@ -341,7 +343,7 @@ async def verba_page(request: Request, launch_code: str | None = None):
         verba_pct_remarketing_previsto=pct_remarketing_previsto,
         bloco_capt_publico=bloco_capt_publico, bloco_preq_publico=bloco_preq_publico,
         curva_capt=curva_capt, curva_preq=curva_preq,
-        dia_publico_realizado=dia_publico_realizado, dia_publico_previsto=dia_publico_previsto,
+        verba_diaria_combinada=verba_diaria_combinada,
         subetapas_blocos=subetapas_blocos,
         data_errors=d.get("_errors", []),
     )

@@ -178,10 +178,9 @@
     {{ bloco_curva("3. Verba Investida por Dia — Captação", curva_capt, "curvaCaptChart") }}
     {{ bloco_curva("5. Verba Investida por Dia — Pré-Qualificação", curva_preq, "curvaPreqChart") }}
 
-{% from "_macros_verba.html" import tabela_dia_publico %}
+{% from "_macros_verba.html" import tabela_dia_publico_combinada %}
 
-    {{ tabela_dia_publico("6. Divisão de Verba por Público em Cada Dia — Captação (Realizado)", dia_publico_realizado) }}
-    {{ tabela_dia_publico("7. Previsão da Divisão de Verba por Público — Captação", dia_publico_previsto) }}
+    {{ tabela_dia_publico_combinada("6. Verba Diária — Previsto × Realizado — Captação", verba_diaria_combinada) }}
 
     {# ── Blocos 8+: Previsto x Realizado por sub-etapa de remarketing ──── #}
     {% for sub in subetapas_blocos %}

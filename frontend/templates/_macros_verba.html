@@ -55,3 +55,61 @@
   {% endif %}
 </div>
 {% endmacro %}
+
+{% macro tabela_dia_publico_combinada(titulo, dados) %}
+<div class="section">
+  <div class="section-title">{{ titulo }}</div>
+  {% if dados.dias %}
+  <div class="table-wrap" style="overflow-x:auto">
+    <table class="table-compact" style="font-size:11px;white-space:nowrap">
+      <thead>
+        <tr>
+          <th class="th-dark" style="position:sticky;left:0;background:inherit">Público</th>
+          <th class="th-dark" style="text-align:left">% Prev.</th>
+          <th class="th-dark" style="text-align:left">% Real.</th>
+          {% for d in dados.dias %}<th class="th-dark" style="text-align:left">{{ d.data_str }}<br><span style="font-weight:400;font-size:9px">Prev. / Real.</span></th>{% endfor %}
+          <th class="th-dark" style="text-align:left">Total Previsto</th>
+          <th class="th-dark" style="text-align:left">Total Realizado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pub in dados.buckets %}
+        <tr>
+          <td class="td-bold" style="position:sticky;left:0;background:var(--bs-card)">{{ pub }}</td>
+          <td style="text-align:left">{{ dados.pct_publico_previsto.get(pub, 0) | round(1) }}%</td>
+          <td style="text-align:left">{{ dados.pct_publico_realizado.get(pub, 0) | round(1) }}%</td>
+          {% for d in dados.dias %}
+          {% set v = d.publicos.get(pub, {"previsto": 0, "realizado": 0}) %}
+          <td style="text-align:left">
+            {{ v.previsto | brl(0) if v.previsto > 0 else "–" }}<br>
+            <span style="color:var(--bs-ink-muted)">{{ v.realizado | brl(0) if v.realizado > 0 else "–" }}</span>
+          </td>
+          {% endfor %}
+          <td style="text-align:left;font-weight:700">{{ dados.totais_previsto.get(pub, 0) | brl(0) }}</td>
+          <td style="text-align:left;font-weight:700">{{ dados.totais_realizado.get(pub, 0) | brl(0) }}</td>
+        </tr>
+        {% endfor %}
+        <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
+          <td style="position:sticky;left:0;background:inherit">Investimento por Dia</td>
+          <td style="text-align:left">100%</td>
+          <td style="text-align:left">100%</td>
+          {% for d in dados.dias %}
+          <td style="text-align:left">
+            {{ d.pct_dia_previsto | round(1) }}%<br>
+            <span style="opacity:.75">{{ d.pct_dia_realizado | round(1) }}%</span>
+          </td>
+          {% endfor %}
+          <td style="text-align:left">{{ dados.grand_total_previsto | brl(0) }}</td>
+          <td style="text-align:left">{{ dados.grand_total_realizado | brl(0) }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="no-data" style="padding:24px">
+    <i class="ti ti-folder-off"></i>
+    <p>Sem dados suficientes (público/datas não configurados no wizard).</p>
+  </div>
+  {% endif %}
+</div>
+{% endmacro %}

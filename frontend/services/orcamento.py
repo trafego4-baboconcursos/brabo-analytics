@@ -328,6 +328,45 @@ def com_percentuais(dados: dict) -> dict:
     return dados
 
 
+def combinar_previsto_realizado(previsto: dict, realizado: dict) -> dict:
+    """Junta previsto_publico_por_dia()/publico_por_dia() (já com
+    com_percentuais aplicado) numa estrutura única, pra renderizar uma só
+    tabela "Verba Diária — Previsto × Realizado" em vez de duas tabelas
+    separadas."""
+    buckets = previsto.get("buckets") or realizado.get("buckets") or []
+    dias_prev = {d["data_str"]: d for d in (previsto.get("dias") or [])}
+    dias_real = {d["data_str"]: d for d in (realizado.get("dias") or [])}
+    labels = list(dias_prev.keys()) or list(dias_real.keys())
+
+    dias: list[dict] = []
+    for label in labels:
+        dp = dias_prev.get(label) or {}
+        dr = dias_real.get(label) or {}
+        publicos = {}
+        for pub in buckets:
+            publicos[pub] = {
+                "previsto": (dp.get("publicos") or {}).get(pub, 0.0),
+                "realizado": (dr.get("publicos") or {}).get(pub, 0.0),
+            }
+        dias.append({
+            "data_str": label,
+            "publicos": publicos,
+            "pct_dia_previsto": dp.get("pct_dia", 0.0),
+            "pct_dia_realizado": dr.get("pct_dia", 0.0),
+        })
+
+    return {
+        "buckets": buckets,
+        "dias": dias,
+        "totais_previsto": previsto.get("totais") or {},
+        "totais_realizado": realizado.get("totais") or {},
+        "pct_publico_previsto": previsto.get("pct_publico") or {},
+        "pct_publico_realizado": realizado.get("pct_publico") or {},
+        "grand_total_previsto": previsto.get("grand_total", 0.0),
+        "grand_total_realizado": realizado.get("grand_total", 0.0),
+    }
+
+
 def investimento_diario_etapa(code: str, etapa_nome: str, start: str | None, end: str | None) -> list[dict]:
     """Gasto real por dia (Meta+Google) de uma etapa qualquer, classificando
     cada campanha com a mesma categorização usada no resto do sistema.

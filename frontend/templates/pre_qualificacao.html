@@ -334,10 +334,78 @@
 
     {{ daily_table(daily_breakdown_preq, "5. Performance Diária por Plataforma — Pré-Qualificação") }}
 
+    {# ── % de Leads por Campanha ──────────────────────────────────────────── #}
+    {% if leads_por_campanha %}
+    <div class="section">
+      <div class="section-title">6. % de Leads por Campanha</div>
+      <div class="table-wrap">
+        <table class="table-compact" style="font-size:12px;">
+          <thead>
+            <tr>
+              <th class="th-dark">Campanhas</th>
+              <th class="th-dark" style="text-align:left">Qtd de Leads</th>
+              <th class="th-dark" style="text-align:left">Investimento</th>
+              <th class="th-dark" style="text-align:left">% Investimento</th>
+              <th class="th-dark" style="text-align:left">CPL</th>
+              <th class="th-dark" style="text-align:left">% Leads</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in leads_por_campanha %}
+            <tr>
+              <td class="td-bold">{{ r.campanha }}</td>
+              <td style="text-align:left;">{{ r.leads | num }}</td>
+              <td style="text-align:left;">{{ r.gasto | brl }}</td>
+              <td style="text-align:left;">{{ r.pct_investimento | pct }}</td>
+              <td style="text-align:left;">{{ r.cpl | brl if r.leads > 0 else "–" }}</td>
+              <td style="text-align:left;">{{ r.pct_leads | pct }}</td>
+            </tr>
+            {% endfor %}
+            <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
+              <td>Total</td>
+              <td style="text-align:left;">{{ total_leads_camp | num }}</td>
+              <td style="text-align:left;">{{ total_gasto_camp | brl }}</td>
+              <td style="text-align:left;">100%</td>
+              <td style="text-align:left;">{{ (total_gasto_camp / total_leads_camp) | brl if total_leads_camp > 0 else "–" }}</td>
+              <td style="text-align:left;">100%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {# ── Quantidade de Leads por Público (%) ──────────────────────────────── #}
+    <div class="section">
+      <div class="section-title">7. Quantidade de Leads por Público (%)</div>
+      <div class="chart-wrap" style="height:280px">
+        <canvas id="leadsPorCampanhaPreqChart"></canvas>
+      </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <script>
+    (function() {
+      const labels = [{% for r in leads_por_campanha %}"{{ r.campanha | e }}"{% if not loop.last %},{% endif %}{% endfor %}];
+      const values = [{% for r in leads_por_campanha %}{{ r.pct_leads | round(2) }}{% if not loop.last %},{% endif %}{% endfor %}];
+      const el = document.getElementById('leadsPorCampanhaPreqChart');
+      if (el && window.Chart) {
+        new Chart(el, {
+          type: 'bar',
+          data: { labels, datasets: [{ label: 'Quantidade de Leads por Público (%)', data: values, backgroundColor: '#93d8c8' }] },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, title: { display: true, text: 'Quantidade de Leads por Público (%)' } },
+            scales: { y: { beginAtZero: true, ticks: { callback: v => v + '%' } } }
+          }
+        });
+      }
+    })();
+    </script>
+    {% endif %}
+
     {# ── Ranking de Anúncios — Meta Ads ─────────────────────────────────── #}
     {% if meta_ads_preq %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-brand-meta" style="color:var(--meta-color)"></i>6. Ranking de Anúncios — Meta Ads (Pré-Qualificação)</div>
+      <div class="section-title"><i class="ti ti-brand-meta" style="color:var(--meta-color)"></i>8. Ranking de Anúncios — Meta Ads (Pré-Qualificação)</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -390,7 +458,7 @@
     {# ── Ranking de Anúncios — YouTube (Google Ads) ─────────────────────── #}
     {% if youtube_ads_preq %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-brand-youtube" style="color:var(--yt-color)"></i>7. Ranking de Anúncios — YouTube (Pré-Qualificação)</div>
+      <div class="section-title"><i class="ti ti-brand-youtube" style="color:var(--yt-color)"></i>9. Ranking de Anúncios — YouTube (Pré-Qualificação)</div>
       <div class="table-wrap">
         <table>
           <thead>

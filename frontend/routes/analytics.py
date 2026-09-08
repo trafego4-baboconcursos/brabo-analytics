@@ -207,6 +207,39 @@ async def pre_qualificacao(request: Request, launch_code: str | None = None):
         except Exception:
             logger.exception("Pré-Qualificação: falha ao montar conversão da página de captura (GA4)")
 
+    # % de Leads por Campanha — Facebook/YouTube por temperatura, escopado
+    # pela Pré-Qualificação (por_temperatura_prequali existe em ambas as
+    # plataformas) + TikTok (sempre 0, sem fonte de dado ainda).
+    _clima_labels = ["Quente", "Frio", "Específico"]
+    meta_temp_preq = (getattr(meta, "por_temperatura_prequali", {}) or {})
+    google_temp_preq = (getattr(google, "por_temperatura_prequali", {}) or {})
+    leads_por_campanha_preq_raw = []
+    for c in _clima_labels:
+        m = meta_temp_preq.get(c) or {}
+        leads_por_campanha_preq_raw.append({
+            "campanha": f"Facebook {c}",
+            "leads": int(m.get("leads") or 0),
+            "gasto": float(m.get("gasto") or m.get("custo") or 0),
+        })
+    for c in _clima_labels:
+        g = google_temp_preq.get(c) or {}
+        leads_por_campanha_preq_raw.append({
+            "campanha": f"YouTube {c}",
+            "leads": int(round(g.get("conversoes") or 0)),
+            "gasto": float(g.get("custo") or 0),
+        })
+    leads_por_campanha_preq_raw.append({"campanha": "Tiktok", "leads": 0, "gasto": 0.0})
+    total_leads_camp_preq = sum(r["leads"] for r in leads_por_campanha_preq_raw) or 1
+    total_gasto_camp_preq = sum(r["gasto"] for r in leads_por_campanha_preq_raw) or 1
+    leads_por_campanha_preq = []
+    for r in leads_por_campanha_preq_raw:
+        leads_por_campanha_preq.append({
+            **r,
+            "cpl": r["gasto"] / r["leads"] if r["leads"] > 0 else 0.0,
+            "pct_investimento": r["gasto"] / total_gasto_camp_preq * 100,
+            "pct_leads": r["leads"] / total_leads_camp_preq * 100,
+        })
+
     ctx = _base_ctx(request, "pre_qualificacao", "Pré-Qualificação", launch, launches,
         meta=meta, google=google,
         daily_breakdown_preq=daily_breakdown_preq,
@@ -220,6 +253,8 @@ async def pre_qualificacao(request: Request, launch_code: str | None = None):
         meta_preq_leads=meta_preq_leads, google_preq_conv=google_preq_conv,
         thruviews_preq=thruviews_preq, meta_preq_thruviews=meta_preq_thruviews,
         google_preq_views=google_preq_views,
+        leads_por_campanha=leads_por_campanha_preq,
+        total_leads_camp=total_leads_camp_preq, total_gasto_camp=total_gasto_camp_preq,
     )
     return templates.TemplateResponse("pre_qualificacao.html", ctx)
 

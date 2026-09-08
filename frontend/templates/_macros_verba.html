@@ -4,6 +4,15 @@
    inteiro (inclusive variáveis de contexto tipo etl_status), então isso
    precisa ficar isolado. #}
 
+{% macro kpi_delta(curr, prev, fmt="brl", polarity="up") %}
+{%- if prev is not none and prev > 0 -%}
+{%- set pct = ((curr - prev) / prev * 100) -%}
+<span style="font-size:11px;font-weight:700;color:{% if (pct >= 0 and polarity == 'up') or (pct < 0 and polarity == 'down') %}var(--bs-success){% else %}var(--bs-danger){% endif %}">
+  {{ '▲' if pct >= 0 else '▼' }} {{ pct | abs | round(1) }}%
+</span>
+{%- endif -%}
+{% endmacro %}
+
 {% macro tabela_dia_publico(titulo, dados, rotulo_total="Total") %}
 <div class="section">
   <div class="section-title">{{ titulo }}</div>

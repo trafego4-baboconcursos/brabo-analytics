@@ -371,3 +371,58 @@ def investimento_diario_etapa(code: str, etapa_nome: str, start: str | None, end
             out[key] = out.get(key, 0.0) + float(r["cost"])
 
     return [{"date": k, "total_gasto": v} for k, v in out.items()]
+
+
+def kpis_captacao_periodo_comparavel(launch, previous, cfg: dict | None, prev_cfg: dict | None) -> dict | None:
+    """KPIs de Captação do lançamento anterior, na MESMA janela relativa
+    (mesma quantidade de dias corridos desde o início da Captação) que o
+    lançamento atual já percorreu até hoje — não a mesma data de
+    calendário, nem a janela inteira do lançamento anterior. Pauta
+    debriefing 08/09/26 — "1. KPIs Principais" precisa do comparativo."""
+    from datetime import date, timedelta
+    from frontend.database_reader import read_meta, read_google, read_vendas
+
+    if not (launch and previous and cfg and prev_cfg):
+        return None
+    c_start = cfg.get("captacao_start_date")
+    c_end = cfg.get("captacao_end_date")
+    p_start = prev_cfg.get("captacao_start_date")
+    p_end = prev_cfg.get("captacao_end_date")
+    if not (c_start and c_end and p_start and p_end):
+        return None
+    try:
+        cs = date.fromisoformat(str(c_start))
+        ce = date.fromisoformat(str(c_end))
+        p_cs = date.fromisoformat(str(p_start))
+        p_ce = date.fromisoformat(str(p_end))
+    except Exception:
+        return None
+
+    hoje = date.today()
+    elapsed = (min(hoje, ce) - cs).days + 1
+    elapsed = max(1, elapsed)
+    p_window_end = min(p_cs + timedelta(days=elapsed - 1), p_ce)
+    p_start_str = p_cs.isoformat()
+    p_end_str = p_window_end.isoformat()
+
+    p_meta = read_meta(previous.code, start_date=p_start_str, end_date=p_end_str)
+    p_google = read_google(previous.code, start_date=p_start_str, end_date=p_end_str)
+    p_vendas = read_vendas(previous.code, start_date=p_start_str, end_date=p_end_str)
+
+    p_meta_capt = (getattr(p_meta, "por_etapa", {}) or {}).get("Captação") or {}
+    p_google_capt = (getattr(p_google, "por_etapa", {}) or {}).get("Captação") or {}
+    p_meta_gasto = _f(p_meta_capt.get("gasto") or p_meta_capt.get("custo"))
+    p_google_gasto = _f(p_google_capt.get("custo"))
+    p_invest = p_meta_gasto + p_google_gasto
+    p_leads = _i(p_meta_capt.get("leads")) + int(round(_f(p_google_capt.get("conversoes"))))
+    p_receita = _f(getattr(p_vendas, "total_receita", 0)) if p_vendas else 0.0
+    p_vendas_n = _i(getattr(p_vendas, "total_vendas", 0)) if p_vendas else 0
+
+    return {
+        "invest": p_invest, "receita": p_receita,
+        "roas": (p_receita / p_invest) if p_invest > 0 else 0.0,
+        "vendas": p_vendas_n, "leads": p_leads,
+        "cpl": (p_invest / p_leads) if p_leads > 0 else 0.0,
+        "periodo": f"{p_cs.strftime('%d/%m')} a {p_window_end.strftime('%d/%m')}",
+        "dias": elapsed,
+    }

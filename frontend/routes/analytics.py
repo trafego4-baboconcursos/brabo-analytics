@@ -25,7 +25,7 @@ from frontend.services.orcamento import (
     get_etapa, previsto_por_etapa, previsto_por_subetapa, REMARKETING_SUBETAPAS,
     buckets_previsto_x_realizado, curva_diaria, com_realizado_diario,
     publico_por_dia, previsto_publico_por_dia, investimento_diario_etapa, etapa_cfg,
-    com_percentuais,
+    com_percentuais, kpis_captacao_periodo_comparavel,
 )
 
 router = APIRouter()
@@ -85,6 +85,20 @@ async def captacao(request: Request, launch_code: str | None = None):
             conversao_pagina_captura = await run_in_threadpool(_conversao_pagina_captura, launch)
         except Exception:
             logger.exception("Captação: falha ao montar conversão da página de captura (GA4)")
+
+    # KPIs Principais x lançamento anterior, no mesmo período relativo
+    # (mesma quantidade de dias decorridos desde o início da Captação).
+    prev_kpis = None
+    if launch:
+        previous = find_previous_launch(launch, launches)
+        if previous:
+            try:
+                prev_cfg = await run_in_threadpool(_launch_cfg, previous.code)
+                prev_kpis = await run_in_threadpool(
+                    kpis_captacao_periodo_comparavel, launch, previous, cfg, prev_cfg,
+                )
+            except Exception:
+                logger.exception("Captação: falha ao montar comparativo com lançamento anterior")
 
     # % de Leads por Campanha — Facebook/YouTube por temperatura (só
     # Captação; a segmentação por temperatura não existe em Pré-Qualificação
@@ -150,6 +164,7 @@ async def captacao(request: Request, launch_code: str | None = None):
         leads_por_campanha=leads_por_campanha,
         total_leads_camp=total_leads_camp, total_gasto_camp=total_gasto_camp,
         leads_x_whatsapp=leads_x_whatsapp,
+        prev_kpis=prev_kpis,
         dia_publico_previsto=dia_publico_previsto, dia_publico_realizado=dia_publico_realizado,
         data_errors=d.get("_errors", []),
     )

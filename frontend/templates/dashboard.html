@@ -23,9 +23,14 @@
 
     {% else %}
 
+    {% from "_macros_verba.html" import tabela_dia_publico, kpi_delta %}
+
     {# ── KPIs Principais (design system: tp-kpi) ─────────────────────────── #}
     <div class="section">
     <div class="section-title">1. KPIs Principais</div>
+    {% if prev_kpis %}
+    <div style="font-size:11px;color:var(--bs-ink-muted);margin-bottom:10px">Comparativo com {{ prev_kpis.dias }} dia(s) equivalentes do lançamento anterior ({{ prev_kpis.periodo }})</div>
+    {% endif %}
     <div class="tp-kpi-grid">
 
       <div class="tp-kpi">
@@ -45,6 +50,9 @@
           {% if google %}{% if meta %} · {% endif %}Google: {{ google_capt_gasto | brl }}{% endif %}
           {% if wa_gasto %}{% if meta or google %} · {% endif %}WhatsApp: {{ wa_gasto | brl }}{% endif %}
         </div>
+        {% if prev_kpis %}
+        <div class="tp-compare">{{ kpi_delta(invest, prev_kpis.invest, polarity="down") }} vs {{ prev_kpis.invest | brl }}</div>
+        {% endif %}
       </div>
 
       <div class="tp-kpi">
@@ -56,6 +64,9 @@
         <div class="tp-compare">
           {% if vendas %}Hotmart: {{ vendas.hotmart_receita | brl }} · TMB: {{ vendas.tmb_receita | brl }}{% else %}Sem dados de vendas{% endif %}
         </div>
+        {% if prev_kpis %}
+        <div class="tp-compare">{{ kpi_delta(receita, prev_kpis.receita) }} vs {{ prev_kpis.receita | brl }}</div>
+        {% endif %}
       </div>
 
       <div class="tp-kpi">
@@ -70,6 +81,9 @@
         <div class="tp-value">{{ "%.2f"|format(roas) | replace(".", ",") }}<small>x</small></div>
         <div class="tp-label">ROAS Geral</div>
         <div class="tp-compare">Retorno sobre investimento</div>
+        {% if prev_kpis %}
+        <div class="tp-compare">{{ kpi_delta(roas, prev_kpis.roas) }} vs {{ "%.2f"|format(prev_kpis.roas) | replace(".", ",") }}x</div>
+        {% endif %}
       </div>
 
       <div class="tp-kpi">
@@ -81,6 +95,9 @@
         <div class="tp-compare">
           {% if vendas %}Hotmart: {{ vendas.hotmart_vendas | num }} · TMB: {{ vendas.tmb_vendas | num }}{% else %}Sem dados de vendas{% endif %}
         </div>
+        {% if prev_kpis and vendas %}
+        <div class="tp-compare">{{ kpi_delta(vendas.total_vendas, prev_kpis.vendas) }} vs {{ prev_kpis.vendas | num }}</div>
+        {% endif %}
       </div>
 
       <div class="tp-kpi">
@@ -99,6 +116,9 @@
           {% if meta %}Meta: {{ meta_capt_leads | num }}{% endif %}
           {% if google %}{% if meta %} · {% endif %}Google: {{ "%.0f"|format(google_capt_conv) }}{% endif %}
         </div>
+        {% if prev_kpis %}
+        <div class="tp-compare">{{ kpi_delta(leads_meta, prev_kpis.leads) }} vs {{ prev_kpis.leads | num }}</div>
+        {% endif %}
       </div>
 
       <div class="tp-kpi">
@@ -108,6 +128,9 @@
         <div class="tp-value">{{ valor_medio_lead | brl }}</div>
         <div class="tp-label">CPL Geral</div>
         <div class="tp-compare">Investimento total / leads (Meta + Google)</div>
+        {% if prev_kpis %}
+        <div class="tp-compare">{{ kpi_delta(valor_medio_lead, prev_kpis.cpl, polarity="down") }} vs {{ prev_kpis.cpl | brl }}</div>
+        {% endif %}
       </div>
 
     </div>
@@ -548,7 +571,6 @@
     </div>
     {% endif %}
 
-    {% from "_macros_verba.html" import tabela_dia_publico %}
     {{ tabela_dia_publico("11. Previsão da Divisão de Verba por Público em Cada Dia", dia_publico_previsto, "Total Previsto") }}
     {{ tabela_dia_publico("12. Divisão de Verba por Público em Cada Dia (Realizado)", dia_publico_realizado, "Total Realizado") }}
 

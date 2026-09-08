@@ -461,6 +461,21 @@
               <td class="numero">{{ a.cpm | brl }}</td>
             </tr>
             {% endfor %}
+            {% set tot = namespace(leads=0, gasto=0, cliques=0, impressoes=0) %}
+            {% for a in meta_ads_preq %}
+              {% set tot.leads = tot.leads + a.leads %}
+              {% set tot.gasto = tot.gasto + a.gasto %}
+              {% set tot.cliques = tot.cliques + (a.cliques or 0) %}
+              {% set tot.impressoes = tot.impressoes + (a.impressoes or 0) %}
+            {% endfor %}
+            <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
+              <td colspan="{{ 3 if drive_thumbnails else 2 }}">TOTAL</td>
+              <td class="numero">{{ tot.leads | num }}</td>
+              <td class="numero">{{ (tot.gasto / tot.leads) | brl if tot.leads > 0 else "–" }}</td>
+              <td class="numero">{{ tot.gasto | brl }}</td>
+              <td class="numero">{{ (tot.cliques / tot.impressoes * 100) | pct(2) if tot.impressoes > 0 else "–" }}</td>
+              <td class="numero">{{ (tot.gasto / tot.impressoes * 1000) | brl if tot.impressoes > 0 else "–" }}</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -522,6 +537,22 @@
               </td>
             </tr>
             {% endfor %}
+            {% set tot = namespace(leads=0, gasto=0, cliques=0, impressoes=0) %}
+            {% for a in youtube_ads_preq %}
+              {% set tot.leads = tot.leads + a.leads %}
+              {% set tot.gasto = tot.gasto + a.gasto %}
+              {% set tot.cliques = tot.cliques + (a.cliques or 0) %}
+              {% set tot.impressoes = tot.impressoes + (a.impressoes or 0) %}
+            {% endfor %}
+            <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
+              <td colspan="{{ 3 if drive_thumbnails else 2 }}">TOTAL</td>
+              <td class="numero">{{ tot.leads | num }}</td>
+              <td class="numero">{{ (tot.gasto / tot.leads) | brl if tot.leads > 0 else "–" }}</td>
+              <td class="numero">{{ tot.gasto | brl }}</td>
+              <td class="numero">{{ (tot.cliques / tot.impressoes * 100) | pct(2) if tot.impressoes > 0 else "–" }}</td>
+              <td class="numero">{{ (tot.gasto / tot.impressoes * 1000) | brl if tot.impressoes > 0 else "–" }}</td>
+              <td></td>
+            </tr>
           </tbody>
         </table>
       </div>

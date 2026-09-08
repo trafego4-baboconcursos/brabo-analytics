@@ -1,0 +1,48 @@
+{# Macros de "Verba do Lançamento" reaproveitados em mais de uma página
+   (/verba, /captacao). Arquivo próprio SEM {% extends %} — importar macro
+   de um template que estende base.html dispara o render do template
+   inteiro (inclusive variáveis de contexto tipo etl_status), então isso
+   precisa ficar isolado. #}
+
+{% macro tabela_dia_publico(titulo, dados, rotulo_total="Total") %}
+<div class="section">
+  <div class="section-title">{{ titulo }}</div>
+  {% if dados.dias %}
+  <div class="table-wrap" style="overflow-x:auto">
+    <table class="table-compact" style="font-size:11px;white-space:nowrap">
+      <thead>
+        <tr>
+          <th class="th-dark" style="position:sticky;left:0;background:inherit">Público</th>
+          <th class="th-dark" style="text-align:right">%</th>
+          {% for d in dados.dias %}<th class="th-dark" style="text-align:right">{{ d.data_str }}</th>{% endfor %}
+          <th class="th-dark" style="text-align:right">{{ rotulo_total }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pub in dados.buckets %}
+        <tr>
+          <td class="td-bold" style="position:sticky;left:0;background:var(--bs-card)">{{ pub }}</td>
+          <td style="text-align:right">{{ dados.pct_publico.get(pub, 0) | round(1) }}%</td>
+          {% for d in dados.dias %}
+          <td style="text-align:right">{{ d.publicos.get(pub, 0) | brl(0) if d.publicos.get(pub, 0) > 0 else "–" }}</td>
+          {% endfor %}
+          <td style="text-align:right;font-weight:700">{{ dados.totais.get(pub, 0) | brl(0) }}</td>
+        </tr>
+        {% endfor %}
+        <tr style="background:var(--bs-sidebar-dark);color:#fff;font-weight:700;">
+          <td style="position:sticky;left:0;background:inherit">Investimento por Dia</td>
+          <td style="text-align:right">100%</td>
+          {% for d in dados.dias %}<td style="text-align:right">{{ d.pct_dia | round(1) }}%</td>{% endfor %}
+          <td style="text-align:right">{{ dados.grand_total | brl(0) }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="no-data" style="padding:24px">
+    <i class="ti ti-folder-off"></i>
+    <p>Sem dados suficientes (público/datas não configurados no wizard).</p>
+  </div>
+  {% endif %}
+</div>
+{% endmacro %}

@@ -310,6 +310,24 @@ def publico_por_dia(code: str, cfg: dict | None, etapa_nome: str) -> dict:
     return {"dias": dias, "buckets": [b.get("nome") for b in buckets], "totais": totais}
 
 
+def com_percentuais(dados: dict) -> dict:
+    """Adiciona a % de cada público sobre o total geral (coluna "%" da
+    planilha) e a % de cada dia sobre o total geral (linha "Investimento
+    por Dia") a um resultado de publico_por_dia()/previsto_publico_por_dia()."""
+    totais = dados.get("totais") or {}
+    grand_total = sum(totais.values())
+    dados["pct_publico"] = {
+        nome: (v / grand_total * 100) if grand_total > 0 else 0.0
+        for nome, v in totais.items()
+    }
+    for d in dados.get("dias") or []:
+        dia_total = sum((d.get("publicos") or {}).values())
+        d["total"] = dia_total
+        d["pct_dia"] = (dia_total / grand_total * 100) if grand_total > 0 else 0.0
+    dados["grand_total"] = grand_total
+    return dados
+
+
 def investimento_diario_etapa(code: str, etapa_nome: str, start: str | None, end: str | None) -> list[dict]:
     """Gasto real por dia (Meta+Google) de uma etapa qualquer, classificando
     cada campanha com a mesma categorização usada no resto do sistema.

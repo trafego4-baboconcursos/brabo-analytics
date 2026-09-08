@@ -25,6 +25,7 @@ from frontend.services.orcamento import (
     get_etapa, previsto_por_etapa, previsto_por_subetapa, REMARKETING_SUBETAPAS,
     buckets_previsto_x_realizado, curva_diaria, com_realizado_diario,
     publico_por_dia, previsto_publico_por_dia, investimento_diario_etapa, etapa_cfg,
+    com_percentuais,
 )
 
 router = APIRouter()
@@ -128,6 +129,13 @@ async def captacao(request: Request, launch_code: str | None = None):
         except Exception:
             logger.exception("Captação: falha ao montar leads x WhatsApp")
 
+    # Divisão de Verba por Público em Cada Dia (Previsto x Realizado) —
+    # pauta debriefing 08/09/26, mesmo cruzamento já usado em /verba.
+    dia_publico_previsto = com_percentuais(previsto_publico_por_dia(cfg, "Captação"))
+    dia_publico_realizado = com_percentuais(
+        await run_in_threadpool(publico_por_dia, launch.code, cfg, "Captação") if launch else {}
+    )
+
     ctx = _base_ctx(request, "captacao", "Captação", launch, launches,
         meta=meta, google=google, vendas=vendas, wa_gasto=wa_gasto,
         meta_capt_gasto=meta_capt_gasto, google_capt_gasto=google_capt_gasto,
@@ -142,6 +150,7 @@ async def captacao(request: Request, launch_code: str | None = None):
         leads_por_campanha=leads_por_campanha,
         total_leads_camp=total_leads_camp, total_gasto_camp=total_gasto_camp,
         leads_x_whatsapp=leads_x_whatsapp,
+        dia_publico_previsto=dia_publico_previsto, dia_publico_realizado=dia_publico_realizado,
         data_errors=d.get("_errors", []),
     )
     return templates.TemplateResponse("dashboard.html", ctx)
@@ -257,8 +266,10 @@ async def verba_page(request: Request, launch_code: str | None = None):
 
     # Divisão de verba por público em cada dia (só Captação — é o único
     # bloco que a planilha de referência detalha nesse nível).
-    dia_publico_realizado = await run_in_threadpool(publico_por_dia, launch.code, cfg, "Captação") if launch else {}
-    dia_publico_previsto = previsto_publico_por_dia(cfg, "Captação")
+    dia_publico_realizado = com_percentuais(
+        await run_in_threadpool(publico_por_dia, launch.code, cfg, "Captação") if launch else {}
+    )
+    dia_publico_previsto = com_percentuais(previsto_publico_por_dia(cfg, "Captação"))
 
     # Blocos por sub-etapa de remarketing: Previsto x Realizado total, split
     # Facebook/Google (buckets) e curva diária própria.

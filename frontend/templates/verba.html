@@ -178,40 +178,7 @@
     {{ bloco_curva("3. Verba Investida por Dia — Captação", curva_capt, "curvaCaptChart") }}
     {{ bloco_curva("5. Verba Investida por Dia — Pré-Qualificação", curva_preq, "curvaPreqChart") }}
 
-    {% macro tabela_dia_publico(titulo, dados) %}
-    <div class="section">
-      <div class="section-title">{{ titulo }}</div>
-      {% if dados.dias %}
-      <div class="table-wrap" style="overflow-x:auto">
-        <table class="table-compact" style="font-size:11px;white-space:nowrap">
-          <thead>
-            <tr>
-              <th class="th-dark" style="position:sticky;left:0;background:inherit">Público</th>
-              {% for d in dados.dias %}<th class="th-dark" style="text-align:right">{{ d.data_str }}</th>{% endfor %}
-              <th class="th-dark" style="text-align:right">Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for pub in dados.buckets %}
-            <tr>
-              <td class="td-bold" style="position:sticky;left:0;background:var(--bs-card)">{{ pub }}</td>
-              {% for d in dados.dias %}
-              <td style="text-align:right">{{ d.publicos.get(pub, 0) | brl(0) if d.publicos.get(pub, 0) > 0 else "–" }}</td>
-              {% endfor %}
-              <td style="text-align:right;font-weight:700">{{ dados.totais.get(pub, 0) | brl(0) }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
-      <div class="no-data" style="padding:24px">
-        <i class="ti ti-folder-off"></i>
-        <p>Sem dados suficientes (público/datas não configurados no wizard).</p>
-      </div>
-      {% endif %}
-    </div>
-    {% endmacro %}
+{% from "_macros_verba.html" import tabela_dia_publico %}
 
     {{ tabela_dia_publico("6. Divisão de Verba por Público em Cada Dia — Captação (Realizado)", dia_publico_realizado) }}
     {{ tabela_dia_publico("7. Previsão da Divisão de Verba por Público — Captação", dia_publico_previsto) }}

@@ -86,12 +86,35 @@ def _temperatura_de_bucket(nome: str) -> str | None:
 
 
 def etapa_cfg(cfg: dict | None, nome: str) -> dict:
-    """Devolve a entrada de `etapas` (buckets/curva_pct/distribuicao) de uma
-    etapa pelo nome, ou {} se não tiver sido cadastrada no wizard."""
-    for et in ((cfg or {}).get("etapas") or []):
-        if et.get("nome") == nome:
-            return et
-    return {}
+    """Devolve a entrada de `etapas` (buckets/curva_pct/distribuicao/
+    start_date/end_date/total) de uma etapa pelo nome. Pré-Qualificação e
+    Captação têm data e orçamento definidos nos passos 1/2 do wizard
+    (pre_quali_start_date/meta_investimento_pre_quali etc) — campos
+    próprios, independentes de a etapa ter sido aberta na aba "Verba" (que
+    só existe pra guardar buckets/curva_pct). Por isso essas duas SEMPRE
+    caem de volta nesses campos quando a entrada em `etapas` não tiver
+    data/total preenchido, pra funcionar em qualquer lançamento — não só
+    nos que tiveram a aba Verba configurada manualmente."""
+    cfg = cfg or {}
+    et = {}
+    for e in (cfg.get("etapas") or []):
+        if e.get("nome") == nome:
+            et = dict(e)
+            break
+
+    fallback_map = {
+        "Captação": ("captacao_start_date", "captacao_end_date", "meta_investimento_captacao"),
+        "Pré-Qualificação": ("pre_quali_start_date", "pre_quali_end_date", "meta_investimento_pre_quali"),
+    }
+    if nome in fallback_map:
+        k_start, k_end, k_total = fallback_map[nome]
+        if not et.get("start_date"):
+            et["start_date"] = cfg.get(k_start)
+        if not et.get("end_date"):
+            et["end_date"] = cfg.get(k_end)
+        if not et.get("total"):
+            et["total"] = cfg.get(k_total)
+    return et
 
 
 def bucket_realizado(meta: Any, google: Any, bucket: dict, etapa_nome: str) -> float:

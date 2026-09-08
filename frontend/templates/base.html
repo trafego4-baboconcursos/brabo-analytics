@@ -641,12 +641,21 @@ table th, table td { text-align:left; }
 .negativo { color:var(--bs-danger);  font-weight:700; }
 .top3     { background:var(--bs-warning-bg) !important; }
 
-/* Total row */
+/* Total row — JS (DOMContentLoaded) adiciona esta classe automaticamente em
+   qualquer <tr> cuja primeira célula contenha "total"/"média"/"consolidado",
+   em QUALQUER tabela do sistema. Fundo escuro (não var(--bs-accent-bg), que
+   fica claro e deixa texto branco ilegível) + guarda de hover pra não
+   clarear ao passar o mouse. */
 table tr.total-row td {
-  background:var(--bs-accent-bg) !important;
+  background:#1f2937 !important;
+  color:#fff !important;
   font-weight:700 !important;
   border-top:2px double var(--bs-accent) !important;
   border-bottom:2px solid var(--bs-accent) !important;
+}
+table tr.total-row:hover td {
+  background:#1f2937 !important;
+  color:#fff !important;
 }
 
 /* ── KPI cards (estilo funil) ───────────────────────────────────────── */

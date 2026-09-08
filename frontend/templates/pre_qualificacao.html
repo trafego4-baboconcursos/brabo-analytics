@@ -382,19 +382,31 @@
       </div>
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
     <script>
     (function() {
       const labels = [{% for r in leads_por_campanha %}"{{ r.campanha | e }}"{% if not loop.last %},{% endif %}{% endfor %}];
       const values = [{% for r in leads_por_campanha %}{{ r.pct_leads | round(2) }}{% if not loop.last %},{% endif %}{% endfor %}];
       const el = document.getElementById('leadsPorCampanhaPreqChart');
+      const ink = getComputedStyle(document.documentElement).getPropertyValue('--bs-ink').trim() || '#1f2330';
       if (el && window.Chart) {
         new Chart(el, {
           type: 'bar',
+          plugins: [ChartDataLabels],
           data: { labels, datasets: [{ label: 'Quantidade de Leads por Público (%)', data: values, backgroundColor: '#93d8c8' }] },
           options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false }, title: { display: true, text: 'Quantidade de Leads por Público (%)' } },
-            scales: { y: { beginAtZero: true, ticks: { callback: v => v + '%' } } }
+            plugins: {
+              legend: { display: false },
+              title: { display: true, text: 'Quantidade de Leads por Público (%)' },
+              datalabels: {
+                anchor: 'end', align: 'top', offset: 2,
+                font: { size: 11, weight: '700' }, color: ink,
+                formatter: v => v + '%',
+              }
+            },
+            scales: { y: { beginAtZero: true, ticks: { callback: v => v + '%' } } },
+            layout: { padding: { top: 20 } }
           }
         });
       }

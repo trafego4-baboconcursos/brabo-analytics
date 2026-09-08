@@ -45,7 +45,7 @@ async def index_page(request: Request, launch_code: str | None = None):
 async def captacao(request: Request, launch_code: str | None = None):
     launches = await run_in_threadpool(get_launches)
     launch = resolve_launch(launch_code, launches)
-    d = await _fetch_all_data(launch, needs_daily=True)
+    d = await _fetch_all_data(launch, needs_daily=True, needs_thumbnails=True)
     meta, google, vendas = d["meta"], d["google"], d["vendas"]
     daily_breakdown      = d["daily_breakdown"]
     daily_breakdown_preq = d.get("daily_breakdown_preq") or []
@@ -165,6 +165,7 @@ async def captacao(request: Request, launch_code: str | None = None):
         total_leads_camp=total_leads_camp, total_gasto_camp=total_gasto_camp,
         leads_x_whatsapp=leads_x_whatsapp,
         prev_kpis=prev_kpis,
+        drive_thumbnails=d.get("drive_thumbnails") or {},
         dia_publico_previsto=dia_publico_previsto, dia_publico_realizado=dia_publico_realizado,
         data_errors=d.get("_errors", []),
     )

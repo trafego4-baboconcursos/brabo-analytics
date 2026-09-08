@@ -553,6 +553,14 @@ html[data-bs-theme="aranhaverso"] .bs-web-spokes {
 
 /* ── KPI destaque (design system: tp-kpi) ───────────────────────────── */
 .tp-kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin-bottom:24px; }
+/* Variante de 4 colunas fixas — cards mais largos e mais baixos (pauta
+   08/09/26, reformulação dos KPIs de /captacao). Especificidade de 2
+   classes vence a regra de auto-fit acima; media queries próprias porque
+   a regra mobile genérica (linha ~1145, 1 classe só) perderia por
+   especificidade e travaria 4 colunas apertadas no celular. */
+.tp-kpi-grid.tp-kpi-grid-4 { grid-template-columns:repeat(4,1fr); }
+@media (max-width:900px) { .tp-kpi-grid.tp-kpi-grid-4 { grid-template-columns:repeat(2,1fr); } }
+@media (max-width:520px) { .tp-kpi-grid.tp-kpi-grid-4 { grid-template-columns:1fr; } }
 .tp-kpi {
   background:var(--bs-card); border-radius:var(--bs-r-lg); padding:16px 14px;
   display:flex; flex-direction:column; gap:3px;

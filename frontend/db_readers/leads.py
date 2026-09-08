@@ -46,6 +46,28 @@ def read_ac_leads_for_attribution(launch_code: str, start_date=None, end_date=No
     return df
 
 
+def read_utm_cobertura(launch_folder_or_code: Any) -> dict | None:
+    """% de leads (tabela `leads`, Active Campaign) com utm_content preenchido
+    — é a UTM que carrega o código do anúncio (ADxxx), chave de atribuição do
+    sistema inteiro. Sem ela o lead não casa com nenhum criativo/campanha."""
+    code = _extract_launch_code(launch_folder_or_code)
+    engine = _get_engine()
+    with engine.connect() as conn:
+        row = conn.execute(
+            text("""
+                SELECT COUNT(*) AS total,
+                       COUNT(*) FILTER (WHERE COALESCE(NULLIF(TRIM(utm_content), ''), '') != '') AS com_utm
+                FROM leads WHERE lancamento_codigo = :code
+            """),
+            {"code": code},
+        ).fetchone()
+    total = int(row[0] or 0)
+    if not total:
+        return None
+    com_utm = int(row[1] or 0)
+    return {"total": total, "com_utm": com_utm, "pct": com_utm / total * 100}
+
+
 def read_leads(launch_folder_or_code: Any, vendas: VendasSummary | None = None, start_date=None, end_date=None) -> LeadsSummary | None:  # noqa: ARG001
     code = _extract_launch_code(launch_folder_or_code)
     engine = _get_engine()

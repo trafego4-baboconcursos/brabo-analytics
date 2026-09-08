@@ -17,7 +17,7 @@ from frontend.services.fetch import (
     _launch_cfg, _perfil_por_anuncio, _pesquisa_engajamento,
     _leads_antigos_compradores, _qualidade_regiao, _caminho_comprador,
     _landing_pages_por_etapa, _leads_x_whatsapp, _vendas_grupos_whatsapp,
-    _disparo_resumo, _conversao_pagina_captura,
+    _disparo_resumo, _conversao_pagina_captura, _utm_cobertura,
 )
 from frontend.services.calendario import build_calendario_ctx
 from frontend.services.debriefing_build import build_debriefing_context
@@ -137,11 +137,16 @@ async def captacao(request: Request, launch_code: str | None = None):
     # "Leads X Grupos de WhatsApp" no debriefing (leads da AC × pessoas
     # ativas nos grupos, deduplicado normal+VIP).
     leads_x_whatsapp = None
+    utm_cobertura = None
     if launch:
         try:
             leads_x_whatsapp = await run_in_threadpool(_leads_x_whatsapp, launch)
         except Exception:
             logger.exception("Captação: falha ao montar leads x WhatsApp")
+        try:
+            utm_cobertura = await run_in_threadpool(_utm_cobertura, launch)
+        except Exception:
+            logger.exception("Captação: falha ao montar cobertura de UTM")
 
     # Divisão de Verba por Público em Cada Dia (Previsto x Realizado) —
     # pauta debriefing 08/09/26, mesmo cruzamento já usado em /verba.
@@ -165,6 +170,7 @@ async def captacao(request: Request, launch_code: str | None = None):
         leads_por_campanha=leads_por_campanha,
         total_leads_camp=total_leads_camp, total_gasto_camp=total_gasto_camp,
         leads_x_whatsapp=leads_x_whatsapp,
+        utm_cobertura=utm_cobertura,
         prev_kpis=prev_kpis,
         drive_thumbnails=d.get("drive_thumbnails") or {},
         verba_diaria_combinada=verba_diaria_combinada,

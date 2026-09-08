@@ -118,6 +118,12 @@ def _vendas_grupos_whatsapp(launch: Any):
                            lambda: read_vendas_grupos_whatsapp(launch.code))
 
 
+def _utm_cobertura(launch: Any):
+    from frontend.db_readers.leads import read_utm_cobertura
+    return _get_or_compute(launch.code, "utm_cobertura",
+                           lambda: read_utm_cobertura(launch.code))
+
+
 def _forma_pagamento_entrada(launch: Any):
     from frontend.db_readers.sales import read_forma_pagamento_entrada
     start, end = _window(launch)

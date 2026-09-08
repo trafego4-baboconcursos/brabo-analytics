@@ -31,7 +31,7 @@
     {% if prev_kpis %}
     <div style="font-size:11px;color:var(--bs-ink-muted);margin-bottom:10px">Comparativo com {{ prev_kpis.dias }} dia(s) equivalentes do lançamento anterior ({{ prev_kpis.periodo }})</div>
     {% endif %}
-    <div class="tp-kpi-grid">
+    <div class="tp-kpi-grid tp-kpi-grid-4">
 
       <div class="tp-kpi">
         <div class="tp-kpi-top">
@@ -57,55 +57,10 @@
 
       <div class="tp-kpi">
         <div class="tp-kpi-top">
-          <div class="tp-icon success"><i class="ti ti-cash"></i></div>
-        </div>
-        <div class="tp-value">{{ receita | brl }}</div>
-        <div class="tp-label">Receita Total</div>
-        <div class="tp-compare">
-          {% if vendas %}Hotmart: {{ vendas.hotmart_receita | brl }} · TMB: {{ vendas.tmb_receita | brl }}{% else %}Sem dados de vendas{% endif %}
-        </div>
-        {% if prev_kpis %}
-        <div class="tp-compare">{{ kpi_delta(receita, prev_kpis.receita) }} vs {{ prev_kpis.receita | brl }}</div>
-        {% endif %}
-      </div>
-
-      <div class="tp-kpi">
-        <div class="tp-kpi-top">
-          <div class="tp-icon"><i class="ti ti-chart-bar"></i></div>
-          {% if roas > 0 %}
-          <div class="tp-delta {% if roas >= 2 %}up{% elif roas >= 1 %}flat{% else %}down{% endif %}">
-            {{ "%.2f"|format(roas) | replace(".", ",") }}x
-          </div>
-          {% endif %}
-        </div>
-        <div class="tp-value">{{ "%.2f"|format(roas) | replace(".", ",") }}<small>x</small></div>
-        <div class="tp-label">ROAS Geral</div>
-        <div class="tp-compare">Retorno sobre investimento</div>
-        {% if prev_kpis %}
-        <div class="tp-compare">{{ kpi_delta(roas, prev_kpis.roas) }} vs {{ "%.2f"|format(prev_kpis.roas) | replace(".", ",") }}x</div>
-        {% endif %}
-      </div>
-
-      <div class="tp-kpi">
-        <div class="tp-kpi-top">
-          <div class="tp-icon success"><i class="ti ti-shopping-cart"></i></div>
-        </div>
-        <div class="tp-value">{{ vendas.total_vendas | num if vendas else "–" }}</div>
-        <div class="tp-label">Total de Vendas</div>
-        <div class="tp-compare">
-          {% if vendas %}Hotmart: {{ vendas.hotmart_vendas | num }} · TMB: {{ vendas.tmb_vendas | num }}{% else %}Sem dados de vendas{% endif %}
-        </div>
-        {% if prev_kpis and vendas %}
-        <div class="tp-compare">{{ kpi_delta(vendas.total_vendas, prev_kpis.vendas) }} vs {{ prev_kpis.vendas | num }}</div>
-        {% endif %}
-      </div>
-
-      <div class="tp-kpi">
-        <div class="tp-kpi-top">
           <div class="tp-icon meta"><i class="ti ti-users"></i></div>
         </div>
         <div class="tp-value">{{ leads_meta | num }}</div>
-        <div class="tp-label">Leads (Geral)</div>
+        <div class="tp-label">Leads Gerados</div>
         {% if prog_leads is not none %}
         <div class="kpi-prog">
           <div class="kpi-prog-track"><div class="kpi-prog-fill" style="width:{{ prog_leads | round(1) }}%"></div></div>
@@ -126,10 +81,72 @@
           <div class="tp-icon success"><i class="ti ti-report-money"></i></div>
         </div>
         <div class="tp-value">{{ valor_medio_lead | brl }}</div>
-        <div class="tp-label">CPL Geral</div>
+        <div class="tp-label">CPL</div>
         <div class="tp-compare">Investimento total / leads (Meta + Google)</div>
         {% if prev_kpis %}
         <div class="tp-compare">{{ kpi_delta(valor_medio_lead, prev_kpis.cpl, polarity="down") }} vs {{ prev_kpis.cpl | brl }}</div>
+        {% endif %}
+      </div>
+
+      <div class="tp-kpi">
+        <div class="tp-kpi-top">
+          <div class="tp-icon"><i class="ti ti-database-export"></i></div>
+        </div>
+        <div class="tp-value">{{ leads_x_whatsapp.total_leads | num if leads_x_whatsapp else "–" }}</div>
+        <div class="tp-label">Leads que Caíram no Active</div>
+        <div class="tp-compare">Tabela de leads (Active Campaign)</div>
+      </div>
+
+      <div class="tp-kpi">
+        <div class="tp-kpi-top">
+          <div class="tp-icon"><i class="ti ti-tag"></i></div>
+        </div>
+        <div class="tp-value">{{ utm_cobertura.pct | round(1) if utm_cobertura else "–" }}{% if utm_cobertura %}%{% endif %}</div>
+        <div class="tp-label">% de UTM Cobertas</div>
+        <div class="tp-compare">
+          {% if utm_cobertura %}{{ utm_cobertura.com_utm | num }} de {{ utm_cobertura.total | num }} leads com UTM{% else %}Sem dados{% endif %}
+        </div>
+      </div>
+
+      <div class="tp-kpi">
+        <div class="tp-kpi-top">
+          <div class="tp-icon success"><i class="ti ti-brand-whatsapp"></i></div>
+        </div>
+        <div class="tp-value">{{ leads_x_whatsapp.total_whatsapp | num if leads_x_whatsapp else "–" }}</div>
+        <div class="tp-label">Leads que Entraram nos Grupos</div>
+        <div class="tp-compare">
+          {% if leads_x_whatsapp %}Taxa de entrada: {{ leads_x_whatsapp.taxa_entrada | round(1) }}%{% else %}Sem dados{% endif %}
+        </div>
+      </div>
+
+      <div class="tp-kpi">
+        <div class="tp-kpi-top">
+          <div class="tp-icon success"><i class="ti ti-cash"></i></div>
+        </div>
+        <div class="tp-value">{{ receita | brl }}</div>
+        <div class="tp-label">Receita da Captação</div>
+        <div class="tp-compare">
+          {% if vendas %}Hotmart: {{ vendas.hotmart_receita | brl }} · TMB: {{ vendas.tmb_receita | brl }}{% else %}Sem dados de vendas{% endif %}
+        </div>
+        {% if prev_kpis %}
+        <div class="tp-compare">{{ kpi_delta(receita, prev_kpis.receita) }} vs {{ prev_kpis.receita | brl }}</div>
+        {% endif %}
+      </div>
+
+      <div class="tp-kpi">
+        <div class="tp-kpi-top">
+          <div class="tp-icon"><i class="ti ti-chart-bar"></i></div>
+          {% if roas > 0 %}
+          <div class="tp-delta {% if roas >= 2 %}up{% elif roas >= 1 %}flat{% else %}down{% endif %}">
+            {{ "%.2f"|format(roas) | replace(".", ",") }}x
+          </div>
+          {% endif %}
+        </div>
+        <div class="tp-value">{{ "%.2f"|format(roas) | replace(".", ",") }}<small>x</small></div>
+        <div class="tp-label">ROAS da Captação</div>
+        <div class="tp-compare">Retorno sobre investimento</div>
+        {% if prev_kpis %}
+        <div class="tp-compare">{{ kpi_delta(roas, prev_kpis.roas) }} vs {{ "%.2f"|format(prev_kpis.roas) | replace(".", ",") }}x</div>
         {% endif %}
       </div>
 

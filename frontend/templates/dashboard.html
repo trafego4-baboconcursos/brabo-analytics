@@ -131,35 +131,35 @@
           </colgroup>
           <thead>
             <tr>
-              <th colspan="2" class="th-dark" style="text-align:center;">Data</th>
-              <th colspan="3" class="th-dark" style="text-align:center;">Geral</th>
-              <th colspan="3" class="th-meta" style="text-align:center;"><i class="ti ti-brand-meta"></i> Facebook Ads</th>
-              <th colspan="3" class="th-youtube" style="text-align:center;"><i class="ti ti-brand-youtube"></i> YouTube</th>
-              <th colspan="3" class="th-search" style="text-align:center;">GA Search</th>
-              <th colspan="3" class="th-pmax" style="text-align:center;">GA P-Max</th>
-              <th colspan="3" class="th-display" style="text-align:center;">GA Display</th>
+              <th colspan="2" class="th-dark" style="text-align:left;">Data</th>
+              <th colspan="3" class="th-dark" style="text-align:left;">Geral</th>
+              <th colspan="3" class="th-meta" style="text-align:left;"><i class="ti ti-brand-meta"></i> Facebook Ads</th>
+              <th colspan="3" class="th-youtube" style="text-align:left;"><i class="ti ti-brand-youtube"></i> YouTube</th>
+              <th colspan="3" class="th-search" style="text-align:left;">GA Search</th>
+              <th colspan="3" class="th-pmax" style="text-align:left;">GA P-Max</th>
+              <th colspan="3" class="th-display" style="text-align:left;">GA Display</th>
             </tr>
             <tr>
               <th class="th-dark">Dia</th>
               <th class="th-dark">Data</th>
               <th class="th-dark" style="text-align:left">Leads</th>
-              <th class="th-dark" style="text-align:right">CPL</th>
-              <th class="th-dark" style="text-align:right">Gasto</th>
+              <th class="th-dark" style="text-align:left">CPL</th>
+              <th class="th-dark" style="text-align:left">Gasto</th>
               <th class="th-meta" style="text-align:left">Leads</th>
-              <th class="th-meta" style="text-align:right">CPL</th>
-              <th class="th-meta" style="text-align:right">Gasto</th>
-              <th class="th-youtube" style="text-align:right">Conv.</th>
-              <th class="th-youtube" style="text-align:right">CPA</th>
-              <th class="th-youtube" style="text-align:right">Gasto</th>
-              <th class="th-search" style="text-align:right">Conv.</th>
-              <th class="th-search" style="text-align:right">CPA</th>
-              <th class="th-search" style="text-align:right">Gasto</th>
-              <th class="th-pmax" style="text-align:right">Conv.</th>
-              <th class="th-pmax" style="text-align:right">CPA</th>
-              <th class="th-pmax" style="text-align:right">Gasto</th>
-              <th class="th-display" style="text-align:right">Conv.</th>
-              <th class="th-display" style="text-align:right">CPA</th>
-              <th class="th-display" style="text-align:right">Gasto</th>
+              <th class="th-meta" style="text-align:left">CPL</th>
+              <th class="th-meta" style="text-align:left">Gasto</th>
+              <th class="th-youtube" style="text-align:left">Conv.</th>
+              <th class="th-youtube" style="text-align:left">CPA</th>
+              <th class="th-youtube" style="text-align:left">Gasto</th>
+              <th class="th-search" style="text-align:left">Conv.</th>
+              <th class="th-search" style="text-align:left">CPA</th>
+              <th class="th-search" style="text-align:left">Gasto</th>
+              <th class="th-pmax" style="text-align:left">Conv.</th>
+              <th class="th-pmax" style="text-align:left">CPA</th>
+              <th class="th-pmax" style="text-align:left">Gasto</th>
+              <th class="th-display" style="text-align:left">Conv.</th>
+              <th class="th-display" style="text-align:left">CPA</th>
+              <th class="th-display" style="text-align:left">Gasto</th>
             </tr>
             {# Linha de totais #}
             {% set tot = namespace(leads=0,gasto=0,ml=0,mg=0,yl=0,yg=0,sl=0,sg=0,pl=0,pg=0,dl=0,dg=0) %}
@@ -177,26 +177,26 @@
               {% set tot.dl = tot.dl + r.display_leads %}
               {% set tot.dg = tot.dg + r.display_gasto %}
             {% endfor %}
-            <tr style="background:#1f2937;color:#fff;font-weight:700;">
+            <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
               <td colspan="2">TOTAL</td>
               <td style="text-align:left;">{{ tot.leads | round(0) | int | num }}</td>
-              <td style="text-align:right;">{{ (tot.gasto / tot.leads) | brl if tot.leads > 0 else "–" }}</td>
-              <td style="text-align:right;">{{ tot.gasto | brl }}</td>
+              <td style="text-align:left;">{{ (tot.gasto / tot.leads) | brl if tot.leads > 0 else "–" }}</td>
+              <td style="text-align:left;">{{ tot.gasto | brl }}</td>
               <td style="text-align:left;">{{ tot.ml | round(0) | int | num }}</td>
-              <td style="text-align:right;">{{ (tot.mg / tot.ml) | brl if tot.ml > 0 else "–" }}</td>
-              <td style="text-align:right;">{{ tot.mg | brl }}</td>
-              <td style="text-align:right;">{{ tot.yl | round(0) | int | num }}</td>
-              <td style="text-align:right;">{{ (tot.yg / tot.yl) | brl if tot.yl > 0 else "–" }}</td>
-              <td style="text-align:right;">{{ tot.yg | brl }}</td>
-              <td style="text-align:right;">{{ tot.sl | round(0) | int | num }}</td>
-              <td style="text-align:right;">{{ (tot.sg / tot.sl) | brl if tot.sl > 0 else "–" }}</td>
-              <td style="text-align:right;">{{ tot.sg | brl }}</td>
-              <td style="text-align:right;">{{ tot.pl | round(0) | int | num }}</td>
-              <td style="text-align:right;">{{ (tot.pg / tot.pl) | brl if tot.pl > 0 else "–" }}</td>
-              <td style="text-align:right;">{{ tot.pg | brl }}</td>
-              <td style="text-align:right;">{{ tot.dl | round(0) | int | num }}</td>
-              <td style="text-align:right;">{{ (tot.dg / tot.dl) | brl if tot.dl > 0 else "–" }}</td>
-              <td style="text-align:right;">{{ tot.dg | brl }}</td>
+              <td style="text-align:left;">{{ (tot.mg / tot.ml) | brl if tot.ml > 0 else "–" }}</td>
+              <td style="text-align:left;">{{ tot.mg | brl }}</td>
+              <td style="text-align:left;">{{ tot.yl | round(0) | int | num }}</td>
+              <td style="text-align:left;">{{ (tot.yg / tot.yl) | brl if tot.yl > 0 else "–" }}</td>
+              <td style="text-align:left;">{{ tot.yg | brl }}</td>
+              <td style="text-align:left;">{{ tot.sl | round(0) | int | num }}</td>
+              <td style="text-align:left;">{{ (tot.sg / tot.sl) | brl if tot.sl > 0 else "–" }}</td>
+              <td style="text-align:left;">{{ tot.sg | brl }}</td>
+              <td style="text-align:left;">{{ tot.pl | round(0) | int | num }}</td>
+              <td style="text-align:left;">{{ (tot.pg / tot.pl) | brl if tot.pl > 0 else "–" }}</td>
+              <td style="text-align:left;">{{ tot.pg | brl }}</td>
+              <td style="text-align:left;">{{ tot.dl | round(0) | int | num }}</td>
+              <td style="text-align:left;">{{ (tot.dg / tot.dl) | brl if tot.dl > 0 else "–" }}</td>
+              <td style="text-align:left;">{{ tot.dg | brl }}</td>
             </tr>
           </thead>
           <tbody>
@@ -205,23 +205,23 @@
               <td class="td-bold">{{ r.weekday }}</td>
               <td class="td-muted">{{ r.date }}</td>
               <td style="text-align:left;">{{ r.total_leads | round(0) | int | num }}</td>
-              <td style="text-align:right;">{{ r.total_cpl | brl }}</td>
-              <td style="text-align:right;">{{ r.total_gasto | brl }}</td>
+              <td style="text-align:left;">{{ r.total_cpl | brl }}</td>
+              <td style="text-align:left;">{{ r.total_gasto | brl }}</td>
               <td class="td-meta" style="text-align:left;">{{ r.meta_leads | round(0) | int | num }}</td>
-              <td style="text-align:right;">{{ r.meta_cpl | brl if r.meta_leads > 0 else "–" }}</td>
-              <td style="text-align:right;">{{ r.meta_gasto | brl }}</td>
-              <td class="td-google" style="text-align:right;">{{ r.yt_leads | round(0) | int | num }}</td>
-              <td style="text-align:right;">{{ r.yt_cpl | brl if r.yt_leads > 0 else "–" }}</td>
-              <td style="text-align:right;">{{ r.yt_gasto | brl }}</td>
-              <td class="td-success" style="text-align:right;">{{ r.search_leads | round(0) | int | num }}</td>
-              <td style="text-align:right;">{{ r.search_cpl | brl if r.search_leads > 0 else "–" }}</td>
-              <td style="text-align:right;">{{ r.search_gasto | brl }}</td>
-              <td style="text-align:right;">{{ r.pmax_leads | round(0) | int | num }}</td>
-              <td style="text-align:right;">{{ r.pmax_cpl | brl if r.pmax_leads > 0 else "–" }}</td>
-              <td style="text-align:right;">{{ r.pmax_gasto | brl }}</td>
-              <td style="text-align:right;">{{ r.display_leads | round(0) | int | num }}</td>
-              <td style="text-align:right;">{{ r.display_cpl | brl if r.display_leads > 0 else "–" }}</td>
-              <td style="text-align:right;">{{ r.display_gasto | brl }}</td>
+              <td style="text-align:left;">{{ r.meta_cpl | brl if r.meta_leads > 0 else "–" }}</td>
+              <td style="text-align:left;">{{ r.meta_gasto | brl }}</td>
+              <td class="td-google" style="text-align:left;">{{ r.yt_leads | round(0) | int | num }}</td>
+              <td style="text-align:left;">{{ r.yt_cpl | brl if r.yt_leads > 0 else "–" }}</td>
+              <td style="text-align:left;">{{ r.yt_gasto | brl }}</td>
+              <td class="td-success" style="text-align:left;">{{ r.search_leads | round(0) | int | num }}</td>
+              <td style="text-align:left;">{{ r.search_cpl | brl if r.search_leads > 0 else "–" }}</td>
+              <td style="text-align:left;">{{ r.search_gasto | brl }}</td>
+              <td style="text-align:left;">{{ r.pmax_leads | round(0) | int | num }}</td>
+              <td style="text-align:left;">{{ r.pmax_cpl | brl if r.pmax_leads > 0 else "–" }}</td>
+              <td style="text-align:left;">{{ r.pmax_gasto | brl }}</td>
+              <td style="text-align:left;">{{ r.display_leads | round(0) | int | num }}</td>
+              <td style="text-align:left;">{{ r.display_cpl | brl if r.display_leads > 0 else "–" }}</td>
+              <td style="text-align:left;">{{ r.display_gasto | brl }}</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -242,11 +242,11 @@
           <thead>
             <tr>
               <th class="th-dark">Página</th>
-              <th class="th-dark" style="text-align:right">Sessões da Pág Captura</th>
-              <th class="th-dark" style="text-align:right">CTR →</th>
-              <th class="th-dark" style="text-align:right">Sessões da Pág. Obrigado</th>
-              <th class="th-dark" style="text-align:right">CTR →</th>
-              <th class="th-dark" style="text-align:right">Clicaram em Entrar no grupo</th>
+              <th class="th-dark" style="text-align:left">Sessões da Pág Captura</th>
+              <th class="th-dark" style="text-align:left">CTR →</th>
+              <th class="th-dark" style="text-align:left">Sessões da Pág. Obrigado</th>
+              <th class="th-dark" style="text-align:left">CTR →</th>
+              <th class="th-dark" style="text-align:left">Clicaram em Entrar no grupo</th>
             </tr>
           </thead>
           <tbody>
@@ -256,22 +256,22 @@
               {% set tot.obrigado = tot.obrigado + p.sessoes_obrigado %}
               {% set tot.grupo = tot.grupo + p.clicaram_grupo %}
             {% endfor %}
-            <tr style="background:#1f2937;color:#fff;font-weight:700;">
+            <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
               <td>Total</td>
-              <td style="text-align:right;">{{ tot.captura | num }}</td>
-              <td style="text-align:right;">{{ (tot.obrigado / tot.captura * 100) | pct if tot.captura > 0 else "–" }}</td>
-              <td style="text-align:right;">{{ tot.obrigado | num }}</td>
-              <td style="text-align:right;">{{ (tot.grupo / tot.obrigado * 100) | pct if tot.obrigado > 0 else "–" }}</td>
-              <td style="text-align:right;">{{ tot.grupo | num }}</td>
+              <td style="text-align:left;">{{ tot.captura | num }}</td>
+              <td style="text-align:left;">{{ (tot.obrigado / tot.captura * 100) | pct if tot.captura > 0 else "–" }}</td>
+              <td style="text-align:left;">{{ tot.obrigado | num }}</td>
+              <td style="text-align:left;">{{ (tot.grupo / tot.obrigado * 100) | pct if tot.obrigado > 0 else "–" }}</td>
+              <td style="text-align:left;">{{ tot.grupo | num }}</td>
             </tr>
             {% for p in conversao_paginas %}
             <tr>
               <td class="td-bold">{{ p.pagina }}</td>
-              <td style="text-align:right;">{{ p.sessoes_captura | num }}</td>
-              <td style="text-align:right;">{{ p.ctr_obrigado | pct }}</td>
-              <td style="text-align:right;">{{ p.sessoes_obrigado | num }}</td>
-              <td style="text-align:right;">{{ p.ctr_grupo | pct }}</td>
-              <td style="text-align:right;">{{ p.clicaram_grupo | num }}</td>
+              <td style="text-align:left;">{{ p.sessoes_captura | num }}</td>
+              <td style="text-align:left;">{{ p.ctr_obrigado | pct }}</td>
+              <td style="text-align:left;">{{ p.sessoes_obrigado | num }}</td>
+              <td style="text-align:left;">{{ p.ctr_grupo | pct }}</td>
+              <td style="text-align:left;">{{ p.clicaram_grupo | num }}</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -292,16 +292,16 @@
           <thead>
             <tr>
               <th class="th-dark">Página</th>
-              <th class="th-dark" style="text-align:right">Taxa de Comparecimento WPP</th>
-              <th class="th-dark" style="text-align:right">Quantidade de leads nos grupos</th>
+              <th class="th-dark" style="text-align:left">Taxa de Comparecimento WPP</th>
+              <th class="th-dark" style="text-align:left">Quantidade de leads nos grupos</th>
               <th class="th-dark">Promessa</th>
             </tr>
           </thead>
           <tbody>
             <tr>
               <td class="td-bold">Todas</td>
-              <td style="text-align:right;">{{ leads_x_whatsapp.taxa_entrada | pct }}</td>
-              <td style="text-align:right;">{{ leads_x_whatsapp.total_whatsapp | num }}</td>
+              <td style="text-align:left;">{{ leads_x_whatsapp.taxa_entrada | pct }}</td>
+              <td style="text-align:left;">{{ leads_x_whatsapp.total_whatsapp | num }}</td>
               <td class="td-muted" style="font-style:italic">— (preencher manualmente)</td>
             </tr>
           </tbody>
@@ -322,31 +322,31 @@
           <thead>
             <tr>
               <th class="th-dark">Campanhas</th>
-              <th class="th-dark" style="text-align:right">Qtd de Leads</th>
-              <th class="th-dark" style="text-align:right">Investimento</th>
-              <th class="th-dark" style="text-align:right">% Investimento</th>
-              <th class="th-dark" style="text-align:right">CPL</th>
-              <th class="th-dark" style="text-align:right">% Leads</th>
+              <th class="th-dark" style="text-align:left">Qtd de Leads</th>
+              <th class="th-dark" style="text-align:left">Investimento</th>
+              <th class="th-dark" style="text-align:left">% Investimento</th>
+              <th class="th-dark" style="text-align:left">CPL</th>
+              <th class="th-dark" style="text-align:left">% Leads</th>
             </tr>
           </thead>
           <tbody>
             {% for r in leads_por_campanha %}
             <tr>
               <td class="td-bold">{{ r.campanha }}</td>
-              <td style="text-align:right;">{{ r.leads | num }}</td>
-              <td style="text-align:right;">{{ r.gasto | brl }}</td>
-              <td style="text-align:right;">{{ r.pct_investimento | pct }}</td>
-              <td style="text-align:right;">{{ r.cpl | brl if r.leads > 0 else "–" }}</td>
-              <td style="text-align:right;">{{ r.pct_leads | pct }}</td>
+              <td style="text-align:left;">{{ r.leads | num }}</td>
+              <td style="text-align:left;">{{ r.gasto | brl }}</td>
+              <td style="text-align:left;">{{ r.pct_investimento | pct }}</td>
+              <td style="text-align:left;">{{ r.cpl | brl if r.leads > 0 else "–" }}</td>
+              <td style="text-align:left;">{{ r.pct_leads | pct }}</td>
             </tr>
             {% endfor %}
-            <tr style="background:#1f2937;color:#fff;font-weight:700;">
+            <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
               <td>Total</td>
-              <td style="text-align:right;">{{ total_leads_camp | num }}</td>
-              <td style="text-align:right;">{{ total_gasto_camp | brl }}</td>
-              <td style="text-align:right;">100%</td>
-              <td style="text-align:right;">{{ (total_gasto_camp / total_leads_camp) | brl if total_leads_camp > 0 else "–" }}</td>
-              <td style="text-align:right;">100%</td>
+              <td style="text-align:left;">{{ total_leads_camp | num }}</td>
+              <td style="text-align:left;">{{ total_gasto_camp | brl }}</td>
+              <td style="text-align:left;">100%</td>
+              <td style="text-align:left;">{{ (total_gasto_camp / total_leads_camp) | brl if total_leads_camp > 0 else "–" }}</td>
+              <td style="text-align:left;">100%</td>
             </tr>
           </tbody>
         </table>

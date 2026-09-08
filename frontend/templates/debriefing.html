@@ -107,9 +107,9 @@
 .alloc-lbl { font-size: 13px; font-weight: 600; color: var(--bs-ink); }
 .alloc-bar-wrap { height: 18px; background: var(--bs-border); border-radius: 4px; overflow: hidden; }
 .alloc-bar { height: 100%; border-radius: 4px; }
-.alloc-pct { font-size: 13px; font-weight: 700; text-align: right; }
-.alloc-val { font-size: 12px; color: var(--bs-ink-muted); text-align: right; }
-.alloc-badge { text-align: right; }
+.alloc-pct { font-size: 13px; font-weight: 700; text-align: left; }
+.alloc-val { font-size: 12px; color: var(--bs-ink-muted); text-align: left; }
+.alloc-badge { text-align: left; }
 .bg-preq { background: #16a34a; }
 .bg-capt { background: #2563eb; }
 .bg-rmkt { background: #dc2626; }
@@ -123,13 +123,13 @@
   display: block; font-size: 10px; font-weight: 600; color: var(--bs-ink-subtle);
   text-transform: uppercase; letter-spacing: .03em; margin-top: 1px;
 }
-.alloc-previsto { font-size: 12px; color: var(--bs-ink-muted); text-align: right; }
+.alloc-previsto { font-size: 12px; color: var(--bs-ink-muted); text-align: left; }
 .alloc-previsto .alloc-col-lbl, .alloc-realizado .alloc-col-lbl, .alloc-variacao .alloc-col-lbl, .alloc-badge .alloc-col-lbl {
   display: block; font-size: 9px; font-weight: 700; color: var(--bs-ink-subtle);
   text-transform: uppercase; letter-spacing: .04em; margin-bottom: 1px;
 }
-.alloc-realizado { font-size: 12px; font-weight: 700; color: var(--bs-ink); text-align: right; }
-.alloc-variacao { font-size: 12px; font-weight: 700; text-align: right; }
+.alloc-realizado { font-size: 12px; font-weight: 700; color: var(--bs-ink); text-align: left; }
+.alloc-variacao { font-size: 12px; font-weight: 700; text-align: left; }
 .alloc-row-budget.total .alloc-realizado { font-weight: 800; }
 
 /* ── Traffic allocation — linha de total (estilo footer) ─────────── */
@@ -186,7 +186,7 @@
   padding: 9px 14px; border-bottom: 1px solid var(--bs-surface); vertical-align: middle;
 }
 .dbf-table tbody tr:hover td { background: var(--bs-surface); }
-.dbf-table .num { text-align: right; font-weight: 600; }
+.dbf-table .num { text-align: left; font-weight: 600; }
 .dbf-table .roas-good { color: var(--bs-success); font-weight: 800; }
 .dbf-table .roas-ok   { color: #d97706; font-weight: 800; }
 .dbf-table .roas-bad  { color: var(--bs-danger); font-weight: 800; }
@@ -747,38 +747,38 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
             <thead>
               <tr>
                 <th class="th-dark">Período</th>
-                <th class="th-dark" style="text-align:right">Vendas</th>
-                <th class="th-dark" style="text-align:right">Faturamento</th>
+                <th class="th-dark" style="text-align:left">Vendas</th>
+                <th class="th-dark" style="text-align:left">Faturamento</th>
               </tr>
             </thead>
             <tbody>
               <tr>
                 <td class="td-bold">Vendas Antecipadas</td>
-                <td style="text-align:right;">{{ vpp.antecipadas.vendas | num }}
+                <td style="text-align:left;">{{ vpp.antecipadas.vendas | num }}
                   {% if dbf.has_prev %}{{ dbadge(vpp.antecipadas.vendas, pvpp.antecipadas.vendas) }}{% endif %}
                 </td>
-                <td style="text-align:right;">{{ vpp.antecipadas.faturamento | brl }}</td>
+                <td style="text-align:left;">{{ vpp.antecipadas.faturamento | brl }}</td>
               </tr>
               <tr>
                 <td class="td-bold">Carrinho Aberto</td>
-                <td style="text-align:right;">{{ vpp.aberto.vendas | num }}
+                <td style="text-align:left;">{{ vpp.aberto.vendas | num }}
                   {% if dbf.has_prev %}{{ dbadge(vpp.aberto.vendas, pvpp.aberto.vendas) }}{% endif %}
                 </td>
-                <td style="text-align:right;">{{ vpp.aberto.faturamento | brl }}</td>
+                <td style="text-align:left;">{{ vpp.aberto.faturamento | brl }}</td>
               </tr>
               <tr>
                 <td class="td-bold">Semana Seguinte</td>
-                <td style="text-align:right;">{{ vpp.semana_seguinte.vendas | num }}
+                <td style="text-align:left;">{{ vpp.semana_seguinte.vendas | num }}
                   {% if dbf.has_prev %}{{ dbadge(vpp.semana_seguinte.vendas, pvpp.semana_seguinte.vendas) }}{% endif %}
                 </td>
-                <td style="text-align:right;">{{ vpp.semana_seguinte.faturamento | brl }}</td>
+                <td style="text-align:left;">{{ vpp.semana_seguinte.faturamento | brl }}</td>
               </tr>
-              <tr style="background:#1f2937;color:#fff;font-weight:700;">
+              <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
                 <td>TOTAL</td>
-                <td style="text-align:right;">{{ vpp.total.vendas | num }}
+                <td style="text-align:left;">{{ vpp.total.vendas | num }}
                   {% if dbf.has_prev %}{{ dbadge(vpp.total.vendas, pvpp.total.vendas) }}{% endif %}
                 </td>
-                <td style="text-align:right;">{{ vpp.total.faturamento | brl }}</td>
+                <td style="text-align:left;">{{ vpp.total.faturamento | brl }}</td>
               </tr>
             </tbody>
           </table>
@@ -857,26 +857,26 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
             </tr>
             <tr>
               <th class="th-dark">Dia</th>
-              <th class="th-dark" style="text-align:right">Investimento</th>
-              <th class="th-dark" style="text-align:right">Vendas</th>
-              <th class="th-dark" style="text-align:right">CPL</th>
-              <th class="th-dark" style="text-align:right">ROAS</th>
+              <th class="th-dark" style="text-align:left">Investimento</th>
+              <th class="th-dark" style="text-align:left">Vendas</th>
+              <th class="th-dark" style="text-align:left">CPL</th>
+              <th class="th-dark" style="text-align:left">ROAS</th>
             </tr>
           </thead>
           <tbody>
             {% for d in semana %}
             <tr>
               <td class="td-bold">{{ d.date }} ({{ d.weekday[:3] }})</td>
-              <td style="text-align:right;">{{ d.invest | brl }}
+              <td style="text-align:left;">{{ d.invest | brl }}
                 {% if d.prev %}<br>{{ dbadge(d.invest, d.prev.invest, 'neutral') }}{% endif %}
               </td>
-              <td style="text-align:right;">{{ d.vendas | num }}
+              <td style="text-align:left;">{{ d.vendas | num }}
                 {% if d.prev %}<br>{{ dbadge(d.vendas, d.prev.vendas) }}{% endif %}
               </td>
-              <td style="text-align:right;">{{ d.cpl | brl }}
+              <td style="text-align:left;">{{ d.cpl | brl }}
                 {% if d.prev and d.prev.cpl %}<br>{{ dbadge(d.cpl, d.prev.cpl, 'down') }}{% endif %}
               </td>
-              <td style="text-align:right;">{{ "%.2f"|format(d.roas) }}
+              <td style="text-align:left;">{{ "%.2f"|format(d.roas) }}
                 {% if d.prev and d.prev.roas %}<br>{{ dbadge(d.roas, d.prev.roas) }}{% endif %}
               </td>
             </tr>
@@ -2007,13 +2007,13 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
     {% if fpe and fpe.total %}
     <div class="table-wrap">
       <table class="table-compact" style="font-size:12px;max-width:420px">
-        <thead><tr><th class="th-dark">Forma</th><th class="th-dark" style="text-align:right">Vendas</th><th class="th-dark" style="text-align:right">%</th></tr></thead>
+        <thead><tr><th class="th-dark">Forma</th><th class="th-dark" style="text-align:left">Vendas</th><th class="th-dark" style="text-align:left">%</th></tr></thead>
         <tbody>
           {% for r in fpe.rows %}
-          <tr><td class="td-bold">{{ r.metodo }}</td><td style="text-align:right">{{ r.qtd | num }}</td><td style="text-align:right">{{ r.pct | round(1) }}%</td></tr>
+          <tr><td class="td-bold">{{ r.metodo }}</td><td style="text-align:left">{{ r.qtd | num }}</td><td style="text-align:left">{{ r.pct | round(1) }}%</td></tr>
           {% endfor %}
-          <tr style="background:#1f2937;color:#fff;font-weight:700;">
-            <td>TOTAL</td><td style="text-align:right">{{ fpe.total | num }}</td><td style="text-align:right">100%</td>
+          <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
+            <td>TOTAL</td><td style="text-align:left">{{ fpe.total | num }}</td><td style="text-align:left">100%</td>
           </tr>
         </tbody>
       </table>

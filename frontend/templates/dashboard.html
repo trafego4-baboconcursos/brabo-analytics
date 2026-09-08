@@ -25,7 +25,7 @@
 
     {# ── KPIs Principais (design system: tp-kpi) ─────────────────────────── #}
     <div class="section">
-    <div class="section-title">1. KPIs Principais — Captação</div>
+    <div class="section-title">1. KPIs Principais</div>
     <div class="tp-kpi-grid">
 
       <div class="tp-kpi">
@@ -113,282 +113,6 @@
     </div>
     </div>
 
-    {# ── Taxa de Conversão da Página de Captura ───────────────────────────── #}
-    {% if conversao_paginas %}
-    <div class="section">
-      <div class="section-title">2. Taxa de Conversão da Página de Captura</div>
-      <div class="table-wrap" style="overflow-x:auto;">
-        <table class="table-compact" style="font-size:12px;">
-          <thead>
-            <tr>
-              <th class="th-dark">Página</th>
-              <th class="th-dark" style="text-align:right">Sessões da Pág Captura</th>
-              <th class="th-dark" style="text-align:right">CTR →</th>
-              <th class="th-dark" style="text-align:right">Sessões da Pág. Obrigado</th>
-              <th class="th-dark" style="text-align:right">CTR →</th>
-              <th class="th-dark" style="text-align:right">Clicaram em Entrar no grupo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% set tot = namespace(captura=0, obrigado=0, grupo=0) %}
-            {% for p in conversao_paginas %}
-              {% set tot.captura = tot.captura + p.sessoes_captura %}
-              {% set tot.obrigado = tot.obrigado + p.sessoes_obrigado %}
-              {% set tot.grupo = tot.grupo + p.clicaram_grupo %}
-            {% endfor %}
-            <tr style="background:var(--bs-sidebar-dark);color:#fff;font-weight:700;">
-              <td>Total</td>
-              <td style="text-align:right;">{{ tot.captura | num }}</td>
-              <td style="text-align:right;">{{ (tot.obrigado / tot.captura * 100) | pct if tot.captura > 0 else "–" }}</td>
-              <td style="text-align:right;">{{ tot.obrigado | num }}</td>
-              <td style="text-align:right;">{{ (tot.grupo / tot.obrigado * 100) | pct if tot.obrigado > 0 else "–" }}</td>
-              <td style="text-align:right;">{{ tot.grupo | num }}</td>
-            </tr>
-            {% for p in conversao_paginas %}
-            <tr>
-              <td class="td-bold">{{ p.pagina }}</td>
-              <td style="text-align:right;">{{ p.sessoes_captura | num }}</td>
-              <td style="text-align:right;">{{ p.ctr_obrigado | pct }}</td>
-              <td style="text-align:right;">{{ p.sessoes_obrigado | num }}</td>
-              <td style="text-align:right;">{{ p.ctr_grupo | pct }}</td>
-              <td style="text-align:right;">{{ p.clicaram_grupo | num }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
-        Fonte: Google Analytics 4. "Sessões da Pág. Obrigado" e "Clicaram em Entrar no grupo" vêm dos eventos <code>generate_lead</code>/<code>qualify_lead</code> (disparados na própria página, sem navegação separada).
-      </div>
-    </div>
-    {% endif %}
-
-    {# ── Taxa de Comparecimento WPP ────────────────────────────────────────── #}
-    {% if leads_x_whatsapp %}
-    <div class="section">
-      <div class="section-title">3. Taxa de Conversão da Página de Obrigado</div>
-      <div class="table-wrap">
-        <table class="table-compact" style="font-size:12px;">
-          <thead>
-            <tr>
-              <th class="th-dark">Página</th>
-              <th class="th-dark" style="text-align:right">Taxa de Comparecimento WPP</th>
-              <th class="th-dark" style="text-align:right">Quantidade de leads nos grupos</th>
-              <th class="th-dark">Promessa</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="td-bold">Todas</td>
-              <td style="text-align:right;">{{ leads_x_whatsapp.taxa_entrada | pct }}</td>
-              <td style="text-align:right;">{{ leads_x_whatsapp.total_whatsapp | num }}</td>
-              <td class="td-muted" style="font-style:italic">— (preencher manualmente)</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
-        Taxa de Comparecimento WPP = pessoas ativas nos grupos de WhatsApp ÷ total de leads (Active Campaign). "Promessa" é texto livre, ainda sem campo no wizard.
-      </div>
-    </div>
-    {% endif %}
-
-    {# ── % de Leads por Campanha ──────────────────────────────────────────── #}
-    {% if leads_por_campanha %}
-    <div class="section">
-      <div class="section-title">4. % de Leads por Campanha</div>
-      <div class="table-wrap">
-        <table class="table-compact" style="font-size:12px;">
-          <thead>
-            <tr>
-              <th class="th-dark">Campanhas</th>
-              <th class="th-dark" style="text-align:right">Qtd de Leads</th>
-              <th class="th-dark" style="text-align:right">Investimento</th>
-              <th class="th-dark" style="text-align:right">% Investimento</th>
-              <th class="th-dark" style="text-align:right">CPL</th>
-              <th class="th-dark" style="text-align:right">% Leads</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for r in leads_por_campanha %}
-            <tr>
-              <td class="td-bold">{{ r.campanha }}</td>
-              <td style="text-align:right;">{{ r.leads | num }}</td>
-              <td style="text-align:right;">{{ r.gasto | brl }}</td>
-              <td style="text-align:right;">{{ r.pct_investimento | pct }}</td>
-              <td style="text-align:right;">{{ r.cpl | brl if r.leads > 0 else "–" }}</td>
-              <td style="text-align:right;">{{ r.pct_leads | pct }}</td>
-            </tr>
-            {% endfor %}
-            <tr style="background:var(--bs-sidebar-dark);color:#fff;font-weight:700;">
-              <td>Total</td>
-              <td style="text-align:right;">{{ total_leads_camp | num }}</td>
-              <td style="text-align:right;">{{ total_gasto_camp | brl }}</td>
-              <td style="text-align:right;">100%</td>
-              <td style="text-align:right;">{{ (total_gasto_camp / total_leads_camp) | brl if total_leads_camp > 0 else "–" }}</td>
-              <td style="text-align:right;">100%</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="chart-wrap" style="height:280px;margin-top:16px">
-        <canvas id="leadsPorCampanhaChart"></canvas>
-      </div>
-    </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
-    <script>
-    (function() {
-      const labels = [{% for r in leads_por_campanha %}"{{ r.campanha | e }}"{% if not loop.last %},{% endif %}{% endfor %}];
-      const values = [{% for r in leads_por_campanha %}{{ r.pct_leads | round(2) }}{% if not loop.last %},{% endif %}{% endfor %}];
-      const el = document.getElementById('leadsPorCampanhaChart');
-      if (el && window.Chart) {
-        new Chart(el, {
-          type: 'bar',
-          data: { labels, datasets: [{ label: 'Quantidade de Leads por Público (%)', data: values, backgroundColor: '#93d8c8' }] },
-          options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false }, title: { display: true, text: 'Quantidade de Leads por Público (%)' } },
-            scales: { y: { beginAtZero: true, ticks: { callback: v => v + '%' } } }
-          }
-        });
-      }
-    })();
-    </script>
-    {% endif %}
-
-    {# ── Highlights ─────────────────────────────────────────────────────── #}
-    {% if meta and meta.top_por_leads %}
-    <div class="section">
-      <div class="section-title">5. Destaques de Criativos — Captação (Meta)</div>
-    <div class="highlights">
-
-      <div class="highlight-box">
-        <h3>Top 5 Criativos por Leads</h3>
-        {% for c in meta.top_por_leads[:5] %}
-        <div class="highlight-item">
-          <div class="highlight-row">
-            <span class="criativo">{{ c.nome[:40] }}</span>
-            <span class="value">{{ c.leads | num }} leads</span>
-          </div>
-          <small>{{ c.etapa }} | CPL {{ c.cpl | brl }} | Gasto {{ c.gasto | brl }}</small>
-        </div>
-        {% endfor %}
-      </div>
-
-      <div class="highlight-box">
-        <h3>Melhores CPL (Captação)</h3>
-        {% for c in meta.top_por_cpl[:5] %}
-        <div class="highlight-item">
-          <div class="highlight-row">
-            <span class="criativo">{{ c.nome[:40] }}</span>
-            <span class="value positivo">{{ c.cpl | brl }}</span>
-          </div>
-          <small>{{ c.leads | num }} leads | CTR {{ c.ctr | pct(2) }}</small>
-        </div>
-        {% endfor %}
-      </div>
-
-      <div class="highlight-box">
-        <h3>Piores CPL (atenção)</h3>
-        {% for c in meta.piores_cpl[:5] %}
-        <div class="highlight-item">
-          <div class="highlight-row">
-            <span class="criativo">{{ c.nome[:40] }}</span>
-            <span class="value negativo">{{ c.cpl | brl }}</span>
-          </div>
-          <small>{{ c.leads | num }} leads | Gasto {{ c.gasto | brl }}</small>
-        </div>
-        {% endfor %}
-      </div>
-
-    </div>
-    </div>
-    {% endif %}
-
-    {# ── Distribuição por etapa Meta ─────────────────────────────────────── #}
-    {% if meta and meta.por_etapa %}
-    <div class="section">
-      <div class="section-title"><i class="ti ti-brand-meta" style="color:var(--meta-color)"></i>6. Meta Ads — Distribuição por Etapa</div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th class="th-meta">Etapa</th>
-              <th class="th-meta">Investimento</th>
-              <th class="th-meta">% Verba</th>
-              <th class="th-meta">Leads</th>
-              <th class="th-meta">CPL</th>
-              <th class="th-meta">ThruPlays</th>
-              <th class="th-meta">Custo/ThruPlay</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% set total_meta = meta.total_gasto or 1 %}
-            {% for etapa, d in meta.por_etapa.items() %}
-            <tr {% if etapa != "Captação" %}style="opacity:0.45;"{% endif %}>
-              <td><span class="bs-pill meta">{{ etapa }}</span></td>
-              <td class="numero">{{ d.gasto | brl }}</td>
-              <td>
-                <div class="pbar-wrap">
-                  <div class="pbar-track" style="max-width:80px">
-                    <div class="pbar-fill meta" style="width:{{ (d.gasto / total_meta * 100) | round(1) }}%;"></div>
-                  </div>
-                  <span class="td-meta" style="font-weight:700;font-size:12px">{{ (d.gasto / total_meta * 100) | pct }}</span>
-                </div>
-              </td>
-              <td class="numero">{{ d.leads | num }}</td>
-              <td class="numero {% if d.cpl > 0 and d.cpl < 3 %}positivo{% elif d.cpl > 5 %}negativo{% endif %}">
-                {{ d.cpl | brl if d.leads > 0 else "–" }}
-              </td>
-              <td class="numero">{{ d.thruplays | num }}</td>
-              <td class="numero">{{ d.custo_thruplay | brl(3) if d.thruplays > 0 else "–" }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-    {% endif %}
-
-    {# ── Google por etapa ───────────────────────────────────────────────── #}
-    {% if google and google.por_etapa %}
-    <div class="section">
-      <div class="section-title"><i class="ti ti-brand-google" style="color:var(--google-color)"></i>7. Google Ads — Distribuição por Etapa</div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th class="th-google">Etapa</th>
-              <th class="th-google">Investimento</th>
-              <th class="th-google">% Verba</th>
-              <th class="th-google">Conversões</th>
-              <th class="th-google">Custo/Conv</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% set total_google = google.total_custo or 1 %}
-            {% for etapa, d in google.por_etapa.items() %}
-            <tr {% if etapa != "Captação" %}style="opacity:0.45;"{% endif %}>
-              <td><span class="bs-pill google">{{ etapa }}</span></td>
-              <td class="numero">{{ d.custo | brl }}</td>
-              <td>
-                <div class="pbar-wrap">
-                  <div class="pbar-track" style="max-width:80px">
-                    <div class="pbar-fill google" style="width:{{ (d.custo / total_google * 100) | round(1) }}%"></div>
-                  </div>
-                  <span class="td-google" style="font-weight:700;font-size:12px">{{ (d.custo / total_google * 100) | pct }}</span>
-                </div>
-              </td>
-              <td class="numero">{{ "%.0f"|format(d.conversoes) }}</td>
-              <td class="numero">{{ d.custo_conv | brl if d.conversoes > 0 else "–" }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-    {% endif %}
-
     {# ── Breakdown diário por plataforma ────────────────────────────────────────── #}
     {% macro daily_table(rows, title) %}
     {% if rows %}
@@ -453,7 +177,7 @@
               {% set tot.dl = tot.dl + r.display_leads %}
               {% set tot.dg = tot.dg + r.display_gasto %}
             {% endfor %}
-            <tr style="background:var(--bs-sidebar-dark);color:#fff;font-weight:700;">
+            <tr style="background:#1f2937;color:#fff;font-weight:700;">
               <td colspan="2">TOTAL</td>
               <td style="text-align:left;">{{ tot.leads | round(0) | int | num }}</td>
               <td style="text-align:right;">{{ (tot.gasto / tot.leads) | brl if tot.leads > 0 else "–" }}</td>
@@ -507,12 +231,293 @@
     {% endif %}
     {% endmacro %}
 
-    {{ daily_table(daily_breakdown, "8. Performance Diária por Plataforma — Captação") }}
+    {{ daily_table(daily_breakdown, "2. Performance Diária por Plataforma") }}
+
+    {# ── Taxa de Conversão da Página de Captura ───────────────────────────── #}
+    {% if conversao_paginas %}
+    <div class="section">
+      <div class="section-title">3. Taxa de Conversão da Página de Captura</div>
+      <div class="table-wrap" style="overflow-x:auto;">
+        <table class="table-compact" style="font-size:12px;">
+          <thead>
+            <tr>
+              <th class="th-dark">Página</th>
+              <th class="th-dark" style="text-align:right">Sessões da Pág Captura</th>
+              <th class="th-dark" style="text-align:right">CTR →</th>
+              <th class="th-dark" style="text-align:right">Sessões da Pág. Obrigado</th>
+              <th class="th-dark" style="text-align:right">CTR →</th>
+              <th class="th-dark" style="text-align:right">Clicaram em Entrar no grupo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set tot = namespace(captura=0, obrigado=0, grupo=0) %}
+            {% for p in conversao_paginas %}
+              {% set tot.captura = tot.captura + p.sessoes_captura %}
+              {% set tot.obrigado = tot.obrigado + p.sessoes_obrigado %}
+              {% set tot.grupo = tot.grupo + p.clicaram_grupo %}
+            {% endfor %}
+            <tr style="background:#1f2937;color:#fff;font-weight:700;">
+              <td>Total</td>
+              <td style="text-align:right;">{{ tot.captura | num }}</td>
+              <td style="text-align:right;">{{ (tot.obrigado / tot.captura * 100) | pct if tot.captura > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ tot.obrigado | num }}</td>
+              <td style="text-align:right;">{{ (tot.grupo / tot.obrigado * 100) | pct if tot.obrigado > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ tot.grupo | num }}</td>
+            </tr>
+            {% for p in conversao_paginas %}
+            <tr>
+              <td class="td-bold">{{ p.pagina }}</td>
+              <td style="text-align:right;">{{ p.sessoes_captura | num }}</td>
+              <td style="text-align:right;">{{ p.ctr_obrigado | pct }}</td>
+              <td style="text-align:right;">{{ p.sessoes_obrigado | num }}</td>
+              <td style="text-align:right;">{{ p.ctr_grupo | pct }}</td>
+              <td style="text-align:right;">{{ p.clicaram_grupo | num }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
+        Fonte: Google Analytics 4. "Sessões da Pág. Obrigado" e "Clicaram em Entrar no grupo" vêm dos eventos <code>generate_lead</code>/<code>qualify_lead</code> (disparados na própria página, sem navegação separada).
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── Taxa de Comparecimento WPP ────────────────────────────────────────── #}
+    {% if leads_x_whatsapp %}
+    <div class="section">
+      <div class="section-title">4. Taxa de Conversão da Página de Obrigado</div>
+      <div class="table-wrap">
+        <table class="table-compact" style="font-size:12px;">
+          <thead>
+            <tr>
+              <th class="th-dark">Página</th>
+              <th class="th-dark" style="text-align:right">Taxa de Comparecimento WPP</th>
+              <th class="th-dark" style="text-align:right">Quantidade de leads nos grupos</th>
+              <th class="th-dark">Promessa</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="td-bold">Todas</td>
+              <td style="text-align:right;">{{ leads_x_whatsapp.taxa_entrada | pct }}</td>
+              <td style="text-align:right;">{{ leads_x_whatsapp.total_whatsapp | num }}</td>
+              <td class="td-muted" style="font-style:italic">— (preencher manualmente)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
+        Taxa de Comparecimento WPP = pessoas ativas nos grupos de WhatsApp ÷ total de leads (Active Campaign). "Promessa" é texto livre, ainda sem campo no wizard.
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── % de Leads por Campanha ──────────────────────────────────────────── #}
+    {% if leads_por_campanha %}
+    <div class="section">
+      <div class="section-title">5. % de Leads por Campanha</div>
+      <div class="table-wrap">
+        <table class="table-compact" style="font-size:12px;">
+          <thead>
+            <tr>
+              <th class="th-dark">Campanhas</th>
+              <th class="th-dark" style="text-align:right">Qtd de Leads</th>
+              <th class="th-dark" style="text-align:right">Investimento</th>
+              <th class="th-dark" style="text-align:right">% Investimento</th>
+              <th class="th-dark" style="text-align:right">CPL</th>
+              <th class="th-dark" style="text-align:right">% Leads</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in leads_por_campanha %}
+            <tr>
+              <td class="td-bold">{{ r.campanha }}</td>
+              <td style="text-align:right;">{{ r.leads | num }}</td>
+              <td style="text-align:right;">{{ r.gasto | brl }}</td>
+              <td style="text-align:right;">{{ r.pct_investimento | pct }}</td>
+              <td style="text-align:right;">{{ r.cpl | brl if r.leads > 0 else "–" }}</td>
+              <td style="text-align:right;">{{ r.pct_leads | pct }}</td>
+            </tr>
+            {% endfor %}
+            <tr style="background:#1f2937;color:#fff;font-weight:700;">
+              <td>Total</td>
+              <td style="text-align:right;">{{ total_leads_camp | num }}</td>
+              <td style="text-align:right;">{{ total_gasto_camp | brl }}</td>
+              <td style="text-align:right;">100%</td>
+              <td style="text-align:right;">{{ (total_gasto_camp / total_leads_camp) | brl if total_leads_camp > 0 else "–" }}</td>
+              <td style="text-align:right;">100%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {# ── Quantidade de Leads por Público (%) ──────────────────────────────── #}
+    <div class="section">
+      <div class="section-title">6. Quantidade de Leads por Público (%)</div>
+      <div class="chart-wrap" style="height:280px">
+        <canvas id="leadsPorCampanhaChart"></canvas>
+      </div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <script>
+    (function() {
+      const labels = [{% for r in leads_por_campanha %}"{{ r.campanha | e }}"{% if not loop.last %},{% endif %}{% endfor %}];
+      const values = [{% for r in leads_por_campanha %}{{ r.pct_leads | round(2) }}{% if not loop.last %},{% endif %}{% endfor %}];
+      const el = document.getElementById('leadsPorCampanhaChart');
+      if (el && window.Chart) {
+        new Chart(el, {
+          type: 'bar',
+          data: { labels, datasets: [{ label: 'Quantidade de Leads por Público (%)', data: values, backgroundColor: '#93d8c8' }] },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, title: { display: true, text: 'Quantidade de Leads por Público (%)' } },
+            scales: { y: { beginAtZero: true, ticks: { callback: v => v + '%' } } }
+          }
+        });
+      }
+    })();
+    </script>
+    {% endif %}
+
+    {# ── Highlights ─────────────────────────────────────────────────────── #}
+    {% if meta and meta.top_por_leads %}
+    <div class="section">
+      <div class="section-title">7. Destaques de Criativos — Captação (Meta)</div>
+    <div class="highlights">
+
+      <div class="highlight-box">
+        <h3>Top 5 Criativos por Leads</h3>
+        {% for c in meta.top_por_leads[:5] %}
+        <div class="highlight-item">
+          <div class="highlight-row">
+            <span class="criativo">{{ c.nome[:40] }}</span>
+            <span class="value">{{ c.leads | num }} leads</span>
+          </div>
+          <small>{{ c.etapa }} | CPL {{ c.cpl | brl }} | Gasto {{ c.gasto | brl }}</small>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="highlight-box">
+        <h3>Melhores CPL (Captação)</h3>
+        {% for c in meta.top_por_cpl[:5] %}
+        <div class="highlight-item">
+          <div class="highlight-row">
+            <span class="criativo">{{ c.nome[:40] }}</span>
+            <span class="value positivo">{{ c.cpl | brl }}</span>
+          </div>
+          <small>{{ c.leads | num }} leads | CTR {{ c.ctr | pct(2) }}</small>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="highlight-box">
+        <h3>Piores CPL (atenção)</h3>
+        {% for c in meta.piores_cpl[:5] %}
+        <div class="highlight-item">
+          <div class="highlight-row">
+            <span class="criativo">{{ c.nome[:40] }}</span>
+            <span class="value negativo">{{ c.cpl | brl }}</span>
+          </div>
+          <small>{{ c.leads | num }} leads | Gasto {{ c.gasto | brl }}</small>
+        </div>
+        {% endfor %}
+      </div>
+
+    </div>
+    </div>
+    {% endif %}
+
+    {# ── Distribuição por etapa Meta ─────────────────────────────────────── #}
+    {% if meta and meta.por_etapa %}
+    <div class="section">
+      <div class="section-title"><i class="ti ti-brand-meta" style="color:var(--meta-color)"></i>8. Meta Ads — Distribuição por Etapa</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-meta">Etapa</th>
+              <th class="th-meta">Investimento</th>
+              <th class="th-meta">% Verba</th>
+              <th class="th-meta">Leads</th>
+              <th class="th-meta">CPL</th>
+              <th class="th-meta">ThruPlays</th>
+              <th class="th-meta">Custo/ThruPlay</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set total_meta = meta.total_gasto or 1 %}
+            {% for etapa, d in meta.por_etapa.items() %}
+            <tr {% if etapa != "Captação" %}style="opacity:0.45;"{% endif %}>
+              <td><span class="bs-pill meta">{{ etapa }}</span></td>
+              <td class="numero">{{ d.gasto | brl }}</td>
+              <td>
+                <div class="pbar-wrap">
+                  <div class="pbar-track" style="max-width:80px">
+                    <div class="pbar-fill meta" style="width:{{ (d.gasto / total_meta * 100) | round(1) }}%;"></div>
+                  </div>
+                  <span class="td-meta" style="font-weight:700;font-size:12px">{{ (d.gasto / total_meta * 100) | pct }}</span>
+                </div>
+              </td>
+              <td class="numero">{{ d.leads | num }}</td>
+              <td class="numero {% if d.cpl > 0 and d.cpl < 3 %}positivo{% elif d.cpl > 5 %}negativo{% endif %}">
+                {{ d.cpl | brl if d.leads > 0 else "–" }}
+              </td>
+              <td class="numero">{{ d.thruplays | num }}</td>
+              <td class="numero">{{ d.custo_thruplay | brl(3) if d.thruplays > 0 else "–" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {# ── Google por etapa ───────────────────────────────────────────────── #}
+    {% if google and google.por_etapa %}
+    <div class="section">
+      <div class="section-title"><i class="ti ti-brand-google" style="color:var(--google-color)"></i>9. Google Ads — Distribuição por Etapa</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-google">Etapa</th>
+              <th class="th-google">Investimento</th>
+              <th class="th-google">% Verba</th>
+              <th class="th-google">Conversões</th>
+              <th class="th-google">Custo/Conv</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% set total_google = google.total_custo or 1 %}
+            {% for etapa, d in google.por_etapa.items() %}
+            <tr {% if etapa != "Captação" %}style="opacity:0.45;"{% endif %}>
+              <td><span class="bs-pill google">{{ etapa }}</span></td>
+              <td class="numero">{{ d.custo | brl }}</td>
+              <td>
+                <div class="pbar-wrap">
+                  <div class="pbar-track" style="max-width:80px">
+                    <div class="pbar-fill google" style="width:{{ (d.custo / total_google * 100) | round(1) }}%"></div>
+                  </div>
+                  <span class="td-google" style="font-weight:700;font-size:12px">{{ (d.custo / total_google * 100) | pct }}</span>
+                </div>
+              </td>
+              <td class="numero">{{ "%.0f"|format(d.conversoes) }}</td>
+              <td class="numero">{{ d.custo_conv | brl if d.conversoes > 0 else "–" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
 
     {# ── Vendas detalhado ────────────────────────────────────────────────── #}
     {% if vendas %}
     <div class="section">
-      <div class="section-title">9. Vendas — Hotmart × TMB</div>
+      <div class="section-title">10. Vendas — Hotmart × TMB</div>
       <div class="metrics-grid" style="margin-bottom:16px">
         <div class="metric-card">
           <div class="label">Hotmart — Vendas</div>
@@ -544,8 +549,8 @@
     {% endif %}
 
     {% from "_macros_verba.html" import tabela_dia_publico %}
-    {{ tabela_dia_publico("10. Previsão da Divisão de Verba por Público em Cada Dia", dia_publico_previsto, "Total Previsto") }}
-    {{ tabela_dia_publico("11. Divisão de Verba por Público em Cada Dia (Realizado)", dia_publico_realizado, "Total Realizado") }}
+    {{ tabela_dia_publico("11. Previsão da Divisão de Verba por Público em Cada Dia", dia_publico_previsto, "Total Previsto") }}
+    {{ tabela_dia_publico("12. Divisão de Verba por Público em Cada Dia (Realizado)", dia_publico_realizado, "Total Realizado") }}
 
     {% endif %}{# end if launch #}
 

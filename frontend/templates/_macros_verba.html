@@ -29,7 +29,7 @@
           <td style="text-align:right;font-weight:700">{{ dados.totais.get(pub, 0) | brl(0) }}</td>
         </tr>
         {% endfor %}
-        <tr style="background:var(--bs-sidebar-dark);color:#fff;font-weight:700;">
+        <tr style="background:#1f2937;color:#fff;font-weight:700;">
           <td style="position:sticky;left:0;background:inherit">Investimento por Dia</td>
           <td style="text-align:right">100%</td>
           {% for d in dados.dias %}<td style="text-align:right">{{ d.pct_dia | round(1) }}%</td>{% endfor %}

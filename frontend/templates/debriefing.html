@@ -773,7 +773,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
                 </td>
                 <td style="text-align:right;">{{ vpp.semana_seguinte.faturamento | brl }}</td>
               </tr>
-              <tr style="background:var(--bs-sidebar-dark);color:#fff;font-weight:700;">
+              <tr style="background:#1f2937;color:#fff;font-weight:700;">
                 <td>TOTAL</td>
                 <td style="text-align:right;">{{ vpp.total.vendas | num }}
                   {% if dbf.has_prev %}{{ dbadge(vpp.total.vendas, pvpp.total.vendas) }}{% endif %}
@@ -2012,7 +2012,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
           {% for r in fpe.rows %}
           <tr><td class="td-bold">{{ r.metodo }}</td><td style="text-align:right">{{ r.qtd | num }}</td><td style="text-align:right">{{ r.pct | round(1) }}%</td></tr>
           {% endfor %}
-          <tr style="background:var(--bs-sidebar-dark);color:#fff;font-weight:700;">
+          <tr style="background:#1f2937;color:#fff;font-weight:700;">
             <td>TOTAL</td><td style="text-align:right">{{ fpe.total | num }}</td><td style="text-align:right">100%</td>
           </tr>
         </tbody>

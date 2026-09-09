@@ -46,3 +46,7 @@ PES-SET-26:
     aba: "LEAD TOTAL"
     linha_resumo: 2
     linha_total_limpo: 3
+  vip:
+    aba: "LEAD TOTAL VIPS"
+    linha_resumo: 2
+    linha_total_limpo: 4

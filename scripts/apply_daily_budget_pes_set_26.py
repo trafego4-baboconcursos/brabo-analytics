@@ -92,8 +92,14 @@ def apply_google(plan, date_str):
 
     operations = []
     keys = []
+    missing = []
     for key, value_reais in day.items():
-        budget_id = plan["google_budget_ids"][key]
+        if value_reais <= 0:
+            continue  # campanha pausada/zerada na curva -- Google nao aceita orcamento 0, e nao faz diferenca (sem spend mesmo)
+        budget_id = plan["google_budget_ids"].get(key)
+        if not budget_id:
+            missing.append(key)
+            continue
         micros = int(round(value_reais * 1_000_000))
         operations.append({
             "updateMask": "amountMicros",
@@ -103,6 +109,13 @@ def apply_google(plan, date_str):
             },
         })
         keys.append((key, value_reais))
+
+    if missing:
+        print(f"[google] AVISO: sem budget_id mapeado pra {', '.join(missing)} -- pulando essas, aplicando o resto")
+
+    if not operations:
+        print("[google] ERRO: nenhuma operacao valida pra aplicar (todos os budget_ids faltando)")
+        sys.exit(1)
 
     url = f"https://googleads.googleapis.com/{GOOGLE_API_VERSION}/customers/{GOOGLE_CUSTOMER_ID}/campaignBudgets:mutate"
     resp = requests.post(url, headers=headers, json={"operations": operations})

@@ -20,18 +20,61 @@ from frontend.models import (
 logger = get_logger("db")
 
 
-def _parcela_unica_info(row) -> tuple[bool, int, int]:
-    """Identifica vendas do Hotmart gravadas com o VALOR DA PARCELA em vez do total.
+def _hm_data_sql(col: str) -> str:
+    """Fragmento SQL que extrai a data (fuso America/Sao_Paulo) de uma coluna
+    de data da Hotmart — aceita os 3 formatos que a tabela mistura (DD/MM/YYYY,
+    epoch em segundos ou milissegundos, ISO timestamptz).
 
-    Duas origens gravam assim:
+    ÚNICA fonte dessa lógica: usado via COALESCE(_hm_data_sql("data_da_transacao"),
+    _hm_data_sql("confirmacao_do_pagamento")) em toda consulta que filtra
+    vendas Hotmart por data — antes essa lógica estava duplicada em 2 lugares
+    (_query_hotmart e read_hotmart_details) e só um deles tinha a conversão de
+    fuso horário corrigida, então via e voltava a divergir. Não duplicar de
+    novo — sempre chamar essa função.
+
+    BUG CORRIGIDO (2026-09-11): os ramos de epoch e timestamptz faziam
+    `::date` direto, que extrai a data em UTC. Uma venda às 22h39 (Brasília)
+    de 24/08 é 01h39 UTC de 25/08 — caía fora da janela do carrinho
+    (10-24/08) mesmo tendo acontecido dentro dela. Confirmado comparando
+    contra o export oficial da Hotmart: 3 vendas de PI-AGO-26 sumiam por
+    causa disso. Agora converte pro fuso de Brasília ANTES de extrair a data.
+    """
+    return (
+        "CASE WHEN NULLIF(" + col + ",'') ~ '^\\d{2}/\\d{2}/\\d{4}' THEN to_date(" + col + ",'DD/MM/YYYY')\n"
+        "     WHEN NULLIF(" + col + ",'') ~ '^\\d{10,13}$' THEN (to_timestamp(\n"
+        "         CASE WHEN length(NULLIF(" + col + ",'')) = 13\n"
+        "              THEN " + col + "::bigint / 1000\n"
+        "              ELSE " + col + "::bigint END) AT TIME ZONE 'America/Sao_Paulo')::date\n"
+        "     WHEN NULLIF(" + col + ",'') IS NOT NULL THEN (" + col + "::timestamptz AT TIME ZONE 'America/Sao_Paulo')::date END"
+    )
+
+
+def _parcela_unica_info(row) -> tuple[bool, bool, int, int]:
+    """Identifica vendas do Hotmart gravadas com o VALOR DA PARCELA em vez do total,
+    e separa isso de "é retentativa de cobrança" (que é sempre indicado por
+    quantidade_de_cobrancas > 1, independente do tipo_de_cobranca).
+
+    Duas origens gravam com o valor da PARCELA (não o total):
     - CSV do Hotmart: tipo_de_cobranca = "Recuperador Inteligente"
     - Webhook/API (tipo_de_cobranca vazio): o payload só traz recurrence_number
       (gravado em quantidade_de_cobrancas) nesse tipo de compra — a presença do
       campo é o marcador. Validado contra o PI-AGO-26 inteiro comparando cada
       valor com o preço padrão da mesma oferta: 5.436 linhas, separação exata.
 
-    Retorna (eh_por_parcela, cobrancas, parcelas). Quando eh_por_parcela e
-    cobrancas != 1, a linha é retentativa de cobrança (não é venda nova).
+    BUG CORRIGIDO (2026-09-11): quantidade_de_cobrancas > 1 sempre indica que
+    não é a primeira cobrança desse contrato — isso vale mesmo quando
+    tipo_de_cobranca tem um valor normal preenchido (não vazio, não
+    "Recuperador Inteligente"). A versão antiga só tratava como retentativa
+    quando eh_por_parcela também era verdadeiro, contando cobranças repetidas
+    de outros tipos como venda nova (inflou PI-AGO-26 de 1.641 pra 1.960
+    matrículas — confirmado comparando contra o export oficial da Hotmart
+    filtrado por Quantidade de cobranças=1).
+
+    Retorna (eh_por_parcela, eh_repeticao, cobrancas, parcelas).
+    - eh_por_parcela: valor gravado é o da PARCELA, precisa multiplicar por
+      `parcelas` pra virar faturamento real.
+    - eh_repeticao: linha é retentativa/cobrança subsequente de um contrato já
+      contado — nunca é venda nova, independente do tipo_de_cobranca.
     """
     tipo_raw = row.get("tipo_de_cobranca")
     tipo_vazio = (
@@ -63,7 +106,8 @@ def _parcela_unica_info(row) -> tuple[bool, int, int]:
         parcelas = 1
 
     eh_por_parcela = tipo == "recuperador inteligente" or (tipo_vazio and tem_cobrancas)
-    return eh_por_parcela, cobrancas, parcelas
+    eh_repeticao = tem_cobrancas and cobrancas != 1
+    return eh_por_parcela, eh_repeticao, cobrancas, parcelas
 
 
 def read_vendas(launch_folder_or_code: Any, start_date=None, end_date=None) -> VendasSummary | None:
@@ -155,7 +199,8 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
     ops_engine = _get_users_engine()
 
     def _query_hotmart(use_ids: bool) -> pd.DataFrame:
-        sql = r"""
+        sql = (
+            r"""
             SELECT * FROM hotmart_clean_oficial
             WHERE status_da_transacao IN ('Completa', 'Aprovada', 'Paga', 'Completo', 'Aprovado', 'Pago', 'approved', 'complete', 'APPROVED', 'COMPLETED')
               AND CASE
@@ -165,24 +210,15 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
                   ELSE 'OUTRO'
               END = :project
               AND COALESCE(
-                CASE WHEN NULLIF(data_da_transacao,'') ~ '^\d{2}/\d{2}/\d{4}' THEN to_date(data_da_transacao,'DD/MM/YYYY')
-                     WHEN NULLIF(data_da_transacao,'') ~ '^\d{10,13}$' THEN to_timestamp(
-                         CASE WHEN length(NULLIF(data_da_transacao,'')) = 13
-                              THEN data_da_transacao::bigint / 1000
-                              ELSE data_da_transacao::bigint END)::date
-                     WHEN NULLIF(data_da_transacao,'') IS NOT NULL THEN data_da_transacao::timestamptz::date END,
-                CASE WHEN NULLIF(confirmacao_do_pagamento,'') ~ '^\d{2}/\d{2}/\d{4}' THEN to_date(confirmacao_do_pagamento,'DD/MM/YYYY')
-                     WHEN NULLIF(confirmacao_do_pagamento,'') ~ '^\d{10,13}$' THEN to_timestamp(
-                         CASE WHEN length(NULLIF(confirmacao_do_pagamento,'')) = 13
-                              THEN confirmacao_do_pagamento::bigint / 1000
-                              ELSE confirmacao_do_pagamento::bigint END)::date
-                     WHEN NULLIF(confirmacao_do_pagamento,'') IS NOT NULL THEN confirmacao_do_pagamento::timestamptz::date END
+                """ + _hm_data_sql("data_da_transacao") + """,
+                """ + _hm_data_sql("confirmacao_do_pagamento") + r"""
               ) BETWEEN :start AND :end
               AND (email_do_a_comprador_a IS NULL OR (
                   email_do_a_comprador_a NOT ILIKE '%+teste%'
                   AND email_do_a_comprador_a NOT ILIKE '%@aprovasim.com'
               ))
         """
+        )
         params: dict = {"project": project, "start": launch_start, "end": launch_end}
         if use_ids:
             sql += " AND codigo_do_produto = ANY(:product_ids)"
@@ -266,8 +302,8 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
             valor_bruto = _hm_val(row.get("valor_de_compra_com_impostos"))
             if valor_bruto is None:
                 valor_bruto = valor
-            eh_por_parcela, cobrancas, parcelas = _parcela_unica_info(row)
-            if eh_por_parcela and cobrancas != 1:
+            eh_por_parcela, eh_repeticao, cobrancas, parcelas = _parcela_unica_info(row)
+            if eh_repeticao:
                 continue
             if eh_por_parcela:
                 valor *= max(1, parcelas)
@@ -423,7 +459,8 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
     details = HotmartDetails()
     details.has_data = True
 
-    sql = r"""
+    sql = (
+        r"""
         SELECT * FROM hotmart_clean_oficial
         WHERE CASE
               WHEN produto ILIKE '%inss%' THEN 'INSS'
@@ -432,24 +469,15 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
               ELSE 'OUTRO'
           END = :project
           AND COALESCE(
-            CASE WHEN NULLIF(data_da_transacao,'') ~ '^\d{2}/\d{2}/\d{4}' THEN to_date(data_da_transacao,'DD/MM/YYYY')
-                 WHEN NULLIF(data_da_transacao,'') ~ '^\d{10,13}$' THEN to_timestamp(
-                     CASE WHEN length(NULLIF(data_da_transacao,'')) = 13
-                          THEN data_da_transacao::bigint / 1000
-                          ELSE data_da_transacao::bigint END)::date
-                 WHEN NULLIF(data_da_transacao,'') IS NOT NULL THEN data_da_transacao::timestamptz::date END,
-            CASE WHEN NULLIF(confirmacao_do_pagamento,'') ~ '^\d{2}/\d{2}/\d{4}' THEN to_date(confirmacao_do_pagamento,'DD/MM/YYYY')
-                 WHEN NULLIF(confirmacao_do_pagamento,'') ~ '^\d{10,13}$' THEN to_timestamp(
-                     CASE WHEN length(NULLIF(confirmacao_do_pagamento,'')) = 13
-                          THEN confirmacao_do_pagamento::bigint / 1000
-                          ELSE confirmacao_do_pagamento::bigint END)::date
-                 WHEN NULLIF(confirmacao_do_pagamento,'') IS NOT NULL THEN confirmacao_do_pagamento::timestamptz::date END
+            """ + _hm_data_sql("data_da_transacao") + """,
+            """ + _hm_data_sql("confirmacao_do_pagamento") + r"""
           ) BETWEEN :start AND :end
           AND (email_do_a_comprador_a IS NULL OR (
               email_do_a_comprador_a NOT ILIKE '%+teste%'
               AND email_do_a_comprador_a NOT ILIKE '%@aprovasim.com'
           ))
     """
+    )
     params: dict = {"project": project, "start": effective_start, "end": effective_end}
     if hotmart_ids:
         sql += " AND codigo_do_produto = ANY(:product_ids)"
@@ -490,6 +518,7 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
     recorrencia_qtd = 0
     recorrencia_receita = 0.0
     recorrencia_idx = []
+    repeticao_idx = []
     for idx, row in df_paid.iterrows():
         valor = _hmd_num(row.get("faturamento_liquido"))
         if valor is None:
@@ -499,7 +528,7 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
         valor_bruto = _hmd_num(row.get("valor_de_compra_com_impostos"))
         if valor_bruto is None:
             valor_bruto = valor
-        eh_por_parcela, cobrancas, parcelas = _parcela_unica_info(row)
+        eh_por_parcela, eh_repeticao, cobrancas, parcelas = _parcela_unica_info(row)
         if eh_por_parcela:
             # Venda "de parcela única" (tipo_de_cobranca = Recuperador
             # Inteligente, ou tipo vazio com quantidade_de_cobrancas
@@ -515,13 +544,16 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
             recorrencia_qtd += 1
             recorrencia_receita += valor
             recorrencia_idx.append(idx)
-            if cobrancas != 1:
-                # Retentativa de cobrança de um ciclo já contado — não é
-                # venda nova, não soma no total_vendas/receita_liquida.
-                continue
+        if eh_repeticao:
+            # Retentativa/cobrança subsequente de um contrato já contado —
+            # nunca é venda nova, independente do tipo_de_cobranca. Removida
+            # de df_paid abaixo pra não inflar total_vendas/receita_liquida.
+            repeticao_idx.append(idx)
+            continue
         df_paid.at[idx, "valor_liq"] = valor
         df_paid.at[idx, "valor_bruto"] = valor_bruto
 
+    df_paid = df_paid.drop(index=repeticao_idx, errors="ignore")
     details.recorrencia_qtd = recorrencia_qtd
     details.recorrencia_receita = recorrencia_receita
     details.total_vendas = len(df_paid)
@@ -1252,8 +1284,8 @@ def read_dia1_sales(launch: Any) -> dict:
             valor = _v(row.get("valor_de_compra_sem_impostos"))
         if valor is None:
             valor = 0.0
-        eh_por_parcela, cobrancas, parcelas = _parcela_unica_info(row)
-        if eh_por_parcela and cobrancas != 1:
+        eh_por_parcela, eh_repeticao, cobrancas, parcelas = _parcela_unica_info(row)
+        if eh_repeticao:
             return None  # ignorado, igual ao read_vendas (evita contar recorrencia)
         if eh_por_parcela:
             valor *= max(1, parcelas)

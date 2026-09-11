@@ -1,0 +1,53 @@
+{# Corpo da seção "Leads X Grupos de WhatsApp". Vazio quando não há dado
+   (no carregamento sob demanda o JS remove a seção inteira nesse caso). #}
+{% if dbf.leads_x_whatsapp %}
+{% set lw = dbf.leads_x_whatsapp %}
+<div class="dbf-lazy-body">
+  <div class="dbf-kpi-grid">
+    <div class="dbf-kpi">
+      <div class="lbl">Total de leads (Active Campaign)</div>
+      <div class="val">{{ lw.total_leads | num }}</div>
+    </div>
+    <div class="dbf-kpi">
+      <div class="lbl">Total nos grupos de WhatsApp</div>
+      <div class="val">{{ lw.total_whatsapp | num }}</div>
+    </div>
+    <div class="dbf-kpi">
+      <div class="lbl">Taxa de entrada</div>
+      <div class="val">{{ lw.taxa_entrada | round(1) }}%</div>
+    </div>
+    <div class="dbf-kpi">
+      <div class="lbl">Saída dos grupos (geral)</div>
+      <div class="val">{{ lw.get('saida_total', 0) | num }}</div>
+    </div>
+    <div class="dbf-kpi">
+      <div class="lbl">Saída — Grupos Normais</div>
+      <div class="val">{{ lw.get('saida_normal', 0) | num }}</div>
+    </div>
+    <div class="dbf-kpi">
+      <div class="lbl">Saída — Grupos VIP</div>
+      <div class="val">{{ lw.get('saida_vip', 0) | num }}</div>
+    </div>
+  </div>
+  <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+    Leads = linhas da tabela de leads (Active Campaign). Grupos de WhatsApp = pessoas ativas (deduplicado por telefone, normal + VIP). Taxa de entrada = grupos ÷ leads. Saída = total histórico de quem já entrou e não está mais ativo em nenhum grupo daquele tipo.
+  </div>
+
+  <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--bs-border)">
+    <div style="font-size:13px;font-weight:700;margin-bottom:10px">Página de Obrigado</div>
+    <div class="dbf-kpi-grid" style="grid-template-columns:repeat(2,1fr)">
+      <div class="dbf-kpi">
+        <div class="lbl">Taxa de Comparecimento (entrou no grupo)</div>
+        <div class="val">{{ lw.taxa_entrada | round(1) }}%</div>
+      </div>
+      <div class="dbf-kpi">
+        <div class="lbl">Leads que foram para os grupos</div>
+        <div class="val">{{ lw.total_whatsapp | num }}</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
+      Mesmos números de Taxa de entrada/Total nos grupos acima, na nomenclatura da página de obrigado (clique em "Entrar no Grupo"). Status do redirect (ativado/desativado) é uma configuração manual da página, não rastreada neste sistema.
+    </div>
+  </div>
+</div>
+{% endif %}

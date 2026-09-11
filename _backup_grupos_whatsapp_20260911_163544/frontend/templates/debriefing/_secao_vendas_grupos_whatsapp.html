@@ -1,0 +1,30 @@
+{# Corpo da seção "Vendas × Grupos de WhatsApp". Vazio quando não há dado
+   (no carregamento sob demanda o JS remove a seção inteira nesse caso). #}
+{% if dbf.vendas_grupos_whatsapp %}
+{% set cp = dbf.vendas_grupos_whatsapp %}
+<div class="dbf-lazy-body">
+  <div class="dbf-kpi-grid">
+    <div class="dbf-kpi">
+      <div class="lbl">Vendas — Grupos VIP</div>
+      <div class="val">{{ cp.dentro_vip | num }}</div>
+    </div>
+    <div class="dbf-kpi">
+      <div class="lbl">Vendas — Grupos Normais</div>
+      <div class="val">{{ cp.dentro_normal | num }}</div>
+    </div>
+    <div class="dbf-kpi">
+      <div class="lbl">Vendas — Fora dos Grupos</div>
+      <div class="val">{{ cp.fora | num }}</div>
+      <div class="prev-val">{{ cp.receita_fora | brl }}</div>
+    </div>
+    <div class="dbf-kpi">
+      <div class="lbl">Total de compradores (com telefone)</div>
+      <div class="val">{{ cp.com_telefone | num }}</div>
+      <div class="prev-val">{{ cp.pct_dentro | round(1) }}% em algum grupo · {{ cp.receita_dentro | brl }}</div>
+    </div>
+  </div>
+  <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+    Cruzamento por telefone entre compradores (Hotmart + TMB) e presença nos grupos de WhatsApp. VIP e Normal podem se sobrepor (pessoa em ambos conta nos dois){% if cp.sem_telefone %}; {{ cp.sem_telefone | num }} comprador(es) sem telefone cadastrado ficaram de fora do cruzamento{% endif %}.
+  </div>
+</div>
+{% endif %}

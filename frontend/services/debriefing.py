@@ -80,22 +80,35 @@ def _build_leads_detail_table(
     meta: Any, google: Any,
     prev_meta: Any, prev_google: Any,
     sales_attr: Any, prev_sales_attr: Any,
+    meta_attr: str = "por_temperatura_captacao",
+    google_attr: str = "por_temperatura",
+    meta_sales_key: str = "meta_por_temperatura",
+    google_sales_key: str = "google_por_temperatura",
 ) -> list:
+    """Público × Leads/Investimento/CPL/Conversão/Vendas/ROAS. Usado tanto
+    pra "Leads por Público — Captação" (padrão) quanto pra "Performance da
+    Qualificação" (attrs *_prequali + sales_key *_temperatura_sales_por_etapa,
+    que já vem escopado por etapa — ver _sales_attribution)."""
+    def _sales_dict(attr_sales: Any, key: str, etapa: str | None) -> dict:
+        d = (attr_sales or {}).get(key) or {}
+        return d.get(etapa, {}) if etapa else d
+
+    etapa = "Pré-Qualificação" if "prequali" in meta_attr else None
     specs = [
-        ("FB Quente",     meta,   "por_temperatura_captacao", "Quente",     "leads",      (sales_attr or {}).get("meta_por_temperatura")),
-        ("FB Frio",       meta,   "por_temperatura_captacao", "Frio",       "leads",      (sales_attr or {}).get("meta_por_temperatura")),
-        ("FB Específico", meta,   "por_temperatura_captacao", "Específico", "leads",      (sales_attr or {}).get("meta_por_temperatura")),
-        ("YT Quente",     google, "por_temperatura",          "Quente",     "conversoes", (sales_attr or {}).get("google_por_temperatura")),
-        ("YT Frio",       google, "por_temperatura",          "Frio",       "conversoes", (sales_attr or {}).get("google_por_temperatura")),
-        ("YT Específico", google, "por_temperatura",          "Específico", "conversoes", (sales_attr or {}).get("google_por_temperatura")),
+        ("FB Quente",     meta,   meta_attr,   "Quente",     "leads",      _sales_dict(sales_attr, meta_sales_key, etapa)),
+        ("FB Frio",       meta,   meta_attr,   "Frio",       "leads",      _sales_dict(sales_attr, meta_sales_key, etapa)),
+        ("FB Específico", meta,   meta_attr,   "Específico", "leads",      _sales_dict(sales_attr, meta_sales_key, etapa)),
+        ("YT Quente",     google, google_attr, "Quente",     "conversoes", _sales_dict(sales_attr, google_sales_key, etapa)),
+        ("YT Frio",       google, google_attr, "Frio",       "conversoes", _sales_dict(sales_attr, google_sales_key, etapa)),
+        ("YT Específico", google, google_attr, "Específico", "conversoes", _sales_dict(sales_attr, google_sales_key, etapa)),
     ]
     prev_specs = [
-        ("FB Quente",     prev_meta,   "por_temperatura_captacao", "Quente",     "leads",      (prev_sales_attr or {}).get("meta_por_temperatura")),
-        ("FB Frio",       prev_meta,   "por_temperatura_captacao", "Frio",       "leads",      (prev_sales_attr or {}).get("meta_por_temperatura")),
-        ("FB Específico", prev_meta,   "por_temperatura_captacao", "Específico", "leads",      (prev_sales_attr or {}).get("meta_por_temperatura")),
-        ("YT Quente",     prev_google, "por_temperatura",          "Quente",     "conversoes", (prev_sales_attr or {}).get("google_por_temperatura")),
-        ("YT Frio",       prev_google, "por_temperatura",          "Frio",       "conversoes", (prev_sales_attr or {}).get("google_por_temperatura")),
-        ("YT Específico", prev_google, "por_temperatura",          "Específico", "conversoes", (prev_sales_attr or {}).get("google_por_temperatura")),
+        ("FB Quente",     prev_meta,   meta_attr,   "Quente",     "leads",      _sales_dict(prev_sales_attr, meta_sales_key, etapa)),
+        ("FB Frio",       prev_meta,   meta_attr,   "Frio",       "leads",      _sales_dict(prev_sales_attr, meta_sales_key, etapa)),
+        ("FB Específico", prev_meta,   meta_attr,   "Específico", "leads",      _sales_dict(prev_sales_attr, meta_sales_key, etapa)),
+        ("YT Quente",     prev_google, google_attr, "Quente",     "conversoes", _sales_dict(prev_sales_attr, google_sales_key, etapa)),
+        ("YT Frio",       prev_google, google_attr, "Frio",       "conversoes", _sales_dict(prev_sales_attr, google_sales_key, etapa)),
+        ("YT Específico", prev_google, google_attr, "Específico", "conversoes", _sales_dict(prev_sales_attr, google_sales_key, etapa)),
     ]
 
     def _calc(specs_list):
@@ -162,13 +175,17 @@ def _build_rmkt_adsets(meta: Any, whatsapp: float = 0.0, cfg: dict | None = None
     return rows
 
 
-def _build_top_ads_captacao(meta: Any, google: Any, sales_attr: Any = None, n: int = 5) -> dict:
-    """Top N anúncios de Captação por quantidade de vendas (atribuição UTM
-    por ad_code), em 3 recortes: combinado (Meta + Google somados pelo mesmo
-    código ADxxx), só Meta, só Google."""
+def _build_top_ads_captacao(
+    meta: Any, google: Any, sales_attr: Any = None, n: int = 5,
+    meta_ads_attr: str = "captacao_por_ad", google_ads_attr: str = "anuncios_por_ad",
+) -> dict:
+    """Top N anúncios por quantidade de vendas (atribuição UTM por ad_code),
+    em 3 recortes: combinado (Meta + Google somados pelo mesmo código ADxxx),
+    só Meta, só Google. Padrão é Captação; meta_ads_attr/google_ads_attr=
+    "preq_por_ad" reaproveita pra "Top 5 — Pré-Qualificação (Meta + Google)"."""
     por_criativo = (sales_attr or {}).get("por_criativo", {}) or {}
-    meta_ads = getattr(meta, "captacao_por_ad", None) or []
-    google_ads = getattr(google, "anuncios_por_ad", None) or []
+    meta_ads = getattr(meta, meta_ads_attr, None) or []
+    google_ads = getattr(google, google_ads_attr, None) or []
 
     def _row(code: str, nome: str, gasto: float, leads: int) -> dict:
         venda = por_criativo.get(code, {})
@@ -821,6 +838,16 @@ def _compute_debriefing_ctx(
     leads_detail_table = _build_leads_detail_table(
         meta, google, prev_meta, prev_google, sales_attr, prev_sales_attr,
     )
+    # "Performance da Qualificação" — mesma tabela público×leads/CPL/ROAS,
+    # escopada pra Pré-Qualificação (pauta 10/09/26, ref. Slide 8 do
+    # DEBRIEFING 2.0). Sales key *_temperatura_sales_por_etapa já vem
+    # filtrado por etapa em _sales_attribution.
+    leads_detail_table_prequali = _build_leads_detail_table(
+        meta, google, prev_meta, prev_google, sales_attr, prev_sales_attr,
+        meta_attr="por_temperatura_prequali", google_attr="por_temperatura_prequali",
+        meta_sales_key="meta_temperatura_sales_por_etapa",
+        google_sales_key="google_temperatura_sales_por_etapa",
+    )
 
     meta_temp_sales        = (sales_attr or {}).get("meta_por_temperatura",   {}) or {}
     prev_meta_temp_sales   = (prev_sales_attr or {}).get("meta_por_temperatura", {}) or {}
@@ -880,7 +907,11 @@ def _compute_debriefing_ctx(
         "prequali_invest": prequali_invest,
         "preq_top_ads": preq_top_ads,
         "top_ads_captacao": _build_top_ads_captacao(meta, google, sales_attr),
+        "top_ads_prequali": _build_top_ads_captacao(
+            meta, google, sales_attr, meta_ads_attr="preq_por_ad", google_ads_attr="preq_por_ad",
+        ),
         "leads_detail_table": leads_detail_table,
+        "leads_detail_table_prequali": leads_detail_table_prequali,
         # Detalhamento dos públicos (categoria de adset) por clima — Captação Meta
         "publicos_captacao": {
             c: v for c, v in (

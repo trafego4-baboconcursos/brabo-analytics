@@ -171,8 +171,14 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
         "meta_temperatura_sales": {},
         "meta_bucket_sales": {},
         "meta_segmento_sales": {},
+        # Vendas por temperatura CRUZADA com etapa — meta_temperatura_sales
+        # sozinho mistura Captação+Pré-Qualificação+Remarketing no mesmo
+        # bucket "Quente"/"Frio"/etc; isso serve pra tabelas escopadas por
+        # etapa (ex.: "Performance da Qualificação", pauta 10/09/26).
+        "meta_temperatura_sales_por_etapa": {},
         "google_etapa_sales": {},
         "google_temperatura_sales": {},
+        "google_temperatura_sales_por_etapa": {},
         "google_segmento_sales": {},
         "google_campanha_sales": {},
         "por_criativo": {},
@@ -294,6 +300,8 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
             _inc_sales(result["meta_temperatura_sales"], m_temp, receita_email, vendas_email)
             _inc_sales(result["meta_bucket_sales"], m_bucket, receita_email, vendas_email)
             _inc_sales(result["meta_segmento_sales"], m_segmento, receita_email, vendas_email)
+            result["meta_temperatura_sales_por_etapa"].setdefault(m_etapa, {})
+            _inc_sales(result["meta_temperatura_sales_por_etapa"][m_etapa], m_temp, receita_email, vendas_email)
         elif cls["channel"] == "Google Ads":
             _inc_sales(result["google_por_etapa"], cls["etapa"], receita_email, vendas_email)
             _inc_sales(result["google_por_temperatura"], cls["temperatura"], receita_email, vendas_email)
@@ -306,6 +314,8 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
             _inc_sales(result["google_etapa_sales"], g_etapa, receita_email, vendas_email)
             _inc_sales(result["google_temperatura_sales"], g_temp, receita_email, vendas_email)
             _inc_sales(result["google_segmento_sales"], g_segmento, receita_email, vendas_email)
+            result["google_temperatura_sales_por_etapa"].setdefault(g_etapa, {})
+            _inc_sales(result["google_temperatura_sales_por_etapa"][g_etapa], g_temp, receita_email, vendas_email)
             if campaign:
                 _inc_sales(result["google_campanha_sales"], campaign, receita_email, vendas_email)
         ad_code = _extract_ad_code(f"{source} {medium} {campaign} {content} {term}")

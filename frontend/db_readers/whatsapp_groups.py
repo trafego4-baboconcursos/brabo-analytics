@@ -109,9 +109,13 @@ def _compradores_grupos(conn, t_normal: str | None, t_vip: str | None, code: str
         if p in fones_grupos:
             dentro += 1
             receita_dentro += receita
+            # Mutuamente exclusivo (VIP tem prioridade): quem está nos dois
+            # grupos conta como VIP, não nos dois ao mesmo tempo — antes
+            # dentro_vip/dentro_normal se sobrepunham (2.209 + 2.340 > 2.506
+            # do total), o que não representa categorias reais de comprador.
             if p in fones_vip:
                 dentro_vip += 1
-            if p in fones_normal:
+            elif p in fones_normal:
                 dentro_normal += 1
         else:
             fora += 1

@@ -455,6 +455,9 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
    também precisam delas. #}
 {% from "debriefing/_macros.html" import sem_dados, thumb_th, thumb_td with context %}
 {% set has_thumbs = drive_thumbnails is defined and drive_thumbnails | length > 0 %}
+{# Domínio das landing pages por produto — o GA4 só guarda o caminho
+   (ex: /projeto-bb-fev-26-v5-pq-fb), sem host. #}
+{% set lp_base_url = "https://lp.mateusandrade.com.br" if launch and launch.product == "INSS" else "https://lp.braboconcursos.com.br" %}
 
 {% if lazy %}
 {# ── Carregamento progressivo ─────────────────────────────────────────
@@ -1384,7 +1387,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
         <tbody>
           {% for lp in dbf.landing_pages_preq %}
           <tr>
-            <td style="max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ lp.landing_page }}">{{ lp.landing_page }}</td>
+            <td style="max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ lp.landing_page }}"><a href="{{ lp_base_url }}{{ lp.landing_page }}" target="_blank" rel="noopener" style="color:var(--bs-accent)">{{ lp.landing_page }}</a></td>
             <td class="num">{{ lp.sessions | num }}</td>
             <td class="num"><strong>{{ lp.conversoes | num }}</strong></td>
             <td class="num">{{ lp.taxa_conversao | round(2) }}%</td>
@@ -1713,7 +1716,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
         <tbody>
           {% for lp in dbf.landing_pages_capt %}
           <tr>
-            <td style="max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ lp.landing_page }}">{{ lp.landing_page }}</td>
+            <td style="max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ lp.landing_page }}"><a href="{{ lp_base_url }}{{ lp.landing_page }}" target="_blank" rel="noopener" style="color:var(--bs-accent)">{{ lp.landing_page }}</a></td>
             <td class="num">{{ lp.sessions | num }}</td>
             <td class="num"><strong>{{ lp.conversoes | num }}</strong></td>
             <td class="num">{{ lp.taxa_conversao | round(2) }}%</td>

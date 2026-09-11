@@ -629,7 +629,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
 
     <div class="dbf-kpi-grid">
       {%- set kpis_gerais = [
-        ("Total Investido",  dbf.invest,        dbf.prev_invest,        "brl0", "up"),
+        ("Total Investido",  dbf.invest,        dbf.prev_invest,        "brl0", "down"),
         ("Receita Líquida",  dbf.receita,       dbf.prev_receita,       "brl0", "up"),
         ("ROAS",             dbf.roas,          dbf.prev_roas,          "roas", "up"),
         ("Total Vendas",  dbf.total_vendas, dbf.prev_total_vendas, "num", "up"),
@@ -916,7 +916,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
         <div class="alloc-previsto"><span class="alloc-col-lbl">Previsto</span>{{ e.previsto | brl(0) if e.previsto > 0 else '—' }}</div>
         <div class="alloc-realizado"><span class="alloc-col-lbl">Realizado</span>{{ e.invest | brl(0) }}</div>
         <div class="alloc-variacao"><span class="alloc-col-lbl">Var.</span>{% if e.previsto > 0 %}{{ dbadge(e.invest, e.previsto, 'down') }}{% else %}—{% endif %}</div>
-        <div class="alloc-badge"><span class="alloc-col-lbl">Lanç. Ant.</span>{% if pe %}{{ dbadge(e.invest, pe.invest, 'up') }}{% endif %}</div>
+        <div class="alloc-badge"><span class="alloc-col-lbl">Lanç. Ant.</span>{% if pe %}{{ dbadge(e.invest, pe.invest, 'down') }}{% endif %}</div>
       </div>
       {% endfor %}
       <div class="alloc-row alloc-row-budget total" style="border-top:1px solid var(--bs-border);margin-top:6px;padding-top:6px;font-weight:600">
@@ -926,7 +926,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
         <div class="alloc-previsto"><span class="alloc-col-lbl">Previsto</span>{{ total_previsto | brl(0) if total_previsto > 0 else '—' }}</div>
         <div class="alloc-realizado"><span class="alloc-col-lbl">Realizado</span>{{ total_invest | brl(0) }}</div>
         <div class="alloc-variacao"><span class="alloc-col-lbl">Var.</span>{% if total_previsto > 0 %}{{ dbadge(total_invest, total_previsto, 'down') }}{% else %}—{% endif %}</div>
-        <div class="alloc-badge"><span class="alloc-col-lbl">Lanç. Ant.</span>{% if prev_total_invest %}{{ dbadge(total_invest, prev_total_invest, 'up') }}{% endif %}</div>
+        <div class="alloc-badge"><span class="alloc-col-lbl">Lanç. Ant.</span>{% if prev_total_invest %}{{ dbadge(total_invest, prev_total_invest, 'down') }}{% endif %}</div>
       </div>
     {% endmacro %}
 
@@ -934,7 +934,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
       {% set pct = (valor / invest * 100) | round(1) if invest > 0 else 0 %}
       <div class="dbf-plat-row">
         <span>{{ label }}</span>
-        <span><span class="amt">{{ valor | brl(0) }}</span> <span class="pct">({{ pct }}%)</span>{% if pe_valor %} {{ dbadge(valor, pe_valor, 'up') }}{% endif %}</span>
+        <span><span class="amt">{{ valor | brl(0) }}</span> <span class="pct">({{ pct }}%)</span>{% if pe_valor %} {{ dbadge(valor, pe_valor, 'down') }}{% endif %}</span>
       </div>
       <div class="alloc-bar-wrap" style="height:6px;margin:2px 0 10px"><div class="alloc-bar" style="height:6px;width:{{ pct }}%;background:{{ color }}"></div></div>
     {% endmacro %}
@@ -990,7 +990,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
           <div class="alloc-previsto"><span class="alloc-col-lbl">Previsto</span>{{ a.previsto | brl(0) if a.previsto > 0 else '—' }}</div>
           <div class="alloc-realizado"><span class="alloc-col-lbl">Realizado</span>{{ a.gasto | brl(0) }}</div>
           <div class="alloc-variacao"><span class="alloc-col-lbl">Var.</span>{% if a.previsto > 0 %}{{ dbadge(a.gasto, a.previsto, 'down') }}{% else %}—{% endif %}</div>
-          <div class="alloc-badge"><span class="alloc-col-lbl">Lanç. Ant.</span>{% if pa and pa.gasto %}{{ dbadge(a.gasto, pa.gasto, 'up') }}{% endif %}</div>
+          <div class="alloc-badge"><span class="alloc-col-lbl">Lanç. Ant.</span>{% if pa and pa.gasto %}{{ dbadge(a.gasto, pa.gasto, 'down') }}{% endif %}</div>
         </div>
         {% endfor %}
         <div class="alloc-row alloc-row-budget total" style="border-top:1px solid var(--bs-border);margin-top:6px;padding-top:6px;font-weight:600">
@@ -1000,7 +1000,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
           <div class="alloc-previsto"><span class="alloc-col-lbl">Previsto</span>{{ rmkt_previsto_total | brl(0) if rmkt_previsto_total > 0 else '—' }}</div>
           <div class="alloc-realizado"><span class="alloc-col-lbl">Realizado</span>{{ rmkt_total | brl(0) }}</div>
           <div class="alloc-variacao"><span class="alloc-col-lbl">Var.</span>{% if rmkt_previsto_total > 0 %}{{ dbadge(rmkt_total, rmkt_previsto_total, 'down') }}{% else %}—{% endif %}</div>
-          <div class="alloc-badge"><span class="alloc-col-lbl">Lanç. Ant.</span>{% if prev_rmkt_total %}{{ dbadge(rmkt_total, prev_rmkt_total, 'up') }}{% endif %}</div>
+          <div class="alloc-badge"><span class="alloc-col-lbl">Lanç. Ant.</span>{% if prev_rmkt_total %}{{ dbadge(rmkt_total, prev_rmkt_total, 'down') }}{% endif %}</div>
         </div>
       </div>
       {% endif %}

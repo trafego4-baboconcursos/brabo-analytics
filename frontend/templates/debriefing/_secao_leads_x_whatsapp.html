@@ -15,7 +15,7 @@
   <div style="font-size:13px;font-weight:700;margin-top:18px;margin-bottom:8px">{{ tipo }}</div>
   <div class="dbf-kpi-grid" style="grid-template-columns:repeat(3,1fr)">
     <div class="dbf-kpi">
-      <div class="lbl">Total no grupo</div>
+      <div class="lbl">Pico no grupo</div>
       <div class="val">{{ dados.total_whatsapp | num }}</div>
     </div>
     <div class="dbf-kpi">
@@ -31,7 +31,7 @@
   {% endfor %}
 
   <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:16px;">
-    Leads = linhas da tabela de leads (Active Campaign). Total no grupo/Saída = cópia literal da planilha do sendflow-analytics-poller (mesmo número que o time já acompanha), separado por tipo — Normal e VIP não são somados num total único porque quem está nos dois ao mesmo tempo exige uma dedup que só o poller faz. Taxa de entrada = total no grupo ÷ leads.
+    Leads = linhas da tabela de leads (Active Campaign). Total no grupo/Saída = cópia literal da planilha do sendflow-analytics-poller (mesmo número que o time já acompanha), separado por tipo — Normal e VIP não são somados num total único porque quem está nos dois ao mesmo tempo exige uma dedup que só o poller faz. Taxa de entrada = total no grupo ÷ leads. Todos os três valores são o <strong>máximo já atingido</strong> pelo lançamento (nunca diminuem), não o número de agora — evita mostrar um total menor num lançamento antigo só porque gente já saiu do grupo desde então.
   </div>
 </div>
 {% endif %}

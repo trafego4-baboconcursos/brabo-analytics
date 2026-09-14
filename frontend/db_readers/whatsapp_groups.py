@@ -444,15 +444,24 @@ def read_leads_x_whatsapp(launch_folder_or_code: Any) -> dict | None:
     entrada × saída dos grupos (geral e por tipo normal/VIP). Pauta
     debriefing — quantos leads efetivamente entraram no grupo, e quantos já
     saíram."""
+    from frontend.db_readers.whatsapp_sheets import pico_por_bloco  # noqa: PLC0415
+
     code = _extract_launch_code(launch_folder_or_code)
     wa = read_whatsapp_groups(code)
     if not wa:
         return None
     wa_normal = wa.get("normal") or {}
     wa_vip = wa.get("vip") or {}
-    total_limpo_normal = int(wa_normal.get("total_limpo") or 0)
-    total_limpo_vip = int(wa_vip.get("total_limpo") or 0)
-    if not total_limpo_normal and not total_limpo_vip:
+
+    # Pico (maior "leads no dia" já registrado), não o total_limpo atual:
+    # lançamento já fechou há semanas, sem contato novo com esse lead — o
+    # que importa pro debriefing é o alcance máximo que a campanha teve, não
+    # quantos ainda restam no grupo hoje (que só cai com o tempo por causa
+    # de saída natural, sem repor). Pedido explícito do usuário em 14/09.
+    picos = pico_por_bloco(code)
+    pico_normal = picos.get("normal", 0)
+    pico_vip = picos.get("vip", 0)
+    if not pico_normal and not pico_vip:
         return None
 
     engine = _get_engine()
@@ -479,22 +488,22 @@ def read_leads_x_whatsapp(launch_folder_or_code: Any) -> dict | None:
     return {
         "total_leads": total_leads,
         "normal": {
-            "total_whatsapp": total_limpo_normal,
-            "taxa_entrada": _taxa(total_limpo_normal),
+            "total_whatsapp": pico_normal,
+            "taxa_entrada": _taxa(pico_normal),
             "saida_total": saida_normal,
         },
         "vip": {
-            "total_whatsapp": total_limpo_vip,
-            "taxa_entrada": _taxa(total_limpo_vip),
+            "total_whatsapp": pico_vip,
+            "taxa_entrada": _taxa(pico_vip),
             "saida_total": saida_vip,
         },
         # Mantidos só pra compatibilidade com quem já lia o formato antigo
-        # (frontend/templates/dashboard.html) — soma simples, sem descontar
-        # sobreposição (não temos como calculá-la de forma confiável; ver
-        # acima). É uma aproximação PRA CIMA: quem está nos dois grupos ao
-        # mesmo tempo conta 2x aqui.
-        "total_whatsapp": total_limpo_normal + total_limpo_vip,
-        "taxa_entrada": _taxa(total_limpo_normal + total_limpo_vip),
+        # (frontend/templates/dashboard.html) — soma simples dos picos, sem
+        # descontar sobreposição (não temos como calculá-la de forma
+        # confiável; ver acima). É uma aproximação PRA CIMA: quem passou
+        # pelos dois grupos ao mesmo tempo conta 2x aqui.
+        "total_whatsapp": pico_normal + pico_vip,
+        "taxa_entrada": _taxa(pico_normal + pico_vip),
         "saida_total": saida_normal + saida_vip,
         "saida_normal": saida_normal,
         "saida_vip": saida_vip,

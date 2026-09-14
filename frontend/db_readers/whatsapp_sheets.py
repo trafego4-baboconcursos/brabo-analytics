@@ -66,6 +66,25 @@ def _diario_por_bloco(code: str) -> dict[str, list[dict]]:
     return out
 
 
+def pico_por_bloco(code: str) -> dict[str, int]:
+    """{"normal": pico, "vip": pico} — maior "leads no dia" já registrado
+    por bloco (pico de pessoas ativas no grupo durante a campanha, não o
+    total atual — que já caiu por causa das saídas depois do carrinho
+    fechar e não reflete mais o alcance real do lançamento)."""
+    engine = _get_engine()
+    with engine.connect() as conn:
+        rows = conn.execute(
+            text("""
+                SELECT bloco, MAX(leads_no_dia)
+                FROM whatsapp_sheets_diario
+                WHERE launch_code = :code
+                GROUP BY bloco
+            """),
+            {"code": code},
+        ).fetchall()
+    return {bloco: int(pico or 0) for bloco, pico in rows}
+
+
 def contar_lancamento(launch_folder_or_code: Any) -> dict[str, dict]:
     """Retorna {"normal": {"total":.., "total_limpo":.., "grupos":..,
     "entradas_hoje":.., "saidas_hoje":..}, "vip": {...}} — os mesmos campos

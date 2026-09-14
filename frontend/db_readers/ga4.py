@@ -42,11 +42,20 @@ def read_landing_pages_por_etapa(launch_folder_or_code: Any, top_n: int = 8) -> 
     code_slug = re.sub(r"[^a-z0-9]+", "-", code.lower()).strip("-") if code else ""
     engine = _get_engine()
 
+    # Agrega por landing_page no banco em vez de baixar uma linha por dia por
+    # página: etapa e versão são função pura do landing_page, e todo o resto do
+    # cálculo aqui embaixo já é soma por página — então soma de somas dá o mesmo
+    # número trazendo uma fração das linhas (ver ARQUITETURA.md, 14/09/26 —
+    # egress). NULL e '' classificam igual em _etapa_from_landing_page (ambos
+    # viram ""), então ficarem em grupos separados aqui não muda o resultado.
     df = pd.read_sql(
         text("""
-            SELECT landing_page, sessions, key_events
+            SELECT landing_page,
+                   SUM(sessions)   AS sessions,
+                   SUM(key_events) AS key_events
             FROM ga4_daily
             WHERE lancamento_codigo = :code
+            GROUP BY landing_page
         """),
         engine,
         params={"code": code},
@@ -113,12 +122,16 @@ def read_conversao_pagina_captura(launch_folder_or_code: Any, top_n: int = 10) -
     code_slug = re.sub(r"[^a-z0-9]+", "-", code.lower()).strip("-") if code else ""
     engine = _get_engine()
 
+    # Mesma agregação no banco de read_landing_pages_por_etapa: o funil abaixo
+    # só soma sessões por versão de página, e versão/etapa saem do landing_page.
     df_sessions = pd.read_sql(
-        text("SELECT landing_page, sessions FROM ga4_daily WHERE lancamento_codigo = :code"),
+        text("SELECT landing_page, SUM(sessions) AS sessions FROM ga4_daily "
+             "WHERE lancamento_codigo = :code GROUP BY landing_page"),
         engine, params={"code": code},
     )
     df_events = pd.read_sql(
-        text("SELECT landing_page, event_name, sessions FROM ga4_events_daily WHERE lancamento_codigo = :code"),
+        text("SELECT landing_page, event_name, SUM(sessions) AS sessions FROM ga4_events_daily "
+             "WHERE lancamento_codigo = :code GROUP BY landing_page, event_name"),
         engine, params={"code": code},
     )
     if df_sessions.empty:

@@ -607,19 +607,29 @@ def read_compradores_por_dia_grupo(launch_folder_or_code: Any) -> dict | None:
     def _in_range(d: str, start: str, end: str) -> bool:
         return bool(start and end and start <= d <= end)
 
-    pre_quali_total = sum(n for d, n in por_dia.items() if _in_range(d, pq_start, pq_end))
-    captacao_total  = sum(n for d, n in por_dia.items() if _in_range(d, cp_start, cp_end))
-    outro_total = sum(por_dia.values()) - pre_quali_total - captacao_total
-
+    # Captação vem antes de Pré-Qualificação na checagem: as datas do wizard
+    # às vezes se sobrepõem (ex.: PI-AGO-26 — Pré-Quali até 04/08, Captação
+    # já desde 27/07) e, quando isso acontece, o resto do sistema (curva
+    # diária, "Detalhamento por Dia de Captação" etc.) trata esses dias como
+    # Captação. Classificar por dia (mutuamente exclusivo) ANTES de somar os
+    # totais evita contar o mesmo comprador nos dois totais ao mesmo tempo —
+    # bug real encontrado no debriefing (14/09/26): 1.590 compradores da
+    # janela sobreposta apareciam tanto em "Pré-Qualificação" quanto em
+    # "Captação", inflando os dois.
     def _periodo(d: str) -> str:
-        if _in_range(d, pq_start, pq_end):
-            return "pre_quali"
         if _in_range(d, cp_start, cp_end):
             return "captacao"
+        if _in_range(d, pq_start, pq_end):
+            return "pre_quali"
         return "outro"
 
+    periodo_por_dia = {d: _periodo(d) for d in por_dia}
+    pre_quali_total = sum(n for d, n in por_dia.items() if periodo_por_dia[d] == "pre_quali")
+    captacao_total  = sum(n for d, n in por_dia.items() if periodo_por_dia[d] == "captacao")
+    outro_total = sum(n for d, n in por_dia.items() if periodo_por_dia[d] == "outro")
+
     timeline = [
-        {"data": d, "data_str": d[8:10] + "/" + d[5:7], "compradores": n, "periodo": _periodo(d)}
+        {"data": d, "data_str": d[8:10] + "/" + d[5:7], "compradores": n, "periodo": periodo_por_dia[d]}
         for d, n in sorted(por_dia.items())
     ]
 

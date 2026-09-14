@@ -1,4 +1,20 @@
-# Arquitetura do Brabo Analytics — 2026-07-02
+---
+titulo: "Arquitetura do Brabo Analytics — 2026-09-14"
+area: sistema
+status: vigente
+atualizado: 2026-09-14
+responde:
+  - "como o sistema funciona por dentro"
+  - "fluxo de dados"
+  - "responsabilidade de cada arquivo"
+  - "onde fica o calendario e por que"
+  - "cache, scheduler, seguranca"
+relacionados:
+  - "[[METODOLOGIA_EXTRACAO_DADOS]]"
+  - "[[DESIGN_SYSTEM]]"
+---
+
+# Arquitetura do Brabo Analytics — 2026-09-14
 
 Estado atual da arquitetura após as sessões de refatoração de 2026-06-23, 2026-06-25 e o God Module Split (Sessions 1–9, concluído em 2026-07-02).
 
@@ -354,7 +370,7 @@ tmb_lancamento_id = int(first) if first else None
 
 ## Desligamento do Typeform e sistema de pesquisa interno (2026-08-31)
 
-A conta do Typeform foi cancelada; `frontend/db_readers/typeform.py` não chama mais nenhuma API do Typeform. Detalhes completos (schema das tabelas de backup, schema do sistema de pesquisa interno, o que mudou em cada função) estão em `documentacao/METODOLOGIA_EXTRACAO_DADOS.md` (seção 10). Resumo pro contexto de arquitetura:
+A conta do Typeform foi cancelada; `frontend/db_readers/typeform.py` não chama mais nenhuma API do Typeform. Detalhes completos (schema das tabelas de backup, schema do sistema de pesquisa interno, o que mudou em cada função) estão em `docs/sistema/METODOLOGIA_EXTRACAO_DADOS.md` (seção 10). Resumo pro contexto de arquitetura:
 
 - **`_get_typeform_forms()` / `_get_typeform_fields()`** — form_id→título agora vem das tabelas `typeform_forms`/`typeform_forms_2` (backup no Supabase); field_id→título da pergunta não tem backup e retorna vazio (gap conhecido, sem solução).
 - **`_tf_source()`** — nova função que faz `UNION ALL` de `typeform_respostas` + `typeform_respostas_backup` + `typeform_respostas_backup_2`, deduplicado por `response_id`, com o filtro (form_id/período) empurrado pra dentro de cada branch do UNION por performance.
@@ -362,3 +378,54 @@ A conta do Typeform foi cancelada; `frontend/db_readers/typeform.py` não chama 
 - **`etl/run_all.py`** — `typeform` removido do dict `scripts` de `run_api_mode`; `scheduler.py` não roda mais `etl_typeform.py` a cada 30 min.
 
 **Renomeação da UI (2026-08-31):** como a página agora cobre Typeform (legado) + sistema de pesquisa interno, a nomenclatura visível trocou de "Typeform" para "Pesquisas" em todo o sistema — menu lateral, título da página, KPIs e textos em `index.html`, `criativos.html`, `vendas.html`, `comparativo-v1-v2`. A rota mudou de `/typeform` para `/pesquisas`; `/typeform` continua existindo como redirect 307 pra `/pesquisas` (link legado). O template foi renomeado de `typeform.html` para `pesquisas.html`. Nomes internos de código (arquivo `frontend/db_readers/typeform.py`, funções `read_typeform*`, tabelas `typeform_*`) **não** foram renomeados — são detalhes de implementação, não nomenclatura visível ao usuário.
+
+
+## Calendário de lançamentos — fonte das datas-padrão (2026-09-14)
+
+`frontend/calendar_parser.py::parse_calendar` extrai, por lançamento, o início/fim de cada etapa
+(pré-quali, captação, depoimento, aulas, carrinho) direto do HTML do calendário. É o que alimenta
+`_compute_launch_defaults` em `core.py`, ou seja, os valores que o wizard de lançamento sugere.
+
+**Local canônico:** `analises/calendario/SISTEMA_CALENDARIO_2026.html`, junto dos CSVs de consulta
+(`BASE_CONSULTA_CALENDARIO_2026*.csv`). Fica sob `analises/` de propósito — é a única pasta montada
+como estático (`/analises`), então a mesma cópia serve o parser, os relatórios v1 (que linkam
+`../calendario/...`) e o navegador. Os dois CSVs têm exceção no `.gitignore`, que por padrão
+ignora `analises/**/*.csv`.
+
+**Armadilha já materializada:** o parser varre apenas `analises/`. Enquanto o HTML esteve em
+`frontend/static/calendario/` (pasta que **não** é montada), `parse_calendar` caiu em
+`get_static_fallback_bounds()` — datas chumbadas no código — **sem logar nada**. As datas gerais
+batiam, mas o fallback devolve `stages: {}`, então a Captação virava o range inteiro do lançamento
+e pré-quali/carrinho/evento voltavam `None`. Corrigido em 2026-09-14: arquivo movido pro local
+canônico e o fallback agora emite `logger.warning`.
+
+**Duas fontes, papeis diferentes:** o HTML do calendário é o *planejado* (sugestão de datas);
+`launch_config` (banco operacional) é o *configurado*. Quando divergirem, `launch_config` manda.
+Na mesma correção o calendário ainda trazia o `PBB-AGO-26` sob o código antigo `PBB-OUT-26` com
+datas de set/out; código e as 5 etapas foram realinhados com o `launch_config`.
+
+## Documentação como sistema (2026-09-14)
+
+`docs/` deixou de ser uma pasta de arquivos soltos e virou um vault com roteamento, para que
+nem pessoa nem agente precise ler tudo para achar uma coisa. Três camadas:
+
+1. **Frontmatter em todo `.md`** — `titulo`, `area`, `status`, `atualizado` e `responde`
+   (as perguntas que aquele doc responde). É o índice legivel por máquina: dá para varrer o
+   vault inteiro lendo 14 linhas por arquivo (~570 linhas) em vez das ~6.700 linhas de conteúdo.
+2. **Mapa de roteamento** em `docs/README.md`, uma tabela `pergunta -> doc` **gerada** a partir
+   desses `responde`. Não editar à mão.
+3. **Validador** `scripts/check_docs.py` — confere frontmatter obrigatório, nomes únicos no
+   vault, wikilinks quebrados e se todo doc é alcançável a partir do README; com
+   `--atualizar-mapa` regenera a tabela. Saída diferente de zero = build quebrado.
+
+```bash
+python scripts/check_docs.py --atualizar-mapa
+```
+
+**Restrições que isso impõe:** nome de arquivo único no vault (o `[[link]]` do Obsidian resolve
+por nome, não por caminho) e sem `[`/`]` no nome — colchete quebra a sintaxe do wikilink; foi
+por isso que `VERIFICACAO_GOOGLE_ADS_[PES-JAN-26].md` precisou ser renomeado.
+
+As regras de onde escrever cada tipo de registro estão em `CLAUDE.md`, seção
+*Documentation (`docs/`)* — fonte única; `AGENTS.md` só aponta pra lá, depois de as duas
+cópias terem divergido.

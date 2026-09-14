@@ -71,7 +71,7 @@ $gitInfo = @(
 )
 $gitInfo | Out-File (Join-Path $stage 'git-info.txt') -Encoding utf8
 
-$restoreSrc = Join-Path $root 'documentacao\RESTAURAR_MAQUINA_NOVA.md'
+$restoreSrc = Join-Path $root 'docs\operacao\RESTAURAR_MAQUINA_NOVA.md'
 if (Test-Path -LiteralPath $restoreSrc) {
     Copy-Item -LiteralPath $restoreSrc -Destination (Join-Path $stage 'LEIA-ME-RESTAURAR.md')
 }

@@ -6,7 +6,7 @@ identificar origem/anúncio → data de cadastro → normal/VIP → respondeu
 pesquisa? → comprou → orgânico/comercial, juntando por e-mail/telefone.
 
 "Participou do sorteio/live" fica de fora — não existe fonte pra isso ainda
-(ver levantamento em documentacao/historico/LEVANTAMENTO_DEBRIEFING_MELHORIAS_2026-08-25.md).
+(ver levantamento em docs/historico/LEVANTAMENTO_DEBRIEFING_MELHORIAS_2026-08-25.md).
 """
 from __future__ import annotations
 

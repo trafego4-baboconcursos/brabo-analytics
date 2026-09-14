@@ -53,6 +53,9 @@ node_modules/
 # Dados de lançamentos (CSVs/planilhas grandes, contêm PII de leads/compradores)
 analises/**/*.csv
 analises/**/*.xlsx
+# Exceção: dados de referência do calendário (sem PII, servidos pela página do calendário)
+!analises/calendario/BASE_CONSULTA_CALENDARIO_2026.csv
+!analises/calendario/BASE_CONSULTA_CALENDARIO_2026_EXTRAIDA.csv
 active-campaign/
 
 # Exports/planilhas de trabalho soltos na raiz (mesma razão do analises/**/*.csv acima —
@@ -76,8 +79,23 @@ claude-memory-export/
 # Artefatos de automação de browser (screenshots/snapshots podem conter dados reais da tela)
 .playwright-mcp/
 
-# Performance Manager: criativos e docs de trabalho, só local (pedido do usuário 03/09/26)
+# Performance Manager: SÓ criativos (mp4/psd/jpg, ~8 GB) e CSVs com PII — local, nunca versionar.
+# Os .md de ad-ops moraram aqui até 14/09/26; agora ficam em documentacao/performance/ (versionados).
 performance-manager/
+
+# Customer Match: e-mail/telefone de leads (PII) — nunca versionar, esteja onde estiver
+customer_match_*.csv
+
+# Obsidian: estado de janela/layout do vault (o resto da config do vault é versionado)
+**/.obsidian/workspace.json
+**/.obsidian/workspace-mobile.json
 
 # Estado do alerta de orçamento (runtime, não versionar)
 etl/budget_alert_state.json
+
+# Documentacao: so docs/sistema/ vai pro git (pedido do usuario 14/09/26).
+# O resto do vault (negocio, operacao, performance, projetos, analises, historico)
+# fica so na maquina do usuario.
+docs/*
+!docs/sistema/
+!docs/.gitkeep

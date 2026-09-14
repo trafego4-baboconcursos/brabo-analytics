@@ -1,3 +1,16 @@
+---
+titulo: "Metodologia de Extração e Atribuição de Dados por Lançamento"
+area: sistema
+status: vigente
+atualizado: 2026-09-14
+responde:
+  - "como cada metrica e extraida"
+  - "regras de atribuicao lead-venda"
+  - "o que mudou com o fim do Typeform"
+relacionados:
+  - "[[ARQUITETURA]]"
+---
+
 # Metodologia de Extração e Atribuição de Dados por Lançamento
 
 **Última atualização:** Junho de 2026 (Transição para Análises 2.0)

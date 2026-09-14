@@ -34,7 +34,7 @@ _INSTAGRAM_ACCOUNTS_YAML = Path(__file__).resolve().parents[1] / "config" / "ins
 # permitindo reaproveitar 100% das tabelas/views já existentes.
 #
 # ATENÇÃO: as campanhas reais ainda não foram auditadas/padronizadas com
-# essas tags (levantamento em performance-manager/LEVANTAMENTO_PERPETUO_DISTRIBUICAO.md,
+# essas tags (levantamento em docs/performance/perpetuo/LEVANTAMENTO_PERPETUO_DISTRIBUICAO.md,
 # pendências #1 e #2) — este matching é best-effort e deve ser revisado
 # assim que a nomenclatura real for confirmada.
 PERPETUO_TAG_RE = re.compile(r"\[perp[ée]tuo\]", re.IGNORECASE)

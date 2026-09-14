@@ -200,10 +200,10 @@ Known CSV naming:
 
 Operational ad work lives mainly in:
 
-- `performance-manager/PLAYBOOK_DUPLICAR_LANCAMENTO_META_ADS.md`
-- `performance-manager/CASCATEAMENTO_PUBLICOS_META_ADS.md`
-- `performance-manager/MUDANCAS_*.md`
-- launch-specific folders under `performance-manager/[LAUNCH-CODE]/`
+- `docs/performance/playbooks/PLAYBOOK_DUPLICAR_LANCAMENTO_META_ADS.md`
+- `docs/performance/playbooks/CASCATEAMENTO_PUBLICOS_META_ADS.md`
+- `docs/performance/lancamentos/[LAUNCH]/MUDANCAS_[LAUNCH].md`
+- launch-specific creative folders under `performance-manager/[LAUNCH-CODE]/` (media only — local, gitignored)
 
 Before creating, duplicating, pausing, activating, renaming, or changing ads/campaigns:
 
@@ -436,17 +436,18 @@ Google Drive media rules:
 
 Analysis work usually lives in:
 
-- `documentacao/analises/`
+- `docs/analises/`
+- `docs/performance/`
 - `analises/[LAUNCH-CODE]/`
 - `scripts-python/`
-- `performance-manager/`
+- `performance-manager/` (criativos only — local, gitignored)
 
 Important reusable analysis docs:
 
-- `documentacao/analises/HANDOFF_CRIATIVOS_REUTILIZAVEL.md`
-- `documentacao/analises/README_ANALISE.md`
-- `documentacao/METODOLOGIA_EXTRACAO_DADOS.md`
-- `documentacao/ARQUITETURA.md`
+- `docs/analises/HANDOFF_CRIATIVOS_REUTILIZAVEL.md`
+- `docs/analises/README_ANALISE.md`
+- `docs/sistema/METODOLOGIA_EXTRACAO_DADOS.md`
+- `docs/sistema/ARQUITETURA.md`
 
 When producing or changing analyses:
 
@@ -461,24 +462,21 @@ When producing or changing analyses:
 
 ## Documentation Rules
 
-Documentation lives under `documentacao/`.
+**Single source of truth: the `## Documentation (docs/)` section of `CLAUDE.md`.** Do not
+restate the rules here — this section diverged from CLAUDE.md once already (it still described
+a layout without `projetos/`, so open plans were being archived as history).
 
-Required root docs include:
+The short version:
 
-- `documentacao/BRABO_ANALYTICS_APRESENTACAO_EXEC.md`
-- `documentacao/ARQUITETURA.md`
-- `documentacao/CHECKLIST_DEPLOY_SEGURANCA.md`
-- `documentacao/METODOLOGIA_EXTRACAO_DADOS.md`
-- `documentacao/BRIEFING_BRABO.md`
-
-Rules:
-
-- Never create a new documentation file before checking whether an existing one should be updated.
-- Session logs, one-off plans, and date-stamped status files go in `documentacao/historico/`.
-- Do not delete historical docs; archive or update in place.
-- When updating existing docs, edit the existing file instead of creating a new dated copy.
-- When asked to "update the documentation", update `documentacao/BRABO_ANALYTICS_APRESENTACAO_EXEC.md` and any other relevant existing file.
-- When editing `BRABO_ANALYTICS_APRESENTACAO_EXEC.md`, update the date in its header.
+- `docs/` is an Obsidian vault. Start at `docs/README.md` and use its **Mapa de roteamento**
+  (generated `question -> file` table). Do not read the vault end to end.
+- To narrow down, read only frontmatter (`head -14`), never whole files.
+- Every doc carries `titulo / area / status / atualizado / responde`, is linked from the index
+  of its area, and has a vault-unique filename with no `[` or `]`.
+- A conversation that changed something must be written down in the same turn — see the
+  "Registering a conversation" table in CLAUDE.md for which file receives what.
+- After touching `docs/`, run `python scripts/check_docs.py --atualizar-mapa`; non-zero exit
+  is a broken build.
 
 ## Coding Guidelines
 

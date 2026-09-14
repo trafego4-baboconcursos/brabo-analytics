@@ -123,28 +123,92 @@ analises/
 
 The v2 dashboard reads CSVs directly from these subfolders; v1 static HTML reports are legacy and served as-is via `/analises` static mount.
 
-## Documentation (`documentacao/`)
+## Documentation (`docs/`)
 
-### Required structure
-```
-documentacao/
-  BRABO_ANALYTICS_APRESENTACAO_EXEC.md   ← executive presentation, always up to date
-  ARQUITETURA.md                          ← system architecture reference
-  CHECKLIST_DEPLOY_SEGURANCA.md
-  METODOLOGIA_EXTRACAO_DADOS.md
-  BRIEFING_BRABO.md
-  HOW_TO_CONTINUE.md
-  HANDOFF_CRIATIVOS_REUTILIZAVEL.md
-  analises/        ← data analyses for specific launches
-  historico/       ← old files; never delete, only archive here
+`docs/` is an Obsidian vault. It is the project's long-term memory: **a conversation that
+changed something and was not written here did not happen.**
+
+### How to find something — do NOT read the whole vault
+
+1. Read `docs/README.md` first. Its **Mapa de roteamento** is a generated `question -> file`
+   table. Open only what it points at.
+2. Still unsure? Read just the frontmatter of candidates (`head -14`), never whole files:
+   ```bash
+   head -14 docs/**/*.md          # titulo / area / status / atualizado / responde
+   grep -rl "responde" docs/ | xargs grep -l "palavra-chave"
+   ```
+3. Follow `relacionados:` to hop between docs instead of scanning directories.
+
+Reading three whole docs to answer one question means the routing failed — fix the
+`responde:` keys of the doc that should have matched.
+
+### Frontmatter contract (every `.md` in `docs/` has it)
+
+```yaml
+---
+titulo: "..."                  # H1 of the doc
+area: sistema|negocio|operacao|performance|lancamento|projeto|analise|historico|indice
+status: vigente|pendente|arquivado
+atualizado: YYYY-MM-DD         # bump on every edit
+responde:                      # routing keys: questions this doc answers
+  - "..."
+relacionados:                  # optional, "[[WIKILINK]]" entries
+  - "[[OUTRO_DOC]]"
+---
 ```
 
-### Rules — follow these whenever touching documentation
-- Never create a new documentation file without checking if an existing one should be updated instead.
-- Session logs, one-off plans, and date-stamped status files go in `historico/` — never in the root.
-- When updating existing documentation, edit the file in place — do not create a new file with a date in the name.
-- `BRABO_ANALYTICS_APRESENTACAO_EXEC.md` must always reflect the current state of the system; update the date in its header on every edit.
-- When asked to "update the documentation", always update `BRABO_ANALYTICS_APRESENTACAO_EXEC.md` and any other relevant existing file — do not create new files.
+A new doc without frontmatter, or not linked from an index, **fails validation**.
+
+### Structure
+```
+docs/
+  README.md                    <- vault home: routing map + where-to-write table
+  sistema/                     <- ARQUITETURA, METODOLOGIA_EXTRACAO_DADOS, DESIGN_SYSTEM
+  negocio/                     <- BRABO_ANALYTICS_APRESENTACAO_EXEC, BRIEFING_BRABO
+  operacao/                    <- CHECKLIST_DEPLOY_SEGURANCA, RESTAURAR_MAQUINA_NOVA
+  performance/                 <- ad-ops; index in INDICE_PERFORMANCE.md
+    lancamentos/[LAUNCH]/      <- MUDANCAS_[LAUNCH].md + one-offs for that launch
+    playbooks/                 <- reusable methods
+    perpetuo/                  <- always-on campaigns, outside any launch
+  projetos/                    <- agreed but NOT yet implemented; index INDICE_PROJETOS.md
+  analises/                    <- data analyses; index README_ANALISE.md
+  historico/                   <- archived; index INDICE_HISTORICO.md
+    codigo-legado/             <- retired code
+```
+
+### Registering a conversation — where the outcome goes
+
+Do this **in the same turn** as the change, not "later". Each row is a trigger:
+
+| what happened in the conversation | write it to |
+|---|---|
+| ad-ops action or analysis for a launch (via API **or** done by hand in the platform) | `performance/lancamentos/[LAUNCH]/MUDANCAS_[LAUNCH].md` — new dated item |
+| a method that will repeat on other launches | `performance/playbooks/` (new doc or update existing) |
+| system behaviour changed (code, data flow, a fixed bug) | `sistema/ARQUITETURA.md` + bump the date in `negocio/BRABO_ANALYTICS_APRESENTACAO_EXEC.md` |
+| how a metric is extracted/attributed changed | `sistema/METODOLOGIA_EXTRACAO_DADOS.md` |
+| something agreed but not built yet | new doc in `projetos/` + a row in `INDICE_PROJETOS.md` |
+| a `projetos/` item shipped | move the doc to `historico/`, drop its row from `INDICE_PROJETOS.md`, and document the result where the table above says |
+| decision/investigation that changes nothing yet | the `MUDANCAS_` of the launch it concerns, else a dated doc in `historico/` |
+
+Analyses count, not just actions: if the user asked for an analysis, it becomes an item in the
+launch's `MUDANCAS_` — a chat answer alone is not a record.
+
+### Rules
+- Never create a new doc without checking whether an existing one should be updated instead.
+- Edit in place. Never create a second file with a date in the name to "version" a doc.
+- Filenames must be unique across the whole vault (`[[links]]` resolve by name, not path) and
+  must not contain `[` or `]` — brackets break wikilink syntax. Keep the launch code in the
+  filename even inside `lancamentos/[LAUNCH]/`.
+- Every new doc: frontmatter + linked from the index of its area.
+- Never archive an open plan in `historico/` — that is how the TikTok/CAPI plans got lost.
+- `BRABO_ANALYTICS_APRESENTACAO_EXEC.md` must always reflect the current state of the system.
+- Module-level `README.md` (`frontend/`, `config/launches/`) stay next to their code.
+- After touching `docs/`, run:
+  ```bash
+  python scripts/check_docs.py --atualizar-mapa
+  ```
+  It validates frontmatter, unique names, wikilinks and reachability, and regenerates the
+  routing map. Treat a non-zero exit as a broken build.
 
 ## Environment Variables (`.env`)
 See `.env.example` for the full list. Key vars:

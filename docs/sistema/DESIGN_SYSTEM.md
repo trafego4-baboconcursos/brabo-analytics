@@ -9,7 +9,6 @@ responde:
   - "como funciona o gerador de temas"
 relacionados:
   - "[[ARQUITETURA]]"
-  - "[[LEVANTAMENTO_DESIGN_SYSTEM_2026-09-14]]"
 ---
 
 # Design System — Brabo Analytics
@@ -73,7 +72,7 @@ Todo gráfico do sistema já segue esse padrão; se adicionar um novo, replicar.
   órfã). Mesma lógica do `.highlight-box`: é um componente de sub-painel, não débito de
   migração. *(Uma auditoria anterior, 14/09/26, chegou a marcar esses dois componentes como
   "padrão antigo em 13 páginas" — checado com mais cuidado depois, é engano: ver
-  [[LEVANTAMENTO_DESIGN_SYSTEM_2026-09-14]].)*
+  `projetos/LEVANTAMENTO_DESIGN_SYSTEM_2026-09-14.md`, no vault local.)*
 - **`.table-wrap` + `table`** — wrapper padrão de tabela: fundo `var(--bs-card)`, borda,
   scroll horizontal em mobile, zebra striping. Toda tabela de dado deve ficar dentro de um
   `.table-wrap`; tabelas soltas não herdam esse tratamento.
@@ -139,7 +138,7 @@ config/data, evitando reload de página inteira.
 
 ## Débito conhecido
 
-A maior parte da auditoria de 14/09/26 ([[LEVANTAMENTO_DESIGN_SYSTEM_2026-09-14]]) já foi
+A maior parte da auditoria de 14/09/26 (`projetos/LEVANTAMENTO_DESIGN_SYSTEM_2026-09-14.md`, no vault local) já foi
 corrigida no mesmo dia (tokens inexistentes, contraste do modal de atalhos, falta de
 `:focus-visible`, cores hardcoded restantes, drift do `design-system.html` de referência, e a
 falta de aviso de contraste no gerador de temas). O único item de baixa prioridade que ficou em

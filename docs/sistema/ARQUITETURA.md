@@ -16,6 +16,67 @@ relacionados:
 
 # Arquitetura do Brabo Analytics — 2026-09-14
 
+<!-- SUMARIO:INICIO -->
+
+> [!abstract]- Sumario - 12 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+>
+>
+> **Estrutura de Arquivos**
+>
+>
+> **God Module Split — Progresso (concluído em 2026-07-01)**
+>
+>
+> **Fluxo de Dados**
+>
+>
+> **Responsabilidades por Arquivo**
+>
+> - [[ARQUITETURA#`frontend/app.py` (~125 linhas)|`frontend/app.py` (~125 linhas)]]
+> - [[ARQUITETURA#`frontend/auth.py`|`frontend/auth.py`]]
+> - [[ARQUITETURA#`frontend/cache.py`|`frontend/cache.py`]]
+> - [[ARQUITETURA#`frontend/services/fetch.py` (~348 linhas)|`frontend/services/fetch.py` (~348 linhas)]]
+> - [[ARQUITETURA#`frontend/core.py` (~339 linhas)|`frontend/core.py` (~339 linhas)]]
+> - [[ARQUITETURA#`frontend/services/debriefing.py` (~363 linhas)|`frontend/services/debriefing.py` (~363 linhas)]]
+> - [[ARQUITETURA#`frontend/formatters.py`|`frontend/formatters.py`]]
+> - [[ARQUITETURA#`frontend/services/attribution.py`|`frontend/services/attribution.py`]]
+> - [[ARQUITETURA#`frontend/routes/*.py`|`frontend/routes/*.py`]]
+>
+> **Cache (frontend)**
+>
+>
+> **ETL Scheduler**
+>
+>
+> **Segurança**
+>
+>
+> **Testes (90 testes, 0 dependência de DB)**
+>
+>
+> **Bugs Corrigidos (2026-06-25)**
+>
+> - [[ARQUITETURA#`SyntaxError` no parâmetro array da query TMB|`SyntaxError` no parâmetro array da query TMB]]
+> - Internal Server Error por falhas no banco de dados (sessão 2026-06-25 #2)
+>
+> **Bugs Corrigidos (2026-06-24)**
+>
+> - [[ARQUITETURA#`DatetimeFieldOverflow` no Hotmart e TMB|`DatetimeFieldOverflow` no Hotmart e TMB]]
+>
+> **Desligamento do Typeform e sistema de pesquisa interno (2026-08-31)**
+>
+>
+> **Calendário de lançamentos — fonte das datas-padrão (2026-09-14)**
+>
+>
+> **Documentação como sistema (2026-09-14)**
+>
+>
+> **Egress do Supabase — cruzamento de telefone dos grupos otimizado (2026-09-14)**
+>
+
+<!-- SUMARIO:FIM -->
+
 Estado atual da arquitetura após as sessões de refatoração de 2026-06-23, 2026-06-25 e o God Module Split (Sessions 1–9, concluído em 2026-07-02).
 
 ---

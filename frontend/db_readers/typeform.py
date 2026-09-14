@@ -770,7 +770,11 @@ def read_perfil_por_anuncio(launch_folder_or_code: Any, top_n: int = 5) -> dict 
     with engine.connect() as conn:
         conn.execute(text("SET statement_timeout = 180000"))
         tf_df_raw = pd.read_sql(
-            text("SELECT response_id, form_id, email, answers FROM " + _tf_source(_where) + " t"),
+            text(
+                "SELECT response_id, form_id, email, answers FROM "
+                + _tf_source(_where, "response_id, updated_at, form_id, email, answers")
+                + " t"
+            ),
             conn, params={"fid": proj_id.upper(), "code": code},
         )
     records = _reconstruct_tabular_df(tf_df_raw) if not tf_df_raw.empty else []
@@ -877,7 +881,10 @@ def read_pesquisa_engajamento(launch_folder_or_code: Any) -> dict | None:
     fid_where = "upper(coalesce(form_id, '')) = :fid"
     with engine.connect() as conn:
         tf_emails = conn.execute(text(
-            "SELECT email FROM " + _tf_source(fid_where) + " t WHERE email IS NOT NULL"
+            # só as colunas do DISTINCT ON + email: sem isso o `answers` (jsonb
+            # de ~2 KB por linha) entra no sort da deduplicação sem ser usado.
+            "SELECT email FROM " + _tf_source(fid_where, "response_id, updated_at, email")
+            + " t WHERE email IS NOT NULL"
         ), {"fid": proj_id.upper()}).scalars().all()
 
     novo_fids = _resolve_novo_sistema_formulario_ids(code)

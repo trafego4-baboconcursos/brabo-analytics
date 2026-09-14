@@ -143,6 +143,29 @@ CREATE TABLE IF NOT EXISTS typeform_respostas (
 CREATE INDEX IF NOT EXISTS idx_tf_email ON typeform_respostas (email);
 CREATE INDEX IF NOT EXISTS idx_tf_date  ON typeform_respostas (submitted_at);
 
+-- Índices de expressão casando com o filtro real do frontend
+-- (`upper(coalesce(form_id, ''))`, ver frontend/db_readers/typeform.py::_tf_source).
+-- Um índice em form_id puro não é usado por esse predicado: as três tabelas
+-- caíam em Seq Scan (~990 mil linhas, 32 mil buffers por chamada), o que fazia
+-- a leitura do PI-AGO-26 estourar o statement_timeout de 30s de vez em quando.
+-- Com estes índices a mesma consulta lê 1,9 mil buffers.
+CREATE INDEX IF NOT EXISTS idx_typeform_respostas_fid_upper
+    ON typeform_respostas ((upper(coalesce(form_id, ''))));
+-- As duas tabelas de backup foram criadas à mão (dump das contas Typeform antes
+-- do cancelamento), não existem num banco novo — daí o guard.
+DO $$
+DECLARE t TEXT;
+BEGIN
+    FOREACH t IN ARRAY ARRAY['typeform_respostas_backup', 'typeform_respostas_backup_2'] LOOP
+        IF to_regclass(t) IS NOT NULL THEN
+            EXECUTE format(
+                'CREATE INDEX IF NOT EXISTS idx_%s_fid_upper ON %I ((upper(coalesce(form_id, ''''))))',
+                t, t
+            );
+        END IF;
+    END LOOP;
+END $$;
+
 
 -- ── WHATSAPP BUSINESS — volume de mensagens diário por número ────────────
 -- Não tem custo em R$ (contas faturadas via Unichat como parceiro — o Meta

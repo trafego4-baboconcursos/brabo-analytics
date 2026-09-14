@@ -5,31 +5,43 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Design System — Brabo Analytics</title>
   <style>
+    /* Mantido em sincronia manual com o :root real de frontend/templates/base.html —
+       se mexer num token lá, replique aqui (ver docs/sistema/DESIGN_SYSTEM.md). */
     :root {
       --bs-ink:          #1f2330;
       --bs-ink-muted:    #6b7280;
       --bs-ink-subtle:   #9ca3af;
-      --bs-bg:           #eef0f8;
+      --bs-bg:           #f1f3f5;
       --bs-surface:      #f6f7fb;
       --bs-card:         #ffffff;
       --bs-border:       #e5e7eb;
-      --bs-accent:       #2f5ee3;
-      --bs-accent-2:     #6aa8ff;
-      --bs-accent-bg:    #eef3ff;
+      --bs-border-s:     #d1d5db;
+      --bs-accent:       #374151;
+      --bs-accent-2:     #6b7280;
+      --bs-accent-bg:    #f3f4f6;
       --bs-success:      #31c16c;
+      --bs-success-bg:   #f0fdf4;
       --bs-warning:      #f4b740;
+      --bs-warning-bg:   #fffbeb;
       --bs-danger:       #f05454;
-      --bs-sidebar:      #2f5ee3;
-      --bs-sidebar-dark: #2347b2;
+      --bs-danger-bg:    #fef2f2;
+      --bs-info:         #4b5563;
+      --bs-info-bg:      #f3f4f6;
+      --bs-sidebar:      #374151;
+      --bs-sidebar-dark: #1f2937;
       --meta-color:      #1877F2;
       --google-color:    #EA4335;
       --bs-sh-sm:  0 1px 3px  rgba(20,26,52,.08);
       --bs-sh-md:  0 4px 12px rgba(20,26,52,.10);
       --bs-sh-lg:  0 12px 30px rgba(20,26,52,.12);
       --bs-sh-xl:  0 20px 60px rgba(20,26,52,.18);
-      --bs-r-sm:4px; --bs-r-md:8px; --bs-r-lg:12px; --bs-r-xl:16px; --bs-r-2xl:20px;
+      --bs-r-sm:6px; --bs-r-md:8px; --bs-r-lg:12px; --bs-r-xl:16px; --bs-r-2xl:20px;
       --fs-2xs:10px; --fs-xs:11px; --fs-sm:12px; --fs-md:13px; --fs-lg:14px;
       --fs-xl:16px; --fs-2xl:18px; --fs-3xl:22px; --fs-4xl:26px;
+      /* Apelidos curtos (--bg, --muted, --card, ...) só existem NESTA página de
+         referência, pra deixar o CSS de demonstração mais enxuto — não existem no
+         base.html real. Nunca copie var(--muted)/var(--card)/etc. pra um template de
+         verdade; use sempre o nome --bs-* completo. */
       --bg:var(--bs-bg); --surface:var(--bs-surface); --card:var(--bs-card);
       --sidebar:var(--bs-sidebar); --sidebar-dark:var(--bs-sidebar-dark);
       --ink:var(--bs-ink); --muted:var(--bs-ink-muted);

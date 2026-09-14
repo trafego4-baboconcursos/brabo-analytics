@@ -721,8 +721,8 @@ table tr.total-row:hover td {
   justify-content:center;
 }
 .kpi-funil-layout .kpi-val  { font-size:22px; line-height:1.05; }
-.kpi-funil-layout .kpi-lbl  { font-size:10px; color:#737373; font-weight:800; margin-top:12px; }
-.kpi-funil-layout .kpi-sub  { font-size:10px; color:#a3a3a3; margin-top:8px; line-height:1.35; }
+.kpi-funil-layout .kpi-lbl  { font-size:10px; color:var(--bs-ink-muted); font-weight:800; margin-top:12px; }
+.kpi-funil-layout .kpi-sub  { font-size:10px; color:var(--bs-ink-subtle); margin-top:8px; line-height:1.35; }
 
 /* ── Funil visual ───────────────────────────────────────────────────── */
 .funil-viz { display:flex; flex-direction:column; align-items:center; gap:10px; margin:14px 0 12px; }
@@ -746,7 +746,7 @@ table tr.total-row:hover td {
 .funil-rate  {
   background:var(--bs-card);
   border:1px solid var(--bs-border);
-  color:#526176;
+  color:var(--bs-ink-muted);
   padding:7px 12px;
   border-radius:999px;
   font-size:11px;
@@ -809,8 +809,8 @@ table tr.total-row:hover td {
 .criativos-stack { display:flex; flex-direction:column; gap:22px; }
 .criativos-block { min-width:0; }
 .criativos-title { margin:0 0 12px; font-size:15px; font-weight:800; }
-.criativos-title.validado { color:#28a745; }
-.criativos-title.novo     { color:#ff9800; }
+.criativos-title.validado { color:var(--bs-success); }
+.criativos-title.novo     { color:var(--bs-warning); }
 .criativos-table { min-width:1100px; }
 
 /* ── Pills e badges ─────────────────────────────────────────────────── */
@@ -2068,13 +2068,13 @@ html[data-bs-theme="custom"] .mat-num {
       {% endif %}
     {% endfor %}
     {% if stale_sources %}
-    <div style="background:#f59e0b;color:#fff;padding:10px 20px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;border-radius:0 0 var(--bs-r-md) var(--bs-r-md);margin-bottom:16px;">
+    <div style="background:var(--bs-warning);color:#1f2330;padding:10px 20px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;border-radius:0 0 var(--bs-r-md) var(--bs-r-md);margin-bottom:16px;">
       <i class="ti ti-clock-exclamation"></i>
       Dados desatualizados: <strong>{{ stale_sources | join(', ') }}</strong> — última atualização há mais de {{ etl_stale_hours | int }}h. Verifique se o ETL está rodando.
     </div>
     {% endif %}
     {% if data_errors %}
-    <div style="background:#f59e0b;color:#fff;padding:10px 20px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;border-radius:0 0 var(--bs-r-md) var(--bs-r-md);margin-bottom:16px;">
+    <div style="background:var(--bs-warning);color:#1f2330;padding:10px 20px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;border-radius:0 0 var(--bs-r-md) var(--bs-r-md);margin-bottom:16px;">
       <i class="ti ti-alert-triangle"></i>
       Falha ao carregar: <strong>{{ data_errors | join(', ') }}</strong>. Os totais desta página podem estar incompletos.
     </div>

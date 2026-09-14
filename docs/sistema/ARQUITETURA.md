@@ -18,7 +18,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 17 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 18 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -91,6 +91,7 @@ relacionados:
 >
 > **Eventos de tráfego — a juncão entre o diário e a métrica (2026-09-14)**
 >
+> - [[ARQUITETURA#Como conferir se as correções de egress estão valendo|Como conferir se as correções de egress estão valendo]]
 
 <!-- SUMARIO:FIM -->
 
@@ -729,3 +730,19 @@ de 7 tipos diferentes. Sem a tabela, associar uma coisa à outra exigia ler 240 
 
 **Armadilha do DDL:** o bloco tem ponto-e-vírgula dentro de comentário `--`; separar por `;`
 sem tirar os comentários antes corta a tabela no meio.
+
+### Como conferir se as correções de egress estão valendo
+
+`python scripts/checar_egress.py` responde as duas perguntas com o mesmo dado:
+
+1. **O deploy pegou?** Código antigo e novo geram formas de consulta inconfundíveis (o GA4
+   antigo trazia linha por dia sem `GROUP BY`; o novo agrega no banco). O script checa cada par
+   velho/novo — se as novas aparecem e as velhas não, o container está com o código novo.
+2. **O egress caiu?** Compara o ritmo de linhas devolvidas com a linha de base do relatório
+   técnico (4,93 bilhões de linhas em ~10 dias = ~493 milhões/dia). A meta, na proporção do
+   relatório, é ~95 milhões de linhas/dia — o equivalente aos 250 GB inclusos.
+
+Pré-requisito: rodar `SELECT pg_stat_statements_reset()` com o código novo já no ar e esperar
+algumas horas. Abaixo de 1 hora o número não significa nada, e **leitura feita da máquina local
+entra na mesma estatística** — rodar o dashboard ou o harness durante a janela contamina a
+medição. O reset pós-deploy foi feito em 14/09/26.

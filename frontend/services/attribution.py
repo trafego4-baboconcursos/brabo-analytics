@@ -436,8 +436,17 @@ def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dic
     add_platform(getattr(google, "anuncios_por_ad", []), "Google Ads")
 
     creative_sales = (sales_attr or {}).get("por_criativo", {})
+    # rows_by_ad só tem gasto/leads de Captação (add_platform acima só recebe
+    # captacao_por_ad/anuncios_por_ad) — usar por_criativo (global, todas as
+    # etapas) pra vendas misturaria receita de Pré-Qualificação/Remarketing
+    # em cima do gasto só-Captação e infla o ROAS (achado 14/09/26, mesma
+    # causa do bug corrigido no Debriefing — aqui o impacto no PI-AGO-26 é
+    # pequeno só porque o único ADxxx com reaproveitamento entre etapas
+    # gastou irrisório na Pré-Qualificação, não porque o código estivesse
+    # certo).
+    creative_sales_captacao = (sales_attr or {}).get("por_criativo_por_etapa", {}).get("Captação", {}) or {}
     for code, row in rows_by_ad.items():
-        sales = creative_sales.get(code, {})
+        sales = creative_sales_captacao.get(code, {})
         row["vendas"] = int(sales.get("vendas") or 0)
         row["faturamento"] = float(sales.get("faturamento") or 0.0)
         row["cpl"] = row["gasto"] / row["leads"] if row["leads"] > 0 else 0.0
@@ -648,7 +657,9 @@ def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dic
         # Um mesmo AD código pode aparecer em vários ad_name/adset (ex.: mesmo
         # criativo rodando em Quente e Frio) — unifica por ad_code antes de exibir,
         # senão o mesmo anúncio aparece duplicado na tabela.
-        channel_sales = (sales_attr or {}).get("por_criativo_canal", {}).get(platform, {})
+        # platform_source_rows só tem Captação (mesma fonte de rows_by_ad) —
+        # escopa vendas por etapa também, mesmo motivo do fix acima.
+        channel_sales = (sales_attr or {}).get("por_criativo_canal_por_etapa", {}).get(platform, {}).get("Captação", {})
         grouped: dict[str, dict] = {}
         for item in platform_source_rows.get(platform, []):
             code = str(item.get("ad_code", "")).upper()
@@ -707,6 +718,9 @@ def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dic
 
     historico = get_historico_ad_codes(launch_code) if launch_code else set()
     creative_sales = (sales_attr or {}).get("por_criativo", {})
+    # all_captacao (abaixo) só tem gasto de Captação — mesmo fix de escopo
+    # dos blocos acima, aqui pra Validados × Novos.
+    creative_sales_captacao_vn = (sales_attr or {}).get("por_criativo_por_etapa", {}).get("Captação", {}) or {}
 
     validados_all: list[dict] = []
     novos_all: list[dict] = []
@@ -756,7 +770,7 @@ def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dic
             r["nome"] = item["nome"]
 
     for ad_code, r in merged_by_code.items():
-        sales = creative_sales.get(ad_code, {})
+        sales = creative_sales_captacao_vn.get(ad_code, {})
         faturamento = float(sales.get("faturamento") or 0.0)
         gasto = r["gasto"]
         leads = r["leads"]

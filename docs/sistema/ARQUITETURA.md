@@ -88,6 +88,9 @@ relacionados:
 > - [[ARQUITETURA#O sorteio do UTM representante|O sorteio do UTM representante]]
 > - [[ARQUITETURA#Pré-Qualificação aparecendo como "sem veiculação"|Pré-Qualificação aparecendo como "sem veiculação"]]
 > - [[ARQUITETURA#O que sobra: renomeação de campanha/anúncio|O que sobra: renomeação de campanha/anúncio]]
+>
+> **Eventos de tráfego — a juncão entre o diário e a métrica (2026-09-14)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -692,3 +695,37 @@ ativos — 0 de 269.392 leads no PI-AGO-26, 0 de 70.312 no PBB-AGO-26, 0 de 56.2
 Ou seja, o parâmetro não está chegando ao Active Campaign. Enquanto isso não for resolvido no
 lado do tráfego (garantir a UTM padrão completa nos anúncios de captação), toda campanha
 renomeada no meio do voo continua órfã das vendas captadas antes da renomeação.
+
+## Eventos de tráfego — a juncão entre o diário e a métrica (2026-09-14)
+
+Os diários (`docs/performance/lancamentos/[CODIGO]/MUDANCAS_*.md`) registram o que foi feito;
+`meta_ads_daily`/`google_ads_daily` registram o que aconteceu. Eram dois mundos: o banco não
+enxerga markdown, então cruzar ação com resultado dependia de parsear título de seção —
+frágil, e inútil pro dashboard.
+
+**`eventos_trafego`** (analytics, DDL em `etl/schema.sql`) é o índice legível por máquina desses
+diários. O `.md` continua sendo a narrativa legível por gente; cada item vira uma linha com
+`data`, `escopo`, `codigo`, `produto`, `expert`, `plataforma`, `tipo`, `regra` e `resultado`.
+
+O `escopo` usa o mesmo vocabulário de `lancamento_codigo`, então os três mundos convivem:
+`lancamento` (PES-SET-26), `perpetuo` (PERPETUO-PMQ-TJSP), `distribuicao` (DISTRIBUICAO-IVAN-NETO).
+
+`scripts/eventos.py` cria a tabela e importa os diários:
+
+```bash
+python scripts/eventos.py --criar-tabela
+python scripts/eventos.py --importar            # simula
+python scripts/eventos.py --importar --aplicar
+python scripts/eventos.py --listar PES-SET-26
+```
+
+Reimportar não duplica — a chave é `codigo + hash do título`. A data vem do título quando ele
+traz `(DD/MM/AA)` (padrão do PES-SET-26) ou do cabeçalho `## YYYY-MM-DD` acima (padrão do
+PBB-AGO-26 e PI-AGO-26); sem esse fallback, dois dos três diários ficavam de fora inteiros.
+
+**O que isso destrava:** `JOIN` entre evento e métrica do dia. Exemplo real — o CPA do
+PES-SET-26 subiu de R$ 6,74 (01/09) para R$ 12,20 (04/09), e o dia 04/09 concentra **17 ações**
+de 7 tipos diferentes. Sem a tabela, associar uma coisa à outra exigia ler 240 KB de markdown.
+
+**Armadilha do DDL:** o bloco tem ponto-e-vírgula dentro de comentário `--`; separar por `;`
+sem tirar os comentários antes corta a tabela no meio.

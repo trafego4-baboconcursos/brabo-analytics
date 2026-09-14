@@ -969,3 +969,36 @@ CREATE TABLE IF NOT EXISTS debriefing_snapshot (
     computed_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
     duration_ms       INTEGER
 );
+
+-- ── Eventos de tráfego ────────────────────────────────────────────────────────
+-- Índice legível por máquina do que foi FEITO (o diário em markdown continua
+-- sendo a narrativa legível por gente). Existe pra permitir cruzar ação com
+-- métrica: o diário tem a data e o escopo, meta_ads_daily/google_ads_daily têm
+-- o resultado. Sem isso o cruzamento depende de parsear título de markdown.
+--
+-- `escopo` cobre os três mundos com o mesmo vocabulário de lancamento_codigo:
+-- lancamento (PES-SET-26), perpetuo (PERPETUO-PMQ-TJSP), distribuicao
+-- (DISTRIBUICAO-IVAN-NETO).
+CREATE TABLE IF NOT EXISTS eventos_trafego (
+    id           BIGSERIAL PRIMARY KEY,
+    chave        TEXT NOT NULL UNIQUE,   -- codigo + hash do titulo: reimportar nao duplica
+    data         DATE NOT NULL,
+    escopo       TEXT NOT NULL,          -- lancamento | perpetuo | distribuicao
+    codigo       TEXT NOT NULL,          -- mesmo vocabulario de lancamento_codigo
+    produto      TEXT,                   -- PBB | PES | PI | PERPETUO
+    expert       TEXT,                   -- Felipe Graton | Ivan Neto | Mateus Andrade
+    plataforma   TEXT,                   -- meta | google | ambas | outro
+    tipo         TEXT,                   -- orcamento | cpa | publico | criativo |
+                                         -- estrutura | pausa | ativacao | analise | outro
+    titulo       TEXT NOT NULL,
+    campanhas    TEXT[],                 -- nomes/padroes afetados, quando identificaveis
+    regra        TEXT,                   -- ID da regra aplicada (ORC-2, META-3...)
+    resultado    TEXT,                   -- preenchido dias depois; e o que falta em 94% dos itens
+    fonte        TEXT,                   -- caminho do .md de origem
+    criado_em    TIMESTAMPTZ DEFAULT NOW(),
+    atualizado_em TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_eventos_codigo_data ON eventos_trafego (codigo, data);
+CREATE INDEX IF NOT EXISTS idx_eventos_data        ON eventos_trafego (data);
+CREATE INDEX IF NOT EXISTS idx_eventos_escopo      ON eventos_trafego (escopo, data);

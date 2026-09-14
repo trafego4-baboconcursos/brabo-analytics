@@ -149,23 +149,74 @@
         const previsto = dias.map(d => Math.round(d.previsto));
         const realizado = dias.map(d => Math.round(d.realizado));
         const accent = getComputedStyle(document.documentElement).getPropertyValue('--bs-accent').trim() || '#f97316';
+        // Anotações do diário: dia com ação registrada ganha ponto maior, na cor
+        // do tipo, e o tooltip lista o que foi feito (ver db_readers/eventos.py).
+        const evDia = {{ (eventos_dia or {}) | tojson }};
+        const ptRaio = dias.map(d => (evDia[d.data_str] || []).length ? 6 : 2);
+        const ptCor  = dias.map(d => { const e = evDia[d.data_str] || []; return e.length ? e[0].cor : accent; });
         new Chart(document.getElementById('{{ chart_id }}'), {
           type: 'line',
           data: {
             labels,
             datasets: [
               { label: 'Previsto', data: previsto, borderColor: '#9ca3af', borderDash: [4,4], borderWidth: 2, pointRadius: 0, fill: false, tension: 0.2 },
-              { label: 'Realizado', data: realizado, borderColor: accent, backgroundColor: accent + '22', borderWidth: 2.5, pointRadius: 2, fill: true, tension: 0.3 },
+              { label: 'Realizado', data: realizado, borderColor: accent, backgroundColor: accent + '22', borderWidth: 2.5,
+                pointRadius: ptRaio, pointBackgroundColor: ptCor, pointBorderColor: ptCor, pointHoverRadius: 8,
+                fill: true, tension: 0.3 },
             ]
           },
           options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { position: 'bottom' }, tooltip: { enabled: true } },
+            plugins: {
+              legend: { position: 'bottom' },
+              tooltip: { enabled: true, callbacks: { afterBody: (itens) => {
+                const e = evDia[itens[0].label] || [];
+                if (!e.length) return '';
+                return [''].concat(e.slice(0, 6).map(x => '• [' + x.tipo + '] ' + x.titulo.slice(0, 70)))
+                           .concat(e.length > 6 ? ['… e mais ' + (e.length - 6)] : []);
+              } } }
+            },
             scales: { x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 90 } }, y: { beginAtZero: true } }
           }
         });
       })();
       </script>
+      {% if eventos %}
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--bs-border)">
+        <div style="font-size:var(--fs-xs);color:var(--bs-ink-muted);margin-bottom:6px">
+          Pontos maiores na curva = dia com ação registrada no diário. Passe o mouse para ver o quê.
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:var(--fs-2xs)">
+          {% for t, c in cores_tipo.items() %}
+          <span style="display:inline-flex;align-items:center;gap:4px">
+            <span style="width:9px;height:9px;border-radius:50%;background:{{ c }};display:inline-block"></span>{{ t }}
+          </span>
+          {% endfor %}
+        </div>
+        <details style="margin-top:10px">
+          <summary style="cursor:pointer;font-size:var(--fs-xs);color:var(--bs-ink-muted)">
+            {{ eventos | length }} ações registradas neste lançamento
+          </summary>
+          <div class="table-wrap" style="margin-top:8px;max-height:320px;overflow-y:auto">
+            <table>
+              <thead><tr><th>Dia</th><th>Tipo</th><th>Plataforma</th><th>Ação</th><th>Resultado</th></tr></thead>
+              <tbody>
+                {% for e in eventos %}
+                <tr>
+                  <td style="white-space:nowrap">{{ e.data_str }}</td>
+                  <td><span class="bs-pill" style="background:{{ e.cor }}22;color:{{ e.cor }}">{{ e.tipo }}</span></td>
+                  <td>{{ e.plataforma or '-' }}</td>
+                  <td>{{ e.titulo }}</td>
+                  <td>{{ e.resultado or '—' }}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      </div>
+      {% endif %}
+
       {% else %}
       <div class="no-data" style="padding:24px">
         <i class="ti ti-folder-off"></i>

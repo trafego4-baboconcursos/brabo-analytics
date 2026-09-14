@@ -4,3 +4,4 @@
 from frontend.database_reader import *  # noqa: F401, F403
 from frontend.db import _get_engine, _get_users_engine  # noqa: F401
 from frontend.models import *  # noqa: F401, F403
+from frontend.db_readers.eventos import read_eventos, eventos_por_dia, CORES_TIPO  # noqa: F401

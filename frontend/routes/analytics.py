@@ -19,6 +19,7 @@ from frontend.services.fetch import (
     _landing_pages_por_etapa, _leads_x_whatsapp, _vendas_grupos_whatsapp,
     _disparo_resumo, _conversao_pagina_captura, _utm_cobertura,
 )
+from frontend.db_readers.eventos import read_eventos, eventos_por_dia, CORES_TIPO
 from frontend.services.calendario import build_calendario_ctx
 from frontend.services.debriefing_build import build_debriefing_context
 from frontend.services.orcamento import (
@@ -344,7 +345,13 @@ async def verba_page(request: Request, launch_code: str | None = None):
         curva = com_realizado_diario(curva_diaria(cfg, nome), daily_rows)
         subetapas_blocos.append({"nome": nome, "bucket": bloco_pub, "curva": curva})
 
+    # Anotações do diário: o que foi FEITO em cada dia, ao lado do que aconteceu
+    # na curva. Vem de eventos_trafego (ver scripts/eventos.py).
+    eventos = await run_in_threadpool(read_eventos, launch.code) if launch else []
+    eventos_dia = eventos_por_dia(eventos)
+
     ctx = _base_ctx(request, "verba", "Verba do Lançamento", launch, launches,
+        eventos=eventos, eventos_dia=eventos_dia, cores_tipo=CORES_TIPO,
         verba_linhas=linhas, verba_total_previsto=total_previsto, verba_total_realizado=total_realizado,
         verba_pct_remarketing_previsto=pct_remarketing_previsto,
         bloco_capt_publico=bloco_capt_publico, bloco_preq_publico=bloco_preq_publico,

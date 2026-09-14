@@ -18,7 +18,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 18 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 19 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -92,6 +92,7 @@ relacionados:
 > **Eventos de tráfego — a juncão entre o diário e a métrica (2026-09-14)**
 >
 > - [[ARQUITETURA#Como conferir se as correções de egress estão valendo|Como conferir se as correções de egress estão valendo]]
+> - [[ARQUITETURA#Anotações no gráfico (`/verba`)|Anotações no gráfico (`/verba`)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -746,3 +747,19 @@ Pré-requisito: rodar `SELECT pg_stat_statements_reset()` com o código novo já
 algumas horas. Abaixo de 1 hora o número não significa nada, e **leitura feita da máquina local
 entra na mesma estatística** — rodar o dashboard ou o harness durante a janela contamina a
 medição. O reset pós-deploy foi feito em 14/09/26.
+
+### Anotações no gráfico (`/verba`)
+
+`frontend/db_readers/eventos.py::read_eventos` lê a tabela e `eventos_por_dia` agrupa pela
+chave `dd/mm`, que é exatamente o `data_str` usado no eixo X das curvas de verba. Em
+`verba.html`, dia com ação registrada ganha ponto maior na cor do tipo
+(`pointRadius`/`pointBackgroundColor` por índice, sem plugin extra), e o `afterBody` do tooltip
+lista o que foi feito. Abaixo do gráfico, legenda de cores e a tabela completa em `<details>`.
+
+**O formato da data é o acoplamento frágil:** o agrupamento usa `%d/%m` porque é o que a curva
+usa. Se o eixo mudar de formato, as anotações somem em silêncio — nada quebra, só param de
+aparecer. Conferir a interseção entre `labels` e as chaves de `evDia` ao mexer em qualquer um
+dos dois.
+
+`read_eventos` engole a exceção e devolve lista vazia se a tabela não existir — num ambiente
+sem o schema novo o gráfico perde a anotação, mas a página continua de pé.

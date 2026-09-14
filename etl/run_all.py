@@ -35,6 +35,15 @@ logger = get_logger("etl.run_all")
 # travado é morto e o orquestrador segue pra próxima fonte sozinho.
 _TIMEOUT_PADRAO_SEGUNDOS = 900  # 15 min — folgado pra janela normal de 3 dias
 
+# active_campaign pagina 100 contatos por vez sobre TODOS os "atualizados" na
+# janela (updated_after/updated_before, não só criados) — um pico de atividade
+# na conta (bulk de tag/campo/automação) pode inflar isso pra dezenas de
+# milhares de contatos, bem acima do que 15 min aguenta paginar (visto em
+# 11/09/26: 900s deixou de bastar quando o "atualizados" no dia saltou de
+# ~1-10 mil/dia pra ~65 mil num único dia). 30 min dá folga sem deixar o
+# processo travar pra sempre se a API realmente cair.
+_TIMEOUTS_POR_FONTE = {"active_campaign": 1800}
+
 
 def run(cmd: list[str], label: str, source: str | None = None, timeout: int = _TIMEOUT_PADRAO_SEGUNDOS) -> int:
     logger.info("Iniciando: %s", label)
@@ -104,7 +113,8 @@ def run_api_mode(since: str, until: str, only: str | None):
     targets = {only: scripts[only]} if only else scripts
     errors = []
     for name, cmd in targets.items():
-        code = run(cmd, name, source=name)
+        timeout = _TIMEOUTS_POR_FONTE.get(name, _TIMEOUT_PADRAO_SEGUNDOS)
+        code = run(cmd, name, source=name, timeout=timeout)
         if code != 0:
             errors.append(name)
     return errors

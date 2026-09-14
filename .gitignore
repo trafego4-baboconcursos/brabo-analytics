@@ -55,6 +55,10 @@ analises/**/*.csv
 analises/**/*.xlsx
 active-campaign/
 
+# Exports/planilhas de trabalho soltos na raiz (mesma razão do analises/**/*.csv acima —
+# dado bruto de campanha, não pertence ao repo)
+planilhas/
+
 # Temporários
 temp/
 .tmp/

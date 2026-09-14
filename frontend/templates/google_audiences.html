@@ -163,7 +163,7 @@
     {% set demo_pct_cob = (demo_total / google.total_custo * 100) | round(0) | int if google.total_custo > 0 else 0 %}
     <div class="section">
       <div class="section-title">4. Perfil Demográfico
-        <span style="font-weight:400;font-size:12px;color:var(--muted);margin-left:8px">Cobertura {{ demo_pct_cob }}% do investimento (P-Max excluído — API do Google não reporta demographics para P-Max)</span>
+        <span style="font-weight:400;font-size:12px;color:var(--bs-ink-muted);margin-left:8px">Cobertura {{ demo_pct_cob }}% do investimento (P-Max excluído — API do Google não reporta demographics para P-Max)</span>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
         <!-- Idade -->
@@ -172,7 +172,7 @@
           <div class="card-header"><h2><i class="ti ti-users"></i> Faixa Etária</h2></div>
           <table style="width:100%;border-collapse:collapse">
             <thead>
-              <tr style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">
+              <tr style="font-size:11px;color:var(--bs-ink-muted);text-transform:uppercase;letter-spacing:.5px">
                 <th style="padding:8px 16px;text-align:left;font-weight:500">Faixa</th>
                 <th style="padding:8px 16px;text-align:right;font-weight:500">Invest.</th>
                 <th style="padding:8px 16px;text-align:right;font-weight:500">Conv.</th>
@@ -183,7 +183,7 @@
             <tbody>
               {% for p in google.demografia_idade | sort(attribute='cost', reverse=True) %}
               {% set pct = (p.cost / idade_total * 100) %}
-              <tr style="border-top:1px solid var(--border)">
+              <tr style="border-top:1px solid var(--bs-border)">
                 <td style="padding:10px 16px"><strong style="font-size:13px">{{ p.age | replace('AGE_RANGE_','') | replace('_UP','+') | replace('_','-') | replace('UNDETERMINED','Desconhecido') }}</strong></td>
                 <td style="padding:10px 16px;text-align:right;font-size:13px">{{ p.cost | brl }}</td>
                 <td style="padding:10px 16px;text-align:right;font-size:13px">{{ "%.0f"|format(p.conversions) }}</td>
@@ -207,7 +207,7 @@
           <div class="card-header"><h2><i class="ti ti-gender-intersex"></i> Gênero</h2></div>
           <table style="width:100%;border-collapse:collapse">
             <thead>
-              <tr style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">
+              <tr style="font-size:11px;color:var(--bs-ink-muted);text-transform:uppercase;letter-spacing:.5px">
                 <th style="padding:8px 16px;text-align:left;font-weight:500">Gênero</th>
                 <th style="padding:8px 16px;text-align:right;font-weight:500">Invest.</th>
                 <th style="padding:8px 16px;text-align:right;font-weight:500">Conv.</th>
@@ -219,7 +219,7 @@
               {% for p in google.demografia_genero | sort(attribute='cost', reverse=True) %}
               {% set label = p.gender | replace('FEMALE','Feminino') | replace('MALE','Masculino') | replace('UNDETERMINED','Desconhecido') %}
               {% set pct = (p.cost / genero_total * 100) %}
-              <tr style="border-top:1px solid var(--border)">
+              <tr style="border-top:1px solid var(--bs-border)">
                 <td style="padding:10px 16px"><span class="bs-pill" style="background:{{ gc.get(label,'var(--bs-ink-subtle)') }}">{{ label }}</span></td>
                 <td style="padding:10px 16px;text-align:right;font-size:13px">{{ p.cost | brl }}</td>
                 <td style="padding:10px 16px;text-align:right;font-size:13px">{{ "%.0f"|format(p.conversions) }}</td>

@@ -178,8 +178,9 @@ docs/
     lancamentos/[LAUNCH]/      <- MUDANCAS_[LAUNCH].md + one-offs for that launch
     playbooks/                 <- reusable methods
     perpetuo/                  <- always-on campaigns, outside any launch
+                                  (there is no separate analises/ folder: every analysis
+                                   lives with the launch it is about, or in playbooks/)
   projetos/                    <- agreed but NOT yet implemented; index INDICE_PROJETOS.md
-  analises/                    <- data analyses; index README_ANALISE.md
   historico/                   <- archived; index INDICE_HISTORICO.md
     codigo-legado/             <- retired code
 ```

@@ -466,7 +466,7 @@
                   <td style="max-width:300px;overflow:hidden;padding:6px 10px;">
                     <div style="display:flex;align-items:center;gap:8px;">
                       {% if td %}
-                      <img src="{{ td.thumb }}" onclick="openVideoModal('{{ td.preview }}','{{ ad.nome }}')" style="width:64px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer;flex-shrink:0;" loading="lazy" onerror="this.style.display='none'">
+                      <img src="{{ td.thumb }}" data-preview="{{ td.preview }}" data-title="{{ ad.nome }}" data-gasto="{{ ad.inv | brl }}" data-leads="{{ ad.leads | num }}" data-cpl="{{ ad.cpl | brl if ad.leads > 0 else '' }}" onclick="openVideoModalFromEl(this)" style="width:64px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer;flex-shrink:0;" loading="lazy" onerror="this.style.display='none'">
                       {% else %}
                       <div style="width:64px;height:42px;background:var(--bs-accent-bg);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-photo" style="font-size:18px;color:var(--bs-ink-subtle);"></i></div>
                       {% endif %}
@@ -598,7 +598,7 @@
                   <td style="max-width:300px;overflow:hidden;padding:6px 10px;">
                     <div style="display:flex;align-items:center;gap:8px;">
                       {% if td %}
-                      <img src="{{ td.thumb }}" onclick="openVideoModal('{{ td.preview }}','{{ ad.nome }}')" style="width:64px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer;flex-shrink:0;" loading="lazy" onerror="this.style.display='none'">
+                      <img src="{{ td.thumb }}" data-preview="{{ td.preview }}" data-title="{{ ad.nome }}" data-gasto="{{ ad.inv | brl }}" data-leads="{{ ad.leads | num }}" data-cpl="{{ ad.cpl | brl if ad.leads > 0 else '' }}" onclick="openVideoModalFromEl(this)" style="width:64px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer;flex-shrink:0;" loading="lazy" onerror="this.style.display='none'">
                       {% else %}
                       <div style="width:64px;height:42px;background:var(--bs-accent-bg);border-radius:4px;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><i class="ti ti-photo" style="font-size:18px;color:var(--bs-ink-subtle);"></i></div>
                       {% endif %}

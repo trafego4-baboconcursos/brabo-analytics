@@ -433,7 +433,10 @@
           <div class="recorte-item">
             {% if td %}
             <img src="{{ td.thumb }}" alt="{{ c.ad_code }}" class="recorte-thumb"
-                 onclick="openVideoModal('{{ td.preview }}','{{ c.ad_code }}')"
+                 data-preview="{{ td.preview }}" data-title="{{ c.ad_code }}"
+                 data-gasto="{{ c.gasto | brl }}" data-leads="{{ c.leads | num }}"
+                 data-vendas="{{ c.vendas | num }}" data-roas="{{ c.roas | num(2) }}x"
+                 onclick="openVideoModalFromEl(this)"
                  onerror="this.style.display='none'">
             {% else %}
             <div class="recorte-thumb-empty"><i class="ti ti-photo" style="color:var(--bs-ink-subtle);font-size:16px"></i></div>
@@ -454,7 +457,10 @@
           <div class="recorte-item">
             {% if td %}
             <img src="{{ td.thumb }}" alt="{{ c.ad_code }}" class="recorte-thumb"
-                 onclick="openVideoModal('{{ td.preview }}','{{ c.ad_code }}')"
+                 data-preview="{{ td.preview }}" data-title="{{ c.ad_code }}"
+                 data-gasto="{{ c.gasto | brl }}" data-leads="{{ c.leads | num }}"
+                 data-vendas="{{ c.vendas | num }}" data-roas="{{ c.roas | num(2) }}x"
+                 onclick="openVideoModalFromEl(this)"
                  onerror="this.style.display='none'">
             {% else %}
             <div class="recorte-thumb-empty"><i class="ti ti-photo" style="color:var(--bs-ink-subtle);font-size:16px"></i></div>

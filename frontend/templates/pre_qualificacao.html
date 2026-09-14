@@ -389,11 +389,12 @@
       const values = [{% for r in leads_por_campanha %}{{ r.pct_leads | round(2) }}{% if not loop.last %},{% endif %}{% endfor %}];
       const el = document.getElementById('leadsPorCampanhaPreqChart');
       const ink = getComputedStyle(document.documentElement).getPropertyValue('--bs-ink').trim() || '#1f2330';
+      const accent = getComputedStyle(document.documentElement).getPropertyValue('--bs-accent').trim() || '#93d8c8';
       if (el && window.Chart) {
         new Chart(el, {
           type: 'bar',
           plugins: [ChartDataLabels],
-          data: { labels, datasets: [{ label: 'Quantidade de Leads por Público (%)', data: values, backgroundColor: '#93d8c8' }] },
+          data: { labels, datasets: [{ label: 'Quantidade de Leads por Público (%)', data: values, backgroundColor: accent }] },
           options: {
             responsive: true, maintainAspectRatio: false,
             plugins: {
@@ -442,8 +443,15 @@
               <td style="padding:4px 6px;">
                 {% if td %}
                 <img src="{{ td.thumb }}" alt="{{ a.ad_code }}"
+                     data-preview="{{ td.preview }}" data-title="{{ a.ad_code }}"
+                     data-gasto="{{ a.gasto | brl }}" data-leads="{{ a.leads | num }}"
+                     data-cpl="{{ a.cpl | brl if a.leads > 0 else '' }}" data-cpm="{{ a.cpm | brl }}"
+                     data-ctr="{{ '%.2f'|format(a.ctr) | replace('.', ',') if a.ctr is defined }}"
+                     data-hook="{{ '%.2f'|format(a.hook_rate) | replace('.', ',') if a.hook_rate is defined and a.hook_rate }}"
+                     data-hold="{{ '%.2f'|format(a.hold_rate) | replace('.', ',') if a.hold_rate is defined and a.hold_rate }}"
+                     data-body="{{ '%.2f'|format(a.body_rate) | replace('.', ',') if a.body_rate is defined and a.body_rate }}"
                      style="width:64px;height:42px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);cursor:pointer;display:block"
-                     onclick="openVideoModal('{{ td.preview }}','{{ a.ad_code }}')"
+                     onclick="openVideoModalFromEl(this)"
                      onerror="this.style.display='none'">
                 {% else %}
                 <div style="width:64px;height:42px;border-radius:5px;border:1px dashed var(--bs-border-s);background:var(--bs-accent-bg);display:flex;align-items:center;justify-content:center">
@@ -511,8 +519,15 @@
               <td style="padding:4px 6px;">
                 {% if td %}
                 <img src="{{ td.thumb }}" alt="{{ a.ad_code }}"
+                     data-preview="{{ td.preview }}" data-title="{{ a.ad_code }}"
+                     data-gasto="{{ a.gasto | brl }}" data-leads="{{ a.leads | num }}"
+                     data-cpl="{{ a.cpl | brl if a.leads > 0 else '' }}" data-cpm="{{ a.cpm | brl }}"
+                     data-ctr="{{ '%.2f'|format(a.ctr) | replace('.', ',') if a.ctr is defined }}"
+                     data-hook="{{ '%.2f'|format(a.hook_rate) | replace('.', ',') if a.hook_rate is defined and a.hook_rate }}"
+                     data-hold="{{ '%.2f'|format(a.hold_rate) | replace('.', ',') if a.hold_rate is defined and a.hold_rate }}"
+                     data-body="{{ '%.2f'|format(a.body_rate) | replace('.', ',') if a.body_rate is defined and a.body_rate }}"
                      style="width:64px;height:42px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);cursor:pointer;display:block"
-                     onclick="openVideoModal('{{ td.preview }}','{{ a.ad_code }}')"
+                     onclick="openVideoModalFromEl(this)"
                      onerror="this.style.display='none'">
                 {% else %}
                 <div style="width:64px;height:42px;border-radius:5px;border:1px dashed var(--bs-border-s);background:var(--bs-accent-bg);display:flex;align-items:center;justify-content:center">

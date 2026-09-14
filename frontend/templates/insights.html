@@ -465,8 +465,11 @@
         </div>
         {% if td %}
         <img src="{{ td.thumb }}" alt="{{ row.ad_code }}"
+             data-preview="{{ td.preview }}" data-title="{{ row.ad_code }}"
+             data-gasto="{{ row.gasto | brl }}" data-leads="{{ row.leads | num }}"
+             data-vendas="{{ row.vendas | num }}" data-roas="{{ '%.2f'|format(row.roas) | replace('.', ',') }}x"
              style="width:56px;height:38px;object-fit:cover;border-radius:4px;border:1px solid var(--bs-border);cursor:pointer;flex-shrink:0;"
-             onclick="openVideoModal('{{ td.preview }}','{{ row.ad_code }}')"
+             onclick="openVideoModalFromEl(this)"
              onerror="this.style.display='none'">
         {% else %}
         <div style="width:56px;height:38px;border-radius:4px;border:1px dashed var(--bs-border-s);background:var(--bs-accent-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
@@ -492,8 +495,11 @@
           <div class="ins-rank-pos">{{ loop.index }}</div>
           {% if td %}
           <img src="{{ td.thumb }}" alt="{{ row.ad_code }}"
+               data-preview="{{ td.preview }}" data-title="{{ row.ad_code }}"
+               data-gasto="{{ row.gasto | brl }}" data-leads="{{ row.leads | num }}"
+               data-cpl="{{ row.cpl | brl if row.leads > 0 else '' }}"
                style="width:56px;height:38px;object-fit:cover;border-radius:4px;border:1px solid var(--bs-border);cursor:pointer;flex-shrink:0;"
-               onclick="openVideoModal('{{ td.preview }}','{{ row.ad_code }}')"
+               onclick="openVideoModalFromEl(this)"
                onerror="this.style.display='none'">
           {% else %}
           <div style="width:56px;height:38px;border-radius:4px;border:1px dashed var(--bs-border-s);background:var(--bs-accent-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
@@ -560,8 +566,12 @@
               <div style="display:flex;align-items:center;gap:10px;">
                 {% if td %}
                 <img src="{{ td.thumb }}" alt="{{ row.ad_code }}"
+                     data-preview="{{ td.preview }}" data-title="{{ row.ad_code }}"
+                     data-gasto="{{ row.gasto | brl }}" data-leads="{{ row.leads | num }}"
+                     data-cpl="{{ row.cpl | brl if row.leads > 0 else '' }}"
+                     data-vendas="{{ row.vendas | num }}" data-roas="{{ '%.2f'|format(row.roas) | replace('.', ',') }}x"
                      style="width:64px;height:42px;object-fit:cover;border-radius:4px;border:1px solid var(--bs-border);cursor:pointer;flex-shrink:0;"
-                     onclick="openVideoModal('{{ td.preview }}','{{ row.ad_code }}')"
+                     onclick="openVideoModalFromEl(this)"
                      onerror="this.style.display='none'">
                 {% else %}
                 <div style="width:64px;height:42px;border-radius:4px;border:1px dashed var(--bs-border-s);background:var(--bs-accent-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;">

@@ -367,8 +367,17 @@
                   <td style="padding:4px 6px;">
                     {% if td %}
                     <img src="{{ td.thumb }}" alt="{{ ad_code }}"
+                         data-preview="{{ td.preview }}" data-title="{{ ad_code }}"
+                         data-gasto="{{ c.gasto | brl }}" data-leads="{{ c.leads | num }}"
+                         data-cpl="{{ c.cpl | brl if c.leads > 0 else '' }}"
+                         data-vendas="{{ venda_criativo.get('vendas', 0) | num }}"
+                         data-roas="{{ '%.2f'|format((venda_criativo.get('faturamento', 0) / c.gasto) if c.gasto > 0 else 0) | replace('.', ',') }}x"
+                         data-ctr="{{ '%.2f'|format(c.ctr) | replace('.', ',') if c.ctr is defined }}"
+                         data-hook="{{ '%.2f'|format(c.hook_rate) | replace('.', ',') if c.hook_rate }}"
+                         data-hold="{{ '%.2f'|format(c.hold_rate) | replace('.', ',') if c.hold_rate }}"
+                         data-body="{{ '%.2f'|format(c.body_rate) | replace('.', ',') if c.body_rate }}"
                          style="width:80px;height:52px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);cursor:pointer;display:block"
-                         onclick="openVideoModal('{{ td.preview }}','{{ ad_code }}')"
+                         onclick="openVideoModalFromEl(this)"
                          onerror="this.style.display='none'">
                     {% else %}
                     <div style="width:80px;height:52px;border-radius:5px;border:1px dashed var(--bs-border-s);background:var(--bs-surface);display:flex;align-items:center;justify-content:center">
@@ -408,8 +417,17 @@
                   <td style="padding:4px 6px;">
                     {% if td %}
                     <img src="{{ td.thumb }}" alt="{{ ad_code }}"
+                         data-preview="{{ td.preview }}" data-title="{{ ad_code }}"
+                         data-gasto="{{ c.gasto | brl }}" data-leads="{{ c.leads | num }}"
+                         data-cpl="{{ c.cpl | brl if c.leads > 0 else '' }}"
+                         data-vendas="{{ venda_criativo.get('vendas', 0) | num }}"
+                         data-roas="{{ '%.2f'|format((venda_criativo.get('faturamento', 0) / c.gasto) if c.gasto > 0 else 0) | replace('.', ',') }}x"
+                         data-ctr="{{ '%.2f'|format(c.ctr) | replace('.', ',') if c.ctr is defined }}"
+                         data-hook="{{ '%.2f'|format(c.hook_rate) | replace('.', ',') if c.hook_rate }}"
+                         data-hold="{{ '%.2f'|format(c.hold_rate) | replace('.', ',') if c.hold_rate }}"
+                         data-body="{{ '%.2f'|format(c.body_rate) | replace('.', ',') if c.body_rate }}"
                          style="width:80px;height:52px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);cursor:pointer;display:block"
-                         onclick="openVideoModal('{{ td.preview }}','{{ ad_code }}')"
+                         onclick="openVideoModalFromEl(this)"
                          onerror="this.style.display='none'">
                     {% else %}
                     <div style="width:80px;height:52px;border-radius:5px;border:1px dashed var(--bs-border-s);background:var(--bs-surface);display:flex;align-items:center;justify-content:center">

@@ -191,6 +191,33 @@ def _read_novo_sistema_respostas(formulario_ids: list[int]) -> pd.DataFrame:
     return wide
 
 
+# Os quatro readers do Typeform (read_typeform, read_typeform_count,
+# read_perfil_por_anuncio, read_pesquisa_engajamento) precisam das mesmas
+# respostas do sistema novo. Cada um tem cache próprio, então o JOIN
+# submissoes×respostas×perguntas (912 mil linhas agregadas em ~27 mil jsonb)
+# rodava quatro vezes por lançamento a cada TTL. Estes wrappers guardam o
+# resultado sob a chave do lançamento — o _invalidate do ETL limpa junto com
+# o resto (ver ARQUITETURA.md, 14/09/26 — egress).
+# Os dois retornos são tratados como imutáveis pelos callers (pd.concat e
+# união de sets sempre copiam), então dá pra compartilhar a mesma instância.
+def _novo_sistema_respostas_cached(code: str) -> pd.DataFrame:
+    from frontend.cache import _get_or_compute  # noqa: PLC0415
+
+    return _get_or_compute(
+        code, "_novo_sistema_respostas",
+        lambda: _read_novo_sistema_respostas(_resolve_novo_sistema_formulario_ids(code)),
+    )
+
+
+def _novo_sistema_emails_cached(code: str) -> set[str]:
+    from frontend.cache import _get_or_compute  # noqa: PLC0415
+
+    return _get_or_compute(
+        code, "_novo_sistema_emails",
+        lambda: _read_novo_sistema_emails(_resolve_novo_sistema_formulario_ids(code)),
+    )
+
+
 def _reconstruct_tabular_df(tf_df_raw: pd.DataFrame) -> list[dict[str, Any]]:
     records = []
     if tf_df_raw.empty:
@@ -430,8 +457,7 @@ def read_typeform_count(launch_folder_or_code: Any) -> int:
 
     norm_emails = {str(e).strip().lower() for e in emails if e and "@" in str(e)}
 
-    novo_fids = _resolve_novo_sistema_formulario_ids(code)
-    norm_emails |= _read_novo_sistema_emails(novo_fids)
+    norm_emails |= _novo_sistema_emails_cached(code)
 
     return len(norm_emails)
 
@@ -478,8 +504,7 @@ def read_typeform(launch_folder_or_code: Any, start_date=None, end_date=None) ->
 
     # Respostas do sistema de pesquisa novo (PBB-AGO-26 em diante) — mesmo
     # código do lançamento, formulário próprio, sem passar pelo Typeform.
-    novo_fids = _resolve_novo_sistema_formulario_ids(code)
-    novo_df = _read_novo_sistema_respostas(novo_fids)
+    novo_df = _novo_sistema_respostas_cached(code)
 
     if tf_df_typeform.empty and novo_df.empty:
         return summary
@@ -780,8 +805,7 @@ def read_perfil_por_anuncio(launch_folder_or_code: Any, top_n: int = 5) -> dict 
     records = _reconstruct_tabular_df(tf_df_raw) if not tf_df_raw.empty else []
     tf_df_typeform = pd.DataFrame(records)
 
-    novo_fids = _resolve_novo_sistema_formulario_ids(code)
-    novo_df = _read_novo_sistema_respostas(novo_fids)
+    novo_df = _novo_sistema_respostas_cached(code)
 
     if tf_df_typeform.empty and novo_df.empty:
         return None
@@ -887,8 +911,7 @@ def read_pesquisa_engajamento(launch_folder_or_code: Any) -> dict | None:
             + " t WHERE email IS NOT NULL"
         ), {"fid": proj_id.upper()}).scalars().all()
 
-    novo_fids = _resolve_novo_sistema_formulario_ids(code)
-    all_emails = {str(e).strip().lower() for e in tf_emails if e} | _read_novo_sistema_emails(novo_fids)
+    all_emails = {str(e).strip().lower() for e in tf_emails if e} | _novo_sistema_emails_cached(code)
     respostas = len(all_emails)
     if not respostas:
         return None

@@ -32,6 +32,24 @@ CREATE INDEX IF NOT EXISTS idx_leads_utm_content ON leads (utm_content);
 CREATE INDEX IF NOT EXISTS idx_leads_created_at  ON leads (created_at);
 
 
+-- ── HISTÓRICO DE LANÇAMENTOS POR CONTATO ─────────────────────────────────
+-- `leads` guarda só o cadastro MAIS RECENTE: o upsert sobrescreve
+-- lancamento_codigo quando o mesmo contato se cadastra de novo, então a
+-- pergunta "esse lead já participou de lançamentos anteriores?" não tinha
+-- resposta no banco. O Active Campaign tem esse histórico nas tags de
+-- lançamento ("[PRODUTO] [LANÇAMENTO] [CÓDIGO]"), que são cumulativas e vão
+-- até abr/2024 — esta tabela é a materialização delas (uma linha por
+-- contato × lançamento), alimentada pelo etl_active_campaign.
+CREATE TABLE IF NOT EXISTS lead_lancamentos (
+    contact_id        TEXT NOT NULL,        -- leads.id (ID do contato no AC)
+    lancamento_codigo TEXT NOT NULL,        -- ex: PI-AGO-26
+    tagged_at         TIMESTAMPTZ,          -- quando a tag foi aplicada (contactTags.cdate)
+    PRIMARY KEY (contact_id, lancamento_codigo)
+);
+
+CREATE INDEX IF NOT EXISTS idx_lead_lanc_codigo ON lead_lancamentos (lancamento_codigo);
+
+
 -- ── THUMBNAILS DE CRIATIVOS — direto da API (Meta/Google) ────────────────
 -- Substitui a dependência do Google Drive, que expira/quebra o link.
 CREATE TABLE IF NOT EXISTS ad_creatives (

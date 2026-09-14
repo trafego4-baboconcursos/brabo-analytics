@@ -103,6 +103,102 @@ def read_term_campaign_map(launch_code: str) -> dict[str, str]:
     return mapa
 
 
+def read_lancamentos_anteriores(launch_code: str, emails: set[str] | None = None) -> dict[str, list[str]]:
+    """{email: [códigos dos lançamentos ANTERIORES em que o contato se cadastrou]}.
+
+    A tabela `leads` só guarda o cadastro mais recente (o upsert do ETL
+    sobrescreve lancamento_codigo), então o histórico vem de
+    `lead_lancamentos`, materializada das tags cumulativas do Active Campaign
+    (ver etl_active_campaign.py::_launch_code_from_tag).
+
+    "Anterior" é pela data da tag: só entram lançamentos cuja tag foi aplicada
+    ANTES da tag do lançamento consultado. Sem isso um lançamento que rodou
+    depois apareceria como se fosse passado.
+
+    `emails` restringe a consulta a um conjunto (ex: só os compradores); sem
+    ele devolve todos os leads do lançamento.
+    """
+    engine = _get_engine()
+    filtro = " AND LOWER(TRIM(l.email)) = ANY(:emails)" if emails else ""
+    params: dict[str, Any] = {"code": launch_code}
+    if emails:
+        params["emails"] = [e.strip().lower() for e in emails]
+
+    with engine.connect() as conn:
+        linhas = conn.execute(
+            text(f"""
+                SELECT LOWER(TRIM(l.email)) AS email, ant.lancamento_codigo, ant.tagged_at
+                FROM leads l
+                JOIN lead_lancamentos atual
+                  ON atual.contact_id = l.id AND atual.lancamento_codigo = :code
+                JOIN lead_lancamentos ant
+                  ON ant.contact_id = l.id
+                 AND ant.lancamento_codigo <> :code
+                 AND ant.tagged_at < atual.tagged_at
+                WHERE l.email IS NOT NULL{filtro}
+                ORDER BY email, ant.tagged_at
+            """),
+            params,
+        ).fetchall()
+
+    historico: dict[str, list[str]] = {}
+    for email, codigo, _quando in linhas:
+        historico.setdefault(email, []).append(codigo)
+    return historico
+
+
+def read_recorrencia_lancamento(launch_code: str) -> dict | None:
+    """Quantos leads do lançamento já tinham se cadastrado em lançamentos
+    anteriores — agregado no servidor (o detalhe por lead está em
+    read_lancamentos_anteriores). Devolve None quando não há tag do
+    lançamento no AC (ex: lançamento antigo demais ou tag ainda não criada)."""
+    engine = _get_engine()
+    with engine.connect() as conn:
+        total = conn.execute(
+            text("SELECT COUNT(*) FROM lead_lancamentos WHERE lancamento_codigo = :code"),
+            {"code": launch_code},
+        ).scalar() or 0
+        if not total:
+            return None
+        recorrentes = conn.execute(
+            text("""
+                SELECT COUNT(*) FROM (
+                    SELECT atual.contact_id
+                    FROM lead_lancamentos atual
+                    JOIN lead_lancamentos ant
+                      ON ant.contact_id = atual.contact_id
+                     AND ant.lancamento_codigo <> atual.lancamento_codigo
+                     AND ant.tagged_at < atual.tagged_at
+                    WHERE atual.lancamento_codigo = :code
+                    GROUP BY atual.contact_id
+                ) x
+            """),
+            {"code": launch_code},
+        ).scalar() or 0
+        por_origem = conn.execute(
+            text("""
+                SELECT ant.lancamento_codigo, COUNT(DISTINCT ant.contact_id) AS n
+                FROM lead_lancamentos atual
+                JOIN lead_lancamentos ant
+                  ON ant.contact_id = atual.contact_id
+                 AND ant.lancamento_codigo <> atual.lancamento_codigo
+                 AND ant.tagged_at < atual.tagged_at
+                WHERE atual.lancamento_codigo = :code
+                GROUP BY 1
+                ORDER BY n DESC
+            """),
+            {"code": launch_code},
+        ).fetchall()
+
+    return {
+        "total": int(total),
+        "recorrentes": int(recorrentes),
+        "novos": int(total - recorrentes),
+        "pct_recorrentes": round(recorrentes / total * 100, 2) if total else 0.0,
+        "por_lancamento_anterior": [{"codigo": c, "leads": int(n)} for c, n in por_origem],
+    }
+
+
 def read_vendas_por_dia_cadastro(launch_folder_or_code: Any, vendas: VendasSummary | None = None) -> dict | None:
     """Vendas (Hotmart+TMB) agrupadas pela data em que o comprador virou LEAD
     na tabela `leads` (Active Campaign) — não pela data da compra em si.

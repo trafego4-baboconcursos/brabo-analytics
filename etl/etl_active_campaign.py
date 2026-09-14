@@ -171,6 +171,44 @@ def discover_fields():
         print(f"  {f['id']:>4}  {f['title']}")
 
 
+# Tags de lançamento do AC: "[PRODUTO] [LANÇAMENTO] [CÓDIGO]"
+# (ex: "[INSS] [LANÇAMENTO] [PI-AGO-26]"). São cumulativas — o contato nunca
+# perde a tag do lançamento anterior — então elas são o histórico que a tabela
+# `leads` não guarda (lá o lancamento_codigo é sobrescrito a cada recadastro).
+# Conferido contra as 1.932 tags da conta: 31 casam, uma por código, indo até
+# abr/2024. O marcador [LANÇAMENTO] é o que separa essas de tags que só citam
+# o código sem ser cadastro (ex: "[INSS][PDF][PI-AGO-26]").
+_LAUNCH_TAG_RE = re.compile(
+    r"\[LAN[CÇ]AMENTO\]\s*\[([A-Z]{2,4}-[A-Z]{3}-\d{2})\]", re.IGNORECASE
+)
+
+
+def _launch_code_from_tag(tag_name: str) -> str | None:
+    m = _LAUNCH_TAG_RE.search(tag_name or "")
+    return m.group(1).upper() if m else None
+
+
+def _upsert_lead_lancamentos(lanc_por_contato: dict[tuple[str, str], str]) -> None:
+    """Grava o histórico contato × lançamento vindo das tags do AC."""
+    if not lanc_por_contato:
+        return
+    engine = get_engine()
+    linhas = [
+        {"contact_id": cid, "lancamento_codigo": code, "tagged_at": cdate}
+        for (cid, code), cdate in lanc_por_contato.items()
+    ]
+    sql = text("""
+        INSERT INTO lead_lancamentos (contact_id, lancamento_codigo, tagged_at)
+        VALUES (:contact_id, :lancamento_codigo, :tagged_at)
+        ON CONFLICT (contact_id, lancamento_codigo) DO UPDATE
+            SET tagged_at = COALESCE(EXCLUDED.tagged_at, lead_lancamentos.tagged_at)
+    """)
+    with engine.begin() as conn:
+        for i in range(0, len(linhas), 1000):
+            conn.execute(sql, linhas[i:i + 1000])
+    logger.info("lead_lancamentos: %d pares contato×lançamento gravados.", len(linhas))
+
+
 def load_from_api(since: str, until: str) -> pd.DataFrame:
     """Busca contatos atualizados no período via API com seus campos UTM.
 
@@ -190,13 +228,22 @@ def load_from_api(since: str, until: str) -> pd.DataFrame:
     field_id_to_utm = {str(v): k for k, v in UTM_FIELD_IDS.items() if v != 0}
 
     fv_by_contact: dict[str, dict[str, str]] = {}
+    # (contact_id, lancamento_codigo) -> tagged_at, pra lead_lancamentos.
+    # Coletado aqui dentro do laço porque o filtro de UTM lá embaixo descarta
+    # contatos sem utm_content/utm_term — mas a tag de lançamento deles vale
+    # igual pro histórico.
+    tags_por_id: dict[str, str] = {}
+    lanc_por_contato: dict[tuple[str, str], str] = {}
     contacts, offset = [], 0
     while True:
         data = _ac_get(
             "contacts",
             limit=100,
             offset=offset,
-            include="fieldValues",
+            # contactTags.tag vem de carona na mesma paginação: pedir as tags
+            # por /contacts?tagid=N seria uma varredura separada de centenas de
+            # milhares de contatos por lançamento.
+            include="fieldValues,contactTags.tag",
             **{
                 "filters[updated_after]":  f"{since}T00:00:00",
                 "filters[updated_before]": f"{until}T23:59:59",
@@ -213,10 +260,21 @@ def load_from_api(since: str, until: str) -> pd.DataFrame:
             name = field_id_to_utm.get(fid)
             if name and cid:
                 fv_by_contact.setdefault(cid, {})[name] = val
+        for t in data.get("tags", []):
+            code = _launch_code_from_tag(t.get("tag", ""))
+            if code:
+                tags_por_id[str(t.get("id"))] = code
+        for ct in data.get("contactTags", []):
+            code = tags_por_id.get(str(ct.get("tag")))
+            cid = ct.get("contact")
+            if code and cid:
+                lanc_por_contato[(str(cid), code)] = ct.get("cdate")
         total = int(data.get("meta", {}).get("total", 0))
         offset += len(batch)
         if offset >= total:
             break
+
+    _upsert_lead_lancamentos(lanc_por_contato)
 
     if not contacts:
         return pd.DataFrame()

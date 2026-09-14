@@ -138,6 +138,14 @@ changed something and was not written here did not happen.**
    grep -rl "responde" docs/ | xargs grep -l "palavra-chave"
    ```
 3. Follow `relacionados:` to hop between docs instead of scanning directories.
+4. **Never read a launch diary whole.** `MUDANCAS_PES-SET-26.md` alone is 240 KB / 130 items.
+   Each doc over 30 KB carries a generated `<!-- SUMARIO -->` callout listing every item.
+   Read the summary (~10% of the file), then pull only the section you need:
+   ```bash
+   grep -n "^### 47\." docs/performance/lancamentos/PES-SET-26/MUDANCAS_PES-SET-26.md
+   sed -n '1688,1710p'  docs/performance/lancamentos/PES-SET-26/MUDANCAS_PES-SET-26.md
+   ```
+   To append a new item, read the last section for the numbering — not the whole file.
 
 Reading three whole docs to answer one question means the routing failed — fix the
 `responde:` keys of the doc that should have matched.
@@ -207,8 +215,8 @@ launch's `MUDANCAS_` — a chat answer alone is not a record.
   ```bash
   python scripts/check_docs.py --atualizar-mapa
   ```
-  It validates frontmatter, unique names, wikilinks and reachability, and regenerates the
-  routing map. Treat a non-zero exit as a broken build.
+  It validates frontmatter, unique names, wikilinks and reachability, and regenerates both the
+  routing map and the `SUMARIO` of every doc over 30 KB. Treat a non-zero exit as a broken build.
 
 ## Environment Variables (`.env`)
 See `.env.example` for the full list. Key vars:

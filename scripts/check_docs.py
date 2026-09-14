@@ -19,6 +19,8 @@ AREAS = {"indice","sistema","negocio","operacao","performance","lancamento","pro
 STATUS = {"vigente","pendente","arquivado"}
 OBRIGATORIOS = ("titulo","area","status","atualizado","responde")
 MARCA_INI, MARCA_FIM = "<!-- MAPA:INICIO -->", "<!-- MAPA:FIM -->"
+SUM_INI, SUM_FIM = "<!-- SUMARIO:INICIO -->", "<!-- SUMARIO:FIM -->"
+LIMIAR_SUMARIO = 30 * 1024  # docs acima disso ganham sumario navegavel
 RE_LINK = re.compile(r"\[\[([^\]\|]+)(?:\|[^\]]*)?\]\]")
 
 
@@ -84,7 +86,12 @@ def validar(docs):
     validos = set(porNome) | {r[:-3] for r in docs}
     for rel, d in docs.items():
         for alvo in RE_LINK.findall(sem_codigo(d["texto"])):
-            if alvo.strip() not in validos:
+            # [[DOC#secao]] aponta pra um cabecalho: so o DOC precisa existir.
+            # [[#secao]] e ancora no proprio arquivo.
+            arquivo = alvo.split("#")[0].strip()
+            if not arquivo:
+                continue
+            if arquivo not in validos:
                 erros.append("%s: wikilink quebrado [[%s]]" % (rel, alvo.strip()))
 
     # alcancabilidade a partir do README.
@@ -100,7 +107,7 @@ def validar(docs):
             continue
         alcancados.add(atual)
         for alvo in RE_LINK.findall(sem_codigo(docs[atual]["texto"])):
-            alvo = alvo.strip()
+            alvo = alvo.split("#")[0].strip()
             for rel in porNome.get(alvo, []):
                 fila.append(rel)
     for rel in docs:
@@ -130,11 +137,71 @@ def gerar_mapa(docs):
     return "\n".join(linhas)
 
 
+
+def gerar_sumario(d):
+    """Sumario clicavel dos itens de um doc grande.
+
+    Um diario de lancamento chega a 215 KB / 130 itens: ler o arquivo inteiro
+    pra achar um item custa caro (pessoa rola, agente gasta contexto). O sumario
+    lista o que existe; depois le-se so a secao desejada.
+    """
+    nome = d["nome"]
+    linhas = []
+    for linha in d["texto"].split(chr(10)):
+        if linha.startswith("### "):
+            titulo = linha[4:].strip()
+            if any(c in titulo for c in ("|", "#", "[", "]")):
+                linhas.append("- " + titulo)
+            else:
+                linhas.append("- [[%s#%s|%s]]" % (nome, titulo, titulo))
+        elif linha.startswith("## "):
+            linhas.append("")
+            linhas.append("**" + linha[3:].strip() + "**")
+            linhas.append("")
+    itens = sum(1 for l in linhas if l.startswith("- "))
+    if not itens:
+        return None
+    # tudo dentro do callout (prefixo "> ") pra ele recolher de verdade:
+    # sem isso a lista fica sempre aberta e empurra o conteudo pra baixo.
+    corpo = ["> " + l if l else ">" for l in linhas]
+    cabeca = [SUM_INI, "",
+              "> [!abstract]- Sumario - %d itens (gerado por `scripts/check_docs.py --atualizar-mapa`)" % itens,
+              ">"]
+    return chr(10).join(cabeca + corpo + ["", SUM_FIM])
+
+
+def aplicar_sumarios(docs):
+    tocados = []
+    for rel, d in sorted(docs.items()):
+        if len(d["texto"].encode("utf-8")) < LIMIAR_SUMARIO:
+            continue
+        novo = gerar_sumario(d)
+        if not novo:
+            continue
+        s = d["texto"]
+        if SUM_INI in s and SUM_FIM in s:
+            ini = s.index(SUM_INI)
+            fim = s.index(SUM_FIM) + len(SUM_FIM)
+            s = s[:ini] + novo + s[fim:]
+        else:
+            pos = s.find(chr(10) + "# ")
+            if pos == -1:
+                continue
+            fim_h1 = s.index(chr(10), pos + 1)
+            s = s[:fim_h1 + 1] + chr(10) + novo + chr(10) + s[fim_h1 + 1:]
+        io.open(os.path.join(RAIZ, rel), "w", encoding="utf-8", newline="").write(s)
+        d["texto"] = s
+        tocados.append(rel)
+    return tocados
+
 def main():
     docs = ler_docs()
     erros = validar(docs)
 
     if "--atualizar-mapa" in sys.argv:
+        tocados = aplicar_sumarios(docs)
+        if tocados:
+            print("sumario gerado em: " + ", ".join(tocados))
         p = os.path.join(RAIZ, "README.md")
         novo = gerar_mapa(docs)
         if not os.path.exists(p):

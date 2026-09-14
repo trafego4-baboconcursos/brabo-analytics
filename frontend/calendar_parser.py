@@ -1,8 +1,11 @@
+import logging
 import re
 import unicodedata
 from pathlib import Path
 from datetime import datetime, date
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 def norm_text(value: str) -> str:
     text = unicodedata.normalize("NFKD", str(value or ""))
@@ -16,9 +19,9 @@ def parse_calendar(workspace_root: Path) -> dict[str, dict[str, Any]]:
     Varre analises/ procurando por SISTEMA_CALENDARIO_2026.html
     e extrai os limites de datas para cada lancamento.
     """
-    # Procura na pasta analises/[PBB-ABR-26]/SISTEMA_CALENDARIO_2026.html
-    html_path = workspace_root / "analises" / "[PBB-ABR-26]" / "SISTEMA_CALENDARIO_2026.html"
-    
+    # Local canônico do calendário (servido também pelo mount /analises)
+    html_path = workspace_root / "analises" / "calendario" / "SISTEMA_CALENDARIO_2026.html"
+
     # Se nao achar, procura em qualquer subpasta de analises
     if not html_path.exists():
         analises_dir = workspace_root / "analises"
@@ -28,7 +31,14 @@ def parse_calendar(workspace_root: Path) -> dict[str, dict[str, Any]]:
                 break
 
     if not html_path.exists():
-        # Fallback para dados estáticos caso o arquivo não seja encontrado
+        # Fallback para dados estáticos caso o arquivo não seja encontrado.
+        # ATENÇÃO: o fallback não tem datas por etapa (stages fica vazio), então os
+        # defaults de pré-quali/captação/carrinho saem errados. Isso já aconteceu em
+        # silencio quando o HTML foi parar em frontend/static/ (corrigido em 14/09/26).
+        logger.warning(
+            "SISTEMA_CALENDARIO_2026.html nao encontrado em analises/ - "
+            "usando datas fixas do fallback, SEM limites por etapa"
+        )
         return get_static_fallback_bounds()
 
     try:

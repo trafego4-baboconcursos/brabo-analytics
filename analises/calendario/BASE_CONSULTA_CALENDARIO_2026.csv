@@ -1,0 +1,16 @@
+lancamento,etapa,ordem,duracao_semanas,duracao_dias,inicio_2026,fim_2026,regra_inicio,comentarios,status_datas
+PBB-ABR-26,Pre-Quali,1,4,28,2026-02-16,2026-03-15,"Sempre inicia em segunda-feira","Derivado da planilha calendario 2026 (bloco BB)",EXTRAIDA_PLANILHA
+PBB-ABR-26,Captacao,2,2,14,2026-03-16,2026-03-29,"Sequencial apos Pre-Quali","Derivado da planilha calendario 2026 (bloco BB)",EXTRAIDA_PLANILHA
+PBB-ABR-26,Depoimento,3,1,7,2026-03-30,2026-04-05,"Sequencial apos Captacao","Derivado da planilha calendario 2026 (bloco BB)",EXTRAIDA_PLANILHA
+PBB-ABR-26,Aulas ao vivo (Semana 0),4,1,4,2026-04-06,2026-04-09,"Segunda a quinta; PIT na quarta; sem aula principal na quarta","Semana 0 anterior ao carrinho",EXTRAIDA_PLANILHA
+PBB-ABR-26,Carrinho aberto,5,2,15,2026-04-13,2026-04-27,"Abre em segunda-feira","Inicio identificado no calendario 2026 (bloco BB)",EXTRAIDA_PLANILHA
+PBB-FEV-26,Pre-Quali,1,4,28,2025-12-08,2026-01-04,"Sempre inicia em segunda-feira","Derivado da planilha calendario 2026 (bloco BB)",EXTRAIDA_PLANILHA
+PBB-FEV-26,Captacao,2,2,14,2026-01-05,2026-01-18,"Sequencial apos Pre-Quali","Derivado da planilha calendario 2026 (bloco BB)",EXTRAIDA_PLANILHA
+PBB-FEV-26,Depoimento,3,1,7,2026-01-19,2026-01-25,"Sequencial apos Captacao","Derivado da planilha calendario 2026 (bloco BB)",EXTRAIDA_PLANILHA
+PBB-FEV-26,Aulas ao vivo (Semana 0),4,1,4,2026-01-26,2026-01-29,"Segunda a quinta; PIT na quarta; sem aula principal na quarta","Semana 0 anterior ao carrinho",EXTRAIDA_PLANILHA
+PBB-FEV-26,Carrinho aberto,5,2,15,2026-02-02,2026-02-16,"Abre em segunda-feira","Inicio identificado no calendario 2026 (bloco BB)",EXTRAIDA_PLANILHA
+PES-MAI-26,Pre-Quali,1,4,28,2026-03-16,2026-04-12,"Sempre inicia em segunda-feira","Derivado da planilha calendario 2026 (bloco TJ)",EXTRAIDA_PLANILHA
+PES-MAI-26,Captacao,2,2,14,2026-04-13,2026-04-26,"Sequencial apos Pre-Quali","Derivado da planilha calendario 2026 (bloco TJ)",EXTRAIDA_PLANILHA
+PES-MAI-26,Depoimento,3,1,7,2026-04-27,2026-05-03,"Sequencial apos Captacao","Derivado da planilha calendario 2026 (bloco TJ)",EXTRAIDA_PLANILHA
+PES-MAI-26,Aulas ao vivo (Semana 0),4,1,4,2026-05-04,2026-05-07,"Segunda a quinta; PIT na quarta; sem aula principal na quarta","Semana 0 anterior ao carrinho",EXTRAIDA_PLANILHA
+PES-MAI-26,Carrinho aberto,5,2,15,2026-05-11,2026-05-25,"Abre em segunda-feira","Inicio identificado no calendario 2026 (bloco TJ)",EXTRAIDA_PLANILHA

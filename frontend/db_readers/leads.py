@@ -20,17 +20,42 @@ from frontend.models import (
 logger = get_logger("db")
 
 
-def read_ac_leads_for_attribution(launch_code: str, start_date=None, end_date=None) -> pd.DataFrame:  # noqa: ARG001
-    """Retorna DataFrame com email_norm e UTMs da tabela leads para o lançamento."""
+def read_ac_leads_for_attribution(
+    launch_code: str, start_date=None, end_date=None,
+    emails: set | None = None, phones: set | None = None,
+) -> pd.DataFrame:  # noqa: ARG001
+    """Retorna DataFrame com email_norm e UTMs da tabela leads para o lançamento.
+
+    Com `emails`/`phones`, traz só as linhas que casam por e-mail OU telefone —
+    é o que a atribuição precisa (ela só olha comprador). Sem eles, devolve a
+    base inteira, o que custa caro: eram 269 mil linhas por chamada no
+    PI-AGO-26 (ver ARQUITETURA.md, 14/09/26 — egress).
+    """
     engine = _get_engine()
+    filtro = ""
+    params: dict = {"code": launch_code}
+    if emails is not None or phones is not None:
+        condicoes = []
+        if emails:
+            condicoes.append("LOWER(TRIM(email)) = ANY(:emails)")
+            params["emails"] = list(emails)
+        if phones:
+            condicoes.append("TRIM(COALESCE(phone, '')) = ANY(:phones)")
+            params["phones"] = list(phones)
+        if not condicoes:
+            return pd.DataFrame(columns=[
+                "email", "utm_source", "utm_medium", "utm_campaign", "utm_content",
+                "utm_term", "phone", "nome", "sobrenome", "email_norm", "nome_norm",
+            ])
+        filtro = " AND (" + " OR ".join(condicoes) + ")"
     df = pd.read_sql(
-        text("""
+        text(f"""
             SELECT email, utm_source, utm_medium, utm_campaign, utm_content, utm_term, phone, nome, sobrenome
             FROM leads
-            WHERE lancamento_codigo = :code
+            WHERE lancamento_codigo = :code{filtro}
         """),
         engine,
-        params={"code": launch_code},
+        params=params,
     )
     if df.empty:
         return df
@@ -44,6 +69,38 @@ def read_ac_leads_for_attribution(launch_code: str, start_date=None, end_date=No
     nome_full = (df["nome"].fillna("") + " " + df["sobrenome"].fillna("")).str.strip()
     df["nome_norm"] = nome_full.apply(_norm_text).str.replace(r"\s+", " ", regex=True)
     return df
+
+
+def read_term_campaign_map(launch_code: str) -> dict[str, str]:
+    """{utm_term: campanha mais frequente} entre os leads de tráfego Google.
+
+    Usado pela atribuição pra recuperar vendas de períodos com UTM quebrada
+    (campanha vazia, só o utm_term identifica o grupo). É uma agregação, então
+    roda no servidor: antes saía junto com a base inteira de leads carregada
+    em memória (ver ARQUITETURA.md, 14/09/26 — egress).
+
+    Empate resolvido pela campanha alfabeticamente menor, que é o que o
+    `idxmax()` do pandas devolvia (índice ordenado pelo groupby).
+    """
+    engine = _get_engine()
+    with engine.connect() as conn:
+        linhas = conn.execute(
+            text("""
+                SELECT BTRIM(utm_term) AS termo, BTRIM(utm_campaign) AS campanha, COUNT(*) AS n
+                FROM leads
+                WHERE lancamento_codigo = :code
+                  AND BTRIM(COALESCE(utm_term, '')) <> ''
+                  AND BTRIM(COALESCE(utm_campaign, '')) <> ''
+                  AND utm_source ILIKE '%google%'
+                GROUP BY 1, 2
+                ORDER BY termo, n DESC, campanha
+            """),
+            {"code": launch_code},
+        ).fetchall()
+    mapa: dict[str, str] = {}
+    for termo, campanha, _n in linhas:
+        mapa.setdefault(termo, campanha)  # ORDER BY já deixou o vencedor na frente
+    return mapa
 
 
 def read_vendas_por_dia_cadastro(launch_folder_or_code: Any, vendas: VendasSummary | None = None) -> dict | None:
@@ -126,10 +183,19 @@ def read_leads(launch_folder_or_code: Any, vendas: VendasSummary | None = None, 
     code = _extract_launch_code(launch_folder_or_code)
     engine = _get_engine()
 
+    # Agregado por combinação (UTM + dia) em vez de linha a linha: as seis
+    # quebras montadas abaixo (canal, dia, etapa, temperatura, source, medium)
+    # derivam só dessas colunas, então somar a contagem de cada combinação dá
+    # exatamente o mesmo resultado sem baixar a lista de leads inteira do
+    # lançamento — eram 269 mil linhas no PI-AGO-26 a cada chamada, a maior
+    # fonte de egress do banco (ver ARQUITETURA.md, 14/09/26).
     df = pd.read_sql(
         text("""
-            SELECT email, created_at, utm_source, utm_medium, utm_campaign
+            SELECT utm_source, utm_medium, utm_campaign,
+                   (created_at AT TIME ZONE 'UTC')::date AS dia,
+                   COUNT(*) AS leads
             FROM leads WHERE lancamento_codigo = :code
+            GROUP BY 1, 2, 3, 4
         """),
         engine,
         params={"code": code}
@@ -138,23 +204,48 @@ def read_leads(launch_folder_or_code: Any, vendas: VendasSummary | None = None, 
         return None
 
     summary = LeadsSummary()
-    summary.total_leads = len(df)
+    summary.total_leads = int(df["leads"].sum())
 
     buyers = (vendas.emails_hotmart | vendas.emails_tmb) if vendas else set()
     receita_por_email = vendas.receita_por_email if vendas else {}
     summary.total_compradores = len(buyers)
 
-    df["email_norm"] = df["email"].str.strip().str.lower()
-    rastreados_emails = set(df["email_norm"]) & buyers
+    # Único ponto que precisa de detalhe por pessoa: conversão e faturamento
+    # de cada quebra. São só os compradores (poucos milhares), não a base toda.
+    _COMP_COLS = ["email_norm", "utm_source", "utm_medium", "utm_campaign", "dia"]
+    comp_df = pd.read_sql(
+        text("""
+            SELECT LOWER(TRIM(email)) AS email_norm, utm_source, utm_medium, utm_campaign,
+                   (created_at AT TIME ZONE 'UTC')::date AS dia
+            FROM leads
+            WHERE lancamento_codigo = :code AND LOWER(TRIM(email)) = ANY(:buyers)
+        """),
+        engine,
+        params={"code": code, "buyers": list(buyers)},
+    ) if buyers else pd.DataFrame(columns=_COMP_COLS)
+
+    rastreados_emails = set(comp_df["email_norm"]) if not comp_df.empty else set()
     summary.compradores_rastreados = len(rastreados_emails)
     summary.compradores_sem_utm = max(0, summary.total_compradores - summary.compradores_rastreados)
     summary.emails_rastreados = rastreados_emails
     summary.tx_conversao = summary.compradores_rastreados / summary.total_leads * 100 if summary.total_leads > 0 else 0.0
 
-    def _vendas_para_emails(email_set: set) -> tuple[int, float]:
-        v = email_set & buyers
-        fat = sum(receita_por_email.get(e, 0.0) for e in v)
-        return len(v), fat
+    comp_df["receita"] = (
+        comp_df["email_norm"].map(lambda e: receita_por_email.get(e, 0.0))
+        if not comp_df.empty else pd.Series(dtype=float)
+    )
+
+    def _vendas_do_grupo(coluna: str, valor) -> tuple[int, float]:
+        """(compradores, faturamento) do grupo — equivalente ao antigo
+        cruzamento em memória, mas só sobre as linhas dos compradores."""
+        # devolve 0 (int) quando não há comprador no grupo, igual ao
+        # sum(()) do código anterior — mantém o tipo idêntico ao original
+        if comp_df.empty:
+            return 0, 0
+        sub = comp_df[comp_df[coluna] == valor]
+        if sub.empty:
+            return 0, 0
+        return len(sub), float(sub["receita"].sum())
 
     SOURCE_LABEL = {
         "facebook": "Facebook Ads",
@@ -169,37 +260,41 @@ def read_leads(launch_folder_or_code: Any, vendas: VendasSummary | None = None, 
         "organic": "Orgânico",
         "direto": "Direto / Orgânico",
     }
-    df["canal"] = df["utm_source"].fillna("").str.strip().str.lower().map(
-        lambda s: SOURCE_LABEL.get(s, s.title() if s else "Direto / Orgânico")
-    )
+    def _canal(serie):
+        return serie.fillna("").str.strip().str.lower().map(
+            lambda s: SOURCE_LABEL.get(s, s.title() if s else "Direto / Orgânico")
+        )
+
+    df["canal"] = _canal(df["utm_source"])
+    if not comp_df.empty:
+        comp_df["canal"] = _canal(comp_df["utm_source"])
     canal_rows = []
     for canal, grp in df.groupby("canal"):
-        emails = set(grp["email_norm"])
-        v, fat = _vendas_para_emails(emails)
+        n = int(grp["leads"].sum())
+        v, fat = _vendas_do_grupo("canal", canal)
         canal_rows.append({
             "canal": canal,
-            "leads": len(grp),
+            "leads": n,
             "compradores": v,
             "faturamento": fat,
-            "conversao": v / len(grp) * 100 if len(grp) > 0 else 0.0,
+            "conversao": v / n * 100 if n > 0 else 0.0,
             "ticket": fat / v if v > 0 else 0.0,
         })
     summary.por_canal = sorted([r for r in canal_rows if r["leads"] >= 10], key=lambda x: x["leads"], reverse=True)
 
     WEEKDAYS_PT = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
-    df["dia"] = pd.to_datetime(df["created_at"]).dt.date
     dia_rows = []
     for dia, grp in df.groupby("dia"):
-        emails = set(grp["email_norm"])
-        v, fat = _vendas_para_emails(emails)
+        n = int(grp["leads"].sum())
+        v, fat = _vendas_do_grupo("dia", dia)
         dt = pd.Timestamp(dia)
         dia_rows.append({
             "_dt": dt,
             "date": dt.strftime("%d/%m"),
             "weekday": WEEKDAYS_PT[dt.weekday()],
-            "leads": len(grp),
+            "leads": n,
             "compradores": v,
-            "conversao": v / len(grp) * 100 if len(grp) > 0 else 0.0,
+            "conversao": v / n * 100 if n > 0 else 0.0,
             "faturamento": fat,
         })
     today = pd.Timestamp.now().normalize()
@@ -233,16 +328,18 @@ def read_leads(launch_folder_or_code: Any, vendas: VendasSummary | None = None, 
         return "Outros"
 
     df["etapa"] = df["utm_campaign"].fillna("").apply(_etapa)
+    if not comp_df.empty:
+        comp_df["etapa"] = comp_df["utm_campaign"].fillna("").apply(_etapa)
     etapa_rows = []
     for etapa, grp in df.groupby("etapa"):
-        emails = set(grp["email_norm"])
-        v, fat = _vendas_para_emails(emails)
+        n = int(grp["leads"].sum())
+        v, fat = _vendas_do_grupo("etapa", etapa)
         etapa_rows.append({
             "etapa": etapa,
-            "leads": len(grp),
+            "leads": n,
             "compradores": v,
             "faturamento": fat,
-            "conversao": v / len(grp) * 100 if len(grp) > 0 else 0.0,
+            "conversao": v / n * 100 if n > 0 else 0.0,
             "ticket": fat / v if v > 0 else 0.0,
         })
     ETAPAS_ORDER = ["Pré-Qualificação", "Captação", "Lembrete", "Aulas no Ar", "Replay", "Matrículas Abertas", "Outros"]
@@ -257,16 +354,18 @@ def read_leads(launch_folder_or_code: Any, vendas: VendasSummary | None = None, 
         return "Não classificado"
 
     df["temp"] = df["utm_campaign"].fillna("").apply(_temp)
+    if not comp_df.empty:
+        comp_df["temp"] = comp_df["utm_campaign"].fillna("").apply(_temp)
     temp_rows = []
     for temp, grp in df.groupby("temp"):
-        emails = set(grp["email_norm"])
-        v, fat = _vendas_para_emails(emails)
+        n = int(grp["leads"].sum())
+        v, fat = _vendas_do_grupo("temp", temp)
         temp_rows.append({
             "temp": temp,
-            "leads": len(grp),
+            "leads": n,
             "compradores": v,
             "faturamento": fat,
-            "conversao": v / len(grp) * 100 if len(grp) > 0 else 0.0,
+            "conversao": v / n * 100 if n > 0 else 0.0,
             "ticket": fat / v if v > 0 else 0.0,
         })
     TEMP_ORDER = ["Específico", "Quente", "Morno", "Frio", "Não classificado"]
@@ -274,14 +373,17 @@ def read_leads(launch_folder_or_code: Any, vendas: VendasSummary | None = None, 
 
     df["utm_source_norm"] = df["utm_source"].fillna("Sem source").str.strip()
     df["utm_medium_norm"] = df["utm_medium"].fillna("Sem medium").str.strip()
+    if not comp_df.empty:
+        comp_df["utm_source_norm"] = comp_df["utm_source"].fillna("Sem source").str.strip()
+        comp_df["utm_medium_norm"] = comp_df["utm_medium"].fillna("Sem medium").str.strip()
     for src, grp in df.groupby("utm_source_norm"):
-        emails = set(grp["email_norm"])
-        v, fat = _vendas_para_emails(emails)
-        summary.por_utm_source[src] = {"source": src, "leads": len(grp), "vendas": v, "faturamento": fat, "conversao": v / len(grp) * 100 if len(grp) > 0 else 0.0}
+        n = int(grp["leads"].sum())
+        v, fat = _vendas_do_grupo("utm_source_norm", src)
+        summary.por_utm_source[src] = {"source": src, "leads": n, "vendas": v, "faturamento": fat, "conversao": v / n * 100 if n > 0 else 0.0}
     for med, grp in df.groupby("utm_medium_norm"):
-        emails = set(grp["email_norm"])
-        v, fat = _vendas_para_emails(emails)
-        summary.por_utm_medium[med] = {"medium": med, "leads": len(grp), "vendas": v, "faturamento": fat, "conversao": v / len(grp) * 100 if len(grp) > 0 else 0.0}
+        n = int(grp["leads"].sum())
+        v, fat = _vendas_do_grupo("utm_medium_norm", med)
+        summary.por_utm_medium[med] = {"medium": med, "leads": n, "vendas": v, "faturamento": fat, "conversao": v / n * 100 if n > 0 else 0.0}
 
     return summary
 

@@ -192,10 +192,20 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
     buyers = vendas_data.emails_hotmart | vendas_data.emails_tmb
     buyer_utms: dict[str, dict] = {}
     _sa_cfg = _launch_cfg(launch.code)
+    # Só interessam os leads que casam com um comprador (por e-mail ou por
+    # telefone) — o filtro vai pro SQL em vez de baixar a base inteira do
+    # lançamento pra descartar quase tudo (ver ARQUITETURA.md, 14/09/26).
+    _buyer_phones = {
+        str(p).strip()
+        for p in (getattr(vendas_data, "phone_por_email", {}) or {}).values()
+        if p and str(p).strip()
+    }
     leads_df = read_ac_leads_for_attribution(
         launch.code,
         start_date=_get_global_start(_sa_cfg),
         end_date=_get_global_end(_sa_cfg),
+        emails=buyers,
+        phones=_buyer_phones,
     )
     if leads_df.empty:
         _set_cached(launch.code, "sales_attribution", result)
@@ -263,16 +273,10 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
     # o utm_term identifica o grupo de recursos (ex.: PI-AGO-26 — AD219/AD220/AD232
     # eram grupos da p-max e AD400 da search). Voto majoritário resolve variantes
     # URL-encoded do mesmo nome de campanha.
-    term_campaign_map: dict[str, str] = {}
-    _tc = leads_df[
-        (leads_df["utm_campaign"] != "")
-        & (leads_df["utm_term"] != "")
-        & leads_df["utm_source"].str.contains("google", case=False, na=False)
-    ]
-    if not _tc.empty:
-        _tc_counts = _tc.groupby(["utm_term", "utm_campaign"]).size()
-        for term_value, grp in _tc_counts.groupby(level=0):
-            term_campaign_map[term_value] = grp.idxmax()[1]
+    # Voto majoritário calculado no servidor (era feito sobre a base inteira
+    # de leads carregada em memória; agora leads_df só tem compradores).
+    from frontend.db_readers.leads import read_term_campaign_map  # noqa: PLC0415
+    term_campaign_map: dict[str, str] = read_term_campaign_map(launch.code)
 
     from frontend.db_readers.ads_meta import _categorize_campaign as _categorize_meta_campaign  # noqa: PLC0415
     from frontend.db_readers.ads_google import _categorize_campaign as _categorize_google_campaign  # noqa: PLC0415

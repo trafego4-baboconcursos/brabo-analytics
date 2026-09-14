@@ -18,7 +18,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 19 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 20 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -93,6 +93,7 @@ relacionados:
 >
 > - [[ARQUITETURA#Como conferir se as correções de egress estão valendo|Como conferir se as correções de egress estão valendo]]
 > - [[ARQUITETURA#Anotações no gráfico (`/verba`)|Anotações no gráfico (`/verba`)]]
+> - [[ARQUITETURA#Contexto medido por evento|Contexto medido por evento]]
 
 <!-- SUMARIO:FIM -->
 
@@ -763,3 +764,22 @@ dos dois.
 
 `read_eventos` engole a exceção e devolve lista vazia se a tabela não existir — num ambiente
 sem o schema novo o gráfico perde a anotação, mas a página continua de pé.
+
+### Contexto medido por evento
+
+`scripts/eventos.py --medir` preenche `contexto_metrica`: como gasto, conversões e CPA se
+moveram numa janela em volta da data (padrão 3 dias antes × 3 dias a partir da data).
+
+**É coluna separada de `resultado` de propósito.** `resultado` é texto escrito por gente — o
+que aconteceu *por causa* da ação. `contexto_metrica` é só o que as métricas fizeram no
+período; várias ações dividem o mesmo dia, e a janela captura tudo que mudou. Misturar as
+duas daria a um número automatizado a autoridade de uma conclusão.
+
+Duas proteções contra número enganoso: janela anterior com menos de R$ 500 ou 10 conversões
+vira "sem base de comparação"; variação acima de 300% vira "mudança de patamar" — no início
+do lançamento qualquer comparação com quase-zero produzia coisas como "+42570%".
+
+Dos 193 eventos: 123 medidos, 20 mudança de patamar, 18 sem base, 32 sem dado no período.
+
+`scripts/efeito_acao.py --itens` passou a ler a tabela em vez de parsear o markdown — com
+isso funciona para distribuição e perpétuo do mesmo jeito que para lançamento.

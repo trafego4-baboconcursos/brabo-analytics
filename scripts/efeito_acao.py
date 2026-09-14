@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-Mede o efeito de uma acao do diario nas metricas reais.
+Mede o efeito de uma acao nas metricas reais.
 
-O diario (docs/performance/lancamentos/[CODIGO]/MUDANCAS_[CODIGO].md) registra o que
-foi feito e em que dia. O banco tem a metrica diaria por campanha. Este script junta
-os dois: para uma data de acao, compara a janela ANTES com a janela DEPOIS.
+As acoes vem da tabela eventos_trafego (indice dos diarios, ver scripts/eventos.py);
+o banco tem a metrica diaria por campanha. Este script junta os dois: para uma data
+de acao, compara a janela ANTES com a janela DEPOIS. Funciona para qualquer escopo
+— lancamento, distribuicao ou perpetuo.
 
-    # lista os itens do diario com data (pra escolher qual medir)
+    # lista as acoes registradas (com o contexto ja medido)
     python scripts/efeito_acao.py PES-SET-26 --itens
+    python scripts/efeito_acao.py DISTRIBUICAO-IVAN-NETO --itens
 
     # efeito de tudo que foi feito em 07/09, janela de 7 dias
     python scripts/efeito_acao.py PES-SET-26 --data 2026-09-07
@@ -21,7 +23,6 @@ Regra CPA-1: CPA sai em toda analise. Fonte de gasto/conversao e o banco analyti
 import argparse
 import datetime
 import os
-import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -30,36 +31,33 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RE_DATA_ITEM = re.compile(r"\((\d{2})/(\d{2})/(\d{2})\)")
-
-
-def caminho_diario(codigo):
-    return os.path.join(RAIZ, "docs", "performance", "lancamentos", codigo,
-                        "MUDANCAS_%s.md" % codigo)
 
 
 def listar_itens(codigo):
-    p = caminho_diario(codigo)
-    if not os.path.exists(p):
-        print("diario nao encontrado: %s" % p)
+    """Lista os eventos do escopo, lendo a tabela eventos_trafego.
+
+    Antes isto parseava o titulo das secoes do .md — fragil, e so funcionava
+    pra lancamento. Lendo a tabela, distribuicao e perpetuo funcionam igual, e
+    o contexto ja medido aparece junto.
+    """
+    load_dotenv()
+    eng = create_engine(os.environ["SUPABASE_DB_URL"])
+    with eng.connect() as c:
+        linhas = c.execute(text(
+            "select data, tipo, plataforma, coalesce(regra,'-') regra, "
+            "coalesce(contexto_metrica,'') ctx, titulo "
+            "from eventos_trafego where codigo = :c order by data, id"),
+            {"c": codigo}).mappings().all()
+    if not linhas:
+        print("nenhum evento pra %s." % codigo)
+        print("Rode: python scripts/eventos.py --importar --aplicar")
         return 1
-    import io
-    dentro_sumario = False
-    achados = []
-    for linha in io.open(p, encoding="utf-8"):
-        if "SUMARIO:INICIO" in linha:
-            dentro_sumario = True
-        elif "SUMARIO:FIM" in linha:
-            dentro_sumario = False
-        elif not dentro_sumario and linha.startswith("### "):
-            titulo = linha[4:].strip()
-            m = RE_DATA_ITEM.search(titulo)
-            if m:
-                d, mo, a = m.groups()
-                achados.append(("20%s-%s-%s" % (a, mo, d), titulo))
-    for data, titulo in sorted(achados):
-        print("  %s  %s" % (data, titulo[:100]))
-    print("\n%d itens com data. Use --data YYYY-MM-DD para medir um dia." % len(achados))
+    for r in linhas:
+        print("  %s  %-10s %-7s %-6s %s" % (r["data"], r["tipo"], r["plataforma"] or "-",
+                                            r["regra"], r["titulo"][:78]))
+        if r["ctx"]:
+            print("  %s  %s" % (" " * 10, r["ctx"]))
+    print("%d eventos. Use --data YYYY-MM-DD para medir um dia." % len(linhas))
     return 0
 
 
@@ -149,8 +147,8 @@ def medir(codigo, data, dias, filtro):
 
 def main():
     ap = argparse.ArgumentParser(description="Efeito de uma acao do diario nas metricas")
-    ap.add_argument("lancamento", help="codigo do lancamento, ex: PES-SET-26")
-    ap.add_argument("--itens", action="store_true", help="lista itens datados do diario")
+    ap.add_argument("lancamento", help="codigo do escopo: PES-SET-26, DISTRIBUICAO-IVAN-NETO...")
+    ap.add_argument("--itens", action="store_true", help="lista as acoes registradas")
     ap.add_argument("--data", help="data da acao (YYYY-MM-DD)")
     ap.add_argument("--dias", type=int, default=7, help="tamanho da janela (padrao 7)")
     ap.add_argument("--campanha", help="filtra campanhas cujo nome contem este texto")

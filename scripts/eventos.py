@@ -168,16 +168,22 @@ def ler_itens(caminho, codigo):
 
 
 def coletar():
+    """Varre docs/performance/ atras de qualquer MUDANCAS_<CODIGO>.md.
+
+    O codigo vem do NOME do arquivo, nao da pasta — assim lancamento
+    (lancamentos/PES-SET-26/), distribuicao (distribuicao/) e perpetuo
+    convivem sem o importador precisar saber da estrutura de pastas.
+    """
     todos = []
-    if not os.path.isdir(DIR_LANC):
+    base = os.path.join(RAIZ, "docs", "performance")
+    if not os.path.isdir(base):
         return todos
-    for codigo in sorted(os.listdir(DIR_LANC)):
-        d = os.path.join(DIR_LANC, codigo)
-        if not os.path.isdir(d):
-            continue
-        for nome in sorted(os.listdir(d)):
-            if nome.startswith("MUDANCAS_") and nome.endswith(".md"):
-                todos += ler_itens(os.path.join(d, nome), codigo)
+    for raiz, _dirs, arquivos in os.walk(base):
+        for nome in sorted(arquivos):
+            if not (nome.startswith("MUDANCAS_") and nome.endswith(".md")):
+                continue
+            codigo = nome[len("MUDANCAS_"):-len(".md")]
+            todos += ler_itens(os.path.join(raiz, nome), codigo)
     return todos
 
 
@@ -236,6 +242,103 @@ def importar(eng, aplicar):
     return 0
 
 
+
+FONTES = {
+    "meta":   ("meta_ads_daily", "spend", "leads"),
+    "google": ("google_ads_daily", "cost", "conversions"),
+}
+
+
+def _janela(conn, tab, cc, cv, codigo, ini, fim):
+    r = conn.execute(text(
+        "select coalesce(sum(%s),0), coalesce(sum(%s),0) from %s "
+        "where lancamento_codigo=:c and date>=:i and date<=:f" % (cc, cv, tab)),
+        {"c": codigo, "i": ini, "f": fim}).one()
+    return float(r[0]), float(r[1])
+
+
+def _delta(a, b):
+    if not a:
+        return None
+    return (b - a) / a * 100
+
+
+def medir(eng, dias, aplicar):
+    """Preenche contexto_metrica: como as metricas se moveram em volta da acao.
+
+    NAO e prova de causa — varias acoes dividem o mesmo dia, e a janela captura
+    tudo que mudou no periodo. Por isso vai numa coluna separada do `resultado`,
+    que continua sendo texto escrito por gente.
+    """
+    import datetime
+    with eng.connect() as c:
+        evs = c.execute(text(
+            "select id, codigo, data, plataforma from eventos_trafego order by codigo, data")
+        ).mappings().all()
+    print("%d eventos a medir (janela de %d dias)" % (len(evs), dias))
+
+    atualizacoes = []
+    with eng.connect() as c:
+        for e in evs:
+            d = e["data"]
+            ia, fa = d - datetime.timedelta(days=dias), d - datetime.timedelta(days=1)
+            id_, fd = d, d + datetime.timedelta(days=dias - 1)
+            plats = (["meta", "google"] if e["plataforma"] in ("ambas", "outro", None)
+                     else [e["plataforma"]])
+            ga = ca = gd = cd = 0.0
+            for pl in plats:
+                if pl not in FONTES:
+                    continue
+                tab, cc, cv = FONTES[pl]
+                x = _janela(c, tab, cc, cv, e["codigo"], ia, fa)
+                y = _janela(c, tab, cc, cv, e["codigo"], id_, fd)
+                ga += x[0]; ca += x[1]; gd += y[0]; cd += y[1]
+            if not ga and not gd:
+                continue
+            # Guarda contra percentual sem sentido: no inicio do lancamento a
+            # janela "antes" e quase zero e qualquer variacao vira +40000%.
+            # Melhor dizer que nao ha base do que publicar um numero enganoso.
+            if ga < 500 or ca < 10:
+                atualizacoes.append({"id": e["id"],
+                                     "t": "sem base de comparacao (periodo anterior quase sem volume)"})
+                continue
+            cpa_a = ga / ca if ca else None
+            cpa_d = gd / cd if cd else None
+            partes = []
+            for rot, va, vb in (("gasto", ga, gd), ("conv", ca, cd), ("CPA", cpa_a, cpa_d)):
+                if va is None or vb is None:
+                    continue
+                p = _delta(va, vb)
+                if p is None:
+                    continue
+                partes.append("%s %+.0f%%" % (rot, p))
+            if not partes:
+                continue
+            # Variacao acima de 300% nao e "efeito da acao", e mudanca de
+            # patamar (campanha ligando, etapa virando). Reportar "+42570%"
+            # daria a um numero sem sentido a aparencia de medicao.
+            extremos = [abs(_delta(va, vb) or 0) for va, vb in
+                        ((ga, gd), (ca, cd)) if va]
+            if extremos and max(extremos) > 300:
+                txt = "mudanca de patamar no periodo (nao comparavel)"
+            else:
+                txt = " · ".join(partes) + " (janela %dd, %s)" % (dias, "+".join(plats))
+            atualizacoes.append({"id": e["id"], "t": txt})
+
+    print("  com dado suficiente: %d" % len(atualizacoes))
+    if atualizacoes[:3]:
+        print("  exemplo:", atualizacoes[0]["t"])
+    if not aplicar:
+        print("  Simulacao — nada gravado. Use --aplicar.")
+        return 0
+    with eng.begin() as c:
+        for u in atualizacoes:
+            c.execute(text("update eventos_trafego set contexto_metrica=:t, "
+                           "atualizado_em=now() where id=:id"), u)
+    print("  gravados.")
+    return 0
+
+
 def listar(eng, codigo):
     with eng.connect() as c:
         rows = c.execute(text("""
@@ -255,12 +358,17 @@ def main():
     ap.add_argument("--importar", action="store_true")
     ap.add_argument("--aplicar", action="store_true", help="grava (senao, simula)")
     ap.add_argument("--listar", metavar="CODIGO")
+    ap.add_argument("--medir", action="store_true",
+                    help="preenche contexto_metrica (antes x depois da data)")
+    ap.add_argument("--dias", type=int, default=3, help="janela da medicao (padrao 3)")
     a = ap.parse_args()
 
     load_dotenv()
     eng = create_engine(os.environ["SUPABASE_DB_URL"])
     if a.criar_tabela:
         criar_tabela(eng)
+    if a.medir:
+        return medir(eng, a.dias, a.aplicar)
     if a.importar:
         return importar(eng, a.aplicar)
     if a.listar:

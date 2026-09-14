@@ -993,7 +993,9 @@ CREATE TABLE IF NOT EXISTS eventos_trafego (
     titulo       TEXT NOT NULL,
     campanhas    TEXT[],                 -- nomes/padroes afetados, quando identificaveis
     regra        TEXT,                   -- ID da regra aplicada (ORC-2, META-3...)
-    resultado    TEXT,                   -- preenchido dias depois; e o que falta em 94% dos itens
+    resultado    TEXT,                   -- texto escrito por GENTE: o que aconteceu por causa da acao
+    contexto_metrica TEXT,               -- medido por scripts/eventos.py --medir: variacao das
+                                         -- metricas na janela. E contexto, NAO prova de causa.
     fonte        TEXT,                   -- caminho do .md de origem
     criado_em    TIMESTAMPTZ DEFAULT NOW(),
     atualizado_em TIMESTAMPTZ DEFAULT NOW()

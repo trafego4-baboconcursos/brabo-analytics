@@ -447,21 +447,19 @@ def read_leads_x_whatsapp(launch_folder_or_code: Any) -> dict | None:
     from frontend.db_readers.whatsapp_sheets import pico_por_bloco  # noqa: PLC0415
 
     code = _extract_launch_code(launch_folder_or_code)
-    wa = read_whatsapp_groups(code)
-    if not wa:
-        return None
-    wa_normal = wa.get("normal") or {}
-    wa_vip = wa.get("vip") or {}
 
-    # Pico (maior "leads no dia" já registrado), não o total_limpo atual:
-    # lançamento já fechou há semanas, sem contato novo com esse lead — o
-    # que importa pro debriefing é o alcance máximo que a campanha teve, não
-    # quantos ainda restam no grupo hoje (que só cai com o tempo por causa
-    # de saída natural, sem repor). Pedido explícito do usuário em 14/09.
+    # Pico (maior "leads no dia"/"saídas num dia" já registrado), não o
+    # valor atual/acumulado: lançamento já fechou há semanas, sem contato
+    # novo com esse lead — o que importa pro debriefing é o alcance máximo
+    # que a campanha teve (e o pior dia de saída), não quanto resta hoje.
+    # Pedido explícito do usuário em 14/09.
     picos = pico_por_bloco(code)
-    pico_normal = picos.get("normal", 0)
-    pico_vip = picos.get("vip", 0)
-    if not pico_normal and not pico_vip:
+    _vazio = {"valor": 0, "data": None}
+    pico_grupo_normal = (picos.get("normal") or {}).get("leads_no_dia") or _vazio
+    pico_grupo_vip = (picos.get("vip") or {}).get("leads_no_dia") or _vazio
+    pico_saida_normal = (picos.get("normal") or {}).get("saidas") or _vazio
+    pico_saida_vip = (picos.get("vip") or {}).get("saidas") or _vazio
+    if not pico_grupo_normal["valor"] and not pico_grupo_vip["valor"]:
         return None
 
     engine = _get_engine()
@@ -474,8 +472,14 @@ def read_leads_x_whatsapp(launch_folder_or_code: Any) -> dict | None:
     def _taxa(n: int) -> float:
         return (n / total_leads * 100) if total_leads > 0 else 0.0
 
-    saida_normal = int(wa_normal.get("saida_total") or 0)
-    saida_vip = int(wa_vip.get("saida_total") or 0)
+    def _bloco(pico_grupo: dict, pico_saida: dict) -> dict:
+        return {
+            "total_whatsapp": pico_grupo["valor"],
+            "total_whatsapp_data": pico_grupo["data"],
+            "taxa_entrada": _taxa(pico_grupo["valor"]),
+            "saida_total": pico_saida["valor"],
+            "saida_total_data": pico_saida["data"],
+        }
 
     # Normal e VIP são reportados SEPARADOS de propósito (não somados num
     # "total combinado deduplicado"): saber quantas pessoas estão nos dois
@@ -484,29 +488,21 @@ def read_leads_x_whatsapp(launch_folder_or_code: Any) -> dict | None:
     # aqui com o que sobra nas tabelas brutas do Supabase (tentativas
     # anteriores deram número maior que os dois totais confiáveis somados,
     # ou menor que um dos dois sozinho — sempre errado). Ver histórico do
-    # card "Leads X Grupos de WhatsApp" em documentacao/historico/.
+    # card "Leads X Grupos de WhatsApp" em docs/sistema/ARQUITETURA.md.
     return {
         "total_leads": total_leads,
-        "normal": {
-            "total_whatsapp": pico_normal,
-            "taxa_entrada": _taxa(pico_normal),
-            "saida_total": saida_normal,
-        },
-        "vip": {
-            "total_whatsapp": pico_vip,
-            "taxa_entrada": _taxa(pico_vip),
-            "saida_total": saida_vip,
-        },
+        "normal": _bloco(pico_grupo_normal, pico_saida_normal),
+        "vip": _bloco(pico_grupo_vip, pico_saida_vip),
         # Mantidos só pra compatibilidade com quem já lia o formato antigo
         # (frontend/templates/dashboard.html) — soma simples dos picos, sem
         # descontar sobreposição (não temos como calculá-la de forma
         # confiável; ver acima). É uma aproximação PRA CIMA: quem passou
         # pelos dois grupos ao mesmo tempo conta 2x aqui.
-        "total_whatsapp": pico_normal + pico_vip,
-        "taxa_entrada": _taxa(pico_normal + pico_vip),
-        "saida_total": saida_normal + saida_vip,
-        "saida_normal": saida_normal,
-        "saida_vip": saida_vip,
+        "total_whatsapp": pico_grupo_normal["valor"] + pico_grupo_vip["valor"],
+        "taxa_entrada": _taxa(pico_grupo_normal["valor"] + pico_grupo_vip["valor"]),
+        "saida_total": pico_saida_normal["valor"] + pico_saida_vip["valor"],
+        "saida_normal": pico_saida_normal["valor"],
+        "saida_vip": pico_saida_vip["valor"],
     }
 
 

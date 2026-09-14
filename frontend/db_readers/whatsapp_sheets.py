@@ -66,23 +66,40 @@ def _diario_por_bloco(code: str) -> dict[str, list[dict]]:
     return out
 
 
-def pico_por_bloco(code: str) -> dict[str, int]:
-    """{"normal": pico, "vip": pico} — maior "leads no dia" já registrado
-    por bloco (pico de pessoas ativas no grupo durante a campanha, não o
-    total atual — que já caiu por causa das saídas depois do carrinho
-    fechar e não reflete mais o alcance real do lançamento)."""
+def pico_por_bloco(code: str) -> dict[str, dict]:
+    """Pico histórico por bloco (normal/vip), com a data em que ocorreu:
+        {"normal": {"leads_no_dia": {"valor":.., "data":"YYYY-MM-DD"},
+                     "saidas":      {"valor":.., "data":"YYYY-MM-DD"}},
+         "vip": {...}}
+
+    "leads_no_dia" = pico de pessoas ativas no grupo num dia (não o total
+    atual, que só cai depois que o carrinho fecha e não reflete mais o
+    alcance real do lançamento). "saidas" = pico de saída NUM ÚNICO DIA
+    (não confundir com o total acumulado de saídas do lançamento inteiro)."""
     engine = _get_engine()
     with engine.connect() as conn:
         rows = conn.execute(
             text("""
-                SELECT bloco, MAX(leads_no_dia)
+                SELECT bloco, date::text, entradas, saidas, leads_no_dia
                 FROM whatsapp_sheets_diario
                 WHERE launch_code = :code
-                GROUP BY bloco
+                ORDER BY bloco, date
             """),
             {"code": code},
         ).fetchall()
-    return {bloco: int(pico or 0) for bloco, pico in rows}
+
+    out: dict[str, dict] = {}
+    for bloco, data, _entradas, saidas, leads_no_dia in rows:
+        bucket = out.setdefault(bloco, {"leads_no_dia": None, "saidas": None})
+        if leads_no_dia is not None:
+            atual = bucket["leads_no_dia"]
+            if atual is None or leads_no_dia > atual["valor"]:
+                bucket["leads_no_dia"] = {"valor": int(leads_no_dia), "data": data}
+        if saidas is not None:
+            atual = bucket["saidas"]
+            if atual is None or saidas > atual["valor"]:
+                bucket["saidas"] = {"valor": int(saidas), "data": data}
+    return out
 
 
 def contar_lancamento(launch_folder_or_code: Any) -> dict[str, dict]:

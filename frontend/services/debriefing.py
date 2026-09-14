@@ -661,13 +661,8 @@ def _compute_debriefing_ctx(
             out.append({**r, "iso": iso})
         return out
 
-    def _detalhamento_dia_captacao(rows, hotmart_obj):
-        vendas_by_date: dict = {}
-        for t in (getattr(hotmart_obj, "timeline", []) or []):
-            d = t.get("data", "")
-            vendas_by_date.setdefault(d, {"vendas": 0, "faturamento": 0.0})
-            vendas_by_date[d]["vendas"] += _i(t.get("vendas"))
-            vendas_by_date[d]["faturamento"] += float(t.get("faturamento") or 0)
+    def _detalhamento_dia_captacao(rows, vendas_por_dia: dict):
+        vendas_by_date = (vendas_por_dia or {}).get("por_dia") or {}
         out = []
         for r in rows:
             v = vendas_by_date.get(r.get("iso"), {"vendas": 0, "faturamento": 0.0})
@@ -683,11 +678,17 @@ def _compute_debriefing_ctx(
     detalhamento_captacao: list = []
     prev_detalhamento_captacao: list = []
     if launch:
+        from frontend.db_readers.leads import read_vendas_por_dia_cadastro  # noqa: PLC0415
+        # Vendas por dia de CADASTRO do lead (não data da compra) — quem vira
+        # lead num dia de Captação só compra semanas depois, no carrinho
+        # aberto, então cruzar por data de venda dava quase sempre zero.
+        vendas_por_dia_cadastro = read_vendas_por_dia_cadastro(launch.code, vendas)
         rows_com_iso = _com_iso(daily or [], cfg.get("captacao_start_date") or "")
-        detalhamento_captacao = _detalhamento_dia_captacao(rows_com_iso, hotmart)
+        detalhamento_captacao = _detalhamento_dia_captacao(rows_com_iso, vendas_por_dia_cadastro)
         if previous and prev_daily_captacao:
+            prev_vendas_por_dia_cadastro = read_vendas_por_dia_cadastro(previous.code, prev_vendas)
             prev_rows_com_iso = _com_iso(prev_daily_captacao, prev_cfg.get("captacao_start_date") or "")
-            prev_detalhamento_captacao = _detalhamento_dia_captacao(prev_rows_com_iso, prev_hotmart)
+            prev_detalhamento_captacao = _detalhamento_dia_captacao(prev_rows_com_iso, prev_vendas_por_dia_cadastro)
     # Semanas de 7 dias, cada linha com o dia correspondente (mesma posição)
     # do lançamento anterior anexado em "prev".
     detalhamento_semanas: list = []

@@ -46,6 +46,60 @@ def read_ac_leads_for_attribution(launch_code: str, start_date=None, end_date=No
     return df
 
 
+def read_vendas_por_dia_cadastro(launch_folder_or_code: Any, vendas: VendasSummary | None = None) -> dict | None:
+    """Vendas (Hotmart+TMB) agrupadas pela data em que o comprador virou LEAD
+    na tabela `leads` (Active Campaign) — não pela data da compra em si.
+
+    Serve pra medir o potencial de vendas gerado em cada dia de Captação: quem
+    vira lead num dia da Captação normalmente só compra dias/semanas depois,
+    durante o carrinho aberto — cruzar vendas por DATA DE VENDA com dias de
+    Captação dá quase sempre zero (pauta debriefing 14/09/26, PI-AGO-26)."""
+    from frontend.db_readers.sales import read_vendas  # noqa: PLC0415 — evita import circular
+
+    code = _extract_launch_code(launch_folder_or_code)
+    if vendas is None:
+        vendas = read_vendas(code)
+    if not vendas:
+        return None
+    buyers = (vendas.emails_hotmart or set()) | (vendas.emails_tmb or set())
+    if not buyers:
+        return None
+
+    engine = _get_engine()
+    df = pd.read_sql(
+        text("""
+            SELECT LOWER(TRIM(email)) AS email, created_at
+            FROM leads
+            WHERE lancamento_codigo = :code AND LOWER(TRIM(email)) = ANY(:emails)
+        """),
+        engine, params={"code": code, "emails": [e.lower() for e in buyers]},
+    )
+    # Alguém pode ter mais de uma linha em `leads` (recadastro/re-captura) —
+    # fica a data do PRIMEIRO cadastro, é quando o potencial de venda nasceu.
+    cadastro_por_email: dict[str, str] = {}
+    for _, r in df.iterrows():
+        if pd.isna(r["created_at"]):
+            continue
+        d = str(r["created_at"])[:10]
+        email = r["email"]
+        if email not in cadastro_por_email or d < cadastro_por_email[email]:
+            cadastro_por_email[email] = d
+
+    receita_por_email = vendas.receita_por_email or {}
+    vendas_por_email = vendas.vendas_por_email or {}
+    por_dia: dict[str, dict] = {}
+    sem_data = 0
+    for email in buyers:
+        d = cadastro_por_email.get(email)
+        if not d:
+            sem_data += 1
+            continue
+        entry = por_dia.setdefault(d, {"vendas": 0, "faturamento": 0.0})
+        entry["vendas"] += int(vendas_por_email.get(email, 1) or 1)
+        entry["faturamento"] += float(receita_por_email.get(email, 0.0))
+    return {"por_dia": por_dia, "sem_data": sem_data, "total": len(buyers)}
+
+
 def read_utm_cobertura(launch_folder_or_code: Any) -> dict | None:
     """% de leads (tabela `leads`, Active Campaign) com utm_content preenchido
     — é a UTM que carrega o código do anúncio (ADxxx), chave de atribuição do

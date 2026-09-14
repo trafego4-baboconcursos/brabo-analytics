@@ -19,7 +19,7 @@ from sqlalchemy import text
 from logger import get_logger
 from frontend.utils import _extract_launch_code
 from frontend.db import _get_engine
-from frontend.db_readers.whatsapp_groups import _escolhe_tabela, _norm_phone
+from frontend.db_readers.whatsapp_groups import _escolhe_tabela, _norm_phone, _telefones_tabela_presentes
 
 logger = get_logger("db")
 
@@ -75,17 +75,21 @@ def read_caminho_comprador(launch_folder_or_code: Any, vendas: Any = None) -> di
     candidatos_normal = [f"{base}_API", base]
     candidatos_vip = [f"{base}_VIP_API", f"{base}_VIPS", f"{base}_VIP",
                        base.rsplit("_", 1)[0] + "_VIP"]
+    # Só os telefones dos compradores interessam — filtra dentro do banco em
+    # vez de trazer a tabela de grupos inteira (podia chegar a 400+ mil
+    # linhas por lançamento; achado em 14/09/26 como maior causa de egress
+    # do projeto no Supabase).
+    _phone_por_email = vendas.phone_por_email or {}
+    alvo_fones = {p for p in (_norm_phone(_phone_por_email.get(e)) for e in buyers) if p}
     fones_normal: set[str] = set()
     fones_vip: set[str] = set()
     with engine.connect() as conn:
         t_normal = _escolhe_tabela(conn, candidatos_normal)
         t_vip = _escolhe_tabela(conn, candidatos_vip)
         if t_normal:
-            rows = conn.execute(text(f'SELECT DISTINCT "NÚMERO" FROM "{t_normal}"')).fetchall()
-            fones_normal = {p for p in (_norm_phone(r[0]) for r in rows) if p}
+            fones_normal = _telefones_tabela_presentes(conn, t_normal, alvo_fones)
         if t_vip:
-            rows = conn.execute(text(f'SELECT DISTINCT "NÚMERO" FROM "{t_vip}"')).fetchall()
-            fones_vip = {p for p in (_norm_phone(r[0]) for r in rows) if p}
+            fones_vip = _telefones_tabela_presentes(conn, t_vip, alvo_fones)
 
         # 3. Pesquisa — quem respondeu, por e-mail
         proj_id, _ = _resolve_typeform_ids(code)

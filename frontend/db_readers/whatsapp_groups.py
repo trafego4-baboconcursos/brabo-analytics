@@ -28,6 +28,47 @@ from frontend.db import _get_engine
 
 logger = get_logger("db")
 
+_NORM_PHONE_FN_READY = False
+
+
+def _ensure_norm_phone_fn() -> None:
+    """Cria (se ainda não existir) a função SQL norm_phone_brasil, espelho de
+    _norm_phone() abaixo — permite filtrar telefone direto no banco em vez de
+    trazer a coluna inteira (até 400+ mil linhas) pro Python só pra cruzar
+    com uma lista pequena de compradores. Achado em 14/09/26: essa consulta
+    sozinha respondia por ~13% de todo o egress do banco (655M linhas em 10
+    dias, custando dezenas de dólares extras de tráfego no Supabase).
+
+    Usa engine.begin() (transação própria, sempre commitada) em vez do `conn`
+    de quem chama — criar a função dentro da transação de leitura do chamador
+    a deixava visível só ali; ao fechar aquela conexão sem commit explícito,
+    o CREATE FUNCTION era desfeito e a próxima conexão não a encontrava mais."""
+    global _NORM_PHONE_FN_READY
+    if _NORM_PHONE_FN_READY:
+        return
+    with _get_engine().begin() as conn:
+        conn.execute(text("""
+        CREATE OR REPLACE FUNCTION norm_phone_brasil(v text)
+        RETURNS text
+        LANGUAGE plpgsql
+        IMMUTABLE
+        AS $$
+        DECLARE
+            s text;
+        BEGIN
+            s := regexp_replace(coalesce(v, ''), '\\D', '', 'g');
+            IF left(s, 2) = '55' AND length(s) > 11 THEN
+                s := substring(s from 3);
+            END IF;
+            IF length(s) < 10 OR length(s) > 11 THEN
+                RETURN NULL;
+            END IF;
+            RETURN left(s, 2) || right(s, 8);
+        END;
+        $$;
+    """))
+    _NORM_PHONE_FN_READY = True
+
 
 def _tabela_existe(conn, nome: str) -> bool:
     r = conn.execute(
@@ -70,14 +111,23 @@ def _norm_phone(v: Any) -> str | None:
     return s[:2] + s[-8:]
 
 
-def _telefones_tabela(conn, tabela: str) -> set[str]:
-    rows = conn.execute(text(f'SELECT DISTINCT "NÚMERO" FROM "{tabela}"')).fetchall()
-    out: set[str] = set()
-    for r in rows:
-        p = _norm_phone(r[0])
-        if p:
-            out.add(p)
-    return out
+def _telefones_tabela_presentes(conn, tabela: str, alvos: set[str]) -> set[str]:
+    """Subconjunto de `alvos` (telefones já normalizados) presente na tabela —
+    filtra DENTRO do banco (norm_phone_brasil) em vez de trazer a coluna
+    inteira (até 400+ mil linhas) pro Python pra depois cruzar com uma lista
+    pequena de compradores."""
+    if not alvos:
+        return set()
+    _ensure_norm_phone_fn()
+    rows = conn.execute(
+        text(f'''
+            SELECT DISTINCT norm_phone_brasil("NÚMERO"::text) AS fone
+            FROM "{tabela}"
+            WHERE norm_phone_brasil("NÚMERO"::text) = ANY(:alvos)
+        '''),
+        {"alvos": list(alvos)},
+    ).fetchall()
+    return {r[0] for r in rows if r[0]}
 
 
 def _compradores_grupos(conn, t_normal: str | None, t_vip: str | None, code: str) -> dict | None:
@@ -94,8 +144,11 @@ def _compradores_grupos(conn, t_normal: str | None, t_vip: str | None, code: str
     phone_por_email = vendas.phone_por_email or {}
     receita_por_email = vendas.receita_por_email or {}
 
-    fones_normal = _telefones_tabela(conn, t_normal) if t_normal else set()
-    fones_vip = _telefones_tabela(conn, t_vip) if t_vip else set()
+    # Só os telefones dos compradores interessam pra essa checagem — passa
+    # isso pro banco em vez de trazer a tabela de grupos inteira.
+    alvo_fones = {p for p in (_norm_phone(phone_por_email.get(e)) for e in buyers) if p}
+    fones_normal = _telefones_tabela_presentes(conn, t_normal, alvo_fones) if t_normal else set()
+    fones_vip = _telefones_tabela_presentes(conn, t_vip, alvo_fones) if t_vip else set()
     fones_grupos = fones_normal | fones_vip
 
     dentro = dentro_vip = dentro_normal = fora = sem_tel = 0
@@ -461,17 +514,24 @@ def read_vendas_grupos_whatsapp(launch_folder_or_code: Any) -> dict | None:
     return wa.get("compradores")
 
 
-def _fones_com_data(conn, tabela: str | None) -> dict[str, str]:
-    """{telefone normalizado: data (YYYY-MM-DD) da primeira entrada}."""
-    if not tabela:
+def _fones_com_data(conn, tabela: str | None, alvos: set[str]) -> dict[str, str]:
+    """{telefone normalizado: data (YYYY-MM-DD) da primeira entrada} — só
+    pros telefones em `alvos` (compradores), filtrado dentro do banco em vez
+    de trazer a tabela inteira (mesmo motivo de _telefones_tabela_presentes)."""
+    if not tabela or not alvos:
         return {}
-    rows = conn.execute(text(f'''
-        SELECT "NÚMERO"::text AS fone, MIN({_DATA_EXPR}) AS dia
-        FROM "{tabela}" GROUP BY 1
-    ''')).fetchall()
+    _ensure_norm_phone_fn()
+    rows = conn.execute(
+        text(f'''
+            SELECT norm_phone_brasil("NÚMERO"::text) AS fone, MIN({_DATA_EXPR}) AS dia
+            FROM "{tabela}"
+            WHERE norm_phone_brasil("NÚMERO"::text) = ANY(:alvos)
+            GROUP BY 1
+        '''),
+        {"alvos": list(alvos)},
+    ).fetchall()
     out: dict[str, str] = {}
-    for fone_raw, dia in rows:
-        p = _norm_phone(fone_raw)
+    for p, dia in rows:
         if not p or dia is None:
             continue
         d = dia.isoformat() if hasattr(dia, "isoformat") else str(dia)
@@ -509,14 +569,16 @@ def read_compradores_por_dia_grupo(launch_folder_or_code: Any) -> dict | None:
     candidatos_vip = [f"{base}_VIP_API", f"{base}_VIPS", f"{base}_VIP",
                       base.rsplit("_", 1)[0] + "_VIP"]
 
+    alvo_fones = {p for p in (_norm_phone(phone_por_email.get(e)) for e in buyers) if p}
+
     engine = _get_engine()
     with engine.connect() as conn:
         t_normal = _escolhe_tabela(conn, candidatos_normal)
         t_vip = _escolhe_tabela(conn, candidatos_vip)
         if not t_normal and not t_vip:
             return None
-        datas_normal = _fones_com_data(conn, t_normal)
-        datas_vip = _fones_com_data(conn, t_vip)
+        datas_normal = _fones_com_data(conn, t_normal, alvo_fones)
+        datas_vip = _fones_com_data(conn, t_vip, alvo_fones)
 
     datas_por_fone: dict[str, str] = dict(datas_normal)
     for p, d in datas_vip.items():

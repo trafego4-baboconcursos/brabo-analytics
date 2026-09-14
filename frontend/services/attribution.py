@@ -312,6 +312,18 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
             _inc_sales(result["meta_por_bucket"], cls["bucket"], receita_email, vendas_email)
             _inc_sales(result["meta_por_temperatura"], cls["temperatura"], receita_email, vendas_email)
             m_etapa, m_temp, m_bucket, m_segmento = _categorize_meta_campaign(campaign)
+            # _categorize_meta_campaign só lê colchetes no NOME da campanha
+            # ([MA][captação]...). Lançamentos com convenção de UTM antiga
+            # (ex.: PI-ABR-26) guardam essa info no utm_source, não no
+            # utm_campaign ("fb-captacao-quente-principal-v9" vs campaign
+            # = só o código do lançamento) — cai tudo em "Outros". cls já
+            # classificou certo pegando source+medium+campaign juntos (achado
+            # 14/09/26); usa como fallback só quando a leitura estrita falhar,
+            # sem mudar nada pra lançamentos que já classificam certo.
+            if m_etapa == "Outros" and cls["etapa"] != "Outros":
+                m_etapa = cls["etapa"]
+            if m_temp == "Outros" and cls["temperatura"] != "Outros":
+                m_temp = cls["temperatura"]
             _inc_sales(result["meta_etapa_sales"], m_etapa, receita_email, vendas_email)
             _inc_sales(result["meta_temperatura_sales"], m_temp, receita_email, vendas_email)
             _inc_sales(result["meta_bucket_sales"], m_bucket, receita_email, vendas_email)
@@ -327,6 +339,11 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
             if google_campaign_key:
                 _inc_sales(result["google_por_campanha"], google_campaign_key, receita_email, vendas_email)
             g_etapa, g_temp, g_segmento = _categorize_google_campaign(campaign)
+            # Mesmo fallback do bloco Meta acima, mesmo motivo.
+            if g_etapa == "Outros" and cls["etapa"] != "Outros":
+                g_etapa = cls["etapa"]
+            if g_temp == "Outros" and cls["temperatura"] != "Outros":
+                g_temp = cls["temperatura"]
             _inc_sales(result["google_etapa_sales"], g_etapa, receita_email, vendas_email)
             _inc_sales(result["google_temperatura_sales"], g_temp, receita_email, vendas_email)
             _inc_sales(result["google_segmento_sales"], g_segmento, receita_email, vendas_email)

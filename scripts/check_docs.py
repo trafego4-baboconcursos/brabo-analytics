@@ -25,7 +25,7 @@ RE_LINK = re.compile(r"\[\[([^\]\|]+)(?:\|[^\]]*)?\]\]")
 def ler_docs():
     docs = {}
     for raiz, dirs, arqs in os.walk(RAIZ):
-        dirs[:] = [d for d in dirs if d != ".obsidian"]
+        dirs[:] = [d for d in dirs if d not in (".obsidian", "_templates", "_anexos")]
         for a in sorted(arqs):
             if not a.endswith(".md"):
                 continue

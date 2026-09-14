@@ -192,6 +192,9 @@ Do this **in the same turn** as the change, not "later". Each row is a trigger:
 |---|---|
 | ad-ops action or analysis for a launch (via API **or** done by hand in the platform) | `performance/lancamentos/[LAUNCH]/MUDANCAS_[LAUNCH].md` — new dated item |
 | a method that will repeat on other launches | `performance/playbooks/` (new doc or update existing) |
+| a decision covered by a rule | cite the rule ID (`ORC-2`, `META-3`…) from `REGRAS_DECISAO.md` in the item |
+| a rule proved wrong, or a new rule emerged | fix/add it in `performance/playbooks/REGRAS_DECISAO.md` with the incident that taught it |
+| a launch closed (carrinho fechou) | run `performance/playbooks/FECHAMENTO_LANCAMENTO.md` — measure actions with `scripts/efeito_acao.py`, then write the `## Fechamento — aprendizado` section |
 | system behaviour changed (code, data flow, a fixed bug) | `sistema/ARQUITETURA.md` + bump the date in `negocio/BRABO_ANALYTICS_APRESENTACAO_EXEC.md` |
 | how a metric is extracted/attributed changed | `sistema/METODOLOGIA_EXTRACAO_DADOS.md` |
 | something agreed but not built yet | new doc in `projetos/` + a row in `INDICE_PROJETOS.md` |

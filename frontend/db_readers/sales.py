@@ -1042,16 +1042,26 @@ def read_vendas_consolidado(launch_folder_or_code: Any, start_date=None, end_dat
         })
 
     engine = _get_engine()
+    buyers = v_sum.emails_hotmart | v_sum.emails_tmb
+    # Total de leads sai por COUNT no servidor; as linhas em si só interessam
+    # pros compradores (o resto é descartado logo abaixo). Antes isso baixava a
+    # lista inteira do lançamento — 269 mil linhas no PI-AGO-26 — a cada
+    # chamada (ver ARQUITETURA.md, 14/09/26 — egress).
+    with engine.connect() as conn:
+        total_leads_crm = conn.execute(
+            text("SELECT COUNT(*) FROM leads WHERE lancamento_codigo = :code"),
+            {"code": code},
+        ).scalar() or 0
     leads_df = pd.read_sql(
-        text("SELECT email, utm_source, utm_medium FROM leads WHERE lancamento_codigo = :code"),
+        text("SELECT email, utm_source, utm_medium FROM leads "
+             "WHERE lancamento_codigo = :code AND LOWER(TRIM(email)) = ANY(:buyers)"),
         engine,
-        params={"code": code}
-    )
+        params={"code": code, "buyers": list(buyers)}
+    ) if buyers else pd.DataFrame(columns=["email", "utm_source", "utm_medium"])
 
-    if not leads_df.empty:
-        summary.leads_crm = len(leads_df)
-        buyers = v_sum.emails_hotmart | v_sum.emails_tmb
-        leads_emails = set(leads_df["email"].str.strip().str.lower())
+    if total_leads_crm:
+        summary.leads_crm = total_leads_crm
+        leads_emails = set(leads_df["email"].str.strip().str.lower()) if not leads_df.empty else set()
         crm_buyers = leads_emails & buyers
 
         summary.compradores_crm = len(crm_buyers)

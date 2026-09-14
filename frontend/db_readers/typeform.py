@@ -511,29 +511,42 @@ def read_typeform(launch_folder_or_code: Any, start_date=None, end_date=None) ->
     summary.vendas_tmb_total = v_sum.tmb_vendas if v_sum else 0
     summary.receita_total = v_sum.total_receita if v_sum else 0.0
 
-    # CRM leads
-    leads_df = pd.read_sql(
-        text("SELECT email, utm_source, utm_content FROM leads WHERE lancamento_codigo = :code"),
-        engine,
-        params={"code": code}
-    )
-    crm_emails = set(leads_df["email"].str.strip().str.lower()) if not leads_df.empty else set()
-    summary.leads_crm_total = len(leads_df)
-
-    # Cruzamento
+    # CRM leads — os cruzamentos vão pro servidor em vez de baixar a lista de
+    # e-mails inteira do lançamento (269 mil linhas no PI-AGO-26) pra cruzar em
+    # memória (ver ARQUITETURA.md, 14/09/26 — egress). Mandar a lista de
+    # e-mails como parâmetro é upload, não conta como egress; o que volta é só
+    # uma contagem ou o subconjunto que casou.
     tf_emails = set(tf_df["email_norm"])
-    tf_e_crm = tf_emails & crm_emails
+    with engine.connect() as conn:
+        summary.leads_crm_total = conn.execute(
+            text("SELECT COUNT(*) FROM leads WHERE lancamento_codigo = :code"),
+            {"code": code},
+        ).scalar() or 0
+        tf_e_crm_n = conn.execute(
+            text("SELECT COUNT(DISTINCT LOWER(TRIM(email))) FROM leads "
+                 "WHERE lancamento_codigo = :code AND LOWER(TRIM(email)) = ANY(:emails)"),
+            {"code": code, "emails": list(tf_emails)},
+        ).scalar() or 0
+        # compradores que também são lead: subconjunto de `buyers` (~2,5 mil),
+        # serve tanto pro tf_compras_crm quanto pro tx_venda_lead_pct
+        crm_e_buyers = {
+            r[0] for r in conn.execute(
+                text("SELECT DISTINCT LOWER(TRIM(email)) FROM leads "
+                     "WHERE lancamento_codigo = :code AND LOWER(TRIM(email)) = ANY(:emails)"),
+                {"code": code, "emails": list(buyers)},
+            )
+        } if buyers else set()
+
     tf_e_vendas = tf_emails & buyers
 
-    summary.tf_leads_crm = len(tf_e_crm)
+    summary.tf_leads_crm = tf_e_crm_n
     summary.tf_compras = len(tf_e_vendas)
-    summary.tf_compras_crm = len(tf_e_crm & buyers)
+    summary.tf_compras_crm = len(crm_e_buyers & tf_emails)
 
     summary.tx_lead_pct = summary.tf_leads_crm / summary.total_tf * 100 if summary.total_tf > 0 else 0.0
     summary.tx_venda_tf_pct = summary.tf_compras / summary.total_tf * 100 if summary.total_tf > 0 else 0.0
     if summary.leads_crm_total > 0:
-        total_compradores_crm = len(crm_emails & buyers)
-        summary.tx_venda_lead_pct = total_compradores_crm / summary.leads_crm_total * 100
+        summary.tx_venda_lead_pct = len(crm_e_buyers) / summary.leads_crm_total * 100
 
     summary.receita_tf = sum(v_sum.receita_por_email.get(em, 0.0) for em in tf_e_vendas) if v_sum else 0.0
     summary.receita_tf_pct = summary.receita_tf / summary.receita_total * 100 if summary.receita_total > 0 else 0.0
@@ -689,10 +702,16 @@ def read_typeform(launch_folder_or_code: Any, start_date=None, end_date=None) ->
             for est, qtd in vc_comp.head(10).items() if str(est).strip() != ""
         ]
 
-    # UTMs de leads AC dos respondentes compradores (Anúncios / utm_content)
-    if not leads_df.empty:
-        leads_df["email_norm"] = leads_df["email"].str.strip().str.lower()
-        crm_comp_tf = leads_df[leads_df["email_norm"].isin(tf_e_vendas)]
+    # UTMs de leads AC dos respondentes compradores (Anúncios / utm_content).
+    # Busca só esse subconjunto (respondentes que compraram — algumas centenas)
+    # em vez da lista de leads inteira do lançamento.
+    if tf_e_vendas:
+        crm_comp_tf = pd.read_sql(
+            text("SELECT LOWER(TRIM(email)) AS email_norm, utm_source, utm_content "
+                 "FROM leads WHERE lancamento_codigo = :code AND LOWER(TRIM(email)) = ANY(:emails)"),
+            engine,
+            params={"code": code, "emails": list(tf_e_vendas)},
+        )
         if not crm_comp_tf.empty:
             ad_group = crm_comp_tf.groupby("utm_content", dropna=False).agg(
                 qtd=("email_norm", "count"),
@@ -767,22 +786,49 @@ def read_perfil_por_anuncio(launch_folder_or_code: Any, top_n: int = 5) -> dict 
 
     # O código ADxxx do anúncio vem no utm_term (utm_content traz o adset);
     # utm_content fica de fallback pra lançamentos antigos.
+    # A extração do ADxxx e a contagem por anúncio vão pro SQL: antes isso
+    # baixava a lista de leads inteira do lançamento (269 mil linhas no
+    # PI-AGO-26) a cada chamada, sendo que só interessam (a) os leads que
+    # responderam a pesquisa e (b) o total por anúncio, que é agregado
+    # (ver ARQUITETURA.md, 14/09/26 — egress).
+    _AD_CODE_SQL = """
+        COALESCE(
+            substring(UPPER(COALESCE(utm_term, '')) FROM '^(AD[0-9]+)'),
+            substring(UPPER(COALESCE(utm_content, '')) FROM '^(AD[0-9]+)')
+        )
+    """
+    tf_email_list = [e for e in tf_df["email_norm"].tolist() if e]
     leads_df = pd.read_sql(
-        text("SELECT LOWER(TRIM(email)) AS email_norm, utm_term, utm_content FROM leads WHERE lancamento_codigo = :code"),
-        engine, params={"code": code},
+        text(f"""
+            SELECT LOWER(TRIM(email)) AS email_norm, {_AD_CODE_SQL} AS ad_code
+            FROM leads
+            WHERE lancamento_codigo = :code
+              AND {_AD_CODE_SQL} IS NOT NULL
+              AND LOWER(TRIM(email)) = ANY(:emails)
+        """),
+        engine, params={"code": code, "emails": tf_email_list},
     )
     if leads_df.empty:
         return None
-    ad_term = leads_df["utm_term"].astype(str).str.extract(r"^(AD\d+)", flags=re.IGNORECASE)[0]
-    ad_content = leads_df["utm_content"].astype(str).str.extract(r"^(AD\d+)", flags=re.IGNORECASE)[0]
-    leads_df["ad_code"] = ad_term.fillna(ad_content).str.upper()
-    leads_df = leads_df.dropna(subset=["ad_code"]).drop_duplicates("email_norm")
+    leads_df = leads_df.drop_duplicates("email_norm")
 
     merged = tf_df.merge(leads_df[["email_norm", "ad_code"]], on="email_norm", how="inner")
     if merged.empty:
         return None
 
-    leads_por_ad = leads_df["ad_code"].value_counts()
+    with engine.connect() as conn:
+        leads_por_ad = {
+            r[0]: int(r[1])
+            for r in conn.execute(
+                text(f"""
+                    SELECT {_AD_CODE_SQL} AS ad_code, COUNT(DISTINCT LOWER(TRIM(email)))
+                    FROM leads
+                    WHERE lancamento_codigo = :code AND {_AD_CODE_SQL} IS NOT NULL
+                    GROUP BY 1
+                """),
+                {"code": code},
+            )
+        }
     top_ads = merged["ad_code"].value_counts().head(top_n)
 
     # Resolve as colunas das perguntas-padrão uma vez só
@@ -840,13 +886,18 @@ def read_pesquisa_engajamento(launch_folder_or_code: Any) -> dict | None:
     if not respostas:
         return None
 
+    # Só os dois totais interessam aqui — contar no servidor evita baixar a
+    # lista de e-mails inteira do lançamento (269 mil no PI-AGO-26) a cada
+    # chamada (ver ARQUITETURA.md, 14/09/26 — egress).
     with engine.connect() as conn:
-        lead_emails = conn.execute(text(
-            "SELECT email FROM leads WHERE lancamento_codigo = :code"
-        ), {"code": code}).scalars().all()
-    lead_emails_norm = {str(e).strip().lower() for e in lead_emails if e}
-    base = len(lead_emails_norm)
-    cruzadas = len(all_emails & lead_emails_norm)
+        base = conn.execute(text(
+            "SELECT COUNT(DISTINCT LOWER(TRIM(email))) FROM leads "
+            "WHERE lancamento_codigo = :code AND email IS NOT NULL AND email <> ''"
+        ), {"code": code}).scalar() or 0
+        cruzadas = conn.execute(text(
+            "SELECT COUNT(DISTINCT LOWER(TRIM(email))) FROM leads "
+            "WHERE lancamento_codigo = :code AND LOWER(TRIM(email)) = ANY(:emails)"
+        ), {"code": code, "emails": list(all_emails)}).scalar() or 0
 
     return {
         "respostas": int(respostas),

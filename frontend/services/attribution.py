@@ -182,6 +182,12 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
         "google_segmento_sales": {},
         "google_campanha_sales": {},
         "por_criativo": {},
+        # Vendas por criativo CRUZADAS com etapa — o mesmo ADxxx pode rodar
+        # com gasto irrisório numa etapa e gasto pesado em outra (ex.: AD127
+        # no PI-AGO-26: R$0,52 na Pré-Qualificação, R$28mil na Captação);
+        # "por_criativo" sozinho jogaria TODA a venda na etapa errada se a
+        # tabela olhar só o gasto daquela etapa. Ver debriefing 14/09/26.
+        "por_criativo_por_etapa": {},
         "por_criativo_canal": {},
         "por_criativo_lancamento_atual": set(),
         "por_criativo_utm": {},
@@ -325,6 +331,8 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
         ad_code = _extract_ad_code(f"{source} {medium} {campaign} {content} {term}")
         if ad_code:
             _inc_sales(result["por_criativo"], ad_code, receita_email, vendas_email)
+            result["por_criativo_por_etapa"].setdefault(cls["etapa"], {})
+            _inc_sales(result["por_criativo_por_etapa"][cls["etapa"]], ad_code, receita_email, vendas_email)
             if ad_code not in result["por_criativo_utm"]:
                 detected = re.findall(r"\b(?:PBB|PES|PI)-[A-Z]{3}-\d{2}\b", f"{source} {medium} {campaign} {content} {term}", flags=re.IGNORECASE)
                 result["por_criativo_utm"][ad_code] = {

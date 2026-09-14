@@ -82,8 +82,8 @@ def _build_leads_detail_table(
     sales_attr: Any, prev_sales_attr: Any,
     meta_attr: str = "por_temperatura_captacao",
     google_attr: str = "por_temperatura",
-    meta_sales_key: str = "meta_por_temperatura",
-    google_sales_key: str = "google_por_temperatura",
+    meta_sales_key: str = "meta_temperatura_sales_por_etapa",
+    google_sales_key: str = "google_temperatura_sales_por_etapa",
 ) -> list:
     """Público × Leads/Investimento/CPL/Conversão/Vendas/ROAS. Usado tanto
     pra "Leads por Público — Captação" (padrão) quanto pra "Performance da
@@ -93,7 +93,7 @@ def _build_leads_detail_table(
         d = (attr_sales or {}).get(key) or {}
         return d.get(etapa, {}) if etapa else d
 
-    etapa = "Pré-Qualificação" if "prequali" in meta_attr else None
+    etapa = "Pré-Qualificação" if "prequali" in meta_attr else "Captação"
     specs = [
         ("FB Quente",     meta,   meta_attr,   "Quente",     "leads",      _sales_dict(sales_attr, meta_sales_key, etapa)),
         ("FB Frio",       meta,   meta_attr,   "Frio",       "leads",      _sales_dict(sales_attr, meta_sales_key, etapa)),
@@ -178,12 +178,20 @@ def _build_rmkt_adsets(meta: Any, whatsapp: float = 0.0, cfg: dict | None = None
 def _build_top_ads_captacao(
     meta: Any, google: Any, sales_attr: Any = None, n: int = 5,
     meta_ads_attr: str = "captacao_por_ad", google_ads_attr: str = "anuncios_por_ad",
+    etapa: str = "Captação",
 ) -> dict:
     """Top N anúncios por quantidade de vendas (atribuição UTM por ad_code),
     em 3 recortes: combinado (Meta + Google somados pelo mesmo código ADxxx),
     só Meta, só Google. Padrão é Captação; meta_ads_attr/google_ads_attr=
-    "preq_por_ad" reaproveita pra "Top 5 — Pré-Qualificação (Meta + Google)"."""
-    por_criativo = (sales_attr or {}).get("por_criativo", {}) or {}
+    "preq_por_ad" + etapa="Pré-Qualificação" reaproveita pra "Top 5 —
+    Pré-Qualificação (Meta + Google)".
+
+    Usa por_criativo_por_etapa (não por_criativo) — o mesmo ADxxx pode ter
+    gasto irrisório numa etapa e pesado em outra (ex.: AD127 no PI-AGO-26:
+    R$0,52 na Pré-Qualificação, R$28mil na Captação); sem escopar por etapa,
+    a venda inteira do ad cai em cima do gasto errado e o ROAS explode
+    (achado debriefing 14/09/26)."""
+    por_criativo = (sales_attr or {}).get("por_criativo_por_etapa", {}).get(etapa, {}) or {}
     meta_ads = getattr(meta, meta_ads_attr, None) or []
     google_ads = getattr(google, google_ads_attr, None) or []
 
@@ -286,8 +294,18 @@ def _build_antigo_novo(meta: Any, google: Any, sales_attr: Any = None) -> dict:
     """Investimento/leads/vendas em anúncios antigos (ADxxx já usado em
     lançamento anterior do mesmo produto) × novos, por etapa. Combina Meta +
     Google; vendas/receita cruzadas por ad_code via atribuição UTM (mesma
-    fonte da seção 'Vendas por Público')."""
-    por_criativo = (sales_attr or {}).get("por_criativo", {}) or {}
+    fonte da seção 'Vendas por Público').
+
+    Duas correções (achado debriefing 14/09/26, PI-AGO-26 — chegava a somar
+    mais receita que o faturamento total do lançamento):
+    1. Usa por_criativo_por_etapa (não por_criativo): o mesmo ADxxx pode ter
+       gasto pesado numa etapa e irrisório noutra — sem escopar, a venda
+       inteira cai em cima da etapa errada.
+    2. Soma vendas/receita UMA VEZ por ad_code (não por linha): o mesmo ADxxx
+       aparece em várias linhas quando roda em mais de um conjunto de
+       anúncios ou nas duas plataformas — somar por linha multiplicava a
+       mesma venda."""
+    por_criativo_por_etapa = (sales_attr or {}).get("por_criativo_por_etapa", {}) or {}
     listas = {
         "Pré-Qualificação": [
             *(getattr(meta, "preq_por_ad", None) or []),
@@ -302,10 +320,12 @@ def _build_antigo_novo(meta: Any, google: Any, sales_attr: Any = None) -> dict:
     for etapa, ads in listas.items():
         if not ads:
             continue
+        por_criativo = por_criativo_por_etapa.get(etapa, {}) or {}
         grupos = {
             "antigo": {"gasto": 0.0, "leads": 0, "n": 0, "vendas": 0, "receita": 0.0, "thruview": 0, "views_50": 0, "base_50": 0},
             "novo": {"gasto": 0.0, "leads": 0, "n": 0, "vendas": 0, "receita": 0.0, "thruview": 0, "views_50": 0, "base_50": 0},
         }
+        codes_somados = {"antigo": set(), "novo": set()}
         for a in ads:
             key = "antigo" if a.get("antigo") else "novo"
             grupos[key]["gasto"] += float(a.get("gasto") or 0)
@@ -323,9 +343,12 @@ def _build_antigo_novo(meta: Any, google: Any, sales_attr: Any = None) -> dict:
             # impressões, não video_views (TrueView, universo menor e de
             # conceito diferente, que fazia passar de 100%).
             grupos[key]["base_50"] += int(a.get("thruplays") or 0) if eh_meta else int(a.get("impressoes") or 0)
-            venda = por_criativo.get(str(a.get("ad_code") or "").upper(), {})
-            grupos[key]["vendas"] += int(venda.get("vendas") or 0)
-            grupos[key]["receita"] += float(venda.get("faturamento") or 0)
+            code = str(a.get("ad_code") or "").upper()
+            if code and code not in codes_somados[key]:
+                codes_somados[key].add(code)
+                venda = por_criativo.get(code, {})
+                grupos[key]["vendas"] += int(venda.get("vendas") or 0)
+                grupos[key]["receita"] += float(venda.get("faturamento") or 0)
         total_gasto = grupos["antigo"]["gasto"] + grupos["novo"]["gasto"] or 1
         for g in grupos.values():
             g["cpl"] = g["gasto"] / g["leads"] if g["leads"] > 0 else 0.0
@@ -910,6 +933,7 @@ def _compute_debriefing_ctx(
         "top_ads_captacao": _build_top_ads_captacao(meta, google, sales_attr),
         "top_ads_prequali": _build_top_ads_captacao(
             meta, google, sales_attr, meta_ads_attr="preq_por_ad", google_ads_attr="preq_por_ad",
+            etapa="Pré-Qualificação",
         ),
         "leads_detail_table": leads_detail_table,
         "leads_detail_table_prequali": leads_detail_table_prequali,

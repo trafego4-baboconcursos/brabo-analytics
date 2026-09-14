@@ -453,7 +453,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
 {# sem_dados/thumb_th/thumb_td vivem em debriefing/_macros.html porque os
    fragmentos de seção carregados sob demanda (debriefing/_secao_*.html)
    também precisam delas. #}
-{% from "debriefing/_macros.html" import sem_dados, thumb_th, thumb_td with context %}
+{% from "debriefing/_macros.html" import sem_dados, thumb_th, thumb_td, ad_label with context %}
 {% set has_thumbs = drive_thumbnails is defined and drive_thumbnails | length > 0 %}
 {# Domínio das landing pages por produto — o GA4 só guarda o caminho
    (ex: /projeto-bb-fev-26-v5-pq-fb), sem host. #}
@@ -1108,7 +1108,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
           {% for a in ads %}
           <tr>
             {{ thumb_td(a.ad_code, {"gasto": a.gasto | brl, "leads": a.leads | num, "vendas": a.vendas | num, "roas": ('%.2f'|format(a.roas) | replace('.', ',')) + 'x'}) }}
-            <td>{{ a.ad_code }}{% if a.nome and a.nome != a.ad_code %} — {{ a.nome }}{% endif %}</td>
+            <td>{{ ad_label(a.ad_code, a.nome) }}</td>
             <td class="num">{{ a.gasto | brl }}</td>
             <td class="num">{{ a.leads | num }}</td>
             <td class="num"><strong>{{ a.vendas | num }}</strong></td>
@@ -1279,7 +1279,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
           {% for a in dbf.preq_top_ads.meta %}
           <tr>
             {{ thumb_td(a.ad_code, {"gasto": a.gasto | brl, "leads": a.leads | num, "cpl": a.cpl | brl}) }}
-            <td>{{ a.ad_code }}{% if a.nome and a.nome != a.ad_code %} — {{ a.nome }}{% endif %}{% if a.antigo %} <span class="ldt-pct">(antigo)</span>{% endif %}</td>
+            <td>{{ ad_label(a.ad_code, a.nome) }}{% if a.antigo %} <span class="ldt-pct">(antigo)</span>{% endif %}</td>
             <td class="num">{{ a.gasto | brl }}</td>
             <td class="num">{{ a.leads | num }}</td>
             <td class="num">{{ a.cpl | brl if a.leads > 0 else '—' }}</td>
@@ -1318,7 +1318,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
           {% for a in dbf.preq_top_ads.google %}
           <tr>
             {{ thumb_td(a.ad_code, {"gasto": a.gasto | brl, "leads": a.leads | num, "cpl": a.cpl | brl}) }}
-            <td>{{ a.ad_code }}{% if a.nome and a.nome != a.ad_code %} — {{ a.nome }}{% endif %}{% if a.antigo %} <span class="ldt-pct">(antigo)</span>{% endif %}</td>
+            <td>{{ ad_label(a.ad_code, a.nome) }}{% if a.antigo %} <span class="ldt-pct">(antigo)</span>{% endif %}</td>
             <td class="num">{{ a.gasto | brl }}</td>
             <td class="num">{{ a.leads | num }}</td>
             <td class="num">{{ a.cpl | brl if a.leads > 0 else '—' }}</td>
@@ -1355,7 +1355,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
           {% for a in dbf.preq_top_ads.tiktok %}
           <tr>
             {{ thumb_td(a.ad_code, {"gasto": a.gasto | brl, "leads": a.leads | num, "cpl": a.cpl | brl}) }}
-            <td>{{ a.ad_code }}{% if a.nome and a.nome != a.ad_code %} — {{ a.nome }}{% endif %}{% if a.antigo %} <span class="ldt-pct">(antigo)</span>{% endif %}</td>
+            <td>{{ ad_label(a.ad_code, a.nome) }}{% if a.antigo %} <span class="ldt-pct">(antigo)</span>{% endif %}</td>
             <td class="num">{{ a.gasto | brl }}</td>
             <td class="num">{{ a.leads | num }}</td>
             <td class="num">{{ a.cpl | brl if a.leads > 0 else '—' }}</td>
@@ -2154,7 +2154,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
               {% if has_thumbs %}
               <td style="padding:4px 6px">{% if td %}<img src="{{ td.thumb }}" data-preview="{{ td.preview }}" data-title="{{ row.ad_code }}" data-gasto="{{ row.gasto | brl }}" data-leads="{{ row.leads | num }}" data-cpl="{{ row.cpl | brl }}" data-vendas="{{ row.vendas | num }}" data-roas="{{ '%.2f'|format(row.roas) | replace('.', ',') }}x" data-hook="{{ '%.2f'|format(row.hook_rate) | replace('.', ',') if row.hook_rate is defined }}" data-hold="{{ '%.2f'|format(row.hold_rate) | replace('.', ',') if row.hold_rate is defined and row.hold_rate is not none }}" data-body="{{ '%.2f'|format(row.body_rate) | replace('.', ',') if row.body_rate is defined }}" onclick="openVideoModalFromEl(this)" style="width:64px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer;display:block" loading="lazy" onerror="this.style.display='none'">{% endif %}</td>
               {% endif %}
-              <td>{{ row.ad_code }}{% if row.nome and row.nome != row.ad_code %} — {{ row.nome }}{% endif %}</td>
+              <td>{{ ad_label(row.ad_code, row.nome) }}</td>
               <td class="num">{{ row.gasto | brl }}</td>
               <td class="num">{{ row.leads | num }}</td>
               <td class="num">{{ row.cpl | brl }}</td>
@@ -2185,7 +2185,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
                 {% if has_thumbs %}
                 <td style="padding:4px 6px">{% if td %}<img src="{{ td.thumb }}" data-preview="{{ td.preview }}" data-title="{{ row.ad_code }}" data-gasto="{{ row.gasto | brl }}" data-leads="{{ row.leads | num }}" data-cpl="{{ row.cpl | brl }}" data-vendas="{{ row.vendas | num }}" data-roas="{{ '%.2f'|format(row.roas) | replace('.', ',') }}x" data-ctr="{{ '%.2f'|format(row.ctr) | replace('.', ',') if row.ctr is defined }}" data-hook="{{ '%.2f'|format(row.hook_rate) | replace('.', ',') if row.hook_rate is defined }}" data-hold="{{ '%.2f'|format(row.hold_rate) | replace('.', ',') if row.hold_rate is defined and row.hold_rate is not none }}" data-body="{{ '%.2f'|format(row.body_rate) | replace('.', ',') if row.body_rate is defined }}" onclick="openVideoModalFromEl(this)" style="width:64px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer;display:block" loading="lazy" onerror="this.style.display='none'">{% endif %}</td>
                 {% endif %}
-                <td>{{ row.ad_code }}{% if row.nome and row.nome != row.ad_code %} — {{ row.nome }}{% endif %}</td>
+                <td>{{ ad_label(row.ad_code, row.nome) }}</td>
                 <td class="num">{{ row.leads | num }}</td>
                 <td class="num">{{ row.cpl | brl }}</td>
                 <td class="num"><strong>{{ row.vendas }}</strong></td>
@@ -2210,7 +2210,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
                 {% if has_thumbs %}
                 <td style="padding:4px 6px">{% if td %}<img src="{{ td.thumb }}" data-preview="{{ td.preview }}" data-title="{{ row.ad_code }}" data-gasto="{{ row.gasto | brl }}" data-leads="{{ row.leads | num }}" data-cpl="{{ row.cpl | brl }}" data-vendas="{{ row.vendas | num }}" data-roas="{{ '%.2f'|format(row.roas) | replace('.', ',') }}x" data-ctr="{{ '%.2f'|format(row.ctr) | replace('.', ',') if row.ctr is defined }}" data-hook="{{ '%.2f'|format(row.hook_rate) | replace('.', ',') if row.hook_rate is defined }}" data-body="{{ '%.2f'|format(row.body_rate) | replace('.', ',') if row.body_rate is defined }}" onclick="openVideoModalFromEl(this)" style="width:64px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer;display:block" loading="lazy" onerror="this.style.display='none'">{% endif %}</td>
                 {% endif %}
-                <td>{{ row.ad_code }}{% if row.nome and row.nome != row.ad_code %} — {{ row.nome }}{% endif %}</td>
+                <td>{{ ad_label(row.ad_code, row.nome) }}</td>
                 <td class="num">{{ row.leads | num }}</td>
                 <td class="num">{{ row.cpl | brl }}</td>
                 <td class="num"><strong>{{ row.vendas }}</strong></td>

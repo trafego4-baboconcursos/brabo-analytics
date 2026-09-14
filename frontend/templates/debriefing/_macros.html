@@ -13,6 +13,8 @@
 </div>
 {% endmacro %}
 
+{% macro ad_label(ad_code, nome) %}{% if nome and nome != ad_code and not nome.upper().startswith(ad_code.upper()) %}{{ ad_code }} — {{ nome }}{% else %}{{ nome if nome else ad_code }}{% endif %}{% endmacro %}
+
 {% macro thumb_th() %}{% if has_thumbs %}<th style="width:72px"></th>{% endif %}{% endmacro %}
 {% macro thumb_td(ad_code, extra={}) %}
   {% if has_thumbs %}

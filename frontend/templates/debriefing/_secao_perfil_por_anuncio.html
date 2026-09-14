@@ -1,5 +1,5 @@
 {# Corpo da seção "Perfil do Lead por Anúncio — Top 5 × Pesquisa". Vazio quando não há dado. #}
-{% from "debriefing/_macros.html" import thumb_th, thumb_td with context %}
+{% from "debriefing/_macros.html" import thumb_th, thumb_td, ad_label with context %}
 {% if dbf.perfil_por_anuncio and dbf.perfil_por_anuncio.ads %}
 {% set pa = dbf.perfil_por_anuncio %}
 <div class="dbf-lazy-body">
@@ -22,7 +22,7 @@
         <tr>
           {{ thumb_td(a.ad_code, {"gasto": a.gasto | brl, "leads": a.leads | num, "respostas": a.respostas | num, "vendas": a.vendas | num}) }}
           <td>
-            {{ a.ad_code }}{% if a.nome and a.nome != a.ad_code %} — {{ a.nome }}{% endif %}
+            {{ ad_label(a.ad_code, a.nome) }}
             {% if a.antigo %}
               <span class="pa-tag pa-tag-validado" title="Criativo já rodou no lançamento anterior">Validado</span>
             {% else %}

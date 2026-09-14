@@ -314,34 +314,16 @@ def _read_whatsapp_uncached(code: str, start_date=None, end_date=None) -> dict |
             tem_lead_numero=_tem_coluna(conn, t_vip, "LEAD NÚMERO"),
         ) if tem_vip else None
 
+        # "Também no Normal" (card /whatsapp): qualquer presença histórica em
+        # ambas as tabelas, sem filtrar ativo — só informativo, não entra em
+        # nenhuma soma/subtração (por isso não precisa bater com o total_limpo
+        # da planilha, que usa uma dedup diferente que não temos aqui).
         overlap = 0
-        overlap_ativo = 0
-        overlap_saida = 0
         if tem_normal and tem_vip:
             overlap = conn.execute(text(f'''
                 SELECT COUNT(DISTINCT a."NÚMERO")
                 FROM "{t_normal}" a
                 JOIN "{t_vip}" b ON a."NÚMERO"::text = b."NÚMERO"::text
-            ''')).fetchone()[0]
-            # Sobreposição só entre quem está ATIVO nos dois — é o que
-            # importa pra deduplicar "total_limpo(normal) + total_limpo(vip)"
-            # sem inflar quem está nos dois grupos ao mesmo tempo (overlap
-            # acima conta qualquer presença histórica, ativo ou não).
-            overlap_ativo = conn.execute(text(f'''
-                SELECT COUNT(DISTINCT a.fone)
-                FROM (SELECT "NÚMERO"::text AS fone, MAX("LEAD ÚNICO") AS ativo FROM "{t_normal}" GROUP BY 1) a
-                JOIN (SELECT "NÚMERO"::text AS fone, MAX("LEAD ÚNICO") AS ativo FROM "{t_vip}" GROUP BY 1) b
-                  ON a.fone = b.fone
-                WHERE a.ativo = 1 AND b.ativo = 1
-            ''')).fetchone()[0]
-            # Mesma lógica pra quem SAIU dos dois grupos — pra deduplicar
-            # "saida_total(normal) + saida_total(vip)".
-            overlap_saida = conn.execute(text(f'''
-                SELECT COUNT(DISTINCT a.fone)
-                FROM (SELECT "NÚMERO"::text AS fone, MAX("LEAD ÚNICO") AS ativo FROM "{t_normal}" GROUP BY 1) a
-                JOIN (SELECT "NÚMERO"::text AS fone, MAX("LEAD ÚNICO") AS ativo FROM "{t_vip}" GROUP BY 1) b
-                  ON a.fone = b.fone
-                WHERE a.ativo = 0 AND b.ativo = 0
             ''')).fetchone()[0]
 
         try:
@@ -356,8 +338,6 @@ def _read_whatsapp_uncached(code: str, start_date=None, end_date=None) -> dict |
         "normal": normal,
         "vip": vip,
         "overlap_vip": int(overlap or 0),
-        "overlap_ativo_vip": int(overlap_ativo or 0),
-        "overlap_saida_vip": int(overlap_saida or 0),
         "compradores": compradores,
     }
 
@@ -417,13 +397,9 @@ def read_leads_x_whatsapp(launch_folder_or_code: Any) -> dict | None:
         return None
     wa_normal = wa.get("normal") or {}
     wa_vip = wa.get("vip") or {}
-    # total_limpo de cada tabela já é deduplicado DENTRO dela, mas quem está
-    # ativo nos dois grupos (normal + VIP) ao mesmo tempo conta 1x em cada —
-    # soma bruta infla o total. Subtrai a sobreposição de quem está ativo nos
-    # dois pra chegar no total de pessoas únicas.
-    overlap_ativo = int(wa.get("overlap_ativo_vip") or 0)
-    total_wa = int(wa_normal.get("total_limpo") or 0) + int(wa_vip.get("total_limpo") or 0) - overlap_ativo
-    if not total_wa:
+    total_limpo_normal = int(wa_normal.get("total_limpo") or 0)
+    total_limpo_vip = int(wa_vip.get("total_limpo") or 0)
+    if not total_limpo_normal and not total_limpo_vip:
         return None
 
     engine = _get_engine()
@@ -433,15 +409,40 @@ def read_leads_x_whatsapp(launch_folder_or_code: Any) -> dict | None:
         ).fetchone()[0]
     total_leads = int(total_leads or 0)
 
+    def _taxa(n: int) -> float:
+        return (n / total_leads * 100) if total_leads > 0 else 0.0
+
     saida_normal = int(wa_normal.get("saida_total") or 0)
     saida_vip = int(wa_vip.get("saida_total") or 0)
-    overlap_saida = int(wa.get("overlap_saida_vip") or 0)
 
+    # Normal e VIP são reportados SEPARADOS de propósito (não somados num
+    # "total combinado deduplicado"): saber quantas pessoas estão nos dois
+    # grupos ao mesmo tempo exige a mesma dedup por telefone + exclusão de
+    # admin que só o sendflow-analytics-poller faz — não dá pra replicar
+    # aqui com o que sobra nas tabelas brutas do Supabase (tentativas
+    # anteriores deram número maior que os dois totais confiáveis somados,
+    # ou menor que um dos dois sozinho — sempre errado). Ver histórico do
+    # card "Leads X Grupos de WhatsApp" em documentacao/historico/.
     return {
         "total_leads": total_leads,
-        "total_whatsapp": total_wa,
-        "taxa_entrada": (total_wa / total_leads * 100) if total_leads > 0 else 0.0,
-        "saida_total": saida_normal + saida_vip - overlap_saida,
+        "normal": {
+            "total_whatsapp": total_limpo_normal,
+            "taxa_entrada": _taxa(total_limpo_normal),
+            "saida_total": saida_normal,
+        },
+        "vip": {
+            "total_whatsapp": total_limpo_vip,
+            "taxa_entrada": _taxa(total_limpo_vip),
+            "saida_total": saida_vip,
+        },
+        # Mantidos só pra compatibilidade com quem já lia o formato antigo
+        # (frontend/templates/dashboard.html) — soma simples, sem descontar
+        # sobreposição (não temos como calculá-la de forma confiável; ver
+        # acima). É uma aproximação PRA CIMA: quem está nos dois grupos ao
+        # mesmo tempo conta 2x aqui.
+        "total_whatsapp": total_limpo_normal + total_limpo_vip,
+        "taxa_entrada": _taxa(total_limpo_normal + total_limpo_vip),
+        "saida_total": saida_normal + saida_vip,
         "saida_normal": saida_normal,
         "saida_vip": saida_vip,
     }

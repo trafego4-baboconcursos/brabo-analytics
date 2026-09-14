@@ -79,11 +79,28 @@ def _load_distribuicao_experts() -> list[tuple[str, str]]:
         slug = _strip_accents(name).upper().replace(" ", "-")
         codigo = f"DISTRIBUICAO-{slug}"
         experts.append((codigo, _strip_accents(name).lower()))
-        # Aliases: expert sem Instagram próprio, posta pelo perfil de outro
-        # (ex: Ivan Neto → @braboconcursos) — mesma tag [distribuição], nome
-        # diferente no meio da campanha, mesmo pseudo-lançamento de destino.
+        # Aliases: nome alternativo que cai no MESMO pseudo-lançamento do perfil.
         for alias in account.get("aliases") or []:
             experts.append((codigo, _strip_accents(alias).lower()))
+
+    # Experts sem Instagram próprio, mas com distribuição paga própria: ganham
+    # código separado em vez de cair no perfil por onde postam (ex: Ivan Neto
+    # postava por @braboconcursos e seus R$ 141 mil sumiam dentro da marca).
+    extras = set()
+    for extra in cfg.get("distribuicao_extra", []):
+        name = extra.get("name") or ""
+        if not name:
+            continue
+        slug = _strip_accents(name).upper().replace(" ", "-")
+        codigo = f"DISTRIBUICAO-{slug}"
+        extras.add(codigo)
+        experts.append((codigo, _strip_accents(name).lower()))
+
+    # Experts sem Instagram proprio vem PRIMEIRO na busca. No Google as
+    # campanhas trazem expert + perfil juntos ("[ivan neto][brabo concursos]"):
+    # quem manda e o expert, o perfil e so o canal onde ele posta. Sem essa
+    # ordem, R$ 82 mil do Ivan cairiam na conta institucional.
+    experts.sort(key=lambda t: 0 if t[0] in extras else 1)
     return experts
 
 

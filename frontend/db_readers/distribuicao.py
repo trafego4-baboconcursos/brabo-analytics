@@ -40,8 +40,22 @@ def _codigo_from_name(name: str) -> str:
     return f"DISTRIBUICAO-{slug}"
 
 
+def _load_distribuicao_extra() -> list[dict]:
+    """Experts com distribuicao paga mas sem Instagram proprio (postam pelo
+    perfil de outro) — ver config/instagram_accounts.yaml."""
+    try:
+        import yaml
+        from pathlib import Path
+        p = Path(__file__).resolve().parents[2] / "config" / "instagram_accounts.yaml"
+        cfg = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+        return [dict(e, sem_instagram=True) for e in cfg.get("distribuicao_extra", [])]
+    except Exception:
+        logger.exception("_load_distribuicao_extra: falha ao ler config")
+        return []
+
+
 def _find_expert(username: str) -> dict | None:
-    for account in _load_experts():
+    for account in list(_load_experts()) + _load_distribuicao_extra():
         if account.get("username") == username:
             return account
     return None
@@ -168,7 +182,8 @@ def read_distribuicao(username: str, days: int = 30, compare: bool = False) -> d
     result = {
         "username": username,
         "name": account.get("name"),
-        "profile_url": f"https://instagram.com/{username}",
+        "profile_url": (None if account.get("sem_instagram")
+                        else f"https://instagram.com/{username}"),
         "no_data": not meta_rows and not google_rows,
         "days": days,
         "compare": compare,

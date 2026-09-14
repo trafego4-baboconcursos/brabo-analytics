@@ -244,11 +244,12 @@
 
     {% if ov.sales_only_rows %}
     <div class="section">
-      <div class="section-title">3. Compras atribuídas a ADs sem veiculação neste lançamento</div>
+      <div class="section-title">3. Compras atribuídas a ADs fora do ranking de Captação</div>
       <div class="note warning">
-        Compradores cujo UTM aponta pra um AD sem nenhum investimento registrado no lançamento atual (nem em <code>meta_ads_daily</code>, nem em <code>google_ads_daily</code>).
-        Quando o código já rodou com verba real em <strong>outro lançamento do mesmo produto</strong>, a coluna "Veiculação real" mostra onde — esse é o lançamento correto pra essas vendas, não o atual.
-        Sem correspondência (célula vazia), pode ser UTM de outro produto, remarketing antigo ou um campo que nunca refletiu um anúncio de fato.
+        Compradores cujo UTM aponta pra um AD que não aparece na seção 2, que é só de Captação.
+        <strong>"Veiculou na Pré-Quali"</strong> significa que o AD rodou neste mesmo lançamento, com verba real, só que na etapa de Pré-Qualificação — a venda é deste lançamento, ela só não entra no ROAS da seção 2 porque o investimento é de outra etapa.
+        Quando o código rodou com verba em <strong>outro lançamento do mesmo produto</strong>, a coluna "Veiculação real" mostra onde — esse é o lançamento correto pra essas vendas, não o atual.
+        Sem nenhuma das duas (célula vazia), aí sim não há investimento registrado no lançamento atual: pode ser UTM de outro produto, remarketing antigo, ou um anúncio/campanha renomeado depois que o lead clicou (o UTM congela o nome antigo e o código deixa de casar).
         Essas vendas não entram no ROAS da seção 2.
       </div>
       <div class="table-wrap funil-table-wrap">
@@ -274,7 +275,9 @@
               <td><strong>{{ c.ad_code }}</strong></td>
               <td>{{ c.launches | join(', ') if c.launches is iterable and c.launches is not string else c.launches }}</td>
               <td>
-                {% if c.real_launch %}
+                {% if c.preq_gasto and c.preq_gasto > 0 %}
+                <span class="bs-pill success" title="Veiculou na Pré-Qualificação deste lançamento — investimento: {{ c.preq_gasto | brl }}">Pré-Quali · {{ c.preq_gasto | brl }}</span>
+                {% elif c.real_launch %}
                 <span class="bs-pill success" title="Investimento real: {{ c.real_launch_gasto | brl }}">{{ c.real_launch }}</span>
                 {% else %}—{% endif %}
               </td>

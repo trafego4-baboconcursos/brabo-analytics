@@ -502,6 +502,19 @@ def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dic
 
     sales_only_rows = []
     creative_utm = (sales_attr or {}).get("por_criativo_utm", {})
+    # O ranking (seção 2) é declaradamente só de Captação, mas as vendas vêm de
+    # qualquer etapa — então criativo que só veiculou na Pré-Qualificação caía na
+    # seção 3 como "sem veiculação neste lançamento", o que é falso: o gasto dele
+    # está no meta_ads_daily/google_ads_daily do próprio lançamento, só que na
+    # outra etapa (ex: AD030 no PI-AGO-26, R$ 17.443). Aqui levantamos esse gasto
+    # pra seção 3 poder dizer a verdade, sem mexer nos totais do ranking.
+    preq_gasto_por_ad: dict[str, float] = {}
+    for _items, _plat in ((getattr(meta, "preq_por_ad", []), "Meta Ads"),
+                          (getattr(google, "preq_por_ad", []), "Google Ads")):
+        for _item in _items or []:
+            _code = str(_item.get("ad_code", "")).upper()
+            if _code:
+                preq_gasto_por_ad[_code] = preq_gasto_por_ad.get(_code, 0.0) + float(_item.get("gasto") or 0.0)
     _codes_sem_veiculacao = {code for code in creative_sales if code not in rows_by_ad}
     real_launches_by_code: dict[str, list[dict]] = {}
     if launch_code and _codes_sem_veiculacao:
@@ -520,6 +533,8 @@ def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dic
             "launches": ", ".join(utm.get("launches") or ["Sem código"]),
             "real_launch": real[0]["launch"] if real else "",
             "real_launch_gasto": real[0]["gasto"] if real else 0.0,
+            # > 0 quando o AD veiculou neste lançamento, só que na Pré-Qualificação
+            "preq_gasto": round(preq_gasto_por_ad.get(code, 0.0), 2),
             "source": utm.get("source", ""),
             "medium": utm.get("medium", ""),
             "campaign": utm.get("campaign", ""),

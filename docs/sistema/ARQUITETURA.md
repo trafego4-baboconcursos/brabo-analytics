@@ -18,7 +18,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 14 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 17 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -82,6 +82,12 @@ relacionados:
 >
 > **Histórico de lançamentos por lead — tags do Active Campaign (2026-09-14)**
 >
+>
+> **Atribuição por criativo — o sorteio do UTM e as vendas "sem veiculação" (2026-09-14)**
+>
+> - [[ARQUITETURA#O sorteio do UTM representante|O sorteio do UTM representante]]
+> - [[ARQUITETURA#Pré-Qualificação aparecendo como "sem veiculação"|Pré-Qualificação aparecendo como "sem veiculação"]]
+> - [[ARQUITETURA#O que sobra: renomeação de campanha/anúncio|O que sobra: renomeação de campanha/anúncio]]
 
 <!-- SUMARIO:FIM -->
 
@@ -628,3 +634,61 @@ próximos lançamentos é automática. O backfill só serve pra leads de lançam
 não foram tocados desde então, e aí vale a passada direcionada por tag
 (`/contacts?tagid=N&include=contactTags.tag`, ~4,3 mil requisições pros três lançamentos em
 uso, ver `scratchpad/backfill_tags.py`).
+
+## Atribuição por criativo — o sorteio do UTM e as vendas "sem veiculação" (2026-09-14)
+
+Investigação a partir de um achado do harness de snapshot: o mesmo ADxxx aparecia com
+campanha/source diferentes entre duas capturas seguidas, sem nada ter mudado no dado.
+
+### O sorteio do UTM representante
+
+`_sales_attribution` monta `por_criativo_utm[ad_code]` guardando **o primeiro comprador que
+chegasse** — e a ordem vem do banco, sem `ORDER BY`. O mesmo ADxxx costuma ter UTMs diferentes
+entre compradores (veiculou na Meta e no Google, ou a campanha mudou de nome no meio do
+lançamento), então o representante mudava a cada recomputação do cache.
+
+Não era instabilidade de exibição. Em `_creative_overview` o `campaign` do representante é
+casado contra os nomes das campanhas do Google pra recuperar gasto/leads/cliques; quando o
+sorteado era um UTM da Meta, nenhuma campanha casava, o gasto dava zero e o criativo era
+**descartado do ranking principal**, caindo na seção 3. Atingia a maioria dos criativos: 37 de
+57 ADs do PI-AGO-26, 27 de 52 do PES-MAI-26, 25 de 31 do PBB-AGO-26 têm mais de uma campanha.
+
+Agora `por_criativo_utm` acumula todas as campanhas vistas (`campaigns`) e a união dos
+lançamentos detectados; o representante exibido é a menor tupla
+`(source, medium, campaign, content, term)`, estável independente da ordem do banco; e o
+casamento com o Google usa **todas** as campanhas observadas do ADxxx — só pode somar
+investimento, nunca remover. Recuperou R$ 9.881,75 no ranking do PBB-AGO-26.
+
+### Pré-Qualificação aparecendo como "sem veiculação"
+
+A seção 2 do `/criativos` é declaradamente só de Captação (`captacao_por_ad`), mas as vendas
+vêm de qualquer etapa. Criativo que só veiculou na Pré-Qualificação caía na seção 3 sob um
+texto que afirmava não haver investimento "nem em `meta_ads_daily`, nem em `google_ads_daily`"
+— falso: o AD030 tem R$ 17.443 de gasto no próprio PI-AGO-26, só que na outra etapa.
+
+Somar `preq_por_ad` ao ranking quebraria o sentido da seção 2, então o gasto de Pré-Quali é
+levantado à parte (`preq_gasto`) e a seção 3 passa a mostrá-lo. Isso reclassificou 11 dos 14
+casos do PI-AGO-26 (R$ 69.492 de faturamento, R$ 144.320 de investimento real) e zerou a seção
+no PES-MAI-26.
+
+### O que sobra: renomeação de campanha/anúncio
+
+Os 3 casos restantes do PI-AGO-26 (R$ 165 mil, quase tudo em AD255 e AD267) **não** são lacuna
+de ingestão: o gasto da Meta no período bate exatamente entre a API e o banco
+(R$ 839.663,31 dos dois lados, 15/07–12/08). Também não é conta de anúncio faltando — das 25
+contas visíveis ao token, as 20 fora do ETL não têm nenhum gasto de PI-AGO-26.
+
+É **renomeação**. A campanha do AD255 existe na conta como
+`[MA][cadastro][captação][específico][potencial][PI-AGO-26][27.07.26]`, criada em 21/07 e
+renomeada depois (a data do lançamento foi empurrada de 20/07 pra 27/07). Os leads captados
+antes da renomeação carregam o nome antigo no `utm_campaign`, o banco guarda o nome atual, e o
+código deixa de casar. O mesmo vale pros anúncios — há ads no banco chamados
+`AD302 - AD043 - Estúdio Brabo - PI-AGO-26`, com dois códigos no nome, sinal de renomeação.
+
+**O conserto estrutural existe e não está funcionando:** `vk_ad_id` carrega o ID real do
+anúncio, que não muda com rename. O mapeamento do ETL está correto (campo 10 = `vk_ad_id` na
+conta do AC, confirmado via `/fields`), mas o campo está **0% preenchido** nos três lançamentos
+ativos — 0 de 269.392 leads no PI-AGO-26, 0 de 70.312 no PBB-AGO-26, 0 de 56.254 no PES-SET-26.
+Ou seja, o parâmetro não está chegando ao Active Campaign. Enquanto isso não for resolvido no
+lado do tráfego (garantir a UTM padrão completa nos anúncios de captação), toda campanha
+renomeada no meio do voo continua órfã das vendas captadas antes da renomeação.

@@ -1,3 +1,16 @@
+---
+titulo: "Projetos — implementações pendentes"
+area: indice
+status: vigente
+atualizado: 2026-09-14
+responde:
+  - "o que esta pendente de implementar"
+  - "backlog priorizado"
+  - "qual projeto tem plano escrito"
+relacionados:
+  - "[[README]]"
+---
+
 # Projetos — implementações pendentes
 
 Backlog do que foi acordado e ainda não está em produção. Cada item diz **onde está o plano**.
@@ -43,7 +56,7 @@ Backlog do que foi acordado e ainda não está em produção. Cada item diz **on
 | **Debriefing em PDF** | botão "Gerar PDF" e `?modo=slides` funcionam; falta o caminho 2 (renderizar com Playwright no servidor) | `sem doc` |
 | **Thumbnails via Meta API** | hoje funciona via Google Drive; o plano é trocar pela Marketing API e eliminar o upload manual | [[PLANO_META_CRIATIVOS_THUMBNAILS]] |
 | **Relatório diário de gasto no Slack (9h)** | spec acordada: orçamento por etapa/bucket no wizard, curva %/dia, consulta ao vivo, contingência sem parcial | `sem doc` |
-| **Melhorias do design system** | auditoria de 14/09/26: 3 itens de alta prioridade (tokens inexistentes, modal de atalhos ilegível em tema escuro, falta de `:focus-visible`), 9 médios, 3 baixos | [[LEVANTAMENTO_DESIGN_SYSTEM_2026-09-14]], doc de referência [[DESIGN_SYSTEM]] |
+| **Melhorias do design system** | auditoria de 14/09/26 — quase tudo corrigido no mesmo dia; resta só 1 item cosmético de baixa prioridade (ícone de warning com contraste limítrofe em 3 páginas) | [[LEVANTAMENTO_DESIGN_SYSTEM_2026-09-14]], doc de referência [[DESIGN_SYSTEM]] |
 
 ## 🔵 Arquitetura, segurança e escala
 

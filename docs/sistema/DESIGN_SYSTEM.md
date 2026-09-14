@@ -1,3 +1,17 @@
+---
+titulo: "Design System — Brabo Analytics"
+area: sistema
+status: vigente
+atualizado: 2026-09-14
+responde:
+  - "tokens, componentes e temas do dashboard"
+  - "onde mexer no CSS"
+  - "como funciona o gerador de temas"
+relacionados:
+  - "[[ARQUITETURA]]"
+  - "[[LEVANTAMENTO_DESIGN_SYSTEM_2026-09-14]]"
+---
+
 # Design System — Brabo Analytics
 
 Como o design system do dashboard funciona por dentro: tokens, componentes compartilhados,
@@ -48,8 +62,18 @@ Todo gráfico do sistema já segue esse padrão; se adicionar um novo, replicar.
   precisa registrar nada por template, exceto páginas na lista `SKIP_PAGES` (`settings`,
   `login`, `invite`, `index`) e o modo apresentação/PDF do debriefing (`?modo=slides`, guardado
   via `document.documentElement.classList.contains('bs-slides')`).
-- **`.info-box` / `.highlight-box`** — padrão mais antigo, pré-accordion. **Ainda em uso em 13
-  templates roteados** (não é debito só de páginas órfãs — ver punch-list de melhorias).
+- **`.highlight-box`** (dentro de um `.highlights { display:grid; ... }`) — card titulado
+  dentro de um grid de 2-3 colunas (ex.: "Top 5 Criativos" / "Melhores CPL" / "Piores CPL" lado
+  a lado no dashboard, ou o card de perfil do Instagram). **Não é uma versão antiga do
+  `.section`** — é um componente à parte, pra painéis pequenos que vivem em grade, não pra
+  conteúdo de página inteira. Não faz sentido convertê-lo em accordion (perderia o layout em
+  grade e ganharia controles de recolher/arrastar/tag que não fazem sentido num card pequeno).
+- **`.info-box`** — usado só dentro de `debriefing.html`, sempre **aninhado dentro de um
+  `.dbf-section` já existente** (sub-painel de uma seção que já é colapsável, não uma seção
+  órfã). Mesma lógica do `.highlight-box`: é um componente de sub-painel, não débito de
+  migração. *(Uma auditoria anterior, 14/09/26, chegou a marcar esses dois componentes como
+  "padrão antigo em 13 páginas" — checado com mais cuidado depois, é engano: ver
+  [[LEVANTAMENTO_DESIGN_SYSTEM_2026-09-14]].)*
 - **`.table-wrap` + `table`** — wrapper padrão de tabela: fundo `var(--bs-card)`, borda,
   scroll horizontal em mobile, zebra striping. Toda tabela de dado deve ficar dentro de um
   `.table-wrap`; tabelas soltas não herdam esse tratamento.
@@ -94,8 +118,8 @@ Dois mecanismos:
    derivados (ex.: `--bs-success-bg`) são calculados com `color-mix(in srgb, ...)` a partir das
    15 cores base para evitar exigir dezenas de seletores de cor. `--bs-info` sempre reusa a cor
    `accent` escolhida (não é configurável separadamente); as 4 sombras são derivadas só de
-   `ink`. **Sem validação de contraste** — nada impede o usuário de escolher `ink` e `bg`
-   parecidos e gerar um tema ilegível.
+   `ink` — a UI do gerador documenta os dois. Calcula contraste WCAG ao vivo pra 4 pares
+   críticos (ink×bg, ink×card, ink-muted×card, card×bg) e avisa inline se algum ficar ilegível.
 
 O script anti-flash no `<head>` de `base.html` aplica o tema salvo (incluindo tokens
 customizados) antes do primeiro paint, pra evitar flash de tema errado.
@@ -115,7 +139,9 @@ config/data, evitando reload de página inteira.
 
 ## Débito conhecido
 
-Ver a auditoria de 14/09/26 em [[LEVANTAMENTO_DESIGN_SYSTEM_2026-09-14]] (achados High/Medium/
-Low pendentes de correção) — inclui tokens inexistentes usados em 2 templates, contraste
-quebrado no modal de atalhos em todo tema escuro, falta de `:focus-visible`, drift do
-`design-system.html` de referência e o escopo real da migração `.info-box` → `.section`.
+A maior parte da auditoria de 14/09/26 ([[LEVANTAMENTO_DESIGN_SYSTEM_2026-09-14]]) já foi
+corrigida no mesmo dia (tokens inexistentes, contraste do modal de atalhos, falta de
+`:focus-visible`, cores hardcoded restantes, drift do `design-system.html` de referência, e a
+falta de aviso de contraste no gerador de temas). O único item de baixa prioridade que ficou em
+aberto — `var(--bs-warning)` como cor de ícone isolado em 3 lugares — é cosmético e de baixo
+risco.

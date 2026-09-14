@@ -429,3 +429,29 @@ por isso que `VERIFICACAO_GOOGLE_ADS_[PES-JAN-26].md` precisou ser renomeado.
 As regras de onde escrever cada tipo de registro estão em `CLAUDE.md`, seção
 *Documentation (`docs/`)* — fonte única; `AGENTS.md` só aponta pra lá, depois de as duas
 cópias terem divergido.
+
+## Egress do Supabase — cruzamento de telefone dos grupos otimizado (2026-09-14)
+
+`frontend/db_readers/whatsapp_groups.py::_telefones_tabela` (usada em `_compradores_grupos`,
+que alimenta `read_vendas_grupos_whatsapp` e `read_leads_x_whatsapp`) e `_fones_com_data`
+(usada em `read_compradores_por_dia_grupo`) traziam a coluna `"NÚMERO"` **inteira** das tabelas
+`[CODE]_API`/`[CODE]_VIP_API` (até ~410 mil linhas por lançamento) pro Python, só pra cruzar
+contra uma lista pequena de compradores (Hotmart+TMB). O mesmo padrão estava duplicado em
+`frontend/db_readers/caminho_comprador.py`.
+
+**Impacto real:** via `pg_stat_statements`, essa única consulta (`SELECT DISTINCT "NÚMERO"
+FROM "PI_AGO_26_API"`) respondia por ~655 milhões de linhas / ~13% de todo o egress do banco
+analytics em 10 dias (04-14/09) — Shared Pooler Egress estourando os 250 GB inclusos do plano
+Pro do Supabase, virando custo real de tráfego excedente (~US$0,09/GB acima do limite).
+
+**Fix:** função SQL `norm_phone_brasil(v text)` (criada sob demanda via `_ensure_norm_phone_fn`,
+espelha `_norm_phone()` do Python) permite filtrar o telefone **dentro do banco** — a consulta
+vira `WHERE norm_phone_brasil("NÚMERO"::text) = ANY(:alvos)`, e só os telefones que batem com
+compradores voltam pro Python, não a tabela inteira. Validado contra 3 lançamentos
+(PI-AGO-26, PES-SET-26, PBB-AGO-26): resultado idêntico ao método antigo em todos.
+
+**Armadilha do fix:** criar a função via `CREATE OR REPLACE FUNCTION` usando a mesma `conn`
+de leitura do chamador (`engine.connect()`, sem commit explícito) a torna visível só dentro
+daquela transação — ao fechar a conexão sem commit, o `CREATE FUNCTION` é desfeito e a próxima
+conexão (nova transação) não encontra mais a função. `_ensure_norm_phone_fn()` usa
+`engine.begin()` próprio (sempre commitado), independente da conexão de quem chama.

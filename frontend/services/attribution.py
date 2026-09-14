@@ -333,16 +333,33 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
             _inc_sales(result["por_criativo"], ad_code, receita_email, vendas_email)
             result["por_criativo_por_etapa"].setdefault(cls["etapa"], {})
             _inc_sales(result["por_criativo_por_etapa"][cls["etapa"]], ad_code, receita_email, vendas_email)
-            if ad_code not in result["por_criativo_utm"]:
-                detected = re.findall(r"\b(?:PBB|PES|PI)-[A-Z]{3}-\d{2}\b", f"{source} {medium} {campaign} {content} {term}", flags=re.IGNORECASE)
-                result["por_criativo_utm"][ad_code] = {
+            # O mesmo ADxxx costuma aparecer com UTMs diferentes entre compradores
+            # (veiculou na Meta e no Google, ou mudou de campanha no meio do
+            # lançamento). Antes valia "o primeiro comprador que chegar vence" —
+            # e a ordem vinha do banco, sem ORDER BY, então o representante mudava
+            # a cada recomputação do cache. Pior que instável: se o sorteado fosse
+            # um UTM da Meta, nenhuma campanha Google casava lá embaixo, o gasto
+            # dava zero e o criativo era descartado do ranking principal.
+            # Agora acumula tudo e o representante é determinístico.
+            detected = re.findall(r"\b(?:PBB|PES|PI)-[A-Z]{3}-\d{2}\b", f"{source} {medium} {campaign} {content} {term}", flags=re.IGNORECASE)
+            entry = result["por_criativo_utm"].get(ad_code)
+            if entry is None:
+                entry = result["por_criativo_utm"][ad_code] = {
                     "source": source,
                     "medium": medium,
                     "campaign": campaign,
                     "content": content,
                     "term": term,
-                    "launches": sorted({item.upper() for item in detected}),
+                    "launches": [],
+                    "campaigns": [],
                 }
+            entry["launches"] = sorted(set(entry["launches"]) | {item.upper() for item in detected})
+            if campaign:
+                entry["campaigns"] = sorted(set(entry["campaigns"]) | {campaign})
+            _chave_atual = tuple(str(entry[k] or "") for k in ("source", "medium", "campaign", "content", "term"))
+            _chave_nova = tuple(str(v or "") for v in (source, medium, campaign, content, term))
+            if _chave_nova < _chave_atual:
+                entry.update(source=source, medium=medium, campaign=campaign, content=content, term=term)
             if _norm_text(launch.code) in _norm_text(f"{source} {medium} {campaign} {content} {term}"):
                 result["por_criativo_lancamento_atual"].add(ad_code)
             if cls["channel"] not in result["por_criativo_canal"]:
@@ -440,10 +457,15 @@ def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dic
         cliques = 0
         impressoes = 0
         origem = "UTM"
-        if utm_campaign and google_campanhas:
-            norm_camp = _norm_text(utm_campaign)
+        # Casa contra TODAS as campanhas vistas nos UTMs desse ADxxx, não só a do
+        # representante: um criativo que veiculou na Meta e no Google tinha o
+        # investimento do Google perdido sempre que o representante sorteado era
+        # o UTM da Meta, e caía em "vendas sem veiculação".
+        utm_campaigns = utm_info.get("campaigns") or ([utm_campaign] if utm_campaign else [])
+        if utm_campaigns and google_campanhas:
+            norm_camps = {_norm_text(c) for c in utm_campaigns if c}
             for camp in google_campanhas:
-                if _norm_text(getattr(camp, "nome", "")) == norm_camp:
+                if _norm_text(getattr(camp, "nome", "")) in norm_camps:
                     gasto += float(getattr(camp, "custo", 0.0) or 0.0)
                     leads += int(round(float(getattr(camp, "conversoes", 0.0) or 0.0)))
                     cliques += int(getattr(camp, "cliques", 0) or 0)

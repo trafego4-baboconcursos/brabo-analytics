@@ -189,6 +189,12 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
         # tabela olhar só o gasto daquela etapa. Ver debriefing 14/09/26.
         "por_criativo_por_etapa": {},
         "por_criativo_canal": {},
+        # Vendas por criativo cruzadas com etapa E plataforma — o mesmo
+        # ADxxx pode rodar pesado no Google e irrisório no Meta (ex.: AD174
+        # no PI-AGO-26: R$103mil Google vs R$675 Meta); a tabela "Top Ads
+        # (Meta)" precisa só da fatia de vendas atribuível ao Meta, senão
+        # herda as vendas do Google inteiras e o ROAS do Meta explode.
+        "por_criativo_canal_por_etapa": {},
         "por_criativo_lancamento_atual": set(),
         "por_criativo_utm": {},
     }
@@ -365,6 +371,8 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
             if cls["channel"] not in result["por_criativo_canal"]:
                 result["por_criativo_canal"][cls["channel"]] = {}
             _inc_sales(result["por_criativo_canal"][cls["channel"]], ad_code, receita_email, vendas_email)
+            result["por_criativo_canal_por_etapa"].setdefault(cls["channel"], {}).setdefault(cls["etapa"], {})
+            _inc_sales(result["por_criativo_canal_por_etapa"][cls["channel"]][cls["etapa"]], ad_code, receita_email, vendas_email)
         elif cls["channel"] == "Google Ads":
             google_type = _classify_google_campaign_type(campaign, source, medium, content, term)
             _inc_sales(result["google_sem_ad_por_tipo"], google_type, receita_email, vendas_email)

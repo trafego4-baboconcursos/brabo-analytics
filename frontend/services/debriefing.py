@@ -186,17 +186,22 @@ def _build_top_ads_captacao(
     "preq_por_ad" + etapa="Pré-Qualificação" reaproveita pra "Top 5 —
     Pré-Qualificação (Meta + Google)".
 
-    Usa por_criativo_por_etapa (não por_criativo) — o mesmo ADxxx pode ter
-    gasto irrisório numa etapa e pesado em outra (ex.: AD127 no PI-AGO-26:
-    R$0,52 na Pré-Qualificação, R$28mil na Captação); sem escopar por etapa,
-    a venda inteira do ad cai em cima do gasto errado e o ROAS explode
-    (achado debriefing 14/09/26)."""
+    Usa por_criativo_por_etapa (não por_criativo) no combinado — o mesmo
+    ADxxx pode ter gasto irrisório numa etapa e pesado em outra (ex.: AD127
+    no PI-AGO-26: R$0,52 na Pré-Qualificação, R$28mil na Captação); sem
+    escopar por etapa, a venda inteira do ad cai em cima do gasto errado e
+    o ROAS explode (achado debriefing 14/09/26). Nas listas só-Meta/só-Google
+    usa por_criativo_canal_por_etapa — o mesmo ADxxx também pode ter gasto
+    pesado numa plataforma e irrisório na outra (ex.: AD174: R$103mil no
+    Google vs R$675 no Meta); sem escopar por canal, a tabela "(Meta)"
+    herdava as vendas do Google inteiras."""
     por_criativo = (sales_attr or {}).get("por_criativo_por_etapa", {}).get(etapa, {}) or {}
+    por_criativo_canal = (sales_attr or {}).get("por_criativo_canal_por_etapa", {}) or {}
     meta_ads = getattr(meta, meta_ads_attr, None) or []
     google_ads = getattr(google, google_ads_attr, None) or []
 
-    def _row(code: str, nome: str, gasto: float, leads: int) -> dict:
-        venda = por_criativo.get(code, {})
+    def _row(code: str, nome: str, gasto: float, leads: int, vendas_dict: dict) -> dict:
+        venda = vendas_dict.get(code, {})
         vendas = int(venda.get("vendas") or 0)
         receita = float(venda.get("faturamento") or 0)
         return {
@@ -205,11 +210,26 @@ def _build_top_ads_captacao(
             "roas": receita / gasto if gasto > 0 else 0.0,
         }
 
-    def _top(ads: list) -> list:
-        rows = [
-            _row(str(a.get("ad_code") or "").upper(), a.get("nome"), float(a.get("gasto") or 0), int(a.get("leads") or 0))
-            for a in ads
-        ]
+    def _top(ads: list, channel: str) -> list:
+        # Agrupa por ad_code ANTES de rankear — o mesmo ADxxx pode ter mais
+        # de uma linha na origem (ex.: anúncio duplicado no Meta Ads Manager
+        # e o "— Cópia" esquecido no nome); sem agrupar, cada linha herdava
+        # as MESMAS vendas/receita inteiras do código (vendas são por
+        # ad_code, não por linha), inflando o ROAS de cada fragmento
+        # (achado 14/09/26, PI-AGO-26 — AD174 e "AD174 — Cópia" mostravam
+        # 809x e 10.543x separados).
+        vendas_dict = por_criativo_canal.get(channel, {}).get(etapa, {}) or {}
+        acc: dict[str, dict] = {}
+        for a in ads:
+            code = str(a.get("ad_code") or "").upper()
+            if not code:
+                continue
+            c = acc.setdefault(code, {"nome": a.get("nome"), "gasto": 0.0, "leads": 0})
+            c["gasto"] += float(a.get("gasto") or 0)
+            c["leads"] += int(a.get("leads") or 0)
+            if len(str(a.get("nome") or "")) > len(str(c["nome"] or "")):
+                c["nome"] = a.get("nome")
+        rows = [_row(code, c["nome"], c["gasto"], c["leads"], vendas_dict) for code, c in acc.items()]
         return sorted(rows, key=lambda x: x["vendas"], reverse=True)[:n]
 
     combinado_acc: dict[str, dict] = {}
@@ -221,11 +241,15 @@ def _build_top_ads_captacao(
         c["gasto"] += float(a.get("gasto") or 0)
         c["leads"] += int(a.get("leads") or 0)
     combinado_rows = sorted(
-        (_row(code, c["nome"], c["gasto"], c["leads"]) for code, c in combinado_acc.items()),
+        (_row(code, c["nome"], c["gasto"], c["leads"], por_criativo) for code, c in combinado_acc.items()),
         key=lambda x: x["vendas"], reverse=True,
     )[:n]
 
-    return {"combinado": combinado_rows, "meta": _top(meta_ads), "google": _top(google_ads)}
+    return {
+        "combinado": combinado_rows,
+        "meta": _top(meta_ads, "Meta Ads"),
+        "google": _top(google_ads, "Google Ads"),
+    }
 
 
 def _enrich_perfil_por_anuncio(

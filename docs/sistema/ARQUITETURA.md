@@ -18,7 +18,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 12 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 14 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -73,6 +73,14 @@ relacionados:
 >
 >
 > **Egress do Supabase — cruzamento de telefone dos grupos otimizado (2026-09-14)**
+>
+>
+> **Egress do Supabase — os cruzamentos que baixavam a base inteira (2026-09-14)**
+>
+> - [[ARQUITETURA#O que foi feito, por ordem de impacto|O que foi feito, por ordem de impacto]]
+> - [[ARQUITETURA#Como validar mudança de reader sem regressão|Como validar mudança de reader sem regressão]]
+>
+> **Histórico de lançamentos por lead — tags do Active Campaign (2026-09-14)**
 >
 
 <!-- SUMARIO:FIM -->
@@ -516,3 +524,107 @@ de leitura do chamador (`engine.connect()`, sem commit explícito) a torna visí
 daquela transação — ao fechar a conexão sem commit, o `CREATE FUNCTION` é desfeito e a próxima
 conexão (nova transação) não encontra mais a função. `_ensure_norm_phone_fn()` usa
 `engine.begin()` próprio (sempre commitado), independente da conexão de quem chama.
+
+## Egress do Supabase — os cruzamentos que baixavam a base inteira (2026-09-14)
+
+Continuação do item anterior. Um relatório técnico apontou ~1 TB de Shared Pooler Egress em
+30 dias contra os 250 GB inclusos no plano Pro (US$ 0,09/GB de excedente). A causa é sempre o
+mesmo padrão: **baixar a tabela inteira pro Python pra filtrar/agregar em pandas**. O
+`pg_stat_statements` confirmou a atribuição antes de mexer em qualquer linha de código.
+
+A regra que saiu disso: quando o resultado é uma contagem, uma soma ou um cruzamento contra
+uma lista pequena, o filtro e o `GROUP BY` vão pro SQL. Só volta pro Python o que ele de fato
+usa. Passar a lista de compradores como parâmetro é *upload*, que não é cobrado como egress.
+
+### O que foi feito, por ordem de impacto
+
+| Alvo | Egress estimado | O que mudou |
+|---|---|---|
+| `leads` (9 consultas) | ~288 GB (70%) | `COUNT(*)`/`GROUP BY` no servidor e cruzamento via `= ANY(:lista)` em `ads_meta`, `ads_google`, `typeform`, `sales`, `leads`, `attribution` |
+| `respostas`/`submissoes` | ~38 GB | resultado compartilhado entre os quatro readers do Typeform |
+| `meta`/`google`/`ga4_daily` | ~29 GB | GA4 agrega por `landing_page` no banco |
+| `typeform_respostas` + backups | ~25 GB | índices de expressão + poda de colunas |
+| telefones dos grupos WhatsApp | ~25 GB | `norm_phone_brasil()` (seção anterior) |
+
+**`leads`** — `read_leads` agregava em pandas as 269 mil linhas do PI-AGO-26 a cada chamada;
+agora o `GROUP BY utm_source, utm_medium, utm_campaign, dia` roda no servidor e só a linha dos
+compradores desce. `read_ac_leads_for_attribution` ganhou filtro opcional por e-mail/telefone,
+e o mapa `utm_term -> campanha` virou `read_term_campaign_map` (agregação no SQL, com
+`ORDER BY termo, n DESC, campanha` replicando o desempate do `idxmax()` do pandas).
+
+**Typeform** — as três tabelas `typeform_respostas*` (~990 mil linhas) caíam em *Seq Scan*
+porque o filtro do frontend é `upper(coalesce(form_id, ''))` e os índices eram em `form_id`
+puro. Nunca tinham sido analisadas também (`n_live_tup = 0` com 800 mil linhas reais), então o
+planejador estimava 1.764 linhas onde vinham 95 mil. Índices de expressão + `ANALYZE`: 32.880
+→ 1.889 buffers por chamada. **Isso explica o timeout intermitente de 30s** que derrubava a
+seção do PI-AGO-26 — o sintoma aparecia como `SSL connection has been closed unexpectedly`,
+não como timeout, o que despistou o diagnóstico por um bom tempo.
+
+**Sistema de pesquisa novo** — o JOIN `submissoes × respostas × perguntas` (912 mil linhas
+agregadas em ~27 mil jsonb) rodava duas vezes por lançamento a cada TTL, porque
+`read_typeform`, `read_typeform_count`, `read_perfil_por_anuncio` e `read_pesquisa_engajamento`
+chamavam o helper direto, cada um sob o cache do seu próprio reader.
+`_novo_sistema_respostas_cached` guarda o resultado sob a chave do lançamento, que o
+`_invalidate` do ETL já limpa.
+
+**GA4** — `read_landing_pages_por_etapa` e `read_conversao_pagina_captura` baixavam uma linha
+por dia por página e somavam em pandas. Etapa e versão são função pura do `landing_page`, então
+a agregação subiu pro SQL: 7.511 → 81 linhas no PI-AGO-26, saída byte-idêntica.
+
+`meta_ads_daily`/`google_ads_daily` ficaram como estão: os readers precisam da granularidade
+por anúncio e por dia, e depois das correções acima essas consultas não aparecem mais entre as
+15 maiores do `pg_stat_statements`.
+
+### Como validar mudança de reader sem regressão
+
+`pg_stat_statements` foi zerado em 14/09/26 (5,0 bilhões de linhas / 13,0 milhões de chamadas
+acumuladas), então daqui pra frente ele mede só o código otimizado.
+
+Duas armadilhas que custaram tempo e valem pra qualquer refatoração de leitura:
+
+- **Comparar snapshots só de lançamentos ENCERRADOS.** Usar um lançamento ativo (PES-SET-26)
+  polui o diff com centenas de falsos positivos, porque o ETL atualiza as métricas no meio da
+  captura.
+- **Diferença de 1 a 3 leads entre duas capturas é drift real, não regressão.** Um contato que
+  se recadastra tem o `lancamento_codigo` sobrescrito, então ele sai da contagem de um
+  lançamento e entra na de outro entre uma rodada e outra.
+
+Quando o diff acusar diferença, isolar com `git stash` dos arquivos alterados e recapturar: se
+a diferença persiste com o código antigo, é dado que mudou, não a refatoração.
+
+## Histórico de lançamentos por lead — tags do Active Campaign (2026-09-14)
+
+`leads` guarda só o cadastro **mais recente**: o upsert do ETL sobrescreve
+`lancamento_codigo` quando o mesmo contato se cadastra de novo. Por isso "esse lead já
+participou de lançamentos anteriores?" não tinha resposta no banco — é a pendência que estava
+registrada em `projetos/` como "Anteriores por lançamento específico (dado perdido)".
+
+O dado não estava perdido: está nas tags do Active Campaign. As tags de lançamento seguem
+`[PRODUTO] [LANÇAMENTO] [CÓDIGO]` (ex: `[INSS] [LANÇAMENTO] [PI-AGO-26]`), são **cumulativas**
+— o contato nunca perde a tag do lançamento anterior — e vão até abr/2024. Das 1.932 tags da
+conta, 31 casam, uma por código do sistema. O marcador `[LANÇAMENTO]` é o que separa essas de
+tags que só citam o código sem ser cadastro (ex: `[INSS][PDF][PI-AGO-26]`).
+
+**Tabela `lead_lancamentos`** (`contact_id`, `lancamento_codigo`, `tagged_at`) materializa
+esse histórico, uma linha por contato × lançamento.
+
+**Coleta:** `etl_active_campaign.py` pede `include=contactTags.tag` de carona na paginação de
+contatos que já existia. A alternativa — `/contacts?tagid=N` por tag — significaria varrer 284
+mil contatos só no PI-AGO-26. As tags são gravadas **antes** do filtro de UTM, que descarta
+contatos sem `utm_content`/`utm_term`: esse contato não entra em `leads`, mas a tag dele vale
+pro histórico.
+
+**Leitura:** `read_lancamentos_anteriores(code, emails=None)` devolve
+`{email: [códigos anteriores]}` e `read_recorrencia_lancamento(code)` devolve o agregado
+(novos vs recorrentes + de qual lançamento vieram). "Anterior" é pela data da tag
+(`ant.tagged_at < atual.tagged_at`) — sem isso um lançamento posterior apareceria como passado.
+
+**Backfill:** a conta tem 3,97 milhões de contatos e 3,43 milhões de pares contato × tag de
+lançamento. Não existe atalho na API: `filters[tag]` em `/contactTags` é ignorado (devolve os
+14,5 milhões de vínculos da conta) e o `limit` trava em 100 — varrer tudo são ~34 mil
+requisições. **Não é preciso.** Quando um contato se cadastra num lançamento ele é
+*atualizado*, então o ETL normal já o captura com a lista completa de tags: a cobertura dos
+próximos lançamentos é automática. O backfill só serve pra leads de lançamentos passados que
+não foram tocados desde então, e aí vale a passada direcionada por tag
+(`/contacts?tagid=N&include=contactTags.tag`, ~4,3 mil requisições pros três lançamentos em
+uso, ver `scratchpad/backfill_tags.py`).

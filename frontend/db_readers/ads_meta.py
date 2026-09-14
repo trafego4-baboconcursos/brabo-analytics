@@ -344,17 +344,21 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
         buyers = (vendas.emails_hotmart | vendas.emails_tmb) if vendas else set()
         sales_by_content = {}
         if buyers:
+            # Só os leads que VIRARAM COMPRA entram no resultado, então o filtro
+            # por comprador vai no SQL: sem ele, essa consulta baixava a lista de
+            # leads inteira do lançamento (269 mil linhas no PI-AGO-26) pra
+            # descartar 99% em memória — era uma das maiores fontes de egress do
+            # banco (ver ARQUITETURA.md, 14/09/26).
             df_leads = pd.read_sql(
-                text("SELECT utm_content, email FROM leads WHERE lancamento_codigo = :code AND (utm_source ILIKE '%facebook%' OR utm_source ILIKE '%ig%' OR utm_source ILIKE '%meta%')"),
+                text("SELECT utm_content, email FROM leads WHERE lancamento_codigo = :code AND (utm_source ILIKE '%facebook%' OR utm_source ILIKE '%ig%' OR utm_source ILIKE '%meta%') AND email = ANY(:buyers)"),
                 engine,
-                params={"code": code}
+                params={"code": code, "buyers": list(buyers)}
             )
             if not df_leads.empty:
                 df_leads = df_leads.drop_duplicates(subset="email")
-                df_leads["is_buyer"] = df_leads["email"].isin(buyers)
                 df_leads["receita"] = df_leads["email"].map(lambda e: vendas.receita_por_email.get(e, 0.0))
-                sales_by_content = df_leads[df_leads["is_buyer"]].groupby("utm_content").agg(
-                    sales=("is_buyer", "sum"),
+                sales_by_content = df_leads.groupby("utm_content").agg(
+                    sales=("email", "count"),
                     receita=("receita", "sum")
                 ).to_dict("index")
 

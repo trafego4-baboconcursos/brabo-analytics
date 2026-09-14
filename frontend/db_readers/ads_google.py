@@ -352,17 +352,19 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
     buyers = (vendas.emails_hotmart | vendas.emails_tmb) if vendas else set()
     sales_by_content = {}
     if buyers:
+        # Filtro por comprador vai no SQL: só quem comprou entra no resultado,
+        # então não faz sentido baixar a lista de leads inteira do lançamento
+        # pra descartar 99% em memória (ver ARQUITETURA.md, 14/09/26 — egress).
         df_leads = pd.read_sql(
-            text("SELECT utm_content, email FROM leads WHERE lancamento_codigo = :code AND (utm_source ILIKE '%google%' OR utm_source ILIKE '%youtube%')"),
+            text("SELECT utm_content, email FROM leads WHERE lancamento_codigo = :code AND (utm_source ILIKE '%google%' OR utm_source ILIKE '%youtube%') AND email = ANY(:buyers)"),
             engine,
-            params={"code": code}
+            params={"code": code, "buyers": list(buyers)}
         )
         if not df_leads.empty:
             df_leads = df_leads.drop_duplicates(subset="email")
-            df_leads["is_buyer"] = df_leads["email"].isin(buyers)
             df_leads["receita"] = df_leads["email"].map(lambda e: vendas.receita_por_email.get(e, 0.0))
-            sales_by_content = df_leads[df_leads["is_buyer"]].groupby("utm_content").agg(
-                sales=("is_buyer", "sum"),
+            sales_by_content = df_leads.groupby("utm_content").agg(
+                sales=("email", "count"),
                 receita=("receita", "sum")
             ).to_dict("index")
 

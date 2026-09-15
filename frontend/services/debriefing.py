@@ -466,6 +466,26 @@ def _compute_debriefing_ctx(
     roas_bruto = receita_bruta / invest if invest > 0 else 0.0
     total_vendas = _i(getattr(vendas, "total_vendas", 0))
     ticket = _f(getattr(vendas, "total_ticket_medio", 0))
+
+    # Saúde do lançamento — mesmo cálculo do /insights (4 fatores de 25 pts
+    # cada): ROAS geral, % de compradores rastreados por UTM/Active Campaign,
+    # CPL médio do Meta e % de anúncios que geraram ao menos 1 venda.
+    _saude_resumo = (creative_data or {}).get("resumo") or {}
+    _saude_rows = (creative_data or {}).get("rows") or []
+    _saude_rastreados = _i(_saude_resumo.get("compradores_com_utm"))
+    _saude_total_buyers = _i(_saude_resumo.get("total_compradores")) or total_vendas
+    saude_pct_rastreado = round(_saude_rastreados / _saude_total_buyers * 100, 1) if _saude_total_buyers > 0 else 0.0
+    saude_ads_total = len(_saude_rows)
+    saude_ads_com_venda = len([r for r in _saude_rows if _f(r.get("vendas")) > 0])
+    saude_cpl_medio = _f(getattr(meta, "cpl_medio", 0))
+
+    saude_score_roas = 25.0 if roas >= 3 else round(roas / 3 * 25, 1)
+    saude_score_rastr = round(saude_pct_rastreado / 100 * 25, 1)
+    _score_cpl_raw = (25.0 - (saude_cpl_medio / 10 * 5)) if meta else 0.0
+    saude_score_cpl = max(0.0, min(25.0, _score_cpl_raw))
+    saude_score_criat = round(saude_ads_com_venda / saude_ads_total * 25, 1) if saude_ads_total > 0 else 0.0
+    saude_score = int(round(saude_score_roas + saude_score_rastr + saude_score_cpl + saude_score_criat))
+
     meta_capt   = _captacao(meta)
     meta_leads  = _i(meta_capt.get("leads"))
     meta_spend  = _f(meta_capt.get("custo"))
@@ -963,6 +983,12 @@ def _compute_debriefing_ctx(
         "total_vendas": total_vendas, "ticket": ticket,
         "total_leads": total_leads, "cpl": cpl,
         "fontes_leads": fontes_leads,
+        # Saúde do lançamento
+        "saude_score": saude_score,
+        "saude_score_roas": saude_score_roas, "saude_score_rastr": saude_score_rastr,
+        "saude_score_cpl": saude_score_cpl, "saude_score_criat": saude_score_criat,
+        "saude_pct_rastreado": saude_pct_rastreado, "saude_cpl_medio": saude_cpl_medio,
+        "saude_ads_com_venda": saude_ads_com_venda, "saude_ads_total": saude_ads_total,
         # Prev KPIs
         "prev_invest": prev_invest, "prev_receita": prev_receita, "prev_roas": prev_roas,
         "prev_receita_bruta": prev_receita_bruta, "prev_roas_bruto": prev_roas_bruto,

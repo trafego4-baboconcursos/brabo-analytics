@@ -761,21 +761,21 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
             </thead>
             <tbody>
               <tr>
-                <td class="td-bold">Vendas Antecipadas</td>
+                <td class="td-bold">Vendas Antecipadas{% if vpp.antecipadas_periodo %}<br><span class="ldt-pct" style="font-weight:400">{{ vpp.antecipadas_periodo }}</span>{% endif %}</td>
                 <td style="text-align:left;">{{ vpp.antecipadas.vendas | num }}
                   {% if dbf.has_prev %}{{ dbadge(vpp.antecipadas.vendas, pvpp.antecipadas.vendas) }}{% endif %}
                 </td>
                 <td style="text-align:left;">{{ vpp.antecipadas.faturamento | brl }}</td>
               </tr>
               <tr>
-                <td class="td-bold">Carrinho Aberto</td>
+                <td class="td-bold">Carrinho Aberto{% if vpp.aberto_periodo %}<br><span class="ldt-pct" style="font-weight:400">{{ vpp.aberto_periodo }}</span>{% endif %}</td>
                 <td style="text-align:left;">{{ vpp.aberto.vendas | num }}
                   {% if dbf.has_prev %}{{ dbadge(vpp.aberto.vendas, pvpp.aberto.vendas) }}{% endif %}
                 </td>
                 <td style="text-align:left;">{{ vpp.aberto.faturamento | brl }}</td>
               </tr>
               <tr>
-                <td class="td-bold">Semana Seguinte</td>
+                <td class="td-bold">Semana Seguinte{% if vpp.semana_periodo %}<br><span class="ldt-pct" style="font-weight:400">{{ vpp.semana_periodo }}</span>{% endif %}</td>
                 <td style="text-align:left;">{{ vpp.semana_seguinte.vendas | num }}
                   {% if dbf.has_prev %}{{ dbadge(vpp.semana_seguinte.vendas, pvpp.semana_seguinte.vendas) }}{% endif %}
                 </td>

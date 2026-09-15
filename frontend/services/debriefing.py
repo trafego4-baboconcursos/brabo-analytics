@@ -642,31 +642,53 @@ def _compute_debriefing_ctx(
         f = sum(float(t.get("faturamento") or 0) for t in rows if start <= t.get("data", "") <= end)
         return {"vendas": v, "faturamento": f}
 
+    def _fmt_intervalo(s, e):
+        """dd/mm ou dd/mm/aaaa a dd/mm/aaaa (data curta pra célula de tabela) —
+        pauta 15/09/26, usuário pediu as datas de cada período na tabela
+        "Vendas por Período", que só mostrava o rótulo antes."""
+        from datetime import date as _date
+        try:
+            ds = _date.fromisoformat(str(s))
+            de = _date.fromisoformat(str(e))
+        except Exception:
+            return ""
+        if ds.year == de.year:
+            return f"{ds.strftime('%d/%m')} a {de.strftime('%d/%m')}"
+        return f"{ds.strftime('%d/%m/%Y')} a {de.strftime('%d/%m/%Y')}"
+
     def _vendas_por_periodo(rows, c_start_, c_end_, abertura_oficial):
         from datetime import date, timedelta
         antecipadas = {"vendas": 0, "faturamento": 0.0}
+        antecipadas_periodo = ""
         aberto_start = c_start_
         if c_start_ and abertura_oficial and abertura_oficial > c_start_:
             try:
                 fim_ant = (date.fromisoformat(str(abertura_oficial)) - timedelta(days=1)).isoformat()
                 antecipadas = _sum_janela(rows, c_start_, fim_ant)
+                antecipadas_periodo = _fmt_intervalo(c_start_, fim_ant)
                 aberto_start = abertura_oficial
             except Exception:
                 pass
         aberto = _sum_janela(rows, aberto_start, c_end_)
+        aberto_periodo = _fmt_intervalo(aberto_start, c_end_) if aberto_start and c_end_ else ""
         semana = {"vendas": 0, "faturamento": 0.0}
+        semana_periodo = ""
         if c_end_:
             try:
                 sem_start = (date.fromisoformat(str(c_end_)) + timedelta(days=1)).isoformat()
                 sem_end   = (date.fromisoformat(str(c_end_)) + timedelta(days=7)).isoformat()
                 semana = _sum_janela(rows, sem_start, sem_end)
+                semana_periodo = _fmt_intervalo(sem_start, sem_end)
             except Exception:
                 pass
         total = {
             "vendas": antecipadas["vendas"] + aberto["vendas"] + semana["vendas"],
             "faturamento": antecipadas["faturamento"] + aberto["faturamento"] + semana["faturamento"],
         }
-        return {"antecipadas": antecipadas, "aberto": aberto, "semana_seguinte": semana, "total": total}
+        return {
+            "antecipadas": antecipadas, "aberto": aberto, "semana_seguinte": semana, "total": total,
+            "antecipadas_periodo": antecipadas_periodo, "aberto_periodo": aberto_periodo, "semana_periodo": semana_periodo,
+        }
 
     def _semana_seguinte_de(hotmart_obj) -> dict:
         rows = getattr(hotmart_obj, "timeline", []) or []

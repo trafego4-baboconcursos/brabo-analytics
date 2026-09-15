@@ -18,7 +18,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 21 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 23 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -98,6 +98,11 @@ relacionados:
 > **Dados das aulas no YouTube — duas fontes, uma tabela (2026-09-15)**
 >
 > - [[ARQUITETURA#Página `/aulas-ao-vivo`|Página `/aulas-ao-vivo`]]
+>
+> **Código de anúncio e imagem de criativo (15/09/26)**
+>
+> - [[ARQUITETURA#Convenção de nome por lançamento|Convenção de nome por lançamento]]
+> - [[ARQUITETURA#De onde vem a imagem do criativo|De onde vem a imagem do criativo]]
 
 <!-- SUMARIO:FIM -->
 
@@ -852,3 +857,42 @@ Duas decisões de leitura que valem para qualquer lançamento: as janelas de que
 **depois** do pico (antes dele a audiência ainda está entrando, e uma queda ali é ruído), e o
 engajamento é dividido pelo pico de audiência — o volume bruto sempre premia a aula mais
 cheia.
+## Código de anúncio e imagem de criativo (15/09/26)
+
+### Convenção de nome por lançamento
+
+A chave de atribuição é `ADxxx` (`AD` + número), extraída do nome do anúncio. Lançamentos
+anteriores à padronização não seguem isso — o BV-25 usa `AD-<iniciais><n>` com prefixo por
+etapa (`ADC`/`ADR`/`ADL`) e `UGC`, e o regex corrente reconhecia 7 dos 237 nomes.
+
+`src/ad_codes.py` centraliza a extração e resolve isso **por lançamento**
+(`extract_ad_code(ad_name, launch_code)`): só um código listado em `_LEGACY_LAUNCHES` usa o
+regex antigo, e para um `ADxxx` normal os dois caminhos devolvem o mesmo valor. A alternativa
+— estender o regex global — mexeria na chave de atribuição de todos os lançamentos ativos,
+que é justamente o que não se quer tocar.
+
+A classificação de etapa tem o mesmo recorte: `_categorize_campaign` casa a tag entre
+colchetes, e na convenção antiga o que está entre colchetes é o *objetivo* da campanha Meta
+(`[CADASTRO]`), com a etapa solta no nome. O fallback sem colchetes só roda em lançamento
+legado e só quando o match normal falha.
+
+### De onde vem a imagem do criativo
+
+`ad_creatives` guarda os **bytes** da thumb e da imagem cheia (migration 006); as URLs do CDN
+do Facebook expiram, os bytes não. Serve por `/api/meta-creative/{launch}/{ad_code}/{kind}`.
+Lançamento com `drive_folder_url` no `launch_config` usa as imagens do Drive; sem ele (caso do
+BV-25), a origem é o próprio Meta.
+
+O Meta expõe a imagem de quatro formas diferentes, e `_creative_image_url` tenta todas nesta
+ordem: `image_url` direto, `object_story_spec` (`video_data`/`link_data`/`photo_data`),
+`asset_feed_spec.videos[].thumbnail_url` (Advantage+/dynamic creative) e, por último,
+`asset_feed_spec.images[].hash` — que não é URL e precisa ser resolvido em `/adimages`.
+
+Dois cuidados que valem para qualquer backfill de imagem:
+
+- **A URL de `/adimages` é assinada e de vida curta.** A resolução acontece em janelas de
+  `_JANELA_HASHES` registros, imediatamente antes do download. Resolver a fila inteira antes
+  faz o fim dela chegar expirado.
+- **Uma linha só está completa com thumb E imagem.** A thumb do criativo é 64x64, pequena
+  demais para a grade; o guard de reprocessamento considera as duas colunas, senão um
+  criativo que falhou o download uma vez nunca mais é tentado.

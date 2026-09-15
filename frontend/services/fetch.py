@@ -135,10 +135,27 @@ def _leads_x_whatsapp(launch: Any, previous: Any = None):
     return out
 
 
-def _vendas_grupos_whatsapp(launch: Any):
+def _vendas_grupos_whatsapp(launch: Any, previous: Any = None):
+    """`previous` opcional: quando informado, mescla prev_dentro_vip/
+    prev_dentro_normal/prev_fora/prev_com_telefone do lançamento anterior —
+    pauta comparativo no card do debriefing."""
     from frontend.db_readers.whatsapp_groups import read_vendas_grupos_whatsapp
-    return _get_or_compute(launch.code, "vendas_grupos_whatsapp",
-                           lambda: read_vendas_grupos_whatsapp(launch.code))
+    atual = _get_or_compute(launch.code, "vendas_grupos_whatsapp",
+                            lambda: read_vendas_grupos_whatsapp(launch.code))
+    if not atual or not previous:
+        return atual
+    prev = _get_or_compute(previous.code, "vendas_grupos_whatsapp",
+                           lambda: read_vendas_grupos_whatsapp(previous.code))
+    if not prev:
+        return atual
+    out = dict(atual)
+    out["has_prev"] = True
+    out["prev_code"] = previous.code
+    out["prev_dentro_vip"] = prev.get("dentro_vip")
+    out["prev_dentro_normal"] = prev.get("dentro_normal")
+    out["prev_fora"] = prev.get("fora")
+    out["prev_com_telefone"] = prev.get("com_telefone")
+    return out
 
 
 def _utm_cobertura(launch: Any):

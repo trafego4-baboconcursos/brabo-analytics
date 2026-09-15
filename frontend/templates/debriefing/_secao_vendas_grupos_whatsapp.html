@@ -1,5 +1,6 @@
 {# Corpo da seção "Vendas × Grupos de WhatsApp". Vazio quando não há dado
    (no carregamento sob demanda o JS remove a seção inteira nesse caso). #}
+{% from "debriefing/_macros.html" import dbadge with context %}
 {% if dbf.vendas_grupos_whatsapp %}
 {% set cp = dbf.vendas_grupos_whatsapp %}
 <div class="dbf-lazy-body">
@@ -7,24 +8,40 @@
     <div class="dbf-kpi">
       <div class="lbl">Vendas — Grupos VIP</div>
       <div class="val">{{ cp.dentro_vip | num }}</div>
+      {% if cp.has_prev %}
+        {{ dbadge(cp.dentro_vip, cp.prev_dentro_vip, 'up') }}
+        <div class="prev-val">ant.: {{ cp.prev_dentro_vip | num }}</div>
+      {% endif %}
     </div>
     <div class="dbf-kpi">
       <div class="lbl">Vendas — Grupos Normais</div>
       <div class="val">{{ cp.dentro_normal | num }}</div>
+      {% if cp.has_prev %}
+        {{ dbadge(cp.dentro_normal, cp.prev_dentro_normal, 'up') }}
+        <div class="prev-val">ant.: {{ cp.prev_dentro_normal | num }}</div>
+      {% endif %}
     </div>
     <div class="dbf-kpi">
       <div class="lbl">Vendas — Fora dos Grupos</div>
       <div class="val">{{ cp.fora | num }}</div>
+      {% if cp.has_prev %}
+        {{ dbadge(cp.fora, cp.prev_fora, 'down') }}
+        <div class="prev-val">ant.: {{ cp.prev_fora | num }}</div>
+      {% endif %}
       <div class="prev-val">{{ cp.receita_fora | brl }}</div>
     </div>
     <div class="dbf-kpi">
       <div class="lbl">Total de compradores (com telefone)</div>
       <div class="val">{{ cp.com_telefone | num }}</div>
+      {% if cp.has_prev %}
+        {{ dbadge(cp.com_telefone, cp.prev_com_telefone, 'up') }}
+        <div class="prev-val">ant.: {{ cp.prev_com_telefone | num }}</div>
+      {% endif %}
       <div class="prev-val">{{ cp.pct_dentro | round(1) }}% em algum grupo · {{ cp.receita_dentro | brl }}</div>
     </div>
   </div>
   <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
-    Cruzamento por telefone entre compradores (Hotmart + TMB) e presença nos grupos de WhatsApp. Categorias mutuamente exclusivas — quem está no VIP e no Normal ao mesmo tempo conta só em VIP{% if cp.sem_telefone %}; {{ cp.sem_telefone | num }} comprador(es) sem telefone cadastrado ficaram de fora do cruzamento{% endif %}.
+    Cruzamento por telefone entre compradores (Hotmart + TMB) e presença nos grupos de WhatsApp. Categorias mutuamente exclusivas — quem está no VIP e no Normal ao mesmo tempo conta só em VIP{% if cp.sem_telefone %}; {{ cp.sem_telefone | num }} comprador(es) sem telefone cadastrado ficaram de fora do cruzamento{% endif %}.{% if cp.has_prev %} Comparativo vs {{ cp.prev_code }} (último lançamento INSS).{% endif %}
   </div>
 </div>
 {% endif %}

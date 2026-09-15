@@ -666,7 +666,8 @@ async def debriefing_secao(request: Request, secao: str, launch_code: str | None
             previous = find_previous_launch(launch, launches)
             dbf[secao] = await run_in_threadpool(_leads_x_whatsapp, launch, previous)
         elif secao == "vendas_grupos_whatsapp":
-            dbf[secao] = await run_in_threadpool(_vendas_grupos_whatsapp, launch)
+            previous = find_previous_launch(launch, launches)
+            dbf[secao] = await run_in_threadpool(_vendas_grupos_whatsapp, launch, previous)
         elif secao == "disparo_resumo":
             dbf[secao] = await run_in_threadpool(_disparo_resumo, launch)
         elif secao == "comparativo_historico":

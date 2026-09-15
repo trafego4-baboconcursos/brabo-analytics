@@ -22,8 +22,13 @@ from pathlib import Path
 import yaml
 from sqlalchemy import text
 
-CODE_RE = re.compile(r"\b(PBB|PES|PI)-\w{3}-\d{2}\b", re.IGNORECASE)
-PREFIX_RE = re.compile(r"\b(PBB|PES|PI)-", re.IGNORECASE)
+# BV-25 (Black Vitalícia 2025) não segue PREFIXO-MES-AA: o código é prefixo +
+# ano, e no nome da campanha aparece ora como "- BV-25 -" (Meta), ora como
+# "[BV-25]" (Google). Foi um lançamento único rodando os três produtos
+# (INSS/TJ-SP/BB) ao mesmo tempo, por isso ganha prefixo próprio em vez de
+# ser dividido entre PBB/PES/PI.
+CODE_RE = re.compile(r"\b(?:(?:PBB|PES|PI)-\w{3}|BV)-\d{2}\b", re.IGNORECASE)
+PREFIX_RE = re.compile(r"\b(PBB|PES|PI|BV)-", re.IGNORECASE)
 
 _INSTAGRAM_ACCOUNTS_YAML = Path(__file__).resolve().parents[1] / "config" / "instagram_accounts.yaml"
 

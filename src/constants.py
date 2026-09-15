@@ -15,6 +15,9 @@ PRODUCT_BY_PREFIX: dict[str, tuple[str, str, int]] = {
     "PES":      ("TJ-SP",          "Tribunal de Justiça de São Paulo",    2),
     "PBB":      ("Banco do Brasil", "Banco do Brasil",                    3),
     "PERPETUO": ("PERPETUO",       "Produto Perpétuo",                    4),
+    # BV = Black Vitálicia: promoção anual multiproduto (INSS + TJ-SP + BB
+    # na mesma campanha), fora do ciclo normal de lançamento por produto.
+    "BV":       ("Black Vitalícia", "Black Vitalícia (multiproduto)",     5),
 }
 
 LAUNCH_ACCENT: dict[str, str] = {
@@ -26,6 +29,7 @@ LAUNCH_ACCENT: dict[str, str] = {
     "PI-ABR-26":  "#e67e22",
     "PI-JAN-26":  "#16a085",
     "PERPETUO":   "#e74c3c",
+    "BV-25":      "#111827",
 }
 
 LAUNCH_SHORT: dict[str, str] = {
@@ -37,6 +41,7 @@ LAUNCH_SHORT: dict[str, str] = {
     "PI-ABR-26":  "ABR",
     "PI-JAN-26":  "JAN",
     "PERPETUO":   "PERP",
+    "BV-25":      "BLACK",
 }
 
 LAUNCH_NAMES: dict[str, str] = {
@@ -48,4 +53,5 @@ LAUNCH_NAMES: dict[str, str] = {
     "PI-ABR-26":  "INSS - Abril 2026",
     "PI-JAN-26":  "INSS - Janeiro 2026",
     "PERPETUO":   "Perpétuo - Geral",
+    "BV-25":      "Black Vitalícia 2025",
 }

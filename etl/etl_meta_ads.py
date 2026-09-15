@@ -42,7 +42,7 @@ AD_CODE_RE = re.compile(r"(AD\d+)", re.IGNORECASE)
 def extract_launch_code(campaign_name: str) -> str | None:
     if pd.isna(campaign_name) or not campaign_name:
         return None
-    match = re.search(r'(PBB|PES|PI)-\w{3}-\d{2}', str(campaign_name), re.IGNORECASE)
+    match = re.search(r'\b(?:(?:PBB|PES|PI)-\w{3}|BV)-\d{2}\b', str(campaign_name), re.IGNORECASE)
     if match:
         return match.group(0).upper()
     return None

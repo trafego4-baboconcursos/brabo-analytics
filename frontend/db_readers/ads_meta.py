@@ -12,6 +12,7 @@ from sqlalchemy import text
 
 from logger import get_logger
 from frontend.utils import _extract_launch_code, _normalize_ad_code
+from src.ad_codes import extract_ad_code, uses_legacy_ad_codes
 from frontend.db import _get_engine
 from frontend.models import MetaCriativo, MetaSummary
 from src.constants import ETAPAS_ORDEM
@@ -167,13 +168,22 @@ def _categorize_publico(adset: Any) -> str:
     return original
 
 
-def _categorize_campaign(camp: str) -> tuple[str, str, str, str]:
+def _categorize_campaign(camp: str, legacy: bool = False) -> tuple[str, str, str, str]:
     camp = str(camp).lower()
     etapa = "Outros"
     for k, v in ETAPA_MAP.items():
         if f"[{k}]" in camp or f"][{k}]" in camp:
             etapa = v
             break
+    if etapa == "Outros" and legacy:
+        # Convenção antiga (BV-25): o que está entre colchetes é o OBJETIVO da
+        # campanha ("[M] [CADASTRO] Captação INSS ... - BV-25"), e a etapa vem
+        # solta no meio do nome. Só age quando o match normal falhou, então não
+        # muda a classificação de nenhuma campanha que já resolve hoje.
+        for k, v in ETAPA_MAP.items():
+            if k in camp:
+                etapa = v
+                break
     temp = "Outros"
     for k, v in TEMPERATURA_MAP.items():
         if f"[{k}]" in camp:
@@ -237,8 +247,9 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
     df["temperatura"] = "Outros"
     df["bucket"] = "Outros"
 
+    _legacy = uses_legacy_ad_codes(code)
     df["etapa"], df["temperatura"], df["bucket"], df["segmento"] = zip(
-        *df["campaign_name"].map(_categorize_campaign)
+        *df["campaign_name"].map(lambda c: _categorize_campaign(c, legacy=_legacy))
     )
 
     # Agrupamentos
@@ -507,8 +518,7 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
 
     for _, r in ad_grouped.iterrows():
         name = r["ad_name"]
-        match = re.search(r"\bAD\d+\b", name, flags=re.IGNORECASE)
-        ad_code = match.group(0).upper() if match else ""
+        ad_code = extract_ad_code(name, code)
 
         c = MetaCriativo(
             nome=name,

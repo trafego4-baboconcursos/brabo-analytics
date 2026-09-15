@@ -14,6 +14,7 @@ from sqlalchemy import text
 
 from logger import get_logger
 from frontend.utils import _extract_launch_code, _normalize_ad_code
+from src.ad_codes import extract_ad_code
 from frontend.db import _get_engine
 from frontend.models import GoogleCampanha, GoogleSummary
 from frontend.db_readers.ads_meta import get_historico_ad_codes
@@ -197,10 +198,9 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
             target_list = summary.preq_por_ad
         else:
             continue
-        match = re.search(r"\bAD\d+\b", name, flags=re.IGNORECASE)
-        if not match:
+        ad_code = extract_ad_code(name, code)
+        if not ad_code:
             continue
-        ad_code = match.group(0).upper()
 
         gasto = float(r["custo"])
         leads = float(r["conversions"])
@@ -212,8 +212,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
         video_id = _video_id_by_ad_name.get(name)
         if not video_id:
             for k, v in _video_id_by_ad_name.items():
-                m = re.search(r"\bAD\d+\b", k, flags=re.IGNORECASE)
-                if m and m.group(0).upper() == ad_code:
+                if extract_ad_code(k, code) == ad_code:
                     video_id = v
                     break
 

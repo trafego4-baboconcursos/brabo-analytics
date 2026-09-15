@@ -145,9 +145,11 @@ def _build_leads_detail_table(
             r["vendas_var"]      = _pct_change(r["vendas"], p["vendas"])
             r["custo_venda_var"] = _pct_change(r["custo_venda"], p["custo_venda"])
             r["roas_var"]        = _pct_change(r["roas"], p["roas"])
+            r["vendas_prev"]     = p["vendas"]
         else:
             r["leads_var"] = r["gasto_var"] = r["cpl_var"] = r["conversao_var"] = None
             r["vendas_var"] = r["custo_venda_var"] = r["roas_var"] = None
+            r["vendas_prev"] = None
 
     return curr_rows
 

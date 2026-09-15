@@ -1455,32 +1455,70 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       const cssVar = (name, fallback) => (getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback);
       const metaColor = cssVar('--meta-color', '#1877F2');
       const googleColor = cssVar('--google-color', '#dc2626');
+      const upColor = cssVar('--bs-success', '#16a34a');
+      const downColor = cssVar('--bs-danger', '#dc2626');
+      const inkColor = cssVar('--bs-ink', '#1f2330');
+      const hexToRgba = (hex, alpha) => {
+        const h = hex.replace('#', '');
+        const n = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+        const r = parseInt(n.substring(0, 2), 16), g = parseInt(n.substring(2, 4), 16), b = parseInt(n.substring(4, 6), 16);
+        return `rgba(${r},${g},${b},${alpha})`;
+      };
       const labels = [{% for r in dbf.leads_detail_table %}"{{ r.label | e }}"{% if not loop.last %},{% endif %}{% endfor %}];
       const vendas = [{% for r in dbf.leads_detail_table %}{{ r.vendas | int }}{% if not loop.last %},{% endif %}{% endfor %}];
+      const vendasPrev = [{% for r in dbf.leads_detail_table %}{{ (r.vendas_prev | int) if r.vendas_prev is not none else 'null' }}{% if not loop.last %},{% endif %}{% endfor %}];
       const vars   = [{% for r in dbf.leads_detail_table %}{{ (r.vendas_var | round(1)) if r.vendas_var is not none else 'null' }}{% if not loop.last %},{% endif %}{% endfor %}];
       const colors = labels.map(l => l.startsWith('YT') ? googleColor : metaColor);
+      const prevColors = labels.map(l => hexToRgba(l.startsWith('YT') ? googleColor : metaColor, 0.3));
       new Chart(el, {
         type: 'bar',
         plugins: [ChartDataLabels],
-        data: { labels, datasets: [{ data: vendas, backgroundColor: colors, borderRadius: 4, maxBarThickness: 64 }] },
+        data: {
+          labels,
+          datasets: [
+            {
+              label: '{{ dbf.prev_code or "Lançamento anterior" }}',
+              data: vendasPrev, backgroundColor: prevColors, borderRadius: 4, maxBarThickness: 48,
+              datalabels: { display: false }
+            },
+            {
+              label: '{{ launch.code }}',
+              data: vendas, backgroundColor: colors, borderRadius: 4, maxBarThickness: 48,
+              datalabels: {
+                labels: {
+                  value: {
+                    anchor: 'end', align: 'top', offset: 20,
+                    font: { size: 12, weight: '700' },
+                    color: inkColor,
+                    formatter: (v) => String(v),
+                  },
+                  variation: {
+                    anchor: 'end', align: 'top', offset: 2,
+                    font: { size: 11, weight: '600' },
+                    color: (ctx) => {
+                      const p = vars[ctx.dataIndex];
+                      if (p === null || p === undefined) return 'transparent';
+                      return p > 0 ? upColor : (p < 0 ? downColor : inkColor);
+                    },
+                    formatter: (v, ctx) => {
+                      const varPct = vars[ctx.dataIndex];
+                      if (varPct === null || varPct === undefined) return '';
+                      const arrow = varPct > 0 ? '▲' : (varPct < 0 ? '▼' : '=');
+                      const sign = varPct > 0 ? '+' : '';
+                      return `${arrow} ${sign}${varPct}%`;
+                    },
+                  }
+                }
+              }
+            }
+          ]
+        },
         options: {
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { display: false },
+            legend: { display: true, position: 'top', align: 'end', labels: { boxWidth: 12, font: { size: 11 } } },
             tooltip: { enabled: false },
-            datalabels: {
-              anchor: 'end', align: 'top', offset: 2,
-              font: { size: 12, weight: '700' },
-              color: cssVar('--bs-ink', '#1f2330'),
-              formatter: (v, ctx) => {
-                const varPct = vars[ctx.dataIndex];
-                if (varPct === null || varPct === undefined) return String(v);
-                const arrow = varPct > 0 ? '▲' : (varPct < 0 ? '▼' : '=');
-                const sign = varPct > 0 ? '+' : '';
-                return [String(v), `${arrow} ${sign}${varPct}%`];
-              },
-            }
           },
           scales: {
             x: { grid: { display: false }, ticks: { font: { size: 11 } } },

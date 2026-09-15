@@ -1,0 +1,17 @@
+{# Corpo da seção "Funil da Pesquisa — Leads". Reaproveita o mesmo dado de
+   pesquisa_engajamento (cache compartilhado) — só a exibição muda, focada
+   no funil pedido na pauta. Vazio quando não há dado. #}
+{% if dbf.pesquisa_engajamento %}
+{% set pe = dbf.pesquisa_engajamento %}
+<div class="dbf-lazy-body">
+  <div class="dbf-kpi-grid">
+    <div class="dbf-kpi">
+      <div class="lbl">Finalizaram / Responderam a pesquisa</div>
+      <div class="val">{{ pe.respostas | num }}</div>
+    </div>
+  </div>
+  <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+    A pesquisa é disparada via automação de WhatsApp — quem recebeu, abriu e iniciou a pesquisa ainda não é rastreado nessa automação, então só o total de quem finalizou (respondeu) está disponível hoje. Assim que houver essa fonte, as etapas e percentuais do funil completo (recebeu → abriu → iniciou → finalizou) entram aqui.
+  </div>
+</div>
+{% endif %}

@@ -18,7 +18,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 23 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 24 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -103,6 +103,10 @@ relacionados:
 >
 > - [[ARQUITETURA#Convenção de nome por lançamento|Convenção de nome por lançamento]]
 > - [[ARQUITETURA#De onde vem a imagem do criativo|De onde vem a imagem do criativo]]
+>
+> **Egress — contagens de e-mail que desciam como lista (2026-09-15)**
+>
+> - [[ARQUITETURA#Pendência: `read_typeform` do PI-AGO-26 falha ~50% das vezes|Pendência: `read_typeform` do PI-AGO-26 falha ~50% das vezes]]
 
 <!-- SUMARIO:FIM -->
 
@@ -896,3 +900,34 @@ Dois cuidados que valem para qualquer backfill de imagem:
 - **Uma linha só está completa com thumb E imagem.** A thumb do criativo é 64x64, pequena
   demais para a grade; o guard de reprocessamento considera as duas colunas, senão um
   criativo que falhou o download uma vez nunca mais é tentado.
+
+## Egress — contagens de e-mail que desciam como lista (2026-09-15)
+
+Medição pós-deploy (22h de janela limpa): o egress caiu 81%, de ~493 para ~92 milhões de
+linhas/dia. Auditando o que sobrou, três consultas ainda seguiam o padrão que o relatório
+apontou — **baixar uma lista para contar/cruzar em Python** —, somando 20,6 milhões de linhas
+por dia (24% do total) para produzir três números e um teste de pertinência:
+
+| Onde | Antes | Agora |
+|---|---|---|
+| `read_typeform_count` | baixava ~13 mil e-mails do Typeform + ~27 mil do sistema novo pra fazer `len()` de um set | `UNION` + `count` no servidor: **1 linha** |
+| `read_pesquisa_engajamento` | mesma lista, e ainda devolvia como parâmetro `= ANY(:emails)` do cruzamento | os três números (respostas, base, cruzadas) numa consulta só: **1 linha** |
+| `caminho_comprador.py` | baixava os ~13 mil respondentes do lançamento pra testar `email in respondentes` contra ~2,5 mil compradores | `AND LOWER(email) = ANY(:buyers)` |
+
+O caso do `caminho_comprador` é instrutivo: o telefone nesse mesmo arquivo já tinha sido
+corrigido em 14/09, e o e-mail dez linhas abaixo passou batido. Ao corrigir um cruzamento num
+arquivo, vale varrer o resto dele.
+
+Detalhe que precisa ser preservado no `read_typeform_count`: o `if not emails` que decidia o
+fallback por data olhava a contagem **crua** do Typeform, não a dos e-mails válidos. Por isso a
+consulta devolve duas contagens (`bruto` e o total unido) em vez de só o total.
+
+Validado com o harness de snapshot contra PI-AGO-26, PBB-AGO-26 e PES-MAI-26: zero diferença.
+
+### Pendência: `read_typeform` do PI-AGO-26 falha ~50% das vezes
+
+O `SELECT *` com a coluna `answers` sobre a união deduplicada leva ~33s no PI-AGO-26, contra o
+`statement_timeout` de 30s (`src/db_engine.py`) — duas execuções seguidas deram uma OK e uma
+`DatabaseError`. Quando passa, os valores batem (`total_tf=47140`, `tf_leads_crm=39314`). É a
+mesma consulta que lidera o egress restante (6,5 milhões de linhas em 777 chamadas), então vale
+atacar as duas coisas juntas.

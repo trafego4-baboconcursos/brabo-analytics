@@ -94,9 +94,16 @@ def read_caminho_comprador(launch_folder_or_code: Any, vendas: Any = None) -> di
         # 3. Pesquisa — quem respondeu, por e-mail
         proj_id, _ = _resolve_typeform_ids(code)
         proj_id = proj_id or code
+        # Só interessa quem COMPROU e respondeu: a linha de baixo testa
+        # `email in respondentes` para cada comprador (~2,5 mil), mas a consulta
+        # baixava os ~13 mil respondentes do lançamento inteiro. O cruzamento
+        # vai pro servidor, igual ao que já foi feito com o telefone logo acima
+        # (ver ARQUITETURA.md, 14/09/26 — egress).
         tf_rows = conn.execute(
-            text("SELECT DISTINCT LOWER(email) FROM typeform_respostas WHERE upper(coalesce(form_id, '')) = :fid AND email IS NOT NULL"),
-            {"fid": proj_id.upper()},
+            text("SELECT DISTINCT LOWER(email) FROM typeform_respostas "
+                 "WHERE upper(coalesce(form_id, '')) = :fid AND email IS NOT NULL "
+                 "AND LOWER(email) = ANY(:buyers)"),
+            {"fid": proj_id.upper(), "buyers": list(buyers)},
         ).fetchall()
         respondentes = {r[0] for r in tf_rows}
 

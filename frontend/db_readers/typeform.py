@@ -200,6 +200,19 @@ def _read_novo_sistema_respostas(formulario_ids: list[int]) -> pd.DataFrame:
 # o resto (ver ARQUITETURA.md, 14/09/26 — egress).
 # Os dois retornos são tratados como imutáveis pelos callers (pd.concat e
 # união de sets sempre copiam), então dá pra compartilhar a mesma instância.
+# E-mails respondentes do sistema novo, como SQL em vez de lista baixada.
+# Mesmo filtro do _read_novo_sistema_emails (`"@" in e`, strip+lower), só que
+# aplicado no servidor — usado pelos contadores, que só precisam do total.
+_NOVO_EMAILS_SQL = """
+    SELECT DISTINCT lower(btrim(r.valor->>'texto')) AS email_norm
+    FROM submissoes s
+    JOIN respostas r ON r.submissao_id = s.id
+    JOIN perguntas p ON p.id = r.pergunta_id
+    WHERE s.formulario_id = ANY(:fids) AND p.tipo = 'email'
+      AND r.valor->>'texto' LIKE '%@%'
+"""
+
+
 def _novo_sistema_respostas_cached(code: str) -> pd.DataFrame:
     from frontend.cache import _get_or_compute  # noqa: PLC0415
 
@@ -436,30 +449,32 @@ def read_typeform_count(launch_folder_or_code: Any) -> int:
         proj_id = code
 
     count_cols = "response_id, updated_at, email"
-    with engine.connect() as conn:
-        fid_where = "upper(coalesce(form_id, '')) = :fid"
-        emails = conn.execute(
-            text("SELECT email FROM " + _tf_source(fid_where, count_cols) + " t"),
-            {"fid": proj_id.upper()},
-        ).scalars().all()
-        if not emails:
-            emails = conn.execute(
-                text(
-                    "SELECT email FROM "
-                    + _tf_source(
-                        "submitted_at::date BETWEEN :start AND :end AND upper(coalesce(form_id, '')) = :code",
-                        count_cols,
-                    )
-                    + " t"
-                ),
-                {"start": dim_start, "end": dim_end, "code": code.upper()},
-            ).scalars().all()
+    fids = _resolve_novo_sistema_formulario_ids(code)
 
-    norm_emails = {str(e).strip().lower() for e in emails if e and "@" in str(e)}
+    # As duas listas de e-mail (~13 mil do Typeform + ~27 mil do sistema novo)
+    # desciam inteiras só pra virar len() de um set. A união e a contagem vão
+    # pro servidor: volta UMA linha (ver ARQUITETURA.md, 14/09/26 — egress).
+    # `bruto` reproduz o `if not emails` de antes, que decidia o fallback por
+    # data — precisa ser a contagem CRUA do Typeform, não a dos e-mails válidos.
+    def _conta(tf_where: str, params: dict) -> tuple[int, int]:
+        novo = _NOVO_EMAILS_SQL if fids else "SELECT NULL::text AS email_norm WHERE false"
+        sql = (
+            "WITH tf AS (SELECT email FROM " + _tf_source(tf_where, count_cols) + " t) "
+            "SELECT (SELECT count(*) FROM tf), (SELECT count(*) FROM ("
+            "SELECT DISTINCT lower(btrim(email)) AS email_norm FROM tf WHERE email LIKE '%@%' "
+            "UNION " + novo + ") u)"
+        )
+        with engine.connect() as conn:
+            row = conn.execute(text(sql), {**params, "fids": fids}).fetchone()
+        return int(row[0] or 0), int(row[1] or 0)
 
-    norm_emails |= _novo_sistema_emails_cached(code)
-
-    return len(norm_emails)
+    bruto, total = _conta("upper(coalesce(form_id, '')) = :fid", {"fid": proj_id.upper()})
+    if not bruto:
+        total = _conta(
+            "submitted_at::date BETWEEN :start AND :end AND upper(coalesce(form_id, '')) = :code",
+            {"start": dim_start, "end": dim_end, "code": code.upper()},
+        )[1]
+    return total
 
 
 def read_typeform(launch_folder_or_code: Any, start_date=None, end_date=None) -> TypeformSummary:
@@ -903,31 +918,33 @@ def read_pesquisa_engajamento(launch_folder_or_code: Any) -> dict | None:
         proj_id = code
     engine = _get_engine()
     fid_where = "upper(coalesce(form_id, '')) = :fid"
+    # Os três números saem de UMA consulta. Antes, a lista de respondentes
+    # (~13 mil do Typeform + ~27 mil do sistema novo) descia inteira só pra
+    # virar um len() e voltar como parâmetro do cruzamento — agora o conjunto
+    # nunca sai do servidor (ver ARQUITETURA.md, 14/09/26 — egress).
+    fids = _resolve_novo_sistema_formulario_ids(code)
+    novo = _NOVO_EMAILS_SQL if fids else "SELECT NULL::text AS email_norm WHERE false"
+    sql = (
+        "WITH tf AS (SELECT email FROM "
+        + _tf_source(fid_where, "response_id, updated_at, email")
+        + " t WHERE email IS NOT NULL AND email <> ''), "
+        "resp AS (SELECT DISTINCT lower(btrim(email)) AS email_norm FROM tf "
+        "UNION " + novo + ") "
+        "SELECT (SELECT count(*) FROM resp), "
+        "(SELECT COUNT(DISTINCT LOWER(TRIM(l.email))) FROM leads l "
+        " WHERE l.lancamento_codigo = :code AND l.email IS NOT NULL AND l.email <> ''), "
+        "(SELECT COUNT(DISTINCT LOWER(TRIM(l.email))) FROM leads l "
+        " WHERE l.lancamento_codigo = :code "
+        "   AND LOWER(TRIM(l.email)) IN (SELECT email_norm FROM resp))"
+    )
     with engine.connect() as conn:
-        tf_emails = conn.execute(text(
-            # só as colunas do DISTINCT ON + email: sem isso o `answers` (jsonb
-            # de ~2 KB por linha) entra no sort da deduplicação sem ser usado.
-            "SELECT email FROM " + _tf_source(fid_where, "response_id, updated_at, email")
-            + " t WHERE email IS NOT NULL"
-        ), {"fid": proj_id.upper()}).scalars().all()
+        row = conn.execute(text(sql), {"fid": proj_id.upper(), "code": code, "fids": fids}).fetchone()
 
-    all_emails = {str(e).strip().lower() for e in tf_emails if e} | _novo_sistema_emails_cached(code)
-    respostas = len(all_emails)
+    respostas = int(row[0] or 0)
     if not respostas:
         return None
-
-    # Só os dois totais interessam aqui — contar no servidor evita baixar a
-    # lista de e-mails inteira do lançamento (269 mil no PI-AGO-26) a cada
-    # chamada (ver ARQUITETURA.md, 14/09/26 — egress).
-    with engine.connect() as conn:
-        base = conn.execute(text(
-            "SELECT COUNT(DISTINCT LOWER(TRIM(email))) FROM leads "
-            "WHERE lancamento_codigo = :code AND email IS NOT NULL AND email <> ''"
-        ), {"code": code}).scalar() or 0
-        cruzadas = conn.execute(text(
-            "SELECT COUNT(DISTINCT LOWER(TRIM(email))) FROM leads "
-            "WHERE lancamento_codigo = :code AND LOWER(TRIM(email)) = ANY(:emails)"
-        ), {"code": code, "emails": list(all_emails)}).scalar() or 0
+    base = int(row[1] or 0)
+    cruzadas = int(row[2] or 0)
 
     return {
         "respostas": int(respostas),

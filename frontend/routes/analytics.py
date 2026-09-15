@@ -390,6 +390,24 @@ async def funil_page(request: Request, launch_code: str | None = None):
     return templates.TemplateResponse("funil.html", ctx)
 
 
+@router.get("/aulas-ao-vivo", response_class=HTMLResponse)
+async def aulas_ao_vivo_page(request: Request, launch_code: str | None = None):
+    """Análise da transmissão das aulas, minuto a minuto.
+
+    Não usa `_fetch_all_data`: a página depende só de `youtube_live_curva` e
+    `youtube_aulas_stats`, e carregar Meta/Google/vendas junto custaria
+    dezenas de segundos sem entrar em nada do que é mostrado aqui.
+    """
+    from frontend.db_readers.youtube_aulas import read_aulas_ao_vivo  # noqa: PLC0415
+
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    dados = await run_in_threadpool(read_aulas_ao_vivo, launch.code) if launch else {"aulas": [], "totais": {}}
+    ctx = _base_ctx(request, "aulas_ao_vivo", "Aulas Ao Vivo", launch, launches,
+                    aulas=dados["aulas"], totais=dados["totais"], data_errors=[])
+    return templates.TemplateResponse("aulas_ao_vivo.html", ctx)
+
+
 @router.get("/insights", response_class=HTMLResponse)
 async def insights_page(request: Request, launch_code: str | None = None):
     launches = await run_in_threadpool(get_launches)

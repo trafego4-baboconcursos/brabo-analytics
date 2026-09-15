@@ -362,6 +362,8 @@ def _build_funis_nav_groups(launch, active_code, page, current_user, previous_la
                  "href": _href("/insights"), "enabled": True},
                 {"page": "comparativo", "label": "Comparativo", "icon": "ti-arrows-exchange",
                  "href": f"/comparativo?launch_code={active_code}", "enabled": bool(previous_launch)},
+                {"page": "aulas_ao_vivo", "label": "Aulas Ao Vivo", "icon": "ti-brand-youtube",
+                 "href": _href("/aulas-ao-vivo"), "enabled": True},
                 {"page": "debriefing", "label": "Debriefing", "icon": "ti-clipboard-check",
                  "href": _href("/debriefing"), "enabled": True},
                 {"page": "verba", "label": "Verba do Lançamento", "icon": "ti-cash",

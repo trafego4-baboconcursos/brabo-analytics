@@ -1,0 +1,390 @@
+{% extends "base.html" %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+.aovivo-legenda { display:flex; flex-wrap:wrap; gap:14px; font-size:var(--fs-xs); color:var(--bs-ink-muted); margin-top:10px; }
+.aovivo-legenda span { display:inline-flex; align-items:center; gap:5px; }
+.aovivo-dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+
+/* Cada aula ganha um bloco próprio: thumb + curva + leitura da curva. */
+.aovivo-aula { background:var(--bs-surface); border-radius:var(--bs-r-lg); padding:16px; margin-bottom:16px; }
+.aovivo-aula-hdr { display:flex; gap:14px; align-items:flex-start; margin-bottom:14px; }
+.aovivo-aula-thumb { position:relative; flex:0 0 190px; aspect-ratio:16/9; border-radius:8px; overflow:hidden; background:var(--bs-border); display:block; }
+.aovivo-aula-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+.aovivo-aula-thumb .pl { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-size:30px; text-shadow:0 2px 10px rgba(0,0,0,.55); background:linear-gradient(180deg,rgba(0,0,0,.05),rgba(0,0,0,.3)); }
+.aovivo-aula-meta h3 { margin:0 0 4px; font-size:15px; font-weight:700; color:var(--bs-ink); }
+.aovivo-aula-meta a  { color:inherit; text-decoration:none; }
+.aovivo-mini { display:flex; flex-wrap:wrap; gap:18px; margin-top:8px; }
+.aovivo-mini div span { display:block; }
+.aovivo-mini .v { font-size:17px; font-weight:800; color:var(--bs-ink); line-height:1.1; }
+.aovivo-mini .l { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--bs-ink-muted); margin-top:2px; }
+
+.aovivo-quedas { margin-top:12px; font-size:var(--fs-xs); }
+.aovivo-quedas li { margin-bottom:3px; color:var(--bs-ink-muted); }
+.aovivo-quedas b { color:var(--bs-ink); }
+
+/* Régua de retenção: a cor diz o quanto sobrou do pico naquele minuto. */
+.ret-cell { text-align:center; font-weight:700; font-size:12px; border-radius:4px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wrap">
+
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}">
+      <img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics">
+    </a>
+    <div>
+      <h1>Aulas Ao Vivo{% if launch %} — {{ launch.code }}{% endif %}</h1>
+      <p>{% if launch %}{{ launch.name }} | {% endif %}Audiência, retenção e engajamento minuto a minuto da transmissão</p>
+    </div>
+  </div>
+
+  <div class="content">
+
+    {% if not aulas %}
+    <div class="no-data">
+      <i class="ti ti-brand-youtube"></i>
+      <h3>Sem dados de transmissão para este lançamento</h3>
+      <p>
+        Exporte o relatório pós-transmissão de cada aula no YouTube Studio
+        (Analytics da live → Exportar) para
+        <code>analises/[{{ launch.code if launch else 'CODIGO' }}]/Youtube/Aula N/</code> e rode:
+      </p>
+      <p><code>python etl/etl_youtube_csv.py --launch-code {{ launch.code if launch else 'CODIGO' }}</code></p>
+    </div>
+
+    {% else %}
+
+    {# ── 1. Visão geral do conjunto de aulas ─────────────────────────────── #}
+    <div class="section">
+      <div class="section-title">1. Visão Geral das {{ totais.qtd_aulas }} Aulas</div>
+      <div class="kpi-grid">
+        <div class="kpi-card">
+          <div class="kpi-val">{{ totais.pico_max | num }}</div>
+          <div class="kpi-lbl">Maior Pico Simultâneo</div>
+          <div class="kpi-sub">Aula {{ totais.aula_pico_max }}</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-val">{{ totais.retencao_media }}%</div>
+          <div class="kpi-lbl">Retenção Média ao Vivo</div>
+          <div class="kpi-sub">quem ficou até o fim, sobre o pico</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-val" style="color:{% if totais.queda_1_ultima < -50 %}#dc2626{% elif totais.queda_1_ultima < 0 %}#d97706{% else %}#15803d{% endif %}">
+            {{ totais.queda_1_ultima }}%
+          </div>
+          <div class="kpi-lbl">Aula 1 → Aula {{ totais.qtd_aulas }}</div>
+          <div class="kpi-sub">variação do pico entre a primeira e a última</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-val">{{ totais.chat_total | num }}</div>
+          <div class="kpi-lbl">Mensagens no Chat</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-val">{{ totais.reacoes_total | num }}</div>
+          <div class="kpi-lbl">Reações ao Vivo</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-val">{{ totais.minutos_total | num }}min</div>
+          <div class="kpi-lbl">Transmitidos</div>
+          <div class="kpi-sub">{{ (totais.minutos_total / 60) | round(1) }}h no ar</div>
+        </div>
+      </div>
+      <div style="font-size:var(--fs-xs);color:var(--bs-ink-muted);margin-top:10px">
+        {% if totais.fonte_manual %}
+        Fonte: relatório pós-transmissão exportado do YouTube Studio (sem API). Views totais,
+        watch time e replay não entram neste export — só o que aconteceu ao vivo.
+        {% else %}
+        Fonte: YouTube Data API + YouTube Analytics API.
+        {% endif %}
+      </div>
+    </div>
+
+    {# ── 2. Curvas sobrepostas ───────────────────────────────────────────── #}
+    <div class="section">
+      <div class="section-title">2. Audiência ao Vivo — Todas as Aulas</div>
+      <div class="line-chart-wrap" style="height:340px"><canvas id="cv-todas"></canvas></div>
+      <div class="aovivo-legenda" id="lg-todas"></div>
+      <div style="font-size:var(--fs-xs);color:var(--bs-ink-muted);margin-top:8px">
+        Eixo X = minuto desde o início da transmissão, não hora do relógio — é o que permite
+        comparar aulas que começaram em horários diferentes.
+      </div>
+    </div>
+
+    {# ── 3. Mesma curva, normalizada ─────────────────────────────────────── #}
+    <div class="section">
+      <div class="section-title">3. Formato da Audiência (% do pico de cada aula)</div>
+      <div class="line-chart-wrap" style="height:300px"><canvas id="cv-norm"></canvas></div>
+      <div style="font-size:var(--fs-xs);color:var(--bs-ink-muted);margin-top:8px">
+        Cada aula na sua própria escala. Tira o tamanho da audiência da conta e deixa só o
+        <b>comportamento</b>: onde encheu, quanto tempo segurou e onde esvaziou.
+      </div>
+    </div>
+
+    {# ── 4. Tabela comparativa ───────────────────────────────────────────── #}
+    <div class="section">
+      <div class="section-title">4. Comparativo por Aula</div>
+      <div class="table-wrap">
+        <table class="table-compact" style="font-size:12px">
+          <thead>
+            <tr>
+              <th class="th-dark" style="text-align:left">Aula</th>
+              <th class="th-dark">Duração</th>
+              <th class="th-dark">Pico</th>
+              <th class="th-dark">Min. do pico</th>
+              <th class="th-dark">vs anterior</th>
+              <th class="th-dark">Média simult.</th>
+              <th class="th-dark">No fim</th>
+              <th class="th-dark">Retenção</th>
+              <th class="th-dark">Chat</th>
+              <th class="th-dark">Msg/pessoa</th>
+              <th class="th-dark">Reações</th>
+              <th class="th-dark">Reações/pessoa</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in aulas %}
+            <tr>
+              <td class="td-bold" style="text-align:left">
+                {% if a.url %}<a href="{{ a.url }}" target="_blank" rel="noopener" style="color:var(--bs-accent);text-decoration:none">Aula {{ a.aula_num }}</a>
+                {% else %}Aula {{ a.aula_num }}{% endif %}
+              </td>
+              <td>{{ a.duracao_min }}min</td>
+              <td class="td-bold">{{ a.pico | num }}</td>
+              <td>{{ a.min_pico }}min</td>
+              <td style="color:{% if a.delta_pico_pct is none %}var(--bs-ink-subtle){% elif a.delta_pico_pct < 0 %}#dc2626{% else %}#15803d{% endif %};font-weight:700">
+                {% if a.delta_pico_pct is none %}—{% else %}{{ a.delta_pico_pct }}%{% endif %}
+              </td>
+              <td>{{ a.media_simult | num }} <span style="color:var(--bs-ink-subtle)">({{ a.pct_media_pico }}%)</span></td>
+              <td>{{ a.fim | num }}</td>
+              <td style="font-weight:700;color:{% if a.retencao_pct >= 50 %}#15803d{% elif a.retencao_pct >= 40 %}#d97706{% else %}#dc2626{% endif %}">{{ a.retencao_pct }}%</td>
+              <td>{{ a.chat | num }}</td>
+              <td>{{ a.chat_por_pessoa }}</td>
+              <td>{{ a.reacoes | num }}</td>
+              <td>{{ a.rea_por_pessoa }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div style="font-size:var(--fs-xs);color:var(--bs-ink-muted);margin-top:8px">
+        <b>Msg/pessoa</b> e <b>Reações/pessoa</b> dividem o volume pelo pico de audiência: sem
+        isso, a aula mais cheia sempre parece a mais engajada.
+      </div>
+    </div>
+
+    {# ── 5. Régua de retenção ────────────────────────────────────────────── #}
+    <div class="section">
+      <div class="section-title">5. Régua de Retenção — % do pico a cada 15 minutos</div>
+      {# Colunas só até a aula mais longa: uma coluna que nenhuma aula alcança
+         é uma coluna de travessões. #}
+      {% set max_min = aulas | map(attribute='duracao_min') | max %}
+      <div class="table-wrap">
+        <table class="table-compact" style="font-size:12px">
+          <thead>
+            <tr>
+              <th class="th-dark" style="text-align:left">Aula</th>
+              {% for m in range(0, max_min + 1, 15) %}<th class="th-dark">{{ m }}min</th>{% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in aulas %}
+            {% set por_min = {} %}
+            {% for mk in a.marcos %}{% set _ = por_min.update({mk.min: mk}) %}{% endfor %}
+            <tr>
+              <td class="td-bold" style="text-align:left">Aula {{ a.aula_num }}</td>
+              {% for m in range(0, max_min + 1, 15) %}
+                {% set mk = por_min.get(m) %}
+                {% if mk %}
+                <td class="ret-cell"
+                    style="background:{% if mk.pct_pico >= 90 %}#dcfce7{% elif mk.pct_pico >= 70 %}#fef9c3{% elif mk.pct_pico >= 40 %}#fed7aa{% else %}#fecaca{% endif %};
+                           color:{% if mk.pct_pico >= 90 %}#15803d{% elif mk.pct_pico >= 70 %}#a16207{% elif mk.pct_pico >= 40 %}#c2410c{% else %}#b91c1c{% endif %}"
+                    title="{{ mk.simultaneos | num }} simultâneos">
+                  {{ mk.pct_pico | round | int }}%
+                </td>
+                {% else %}
+                <td style="color:var(--bs-ink-subtle);text-align:center">—</td>
+                {% endif %}
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div style="font-size:var(--fs-xs);color:var(--bs-ink-muted);margin-top:8px">
+        Passe o mouse para ver o número absoluto. A coluna "0min" é sempre baixa: a audiência
+        ainda está entrando quando a transmissão abre.
+      </div>
+    </div>
+
+    {# ── 6. Aula a aula ──────────────────────────────────────────────────── #}
+    <div class="section">
+      <div class="section-title">6. Aula a Aula — Audiência, Chat e Reações</div>
+      {% for a in aulas %}
+      <div class="aovivo-aula">
+        <div class="aovivo-aula-hdr">
+          {% if a.thumb %}
+          <a class="aovivo-aula-thumb" href="{{ a.url }}" target="_blank" rel="noopener" title="Abrir no YouTube">
+            <img src="{{ a.thumb }}" onerror="this.onerror=null;this.src='{{ a.thumb_alt }}'" alt="Aula {{ a.aula_num }}" loading="lazy">
+            <span class="pl"><i class="ti ti-brand-youtube"></i></span>
+          </a>
+          {% endif %}
+          <div class="aovivo-aula-meta">
+            <h3>
+              {% if a.url %}<a href="{{ a.url }}" target="_blank" rel="noopener">Aula {{ a.aula_num }} — {{ a.titulo }}</a>
+              {% else %}Aula {{ a.aula_num }} — {{ a.titulo }}{% endif %}
+            </h3>
+            <div class="aovivo-mini">
+              <div><span class="v">{{ a.pico | num }}</span><span class="l">Pico (min {{ a.min_pico }})</span></div>
+              <div><span class="v">{{ a.media_simult | num }}</span><span class="l">Média simultânea</span></div>
+              <div><span class="v">{{ a.fim | num }}</span><span class="l">No fim ({{ a.retencao_pct }}%)</span></div>
+              <div><span class="v">{{ a.chat_pico | num }}</span><span class="l">Chat no min {{ a.min_chat_pico }}</span></div>
+              <div><span class="v">{{ a.rea_pico | num }}</span><span class="l">Reações no min {{ a.min_rea_pico }}</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="line-chart-wrap" style="height:230px"><canvas id="cv-aula-{{ a.aula_num }}"></canvas></div>
+
+        {% if a.quedas %}
+        <div class="aovivo-quedas">
+          <div style="font-weight:700;color:var(--bs-ink);margin-bottom:4px">Onde a audiência mais caiu</div>
+          <ul style="margin:0;padding-left:18px">
+            {% for q in a.quedas %}
+            <li>min <b>{{ q.min_ini }} → {{ q.min_fim }}</b>: {{ q.de | num }} → {{ q.para | num }}
+                (<b>−{{ q.perda | num }}</b>, {{ q.pct_pico }}% do pico)</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+
+    <script>
+    (function () {
+      const aulas = {{ aulas | tojson }};
+      const CORES = ['#2563eb', '#16a34a', '#f59e0b', '#dc2626', '#7c3aed', '#0891b2', '#db2777'];
+      const ink = getComputedStyle(document.documentElement).getPropertyValue('--bs-ink-muted').trim() || '#6b7280';
+
+      const fmt = n => (n || 0).toLocaleString('pt-BR');
+      // Todas as aulas num eixo X só: o minuto vai até a mais longa.
+      const maxMin = Math.max(...aulas.map(a => a.duracao_min));
+      const labels = Array.from({ length: maxMin + 1 }, (_, i) => i);
+
+      // A curva pode ter buracos (minuto ausente no export); alinhar por
+      // minuto evita que uma aula mais curta "estique" no gráfico.
+      const serie = (a, campo, norm) => {
+        const porMin = new Map(a.curva.map(p => [p.min, p]));
+        return labels.map(m => {
+          const p = porMin.get(m);
+          if (p === undefined) return null;
+          return norm ? Math.round(p[campo] / a.pico * 1000) / 10 : p[campo];
+        });
+      };
+
+      const baseOpts = (yLabel, sufixo) => ({
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: it => 'Minuto ' + it[0].label,
+              label: c => c.dataset.label + ': ' + fmt(c.parsed.y) + (sufixo || ''),
+            },
+          },
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: ink, font: { size: 9 }, maxTicksLimit: 20,
+               callback: function (v) { return this.getLabelForValue(v) + 'min'; } } },
+          y: { beginAtZero: true, ticks: { color: ink, font: { size: 10 }, callback: v => fmt(v) + (sufixo || '') },
+               title: { display: true, text: yLabel, color: ink, font: { size: 10 } } },
+        },
+      });
+
+      // 2. Curvas absolutas
+      new Chart(document.getElementById('cv-todas'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: aulas.map((a, i) => ({
+            label: 'Aula ' + a.aula_num,
+            data: serie(a, 'simultaneos', false),
+            borderColor: CORES[i % CORES.length],
+            backgroundColor: CORES[i % CORES.length] + '18',
+            borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.25,
+            fill: i === 0, spanGaps: true,
+          })),
+        },
+        options: baseOpts('Espectadores simultâneos'),
+      });
+
+      // Legenda própria (a do Chart.js some no PDF e não leva o pico junto).
+      document.getElementById('lg-todas').innerHTML = aulas.map((a, i) =>
+        '<span><i class="aovivo-dot" style="background:' + CORES[i % CORES.length] + '"></i>' +
+        'Aula ' + a.aula_num + ' — pico ' + fmt(a.pico) + '</span>').join('');
+
+      // 3. Curvas normalizadas
+      new Chart(document.getElementById('cv-norm'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: aulas.map((a, i) => ({
+            label: 'Aula ' + a.aula_num,
+            data: serie(a, 'simultaneos', true),
+            borderColor: CORES[i % CORES.length],
+            borderWidth: 2, pointRadius: 0, pointHoverRadius: 4, tension: 0.25,
+            fill: false, spanGaps: true,
+          })),
+        },
+        options: baseOpts('% do pico da aula', '%'),
+      });
+
+      // 6. Uma aula por gráfico: audiência (esquerda) x chat e reações (direita)
+      aulas.forEach((a, i) => {
+        const cor = CORES[i % CORES.length];
+        const lbl = a.curva.map(p => p.min);
+        new Chart(document.getElementById('cv-aula-' + a.aula_num), {
+          data: {
+            labels: lbl,
+            datasets: [
+              { type: 'line', label: 'Simultâneos', data: a.curva.map(p => p.simultaneos),
+                borderColor: cor, backgroundColor: cor + '20', borderWidth: 2.5,
+                pointRadius: 0, pointHoverRadius: 4, tension: 0.25, fill: true, yAxisID: 'y' },
+              { type: 'bar', label: 'Chat', data: a.curva.map(p => p.chat),
+                backgroundColor: '#94a3b855', borderWidth: 0, yAxisID: 'y1' },
+              { type: 'line', label: 'Reações', data: a.curva.map(p => p.reacoes),
+                borderColor: '#db2777', borderWidth: 1.5, borderDash: [4, 3],
+                pointRadius: 0, pointHoverRadius: 4, tension: 0.25, fill: false, yAxisID: 'y1' },
+            ],
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 }, color: ink } },
+              tooltip: { callbacks: { title: it => 'Minuto ' + it[0].label, label: c => c.dataset.label + ': ' + fmt(c.parsed.y) } },
+            },
+            scales: {
+              x: { grid: { display: false }, ticks: { color: ink, font: { size: 9 }, maxTicksLimit: 18,
+                   callback: function (v) { return this.getLabelForValue(v) + 'min'; } } },
+              y:  { beginAtZero: true, position: 'left', ticks: { color: ink, font: { size: 10 }, callback: v => fmt(v) },
+                    title: { display: true, text: 'Simultâneos', color: ink, font: { size: 10 } } },
+              y1: { beginAtZero: true, position: 'right', grid: { drawOnChartArea: false },
+                    ticks: { color: ink, font: { size: 10 }, callback: v => fmt(v) },
+                    title: { display: true, text: 'Chat / reações por minuto', color: ink, font: { size: 10 } } },
+            },
+          },
+        });
+      });
+    })();
+    </script>
+
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -18,7 +18,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 20 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 21 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -97,6 +97,7 @@ relacionados:
 >
 > **Dados das aulas no YouTube — duas fontes, uma tabela (2026-09-15)**
 >
+> - [[ARQUITETURA#Página `/aulas-ao-vivo`|Página `/aulas-ao-vivo`]]
 
 <!-- SUMARIO:FIM -->
 
@@ -835,3 +836,19 @@ não haver duas listas. Com o ID real, o card renderiza a thumb oficial
 (`i.ytimg.com/vi/<id>/maxresdefault.jpg`, com fallback `mqdefault` no `onerror`) e vira link
 para o vídeo; sem ele, a linha usa a chave `manual-aula-N` e o card só não mostra thumb. A
 thumb não passa por proxy nem por credencial, diferente das thumbnails de criativo do Drive.
+
+### Página `/aulas-ao-vivo`
+
+A seção do debriefing mostra o resumo; a página mostra a curva. `read_aulas_ao_vivo`
+(`frontend/db_readers/youtube_aulas.py`) lê `youtube_live_curva` inteira e deriva minuto do
+pico, média de simultâneos, régua de retenção a cada 15 min em % do pico, as janelas de maior
+queda e a interação por pessoa.
+
+**Ela não passa por `_fetch_all_data` de propósito.** A página depende só das duas tabelas de
+YouTube; puxar Meta, Google e vendas junto custaria dezenas de segundos sem alimentar nada do
+que ela mostra. Resultado: ~0,4s contra os ~22s do debriefing ao vivo.
+
+Duas decisões de leitura que valem para qualquer lançamento: as janelas de queda só contam
+**depois** do pico (antes dele a audiência ainda está entrando, e uma queda ali é ruído), e o
+engajamento é dividido pelo pico de audiência — o volume bruto sempre premia a aula mais
+cheia.

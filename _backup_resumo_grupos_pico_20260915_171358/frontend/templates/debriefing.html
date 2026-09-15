@@ -1,0 +1,2886 @@
+{% extends "base.html" %}
+
+{% block head %}
+<style>
+/* ── Debriefing layout ─────────────────────────────────────────── */
+.dbf-section { margin-bottom: 48px; }
+.dbf-section-title {
+  font-size: 15px; font-weight: 700; color: var(--bs-ink);
+  margin-bottom: 20px; padding-bottom: 10px;
+  border-bottom: 2px solid var(--bs-accent);
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  cursor: pointer; user-select: none;
+}
+.dbf-section-title i { color: var(--bs-accent); font-size: 17px; }
+/* Recolher/expandir, reordenar, ocultar e tags agora são genéricos —
+   ver o accordion em base.html (reconhece .dbf-section/.dbf-section-title
+   junto com .section/.section-title). Fica só o wrapper de layout do
+   botão "Gerar PDF" abaixo. */
+.dbf-accordion-controls { display: flex; gap: 10px; margin-bottom: 28px; }
+.dbf-launch-badge {
+  font-size: 11px; font-weight: 700; padding: 2px 8px;
+  border-radius: 20px; background: var(--bs-accent); color: #fff;
+  letter-spacing: .04em;
+}
+.dbf-launch-badge.prev { background: var(--bs-ink-subtle); }
+
+/* ── Sem dados banner ─────────────────────────────────────────── */
+.dbf-sem-dados {
+  background: var(--bs-warning-bg); border: 1px dashed var(--bs-warning);
+  border-radius: 8px; padding: 16px 20px;
+  display: flex; align-items: flex-start; gap: 12px;
+  font-size: 13px; color: var(--bs-ink);
+}
+.dbf-sem-dados i { color: var(--bs-warning); font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+.dbf-sem-dados strong { display: block; margin-bottom: 4px; font-size: 13px; }
+.dbf-sem-dados span { font-size: 12px; color: var(--bs-ink-muted); }
+
+/* ── KPI grid ─────────────────────────────────────────────────── */
+.dbf-kpi-grid {
+  display: grid;
+  /* auto-fit (não auto-fill): sem trilhas vazias — os cards esticam e ocupam a linha inteira */
+  grid-template-columns: repeat(auto-fit, minmax(175px, 1fr));
+  gap: 14px; margin-bottom: 20px;
+}
+.dbf-kpi {
+  background: var(--bs-card); border-radius: 10px;
+  padding: 18px 16px; box-shadow: var(--bs-sh-sm);
+}
+.dbf-kpi .lbl {
+  font-size: 10px; color: var(--bs-ink-muted); font-weight: 700;
+  text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px;
+}
+.dbf-kpi .val {
+  font-size: 21px; font-weight: 800; color: var(--bs-ink); line-height: 1.1;
+}
+.dbf-kpi .val.zero { color: var(--bs-ink-subtle); }
+.dbf-kpi .delta {
+  margin-top: 7px; font-size: 11px; font-weight: 700;
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 7px; border-radius: 20px;
+}
+.delta.up   { background: var(--bs-success-bg); color: var(--bs-success); }
+.delta.dn   { background: var(--bs-danger-bg); color: var(--bs-danger); }
+.delta.neut { background: var(--bs-surface); color: var(--bs-ink-muted); }
+.delta.ntr  { background: var(--bs-warning-bg); color: var(--bs-ink); }  /* variação sem lado bom/ruim definido; texto escuro p/ contraste sobre o dourado claro */
+.delta.pp-up { background: var(--bs-success); color: #fff; }    /* diferença em p.p. (não % de variação) — desejada */
+.delta.pp-dn { background: var(--bs-danger); color: #fff; }    /* diferença em p.p. — indesejada */
+.dbf-kpi .prev-val {
+  font-size: 11px; color: var(--bs-ink-muted); margin-top: 4px;
+}
+
+/* ── Matrículas ───────────────────────────────────────────────── */
+.mat-cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.mat-card {
+  border-radius: 10px; padding: 24px 20px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.mat-card.curr { background: var(--bs-accent); color: #fff; }
+.mat-card.prev { background: var(--bs-surface); }
+.mat-card .mat-num { font-size: 56px; font-weight: 900; line-height: 1; }
+.mat-card.curr .mat-num { color: #fff; }
+.mat-card.prev .mat-num { color: var(--bs-ink); }
+.mat-card .mat-sub { font-size: 13px; opacity: .8; }
+.mat-card.curr .mat-sub { color: rgba(255,255,255,.8); }
+.mat-card.prev .mat-sub { color: var(--bs-ink-muted); }
+.mat-card .mat-tag {
+  font-size: 11px; font-weight: 700; padding: 3px 10px;
+  border-radius: 20px; display: inline-block; margin-top: 4px;
+}
+.mat-card.curr .mat-tag { background: rgba(255,255,255,.25); color: #fff; }
+.mat-card.prev .mat-tag { background: var(--bs-border); color: var(--bs-ink-muted); }
+.mat-var-badge {
+  font-size: 11px; font-weight: 700; padding: 3px 10px;
+  border-radius: 20px; display: inline-block; margin-top: 4px; margin-left: 6px;
+  color: #fff;
+}
+.mat-var-badge.up { background: var(--bs-success); }
+.mat-var-badge.down { background: var(--bs-danger); }
+
+/* ── Traffic allocation ───────────────────────────────────────── */
+.alloc-row {
+  display: grid; grid-template-columns: 160px 1fr 80px 110px 74px;
+  align-items: center; gap: 14px; padding: 10px 0;
+  border-bottom: 1px solid var(--bs-surface);
+}
+.alloc-row:last-child { border-bottom: none; }
+.alloc-lbl { font-size: 13px; font-weight: 600; color: var(--bs-ink); }
+.alloc-bar-wrap { height: 18px; background: var(--bs-border); border-radius: 4px; overflow: hidden; }
+.alloc-bar { height: 100%; border-radius: 4px; }
+.alloc-pct { font-size: 13px; font-weight: 700; text-align: left; }
+.alloc-val { font-size: 12px; color: var(--bs-ink-muted); text-align: left; }
+.alloc-badge { text-align: left; }
+.bg-preq { background: #16a34a; }
+.bg-capt { background: #2563eb; }
+.bg-rmkt { background: #dc2626; }
+
+/* ── Traffic allocation — variante com Previsto × Realizado ─────── */
+.alloc-row.alloc-row-budget {
+  grid-template-columns: 140px 1fr 56px 92px 92px 84px 74px;
+}
+.alloc-row-budget .alloc-lbl-wrap { min-width: 0; }
+.alloc-row-budget .alloc-lbl-sub {
+  display: block; font-size: 10px; font-weight: 600; color: var(--bs-ink-subtle);
+  text-transform: uppercase; letter-spacing: .03em; margin-top: 1px;
+}
+.alloc-previsto { font-size: 12px; color: var(--bs-ink-muted); text-align: left; }
+.alloc-previsto .alloc-col-lbl, .alloc-realizado .alloc-col-lbl, .alloc-variacao .alloc-col-lbl, .alloc-badge .alloc-col-lbl {
+  display: block; font-size: 9px; font-weight: 700; color: var(--bs-ink-subtle);
+  text-transform: uppercase; letter-spacing: .04em; margin-bottom: 1px;
+}
+.alloc-realizado { font-size: 12px; font-weight: 700; color: var(--bs-ink); text-align: left; }
+.alloc-variacao { font-size: 12px; font-weight: 700; text-align: left; }
+.alloc-row-budget.total .alloc-realizado { font-weight: 800; }
+
+/* ── Traffic allocation — linha de total (estilo footer) ─────────── */
+.dbf-alloc-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 11px 16px; font-size: 13.5px; color: #fff;
+  border-bottom: 1px solid rgba(255,255,255,.18);
+}
+.dbf-alloc-row:last-child { border-bottom: none; }
+.dbf-alloc-row .amt { font-weight: 800; }
+.dbf-alloc-row .pct { font-weight: 500; font-size: 12px; opacity: .88; margin-left: 4px; }
+.dbf-alloc-row.total {
+  background: var(--bs-card); color: var(--bs-ink);
+  border-top: 2px solid var(--bs-ink); font-weight: 700;
+}
+.dbf-alloc-row.total .pct { color: var(--bs-ink-muted); }
+
+.dbf-plat-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12.5px; padding: 7px 0; border-bottom: 1px solid var(--bs-surface);
+}
+.dbf-plat-row:last-child { border-bottom: none; }
+.dbf-plat-row .amt { font-weight: 700; color: var(--bs-ink); }
+.dbf-plat-row .pct { color: var(--bs-ink-muted); font-size: 11px; margin-left: 4px; }
+.cmp-prev .platform-card { filter: grayscale(55%); opacity: .82; }
+
+/* ── Platform split ───────────────────────────────────────────── */
+.platform-split { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 14px; }
+.platform-card {
+  background: var(--bs-card); border-radius: 10px;
+  padding: 16px; box-shadow: var(--bs-sh-sm);
+}
+.pc-header {
+  font-size: 11px; font-weight: 800; color: #fff; padding: 3px 10px;
+  border-radius: 4px; margin-bottom: 12px; display: inline-block;
+  letter-spacing: .04em;
+}
+.pc-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 12px; padding: 5px 0; border-bottom: 1px solid var(--bs-surface);
+}
+.pc-row:last-child { border-bottom: none; }
+.pc-row .pc-cat { color: var(--bs-ink-muted); }
+.pc-row .pc-amt { font-weight: 700; color: var(--bs-ink); }
+.pc-row .pc-pct { color: var(--bs-ink-muted); font-size: 11px; }
+
+/* ── Tables ───────────────────────────────────────────────────── */
+.dbf-table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--bs-card); }
+.dbf-table th {
+  background: var(--bs-accent); color: #fff; padding: 10px 14px;
+  text-align: left; font-weight: 600; white-space: nowrap;
+}
+.dbf-table td {
+  padding: 9px 14px; border-bottom: 1px solid var(--bs-surface); vertical-align: middle;
+}
+.dbf-table tbody tr:hover td { background: var(--bs-surface); }
+.dbf-table .num { text-align: left; font-weight: 600; }
+.dbf-table .roas-good { color: var(--bs-success); font-weight: 800; }
+.dbf-table .roas-ok   { color: var(--bs-warning); font-weight: 800; }
+.dbf-table .roas-bad  { color: var(--bs-danger); font-weight: 800; }
+.dbf-table .muted     { color: var(--bs-ink-subtle); }
+.ldt-main td { border-bottom: none; padding-bottom: 4px; }
+.ldt-sub td { padding-top: 0; padding-bottom: 10px; border-bottom: 1px solid var(--bs-surface); background: var(--bs-surface); }
+.ldt-sub .delta { font-size: 10px; padding: 1px 6px; }
+.ldt-pct { font-size: 11px; color: var(--bs-ink-subtle); font-weight: 600; }
+
+/* ── Line chart (timeline) ────────────────────────────────────── */
+.line-chart-wrap { position: relative; height: 220px; margin-top: 16px; }
+
+/* ── Day tables ───────────────────────────────────────────────── */
+.day-tables-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.day-week-title {
+  font-size: 12px; font-weight: 700; text-transform: uppercase;
+  color: #fff; background: var(--bs-accent); padding: 8px 12px;
+  border-radius: 6px 6px 0 0; letter-spacing: .04em;
+}
+.day-table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--bs-card); }
+.day-table th {
+  background: var(--bs-sidebar); color: #fff; padding: 8px 10px;
+  text-align: left; font-weight: 600; font-size: 12px;
+}
+.day-table td { padding: 8px 10px; border-bottom: 1px solid var(--bs-surface); }
+.day-table tr:hover td { background: var(--bs-surface); }
+
+/* ── Payment breakdown ────────────────────────────────────────── */
+.pay-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
+.pay-card {
+  background: var(--bs-card); border-radius: 10px; padding: 16px 12px;
+  text-align: center; box-shadow: var(--bs-sh-sm);
+}
+.pay-card .pay-num { font-size: 28px; font-weight: 900; color: var(--bs-ink); }
+.pay-card .pay-pct { font-size: 15px; font-weight: 700; color: var(--bs-accent); margin-top: 2px; }
+.pay-card .pay-lbl {
+  font-size: 10px; color: var(--bs-ink-muted); font-weight: 700;
+  text-transform: uppercase; letter-spacing: .04em; margin-top: 6px;
+}
+
+/* ── Comparison section ────────────────────────────────────────── */
+.cmp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.cmp-curr {
+  background: var(--bs-card); border-radius: 10px; padding: 18px;
+  box-shadow: var(--bs-sh-sm); border-top: 3px solid var(--bs-accent);
+}
+.cmp-prev {
+  background: var(--bs-surface); border-radius: 10px; padding: 18px;
+  border-top: 3px solid var(--bs-ink-subtle);
+}
+.cmp-title { font-size: 12px; font-weight: 700; margin-bottom: 14px; }
+.cmp-curr .cmp-title { color: var(--bs-accent); }
+.cmp-prev .cmp-title { color: var(--bs-ink-muted); }
+
+/* ── Audience ─────────────────────────────────────────────────── */
+.aud-tag { background:#e0f2fe; color:#0369a1; border-radius:4px; padding:2px 7px; font-size:11px; font-weight:700; }
+.aud-tag.g { background:#fef3c7; color:#92400e; }
+
+/* ── Tag Validado/Novo (Perfil do Lead por Anúncio) ──────────────── */
+.pa-tag {
+  display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 700;
+  padding: 1px 7px; border-radius: 20px; letter-spacing: .03em; vertical-align: middle;
+}
+.pa-tag-validado { background: var(--bs-success-bg); color: var(--bs-success); }
+.pa-tag-novo { background: var(--bs-surface); color: var(--bs-ink-muted); }
+
+/* ── Pub chart (vendas por público) ──────────────────────────────── */
+.cmp-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+@media (max-width: 900px) { .cmp-grid-3 { grid-template-columns: 1fr; } }
+.dbf-publicos-stack { display: flex; flex-direction: column; gap: 20px; }
+.pub-chart-wrap { position: relative; height: 260px; margin-top: 6px; }
+
+/* ── Detalhamento de Vendas (forma de pagamento) ─────────────────── */
+.vf-badges { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 16px; margin-bottom: 8px; }
+.vf-badge-item { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.vf-badge-lbl { font-size: 11px; font-weight: 700; color: var(--bs-ink-muted); text-transform: uppercase; letter-spacing: .03em; }
+.vf-layout { display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; margin-top: 8px; }
+@media (max-width: 900px) { .vf-layout { grid-template-columns: 1fr; } }
+.vf-chart-wrap { position: relative; height: 300px; }
+.vf-chart-wrap.vf-pie { height: 280px; }
+
+/* ── Engajamento (aulas) ──────────────────────────────────────── */
+.aula-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; }
+.aula-card {
+  background: var(--bs-card); border-radius: 10px;
+  padding: 16px; box-shadow: var(--bs-sh-sm);
+}
+.aula-card .aula-num { font-size: 28px; font-weight: 800; color: var(--bs-ink-subtle); }
+.aula-card .aula-lbl { font-size: 11px; color: var(--bs-ink-muted); font-weight: 700; text-transform: uppercase; margin-top: 4px; }
+.aula-card .aula-detail { font-size: 12px; color: var(--bs-ink-muted); margin-top: 6px; }
+
+/* ── Historico boleto ─────────────────────────────────────────── */
+.hist-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.hist-table th { background: var(--bs-sidebar); color: #fff; padding: 9px 12px; text-align: left; font-weight: 600; font-size: 12px; }
+.hist-table td { padding: 9px 12px; border-bottom: 1px solid var(--bs-surface); }
+.hist-table .muted { color: var(--bs-ink-subtle); font-style: italic; }
+
+/* ── Oferta ───────────────────────────────────────────────────── */
+.oferta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.oferta-card { background: var(--bs-card); border-radius: 10px; padding: 18px; box-shadow: var(--bs-sh-sm); }
+.oferta-card .oferta-title { font-size: 13px; font-weight: 700; color: var(--bs-ink); margin-bottom: 10px; }
+.oferta-item { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--bs-surface); font-size: 13px; color: var(--bs-ink-muted); }
+.oferta-item:last-child { border-bottom: none; }
+.oferta-item i { color: var(--bs-ink-subtle); }
+
+/* ── Responsive ───────────────────────────────────────────────── */
+@media (max-width: 960px) {
+  .mat-cmp, .platform-split, .cmp-grid, .day-tables-grid, .oferta-grid { grid-template-columns: 1fr; }
+  .pay-grid { grid-template-columns: repeat(3, 1fr); }
+  .dbf-kpi-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 640px) {
+  .alloc-row { grid-template-columns: 120px 1fr 60px; }
+  .alloc-val, .alloc-badge { display: none; }
+  .alloc-row.alloc-row-budget { grid-template-columns: 110px 1fr 50px; }
+  .alloc-row-budget .alloc-previsto, .alloc-row-budget .alloc-realizado,
+  .alloc-row-budget .alloc-variacao, .alloc-row-budget .alloc-badge { display: none; }
+  .pay-grid { grid-template-columns: 1fr 1fr; }
+  .dbf-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+
+{% if slides %}
+{# ── Modo apresentação (?modo=slides) ──────────────────────────────────
+   Mesmo template, mesma página: cada .dbf-section vira um slide 1920x1080
+   (1536x864 com zoom 1.25 — mantém os tamanhos de fonte da tela numa
+   escala legível em projetor/PDF). O JS no fim da página pagina as seções
+   que não cabem (quebra tabelas por linha, encolhe blocos indivisíveis) e
+   congela os gráficos em imagem antes de imprimir. O PDF sai pelo
+   "Salvar como PDF" do Chrome — @page fixa o tamanho da folha. #}
+<script>document.documentElement.classList.add('bs-slides');</script>
+<script>
+  Chart.defaults.animation = false;
+  Chart.defaults.devicePixelRatio = 2;
+</script>
+<style>
+@page { size: 1920px 1080px; margin: 0; }
+html.bs-slides, html.bs-slides body { background: #2b2f38; margin: 0; }
+html.bs-slides #bs-drawer, html.bs-slides #bs-mobile-topbar, html.bs-slides #bs-topbar,
+html.bs-slides #bs-loading-overlay, html.bs-slides #bs-drawer-overlay,
+html.bs-slides #bs-main > *:not(.wrap),
+html.bs-slides .hdr, html.bs-slides .dbf-accordion-controls { display: none !important; }
+html.bs-slides #bs-main { margin-left: 0; height: auto; overflow: visible; background: transparent; }
+
+html.bs-slides .wrap { animation: none; }
+html.bs-slides .content { padding: 0; }
+html.bs-slides .section, html.bs-slides .info-box { animation: none; opacity: 1; transform: none; }
+
+/* toolbar (só na tela) */
+.dbf-slides-toolbar {
+  position: fixed; top: 16px; right: 16px; z-index: 100;
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(20,22,28,.92); color: #fff; padding: 10px 14px;
+  border-radius: 10px; box-shadow: 0 8px 30px rgba(0,0,0,.35); font-size: 13px;
+}
+.dbf-slides-toolbar .hint { color: rgba(255,255,255,.7); max-width: 320px; line-height: 1.35; }
+.dbf-slides-toolbar button, .dbf-slides-toolbar a {
+  background: var(--bs-accent); color: #fff; border: 0; padding: 9px 16px; border-radius: 8px;
+  font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+  text-decoration: none; white-space: nowrap;
+}
+.dbf-slides-toolbar a.sec { background: rgba(255,255,255,.12); }
+
+/* slide */
+#dbf-slides { display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 24px 0; }
+.dbf-slide {
+  width: 1536px; height: 864px; zoom: 1.25;
+  box-sizing: border-box; padding: 44px 64px 36px;
+  background: var(--bs-surface); color: var(--bs-ink);
+  display: flex; flex-direction: column; overflow: hidden; position: relative;
+  box-shadow: 0 10px 40px rgba(0,0,0,.35);
+  /* quebra ANTES de cada slide (menos o primeiro): com break-after o Chrome
+     gerava uma página em branco depois da capa */
+  page-break-before: always; break-before: page;
+}
+.dbf-slide:first-child { page-break-before: auto; break-before: auto; }
+.dbf-slide .dbf-section-title { cursor: default; margin-bottom: 18px; flex-shrink: 0; font-size: 17px; }
+.dbf-slide .dbf-slide-body { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+/* Depois da paginação o miolo centraliza na vertical/horizontal no espaço
+   que sobra (a classe entra por JS só no fim: durante a medição o corpo
+   precisa ser bloco normal, senão o scrollHeight não reflete o overflow). */
+.dbf-slide.centered .dbf-slide-body { display: flex; flex-direction: column; justify-content: center; align-items: stretch; }
+.dbf-slide.centered .dbf-slide-body > * { width: 100%; box-sizing: border-box; }
+.dbf-slide .dbf-slide-foot {
+  flex-shrink: 0; margin-top: 12px; display: flex; justify-content: space-between; align-items: center;
+  font-size: 10px; color: var(--bs-ink-subtle); letter-spacing: .04em; text-transform: uppercase; font-weight: 700;
+}
+.dbf-slide .dbf-section { margin-bottom: 0; }
+.dbf-slide .dbf-section-title .dbf-chevron { display: none; }
+
+/* capa */
+.dbf-slide.cover { justify-content: center; background: var(--bs-sidebar, #1f2330); color: #fff; padding: 80px 110px; }
+.dbf-slide.cover img { height: 48px; margin-bottom: 48px; align-self: flex-start; }
+.dbf-slide.cover .cv-kicker { font-size: 15px; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--bs-accent); margin-bottom: 14px; }
+.dbf-slide.cover h1 { font-size: 64px; font-weight: 900; margin: 0 0 12px; line-height: 1.05; color: #fff; }
+.dbf-slide.cover .cv-sub { font-size: 24px; color: rgba(255,255,255,.75); margin-bottom: 44px; }
+.dbf-slide.cover .cv-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+.dbf-slide.cover .cv-kpi { background: rgba(255,255,255,.08); border-radius: 12px; padding: 18px 20px; }
+.dbf-slide.cover .cv-kpi .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: rgba(255,255,255,.6); font-weight: 700; margin-bottom: 6px; }
+.dbf-slide.cover .cv-kpi .val { font-size: 32px; font-weight: 800; color: #fff; line-height: 1.1; }
+.dbf-slide.cover .cv-foot { margin-top: 56px; font-size: 13px; color: rgba(255,255,255,.5); }
+
+/* no PDF: sem sombra/espaçamento entre slides e tudo com cor de fundo */
+@media print {
+  html.bs-slides, html.bs-slides body { background: #fff; }
+  /* Os wrappers do layout (frame/main/wrap/content) saem da árvore de caixas
+     na impressão: com eles como caixas, o Chrome gerava uma página em branco
+     depois da capa (o #bs-main é um contêiner de rolagem no CSS global). */
+  html.bs-slides #bs-frame, html.bs-slides #bs-main, html.bs-slides .wrap, html.bs-slides .content { display: contents; }
+  #dbf-slides { display: block; padding: 0; gap: 0; zoom: 1 !important; }
+  .dbf-slide { box-shadow: none; margin: 0; }
+  .dbf-slides-toolbar { display: none !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
+/* tabelas: sem hover/scroll, thumbnails sem clique */
+html.bs-slides .table-wrap { overflow: visible; }
+html.bs-slides .bs-table-filter-wrap { display: none !important; }
+.dbf-slide .dbf-slide-foot { min-height: 15px; }
+html.bs-slides .dbf-table tbody tr:hover td { background: transparent; }
+html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
+</style>
+{% endif %}
+{% endblock head %}
+
+{% block content %}
+{# ─── macros ──────────────────────────────────────────────────────────── #}
+{# polarity: 'up' (subir é bom, padrão) | 'down' (subir é ruim, ex: CPL) | 'neutral' (nem bom nem ruim, ex: Investimento) #}
+{% macro dbadge(curr, prev, polarity='up') %}
+  {% if prev and prev > 0 %}
+    {% set pct = ((curr - prev) / prev * 100) | round(1) %}
+    {% if polarity == 'neutral' %}
+      {% set cls = 'ntr' %}
+    {% elif pct > 0 %}
+      {% set cls = 'up' if polarity == 'up' else 'dn' %}
+    {% elif pct < 0 %}
+      {% set cls = 'dn' if polarity == 'up' else 'up' %}
+    {% else %}
+      {% set cls = 'neut' %}
+    {% endif %}
+    {% if pct > 0 %}<span class="delta {{ cls }}">▲ {{ pct }}%</span>
+    {% elif pct < 0 %}<span class="delta {{ cls }}">▼ {{ (pct * -1) | round(1) }}%</span>
+    {% else %}<span class="delta neut">= 0%</span>{% endif %}
+  {% endif %}
+{% endmacro %}
+
+{# cls: classe já resolvida pelo chamador ('up'/'dn'/'neut') — pra métricas onde
+   subir pode ser bom ou ruim dependendo do indicador, decida antes de chamar.
+   suffix='pp': diferença em pontos percentuais (não variação relativa) — usa
+   verde/vermelho escuro pra não confundir com % de variação normal. #}
+{% macro vbadge(val, cls, suffix='%') %}
+  {% if val is none %}<span class="delta neut">—</span>
+  {% else %}
+    {% if suffix == 'pp' and cls == 'up' %}{% set render_cls = 'pp-up' %}
+    {% elif suffix == 'pp' and cls == 'dn' %}{% set render_cls = 'pp-dn' %}
+    {% else %}{% set render_cls = cls %}{% endif %}
+    <span class="delta {{ render_cls }}">{{ '▲' if val > 0 else ('▼' if val < 0 else '=') }} {{ val | abs | round(1) }}{{ suffix }}</span>
+  {% endif %}
+{% endmacro %}
+
+{% macro roas_cls(v) %}{% if v >= 3 %}roas-good{% elif v >= 2 %}roas-ok{% else %}roas-bad{% endif %}{% endmacro %}
+
+{# sem_dados/thumb_th/thumb_td vivem em debriefing/_macros.html porque os
+   fragmentos de seção carregados sob demanda (debriefing/_secao_*.html)
+   também precisam delas. #}
+{% from "debriefing/_macros.html" import sem_dados, thumb_th, thumb_td, ad_label with context %}
+{% set has_thumbs = drive_thumbnails is defined and drive_thumbnails | length > 0 %}
+{# Domínio das landing pages por produto — o GA4 só guarda o caminho
+   (ex: /projeto-bb-fev-26-v5-pq-fb), sem host. #}
+{% set lp_base_url = "https://lp.mateusandrade.com.br" if launch and launch.product == "INSS" else "https://lp.braboconcursos.com.br" %}
+
+{% if lazy %}
+{# ── Carregamento progressivo ─────────────────────────────────────────
+   As seções mais pesadas (Typeform, caminho do comprador, qualidade por
+   estado) NÃO são calculadas na requisição da página: entram como
+   "esqueleto" e o JS abaixo busca cada uma, uma por vez, em
+   /debriefing/secao/<nome> depois que a página já apareceu. Assim a página
+   responde sem esperar a leitura mais lenta, e erro numa seção fica só
+   nela. No modo apresentação (?modo=slides) tudo vem inline. #}
+<style>
+.dbf-lazy-body { min-height: 96px; }
+.dbf-skel { display: flex; flex-direction: column; gap: 10px; padding: 4px 0 8px; }
+.dbf-skel span {
+  display: block; height: 14px; border-radius: 6px;
+  background: linear-gradient(90deg, var(--bs-surface) 25%, var(--bs-border) 50%, var(--bs-surface) 75%);
+  background-size: 200% 100%; animation: dbf-shimmer 1.4s ease-in-out infinite;
+}
+.dbf-skel span:nth-child(1) { width: 38%; } .dbf-skel span:nth-child(2) { width: 92%; }
+.dbf-skel span:nth-child(3) { width: 84%; } .dbf-skel span:nth-child(4) { width: 61%; }
+@keyframes dbf-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.dbf-lazy-err { font-size: 12.5px; color: var(--bs-ink-muted); padding: 6px 0; }
+.dbf-lazy-err a { color: var(--bs-accent); }
+</style>
+<script>
+(function () {
+  var launchCode = {{ (launch.code if launch else '') | tojson }};
+  function run() {
+    var secs = Array.prototype.slice.call(document.querySelectorAll('[data-lazy-section]'));
+    function next(i) {
+      if (i >= secs.length) return;
+      var sec = secs[i], body = sec.querySelector('.dbf-lazy-body');
+      var url = '/debriefing/secao/' + sec.getAttribute('data-lazy-section') + '?launch_code=' + encodeURIComponent(launchCode);
+      fetch(url, { credentials: 'same-origin' })
+        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+        .then(function (html) {
+          if (!html.trim()) { sec.remove(); return; }   /* sem dado pra esse lançamento: some, como antes */
+          body.outerHTML = html;
+        })
+        .catch(function () {
+          body.innerHTML = '<div class="dbf-lazy-err"><i class="ti ti-alert-triangle"></i> Não foi possível carregar esta seção agora. '
+            + '<a href="#" onclick="location.reload();return false;">Recarregar a página</a></div>';
+        })
+        .then(function () { next(i + 1); });
+    }
+    next(0);
+  }
+  if (document.readyState !== 'loading') run(); else document.addEventListener('DOMContentLoaded', run);
+})();
+</script>
+{% endif %}
+{% macro lazy_skeleton() %}<div class="dbf-lazy-body"><div class="dbf-skel"><span></span><span></span><span></span><span></span></div></div>{% endmacro %}
+
+<div class="wrap">
+  <div class="hdr">
+    <img src="/img/logo-b-brabo-concursos.png" alt="Brabo">
+    <div>
+      <h1>Debriefing{% if launch %} — {{ launch.code }}{% endif %}</h1>
+      <p>{% if launch %}{{ launch.name }}{% endif %}{% if dbf.has_prev %} · comparativo vs {{ dbf.prev_code }}{% endif %}{% if snapshot_label %} · <span title="Dados pré-calculados pelo último aquecimento (boot ou fim da rodada do ETL). Acrescente ?ao_vivo=1 na URL para recalcular agora.">dados de {{ snapshot_label }}</span>{% endif %}</p>
+    </div>
+  </div>
+
+  <div class="content">
+  {% if not dbf.has_data %}
+    <div class="dbf-sem-dados" style="margin-bottom:0">
+      <i class="ti ti-database-off" style="font-size:32px"></i>
+      <div><strong>Nenhum dado encontrado para este lançamento</strong>
+        <span>Importe os CSVs ou aguarde a sincronização via API.</span></div>
+    </div>
+  {% else %}
+
+  <div class="dbf-accordion-controls">
+    {% if launch %}
+    <a href="/debriefing?launch_code={{ launch.code }}&modo=slides&auto=1" target="_blank" rel="noopener"
+       style="margin-left:auto;background:var(--bs-accent);color:#fff;border:1px solid var(--bs-accent);padding:7px 16px;border-radius:8px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:6px;text-decoration:none"
+       title="Abre a apresentação (slides 1920x1080) e o diálogo de impressão — escolha 'Salvar como PDF'">
+      <i class="ti ti-file-type-pdf"></i> Gerar PDF
+    </a>
+    {% endif %}
+  </div>
+
+  {% if slides %}
+  <div class="dbf-slides-toolbar">
+    <span class="hint">No diálogo de impressão escolha <strong>Salvar como PDF</strong>, margens <strong>Nenhuma</strong> e marque <strong>Gráficos de fundo</strong>.</span>
+    <a class="sec" href="/debriefing?launch_code={{ launch.code if launch else '' }}"><i class="ti ti-arrow-left"></i> Voltar</a>
+    <button type="button" onclick="window.print()"><i class="ti ti-file-type-pdf"></i> Salvar PDF</button>
+  </div>
+
+  <div id="dbf-slides">
+    <div class="dbf-slide cover">
+      <img src="/img/logo-brabo-concursos-white.svg" alt="Brabo">
+      <div class="cv-kicker">Debriefing de lançamento</div>
+      <h1>{{ launch.code if launch else 'Debriefing' }}</h1>
+      <div class="cv-sub">{{ launch.name if launch else '' }}{% if dbf.periodo_atual %} · {{ dbf.periodo_atual }}{% endif %}{% if dbf.has_prev %} · comparativo vs {{ dbf.prev_code }}{% endif %}</div>
+      <div class="cv-kpis">
+        <div class="cv-kpi"><div class="lbl">Matrículas</div><div class="val">{{ dbf.total_vendas | num }}</div></div>
+        <div class="cv-kpi"><div class="lbl">Total investido</div><div class="val">{{ dbf.invest | brl(0) }}</div></div>
+        <div class="cv-kpi"><div class="lbl">Receita líquida</div><div class="val">{{ dbf.receita | brl(0) }}</div></div>
+        <div class="cv-kpi"><div class="lbl">ROAS</div><div class="val">{{ "%.2f"|format(dbf.roas) }}x</div></div>
+      </div>
+      <div class="cv-foot">Brabo Analytics · gerado em <span id="dbf-cover-date"></span></div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 1. MATRÍCULAS                                              -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-school"></i> Matrículas</div>
+    <div class="mat-cmp">
+      <div class="mat-card curr">
+        <div style="display:flex;align-items:baseline;gap:10px">
+          <div class="mat-num">{{ dbf.total_vendas | num }}</div>
+          <span class="mat-tag" style="margin-top:0">{{ launch.code if launch else '—' }}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="font-size:22px;font-weight:700;color:rgba(255,255,255,.9)">matrículas</div>
+          {% if dbf.has_prev and dbf.prev_total_vendas > 0 %}
+            {% set dd = ((dbf.total_vendas - dbf.prev_total_vendas) / dbf.prev_total_vendas * 100) | round(1) %}
+            <span class="mat-var-badge {{ 'up' if dd > 0 else ('down' if dd < 0 else '') }}" style="margin-top:0;margin-left:0">
+              {% if dd > 0 %}▲ +{% elif dd < 0 %}▼ {% else %}= {% endif %}{{ dd }}% vs anterior
+            </span>
+          {% endif %}
+        </div>
+        {% if dbf.periodo_atual %}<div style="font-size:12px;color:rgba(255,255,255,.65);margin-top:8px"><i class="ti ti-calendar"></i> {{ dbf.periodo_atual }}</div>{% endif %}
+      </div>
+      <div class="mat-card prev">
+        <div style="display:flex;align-items:baseline;gap:10px">
+          <div class="mat-num" style="font-size:48px;{% if not dbf.has_prev %}color:var(--bs-ink-subtle){% endif %}">
+            {% if dbf.has_prev %}{{ dbf.prev_total_vendas | num }}{% else %}—{% endif %}
+          </div>
+          <span class="mat-tag" style="margin-top:0">{% if dbf.has_prev %}{{ dbf.prev_code }}{% else %}Lançamento anterior{% endif %}</span>
+        </div>
+        <div style="font-size:18px;font-weight:700;color:var(--bs-ink)">matrículas</div>
+        {% if dbf.has_prev and dbf.periodo_prev %}<div style="font-size:12px;color:var(--bs-ink-subtle);margin-top:8px"><i class="ti ti-calendar"></i> {{ dbf.periodo_prev }}</div>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 2. RESUMO EXECUTIVO                                        -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="dbf-section">
+    <div class="dbf-section-title">
+      <i class="ti ti-chart-bar"></i> Resumo Executivo
+      {% if launch %}<span class="dbf-launch-badge">{{ launch.code }}</span>{% endif %}
+      {% if dbf.has_prev %}<span class="dbf-launch-badge prev">vs {{ dbf.prev_code }}</span>{% endif %}
+    </div>
+
+    {% macro kpi_card(lbl, val, pval, fmt, polarity='up') %}
+      <div class="dbf-kpi">
+        <div class="lbl">{{ lbl }}</div>
+        <div class="val {% if val == 0 %}zero{% endif %}">
+          {% if fmt == "brl0" %}{{ val | brl(0) }}
+          {% elif fmt == "brl" %}{{ val | brl }}
+          {% elif fmt == "num" %}{{ val | num }}
+          {% elif fmt == "roas" %}{{ "%.2f"|format(val) }}x
+          {% endif %}
+        </div>
+        {% if dbf.has_prev %}
+          {{ dbadge(val, pval, polarity) }}
+          <div class="prev-val">ant.:
+            {% if fmt == "brl0" %}{{ pval | brl(0) }}
+            {% elif fmt == "brl" %}{{ pval | brl }}
+            {% elif fmt == "num" %}{{ pval | num }}
+            {% elif fmt == "roas" %}{{ "%.2f"|format(pval) }}x
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+    {% endmacro %}
+
+    <div class="dbf-kpi-grid">
+      {%- set kpis_gerais = [
+        ("Total Investido",  dbf.invest,        dbf.prev_invest,        "brl0", "down"),
+        ("Receita Líquida",  dbf.receita,       dbf.prev_receita,       "brl0", "up"),
+        ("ROAS",             dbf.roas,          dbf.prev_roas,          "roas", "up"),
+        ("Total Vendas",  dbf.total_vendas, dbf.prev_total_vendas, "num", "up"),
+        ("Ticket Médio",  dbf.ticket,       dbf.prev_ticket,       "brl", "up"),
+        ("Leads Captação", dbf.total_leads, dbf.prev_total_leads,  "num", "up"),
+        ("CPL Captação",  dbf.cpl,          dbf.prev_cpl,          "brl", "down"),
+        ("Vendas na 1ª Hora", dbf.vendas_primeira_hora or 0, dbf.prev_vendas_primeira_hora or 0, "num", "up"),
+        ("Total de Grupos VIP", dbf.total_grupos_vip, dbf.prev_total_grupos_vip, "num", "up"),
+        ("Pessoas nos Grupos VIP", dbf.pessoas_grupos_vip, dbf.prev_pessoas_grupos_vip, "num", "up"),
+        ("Total de Grupos Normais", dbf.total_grupos_normais, dbf.prev_total_grupos_normais, "num", "up"),
+        ("Pessoas nos Grupos Normais", dbf.pessoas_grupos_normais, dbf.prev_pessoas_grupos_normais, "num", "up"),
+      ] -%}
+      {% for lbl, val, pval, fmt, polarity in kpis_gerais %}
+        {{ kpi_card(lbl, val, pval, fmt, polarity) }}
+      {% endfor %}
+    </div>
+
+    <!-- Leads por fonte -->
+    <div class="dbf-kpi-grid">
+      {% for f in dbf.fontes_leads %}
+      {%- set pairs = [
+        (f.fonte ~ " — Leads", f.leads,   f.prev_leads, "num", "up"),
+        (f.fonte ~ " — CPL",   f.cpl,     f.prev_cpl,   "brl", "down"),
+      ] -%}
+      {% for lbl, val, pval, fmt, polarity in pairs %}
+      <div class="dbf-kpi">
+        <div class="lbl"><i class="ti {{ f.icon }}" style="color:{{ f.color }}"></i> {{ lbl }}</div>
+        <div class="val {% if not f.has_data or val == 0 %}zero{% endif %}">
+          {% if not f.has_data %}—
+          {% elif fmt == "num" %}{{ val | num }}
+          {% elif fmt == "brl" %}{{ val | brl }}
+          {% endif %}
+        </div>
+        {% if dbf.has_prev and f.has_data %}
+          {{ dbadge(val, pval, polarity) }}
+          <div class="prev-val">ant.:
+            {% if fmt == "num" %}{{ pval | num }}
+            {% elif fmt == "brl" %}{{ pval | brl }}
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+      {% endfor %}
+    </div>
+
+    <!-- Timeline vendas (carrinho aberto) -->
+    <div class="info-box" style="margin-top:0">
+      <h2>Vendas por Dia — Carrinho Aberto</h2>
+      {% if dbf.timeline %}
+        <div class="line-chart-wrap">
+          <canvas id="timelineChart"></canvas>
+        </div>
+        <script>
+        (function() {
+          const labels = [{% for t in dbf.timeline %}"{{ t.data_str }}"{% if not loop.last %},{% endif %}{% endfor %}];
+          const vendas  = [{% for t in dbf.timeline %}{{ t.vendas }}{% if not loop.last %},{% endif %}{% endfor %}];
+          const accent  = getComputedStyle(document.documentElement).getPropertyValue('--bs-accent').trim() || '#f97316';
+          const surface = getComputedStyle(document.documentElement).getPropertyValue('--bs-surface').trim() || '#f6f7fb';
+          const ink     = getComputedStyle(document.documentElement).getPropertyValue('--bs-ink').trim() || '#1f2330';
+          new Chart(document.getElementById('timelineChart'), {
+            type: 'line',
+            plugins: [ChartDataLabels],
+            data: {
+              labels,
+              datasets: [{
+                label: 'Vendas',
+                data: vendas,
+                borderColor: accent,
+                backgroundColor: accent + '22',
+                borderWidth: 2.5,
+                pointRadius: 5,
+                pointBackgroundColor: accent,
+                pointHoverRadius: 7,
+                fill: true,
+                tension: 0.35,
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false },
+                datalabels: {
+                  anchor: 'end',
+                  align: 'top',
+                  offset: 4,
+                  font: { size: 11, weight: '700' },
+                  color: ink,
+                  formatter: v => v,
+                }
+              },
+              scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+                y: {
+                  beginAtZero: true,
+                  grid: { color: surface },
+                  ticks: { font: { size: 11 }, precision: 0 }
+                }
+              },
+              layout: { padding: { top: 24 } }
+            }
+          });
+        })();
+        </script>
+      {% else %}
+        {{ sem_dados("Hotmart — tabela de vendas por dia durante o carrinho") }}
+      {% endif %}
+    </div>
+
+    <!-- Vendas por Período (antecipadas / carrinho aberto / semana seguinte) -->
+    <div class="info-box" style="margin-top:0">
+      <h2>Vendas por Período</h2>
+      {% set vpp = dbf.vendas_por_periodo %}
+      {% set pvpp = dbf.prev_vendas_por_periodo %}
+      {% if vpp and vpp.total.vendas %}
+        <div class="table-wrap">
+          <table class="table-compact" style="font-size:12px;">
+            <thead>
+              <tr>
+                <th class="th-dark">Período</th>
+                <th class="th-dark" style="text-align:left">Vendas</th>
+                <th class="th-dark" style="text-align:left">Faturamento</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="td-bold">Vendas Antecipadas{% if vpp.antecipadas_periodo %}<br><span class="ldt-pct" style="font-weight:400">{{ vpp.antecipadas_periodo }}</span>{% endif %}</td>
+                <td style="text-align:left;">{{ vpp.antecipadas.vendas | num }}
+                  {% if dbf.has_prev %}{{ dbadge(vpp.antecipadas.vendas, pvpp.antecipadas.vendas) }}{% endif %}
+                </td>
+                <td style="text-align:left;">{{ vpp.antecipadas.faturamento | brl }}</td>
+              </tr>
+              <tr>
+                <td class="td-bold">Carrinho Aberto{% if vpp.aberto_periodo %}<br><span class="ldt-pct" style="font-weight:400">{{ vpp.aberto_periodo }}</span>{% endif %}</td>
+                <td style="text-align:left;">{{ vpp.aberto.vendas | num }}
+                  {% if dbf.has_prev %}{{ dbadge(vpp.aberto.vendas, pvpp.aberto.vendas) }}{% endif %}
+                </td>
+                <td style="text-align:left;">{{ vpp.aberto.faturamento | brl }}</td>
+              </tr>
+              <tr>
+                <td class="td-bold">Semana Seguinte{% if vpp.semana_periodo %}<br><span class="ldt-pct" style="font-weight:400">{{ vpp.semana_periodo }}</span>{% endif %}</td>
+                <td style="text-align:left;">{{ vpp.semana_seguinte.vendas | num }}
+                  {% if dbf.has_prev %}{{ dbadge(vpp.semana_seguinte.vendas, pvpp.semana_seguinte.vendas) }}{% endif %}
+                </td>
+                <td style="text-align:left;">{{ vpp.semana_seguinte.faturamento | brl }}</td>
+              </tr>
+              <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
+                <td>TOTAL</td>
+                <td style="text-align:left;">{{ vpp.total.vendas | num }}
+                  {% if dbf.has_prev %}{{ dbadge(vpp.total.vendas, pvpp.total.vendas) }}{% endif %}
+                </td>
+                <td style="text-align:left;">{{ vpp.total.faturamento | brl }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
+          Antecipadas: entre a abertura da página do carrinho e a abertura oficial (aula/evento que anuncia). Semana Seguinte: 7 dias corridos após o fechamento do carrinho. Comparativo com o lançamento anterior considera só vendas Hotmart (TMB do anterior não tem histórico diário).
+        </div>
+      {% else %}
+        {{ sem_dados("Datas de carrinho (início/abertura oficial/fim) não configuradas ou sem vendas Hotmart no período") }}
+      {% endif %}
+    </div>
+
+    <!-- Compradores pelo Dia que Entraram no Grupo -->
+    <div class="info-box" style="margin-top:0">
+      <h2>Compradores pelo Dia que Entraram no Grupo</h2>
+      {% set cpg = dbf.compradores_por_dia_grupo %}
+      {% set pcpg = dbf.prev_compradores_por_dia_grupo %}
+      {% if cpg and cpg.timeline %}
+        <div class="line-chart-wrap">
+          <canvas id="compradoresGrupoChart"></canvas>
+        </div>
+        <script>
+        (function() {
+          const rows = {{ cpg.timeline | tojson }};
+          const labels = rows.map(r => r.data_str);
+          const vals   = rows.map(r => r.compradores);
+          const colors = rows.map(r => r.periodo === 'pre_quali' ? '#3b82f6' : (r.periodo === 'captacao' ? '#db2777' : '#9ca3af'));
+          const ink = getComputedStyle(document.documentElement).getPropertyValue('--bs-ink').trim() || '#1f2330';
+          new Chart(document.getElementById('compradoresGrupoChart'), {
+            type: 'bar',
+            plugins: [ChartDataLabels],
+            data: { labels, datasets: [{ label: 'Compradores', data: vals, backgroundColor: colors }] },
+            options: {
+              responsive: true, maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false }, tooltip: { enabled: false },
+                datalabels: { anchor: 'end', align: 'top', offset: 2, font: { size: 10, weight: '700' }, color: ink, formatter: v => v || '' }
+              },
+              scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 10 } } },
+                y: { beginAtZero: true, ticks: { precision: 0 } }
+              },
+              layout: { padding: { top: 20 } }
+            }
+          });
+        })();
+        </script>
+        <div class="dbf-kpi-grid" style="margin-top:16px;grid-template-columns:repeat(2,1fr)">
+          {{ kpi_card("Compradores — Pré-Qualificação", cpg.pre_quali.total, pcpg.pre_quali.total if pcpg else 0, "num", "up") }}
+          {{ kpi_card("Compradores — Captação", cpg.captacao.total, pcpg.captacao.total if pcpg else 0, "num", "up") }}
+        </div>
+        <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
+          Data de entrada = primeira entrada em grupo Normal ou VIP, cruzada por telefone com compradores Hotmart+TMB. {{ cpg.sem_data }} compradores sem telefone/entrada de grupo identificada não entram no gráfico.
+        </div>
+      {% else %}
+        {{ sem_dados("Tabelas de grupo de WhatsApp (Normal/VIP) do lançamento") }}
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Detalhamento por Dia de Captação -->
+  {% if dbf.detalhamento_semanas %}
+  <div class="dbf-section">
+    <div class="dbf-section-title">
+      <i class="ti ti-calendar-stats"></i> Detalhamento por Dia de Captação
+      {% if launch %}<span class="dbf-launch-badge">{{ launch.code }}</span>{% endif %}
+      {% if dbf.has_prev %}<span class="dbf-launch-badge prev">vs {{ dbf.prev_code }}</span>{% endif %}
+    </div>
+    <div class="info-box">
+      <div class="table-wrap">
+        <table class="table-compact" style="font-size:12px;">
+          {% for semana in dbf.detalhamento_semanas %}
+          <thead>
+            <tr>
+              <th class="th-dark" colspan="5">{{ loop.index }}ª Semana de Captação</th>
+            </tr>
+            <tr>
+              <th class="th-dark">Dia</th>
+              <th class="th-dark" style="text-align:left">Investimento</th>
+              <th class="th-dark" style="text-align:left">Vendas</th>
+              <th class="th-dark" style="text-align:left">CPL</th>
+              <th class="th-dark" style="text-align:left">ROAS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in semana %}
+            <tr>
+              <td class="td-bold">{{ d.date }} ({{ d.weekday[:3] }})</td>
+              <td style="text-align:left;">{{ d.invest | brl }}
+                {% if d.prev %}<br>{{ dbadge(d.invest, d.prev.invest, 'neutral') }}{% endif %}
+              </td>
+              <td style="text-align:left;">{{ d.vendas | num }}
+                {% if d.prev %}<br>{{ dbadge(d.vendas, d.prev.vendas) }}{% endif %}
+              </td>
+              <td style="text-align:left;">{{ d.cpl | brl }}
+                {% if d.prev and d.prev.cpl %}<br>{{ dbadge(d.cpl, d.prev.cpl, 'down') }}{% endif %}
+              </td>
+              <td style="text-align:left;">{{ "%.2f"|format(d.roas) }}
+                {% if d.prev and d.prev.roas %}<br>{{ dbadge(d.roas, d.prev.roas) }}{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          {% endfor %}
+        </table>
+      </div>
+      <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
+        Comparação com o lançamento anterior é por posição (dia 1 da Captação vs dia 1 da Captação anterior), não por data de calendário. CPL considera leads de anúncios; ROAS considera vendas Hotmart do dia sobre o investimento do dia.
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 3. DETALHAMENTO DE TRÁFEGO                                 -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="dbf-section">
+    <div class="dbf-section-title">
+      <i class="ti ti-chart-pie"></i> Detalhamento de Tráfego
+      {% if launch %}<span class="dbf-launch-badge">{{ launch.code }}</span>{% endif %}
+      {% if dbf.has_prev %}<span class="dbf-launch-badge prev">vs {{ dbf.prev_code }}</span>{% endif %}
+    </div>
+
+    {% set color_map = {"Pré-Qualificação": "#16a34a", "Captação": "#2563eb",  "Remarketing": "#dc2626"} %}
+
+    {% macro alloc_table(etapas, total_invest, prev_etapas=None, prev_total_invest=None) %}
+      {% set total_previsto = etapas | sum(attribute='previsto') %}
+      {% for e in etapas %}
+      {% set pe = (prev_etapas | selectattr('nome', 'equalto', e.nome) | first) if prev_etapas else None %}
+      <div class="alloc-row alloc-row-budget">
+        <div class="alloc-lbl">{{ e.nome }}</div>
+        <div class="alloc-bar-wrap"><div class="alloc-bar" style="width:{{ e.pct | round(1) }}%;background:{{ color_map.get(e.nome, '#2563eb') }}"></div></div>
+        <div class="alloc-pct" style="color:{{ color_map.get(e.nome, '#2563eb') }}">{{ e.pct | round(1) }}%</div>
+        <div class="alloc-previsto"><span class="alloc-col-lbl">Previsto</span>{{ e.previsto | brl(0) if e.previsto > 0 else '—' }}</div>
+        <div class="alloc-realizado"><span class="alloc-col-lbl">Realizado</span>{{ e.invest | brl(0) }}</div>
+        <div class="alloc-variacao"><span class="alloc-col-lbl">Var.</span>{% if e.previsto > 0 %}{{ dbadge(e.invest, e.previsto, 'down') }}{% else %}—{% endif %}</div>
+        <div class="alloc-badge"><span class="alloc-col-lbl">Lanç. Ant.</span>{% if pe %}{{ dbadge(e.invest, pe.invest, 'down') }}{% endif %}</div>
+      </div>
+      {% endfor %}
+      <div class="alloc-row alloc-row-budget total" style="border-top:1px solid var(--bs-border);margin-top:6px;padding-top:6px;font-weight:600">
+        <div class="alloc-lbl">Total Investido</div>
+        <div class="alloc-bar-wrap" style="visibility:hidden"></div>
+        <div class="alloc-pct">100%</div>
+        <div class="alloc-previsto"><span class="alloc-col-lbl">Previsto</span>{{ total_previsto | brl(0) if total_previsto > 0 else '—' }}</div>
+        <div class="alloc-realizado"><span class="alloc-col-lbl">Realizado</span>{{ total_invest | brl(0) }}</div>
+        <div class="alloc-variacao"><span class="alloc-col-lbl">Var.</span>{% if total_previsto > 0 %}{{ dbadge(total_invest, total_previsto, 'down') }}{% else %}—{% endif %}</div>
+        <div class="alloc-badge"><span class="alloc-col-lbl">Lanç. Ant.</span>{% if prev_total_invest %}{{ dbadge(total_invest, prev_total_invest, 'down') }}{% endif %}</div>
+      </div>
+    {% endmacro %}
+
+    {% macro plat_row(label, valor, invest, color, pe_valor=None) %}
+      {% set pct = (valor / invest * 100) | round(1) if invest > 0 else 0 %}
+      <div class="dbf-plat-row">
+        <span>{{ label }}</span>
+        <span><span class="amt">{{ valor | brl(0) }}</span> <span class="pct">({{ pct }}%)</span>{% if pe_valor %} {{ dbadge(valor, pe_valor, 'down') }}{% endif %}</span>
+      </div>
+      <div class="alloc-bar-wrap" style="height:6px;margin:2px 0 10px"><div class="alloc-bar" style="height:6px;width:{{ pct }}%;background:{{ color }}"></div></div>
+    {% endmacro %}
+
+    {% macro plat_table(etapas, prev_etapas=None) %}
+      <div class="platform-split">
+        {% for e in etapas %}{% if loop.index <= 2 %}
+        {% set pe = (prev_etapas | selectattr('nome', 'equalto', e.nome) | first) if prev_etapas else None %}
+        <div class="platform-card">
+          <span class="pc-header" style="background:{{ color_map.get(e.nome, 'var(--bs-sidebar)') }}">{{ e.nome }}</span>
+          {% if e.meta > 0 %}{{ plat_row("Facebook Ads", e.meta, e.invest, 'var(--meta-color)', pe.meta if pe else None) }}{% endif %}
+          {% if e.google > 0 %}{{ plat_row("Google Ads", e.google, e.invest, 'var(--yt-color, #ff0000)', pe.google if pe else None) }}{% endif %}
+          {% if e.tiktok and e.tiktok > 0 %}{{ plat_row("TikTok Ads", e.tiktok, e.invest, '#010101', pe.tiktok if pe else None) }}{% endif %}
+          {% if e.meta == 0 and e.google == 0 and not e.tiktok %}<div style="font-size:12px;color:var(--bs-ink-subtle);padding:6px 0">Sem dados</div>{% endif %}
+        </div>
+        {% endif %}{% endfor %}
+      </div>
+    {% endmacro %}
+
+    <div class="{{ 'cmp-grid' if dbf.has_prev else '' }}">
+      <!-- Atual -->
+      <div class="cmp-curr">
+        <div class="cmp-title">{{ launch.code if launch else '—' }}</div>
+        {{ alloc_table(dbf.etapas, dbf.invest, dbf.prev_etapas if dbf.has_prev else None, dbf.prev_invest if dbf.has_prev else None) }}
+        {{ plat_table(dbf.etapas, dbf.prev_etapas if dbf.has_prev else None) }}
+      </div>
+
+      <!-- Anterior -->
+      {% if dbf.has_prev and dbf.prev_etapas %}
+      <div class="cmp-prev">
+        <div class="cmp-title">{{ dbf.prev_code }}</div>
+        {{ alloc_table(dbf.prev_etapas, dbf.prev_invest) }}
+        {{ plat_table(dbf.prev_etapas) }}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Remarketing — breakdown por adset -->
+    {% if dbf.rmkt_adsets or dbf.prev_rmkt_adsets %}
+    <div class="cmp-grid" style="margin-top:24px">
+      {% if dbf.rmkt_adsets %}
+      <div class="cmp-curr">
+        <div class="cmp-title">{{ launch.code if launch else '—' }} — Remarketing</div>
+        {% set rmkt_total = dbf.rmkt_adsets | sum(attribute='gasto') %}
+        {% set rmkt_previsto_total = dbf.rmkt_adsets | sum(attribute='previsto') %}
+        {% set prev_rmkt_total = dbf.prev_rmkt_adsets | sum(attribute='gasto') if dbf.prev_rmkt_adsets else 0 %}
+        {% for a in dbf.rmkt_adsets %}
+        {% set pa = dbf.prev_rmkt_adsets[loop.index0] if dbf.prev_rmkt_adsets and loop.index0 < (dbf.prev_rmkt_adsets | length) else None %}
+        <div class="alloc-row alloc-row-budget">
+          <div class="alloc-lbl" title="{{ a.adset }}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px">{{ a.adset }}</div>
+          <div class="alloc-bar-wrap"><div class="alloc-bar" style="width:{{ a.pct | round(1) }}%;background:#f97316"></div></div>
+          <div class="alloc-pct" style="color:{{ '#f97316' if a.gasto > 0 else 'var(--bs-ink-subtle)' }}">{{ a.pct | round(1) }}%</div>
+          <div class="alloc-previsto"><span class="alloc-col-lbl">Previsto</span>{{ a.previsto | brl(0) if a.previsto > 0 else '—' }}</div>
+          <div class="alloc-realizado"><span class="alloc-col-lbl">Realizado</span>{{ a.gasto | brl(0) }}</div>
+          <div class="alloc-variacao"><span class="alloc-col-lbl">Var.</span>{% if a.previsto > 0 %}{{ dbadge(a.gasto, a.previsto, 'down') }}{% else %}—{% endif %}</div>
+          <div class="alloc-badge"><span class="alloc-col-lbl">Lanç. Ant.</span>{% if pa and pa.gasto %}{{ dbadge(a.gasto, pa.gasto, 'down') }}{% endif %}</div>
+        </div>
+        {% endfor %}
+        <div class="alloc-row alloc-row-budget total" style="border-top:1px solid var(--bs-border);margin-top:6px;padding-top:6px;font-weight:600">
+          <div class="alloc-lbl">Total</div>
+          <div class="alloc-bar-wrap" style="visibility:hidden"></div>
+          <div class="alloc-pct" style="color:#f97316">100%</div>
+          <div class="alloc-previsto"><span class="alloc-col-lbl">Previsto</span>{{ rmkt_previsto_total | brl(0) if rmkt_previsto_total > 0 else '—' }}</div>
+          <div class="alloc-realizado"><span class="alloc-col-lbl">Realizado</span>{{ rmkt_total | brl(0) }}</div>
+          <div class="alloc-variacao"><span class="alloc-col-lbl">Var.</span>{% if rmkt_previsto_total > 0 %}{{ dbadge(rmkt_total, rmkt_previsto_total, 'down') }}{% else %}—{% endif %}</div>
+          <div class="alloc-badge"><span class="alloc-col-lbl">Lanç. Ant.</span>{% if prev_rmkt_total %}{{ dbadge(rmkt_total, prev_rmkt_total, 'down') }}{% endif %}</div>
+        </div>
+      </div>
+      {% endif %}
+      {% if dbf.has_prev and dbf.prev_rmkt_adsets %}
+      <div class="cmp-prev">
+        <div class="cmp-title">{{ dbf.prev_code }} — Remarketing</div>
+        {% set prev_rmkt_total = dbf.prev_rmkt_adsets | sum(attribute='gasto') %}
+        {% set prev_rmkt_previsto_total = dbf.prev_rmkt_adsets | sum(attribute='previsto') %}
+        {% for a in dbf.prev_rmkt_adsets %}
+        <div class="alloc-row alloc-row-budget">
+          <div class="alloc-lbl" title="{{ a.adset }}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px">{{ a.adset }}</div>
+          <div class="alloc-bar-wrap"><div class="alloc-bar" style="width:{{ a.pct | round(1) }}%;background:var(--bs-ink-subtle)"></div></div>
+          <div class="alloc-pct" style="color:{{ 'var(--bs-ink-muted)' if a.gasto > 0 else 'var(--bs-ink-subtle)' }}">{{ a.pct | round(1) }}%</div>
+          <div class="alloc-previsto"><span class="alloc-col-lbl">Previsto</span>{{ a.previsto | brl(0) if a.previsto > 0 else '—' }}</div>
+          <div class="alloc-realizado"><span class="alloc-col-lbl">Realizado</span>{{ a.gasto | brl(0) }}</div>
+          <div class="alloc-variacao"><span class="alloc-col-lbl">Var.</span>{% if a.previsto > 0 %}{{ dbadge(a.gasto, a.previsto, 'down') }}{% else %}—{% endif %}</div>
+          <div class="alloc-badge"></div>
+        </div>
+        {% endfor %}
+        <div class="alloc-row alloc-row-budget total" style="border-top:1px solid var(--bs-border);margin-top:6px;padding-top:6px;font-weight:600">
+          <div class="alloc-lbl">Total</div>
+          <div class="alloc-bar-wrap" style="visibility:hidden"></div>
+          <div class="alloc-pct" style="color:var(--bs-ink-muted)">100%</div>
+          <div class="alloc-previsto"><span class="alloc-col-lbl">Previsto</span>{{ prev_rmkt_previsto_total | brl(0) if prev_rmkt_previsto_total > 0 else '—' }}</div>
+          <div class="alloc-realizado"><span class="alloc-col-lbl">Realizado</span>{{ prev_rmkt_total | brl(0) }}</div>
+          <div class="alloc-variacao"><span class="alloc-col-lbl">Var.</span>{% if prev_rmkt_previsto_total > 0 %}{{ dbadge(prev_rmkt_total, prev_rmkt_previsto_total, 'down') }}{% else %}—{% endif %}</div>
+          <div class="alloc-badge"></div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    {% else %}
+    <div style="margin-top:16px">{{ sem_dados("Meta Ads — nenhum dado de Remarketing encontrado para este período") }}</div>
+    {% endif %}
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 3.5 INVESTIMENTO EM PRÉ-QUALIFICAÇÃO                       -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.prequali_invest and dbf.prequali_invest.total > 0 %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-target-arrow"></i> Investimento em Pré-Qualificação</div>
+    {% set preq_dates = [dbf.prequali_invest.meta.data_inicio, dbf.prequali_invest.google.data_inicio] | select | unique | list %}
+    {% if preq_dates %}<div class="note" style="margin-bottom:10px">Início: {{ preq_dates | map('br_date') | join(' / ') }}</div>{% endif %}
+    <div class="table-wrap" data-no-filter>
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            <th>Público</th>
+            <th class="num">Investimento</th>
+            <th class="num">ThruViews</th>
+            <th class="num">Custo/ThruView</th>
+            <th class="num">Viu 50%+</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for plat_key, plat_prefix in [('meta', 'FB'), ('google', 'YT')] %}
+          {% set p = dbf.prequali_invest[plat_key] %}
+          {% for c in p.climas %}{% if c.gasto > 0 %}
+          <tr class="ldt-main">
+            <td><span class="aud-tag{{ ' g' if plat_prefix == 'YT' else '' }}">{{ plat_prefix }} {{ c.clima }}</span></td>
+            <td class="num">{{ c.gasto | brl }}</td>
+            <td class="num">{{ c.thruplays | num }}</td>
+            <td class="num">{{ c.custo_thruplay | brl(3) if c.thruplays > 0 else '—' }}</td>
+            <td class="num">{{ c.views_50 | num }} <span class="ldt-pct">({{ c.pct_50 | round(1) }}%)</span></td>
+          </tr>
+          <tr class="ldt-sub">
+            <td><span class="ldt-pct">{{ c.pct | round(1) }}% do investimento em {{ 'Facebook Ads' if plat_key == 'meta' else 'Google Ads' }}</span></td>
+            <td class="num">{% if c.prev_gasto %}{{ dbadge(c.gasto, c.prev_gasto, 'up') }}{% endif %}</td>
+            <td class="num"></td>
+            <td class="num"></td>
+            <td class="num"></td>
+          </tr>
+          {% endif %}{% endfor %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="font-size:11px;color:var(--bs-ink-subtle);margin-top:6px">Meta: "Viu 50%+" é contagem direta (ThruPlay). Google não expõe contagem, só a taxa de quartil da API — o % aqui é sobre quem iniciou o vídeo (impressões), não sobre ThruViews.</div>
+    <div class="dbf-alloc-row total" style="margin-top:14px;border-radius:8px">
+      <span>Total Investido — Pré-Qualificação</span>
+      <span><span class="amt">{{ dbf.prequali_invest.total | brl(0) }}</span>{% if dbf.prequali_invest.prev_total %} {{ dbadge(dbf.prequali_invest.total, dbf.prequali_invest.prev_total, 'up') }}{% endif %}</span>
+    </div>
+  </div>
+  {% endif %}
+
+  {% macro top_ads_table(ads, header_bg) %}
+    <div class="table-wrap">
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            {% if has_thumbs %}<th style="width:72px;background:{{ header_bg }}"></th>{% endif %}
+            <th style="background:{{ header_bg }}">Anúncio</th>
+            <th class="num" style="background:{{ header_bg }}">Invest.</th>
+            <th class="num" style="background:{{ header_bg }}">Leads</th>
+            <th class="num" style="background:{{ header_bg }}">Vendas</th>
+            <th class="num" style="background:{{ header_bg }}">Receita</th>
+            <th class="num" style="background:{{ header_bg }}">ROAS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in ads %}
+          <tr>
+            {{ thumb_td(a.ad_code, {"gasto": a.gasto | brl, "leads": a.leads | num, "vendas": a.vendas | num, "roas": ('%.2f'|format(a.roas) | replace('.', ',')) + 'x'}) }}
+            <td>{{ ad_label(a.ad_code, a.nome) }}</td>
+            <td class="num">{{ a.gasto | brl }}</td>
+            <td class="num">{{ a.leads | num }}</td>
+            <td class="num"><strong>{{ a.vendas | num }}</strong></td>
+            <td class="num">{{ a.receita | brl }}</td>
+            <td class="num {{ 'roas-good' if a.roas >= 2 else ('roas-ok' if a.roas >= 1 else ('roas-bad' if a.roas > 0 else '')) }}">{{ "%.2f"|format(a.roas) | replace(".", ",") }}x</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endmacro %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4a5. PERFORMANCE DA QUALIFICAÇÃO (público × leads/CPL/ROAS) -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-target-arrow"></i> Performance da Qualificação</div>
+
+    {% if dbf.leads_detail_table_prequali and (dbf.leads_detail_table_prequali | sum(attribute='gasto')) > 0 %}
+    <div class="table-wrap">
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            <th>Público</th>
+            <th class="num">Leads</th>
+            <th class="num">Investimento</th>
+            <th class="num">CPL</th>
+            <th class="num">Tx. Conversão</th>
+            <th class="num">Vendas</th>
+            <th class="num">Custo por Venda</th>
+            <th class="num">ROAS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in dbf.leads_detail_table_prequali %}
+          {% set leads_cls = 'up' if (r.leads_var is not none and r.leads_var > 0) else ('dn' if (r.leads_var is not none and r.leads_var < 0) else 'neut') %}
+          {% set cpl_cls = 'dn' if (r.cpl_var is not none and r.cpl_var > 0) else ('up' if (r.cpl_var is not none and r.cpl_var < 0) else 'neut') %}
+          {% set conv_cls = 'up' if (r.conversao_var is not none and r.conversao_var > 0) else ('dn' if (r.conversao_var is not none and r.conversao_var < 0) else 'neut') %}
+          {% set vendas_cls = 'up' if (r.vendas_var is not none and r.vendas_var > 0) else ('dn' if (r.vendas_var is not none and r.vendas_var < 0) else 'neut') %}
+          {% set custo_venda_cls = 'dn' if (r.custo_venda_var is not none and r.custo_venda_var > 0) else ('up' if (r.custo_venda_var is not none and r.custo_venda_var < 0) else 'neut') %}
+          {% set roas_cls = 'up' if (r.roas_var is not none and r.roas_var > 0) else ('dn' if (r.roas_var is not none and r.roas_var < 0) else 'neut') %}
+          <tr class="ldt-main">
+            <td><span class="aud-tag{{ ' g' if r.label.startswith('YT') else '' }}">{{ r.label }}</span></td>
+            <td class="num">{{ r.leads | int | num }}</td>
+            <td class="num">{{ r.gasto | brl }}</td>
+            <td class="num">{{ r.cpl | brl if r.leads > 0 else '—' }}</td>
+            <td class="num">{{ r.conversao | round(2) }}%</td>
+            <td class="num"><strong>{{ r.vendas }}</strong></td>
+            <td class="num">{{ r.custo_venda | brl if r.vendas > 0 else '—' }}</td>
+            <td class="num">{{ r.roas | round(2) }}x</td>
+          </tr>
+          <tr class="ldt-sub">
+            <td><span class="ldt-pct">{{ r.pct | round(1) }}% do investimento</span></td>
+            <td class="num">{{ vbadge(r.leads_var, leads_cls) }}</td>
+            <td class="num">{{ vbadge(r.gasto_var, leads_cls) }}</td>
+            <td class="num">{{ vbadge(r.cpl_var, cpl_cls) }}</td>
+            <td class="num">{{ vbadge(r.conversao_var, conv_cls, 'pp') }}</td>
+            <td class="num">{{ vbadge(r.vendas_var, vendas_cls) }}</td>
+            <td class="num">{{ vbadge(r.custo_venda_var, custo_venda_cls) }}</td>
+            <td class="num">{{ vbadge(r.roas_var, roas_cls) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+      Vendas/ROAS por atribuição UTM (último toque), escopado à etapa Pré-Qualificação — não soma com "Leads por Público — Captação" abaixo.
+    </div>
+    {% else %}
+    {{ sem_dados("Campanhas de Pré-Qualificação sem clima (Quente/Frio/Específico) identificado no nome") }}
+    {% endif %}
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4b1. ANÚNCIOS ANTIGOS × NOVOS — PRÉ-QUALIFICAÇÃO           -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.antigo_novo and dbf.antigo_novo.get('Pré-Qualificação') %}
+  {% set g = dbf.antigo_novo['Pré-Qualificação'] %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-recycle"></i> Novos × Antigos — Pré-Qualificação</div>
+    <div class="table-wrap">
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th class="num">Invest.</th>
+            <th class="num">%</th>
+            <th class="num">Leads</th>
+            <th class="num">CPL</th>
+            <th class="num">Anúncios</th>
+            <th class="num">Vendas</th>
+            <th class="num">Receita</th>
+            <th class="num">ROAS</th>
+            <th class="num">ThruView</th>
+            <th class="num">Viu 50%</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Antigos (validados)</td>
+            <td class="num">{{ g.antigo.gasto | brl }}</td>
+            <td class="num">{{ g.antigo.pct | round(1) }}%</td>
+            <td class="num">{{ g.antigo.leads | num }}</td>
+            <td class="num">{{ g.antigo.cpl | brl if g.antigo.leads > 0 else '—' }}</td>
+            <td class="num">{{ g.antigo.n }}</td>
+            <td class="num">{{ g.antigo.vendas | num }}</td>
+            <td class="num">{{ g.antigo.receita | brl }}</td>
+            <td class="num">{{ g.antigo.roas | round(2) if g.antigo.gasto > 0 else '—' }}{% if g.antigo.gasto > 0 %}x{% endif %}</td>
+            <td class="num">{{ g.antigo.get('thruview', 0) | num if g.antigo.get('thruview', 0) > 0 else '—' }}</td>
+            <td class="num">{{ g.antigo.get('pct_50', 0) | round(1) ~ '%' if g.antigo.get('thruview', 0) > 0 else '—' }}</td>
+          </tr>
+          <tr>
+            <td>Novos</td>
+            <td class="num">{{ g.novo.gasto | brl }}</td>
+            <td class="num">{{ g.novo.pct | round(1) }}%</td>
+            <td class="num">{{ g.novo.leads | num }}</td>
+            <td class="num">{{ g.novo.cpl | brl if g.novo.leads > 0 else '—' }}</td>
+            <td class="num">{{ g.novo.n }}</td>
+            <td class="num">{{ g.novo.vendas | num }}</td>
+            <td class="num">{{ g.novo.receita | brl }}</td>
+            <td class="num">{{ g.novo.roas | round(2) if g.novo.gasto > 0 else '—' }}{% if g.novo.gasto > 0 %}x{% endif %}</td>
+            <td class="num">{{ g.novo.get('thruview', 0) | num if g.novo.get('thruview', 0) > 0 else '—' }}</td>
+            <td class="num">{{ g.novo.get('pct_50', 0) | round(1) ~ '%' if g.novo.get('thruview', 0) > 0 else '—' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+      "Antigo" = código ADxxx já usado em algum lançamento anterior do mesmo produto. ThruView = visualização completa do vídeo (contagem real no Meta; no Google é o video_views/TrueView). "Viu 50%" no Google vem da taxa de quartil da API sobre quem iniciou o vídeo (impressões), não sobre ThruViews — por isso a base é diferente do Meta.
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4b1a. TOP 5 MELHORES ADS — PRÉ-QUALIFICAÇÃO (COMBINADO)    -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.top_ads_prequali and dbf.top_ads_prequali.combinado %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-trophy"></i> Top 5 Melhores Ads — Pré-Qualificação (Meta + Google)</div>
+    {{ top_ads_table(dbf.top_ads_prequali.combinado, '#6b7280') }}
+    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+      Investimento/leads somados por código ADxxx entre as duas plataformas; vendas por atribuição UTM (mesmo código).
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4b1b. TOP 3 MELHORES ADS — PRÉ-QUALIFICAÇÃO (META)         -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.preq_top_ads and dbf.preq_top_ads.meta %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-trophy"></i> Top 5 Melhores Ads — Pré-Qualificação (Meta)</div>
+    <div class="table-wrap">
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            {{ thumb_th() }}
+            <th>Anúncio</th>
+            <th class="num">Invest.</th>
+            <th class="num">Leads</th>
+            <th class="num">CPL</th>
+            <th class="num">CTR</th>
+            <th class="num">ThruView</th>
+            <th class="num">Viu 50%</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in dbf.preq_top_ads.meta %}
+          <tr>
+            {{ thumb_td(a.ad_code, {"gasto": a.gasto | brl, "leads": a.leads | num, "cpl": a.cpl | brl}) }}
+            <td>{{ ad_label(a.ad_code, a.nome) }}{% if a.antigo %} <span class="ldt-pct">(antigo)</span>{% endif %}</td>
+            <td class="num">{{ a.gasto | brl }}</td>
+            <td class="num">{{ a.leads | num }}</td>
+            <td class="num">{{ a.cpl | brl if a.leads > 0 else '—' }}</td>
+            <td class="num">{{ a.ctr | round(2) }}%</td>
+            <td class="num">{{ a.thruview | num if a.thruview > 0 else '—' }}</td>
+            <td class="num">{{ a.pct_50 | round(1) ~ '%' if a.thruview > 0 else '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4b1c. TOP 3 MELHORES ADS — PRÉ-QUALIFICAÇÃO (YOUTUBE)      -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.preq_top_ads and dbf.preq_top_ads.google %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-trophy"></i> Top 5 Melhores Ads — Pré-Qualificação (YouTube)</div>
+    <div class="table-wrap">
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            {{ thumb_th() }}
+            <th>Anúncio</th>
+            <th class="num">Invest.</th>
+            <th class="num">Leads</th>
+            <th class="num">CPL</th>
+            <th class="num">CTR</th>
+            <th class="num">ThruView</th>
+            <th class="num">Viu 50%</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in dbf.preq_top_ads.google %}
+          <tr>
+            {{ thumb_td(a.ad_code, {"gasto": a.gasto | brl, "leads": a.leads | num, "cpl": a.cpl | brl}) }}
+            <td>{{ ad_label(a.ad_code, a.nome) }}{% if a.antigo %} <span class="ldt-pct">(antigo)</span>{% endif %}</td>
+            <td class="num">{{ a.gasto | brl }}</td>
+            <td class="num">{{ a.leads | num }}</td>
+            <td class="num">{{ a.cpl | brl if a.leads > 0 else '—' }}</td>
+            <td class="num">{{ a.ctr | round(2) }}%</td>
+            <td class="num">{{ a.thruview | num if a.thruview > 0 else '—' }}</td>
+            <td class="num">{{ a.pct_50 | round(1) ~ '%' if a.thruview > 0 else '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4b1d. TOP 3 MELHORES ADS — PRÉ-QUALIFICAÇÃO (TIKTOK)       -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.preq_top_ads and dbf.preq_top_ads.tiktok %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-trophy"></i> Top 3 Melhores Ads — Pré-Qualificação (TikTok)</div>
+    <div class="table-wrap">
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            {{ thumb_th() }}
+            <th>Anúncio</th>
+            <th class="num">Invest.</th>
+            <th class="num">Leads</th>
+            <th class="num">CPL</th>
+            <th class="num">CTR</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in dbf.preq_top_ads.tiktok %}
+          <tr>
+            {{ thumb_td(a.ad_code, {"gasto": a.gasto | brl, "leads": a.leads | num, "cpl": a.cpl | brl}) }}
+            <td>{{ ad_label(a.ad_code, a.nome) }}{% if a.antigo %} <span class="ldt-pct">(antigo)</span>{% endif %}</td>
+            <td class="num">{{ a.gasto | brl }}</td>
+            <td class="num">{{ a.leads | num }}</td>
+            <td class="num">{{ a.cpl | brl if a.leads > 0 else '—' }}</td>
+            <td class="num">{{ a.ctr | round(2) }}%</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- LANDING PAGES QUE MAIS CONVERTERAM — PRÉ-QUALIFICAÇÃO (GA4) -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.landing_pages_preq %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-world"></i> Landing Pages que Mais Converteram — Pré-Qualificação</div>
+    <div class="table-wrap" data-no-filter>
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            <th>Página</th>
+            <th class="num">Sessões</th>
+            <th class="num">Conversões</th>
+            <th class="num">Taxa de Conversão</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for lp in dbf.landing_pages_preq %}
+          <tr>
+            <td style="max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ lp.landing_page }}"><a href="{{ lp_base_url }}{{ lp.landing_page }}" target="_blank" rel="noopener" style="color:var(--bs-accent)">{{ lp.landing_page }}</a></td>
+            <td class="num">{{ lp.sessions | num }}</td>
+            <td class="num"><strong>{{ lp.conversoes | num }}</strong></td>
+            <td class="num">{{ lp.taxa_conversao | round(2) }}%</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="note" style="margin-top:10px">Fonte: Google Analytics 4 (sessões por landing page × campanha, classificadas pela mesma tag [Pré-Qualificação] das campanhas de mídia).</div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 3.9 DETALHAMENTO DA CAPTAÇÃO — vendas por público (barra)  -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.leads_detail_table and (dbf.leads_detail_table | sum(attribute='vendas')) > 0 %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-chart-bar"></i> Detalhamento da Captação</div>
+    <div class="pub-chart-wrap" style="height:320px">
+      <canvas id="captacaoDetalheChart"></canvas>
+    </div>
+    <script>
+    (function() {
+      const el = document.getElementById('captacaoDetalheChart');
+      if (!el) return;
+      const cssVar = (name, fallback) => (getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback);
+      const metaColor = cssVar('--meta-color', '#1877F2');
+      const googleColor = cssVar('--google-color', '#dc2626');
+      const labels = [{% for r in dbf.leads_detail_table %}"{{ r.label | e }}"{% if not loop.last %},{% endif %}{% endfor %}];
+      const vendas = [{% for r in dbf.leads_detail_table %}{{ r.vendas | int }}{% if not loop.last %},{% endif %}{% endfor %}];
+      const vars   = [{% for r in dbf.leads_detail_table %}{{ (r.vendas_var | round(1)) if r.vendas_var is not none else 'null' }}{% if not loop.last %},{% endif %}{% endfor %}];
+      const colors = labels.map(l => l.startsWith('YT') ? googleColor : metaColor);
+      new Chart(el, {
+        type: 'bar',
+        plugins: [ChartDataLabels],
+        data: { labels, datasets: [{ data: vendas, backgroundColor: colors, borderRadius: 4, maxBarThickness: 64 }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { enabled: false },
+            datalabels: {
+              anchor: 'end', align: 'top', offset: 2,
+              font: { size: 12, weight: '700' },
+              color: cssVar('--bs-ink', '#1f2330'),
+              formatter: (v, ctx) => {
+                const varPct = vars[ctx.dataIndex];
+                if (varPct === null || varPct === undefined) return String(v);
+                const arrow = varPct > 0 ? '▲' : (varPct < 0 ? '▼' : '=');
+                const sign = varPct > 0 ? '+' : '';
+                return [String(v), `${arrow} ${sign}${varPct}%`];
+              },
+            }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+            y: { beginAtZero: true, grid: { color: cssVar('--bs-surface', '#f6f7fb') }, ticks: { font: { size: 11 }, precision: 0 } }
+          },
+          layout: { padding: { top: 34 } }
+        }
+      });
+    })();
+    </script>
+    <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:8px">Vendas atribuídas por público (UTM) na etapa de Captação, com variação % vs {{ dbf.prev_code or 'lançamento anterior' }}.</div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4. LEADS POR PÚBLICO — CAPTAÇÃO                           -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-users"></i> Leads por Público — Captação</div>
+
+    {% if dbf.leads_detail_table and (dbf.leads_detail_table | sum(attribute='gasto')) > 0 %}
+    <div class="table-wrap">
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            <th>Público</th>
+            <th class="num">Leads</th>
+            <th class="num">Investimento</th>
+            <th class="num">CPL</th>
+            <th class="num">Tx. Conversão</th>
+            <th class="num">Vendas</th>
+            <th class="num">Custo por Venda</th>
+            <th class="num">ROAS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in dbf.leads_detail_table %}
+          {% set leads_cls = 'up' if (r.leads_var is not none and r.leads_var > 0) else ('dn' if (r.leads_var is not none and r.leads_var < 0) else 'neut') %}
+          {% set cpl_cls = 'dn' if (r.cpl_var is not none and r.cpl_var > 0) else ('up' if (r.cpl_var is not none and r.cpl_var < 0) else 'neut') %}
+          {% set conv_cls = 'up' if (r.conversao_var is not none and r.conversao_var > 0) else ('dn' if (r.conversao_var is not none and r.conversao_var < 0) else 'neut') %}
+          {% set vendas_cls = 'up' if (r.vendas_var is not none and r.vendas_var > 0) else ('dn' if (r.vendas_var is not none and r.vendas_var < 0) else 'neut') %}
+          {% set custo_venda_cls = 'dn' if (r.custo_venda_var is not none and r.custo_venda_var > 0) else ('up' if (r.custo_venda_var is not none and r.custo_venda_var < 0) else 'neut') %}
+          {% set roas_cls = 'up' if (r.roas_var is not none and r.roas_var > 0) else ('dn' if (r.roas_var is not none and r.roas_var < 0) else 'neut') %}
+          <tr class="ldt-main">
+            <td><span class="aud-tag{{ ' g' if r.label.startswith('YT') else '' }}">{{ r.label }}</span></td>
+            <td class="num">{{ r.leads | int | num }}</td>
+            <td class="num">{{ r.gasto | brl }}</td>
+            <td class="num">{{ r.cpl | brl if r.leads > 0 else '—' }}</td>
+            <td class="num">{{ r.conversao | round(2) }}%</td>
+            <td class="num"><strong>{{ r.vendas }}</strong></td>
+            <td class="num">{{ r.custo_venda | brl if r.vendas > 0 else '—' }}</td>
+            <td class="num">{{ r.roas | round(2) }}x</td>
+          </tr>
+          <tr class="ldt-sub">
+            <td><span class="ldt-pct">{{ r.pct | round(1) }}% do investimento</span></td>
+            <td class="num">{{ vbadge(r.leads_var, leads_cls) }}</td>
+            <td class="num">{{ vbadge(r.gasto_var, leads_cls) }}</td>
+            <td class="num">{{ vbadge(r.cpl_var, cpl_cls) }}</td>
+            <td class="num">{{ vbadge(r.conversao_var, conv_cls, 'pp') }}</td>
+            <td class="num">{{ vbadge(r.vendas_var, vendas_cls) }}</td>
+            <td class="num">{{ vbadge(r.custo_venda_var, custo_venda_cls) }}</td>
+            <td class="num">{{ vbadge(r.roas_var, roas_cls) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {{ sem_dados("Campanhas de Captação sem clima (Quente/Frio/Específico) identificado no nome") }}
+    {% endif %}
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4a1. ANÚNCIOS ANTIGOS × NOVOS — CAPTAÇÃO                   -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.antigo_novo and dbf.antigo_novo.get('Captação') %}
+  {% set g = dbf.antigo_novo['Captação'] %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-recycle"></i> Novos × Antigos — Captação</div>
+    <div class="table-wrap">
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th class="num">Invest.</th>
+            <th class="num">%</th>
+            <th class="num">Leads</th>
+            <th class="num">CPL</th>
+            <th class="num">Anúncios</th>
+            <th class="num">Vendas</th>
+            <th class="num">Receita</th>
+            <th class="num">ROAS</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Antigos (validados)</td>
+            <td class="num">{{ g.antigo.gasto | brl }}</td>
+            <td class="num">{{ g.antigo.pct | round(1) }}%</td>
+            <td class="num">{{ g.antigo.leads | num }}</td>
+            <td class="num">{{ g.antigo.cpl | brl if g.antigo.leads > 0 else '—' }}</td>
+            <td class="num">{{ g.antigo.n }}</td>
+            <td class="num">{{ g.antigo.vendas | num }}</td>
+            <td class="num">{{ g.antigo.receita | brl }}</td>
+            <td class="num">{{ g.antigo.roas | round(2) if g.antigo.gasto > 0 else '—' }}{% if g.antigo.gasto > 0 %}x{% endif %}</td>
+          </tr>
+          <tr>
+            <td>Novos</td>
+            <td class="num">{{ g.novo.gasto | brl }}</td>
+            <td class="num">{{ g.novo.pct | round(1) }}%</td>
+            <td class="num">{{ g.novo.leads | num }}</td>
+            <td class="num">{{ g.novo.cpl | brl if g.novo.leads > 0 else '—' }}</td>
+            <td class="num">{{ g.novo.n }}</td>
+            <td class="num">{{ g.novo.vendas | num }}</td>
+            <td class="num">{{ g.novo.receita | brl }}</td>
+            <td class="num">{{ g.novo.roas | round(2) if g.novo.gasto > 0 else '—' }}{% if g.novo.gasto > 0 %}x{% endif %}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+      "Antigo" = código ADxxx já usado em algum lançamento anterior do mesmo produto.
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4a2. TOP 5 MELHORES ADS — CAPTAÇÃO (COMBINADO META+GOOGLE) -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.top_ads_captacao and dbf.top_ads_captacao.combinado %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-trophy"></i> Top 5 Melhores Ads — Captação (Meta + Google)</div>
+    {{ top_ads_table(dbf.top_ads_captacao.combinado, '#6b7280') }}
+    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+      Investimento/leads somados por código ADxxx entre as duas plataformas; vendas por atribuição UTM (mesmo código).
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4a3. TOP 5 MELHORES ADS — CAPTAÇÃO (META)                 -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.top_ads_captacao and dbf.top_ads_captacao.meta %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-brand-meta"></i> Top 5 Melhores Ads — Captação (Meta)</div>
+    {{ top_ads_table(dbf.top_ads_captacao.meta, 'var(--meta-color)') }}
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4a4. TOP 5 MELHORES ADS — CAPTAÇÃO (YOUTUBE)               -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.top_ads_captacao and dbf.top_ads_captacao.google %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-brand-youtube"></i> Top 5 Melhores Ads — Captação (YouTube)</div>
+    {{ top_ads_table(dbf.top_ads_captacao.google, 'var(--google-color)') }}
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4b. DETALHAMENTO DOS PÚBLICOS — categoria de adset (Meta)  -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-users-group"></i> Detalhamento dos Públicos — Captação (Meta)</div>
+    {% if dbf.publicos_captacao %}
+    <div class="dbf-publicos-stack">
+      {% for clima, pubs in dbf.publicos_captacao.items() %}
+      <div>
+        <div class="cmp-label">{{ clima }}</div>
+        <div class="table-wrap" data-no-filter>
+          <table class="dbf-table">
+            <thead>
+              <tr>
+                <th>Grupo de Anúncios</th>
+                <th class="num">Invest.</th>
+                <th class="num">%</th>
+                <th class="num">Leads</th>
+                <th class="num">CPL</th>
+                <th class="num">Vendas</th>
+                <th class="num">Faturamento</th>
+                <th class="num">ROAS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in pubs %}
+              <tr>
+                <td>{{ p.publico }}</td>
+                <td class="num">{{ p.gasto | brl }}</td>
+                <td class="num">{{ p.pct | round(1) }}%</td>
+                <td class="num">{{ p.leads | num }}</td>
+                <td class="num">{{ p.cpl | brl if p.leads > 0 else '—' }}</td>
+                <td class="num">{{ p.vendas | num }}</td>
+                <td class="num">{{ p.receita | brl }}</td>
+                <td class="num {{ 'roas-good' if p.roas >= 2 else ('roas-ok' if p.roas >= 1 else ('roas-bad' if p.roas > 0 else '')) }}">{{ "%.2f"|format(p.roas) | replace(".", ",") }}x</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    {{ sem_dados("Sem adsets de Captação classificáveis por público") }}
+    {% endif %}
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4b0. DETALHAMENTO DOS PÚBLICOS — audiências (Google)        -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-users-group"></i> Detalhamento dos Públicos — Captação (Google)</div>
+    {% if dbf.publicos_captacao_google %}
+    <div class="dbf-publicos-stack">
+      {% for clima, pubs in dbf.publicos_captacao_google.items() %}
+      <div>
+        <div class="cmp-label">{{ clima }}</div>
+        <div class="table-wrap" data-no-filter>
+          <table class="dbf-table">
+            <thead>
+              <tr>
+                <th>Grupo de Anúncios</th>
+                <th class="num">Invest.</th>
+                <th class="num">%</th>
+                <th class="num">Leads</th>
+                <th class="num">CPL</th>
+                <th class="num">Vendas</th>
+                <th class="num">Faturamento</th>
+                <th class="num">ROAS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in pubs %}
+              <tr>
+                <td>{{ p.publico }}</td>
+                <td class="num">{{ p.gasto | brl }}</td>
+                <td class="num">{{ p.pct | round(1) }}%</td>
+                <td class="num">{{ p.leads | num }}</td>
+                <td class="num">{{ p.cpl | brl if p.leads > 0 else '—' }}</td>
+                <td class="num">{{ p.vendas | num }}</td>
+                <td class="num">{{ p.receita | brl }}</td>
+                <td class="num {{ 'roas-good' if p.roas >= 2 else ('roas-ok' if p.roas >= 1 else ('roas-bad' if p.roas > 0 else '')) }}">{{ "%.2f"|format(p.roas) | replace(".", ",") }}x</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    {{ sem_dados("Sem audiências de Captação com investimento no Google Ads") }}
+    {% endif %}
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- LANDING PAGES QUE MAIS CONVERTERAM — CAPTAÇÃO (GA4)        -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.landing_pages_capt %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-world"></i> Landing Pages que Mais Converteram — Captação</div>
+    <div class="table-wrap" data-no-filter>
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            <th>Página</th>
+            <th class="num">Sessões</th>
+            <th class="num">Conversões</th>
+            <th class="num">Taxa de Conversão</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for lp in dbf.landing_pages_capt %}
+          <tr>
+            <td style="max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ lp.landing_page }}"><a href="{{ lp_base_url }}{{ lp.landing_page }}" target="_blank" rel="noopener" style="color:var(--bs-accent)">{{ lp.landing_page }}</a></td>
+            <td class="num">{{ lp.sessions | num }}</td>
+            <td class="num"><strong>{{ lp.conversoes | num }}</strong></td>
+            <td class="num">{{ lp.taxa_conversao | round(2) }}%</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="note" style="margin-top:10px">Fonte: Google Analytics 4 (sessões por landing page × campanha, classificadas pela mesma tag [Captação] das campanhas de mídia).</div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4b2. PESQUISA — ENGAJAMENTO (RESPOSTAS × BASE)             -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if lazy %}
+  <div class="dbf-section" data-lazy-section="pesquisa_engajamento">
+    <div class="dbf-section-title"><i class="ti ti-clipboard-check"></i> Pesquisa — Engajamento da Base</div>
+    {{ lazy_skeleton() }}
+  </div>
+  {% elif dbf.pesquisa_engajamento %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-clipboard-check"></i> Pesquisa — Engajamento da Base</div>
+    {% include "debriefing/_secao_pesquisa_engajamento.html" %}
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4b3. QUALIDADE POR ESTADO (INVEST. META + COMPRADORES)     -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if lazy %}
+  <div class="dbf-section" data-lazy-section="qualidade_regiao">
+    <div class="dbf-section-title"><i class="ti ti-map-pin"></i> Qualidade por Estado — Captação</div>
+    {{ lazy_skeleton() }}
+  </div>
+  {% elif dbf.qualidade_regiao and dbf.qualidade_regiao.rows %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-map-pin"></i> Qualidade por Estado — Captação</div>
+    {% include "debriefing/_secao_qualidade_regiao.html" %}
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4c. PERFIL DO LEAD POR ANÚNCIO (TOP 5 × PESQUISA)          -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if lazy %}
+  <div class="dbf-section" data-lazy-section="perfil_por_anuncio">
+    <div class="dbf-section-title"><i class="ti ti-id-badge-2"></i> Perfil do Lead por Anúncio — Top 5 × Pesquisa</div>
+    {{ lazy_skeleton() }}
+  </div>
+  {% elif dbf.perfil_por_anuncio and dbf.perfil_por_anuncio.ads %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-id-badge-2"></i> Perfil do Lead por Anúncio — Top 5 × Pesquisa</div>
+    {% include "debriefing/_secao_perfil_por_anuncio.html" %}
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 5. VENDAS POR PÚBLICO (atribuição UTM)                    -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-shopping-cart"></i> Vendas por Público (atribuição UTM)</div>
+    <div class="cmp-grid-3">
+      <div class="cmp-curr">
+        <div class="cmp-title">Facebook Ads — vendas por temperatura</div>
+        {% if dbf.meta_temp_sales %}
+          <div class="pub-chart-wrap"><canvas id="pubChartFbClima"></canvas></div>
+        {% else %}
+          {{ sem_dados("Vendas com UTM de temperatura (quente/frio) mapeado na atribuição") }}
+        {% endif %}
+      </div>
+      <div class="cmp-curr">
+        <div class="cmp-title">Google Ads — vendas por temperatura</div>
+        {% if dbf.google_temp_sales %}
+          <div class="pub-chart-wrap"><canvas id="pubChartGoogleClima"></canvas></div>
+        {% else %}
+          {{ sem_dados("Vendas com UTM de temperatura (quente/frio) mapeado na atribuição Google") }}
+        {% endif %}
+      </div>
+      <div class="cmp-curr">
+        <div class="cmp-title">Google Ads — vendas por tipo de campanha</div>
+        {% if dbf.google_tipo_sales %}
+          <div class="pub-chart-wrap"><canvas id="pubChartGoogleTipo"></canvas></div>
+        {% else %}
+          {{ sem_dados("Vendas com UTM de tipo de campanha Google mapeado na atribuição") }}
+        {% endif %}
+      </div>
+    </div>
+    <script>
+    (function() {
+      const hasPrev   = {{ 'true' if dbf.has_prev else 'false' }};
+      const prevLabel = "{{ (dbf.prev_code or 'Lançamento anterior') | e }}";
+      const climaLabels = [{% for c in dbf.clima_order %}"{{ c | e }}"{% if not loop.last %},{% endif %}{% endfor %}];
+      const cssVar = (name, fallback) => (getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback);
+
+      function buildPubChart(canvasId, labels, currVals, prevVals, currColor) {
+        const el = document.getElementById(canvasId);
+        if (!el) return;
+        currColor = currColor.startsWith('var(') ? cssVar(currColor.slice(4, -1), '#374151') : currColor;
+        const datasets = [{ label: 'Atual', data: currVals, backgroundColor: currColor, borderRadius: 4, maxBarThickness: 56 }];
+        if (hasPrev) {
+          datasets.push({ label: prevLabel, data: prevVals, backgroundColor: currColor + '55', borderRadius: 4, maxBarThickness: 56 });
+        }
+        new Chart(el, {
+          type: 'bar',
+          plugins: [ChartDataLabels],
+          data: { labels, datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: hasPrev, position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } },
+              tooltip: { enabled: false },
+              datalabels: {
+                anchor: 'end', align: 'top', offset: 2,
+                font: { size: 11, weight: '700' },
+                color: cssVar('--bs-ink', '#1f2330'),
+                formatter: v => v,
+              }
+            },
+            scales: {
+              x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+              y: { beginAtZero: true, grid: { color: cssVar('--bs-surface', '#f6f7fb') }, ticks: { font: { size: 11 }, precision: 0 } }
+            },
+            layout: { padding: { top: 22 } }
+          }
+        });
+      }
+
+      {% if dbf.meta_temp_sales %}
+      buildPubChart(
+        'pubChartFbClima',
+        climaLabels,
+        [{% for c in dbf.clima_order %}{{ dbf.meta_temp_sales.get(c, {}).get('vendas', 0) | int }}{% if not loop.last %},{% endif %}{% endfor %}],
+        [{% for c in dbf.clima_order %}{{ dbf.prev_meta_temp_sales.get(c, {}).get('vendas', 0) | int }}{% if not loop.last %},{% endif %}{% endfor %}],
+        'var(--meta-color)'
+      );
+      {% endif %}
+
+      {% if dbf.google_temp_sales %}
+      buildPubChart(
+        'pubChartGoogleClima',
+        climaLabels,
+        [{% for c in dbf.clima_order %}{{ dbf.google_temp_sales.get(c, {}).get('vendas', 0) | int }}{% if not loop.last %},{% endif %}{% endfor %}],
+        [{% for c in dbf.clima_order %}{{ dbf.prev_google_temp_sales.get(c, {}).get('vendas', 0) | int }}{% if not loop.last %},{% endif %}{% endfor %}],
+        'var(--google-color)'
+      );
+      {% endif %}
+
+      {% if dbf.google_tipo_sales %}
+      buildPubChart(
+        'pubChartGoogleTipo',
+        [{% for tipo, s in dbf.google_tipo_sales.items() %}"{{ tipo | e }}"{% if not loop.last %},{% endif %}{% endfor %}],
+        [{% for tipo, s in dbf.google_tipo_sales.items() %}{{ s.get('vendas', 0) | int }}{% if not loop.last %},{% endif %}{% endfor %}],
+        [{% for tipo, s in dbf.google_tipo_sales.items() %}{{ dbf.prev_google_tipo_sales.get(tipo, {}).get('vendas', 0) | int }}{% if not loop.last %},{% endif %}{% endfor %}],
+        '#fbbc04'
+      );
+      {% endif %}
+    })();
+    </script>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 5b. LEADS X GRUPOS DE WHATSAPP                              -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if lazy %}
+  <div class="dbf-section" data-lazy-section="leads_x_whatsapp">
+    <div class="dbf-section-title"><i class="ti ti-brand-whatsapp"></i> Leads X Grupos de WhatsApp</div>
+    {{ lazy_skeleton() }}
+  </div>
+  {% elif dbf.leads_x_whatsapp %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-brand-whatsapp"></i> Leads X Grupos de WhatsApp</div>
+    {% include "debriefing/_secao_leads_x_whatsapp.html" %}
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 5c. VENDAS × GRUPOS DE WHATSAPP (VIP / NORMAL / FORA)       -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if lazy %}
+  <div class="dbf-section" data-lazy-section="vendas_grupos_whatsapp">
+    <div class="dbf-section-title"><i class="ti ti-brand-whatsapp"></i> Vendas × Grupos de WhatsApp</div>
+    {{ lazy_skeleton() }}
+  </div>
+  {% elif dbf.vendas_grupos_whatsapp %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-brand-whatsapp"></i> Vendas × Grupos de WhatsApp</div>
+    {% include "debriefing/_secao_vendas_grupos_whatsapp.html" %}
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 5d. DETALHAMENTO DO DISPARO NOS GRUPOS (API WHATSAPP)       -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if lazy %}
+  <div class="dbf-section" data-lazy-section="disparo_resumo">
+    <div class="dbf-section-title"><i class="ti ti-send"></i> Detalhamento do Disparo nos Grupos</div>
+    {{ lazy_skeleton() }}
+  </div>
+  {% elif dbf.disparo_resumo %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-send"></i> Detalhamento do Disparo nos Grupos</div>
+    {% include "debriefing/_secao_disparo_resumo.html" %}
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 5e. BLOCO PESQUISAS — FUNIL DA PESQUISA (LEADS)             -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if lazy %}
+  <div class="dbf-section" data-lazy-section="funil_pesquisa">
+    <div class="dbf-section-title"><i class="ti ti-clipboard-list"></i> Funil da Pesquisa — Leads</div>
+    {{ lazy_skeleton() }}
+  </div>
+  {% elif dbf.pesquisa_engajamento %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-clipboard-list"></i> Funil da Pesquisa — Leads</div>
+    {% include "debriefing/_secao_funil_pesquisa.html" %}
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 5f. BLOCO PESQUISAS — SORTEIO (SEM FONTE, PLACEHOLDER)      -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-gift"></i> Sorteio</div>
+    {{ sem_dados("Dados do sorteio ainda não integrados ao banco — sem fonte hoje (precisa de export/planilha da ferramenta que roda o sorteio e da automação de disparo)") }}
+    <div class="oferta-grid" style="margin-top:16px">
+      <div class="oferta-card">
+        <div class="oferta-title">Participantes por Aula</div>
+        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> Aula 1 — não configurado</div>
+        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> Aula 2 — não configurado</div>
+        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> Aula 3 — não configurado</div>
+        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> Aula 4 — não configurado</div>
+        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> Aula 5 — não configurado</div>
+        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> reSUMÃO — não configurado</div>
+      </div>
+      <div class="oferta-card">
+        <div class="oferta-title">Engajamento do Sorteio</div>
+        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> % da base que participou — não configurado</div>
+        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> Abriram a janela da automação (domingo) — não configurado</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 5g. DETALHAMENTO DE OFERTA (CHECKLIST + PREÇOS)             -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-list-check"></i> Detalhamento de Oferta</div>
+    {% if dbf.oferta_descricao %}
+    <div class="oferta-grid" style="margin-top:16px; grid-template-columns:1fr">
+      <div class="oferta-card">
+        <div class="oferta-title">O que está incluso?</div>
+        {% for linha in dbf.oferta_descricao.split('\n') %}
+        {% if linha.strip() %}
+        <div class="oferta-item" style="border-bottom:none"><i class="ti ti-square-rounded-check-filled" style="color:var(--bs-success)"></i> {{ linha.strip() }}</div>
+        {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+    <div class="oferta-grid" style="margin-top:12px">
+      <div class="oferta-card">
+        <div class="oferta-title">Preço à vista</div>
+        <div class="oferta-item" style="border-bottom:none; font-size:20px; font-weight:800; color:var(--bs-ink)">{{ dbf.oferta_preco_vista | brl if dbf.oferta_preco_vista else "não configurado" }}</div>
+      </div>
+      <div class="oferta-card">
+        <div class="oferta-title">Preço parcelado (total)</div>
+        <div class="oferta-item" style="border-bottom:none; font-size:20px; font-weight:800; color:var(--bs-ink)">{{ dbf.oferta_preco_parcelado | brl if dbf.oferta_preco_parcelado else "não configurado" }}</div>
+      </div>
+    </div>
+    {% else %}
+    {{ sem_dados("Dados de oferta ainda não cadastrados — preencher em Descrição do Bônus na configuração do lançamento") }}
+    {% endif %}
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 5h. DETALHAMENTO DE VENDAS (FORMA DE PAGAMENTO)             -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% set vf = dbf.vendas_forma or [] %}
+  {% set vf_total = vf | sum(attribute='qtd') %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-report-money"></i> Detalhamento de Vendas (Forma de Pagamento)</div>
+    {% if vf_total > 0 %}
+    <div class="vf-badges">
+      {% for f in vf %}
+      <div class="vf-badge-item">
+        <span class="vf-badge-lbl">{{ f.label }}</span>
+        {{ dbadge(f.qtd, f.prev_qtd, 'up') }}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="vf-layout">
+      <div class="vf-chart-wrap"><canvas id="vfBarChart"></canvas></div>
+      <div class="vf-chart-wrap vf-pie"><canvas id="vfPieChart"></canvas></div>
+    </div>
+    <script>
+    (function() {
+      const labels = [{% for f in vf %}"{{ f.label | e }}"{% if not loop.last %},{% endif %}{% endfor %}];
+      const values = [{% for f in vf %}{{ f.qtd }}{% if not loop.last %},{% endif %}{% endfor %}];
+      const colors = ['#3b82f6', '#22c55e', '#a855f7', '#f97316', '#ef4444'];
+      const cssVar = (name, fallback) => (getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback);
+      const inkColor = cssVar('--bs-ink', '#1f2330');
+
+      const barEl = document.getElementById('vfBarChart');
+      if (barEl) {
+        new Chart(barEl, {
+          type: 'bar',
+          plugins: [ChartDataLabels],
+          data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 4, maxBarThickness: 56 }] },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: { enabled: false },
+              datalabels: {
+                anchor: 'end', align: 'top', offset: 2,
+                font: { size: 12, weight: '700' }, color: inkColor,
+                formatter: v => v,
+              }
+            },
+            scales: {
+              x: { grid: { display: false }, ticks: { font: { size: 11 }, color: inkColor } },
+              y: { beginAtZero: true, grid: { color: cssVar('--bs-surface', '#f6f7fb') }, ticks: { font: { size: 11 }, precision: 0, color: inkColor } }
+            },
+            layout: { padding: { top: 22 } }
+          }
+        });
+      }
+
+      const pieEl = document.getElementById('vfPieChart');
+      if (pieEl) {
+        new Chart(pieEl, {
+          type: 'doughnut',
+          plugins: [ChartDataLabels],
+          data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 2, borderColor: cssVar('--bs-card', '#fff') }] },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom', labels: { font: { size: 10 }, boxWidth: 10, color: inkColor } },
+              tooltip: { enabled: true },
+              datalabels: {
+                color: '#fff', font: { size: 10, weight: '700' },
+                formatter: (v, ctx) => {
+                  const total = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                  return total > 0 ? (v / total * 100).toFixed(1) + '%' : '';
+                }
+              }
+            }
+          }
+        });
+      }
+    })();
+    </script>
+    {% else %}
+    {{ sem_dados("Detalhamento por forma de pagamento (Hotmart parcelas/recorrência + TMB) ainda não disponível para este lançamento") }}
+    {% endif %}
+  </div>
+
+  <!-- Forma de Pagamento da Entrada (Boleto Parcelado / TMB) -->
+  {% set fpe = dbf.forma_pagamento_entrada %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-credit-card"></i> Forma de Pagamento da Entrada (Boleto Parcelado)</div>
+    {% if fpe and fpe.total %}
+    <div class="table-wrap">
+      <table class="table-compact" style="font-size:12px;max-width:420px">
+        <thead><tr><th class="th-dark">Forma</th><th class="th-dark" style="text-align:left">Vendas</th><th class="th-dark" style="text-align:left">%</th></tr></thead>
+        <tbody>
+          {% for r in fpe.rows %}
+          <tr><td class="td-bold">{{ r.metodo }}</td><td style="text-align:left">{{ r.qtd | num }}</td><td style="text-align:left">{{ r.pct | round(1) }}%</td></tr>
+          {% endfor %}
+          <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
+            <td>TOTAL</td><td style="text-align:left">{{ fpe.total | num }}</td><td style="text-align:left">100%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    {% if dbf.boleto_parcelado_curva %}
+    <div style="margin-top:16px">
+      <div style="font-size:12px;font-weight:700;margin-bottom:6px">% de vendas do lançamento por Boleto Parcelado</div>
+      <div class="line-chart-wrap" style="height:220px">
+        <canvas id="boletoParceladoCurvaChart"></canvas>
+      </div>
+      <script>
+      (function() {
+        const rows = {{ dbf.boleto_parcelado_curva | tojson }};
+        const labels = rows.map(r => r.data_str);
+        const vals   = rows.map(r => Math.round(r.pct * 10) / 10);
+        const accent = getComputedStyle(document.documentElement).getPropertyValue('--bs-accent').trim() || '#f97316';
+        new Chart(document.getElementById('boletoParceladoCurvaChart'), {
+          type: 'line',
+          data: { labels, datasets: [{ label: '% Boleto Parcelado', data: vals, borderColor: accent, backgroundColor: accent + '22', borderWidth: 2, pointRadius: 2, fill: true, tension: 0.3 }] },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: true, callbacks: { label: (ctx) => ctx.parsed.y + '%' } } },
+            scales: { x: { grid: { display: false }, ticks: { font: { size: 9 }, maxRotation: 90 } }, y: { beginAtZero: true, ticks: { callback: v => v + '%' } } }
+          }
+        });
+      })();
+      </script>
+    </div>
+    {% endif %}
+    {% else %}
+    {{ sem_dados("Cruzamento de compradores TMB (boleto parcelado) com o método de pagamento da entrada no Hotmart") }}
+    {% endif %}
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 6. MELHORES ANÚNCIOS                                       -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="dbf-section">
+    <div class="dbf-section-title">
+      <i class="ti ti-star"></i> Melhores Anúncios
+      <span style="font-size:11px;color:var(--bs-ink-muted);font-weight:400">por vendas atribuídas via UTM</span>
+    </div>
+
+    {% set has_thumbs = drive_thumbnails is defined and drive_thumbnails | length > 0 %}
+    {% if creative_data_error %}
+    <div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:8px;padding:12px 16px;font-size:13px;color:#92400e;display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+      <i class="ti ti-alert-triangle"></i>
+      Não foi possível calcular o ranking de criativos nesta sessão. Recarregue a página para tentar novamente.
+    </div>
+    {% endif %}
+    {% if dbf.top_geral %}
+    <div style="margin-bottom:24px">
+      <div style="font-size:13px;font-weight:700;margin-bottom:10px">Top Geral (FB + Google)</div>
+      <div class="table-wrap">
+        <table class="dbf-table">
+          <thead><tr>{% if has_thumbs %}<th style="width:72px"></th>{% endif %}<th>Anúncio</th><th class="num">Investimento</th><th class="num">Leads</th><th class="num">CPL</th><th class="num">Vendas</th><th class="num">Custo/Venda</th><th class="num">ROAS</th></tr></thead>
+          <tbody>
+            {% for row in dbf.top_geral %}
+            {% set td = drive_thumbnails.get(row.ad_code) if has_thumbs else None %}
+            <tr>
+              {% if has_thumbs %}
+              <td style="padding:4px 6px">{% if td %}<img src="{{ td.thumb }}" data-preview="{{ td.preview }}" data-title="{{ row.ad_code }}" data-gasto="{{ row.gasto | brl }}" data-leads="{{ row.leads | num }}" data-cpl="{{ row.cpl | brl }}" data-vendas="{{ row.vendas | num }}" data-roas="{{ '%.2f'|format(row.roas) | replace('.', ',') }}x" data-hook="{{ '%.2f'|format(row.hook_rate) | replace('.', ',') if row.hook_rate is defined }}" data-hold="{{ '%.2f'|format(row.hold_rate) | replace('.', ',') if row.hold_rate is defined and row.hold_rate is not none }}" data-body="{{ '%.2f'|format(row.body_rate) | replace('.', ',') if row.body_rate is defined }}" onclick="openVideoModalFromEl(this)" style="width:64px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer;display:block" loading="lazy" onerror="this.style.display='none'">{% endif %}</td>
+              {% endif %}
+              <td>{{ ad_label(row.ad_code, row.nome) }}</td>
+              <td class="num">{{ row.gasto | brl }}</td>
+              <td class="num">{{ row.leads | num }}</td>
+              <td class="num">{{ row.cpl | brl }}</td>
+              <td class="num"><strong>{{ row.vendas }}</strong></td>
+              <td class="num">{{ (row.gasto / row.vendas) | brl if row.vendas > 0 else '—' }}</td>
+              <td class="num {{ roas_cls(row.roas) }}">{{ "%.2f"|format(row.roas) }}x</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% else %}
+      {{ sem_dados("Atribuição de vendas via UTM (sem vendas rastreadas por anúncio)") }}
+    {% endif %}
+
+    <div class="cmp-grid" style="margin-top:16px">
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--meta-color);margin-bottom:10px"><i class="ti ti-brand-meta"></i> Top Facebook Ads</div>
+        {% if dbf.top_meta %}
+        <div class="table-wrap">
+          <table class="dbf-table">
+            <thead><tr>{% if has_thumbs %}<th style="width:72px"></th>{% endif %}<th>Anúncio</th><th class="num">Leads</th><th class="num">CPL</th><th class="num">Vendas</th><th class="num">ROAS</th></tr></thead>
+            <tbody>
+              {% for row in dbf.top_meta %}
+              {% set td = drive_thumbnails.get(row.ad_code) if has_thumbs else None %}
+              <tr>
+                {% if has_thumbs %}
+                <td style="padding:4px 6px">{% if td %}<img src="{{ td.thumb }}" data-preview="{{ td.preview }}" data-title="{{ row.ad_code }}" data-gasto="{{ row.gasto | brl }}" data-leads="{{ row.leads | num }}" data-cpl="{{ row.cpl | brl }}" data-vendas="{{ row.vendas | num }}" data-roas="{{ '%.2f'|format(row.roas) | replace('.', ',') }}x" data-ctr="{{ '%.2f'|format(row.ctr) | replace('.', ',') if row.ctr is defined }}" data-hook="{{ '%.2f'|format(row.hook_rate) | replace('.', ',') if row.hook_rate is defined }}" data-hold="{{ '%.2f'|format(row.hold_rate) | replace('.', ',') if row.hold_rate is defined and row.hold_rate is not none }}" data-body="{{ '%.2f'|format(row.body_rate) | replace('.', ',') if row.body_rate is defined }}" onclick="openVideoModalFromEl(this)" style="width:64px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer;display:block" loading="lazy" onerror="this.style.display='none'">{% endif %}</td>
+                {% endif %}
+                <td>{{ ad_label(row.ad_code, row.nome) }}</td>
+                <td class="num">{{ row.leads | num }}</td>
+                <td class="num">{{ row.cpl | brl }}</td>
+                <td class="num"><strong>{{ row.vendas }}</strong></td>
+                <td class="num {{ roas_cls(row.roas) }}">{{ "%.2f"|format(row.roas) }}x</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}{{ sem_dados("Meta Ads com atribuição de vendas por UTM") }}{% endif %}
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--google-color);margin-bottom:10px"><i class="ti ti-brand-youtube"></i> Top Google Ads</div>
+        {% if dbf.top_google %}
+        <div class="table-wrap">
+          <table class="dbf-table">
+            <thead><tr>{% if has_thumbs %}<th style="width:72px"></th>{% endif %}<th>Anúncio</th><th class="num">Leads</th><th class="num">CPL</th><th class="num">Vendas</th><th class="num">ROAS</th></tr></thead>
+            <tbody>
+              {% for row in dbf.top_google %}
+              {% set td = drive_thumbnails.get(row.ad_code) if has_thumbs else None %}
+              <tr>
+                {% if has_thumbs %}
+                <td style="padding:4px 6px">{% if td %}<img src="{{ td.thumb }}" data-preview="{{ td.preview }}" data-title="{{ row.ad_code }}" data-gasto="{{ row.gasto | brl }}" data-leads="{{ row.leads | num }}" data-cpl="{{ row.cpl | brl }}" data-vendas="{{ row.vendas | num }}" data-roas="{{ '%.2f'|format(row.roas) | replace('.', ',') }}x" data-ctr="{{ '%.2f'|format(row.ctr) | replace('.', ',') if row.ctr is defined }}" data-hook="{{ '%.2f'|format(row.hook_rate) | replace('.', ',') if row.hook_rate is defined }}" data-body="{{ '%.2f'|format(row.body_rate) | replace('.', ',') if row.body_rate is defined }}" onclick="openVideoModalFromEl(this)" style="width:64px;height:42px;object-fit:cover;border-radius:4px;cursor:pointer;display:block" loading="lazy" onerror="this.style.display='none'">{% endif %}</td>
+                {% endif %}
+                <td>{{ ad_label(row.ad_code, row.nome) }}</td>
+                <td class="num">{{ row.leads | num }}</td>
+                <td class="num">{{ row.cpl | brl }}</td>
+                <td class="num"><strong>{{ row.vendas }}</strong></td>
+                <td class="num {{ roas_cls(row.roas) }}">{{ "%.2f"|format(row.roas) }}x</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}{{ sem_dados("Google Ads com atribuição de vendas por UTM") }}{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 7. DIA A DIA DE CAPTAÇÃO                                   -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-calendar-stats"></i> Dia a Dia de Captação</div>
+    {% if dbf.daily %}
+      {% set half = (dbf.daily | length / 2) | round | int %}
+      <div class="day-tables-grid">
+        <div>
+          <div class="day-week-title">1ª Metade</div>
+          <table class="day-table">
+            <thead><tr><th>Data</th><th>Investimento</th><th>Leads</th><th>CPL</th></tr></thead>
+            <tbody>
+              {% for row in dbf.daily[:half] %}
+              <tr>
+                <td>{{ row.date }} ({{ row.weekday[:3] }})</td>
+                <td>{{ row.total_gasto | brl(0) }}</td>
+                <td><strong>{{ row.total_leads | round | int }}</strong></td>
+                <td>{{ row.total_cpl | brl }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <div class="day-week-title">2ª Metade</div>
+          <table class="day-table">
+            <thead><tr><th>Data</th><th>Investimento</th><th>Leads</th><th>CPL</th></tr></thead>
+            <tbody>
+              {% for row in dbf.daily[half:] %}
+              <tr>
+                <td>{{ row.date }} ({{ row.weekday[:3] }})</td>
+                <td>{{ row.total_gasto | brl(0) }}</td>
+                <td><strong>{{ row.total_leads | round | int }}</strong></td>
+                <td>{{ row.total_cpl | brl }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% else %}
+      {{ sem_dados("Tabela de breakdown diário (Meta Ads + Google Ads por data)") }}
+    {% endif %}
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 8. ENGAJAMENTO DAS AULAS (YouTube Analytics)              -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-brand-youtube"></i> Engajamento das Aulas — YouTube</div>
+
+    {% if not dbf.youtube_aulas %}
+      {{ sem_dados("YouTube Analytics — execute: python etl/etl_youtube_analytics.py --launch-code " ~ (launch.code if launch else 'CODIGO') ~ " (após adicionar os video_ids no YAML do lançamento)") }}
+      <div class="aula-grid" style="margin-top:16px">
+        {% for n in ["Aula 1", "Aula 2", "Aula 3", "Aula 4"] %}
+        <div class="aula-card">
+          <div style="font-size:11px;font-weight:700;color:var(--bs-accent);margin-bottom:10px">{{ n }}</div>
+          <div class="aula-num">—</div>
+          <div class="aula-lbl">Views ao vivo</div>
+          <div class="aula-detail">Replay: — views</div>
+          <div class="aula-detail">Watch time: —</div>
+          <div class="aula-detail">Retenção: —%</div>
+        </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="aula-grid">
+        {% for a in dbf.youtube_aulas %}
+        {% set dur_min = (a.duration_sec / 60) | round(1) if a.duration_sec > 0 else 0 %}
+        {% set avg_min = (a.avg_view_dur_sec / 60) | round(1) if a.avg_view_dur_sec > 0 else 0 %}
+        <div class="aula-card">
+          <div style="font-size:11px;font-weight:700;color:var(--bs-accent);margin-bottom:6px">Aula {{ a.aula_num }}</div>
+          {% if a.titulo %}
+          <div style="font-size:12px;color:var(--bs-ink);font-weight:600;margin-bottom:10px;line-height:1.3">{{ a.titulo[:60] }}{% if a.titulo|length > 60 %}…{% endif %}</div>
+          {% endif %}
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+            <div>
+              <div class="aula-num" style="color:{% if a.views_live > 0 %}var(--bs-ink){% else %}var(--bs-ink-subtle){% endif %}">
+                {{ a.views_live | num if a.views_live > 0 else "—" }}
+              </div>
+              <div class="aula-lbl">Views ao vivo</div>
+            </div>
+            <div>
+              <div class="aula-num" style="color:{% if a.views_replay > 0 %}var(--bs-ink){% else %}var(--bs-ink-subtle){% endif %}">
+                {{ a.views_replay | num if a.views_replay > 0 else "—" }}
+              </div>
+              <div class="aula-lbl">Views replay</div>
+            </div>
+          </div>
+
+          <!-- Barra de retenção -->
+          {% if a.avg_view_pct > 0 %}
+          <div style="margin-bottom:8px">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--bs-ink-muted);margin-bottom:3px">
+              <span>Retenção média</span>
+              <span style="font-weight:700;color:{% if a.avg_view_pct >= 50 %}#15803d{% elif a.avg_view_pct >= 30 %}#d97706{% else %}#dc2626{% endif %}">
+                {{ a.avg_view_pct | round(1) }}%
+              </span>
+            </div>
+            <div style="height:6px;background:var(--bs-border);border-radius:3px;overflow:hidden">
+              <div style="height:100%;width:{{ [a.avg_view_pct, 100] | min | round | int }}%;background:{% if a.avg_view_pct >= 50 %}#16a34a{% elif a.avg_view_pct >= 30 %}#f59e0b{% else %}#dc2626{% endif %};border-radius:3px"></div>
+            </div>
+          </div>
+          {% endif %}
+
+          <div class="aula-detail">
+            <i class="ti ti-clock" style="font-size:11px"></i>
+            Duração: {{ dur_min }}min · Assistido: {{ avg_min }}min
+          </div>
+          {% if a.watch_time_min > 0 %}
+          <div class="aula-detail" style="margin-top:3px">
+            <i class="ti ti-eye" style="font-size:11px"></i>
+            Watch time total: {{ (a.watch_time_min / 60) | round(1) }}h
+          </div>
+          {% endif %}
+          {% if a.peak_concurrent > 0 %}
+          <div class="aula-detail" style="margin-top:3px">
+            <i class="ti ti-users" style="font-size:11px"></i>
+            Pico simultâneo: {{ a.peak_concurrent | num }}
+          </div>
+          {% endif %}
+          {% if a.video_id %}
+          <div style="margin-top:8px">
+            <a href="https://www.youtube.com/watch?v={{ a.video_id }}" target="_blank"
+               style="font-size:11px;color:var(--bs-accent);text-decoration:none;font-weight:600">
+              <i class="ti ti-external-link"></i> Abrir no YouTube
+            </a>
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Totais YouTube -->
+      {% set total_views = dbf.youtube_aulas | sum(attribute='views_total') %}
+      {% set total_wt    = dbf.youtube_aulas | sum(attribute='watch_time_min') %}
+      <div class="dbf-kpi-grid" style="margin-top:16px;grid-template-columns:repeat(4,1fr)">
+        <div class="dbf-kpi">
+          <div class="lbl">Total Views</div>
+          <div class="val">{{ total_views | num }}</div>
+        </div>
+        <div class="dbf-kpi">
+          <div class="lbl">Watch Time Total</div>
+          <div class="val">{{ (total_wt / 60) | round(1) }}h</div>
+        </div>
+        <div class="dbf-kpi">
+          <div class="lbl">Retenção Média</div>
+          <div class="val">
+            {% set aulas_com_ret = dbf.youtube_aulas | selectattr('avg_view_pct', 'gt', 0) | list %}
+            {% if aulas_com_ret %}
+              {{ (aulas_com_ret | sum(attribute='avg_view_pct') / aulas_com_ret|length) | round(1) }}%
+            {% else %}—{% endif %}
+          </div>
+        </div>
+        <div class="dbf-kpi">
+          <div class="lbl">Maior Pico Simultâneo</div>
+          <div class="val">{{ dbf.max_peak_yt | num }}</div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 9. OFERTA & BÔNUS                                          -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-gift"></i> Oferta & Bônus</div>
+    {% if dbf.oferta_descricao %}
+    <div class="oferta-grid" style="margin-top:16px; grid-template-columns:1fr">
+      <div class="oferta-card">
+        <div class="oferta-title">Descrição do Bônus</div>
+        <div class="oferta-item" style="border-bottom:none; white-space:pre-wrap; align-items:flex-start">{{ dbf.oferta_descricao }}</div>
+        <div class="oferta-item"><i class="ti ti-circle-check"></i> Preço à vista — {{ dbf.oferta_preco_vista | brl if dbf.oferta_preco_vista else "não configurado" }}</div>
+        <div class="oferta-item"><i class="ti ti-circle-check"></i> Preço parcelado — {{ dbf.oferta_preco_parcelado | brl if dbf.oferta_preco_parcelado else "não configurado" }}</div>
+        <div class="oferta-item"><i class="ti ti-circle-check"></i> Período do carrinho — {% if dbf.oferta_carrinho_start and dbf.oferta_carrinho_end %}{{ dbf.oferta_carrinho_start | br_date }} a {{ dbf.oferta_carrinho_end | br_date }}{% else %}não configurado{% endif %}</div>
+      </div>
+    </div>
+    {% else %}
+    {{ sem_dados("Dados de oferta e bônus ainda não integrados ao banco — preencher manualmente via configuração do lançamento") }}
+    <div class="oferta-grid" style="margin-top:16px; grid-template-columns:1fr">
+      <div class="oferta-card">
+        <div class="oferta-title">Descrição do Bônus</div>
+        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> não configurado</div>
+        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> Preço à vista — R$ 0</div>
+        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> Preço parcelado — R$ 0</div>
+        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> Período do carrinho — não configurado</div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 9a. VENDAS: COMERCIAL × IA × ORGÂNICO                       -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.vendas_por_canal %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-headset"></i> Vendas — Comercial × Orgânico</div>
+    <div class="dbf-kpi-grid">
+      {% for canal in ["Orgânico", "Comercial", "IA"] %}
+      {% set d = dbf.vendas_por_canal.get(canal) %}
+      {% if d %}
+      <div class="dbf-kpi">
+        <div class="lbl">{{ canal }}</div>
+        <div class="val">{{ d.vendas | num }} <span class="ldt-pct">({{ (d.vendas / dbf.total_vendas * 100) | round(1) if dbf.total_vendas else 0 }}%)</span></div>
+        <div class="lbl">{{ d.receita | brl }}</div>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+      Comercial/IA identificados pelo codigo_sck (Hotmart) e utm_source (TMB); vendas sem marcação contam como Orgânico.
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Comparativo de Vendas (Comercial x Orgânico) multi-lançamento -->
+  {% if lazy %}
+  <div class="dbf-section" data-lazy-section="comparativo_historico">
+    <div class="dbf-section-title"><i class="ti ti-history"></i> Comparativo de Vendas — Comercial × Orgânico (Histórico)</div>
+    {{ lazy_skeleton() }}
+  </div>
+  {% elif dbf.comparativo_historico %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-history"></i> Comparativo de Vendas — Comercial × Orgânico (Histórico)</div>
+    {% include "debriefing/_secao_comparativo_historico.html" %}
+  </div>
+  {% endif %}
+
+  <!-- Tabela Histórica — comparativo grande multi-lançamento -->
+  {% if lazy %}
+  <div class="dbf-section" data-lazy-section="historico_grande">
+    <div class="dbf-section-title"><i class="ti ti-table"></i> Tabela Histórica — Comparativo entre Lançamentos</div>
+    {{ lazy_skeleton() }}
+  </div>
+  {% elif dbf.historico_grande %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-table"></i> Tabela Histórica — Comparativo entre Lançamentos</div>
+    {% include "debriefing/_secao_historico_grande.html" %}
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 9a2. CAMINHO DO COMPRADOR — FUNIL UNIFICADO POR PESSOA     -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if lazy %}
+  <div class="dbf-section" data-lazy-section="caminho_comprador">
+    <div class="dbf-section-title"><i class="ti ti-route"></i> Caminho do Comprador</div>
+    {{ lazy_skeleton() }}
+  </div>
+  {% elif dbf.caminho_comprador %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-route"></i> Caminho do Comprador</div>
+    {% include "debriefing/_secao_caminho_comprador.html" %}
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 9b. COMPRADORES: LEAD NOVO × LEAD ANTIGO                   -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.leads_antigos %}
+  {% set la = dbf.leads_antigos %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-user-search"></i> Compradores — Lead Novo × Lead Antigo</div>
+    <div class="dbf-kpi-grid">
+      <div class="dbf-kpi">
+        <div class="lbl">Lead deste lançamento</div>
+        <div class="val">{{ la.novo.n | num }} <span class="ldt-pct">({{ la.novo.pct | round(1) }}%)</span></div>
+        <div class="lbl">{{ la.novo.receita | brl }}</div>
+      </div>
+      <div class="dbf-kpi">
+        <div class="lbl">Lead antigo (já estava na base)</div>
+        <div class="val">{{ la.antigo.n | num }} <span class="ldt-pct">({{ la.antigo.pct | round(1) }}%)</span></div>
+        <div class="lbl">{{ la.antigo.receita | brl }}</div>
+      </div>
+      <div class="dbf-kpi">
+        <div class="lbl">Sem cadastro na base</div>
+        <div class="val">{{ la.sem_lead.n | num }} <span class="ldt-pct">({{ la.sem_lead.pct | round(1) }}%)</span></div>
+        <div class="lbl">{{ la.sem_lead.receita | brl }}</div>
+      </div>
+      <div class="dbf-kpi">
+        <div class="lbl">CPA real (só leads novos)</div>
+        <div class="val">{{ (dbf.invest / la.novo.n) | brl if la.novo.n > 0 else '—' }}</div>
+        <div class="lbl">invest. ÷ {{ la.novo.n | num }} leads novos</div>
+      </div>
+    </div>
+    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+      "Antigo" = contato do Active Campaign criado antes de {{ la.inicio }} (início do lançamento). Cruzamento por e-mail com as vendas Hotmart/TMB.
+      O CPA padrão (investimento ÷ total de vendas) dilui o custo com vendas de contatos que a mídia paga deste lançamento não originou — o CPA real acima soma só quem virou lead dentro da janela do lançamento.
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 9c. EBOOK → COMPRA                                          -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.ebook_compradores %}
+  {% set eb = dbf.ebook_compradores %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-file-download"></i> Ebook → Compra</div>
+    <div class="dbf-kpi-grid">
+      <div class="dbf-kpi">
+        <div class="lbl">Baixaram (clicaram no PDF)</div>
+        <div class="val">{{ eb.downloads | num }}</div>
+        {% if eb.sem_email %}<div class="lbl">{{ eb.sem_email | num }} sem e-mail rastreado</div>{% endif %}
+      </div>
+      <div class="dbf-kpi">
+        <div class="lbl">Compraram depois</div>
+        <div class="val">{{ eb.compradores | num }} <span class="ldt-pct">({{ eb.pct_compra | round(1) }}%)</span></div>
+        <div class="lbl">{{ eb.receita | brl }}</div>
+      </div>
+      <div class="dbf-kpi">
+        <div class="lbl">% dos compradores do lançamento</div>
+        <div class="val">{{ eb.pct_dos_compradores | round(1) }}%</div>
+        <div class="lbl">{{ eb.compradores | num }} de {{ eb.total_compradores | num }}</div>
+      </div>
+    </div>
+    {% if eb.links|length > 1 %}
+    <table class="dbf-table" style="margin-top:8px">
+      <thead><tr><th>E-mail / campanha</th><th class="num">Downloads</th></tr></thead>
+      <tbody>
+        {% for lk in eb.links %}
+        <tr><td>{{ lk.campanha }}</td><td class="num">{{ lk.downloads | num }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+      "Baixou" = clicou no link do PDF dentro do e-mail da automação do lançamento (Active Campaign). Cruzamento por e-mail com as vendas Hotmart/TMB.
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 9d. RECOMPRA APÓS BOLETO NÃO PAGO / CARTÃO CANCELADO        -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.hotmart_recompra %}
+  {% set hr = dbf.hotmart_recompra %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-refresh-dot"></i> Recompra após Boleto/Cartão</div>
+    <div class="dbf-kpi-grid">
+      <div class="dbf-kpi">
+        <div class="lbl">Geraram boleto e não pagaram</div>
+        <div class="val">{{ hr.boleto.pessoas | num }} <span class="ldt-pct">({{ hr.boleto.transacoes | num }} transações)</span></div>
+        <div class="lbl">{{ hr.boleto.recompraram | num }} recompraram ({{ hr.boleto.pct_recompra | round(1) }}%) · {{ hr.boleto.nao_recompraram | num }} não</div>
+      </div>
+      <div class="dbf-kpi">
+        <div class="lbl">Cartão cancelado</div>
+        <div class="val">{{ hr.cartao.pessoas | num }} <span class="ldt-pct">({{ hr.cartao.transacoes | num }} transações)</span></div>
+        <div class="lbl">{{ hr.cartao.recompraram | num }} recompraram ({{ hr.cartao.pct_recompra | round(1) }}%) · {{ hr.cartao.nao_recompraram | num }} não</div>
+      </div>
+      {% if hr.cartao_atrasado.pessoas %}
+      <div class="dbf-kpi">
+        <div class="lbl">Cartão atrasado (ainda em cobrança)</div>
+        <div class="val">{{ hr.cartao_atrasado.pessoas | num }}</div>
+        <div class="lbl">{{ hr.cartao_atrasado.transacoes | num }} transações</div>
+      </div>
+      {% endif %}
+    </div>
+    {% if hr.boleto.por_meio or hr.cartao.por_meio %}
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:8px;">
+      {% if hr.boleto.por_meio %}
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--bs-ink-muted);margin-bottom:4px">Boleto — recompraram por</div>
+        {% for m in hr.boleto.por_meio %}<div style="font-size:12px">{{ m.meio }}: {{ m.qtd | num }}</div>{% endfor %}
+      </div>
+      {% endif %}
+      {% if hr.cartao.por_meio %}
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--bs-ink-muted);margin-bottom:4px">Cartão — recompraram por</div>
+        {% for m in hr.cartao.por_meio %}<div style="font-size:12px">{{ m.meio }}: {{ m.qtd | num }}</div>{% endfor %}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+    <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+      Janela: {{ hr.janela }}. Fonte: hotmart_oficial (todos os status, banco operacional) — a base usada no resto do dashboard só guarda venda paga.
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 10. DETALHAMENTO DE VENDAS POR PAGAMENTO                  -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-coin"></i> Detalhamento de Vendas por Pagamento</div>
+
+    {% if dbf.pagamentos_hm or dbf.total_tmb > 0 %}
+    <div style="margin-bottom:12px;font-size:12px;color:var(--bs-ink-muted)">
+      Total: {{ dbf.total_vendas_pay | num }} vendas
+      {% if dbf.total_hm > 0 %} · Hotmart: {{ dbf.total_hm | num }}{% endif %}
+      {% if dbf.total_tmb > 0 %} · TMB (boleto parcelado): {{ dbf.total_tmb | num }}{% endif %}
+    </div>
+
+    {% if dbf.pagamentos_hm %}
+    <div style="margin-bottom:16px">
+      <div style="font-size:12px;font-weight:700;color:var(--bs-ink-muted);margin-bottom:8px">Hotmart — por método de pagamento</div>
+      <div class="pay-grid">
+        {% for p in dbf.pagamentos_hm %}
+        <div class="pay-card">
+          <div class="pay-num">{{ p.qtd }}</div>
+          <div class="pay-pct">{{ p.pct_vendas | round(1) }}%</div>
+          <div class="pay-lbl">{{ p.metodo[:20] }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% else %}
+    {{ sem_dados("Hotmart — CSV de vendas com campo de método de pagamento") }}
+    {% endif %}
+
+    {% if dbf.total_tmb > 0 and dbf.total_vendas_pay > 0 %}
+    <div class="info-box" style="margin-top:0;padding:14px 18px">
+      <div style="font-size:13px">
+        <strong>Boleto Parcelado TMB:</strong> {{ dbf.total_tmb | num }} vendas
+        ({{ (dbf.total_tmb / dbf.total_vendas_pay * 100) | round(1) }}% do total)
+      </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+    {{ sem_dados("Hotmart e TMB — CSVs de vendas com detalhe de forma de pagamento") }}
+    {% endif %}
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 11. HISTÓRICO DE BOLETO (CROSS-LANÇAMENTO)                -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-history"></i> Histórico de Boleto — Comparativo entre Lançamentos</div>
+    {{ sem_dados("Agregação cross-lançamento de % de boleto ainda não calculada automaticamente — requer consulta histórica à tabela de vendas consolidada") }}
+    <div class="table-wrap" style="margin-top:16px">
+      <table class="hist-table">
+        <thead>
+          <tr>
+            <th>Lançamento</th>
+            <th>Total Vendas</th>
+            <th>Boleto à Vista</th>
+            <th>Boleto Parcelado (TMB)</th>
+            <th>Cartão de Crédito</th>
+            <th>Pix</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Linha do lançamento atual com dados disponíveis -->
+          <tr>
+            <td><strong>{{ launch.code if launch else '—' }}</strong></td>
+            <td>{{ dbf.total_vendas_pay | num }}</td>
+              <td>{{ dbf.boleto_hm.qtd if dbf.boleto_hm else '<span class="muted">—</span>' }}</td>
+              <td>{{ dbf.total_tmb | num if dbf.total_tmb > 0 else '<span class="muted">—</span>' }}</td>
+              <td>{{ dbf.cartao_hm.qtd if dbf.cartao_hm else '<span class="muted">—</span>' }}</td>
+              <td>{{ dbf.pix_hm.qtd if dbf.pix_hm else '<span class="muted">—</span>' }}</td>
+          </tr>
+          <!-- Linhas de lançamentos anteriores — sem dados ainda -->
+          {% for label in ["Lançamento anterior", "Lançamento -2", "Lançamento -3"] %}
+          <tr>
+            <td style="color:var(--bs-ink-subtle)">{{ label }}</td>
+            <td class="muted">—</td>
+            <td class="muted">—</td>
+            <td class="muted">—</td>
+            <td class="muted">—</td>
+            <td class="muted">—</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {% endif %}{# end has_data #}
+  </div><!-- /.content -->
+</div><!-- /.wrap -->
+
+{% if slides %}
+<script>
+// ── Modo apresentação: monta os slides a partir das .dbf-section ──────────
+(function () {
+  var container = document.getElementById('dbf-slides');
+  if (!container) return;
+  var launchCode = "{{ (launch.code if launch else '') | e }}";
+
+  var d = new Date(), pad = function (n) { return String(n).padStart(2, '0'); };
+  var cd = document.getElementById('dbf-cover-date');
+  if (cd) cd.textContent = pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear() + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+
+  // Thumbnails: sem lazy-load, senão o PDF sai com células vazias.
+  document.querySelectorAll('img[loading="lazy"]').forEach(function (img) { img.loading = 'eager'; });
+
+  // Gráficos viram imagem (2x) — canvas não sobrevive a clone e o Chart.js
+  // tentaria redimensionar a cada mudança de layout durante a paginação.
+  function freezeCharts() {
+    document.querySelectorAll('canvas').forEach(function (cv) {
+      var img = document.createElement('img');
+      try { img.src = cv.toDataURL('image/png'); } catch (e) { return; }
+      img.style.cssText = 'width:100%;height:100%;object-fit:contain;display:block';
+      cv.parentNode.replaceChild(img, cv);
+    });
+    if (window.Chart && Chart.instances) {
+      Object.keys(Chart.instances).forEach(function (k) { try { Chart.instances[k].destroy(); } catch (e) {} });
+    }
+  }
+
+  function fits(body) { return body.scrollHeight <= body.clientHeight + 1; }
+
+  function newSlide(titleEl, cont) {
+    var slide = document.createElement('div');
+    slide.className = 'dbf-slide';
+    var t = titleEl.cloneNode(true);
+    if (cont) {
+      var c = document.createElement('span');
+      c.style.cssText = 'font-size:12px;font-weight:600;color:var(--bs-ink-muted);margin-left:6px';
+      c.textContent = '(continuação)';
+      t.appendChild(c);
+    }
+    var body = document.createElement('div');
+    body.className = 'dbf-slide-body';
+    // Rodapé entra já na criação pra contar na medição de altura do corpo
+    // (o texto é preenchido no fim, quando o total de slides é conhecido).
+    var foot = document.createElement('div');
+    foot.className = 'dbf-slide-foot';
+    foot.innerHTML = '<span>Debriefing · ' + launchCode + '</span><span>&nbsp;</span>';
+    slide.appendChild(t);
+    slide.appendChild(body);
+    slide.appendChild(foot);
+    container.appendChild(slide);
+    slide._body = body;
+    return slide;
+  }
+
+  // Encolhe um bloco indivisível (grid, card único...) até caber no slide.
+  function scaleToFit(block, body) {
+    var r = body.clientHeight / block.scrollHeight;
+    if (r >= 1) return;
+    r = Math.max(r, 0.4);
+    block.style.transformOrigin = 'top left';
+    block.style.transform = 'scale(' + r + ')';
+    block.style.width = (100 / r) + '%';
+  }
+
+  // Divide um bloco com tabela: mantém as linhas que cabem, devolve um clone
+  // (mesmo thead) com as restantes pra ir pro próximo slide.
+  function splitTable(block, body) {
+    if (block.querySelectorAll('tbody').length !== 1) return null;
+    var tbody = block.querySelector('tbody');
+    if (tbody.rows.length < 2) return null;
+    var moved = [];
+    while (!fits(body) && tbody.rows.length > 1) {
+      var last = tbody.rows[tbody.rows.length - 1];
+      moved.unshift(last);
+      tbody.removeChild(last);
+      // Linhas "principal + sub" (ldt-main/ldt-sub) andam juntas.
+      if (last.classList.contains('ldt-sub') && tbody.rows.length > 1) {
+        var main = tbody.rows[tbody.rows.length - 1];
+        moved.unshift(main); tbody.removeChild(main);
+      }
+    }
+    if (!moved.length) return null;
+    if (!fits(body)) scaleToFit(block, body);
+    var clone = block.cloneNode(true);
+    var ctb = clone.querySelector('tbody');
+    ctb.innerHTML = '';
+    moved.forEach(function (r) { ctb.appendChild(r); });
+    return clone;
+  }
+
+  function isSplittableContainer(block) {
+    var d = getComputedStyle(block).display;
+    if (d === 'grid' || d === 'table' || block.tagName === 'TABLE') return false;
+    if (block.classList.contains('table-wrap')) return false;
+    return block.children.length > 1;
+  }
+
+  function paginate(section) {
+    var title = section.querySelector(':scope > .dbf-section-title');
+    if (!title) return;
+    var blocks = Array.prototype.slice.call(section.children).filter(function (el) {
+      return el !== title && el.tagName !== 'SCRIPT';
+    });
+    section.parentNode.removeChild(section);
+    var slide = newSlide(title, false);
+    var queue = blocks.slice();
+    var guard = 0;
+    while (queue.length && guard++ < 500) {
+      var block = queue.shift();
+      slide._body.appendChild(block);
+      if (fits(slide._body)) continue;
+
+      // Não coube: se o slide já tem coisa, tenta num slide novo.
+      slide._body.removeChild(block);
+      if (slide._body.children.length) {
+        slide = newSlide(title, true);
+        slide._body.appendChild(block);
+        if (fits(slide._body)) continue;
+        slide._body.removeChild(block);
+      }
+      // Sozinho num slide vazio e ainda não cabe: quebra tabela, desce em
+      // containers empilhados ou encolhe.
+      slide._body.appendChild(block);
+      var rest = splitTable(block, slide._body);
+      if (rest) { queue.unshift(rest); continue; }
+      if (isSplittableContainer(block)) {
+        var kids = Array.prototype.slice.call(block.children);
+        slide._body.removeChild(block);
+        queue = kids.concat(queue);
+        continue;
+      }
+      scaleToFit(block, slide._body);
+    }
+  }
+
+  // Na tela, encolhe a pré-visualização pra caber na largura da janela
+  // (o PDF ignora: zoom 1 forçado no @media print).
+  function fitPreview() {
+    var z = Math.min(1, (window.innerWidth - 48) / 1920);
+    container.style.zoom = z < 1 ? z.toFixed(3) : '';
+  }
+
+  function addFooters() {
+    var slides = container.querySelectorAll('.dbf-slide');
+    slides.forEach(function (sl, i) {
+      var f = sl.querySelector(':scope > .dbf-slide-foot');
+      if (!f) return;
+      f.innerHTML = '<span>Debriefing · ' + launchCode + '</span><span>' + (i + 1) + ' / ' + slides.length + '</span>';
+    });
+  }
+
+  function build() {
+    freezeCharts();
+    var sections = Array.prototype.slice.call(document.querySelectorAll('.content > .dbf-section'));
+    sections.forEach(paginate);
+    addFooters();
+    container.querySelectorAll('.dbf-slide:not(.cover)').forEach(function (sl) { sl.classList.add('centered'); });
+    fitPreview();
+    window.addEventListener('resize', fitPreview);
+    document.documentElement.classList.add('bs-slides-ready');
+    if (/[?&]auto=1/.test(location.search)) {
+      // Deixa fontes/thumbnails assentarem antes de abrir o diálogo.
+      setTimeout(function () { window.print(); }, 800);
+    }
+  }
+
+  function whenFontsReady(cb) {
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(cb, cb); else cb();
+  }
+  if (document.readyState === 'complete') whenFontsReady(build);
+  else window.addEventListener('load', function () { whenFontsReady(build); });
+})();
+</script>
+{% endif %}
+{# Fora do modo slides, recolher/expandir/reordenar/ocultar/tags das
+   seções vem do accordion genérico em base.html (reconhece .dbf-section
+   junto com .section). Nada a fazer aqui. #}
+{% endblock %}

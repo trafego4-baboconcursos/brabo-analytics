@@ -1,7 +1,29 @@
 {# Macros compartilhadas entre debriefing.html e os fragmentos de seção
    (debriefing/_secao_*.html) carregados sob demanda. Importar com
-   `{% from "debriefing/_macros.html" import sem_dados, thumb_th, thumb_td with context %}`. #}
+   `{% from "debriefing/_macros.html" import sem_dados, thumb_th, thumb_td, dbadge with context %}`. #}
 {% set has_thumbs = drive_thumbnails is defined and drive_thumbnails | length > 0 %}
+
+{# Badge ▲/▼ com variação % vs lançamento anterior. polarity='up': subir é bom
+   (verde), 'down': subir é ruim (vermelho) — ex. CPL, pico de saída. Espelha
+   o macro de mesmo nome em debriefing.html (não importa daqui pra lá pra não
+   arriscar a seção já em produção — mesma lógica, cópia intencional). #}
+{% macro dbadge(curr, prev, polarity='up') %}
+  {% if prev and prev > 0 %}
+    {% set pct = ((curr - prev) / prev * 100) | round(1) %}
+    {% if polarity == 'neutral' %}
+      {% set cls = 'ntr' %}
+    {% elif pct > 0 %}
+      {% set cls = 'up' if polarity == 'up' else 'dn' %}
+    {% elif pct < 0 %}
+      {% set cls = 'dn' if polarity == 'up' else 'up' %}
+    {% else %}
+      {% set cls = 'neut' %}
+    {% endif %}
+    {% if pct > 0 %}<span class="delta {{ cls }}">▲ {{ pct }}%</span>
+    {% elif pct < 0 %}<span class="delta {{ cls }}">▼ {{ (pct * -1) | round(1) }}%</span>
+    {% else %}<span class="delta neut">= 0%</span>{% endif %}
+  {% endif %}
+{% endmacro %}
 
 {% macro sem_dados(fonte) %}
 <div class="dbf-sem-dados">

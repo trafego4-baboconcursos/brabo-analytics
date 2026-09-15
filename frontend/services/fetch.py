@@ -106,10 +106,33 @@ def _pesquisa_engajamento(launch: Any):
                            lambda: read_pesquisa_engajamento(launch.code))
 
 
-def _leads_x_whatsapp(launch: Any):
+def _leads_x_whatsapp(launch: Any, previous: Any = None):
+    """`previous` opcional: quando informado, mescla prev_total_leads e
+    prev_total_whatsapp/prev_taxa_entrada/prev_saida_total (normal/vip) do
+    lançamento anterior — pauta comparativo no card do debriefing. Sem
+    `previous`, comportamento idêntico a antes (usado também em /captacao,
+    que não tem comparativo nesse card)."""
     from frontend.db_readers.whatsapp_groups import read_leads_x_whatsapp
-    return _get_or_compute(launch.code, "leads_x_whatsapp",
-                           lambda: read_leads_x_whatsapp(launch.code))
+    atual = _get_or_compute(launch.code, "leads_x_whatsapp",
+                            lambda: read_leads_x_whatsapp(launch.code))
+    if not atual or not previous:
+        return atual
+    prev = _get_or_compute(previous.code, "leads_x_whatsapp",
+                           lambda: read_leads_x_whatsapp(previous.code))
+    if not prev:
+        return atual
+    out = dict(atual)
+    out["has_prev"] = True
+    out["prev_code"] = previous.code
+    out["prev_total_leads"] = prev.get("total_leads")
+    for bloco in ("normal", "vip"):
+        if out.get(bloco) and prev.get(bloco):
+            b = dict(out[bloco])
+            b["prev_total_whatsapp"] = prev[bloco].get("total_whatsapp")
+            b["prev_taxa_entrada"] = prev[bloco].get("taxa_entrada")
+            b["prev_saida_total"] = prev[bloco].get("saida_total")
+            out[bloco] = b
+    return out
 
 
 def _vendas_grupos_whatsapp(launch: Any):

@@ -133,7 +133,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         if not launch or lazy:
             return None
         try:
-            return await run_in_threadpool(_leads_x_whatsapp, launch)
+            return await run_in_threadpool(_leads_x_whatsapp, launch, previous)
         except Exception:
             logger.exception("Debriefing: falha ao montar leads x grupos de WhatsApp")
             falhas.append("leads_x_whatsapp")

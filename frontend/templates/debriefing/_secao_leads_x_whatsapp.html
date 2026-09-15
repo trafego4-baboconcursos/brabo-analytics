@@ -1,5 +1,6 @@
 {# Corpo da seção "Leads X Grupos de WhatsApp". Vazio quando não há dado
    (no carregamento sob demanda o JS remove a seção inteira nesse caso). #}
+{% from "debriefing/_macros.html" import dbadge with context %}
 {% if dbf.leads_x_whatsapp %}
 {% set lw = dbf.leads_x_whatsapp %}
 <div class="dbf-lazy-body">
@@ -7,25 +8,41 @@
     <div class="dbf-kpi">
       <div class="lbl">Total de leads (Active Campaign)</div>
       <div class="val">{{ lw.total_leads | num }}</div>
+      {% if lw.has_prev %}
+        {{ dbadge(lw.total_leads, lw.prev_total_leads, 'up') }}
+        <div class="prev-val">ant.: {{ lw.prev_total_leads | num }}</div>
+      {% endif %}
     </div>
   </div>
 
   {% for tipo, dados in [("Grupos Normais", lw.normal), ("Grupos VIP", lw.vip)] %}
   {% if dados %}
-  <div style="font-size:13px;font-weight:700;margin-top:18px;margin-bottom:8px">{{ tipo }}</div>
+  <div style="font-size:13px;font-weight:700;margin-top:18px;margin-bottom:8px">{{ tipo }}{% if lw.has_prev %} <span style="font-weight:400;color:var(--bs-ink-subtle)">vs {{ lw.prev_code }}</span>{% endif %}</div>
   <div class="dbf-kpi-grid" style="grid-template-columns:repeat(3,1fr)">
     <div class="dbf-kpi">
       <div class="lbl">Pico no grupo</div>
       <div class="val">{{ dados.total_whatsapp | num }}</div>
+      {% if lw.has_prev %}
+        {{ dbadge(dados.total_whatsapp, dados.prev_total_whatsapp, 'up') }}
+        <div class="prev-val">ant.: {{ dados.prev_total_whatsapp | num }}</div>
+      {% endif %}
       {% if dados.total_whatsapp_data %}<div style="font-size:11px;color:var(--bs-ink-subtle);margin-top:2px">{{ dados.total_whatsapp_data | br_date }}</div>{% endif %}
     </div>
     <div class="dbf-kpi">
       <div class="lbl">Taxa de entrada</div>
       <div class="val">{{ dados.taxa_entrada | round(1) }}%</div>
+      {% if lw.has_prev %}
+        {{ dbadge(dados.taxa_entrada, dados.prev_taxa_entrada, 'up') }}
+        <div class="prev-val">ant.: {{ dados.prev_taxa_entrada | round(1) }}%</div>
+      {% endif %}
     </div>
     <div class="dbf-kpi">
       <div class="lbl">Pico de saída</div>
       <div class="val">{{ dados.saida_total | num }}</div>
+      {% if lw.has_prev %}
+        {{ dbadge(dados.saida_total, dados.prev_saida_total, 'down') }}
+        <div class="prev-val">ant.: {{ dados.prev_saida_total | num }}</div>
+      {% endif %}
       {% if dados.saida_total_data %}<div style="font-size:11px;color:var(--bs-ink-subtle);margin-top:2px">{{ dados.saida_total_data | br_date }}</div>{% endif %}
     </div>
   </div>
@@ -33,7 +50,7 @@
   {% endfor %}
 
   <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:16px;">
-    Leads = linhas da tabela de leads (Active Campaign). Pico no grupo/Pico de saída = maior valor já registrado NUM ÚNICO DIA na planilha do sendflow-analytics-poller (mesmo histórico que o time já acompanha), com a data em que ocorreu — separado por tipo, Normal e VIP não são somados num total único porque quem está nos dois ao mesmo tempo exige uma dedup que só o poller faz. Taxa de entrada = pico no grupo ÷ leads. São os maiores valores já atingidos pelo lançamento, não o número de agora — evita mostrar um total menor ou uma saída zerada num lançamento antigo só porque a campanha já terminou.
+    Leads = linhas da tabela de leads (Active Campaign). Pico no grupo/Pico de saída = maior valor já registrado NUM ÚNICO DIA na planilha do sendflow-analytics-poller (mesmo histórico que o time já acompanha), com a data em que ocorreu — separado por tipo, Normal e VIP não são somados num total único porque quem está nos dois ao mesmo tempo exige uma dedup que só o poller faz. Taxa de entrada = pico no grupo ÷ leads. São os maiores valores já atingidos pelo lançamento, não o número de agora — evita mostrar um total menor ou uma saída zerada num lançamento antigo só porque a campanha já terminou.{% if lw.has_prev %} Comparativo vs {{ lw.prev_code }} (último lançamento INSS).{% endif %}
   </div>
 </div>
 {% endif %}

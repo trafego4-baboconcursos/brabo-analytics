@@ -29,6 +29,26 @@ PI-AGO-26:
     linha_resumo: 2
     linha_total_limpo: 4
 
+# PI-ABR-26: lançamento fechado (abr/2026), planilha adicionada em 15/09/26
+# só pro comparativo de pico do debriefing (ver frontend/db_readers/
+# whatsapp_groups.py::read_leads_x_whatsapp) -- ESSE código usa só o
+# histórico diário (colunas A:D/I:J, sem config por lançamento), nunca o
+# resumo. linha_resumo/linha_total_limpo abaixo são um palpite (a aba
+# "LEAD TOTAL" tem duas linhas de resumo, 2 e 3, não uma só como nos outros
+# lançamentos -- motivo não esclarecido) e ficam SEM GARANTIA; não usar
+# whatsapp_sheets_resumo.total_leads/total_limpo desse lançamento sem
+# conferir direto na planilha antes.
+PI-ABR-26:
+  sheet_id: "1b_MzAzMcKXPWCtDpGbfbHigFGpgeLoA7WBvIvgfCYg4"
+  normal:
+    aba: "LEAD TOTAL"
+    linha_resumo: 2
+    linha_total_limpo: 4
+  vip:
+    aba: "LEAD TOTAL VIPS"
+    linha_resumo: 2
+    linha_total_limpo: 3
+
 PBB-AGO-26:
   sheet_id: "1biviq9SGGPhvy6LwjR69-LpJLOLuPPhVnQ20oAVgOps"
   normal:

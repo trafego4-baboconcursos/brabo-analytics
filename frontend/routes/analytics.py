@@ -663,7 +663,8 @@ async def debriefing_secao(request: Request, secao: str, launch_code: str | None
             # muda, focado no funil que a pauta pediu.
             dbf["pesquisa_engajamento"] = await run_in_threadpool(_pesquisa_engajamento, launch)
         elif secao == "leads_x_whatsapp":
-            dbf[secao] = await run_in_threadpool(_leads_x_whatsapp, launch)
+            previous = find_previous_launch(launch, launches)
+            dbf[secao] = await run_in_threadpool(_leads_x_whatsapp, launch, previous)
         elif secao == "vendas_grupos_whatsapp":
             dbf[secao] = await run_in_threadpool(_vendas_grupos_whatsapp, launch)
         elif secao == "disparo_resumo":

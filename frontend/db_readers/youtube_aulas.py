@@ -24,6 +24,9 @@ logger = get_logger("db")
 # capturar oscilação de um minuto só.
 JANELA_QUEDA_MIN = 5
 
+# Faixa do vídeo considerada "miolo" ao procurar abandono (ver top_saidas).
+MIOLO_INI, MIOLO_FIM = 3, 97
+
 
 def _pct(parte: float, total: float) -> float:
     return round(parte / total * 100, 1) if total else 0.0
@@ -213,8 +216,12 @@ def read_retencao_video(launch_code: str) -> dict:
         if not segs:
             continue
         a = atividades.get(b.aula_num, [])
-        # Onde mais gente abandonou: a posição não é minuto, é % do vídeo.
-        top_saidas = sorted(a, key=lambda p: p["pararam"], reverse=True)[:3] if a else []
+        # Onde mais gente abandonou, ignorando as pontas: a posição 0-2% é o
+        # clique que sai na hora (não diz nada sobre o conteúdo) e 98-100% é o
+        # fim do vídeo, onde todo mundo para de qualquer jeito. O miolo é que
+        # aponta um momento da aula.
+        miolo = [p for p in a if MIOLO_INI <= p["pos"] <= MIOLO_FIM]
+        top_saidas = sorted(miolo, key=lambda p: p["pararam"], reverse=True)[:3]
         aulas.append({
             "aula_num":     b.aula_num,
             "titulo":       b.titulo or f"Aula {b.aula_num}",
@@ -227,6 +234,11 @@ def read_retencao_video(launch_code: str) -> dict:
             "retencao_fim": b.retencao_fim,
             "views_periodo": b.views_periodo or 0,
             "watch_periodo_h": float(b.watch_periodo_h or 0),
+            # Quanto cada visualização assistiu, em minutos. É a leitura que o
+            # total de horas esconde: um vídeo pode ter muita hora só por ter
+            # muita view curta.
+            "min_por_view": round((float(b.watch_periodo_h or 0) * 60) / b.views_periodo, 1)
+                            if (b.views_periodo or 0) > 0 else 0.0,
             "curvas":       segs,
             "media_por_segmento": {
                 s: round(sum(p["ret"] for p in pts) / len(pts), 1) for s, pts in segs.items() if pts
@@ -235,6 +247,20 @@ def read_retencao_video(launch_code: str) -> dict:
             "top_saidas":   [{**p, "pct_views": _pct(p["pararam"], b.visualizacoes_video or 0)} for p in top_saidas],
         })
 
+    imp_total = sum(a["impressoes"] for a in aulas)
+    views_total = sum(a["views_periodo"] for a in aulas)
+    watch_total = sum(a["watch_periodo_h"] for a in aulas)
+    totais = {
+        "views":       views_total,
+        "watch_h":     round(watch_total, 1),
+        "impressoes":  imp_total,
+        # CTR do conjunto é clique/impressão somados, não a média das taxas —
+        # a média simples daria o mesmo peso a uma aula com 60k impressões e
+        # outra com 150k.
+        "ctr":         round(sum(a["impressoes"] * a["ctr_thumb"] for a in aulas) / imp_total, 2) if imp_total else 0.0,
+        "min_por_view": round((watch_total * 60) / views_total, 1) if views_total else 0.0,
+    }
+
     presentes = {s for a in aulas for s in a["curvas"]}
     segmentos = [
         {"chave": k, "label": lbl, "cor": cor}
@@ -242,6 +268,7 @@ def read_retencao_video(launch_code: str) -> dict:
     ]
     return {
         "aulas": aulas,
+        "totais": totais,
         "segmentos": segmentos,
         # Payload do gráfico: só o que o JS usa. As linhas de `aulas` carregam
         # datas, e `tojson` não serializa date.

@@ -286,23 +286,30 @@
           <div class="kpi-lbl">Origem do tráfego</div>
           <div class="kpi-sub">
             {% if ret.tem_pago %}o Studio registrou views vindas de anúncio
-            {% else %}o Studio não registrou nenhuma view vinda de anúncio nestes vídeos{% endif %}
+            {% else %}nenhuma view veio de anúncio nestes vídeos{% endif %}
           </div>
         </div>
-        {% for a in ret.aulas[:1] %}
         <div class="kpi-card">
-          <div class="kpi-val">{{ ret.aulas | sum(attribute='views') | num }}</div>
-          <div class="kpi-lbl">Visualizações do vídeo</div>
-          <div class="kpi-sub">somando as {{ ret.aulas | length }} aulas, live + replay</div>
+          <div class="kpi-val">{{ ret.totais.views | num }}</div>
+          <div class="kpi-lbl">Visualizações</div>
+          <div class="kpi-sub">semana de cada aula (live + replay)</div>
         </div>
         <div class="kpi-card">
-          <div class="kpi-val">{{ ret.aulas | sum(attribute='impressoes') | num }}</div>
-          <div class="kpi-lbl">Impressões da miniatura</div>
-          <div class="kpi-sub">
-            {% if a.periodo_ini %}só {{ a.periodo_ini.strftime('%d/%m') }}–{{ a.periodo_fim.strftime('%d/%m') }}{% endif %}
+          <div class="kpi-val">{{ ret.totais.watch_h | round | int | num }}h</div>
+          <div class="kpi-lbl">Tempo de Exibição</div>
+          <div class="kpi-sub">{{ ret.totais.min_por_view }}min por visualização</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-val">{{ ret.totais.impressoes | num }}</div>
+          <div class="kpi-lbl">Impressões da Miniatura</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-val" style="color:{% if ret.totais.ctr >= 8 %}#15803d{% elif ret.totais.ctr >= 5 %}#d97706{% else %}#dc2626{% endif %}">
+            {{ ret.totais.ctr }}%
           </div>
+          <div class="kpi-lbl">CTR da Miniatura</div>
+          <div class="kpi-sub">cliques ÷ impressões, somados</div>
         </div>
-        {% endfor %}
       </div>
 
       <div class="line-chart-wrap" style="height:300px"><canvas id="cv-ret"></canvas></div>
@@ -350,21 +357,31 @@
           <thead>
             <tr>
               <th class="th-dark" style="text-align:left">Aula</th>
+              <th class="th-dark">Período do export</th>
               <th class="th-dark">Visualizações</th>
-              <th class="th-dark">Retenção na metade</th>
+              <th class="th-dark">Tempo de exibição</th>
+              <th class="th-dark">Min/visualização</th>
               <th class="th-dark">Impressões</th>
-              <th class="th-dark">CTR miniatura</th>
-              <th class="th-dark" style="text-align:left">Onde mais pararam de assistir</th>
+              <th class="th-dark">CTR</th>
+              <th class="th-dark">Retenção na metade</th>
+              <th class="th-dark" style="text-align:left">Onde mais pararam</th>
             </tr>
           </thead>
           <tbody>
             {% for a in ret.aulas %}
             <tr>
               <td class="td-bold" style="text-align:left">Aula {{ a.aula_num }}</td>
-              <td>{{ a.views | num }}</td>
-              <td>{{ a.ret_50 }}%</td>
+              <td style="color:var(--bs-ink-muted)">
+                {% if a.periodo_ini %}{{ a.periodo_ini.strftime('%d/%m') }}–{{ a.periodo_fim.strftime('%d/%m') }}{% else %}—{% endif %}
+              </td>
+              <td class="td-bold">{{ a.views_periodo | num if a.views_periodo else "—" }}</td>
+              <td>{{ a.watch_periodo_h | round | int | num }}h</td>
+              <td>{{ a.min_por_view }}min</td>
               <td>{{ a.impressoes | num if a.impressoes else "—" }}</td>
-              <td>{{ a.ctr_thumb }}%{% if not a.ctr_thumb %} —{% endif %}</td>
+              <td style="font-weight:700;color:{% if a.ctr_thumb >= 8 %}#15803d{% elif a.ctr_thumb >= 5 %}#d97706{% else %}#dc2626{% endif %}">
+                {{ a.ctr_thumb }}%
+              </td>
+              <td>{{ a.ret_50 }}%</td>
               <td style="text-align:left">
                 {% for s in a.top_saidas %}
                   {{ s.pos }}% do vídeo ({{ s.pararam | num }}){% if not loop.last %} · {% endif %}
@@ -376,8 +393,10 @@
         </table>
       </div>
       <div style="font-size:var(--fs-xs);color:var(--bs-ink-muted);margin-top:8px">
-        <b>Impressões</b> e <b>CTR</b> vêm do relatório "Conteúdo", exportado com um período
-        que começa depois das aulas — servem para o replay, não para a semana da live.
+        Estas colunas vêm do relatório "Conteúdo", exportado por aula com uma janela que
+        começa no dia da transmissão — cobrem a live e a primeira semana de replay.
+        <b>Min/visualização</b> separa a aula que prendeu de verdade da que só acumulou
+        clique curto.
       </div>
     </div>
     {% endif %}

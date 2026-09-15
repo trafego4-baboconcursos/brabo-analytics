@@ -398,13 +398,14 @@ async def aulas_ao_vivo_page(request: Request, launch_code: str | None = None):
     `youtube_aulas_stats`, e carregar Meta/Google/vendas junto custaria
     dezenas de segundos sem entrar em nada do que é mostrado aqui.
     """
-    from frontend.db_readers.youtube_aulas import read_aulas_ao_vivo  # noqa: PLC0415
+    from frontend.db_readers.youtube_aulas import read_aulas_ao_vivo, read_retencao_video  # noqa: PLC0415
 
     launches = await run_in_threadpool(get_launches)
     launch = resolve_launch(launch_code, launches)
     dados = await run_in_threadpool(read_aulas_ao_vivo, launch.code) if launch else {"aulas": [], "totais": {}}
+    ret = await run_in_threadpool(read_retencao_video, launch.code) if launch else {"aulas": [], "segmentos": []}
     ctx = _base_ctx(request, "aulas_ao_vivo", "Aulas Ao Vivo", launch, launches,
-                    aulas=dados["aulas"], totais=dados["totais"], data_errors=[])
+                    aulas=dados["aulas"], totais=dados["totais"], ret=ret, data_errors=[])
     return templates.TemplateResponse("aulas_ao_vivo.html", ctx)
 
 

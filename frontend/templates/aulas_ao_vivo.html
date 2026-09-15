@@ -264,6 +264,124 @@
     </div>
 
 
+    {# ── 7. Retenção do vídeo (replay) ───────────────────────────────────── #}
+    {% if ret and ret.aulas %}
+    <div class="section">
+      <div class="section-title">7. Retenção do Vídeo e Origem do Tráfego</div>
+
+      <div style="background:var(--bs-surface);border-left:3px solid var(--bs-accent);border-radius:6px;padding:12px 14px;margin-bottom:16px;font-size:var(--fs-xs);color:var(--bs-ink-muted)">
+        <b style="color:var(--bs-ink)">Esta seção mede o vídeo, não a transmissão.</b>
+        O relatório de retenção do Studio cobre o período
+        {% set r0 = ret.aulas[0] %}
+        {% if r0.retencao_ini %}<b>{{ r0.retencao_ini.strftime('%d/%m/%y') }} a {{ r0.retencao_fim.strftime('%d/%m/%y') }}</b>{% endif %}
+        e inclui quem assistiu ao replay. É outra população: na Aula 3 ele conta
+        menos visualizações do que o pico simultâneo que a live teve. Por isso os números
+        daqui <b>não somam</b> com os das seções anteriores.
+      </div>
+
+      {# Origem do tráfego: a pergunta que motivou o export #}
+      <div class="kpi-grid" style="margin-bottom:16px">
+        <div class="kpi-card" style="border-top-color:{% if ret.tem_pago %}#db2777{% else %}#64748b{% endif %}">
+          <div class="kpi-val">{% if ret.tem_pago %}Orgânico + pago{% else %}100% orgânico{% endif %}</div>
+          <div class="kpi-lbl">Origem do tráfego</div>
+          <div class="kpi-sub">
+            {% if ret.tem_pago %}o Studio registrou views vindas de anúncio
+            {% else %}o Studio não registrou nenhuma view vinda de anúncio nestes vídeos{% endif %}
+          </div>
+        </div>
+        {% for a in ret.aulas[:1] %}
+        <div class="kpi-card">
+          <div class="kpi-val">{{ ret.aulas | sum(attribute='views') | num }}</div>
+          <div class="kpi-lbl">Visualizações do vídeo</div>
+          <div class="kpi-sub">somando as {{ ret.aulas | length }} aulas, live + replay</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-val">{{ ret.aulas | sum(attribute='impressoes') | num }}</div>
+          <div class="kpi-lbl">Impressões da miniatura</div>
+          <div class="kpi-sub">
+            {% if a.periodo_ini %}só {{ a.periodo_ini.strftime('%d/%m') }}–{{ a.periodo_fim.strftime('%d/%m') }}{% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="line-chart-wrap" style="height:300px"><canvas id="cv-ret"></canvas></div>
+      <div class="aovivo-legenda" id="lg-ret"></div>
+      <div style="font-size:var(--fs-xs);color:var(--bs-ink-muted);margin-top:8px">
+        Retenção absoluta por posição do vídeo, média das {{ ret.aulas | length }} aulas.
+        Cai forte logo no começo porque a maioria das visualizações do replay é um clique
+        curto — o patamar depois dos 10% é o que interessa comparar entre os cortes.
+      </div>
+
+      <div class="table-wrap" style="margin-top:16px">
+        <table class="table-compact" style="font-size:12px">
+          <thead>
+            <tr>
+              <th class="th-dark" style="text-align:left">Corte de público</th>
+              {% for a in ret.aulas %}<th class="th-dark">Aula {{ a.aula_num }}</th>{% endfor %}
+              <th class="th-dark">Média</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in ret.segmentos %}
+            {% set vals = [] %}
+            {% for a in ret.aulas %}{% set _ = vals.append(a.media_por_segmento.get(s.chave, 0)) %}{% endfor %}
+            {% set validos = vals | select('gt', 0) | list %}
+            <tr>
+              <td class="td-bold" style="text-align:left">
+                <span class="aovivo-dot" style="background:{{ s.cor }}"></span> {{ s.label }}
+              </td>
+              {% for v in vals %}<td>{% if v > 0 %}{{ v }}%{% else %}—{% endif %}</td>{% endfor %}
+              <td class="td-bold">
+                {% if validos %}{{ (validos | sum / validos | length) | round(1) }}%{% else %}—{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div style="font-size:var(--fs-xs);color:var(--bs-ink-muted);margin-top:8px">
+        Retenção média ao longo de todo o vídeo, por corte. A comparação que vale é entre
+        linhas: quem segura mais no mesmo vídeo.
+      </div>
+
+      <div class="table-wrap" style="margin-top:16px">
+        <table class="table-compact" style="font-size:12px">
+          <thead>
+            <tr>
+              <th class="th-dark" style="text-align:left">Aula</th>
+              <th class="th-dark">Visualizações</th>
+              <th class="th-dark">Retenção na metade</th>
+              <th class="th-dark">Impressões</th>
+              <th class="th-dark">CTR miniatura</th>
+              <th class="th-dark" style="text-align:left">Onde mais pararam de assistir</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in ret.aulas %}
+            <tr>
+              <td class="td-bold" style="text-align:left">Aula {{ a.aula_num }}</td>
+              <td>{{ a.views | num }}</td>
+              <td>{{ a.ret_50 }}%</td>
+              <td>{{ a.impressoes | num if a.impressoes else "—" }}</td>
+              <td>{{ a.ctr_thumb }}%{% if not a.ctr_thumb %} —{% endif %}</td>
+              <td style="text-align:left">
+                {% for s in a.top_saidas %}
+                  {{ s.pos }}% do vídeo ({{ s.pararam | num }}){% if not loop.last %} · {% endif %}
+                {% else %}—{% endfor %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div style="font-size:var(--fs-xs);color:var(--bs-ink-muted);margin-top:8px">
+        <b>Impressões</b> e <b>CTR</b> vêm do relatório "Conteúdo", exportado com um período
+        que começa depois das aulas — servem para o replay, não para a semana da live.
+      </div>
+    </div>
+    {% endif %}
+
     <script>
     (function () {
       const aulas = {{ aulas | tojson }};
@@ -381,6 +499,47 @@
           },
         });
       });
+
+      // 7. Retenção do vídeo: média das aulas por corte de público.
+      const ret = {{ (ret.curvas_js if ret else []) | tojson }};
+      const segs = {{ (ret.segmentos if ret else []) | tojson }};
+      if (ret.length && document.getElementById('cv-ret')) {
+        const pos = Array.from({ length: 101 }, (_, i) => i);
+        const mediaSeg = seg => pos.map(p => {
+          const vals = ret.map(a => (a.curvas[seg] || []).find(x => x.pos === p))
+                          .filter(Boolean).map(x => x.ret);
+          return vals.length ? Math.round(vals.reduce((s, v) => s + v, 0) / vals.length * 10) / 10 : null;
+        });
+        new Chart(document.getElementById('cv-ret'), {
+          type: 'line',
+          data: {
+            labels: pos,
+            datasets: segs.map(s => ({
+              label: s.label, data: mediaSeg(s.chave), borderColor: s.cor,
+              borderWidth: s.chave === 'todos' ? 3 : 1.8,
+              borderDash: s.chave === 'todos' ? [] : undefined,
+              pointRadius: 0, pointHoverRadius: 4, tension: 0.25, fill: false, spanGaps: true,
+            })),
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { display: false },
+              tooltip: { callbacks: { title: it => it[0].label + '% do vídeo',
+                                      label: c => c.dataset.label + ': ' + c.parsed.y + '%' } },
+            },
+            scales: {
+              x: { grid: { display: false }, ticks: { color: ink, font: { size: 9 }, maxTicksLimit: 21,
+                   callback: function (v) { return this.getLabelForValue(v) + '%'; } } },
+              y: { beginAtZero: true, ticks: { color: ink, font: { size: 10 }, callback: v => v + '%' },
+                   title: { display: true, text: 'Retenção absoluta', color: ink, font: { size: 10 } } },
+            },
+          },
+        });
+        document.getElementById('lg-ret').innerHTML = segs.map(s =>
+          '<span><i class="aovivo-dot" style="background:' + s.cor + '"></i>' + s.label + '</span>').join('');
+      }
     })();
     </script>
 

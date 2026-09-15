@@ -946,6 +946,51 @@ CREATE TABLE IF NOT EXISTS youtube_live_curva (
 
 CREATE INDEX IF NOT EXISTS idx_yt_curva_launch ON youtube_live_curva (launch_code, aula_num, posicao_seg);
 
+-- Relatorio "Conteudo" do Studio: recorte por periodo (impressoes de miniatura,
+-- CTR, views e watch time DAQUELE intervalo — nao o total do video).
+-- visualizacoes_video vem do relatorio de RETENCAO, que mede o video (replay
+-- incluido) e nao a transmissao: na Aula 3 do PI-AGO-26 ele da menos views que
+-- o pico simultaneo ao vivo. Nao e "quantas pessoas assistiram a aula".
+ALTER TABLE youtube_aulas_stats ADD COLUMN IF NOT EXISTS visualizacoes_video BIGINT DEFAULT 0;
+ALTER TABLE youtube_aulas_stats ADD COLUMN IF NOT EXISTS retencao_ini        DATE;
+ALTER TABLE youtube_aulas_stats ADD COLUMN IF NOT EXISTS retencao_fim        DATE;
+ALTER TABLE youtube_aulas_stats ADD COLUMN IF NOT EXISTS impressoes          BIGINT DEFAULT 0;
+ALTER TABLE youtube_aulas_stats ADD COLUMN IF NOT EXISTS ctr_thumb           DOUBLE PRECISION DEFAULT 0;
+ALTER TABLE youtube_aulas_stats ADD COLUMN IF NOT EXISTS periodo_ini         DATE;
+ALTER TABLE youtube_aulas_stats ADD COLUMN IF NOT EXISTS periodo_fim         DATE;
+ALTER TABLE youtube_aulas_stats ADD COLUMN IF NOT EXISTS views_periodo       BIGINT DEFAULT 0;
+ALTER TABLE youtube_aulas_stats ADD COLUMN IF NOT EXISTS watch_periodo_h     DOUBLE PRECISION DEFAULT 0;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Retencao do video por posicao (0-100% do video), do export "Retencao de
+-- publico" do Studio. `segmento` guarda o corte: todos, organicos, inscrito,
+-- nao_inscrito, novo, recorrente, casual, frequente, anuncio_pulavel,
+-- anuncio_discovery. Populada por etl_youtube_csv.py.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS youtube_video_retencao (
+    launch_code   TEXT    NOT NULL,
+    aula_num      INTEGER NOT NULL,
+    segmento      TEXT    NOT NULL,
+    posicao_pct   INTEGER NOT NULL,
+    retencao_pct  DOUBLE PRECISION DEFAULT 0,
+    vs_outros_pct DOUBLE PRECISION,
+    PRIMARY KEY (launch_code, aula_num, segmento, posicao_pct)
+);
+
+CREATE INDEX IF NOT EXISTS idx_yt_ret_launch ON youtube_video_retencao (launch_code, aula_num, segmento);
+
+-- Quantos comecaram/pararam de assistir em cada posicao do video ("Atividade
+-- detalhada"). A posicao 0 de `comecaram` e o total de espectadores do video.
+CREATE TABLE IF NOT EXISTS youtube_video_atividade (
+    launch_code     TEXT    NOT NULL,
+    aula_num        INTEGER NOT NULL,
+    posicao_pct     INTEGER NOT NULL,
+    comecaram       BIGINT DEFAULT 0,
+    pararam         BIGINT DEFAULT 0,
+    vezes_assistido BIGINT DEFAULT 0,
+    PRIMARY KEY (launch_code, aula_num, posicao_pct)
+);
+
 CREATE TABLE IF NOT EXISTS etl_runs (
     id              BIGSERIAL PRIMARY KEY,
     source          TEXT        NOT NULL,

@@ -78,17 +78,33 @@ def _to_int(v) -> int:
 
 # ─── Leitura dos arquivos ────────────────────────────────────────────────────
 
+def _nome_zip_ok(info: zipfile.ZipInfo) -> str:
+    """O Studio grava o nome sem a flag de UTF-8, e o zipfile decodifica como
+    cp437 — "Orgânicos.csv" chega como "Org+ónicos.csv". Desfaz isso."""
+    nome = info.filename
+    if not (info.flag_bits & 0x800):
+        try:
+            return nome.encode("cp437").decode("utf-8")
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            pass
+    return nome
+
+
 def _iter_csvs(aula_dir: Path):
-    """Devolve (nome_do_arquivo, texto) de cada CSV da pasta, abrindo zips."""
+    """(nome_do_zip | None, nome_do_csv, texto) de cada CSV da pasta.
+
+    O nome do zip carrega o período do export ("Conteúdo 2026-08-18_2026-09-15
+    ..."), que não aparece em lugar nenhum dentro do arquivo.
+    """
     for p in sorted(aula_dir.iterdir()):
         if p.suffix.lower() == ".csv":
-            yield p.name, p.read_text(encoding="utf-8-sig", errors="replace")
+            yield None, p.name, p.read_text(encoding="utf-8-sig", errors="replace")
         elif p.suffix.lower() == ".zip":
             with zipfile.ZipFile(p) as z:
                 for info in z.infolist():
                     if info.filename.lower().endswith(".csv"):
                         raw = z.read(info)
-                        yield info.filename, raw.decode("utf-8-sig", errors="replace")
+                        yield p.name, _nome_zip_ok(info), raw.decode("utf-8-sig", errors="replace")
 
 
 def _parse_viewership(texto: str) -> list[dict]:
@@ -123,6 +139,126 @@ def _parse_engagements(texto: str) -> dict[str, int]:
     return totais
 
 
+# ─── Relatório "Retenção de público" ─────────────────────────────────────────
+#
+# Um arquivo por corte de público. O Studio nomeia a coluna do corte, e é ela
+# que identifica o arquivo com segurança — o nome do arquivo varia com o
+# idioma da conta e com a codificação do zip.
+COL_SEGMENTO = {
+    "status da inscrição":                       {"inscrito": "inscrito", "não inscrito": "nao_inscrito"},
+    "subscription status":                       {"subscribed": "inscrito", "not subscribed": "nao_inscrito"},
+    "espectadores novos e recorrentes":          {"novos espectadores": "novo", "espectadores recorrentes": "recorrente"},
+    "público por comportamento de visualização": {"novos espectadores": "novo_comport",
+                                                  "espectadores casuais": "casual",
+                                                  "espectadores recorrentes": "frequente"},
+    "tipo de público":                           {"orgânicos": "trafego_organico", "pagos": "trafego_pago"},
+}
+
+# Arquivos de um corte só (a coluna não diz qual é) — identificados por um
+# pedaço do nome que sobrevive a qualquer codificação.
+SEG_POR_NOME = [("discovery", "anuncio_discovery"), ("pul", "anuncio_pulavel"), ("nicos", "organicos")]
+
+
+def _parse_retencao(nome: str, texto: str) -> dict[str, list[dict]]:
+    """{segmento: [{posicao_pct, retencao_pct, vs_outros_pct}]}"""
+    reader = csv.DictReader(io.StringIO(texto))
+    cols = reader.fieldnames or []
+    if not cols or "posição no vídeo" not in _norm(cols[0]) and "video position" not in _norm(cols[0]):
+        return {}
+
+    col_seg = next((c for c in cols if _norm(c) in COL_SEGMENTO), None)
+    col_ret = next((c for c in cols if "retenção absoluta" in _norm(c) or "absolute audience retention" in _norm(c)), None)
+    col_vs = next((c for c in cols if "em comparação" in _norm(c) or "compared to" in _norm(c)), None)
+    if not col_ret:
+        return {}
+
+    if col_seg:
+        mapa = COL_SEGMENTO[_norm(col_seg)]
+        seg_fixo = None
+    else:
+        base = _norm(nome)
+        seg_fixo = next((s for chave, s in SEG_POR_NOME if chave in base), "todos")
+        # "Todos.csv" não tem coluna de comparação; os de um corte só têm.
+        if col_vs is None:
+            seg_fixo = "todos"
+        mapa = {}
+
+    saida: dict[str, list[dict]] = {}
+    for row in reader:
+        seg = seg_fixo or mapa.get(_norm(row.get(col_seg, "")))
+        if not seg:
+            continue
+        try:
+            pos = int(float(row[cols[0]]))
+            ret = float(row[col_ret] or 0)
+        except (TypeError, ValueError):
+            continue
+        vs = None
+        if col_vs:
+            try:
+                vs = float(row[col_vs])
+            except (TypeError, ValueError):
+                vs = None
+        saida.setdefault(seg, []).append({"posicao_pct": pos, "retencao_pct": ret, "vs_outros_pct": vs})
+    return saida
+
+
+def _parse_atividade(texto: str) -> list[dict]:
+    """"Atividade detalhada": quantos começaram/pararam em cada posição."""
+    reader = csv.DictReader(io.StringIO(texto))
+    cols = reader.fieldnames or []
+    if not cols or "começaram a assistir" not in " ".join(_norm(c) for c in cols):
+        return []
+    c_ini = next((c for c in cols if "começaram" in _norm(c)), None)
+    c_fim = next((c for c in cols if "pararam" in _norm(c)), None)
+    c_vez = next((c for c in cols if "número de vezes" in _norm(c)), None)
+    linhas = []
+    for row in reader:
+        try:
+            pos = int(float(row[cols[0]]))
+        except (TypeError, ValueError):
+            continue
+        linhas.append({
+            "posicao_pct":     pos,
+            "comecaram":       _to_int(row.get(c_ini)) if c_ini else 0,
+            "pararam":         _to_int(row.get(c_fim)) if c_fim else 0,
+            "vezes_assistido": _to_int(row.get(c_vez)) if c_vez else 0,
+        })
+    return linhas
+
+
+# ─── Relatório "Conteúdo" ────────────────────────────────────────────────────
+
+def _parse_conteudo(texto: str) -> dict:
+    """Linha "Total" do relatório de conteúdo: views, watch time, impressões
+    e CTR **do período exportado** — não do vídeo inteiro."""
+    reader = csv.DictReader(io.StringIO(texto))
+    cols = reader.fieldnames or []
+    if not cols or _norm(cols[0]) not in ("conteúdo", "content"):
+        return {}
+    for row in reader:
+        if _norm(row.get(cols[0], "")) not in ("total", ""):
+            continue
+        achar = lambda *ts: next((c for c in cols if any(t in _norm(c) for t in ts)), None)  # noqa: E731
+        c_views = achar("visualizações", "views")
+        c_watch = achar("tempo de exibição", "watch time")
+        c_imp = achar("impressões", "impressions")
+        c_ctr = achar("taxa de cliques", "click-through")
+        return {
+            "views_periodo":   _to_int(row.get(c_views)) if c_views else 0,
+            "watch_periodo_h": float(str(row.get(c_watch, 0) or 0).replace(",", ".")) if c_watch else 0.0,
+            "impressoes":      _to_int(row.get(c_imp)) if c_imp else 0,
+            "ctr_thumb":       float(str(row.get(c_ctr, 0) or 0).replace(",", ".")) if c_ctr else 0.0,
+        }
+    return {}
+
+
+def _periodo_do_zip(nome_zip: str) -> tuple[str | None, str | None]:
+    """"Conteúdo 2026-08-18_2026-09-15 Titulo.zip" → (2026-08-18, 2026-09-15)."""
+    m = re.search(r"(\d{4}-\d{2}-\d{2})[_ ](\d{4}-\d{2}-\d{2})", nome_zip or "")
+    return (m.group(1), m.group(2)) if m else (None, None)
+
+
 def coletar(launch_code: str) -> list[dict]:
     """Lê analises/[LAUNCH]/Youtube/Aula N/ e devolve uma entrada por aula."""
     pasta = BASE_ANALISES / f"[{launch_code}]" / "Youtube"
@@ -144,15 +280,40 @@ def coletar(launch_code: str) -> list[dict]:
 
         curva: list[dict] = []
         engaj: dict[str, int] = {}
+        retencao: dict[str, list[dict]] = {}
+        atividade: list[dict] = []
+        conteudo: dict = {}
+        periodo: tuple[str | None, str | None] = (None, None)
+        periodo_ret: tuple[str | None, str | None] = (None, None)
         titulo = ""
-        for nome, texto in _iter_csvs(aula_dir):
+        for nome_zip, nome, texto in _iter_csvs(aula_dir):
             base = Path(nome).name
-            if base.lower().startswith("liveviewership"):
+            low = base.lower()
+            if low.startswith("liveviewership"):
                 curva = _parse_viewership(texto)
                 titulo = _titulo_do_arquivo(base)
-            elif base.lower().startswith("liveengagements"):
+            elif low.startswith("liveengagements"):
                 engaj = _parse_engagements(texto)
                 titulo = titulo or _titulo_do_arquivo(base)
+            elif low.startswith("dados da tabela") or low.startswith("table data"):
+                dados = _parse_conteudo(texto)
+                if dados:
+                    conteudo = dados
+                    periodo = _periodo_do_zip(nome_zip or "")
+            else:
+                # Os arquivos de retenção variam de nome com o idioma e a
+                # codificação do zip; deixa o parser decidir pelo cabeçalho.
+                ativ = _parse_atividade(texto)
+                if ativ:
+                    atividade = ativ
+                    periodo_ret = _periodo_do_zip(nome_zip or "")
+                    continue
+                segs = _parse_retencao(base, texto)
+                for seg, pontos in segs.items():
+                    if pontos:
+                        retencao[seg] = pontos
+                if segs:
+                    periodo_ret = periodo_ret if periodo_ret[0] else _periodo_do_zip(nome_zip or "")
 
         if not curva:
             logger.warning("Aula %d sem liveViewership_*.csv — ignorada", aula_num)
@@ -169,6 +330,18 @@ def coletar(launch_code: str) -> list[dict]:
             "chat_msgs":    sum(r["chat_msgs"] for r in curva),
             "reacoes":      sum(r["reacoes"] for r in curva)
                             or next((v for k, v in engaj.items() if "rea" in k), 0),
+            "retencao":     retencao,
+            "atividade":    atividade,
+            # Soma de "começaram a assistir" = visualizações que o relatório de
+            # retenção mediu. NÃO é o público da live: esse relatório mede o
+            # vídeo (com replay), e na Aula 3 do PI-AGO-26 ele dá menos views
+            # que o pico simultâneo ao vivo.
+            "visualizacoes_video": sum(p["comecaram"] for p in atividade),
+            "periodo_ini":  periodo[0],
+            "periodo_fim":  periodo[1],
+            "retencao_ini": periodo_ret[0],
+            "retencao_fim": periodo_ret[1],
+            **conteudo,
         })
     return sorted(aulas, key=lambda a: a["aula_num"])
 
@@ -222,10 +395,14 @@ def gravar(launch_code: str, aulas: list[dict]) -> None:
                 INSERT INTO youtube_aulas_stats (
                     launch_code, video_id, aula_num, titulo, duration_sec,
                     peak_concurrent, viewers_fim, chat_msgs, reacoes,
+                    visualizacoes_video, retencao_ini, retencao_fim, impressoes, ctr_thumb,
+                    periodo_ini, periodo_fim, views_periodo, watch_periodo_h,
                     fonte, fetched_at
                 ) VALUES (
                     :launch_code, :video_id, :aula_num, :titulo, :duration_sec,
                     :peak, :viewers_fim, :chat_msgs, :reacoes,
+                    :visualizacoes_video, :retencao_ini, :retencao_fim, :impressoes, :ctr_thumb,
+                    :periodo_ini, :periodo_fim, :views_periodo, :watch_periodo_h,
                     'manual', NOW()
                 )
                 ON CONFLICT (launch_code, video_id) DO UPDATE SET
@@ -236,6 +413,17 @@ def gravar(launch_code: str, aulas: list[dict]) -> None:
                     viewers_fim     = EXCLUDED.viewers_fim,
                     chat_msgs       = EXCLUDED.chat_msgs,
                     reacoes         = EXCLUDED.reacoes,
+                    -- COALESCE: um export sem o relatório de conteúdo não
+                    -- apaga o que outro já tinha trazido.
+                    visualizacoes_video = COALESCE(NULLIF(EXCLUDED.visualizacoes_video, 0), youtube_aulas_stats.visualizacoes_video),
+                    retencao_ini    = COALESCE(EXCLUDED.retencao_ini, youtube_aulas_stats.retencao_ini),
+                    retencao_fim    = COALESCE(EXCLUDED.retencao_fim, youtube_aulas_stats.retencao_fim),
+                    impressoes      = COALESCE(NULLIF(EXCLUDED.impressoes, 0), youtube_aulas_stats.impressoes),
+                    ctr_thumb       = COALESCE(NULLIF(EXCLUDED.ctr_thumb, 0), youtube_aulas_stats.ctr_thumb),
+                    periodo_ini     = COALESCE(EXCLUDED.periodo_ini, youtube_aulas_stats.periodo_ini),
+                    periodo_fim     = COALESCE(EXCLUDED.periodo_fim, youtube_aulas_stats.periodo_fim),
+                    views_periodo   = COALESCE(NULLIF(EXCLUDED.views_periodo, 0), youtube_aulas_stats.views_periodo),
+                    watch_periodo_h = COALESCE(NULLIF(EXCLUDED.watch_periodo_h, 0), youtube_aulas_stats.watch_periodo_h),
                     fonte           = 'manual',
                     fetched_at      = NOW()
             """), {
@@ -244,6 +432,15 @@ def gravar(launch_code: str, aulas: list[dict]) -> None:
                 "duration_sec": a["duration_sec"], "peak": a["peak"],
                 "viewers_fim": a["viewers_fim"], "chat_msgs": a["chat_msgs"],
                 "reacoes": a["reacoes"],
+                "visualizacoes_video": a.get("visualizacoes_video", 0),
+                "retencao_ini": a.get("retencao_ini"),
+                "retencao_fim": a.get("retencao_fim"),
+                "impressoes": a.get("impressoes", 0),
+                "ctr_thumb": a.get("ctr_thumb", 0.0),
+                "periodo_ini": a.get("periodo_ini"),
+                "periodo_fim": a.get("periodo_fim"),
+                "views_periodo": a.get("views_periodo", 0),
+                "watch_periodo_h": a.get("watch_periodo_h", 0.0),
             })
 
             conn.execute(
@@ -263,8 +460,49 @@ def gravar(launch_code: str, aulas: list[dict]) -> None:
                 for r in a["curva"]
             ])
 
-    logger.info("Gravado: %d aulas, %d pontos de curva",
-                len(aulas), sum(len(a["curva"]) for a in aulas))
+            if a.get("retencao"):
+                conn.execute(
+                    text("DELETE FROM youtube_video_retencao WHERE launch_code = :c AND aula_num = :n"),
+                    {"c": launch_code, "n": a["aula_num"]},
+                )
+                conn.execute(text("""
+                    INSERT INTO youtube_video_retencao (
+                        launch_code, aula_num, segmento, posicao_pct,
+                        retencao_pct, vs_outros_pct
+                    ) VALUES (
+                        :launch_code, :aula_num, :segmento, :posicao_pct,
+                        :retencao_pct, :vs_outros_pct
+                    )
+                """), [
+                    {"launch_code": launch_code, "aula_num": a["aula_num"], "segmento": seg, **p}
+                    for seg, pontos in a["retencao"].items() for p in pontos
+                ])
+
+            if a.get("atividade"):
+                conn.execute(
+                    text("DELETE FROM youtube_video_atividade WHERE launch_code = :c AND aula_num = :n"),
+                    {"c": launch_code, "n": a["aula_num"]},
+                )
+                conn.execute(text("""
+                    INSERT INTO youtube_video_atividade (
+                        launch_code, aula_num, posicao_pct,
+                        comecaram, pararam, vezes_assistido
+                    ) VALUES (
+                        :launch_code, :aula_num, :posicao_pct,
+                        :comecaram, :pararam, :vezes_assistido
+                    )
+                """), [
+                    {"launch_code": launch_code, "aula_num": a["aula_num"], **p}
+                    for p in a["atividade"]
+                ])
+
+    logger.info(
+        "Gravado: %d aulas, %d pontos de curva ao vivo, %d pontos de retenção, %d de atividade",
+        len(aulas),
+        sum(len(a["curva"]) for a in aulas),
+        sum(len(p) for a in aulas for p in a.get("retencao", {}).values()),
+        sum(len(a.get("atividade", [])) for a in aulas),
+    )
 
 
 def main():

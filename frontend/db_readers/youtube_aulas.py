@@ -126,6 +126,132 @@ def _analisar(aula: dict) -> dict:
     return aula
 
 
+# Como cada corte do relatório de retenção aparece na tela. A ordem é a da
+# leitura: primeiro o total, depois os cortes que se comparam entre si.
+SEGMENTOS = [
+    ("todos",            "Todos",                  "#334155"),
+    ("inscrito",         "Inscritos",              "#16a34a"),
+    ("nao_inscrito",     "Não inscritos",          "#dc2626"),
+    ("recorrente",       "Espectadores recorrentes", "#2563eb"),
+    ("novo",             "Espectadores novos",     "#f59e0b"),
+    ("frequente",        "Público frequente",      "#7c3aed"),
+    ("casual",           "Público casual",         "#0891b2"),
+    ("trafego_organico", "Tráfego orgânico",       "#64748b"),
+    ("trafego_pago",     "Tráfego pago (anúncios)", "#db2777"),
+]
+
+
+def read_retencao_video(launch_code: str) -> dict:
+    """Retenção por posição do vídeo (0-100%) e atividade de início/parada.
+
+    Vem do relatório "Retenção de público" do Studio, que mede o **vídeo**
+    (replay incluído) e não a transmissão — são populações diferentes: na Aula
+    3 do PI-AGO-26 esse relatório conta menos visualizações do que o pico
+    simultâneo que a live teve. Por isso vive numa seção separada da curva
+    ao vivo, nunca somado a ela.
+    """
+    vazio = {"aulas": [], "segmentos": [], "tem_pago": False}
+    if not launch_code:
+        return vazio
+
+    try:
+        with _get_engine().connect() as conn:
+            ret = conn.execute(
+                text("""
+                    SELECT aula_num, segmento, posicao_pct, retencao_pct
+                    FROM youtube_video_retencao
+                    WHERE launch_code = :code
+                    ORDER BY aula_num, segmento, posicao_pct
+                """),
+                {"code": launch_code},
+            ).fetchall()
+            ativ = conn.execute(
+                text("""
+                    SELECT aula_num, posicao_pct, comecaram, pararam, vezes_assistido
+                    FROM youtube_video_atividade
+                    WHERE launch_code = :code
+                    ORDER BY aula_num, posicao_pct
+                """),
+                {"code": launch_code},
+            ).fetchall()
+            base = conn.execute(
+                text("""
+                    SELECT aula_num, titulo, visualizacoes_video, impressoes, ctr_thumb,
+                           periodo_ini, periodo_fim, retencao_ini, retencao_fim,
+                           views_periodo, watch_periodo_h
+                    FROM youtube_aulas_stats
+                    WHERE launch_code = :code
+                    ORDER BY aula_num
+                """),
+                {"code": launch_code},
+            ).fetchall()
+    except Exception as e:
+        logger.warning("read_retencao_video falhou para %s: %s", launch_code, e)
+        return vazio
+
+    if not ret:
+        return vazio
+
+    curvas: dict[int, dict[str, list]] = {}
+    for r in ret:
+        curvas.setdefault(r.aula_num, {}).setdefault(r.segmento, []).append(
+            {"pos": r.posicao_pct, "ret": float(r.retencao_pct or 0)}
+        )
+
+    atividades: dict[int, list[dict]] = {}
+    for r in ativ:
+        atividades.setdefault(r.aula_num, []).append({
+            "pos":       r.posicao_pct,
+            "comecaram": r.comecaram or 0,
+            "pararam":   r.pararam or 0,
+            "vezes":     r.vezes_assistido or 0,
+        })
+
+    aulas = []
+    for b in base:
+        segs = curvas.get(b.aula_num)
+        if not segs:
+            continue
+        a = atividades.get(b.aula_num, [])
+        # Onde mais gente abandonou: a posição não é minuto, é % do vídeo.
+        top_saidas = sorted(a, key=lambda p: p["pararam"], reverse=True)[:3] if a else []
+        aulas.append({
+            "aula_num":     b.aula_num,
+            "titulo":       b.titulo or f"Aula {b.aula_num}",
+            "views":        b.visualizacoes_video or 0,
+            "impressoes":   b.impressoes or 0,
+            "ctr_thumb":    float(b.ctr_thumb or 0),
+            "periodo_ini":  b.periodo_ini,
+            "periodo_fim":  b.periodo_fim,
+            "retencao_ini": b.retencao_ini,
+            "retencao_fim": b.retencao_fim,
+            "views_periodo": b.views_periodo or 0,
+            "watch_periodo_h": float(b.watch_periodo_h or 0),
+            "curvas":       segs,
+            "media_por_segmento": {
+                s: round(sum(p["ret"] for p in pts) / len(pts), 1) for s, pts in segs.items() if pts
+            },
+            "ret_50":       next((p["ret"] for p in segs.get("todos", []) if p["pos"] == 50), 0.0),
+            "top_saidas":   [{**p, "pct_views": _pct(p["pararam"], b.visualizacoes_video or 0)} for p in top_saidas],
+        })
+
+    presentes = {s for a in aulas for s in a["curvas"]}
+    segmentos = [
+        {"chave": k, "label": lbl, "cor": cor}
+        for k, lbl, cor in SEGMENTOS if k in presentes
+    ]
+    return {
+        "aulas": aulas,
+        "segmentos": segmentos,
+        # Payload do gráfico: só o que o JS usa. As linhas de `aulas` carregam
+        # datas, e `tojson` não serializa date.
+        "curvas_js": [{"aula_num": a["aula_num"], "curvas": a["curvas"]} for a in aulas],
+        # Se o Studio não trouxe nenhuma linha de tráfego pago, nenhuma view do
+        # vídeo veio de anúncio — vale dizer isso na tela, não deixar em branco.
+        "tem_pago": "trafego_pago" in presentes,
+    }
+
+
 def read_aulas_ao_vivo(launch_code: str) -> dict:
     """Devolve {aulas: [...], totais: {...}} para a página /aulas-ao-vivo."""
     vazio = {"aulas": [], "totais": {}}

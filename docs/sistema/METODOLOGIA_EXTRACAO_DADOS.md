@@ -267,3 +267,21 @@ métrica em vez de mostrar zero.
 **Comparação entre lançamentos:** só compare retenção entre aulas com a **mesma** fonte.
 PBB-JUN-26 tem dado de API (`avg_view_pct`); PI-AGO-26 tem dado de CSV
 (`retencao_live_pct`). A coluna `fonte` de `youtube_aulas_stats` existe para essa checagem.
+
+### Os três exports do Studio medem coisas diferentes (2026-09-15)
+
+| Export | O que mede | Cuidado |
+|---|---|---|
+| Transmissões ao vivo | a **live**, minuto a minuto (simultâneos, chat, reações) | só o ao vivo; o replay não entra |
+| Retenção de público | o **vídeo**, por posição (0-100%), com replay | outra população: pode dar menos views que o pico simultâneo da mesma aula |
+| Conteúdo | views/watch time/impressões **do período escolhido no export** | inútil se o período não cobrir a data da live |
+
+**Nunca somar o primeiro com o segundo.** No PI-AGO-26 a Aula 3 teve pico simultâneo de
+10.118 ao vivo e 9.302 visualizações no relatório de retenção — se fossem a mesma população,
+isso seria impossível. Por isso `visualizacoes_video` tem esse nome e a página mostra as duas
+coisas em seções separadas, cada uma com a janela de datas do seu export.
+
+**Origem do tráfego.** O Studio responde isso em dois níveis: "orgânico vs pago" (dentro do
+relatório de retenção) e "Fontes de tráfego" (notificações, pesquisa, externo…). Nenhum dos
+dois quebra por campanha ou por `ADxxx` — atribuição por criativo continua vindo do Google
+Ads, e só para campanha de vídeo cujo destino seja o próprio vídeo.

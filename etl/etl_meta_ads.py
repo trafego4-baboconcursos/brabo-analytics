@@ -14,6 +14,7 @@ Pré-requisitos .env:
 import os
 import sys
 import argparse
+import json
 import re
 import pandas as pd
 from datetime import datetime, timezone
@@ -29,6 +30,7 @@ from logger import get_logger
 from http_retry import http_get
 from validation import validate_dataframe
 from launch_resolver import resolve_launch_code
+from ad_codes import extract_ad_code
 
 load_dotenv()
 
@@ -36,6 +38,11 @@ logger = get_logger("etl.meta")
 
 API_VERSION = "v22.0"
 TABLE       = "meta_ads_daily"
+
+# Quantos criativos resolver por janela de hash. Pequeno o bastante pra URL
+# assinada de /adimages não expirar antes do download, grande o bastante pra
+# não virar uma chamada por anúncio.
+_JANELA_HASHES = 50
 
 AD_CODE_RE = re.compile(r"(AD\d+)", re.IGNORECASE)
 
@@ -448,7 +455,7 @@ def fetch_creative_details(ad_ids: list[str]) -> dict[str, dict]:
         params = {
             "access_token": token,
             "ids": ",".join(chunk),
-            "fields": "name,creative{thumbnail_url,image_url,object_story_spec}",
+            "fields": "name,creative{thumbnail_url,image_url,object_story_spec,asset_feed_spec}",
         }
         try:
             r = http_get(f"https://graph.facebook.com/{API_VERSION}/", params=params, timeout=60)
@@ -495,6 +502,95 @@ def fetch_all_ads_listing() -> pd.DataFrame:
     return pd.DataFrame(records)
 
 
+def _creative_image_hash(creative: dict) -> str | None:
+    """Hash da imagem do criativo, quando ele não expõe URL nenhuma.
+
+    Criativo de imagem estática referencia o material por hash (em
+    `image_hash` ou `asset_feed_spec.images[].hash`); a URL só sai
+    resolvendo o hash em /adimages da conta (ver resolve_image_hashes).
+    """
+    if not creative:
+        return None
+    if creative.get("image_hash"):
+        return creative["image_hash"]
+    feed = creative.get("asset_feed_spec") or {}
+    for image in feed.get("images") or []:
+        if image.get("hash"):
+            return image["hash"]
+    story = creative.get("object_story_spec") or {}
+    for key in ("link_data", "photo_data"):
+        data = story.get(key) or {}
+        if data.get("image_hash"):
+            return data["image_hash"]
+    return None
+
+
+def resolve_image_hashes(hashes: list[str]) -> dict[str, str]:
+    """{hash: url} consultando /adimages em cada conta, em lotes.
+
+    Um hash só resolve na conta que o hospeda, então varre as contas até
+    achar — as já resolvidas saem da busca.
+    """
+    pending = list(dict.fromkeys(h for h in hashes if h))
+    if not pending:
+        return {}
+    token = os.environ["META_ACCESS_TOKEN"]
+    accounts = [a.strip() for a in os.environ["META_AD_ACCOUNT_ID"].split(",") if a.strip()]
+    resolved: dict[str, str] = {}
+    for account in accounts:
+        if not pending:
+            break
+        for i in range(0, len(pending), 50):
+            chunk = pending[i:i + 50]
+            try:
+                r = http_get(
+                    f"https://graph.facebook.com/{API_VERSION}/{account}/adimages",
+                    params={"hashes": json.dumps(chunk), "fields": "hash,url", "access_token": token},
+                    timeout=60,
+                )
+                for item in r.json().get("data", []):
+                    if item.get("hash") and item.get("url"):
+                        resolved[item["hash"]] = item["url"]
+            except Exception:
+                logger.warning("Falha ao resolver hashes de imagem em %s; tentando próxima conta", account)
+        pending = [h for h in pending if h not in resolved]
+    if pending:
+        logger.info("%d hashes de imagem sem URL em nenhuma conta", len(pending))
+    return resolved
+
+
+def _creative_image_url(creative: dict) -> str | None:
+    """URL da imagem em tamanho cheio do criativo, tentando as formas em que o
+    Meta a devolve — a `thumbnail_url` do criativo é só 64x64, pequena demais
+    pra grade de criativos.
+
+    Anúncio Advantage+/dynamic creative não traz `image_url` nem
+    `object_story_spec.video_data`: o material fica em `asset_feed_spec`, e sem
+    esse ramo mais da metade dos criativos fica sem imagem (87 de 147 no BV-25).
+    """
+    if not creative:
+        return None
+    if creative.get("image_url"):
+        return creative["image_url"]
+
+    story = creative.get("object_story_spec") or {}
+    for key in ("video_data", "link_data", "photo_data"):
+        data = story.get(key) or {}
+        if data.get("image_url"):
+            return data["image_url"]
+        if data.get("picture"):
+            return data["picture"]
+
+    feed = creative.get("asset_feed_spec") or {}
+    for video in feed.get("videos") or []:
+        if video.get("thumbnail_url"):
+            return video["thumbnail_url"]
+    for image in feed.get("images") or []:
+        if image.get("url"):
+            return image["url"]
+    return None
+
+
 def build_thumbnails_df(insights_df: pd.DataFrame) -> pd.DataFrame:
     """A partir do df de insights (que já tem ad_id + lancamento_codigo),
     busca os detalhes do criativo só para os anúncios com AD\\d+ no nome."""
@@ -505,7 +601,16 @@ def build_thumbnails_df(insights_df: pd.DataFrame) -> pd.DataFrame:
         .dropna(subset=["lancamento_codigo"])
         .drop_duplicates(subset=["ad_id"])
     )
-    ad_meta = ad_meta[ad_meta["ad_name"].str.contains(AD_CODE_RE, na=False)]
+    # O código sai por lançamento: o BV-25 usa a convenção antiga (AD-XX##),
+    # que o AD_CODE_RE não pega — sem isso o lançamento inteiro fica sem
+    # thumbnail (7 dos 237 nomes casavam no regex corrente).
+    ad_meta = ad_meta.assign(
+        ad_code=[
+            extract_ad_code(nome, lanc)
+            for nome, lanc in zip(ad_meta["ad_name"], ad_meta["lancamento_codigo"])
+        ]
+    )
+    ad_meta = ad_meta[ad_meta["ad_code"] != ""]
     if ad_meta.empty:
         return pd.DataFrame()
 
@@ -515,23 +620,21 @@ def build_thumbnails_df(insights_df: pd.DataFrame) -> pd.DataFrame:
     for _, row in ad_meta.iterrows():
         ad_id = str(row["ad_id"])
         name = row["ad_name"] or ""
-        match = AD_CODE_RE.search(name)
-        if not match:
-            continue
         obj = details.get(ad_id) or {}
         creative = obj.get("creative") or {}
-        image_url = creative.get("image_url")
-        if not image_url:
-            story = creative.get("object_story_spec") or {}
-            video_data = story.get("video_data") or {}
-            image_url = video_data.get("image_url")
         records.append({
             "platform":           "meta",
-            "ad_code":            match.group(1).upper(),
+            "ad_code":            row["ad_code"],
             "ad_name":            name,
             "lancamento_codigo":  row["lancamento_codigo"],
             "thumbnail_url":      creative.get("thumbnail_url"),
-            "image_url":          image_url,
+            "image_url":          _creative_image_url(creative),
+            # Só o hash aqui: a URL é resolvida junto do download, em
+            # upsert_thumbnails. A URL que /adimages devolve é assinada e de
+            # vida curta — resolver tudo de uma vez no começo fazia as do fim
+            # da fila chegarem expiradas ao download (7 de 147 no BV-25, todas
+            # do fim da lista, com 1.786 anúncios na frente).
+            "image_hash":         _creative_image_hash(creative),
         })
     return pd.DataFrame(records)
 
@@ -572,7 +675,13 @@ def upsert_thumbnails(df: pd.DataFrame):
         have_bytes = {
             (r[0], r[1], r[2])
             for r in conn.execute(text(
-                "SELECT platform, ad_code, lancamento_codigo FROM ad_creatives WHERE thumb_data IS NOT NULL"
+                # Só pula quem tem AS DUAS imagens: a thumb do criativo é 64x64
+                # e não serve pra grade, então uma linha com thumb e sem image
+                # ainda está incompleta. Considerar só thumb_data fazia o
+                # re-processamento pular criativos que nunca chegaram a ter a
+                # imagem cheia (87 de 147 no BV-25, todos Advantage+).
+                "SELECT platform, ad_code, lancamento_codigo FROM ad_creatives"
+                " WHERE thumb_data IS NOT NULL AND image_data IS NOT NULL"
             )).fetchall()
         }
 
@@ -592,6 +701,23 @@ def upsert_thumbnails(df: pd.DataFrame):
 
     records = df.to_dict("records")
     baixadas = 0
+
+    def _resolver_hashes_da_janela(inicio: int) -> dict[str, str]:
+        """URLs dos hashes dos próximos registros, resolvidas na hora.
+
+        A URL de /adimages é assinada e expira em minutos: resolver a fila
+        inteira antes de baixar fazia o fim dela chegar vencido ao download.
+        Resolve em janelas curtas, logo antes de usar.
+        """
+        janela = records[inicio:inicio + _JANELA_HASHES]
+        pendentes = [
+            r.get("image_hash") for r in janela
+            if r.get("image_hash") and not r.get("image_url")
+            and (r["platform"], r["ad_code"], r["lancamento_codigo"]) not in have_bytes
+        ]
+        return resolve_image_hashes(pendentes) if pendentes else {}
+
+    url_por_hash: dict[str, str] = {}
     # grava em lotes conforme baixa, pra um backfill longo interrompido não
     # perder o progresso (os já-com-bytes são pulados na próxima rodada)
     batch: list[dict] = []
@@ -604,12 +730,16 @@ def upsert_thumbnails(df: pd.DataFrame):
         batch.clear()
 
     for i, rec in enumerate(records):
+        if i % _JANELA_HASHES == 0:
+            url_por_hash = _resolver_hashes_da_janela(i)
         rec["thumb_data"] = rec["thumb_content_type"] = None
         rec["image_data"] = rec["image_content_type"] = None
         if (rec["platform"], rec["ad_code"], rec["lancamento_codigo"]) not in have_bytes:
             thumb = _download_image(rec.get("thumbnail_url"))
             if thumb:
                 rec["thumb_data"], rec["thumb_content_type"] = thumb
+            if not rec.get("image_url") and rec.get("image_hash"):
+                rec["image_url"] = url_por_hash.get(rec["image_hash"])
             image = _download_image(rec.get("image_url"))
             if image:
                 rec["image_data"], rec["image_content_type"] = image

@@ -299,22 +299,26 @@ def _resumo_tabela(conn, tabela: str, start, end, tem_lead_numero: bool) -> dict
 
 
 def _mesclar_contagem_sheets(alvo: dict | None, contagem: dict | None) -> None:
-    """Mescla total/total_limpo/grupos/entradas_hoje/saidas_hoje (vindos do
-    Sheets) no dict de resumo da tabela acumulada, sem deixar um campo que
-    faltou (None) sobrescrever um valor bom que já estava lá.
+    """Mescla total/total_limpo/entradas_hoje/saidas_hoje (vindos do Sheets,
+    confiável pra CONTAGEM DE PESSOAS) no dict de resumo da tabela
+    acumulada, sem deixar um campo que faltou (None) sobrescrever um valor
+    bom que já estava lá.
 
-    "grupos" do Sheets nunca rastreou VIP em alguns lançamentos (sempre 0,
-    mesmo com centenas de pessoas ativas) — achado 15/09/26, PI-AGO-26:
-    Sheets dava vip.grupos=0 mas o SQL já tinha ~51 grupos reais. 0 aqui
-    não é "zero real", é "não contabilizado" — não sobrescreve um valor
-    de verdade que já estava calculado.
+    "grupos" (quantos grupos de WhatsApp distintos) fica DE FORA de
+    propósito — vem só do SQL próprio (COUNT DISTINCT nome do grupo),
+    nunca da planilha. Motivo (achado 15/09/26, PI-AGO-26): a planilha
+    nunca rastreou grupos VIP em alguns lançamentos (sempre 0, mesmo com
+    centenas de pessoas ativas — o SQL já tinha ~51 grupos reais). Ao
+    contrário da contagem de PESSOAS (que sofre com admin/duplicidade e
+    por isso precisa da planilha), contar nomes de grupo distintos é um
+    dado estrutural direto, sem esse problema — mais simples e consistente
+    usar sempre a mesma fonte pros dois blocos (normal/vip) do que tentar
+    reconciliar um "0" da planilha que às vezes é confiável e às vezes não.
     """
     if not alvo or not contagem:
         return
     for chave, valor in contagem.items():
-        if valor is None:
-            continue
-        if chave == "grupos" and valor == 0 and alvo.get("grupos"):
+        if chave == "grupos" or valor is None:
             continue
         alvo[chave] = valor
 

@@ -181,11 +181,32 @@ def _utm_cobertura(launch: Any):
 
 
 def _whatsapp_groups_resumo(launch: Any):
-    """Total de grupos e pessoas ativas, Normal × VIP — pauta Resumo
-    Executivo do Debriefing (15/09/26)."""
+    """Pico de pessoas ativas nos grupos (não o número de agora, que só cai
+    com saída natural — mesmo raciocínio do card Leads x Grupos), Normal ×
+    VIP — pauta Resumo Executivo do Debriefing (15/09/26).
+
+    "Total de Grupos" foi removido da exibição (pedido do usuário,
+    15/09/26): a tabela bruta do Supabase ficava incompleta em alguns
+    lançamentos (ex.: PI-ABR-26, onde uma campanha inteira do SendFlow
+    nunca chegou no banco — real era 309/7 Normal/VIP, a tabela só tinha
+    133/42) e não dava pra confiar nesse número sem correção manual por
+    lançamento."""
     from frontend.db_readers.whatsapp_groups import read_whatsapp_groups
-    return _get_or_compute(launch.code, "whatsapp_groups_resumo",
-                           lambda: read_whatsapp_groups(launch.code))
+    from frontend.db_readers.whatsapp_sheets import pico_por_bloco
+
+    wa = _get_or_compute(launch.code, "whatsapp_groups_resumo",
+                         lambda: read_whatsapp_groups(launch.code))
+    if not wa:
+        return wa
+    picos = pico_por_bloco(launch.code)
+    out = dict(wa)
+    for bloco in ("normal", "vip"):
+        pico = (picos.get(bloco) or {}).get("leads_no_dia") or {}
+        if out.get(bloco) and pico.get("valor"):
+            b = dict(out[bloco])
+            b["total_limpo"] = pico["valor"]
+            out[bloco] = b
+    return out
 
 
 def _dia1_sales(launch: Any):

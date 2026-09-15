@@ -441,12 +441,17 @@ def _compute_debriefing_ctx(
     wa_gasto = _f((wa_cost or {}).get("total_cost_brl"))
     prev_wa_gasto = _f((prev_wa_cost or {}).get("total_cost_brl"))
 
-    # Grupos WhatsApp (Normal × VIP) e Vendas na 1ª Hora — Resumo Executivo
-    # (pauta 15/09/26, ref. slide "Mentoria" do DEBRIEFING 2.0).
-    def _grupos_de(resumo):
+    # Pessoas nos Grupos WhatsApp (Normal × VIP, pico histórico) e Vendas na
+    # 1ª Hora — Resumo Executivo (pauta 15/09/26, ref. slide "Mentoria" do
+    # DEBRIEFING 2.0). "Total de Grupos" foi removido da exibição (pedido do
+    # usuário, 15/09/26) — a tabela bruta do Supabase ficava incompleta em
+    # alguns lançamentos (ex.: PI-ABR-26, onde uma campanha inteira do
+    # SendFlow nunca chegou no banco) e não dava pra confiar nesse número
+    # sem correção manual por lançamento.
+    def _pessoas_grupos_de(resumo):
         n = (resumo or {}).get("normal") or {}
         v = (resumo or {}).get("vip") or {}
-        return _i(n.get("grupos")), _i(n.get("total_limpo")), _i(v.get("grupos")), _i(v.get("total_limpo"))
+        return _i(n.get("total_limpo")), _i(v.get("total_limpo"))
 
     def _venda_1h_de(dia1):
         for cp in ((dia1 or {}).get("checkpoints") or []):
@@ -454,8 +459,8 @@ def _compute_debriefing_ctx(
                 return _i(cp.get("total"))
         return None
 
-    total_grupos_normais, pessoas_grupos_normais, total_grupos_vip, pessoas_grupos_vip = _grupos_de(whatsapp_groups_resumo)
-    prev_total_grupos_normais, prev_pessoas_grupos_normais, prev_total_grupos_vip, prev_pessoas_grupos_vip = _grupos_de(prev_whatsapp_groups_resumo)
+    pessoas_grupos_normais, pessoas_grupos_vip = _pessoas_grupos_de(whatsapp_groups_resumo)
+    prev_pessoas_grupos_normais, prev_pessoas_grupos_vip = _pessoas_grupos_de(prev_whatsapp_groups_resumo)
     vendas_primeira_hora = _venda_1h_de(dia1_sales)
     prev_vendas_primeira_hora = _venda_1h_de(prev_dia1_sales)
 
@@ -1016,15 +1021,11 @@ def _compute_debriefing_ctx(
         "comparativo_historico": comparativo_historico or [],
         # Tabela histórica grande multi-lançamento
         "historico_grande": historico_grande or [],
-        # Grupos WhatsApp e Vendas na 1ª Hora — Resumo Executivo
-        "total_grupos_normais": total_grupos_normais,
+        # Pessoas nos Grupos WhatsApp e Vendas na 1ª Hora — Resumo Executivo
         "pessoas_grupos_normais": pessoas_grupos_normais,
-        "total_grupos_vip": total_grupos_vip,
         "pessoas_grupos_vip": pessoas_grupos_vip,
         "vendas_primeira_hora": vendas_primeira_hora,
-        "prev_total_grupos_normais": prev_total_grupos_normais,
         "prev_pessoas_grupos_normais": prev_pessoas_grupos_normais,
-        "prev_total_grupos_vip": prev_total_grupos_vip,
         "prev_pessoas_grupos_vip": prev_pessoas_grupos_vip,
         "prev_vendas_primeira_hora": prev_vendas_primeira_hora,
         # Pagamentos

@@ -1,0 +1,9 @@
+# Termos de busca no Drive por "projeto" (produto) — cada um vira um filtro
+# `name contains '<termo>'` na Drive API pra achar os formulários do sorteio
+# daquele produto. Um lote de 4-5 formulários (Aula 1-4 + Resumão) é criado
+# do zero a cada lançamento, com nomeação sempre bagunçada (variações tipo
+# "Aula 2 ok", "Aula 2 - ok", "Aula 3.", "Resumão" com/sem acento, e alguns
+# "lixos" tipo "Aula X"/"Backup"/formulário sem número de aula) — normalizado
+# por regex em etl/etl_sorteio_forms.py::_normaliza_aula, não por nome exato.
+
+INSS: "Projeto INSS"

@@ -639,6 +639,11 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
         ("Ticket Médio",  dbf.ticket,       dbf.prev_ticket,       "brl", "up"),
         ("Leads Captação", dbf.total_leads, dbf.prev_total_leads,  "num", "up"),
         ("CPL Captação",  dbf.cpl,          dbf.prev_cpl,          "brl", "down"),
+        ("Vendas na 1ª Hora", dbf.vendas_primeira_hora or 0, dbf.prev_vendas_primeira_hora or 0, "num", "up"),
+        ("Total de Grupos VIP", dbf.total_grupos_vip, dbf.prev_total_grupos_vip, "num", "up"),
+        ("Pessoas nos Grupos VIP", dbf.pessoas_grupos_vip, dbf.prev_pessoas_grupos_vip, "num", "up"),
+        ("Total de Grupos Normais", dbf.total_grupos_normais, dbf.prev_total_grupos_normais, "num", "up"),
+        ("Pessoas nos Grupos Normais", dbf.pessoas_grupos_normais, dbf.prev_pessoas_grupos_normais, "num", "up"),
       ] -%}
       {% for lbl, val, pval, fmt, polarity in kpis_gerais %}
         {{ kpi_card(lbl, val, pval, fmt, polarity) }}

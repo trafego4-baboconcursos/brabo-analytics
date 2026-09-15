@@ -422,6 +422,10 @@ def _compute_debriefing_ctx(
     forma_pagamento_entrada: Any = None,
     comparativo_historico: Any = None,
     historico_grande: Any = None,
+    whatsapp_groups_resumo: Any = None,
+    prev_whatsapp_groups_resumo: Any = None,
+    dia1_sales: Any = None,
+    prev_dia1_sales: Any = None,
 ) -> dict:
     def _f(x): return float(x or 0)
     def _i(x): return int(x or 0)
@@ -434,6 +438,24 @@ def _compute_debriefing_ctx(
 
     wa_gasto = _f((wa_cost or {}).get("total_cost_brl"))
     prev_wa_gasto = _f((prev_wa_cost or {}).get("total_cost_brl"))
+
+    # Grupos WhatsApp (Normal × VIP) e Vendas na 1ª Hora — Resumo Executivo
+    # (pauta 15/09/26, ref. slide "Mentoria" do DEBRIEFING 2.0).
+    def _grupos_de(resumo):
+        n = (resumo or {}).get("normal") or {}
+        v = (resumo or {}).get("vip") or {}
+        return _i(n.get("grupos")), _i(n.get("total_limpo")), _i(v.get("grupos")), _i(v.get("total_limpo"))
+
+    def _venda_1h_de(dia1):
+        for cp in ((dia1 or {}).get("checkpoints") or []):
+            if cp.get("hora") == "9h" and not cp.get("pendente"):
+                return _i(cp.get("total"))
+        return None
+
+    total_grupos_normais, pessoas_grupos_normais, total_grupos_vip, pessoas_grupos_vip = _grupos_de(whatsapp_groups_resumo)
+    prev_total_grupos_normais, prev_pessoas_grupos_normais, prev_total_grupos_vip, prev_pessoas_grupos_vip = _grupos_de(prev_whatsapp_groups_resumo)
+    vendas_primeira_hora = _venda_1h_de(dia1_sales)
+    prev_vendas_primeira_hora = _venda_1h_de(prev_dia1_sales)
 
     invest = _f(getattr(meta, "total_gasto", 0)) + _f(getattr(google, "total_custo", 0)) + wa_gasto
     receita = _f(getattr(vendas, "total_receita_liquida", 0)) or _f(getattr(vendas, "total_receita", 0))
@@ -944,6 +966,17 @@ def _compute_debriefing_ctx(
         "comparativo_historico": comparativo_historico or [],
         # Tabela histórica grande multi-lançamento
         "historico_grande": historico_grande or [],
+        # Grupos WhatsApp e Vendas na 1ª Hora — Resumo Executivo
+        "total_grupos_normais": total_grupos_normais,
+        "pessoas_grupos_normais": pessoas_grupos_normais,
+        "total_grupos_vip": total_grupos_vip,
+        "pessoas_grupos_vip": pessoas_grupos_vip,
+        "vendas_primeira_hora": vendas_primeira_hora,
+        "prev_total_grupos_normais": prev_total_grupos_normais,
+        "prev_pessoas_grupos_normais": prev_pessoas_grupos_normais,
+        "prev_total_grupos_vip": prev_total_grupos_vip,
+        "prev_pessoas_grupos_vip": prev_pessoas_grupos_vip,
+        "prev_vendas_primeira_hora": prev_vendas_primeira_hora,
         # Pagamentos
         "pagamentos_hm": pagamentos_hm, "total_tmb": total_tmb,
         "vendas_forma": vendas_forma,

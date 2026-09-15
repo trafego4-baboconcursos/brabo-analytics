@@ -147,6 +147,23 @@ def _utm_cobertura(launch: Any):
                            lambda: read_utm_cobertura(launch.code))
 
 
+def _whatsapp_groups_resumo(launch: Any):
+    """Total de grupos e pessoas ativas, Normal × VIP — pauta Resumo
+    Executivo do Debriefing (15/09/26)."""
+    from frontend.db_readers.whatsapp_groups import read_whatsapp_groups
+    return _get_or_compute(launch.code, "whatsapp_groups_resumo",
+                           lambda: read_whatsapp_groups(launch.code))
+
+
+def _dia1_sales(launch: Any):
+    """Vendas cumulativas hora a hora no dia 1 do carrinho — usado pra
+    "Total de Vendas na 1ª Hora" no Resumo Executivo do Debriefing
+    (15/09/26; carrinho abre ~8h, "1ª hora" = checkpoint das 9h)."""
+    from frontend.db_readers.sales import read_dia1_sales
+    return _get_or_compute(launch.code, "dia1_sales",
+                           lambda: read_dia1_sales(launch))
+
+
 def _forma_pagamento_entrada(launch: Any):
     from frontend.db_readers.sales import read_forma_pagamento_entrada
     start, end = _window(launch)

@@ -301,11 +301,20 @@ def _resumo_tabela(conn, tabela: str, start, end, tem_lead_numero: bool) -> dict
 def _mesclar_contagem_sheets(alvo: dict | None, contagem: dict | None) -> None:
     """Mescla total/total_limpo/grupos/entradas_hoje/saidas_hoje (vindos do
     Sheets) no dict de resumo da tabela acumulada, sem deixar um campo que
-    faltou (None) sobrescrever um valor bom que já estava lá."""
+    faltou (None) sobrescrever um valor bom que já estava lá.
+
+    "grupos" do Sheets nunca rastreou VIP em alguns lançamentos (sempre 0,
+    mesmo com centenas de pessoas ativas) — achado 15/09/26, PI-AGO-26:
+    Sheets dava vip.grupos=0 mas o SQL já tinha ~51 grupos reais. 0 aqui
+    não é "zero real", é "não contabilizado" — não sobrescreve um valor
+    de verdade que já estava calculado.
+    """
     if not alvo or not contagem:
         return
     for chave, valor in contagem.items():
         if valor is None:
+            continue
+        if chave == "grupos" and valor == 0 and alvo.get("grupos"):
             continue
         alvo[chave] = valor
 

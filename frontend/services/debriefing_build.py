@@ -28,6 +28,7 @@ from frontend.services.fetch import (
     _landing_pages_por_etapa, _leads_x_whatsapp, _vendas_grupos_whatsapp,
     _disparo_resumo, _ebook_compradores, _hotmart_recompra,
     _launch_cfg, _compradores_por_dia_grupo, _forma_pagamento_entrada,
+    _whatsapp_groups_resumo, _dia1_sales,
 )
 from frontend.database_reader import read_hotmart_details
 
@@ -257,6 +258,34 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
             falhas.append("hotmart_semana_seguinte")
             return None, None
 
+    async def f_whatsapp_groups_resumo():
+        """Total de grupos e pessoas ativas, Normal × VIP — Resumo Executivo
+        (atual + lançamento anterior, pra comparativo)."""
+        if not launch:
+            return None, None
+        try:
+            curr = await run_in_threadpool(_whatsapp_groups_resumo, launch)
+            prev_r = await run_in_threadpool(_whatsapp_groups_resumo, previous) if previous else None
+            return curr, prev_r
+        except Exception:
+            logger.exception("Debriefing: falha ao montar resumo de grupos de WhatsApp")
+            falhas.append("whatsapp_groups_resumo")
+            return None, None
+
+    async def f_dia1_sales():
+        """Vendas cumulativas hora a hora no dia 1 — "Vendas na 1ª Hora"
+        (atual + lançamento anterior, pra comparativo)."""
+        if not launch:
+            return None, None
+        try:
+            curr = await run_in_threadpool(_dia1_sales, launch)
+            prev_r = await run_in_threadpool(_dia1_sales, previous) if previous else None
+            return curr, prev_r
+        except Exception:
+            logger.exception("Debriefing: falha ao montar vendas do dia 1 (checkpoints)")
+            falhas.append("dia1_sales")
+            return None, None
+
     async def f_previous():
         if not previous:
             return None, None, None, None, None, None, None
@@ -295,6 +324,8 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         forma_pagamento_entrada,
         comparativo_historico,
         historico_grande,
+        (whatsapp_groups_resumo, prev_whatsapp_groups_resumo),
+        (dia1_sales, prev_dia1_sales),
     ) = await asyncio.gather(
         f_creative(), f_leads_antigos(), f_perfil_pesquisa(),
         f_qualidade_regiao(), f_caminho_comprador(), f_previous(),
@@ -302,7 +333,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         f_disparo_resumo(), f_ebook(), f_hotmart_recompra(),
         f_hotmart_semana_seguinte(), f_compradores_por_dia_grupo(),
         f_forma_pagamento_entrada(), f_comparativo_historico(),
-        f_historico_grande(),
+        f_historico_grande(), f_whatsapp_groups_resumo(), f_dia1_sales(),
     )
 
     dbf = _compute_debriefing_ctx(
@@ -334,6 +365,10 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         forma_pagamento_entrada=forma_pagamento_entrada,
         comparativo_historico=comparativo_historico,
         historico_grande=historico_grande,
+        whatsapp_groups_resumo=whatsapp_groups_resumo,
+        prev_whatsapp_groups_resumo=prev_whatsapp_groups_resumo,
+        dia1_sales=dia1_sales,
+        prev_dia1_sales=prev_dia1_sales,
     )
     return {
         "dbf": dbf,

@@ -32,7 +32,7 @@ TABLE = "debriefing_snapshot"
 # aquecimento regravar. (Ex.: 2 = saída dos grupos de WhatsApp, vendas x
 # grupos e detalhamento do disparo; 4 = thruview/pct_50 no Novos x Antigos
 # de Pré-Qualificação.)
-SNAPSHOT_VERSION = 4
+SNAPSHOT_VERSION = 5
 
 DDL = f"""
 CREATE TABLE IF NOT EXISTS {TABLE} (

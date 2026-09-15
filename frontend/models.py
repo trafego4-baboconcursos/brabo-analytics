@@ -267,6 +267,15 @@ class YoutubeAulaStat:
     avg_view_dur_sec: float = 0.0
     avg_view_pct: float = 0.0
     peak_concurrent: int = 0
+    # Só o relatório pós-transmissão do Studio tem estes (a API não entrega):
+    viewers_fim: int = 0          # simultâneos no último minuto da live
+    chat_msgs: int = 0
+    reacoes: int = 0
+    fonte: str = "api"            # 'api' | 'manual' (CSV do Studio)
+    curva: list[dict] = field(default_factory=list)  # [{pos_min, simultaneos}]
+    # Retenção ao vivo (fim/pico) é campo, não property: o snapshot do
+    # debriefing serializa com dataclasses.asdict, que ignora properties.
+    retencao_live_pct: float = 0.0
 
 @dataclass
 class ConsolidadoVendasSummary:

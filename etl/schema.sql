@@ -919,6 +919,33 @@ CREATE TABLE IF NOT EXISTS youtube_aulas_stats (
 
 CREATE INDEX IF NOT EXISTS idx_yt_aulas_launch ON youtube_aulas_stats (launch_code, aula_num);
 
+-- Campos que so existem no relatorio pos-transmissao do YouTube Studio (nao
+-- vem da API): quantos ficaram ate o fim, chat e reacoes ao vivo. `fonte`
+-- distingue o que veio da API do que foi ingerido de CSV exportado a mao.
+ALTER TABLE youtube_aulas_stats ADD COLUMN IF NOT EXISTS viewers_fim  INTEGER DEFAULT 0;
+ALTER TABLE youtube_aulas_stats ADD COLUMN IF NOT EXISTS chat_msgs    BIGINT  DEFAULT 0;
+ALTER TABLE youtube_aulas_stats ADD COLUMN IF NOT EXISTS reacoes      BIGINT  DEFAULT 0;
+ALTER TABLE youtube_aulas_stats ADD COLUMN IF NOT EXISTS fonte        TEXT    DEFAULT 'api';
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Curva minuto a minuto da transmissao ao vivo. Uma linha por (lancamento,
+-- aula, posicao em segundos). Vem do export "liveViewership_*.csv" do Studio;
+-- a API do YouTube nao entrega essa serie. Populada por etl_youtube_csv.py.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS youtube_live_curva (
+    launch_code   TEXT    NOT NULL,
+    aula_num      INTEGER NOT NULL,
+    posicao_seg   INTEGER NOT NULL,
+    simultaneos   INTEGER DEFAULT 0,
+    media_simult  INTEGER DEFAULT 0,
+    chat_msgs     INTEGER DEFAULT 0,
+    envolvimentos INTEGER DEFAULT 0,
+    reacoes       INTEGER DEFAULT 0,
+    PRIMARY KEY (launch_code, aula_num, posicao_seg)
+);
+
+CREATE INDEX IF NOT EXISTS idx_yt_curva_launch ON youtube_live_curva (launch_code, aula_num, posicao_seg);
+
 CREATE TABLE IF NOT EXISTS etl_runs (
     id              BIGSERIAL PRIMARY KEY,
     source          TEXT        NOT NULL,

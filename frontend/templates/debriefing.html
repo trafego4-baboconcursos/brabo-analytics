@@ -2283,7 +2283,7 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
     <div class="dbf-section-title"><i class="ti ti-brand-youtube"></i> Engajamento das Aulas — YouTube</div>
 
     {% if not dbf.youtube_aulas %}
-      {{ sem_dados("YouTube Analytics — execute: python etl/etl_youtube_analytics.py --launch-code " ~ (launch.code if launch else 'CODIGO') ~ " (após adicionar os video_ids no YAML do lançamento)") }}
+      {{ sem_dados("YouTube — sem API: exporte o relatório pós-transmissão de cada aula no Studio para analises/[" ~ (launch.code if launch else 'CODIGO') ~ "]/Youtube/Aula N/ e execute: python etl/etl_youtube_csv.py --launch-code " ~ (launch.code if launch else 'CODIGO') ~ " · Com API: python etl/etl_youtube_analytics.py --launch-code " ~ (launch.code if launch else 'CODIGO')) }}
       <div class="aula-grid" style="margin-top:16px">
         {% for n in ["Aula 1", "Aula 2", "Aula 3", "Aula 4"] %}
         <div class="aula-card">
@@ -2297,63 +2297,96 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
         {% endfor %}
       </div>
     {% else %}
-      <div class="aula-grid">
+      <div class="aula-grid" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">
         {% for a in dbf.youtube_aulas %}
-        {% set dur_min = (a.duration_sec / 60) | round(1) if a.duration_sec > 0 else 0 %}
+        {% set dur_min = (a.duration_sec / 60) | round | int if a.duration_sec > 0 else 0 %}
         {% set avg_min = (a.avg_view_dur_sec / 60) | round(1) if a.avg_view_dur_sec > 0 else 0 %}
+        {% set ret_live = a.retencao_live_pct | default(0, true) %}
+        {% set curva = a.curva | default([], true) %}
         <div class="aula-card">
-          <div style="font-size:11px;font-weight:700;color:var(--bs-accent);margin-bottom:6px">Aula {{ a.aula_num }}</div>
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+            <span style="font-size:11px;font-weight:700;color:var(--bs-accent)">Aula {{ a.aula_num }}</span>
+            {% if a.fonte == 'manual' %}
+            <span title="Relatório pós-transmissão do YouTube Studio (importado por CSV)"
+                  style="font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--bs-ink-muted);border:1px solid var(--bs-border);border-radius:4px;padding:1px 5px">CSV</span>
+            {% endif %}
+          </div>
           {% if a.titulo %}
           <div style="font-size:12px;color:var(--bs-ink);font-weight:600;margin-bottom:10px;line-height:1.3">{{ a.titulo[:60] }}{% if a.titulo|length > 60 %}…{% endif %}</div>
           {% endif %}
 
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+          <!-- Pico e fim da transmissão (relatório pós-live) -->
+          {% if a.peak_concurrent > 0 %}
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
             <div>
-              <div class="aula-num" style="color:{% if a.views_live > 0 %}var(--bs-ink){% else %}var(--bs-ink-subtle){% endif %}">
-                {{ a.views_live | num if a.views_live > 0 else "—" }}
-              </div>
-              <div class="aula-lbl">Views ao vivo</div>
+              <div class="aula-num" style="color:var(--bs-ink)">{{ a.peak_concurrent | num }}</div>
+              <div class="aula-lbl">Pico simultâneo</div>
             </div>
             <div>
-              <div class="aula-num" style="color:{% if a.views_replay > 0 %}var(--bs-ink){% else %}var(--bs-ink-subtle){% endif %}">
-                {{ a.views_replay | num if a.views_replay > 0 else "—" }}
+              <div class="aula-num" style="color:{% if ret_live >= 50 %}#15803d{% elif ret_live >= 40 %}#d97706{% else %}#dc2626{% endif %}">
+                {{ a.viewers_fim | num if a.viewers_fim > 0 else "—" }}
               </div>
-              <div class="aula-lbl">Views replay</div>
+              <div class="aula-lbl">Ao vivo no fim</div>
             </div>
           </div>
+          {% endif %}
 
-          <!-- Barra de retenção -->
-          {% if a.avg_view_pct > 0 %}
+          <!-- Curva minuto a minuto da live -->
+          {% if curva | length > 1 and a.peak_concurrent > 0 %}
+          {% set n = curva | length %}
+          <div style="margin-bottom:8px">
+            <svg viewBox="0 0 100 30" preserveAspectRatio="none" style="width:100%;height:40px;display:block">
+              <polygon opacity="0.12" fill="var(--bs-accent)"
+                points="0,30 {% for p in curva %}{{ (loop.index0 / (n - 1) * 100) | round(2) }},{{ (29 - (p.simultaneos / a.peak_concurrent * 27)) | round(2) }} {% endfor %}100,30" />
+              <polyline fill="none" stroke="var(--bs-accent)" stroke-width="1.5" vector-effect="non-scaling-stroke"
+                stroke-linejoin="round" stroke-linecap="round"
+                points="{% for p in curva %}{{ (loop.index0 / (n - 1) * 100) | round(2) }},{{ (29 - (p.simultaneos / a.peak_concurrent * 27)) | round(2) }} {% endfor %}" />
+            </svg>
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--bs-ink-subtle);margin-top:2px">
+              <span>0min</span><span>Audiência ao vivo</span><span>{{ dur_min }}min</span>
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- Barra de retenção: da API quando existe, senão fim/pico da live -->
+          {% if a.avg_view_pct > 0 or ret_live > 0 %}
+          {% set ret_val = a.avg_view_pct if a.avg_view_pct > 0 else ret_live %}
           <div style="margin-bottom:8px">
             <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--bs-ink-muted);margin-bottom:3px">
-              <span>Retenção média</span>
-              <span style="font-weight:700;color:{% if a.avg_view_pct >= 50 %}#15803d{% elif a.avg_view_pct >= 30 %}#d97706{% else %}#dc2626{% endif %}">
-                {{ a.avg_view_pct | round(1) }}%
+              <span>{% if a.avg_view_pct > 0 %}Retenção média{% else %}Retenção ao vivo (fim/pico){% endif %}</span>
+              <span style="font-weight:700;color:{% if ret_val >= 50 %}#15803d{% elif ret_val >= 30 %}#d97706{% else %}#dc2626{% endif %}">
+                {{ ret_val | round(1) }}%
               </span>
             </div>
             <div style="height:6px;background:var(--bs-border);border-radius:3px;overflow:hidden">
-              <div style="height:100%;width:{{ [a.avg_view_pct, 100] | min | round | int }}%;background:{% if a.avg_view_pct >= 50 %}#16a34a{% elif a.avg_view_pct >= 30 %}#f59e0b{% else %}#dc2626{% endif %};border-radius:3px"></div>
+              <div style="height:100%;width:{{ [ret_val, 100] | min | round | int }}%;background:{% if ret_val >= 50 %}#16a34a{% elif ret_val >= 30 %}#f59e0b{% else %}#dc2626{% endif %};border-radius:3px"></div>
             </div>
           </div>
           {% endif %}
 
           <div class="aula-detail">
             <i class="ti ti-clock" style="font-size:11px"></i>
-            Duração: {{ dur_min }}min · Assistido: {{ avg_min }}min
+            Duração: {{ dur_min }}min{% if avg_min > 0 %} · Assistido: {{ avg_min }}min{% endif %}
           </div>
+          {% if a.chat_msgs > 0 or a.reacoes > 0 %}
+          <div class="aula-detail" style="margin-top:3px">
+            <i class="ti ti-message-circle" style="font-size:11px"></i>
+            Chat: {{ a.chat_msgs | num }} · Reações: {{ a.reacoes | num }}
+          </div>
+          {% endif %}
+          {% if a.views_live > 0 or a.views_replay > 0 %}
+          <div class="aula-detail" style="margin-top:3px">
+            <i class="ti ti-player-play" style="font-size:11px"></i>
+            Views: {{ a.views_live | num }} ao vivo · {{ a.views_replay | num }} replay
+          </div>
+          {% endif %}
           {% if a.watch_time_min > 0 %}
           <div class="aula-detail" style="margin-top:3px">
             <i class="ti ti-eye" style="font-size:11px"></i>
             Watch time total: {{ (a.watch_time_min / 60) | round(1) }}h
           </div>
           {% endif %}
-          {% if a.peak_concurrent > 0 %}
-          <div class="aula-detail" style="margin-top:3px">
-            <i class="ti ti-users" style="font-size:11px"></i>
-            Pico simultâneo: {{ a.peak_concurrent | num }}
-          </div>
-          {% endif %}
-          {% if a.video_id %}
+          {% if a.video_id and not a.video_id.startswith('manual-') %}
           <div style="margin-top:8px">
             <a href="https://www.youtube.com/watch?v={{ a.video_id }}" target="_blank"
                style="font-size:11px;color:var(--bs-accent);text-decoration:none;font-weight:600">
@@ -2368,27 +2401,32 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
       <!-- Totais YouTube -->
       {% set total_views = dbf.youtube_aulas | sum(attribute='views_total') %}
       {% set total_wt    = dbf.youtube_aulas | sum(attribute='watch_time_min') %}
+      {% set total_chat  = dbf.youtube_aulas | sum(attribute='chat_msgs') %}
+      {% set total_rea   = dbf.youtube_aulas | sum(attribute='reacoes') %}
       <div class="dbf-kpi-grid" style="margin-top:16px;grid-template-columns:repeat(4,1fr)">
-        <div class="dbf-kpi">
-          <div class="lbl">Total Views</div>
-          <div class="val">{{ total_views | num }}</div>
-        </div>
-        <div class="dbf-kpi">
-          <div class="lbl">Watch Time Total</div>
-          <div class="val">{{ (total_wt / 60) | round(1) }}h</div>
-        </div>
-        <div class="dbf-kpi">
-          <div class="lbl">Retenção Média</div>
-          <div class="val">
-            {% set aulas_com_ret = dbf.youtube_aulas | selectattr('avg_view_pct', 'gt', 0) | list %}
-            {% if aulas_com_ret %}
-              {{ (aulas_com_ret | sum(attribute='avg_view_pct') / aulas_com_ret|length) | round(1) }}%
-            {% else %}—{% endif %}
-          </div>
-        </div>
         <div class="dbf-kpi">
           <div class="lbl">Maior Pico Simultâneo</div>
           <div class="val">{{ dbf.max_peak_yt | num }}</div>
+        </div>
+        <div class="dbf-kpi">
+          <div class="lbl">{% if total_views > 0 %}Total Views{% else %}Mensagens no Chat{% endif %}</div>
+          <div class="val">{{ (total_views if total_views > 0 else total_chat) | num }}</div>
+        </div>
+        <div class="dbf-kpi">
+          <div class="lbl">{% if total_wt > 0 %}Watch Time Total{% else %}Reações ao Vivo{% endif %}</div>
+          <div class="val">{% if total_wt > 0 %}{{ (total_wt / 60) | round(1) }}h{% else %}{{ total_rea | num }}{% endif %}</div>
+        </div>
+        <div class="dbf-kpi">
+          {% set aulas_com_ret = dbf.youtube_aulas | selectattr('avg_view_pct', 'gt', 0) | list %}
+          {% set aulas_live    = dbf.youtube_aulas | selectattr('peak_concurrent', 'gt', 0) | list %}
+          <div class="lbl">{% if aulas_com_ret %}Retenção Média{% else %}Retenção Média ao Vivo{% endif %}</div>
+          <div class="val">
+            {% if aulas_com_ret %}
+              {{ (aulas_com_ret | sum(attribute='avg_view_pct') / aulas_com_ret|length) | round(1) }}%
+            {% elif aulas_live %}
+              {{ (aulas_live | sum(attribute='retencao_live_pct') / aulas_live|length) | round(1) }}%
+            {% else %}—{% endif %}
+          </div>
         </div>
       </div>
     {% endif %}

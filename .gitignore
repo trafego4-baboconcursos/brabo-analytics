@@ -53,6 +53,9 @@ node_modules/
 # Dados de lançamentos (CSVs/planilhas grandes, contêm PII de leads/compradores)
 analises/**/*.csv
 analises/**/*.xlsx
+# Exports zipados do YouTube Studio: mesma razao dos CSVs acima — o dado
+# util ja esta no banco (youtube_live_curva), o arquivo fica so na maquina.
+analises/**/*.zip
 # Exceção: dados de referência do calendário (sem PII, servidos pela página do calendário)
 !analises/calendario/BASE_CONSULTA_CALENDARIO_2026.csv
 !analises/calendario/BASE_CONSULTA_CALENDARIO_2026_EXTRAIDA.csv

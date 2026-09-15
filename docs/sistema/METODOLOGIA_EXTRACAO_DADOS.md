@@ -2,11 +2,12 @@
 titulo: "Metodologia de Extração e Atribuição de Dados por Lançamento"
 area: sistema
 status: vigente
-atualizado: 2026-09-14
+atualizado: 2026-09-15
 responde:
   - "como cada metrica e extraida"
   - "regras de atribuicao lead-venda"
   - "o que mudou com o fim do Typeform"
+  - "como as metricas das aulas do YouTube sao extraidas sem API"
 relacionados:
   - "[[ARQUITETURA]]"
 ---
@@ -235,3 +236,34 @@ Formulários já criados nesse sistema: `[PBB-AGO-26] Pesquisa - Projeto Banco d
 ---
 
 *Documento revisado e atualizado para englobar os novos módulos de conexão MCP, as rotinas diárias em SQLAlchemy e a evolução para a V2.*
+
+
+## 11. Métricas das aulas no YouTube sem API (2026-09-15)
+
+Sem a API do YouTube conectada, as métricas das aulas vêm do **relatório pós-transmissão**
+exportado à mão no YouTube Studio (`etl/etl_youtube_csv.py`). Isso muda o que cada número
+significa — não é o mesmo recorte que a API devolve.
+
+**O que o export mede:**
+
+| Métrica | Como é extraída | Cuidado na leitura |
+|---|---|---|
+| `peak_concurrent` | máximo da coluna "Espectadores simultâneos" da curva | é o pico **ao vivo**, não o total de pessoas que assistiram |
+| `viewers_fim` | simultâneos no último ponto da curva | quem ainda estava ao vivo quando a transmissão encerrou |
+| `retencao_live_pct` | `viewers_fim / peak_concurrent` | **não** é a retenção média da API (`avg_view_pct`), que é tempo assistido ÷ duração. É "quantos dos que chegaram no pico ficaram até o fim" |
+| `duration_sec` | último ponto da curva | duração da *transmissão*, não do vídeo publicado depois |
+| `chat_msgs` / `reacoes` | soma da curva minuto a minuto | só interações **ao vivo**; comentários do replay não entram |
+
+**O que o export não mede:** views totais, watch time, retenção média, likes, comentários,
+split live vs replay e `video_id`. Esses campos ficam zerados até a API rodar ou até entrar o
+export do **Modo avançado** do Studio.
+
+**Por que a hierarquia importa no debriefing:** a barra de retenção usa `avg_view_pct` quando
+existe e cai para `retencao_live_pct` quando não — e troca o rótulo junto ("Retenção média"
+vs "Retenção ao vivo (fim/pico)"), porque comparar os dois como se fossem a mesma coisa
+inflaria ou deprimiria o número sem aviso. Pelo mesmo motivo os KPIs do rodapé trocam de
+métrica em vez de mostrar zero.
+
+**Comparação entre lançamentos:** só compare retenção entre aulas com a **mesma** fonte.
+PBB-JUN-26 tem dado de API (`avg_view_pct`); PI-AGO-26 tem dado de CSV
+(`retencao_live_pct`). A coluna `fonte` de `youtube_aulas_stats` existe para essa checagem.

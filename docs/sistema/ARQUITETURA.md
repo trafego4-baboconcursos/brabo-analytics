@@ -1,8 +1,8 @@
 ---
-titulo: "Arquitetura do Brabo Analytics — 2026-09-14"
+titulo: "Arquitetura do Brabo Analytics — 2026-09-15"
 area: sistema
 status: vigente
-atualizado: 2026-09-14
+atualizado: 2026-09-15
 responde:
   - "como o sistema funciona por dentro"
   - "fluxo de dados"
@@ -94,6 +94,9 @@ relacionados:
 > - [[ARQUITETURA#Como conferir se as correções de egress estão valendo|Como conferir se as correções de egress estão valendo]]
 > - [[ARQUITETURA#Anotações no gráfico (`/verba`)|Anotações no gráfico (`/verba`)]]
 > - [[ARQUITETURA#Contexto medido por evento|Contexto medido por evento]]
+>
+> **Dados das aulas no YouTube — duas fontes, uma tabela (2026-09-15)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -783,3 +786,45 @@ Dos 193 eventos: 123 medidos, 20 mudança de patamar, 18 sem base, 32 sem dado n
 
 `scripts/efeito_acao.py --itens` passou a ler a tabela em vez de parsear o markdown — com
 isso funciona para distribuição e perpétuo do mesmo jeito que para lançamento.
+
+
+## Dados das aulas no YouTube — duas fontes, uma tabela (2026-09-15)
+
+A API do YouTube ainda não está conectada. Até lá os dados das aulas entram pelo export
+manual do YouTube Studio, e o sistema aceita as duas fontes na mesma tabela.
+
+**`etl/etl_youtube_csv.py`** lê `analises/[LAUNCH]/Youtube/Aula N/` — zip ou CSV solto, como
+o Studio baixa — e grava com `fonte='manual'`. É ingestão manual: de propósito **não** está
+no `run_all.py` nem no `scheduler.py`.
+
+O export é o relatório da *transmissão ao vivo*: `liveViewership_*.csv` (curva minuto a
+minuto) e `liveEngagements_*.csv` (totais por tipo). Ele resolve exatamente o campo que a
+API **não** entrega para uma live encerrada — `peak_concurrent`, já que
+`liveStreamingDetails.concurrentViewers` da Data API só existe enquanto a transmissão está
+no ar. Ou seja: mesmo com a API conectada, o pico de simultâneos continuará vindo daqui.
+
+Em compensação o export não tem views totais, watch time, retenção média, likes, comments,
+live vs replay nem o `video_id` — isso é do `etl_youtube_analytics.py` (API) ou do export do
+Modo avançado.
+
+**Por isso o upsert de cada script só toca as colunas que ele realmente mede.** Os dois
+escrevem na mesma linha de `youtube_aulas_stats` sem zerar o trabalho do outro. Enquanto não
+há `video_id` real, o CSV usa a chave estável `manual-aula-N`, que satisfaz o
+`UNIQUE(launch_code, video_id)` sem colidir com a linha que a API vai gravar depois.
+
+**Tabelas (banco analytics):**
+
+- `youtube_aulas_stats` — 1 linha por vídeo. Ganhou `viewers_fim`, `chat_msgs`, `reacoes` e
+  `fonte` ('api' | 'manual').
+- `youtube_live_curva` — 1 linha por (lançamento, aula, segundo). A série minuto a minuto não
+  cabe numa tabela de 1 linha por vídeo, e a API não entrega essa curva de jeito nenhum.
+
+`read_youtube_aulas` (`frontend/database_reader.py`) monta as duas coisas: os agregados mais
+a curva já convertida para minutos, e calcula `retencao_live_pct` (fim/pico). Isso é **campo,
+não property** — o snapshot do debriefing serializa com `dataclasses.asdict`, que ignora
+properties, e a página leria `Undefined`.
+
+A seção "Engajamento das Aulas — YouTube" do `/debriefing` renderiza a partir de qualquer uma
+das fontes: mostra o que existe e omite o resto, com badge "CSV" no dado manual e sparkline
+SVG da curva. Os 4 KPIs do rodapé trocam de métrica conforme a fonte (sem API: chat, reações
+e retenção ao vivo no lugar de views e watch time).

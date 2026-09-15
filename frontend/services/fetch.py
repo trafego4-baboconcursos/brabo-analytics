@@ -100,10 +100,26 @@ def _perfil_por_anuncio(launch: Any):
                            lambda: read_perfil_por_anuncio(launch.code))
 
 
-def _pesquisa_engajamento(launch: Any):
+def _pesquisa_engajamento(launch: Any, previous: Any = None):
+    """`previous` opcional: quando informado, mescla prev_respostas do
+    lançamento anterior — pauta comparativo no card "Funil da Pesquisa"
+    do debriefing. Compartilhado com "pesquisa_engajamento" (perfil
+    demográfico) e /typeform, que não usam prev_respostas — chave extra
+    no dict não afeta esses templates."""
     from frontend.db_readers.typeform import read_pesquisa_engajamento
-    return _get_or_compute(launch.code, "pesquisa_engajamento",
-                           lambda: read_pesquisa_engajamento(launch.code))
+    atual = _get_or_compute(launch.code, "pesquisa_engajamento",
+                            lambda: read_pesquisa_engajamento(launch.code))
+    if not atual or not previous:
+        return atual
+    prev = _get_or_compute(previous.code, "pesquisa_engajamento",
+                           lambda: read_pesquisa_engajamento(previous.code))
+    if not prev:
+        return atual
+    out = dict(atual)
+    out["has_prev"] = True
+    out["prev_code"] = previous.code
+    out["prev_respostas"] = prev.get("respostas")
+    return out
 
 
 def _leads_x_whatsapp(launch: Any, previous: Any = None):

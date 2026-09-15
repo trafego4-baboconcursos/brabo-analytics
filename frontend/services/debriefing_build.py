@@ -93,7 +93,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         try:
             return await asyncio.gather(
                 run_in_threadpool(_perfil_por_anuncio, launch),
-                run_in_threadpool(_pesquisa_engajamento, launch),
+                run_in_threadpool(_pesquisa_engajamento, launch, previous),
             )
         except Exception:
             logger.exception("Debriefing: falha ao montar perfil do lead por anúncio")

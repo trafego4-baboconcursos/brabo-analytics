@@ -1,6 +1,7 @@
 {# Corpo da seção "Funil da Pesquisa — Leads". Reaproveita o mesmo dado de
    pesquisa_engajamento (cache compartilhado) — só a exibição muda, focada
    no funil pedido na pauta. Vazio quando não há dado. #}
+{% from "debriefing/_macros.html" import dbadge with context %}
 {% if dbf.pesquisa_engajamento %}
 {% set pe = dbf.pesquisa_engajamento %}
 <div class="dbf-lazy-body">
@@ -8,10 +9,14 @@
     <div class="dbf-kpi">
       <div class="lbl">Finalizaram / Responderam a pesquisa</div>
       <div class="val">{{ pe.respostas | num }}</div>
+      {% if pe.has_prev %}
+        {{ dbadge(pe.respostas, pe.prev_respostas, 'up') }}
+        <div class="prev-val">ant.: {{ pe.prev_respostas | num }}</div>
+      {% endif %}
     </div>
   </div>
   <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
-    A pesquisa é disparada via automação de WhatsApp — quem recebeu, abriu e iniciou a pesquisa ainda não é rastreado nessa automação, então só o total de quem finalizou (respondeu) está disponível hoje. Assim que houver essa fonte, as etapas e percentuais do funil completo (recebeu → abriu → iniciou → finalizou) entram aqui.
+    A pesquisa é disparada via automação de WhatsApp — quem recebeu, abriu e iniciou a pesquisa ainda não é rastreado nessa automação, então só o total de quem finalizou (respondeu) está disponível hoje. Assim que houver essa fonte, as etapas e percentuais do funil completo (recebeu → abriu → iniciou → finalizou) entram aqui.{% if pe.has_prev %} Comparativo vs {{ pe.prev_code }} (último lançamento INSS).{% endif %}
   </div>
 </div>
 {% endif %}

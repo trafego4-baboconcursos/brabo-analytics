@@ -660,8 +660,11 @@ async def debriefing_secao(request: Request, secao: str, launch_code: str | None
         elif secao == "funil_pesquisa":
             # Mesmo dado de pesquisa_engajamento (cache compartilhado, cache
             # hit garantido se aquela seção já carregou) — só o template
-            # muda, focado no funil que a pauta pediu.
-            dbf["pesquisa_engajamento"] = await run_in_threadpool(_pesquisa_engajamento, launch)
+            # muda, focado no funil que a pauta pediu. Só aqui passa
+            # `previous`: comparativo é só desse card, o de perfil
+            # demográfico não usa prev_respostas.
+            previous = find_previous_launch(launch, launches)
+            dbf["pesquisa_engajamento"] = await run_in_threadpool(_pesquisa_engajamento, launch, previous)
         elif secao == "leads_x_whatsapp":
             previous = find_previous_launch(launch, launches)
             dbf[secao] = await run_in_threadpool(_leads_x_whatsapp, launch, previous)

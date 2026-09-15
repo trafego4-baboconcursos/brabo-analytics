@@ -11,6 +11,7 @@ Uso:
     python etl/run_all.py --csv-mode --campaign-folder "analises/[PBB-ABR-26]" --period 2026-04
 """
 import argparse
+import re
 import subprocess
 import sys
 from datetime import datetime
@@ -44,6 +45,22 @@ _TIMEOUT_PADRAO_SEGUNDOS = 900  # 15 min — folgado pra janela normal de 3 dias
 # processo travar pra sempre se a API realmente cair.
 _TIMEOUTS_POR_FONTE = {"active_campaign": 1800}
 
+# Um traceback de erro HTTP carrega a URL COMPLETA da chamada que falhou — e
+# no Meta/Google o segredo vai na query string. Sem isso, o token vaza em
+# texto puro pra etl_runs.error_message e pro ERROR_WEBHOOK_URL (visto em
+# 15/09/26: um 500 do Graph gravou o META_ACCESS_TOKEN inteiro na tabela).
+_SEGREDOS_EM_URL_RE = re.compile(
+    r"\b((?:access_token|refresh_token|client_secret|developer_token|api_key|apikey|key|token)=)[^&\s\"']+",
+    re.IGNORECASE,
+)
+
+
+def redigir_segredos(texto: str) -> str:
+    """Troca o valor de qualquer parâmetro sensível por <REDACTED>."""
+    if not texto:
+        return texto
+    return _SEGREDOS_EM_URL_RE.sub(r"\1<REDACTED>", texto)
+
 
 def run(cmd: list[str], label: str, source: str | None = None, timeout: int = _TIMEOUT_PADRAO_SEGUNDOS) -> int:
     logger.info("Iniciando: %s", label)
@@ -57,16 +74,16 @@ def run(cmd: list[str], label: str, source: str | None = None, timeout: int = _T
         result = subprocess.run(cmd, timeout=timeout, capture_output=True, text=True, encoding="utf-8", errors="ignore")
         returncode = result.returncode
         if result.stdout:
-            sys.stdout.write(result.stdout)
+            sys.stdout.write(redigir_segredos(result.stdout))
         if result.stderr:
-            sys.stderr.write(result.stderr)
+            sys.stderr.write(redigir_segredos(result.stderr))
     except subprocess.TimeoutExpired:
         logger.error("Timeout em '%s' após %ds — processo travado, seguindo para a próxima fonte.", label, timeout)
         finish_run(run_id, status="error", error=f"timeout apos {timeout}s")
         return -1
     if returncode != 0:
         logger.error("Falha em '%s' (código %d)", label, returncode)
-        detalhe = (result.stderr or result.stdout or "").strip()[-3000:]
+        detalhe = redigir_segredos((result.stderr or result.stdout or "").strip()[-3000:])
         finish_run(run_id, status="error", error=f"exit code {returncode}: {detalhe}" if detalhe else f"exit code {returncode}")
     else:
         logger.info("Concluído: %s", label)

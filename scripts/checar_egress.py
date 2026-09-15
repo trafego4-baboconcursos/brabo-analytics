@@ -84,9 +84,12 @@ def main() -> int:
         print("=" * 66)
         veredito_ok = True
         for rotulo, cond, esperado_novo in ASSINATURAS:
+            # Só SELECT: INSERT/DELETE do ETL também casam com os padrões de
+            # tabela e contam linhas ESCRITAS, que não são egress. Sem este
+            # filtro o DELETE FROM ga4_daily aparecia como "código antigo".
             linhas, chamadas = conn.execute(text(
                 f"SELECT COALESCE(sum(rows), 0), COALESCE(sum(calls), 0)"
-                f" FROM pg_stat_statements WHERE {cond}"
+                f" FROM pg_stat_statements WHERE query ILIKE 'select%' AND ({cond})"
             )).fetchone()
             presente = chamadas > 0
             if esperado_novo:

@@ -1,0 +1,39 @@
+{# Corpo da seção "Leads X Grupos de WhatsApp". Vazio quando não há dado
+   (no carregamento sob demanda o JS remove a seção inteira nesse caso). #}
+{% if dbf.leads_x_whatsapp %}
+{% set lw = dbf.leads_x_whatsapp %}
+<div class="dbf-lazy-body">
+  <div class="dbf-kpi-grid" style="grid-template-columns:1fr">
+    <div class="dbf-kpi">
+      <div class="lbl">Total de leads (Active Campaign)</div>
+      <div class="val">{{ lw.total_leads | num }}</div>
+    </div>
+  </div>
+
+  {% for tipo, dados in [("Grupos Normais", lw.normal), ("Grupos VIP", lw.vip)] %}
+  {% if dados %}
+  <div style="font-size:13px;font-weight:700;margin-top:18px;margin-bottom:8px">{{ tipo }}</div>
+  <div class="dbf-kpi-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="dbf-kpi">
+      <div class="lbl">Pico no grupo</div>
+      <div class="val">{{ dados.total_whatsapp | num }}</div>
+      {% if dados.total_whatsapp_data %}<div style="font-size:11px;color:var(--bs-ink-subtle);margin-top:2px">{{ dados.total_whatsapp_data | br_date }}</div>{% endif %}
+    </div>
+    <div class="dbf-kpi">
+      <div class="lbl">Taxa de entrada</div>
+      <div class="val">{{ dados.taxa_entrada | round(1) }}%</div>
+    </div>
+    <div class="dbf-kpi">
+      <div class="lbl">Pico de saída</div>
+      <div class="val">{{ dados.saida_total | num }}</div>
+      {% if dados.saida_total_data %}<div style="font-size:11px;color:var(--bs-ink-subtle);margin-top:2px">{{ dados.saida_total_data | br_date }}</div>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+  {% endfor %}
+
+  <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:16px;">
+    Leads = linhas da tabela de leads (Active Campaign). Pico no grupo/Pico de saída = maior valor já registrado NUM ÚNICO DIA na planilha do sendflow-analytics-poller (mesmo histórico que o time já acompanha), com a data em que ocorreu — separado por tipo, Normal e VIP não são somados num total único porque quem está nos dois ao mesmo tempo exige uma dedup que só o poller faz. Taxa de entrada = pico no grupo ÷ leads. São os maiores valores já atingidos pelo lançamento, não o número de agora — evita mostrar um total menor ou uma saída zerada num lançamento antigo só porque a campanha já terminou.
+  </div>
+</div>
+{% endif %}

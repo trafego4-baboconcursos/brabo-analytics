@@ -1,0 +1,739 @@
+from __future__ import annotations
+import asyncio
+from fastapi import APIRouter, Request
+from fastapi.responses import HTMLResponse, Response
+from fastapi.concurrency import run_in_threadpool
+
+from frontend.core import (
+    templates, logger, WORKSPACE_ROOT,
+    get_launches, resolve_launch, find_previous_launch, _base_ctx,
+    _fetch_all_data, _creative_overview, _v1_reports_for_launch,
+    _get_cached, _set_cached,
+    read_comparativo, get_drive_thumbnails,
+    _fetch_prev_for_debriefing, _compute_debriefing_ctx,
+    _sales_attribution, read_comparativo_historico, read_historico_grande,
+)
+from frontend.services.fetch import (
+    _launch_cfg, _perfil_por_anuncio, _pesquisa_engajamento,
+    _leads_antigos_compradores, _qualidade_regiao, _caminho_comprador,
+    _landing_pages_por_etapa, _leads_x_whatsapp, _vendas_grupos_whatsapp,
+    _disparo_resumo, _conversao_pagina_captura, _utm_cobertura,
+)
+from frontend.services.calendario import build_calendario_ctx
+from frontend.services.debriefing_build import build_debriefing_context
+from frontend.services.orcamento import (
+    get_etapa, previsto_por_etapa, previsto_por_subetapa, REMARKETING_SUBETAPAS,
+    buckets_previsto_x_realizado, curva_diaria, com_realizado_diario,
+    publico_por_dia, previsto_publico_por_dia, investimento_diario_etapa, etapa_cfg,
+    com_percentuais, kpis_captacao_periodo_comparavel, combinar_previsto_realizado,
+)
+
+router = APIRouter()
+
+
+@router.get("/", response_class=HTMLResponse)
+async def index_page(request: Request, launch_code: str | None = None):
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    cfg = await run_in_threadpool(_launch_cfg, launch.code) if launch else {}
+
+    ctx = _base_ctx(request, "index", "Índice", launch, launches, cfg=cfg)
+    return templates.TemplateResponse("index.html", ctx)
+
+
+@router.get("/captacao", response_class=HTMLResponse)
+async def captacao(request: Request, launch_code: str | None = None):
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    d = await _fetch_all_data(launch, needs_daily=True, needs_thumbnails=True)
+    meta, google, vendas = d["meta"], d["google"], d["vendas"]
+    daily_breakdown      = d["daily_breakdown"]
+    daily_breakdown_preq = d.get("daily_breakdown_preq") or []
+    wa_cost = d.get("wa_cost")
+    wa_gasto = (wa_cost.get("total_cost_brl") or 0.0) if wa_cost else 0.0
+
+    # Esta página é só Captação — investimento/leads têm que vir escopados
+    # pela etapa (por_etapa["Captação"]), não pelo total do lançamento
+    # inteiro (que também soma Pré-Qualificação/Remarketing/etc).
+    meta_capt = (getattr(meta, "por_etapa", {}) or {}).get("Captação") or {}
+    google_capt = (getattr(google, "por_etapa", {}) or {}).get("Captação") or {}
+    meta_capt_gasto = float(meta_capt.get("gasto") or meta_capt.get("custo") or 0)
+    google_capt_gasto = float(google_capt.get("custo") or 0)
+    meta_capt_leads = int(meta_capt.get("leads") or 0)
+    google_capt_conv = float(google_capt.get("conversoes") or 0)
+
+    # ads_invest é só Meta+Google (captação de lead de verdade) — CPL/valor por
+    # lead e a meta de investimento de captação NUNCA podem incluir WhatsApp,
+    # que não gera lead nenhum. wa_gasto só entra no invest/ROAS (KPI de
+    # investimento total da campanha, não de custo por lead).
+    ads_invest = meta_capt_gasto + google_capt_gasto
+    receita = (vendas.total_receita if vendas else 0.0)
+    invest  = ads_invest + wa_gasto
+    roas    = receita / invest if invest > 0 else 0.0
+
+    cfg = await run_in_threadpool(_launch_cfg, launch.code) if launch else {}
+    goal_leads  = int(cfg.get("meta_leads") or 0)
+    goal_invest = float(cfg.get("meta_investimento_captacao") or 0)
+    leads_meta  = meta_capt_leads + int(round(google_capt_conv))
+    prog_leads  = min(100.0, leads_meta / goal_leads * 100) if goal_leads > 0 else None
+    valor_medio_lead = ads_invest / leads_meta if leads_meta > 0 else 0.0
+    prog_invest = min(100.0, ads_invest / goal_invest * 100) if goal_invest > 0 else None
+
+    conversao_pagina_captura = None
+    if launch:
+        try:
+            conversao_pagina_captura = await run_in_threadpool(_conversao_pagina_captura, launch)
+        except Exception:
+            logger.exception("Captação: falha ao montar conversão da página de captura (GA4)")
+
+    # KPIs Principais x lançamento anterior, no mesmo período relativo
+    # (mesma quantidade de dias decorridos desde o início da Captação).
+    prev_kpis = None
+    if launch:
+        previous = find_previous_launch(launch, launches)
+        if previous:
+            try:
+                prev_cfg = await run_in_threadpool(_launch_cfg, previous.code)
+                prev_kpis = await run_in_threadpool(
+                    kpis_captacao_periodo_comparavel, launch, previous, cfg, prev_cfg,
+                )
+            except Exception:
+                logger.exception("Captação: falha ao montar comparativo com lançamento anterior")
+
+    # % de Leads por Campanha — Facebook/YouTube por temperatura (só
+    # Captação; a segmentação por temperatura não existe em Pré-Qualificação
+    # neste sistema) + TikTok (sempre 0, sem fonte de dado ainda).
+    _clima_labels = ["Quente", "Frio", "Específico"]
+    meta_temp_capt = (getattr(meta, "por_temperatura_captacao", {}) or {})
+    google_temp = (getattr(google, "por_temperatura", {}) or {})
+    leads_por_campanha_raw = []
+    for c in _clima_labels:
+        m = meta_temp_capt.get(c) or {}
+        leads_por_campanha_raw.append({
+            "campanha": f"Facebook {c}",
+            "leads": int(m.get("leads") or 0),
+            "gasto": float(m.get("gasto") or m.get("custo") or 0),
+        })
+    for c in _clima_labels:
+        g = google_temp.get(c) or {}
+        leads_por_campanha_raw.append({
+            "campanha": f"YouTube {c}",
+            "leads": int(round(g.get("conversoes") or 0)),
+            "gasto": float(g.get("custo") or 0),
+        })
+    leads_por_campanha_raw.append({"campanha": "Tiktok", "leads": 0, "gasto": 0.0})
+    total_leads_camp = sum(r["leads"] for r in leads_por_campanha_raw) or 1
+    total_gasto_camp = sum(r["gasto"] for r in leads_por_campanha_raw) or 1
+    leads_por_campanha = []
+    for r in leads_por_campanha_raw:
+        leads_por_campanha.append({
+            **r,
+            "cpl": r["gasto"] / r["leads"] if r["leads"] > 0 else 0.0,
+            "pct_investimento": r["gasto"] / total_gasto_camp * 100,
+            "pct_leads": r["leads"] / total_leads_camp * 100,
+        })
+
+    # Taxa de Comparecimento WPP — reaproveita o mesmo cruzamento usado em
+    # "Leads X Grupos de WhatsApp" no debriefing (leads da AC × pessoas
+    # ativas nos grupos, deduplicado normal+VIP).
+    leads_x_whatsapp = None
+    utm_cobertura = None
+    if launch:
+        try:
+            leads_x_whatsapp = await run_in_threadpool(_leads_x_whatsapp, launch)
+        except Exception:
+            logger.exception("Captação: falha ao montar leads x WhatsApp")
+        try:
+            utm_cobertura = await run_in_threadpool(_utm_cobertura, launch)
+        except Exception:
+            logger.exception("Captação: falha ao montar cobertura de UTM")
+
+    # Divisão de Verba por Público em Cada Dia (Previsto x Realizado) —
+    # pauta debriefing 08/09/26, mesmo cruzamento já usado em /verba.
+    dia_publico_previsto = com_percentuais(previsto_publico_por_dia(cfg, "Captação"))
+    dia_publico_realizado = com_percentuais(
+        await run_in_threadpool(publico_por_dia, launch.code, cfg, "Captação") if launch else {}
+    )
+    verba_diaria_combinada = combinar_previsto_realizado(dia_publico_previsto, dia_publico_realizado)
+
+    ctx = _base_ctx(request, "captacao", "Captação", launch, launches,
+        meta=meta, google=google, vendas=vendas, wa_gasto=wa_gasto,
+        meta_capt_gasto=meta_capt_gasto, google_capt_gasto=google_capt_gasto,
+        meta_capt_leads=meta_capt_leads, google_capt_conv=google_capt_conv,
+        receita=receita, invest=invest, roas=roas,
+        goal_leads=goal_leads, goal_invest=goal_invest,
+        leads_meta=leads_meta, valor_medio_lead=valor_medio_lead,
+        prog_leads=prog_leads, prog_invest=prog_invest,
+        daily_breakdown=daily_breakdown,
+        daily_breakdown_preq=daily_breakdown_preq,
+        conversao_paginas=(conversao_pagina_captura or {}).get("Captação") or [],
+        leads_por_campanha=leads_por_campanha,
+        total_leads_camp=total_leads_camp, total_gasto_camp=total_gasto_camp,
+        leads_x_whatsapp=leads_x_whatsapp,
+        utm_cobertura=utm_cobertura,
+        prev_kpis=prev_kpis,
+        drive_thumbnails=d.get("drive_thumbnails") or {},
+        verba_diaria_combinada=verba_diaria_combinada,
+        data_errors=d.get("_errors", []),
+    )
+    return templates.TemplateResponse("dashboard.html", ctx)
+
+
+@router.get("/pre-qualificacao", response_class=HTMLResponse)
+async def pre_qualificacao(request: Request, launch_code: str | None = None):
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    d = await _fetch_all_data(launch, needs_daily=True, needs_thumbnails=True)
+    meta, google = d["meta"], d["google"]
+    daily_breakdown_preq = d.get("daily_breakdown_preq") or []
+    meta_ads_preq = meta.preq_por_ad if meta else []
+    youtube_ads_preq = google.preq_por_ad if google else []
+
+    # Resumo de investimento/leads — escopado pela etapa (por_etapa["Pré-
+    # Qualificação"]), igual ao fix da página de Captação (não pode somar o
+    # total do lançamento inteiro).
+    meta_preq = (getattr(meta, "por_etapa", {}) or {}).get("Pré-Qualificação") or {}
+    google_preq = (getattr(google, "por_etapa", {}) or {}).get("Pré-Qualificação") or {}
+    meta_preq_gasto = float(meta_preq.get("gasto") or meta_preq.get("custo") or 0)
+    google_preq_gasto = float(google_preq.get("custo") or 0)
+    meta_preq_leads = int(meta_preq.get("leads") or 0)
+    google_preq_conv = float(google_preq.get("conversoes") or 0)
+    invest_preq = meta_preq_gasto + google_preq_gasto
+    leads_preq = meta_preq_leads + int(round(google_preq_conv))
+    cpl_preq = invest_preq / leads_preq if leads_preq > 0 else 0.0
+
+    # ThruViews (Meta) / Views (Google TrueView) — mesma etapa, sem TikTok
+    # ainda (sem fonte de dado integrada).
+    meta_preq_thruviews = int(meta_preq.get("thruplays") or 0)
+    google_preq_views = int(google_preq.get("visualizacoes") or 0)
+    thruviews_preq = meta_preq_thruviews + google_preq_views
+
+    conversao_pagina_captura = None
+    if launch:
+        try:
+            conversao_pagina_captura = await run_in_threadpool(_conversao_pagina_captura, launch)
+        except Exception:
+            logger.exception("Pré-Qualificação: falha ao montar conversão da página de captura (GA4)")
+
+    # % de Leads por Campanha — Facebook/YouTube por temperatura, escopado
+    # pela Pré-Qualificação (por_temperatura_prequali existe em ambas as
+    # plataformas) + TikTok (sempre 0, sem fonte de dado ainda).
+    _clima_labels = ["Quente", "Frio", "Específico"]
+    meta_temp_preq = (getattr(meta, "por_temperatura_prequali", {}) or {})
+    google_temp_preq = (getattr(google, "por_temperatura_prequali", {}) or {})
+    leads_por_campanha_preq_raw = []
+    for c in _clima_labels:
+        m = meta_temp_preq.get(c) or {}
+        leads_por_campanha_preq_raw.append({
+            "campanha": f"Facebook {c}",
+            "leads": int(m.get("leads") or 0),
+            "gasto": float(m.get("gasto") or m.get("custo") or 0),
+        })
+    for c in _clima_labels:
+        g = google_temp_preq.get(c) or {}
+        leads_por_campanha_preq_raw.append({
+            "campanha": f"YouTube {c}",
+            "leads": int(round(g.get("conversoes") or 0)),
+            "gasto": float(g.get("custo") or 0),
+        })
+    leads_por_campanha_preq_raw.append({"campanha": "Tiktok", "leads": 0, "gasto": 0.0})
+    total_leads_camp_preq = sum(r["leads"] for r in leads_por_campanha_preq_raw) or 1
+    total_gasto_camp_preq = sum(r["gasto"] for r in leads_por_campanha_preq_raw) or 1
+    leads_por_campanha_preq = []
+    for r in leads_por_campanha_preq_raw:
+        leads_por_campanha_preq.append({
+            **r,
+            "cpl": r["gasto"] / r["leads"] if r["leads"] > 0 else 0.0,
+            "pct_investimento": r["gasto"] / total_gasto_camp_preq * 100,
+            "pct_leads": r["leads"] / total_leads_camp_preq * 100,
+        })
+
+    ctx = _base_ctx(request, "pre_qualificacao", "Pré-Qualificação", launch, launches,
+        meta=meta, google=google,
+        daily_breakdown_preq=daily_breakdown_preq,
+        meta_ads_preq=meta_ads_preq,
+        youtube_ads_preq=youtube_ads_preq,
+        drive_thumbnails=d.get("drive_thumbnails") or {},
+        conversao_paginas=(conversao_pagina_captura or {}).get("Pré-Qualificação") or [],
+        data_errors=d.get("_errors", []),
+        invest_preq=invest_preq, leads_preq=leads_preq, cpl_preq=cpl_preq,
+        meta_preq_gasto=meta_preq_gasto, google_preq_gasto=google_preq_gasto,
+        meta_preq_leads=meta_preq_leads, google_preq_conv=google_preq_conv,
+        thruviews_preq=thruviews_preq, meta_preq_thruviews=meta_preq_thruviews,
+        google_preq_views=google_preq_views,
+        leads_por_campanha=leads_por_campanha_preq,
+        total_leads_camp=total_leads_camp_preq, total_gasto_camp=total_gasto_camp_preq,
+    )
+    return templates.TemplateResponse("pre_qualificacao.html", ctx)
+
+
+@router.get("/verba", response_class=HTMLResponse)
+async def verba_page(request: Request, launch_code: str | None = None):
+    """Verba do Lançamento — espelha a planilha "Verba Diária" do usuário
+    (pauta 06/09/26). Construída em blocos: bloco 1 é Previsto x Realizado
+    por etapa (Pré-Qualificação, Captação, cada sub-etapa de remarketing e
+    WhatsApp)."""
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    d = await _fetch_all_data(launch, needs_daily=True)
+    meta, google = d["meta"], d["google"]
+    wa_cost = d.get("wa_cost")
+    wa_gasto = (wa_cost.get("total_cost_brl") or 0.0) if wa_cost else 0.0
+    daily_capt = d.get("daily_breakdown") or []
+    daily_preq = d.get("daily_breakdown_preq") or []
+
+    cfg = await run_in_threadpool(_launch_cfg, launch.code) if launch else {}
+    previsto_map = previsto_por_etapa(cfg)
+    previsto_sub = previsto_por_subetapa(cfg)
+    # WhatsApp pode ter sido cadastrado como uma "etapa" própria no wizard
+    # (nome livre, ex: "WhatsApp") — usa o previsto de lá se existir.
+    previsto_whatsapp = next(
+        (float(et.get("total") or 0) for et in (cfg.get("etapas") or []) if et.get("nome") == "WhatsApp"),
+        0.0,
+    )
+
+    linhas = []
+    for nome in ["Pré-Qualificação", "Captação"]:
+        e = get_etapa(meta, google, nome)
+        linhas.append({"nome": nome, "previsto": previsto_map.get(nome, 0.0), "realizado": e["invest"]})
+    for nome in REMARKETING_SUBETAPAS:
+        e = get_etapa(meta, google, nome)
+        linhas.append({"nome": nome, "previsto": previsto_sub.get(nome, 0.0), "realizado": e["invest"]})
+    linhas.append({"nome": "WhatsApp", "previsto": previsto_whatsapp, "realizado": wa_gasto})
+
+    total_previsto = sum(l["previsto"] for l in linhas)
+    total_realizado = sum(l["realizado"] for l in linhas)
+    for l in linhas:
+        l["pct_previsto"] = (l["previsto"] / total_previsto * 100) if total_previsto > 0 else 0.0
+        l["pct_realizado"] = (l["realizado"] / total_realizado * 100) if total_realizado > 0 else 0.0
+
+    # % de Remarketing (5 sub-etapas + WhatsApp) sobre o previsto total —
+    # mesma conta da linha "Remarketing" solta no fim do bloco na planilha.
+    previsto_remarketing = sum(previsto_sub.values()) + previsto_whatsapp
+    pct_remarketing_previsto = (previsto_remarketing / total_previsto * 100) if total_previsto > 0 else 0.0
+
+    # Bloco 2/4: Investimento em Captação / Pré-Qualificação por Público
+    # (bucket previsto % x realizado real por temperatura Meta/Google).
+    bloco_capt_publico = buckets_previsto_x_realizado(meta, google, cfg, "Captação")
+    bloco_preq_publico = buckets_previsto_x_realizado(meta, google, cfg, "Pré-Qualificação")
+
+    # Curva diária de verba investida (previsto x realizado) — Captação e
+    # Pré-Qualificação.
+    curva_capt = com_realizado_diario(curva_diaria(cfg, "Captação"), daily_capt)
+    curva_preq = com_realizado_diario(curva_diaria(cfg, "Pré-Qualificação"), daily_preq)
+
+    # Divisão de verba por público em cada dia (só Captação — é o único
+    # bloco que a planilha de referência detalha nesse nível).
+    dia_publico_realizado = com_percentuais(
+        await run_in_threadpool(publico_por_dia, launch.code, cfg, "Captação") if launch else {}
+    )
+    dia_publico_previsto = com_percentuais(previsto_publico_por_dia(cfg, "Captação"))
+    verba_diaria_combinada = combinar_previsto_realizado(dia_publico_previsto, dia_publico_realizado)
+
+    # Blocos por sub-etapa de remarketing: Previsto x Realizado total, split
+    # Facebook/Google (buckets) e curva diária própria.
+    subetapas_blocos = []
+    for nome in REMARKETING_SUBETAPAS:
+        et = etapa_cfg(cfg, nome)
+        if not et:
+            continue
+        bloco_pub = buckets_previsto_x_realizado(meta, google, cfg, nome)
+        daily_rows = await run_in_threadpool(
+            investimento_diario_etapa, launch.code, nome, et.get("start_date"), et.get("end_date"),
+        ) if launch else []
+        curva = com_realizado_diario(curva_diaria(cfg, nome), daily_rows)
+        subetapas_blocos.append({"nome": nome, "bucket": bloco_pub, "curva": curva})
+
+    ctx = _base_ctx(request, "verba", "Verba do Lançamento", launch, launches,
+        verba_linhas=linhas, verba_total_previsto=total_previsto, verba_total_realizado=total_realizado,
+        verba_pct_remarketing_previsto=pct_remarketing_previsto,
+        bloco_capt_publico=bloco_capt_publico, bloco_preq_publico=bloco_preq_publico,
+        curva_capt=curva_capt, curva_preq=curva_preq,
+        verba_diaria_combinada=verba_diaria_combinada,
+        subetapas_blocos=subetapas_blocos,
+        data_errors=d.get("_errors", []),
+    )
+    return templates.TemplateResponse("verba.html", ctx)
+
+
+@router.get("/funil", response_class=HTMLResponse)
+async def funil_page(request: Request, launch_code: str | None = None):
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    d = await _fetch_all_data(launch, needs_thumbnails=True, needs_sales_attr=True)
+    meta, google, vendas, leads, sales_attr, typeform_count, drive_thumbnails = (
+        d["meta"], d["google"], d["vendas"], d["leads"], d["sales_attr"], d["typeform_count"], d["drive_thumbnails"]
+    )
+
+    wa_cost = d.get("wa_cost")
+    wa_gasto = (wa_cost.get("total_cost_brl") or 0.0) if wa_cost else 0.0
+
+    receita = (vendas.total_receita if vendas else 0.0)
+    invest  = (meta.total_gasto if meta else 0.0) + (google.total_custo if google else 0.0) + wa_gasto
+    roas    = receita / invest if invest > 0 else 0.0
+
+    ctx = _base_ctx(request, "funil", "Funil Completo", launch, launches,
+        meta=meta, google=google, vendas=vendas, leads=leads, wa_gasto=wa_gasto,
+        sales_attr=sales_attr,
+        typeform_count=typeform_count,
+        receita=receita, invest=invest, roas=roas,
+        drive_thumbnails=drive_thumbnails,
+        data_errors=d.get("_errors", []),
+    )
+    return templates.TemplateResponse("funil.html", ctx)
+
+
+@router.get("/insights", response_class=HTMLResponse)
+async def insights_page(request: Request, launch_code: str | None = None):
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    d = await _fetch_all_data(launch, needs_thumbnails=True, needs_sales_attr=True)
+    meta, google, vendas, leads, sales_attr, typeform_count, drive_thumbnails = (
+        d["meta"], d["google"], d["vendas"], d["leads"], d["sales_attr"], d["typeform_count"], d["drive_thumbnails"]
+    )
+    creative_overview = None
+    creative_overview_error = False
+    try:
+        creative_overview = await run_in_threadpool(
+            _creative_overview, meta, google, vendas, sales_attr,
+            launch_code=launch.code if launch else ""
+        )
+    except Exception:
+        logger.exception("Insights: falha ao montar creative overview")
+        creative_overview_error = True
+    wa_cost = d.get("wa_cost")
+    wa_gasto = (wa_cost.get("total_cost_brl") or 0.0) if wa_cost else 0.0
+    receita = vendas.total_receita if vendas else 0.0
+    invest  = (meta.total_gasto if meta else 0.0) + (google.total_custo if google else 0.0) + wa_gasto
+    roas    = receita / invest if invest > 0 else 0.0
+    if creative_overview and leads:
+        creative_overview["resumo"]["total_leads"] = leads.total_leads
+    ctx = _base_ctx(request, "insights", "Insights", launch, launches,
+        meta=meta, google=google, vendas=vendas, leads=leads, sales_attr=sales_attr, wa_gasto=wa_gasto,
+        insights_data=creative_overview, creative_overview_error=creative_overview_error,
+        typeform_count=typeform_count,
+        receita=receita, invest=invest, roas=roas,
+        drive_thumbnails=drive_thumbnails,
+        data_errors=d.get("_errors", []))
+    return templates.TemplateResponse("insights.html", ctx)
+
+
+def _load_calendario_assets() -> tuple[str, str]:
+    """Lê o CSS e o <script> do arquivo estático original (design system e
+    lógica de hoje/status/sync entre tabelas) — reaproveitados como estão;
+    só o conteúdo das tabelas passa a ser gerado dinamicamente a partir do
+    launch_config de cada lançamento (ver build_calendario_ctx)."""
+    from bs4 import BeautifulSoup
+    cal_html_path = WORKSPACE_ROOT / "frontend" / "static" / "calendario" / "SISTEMA_CALENDARIO_2026.html"
+    try:
+        soup = BeautifulSoup(cal_html_path.read_text(encoding="utf-8"), "html.parser")
+        cal_styles = "\n".join(
+            str(s) for s in soup.find_all("style")
+            if s.get("id") not in ("brabo-ds-style", "brabo-accent")
+        )
+        main = soup.find("main", id="bs-main")
+        scripts = main.find_all("script") if main else []
+        cal_script = str(scripts[-1]) if scripts else ""
+        return cal_styles, cal_script
+    except Exception:
+        logger.exception("Falha ao carregar assets do calendário")
+        return "", ""
+
+
+@router.get("/calendario", response_class=HTMLResponse)
+async def calendario_page(request: Request, launch_code: str | None = None):
+    launches = await run_in_threadpool(get_launches)
+    launch   = resolve_launch(launch_code, launches)
+    cal_styles, cal_script = await run_in_threadpool(_load_calendario_assets)
+    cal = await run_in_threadpool(build_calendario_ctx, launches, _launch_cfg)
+
+    ctx = _base_ctx(request, "calendario", "Calendário", launch, launches,
+                    cal_styles=cal_styles, cal_script=cal_script, cal=cal)
+    return templates.TemplateResponse("calendario.html", ctx)
+
+
+@router.get("/lancamentos", response_class=HTMLResponse)
+async def lancamentos_page(request: Request, launch_code: str | None = None):
+    from frontend.services.fetch import _meta, _google, _vendas  # noqa: PLC0415
+
+    launches = await run_in_threadpool(get_launches)
+    launch   = resolve_launch(launch_code, launches)
+
+    def _summary(l):
+        try:
+            m = _meta(l) if l.has_meta else None
+            g = _google(l) if l.has_google else None
+            v = _vendas(l) if l.has_vendas else None
+            leads  = (m.total_leads if m else 0) + (int(round(g.total_conversoes)) if g else 0)
+            invest = (m.total_gasto if m else 0.0) + (g.total_custo if g else 0.0)
+            receita = v.total_receita if v else 0.0
+            return {
+                "leads": leads, "invest": invest, "receita": receita,
+                "roas": receita / invest if invest > 0 else 0.0,
+            }
+        except Exception:
+            logger.exception("Lançamentos: falha ao resumir %s", l.code)
+            return {"leads": 0, "invest": 0.0, "receita": 0.0, "roas": 0.0}
+
+    ctx = _base_ctx(request, "lancamentos", "Lançamentos", launch, launches)
+    summaries = await asyncio.gather(*[
+        run_in_threadpool(_summary, l) for l in ctx["launches"]
+    ])
+    summary_by_code = {l.code: s for l, s in zip(ctx["launches"], summaries)}
+    ctx["summary_by_code"] = summary_by_code
+
+    return templates.TemplateResponse("lancamentos.html", ctx)
+
+
+@router.get("/comparativo", response_class=HTMLResponse)
+def comparativo_page(request: Request, launch_code: str | None = None):
+    try:
+        launches = get_launches()
+        launch = resolve_launch(launch_code, launches)
+        previous = find_previous_launch(launch, launches) if launch else None
+        previous2 = find_previous_launch(previous, launches) if previous else None
+
+        comp_data = None
+        comp_error = None
+        if launch and previous:
+            try:
+                cache_key = f"{previous.code}_{launch.code}_{previous2.code if previous2 else 'none'}"
+                comp_data = _get_cached(cache_key, "comparativo")
+                if comp_data is None:
+                    comp_data = read_comparativo(launch, previous, previous2)
+                    _set_cached(cache_key, "comparativo", comp_data)
+            except Exception as exc:
+                logger.exception("Erro ao montar dados comparativos")
+                comp_error = "Não foi possível carregar os dados comparativos. Tente novamente."
+
+        drive_thumbnails: dict = {}
+        if launch:
+            try:
+                drive_thumbnails = get_drive_thumbnails(launch.code) or {}
+            except Exception:
+                logger.debug("Thumbnails indisponíveis para comparativo")
+
+        ctx = _base_ctx(
+            request, "comparativo", "Comparativo", launch, launches,
+            comp=comp_data,
+            comp_error=comp_error,
+            previous_launch=previous,
+            drive_thumbnails=drive_thumbnails,
+        )
+        return templates.TemplateResponse("comparativo.html", ctx)
+    except Exception as exc:
+        import html
+        msg = html.escape(f"{type(exc).__name__}: {exc}")
+        body = (
+            "<html><body style='font-family:Arial,sans-serif;padding:24px'>"
+            "<h2>Falha ao abrir /comparativo</h2>"
+            "<p>O erro aconteceu durante a montagem ou renderização da página.</p>"
+            f"<pre style='white-space:pre-wrap;background:#f6f8fa;padding:12px;border:1px solid #d0d7de;border-radius:8px'>{msg}</pre>"
+            "</body></html>"
+        )
+        return HTMLResponse(body, status_code=500)
+
+
+@router.get("/comparativo-v1-v2", response_class=HTMLResponse)
+async def comparativo_v1_v2(request: Request, launch_code: str | None = None):
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    d = await _fetch_all_data(launch)
+    meta, google, vendas, leads = d["meta"], d["google"], d["vendas"], d["leads"]
+
+    wa_cost = d.get("wa_cost")
+    wa_gasto = (wa_cost.get("total_cost_brl") or 0.0) if wa_cost else 0.0
+    receita = vendas.total_receita if vendas else 0.0
+    invest = (meta.total_gasto if meta else 0.0) + (google.total_custo if google else 0.0) + wa_gasto
+    roas = receita / invest if invest > 0 else 0.0
+
+    data_status = [
+        {"label": "Meta Ads", "available": bool(launch and launch.has_meta), "detail": f"{meta.total_leads if meta else 0} leads" if meta else "CSV ausente"},
+        {"label": "Google Ads", "available": bool(launch and launch.has_google), "detail": f"{google.total_conversoes:.0f} conversoes" if google else "CSV ausente"},
+        {"label": "Vendas", "available": bool(launch and launch.has_vendas), "detail": f"{vendas.total_vendas if vendas else 0} vendas" if vendas else "CSV ausente"},
+        {"label": "Active Campaign", "available": bool(launch and launch.has_ac), "detail": f"{leads.total_leads if leads else 0} leads AC" if leads else "CSV ausente"},
+        {"label": "Pesquisas", "available": bool(launch and launch.has_typeform), "detail": "Pasta com CSV detectada" if launch and launch.has_typeform else "CSV ausente"},
+    ]
+
+    ctx = _base_ctx(
+        request,
+        "comparativo-v1-v2",
+        "Comparativo V1/V2",
+        launch,
+        launches,
+        meta=meta,
+        google=google,
+        vendas=vendas,
+        leads=leads,
+        receita=receita,
+        invest=invest,
+        roas=roas,
+        wa_gasto=wa_gasto,
+        data_status=data_status,
+        v1_reports=_v1_reports_for_launch(launch),
+        data_errors=d.get("_errors", []),
+    )
+    return templates.TemplateResponse("comparativo_v1_v2.html", ctx)
+
+
+@router.get("/debriefing", response_class=HTMLResponse)
+async def debriefing(request: Request, launch_code: str | None = None, modo: str | None = None):
+    """``modo=slides`` renderiza o mesmo conteúdo em modo apresentação
+    (um slide 1920x1080 por seção, pronto pra "Salvar como PDF" no Chrome);
+    é o que o botão "Gerar PDF" da aba abre."""
+    slides = modo == "slides"
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+
+    # 1) Caminho rápido: snapshot pré-calculado pelo aquecimento (boot + após
+    #    cada rodada do ETL), gravado em debriefing_snapshot. Uma consulta e
+    #    tudo inline — nada de esqueleto nem cálculo. `?ao_vivo=1` ignora o
+    #    snapshot (depuração / conferir dado recém-carregado).
+    snapshot_at = None
+    built = None
+    if launch and request.query_params.get("ao_vivo") != "1":
+        from frontend.db_readers.debriefing_snapshot import read_snapshot  # noqa: PLC0415
+        snap = await run_in_threadpool(read_snapshot, launch.code)
+        if snap and isinstance(snap.get("payload"), dict) and snap["payload"].get("dbf"):
+            built = snap["payload"]
+            snapshot_at = snap["computed_at"]
+
+    # 2) Sem snapshot: cálculo ao vivo. Fora do modo slides, as seções mais
+    #    pesadas viram esqueleto e o navegador busca cada uma em
+    #    /debriefing/secao/<nome> depois que a página já apareceu (lazy).
+    lazy = False
+    if built is None:
+        lazy = not slides
+        built = await build_debriefing_context(launch, launches, lazy=lazy)
+        # Sem snapshot (lançamento antigo, fora do aquecimento) ou ?ao_vivo=1:
+        # grava um em segundo plano com os caches que esta visita acabou de
+        # aquecer — a próxima abertura já vem do snapshot.
+        if launch:
+            from frontend.services.prewarm import schedule_snapshot_only  # noqa: PLC0415
+            schedule_snapshot_only(launch, launches)
+
+    snapshot_label = ""
+    if snapshot_at:
+        try:
+            from zoneinfo import ZoneInfo  # noqa: PLC0415
+            snapshot_label = snapshot_at.astimezone(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m %H:%M")
+        except Exception:
+            snapshot_label = str(snapshot_at)[:16]
+
+    ctx = _base_ctx(request, "debriefing", "Debriefing", launch, launches,
+                    dbf=built["dbf"], drive_thumbnails=built.get("drive_thumbnails") or {},
+                    data_errors=built.get("data_errors") or [],
+                    creative_data_error=bool(built.get("creative_data_error")),
+                    slides=slides, lazy=lazy, snapshot_label=snapshot_label)
+    return templates.TemplateResponse("debriefing.html", ctx)
+
+
+_DEBRIEFING_SECOES_LAZY = ("pesquisa_engajamento", "qualidade_regiao", "perfil_por_anuncio", "caminho_comprador", "leads_x_whatsapp", "vendas_grupos_whatsapp", "disparo_resumo", "funil_pesquisa", "comparativo_historico", "historico_grande")
+
+
+@router.get("/debriefing/secao/{secao}", response_class=HTMLResponse)
+async def debriefing_secao(request: Request, secao: str, launch_code: str | None = None):
+    """Fragmento HTML de uma seção pesada do debriefing, buscado pelo
+    navegador depois que a página já carregou (ver `lazy` em debriefing()).
+    Resposta vazia = sem dado pra esse lançamento (o JS remove a seção).
+    Usa os mesmos leitores cacheados da página inteira, então na segunda
+    visita dentro do TTL sai da memória."""
+    if secao not in _DEBRIEFING_SECOES_LAZY:
+        return Response("seção desconhecida", status_code=404, media_type="text/plain")
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    if not launch:
+        return HTMLResponse("")
+
+    dbf: dict = {}
+    thumbs: dict = {}
+    try:
+        if secao == "pesquisa_engajamento":
+            dbf[secao] = await run_in_threadpool(_pesquisa_engajamento, launch)
+        elif secao == "funil_pesquisa":
+            # Mesmo dado de pesquisa_engajamento (cache compartilhado, cache
+            # hit garantido se aquela seção já carregou) — só o template
+            # muda, focado no funil que a pauta pediu.
+            dbf["pesquisa_engajamento"] = await run_in_threadpool(_pesquisa_engajamento, launch)
+        elif secao == "leads_x_whatsapp":
+            dbf[secao] = await run_in_threadpool(_leads_x_whatsapp, launch)
+        elif secao == "vendas_grupos_whatsapp":
+            dbf[secao] = await run_in_threadpool(_vendas_grupos_whatsapp, launch)
+        elif secao == "disparo_resumo":
+            dbf[secao] = await run_in_threadpool(_disparo_resumo, launch)
+        elif secao == "comparativo_historico":
+            dbf[secao] = await run_in_threadpool(read_comparativo_historico, launch, launches)
+        elif secao == "historico_grande":
+            dbf[secao] = await run_in_threadpool(read_historico_grande, launch, launches)
+        elif secao == "qualidade_regiao":
+            dbf[secao] = await run_in_threadpool(_qualidade_regiao, launch, None)
+        elif secao == "caminho_comprador":
+            cc = await run_in_threadpool(_caminho_comprador, launch, None)
+            dbf[secao] = (cc or {}).get("resumo")
+        elif secao == "perfil_por_anuncio":
+            # A pesquisa só traz ad_code/leads/respostas; nome, investimento e
+            # vendas vêm de Meta/Google/atribuição (todos cacheados, rápido).
+            # ROAS comparativo (criativo "antigo"/validado) precisa também dos
+            # mesmos dados do lançamento anterior.
+            from frontend.services.debriefing import _enrich_perfil_por_anuncio  # noqa: PLC0415
+
+            async def _prev_data():
+                previous = find_previous_launch(launch, launches)
+                if not previous:
+                    return None, None, None
+                prev_d = await run_in_threadpool(_fetch_prev_for_debriefing, previous)
+                p_meta = prev_d.get("meta")
+                p_google = prev_d.get("google")
+                p_vendas = prev_d.get("vendas")
+                p_sales_attr = None
+                if getattr(previous, "has_ac", False) and p_vendas:
+                    p_sales_attr = await run_in_threadpool(_sales_attribution, previous, p_vendas)
+                return p_meta, p_google, p_sales_attr
+
+            d, perfil, (prev_meta, prev_google, prev_sales_attr) = await asyncio.gather(
+                _fetch_all_data(launch, needs_sales_attr=True, needs_thumbnails=True),
+                run_in_threadpool(_perfil_por_anuncio, launch),
+                _prev_data(),
+            )
+            dbf[secao] = _enrich_perfil_por_anuncio(
+                perfil, d.get("meta"), d.get("google"), d.get("sales_attr"),
+                prev_meta=prev_meta, prev_google=prev_google, prev_sales_attr=prev_sales_attr,
+            )
+            thumbs = d.get("drive_thumbnails") or {}
+    except Exception:
+        logger.exception("Debriefing: falha ao carregar seção %s", secao)
+        return Response("falha ao carregar seção", status_code=500, media_type="text/plain")
+
+    ctx = {"request": request, "dbf": dbf, "launch": launch, "drive_thumbnails": thumbs}
+    return templates.TemplateResponse(f"debriefing/_secao_{secao}.html", ctx)
+
+
+@router.get("/api/caminho-comprador.csv")
+async def api_caminho_comprador_csv(launch_code: str | None = None):
+    """Base unificada 'caminho do comprador' (uma linha por comprador) em CSV
+    — pra rodar análise/IA em cima, conforme a pauta do debriefing."""
+    import csv
+    import io
+
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    if not launch:
+        return Response("lancamento nao encontrado", status_code=404, media_type="text/plain")
+
+    data = await run_in_threadpool(_caminho_comprador, launch, None)
+    if not data or not data.get("rows"):
+        return Response("sem dados", status_code=404, media_type="text/plain")
+
+    buf = io.StringIO()
+    cols = ["email", "nome", "estado", "ad_code", "plataforma", "data_cadastro",
+            "grupo", "respondeu_pesquisa", "canal", "vendas", "receita"]
+    writer = csv.DictWriter(buf, fieldnames=cols)
+    writer.writeheader()
+    for row in data["rows"]:
+        writer.writerow(row)
+
+    return Response(
+        buf.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="caminho_comprador_{launch.code}.csv"'},
+    )

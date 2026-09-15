@@ -1,0 +1,26 @@
+launch:
+  code: PI-AGO-26
+  client: Brabo Concursos
+  course:
+    code: PI
+    name: Projeto INSS
+
+# IDs dos vídeos das aulas no YouTube (obter na URL: youtube.com/live/VIDEO_ID
+# ou youtube.com/watch?v=VIDEO_ID). Usado por etl_youtube_csv.py (ingestão do
+# relatório pós-transmissão) e por etl_youtube_analytics.py quando a API for
+# conectada — os dois gravam na mesma linha de youtube_aulas_stats.
+youtube:
+  aulas:
+    - id: "rHCL-8f6Ass"
+      label: "Aula 1 — Como Começar DO ZERO para o INSS do Jeito Certo"
+    - id: "NJ97EtWBdz8"
+      label: "Aula 2 — Quanto Tempo Você Realmente Precisa Estudar para Passar no INSS"
+    - id: "MH27ln7Ef2M"
+      label: "Aula 3 — O Plano De Estudos PRONTO Para Passar No INSS"
+    - id: "YE-HQ1YY694"
+      label: "Aula 4 — Como Estudar Todos os Dias (Sem Desistir no Meio)"
+    - id: "X99Af1LLMWM"
+      label: "Aula 5 — Como Fazer o Que Você Estuda Ficar na Sua Cabeça"
+
+filters:
+  campaign_name_contains: PI-AGO-26

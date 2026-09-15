@@ -277,6 +277,23 @@
 .aula-card .aula-num { font-size: 28px; font-weight: 800; color: var(--bs-ink-subtle); }
 .aula-card .aula-lbl { font-size: 11px; color: var(--bs-ink-muted); font-weight: 700; text-transform: uppercase; margin-top: 4px; }
 .aula-card .aula-detail { font-size: 12px; color: var(--bs-ink-muted); margin-top: 6px; }
+/* Thumb da aula: sangra até a borda do card (anula o padding de 16px). */
+.aula-card .aula-thumb {
+  display: block; position: relative; margin: -16px -16px 12px; overflow: hidden;
+  border-radius: 10px 10px 0 0; background: var(--bs-border); aspect-ratio: 16 / 9;
+}
+.aula-card .aula-thumb img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  transition: transform .25s ease;
+}
+.aula-card .aula-thumb:hover img { transform: scale(1.04); }
+.aula-card .aula-thumb-play {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 34px; text-shadow: 0 2px 10px rgba(0,0,0,.5);
+  background: linear-gradient(180deg, rgba(0,0,0,.05), rgba(0,0,0,.35));
+  opacity: .92; transition: opacity .2s ease;
+}
+.aula-card .aula-thumb:hover .aula-thumb-play { opacity: 1; }
 
 /* ── Historico boleto ─────────────────────────────────────────── */
 .hist-table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -409,6 +426,8 @@ html.bs-slides .bs-table-filter-wrap { display: none !important; }
 .dbf-slide .dbf-slide-foot { min-height: 15px; }
 html.bs-slides .dbf-table tbody tr:hover td { background: transparent; }
 html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
+/* thumb da aula: no PDF não há hover nem clique, só a imagem */
+html.bs-slides .aula-thumb:hover img { transform: none; }
 </style>
 {% endif %}
 {% endblock head %}
@@ -2303,7 +2322,18 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
         {% set avg_min = (a.avg_view_dur_sec / 60) | round(1) if a.avg_view_dur_sec > 0 else 0 %}
         {% set ret_live = a.retencao_live_pct | default(0, true) %}
         {% set curva = a.curva | default([], true) %}
+        {% set yt_url = "https://www.youtube.com/watch?v=" ~ a.video_id if a.video_id and not a.video_id.startswith('manual-') else None %}
         <div class="aula-card">
+          {% if yt_url %}
+          {# Thumb oficial do YouTube: não precisa de API nem de chave. maxres
+             não existe em todo vídeo, por isso o onerror cai pra mq. #}
+          <a href="{{ yt_url }}" target="_blank" rel="noopener" class="aula-thumb" title="Abrir a Aula {{ a.aula_num }} no YouTube">
+            <img src="https://i.ytimg.com/vi/{{ a.video_id }}/maxresdefault.jpg"
+                 onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/{{ a.video_id }}/mqdefault.jpg'"
+                 alt="Thumbnail da Aula {{ a.aula_num }}" loading="lazy">
+            <span class="aula-thumb-play"><i class="ti ti-brand-youtube"></i></span>
+          </a>
+          {% endif %}
           <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
             <span style="font-size:11px;font-weight:700;color:var(--bs-accent)">Aula {{ a.aula_num }}</span>
             {% if a.fonte == 'manual' %}
@@ -2312,7 +2342,13 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
             {% endif %}
           </div>
           {% if a.titulo %}
-          <div style="font-size:12px;color:var(--bs-ink);font-weight:600;margin-bottom:10px;line-height:1.3">{{ a.titulo[:60] }}{% if a.titulo|length > 60 %}…{% endif %}</div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:10px;line-height:1.3">
+            {% if yt_url %}
+            <a href="{{ yt_url }}" target="_blank" rel="noopener" style="color:var(--bs-ink);text-decoration:none">{{ a.titulo[:60] }}{% if a.titulo|length > 60 %}…{% endif %}</a>
+            {% else %}
+            <span style="color:var(--bs-ink)">{{ a.titulo[:60] }}{% if a.titulo|length > 60 %}…{% endif %}</span>
+            {% endif %}
+          </div>
           {% endif %}
 
           <!-- Pico e fim da transmissão (relatório pós-live) -->
@@ -2386,9 +2422,9 @@ html.bs-slides img[onclick] { cursor: default; pointer-events: none; }
             Watch time total: {{ (a.watch_time_min / 60) | round(1) }}h
           </div>
           {% endif %}
-          {% if a.video_id and not a.video_id.startswith('manual-') %}
+          {% if yt_url %}
           <div style="margin-top:8px">
-            <a href="https://www.youtube.com/watch?v={{ a.video_id }}" target="_blank"
+            <a href="{{ yt_url }}" target="_blank" rel="noopener"
                style="font-size:11px;color:var(--bs-accent);text-decoration:none;font-weight:600">
               <i class="ti ti-external-link"></i> Abrir no YouTube
             </a>

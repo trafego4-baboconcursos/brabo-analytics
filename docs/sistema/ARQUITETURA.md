@@ -828,3 +828,10 @@ A seção "Engajamento das Aulas — YouTube" do `/debriefing` renderiza a parti
 das fontes: mostra o que existe e omite o resto, com badge "CSV" no dado manual e sparkline
 SVG da curva. Os 4 KPIs do rodapé trocam de métrica conforme a fonte (sem API: chat, reações
 e retenção ao vivo no lugar de views e watch time).
+
+**`video_id` e thumbnail.** Os IDs dos vídeos ficam em `config/launches/<launch>.yaml`
+(bloco `youtube.aulas`), lidos por `_load_videos` — o mesmo ponto que o ETL da API usa, para
+não haver duas listas. Com o ID real, o card renderiza a thumb oficial
+(`i.ytimg.com/vi/<id>/maxresdefault.jpg`, com fallback `mqdefault` no `onerror`) e vira link
+para o vídeo; sem ele, a linha usa a chave `manual-aula-N` e o card só não mostra thumb. A
+thumb não passa por proxy nem por credencial, diferente das thumbnails de criativo do Drive.

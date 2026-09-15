@@ -173,6 +173,22 @@ def coletar(launch_code: str) -> list[dict]:
     return sorted(aulas, key=lambda a: a["aula_num"])
 
 
+def video_ids_configurados(launch_code: str) -> dict[int, str]:
+    """{aula_num: video_id} do config do lançamento (banco → YAML).
+
+    Reaproveita o mesmo `_load_videos` do ETL da API para não existirem duas
+    listas de video_id divergentes. A ordem da lista define o número da aula,
+    igual ao que o ETL da API faz.
+    """
+    try:
+        from etl_youtube_analytics import _load_videos
+        aulas, _ = _load_videos(launch_code)
+    except Exception as e:
+        logger.debug("Sem video_ids configurados para %s: %s", launch_code, e)
+        return {}
+    return {i: a["id"] for i, a in enumerate(aulas, start=1) if a.get("id")}
+
+
 def _titulo_do_arquivo(nome: str) -> str:
     """'liveViewership_Transmissões ao vivo TITULO.csv' → 'TITULO'."""
     t = Path(nome).stem
@@ -186,12 +202,22 @@ def _titulo_do_arquivo(nome: str) -> str:
 
 def gravar(launch_code: str, aulas: list[dict]) -> None:
     engine = get_engine()
+    ids_cfg = video_ids_configurados(launch_code)
     with engine.begin() as conn:
         for a in aulas:
-            # video_id real só existe quando a API roda; até lá uma chave
-            # estável derivada da aula mantém o UNIQUE(launch_code, video_id)
-            # funcionando sem colidir com a linha que a API vai gravar.
-            video_id = f"manual-aula-{a['aula_num']}"
+            # Com o video_id configurado, a linha já nasce com a chave real —
+            # é o que liga a thumb e o link do card ao vídeo. Sem ele, uma
+            # chave estável derivada da aula segura o UNIQUE(launch_code,
+            # video_id) até a configuração aparecer.
+            placeholder = f"manual-aula-{a['aula_num']}"
+            video_id = ids_cfg.get(a["aula_num"], placeholder)
+            if video_id != placeholder:
+                # Promove a linha antiga em vez de duplicar a aula.
+                conn.execute(
+                    text("DELETE FROM youtube_aulas_stats "
+                         "WHERE launch_code = :c AND video_id = :p"),
+                    {"c": launch_code, "p": placeholder},
+                )
             conn.execute(text("""
                 INSERT INTO youtube_aulas_stats (
                     launch_code, video_id, aula_num, titulo, duration_sec,

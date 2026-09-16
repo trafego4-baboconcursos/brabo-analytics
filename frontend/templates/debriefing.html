@@ -110,6 +110,16 @@
   .dbf-saude-sep { display: none; }
   .dbf-saude-item { min-width: 45%; }
 }
+@media (max-width: 640px) {
+  /* Nota fica em cima dos fatores, não flutuando ao lado do primeiro item
+     (a linha do flex-wrap só quebra quando enche, então a nota "sobrava"
+     no meio da pilha de itens em telas estreitas — achado 16/09/26). */
+  .dbf-saude { flex-direction: column; align-items: stretch; gap: 18px; }
+  .dbf-saude-score { display: flex; align-items: baseline; justify-content: center; gap: 8px; }
+  .dbf-saude-score .max { margin: 0; }
+  .dbf-saude-score .label { margin: 0; }
+  .dbf-saude-item { min-width: 100%; }
+}
 
 /* ── Matrículas ───────────────────────────────────────────────── */
 .mat-cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -688,7 +698,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
         </div>
       </div>
     </div>
-    <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:8px">Nota de 0 a 100 combinando 7 fatores por peso: ROAS (50), Meta de Faturamento (15), CAC/Custo por Venda (10), Conversão do Funil (10), Eficiência dos Anúncios (5), Volume de Vendas (5) e Rastreabilidade (5). Meta de Faturamento e Volume de Vendas ficam fora da nota quando falta a referência (meta cadastrada no wizard, ou lançamento anterior do mesmo produto) — o peso é redistribuído entre os demais.</div>
+    <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:8px">Nota de 0 a 100 combinando 7 fatores por peso: <strong>ROAS</strong> (50), <strong>Meta de Faturamento</strong> (15), <strong>CAC/Custo por Venda</strong> (10), <strong>Conversão do Funil</strong> (10), <strong>Eficiência dos Anúncios</strong> (5), <strong>Volume de Vendas</strong> (5) e <strong>Rastreabilidade</strong> (5). Meta de Faturamento e Volume de Vendas ficam <strong>fora da nota</strong> quando falta a referência (meta cadastrada no wizard, ou lançamento anterior do mesmo produto) — o peso é redistribuído entre os demais.</div>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════ -->

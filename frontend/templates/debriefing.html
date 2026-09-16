@@ -156,12 +156,12 @@
   border-bottom: 1px solid var(--bs-surface);
 }
 .alloc-row:last-child { border-bottom: none; }
-.alloc-lbl { font-size: 13px; font-weight: 600; color: var(--bs-ink); }
+.alloc-lbl { font-size: 13px; font-weight: 600; color: var(--bs-ink); white-space: nowrap; }
 .alloc-bar-wrap { height: 18px; background: var(--bs-border); border-radius: 4px; overflow: hidden; }
 .alloc-bar { height: 100%; border-radius: 4px; }
-.alloc-pct { font-size: 13px; font-weight: 700; text-align: left; }
-.alloc-val { font-size: 12px; color: var(--bs-ink-muted); text-align: left; }
-.alloc-badge { text-align: left; }
+.alloc-pct { font-size: 13px; font-weight: 700; text-align: left; white-space: nowrap; }
+.alloc-val { font-size: 12px; color: var(--bs-ink-muted); text-align: left; white-space: nowrap; }
+.alloc-badge { text-align: left; white-space: nowrap; }
 .bg-preq { background: #16a34a; }
 .bg-capt { background: #2563eb; }
 .bg-rmkt { background: #dc2626; }
@@ -175,14 +175,19 @@
   display: block; font-size: 10px; font-weight: 600; color: var(--bs-ink-subtle);
   text-transform: uppercase; letter-spacing: .03em; margin-top: 1px;
 }
-.alloc-previsto { font-size: 12px; color: var(--bs-ink-muted); text-align: left; }
+.alloc-previsto { font-size: 12px; color: var(--bs-ink-muted); text-align: left; white-space: nowrap; }
 .alloc-previsto .alloc-col-lbl, .alloc-realizado .alloc-col-lbl, .alloc-variacao .alloc-col-lbl, .alloc-badge .alloc-col-lbl {
   display: block; font-size: 9px; font-weight: 700; color: var(--bs-ink-subtle);
   text-transform: uppercase; letter-spacing: .04em; margin-bottom: 1px;
 }
-.alloc-realizado { font-size: 12px; font-weight: 700; color: var(--bs-ink); text-align: left; }
-.alloc-variacao { font-size: 12px; font-weight: 700; text-align: left; }
+.alloc-realizado { font-size: 12px; font-weight: 700; color: var(--bs-ink); text-align: left; white-space: nowrap; }
+.alloc-variacao { font-size: 12px; font-weight: 700; text-align: left; white-space: nowrap; }
 .alloc-row-budget.total .alloc-realizado { font-weight: 800; }
+/* Mobile: rolar a linha inteira em vez de esconder Previsto/Realizado/Var/
+   Lanç. Ant. (achado 16/09/26 — a versão anterior dava display:none nessas
+   colunas, perdendo dado real em vez de só precisar de scroll). */
+.alloc-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.alloc-scroll .alloc-row-budget { min-width: 620px; }
 
 /* ── Traffic allocation — linha de total (estilo footer) ─────────── */
 .dbf-alloc-row {
@@ -236,6 +241,7 @@
 }
 .dbf-table td {
   padding: 9px 14px; border-bottom: 1px solid var(--bs-surface); vertical-align: middle;
+  white-space: nowrap;
 }
 .dbf-table tbody tr:hover td { background: var(--bs-surface); }
 .dbf-table .num { text-align: left; font-weight: 600; }
@@ -253,17 +259,19 @@
 
 /* ── Day tables ───────────────────────────────────────────────── */
 .day-tables-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.day-tables-grid > div { min-width: 0; }
 .day-week-title {
   font-size: 12px; font-weight: 700; text-transform: uppercase;
   color: #fff; background: var(--bs-accent); padding: 8px 12px;
   border-radius: 6px 6px 0 0; letter-spacing: .04em;
 }
-.day-table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--bs-card); }
+.day-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.day-table { width: 100%; min-width: 380px; border-collapse: collapse; font-size: 13px; background: var(--bs-card); }
 .day-table th {
   background: var(--bs-sidebar); color: #fff; padding: 8px 10px;
-  text-align: left; font-weight: 600; font-size: 12px;
+  text-align: left; font-weight: 600; font-size: 12px; white-space: nowrap;
 }
-.day-table td { padding: 8px 10px; border-bottom: 1px solid var(--bs-surface); }
+.day-table td { padding: 8px 10px; border-bottom: 1px solid var(--bs-surface); white-space: nowrap; }
 .day-table tr:hover td { background: var(--bs-surface); }
 
 /* ── Payment breakdown ────────────────────────────────────────── */
@@ -284,10 +292,12 @@
 .cmp-curr {
   background: var(--bs-card); border-radius: 10px; padding: 18px;
   box-shadow: var(--bs-sh-sm); border-top: 3px solid var(--bs-accent);
+  min-width: 0;
 }
 .cmp-prev {
   background: var(--bs-surface); border-radius: 10px; padding: 18px;
   border-top: 3px solid var(--bs-ink-subtle);
+  min-width: 0;
 }
 .cmp-title { font-size: 12px; font-weight: 700; margin-bottom: 14px; }
 .cmp-curr .cmp-title { color: var(--bs-accent); }
@@ -368,11 +378,6 @@
   .dbf-kpi-grid { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 640px) {
-  .alloc-row { grid-template-columns: 120px 1fr 60px; }
-  .alloc-val, .alloc-badge { display: none; }
-  .alloc-row.alloc-row-budget { grid-template-columns: 110px 1fr 50px; }
-  .alloc-row-budget .alloc-previsto, .alloc-row-budget .alloc-realizado,
-  .alloc-row-budget .alloc-variacao, .alloc-row-budget .alloc-badge { display: none; }
   .pay-grid { grid-template-columns: 1fr 1fr; }
   .dbf-kpi-grid { grid-template-columns: repeat(2, 1fr); }
 }
@@ -1069,6 +1074,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
 
     {% macro alloc_table(etapas, total_invest, prev_etapas=None, prev_total_invest=None) %}
       {% set total_previsto = etapas | sum(attribute='previsto') %}
+      <div class="alloc-scroll">
       {% for e in etapas %}
       {% set pe = (prev_etapas | selectattr('nome', 'equalto', e.nome) | first) if prev_etapas else None %}
       <div class="alloc-row alloc-row-budget">
@@ -1089,6 +1095,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
         <div class="alloc-realizado"><span class="alloc-col-lbl">Realizado</span>{{ total_invest | brl(0) }}</div>
         <div class="alloc-variacao"><span class="alloc-col-lbl">Var.</span>{% if total_previsto > 0 %}{{ dbadge(total_invest, total_previsto, 'down') }}{% else %}—{% endif %}</div>
         <div class="alloc-badge"><span class="alloc-col-lbl">Lanç. Ant.</span>{% if prev_total_invest %}{{ dbadge(total_invest, prev_total_invest, 'down') }}{% endif %}</div>
+      </div>
       </div>
     {% endmacro %}
 
@@ -1143,6 +1150,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
         {% set rmkt_total = dbf.rmkt_adsets | sum(attribute='gasto') %}
         {% set rmkt_previsto_total = dbf.rmkt_adsets | sum(attribute='previsto') %}
         {% set prev_rmkt_total = dbf.prev_rmkt_adsets | sum(attribute='gasto') if dbf.prev_rmkt_adsets else 0 %}
+        <div class="alloc-scroll">
         {% for a in dbf.rmkt_adsets %}
         {% set pa = dbf.prev_rmkt_adsets[loop.index0] if dbf.prev_rmkt_adsets and loop.index0 < (dbf.prev_rmkt_adsets | length) else None %}
         <div class="alloc-row alloc-row-budget">
@@ -1164,6 +1172,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
           <div class="alloc-variacao"><span class="alloc-col-lbl">Var.</span>{% if rmkt_previsto_total > 0 %}{{ dbadge(rmkt_total, rmkt_previsto_total, 'down') }}{% else %}—{% endif %}</div>
           <div class="alloc-badge"><span class="alloc-col-lbl">Lanç. Ant.</span>{% if prev_rmkt_total %}{{ dbadge(rmkt_total, prev_rmkt_total, 'down') }}{% endif %}</div>
         </div>
+        </div>
       </div>
       {% endif %}
       {% if dbf.has_prev and dbf.prev_rmkt_adsets %}
@@ -1171,6 +1180,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
         <div class="cmp-title">{{ dbf.prev_code }} — Remarketing</div>
         {% set prev_rmkt_total = dbf.prev_rmkt_adsets | sum(attribute='gasto') %}
         {% set prev_rmkt_previsto_total = dbf.prev_rmkt_adsets | sum(attribute='previsto') %}
+        <div class="alloc-scroll">
         {% for a in dbf.prev_rmkt_adsets %}
         <div class="alloc-row alloc-row-budget">
           <div class="alloc-lbl" title="{{ a.adset }}" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px">{{ a.adset }}</div>
@@ -1190,6 +1200,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
           <div class="alloc-realizado"><span class="alloc-col-lbl">Realizado</span>{{ prev_rmkt_total | brl(0) }}</div>
           <div class="alloc-variacao"><span class="alloc-col-lbl">Var.</span>{% if prev_rmkt_previsto_total > 0 %}{{ dbadge(prev_rmkt_total, prev_rmkt_previsto_total, 'down') }}{% else %}—{% endif %}</div>
           <div class="alloc-badge"></div>
+        </div>
         </div>
       </div>
       {% endif %}
@@ -2442,6 +2453,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       <div class="day-tables-grid">
         <div>
           <div class="day-week-title">1ª Metade</div>
+          <div class="day-table-wrap">
           <table class="day-table">
             <thead><tr><th>Data</th><th>Investimento</th><th>Leads</th><th>CPL</th></tr></thead>
             <tbody>
@@ -2455,9 +2467,11 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
               {% endfor %}
             </tbody>
           </table>
+          </div>
         </div>
         <div>
           <div class="day-week-title">2ª Metade</div>
+          <div class="day-table-wrap">
           <table class="day-table">
             <thead><tr><th>Data</th><th>Investimento</th><th>Leads</th><th>CPL</th></tr></thead>
             <tbody>
@@ -2471,6 +2485,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
               {% endfor %}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
     {% else %}
@@ -2806,14 +2821,16 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       </div>
     </div>
     {% if eb.links|length > 1 %}
-    <table class="dbf-table" style="margin-top:8px">
-      <thead><tr><th>E-mail / campanha</th><th class="num">Downloads</th></tr></thead>
-      <tbody>
-        {% for lk in eb.links %}
-        <tr><td>{{ lk.campanha }}</td><td class="num">{{ lk.downloads | num }}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="table-wrap" style="margin-top:8px">
+      <table class="dbf-table">
+        <thead><tr><th>E-mail / campanha</th><th class="num">Downloads</th></tr></thead>
+        <tbody>
+          {% for lk in eb.links %}
+          <tr><td>{{ lk.campanha }}</td><td class="num">{{ lk.downloads | num }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
     {% endif %}
     <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
       "Baixou" = clicou no link do PDF dentro do e-mail da automação do lançamento (Active Campaign). Cruzamento por e-mail com as vendas Hotmart/TMB.

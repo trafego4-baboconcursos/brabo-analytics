@@ -450,7 +450,7 @@ def _load_calendario_assets() -> tuple[str, str]:
     só o conteúdo das tabelas passa a ser gerado dinamicamente a partir do
     launch_config de cada lançamento (ver build_calendario_ctx)."""
     from bs4 import BeautifulSoup
-    cal_html_path = WORKSPACE_ROOT / "frontend" / "static" / "calendario" / "SISTEMA_CALENDARIO_2026.html"
+    cal_html_path = WORKSPACE_ROOT / "analises" / "calendario" / "SISTEMA_CALENDARIO_2026.html"
     try:
         soup = BeautifulSoup(cal_html_path.read_text(encoding="utf-8"), "html.parser")
         cal_styles = "\n".join(

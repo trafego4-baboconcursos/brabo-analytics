@@ -5,7 +5,7 @@ com datas digitadas à mão em frontend/static/calendario/).
 """
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from src.constants import PRODUCT_BY_PREFIX
@@ -99,6 +99,8 @@ def build_calendario_ctx(launches: list, read_launch_config_fn) -> dict:
     pendentes = sum(1 for r in rows if r["state"] == "completed" and not r["extraido"])
     programadas = sum(1 for r in rows if r["state"] != "completed")
 
+    timeline_groups, timeline_items = _build_timeline(rows)
+
     return {
         "today": today,
         "rows": rows,
@@ -108,4 +110,56 @@ def build_calendario_ctx(launches: list, read_launch_config_fn) -> dict:
             "pendentes": pendentes,
             "programadas": programadas,
         },
+        "timeline_groups": timeline_groups,
+        "timeline_items": timeline_items,
     }
+
+
+def _build_timeline(rows: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Monta grupos (1 por lançamento) e items (1 por etapa) pro vis-timeline.
+
+    Etapa sem data vira um item "fantasma" (ghost=True) — aparece na régua
+    como uma barra tracejada, arrastável, num período padrão logo após a
+    última etapa conhecida daquele lançamento. Arrastar/redimensionar um
+    ghost grava a data pela primeira vez; arrastar uma barra real edita a
+    data já existente. Os dois casos batem no mesmo endpoint
+    (POST /api/launch-config/{code}), que só grava as 2 colunas mandadas —
+    não tem risco de sobrescrever o resto da config do lançamento.
+    """
+    groups: list[dict] = []
+    items: list[dict] = []
+    for r in rows:
+        groups.append({
+            "id": r["code"],
+            "content": r["code"],
+            "className": r["launch_class"],
+        })
+        for start_key, end_key, css, label in _STAGE_FIELDS:
+            st = r["by_css"].get(css)
+            if st:
+                items.append({
+                    "id": f"{r['code']}::{css}",
+                    "group": r["code"],
+                    "content": label,
+                    "start": st["start"].isoformat(),
+                    "end": (st["end"] + timedelta(days=1)).isoformat(),
+                    "className": f"tl-stage-{css}",
+                    "startField": start_key,
+                    "endField": end_key,
+                    "ghost": False,
+                })
+            else:
+                ghost_start = r["bounds_end"] + timedelta(days=1)
+                ghost_end = ghost_start + timedelta(days=6)
+                items.append({
+                    "id": f"{r['code']}::{css}::ghost",
+                    "group": r["code"],
+                    "content": f"+ {label}",
+                    "start": ghost_start.isoformat(),
+                    "end": (ghost_end + timedelta(days=1)).isoformat(),
+                    "className": f"tl-ghost tl-stage-{css}",
+                    "startField": start_key,
+                    "endField": end_key,
+                    "ghost": True,
+                })
+    return groups, items

@@ -1,11 +1,55 @@
 {% extends "base.html" %}
 {% block head %}
 {{ cal_styles | safe }}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vis-timeline@7.7.3/styles/vis-timeline-graph2d.min.css">
+<script src="https://cdn.jsdelivr.net/npm/vis-timeline@7.7.3/standalone/umd/vis-timeline-graph2d.min.js"></script>
 <style>
 .cal-content-wrap {
   overflow: auto;
   padding: 0;
 }
+/* ── Timeline (vis-timeline) — 1 linha por lançamento, 1 barra por etapa.
+   Etapa sem data (fantasma) fica tracejada; arrastar/redimensionar grava a
+   data pela primeira vez. Cores reaproveitam as mesmas --pre/--cap/--dep/
+   --aul/--car do arquivo estático (legenda de chips acima). */
+#cal-timeline-wrap { margin: 24px 0; }
+#cal-timeline-hint {
+  font-size: 12px; color: var(--bs-ink-muted); margin-bottom: 8px;
+  display: flex; align-items: center; gap: 6px;
+}
+#cal-timeline {
+  border: 1px solid var(--bs-border); border-radius: var(--bs-r-lg);
+  background: var(--bs-card); font-family: inherit;
+}
+.vis-timeline { border: none !important; color: var(--bs-ink); }
+.vis-panel.vis-center, .vis-panel.vis-left, .vis-panel.vis-top, .vis-panel.vis-bottom {
+  border-color: var(--bs-border) !important;
+}
+.vis-labelset .vis-label { border-color: var(--bs-border) !important; }
+.vis-label .vis-inner {
+  padding: 6px 10px !important; font-size: 12px !important; font-weight: 700 !important;
+  color: var(--bs-ink) !important;
+}
+.vis-time-axis .vis-text { color: var(--bs-ink-subtle) !important; font-size: 11px !important; }
+.vis-time-axis .vis-grid.vis-minor { border-color: var(--bs-border) !important; }
+.vis-time-axis .vis-grid.vis-major { border-color: var(--bs-border-s) !important; }
+.vis-current-time { background-color: var(--bs-accent) !important; width: 2px !important; }
+.vis-item {
+  border-width: 1px !important; border-radius: 6px !important;
+  font-size: 11px !important; font-weight: 700 !important; color: #102136 !important;
+}
+.vis-item .vis-item-content { padding: 4px 8px !important; }
+.vis-item.tl-stage-pre { background: var(--pre, #e0f2fe) !important; border-color: var(--pre, #e0f2fe) !important; }
+.vis-item.tl-stage-cap { background: var(--cap, #dcfce7) !important; border-color: var(--cap, #dcfce7) !important; }
+.vis-item.tl-stage-dep { background: var(--dep, #fef3c7) !important; border-color: var(--dep, #fef3c7) !important; }
+.vis-item.tl-stage-aul { background: var(--aul, #ffe4e6) !important; border-color: var(--aul, #ffe4e6) !important; }
+.vis-item.tl-stage-car { background: var(--car, #ddd6fe) !important; border-color: var(--car, #ddd6fe) !important; }
+.vis-item.tl-ghost {
+  background: repeating-linear-gradient(135deg, var(--bs-surface), var(--bs-surface) 6px, var(--bs-border) 6px, var(--bs-border) 12px) !important;
+  border-style: dashed !important; color: var(--bs-ink-muted) !important; opacity: .85;
+}
+.vis-item.vis-selected { box-shadow: 0 0 0 2px var(--bs-accent) !important; }
+</style>
 /* O HTML estático embutido tem sua própria .container centralizada com
    max-width fixo (pensada pra ser vista solta, fora do layout do app) —
    aqui dentro do #bs-main isso sobra espaço vazio nas laterais. Estica
@@ -74,6 +118,19 @@
     </div>
 
     {% if cal.rows %}
+    <h2>Linha do Tempo</h2>
+    <div id="cal-timeline-wrap">
+      <div id="cal-timeline-hint">
+        <i class="ti ti-info-circle"></i>
+        {% if current_user and current_user.role in ('admin', 'analista', 'trafego') %}
+        Arraste uma barra pra mudar as datas. Barras tracejadas são etapas ainda sem data — arraste pra definir.
+        {% else %}
+        Somente leitura — seu perfil não tem permissão pra editar datas de lançamento.
+        {% endif %}
+      </div>
+      <div id="cal-timeline"></div>
+    </div>
+
     <h2>Pipeline Completo de Lançamentos</h2>
     <div class="table-wrap">
       <table id="pipeline-table">
@@ -154,4 +211,82 @@
 </div>
 </div>
 {{ cal_script | safe }}
+<script>
+(function () {
+  var el = document.getElementById('cal-timeline');
+  if (!el || typeof vis === 'undefined') return;
+
+  var groupsData = {{ cal.timeline_groups | tojson }};
+  var itemsData  = {{ cal.timeline_items | tojson }};
+  var canEdit    = {{ 'true' if current_user and current_user.role in ('admin', 'analista', 'trafego') else 'false' }};
+
+  // As datas vêm do servidor como "YYYY-MM-DD" (sem hora/timezone). Deixar o
+  // vis-timeline interpretar essa string direto arrisca cair no clássico bug
+  // de fuso: Date("2026-04-01") é meia-noite UTC, que em fuso negativo (BR)
+  // vira 31/03 na hora local. Convertendo aqui pra Date local explícito, sem
+  // passar pelo parser de string do vis, evita esse problema nos dois
+  // sentidos (montar o item e ler de volta depois de arrastar).
+  function localDateFromIso(iso) {
+    var p = iso.split('-');
+    return new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+  }
+  function isoDateOnly(d) {
+    var m = d.getMonth() + 1, day = d.getDate();
+    return d.getFullYear() + '-' + (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
+  }
+
+  itemsData.forEach(function (it) {
+    it.start = localDateFromIso(it.start);
+    it.end = localDateFromIso(it.end);
+    it.title = it.ghost
+      ? (canEdit ? 'Arraste pra definir a data desta etapa' : 'Etapa ainda sem data')
+      : (canEdit ? 'Arraste pra mudar a data' : it.content);
+  });
+
+  var groupsDS = new vis.DataSet(groupsData);
+  var itemsDS = new vis.DataSet(itemsData);
+
+  function saveStage(item, callback) {
+    var start = item.start, end = new Date(item.end.getTime() - 86400000); // desfaz o +1 dia de exibição
+    if (end < start) {
+      alert('A data de fim não pode ficar antes da data de início.');
+      callback(null);
+      return;
+    }
+    var payload = {};
+    payload[item.startField] = isoDateOnly(start);
+    payload[item.endField] = isoDateOnly(end);
+    fetch('/api/launch-config/' + encodeURIComponent(item.group), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (res) {
+        if (res && res.ok) {
+          callback(item);
+          window.location.reload();
+        } else {
+          alert((res && res.error) || 'Não foi possível salvar a data.');
+          callback(null);
+        }
+      })
+      .catch(function () {
+        alert('Falha de rede ao salvar a data.');
+        callback(null);
+      });
+  }
+
+  var timeline = new vis.Timeline(el, itemsDS, groupsDS, {
+    stack: true,
+    zoomable: true,
+    moveable: true,
+    margin: { item: 10, axis: 24 },
+    orientation: 'top',
+    editable: canEdit ? { updateTime: true, updateGroup: false, remove: false, add: false } : false,
+    onMove: saveStage,
+  });
+  timeline.fit();
+})();
+</script>
 {% endblock %}

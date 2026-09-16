@@ -8,7 +8,8 @@
   font-size: 15px; font-weight: 700; color: var(--bs-ink);
   margin-bottom: 20px; padding-bottom: 10px;
   border-bottom: 2px solid var(--bs-accent);
-  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  display: flex; align-items: center; gap: 10px;
+  position: relative; padding-right: 26px;
   cursor: pointer; user-select: none;
 }
 .dbf-section-title i { color: var(--bs-accent); font-size: 17px; }
@@ -765,7 +766,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
     <div class="dbf-section-title">
       <i class="ti ti-chart-bar"></i> Resumo Executivo
       {% if launch %}<span class="dbf-launch-badge">{{ launch.code }}</span>{% endif %}
-      {% if dbf.has_prev %}<span class="dbf-launch-badge prev">vs {{ dbf.prev_code }}</span>{% endif %}
+      {% if dbf.has_prev %}<span class="dbf-launch-badge prev">{{ dbf.prev_code }}</span>{% endif %}
     </div>
 
     {% macro kpi_card(lbl, val, pval, fmt, polarity='up') %}
@@ -1029,7 +1030,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
     <div class="dbf-section-title">
       <i class="ti ti-calendar-stats"></i> Detalhamento por Dia de Captação
       {% if launch %}<span class="dbf-launch-badge">{{ launch.code }}</span>{% endif %}
-      {% if dbf.has_prev %}<span class="dbf-launch-badge prev">vs {{ dbf.prev_code }}</span>{% endif %}
+      {% if dbf.has_prev %}<span class="dbf-launch-badge prev">{{ dbf.prev_code }}</span>{% endif %}
     </div>
     <div class="info-box">
       <div class="table-wrap">
@@ -1084,7 +1085,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
     <div class="dbf-section-title">
       <i class="ti ti-chart-pie"></i> Detalhamento de Tráfego
       {% if launch %}<span class="dbf-launch-badge">{{ launch.code }}</span>{% endif %}
-      {% if dbf.has_prev %}<span class="dbf-launch-badge prev">vs {{ dbf.prev_code }}</span>{% endif %}
+      {% if dbf.has_prev %}<span class="dbf-launch-badge prev">{{ dbf.prev_code }}</span>{% endif %}
     </div>
 
     {% set color_map = {"Pré-Qualificação": "#16a34a", "Captação": "#2563eb",  "Remarketing": "#dc2626"} %}

@@ -462,21 +462,32 @@ html[data-bs-theme="aranhaverso"] .bs-web-spokes {
   font-size:16px; font-weight:700; color:var(--bs-ink);
   border-bottom:2px solid var(--bs-accent);
   padding-bottom:8px; margin-bottom:16px;
-  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  display:flex; align-items:center; gap:10px;
+  position:relative; padding-right:26px;
   cursor:pointer; user-select:none;
 }
 /* ── Seções recolhíveis (accordion) — mesmo padrão do Debriefing,
    aplicado automaticamente em qualquer página com .section/.section-title
-   (ver bsInitAccordion() no <script> do fim do body). ── */
-.bs-chevron { margin-left:auto; transition:transform .15s; flex-shrink:0; }
-/* Ícone+texto+badges do título ficam soltos no flex do .section-title/
-   .dbf-section-title (ver bsInitAccordion() no fim do body — agrupa o
-   conteúdo original em .bs-sec-orig) — sem isto, quando não cabe numa
-   linha só, o texto quebra como parágrafo em vez de badge inteiro pulando
-   de linha. */
+   (ver bsInitAccordion() no <script> do fim do body). O ícone original
+   (1º filho, se houver) fica maior, fora do fluxo de texto — ver regra
+   dedicada abaixo. Chevron sempre fora do flexbox (canto absoluto),
+   nunca disputa espaço com título/badges nem pula de linha. ── */
+.bs-chevron { position:absolute; top:50%; right:0; transform:translateY(-50%); transition:transform .15s; flex-shrink:0; }
+/* Ícone principal do título (1º filho de .section-title/.dbf-section-title,
+   nunca o chevron — que é sempre o último e fica fora do fluxo) — maior,
+   ~altura de 2 linhas de texto, pedido do usuário 16/09/26. */
+.section-title > i:first-child, .dbf-section-title > i:first-child { font-size:26px; flex-shrink:0; }
+/* .bs-sec-body agrupa texto (linha 1) + badges (linha 2) — ver
+   bsInitAccordion() no fim do body, que monta essa estrutura a partir do
+   conteúdo original solto no título. Linha única quando cabe (desktop);
+   empilha no celular (media query lá embaixo) — sem isso, título+badges
+   brigavam pelo mesmo flex-wrap e quebravam de qualquer jeito, cada
+   badge numa linha (achado 16/09/26). */
+.bs-sec-body { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; flex:1; min-width:0; }
 .bs-sec-orig { display:inline-flex; flex-wrap:wrap; align-items:center; gap:6px 10px; }
+.bs-sec-badges { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
 .collapsed > .section-title, .collapsed > .dbf-section-title { margin-bottom:0; border-bottom-color:var(--bs-border); }
-.collapsed > .section-title .bs-chevron, .collapsed > .dbf-section-title .bs-chevron { transform:rotate(-90deg); }
+.collapsed > .section-title .bs-chevron, .collapsed > .dbf-section-title .bs-chevron { transform:translateY(-50%) rotate(-90deg); }
 .collapsed > *:not(.section-title):not(.dbf-section-title) { display:none !important; }
 .bs-accordion-controls { display:flex; gap:10px; margin-bottom:24px; }
 .bs-accordion-controls button {
@@ -1230,18 +1241,14 @@ kbd {
   .metrics-grid, .tp-kpi-grid, .highlights { grid-template-columns:1fr; }
   table, .table-wrap table { font-size:12px; }
 
-  /* Título de seção (accordion) no celular: ícone+texto+badges raramente
-     cabem numa linha só. Antes o texto quebrava feito parágrafo e o
-     chevron pulava pra qualquer linha sobrasse espaço — bagunçado e
-     assimétrico. Agora o chevron fica fixo no canto (sai do fluxo do
-     flex-wrap) e o resto quebra em linhas completas por baixo. */
-  .section-title, .dbf-section-title {
-    position:relative; padding-right:26px; row-gap:6px;
-  }
-  .bs-sec-orig { row-gap:6px; }
-  .bs-chevron {
-    position:absolute; top:1px; right:0; margin-left:0;
-  }
+}
+
+/* Título de seção (accordion) no celular: título e badges empilham em
+   duas linhas deliberadas (.bs-sec-body vira coluna) em vez de disputar
+   espaço no mesmo flex-wrap — ícone (se houver) e chevron continuam fora
+   desse bloco, sempre nas mesmas posições (ver regras não-mobile acima). */
+@media (max-width:640px) {
+  .bs-sec-body { flex-direction:column; align-items:flex-start; gap:4px; }
 }
 
 /* ── Launch Config Modal ─────────────────────────────────────────────── */
@@ -2897,6 +2904,7 @@ document.addEventListener('DOMContentLoaded', bsThemeSyncActive);
       } else {
         m.tagBadge.style.display = 'none';
       }
+      if (m.badges) updateBadgesVisibility(m);
     }
     function saveCustom(key, patch) {
       var c = Object.assign({}, customs[key] || {}, patch);
@@ -2925,26 +2933,57 @@ document.addEventListener('DOMContentLoaded', bsThemeSyncActive);
       renderViewsPanel();
     }
 
-    // Reagrupa o conteúdo original do título (ícone + texto) num wrapper —
-    // permite trocar por um nome customizado sem perder a marcação original
-    // — e adiciona o badge de tag + chevron. Clique no título recolhe/expande.
+    function updateBadgesVisibility(m) {
+      var hasExtra = Array.prototype.some.call(m.badges.children, function (c) { return c !== m.tagBadge; });
+      m.badges.style.display = (hasExtra || m.tagBadge.style.display !== 'none') ? '' : 'none';
+    }
+
+    // Reagrupa o conteúdo original do título num wrapper: o ícone (sempre o
+    // 1º filho, se houver) fica sozinho, fora do texto — maior, alinhado ao
+    // centro das duas linhas de baixo (.bs-sec-body). Texto vira a linha 1;
+    // qualquer badge que já viesse solta no título (ex.: .dbf-launch-badge)
+    // e a tag automática descem pra .bs-sec-badges, linha 2 — permite trocar
+    // o texto por nome customizado sem perder a marcação original. Sem essa
+    // separação, título+badges brigavam pelo mesmo flex-wrap e quebravam de
+    // qualquer jeito no celular, cada badge numa linha (achado 16/09/26).
+    // Clique no título recolhe/expande.
     meta.forEach(function (m) {
+      var iconEl = (m.title.firstElementChild && m.title.firstElementChild.tagName === 'I')
+        ? m.title.firstElementChild : null;
+      if (iconEl) m.title.removeChild(iconEl);
+
       var orig = document.createElement('span');
       orig.className = 'bs-sec-orig';
-      while (m.title.firstChild) orig.appendChild(m.title.firstChild);
-      m.title.appendChild(orig);
+      var badges = document.createElement('div');
+      badges.className = 'bs-sec-badges';
+      while (m.title.firstChild) {
+        var node = m.title.firstChild;
+        m.title.removeChild(node);
+        (node.nodeType === 1 ? badges : orig).appendChild(node);
+      }
+
       var override = document.createElement('span');
       override.className = 'bs-sec-label-override';
       override.style.display = 'none';
-      m.title.appendChild(override);
       var tagBadge = document.createElement('span');
       tagBadge.className = 'bs-sec-tag';
       tagBadge.style.display = 'none';
-      m.title.appendChild(tagBadge);
-      m.orig = orig; m.override = override; m.tagBadge = tagBadge;
+      badges.appendChild(tagBadge);
+
+      var body = document.createElement('div');
+      body.className = 'bs-sec-body';
+      body.appendChild(orig);
+      body.appendChild(override);
+      body.appendChild(badges);
+
+      if (iconEl) m.title.appendChild(iconEl);
+      m.title.appendChild(body);
       var chev = document.createElement('i');
       chev.className = 'ti ti-chevron-down bs-chevron';
       m.title.appendChild(chev);
+
+      m.orig = orig; m.override = override; m.tagBadge = tagBadge; m.badges = badges;
+      updateBadgesVisibility(m);
       m.title.addEventListener('click', function () {
         m.el.classList.toggle('collapsed');
         collapsed[m.key] = m.el.classList.contains('collapsed');

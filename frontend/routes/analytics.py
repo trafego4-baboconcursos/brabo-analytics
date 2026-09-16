@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse, Response
 from fastapi.concurrency import run_in_threadpool
 
 from frontend.core import (
-    templates, logger, WORKSPACE_ROOT,
+    templates, logger,
     get_launches, resolve_launch, find_previous_launch, _base_ctx,
     _fetch_all_data, _creative_overview, _v1_reports_for_launch,
     _get_cached, _set_cached,
@@ -444,37 +444,13 @@ async def insights_page(request: Request, launch_code: str | None = None):
     return templates.TemplateResponse("insights.html", ctx)
 
 
-def _load_calendario_assets() -> tuple[str, str]:
-    """Lê o CSS e o <script> do arquivo estático original (design system e
-    lógica de hoje/status/sync entre tabelas) — reaproveitados como estão;
-    só o conteúdo das tabelas passa a ser gerado dinamicamente a partir do
-    launch_config de cada lançamento (ver build_calendario_ctx)."""
-    from bs4 import BeautifulSoup
-    cal_html_path = WORKSPACE_ROOT / "analises" / "calendario" / "SISTEMA_CALENDARIO_2026.html"
-    try:
-        soup = BeautifulSoup(cal_html_path.read_text(encoding="utf-8"), "html.parser")
-        cal_styles = "\n".join(
-            str(s) for s in soup.find_all("style")
-            if s.get("id") not in ("brabo-ds-style", "brabo-accent")
-        )
-        main = soup.find("main", id="bs-main")
-        scripts = main.find_all("script") if main else []
-        cal_script = str(scripts[-1]) if scripts else ""
-        return cal_styles, cal_script
-    except Exception:
-        logger.exception("Falha ao carregar assets do calendário")
-        return "", ""
-
-
 @router.get("/calendario", response_class=HTMLResponse)
 async def calendario_page(request: Request, launch_code: str | None = None):
     launches = await run_in_threadpool(get_launches)
     launch   = resolve_launch(launch_code, launches)
-    cal_styles, cal_script = await run_in_threadpool(_load_calendario_assets)
     cal = await run_in_threadpool(build_calendario_ctx, launches, _launch_cfg)
 
-    ctx = _base_ctx(request, "calendario", "Calendário", launch, launches,
-                    cal_styles=cal_styles, cal_script=cal_script, cal=cal)
+    ctx = _base_ctx(request, "calendario", "Calendário", launch, launches, cal=cal)
     return templates.TemplateResponse("calendario.html", ctx)
 
 

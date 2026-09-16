@@ -1,18 +1,89 @@
 {% extends "base.html" %}
 {% block head %}
-{{ cal_styles | safe }}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vis-timeline@7.7.3/styles/vis-timeline-graph2d.min.css">
 <script src="https://cdn.jsdelivr.net/npm/vis-timeline@7.7.3/standalone/umd/vis-timeline-graph2d.min.js"></script>
 <style>
+/* ── Calendário — tokens da página (padrão de design do sistema, não do
+   HTML estático legado) ──────────────────────────────────────────────── */
 .cal-content-wrap {
-  overflow: auto;
-  padding: 0;
+  overflow: auto; padding: 0;
+  --pre: #e0f2fe; --cap: #dcfce7; --dep: #fef3c7; --aul: #ffe4e6; --car: #ddd6fe;
 }
+.cal-content-wrap .header {
+  background: linear-gradient(120deg, var(--bs-sidebar-dark) 0%, var(--bs-accent) 100%);
+  color: #fff; padding: 28px 30px; border-radius: var(--bs-r-lg) var(--bs-r-lg) 0 0;
+}
+.cal-content-wrap .header h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -.01em; }
+.cal-content-wrap .header p { margin: 0; opacity: .92; font-size: 14px; max-width: 760px; }
+.cal-content-wrap .content { padding: 24px; }
+.cal-content-wrap h2 { font-size: 18px; font-weight: 800; color: var(--bs-ink); margin: 26px 0 12px; }
+
+.today-banner {
+  display: inline-flex; align-items: center; gap: 8px; margin-bottom: 14px;
+  padding: 7px 14px; border: 1px solid var(--bs-border); background: var(--bs-accent-bg);
+  color: var(--bs-ink); border-radius: 999px; font-size: 13px; font-weight: 700;
+}
+.today-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--bs-accent); box-shadow: 0 0 0 4px var(--bs-accent-bg);
+}
+
+.quick-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.metric { border: 1px solid var(--bs-border); background: var(--bs-surface); border-radius: var(--bs-r-lg); padding: 14px 16px; }
+.metric .k { font-size: 11px; color: var(--bs-ink-muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 700; margin-bottom: 5px; }
+.metric .v { font-size: 20px; font-weight: 800; color: var(--bs-ink); }
+
+.note {
+  background: var(--bs-warning-bg); border: 1px solid var(--bs-warning);
+  border-radius: var(--bs-r-lg); padding: 12px 16px; color: var(--bs-ink); font-size: 13px; margin-bottom: 16px;
+}
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+.chip, .stage {
+  border-radius: 999px; padding: 5px 12px; font-size: 11.5px; font-weight: 700;
+  border: 1px solid rgba(15,23,42,.12); color: #102136; display: inline-block;
+}
+.chip.pre, .stage.pre { background: var(--pre); }
+.chip.cap, .stage.cap { background: var(--cap); }
+.chip.dep, .stage.dep { background: var(--dep); }
+.chip.aul, .stage.aul { background: var(--aul); }
+.chip.car, .stage.car { background: var(--car); }
+
+.tag { display: inline-block; border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 700; }
+.tag.running       { background: var(--bs-accent-bg);  color: var(--bs-accent); }
+.tag.scheduled      { background: var(--bs-info-bg, var(--bs-accent-bg)); color: var(--bs-info, var(--bs-accent)); }
+.tag.done, .tag.uploaded    { background: var(--bs-success-bg); color: var(--bs-success); }
+.tag.pending, .tag.pending-upload { background: var(--bs-danger-bg); color: var(--bs-danger); }
+
+.launch-name, .project-badge {
+  display: inline-block; border-radius: 999px; padding: 5px 11px; font-size: 11px;
+  font-weight: 800; letter-spacing: .02em; border: 1px solid rgba(15,23,42,.14); color: #102136;
+}
+.launch-pbb { background: #fef3c7; }
+.launch-pes { background: #fee2e2; }
+.launch-pi  { background: #dbeafe; }
+.proj-bb    { background: #fef3c7; }
+.proj-tj    { background: #fee2e2; }
+.proj-inss  { background: #dbeafe; }
+
+/* ── Toggle Linha do Tempo / Calendário ────────────────────────────── */
+.cal-view-toggle {
+  display: inline-flex; gap: 2px; padding: 3px; background: var(--bs-surface);
+  border: 1px solid var(--bs-border); border-radius: var(--bs-r-md); margin-bottom: 12px;
+}
+.cal-view-btn {
+  border: none; background: none; padding: 7px 14px; border-radius: calc(var(--bs-r-md) - 2px);
+  font-size: 12.5px; font-weight: 700; color: var(--bs-ink-muted); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; transition: background-color .15s, color .15s;
+  font-family: inherit;
+}
+.cal-view-btn:hover { color: var(--bs-ink); }
+.cal-view-btn.active { background: var(--bs-card); color: var(--bs-accent); box-shadow: var(--bs-sh-sm); }
+
 /* ── Timeline (vis-timeline) — 1 linha por lançamento, 1 barra por etapa.
    Etapa sem data (fantasma) fica tracejada; arrastar/redimensionar grava a
    data pela primeira vez. Cores reaproveitam as mesmas --pre/--cap/--dep/
-   --aul/--car do arquivo estático (legenda de chips acima). */
-#cal-timeline-wrap { margin: 24px 0; }
+   --aul/--car da legenda de chips acima. */
 #cal-timeline-hint {
   font-size: 12px; color: var(--bs-ink-muted); margin-bottom: 8px;
   display: flex; align-items: center; gap: 6px;
@@ -39,34 +110,71 @@
   font-size: 11px !important; font-weight: 700 !important; color: #102136 !important;
 }
 .vis-item .vis-item-content { padding: 4px 8px !important; }
-.vis-item.tl-stage-pre { background: var(--pre, #e0f2fe) !important; border-color: var(--pre, #e0f2fe) !important; }
-.vis-item.tl-stage-cap { background: var(--cap, #dcfce7) !important; border-color: var(--cap, #dcfce7) !important; }
-.vis-item.tl-stage-dep { background: var(--dep, #fef3c7) !important; border-color: var(--dep, #fef3c7) !important; }
-.vis-item.tl-stage-aul { background: var(--aul, #ffe4e6) !important; border-color: var(--aul, #ffe4e6) !important; }
-.vis-item.tl-stage-car { background: var(--car, #ddd6fe) !important; border-color: var(--car, #ddd6fe) !important; }
+.vis-item.tl-stage-pre { background: var(--pre) !important; border-color: var(--pre) !important; }
+.vis-item.tl-stage-cap { background: var(--cap) !important; border-color: var(--cap) !important; }
+.vis-item.tl-stage-dep { background: var(--dep) !important; border-color: var(--dep) !important; }
+.vis-item.tl-stage-aul { background: var(--aul) !important; border-color: var(--aul) !important; }
+.vis-item.tl-stage-car { background: var(--car) !important; border-color: var(--car) !important; }
 .vis-item.tl-ghost {
   background: repeating-linear-gradient(135deg, var(--bs-surface), var(--bs-surface) 6px, var(--bs-border) 6px, var(--bs-border) 12px) !important;
   border-style: dashed !important; color: var(--bs-ink-muted) !important; opacity: .85;
 }
 .vis-item.vis-selected { box-shadow: 0 0 0 2px var(--bs-accent) !important; }
-</style>
-/* O HTML estático embutido tem sua própria .container centralizada com
-   max-width fixo (pensada pra ser vista solta, fora do layout do app) —
-   aqui dentro do #bs-main isso sobra espaço vazio nas laterais. Estica
-   pra ocupar a largura real disponível e usa o accent do produto atual
-   em vez das cores fixas do arquivo estático. */
-.cal-content-wrap .container {
-  max-width: 100%;
-  margin: 0;
-  border-radius: 0;
-  box-shadow: none;
-  border: none;
+
+/* ── Calendário (grade de mês) — só leitura; editar data é na Linha do
+   Tempo. Mostra só etapas já datadas (sem "fantasma" aqui — a posição de
+   uma etapa sem data é um placeholder, não faria sentido cravar num dia
+   específico do mês). */
+.cal-grid-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.cal-grid-toolbar strong { font-size: 15px; font-weight: 800; color: var(--bs-ink); min-width: 170px; }
+.cal-grid-nav { display: inline-flex; gap: 4px; }
+.cal-grid-nav button, .cal-grid-today-btn {
+  border: 1px solid var(--bs-border); background: var(--bs-card); color: var(--bs-ink-muted);
+  height: 30px; border-radius: var(--bs-r-md); cursor: pointer; font-family: inherit;
+  display: inline-flex; align-items: center; justify-content: center;
 }
-.cal-content-wrap .header {
-  background: linear-gradient(120deg, var(--bs-sidebar-dark) 0%, var(--bs-accent) 100%) !important;
+.cal-grid-nav button { width: 30px; }
+.cal-grid-today-btn { padding: 0 12px; font-size: 12px; font-weight: 700; color: var(--bs-ink); }
+.cal-grid-nav button:hover, .cal-grid-today-btn:hover { background: var(--bs-accent-bg); color: var(--bs-accent); }
+.cal-grid {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  border: 1px solid var(--bs-border); border-radius: var(--bs-r-lg); overflow: hidden; background: var(--bs-card);
 }
-.cal-content-wrap .metric .k { color: var(--bs-accent) !important; }
-.cal-content-wrap .today-dot { background: var(--bs-accent) !important; box-shadow: 0 0 0 4px var(--bs-accent-bg) !important; }
+.cal-grid-dow {
+  background: var(--bs-surface); color: var(--bs-ink-muted); font-size: 10.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .05em; padding: 8px 10px; text-align: center;
+  border-bottom: 1px solid var(--bs-border);
+}
+.cal-grid-day {
+  min-height: 92px; padding: 6px; border-right: 1px solid var(--bs-border); border-bottom: 1px solid var(--bs-border);
+  display: flex; flex-direction: column; gap: 3px;
+}
+.cal-grid-day:nth-child(7n) { border-right: none; }
+.cal-grid-day.outside { background: var(--bs-surface); }
+.cal-grid-day.outside .cal-grid-daynum { color: var(--bs-ink-subtle); }
+.cal-grid-daynum { font-size: 11.5px; font-weight: 700; color: var(--bs-ink); }
+.cal-grid-day.today .cal-grid-daynum {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 19px; height: 19px; border-radius: 50%; background: var(--bs-accent); color: #fff;
+}
+.cal-grid-chip {
+  font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 5px;
+  border: 1px solid rgba(15,23,42,.12); color: #102136;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cal-grid-chip.tl-stage-pre { background: var(--pre); }
+.cal-grid-chip.tl-stage-cap { background: var(--cap); }
+.cal-grid-chip.tl-stage-dep { background: var(--dep); }
+.cal-grid-chip.tl-stage-aul { background: var(--aul); }
+.cal-grid-chip.tl-stage-car { background: var(--car); }
+.cal-grid-more { font-size: 10px; color: var(--bs-ink-muted); font-weight: 700; padding: 1px 4px; }
+
+@media (max-width: 768px) {
+  .cal-content-wrap .header { padding: 18px; }
+  .cal-content-wrap .header h1 { font-size: 21px; }
+  .cal-content-wrap .content { padding: 14px; }
+  .cal-grid-day { min-height: 72px; }
+}
 </style>
 {% endblock %}
 
@@ -77,13 +185,13 @@
 <div class="container">
   <div class="header">
     <h1>Calendário Operacional</h1>
-    <p>Datas geradas a partir das Configurações de cada lançamento — mude lá e o calendário acompanha.</p>
+    <p>Datas geradas a partir das Configurações de cada lançamento — mude lá (ou arraste na Linha do Tempo abaixo) e o calendário acompanha.</p>
   </div>
 
   <div class="content">
     <div class="today-banner">
       <span class="today-dot"></span>
-      <span id="today-display">Hoje é --/--/----</span>
+      <span>Hoje é {{ cal.today | br_date }}</span>
     </div>
 
     <div class="quick-grid">
@@ -119,6 +227,11 @@
 
     {% if cal.rows %}
     <h2>Linha do Tempo</h2>
+    <div class="cal-view-toggle">
+      <button type="button" class="cal-view-btn active" data-view="timeline"><i class="ti ti-timeline"></i> Linha do Tempo</button>
+      <button type="button" class="cal-view-btn" data-view="grid"><i class="ti ti-calendar"></i> Calendário</button>
+    </div>
+
     <div id="cal-timeline-wrap">
       <div id="cal-timeline-hint">
         <i class="ti ti-info-circle"></i>
@@ -129,6 +242,18 @@
         {% endif %}
       </div>
       <div id="cal-timeline"></div>
+    </div>
+
+    <div id="cal-grid-wrap" hidden>
+      <div class="cal-grid-toolbar">
+        <div class="cal-grid-nav">
+          <button type="button" id="cal-grid-prev" title="Mês anterior"><i class="ti ti-chevron-left"></i></button>
+          <button type="button" id="cal-grid-next" title="Próximo mês"><i class="ti ti-chevron-right"></i></button>
+        </div>
+        <button type="button" id="cal-grid-today" class="cal-grid-today-btn">Hoje</button>
+        <strong id="cal-grid-label"></strong>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
     </div>
 
     <h2>Pipeline Completo de Lançamentos</h2>
@@ -210,7 +335,6 @@
   </div>
 </div>
 </div>
-{{ cal_script | safe }}
 <script>
 (function () {
   var el = document.getElementById('cal-timeline');
@@ -287,6 +411,95 @@
     onMove: saveStage,
   });
   timeline.fit();
+
+  // ── Toggle Linha do Tempo / Calendário ──────────────────────────────
+  var toggleBtns = document.querySelectorAll('.cal-view-btn');
+  var timelineWrap = document.getElementById('cal-timeline-wrap');
+  var gridWrap = document.getElementById('cal-grid-wrap');
+  var gridBuilt = false;
+  toggleBtns.forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      toggleBtns.forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      var view = btn.getAttribute('data-view');
+      timelineWrap.hidden = view !== 'timeline';
+      gridWrap.hidden = view !== 'grid';
+      if (view === 'grid' && !gridBuilt) { gridBuilt = true; renderMonthGrid(); }
+    });
+  });
+
+  // ── Calendário (grade de mês) — só leitura, mostra etapas já datadas.
+  // Editar data continua sendo só na Linha do Tempo (arrastar).
+  var DOW_LABELS = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SAB', 'DOM'];
+  var MONTH_LABELS = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  var realItems = itemsData.filter(function (it) { return !it.ghost; });
+  var todayLocal = new Date();
+  todayLocal.setHours(0, 0, 0, 0);
+  var gridMonth = new Date(todayLocal.getFullYear(), todayLocal.getMonth(), 1);
+
+  function sameDay(a, b) {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  }
+
+  function renderMonthGrid() {
+    var grid = document.getElementById('cal-grid');
+    var label = document.getElementById('cal-grid-label');
+    if (!grid || !label) return;
+    label.textContent = MONTH_LABELS[gridMonth.getMonth()] + ' de ' + gridMonth.getFullYear();
+    grid.innerHTML = '';
+    DOW_LABELS.forEach(function (d) {
+      var head = document.createElement('div');
+      head.className = 'cal-grid-dow';
+      head.textContent = d;
+      grid.appendChild(head);
+    });
+    var firstOfMonth = new Date(gridMonth.getFullYear(), gridMonth.getMonth(), 1);
+    var startOffset = (firstOfMonth.getDay() + 6) % 7; // semana começa segunda
+    var cursor = new Date(firstOfMonth);
+    cursor.setDate(cursor.getDate() - startOffset);
+    for (var i = 0; i < 42; i++) {
+      var cellDate = new Date(cursor);
+      var cell = document.createElement('div');
+      cell.className = 'cal-grid-day';
+      if (cellDate.getMonth() !== gridMonth.getMonth()) cell.classList.add('outside');
+      if (sameDay(cellDate, todayLocal)) cell.classList.add('today');
+      var num = document.createElement('div');
+      num.className = 'cal-grid-daynum';
+      num.textContent = cellDate.getDate();
+      cell.appendChild(num);
+      var dayItems = realItems.filter(function (it) {
+        var realEnd = new Date(it.end.getTime() - 86400000); // desfaz o +1 dia de exibição
+        return cellDate >= it.start && cellDate <= realEnd;
+      });
+      dayItems.slice(0, 3).forEach(function (it) {
+        var chip = document.createElement('div');
+        chip.className = 'cal-grid-chip ' + it.className;
+        chip.textContent = it.group + ' · ' + it.content;
+        chip.title = it.group + ' — ' + it.content;
+        cell.appendChild(chip);
+      });
+      if (dayItems.length > 3) {
+        var more = document.createElement('div');
+        more.className = 'cal-grid-more';
+        more.textContent = '+' + (dayItems.length - 3) + ' mais';
+        cell.appendChild(more);
+      }
+      grid.appendChild(cell);
+      cursor.setDate(cursor.getDate() + 1);
+    }
+  }
+  document.getElementById('cal-grid-prev').addEventListener('click', function () {
+    gridMonth.setMonth(gridMonth.getMonth() - 1);
+    renderMonthGrid();
+  });
+  document.getElementById('cal-grid-next').addEventListener('click', function () {
+    gridMonth.setMonth(gridMonth.getMonth() + 1);
+    renderMonthGrid();
+  });
+  document.getElementById('cal-grid-today').addEventListener('click', function () {
+    gridMonth = new Date(todayLocal.getFullYear(), todayLocal.getMonth(), 1);
+    renderMonthGrid();
+  });
 })();
 </script>
 {% endblock %}

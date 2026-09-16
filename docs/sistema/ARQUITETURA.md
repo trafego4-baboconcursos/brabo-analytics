@@ -174,6 +174,9 @@ relacionados:
 >
 > **Mobile: scroll horizontal em vez de esconder colunas (2026-09-16)**
 >
+>
+> **Accordion: título em 2 linhas, ícone maior — mudança única, ~30 páginas (2026-09-16)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -1689,3 +1692,46 @@ que ganhava barra de rolagem horizontal, não o card. Medido via
 `el.scrollWidth > el.clientWidth` no DevTools/Playwright: antes do `min-width:0`, todo
 `.alloc-scroll` reportava `scrollWidth === clientWidth` (não rolava nada, só empurrava a página);
 depois, `scrollWidth` (622px) > `clientWidth` (315px) e a página ficou sem overflow.
+
+## Accordion: título em 2 linhas, ícone maior — mudança única, ~30 páginas (2026-09-16)
+
+Usuário mandou print do Debriefing no celular ("Detalhamento por Dia de Captação" com o título
+quebrando em parágrafo e cada badge — `PI-AGO-26`, `PI-ABR-26`, `Captação` — pulando pra uma linha
+própria, bagunçado) + um desenho à mão do layout que queria: ícone maior, título numa linha,
+badges na linha de baixo, sem a palavra "vs" entre lançamentos.
+
+`bsInitAccordion()` (`base.html`) é o motor genérico de accordion — reconhece qualquer
+`.section`/`.dbf-section-title` com esse bloco, sem precisar tocar no template de cada página
+(comentário original: "generalizado pra qualquer página que já usa o bloco .section/.section-
+title"). Isso significa que o problema (e o fix) não é do Debriefing: é de **toda** página que
+usa esse padrão — confirmado em ~30 arquivos via grep. A causa raiz é a mesma em qualquer uma:
+ícone + texto + badges (o "badge de tag" automático que essa mesma função injeta por
+palavra-chave do título, e badges que a própria página já colocava soltas ali, como o
+`.dbf-launch-badge` do Debriefing) brigavam pelo mesmo `display:flex; flex-wrap:wrap` — sem
+espaço, cada peça quebrava pra uma linha, cada uma na sua, imprevisível.
+
+**Fix, todo dentro de `bsInitAccordion()` + CSS de `.section-title`/`.dbf-section-title`:**
+- O ícone (sempre o 1º filho, se houver — nunca é o chevron, que entra por último) sai do bloco
+  de texto e vira filho direto do título, sozinho — CSS aumenta pra 26px (~altura de 2 linhas),
+  alinhado ao centro do bloco ao lado.
+- O resto do conteúdo original — que antes ia tudo pra um `<span class="bs-sec-orig">` só — agora
+  é separado nó a nó: texto vai pra `.bs-sec-orig` (linha 1), qualquer **elemento** (badge que a
+  página já tinha, ex. `.dbf-launch-badge`) vai pra um novo `<div class="bs-sec-badges">` (linha
+  2). A tag automática (`.bs-sec-tag`) entra nesse mesmo `.bs-sec-badges`. Um `.bs-sec-body`
+  (`display:flex; flex-wrap:wrap`) envolve as duas linhas — no desktop, com espaço de sobra, as
+  duas ainda colam numa linha só (nada muda visualmente); no celular (`max-width:640px`) vira
+  `flex-direction:column` e força as duas linhas separadas.
+- `.bs-sec-badges` fica `display:none` quando vazio (sem tag automática nem badge da página) —
+  `updateBadgesVisibility()`, chamada toda vez que `applyCustom()` roda (inclusive quando o
+  usuário edita a tag manualmente no painel "Seções").
+- Chevron sempre `position:absolute` no canto (nunca mais dentro do flex) — só existia essa regra
+  antes pra celular (`max-width:520px`); virou permanente, então o comportamento é o mesmo em
+  qualquer largura, sem depender de breakpoint pra não quebrar.
+
+**Testado nos dois formatos que existem** (a maioria das ~30 páginas não tem ícone no título, só
+número + texto — ex. Funil, Verba; um grupo menor tem, ex. Debriefing, Comparativo): Debriefing
+(ícone + 2 badges), Funil (sem ícone, com 1 badge), Comparativo (ícone + 1 badge) — mobile (390px)
+e desktop (1280px), accordion recolher/expandir e o painel "Seções" continuam funcionando.
+
+De quebra: as duas badges de lançamento do Debriefing (`.dbf-launch-badge`) perderam o "vs" —
+"vs PI-ABR-26" virou só "PI-ABR-26" — pedido explícito junto com o desenho.

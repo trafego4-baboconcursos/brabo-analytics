@@ -180,6 +180,9 @@ relacionados:
 >
 > **Título sem "Captação/Pré-Quali/Meta/Google/YouTube/TikTok" no texto — vira badge (2026-09-16)**
 >
+>
+> **plat_badge() migrou pra fora do Debriefing + extensão pra 11 páginas (2026-09-16/17)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -1772,3 +1775,38 @@ ranking.
 cada template já escreve `{{ plat_badge(...) }}` antes de `.dbf-launch-badge` (atual) antes de
 `.dbf-launch-badge.prev` (anterior), a ordem final bate exatamente com "etapa → plataforma →
 lançamento → lançamento anterior" sem precisar de nenhuma lógica de reordenação.
+
+## plat_badge() migrou pra fora do Debriefing + extensão pra 11 páginas (2026-09-16/17)
+
+`plat_badge()` e `_PLAT_BADGE` saíram de `debriefing/_macros.html` pra `_macros_platform.html`
+(raiz de `templates/`, sem `{% extends %}`, mesmo padrão de `_macros_verba.html`) — pedido do
+usuário de estender a limpeza de título pras outras páginas, e não fazia sentido um macro
+genérico morar num caminho com "debriefing". CSS de `.dbf-plat-badge` foi atrás, de
+`debriefing.html` pra `base.html` (é usado em páginas que não são o Debriefing agora). Depois,
+outra sessão trocou o ícone branco simples por um círculo branco com o ícone colorido dentro
+(`.dbf-plat-badge-dot`) e acrescentou WhatsApp/Active Campaign ao dicionário — evolução
+coerente, não precisou de ajuste.
+
+Mesma limpeza do Debriefing (tirar "Captação"/"Pré-Qualificação"/"Meta Ads"/"Google
+Ads"/"YouTube"/"TikTok" do texto do título, badge no lugar) estendida pra comparativo,
+criativos, dashboard, distribuição, funil, google, google-audiences, meta, perpétuo e
+pré-qualificação. Três armadilhas que apareceram só fora do Debriefing:
+
+1. **"Meta" é ambíguo em português.** `meta.html` tem "Distribuição de Verba Meta Captação vs
+   Meta Estratégica" — aqui "Meta" é a palavra comum (meta estratégica de alocação de verba: 70%
+   Principal / 25% Potencial / 5% Reels), não a plataforma. Trocado por badge teria mudado o
+   sentido da frase. Deixado sem tocar.
+2. **Página 100% de uma plataforma/etapa não precisa do badge redundante.** `meta.html`,
+   `google.html`, `meta-audiences`, `google-audiences` já têm "Meta Ads"/"Google Ads" no `<h1>`
+   da página — todo badge de plataforma em toda seção seria ruído. Só a etapa (`Captação`) virou
+   tag onde fazia sentido; a palavra da plataforma nem foi tocada nesses 4 arquivos. Mesma lógica
+   em `pre_qualificacao.html` (h1 já diz "Pré-Qualificação") — a palavra saiu do texto, mas sem
+   tag (senão toda seção da página ganharia a mesma tag óbvia).
+3. **`funil.html` já tinha um sistema de badge de plataforma próprio** (SVG hardcoded,
+   `.platform-badge`/`.section-title.platform-meta`/`.platform-google`, de uma feature anterior a
+   este trabalho) — mantido como está (não fazia sentido ter dois sistemas de badge na mesma
+   página); só a palavra duplicada ("Meta Ads -", "Google Ads -") saiu do texto do título, que
+   antes repetia o que o badge já mostrava.
+
+Testado: as 11 rotas devolvem 200 e a inspeção visual (Playwright, funil/pré-qualificação/
+captação) confirma ordem e tamanho consistentes com o Debriefing.

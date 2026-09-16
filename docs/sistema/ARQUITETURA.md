@@ -154,6 +154,9 @@ relacionados:
 > - [[ARQUITETURA#3. Número inválido virava `NULL` em silêncio|3. Número inválido virava `NULL` em silêncio]]
 > - [[ARQUITETURA#4. Escrita de config sem checagem de papel|4. Escrita de config sem checagem de papel]]
 > - [[ARQUITETURA#5. A etapa "WhatsApp" não existia no wizard|5. A etapa "WhatsApp" não existia no wizard]]
+>
+> **Preview de landing page via thum.io (2026-09-16)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -1494,3 +1497,22 @@ próxima abertura, com total 0.
 
 **Os nomes das etapas padrão são chave, não rótulo.** Renomear "WhatsApp" ou "Lembrete" no wizard
 zera o previsto da seção correspondente do debriefing, sem erro nenhum.
+
+## Preview de landing page via thum.io (2026-09-16)
+
+"Landing Pages que Mais Converteram" (Pré-Qualificação e Captação, `/debriefing`) ganhou uma
+coluna de miniatura da página. Sem infra própria: um `<img>` aponta direto pra
+`https://image.thum.io/get/width/300/crop/200/noanimate/<url-completa-da-lp>` — serviço público
+de screenshot, sem chave de API, sem custo. A URL completa é montada com o mesmo `lp_base_url` já
+usado pro link da página (`lp.mateusandrade.com.br` pra INSS, `lp.braboconcursos.com.br` pros
+demais produtos) — o GA4 só guarda o caminho, não o host.
+
+Testado direto contra o thum.io (fora do preview reduzido de 64×44px do card): devolve JPEG real
+da página, ~5KB, HTTP 200. Sem cache próprio — cada carregamento da página pode disparar uma
+renderização nova do lado do thum.io se o cache deles tiver expirado (comportamento deles, fora do
+nosso controle). Se o volume de tráfego no debriefing crescer e isso ficar lento/instável, a
+alternativa é migrar pra captura própria via Playwright no servidor (mesmo padrão de
+`ad_creatives.thumb_data`/`image_data`, ver "Código de anúncio e imagem de criativo" acima) — mais
+robusto e sem depender de terceiro, mas exige instalar o binário do Chromium (~300MB) e uma
+camada de cache/armazenamento próprias. Decisão registrada 16/09/26: optou-se pelo terceiro
+primeiro, por ser zero-infra e já resolver o pedido.

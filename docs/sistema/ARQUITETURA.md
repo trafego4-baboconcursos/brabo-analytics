@@ -13,6 +13,10 @@ responde:
   - "por que a verba configurada demora pra aparecer"
   - "quais campos o wizard grava em launch_config"
   - "por que o previsto do WhatsApp aparece zerado"
+  - "quando subir o SNAPSHOT_VERSION"
+  - "por que o debriefing quebrou depois de mexer no dbf"
+  - "como regravar o baseline de caracterizacao sem perder o resto"
+  - "por que read_launch_config e volatil no teste"
 relacionados:
   - "[[METODOLOGIA_EXTRACAO_DADOS]]"
   - "[[DESIGN_SYSTEM]]"
@@ -22,7 +26,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 37 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 40 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -157,6 +161,12 @@ relacionados:
 >
 > **Preview de landing page via thum.io (2026-09-16)**
 >
+>
+> **`SNAPSHOT_VERSION`: por que virou teste (2026-09-16)**
+>
+> - [[ARQUITETURA#O teste que cobra|O teste que cobra]]
+> - [[ARQUITETURA#O outro lado: campo que ninguém produz|O outro lado: campo que ninguém produz]]
+> - [[ARQUITETURA#Resumo do que protege o quê|Resumo do que protege o quê]]
 
 <!-- SUMARIO:FIM -->
 
@@ -479,6 +489,14 @@ sistema novo, sincronismo do AC) ou devolvem totais globais, não recortados pel
 lançamento. Deles o teste cobra só a **forma** da resposta. A lista foi medida, não chutada:
 duas execuções a 15 minutos de distância divergiram nesses e em nenhum outro.
 
+`read_launch_config` entrou nessa lista em 16/09 por um motivo **diferente dos outros**: ali não é
+dado chegando sozinho, é gente editando. `launch_config` é preenchida à mão no wizard de
+Configurações, a qualquer momento e inclusive em lançamento já fechado, e `updated_at` faz parte da
+resposta do reader — então todo salvamento muda o digest. Congelado por valor, o teste falhava
+sempre que alguém mexia no wizard (foi o que aconteceu quando a oferta do PI-AGO-26 foi preenchida
+no meio de uma rodada: mesmas 42 chaves, sha diferente). Nenhuma medição de 15 minutos pega isso —
+depende de alguém abrir a tela.
+
 ```bash
 # unitários (CI, sem banco)
 python -m pytest tests/ -m "not smoke and not caracterizacao"
@@ -489,6 +507,13 @@ ATUALIZAR_BASELINE=1 python -m pytest tests/test_caracterizacao_readers.py -m ca
 # depois de refatorar: confere que nada mudou
 python -m pytest tests/test_caracterizacao_readers.py -m caracterizacao
 ```
+
+> ⚠️ **`ATUALIZAR_BASELINE=1` só vale na suíte inteira.** Escopado em alguns test ids, ele reescreve
+> o arquivo do lançamento **apenas com as chaves daqueles testes** e apaga as dos outros readers —
+> regravar só `read_launch_config` de dois lançamentos custou 2.655 linhas de baseline. Se precisar
+> atualizar um reader só, extraia a entrada nova, restaure o arquivo e aplique a chave à mão. E
+> restaure com **cópia de backup**, não com `git checkout -- a b c`: basta um dos caminhos não estar
+> versionado pra ele abortar sem reverter nada (silenciosamente, se o stderr estiver descartado).
 
 ---
 
@@ -1516,3 +1541,52 @@ alternativa é migrar pra captura própria via Playwright no servidor (mesmo pad
 robusto e sem depender de terceiro, mas exige instalar o binário do Chromium (~300MB) e uma
 camada de cache/armazenamento próprias. Decisão registrada 16/09/26: optou-se pelo terceiro
 primeiro, por ser zero-infra e já resolver o pedido.
+
+## `SNAPSHOT_VERSION`: por que virou teste (2026-09-16)
+
+Quatro quebras do `/debriefing` em dois dias, todas com a mesma causa: o `dbf` ganhou campo, o
+template passou a pedir esse campo, e `SNAPSHOT_VERSION` não subiu junto. O snapshot já gravado
+passava no guard de versão, o template pedia o que aquele payload não tinha, a página devolvia 500.
+
+| versão | o que mudou no `dbf` |
+|---|---|
+| 5 → 6 | `total_grupos_normais/vip` e os `prev_` correspondentes (entre 04 e 15/09) |
+| 6 → 7 | Saúde do Lançamento 2.0 — `saude_pesos`, `saude_score_meta_fat/cac/conv` |
+| 7 → 8 | Detalhamento de Oferta — `oferta_parcela_cartao`, `oferta_parcela_boleto` |
+| 8 → 9 | `oferta_preco_parcelado` |
+
+O aviso estava escrito em `frontend/db_readers/debriefing_snapshot.py` desde a primeira vez, com
+todas as letras, dizendo que subir o número não é opcional. **Quatro vezes não bastou.** Um
+comentário não roda.
+
+### O teste que cobra
+
+`tests/test_dbf_contrato.py` lê por AST as chaves do `return` de `_compute_debriefing_ctx` e compara
+com `tests/baseline/dbf_manifesto.json`. Mudou a forma sem o bump, falha dizendo qual campo entrou
+ou saiu e para qual número subir. Não executa o produtor — precisaria de banco e leva ~1 min por
+lançamento, e o que interessa aqui é a *forma*, que é estática. Roda em 0,06s, sem banco, na faixa
+rápida do CI.
+
+Só `ATUALIZAR_MANIFESTO=1` escreve o manifesto. Um teste que regrava o próprio gabarito numa rodada
+normal esconde exatamente o que ele existe pra denunciar — e, diferente do `ATUALIZAR_BASELINE=1`,
+aqui não há risco de escopar e perder o resto: é um arquivo só, reescrito inteiro.
+
+### O outro lado: campo que ninguém produz
+
+O segundo teste do arquivo cobra que todo `dbf.x` lido nos templates exista no produtor. Esse
+defeito é mais silencioso que o 500: com guarda no template (`{% if dbf.x %}`), o campo ausente não
+quebra nada — só cai no ramo do "não configurado" para sempre.
+
+Foi o caso de `oferta_preco_parcelado`, achado por esse teste na primeira execução: o template lia,
+ninguém produzia, e a linha "Preço parcelado" do Detalhamento de Oferta mostrava "não configurado"
+mesmo com `produto_preco_parcelado` preenchido no wizard. Corrigido, e é o que levou a versão a 9.
+
+### Resumo do que protege o quê
+
+| risco | quem protege |
+|---|---|
+| campo novo no `dbf` sem bump de versão | `test_dbf_contrato.py` |
+| template lendo campo que ninguém produz | `test_dbf_contrato.py` |
+| processo com código velho rebaixando o snapshot | guard de monotonicidade no `write_snapshot` |
+| não saber quem gravou um snapshot | `_writer` (`hostname#pid`) no payload |
+| processo velho servindo template novo | nada automático — **reinicie o servidor** |

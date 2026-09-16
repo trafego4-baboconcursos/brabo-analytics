@@ -88,9 +88,21 @@
   font-size: 12px; color: var(--bs-ink-muted); margin-bottom: 8px;
   display: flex; align-items: center; gap: 6px;
 }
-#cal-timeline {
+/* O vis-timeline navega o período por gesto próprio (arrastar/zoom via
+   hammer.js) em vez de scroll nativo do navegador — no touch mobile esse
+   gesto compete com o scroll da página e nem sempre vence. Em telas
+   estreitas, força um scroll horizontal nativo (confiável, mesmo padrão
+   já usado nas tabelas mobile) dando ao timeline uma largura mínima maior
+   que a tela, dentro de um wrapper com overflow-x. */
+.cal-timeline-scroll {
   border: 1px solid var(--bs-border); border-radius: var(--bs-r-lg);
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+}
+#cal-timeline {
   background: var(--bs-card); font-family: inherit;
+}
+@media (max-width: 768px) {
+  #cal-timeline { min-width: 720px; }
 }
 .vis-timeline { border: none !important; color: var(--bs-ink); }
 .vis-panel.vis-center, .vis-panel.vis-left, .vis-panel.vis-top, .vis-panel.vis-bottom {
@@ -241,7 +253,9 @@
         Somente leitura — seu perfil não tem permissão pra editar datas de lançamento.
         {% endif %}
       </div>
-      <div id="cal-timeline"></div>
+      <div class="cal-timeline-scroll">
+        <div id="cal-timeline"></div>
+      </div>
     </div>
 
     <div id="cal-grid-wrap" hidden>

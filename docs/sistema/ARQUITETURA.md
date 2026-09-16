@@ -1002,6 +1002,14 @@ uma string ISO sem timezone é interpretada como UTC meia-noite, que em fuso neg
 dia anterior na hora local. Salvar recarrega a página inteira em vez de tentar sincronizar o
 estado client-side — mais simples, e garante que status/métricas recalculados batem com o banco.
 
+**Padrão visual + grade de mês (2026-09-16):** a página parou de depender do CSS/JS extraído do
+HTML estático (`cal_styles`/`cal_script`, `_load_calendario_assets` em `analytics.py` — removido)
+e passou a usar os tokens `--bs-*` como o resto do sistema, acompanhando tema. Ganhou também um
+toggle "Linha do Tempo" / "Calendário": a segunda opção é uma grade de mês nova (navegação
+anterior/próximo/hoje), só leitura — mostra as etapas já datadas num grid de dias; editar
+continua sendo exclusivo da Linha do Tempo (arrastar uma barra). As duas visões e as duas tabelas
+de baixo (Pipeline Completo / Agenda por Lançamento) reaproveitam o mesmo `cal.timeline_items`.
+
 ## Documentação como sistema (2026-09-14)
 
 `docs/` deixou de ser uma pasta de arquivos soltos e virou um vault com roteamento, para que

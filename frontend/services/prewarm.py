@@ -150,11 +150,24 @@ def schedule_warm(codes: Iterable[str] | None = None, invalidate: bool = False, 
 # conjunto aquecido) é servido ao vivo nesta visita e ganha snapshot em
 # segundo plano — a próxima visita já é instantânea. Um por código por vez.
 _SNAPSHOT_INFLIGHT: set[str] = set()
+# Códigos que precisam de MAIS uma montagem assim que a atual terminar (ver
+# `force` abaixo).
+_SNAPSHOT_REFAZER: set[str] = set()
 
 
-def schedule_snapshot_only(launch: Any, launches: list) -> asyncio.Task | None:
+def schedule_snapshot_only(launch: Any, launches: list, force: bool = False) -> asyncio.Task | None:
+    """Monta e grava o snapshot do /debriefing em segundo plano.
+
+    `force=True` quando a config do lançamento mudou: uma montagem que já estava
+    em curso leu a config antiga e vai gravar isso por cima, então em vez de
+    simplesmente desistir (o guard de in-flight), marca pra refazer assim que
+    ela terminar. Sem isso, salvar o wizard no meio de um aquecimento deixava a
+    página com o valor velho até a próxima rodada periódica."""
     code = launch.code
     if code in _SNAPSHOT_INFLIGHT:
+        if force:
+            _SNAPSHOT_REFAZER.add(code)
+            logger.info("Snapshot de %s já em curso; re-montagem marcada pro fim dela.", code)
         return None
     _SNAPSHOT_INFLIGHT.add(code)
 
@@ -166,6 +179,10 @@ def schedule_snapshot_only(launch: Any, launches: list) -> asyncio.Task | None:
             logger.exception("Snapshot sob demanda falhou para %s", code)
         finally:
             _SNAPSHOT_INFLIGHT.discard(code)
+        if code in _SNAPSHOT_REFAZER:
+            _SNAPSHOT_REFAZER.discard(code)
+            logger.info("Re-montando snapshot de %s: a config mudou durante a montagem anterior.", code)
+            schedule_snapshot_only(launch, launches)
 
     task = asyncio.create_task(_run())
     _TASKS.add(task)

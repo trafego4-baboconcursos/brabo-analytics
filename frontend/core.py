@@ -26,7 +26,7 @@ if str(SRC_DIR) not in sys.path:
 from frontend.db_readers import (
     discover_launches, get_launch, Launch,
     read_comparativo, AcCampaignSummary,
-    read_launch_config, save_launch_config, create_launch, count_campaigns_for_filter, get_drive_thumbnails,
+    read_launch_config, save_launch_config, ConfigInvalida, create_launch, count_campaigns_for_filter, get_drive_thumbnails,
     autodetect_launch_data,
     get_user_by_email, get_user_by_id, list_users, create_user,
     update_user, update_last_login, bootstrap_admin_if_needed,

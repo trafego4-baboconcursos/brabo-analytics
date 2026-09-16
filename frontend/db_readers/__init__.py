@@ -32,8 +32,8 @@ from frontend.db_readers.ga4 import (  # noqa: F401
     read_conversao_pagina_captura, read_landing_pages_por_etapa,
 )
 from frontend.db_readers.launches import (  # noqa: F401
-    _ETL_SOURCES, autodetect_launch_data, count_campaigns_for_filter, create_launch,
-    discover_launches, get_drive_thumbnails, get_etl_status, get_launch,
+    _ETL_SOURCES, ConfigInvalida, autodetect_launch_data, count_campaigns_for_filter,
+    create_launch, discover_launches, get_drive_thumbnails, get_etl_status, get_launch,
     get_platform_thumbnails, read_launch_config, save_launch_config,
 )
 from frontend.db_readers.leads import (  # noqa: F401

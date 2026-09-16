@@ -12,7 +12,7 @@ from frontend.core import (
     _THUMB_URL_TTL,
     _get_current_user, _invalidate, reset_launches_cache, _refresh_launches,
     get_launches,
-    read_launch_config, save_launch_config, create_launch,
+    read_launch_config, save_launch_config, ConfigInvalida, create_launch,
     count_campaigns_for_filter, get_drive_thumbnails,
     get_ad_accounts_for_wizard,
     _compute_launch_defaults,
@@ -120,11 +120,37 @@ async def api_refresh_ad_accounts():
 @router.post("/api/launch-config/{launch_code}")
 async def api_save_launch_config(launch_code: str, request: Request):
     import json as _json
+    # ROUTE_PERMISSIONS (auth.py) casa path exato e só cobre as páginas, então
+    # /api/* passava com qualquer sessão válida: até `leitura` reescrevia a
+    # config de qualquer lançamento. Mesmo conjunto de papéis do /api/lancamentos.
+    current = _get_current_user(request)
+    if current["role"] not in ("admin", "analista", "trafego"):
+        return {"ok": False, "error": "Sem permissão para editar a configuração do lançamento."}
+
     body = await request.body()
     config = _json.loads(body)
-    save_launch_config(launch_code, config)
+    try:
+        await run_in_threadpool(save_launch_config, launch_code, config)
+    except ConfigInvalida as e:
+        logger.warning("Config inválida recusada para %s — %s", launch_code, e)
+        return {"ok": False, "error": f"Valor inválido: {e}"}
+
     _invalidate(launch_code)
     reset_launches_cache()
+
+    # O /debriefing não lê launch_config: lê a linha pré-computada de
+    # debriefing_snapshot, reescrita só pelo aquecimento periódico. Sem este
+    # disparo, verba salva aqui só aparecia lá na próxima rodada (até 30 min) —
+    # foi exatamente o que aconteceu com a verba do PES-SET-26 em 16/09/26.
+    try:
+        from frontend.services.prewarm import schedule_snapshot_only  # noqa: PLC0415
+        launches = await run_in_threadpool(get_launches)
+        launch = next((x for x in launches if x.code == launch_code), None)
+        if launch:
+            schedule_snapshot_only(launch, launches, force=True)
+    except Exception:
+        logger.exception("Falha ao agendar snapshot do debriefing após salvar %s", launch_code)
+
     return {"ok": True, "launch_code": launch_code}
 
 

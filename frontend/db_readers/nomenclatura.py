@@ -25,6 +25,11 @@ ETAPA_MAP_META = {
     "lembrete": "Lembrete",
     "depoimento": "Depoimento", "depoimentos": "Depoimento",
     "replay aulas": "Replay", "replay": "Replay",  # deve vir antes de aula para [replay][aula N] → Replay
+    # convenção real é um colchete só ("[replay aula 2]"), não "[replay][aula 2]"
+    # separados — sem essas chaves específicas, o match exato de "[replay]"
+    # nunca bate e o gasto cai inteiro em "Outros".
+    "replay aula 1": "Replay", "replay aula 2": "Replay",
+    "replay aula 3": "Replay", "replay aula 4": "Replay",
     "aulas no ar": "Aulas no Ar", "aulas-no-ar": "Aulas no Ar",
     "aula 1": "Aulas no Ar", "aula 2": "Aulas no Ar", "aula 3": "Aulas no Ar", "aula 4": "Aulas no Ar",
     "matrículas abertas": "Matrículas Abertas", "matriculas abertas": "Matrículas Abertas",

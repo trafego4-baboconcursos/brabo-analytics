@@ -26,7 +26,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 41 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 42 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -153,6 +153,7 @@ relacionados:
 >
 > **Saúde do Lançamento — nota 0-100 no Debriefing (2026-09-15/16)**
 >
+> - [[ARQUITETURA#A trava por ROAS (16/09/26) — nota é uma coisa, rótulo é outra|A trava por ROAS (16/09/26) — nota é uma coisa, rótulo é outra]]
 >
 > **Wizard de Configurações — o que era gravado, e o que a página via (2026-09-16)**
 >
@@ -182,6 +183,9 @@ relacionados:
 >
 >
 > **plat_badge() migrou pra fora do Debriefing + extensão pra 11 páginas (2026-09-16/17)**
+>
+>
+> **Bug corrigido: etapa "Replay" do Meta sempre caía em "Outros" (2026-09-16)**
 >
 
 <!-- SUMARIO:FIM -->
@@ -1496,6 +1500,53 @@ Dois cortes de nota são palpite documentado, não regra validada — ajustar se
 errado: CAC pontua cheio em custo-por-venda R$0 e zero a partir do ticket médio (ponto de
 empate); Conversão do Funil pontua cheio a partir de 3% leads→vendas.
 
+### A trava por ROAS (16/09/26) — nota é uma coisa, rótulo é outra
+
+Somar 7 fatores num número só tem um efeito colateral previsível: **os 50 pts do ROAS podem ser
+compensados pelos outros 50**. Foi o que aconteceu no PI-AGO-26 — nota 80/100 🟢 "Excelente" com
+ROAS de 2,78x, sustentada por rastreabilidade (81,8%) e eficiência de anúncio (42/54). Um
+lançamento que devolveu menos de 3x não devia poder se chamar Excelente.
+
+A regra (pauta Júlia/Michel) não mexe na nota: o ROAS passa a **limitar o rótulo**.
+
+| ROAS | rótulo máximo |
+|---|---|
+| ≥ 3x | Excelente (livre) |
+| 2 – 2,99x | Bom |
+| 1 – 1,99x | Atenção |
+| < 1x | **Péssimo** (faixa nova, só se chega nela por aqui) |
+
+Abaixo de 1x a receita **líquida** (já sem a taxa da Hotmart, mas ainda sem imposto/produto/equipe)
+não paga nem a mídia, então o rótulo é Péssimo por pior que a nota fosse boa.
+
+Duas guardas vêm **antes** da trava, senão ela mente nos dois extremos:
+
+- **carrinho ainda aberto → "Em andamento".** A nota mede um lançamento pela metade. Sem a guarda,
+  o PES-SET-26 (carrinho 14–28/09) apareceria "Péssimo" todo dia até fechar, com ROAS 0,02x, porque
+  as vendas só entram no fim. O corte é `carrinho_end_date` do wizard; sem ela, `dim_lancamentos.data_fim`.
+- **sem venda nenhuma → "Sem dados".** Lançamento futuro (PI-NOV-26) ou legado sem venda atribuída
+  (BV-25): não há o que classificar.
+
+A regra é `_saude_classificacao()` em `frontend/services/debriefing.py`, função pura, coberta por
+`tests/test_saude_lancamento.py` com os números reais de cada lançamento. O template só renderiza
+`dbf.saude_faixa` — **a cor do número e o texto do rótulo saem da mesma tupla**, o que de quebra
+corrigiu uma incoerência antiga: o template tinha corte próprio pra cor (60) e outro pro rótulo
+(65), então nota 60–64 saía amarela escrito "🟠 Regular".
+
+Quando a trava segura a faixa, aparece um aviso sob o rótulo ("ROAS 2,78x limita a faixa") — sem
+ele, uma nota 80 escrita "Bom" parece bug.
+
+**Efeito no histórico:** muda um lançamento fechado — PI-AGO-26 de 🟢 Excelente para 🟡 Bom.
+PES-MAI-26 (3,42x), PBB-JUN-26 (3,26x) e PI-ABR-26 (3,12x) seguem Excelente; PBB-AGO-26 (2,20x)
+já estava em Bom.
+
+Segue **pendente de calibração** (levantamento em [[MUDANCAS_PI-AGO-26]], item 50): o fator CAC é
+hoje `10 * (1 − custo_venda/ticket)`, e como `ticket = receita/vendas` e `custo_venda = invest/vendas`,
+essa razão **é exatamente `1/ROAS`** — ou seja, 60 dos 100 pontos medem a mesma coisa. O teto de CAC
+pedido pela Júlia só resolve isso se for um **alvo em R$ por lançamento** (como a Meta de Faturamento),
+não uma razão sobre o ticket. E o corte de 3% da Conversão do Funil ignora que a conversão é
+estrutural por produto (PES 2,7–3,5%, PBB 0,65–1,0%, PI 0,8–1,0%).
+
 **Mobile (16/09):** abaixo de 640px, `.dbf-saude` era `flex-wrap` mas continuava `flex-direction:
 row` — a nota (bloco estreito) só ocupava parte da primeira linha do wrap, e o primeiro item
 (ROAS) entrava na MESMA linha ao lado dela em vez de abaixo; os itens seguintes empilhavam por
@@ -1624,6 +1675,7 @@ passava no guard de versão, o template pedia o que aquele payload não tinha, a
 | 7 → 8 | Detalhamento de Oferta — `oferta_parcela_cartao`, `oferta_parcela_boleto` |
 | 8 → 9 | `oferta_preco_parcelado` |
 | 9 → 10 | mesma forma, valores diferentes: previsto de Remarketing passou a incluir o WhatsApp |
+| 10 → 11 | trava por ROAS — `saude_faixa`, `saude_em_andamento` |
 
 O aviso estava escrito em `frontend/db_readers/debriefing_snapshot.py` desde a primeira vez, com
 todas as letras, dizendo que subir o número não é opcional. **Quatro vezes não bastou.** Um
@@ -1818,3 +1870,27 @@ pré-qualificação. Três armadilhas que apareceram só fora do Debriefing:
 
 Testado: as 11 rotas devolvem 200 e a inspeção visual (Playwright, funil/pré-qualificação/
 captação) confirma ordem e tamanho consistentes com o Debriefing.
+
+## Bug corrigido: etapa "Replay" do Meta sempre caía em "Outros" (2026-09-16)
+
+`categorizar_campanha_meta` (`frontend/db_readers/nomenclatura.py`) casa a chave da etapa contra
+o colchete **exato** da campanha (`f"[{chave}]" in camp`) — funciona para `[aula 1]`..`[aula 4]`
+porque a convenção de nome usa um número por colchete. Mas a etapa Replay nomeia a campanha como
+`[replay aula 1]`, `[replay aula 2]`... — **um colchete só**, com "replay" e o número da aula
+juntos. `ETAPA_MAP_META` só tinha as chaves genéricas `"replay"` e `"replay aulas"`, que nunca
+batem com `[replay aula N]` (não é match exato de colchete) — toda campanha de Replay do Meta
+caía em `"Outros"` e desaparecia de qualquer soma por etapa. O Google não tinha esse bug (casa
+por substring, não colchete exato), então o sintoma só aparecia no lado Meta.
+
+**Descoberto via:** usuário comparou o relatório diário do Slack (`etl/budget_alert.py`) com o
+gasto real do PES-SET-26 e viu "Replay: Meta R$0,00" no dia em que a campanha Meta de Replay
+tinha gastado R$308,19 de verdade — o Google da mesma etapa aparecia certo, o que apontou pro
+classificador em vez da consulta às contas. Provavelmente afetava **todo lançamento anterior**
+que já rodou etapa Replay no Meta, não só esse.
+
+**Fix:** adicionadas as chaves específicas `"replay aula 1"`..`"replay aula 4"` em
+`ETAPA_MAP_META`, mesmo padrão já usado pra `"aula 1"`..`"aula 4"`. `tests/test_nomenclatura.py`
+é um teste de equivalência contra uma fixture gerada pela implementação antiga (ver seção
+anterior) — 4 dos 1.311 casos mudaram de resultado de propósito (as 4 campanhas reais de Replay
+do Meta no banco: PES-MAR-26 aula 1/2/3, PES-SET-26 aula 1), fixture atualizada à mão pra refletir
+a classificação correta. Suite completa rodada depois do fix, sem outras regressões.

@@ -266,6 +266,8 @@ def read_comparativo(launch_b: Launch, launch_a: Launch, launch_a2: Launch | Non
     data.por_segmento = _merge_segmentos(ra, rb)
 
     # â€” Vendas hora a hora no dia 1 (abertura do carrinho) â€”
+    from frontend.db_readers.sales import read_dia1_sales  # noqa: PLC0415
+
     data.dia1_a = read_dia1_sales(launch_a)
     data.dia1_b = read_dia1_sales(launch_b)
     data.dia1_a2 = read_dia1_sales(launch_a2) if launch_a2 else {}

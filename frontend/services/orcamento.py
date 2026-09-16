@@ -252,8 +252,10 @@ def publico_por_dia(code: str, cfg: dict | None, etapa_nome: str) -> dict:
     from datetime import date as _date, timedelta
     from sqlalchemy import text
     from frontend.db import _get_engine
-    from frontend.db_readers.ads_meta import _categorize_campaign as _cat_meta
-    from frontend.db_readers.ads_google import _categorize_campaign as _cat_google
+    from frontend.db_readers.nomenclatura import (  # noqa: PLC0415
+        categorizar_campanha_google as _cat_google,
+        categorizar_campanha_meta as _cat_meta,
+    )
 
     et = etapa_cfg(cfg, etapa_nome)
     start, end = et.get("start_date"), et.get("end_date")
@@ -377,8 +379,10 @@ def investimento_diario_etapa(code: str, etapa_nome: str, start: str | None, end
     import pandas as pd
     from sqlalchemy import text
     from frontend.db import _get_engine
-    from frontend.db_readers.ads_meta import _categorize_campaign as _cat_meta
-    from frontend.db_readers.ads_google import _categorize_campaign as _cat_google
+    from frontend.db_readers.nomenclatura import (  # noqa: PLC0415
+        categorizar_campanha_google as _cat_google,
+        categorizar_campanha_meta as _cat_meta,
+    )
 
     if not (start and end):
         return []

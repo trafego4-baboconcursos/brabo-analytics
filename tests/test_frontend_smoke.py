@@ -25,6 +25,14 @@ from dotenv import load_dotenv
 # credenciais/banco reais; sem .env (CI), entram os dummies abaixo.
 load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
+# O aquecimento grava debriefing_snapshot no banco REAL — o .env local aponta
+# pra produção. Sem isto, rodar a suíte reescreve os snapshots de produção com o
+# código do checkout, e quem abrir o dashboard vê números calculados por código
+# não revisado. Aconteceu em 15/09/26 e custou horas de diagnóstico errado (ver
+# docs/sistema/ARQUITETURA.md). Como efeito colateral bom, /debriefing passa a
+# ser exercitado pelo caminho ao vivo, que é onde os 500 aparecem.
+os.environ["PRE_WARM_CACHE"] = "false"
+
 os.environ.setdefault("BRABO_USER", "smoke@teste.local")
 os.environ.setdefault("BRABO_PASS", "smoke-senha-teste")
 os.environ.setdefault("SECRET_KEY", "smoke-secret-key-para-testes")

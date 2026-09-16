@@ -52,6 +52,7 @@ from tests.caracterizacao_util import (  # noqa: E402
     e_falha_de_infra,
     impressao_digital,
     normalizar,
+    recusar_excecao_no_baseline,
 )
 
 # Permite apontar o baseline para fora da árvore: é assim que se compara o
@@ -244,6 +245,7 @@ def test_saida_do_reader_nao_mudou(
     obtido = impressao_digital(saida)
 
     if ATUALIZAR:
+        recusar_excecao_no_baseline(chave, saida)
         baselines[codigo][chave] = obtido
         return
 

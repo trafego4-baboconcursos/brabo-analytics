@@ -16,6 +16,7 @@ from typing import Any
 
 from frontend.formatters import fmt_brl, fmt_num
 from frontend.services.classificadores import _classify_google_campaign_type
+from frontend.utils import _norm_text
 
 
 def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dict | None, launch_code: str = "") -> dict:

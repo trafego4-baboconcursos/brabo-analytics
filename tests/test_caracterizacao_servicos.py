@@ -37,6 +37,7 @@ from tests.caracterizacao_util import (  # noqa: E402
     e_falha_de_infra,
     impressao_digital,
     normalizar,
+    recusar_excecao_no_baseline,
 )
 
 BASELINE_DIR = Path(os.environ.get("BASELINE_DIR") or (ROOT / "tests" / "baseline")) / "servicos"
@@ -142,6 +143,7 @@ def test_saida_do_servico_nao_mudou(servico, codigo, entradas, baselines):
     obtido = impressao_digital(saida)
 
     if ATUALIZAR:
+        recusar_excecao_no_baseline(servico, saida)
         baselines[codigo][servico] = obtido
         return
 

@@ -58,6 +58,12 @@ relacionados:
 > - [[ARQUITETURA#2. Fumaça (`-m smoke`) — precisa de banco|2. Fumaça (`-m smoke`) — precisa de banco]]
 > - [[ARQUITETURA#3. Caracterização (`-m caracterizacao`) — precisa de banco|3. Caracterização (`-m caracterizacao`) — precisa de banco]]
 >
+> **Rodar os testes escrevia no banco de producao (2026-09-16)**
+>
+>
+> **A rede congelou o bug que existia para pegar (2026-09-16)**
+>
+>
 > **Os dois modos da rede de caracterização — e qual vale de fato (2026-09-16)**
 >
 >
@@ -463,6 +469,74 @@ ATUALIZAR_BASELINE=1 python -m pytest tests/test_caracterizacao_readers.py -m ca
 # depois de refatorar: confere que nada mudou
 python -m pytest tests/test_caracterizacao_readers.py -m caracterizacao
 ```
+
+---
+
+## Rodar os testes escrevia no banco de producao (2026-09-16)
+
+`PRE_WARM_CACHE` vem **ligado por padrao** (`os.environ.get("PRE_WARM_CACHE", "true")`). O
+aquecimento sobe junto com o app, no evento de startup do FastAPI, e grava `debriefing_snapshot`
+— tabela do banco analytics, que **nao** tem guard de somente-leitura (o guard existe so no banco
+operacional e cobre duas tabelas: `tmb_clean_oficial` e `hotmart_clean_oficial`).
+
+`tests/test_frontend_smoke.py` carrega o `.env` real e usa `TestClient(app)` como context manager,
+o que dispara esse startup. Resultado: **rodar a suite de fumaca reescrevia os snapshots de
+producao** com o codigo do checkout. Os testes de caracterizacao ja desligavam; o de fumaca nao.
+
+Corrigido com `os.environ["PRE_WARM_CACHE"] = "false"` antes de importar `frontend.app`. Efeito
+colateral bom: `/debriefing` passa a ser exercitado pelo caminho **ao vivo**, que e onde os 500
+aparecem — o caminho do snapshot mascarava erro de template quando o snapshot estava velho.
+
+**O que isso revelou, e continua valendo.** Qualquer processo local com o `.env` de producao
+escreve nessa tabela sozinho, sem requisicao HTTP nenhuma: basta o app estar de pe. Foi assim que
+o diagnostico do 500 do `/debriefing` se perdeu — um servidor de desenvolvimento rodando codigo
+novo gravava snapshots no formato novo enquanto o checkout da investigacao, um commit atras, lia
+com o template velho.
+
+Das 13 escritas do frontend no banco, **12 exigem acao humana autenticada** (wizard de
+lancamento, gestao de usuarios, cache de thumbnails). A do snapshot e a unica autonoma — e por
+isso a unica que vaza de um ambiente para o outro sem ninguem perceber.
+
+**Ao rodar o app localmente contra o `.env` de producao, use `PRE_WARM_CACHE=false`** a menos que
+queira mesmo regravar os snapshots que todo mundo le.
+
+---
+
+## A rede congelou o bug que existia para pegar (2026-09-16)
+
+O erro mais caro desta refatoracao, e vale escrito por inteiro porque o mecanismo se repete.
+
+**O bug.** `attribution.py` e `orcamento.py` importavam `_categorize_campaign` de `ads_meta` e
+`ads_google` **dentro de funcoes** (import diferido, para quebrar ciclo). Ao extrair a
+classificacao para `nomenclatura.py`, a funcao saiu daqueles modulos e os 6 pontos de import
+ficaram apontando para o vazio. Import dentro de funcao so falha quando a funcao roda — nao no
+import do modulo, nao na coleta do pytest, nao numa varredura de imports de topo.
+
+Resultado: o bloco "Atribuicao" do dashboard falhava nos 11 lancamentos com Active Campaign,
+mostrando "Falha ao carregar: Atribuicao. Os totais desta pagina podem estar incompletos."
+Quem achou foi o usuario, olhando a tela.
+
+**Por que a rede nao pegou — o que importa de verdade.** O teste captura excecao e a registra
+como resultado (`{"__excecao__": ...}`), porque excecao tambem e comportamento. Mas o baseline
+foi **gerado com o codigo ja quebrado**: o ImportError virou o valor esperado. Todas as
+verificacoes seguintes compararam excecao com excecao e passaram. A rede aprovou, repetidamente,
+exatamente o bug que existia para pegar.
+
+**As tres correcoes:**
+
+1. Os 6 imports apontam para `nomenclatura` (assinaturas identicas, so mudou nome e modulo).
+2. `caracterizacao_util.recusar_excecao_no_baseline` faz `ATUALIZAR_BASELINE=1` **falhar** quando
+   a saida e uma excecao capturada. Congelar excecao e sempre suspeito; congelar em silencio e
+   o que torna o teste inutil.
+3. Varredura de nomes orfaos com `ast` em **todo** o `frontend/`, nao so nos arquivos tocados.
+   Ela achou mais dois quebrados pela mesma refatoracao: `_norm_text` em `criativos.py` e
+   `read_dia1_sales` em `comparativo.py`. Some-se a verificacao de que todos os 86 imports
+   diferidos do `frontend/` resolvem.
+
+**A regra que fica:** ao mover uma funcao de modulo, `grep` pelo nome **em todo o repositorio**,
+nao so nos arquivos que voce editou — import diferido nao aparece no topo de nada. E antes de
+gravar baseline, confirme que o codigo esta verde por outro meio; um baseline gerado sobre codigo
+quebrado e pior que nenhum, porque da a impressao de cobertura.
 
 ---
 

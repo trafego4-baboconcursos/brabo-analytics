@@ -1,45 +1,923 @@
 {
   "creative_overview": {
-    "bytes": 168,
+    "bytes": 34347,
     "resumo": {
-      "__excecao__": {
-        "__sha__": "9b46a13e77fd13e6",
-        "__texto__": 145
+      "google_campaign_rows": {
+        "__n__": 1,
+        "__sha__": "078c0a15a1246651"
+      },
+      "google_rows": {
+        "__n__": 25,
+        "__sha__": "fd8b6ff9a04d1c46"
+      },
+      "insights": {
+        "__n__": 5,
+        "__sha__": "d6bf872cd5ba71f5"
+      },
+      "meta_rows": {
+        "__n__": 22,
+        "__sha__": "c4bcea23930ab380"
+      },
+      "novos_all": {
+        "__n__": 26,
+        "__sha__": "eab8c18080980221"
+      },
+      "resumo": {
+        "compradores_com_utm": 426,
+        "compradores_sem_utm": 119,
+        "google_sem_ad_detail": {
+          "__n__": 0,
+          "__sha__": "4f53cda18c2baa0c"
+        },
+        "google_sem_ad_faturamento": 0,
+        "google_sem_ad_vendas": 0,
+        "roas_ads": 2.2153,
+        "total_ads": 34,
+        "total_compradores": 545,
+        "total_faturamento_ads": 677423.68,
+        "total_gasto": 305791.17,
+        "total_leads": 87735,
+        "total_vendas_ads": 420
+      },
+      "rows": {
+        "__n__": 34,
+        "__sha__": "0e525e846b54cfc1"
+      },
+      "sales_only_rows": {
+        "__n__": 0,
+        "__sha__": "4f53cda18c2baa0c"
+      },
+      "validados_all": {
+        "__n__": 8,
+        "__sha__": "00ee367cd43a03df"
       }
     },
-    "sha256": "eabd45c40a0b3cbfbf408bfcbdcc36dc41676253974b8f10718fd34e55b0c736"
+    "sha256": "9fda010acaff132cdd8b8df9320d217e11b69488eba94cdefa1f52715834b12f"
   },
   "debriefing_ctx": {
-    "bytes": 46063,
+    "bytes": 53229,
     "resumo": {
-      "creative_data_error": true,
+      "creative_data_error": false,
       "data_errors": {
-        "__n__": 1,
-        "__sha__": "47a12da48e1adcce"
+        "__n__": 0,
+        "__sha__": "4f53cda18c2baa0c"
       },
       "dbf": {
-        "__n__": 113,
-        "__sha__": "35ef1155ecaa75c3"
+        "__n__": 109,
+        "__sha__": "a0eadb5aa8c227ea"
       },
       "drive_thumbnails": {
         "__n__": 40,
         "__sha__": "12531ac46d7b51c1"
       },
       "falhas": {
-        "__n__": 3,
-        "__sha__": "1df031383ca1f29d"
+        "__n__": 0,
+        "__sha__": "4f53cda18c2baa0c"
       }
     },
-    "sha256": "202862f418900ef11497219a9c3bf34ad5a1691d0e82dd3ba411e96b8f097012"
+    "sha256": "efe12ecc03960a7e3c764cf49be7263afa46ad650e88a3e39912c01131f7f557"
   },
   "sales_attribution": {
-    "bytes": 168,
+    "bytes": 24512,
     "resumo": {
-      "__excecao__": {
-        "__sha__": "9b46a13e77fd13e6",
-        "__texto__": 145
-      }
+      "emails_rastreados": {
+        "__n__": 426,
+        "__sha__": "e811728c9f98cd2f"
+      },
+      "google_campanha_sales": {
+        "pbb-abr-26": {
+          "faturamento": 363638.05,
+          "vendas": 225
+        }
+      },
+      "google_etapa_sales": {
+        "Captação": {
+          "faturamento": 363638.05,
+          "vendas": 225
+        }
+      },
+      "google_por_campanha": {
+        "pbb-abr-26": {
+          "faturamento": 363638.05,
+          "vendas": 225
+        }
+      },
+      "google_por_etapa": {
+        "Captação": {
+          "faturamento": 363638.05,
+          "vendas": 225
+        }
+      },
+      "google_por_temperatura": {
+        "Específico": {
+          "faturamento": 54585.13,
+          "vendas": 34
+        },
+        "Frio": {
+          "faturamento": 40335.3,
+          "vendas": 25
+        },
+        "Quente": {
+          "faturamento": 268717.62,
+          "vendas": 166
+        }
+      },
+      "google_por_tipo_campanha": {
+        "YouTube": {
+          "faturamento": 363638.05,
+          "vendas": 225
+        }
+      },
+      "google_segmento_sales": {
+        "Outros": {
+          "faturamento": 363638.05,
+          "vendas": 225
+        }
+      },
+      "google_sem_ad_por_campanha": {},
+      "google_sem_ad_por_tipo": {},
+      "google_temperatura_sales": {
+        "Específico": {
+          "faturamento": 54585.13,
+          "vendas": 34
+        },
+        "Frio": {
+          "faturamento": 40335.3,
+          "vendas": 25
+        },
+        "Quente": {
+          "faturamento": 268717.62,
+          "vendas": 166
+        }
+      },
+      "google_temperatura_sales_por_etapa": {
+        "Captação": {
+          "Específico": {
+            "__n__": 2,
+            "__sha__": "596e55a3b08b5c83"
+          },
+          "Frio": {
+            "__n__": 2,
+            "__sha__": "5f79cb307de99b77"
+          },
+          "Quente": {
+            "__n__": 2,
+            "__sha__": "1d478fb214139fbc"
+          }
+        }
+      },
+      "meta_bucket_sales": {
+        "Outros": {
+          "faturamento": 324928.95,
+          "vendas": 202
+        }
+      },
+      "meta_etapa_sales": {
+        "Captação": {
+          "faturamento": 324928.95,
+          "vendas": 202
+        }
+      },
+      "meta_por_bucket": {
+        "Potencial": {
+          "faturamento": 56237.96,
+          "vendas": 35
+        },
+        "Principal": {
+          "faturamento": 173065.42,
+          "vendas": 107
+        },
+        "Reels": {
+          "faturamento": 95625.57,
+          "vendas": 60
+        }
+      },
+      "meta_por_etapa": {
+        "Captação": {
+          "faturamento": 324928.95,
+          "vendas": 202
+        }
+      },
+      "meta_por_temperatura": {
+        "Específico": {
+          "faturamento": 51177.63,
+          "vendas": 32
+        },
+        "Frio": {
+          "faturamento": 64831.74,
+          "vendas": 40
+        },
+        "Quente": {
+          "faturamento": 208919.58,
+          "vendas": 130
+        }
+      },
+      "meta_segmento_sales": {
+        "Outros": {
+          "faturamento": 324928.95,
+          "vendas": 202
+        }
+      },
+      "meta_temperatura_sales": {
+        "Específico": {
+          "faturamento": 51177.63,
+          "vendas": 32
+        },
+        "Frio": {
+          "faturamento": 64831.74,
+          "vendas": 40
+        },
+        "Quente": {
+          "faturamento": 208919.58,
+          "vendas": 130
+        }
+      },
+      "meta_temperatura_sales_por_etapa": {
+        "Captação": {
+          "Específico": {
+            "__n__": 2,
+            "__sha__": "16cf4654bd2fa52e"
+          },
+          "Frio": {
+            "__n__": 2,
+            "__sha__": "ce04f41efcbee695"
+          },
+          "Quente": {
+            "__n__": 2,
+            "__sha__": "269ebdf5bcf5ea63"
+          }
+        }
+      },
+      "por_canal": {
+        "Google Ads": {
+          "faturamento": 363638.05,
+          "vendas": 225
+        },
+        "Meta Ads": {
+          "faturamento": 324928.95,
+          "vendas": 202
+        }
+      },
+      "por_criativo": {
+        "AD037": {
+          "faturamento": 44117.69,
+          "vendas": 27
+        },
+        "AD040": {
+          "faturamento": 1476.04,
+          "vendas": 1
+        },
+        "AD048": {
+          "faturamento": 6643.2,
+          "vendas": 4
+        },
+        "AD050": {
+          "faturamento": 91822.64,
+          "vendas": 57
+        },
+        "AD054": {
+          "faturamento": 62781.24,
+          "vendas": 40
+        },
+        "AD058": {
+          "faturamento": 22453.4,
+          "vendas": 14
+        },
+        "AD059": {
+          "faturamento": 10083.85,
+          "vendas": 6
+        },
+        "AD071": {
+          "faturamento": 6620.44,
+          "vendas": 4
+        },
+        "AD084": {
+          "faturamento": 46679.45,
+          "vendas": 29
+        },
+        "AD090": {
+          "faturamento": 1476.04,
+          "vendas": 1
+        },
+        "AD092": {
+          "faturamento": 95796.26,
+          "vendas": 59
+        },
+        "AD093": {
+          "faturamento": 41848.11,
+          "vendas": 26
+        },
+        "AD097": {
+          "faturamento": 1476.04,
+          "vendas": 1
+        },
+        "AD098": {
+          "faturamento": 6476.44,
+          "vendas": 4
+        },
+        "AD100": {
+          "faturamento": 6471.64,
+          "vendas": 4
+        },
+        "AD108": {
+          "faturamento": 6511.53,
+          "vendas": 4
+        },
+        "AD109": {
+          "faturamento": 32633.13,
+          "vendas": 20
+        },
+        "AD110": {
+          "faturamento": 78798.45,
+          "vendas": 49
+        },
+        "AD112": {
+          "faturamento": 13928.64,
+          "vendas": 9
+        },
+        "AD113": {
+          "faturamento": 92709.01,
+          "vendas": 57
+        },
+        "AD115": {
+          "faturamento": 3190.84,
+          "vendas": 2
+        },
+        "AD117": {
+          "faturamento": 3429.6,
+          "vendas": 2
+        }
+      },
+      "por_criativo_canal": {
+        "Google Ads": {
+          "AD037": {
+            "__n__": 2,
+            "__sha__": "bae956c01506cced"
+          },
+          "AD040": {
+            "__n__": 2,
+            "__sha__": "6dbebec9b72d666e"
+          },
+          "AD048": {
+            "__n__": 2,
+            "__sha__": "03adef4a92b9981e"
+          },
+          "AD050": {
+            "__n__": 2,
+            "__sha__": "d0356f324a3c3c9f"
+          },
+          "AD058": {
+            "__n__": 2,
+            "__sha__": "7e0676d62642d6e1"
+          },
+          "AD059": {
+            "__n__": 2,
+            "__sha__": "99e562700c49f689"
+          },
+          "AD084": {
+            "__n__": 2,
+            "__sha__": "5d432dbbdb9a7e51"
+          },
+          "AD090": {
+            "__n__": 2,
+            "__sha__": "6dbebec9b72d666e"
+          },
+          "AD092": {
+            "__n__": 2,
+            "__sha__": "09432fb666ea6462"
+          },
+          "AD093": {
+            "__n__": 2,
+            "__sha__": "79a0a3959a6364b3"
+          },
+          "AD097": {
+            "__n__": 2,
+            "__sha__": "6dbebec9b72d666e"
+          },
+          "AD098": {
+            "__n__": 2,
+            "__sha__": "94e04071043542c9"
+          },
+          "AD109": {
+            "__n__": 2,
+            "__sha__": "0831bc9c109c9715"
+          },
+          "AD110": {
+            "__n__": 2,
+            "__sha__": "a1e5c9c232bb6ad1"
+          },
+          "AD112": {
+            "__n__": 2,
+            "__sha__": "37b3718091fbd072"
+          },
+          "AD113": {
+            "__n__": 2,
+            "__sha__": "ae58a87fffc2a464"
+          },
+          "AD117": {
+            "__n__": 2,
+            "__sha__": "c4bb9fcaf9651612"
+          }
+        },
+        "Meta Ads": {
+          "AD050": {
+            "__n__": 2,
+            "__sha__": "f83f25c73be7e0a5"
+          },
+          "AD054": {
+            "__n__": 2,
+            "__sha__": "54d826d611faec56"
+          },
+          "AD058": {
+            "__n__": 2,
+            "__sha__": "7f71321bdada4c2b"
+          },
+          "AD059": {
+            "__n__": 2,
+            "__sha__": "4ad6f8aeec6100ae"
+          },
+          "AD071": {
+            "__n__": 2,
+            "__sha__": "eea88a91619344b7"
+          },
+          "AD092": {
+            "__n__": 2,
+            "__sha__": "5ac6a9a12577a001"
+          },
+          "AD100": {
+            "__n__": 2,
+            "__sha__": "0c655898b59849db"
+          },
+          "AD108": {
+            "__n__": 2,
+            "__sha__": "bc86e6cf18762f60"
+          },
+          "AD109": {
+            "__n__": 2,
+            "__sha__": "d12c20dcb3e8000b"
+          },
+          "AD110": {
+            "__n__": 2,
+            "__sha__": "219497be67f3940d"
+          },
+          "AD112": {
+            "__n__": 2,
+            "__sha__": "6dbebec9b72d666e"
+          },
+          "AD113": {
+            "__n__": 2,
+            "__sha__": "36426ce345146825"
+          },
+          "AD115": {
+            "__n__": 2,
+            "__sha__": "46af8e177c57be28"
+          }
+        }
+      },
+      "por_criativo_canal_por_etapa": {
+        "Google Ads": {
+          "Captação": {
+            "__n__": 17,
+            "__sha__": "d3eb63111d9f9621"
+          }
+        },
+        "Meta Ads": {
+          "Captação": {
+            "__n__": 13,
+            "__sha__": "56e187d174cb3be7"
+          }
+        }
+      },
+      "por_criativo_lancamento_atual": {
+        "__n__": 22,
+        "__sha__": "bba322ea69456cee"
+      },
+      "por_criativo_por_etapa": {
+        "Captação": {
+          "AD037": {
+            "__n__": 2,
+            "__sha__": "bae956c01506cced"
+          },
+          "AD040": {
+            "__n__": 2,
+            "__sha__": "6dbebec9b72d666e"
+          },
+          "AD048": {
+            "__n__": 2,
+            "__sha__": "03adef4a92b9981e"
+          },
+          "AD050": {
+            "__n__": 2,
+            "__sha__": "f603524cd22ae689"
+          },
+          "AD054": {
+            "__n__": 2,
+            "__sha__": "54d826d611faec56"
+          },
+          "AD058": {
+            "__n__": 2,
+            "__sha__": "ab0a19f4758a1e2c"
+          },
+          "AD059": {
+            "__n__": 2,
+            "__sha__": "b0826d65bb1b4056"
+          },
+          "AD071": {
+            "__n__": 2,
+            "__sha__": "eea88a91619344b7"
+          },
+          "AD084": {
+            "__n__": 2,
+            "__sha__": "5d432dbbdb9a7e51"
+          },
+          "AD090": {
+            "__n__": 2,
+            "__sha__": "6dbebec9b72d666e"
+          },
+          "AD092": {
+            "__n__": 2,
+            "__sha__": "bdc1284a046f7f31"
+          },
+          "AD093": {
+            "__n__": 2,
+            "__sha__": "79a0a3959a6364b3"
+          },
+          "AD097": {
+            "__n__": 2,
+            "__sha__": "6dbebec9b72d666e"
+          },
+          "AD098": {
+            "__n__": 2,
+            "__sha__": "94e04071043542c9"
+          },
+          "AD100": {
+            "__n__": 2,
+            "__sha__": "0c655898b59849db"
+          },
+          "AD108": {
+            "__n__": 2,
+            "__sha__": "bc86e6cf18762f60"
+          },
+          "AD109": {
+            "__n__": 2,
+            "__sha__": "3da6d6e42b6c3e5e"
+          },
+          "AD110": {
+            "__n__": 2,
+            "__sha__": "c38841e85f8c7d2e"
+          },
+          "AD112": {
+            "__n__": 2,
+            "__sha__": "1839b70e47df036c"
+          },
+          "AD113": {
+            "__n__": 2,
+            "__sha__": "93cb97c7ee7547f8"
+          },
+          "AD115": {
+            "__n__": 2,
+            "__sha__": "46af8e177c57be28"
+          },
+          "AD117": {
+            "__n__": 2,
+            "__sha__": "c4bb9fcaf9651612"
+          }
+        }
+      },
+      "por_criativo_utm": {
+        "AD037": {
+          "campaign": "pbb-abr-26",
+          "campaigns": {
+            "__n__": 1,
+            "__sha__": "e3b943cc4c2a3b86"
+          },
+          "content": "ad037",
+          "launches": {
+            "__n__": 1,
+            "__sha__": "fee63e280f8e7620"
+          },
+          "medium": "00-viu-videos-pre-quali",
+          "source": "yt-captacao-especifico-potencial-v5",
+          "term": ""
+        },
+        "AD040": {
+          "campaign": "pbb-abr-26",
+          "campaigns": {
+            "__n__": 1,
+            "__sha__": "e3b943cc4c2a3b86"
+          },
+          "content": "ad040",
+          "launches": {
+            "__n__": 1,
+            "__sha__": "fee63e280f8e7620"
+          },
+          "medium": "03-viu-videos-BB-540D",
+          "source": "yt-captacao-quente-potencial-v10",
+          "term": ""
+        },
+        "AD048": {
+          "campaign": "pbb-abr-26",
+          "campaigns": {
+            "__n__": 1,
+            "__sha__": "e3b943cc4c2a3b86"
+          },
+          "content": "ad048",
+          "launches": {
+            "__n__": 1,
+            "__sha__": "fee63e280f8e7620"
+          },
+          "medium": "06-mercado-setor-publico",
+          "source": "yt-captacao-frio-potencial-v6",
+          "term": ""
+        },
+        "AD050": {
+          "campaign": "pbb-abr-26",
+          "campaigns": {
+            "__n__": 1,
+            "__sha__": "e3b943cc4c2a3b86"
+          },
+          "content": "AD050 - Banco do Brasil 2 - cx nova - PBB-ABR-26",
+          "launches": {
+            "__n__": 2,
+            "__sha__": "d1caa5afd147a1de"
+          },
+          "medium": "00 - Viu 50% da Pré-Quali - PBB-ABR-26",
+          "source": "fb-captacao-especifico-principal-v6",
+          "term": "120244074323810520"
+        },
+        "AD054": {
+          "campaign": "pbb-abr-26",
+          "campaigns": {
+            "__n__": 1,
+            "__sha__": "e3b943cc4c2a3b86"
+          },
+          "content": "AD054 - Banco do Brasil + IA - PBB-ABR-26",
+          "launches": {
+            "__n__": 2,
+            "__sha__": "d1caa5afd147a1de"
+          },
+          "medium": "00 - Viu 50% da Pré-Quali - PBB-ABR-26",
+          "source": "fb-captacao-especifico-reels-v10",
+          "term": "120244074254850520"
+        },
+        "AD058": {
+          "campaign": "pbb-abr-26",
+          "campaigns": {
+            "__n__": 1,
+            "__sha__": "e3b943cc4c2a3b86"
+          },
+          "content": "AD058 - Casa do Thales - PBB-ABR-26",
+          "launches": {
+            "__n__": 1,
+            "__sha__": "fee63e280f8e7620"
+          },
+          "medium": "01 - Caiu na pag. de Captura [PBB-ABR-26]",
+          "source": "fb-captacao-quente-principal-v2",
+          "term": "120244861029260520"
+        },
+        "AD059": {
+          "campaign": "pbb-abr-26",
+          "campaigns": {
+            "__n__": 1,
+            "__sha__": "e3b943cc4c2a3b86"
+          },
+          "content": "AD059 - Fachada Banco do Brasil + cx nova PBB-ABR-26",
+          "launches": {
+            "__n__": 1,
+            "__sha__": "fee63e280f8e7620"
+          },
+          "medium": "04 - Viu 25% da Captação - PBB-ABR-26",
+          "source": "fb-captacao-quente-principal-v5",
+          "term": "120244861029040520"
+        },
+        "AD071": {
+          "campaign": "pbb-abr-26",
+          "campaigns": {
+            "__n__": 1,
+            "__sha__": "e3b943cc4c2a3b86"
+          },
+          "content": "AD071 - Casa do Felipe + cx - PBB-ABR-26",
+          "launches": {
+            "__n__": 1,
+            "__sha__": "fee63e280f8e7620"
+          },
+          "medium": "00 - Viu 50% da Pré-Quali - PBB-ABR-26",
+          "source": "fb-captacao-quente-potencial-v4",
+          "term": "120244074254840520"
+        },
+        "AD084": {
+          "campaign": "pbb-abr-26",
+          "campaigns": {
+            "__n__": 1,
+            "__sha__": "e3b943cc4c2a3b86"
+          },
+          "content": "ad084",
+          "launches": {
+            "__n__": 1,
+            "__sha__": "fee63e280f8e7620"
+          },
+          "medium": "00-viu-videos-pre-quali",
+          "source": "yt-captacao-especifico-principal-v1",
+          "term": ""
+        },
+        "AD090": {
+          "campaign": "pbb-abr-26",
+          "campaigns": {
+            "__n__": 1,
+            "__sha__": "e3b943cc4c2a3b86"
+          },
+          "content": "ad090",
+          "launches": {
+            "__n__": 1,
+            "__sha__": "fee63e280f8e7620"
+          },
+          "medium": "00-viu-videos-pre-quali",
+          "source": "yt-captacao-especifico-principal-v1",
+          "term": ""
+        },
+        "AD092": {
+          "campaign": "pbb-abr-26",
+          "campaigns": {
+            "__n__": 1,
+            "__sha__": "e3b943cc4c2a3b86"
+          },
+          "content": "AD092 - Dois personagens casa do Thales - PBB-ABR-26",
+          "launches": {
+            "__n__": 2,
+            "__sha__": "d1caa5afd147a1de"
+          },
+          "medium": "01 - Viu 25% da Pré-Quali - PBB-ABR-26",
+          "source": "fb-captacao-especifico-principal-v4",
+          "term": "120244074323790520"
+        },
+        "AD093": {
+          "campaign": "pbb-abr-26",
+          "campaigns": {
+            "__n__": 1,
+            "__sha__": "e3b943cc4c2a3b86"
+          },
+          "content": "ad093",
+          "launches": {
+            "__n__": 1,
+            "__sha__": "fee63e280f8e7620"
+          },
+          "medium": "00-viu-videos-pre-quali",
+          "source": "yt-captacao-especifico-principal-v1",
+          "term": ""
+        },
+        "AD097": {
+          "campaign": "pbb-abr-26",
+          "campaigns": {
+            "__n__": 1,
+            "__sha__": "e3b943cc4c2a3b86"
+          },
+          "content": "ad097",
+          "launches": {
+            "__n__": 1,
+            "__sha__": "fee63e280f8e7620"
+          },
+          "medium": "01-viu-videos-pre-quali-lancamentos-anteriores",
+          "source": "yt-captacao-especifico-principal-v1",
+          "term": ""
+        },
+        "AD098": {
+          "campaign": "pbb-abr-26",
+          "campaigns": {
+            "__n__": 1,
+            "__sha__": "e3b943cc4c2a3b86"
+          },
+          "content": "ad098",
+          "launches": {
+            "__n__": 1,
+            "__sha__": "fee63e280f8e7620"
+          },
+          "medium": "07-afinidade-personalizada-estabilidade-financeira",
+          "source": "yt-captacao-frio-potencial-v4",
+          "term": "120237304246020014"
+        },
+        "AD100": {
+          "campaign": "pbb-abr-26",
+          "campaigns": {
+            "__n__": 1,
+            "__sha__": "e3b943cc4c2a3b86"
+          },
+          "content": "AD100 - Tudo em 1 minuto + legenda - PBB-ABR-26",
+          "launches": {
+            "__n__": 2,
+            "__sha__": "d1caa5afd147a1de"
+          },
+          "medium": "00 - Viu 50% da Pré-Quali - PBB-ABR-26",
+          "source": "fb-captacao-especifico-reels-v10",
+          "term": "120244074254850520"
+        },
+        "AD108": {
+          "campaign": "pbb-abr-26",
+          "campaigns": {
+            "__n__": 1,
+            "__sha__": "e3b943cc4c2a3b86"
+          },
+          "content": "AD108 - Imagem apostilas - PBB-ABR-26",
+          "launches": {
+            "__n__": 1,
+            "__sha__": "fee63e280f8e7620"
+          },
+          "medium": "00 - Cadastrados Antigos",
+          "source": "fb-captacao-quente-principal-v6",
+          "term": "120243988211170520"
+        },
+        "AD109": {
+          "campaign": "pbb-abr-26",
+          "campaigns": {
+            "__n__": 1,
+            "__sha__": "e3b943cc4c2a3b86"
+          },
+          "content": "AD109 - Fachada Banco do Brasil com cx PBB-ABR-26",
+          "launches": {
+            "__n__": 2,
+            "__sha__": "d1caa5afd147a1de"
+          },
+          "medium": "07 - Interessados BB",
+          "source": "fb-captacao-frio-principal-v5",
+          "term": "120244080264200520"
+        },
+        "AD110": {
+          "campaign": "pbb-abr-26",
+          "campaigns": {
+            "__n__": 1,
+            "__sha__": "e3b943cc4c2a3b86"
+          },
+          "content": "AD110 - Banco do Brasil 2 - cx nova - PBB-ABR-26",
+          "launches": {
+            "__n__": 2,
+            "__sha__": "d1caa5afd147a1de"
+          },
+          "medium": "01 - Viu 25% da Pré-Quali - PBB-ABR-26",
+          "source": "fb-captacao-especifico-potencial-v10",
+          "term": "120244074254820520"
+        },
+        "AD112": {
+          "campaign": "pbb-abr-26",
+          "campaigns": {
+            "__n__": 1,
+            "__sha__": "e3b943cc4c2a3b86"
+          },
+          "content": "AD112 - Dois personagens - Brabo+ legenda - PBB-ABR-26 — Cópia",
+          "launches": {
+            "__n__": 1,
+            "__sha__": "fee63e280f8e7620"
+          },
+          "medium": "01 - Caiu na pag. de Captura [PBB-ABR-26]",
+          "source": "fb-captacao-quente-potencial-v4",
+          "term": "120244068664090520"
+        },
+        "AD113": {
+          "campaign": "pbb-abr-26",
+          "campaigns": {
+            "__n__": 1,
+            "__sha__": "e3b943cc4c2a3b86"
+          },
+          "content": "AD113 - Dois personagens ape do Felipe - PBB-ABR-26",
+          "launches": {
+            "__n__": 2,
+            "__sha__": "d1caa5afd147a1de"
+          },
+          "medium": "01 - Viu 25% da Pré-Quali - PBB-ABR-26",
+          "source": "fb-captacao-especifico-principal-v10",
+          "term": "120244074323790520"
+        },
+        "AD115": {
+          "campaign": "pbb-abr-26",
+          "campaigns": {
+            "__n__": 1,
+            "__sha__": "e3b943cc4c2a3b86"
+          },
+          "content": "AD115 - Banco do Brasil Reels - PBB-ABR-26 - Story",
+          "launches": {
+            "__n__": 2,
+            "__sha__": "d1caa5afd147a1de"
+          },
+          "medium": "00 - Cadastrados Antigos",
+          "source": "fb-captacao-quente-reels-v2",
+          "term": "120244072425130520"
+        },
+        "AD117": {
+          "campaign": "pbb-abr-26",
+          "campaigns": {
+            "__n__": 1,
+            "__sha__": "e3b943cc4c2a3b86"
+          },
+          "content": "ad117",
+          "launches": {
+            "__n__": 1,
+            "__sha__": "fee63e280f8e7620"
+          },
+          "medium": "01-caiu-na-pag-de-captura-PBB-ABR-26",
+          "source": "yt-captacao-quente-potencial-v4",
+          "term": ""
+        }
+      },
+      "total_rastreado": 427
     },
-    "sha256": "eabd45c40a0b3cbfbf408bfcbdcc36dc41676253974b8f10718fd34e55b0c736"
+    "sha256": "59d9a216a2507605e2727c940d79a446d4d87a759b324fd22d357944cc95a7c6"
   }
 }

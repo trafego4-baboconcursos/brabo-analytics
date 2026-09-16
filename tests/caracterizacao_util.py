@@ -216,3 +216,24 @@ def _forma(resumo: Any) -> Any:
     if not isinstance(resumo, dict) or "__sha__" in resumo:
         return _especie(resumo)
     return {k: _especie(v) for k, v in sorted(resumo.items())}
+
+
+# ── Nunca congelar uma exceção como "o esperado" ───────────────────────────────
+#
+# O erro mais caro desta rede até agora: ao gerar o baseline, `_sales_attribution`
+# levantava ImportError (um import dentro de função apontando pra função que a
+# refatoração tinha movido). A exceção virou o valor esperado, e todas as
+# verificações seguintes passaram — a rede aprovou o bug que existia pra pegar.
+#
+# Exceção continua sendo comportamento digno de registro quando o reader
+# legitimamente levanta. Mas ao GRAVAR o baseline ela é quase sempre sinal de que
+# o código está quebrado agora, e congelá-la torna o teste inútil em silêncio.
+def recusar_excecao_no_baseline(nome: str, saida) -> None:
+    """Levanta se ``saida`` for uma exceção capturada, durante ATUALIZAR_BASELINE."""
+    if isinstance(saida, dict) and "__excecao__" in saida:
+        raise AssertionError(
+            f"{nome} levantou exceção ao gravar o baseline: "
+            f"{saida['__excecao__']}. "
+            "Congelar isso faria o teste aprovar o bug para sempre. "
+            "Conserte o código e regrave."
+        )

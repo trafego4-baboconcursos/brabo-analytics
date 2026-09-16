@@ -11,7 +11,10 @@ porque `core.py` e outros módulos importam por este caminho há muito tempo.
 """
 from __future__ import annotations
 
+import re
 from typing import Any
+
+from frontend.utils import _norm_text
 
 from frontend.services.classificadores import (  # noqa: F401 — reexport
     _classify_campaign,
@@ -178,8 +181,10 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
     from frontend.db_readers.leads import read_term_campaign_map  # noqa: PLC0415
     term_campaign_map: dict[str, str] = read_term_campaign_map(launch.code)
 
-    from frontend.db_readers.ads_meta import _categorize_campaign as _categorize_meta_campaign  # noqa: PLC0415
-    from frontend.db_readers.ads_google import _categorize_campaign as _categorize_google_campaign  # noqa: PLC0415
+    from frontend.db_readers.nomenclatura import (  # noqa: PLC0415
+        categorizar_campanha_google as _categorize_google_campaign,
+        categorizar_campanha_meta as _categorize_meta_campaign,
+    )
 
     for email, utm in buyer_utms.items():
         source = utm["source"]

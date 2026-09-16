@@ -1,23 +1,23 @@
 {
   "read_ac_campaigns": {
-    "bytes": 12289,
+    "bytes": 12288,
     "resumo": {
       "campanhas": {
         "__n__": 46,
-        "__sha__": "c0940a41b6f89c85"
+        "__sha__": "591eca7bbedf1c27"
       },
       "has_data": true,
       "por_dia": {
         "__n__": 26,
-        "__sha__": "cc9d0e8cbd89ac42"
+        "__sha__": "ac6cb1c160defab2"
       },
-      "total_aberturas": 123872,
+      "total_aberturas": 123880,
       "total_cliques": 18247,
-      "total_envios": 656781,
-      "tx_abertura_media": 18.8605,
-      "tx_clique_media": 14.7305
+      "total_envios": 656782,
+      "tx_abertura_media": 18.8617,
+      "tx_clique_media": 14.7296
     },
-    "sha256": "d34576106d9835da88d59b3d76f520601d3e64ffc31bcc62d8308181cc4c0cd4"
+    "sha256": "27e4ddbabce94ef629ca078b5f586c64749c27039e5025941afab633ec8bf514"
   },
   "read_ac_leads_for_attribution": {
     "bytes": 109152122,
@@ -29,10 +29,10 @@
       },
       "linhas": {
         "__n__": 269189,
-        "__sha__": "0dbf2004961c7421"
+        "__sha__": "ef183567e86ff62a"
       }
     },
-    "sha256": "08c33b1c14e2e174bba0df3cca948a235b4398989de338980a14134b9fb19c52"
+    "sha256": "3160aaa458bf9c5c59a352e40bb4fc316837d5bf7b1ad605bc5c75c656875680"
   },
   "read_aulas_ao_vivo": {
     "bytes": 36529,
@@ -453,12 +453,12 @@
     "sha256": "a367f01a13d5cb9cad04773cdcf639f18d9a2f54f08be8a48ca1c35934c90c90"
   },
   "read_lancamentos_anteriores": {
-    "bytes": 873582,
+    "bytes": 873842,
     "resumo": {
-      "__n__": 17703,
-      "__sha__": "a9c86ffbc9b05fba"
+      "__n__": 17708,
+      "__sha__": "fdb3a475377300a8"
     },
-    "sha256": "a9c86ffbc9b05fba05916724d82be617d7843522f721693680188776d2b2b6be"
+    "sha256": "fdb3a475377300a805c25ba0332fae35b9440b2003de566ce4ac4a7775af9cfa"
   },
   "read_landing_pages_por_etapa": {
     "bytes": 1597,
@@ -1098,16 +1098,16 @@
   "read_recorrencia_lancamento": {
     "bytes": 1176,
     "resumo": {
-      "novos": 59008,
+      "novos": 59013,
       "pct_recorrentes": 23.16,
       "por_lancamento_anterior": {
         "__n__": 30,
-        "__sha__": "7e69610151ba8b27"
+        "__sha__": "85757b89c06fd19c"
       },
-      "recorrentes": 17783,
-      "total": 76791
+      "recorrentes": 17788,
+      "total": 76801
     },
-    "sha256": "4fc9c99e9460ff385328ec64ebc0dbe3e064edc053b010e4b69812f3a010ecdc"
+    "sha256": "5883ce4cf5e5285c0a41d5e7e8ae6274cd97f4492e6aac576efe6d808dcf794f"
   },
   "read_retencao_video": {
     "bytes": 232051,
@@ -1352,7 +1352,7 @@
         "churn_pct": 7.1633,
         "entradas": 409781,
         "entradas_hoje": 0,
-        "grupos": 334,
+        "grupos": 328,
         "media_por_grupo": 1159.8384,
         "multi_grupo": 837,
         "por_grupo": {
@@ -1394,7 +1394,7 @@
         "total_limpo": 10097
       }
     },
-    "sha256": "12864d9482cc19cc97d2f8b40ff221aa7e18f7584f29039f7e8918b04d7aa50c"
+    "sha256": "ef63cff357aff7a7a4a3e2de8a801c32a284272fcc4cb692d57e84e4dff4e37c"
   },
   "read_whatsapp_messages": {
     "bytes": 6378,

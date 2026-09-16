@@ -29,10 +29,10 @@
       },
       "linhas": {
         "__n__": 76008,
-        "__sha__": "b7179a1ff32a6a77"
+        "__sha__": "bee207ab7959c0a1"
       }
     },
-    "sha256": "839fd18ddaf64828f2edae5c68b79802030371ad3352eb45c3c492309a34b176"
+    "sha256": "1bbc1584c0c9dc24333f3691634a402d567b63079b1162f4c960152b1344ba5b"
   },
   "read_aulas_ao_vivo": {
     "bytes": 24,
@@ -444,12 +444,12 @@
     "sha256": "e9faa29560f31c3663efaf1251ffe6bcf7549dbf6a1c7ec9f971189b6400f5af"
   },
   "read_lancamentos_anteriores": {
-    "bytes": 26000,
+    "bytes": 26043,
     "resumo": {
-      "__n__": 439,
-      "__sha__": "3cec6cb0193c50ce"
+      "__n__": 440,
+      "__sha__": "c935032de014b543"
     },
-    "sha256": "3cec6cb0193c50ce10521736a0719c9eeb41563da85aa1fca4c0316e81eafef1"
+    "sha256": "c935032de014b543044dc9e1aba27fdbb1bf2304b53804c84eea5e21698f4466"
   },
   "read_landing_pages_por_etapa": {
     "bytes": 581,
@@ -943,15 +943,15 @@
     "bytes": 957,
     "resumo": {
       "novos": 470,
-      "pct_recorrentes": 48.29,
+      "pct_recorrentes": 48.35,
       "por_lancamento_anterior": {
         "__n__": 25,
-        "__sha__": "13aa2c498d1cc251"
+        "__sha__": "9682f93ad42d447e"
       },
-      "recorrentes": 439,
-      "total": 909
+      "recorrentes": 440,
+      "total": 910
     },
-    "sha256": "f49942c6591fcce9771e79d191d3c606fe9245275146acf12e9b25afe62367f4"
+    "sha256": "dd139b72182a9e97a5af8c82f83a3336286ac75c6aa64726768fca9506a9ca6a"
   },
   "read_retencao_video": {
     "bytes": 44,

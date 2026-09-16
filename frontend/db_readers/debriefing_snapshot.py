@@ -14,6 +14,8 @@ import dataclasses
 import datetime as _dt
 import decimal
 import json
+import os
+import socket
 from typing import Any
 
 from sqlalchemy import text
@@ -82,16 +84,44 @@ def ensure_table() -> None:
 
 
 def write_snapshot(launch_code: str, payload: dict, duration_ms: int | None = None) -> int:
-    """Grava (upsert) o snapshot. Devolve o tamanho do JSON em bytes."""
-    payload = {**payload, "_version": SNAPSHOT_VERSION}
+    """Grava (upsert) o snapshot. Devolve o tamanho do JSON em bytes, ou 0 se a
+    gravação foi recusada por já existir um snapshot de versão mais nova.
+
+    **A tabela é monotônica na versão: um processo nunca sobrescreve o snapshot
+    de um processo com código mais novo.** Sem isso, qualquer cópia antiga do app
+    com o `.env` de produção rebaixa a tabela inteira a cada rodada do próprio
+    aquecimento — e como o leitor descarta payload de versão diferente, todo mundo
+    passa a recalcular ao vivo (25-80s por lançamento em vez de 0,2s). Foi o que
+    aconteceu em 16/09: uma máquina que não era a de desenvolvimento devolvia os 9
+    lançamentos pra versão 6 a cada ~30 min, e não deu pra identificar de onde — o
+    tráfego do app passa pelo Supavisor, então `pg_stat_activity.client_addr` é o
+    do pooler, não o do cliente. Daí também o `_writer`: a próxima vez que isso
+    acontecer, o host e o PID de quem gravou estão no próprio payload.
+
+    O preço é que rollback de verdade (voltar pra uma versão anterior de propósito)
+    não consegue regravar por cima — nesse caso, apagar as linhas da tabela.
+    """
+    payload = {
+        **payload,
+        "_version": SNAPSHOT_VERSION,
+        "_writer": f"{socket.gethostname()}#{os.getpid()}",
+    }
     body = json.dumps(payload, default=_json_default, ensure_ascii=False)
     with _get_engine().begin() as conn:
-        conn.execute(text(f"""
+        res = conn.execute(text(f"""
             INSERT INTO {TABLE} (lancamento_codigo, payload, computed_at, duration_ms)
             VALUES (:code, CAST(:payload AS jsonb), now(), :dur)
             ON CONFLICT (lancamento_codigo) DO UPDATE
                SET payload = EXCLUDED.payload, computed_at = now(), duration_ms = EXCLUDED.duration_ms
-        """), {"code": launch_code, "payload": body, "dur": duration_ms})
+             WHERE COALESCE(({TABLE}.payload->>'_version')::int, 0) <= :versao
+        """), {"code": launch_code, "payload": body, "dur": duration_ms, "versao": SNAPSHOT_VERSION})
+        if res.rowcount == 0:
+            logger.warning(
+                "debriefing_snapshot: gravação de %s recusada — já existe snapshot de versão mais nova "
+                "que a deste processo (v%s). Este processo está com código antigo; reinicie-o.",
+                launch_code, SNAPSHOT_VERSION,
+            )
+            return 0
     return len(body)
 
 

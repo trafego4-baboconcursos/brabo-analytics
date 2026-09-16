@@ -22,7 +22,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 36 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 37 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -65,6 +65,7 @@ relacionados:
 > **Rodar os testes escrevia no banco de producao (2026-09-16)**
 >
 > - [[ARQUITETURA#Reincidiu no mesmo dia, com três servidores (2026-09-16)|Reincidiu no mesmo dia, com três servidores (2026-09-16)]]
+> - [[ARQUITETURA#O escritor que não estava nesta máquina — a tabela virou monotônica (2026-09-16)|O escritor que não estava nesta máquina — a tabela virou monotônica (2026-09-16)]]
 >
 > **A rede congelou o bug que existia para pegar (2026-09-16)**
 >
@@ -544,10 +545,38 @@ Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
   Select-Object ProcessId, CreationDate, CommandLine
 ```
 
-Um servidor só, reiniciado depois de qualquer mudança no `dbf`. Enquanto sobram processos velhos,
-eles continuam sobrescrevendo o snapshot com o formato antigo; com a versão subida isso deixa de
-derrubar a página (o payload velho passa a ser ignorado), mas a página recalcula ao vivo a cada
-visita — correta e lenta — até o último processo velho morrer.
+Um servidor só, reiniciado depois de qualquer mudança no `dbf`.
+
+### O escritor que não estava nesta máquina — a tabela virou monotônica (2026-09-16)
+
+Com um único servidor local de pé, a tabela continuou voltando inteira para a versão 6 a cada
+~30 min: uma varredura sequencial pelos 9 lançamentos, o intervalo do `PRE_WARM_INTERVAL_MIN`.
+Não era processo local (varredura de `Win32_Process` mostrava só um uvicorn) e não era deploy
+remoto (`FRONTEND_URL` aponta pra `127.0.0.1`, não há servidor de produção). Era **outra máquina
+com o `.env` de produção e um checkout antigo** — e não deu pra identificar qual: o tráfego do app
+passa pelo Supavisor, então `pg_stat_activity.client_addr` devolve o endereço do pooler, não o do
+cliente.
+
+Enquanto isso durou, a página ficava **correta e lenta**: o leitor descartava o payload de versão
+diferente e recalculava ao vivo, 25-80s por lançamento em vez de 0,2s.
+
+Duas mudanças fecham esse buraco, independentemente de quem seja o escritor:
+
+1. **`write_snapshot` não rebaixa mais a versão.** O `ON CONFLICT DO UPDATE` ganhou
+   `WHERE COALESCE((debriefing_snapshot.payload->>'_version')::int, 0) <= :versao`, então um
+   processo com código antigo simplesmente não grava por cima de um snapshot mais novo — o upsert
+   vira no-op e o processo loga que *ele* é o desatualizado. Regravação na mesma versão (o refresh
+   normal) e subida de versão seguem funcionando. **Preço:** rollback de propósito pra uma versão
+   anterior não consegue regravar; nesse caso, apagar as linhas da tabela.
+2. **Todo snapshot carrega `_writer`** (`hostname#pid`). Da próxima vez, descobrir a origem é uma
+   consulta:
+   ```sql
+   SELECT lancamento_codigo, payload->>'_version', payload->>'_writer', computed_at
+   FROM debriefing_snapshot ORDER BY computed_at DESC;
+   ```
+
+Desfecho do dia: depois do push da versão 7, as escritas de fora passaram a sair como v7 — a outra
+máquina atualizou. O que a sobrevivência dessa tabela não pode depender é disso acontecer.
 
 ---
 

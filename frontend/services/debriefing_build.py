@@ -402,4 +402,6 @@ async def refresh_debriefing_snapshot(launch: Any, launches: list) -> None:
         logger.warning("Snapshot do debriefing de %s gravado com falhas em %s (não havia snapshot anterior).",
                        launch.code, ", ".join(falhas))
     size = await run_in_threadpool(write_snapshot, launch.code, built, duration_ms)
+    if not size:  # recusado: já existe snapshot de versão mais nova (write_snapshot já logou o porquê)
+        return
     logger.info("Snapshot do debriefing de %s gravado (%d KB, montado em %d ms).", launch.code, size // 1024, duration_ms)

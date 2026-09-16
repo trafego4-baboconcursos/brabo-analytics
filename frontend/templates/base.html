@@ -2377,6 +2377,9 @@ html[data-bs-theme="custom"] .mat-num {
       fill.style.width = '85%';
     });
   }
+  /* Exposto global — bsSoftNavigate (fora desta IIFE) precisa mostrar o
+     overlay antes do fetch, não só em navegação normal via <a>. */
+  window.bsStartProgress = startProgress;
 
   function finishProgress() {
     if (overlay) overlay.classList.remove('show');
@@ -2558,16 +2561,52 @@ window.bsMenuToggle = function(force) {
     drawer.classList.remove('bs-drilled');
   }
 };
-document.querySelectorAll('#bs-drawer .bs-nav-link, #bs-drawer .bs-camp-select, #bs-drawer .bs-launch-picker-item, #bs-drawer .bs-launch-picker-all, #bs-drawer .bs-subnav-link').forEach(function(el) {
+document.querySelectorAll('#bs-drawer .bs-nav-link, #bs-drawer .bs-camp-select').forEach(function(el) {
   el.addEventListener('click', function() {
     if (window.innerWidth > 1024) return;
-    /* Escolher um destino (lançamento/página/perfil) fecha a gaveta pra
-       navegar — abrir/fechar acordeão dentro do painel não conta como
-       "escolher", só isso aqui fecha. A gaveta NÃO reabre sozinha depois:
-       a pessoa já decidiu pra onde ir, o próximo passo é ver a página
-       carregando, não o menu de novo. */
     bsMenuToggle(false);
   });
+});
+/* Trocar de lançamento/perfil ou abrir uma página pesada do menu mobile
+   (Meta Ads, Captação...) costuma esperar 1-3s de banco sem cache — tempo
+   suficiente pro navegador abandonar a página atual (com nosso overlay de
+   loading) e mostrar tela branca até a resposta chegar, comportamento
+   nativo dele em navegação normal, não dá pra evitar só com CSS/JS na
+   página que está saindo. Busca o HTML via fetch primeiro, mantendo a
+   página (e o overlay) na tela o tempo todo, e só troca quando a resposta
+   já chegou — document.write (não innerHTML) porque preserva a execução
+   normal dos <script> inline, igual uma navegação de verdade. */
+function bsSoftNavigate(url, updateHistory) {
+  window.bsStartProgress();
+  fetch(url, { credentials: 'same-origin' })
+    .then(function(r) { return r.text().then(function(html) { return { html: html, finalUrl: r.url }; }); })
+    .then(function(res) {
+      if (updateHistory) history.pushState(null, '', res.finalUrl);
+      document.open();
+      document.write(res.html);
+      document.close();
+    })
+    .catch(function() {
+      /* Fetch falhou (rede caiu, CORS, etc) — cai pra navegação normal em
+         vez de deixar a pessoa presa com o overlay girando pra sempre. */
+      window.location.href = url;
+    });
+}
+document.querySelectorAll('#bs-drawer .bs-launch-picker-item, #bs-drawer .bs-launch-picker-all, #bs-drawer .bs-subnav-link').forEach(function(el) {
+  el.addEventListener('click', function(e) {
+    if (window.innerWidth > 1024) return;
+    var href = el.getAttribute('href');
+    if (!href) return;
+    e.preventDefault();
+    bsMenuToggle(false);
+    bsSoftNavigate(href, true);
+  });
+});
+/* pushState não navega de verdade — sem isso, Voltar/Avançar do navegador
+   só trocaria a URL da barra, mantendo o conteúdo da página anterior na
+   tela. false = não empilha de novo, o histórico já tem essa posição. */
+window.addEventListener('popstate', function() {
+  bsSoftNavigate(location.href, false);
 });
 window.addEventListener('resize', function() {
   if (window.innerWidth > 1024) bsMenuToggle(false);

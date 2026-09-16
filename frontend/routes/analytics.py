@@ -615,10 +615,17 @@ async def debriefing(request: Request, launch_code: str | None = None, modo: str
             schedule_snapshot_only(launch, launches)
 
     snapshot_label = ""
+    snapshot_fresh = True
     if snapshot_at:
         try:
+            from datetime import datetime, timezone  # noqa: PLC0415
             from zoneinfo import ZoneInfo  # noqa: PLC0415
             snapshot_label = snapshot_at.astimezone(ZoneInfo("America/Sao_Paulo")).strftime("%d/%m %H:%M")
+            age_minutes = (datetime.now(timezone.utc) - snapshot_at.astimezone(timezone.utc)).total_seconds() / 60
+            # Aquecimento roda a cada PRE_WARM_INTERVAL_MIN (padrão 30min) +
+            # depois de todo ETL — 60min de folga cobre isso sem virar "vermelho"
+            # à toa por uma rodada atrasada.
+            snapshot_fresh = age_minutes <= 60
         except Exception:
             snapshot_label = str(snapshot_at)[:16]
 
@@ -626,7 +633,8 @@ async def debriefing(request: Request, launch_code: str | None = None, modo: str
                     dbf=built["dbf"], drive_thumbnails=built.get("drive_thumbnails") or {},
                     data_errors=built.get("data_errors") or [],
                     creative_data_error=bool(built.get("creative_data_error")),
-                    slides=slides, lazy=lazy, snapshot_label=snapshot_label)
+                    slides=slides, lazy=lazy, snapshot_label=snapshot_label,
+                    snapshot_fresh=snapshot_fresh)
     return templates.TemplateResponse("debriefing.html", ctx)
 
 

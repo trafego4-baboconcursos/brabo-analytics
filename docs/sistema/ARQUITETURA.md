@@ -177,6 +177,9 @@ relacionados:
 >
 > **Accordion: título em 2 linhas, ícone maior — mudança única, ~30 páginas (2026-09-16)**
 >
+>
+> **Título sem "Captação/Pré-Quali/Meta/Google/YouTube/TikTok" no texto — vira badge (2026-09-16)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -1735,3 +1738,37 @@ e desktop (1280px), accordion recolher/expandir e o painel "Seções" continuam 
 
 De quebra: as duas badges de lançamento do Debriefing (`.dbf-launch-badge`) perderam o "vs" —
 "vs PI-ABR-26" virou só "PI-ABR-26" — pedido explícito junto com o desenho.
+
+## Título sem "Captação/Pré-Quali/Meta/Google/YouTube/TikTok" no texto — vira badge (2026-09-16)
+
+Continuação do fix acima: usuário pediu pra tirar a palavra da etapa (Captação/Pré-Qualificação)
+e da plataforma (Meta/Google/YouTube/TikTok) do texto de ~19 títulos do Debriefing — a etapa já
+tinha tag automática, a plataforma não tinha nada. Sequência final pedida: **etapa → plataforma →
+lançamento atual → lançamento anterior**, todas as badges do mesmo tamanho.
+
+**A pegadinha:** a tag automática (`detectTag()`, `bsInitAccordion()`) funciona escaneando
+palavra-chave **no texto visível** do título (`title.textContent`). Tirar a palavra do texto
+quebra a própria detecção que mostra a tag — sem "Captação" no texto, nada dispara o badge
+"Captação". Resolvido com um atributo `data-tag="Captação"` no `<div class="dbf-section-title">`,
+que `initAccordion()` agora lê **antes** de cair pra `detectTag(label)`:
+```js
+var forcedTag = title.getAttribute('data-tag');
+return { ..., autoTag: forcedTag || detectTag(label) };
+```
+Só os ~19 títulos que tiveram a palavra removida ganharam `data-tag` explícito; o resto do
+sistema (as outras ~29 páginas) continua 100% por detecção automática, sem tocar em nada.
+
+**Plataforma vira badge** — `plat_badge(nome)` (`debriefing/_macros.html`), logo + nome, mesmo
+tamanho de `.dbf-launch-badge`/`.bs-sec-tag` (11px/700/2px 8px/20px, unificado nos três pro pedido
+"mesmo tamanho das tag de lançamento"). Usado só nos títulos que tinham a palavra da plataforma
+solta no texto (ex.: "Top 5 Melhores Ads — Captação (Meta)" → "Top 5 Melhores Ads" +
+`plat_badge("Meta")`). As variantes por plataforma de "Top 5 Melhores Ads" trocaram o ícone
+principal de marca (`ti-brand-meta`/`ti-brand-youtube`) por `ti-trophy` genérico — mesmo ícone da
+variante combinada (Meta+Google), pra não ter 3 ícones diferentes pra 3 recortes do mesmo
+ranking.
+
+**Ordem das badges já saía certa sem esforço extra:** `bsInitAccordion()` insere a tag automática
+**antes** do loop que aspira o resto do conteúdo original do título pra `.bs-sec-badges` — como
+cada template já escreve `{{ plat_badge(...) }}` antes de `.dbf-launch-badge` (atual) antes de
+`.dbf-launch-badge.prev` (anterior), a ordem final bate exatamente com "etapa → plataforma →
+lançamento → lançamento anterior" sem precisar de nenhuma lógica de reordenação.

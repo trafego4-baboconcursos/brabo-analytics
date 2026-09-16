@@ -18,14 +18,15 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 24 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 28 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
 >
 >
-> **God Module Split — Progresso (concluído em 2026-07-01)**
+> **God Module Split (S1–S9 em 2026-07-01; encerrado em 2026-09-15)**
 >
+> - [[ARQUITETURA#S10 — fim do shim (2026-09-15)|S10 — fim do shim (2026-09-15)]]
 >
 > **Fluxo de Dados**
 >
@@ -51,7 +52,16 @@ relacionados:
 > **Segurança**
 >
 >
-> **Testes (90 testes, 0 dependência de DB)**
+> **Testes**
+>
+> - [[ARQUITETURA#1. Unitários — sem banco, rodam sempre|1. Unitários — sem banco, rodam sempre]]
+> - [[ARQUITETURA#2. Fumaça (`-m smoke`) — precisa de banco|2. Fumaça (`-m smoke`) — precisa de banco]]
+> - [[ARQUITETURA#3. Caracterização (`-m caracterizacao`) — precisa de banco|3. Caracterização (`-m caracterizacao`) — precisa de banco]]
+>
+> **/debriefing em 500 — snapshot velho aprovado pelo guard de versão (2026-09-15)**
+>
+>
+> **Ordem não determinística no CSV do Caminho do Comprador (2026-09-15)**
 >
 >
 > **Bugs Corrigidos (2026-06-25)**
@@ -110,7 +120,8 @@ relacionados:
 
 <!-- SUMARIO:FIM -->
 
-Estado atual da arquitetura após as sessões de refatoração de 2026-06-23, 2026-06-25 e o God Module Split (Sessions 1–9, concluído em 2026-07-02).
+Estado atual da arquitetura após as sessões de refatoração de 2026-06-23 e 2026-06-25, o God Module Split
+(S1–S9, 2026-07-02) e a remoção do shim `database_reader.py` (S10, 2026-09-15).
 
 ---
 
@@ -123,10 +134,10 @@ workspace-mmm/
 │   ├── core.py                 ← Estado compartilhado: cache de launches, _base_ctx, _compute_launch_defaults (~339 linhas)
 │   ├── auth.py                 ← Auth HMAC, sessão, rate limiting, ROUTE_PERMISSIONS
 │   ├── cache.py                ← Cache TTL em memória (_get_cached, _set_cached, _invalidate)
-│   ├── database_reader.py      ← Shim de re-exportação (~314 linhas); contém apenas read_comparativo + read_youtube_aulas
 │   ├── utils.py                ← Helpers compartilhados (_norm_text, _extract_launch_code, _safe_date, etc.)
 │   ├── models.py               ← Dataclasses de retorno (VendasSummary, MetaSummary, LeadsSummary, etc.)
 │   ├── db.py                   ← Engines SQLAlchemy (_get_engine, _get_users_engine, _READONLY_TABLES)
+│   ├── ad_accounts.py          ← Descoberta das contas de anúncio por API + listas KNOWN_* de fallback
 │   ├── formatters.py           ← fmt_brl, fmt_num, fmt_pct (filtros Jinja2)
 │   ├── services/
 │   │   ├── __init__.py
@@ -183,9 +194,12 @@ workspace-mmm/
 
 ---
 
-## God Module Split — Progresso (concluído em 2026-07-01)
+## God Module Split (S1–S9 em 2026-07-01; encerrado em 2026-09-15)
 
-O `database_reader.py` original tinha **4.180 linhas e 74 funções** em um único arquivo. O split incremental preservou 100% de compatibilidade: `database_reader.py` re-exporta tudo, então nenhum caller (especialmente `core.py`) precisou ser alterado.
+O `database_reader.py` original tinha **4.180 linhas e 74 funções** em um único arquivo. O split incremental
+preservou 100% de compatibilidade porque `database_reader.py` seguiu re-exportando tudo — nenhum caller
+(especialmente `core.py`) precisou mudar durante as sessões S1–S9. Em S10 o shim foi removido e os callers
+passaram a importar de `frontend.db_readers`.
 
 | Sessão | O que foi extraído | Resultado |
 |--------|--------------------|-----------|
@@ -206,7 +220,40 @@ O `database_reader.py` original tinha **4.180 linhas e 74 funções** em um úni
 | **S8** | `frontend/services/fetch.py` — `_launch_cfg`, `_get_global_start/_end`, leitores com cache (`_meta`, `_google`, `_vendas`, `_leads`, `_typeform`, `_hotmart_details`, `_tmb_details`, `_vendas_consolidado`, `_typeform_count`), `_fetch_all_data`, `_fetch_prev_for_debriefing` | `_sales_attribution` importado no topo (sem circular); imports de `database_reader` + `frontend.cache` |
 | **S9** | `frontend/services/debriefing.py` — `_CLIMA_ORDER`, `_build_clima_breakdown`, `_attach_clima_sales`, `_attach_clima_variation`, `_clima_raw`, `_sales_raw`, `_build_leads_detail_table`, `_build_rmkt_adsets`, `_compute_debriefing_ctx` | Imports de `fetch.py` (`_launch_cfg`) e `attribution.py` (`_merge_google_tipo_sales`) no topo; `core.py` re-exporta `_compute_debriefing_ctx` |
 
-**Estado final do `database_reader.py`:** 314 linhas. Contém apenas `read_comparativo` (que chama múltiplos readers, ficou como orquestrador) e `read_youtube_aulas` (stub — ETL YouTube não conectado).
+### S10 — fim do shim (2026-09-15)
+
+O `database_reader.py` **não existe mais**. As três coisas que ainda moravam nele foram para onde pertenciam:
+
+| O que | Foi para |
+|---|---|
+| `read_comparativo` + `_merge_segmentos` | `frontend/db_readers/comparativo.py` (novo) |
+| `read_youtube_aulas` | `frontend/db_readers/youtube_aulas.py` (já existia) |
+| `KNOWN_META_ACCOUNTS` / `KNOWN_GOOGLE_ACCOUNTS` | `frontend/ad_accounts.py` — onde a docstring já dizia que era o lugar delas |
+
+`frontend/db_readers/__init__.py` deixou de ser `from frontend.database_reader import *` e passou a listar
+explicitamente o que exporta, então `from frontend.db_readers import read_meta` continua funcionando sem
+que ninguém dependa do arquivo onde a função mora.
+
+**`frontend/db_readers/nomenclatura.py` (novo).** A classificação de campanha pelo nome (etapa, temperatura,
+bucket, segmento) estava duplicada entre `ads_meta.py` e `ads_google.py`: `BUCKET_MAP` e `MODIFIER_MAP` eram
+byte a byte idênticos nos dois, e o laço de classificação era quase igual. Os mapas de **etapa** e
+**temperatura**, esses sim, diferem de propósito (o Meta casa a chave entre colchetes e lista `aula 1..4`
+uma a uma; o Google casa por substring e tem `Performance Max`) — e continuam separados, agora com o motivo
+escrito ao lado.
+
+Isso também desfez o ciclo `sales` ↔ `ads_meta`: `sales` importava `_categorize_campaign` de `ads_meta`, que
+por sua vez precisava de `read_vendas` de volta. Hoje os dois dependem de `nomenclatura`, que é folha, e
+`ads_meta`/`ads_google` importam `sales` normalmente, no topo do módulo.
+
+**Ciclo que continua existindo:** `sales` → `launches` → `typeform` → `sales`. `discover_launches` precisa
+saber se o lançamento tem pesquisa (typeform), `typeform` precisa de `read_vendas`, e `sales` precisa de
+`read_launch_config`. Essas três dependências seguem importadas dentro das funções, e o motivo está escrito
+na docstring de cada uma. Desfazer exigiria tirar `_resolve_typeform_ids` de `typeform.py`.
+
+**Equivalência provada, não presumida:** `tests/test_nomenclatura.py` roda a implementação nova contra uma
+fixture gerada com a implementação antiga sobre **todas as 837 campanhas distintas que existem no banco**
+(470 Meta × 2 modos de `legacy`, 367 Google). São 1.311 casos; qualquer divergência de classificação em
+campanha real derruba o teste.
 
 **Estado de `core.py` após S8:** 689 linhas.
 
@@ -229,8 +276,8 @@ etl/ (ETL scripts com retry e validação)
       ↓
 Supabase (dois bancos)
       ↓
-frontend/db_readers/*.py        (leitores de domínio: sales, leads, ads_meta, ads_google, typeform, launches, users)
-frontend/database_reader.py  (shim de re-exportação; contém apenas read_comparativo)
+frontend/db_readers/*.py        (leitores de domínio: sales, leads, ads_meta, ads_google,
+                                 typeform, launches, users, comparativo, nomenclatura, …)
       ↓
 frontend/services/attribution.py  (atribuição de vendas, overview de criativos)
 frontend/formatters.py            (fmt_brl, fmt_num, fmt_pct)
@@ -351,18 +398,104 @@ O `etl/scheduler.py` usa **APScheduler** (`BlockingScheduler`) com:
 
 ---
 
-## Testes (90 testes, 0 dependência de DB)
+## Testes
+
+Três camadas, com dependências diferentes de banco.
+
+### 1. Unitários — sem banco, rodam sempre
 
 | Arquivo | O que testa |
 |---------|-------------|
 | `test_core.py` | `fmt_brl/num/pct`, `_norm_text`, `_extract_ad_code`, `_classify_campaign`, `_classify_google_campaign_type`, `_utm_score`, `_inc_sales`, `find_previous_launch`, `resolve_launch` |
 | `test_csv_utils.py` | Detecção de delimitador, fallback de Sniffer, encoding |
 | `test_etl_validation.py` | `validate_dataframe()`: happy path, DataFrame vazio, colunas ausentes, nulos excessivos |
-| `test_launch_discovery.py` | `FOLDER_PATTERN` regex, `PRODUCT_BY_PREFIX` |
+| `test_nomenclatura.py` | Classificação de campanha pelo nome, contra **as 837 campanhas reais do banco** (1.311 casos) — ver S10 |
+| `test_frontend_smoke.py::test_templates_compilam` | Todos os templates Jinja compilam no ambiente real do app |
+
+### 2. Fumaça (`-m smoke`) — precisa de banco
+
+Loga com as credenciais legadas e confere que cada página autenticada responde 200.
+Pega erro de template, de rota e de import; **não** pega número errado.
+
+### 3. Caracterização (`-m caracterizacao`) — precisa de banco
+
+`tests/test_caracterizacao_readers.py` congela num baseline o que cada `read_*` de
+`frontend/db_readers/` devolve, para dois lançamentos encerrados (PBB-ABR-26 e PI-AGO-26).
+É a rede que permite refatorar leitura sem medo: se um número mudar, o teste cai.
+
+Os readers são descobertos por **introspecção** — `read_*` novo entra na cobertura sozinho,
+desde que a assinatura seja `(launch…, **opcionais)`. `test_descobriu_readers` garante que a
+introspecção não quebrou e virou um no-op silencioso.
+
+O baseline guarda **digest + esqueleto**, nunca o conteúdo: a saída completa são ~180 MB e
+inclui e-mail e telefone de comprador, que não podem entrar no repositório. Quando um teste
+cai, a saída inteira é gravada em `tests/baseline/_falhas/` (ignorado pelo git) pra dar o diff.
+
+**Nem todo reader dá pra congelar pelo valor.** Os listados em `VOLATEIS` leem tabelas que
+continuam recebendo linhas mesmo depois do carrinho fechar (sendflow/WhatsApp, formulários do
+sistema novo, sincronismo do AC) ou devolvem totais globais, não recortados pela janela do
+lançamento. Deles o teste cobra só a **forma** da resposta. A lista foi medida, não chutada:
+duas execuções a 15 minutos de distância divergiram nesses e em nenhum outro.
 
 ```bash
-python -m pytest tests/ -v   # roda todos os 90 testes
+# unitários (CI, sem banco)
+python -m pytest tests/ -m "not smoke and not caracterizacao"
+
+# antes de refatorar: grava a foto do comportamento atual
+ATUALIZAR_BASELINE=1 python -m pytest tests/test_caracterizacao_readers.py -m caracterizacao
+
+# depois de refatorar: confere que nada mudou
+python -m pytest tests/test_caracterizacao_readers.py -m caracterizacao
 ```
+
+---
+
+## /debriefing em 500 — snapshot velho aprovado pelo guard de versão (2026-09-15)
+
+**Sintoma:** `/debriefing` (e `?modo=slides`) devolvendo 500 com
+`UndefinedError: 'dict object' has no attribute 'total_grupos_vip'`.
+
+**Causa:** `SNAPSHOT_VERSION` existe justamente para invalidar snapshot cujo `dbf` mudou de
+forma — o comentário em `debriefing_snapshot.py` diz isso com todas as letras. Ele ficou em
+**5 desde 04/09**, enquanto em 15/09 o `dbf` ganhou 4 campos novos
+(`total_grupos_normais`/`total_grupos_vip` e os `prev_` correspondentes, commit `7bf3765`).
+Resultado: o snapshot gravado antes dessa mudança continuava passando no guard, a página
+renderizava a partir dele, e o template pedia um campo que aquele payload não tinha.
+
+Medido: contexto calculado ao vivo = **113 campos**; snapshot gravado = **109**. A diferença
+eram exatamente os 4 campos novos.
+
+**Correção:** `SNAPSHOT_VERSION = 6`. O snapshot velho passa a ser ignorado, a página cai no
+cálculo ao vivo (que funciona) e o próximo aquecimento regrava no formato novo.
+
+**Regra que isso deixa:** mexeu nos campos que o template consome do `dbf`? Sobe
+`SNAPSHOT_VERSION` no mesmo commit. Não é opcional — sem isso o erro só aparece em produção,
+depois do deploy, e some sozinho no aquecimento seguinte, o que torna o diagnóstico bem pior.
+
+**Não era regressão da refatoração S10:** o mesmo teste foi rodado em `HEAD` (código anterior)
+e falhou 3 de 3 vezes, igual.
+
+---
+
+## Ordem não determinística no CSV do Caminho do Comprador (2026-09-15)
+
+**Sintoma:** dois downloads de `/api/caminho-comprador.csv` do mesmo lançamento, sem nenhum
+dado novo no meio, saíam com as linhas em ordem diferente — e portanto pareciam ter mudado.
+A tabela do Debriefing embaralhava pelo mesmo motivo a cada reinício do servidor.
+
+**Causa:** `read_caminho_comprador` monta as linhas iterando `buyers`, que é um `set` de
+e-mails. O Python aleatoriza o hash de string a cada processo, então a ordem de iteração muda.
+Existia um `rows.sort(key=receita, reverse=True)`, mas ele **não é uma ordem total**: como o
+preço do produto é o mesmo para quase todo mundo, a maioria das linhas empata em receita, e
+`sort` é estável — ou seja, preserva entre os empatados exatamente a ordem arbitrária do set.
+
+**Correção:** desempate explícito por e-mail, `rows.sort(key=lambda r: (-r["receita"], r["email"]))`.
+Não muda nenhum valor, só torna a ordem reprodutível.
+
+**Como apareceu:** os testes de caracterização (ver seção Testes) acusaram este reader como o
+único divergente entre o código antes e depois de S10. A investigação mostrou que o código
+**antigo** também divergia de si mesmo entre duas execuções — era defeito pré-existente, não
+regressão da refatoração.
 
 ---
 
@@ -373,7 +506,7 @@ python -m pytest tests/ -v   # roda todos os 90 testes
 
 **Fix:** Substituído por f-string formatando os IDs diretamente no SQL: `ANY(ARRAY[{ids_literal}]::int[])`. Seguro contra injection porque cada valor passa por `int()` antes da interpolação. Padrão alinhado com a query equivalente do Hotmart.
 
-**Localização:** `frontend/database_reader.py`, função `_query_tmb` (~linha 2141).
+**Localização:** à época `frontend/database_reader.py`, função `_query_tmb`; hoje `frontend/db_readers/sales.py`.
 
 ---
 
@@ -396,7 +529,7 @@ O Session Pooler usa senha gerenciada separadamente do banco (não expira da mes
 #### 3. `read_launch_config` sem tratamento de erro
 **Causa:** A função não tinha `try/except` — qualquer falha de conexão ao banco operacional propagava como 500.  
 **Fix:** Envolvida em `try/except Exception` retornando `{}` em caso de falha, com `logger.warning`.  
-**Localização:** `frontend/database_reader.py`, linha ~3182.
+**Localização:** à época `frontend/database_reader.py`; hoje `frontend/db_readers/launches.py::read_launch_config`.
 
 #### 4. `_fetch_all_data` propagando exceções pelo `asyncio.gather`
 **Causa:** As corrotinas `f_vendas`, `f_hm`, `f_tmb`, `f_vc` não tinham `try/except` — uma falha em qualquer uma delas cancelava o gather inteiro e causava 500.  
@@ -416,7 +549,7 @@ valor = _hm_val(row.get("faturamento_liquido")) \
      or _hm_val(row.get("valor_de_compra_sem_impostos")) \
      or 0.0
 ```
-**Localização:** `frontend/database_reader.py`, função `read_vendas` (~linha 2169).
+**Localização:** à época `frontend/database_reader.py`; hoje `frontend/db_readers/sales.py::read_vendas`.
 
 #### 7. TMB retornando 0 vendas para PBB-JUN-26
 **Causa:** Três problemas encadeados:
@@ -616,6 +749,26 @@ Duas armadilhas que custaram tempo e valem pra qualquer refatoração de leitura
 
 Quando o diff acusar diferença, isolar com `git stash` dos arquivos alterados e recapturar: se
 a diferença persiste com o código antigo, é dado que mudou, não a refatoração.
+
+**O método rigoroso (usado em S10).** `git stash` serve pra um caso pontual, mas a comparação
+honesta é gerar o baseline com o código **antigo** e verificar com o **novo**, com poucos
+minutos entre as duas — senão o drift de dado se mistura com o efeito da refatoração:
+
+```bash
+git worktree add "$TEMP/mmm-head" HEAD
+cp .env pyproject.toml "$TEMP/mmm-head/"
+cp tests/caracterizacao_util.py tests/test_caracterizacao_readers.py "$TEMP/mmm-head/tests/"
+
+# baseline do código ANTIGO, gravado na árvore de trabalho
+cd "$TEMP/mmm-head" && BASELINE_DIR="C:/dev/workspace-mmm/tests/baseline"   ATUALIZAR_BASELINE=1 python -m pytest tests/test_caracterizacao_readers.py -m caracterizacao
+
+# verificação do código NOVO contra ele
+cd C:/dev/workspace-mmm && python -m pytest tests/test_caracterizacao_readers.py -m caracterizacao
+```
+
+`BASELINE_DIR` existe exatamente pra isso. Em S10 esse método deu 74 de 76 readers idênticos
+byte a byte, e as 2 divergências eram não determinismo pré-existente — que só ficou visível
+porque o código antigo também divergia **de si mesmo** entre duas execuções.
 
 ## Histórico de lançamentos por lead — tags do Active Campaign (2026-09-14)
 

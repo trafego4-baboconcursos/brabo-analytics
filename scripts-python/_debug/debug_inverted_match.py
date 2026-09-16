@@ -3,7 +3,7 @@ from sqlalchemy import text
 from etl.db import get_engine
 import re
 from difflib import SequenceMatcher
-from frontend.database_reader import read_vendas
+from frontend.db_readers import read_vendas
 
 engine = get_engine()
 code = 'PBB-JUN-26'

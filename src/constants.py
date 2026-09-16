@@ -1,4 +1,4 @@
-"""Constantes compartilhadas por frontend/db_readers e frontend/database_reader.py."""
+"""Constantes compartilhadas pelos leitores em frontend/db_readers."""
 from __future__ import annotations
 
 ETAPAS_ORDEM: list[str] = [

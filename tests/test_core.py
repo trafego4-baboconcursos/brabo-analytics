@@ -296,7 +296,7 @@ class TestResolveLaunch:
     def test_por_codigo(self):
         pbb = _make_launch("PBB-ABR-26", "PBB", date(2026, 4, 1))
         pes = _make_launch("PES-MAI-26", "PES", date(2026, 5, 1))
-        # resolve_launch chama get_launch do database_reader internamente
+        # resolve_launch chama get_launch de db_readers.launches internamente
         # testamos via mock do módulo
         from unittest.mock import patch
         with patch("frontend.core.get_launch", return_value=pes) as mock_get:

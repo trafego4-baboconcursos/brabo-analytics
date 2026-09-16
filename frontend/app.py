@@ -4,7 +4,6 @@ Ponto de entrada do FastAPI: cria o app, registra middleware e inclui routers.
 Toda a lógica de negócio está em frontend/core.py e frontend/routes/*.
 """
 from __future__ import annotations
-import sys
 import urllib.parse
 from pathlib import Path
 
@@ -14,9 +13,7 @@ WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 ANALISES_DIR   = WORKSPACE_ROOT / "analises"
 IMG_DIR        = WORKSPACE_ROOT / "img"
 SRC_DIR        = WORKSPACE_ROOT / "src"
-
-if str(SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(SRC_DIR))
+# O sys.path de src/ é montado em frontend/__init__.py, que roda antes daqui.
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response

@@ -403,7 +403,7 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
 # ── Creative Overview ──────────────────────────────────────────────────────────
 
 def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dict | None, launch_code: str = "") -> dict:
-    from frontend.database_reader import get_historico_ad_codes  # noqa: PLC0415
+    from frontend.db_readers.ads_meta import get_historico_ad_codes  # noqa: PLC0415
 
     rows_by_ad: dict[str, dict] = {}
     platform_source_rows: dict[str, list[dict]] = {"Meta Ads": [], "Google Ads": []}

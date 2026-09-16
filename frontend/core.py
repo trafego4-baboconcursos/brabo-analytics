@@ -23,19 +23,21 @@ SRC_DIR        = WORKSPACE_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
-from frontend.database_reader import (
+from frontend.db_readers import (
     discover_launches, get_launch, Launch,
     read_comparativo, AcCampaignSummary,
     read_launch_config, save_launch_config, create_launch, count_campaigns_for_filter, get_drive_thumbnails,
     autodetect_launch_data,
-    KNOWN_META_ACCOUNTS, KNOWN_GOOGLE_ACCOUNTS,
     get_user_by_email, get_user_by_id, list_users, create_user,
     update_user, update_last_login, bootstrap_admin_if_needed,
     create_invite, get_invite, use_invite, list_invites, delete_invite,
     ROLE_LABELS, PRODUCT_LABELS,
     get_etl_status as _db_get_etl_status,
 )
-from frontend.ad_accounts import get_meta_accounts, get_google_accounts
+from frontend.ad_accounts import (
+    KNOWN_GOOGLE_ACCOUNTS, KNOWN_META_ACCOUNTS,
+    get_google_accounts, get_meta_accounts,
+)
 from frontend.calendar_parser import parse_calendar
 from frontend.utils import _norm_text
 from frontend.formatters import fmt_brl, fmt_num, fmt_pct, fmt_br_date
@@ -218,7 +220,7 @@ def read_historico_grande(launch: Launch, all_launches: list[Launch], n: int = 8
     Divisão Quente-Captação-Remarketing, por lançamento da mesma cadeia
     (find_previous_launch) usada em read_comparativo_historico."""
     from frontend.db_readers.whatsapp_groups import read_whatsapp_groups
-    from frontend.database_reader import read_youtube_aulas
+    from frontend.db_readers.youtube_aulas import read_youtube_aulas
     from frontend.services.orcamento import get_etapa
     from frontend.db import _get_engine
     from sqlalchemy import text as _text

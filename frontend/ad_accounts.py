@@ -2,11 +2,11 @@
 frontend/ad_accounts.py — Descobre dinamicamente as contas de anúncio (Meta e
 Google) que o token/credencial configurado no .env consegue acessar.
 
-Substitui as listas estáticas antigas (KNOWN_META_ACCOUNTS / KNOWN_GOOGLE_ACCOUNTS
-em database_reader.py) que ficavam desatualizadas sempre que uma conta nova era
-criada (ex: conta separada do Ivan pro PES/PI). Resultado é cacheado em memória
-por algumas horas — contas de anúncio raramente mudam e cada chamada é uma ida
-na API externa.
+Descobre por API em vez de depender de lista fixa: as listas KNOWN_* abaixo
+ficavam desatualizadas sempre que uma conta nova era criada (ex: conta separada
+do Ivan pro PES/PI) e hoje servem só de fallback, para quando a API não
+responde. Resultado é cacheado em memória por algumas horas — contas de anúncio
+raramente mudam e cada chamada é uma ida na API externa.
 """
 from __future__ import annotations
 
@@ -147,3 +147,18 @@ def get_google_accounts(force: bool = False) -> list[dict]:
     if accounts:
         _set_cached("google", accounts)
     return accounts
+
+
+# ── Fallback ───────────────────────────────────────────────────────────────────
+# Usadas só quando a descoberta por API falha (ver core.py::get_ad_accounts).
+# Podem estar incompletas: conta criada depois desta linha não aparece aqui.
+KNOWN_META_ACCOUNTS = [
+    {"id": "act_438212624024216",  "name": "CA - Anunciante Felipe Graton", "project": "PBB"},
+    {"id": "act_1175937361058463", "name": "CA - Criadora de Públicos 2",   "project": "PBB"},
+    {"id": "act_1407542209639031", "name": "CA2 - Anunciante (TJSP/INSS)",  "project": "PES/PI"},
+]
+
+KNOWN_GOOGLE_ACCOUNTS = [
+    {"id": "1450466453", "name": "Felipe Graton - Brabo Concursos", "project": "PBB"},
+    {"id": "6482320788", "name": "Lançamentos - Brabo Concursos",   "project": "PES/PI"},
+]

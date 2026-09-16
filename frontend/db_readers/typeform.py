@@ -478,7 +478,7 @@ def read_typeform_count(launch_folder_or_code: Any) -> int:
 
 
 def read_typeform(launch_folder_or_code: Any, start_date=None, end_date=None) -> TypeformSummary:
-    # deferred import to avoid circular dependency (read_vendas still in database_reader)
+    # Import dentro da função: sales → launches → typeform → sales é um ciclo.
     from frontend.db_readers.sales import read_vendas  # noqa: PLC0415
 
     code = _extract_launch_code(launch_folder_or_code)

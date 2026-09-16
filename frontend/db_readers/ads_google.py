@@ -18,6 +18,8 @@ from src.ad_codes import extract_ad_code
 from frontend.db import _get_engine
 from frontend.models import GoogleCampanha, GoogleSummary
 from frontend.db_readers.ads_meta import get_historico_ad_codes
+from frontend.db_readers.nomenclatura import categorizar_campanha_google
+from frontend.db_readers.sales import read_vendas
 from src.constants import ETAPAS_ORDEM
 
 logger = get_logger("db")
@@ -31,34 +33,6 @@ def _classify_google_type(campaign_name: str) -> str:
     return "youtube"
 
 
-ETAPA_MAP = {
-    "pré-qualificação": "Pré-Qualificação", "pre-qualificacao": "Pré-Qualificação",
-    "pré-quali": "Pré-Qualificação", "pre-quali": "Pré-Qualificação",
-    "captação": "Captação", "captacao": "Captação", "capta": "Captação",
-    "lembrete": "Lembrete",
-    "depoimento": "Depoimento",
-    "replay": "Replay",  # deve vir antes de aula para [replay aula N] → Replay
-    "aulas no ar": "Aulas no Ar", "aulas-no-ar": "Aulas no Ar",
-    "aula": "Aulas no Ar",  # cobre aula 1/2/3/4 sem replay
-    "matrículas abertas": "Matrículas Abertas", "matriculas abertas": "Matrículas Abertas",
-    "matrículas": "Matrículas Abertas", "matriculas": "Matrículas Abertas",
-    "performance max": "Performance Max", "pmax": "Performance Max",
-}
-TEMPERATURA_MAP = {
-    "quente": "Quente", "frio": "Frio", "específico": "Específico", "especifico": "Específico",
-}
-BUCKET_MAP_G = {
-    "principal": "Principal", "potencial": "Potencial", "reels": "Reels",
-    "imagem": "Imagem", "search": "Search", "p-max": "P-Max",
-    "shorts": "Shorts",
-    "novos-ads": "Novos Ads", "novos_ads": "Novos Ads",
-}
-MODIFIER_MAP_G = {
-    "otimizada": "otimizada", "teste": "teste",
-    "melhores-ads": "melhores ads", "new-ads": "new ads",
-}
-
-
 def _slug(s: Any) -> str:
     """Normaliza pra comparar utm_content (slug: "01-cadastrados-inss-anteriores")
     com ad_group_name real da API ("01 - Cadastrados INSS Anteriores") — mesma
@@ -70,40 +44,7 @@ def _slug(s: Any) -> str:
     return s
 
 
-def _categorize_campaign(camp: str) -> tuple[str, str, str]:
-    camp = str(camp).lower()
-    etapa = "Outros"
-    for k, v in ETAPA_MAP.items():
-        if k in camp:
-            etapa = v
-            break
-    temp = "Outros"
-    for k, v in TEMPERATURA_MAP.items():
-        if f"[{k}]" in camp or f"]{k}[" in camp:
-            temp = v
-            break
-    bucket = "Outros"
-    for k, v in BUCKET_MAP_G.items():
-        if f"[{k}]" in camp:
-            bucket = v
-            break
-    modifier = None
-    for k, v in MODIFIER_MAP_G.items():
-        if f"[{k}]" in camp:
-            modifier = v
-            break
-    seg_parts = [p for p in [temp if temp != "Outros" else None,
-                              bucket if bucket != "Outros" else None] if p]
-    segmento = " ".join(seg_parts) if seg_parts else "Outros"
-    if modifier:
-        segmento += f" ({modifier})"
-    return etapa, temp, segmento
-
-
 def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> GoogleSummary | None:
-    # deferred import to avoid circular dependency (read_vendas still in database_reader)
-    from frontend.db_readers.sales import read_vendas  # noqa: PLC0415
-
     code = _extract_launch_code(launch_folder_or_code)
     engine = _get_engine()
 
@@ -136,7 +77,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
     summary.ctr_medio = summary.total_cliques / summary.total_impressoes * 100 if summary.total_impressoes > 0 else 0.0
 
     df["etapa"], df["temperatura"], df["segmento"] = zip(
-        *df["campaign_name"].map(_categorize_campaign)
+        *df["campaign_name"].map(categorizar_campanha_google)
     )
 
     # Campanhas detalhadas

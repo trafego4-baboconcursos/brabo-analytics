@@ -2,7 +2,7 @@ import sys
 sys.path.insert(0, r'c:\Users\trafe\OneDrive\Desktop\workspace-mmm')
 try:
     from frontend.app import get_launches, resolve_launch
-    from frontend.database_reader import read_google, _get_engine
+    from frontend.db_readers import read_google, _get_engine
     import pandas as pd
     from sqlalchemy import text
     

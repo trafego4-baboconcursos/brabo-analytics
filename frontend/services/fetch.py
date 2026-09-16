@@ -9,7 +9,7 @@ from typing import Any
 from fastapi.concurrency import run_in_threadpool
 
 from frontend.cache import _get_cached, _get_or_compute, _set_cached
-from frontend.database_reader import (
+from frontend.db_readers import (
     read_meta, read_google, read_vendas, read_leads,
     read_hotmart_details, read_tmb_details, read_vendas_consolidado,
     read_typeform, read_typeform_count, read_comparativo, read_daily_breakdown,

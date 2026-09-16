@@ -315,7 +315,7 @@ def health_check(request: Request):
         return cached
 
     from sqlalchemy import text as sa_text
-    from frontend.database_reader import _get_engine, _get_users_engine
+    from frontend.db import _get_engine, _get_users_engine
 
     result: dict = {"status": "ok", "uptime_seconds": int(now - _APP_START_TIME)}
 
@@ -357,7 +357,7 @@ async def api_run_etl(request: Request):
     import sys as _sys
     from datetime import datetime, timedelta
     from sqlalchemy import text as sa_text
-    from frontend.database_reader import _get_engine
+    from frontend.db import _get_engine
 
     try:
         with _get_engine().connect() as conn:

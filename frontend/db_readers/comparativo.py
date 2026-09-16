@@ -1,79 +1,24 @@
 """
-frontend/database_reader.py — Brabo Analytics
-Leitor que busca dados diretamente do banco de dados no Supabase (SQLAlchemy)
-e retorna as mesmas estruturas e dataclasses que os readers CSV antigos,
-garantindo compatibilidade 100% com os templates HTML do Frontend.
+frontend/db_readers/comparativo.py — Comparação lado a lado de dois lançamentos.
+
+Monta a página /comparativo: pega o lançamento atual e o anterior do mesmo
+produto e calcula as variações de investimento, leads, CPL, vendas e ROAS, além
+do recorte por segmento (plataforma + temperatura do público).
+
+Era a última função de negócio que restava em ``frontend/database_reader.py``,
+um módulo que já tinha virado só uma lista de re-exports dos readers de domínio.
 """
 from __future__ import annotations
 
-import re
-import json
-import time as _time_module
-import unicodedata
-import math
-import numpy as np
-from datetime import datetime, date, timezone
-from pathlib import Path
-from typing import Any, Optional
-import pandas as pd
 from sqlalchemy import text
-from dotenv import load_dotenv
-from logger import get_logger
-from frontend.utils import (
-    _norm_text, _extract_launch_code,
-    _safe_div, _delta,
-    _safe_date, _normalize_product_ids,
-)
-from src.constants import (
-    ETAPAS_ORDEM, PRODUCT_BY_PREFIX,
-    LAUNCH_ACCENT, LAUNCH_SHORT, LAUNCH_NAMES,
-)
-from frontend.db import _get_engine, _get_users_engine
-from frontend.models import (
-    Launch, MetaCriativo, MetaSummary,
-    GoogleCampanha, GooglePublico, GoogleSummary,
-    VendasSummary, LeadsSummary,
-    HotmartDetails, TmbDetails, YoutubeAulaStat,
-    ConsolidadoVendasSummary, TypeformSummary,
-    AcCampaign, AcCampaignSummary,
-    ComparativoAd, ComparativoData,
-)
 
-
-# ─ Re-exportações dos módulos de domínio extraídos ─────────────────────────
-from frontend.db_readers.users import (  # noqa: E402
-    PRODUCT_LABELS, ROLE_LABELS, _users_table_exists,
-    get_user_by_email, get_user_by_id, list_users, create_user,
-    update_user, update_last_login, bootstrap_admin_if_needed,
-    create_invite, get_invite, use_invite, list_invites, delete_invite,
-)
-from frontend.db_readers.typeform import (  # noqa: E402
-    _get_typeform_forms, _get_typeform_fields, _resolve_typeform_ids,
-    _reconstruct_tabular_df, _build_typeform_comparison,
-    read_typeform, read_typeform_count, _generate_ia_insights,
-)
-from frontend.db_readers.ads_meta import get_historico_ad_codes, read_meta  # noqa: E402
-from frontend.db_readers.ads_google import (  # noqa: E402
-    _classify_google_type, read_google, read_daily_breakdown,
-)
-from frontend.db_readers.launches import (  # noqa: E402
-    discover_launches, get_launch,
-    autodetect_launch_data, read_launch_config, save_launch_config, create_launch,
-    get_drive_thumbnails, get_platform_thumbnails, count_campaigns_for_filter,
-    get_etl_status, _ETL_SOURCES,
-)
-
-from frontend.db_readers.sales import (  # noqa: E402
-    read_vendas, read_hotmart_details, read_tmb_details, read_vendas_consolidado,
-    read_dia1_sales,
-)
-from frontend.db_readers.leads import (  # noqa: E402
-    read_ac_leads_for_attribution, read_leads, read_ac_campaigns,
-)
-
-load_dotenv()
-
-logger = get_logger("db")
+from frontend.db import _get_engine
+from frontend.db_readers.ads_google import read_google
+from frontend.db_readers.ads_meta import read_meta
+from frontend.db_readers.launches import read_launch_config
+from frontend.db_readers.sales import read_vendas
+from frontend.models import ComparativoAd, ComparativoData, Launch
+from frontend.utils import _safe_div
 
 
 _SEG_TEMP_COLOR = {
@@ -119,7 +64,7 @@ def _merge_segmentos(ra: dict, rb: dict) -> list[dict]:
     return rows
 
 
-def read_comparativo(launch_b: "Launch", launch_a: "Launch", launch_a2: "Launch | None" = None) -> ComparativoData:
+def read_comparativo(launch_b: Launch, launch_a: Launch, launch_a2: Launch | None = None) -> ComparativoData:
     """
     Compara launch_b (atual) com launch_a (anterior do mesmo produto).
     launch_a2, se informado (anterior de launch_a), é usado só pra calcular a
@@ -136,7 +81,7 @@ def read_comparativo(launch_b: "Launch", launch_a: "Launch", launch_a2: "Launch 
         accent_b=launch_b.accent,
     )
 
-    def _query_launch(launch: "Launch") -> dict:
+    def _query_launch(launch: Launch) -> dict:
         result = {"top_ads": [], "top_google": []}
         cfg = read_launch_config(launch.code)
         cs = cfg.get("captacao_start_date")
@@ -370,90 +315,3 @@ def read_comparativo(launch_b: "Launch", launch_a: "Launch", launch_a2: "Launch 
     }
 
     return data
-
-
-
-
-def read_youtube_aulas(launch_code: str) -> list["YoutubeAulaStat"]:
-    """Lê métricas das aulas YouTube do banco de dados."""
-    from frontend.db import _get_engine
-    from sqlalchemy import text as _text
-    try:
-        with _get_engine().connect() as conn:
-            rows = conn.execute(
-                _text("""
-                    SELECT aula_num, video_id, titulo, duration_sec,
-                           views_total, views_live, views_replay,
-                           likes, comments, watch_time_min,
-                           avg_view_dur_sec, avg_view_pct, peak_concurrent,
-                           COALESCE(viewers_fim, 0)  AS viewers_fim,
-                           COALESCE(chat_msgs, 0)    AS chat_msgs,
-                           COALESCE(reacoes, 0)      AS reacoes,
-                           COALESCE(fonte, 'api')    AS fonte
-                    FROM youtube_aulas_stats
-                    WHERE launch_code = :code
-                    ORDER BY aula_num NULLS LAST, video_id
-                """),
-                {"code": launch_code},
-            ).fetchall()
-    except Exception:
-        return []
-
-    # Curva minuto a minuto da live (só existe quando veio do CSV do Studio).
-    curvas: dict[int, list[dict]] = {}
-    try:
-        with _get_engine().connect() as conn:
-            for c in conn.execute(
-                _text("""
-                    SELECT aula_num, posicao_seg, simultaneos
-                    FROM youtube_live_curva
-                    WHERE launch_code = :code
-                    ORDER BY aula_num, posicao_seg
-                """),
-                {"code": launch_code},
-            ).fetchall():
-                curvas.setdefault(c.aula_num, []).append(
-                    {"pos_min": int((c.posicao_seg or 0) / 60), "simultaneos": c.simultaneos or 0}
-                )
-    except Exception:
-        curvas = {}
-    return [
-        YoutubeAulaStat(
-            aula_num        = r.aula_num or 0,
-            video_id        = r.video_id or "",
-            titulo          = r.titulo or "",
-            duration_sec    = r.duration_sec or 0,
-            views_total     = r.views_total or 0,
-            views_live      = r.views_live or 0,
-            views_replay    = r.views_replay or 0,
-            likes           = r.likes or 0,
-            comments        = r.comments or 0,
-            watch_time_min  = float(r.watch_time_min or 0),
-            avg_view_dur_sec= float(r.avg_view_dur_sec or 0),
-            avg_view_pct    = float(r.avg_view_pct or 0),
-            peak_concurrent = r.peak_concurrent or 0,
-            viewers_fim     = r.viewers_fim or 0,
-            chat_msgs       = r.chat_msgs or 0,
-            reacoes         = r.reacoes or 0,
-            fonte           = r.fonte or "api",
-            curva           = curvas.get(r.aula_num, []),
-            retencao_live_pct = round((r.viewers_fim or 0) / r.peak_concurrent * 100, 1)
-                                if (r.peak_concurrent or 0) > 0 else 0.0,
-        )
-        for r in rows
-    ]
-
-KNOWN_META_ACCOUNTS = [
-    {"id": "act_438212624024216",  "name": "CA - Anunciante Felipe Graton", "project": "PBB"},
-    {"id": "act_1175937361058463", "name": "CA - Criadora de PÃºblicos 2",   "project": "PBB"},
-    {"id": "act_1407542209639031", "name": "CA2 - Anunciante (TJSP/INSS)",  "project": "PES/PI"},
-]
-
-KNOWN_GOOGLE_ACCOUNTS = [
-    {"id": "1450466453", "name": "Felipe Graton - Brabo Concursos", "project": "PBB"},
-    {"id": "6482320788", "name": "LanÃ§amentos - Brabo Concursos",   "project": "PES/PI"},
-]
-
-
-
-

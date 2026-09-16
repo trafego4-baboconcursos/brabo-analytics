@@ -13,6 +13,7 @@ from sqlalchemy import text
 from logger import get_logger
 from frontend.utils import _extract_launch_code, _safe_date, _normalize_product_ids, _norm_text
 from frontend.db import _get_engine, _get_users_engine
+from frontend.db_readers.nomenclatura import categorizar_campanha_meta
 from frontend.models import (
     VendasSummary, HotmartDetails, TmbDetails, ConsolidadoVendasSummary,
 )
@@ -1143,7 +1144,6 @@ def read_qualidade_regiao(launch_folder_or_code: Any, vendas: Any = None) -> dic
       estado do Meta aqui, só investimento (spend segue correto) cruzado com
       o ROAS calculado a partir da receita das vendas.
     """
-    from frontend.db_readers.ads_meta import _categorize_campaign  # noqa: PLC0415
 
     code = _extract_launch_code(launch_folder_or_code)
     if vendas is None:
@@ -1172,7 +1172,7 @@ def read_qualidade_regiao(launch_folder_or_code: Any, vendas: Any = None) -> dic
     invest_uf: dict[str, float] = {}
     if not df.empty:
         df["uf"] = df["region"].map(_norm_uf)
-        df["etapa"] = df["campaign_name"].map(lambda c: _categorize_campaign(c)[0])
+        df["etapa"] = df["campaign_name"].map(lambda c: categorizar_campanha_meta(c)[0])
         df_cap = df[(df["etapa"] == "Captação") & df["uf"].notna()]
         g = df_cap.groupby("uf").agg(cost=("cost", "sum"))
         for uf, r in g.iterrows():

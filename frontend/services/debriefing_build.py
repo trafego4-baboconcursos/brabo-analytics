@@ -30,7 +30,7 @@ from frontend.services.fetch import (
     _launch_cfg, _compradores_por_dia_grupo, _forma_pagamento_entrada,
     _whatsapp_groups_resumo, _dia1_sales,
 )
-from frontend.database_reader import read_hotmart_details
+from frontend.db_readers.sales import read_hotmart_details
 
 
 async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> dict:

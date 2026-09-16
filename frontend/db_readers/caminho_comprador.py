@@ -137,7 +137,12 @@ def read_caminho_comprador(launch_folder_or_code: Any, vendas: Any = None) -> di
             "vendas": int(vendas_por_email.get(email, 0)),
             "receita": float(receita.get(email, 0)),
         })
-    rows.sort(key=lambda r: r["receita"], reverse=True)
+    # Desempate por e-mail: `buyers` é um set, e o Python aleatoriza o hash de
+    # string a cada processo — sem um critério total, compradores de mesma
+    # receita (a maioria, já que o preço é o mesmo) saíam numa ordem diferente a
+    # cada reinício do servidor, e dois downloads do CSV do mesmo lançamento
+    # apareciam como se tivessem mudado.
+    rows.sort(key=lambda r: (-r["receita"], r["email"]))
 
     total = len(rows)
 

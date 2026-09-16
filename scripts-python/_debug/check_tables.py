@@ -1,6 +1,6 @@
 import sys
 sys.path.insert(0, r'c:\Users\trafe\OneDrive\Desktop\workspace-mmm')
-from frontend.database_reader import _get_engine
+from frontend.db import _get_engine
 from sqlalchemy import text
 
 try:

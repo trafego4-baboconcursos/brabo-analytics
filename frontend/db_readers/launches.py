@@ -1,9 +1,10 @@
 """
 frontend/db_readers/launches.py — Configuração e utilitários de lançamentos.
 
-Nota: discover_launches e get_launch ainda estão em database_reader.py pois
-dependem de _resolve_typeform_ids (typeform). Serão movidos quando typeform.py
-for extraído.
+discover_launches marca, para cada lançamento, quais fontes têm dado — e uma
+delas é a pesquisa, o que obriga a consultar typeform. Como typeform.py por sua
+vez depende de sales.py, que depende deste módulo, esse import é feito dentro da
+função: o ciclo sales → launches → typeform → sales não fecha no topo.
 """
 from __future__ import annotations
 

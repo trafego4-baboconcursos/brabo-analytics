@@ -14,6 +14,8 @@ from logger import get_logger
 from frontend.utils import _extract_launch_code, _normalize_ad_code
 from src.ad_codes import extract_ad_code, uses_legacy_ad_codes
 from frontend.db import _get_engine
+from frontend.db_readers.nomenclatura import categorizar_campanha_meta
+from frontend.db_readers.sales import read_vendas
 from frontend.models import MetaCriativo, MetaSummary
 from src.constants import ETAPAS_ORDEM
 
@@ -102,33 +104,6 @@ def find_ad_code_real_launches(ad_codes: set[str], code: str) -> dict[str, list[
     return result
 
 
-ETAPA_MAP = {
-    "pré-qualificação": "Pré-Qualificação", "pre-qualificacao": "Pré-Qualificação",
-    "pré-quali": "Pré-Qualificação", "pre-quali": "Pré-Qualificação",
-    "captação": "Captação", "captacao": "Captação", "capta": "Captação",
-    "lembrete": "Lembrete",
-    "depoimento": "Depoimento", "depoimentos": "Depoimento",
-    "replay aulas": "Replay", "replay": "Replay",  # deve vir antes de aula para [replay][aula N] → Replay
-    "aulas no ar": "Aulas no Ar", "aulas-no-ar": "Aulas no Ar",
-    "aula 1": "Aulas no Ar", "aula 2": "Aulas no Ar", "aula 3": "Aulas no Ar", "aula 4": "Aulas no Ar",
-    "matrículas abertas": "Matrículas Abertas", "matriculas abertas": "Matrículas Abertas",
-    "matrículas": "Matrículas Abertas", "matriculas": "Matrículas Abertas",
-}
-TEMPERATURA_MAP = {
-    "quente": "Quente", "frio": "Frio", "específico": "Específico", "especifico": "Específico", "lookalike": "Frio",
-}
-BUCKET_MAP = {
-    "principal": "Principal", "potencial": "Potencial", "reels": "Reels",
-    "imagem": "Imagem", "search": "Search", "p-max": "P-Max",
-    "shorts": "Shorts",
-    "novos-ads": "Novos Ads", "novos_ads": "Novos Ads",
-}
-MODIFIER_MAP = {
-    "otimizada": "otimizada", "teste": "teste",
-    "melhores-ads": "melhores ads", "new-ads": "new ads",
-}
-
-
 _PUBLICO_ORDEM = [
     "Cadastrados", "Envolvimento", "Vídeo", "Lista", "Semelhante",
     "Pág. de Captura", "Pág. de Vendas", "Advantage+", "Interesses", "Outros",
@@ -168,49 +143,7 @@ def _categorize_publico(adset: Any) -> str:
     return original
 
 
-def _categorize_campaign(camp: str, legacy: bool = False) -> tuple[str, str, str, str]:
-    camp = str(camp).lower()
-    etapa = "Outros"
-    for k, v in ETAPA_MAP.items():
-        if f"[{k}]" in camp or f"][{k}]" in camp:
-            etapa = v
-            break
-    if etapa == "Outros" and legacy:
-        # Convenção antiga (BV-25): o que está entre colchetes é o OBJETIVO da
-        # campanha ("[M] [CADASTRO] Captação INSS ... - BV-25"), e a etapa vem
-        # solta no meio do nome. Só age quando o match normal falhou, então não
-        # muda a classificação de nenhuma campanha que já resolve hoje.
-        for k, v in ETAPA_MAP.items():
-            if k in camp:
-                etapa = v
-                break
-    temp = "Outros"
-    for k, v in TEMPERATURA_MAP.items():
-        if f"[{k}]" in camp:
-            temp = v
-            break
-    bucket = "Outros"
-    for k, v in BUCKET_MAP.items():
-        if f"[{k}]" in camp:
-            bucket = v
-            break
-    modifier = None
-    for k, v in MODIFIER_MAP.items():
-        if f"[{k}]" in camp:
-            modifier = v
-            break
-    seg_parts = [p for p in [temp if temp != "Outros" else None,
-                              bucket if bucket != "Outros" else None] if p]
-    segmento = " ".join(seg_parts) if seg_parts else "Outros"
-    if modifier:
-        segmento += f" ({modifier})"
-    return etapa, temp, bucket, segmento
-
-
 def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> MetaSummary | None:
-    # deferred import to avoid circular dependency (read_vendas still in database_reader)
-    from frontend.db_readers.sales import read_vendas  # noqa: PLC0415
-
     code = _extract_launch_code(launch_folder_or_code)
     engine = _get_engine()
 
@@ -249,7 +182,7 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
 
     _legacy = uses_legacy_ad_codes(code)
     df["etapa"], df["temperatura"], df["bucket"], df["segmento"] = zip(
-        *df["campaign_name"].map(lambda c: _categorize_campaign(c, legacy=_legacy))
+        *df["campaign_name"].map(lambda c: categorizar_campanha_meta(c, legacy=_legacy))
     )
 
     # Agrupamentos

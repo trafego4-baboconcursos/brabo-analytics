@@ -18,9 +18,11 @@ ignore = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = [".", "src"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 markers = [
     "smoke: testes de fumaça que exercitam as páginas contra o banco real (excluídos no CI)",
+    "caracterizacao: congela a saída dos readers num baseline para proteger refatorações (precisa de banco)",
 ]

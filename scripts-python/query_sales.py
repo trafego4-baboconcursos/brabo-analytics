@@ -1,6 +1,7 @@
 import pandas as pd
 from etl.db import get_engine
-from frontend.database_reader import _users_engine, read_vendas
+from frontend.db import _get_users_engine
+from frontend.db_readers import read_vendas
 
 engine = get_engine()
 

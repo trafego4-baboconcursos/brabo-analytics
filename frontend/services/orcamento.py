@@ -419,7 +419,7 @@ def kpis_captacao_periodo_comparavel(launch, previous, cfg: dict | None, prev_cf
     calendário, nem a janela inteira do lançamento anterior. Pauta
     debriefing 08/09/26 — "1. KPIs Principais" precisa do comparativo."""
     from datetime import date, timedelta
-    from frontend.database_reader import read_meta, read_google, read_vendas
+    from frontend.db_readers import read_google, read_meta, read_vendas
 
     if not (launch and previous and cfg and prev_cfg):
         return None

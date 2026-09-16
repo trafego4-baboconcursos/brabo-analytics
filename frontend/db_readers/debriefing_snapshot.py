@@ -31,8 +31,14 @@ TABLE = "debriefing_snapshot"
 # cálculo ao vivo em vez de estourar 500 no template — até o próximo
 # aquecimento regravar. (Ex.: 2 = saída dos grupos de WhatsApp, vendas x
 # grupos e detalhamento do disparo; 4 = thruview/pct_50 no Novos x Antigos
-# de Pré-Qualificação.)
-SNAPSHOT_VERSION = 5
+# de Pré-Qualificação; 6 = total_grupos_normais/vip e os prev_ correspondentes,
+# no Resumo Executivo.)
+#
+# O número ficou em 5 de 04/09 até 15/09 enquanto o `dbf` ganhava campos novos,
+# e o resultado foi /debriefing devolvendo 500: o snapshot antigo passava no
+# guard e o template pedia `dbf.total_grupos_vip`, que aquele payload não tinha.
+# Subir este número é o que evita isso — não é opcional quando o `dbf` muda.
+SNAPSHOT_VERSION = 6
 
 DDL = f"""
 CREATE TABLE IF NOT EXISTS {TABLE} (

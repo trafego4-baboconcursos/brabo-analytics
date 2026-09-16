@@ -15,6 +15,7 @@ from __future__ import annotations
 from sqlalchemy import text
 
 from frontend.db import _get_engine
+from frontend.models import YoutubeAulaStat
 from logger import get_logger
 
 logger = get_logger("db")
@@ -366,3 +367,71 @@ def read_aulas_ao_vivo(launch_code: str) -> dict:
         "fonte_manual":   any(a["fonte"] == "manual" for a in aulas),
     }
     return {"aulas": aulas, "totais": totais}
+
+
+def read_youtube_aulas(launch_code: str) -> list[YoutubeAulaStat]:
+    """Lê métricas das aulas YouTube do banco de dados."""
+    try:
+        with _get_engine().connect() as conn:
+            rows = conn.execute(
+                text("""
+                    SELECT aula_num, video_id, titulo, duration_sec,
+                           views_total, views_live, views_replay,
+                           likes, comments, watch_time_min,
+                           avg_view_dur_sec, avg_view_pct, peak_concurrent,
+                           COALESCE(viewers_fim, 0)  AS viewers_fim,
+                           COALESCE(chat_msgs, 0)    AS chat_msgs,
+                           COALESCE(reacoes, 0)      AS reacoes,
+                           COALESCE(fonte, 'api')    AS fonte
+                    FROM youtube_aulas_stats
+                    WHERE launch_code = :code
+                    ORDER BY aula_num NULLS LAST, video_id
+                """),
+                {"code": launch_code},
+            ).fetchall()
+    except Exception:
+        return []
+
+    # Curva minuto a minuto da live (só existe quando veio do CSV do Studio).
+    curvas: dict[int, list[dict]] = {}
+    try:
+        with _get_engine().connect() as conn:
+            for c in conn.execute(
+                text("""
+                    SELECT aula_num, posicao_seg, simultaneos
+                    FROM youtube_live_curva
+                    WHERE launch_code = :code
+                    ORDER BY aula_num, posicao_seg
+                """),
+                {"code": launch_code},
+            ).fetchall():
+                curvas.setdefault(c.aula_num, []).append(
+                    {"pos_min": int((c.posicao_seg or 0) / 60), "simultaneos": c.simultaneos or 0}
+                )
+    except Exception:
+        curvas = {}
+    return [
+        YoutubeAulaStat(
+            aula_num        = r.aula_num or 0,
+            video_id        = r.video_id or "",
+            titulo          = r.titulo or "",
+            duration_sec    = r.duration_sec or 0,
+            views_total     = r.views_total or 0,
+            views_live      = r.views_live or 0,
+            views_replay    = r.views_replay or 0,
+            likes           = r.likes or 0,
+            comments        = r.comments or 0,
+            watch_time_min  = float(r.watch_time_min or 0),
+            avg_view_dur_sec= float(r.avg_view_dur_sec or 0),
+            avg_view_pct    = float(r.avg_view_pct or 0),
+            peak_concurrent = r.peak_concurrent or 0,
+            viewers_fim     = r.viewers_fim or 0,
+            chat_msgs       = r.chat_msgs or 0,
+            reacoes         = r.reacoes or 0,
+            fonte           = r.fonte or "api",
+            curva           = curvas.get(r.aula_num, []),
+            retencao_live_pct = round((r.viewers_fim or 0) / r.peak_concurrent * 100, 1)
+                                if (r.peak_concurrent or 0) > 0 else 0.0,
+        )
+        for r in rows
+    ]

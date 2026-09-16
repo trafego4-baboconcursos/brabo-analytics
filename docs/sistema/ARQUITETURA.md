@@ -1588,20 +1588,28 @@ zera o previsto da seção correspondente do debriefing, sem erro nenhum.
 
 "Landing Pages que Mais Converteram" (Pré-Qualificação e Captação, `/debriefing`) ganhou uma
 coluna de miniatura da página. Sem infra própria: um `<img>` aponta direto pra
-`https://image.thum.io/get/width/300/crop/200/noanimate/<url-completa-da-lp>` — serviço público
-de screenshot, sem chave de API, sem custo. A URL completa é montada com o mesmo `lp_base_url` já
-usado pro link da página (`lp.mateusandrade.com.br` pra INSS, `lp.braboconcursos.com.br` pros
-demais produtos) — o GA4 só guarda o caminho, não o host.
+`https://image.thum.io/get/width/500/crop/340/viewportWidth/1440/noanimate/<url-completa-da-lp>` —
+serviço público de screenshot, sem chave de API, sem custo. A URL completa é montada com o mesmo
+`lp_base_url` já usado pro link da página (`lp.mateusandrade.com.br` pra INSS,
+`lp.braboconcursos.com.br` pros demais produtos) — o GA4 só guarda o caminho, não o host.
 
-Testado direto contra o thum.io (fora do preview reduzido de 64×44px do card): devolve JPEG real
-da página, ~5KB, HTTP 200. Sem cache próprio — cada carregamento da página pode disparar uma
-renderização nova do lado do thum.io se o cache deles tiver expirado (comportamento deles, fora do
-nosso controle). Se o volume de tráfego no debriefing crescer e isso ficar lento/instável, a
-alternativa é migrar pra captura própria via Playwright no servidor (mesmo padrão de
+Testado direto contra o thum.io (fora do preview reduzido do card): devolve JPEG real da página,
+~5-17KB, HTTP 200. Sem cache próprio — cada carregamento da página pode disparar uma renderização
+nova do lado do thum.io se o cache deles tiver expirado (comportamento deles, fora do nosso
+controle). Se o volume de tráfego no debriefing crescer e isso ficar lento/instável, a alternativa
+é migrar pra captura própria via Playwright no servidor (mesmo padrão de
 `ad_creatives.thumb_data`/`image_data`, ver "Código de anúncio e imagem de criativo" acima) — mais
 robusto e sem depender de terceiro, mas exige instalar o binário do Chromium (~300MB) e uma
 camada de cache/armazenamento próprias. Decisão registrada 16/09/26: optou-se pelo terceiro
 primeiro, por ser zero-infra e já resolver o pedido.
+
+**Ajuste 16/09/26 (mesmo dia):** o card era 64×44px e `width/300/crop/200` sem `viewportWidth` —
+o thum.io renderizava a versão responsiva/estreita da LP, então duas variantes diferentes da
+mesma página ficavam com preview quase idêntico (dá pra ver isso comparando dois `crop` de LPs
+diferentes sem o parâmetro: ambos ficam "escuros e genéricos"). Corrigido com `viewportWidth/1440`
+(força o navegador headless do thum.io a renderizar em layout desktop) e ~40% de aumento em
+`width`/`crop` e no tamanho exibido do `<img>` (64×44 → 90×62px) — pedido do usuário: "não da para
+mostrar a diferença entre uma pagina e outra".
 
 ## `SNAPSHOT_VERSION`: por que virou teste (2026-09-16)
 

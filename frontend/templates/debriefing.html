@@ -846,7 +846,6 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       {% endfor %}
     </div>
 
-
     <!-- Leads por fonte -->
     {% set fontes_soma = dbf.fontes_leads | selectattr('has_data') | map(attribute='fonte') | list | join(' + ') %}
     <div class="dbf-kpi-grid" style="--kpi-cols:{{ (dbf.fontes_leads | length * 2) + 2 }}">

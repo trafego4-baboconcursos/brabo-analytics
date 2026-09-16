@@ -1,8 +1,8 @@
 ---
-titulo: "Arquitetura do Brabo Analytics — 2026-09-15"
+titulo: "Arquitetura do Brabo Analytics — 2026-09-16"
 area: sistema
 status: vigente
-atualizado: 2026-09-15
+atualizado: 2026-09-16
 responde:
   - "como o sistema funciona por dentro"
   - "fluxo de dados"
@@ -137,6 +137,9 @@ relacionados:
 > **Egress — contagens de e-mail que desciam como lista (2026-09-15)**
 >
 > - [[ARQUITETURA#Pendência: `read_typeform` do PI-AGO-26 falha ~50% das vezes|Pendência: `read_typeform` do PI-AGO-26 falha ~50% das vezes]]
+>
+> **Saúde do Lançamento — nota 0-100 no Debriefing (2026-09-15/16)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -1313,3 +1316,26 @@ O `SELECT *` com a coluna `answers` sobre a união deduplicada leva ~33s no PI-A
 `DatabaseError`. Quando passa, os valores batem (`total_tf=47140`, `tf_leads_crm=39314`). É a
 mesma consulta que lidera o egress restante (6,5 milhões de linhas em 777 chamadas), então vale
 atacar as duas coisas juntas.
+
+## Saúde do Lançamento — nota 0-100 no Debriefing (2026-09-15/16)
+
+Nova seção no topo do `/debriefing`, acima de Matrículas: uma nota 0-100 resumindo o
+lançamento. Primeira versão (15/09) reaproveitou o score que já existia no `/insights`
+(4 fatores de 25 pts: ROAS, rastreabilidade UTM, CPL médio Meta, % de ads com venda) — só
+precisou mover o cálculo pra dentro de `_compute_debriefing_ctx()`
+(`frontend/services/debriefing.py`), porque o `/insights` calcula inline no template a partir de
+objetos Python (`meta`/`google`/`sales_attr`) que o Debriefing não tem disponíveis quando lê do
+snapshot pré-computado (`debriefing_snapshot`, JSONB) — só o dict `dbf`, serializável.
+
+No dia seguinte o usuário trouxe uma proposta própria de pesos ("Saúde do Lançamento 2.0"), que
+substituiu os 4 fatores por 7: ROAS (50 pts), Meta de Faturamento (15), CAC/Custo por Venda (10),
+Conversão do Funil (10), Eficiência dos Anúncios (5), Volume de Vendas vs lançamento anterior (5)
+e Rastreabilidade (5). "Meta de Faturamento" não existia em lugar nenhum do sistema — nova coluna
+`launch_config.meta_faturamento` (`src/db/migrations/008_meta_faturamento.sql`) + campo no wizard
+de Configurações (pane Vendas). Quando a meta não está cadastrada, ou quando não há lançamento
+anterior do mesmo produto (fator Volume), o peso desse fator é redistribuído proporcionalmente
+entre os que têm dado — não contar como 0, porque não ter a referência não é "lançamento ruim".
+
+Dois cortes de nota são palpite documentado, não regra validada — ajustar se o usuário achar
+errado: CAC pontua cheio em custo-por-venda R$0 e zero a partir do ticket médio (ponto de
+empate); Conversão do Funil pontua cheio a partir de 3% leads→vendas.

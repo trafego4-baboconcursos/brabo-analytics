@@ -9,6 +9,10 @@ responde:
   - "responsabilidade de cada arquivo"
   - "onde fica o calendario e por que"
   - "cache, scheduler, seguranca"
+  - "salvei no wizard e nao apareceu no debriefing"
+  - "por que a verba configurada demora pra aparecer"
+  - "quais campos o wizard grava em launch_config"
+  - "por que o previsto do WhatsApp aparece zerado"
 relacionados:
   - "[[METODOLOGIA_EXTRACAO_DADOS]]"
   - "[[DESIGN_SYSTEM]]"
@@ -18,7 +22,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 30 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 35 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -140,6 +144,14 @@ relacionados:
 >
 > **Saúde do Lançamento — nota 0-100 no Debriefing (2026-09-15/16)**
 >
+>
+> **Wizard de Configurações — o que era gravado, e o que a página via (2026-09-16)**
+>
+> - [[ARQUITETURA#1. `/debriefing` não lê `launch_config` — lê o snapshot|1. `/debriefing` não lê `launch_config` — lê o snapshot]]
+> - [[ARQUITETURA#2. O save era overwrite da linha inteira, não patch|2. O save era overwrite da linha inteira, não patch]]
+> - [[ARQUITETURA#3. Número inválido virava `NULL` em silêncio|3. Número inválido virava `NULL` em silêncio]]
+> - [[ARQUITETURA#4. Escrita de config sem checagem de papel|4. Escrita de config sem checagem de papel]]
+> - [[ARQUITETURA#5. A etapa "WhatsApp" não existia no wizard|5. A etapa "WhatsApp" não existia no wizard]]
 
 <!-- SUMARIO:FIM -->
 
@@ -1339,3 +1351,83 @@ entre os que têm dado — não contar como 0, porque não ter a referência nã
 Dois cortes de nota são palpite documentado, não regra validada — ajustar se o usuário achar
 errado: CAC pontua cheio em custo-por-venda R$0 e zero a partir do ticket médio (ponto de
 empate); Conversão do Funil pontua cheio a partir de 3% leads→vendas.
+
+## Wizard de Configurações — o que era gravado, e o que a página via (2026-09-16)
+
+Usuário salvou a verba de Captação do PES-SET-26 no wizard e não viu o número no `/debriefing`.
+O dado estava gravado desde o primeiro clique; o que faltava era tudo o que acontece **depois**
+do `INSERT`. Cinco defeitos distintos no caminho `wizard → launch_config → página`, todos
+corrigidos de uma vez.
+
+### 1. `/debriefing` não lê `launch_config` — lê o snapshot
+
+`save_launch_config` invalidava o cache em memória (`_invalidate` + `reset_launches_cache`), e
+isso basta pro `/verba`, `/funil` e companhia. Mas o `/debriefing` renderiza a partir de
+`debriefing_snapshot`, uma linha JSONB reescrita só pelo aquecimento periódico — nada disparava
+a remontagem dela ao salvar. Config nova só aparecia na rodada seguinte: **até
+`PRE_WARM_INTERVAL_MIN` minutos (padrão 30)**. No incidente foram 9 minutos, e o usuário olhou
+dentro deles.
+
+`POST /api/launch-config/{code}` agora chama `schedule_snapshot_only(launch, launches, force=True)`
+depois de invalidar o cache. Medido em produção: save 13:19:35 → snapshot regravado 13:20:46 (71s,
+cache frio de propósito — a remontagem vem logo após o `_invalidate`).
+
+O `force` é o detalhe que importa: `schedule_snapshot_only` tem um guard de "um por código por
+vez", e sem ele um save que caísse no meio de uma montagem já em curso seria simplesmente
+descartado — e essa montagem, que leu a config **antiga**, gravaria o estado velho por cima. Com
+`force=True` o código entra em `_SNAPSHOT_REFAZER` e a remontagem é reagendada quando a atual
+termina.
+
+### 2. O save era overwrite da linha inteira, não patch
+
+O `INSERT ... ON CONFLICT DO UPDATE` tinha a lista de colunas escrita à mão, e toda coluna
+ausente do payload do wizard era reescrita com o valor default. `bonus_oferta` é o caso
+materializado: o JS nunca mandou esse campo, então **todo salvamento do wizard zerava a coluna
+pra `[]`**. Qualquer coluna nova teria o mesmo destino até alguém lembrar de acrescentá-la no JS.
+
+Agora existe `_CONFIG_COLUNAS`, um dict `coluna -> conversor` que é ao mesmo tempo a allowlist de
+escrita e a especificação de tipo. `save_launch_config` monta o SQL só com as colunas presentes em
+`config`: o que não for mandado fica como está. Limpar um campo continua funcionando, porque o
+wizard manda `""` explicitamente (e `""` vira `NULL`), o que é diferente de não mandar a chave.
+
+Os nomes de coluna do SQL saem sempre de `_CONFIG_COLUNAS`, nunca do payload — a montagem por
+f-string não tem como carregar entrada do usuário.
+
+### 3. Número inválido virava `NULL` em silêncio
+
+`_or_int`/`_or_zero` capturavam `ValueError` e devolviam `None`. Digitar um valor que não
+converte gravava `NULL` e respondia `{"ok": true}` — o botão dizia "✓ Salvo!" e o campo voltava
+vazio depois. Os conversores agora levantam `ConfigInvalida`, e a rota devolve
+`{"ok": false, "error": ...}` com o nome do campo.
+
+Isso cobre o cliente não-navegador. No navegador o problema é anterior: num `<input type=number>`,
+texto que o browser não consegue parsear (`540.000` digitado no teclado brasileiro) nem chega ao
+servidor — `.value` devolve `""`, indistinguível de campo apagado. O único lugar onde esse estado
+ainda existe é `validity.badInput`, então `lcSave` checa os inputs numéricos do modal antes de
+montar o payload e recusa com a lista de campos.
+
+### 4. Escrita de config sem checagem de papel
+
+`ROUTE_PERMISSIONS` (`frontend/auth.py`) casa **path exato** e só lista páginas, então `/api/*`
+passava com qualquer sessão válida: um usuário `leitura` reescrevia a config de qualquer
+lançamento. `POST /api/launch-config/{code}` agora exige `admin`/`analista`/`trafego`, o mesmo
+conjunto de `POST /api/lancamentos`. Continua sendo um guard por rota, não por default — a
+inversão ("negar por default") segue no backlog.
+
+### 5. A etapa "WhatsApp" não existia no wizard
+
+`/debriefing` e `/verba` casam a etapa de orçamento pelo **nome exato** — em
+`routes/analytics.py`, literalmente `et.get("nome") == "WhatsApp"`. Mas as etapas padrão do wizard
+eram só Lembrete, Depoimento, Aulas no Ar, Replay e Matrículas Abertas. Sem ninguém criar uma
+etapa custom grafada exatamente assim, o previsto do WhatsApp era sempre R$ 0 — no PES-SET-26,
+contra R$ 8.638,51 de gasto real, que entrava no realizado do Remarketing sem previsto
+correspondente.
+
+"WhatsApp" virou etapa padrão. Junto foi corrigido o `lcPopulateEtapas`, que só renderizava as
+etapas padrão quando o lançamento **não tinha nenhuma salva** — em config existente, uma etapa
+padrão nova nunca apareceria. Agora as padrão entram sempre, e as customizadas do usuário são
+acrescentadas depois, sem duplicar. Efeito colateral aceito: etapa padrão removida à mão volta na
+próxima abertura, com total 0.
+
+**Os nomes das etapas padrão são chave, não rótulo.** Renomear "WhatsApp" ou "Lembrete" no wizard
+zera o previsto da seção correspondente do debriefing, sem erro nenhum.

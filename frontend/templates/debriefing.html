@@ -14,9 +14,12 @@
 .dbf-section-title i { color: var(--bs-accent); font-size: 17px; }
 /* Recolher/expandir, reordenar, ocultar e tags agora são genéricos —
    ver o accordion em base.html (reconhece .dbf-section/.dbf-section-title
-   junto com .section/.section-title). Fica só o wrapper de layout do
-   botão "Gerar PDF" abaixo. */
-.dbf-accordion-controls { display: flex; gap: 10px; margin-bottom: 28px; }
+   junto com .section/.section-title). O JS insere a barra de controles
+   (Recolher/Expandir/Seções) como primeiro filho aqui dentro, na mesma
+   linha do botão "Gerar PDF" — por isso align-items:center (evita a
+   barra injetada ficar mais baixa que o link do PDF). */
+.dbf-accordion-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 28px; }
+.dbf-accordion-controls .bs-accordion-controls { margin-bottom: 0; }
 .dbf-launch-badge {
   font-size: 11px; font-weight: 700; padding: 2px 8px;
   border-radius: 20px; background: var(--bs-accent); color: #fff;

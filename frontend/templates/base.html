@@ -2916,8 +2916,16 @@ document.addEventListener('DOMContentLoaded', bsThemeSyncActive);
           '</div>' +
         '</div>' +
       '</div>';
-    var firstEl = sameParent ? byKey[working.order[0]].el : meta[0].el;
-    firstEl.parentNode.insertBefore(controls, firstEl);
+    // Se a página já tem uma barra própria de controles (ex.: o botão "Gerar
+    // PDF" do debriefing, em .dbf-accordion-controls), entra nela — na mesma
+    // linha, à esquerda — em vez de criar uma segunda linha abaixo.
+    var ownControls = document.querySelector('.dbf-accordion-controls');
+    if (ownControls) {
+      ownControls.insertBefore(controls, ownControls.firstChild);
+    } else {
+      var firstEl = sameParent ? byKey[working.order[0]].el : meta[0].el;
+      firstEl.parentNode.insertBefore(controls, firstEl);
+    }
 
     controls.querySelector('[data-act="collapse"]').addEventListener('click', function () { setAllCollapsed(true); });
     controls.querySelector('[data-act="expand"]').addEventListener('click', function () { setAllCollapsed(false); });

@@ -1,0 +1,20 @@
+{# Badge de plataforma (logo + nome) pro título das seções — usado onde
+   "Meta"/"Google"/"YouTube"/"TikTok" saiu do texto do título e virou
+   badge (pedido do usuário 16/09/26, primeiro no Debriefing, depois
+   estendido pras outras páginas). Mesmo tamanho de .dbf-launch-badge/
+   .bs-sec-tag — CSS compartilhado em base.html.
+   Ícone fica num círculo branco (.dbf-plat-badge-dot), colorido com a
+   cor da própria plataforma — não branco em cima do fundo colorido do
+   badge (pedido do usuário 16/09/26, com desenho).
+   Arquivo próprio SEM {% extends %} — importar macro de um template que
+   estende base.html dispara o render do template inteiro (mesmo motivo
+   de _macros_verba.html). #}
+{% set _PLAT_BADGE = {
+  "Meta":            {"icon": "ti-brand-meta",     "bg": "var(--meta-color)"},
+  "Google":          {"icon": "ti-brand-google",   "bg": "var(--google-color)"},
+  "YouTube":         {"icon": "ti-brand-youtube",  "bg": "var(--yt-color, #ff0000)"},
+  "TikTok":          {"icon": "ti-brand-tiktok",   "bg": "#000000"},
+  "WhatsApp":        {"icon": "ti-brand-whatsapp", "bg": "var(--whatsapp-color)"},
+  "Active Campaign": {"icon": "ti-mail",           "bg": "var(--ac-color)"},
+} %}
+{% macro plat_badge(nome) %}{% set p = _PLAT_BADGE.get(nome) %}{% if p %}<span class="dbf-plat-badge" style="background:{{ p.bg }}"><span class="dbf-plat-badge-dot"><i class="ti {{ p.icon }}" style="color:{{ p.bg }}"></i></span>{{ nome }}</span>{% endif %}{% endmacro %}

@@ -38,7 +38,9 @@ TABLE = "debriefing_snapshot"
 # pelos 7 com peso — `saude_pesos`, `saude_score_meta_fat`, `saude_score_cac`,
 # `saude_score_conv`; 8 = Detalhamento de Oferta — `oferta_parcela_cartao` e
 # `oferta_parcela_boleto`; 9 = `oferta_preco_parcelado`, que o template lia mas
-# ninguém produzia.)
+# ninguém produzia; 10 = mesma forma, valores diferentes — o previsto de
+# Remarketing passou a incluir a verba do WhatsApp, e snapshot velho mostraria a
+# variação com o sinal trocado.)
 #
 # O número ficou em 5 de 04/09 até 15/09 enquanto o `dbf` ganhava campos novos,
 # e o resultado foi /debriefing devolvendo 500: o snapshot antigo passava no
@@ -61,7 +63,7 @@ TABLE = "debriefing_snapshot"
 # Isso agora é cobrado por `tests/test_dbf_contrato.py`, que compara as chaves do
 # `dbf` com um manifesto e falha pedindo o bump — de nada adiantou estar escrito
 # aqui três vezes.
-SNAPSHOT_VERSION = 9
+SNAPSHOT_VERSION = 10
 
 DDL = f"""
 CREATE TABLE IF NOT EXISTS {TABLE} (

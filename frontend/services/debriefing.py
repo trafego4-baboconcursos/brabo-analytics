@@ -10,6 +10,15 @@ from frontend.services.fetch import _launch_cfg
 
 _CLIMA_ORDER = ["Quente", "Frio", "Específico"]
 _REMARKETING_SUBETAPAS = ["Lembrete", "Depoimento", "Aulas no Ar", "Replay", "Matrículas Abertas"]
+# Duas perguntas diferentes, e confundi-las já custou um número errado:
+# `_REMARKETING_SUBETAPAS` é quais chaves de `por_etapa` do Meta/Google compõem o
+# *gasto* de Remarketing — o WhatsApp não está lá porque não é campanha de mídia,
+# entra separado via `wa_gasto`. Já o *orçamento* vem do wizard, onde o WhatsApp é
+# uma etapa como as outras. Somar o gasto do WhatsApp no realizado sem somar a
+# verba dele no previsto fazia o Remarketing aparecer estourado (PI-AGO-26, 16/09:
+# previsto R$35.076 contra realizado R$69.211, ▲97,3%, quando havia R$115.024
+# cadastrados pro WhatsApp — de estouro virou sobra).
+_REMARKETING_ETAPAS_ORCAMENTO = _REMARKETING_SUBETAPAS + ["WhatsApp"]
 
 
 def _build_clima_breakdown(obj: Any, attr: str, leads_key: str = "leads") -> list:
@@ -177,8 +186,13 @@ def _build_rmkt_adsets(meta: Any, google: Any = None, whatsapp: float = 0.0, cfg
             "adset": e, "gasto": gasto, "leads": leads, "pct": 0.0,
             "previsto": previsto_por_subetapa.get(e, 0.0),
         })
-    if whatsapp > 0:
-        rows.append({"adset": "WhatsApp", "gasto": whatsapp, "leads": 0, "pct": 0.0, "previsto": 0.0})
+    # O previsto do WhatsApp sai do wizard como o das outras sub-etapas — estava
+    # cravado em 0.0, então a linha mostrava "—" mesmo com verba cadastrada.
+    # A linha aparece também quando há verba e nenhum gasto ainda: orçamento
+    # provisionado e não usado é informação, não ausência de dado.
+    wa_previsto = previsto_por_subetapa.get("WhatsApp", 0.0)
+    if whatsapp > 0 or wa_previsto > 0:
+        rows.append({"adset": "WhatsApp", "gasto": whatsapp, "leads": 0, "pct": 0.0, "previsto": wa_previsto})
     total = sum(r["gasto"] for r in rows) or 1
     for r in rows:
         r["pct"] = r["gasto"] / total * 100 if r["gasto"] > 0 else 0.0
@@ -552,12 +566,12 @@ def _compute_debriefing_ctx(
     def _previsto_por_etapa(cfg: dict) -> dict:
         """Verba planejada por etapa (cadastrada no wizard) — Pré-Qualificação e
         Captação têm campo próprio; Remarketing soma o 'total' de cada
-        sub-etapa (Lembrete/Depoimento/Aulas no Ar/Replay/Matrículas Abertas)
-        provisionada na aba Evento."""
+        sub-etapa provisionada na aba Evento, **incluindo o WhatsApp**, que é o
+        que `get_etapa` já soma do lado do realizado."""
         cfg = cfg or {}
         remarketing_previsto = sum(
             _f(et.get("total")) for et in (cfg.get("etapas") or [])
-            if et.get("nome") in _REMARKETING_SUBETAPAS
+            if et.get("nome") in _REMARKETING_ETAPAS_ORCAMENTO
         )
         return {
             "Pré-Qualificação": _f(cfg.get("meta_investimento_pre_quali")),

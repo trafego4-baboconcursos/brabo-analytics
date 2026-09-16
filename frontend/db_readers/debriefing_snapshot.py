@@ -36,7 +36,8 @@ TABLE = "debriefing_snapshot"
 # de Pré-Qualificação; 6 = total_grupos_normais/vip e os prev_ correspondentes,
 # no Resumo Executivo; 7 = Saúde do Lançamento 2.0, que trocou os 4 fatores
 # pelos 7 com peso — `saude_pesos`, `saude_score_meta_fat`, `saude_score_cac`,
-# `saude_score_conv`.)
+# `saude_score_conv`; 8 = Detalhamento de Oferta — `oferta_parcela_cartao` e
+# `oferta_parcela_boleto`.)
 #
 # O número ficou em 5 de 04/09 até 15/09 enquanto o `dbf` ganhava campos novos,
 # e o resultado foi /debriefing devolvendo 500: o snapshot antigo passava no
@@ -49,7 +50,14 @@ TABLE = "debriefing_snapshot"
 # de aquecimento, então o 500 ia e voltava sozinho. Subir a versão resolve os dois
 # lados — o payload do processo velho passa a ser ignorado em vez de derrubar a
 # página —, mas o processo velho só para de sobrescrever quando for reiniciado.
-SNAPSHOT_VERSION = 7
+#
+# E uma terceira vez em 16/09, com o Detalhamento de Oferta: o `dbf` ganhou
+# `oferta_parcela_cartao`/`oferta_parcela_boleto` e o template passou a pedir os
+# dois, mas a versão ficou em 7 — 7 dos 9 lançamentos com snapshot v7 antigo,
+# todos em 500. Três ocorrências em dois dias: **mudou campo do `dbf`, sobe o
+# número no MESMO commit**, antes de rodar qualquer coisa. Nada no processo
+# lembra por você.
+SNAPSHOT_VERSION = 8
 
 DDL = f"""
 CREATE TABLE IF NOT EXISTS {TABLE} (

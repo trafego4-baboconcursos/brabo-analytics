@@ -759,15 +759,13 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       </div>
     {% endmacro %}
 
-    <div class="dbf-kpi-grid" style="--kpi-cols:10">
+    <div class="dbf-kpi-grid" style="--kpi-cols:8">
       {%- set kpis_gerais = [
         ("Total Investido",  dbf.invest,        dbf.prev_invest,        "brl0", "down"),
         ("Receita Líquida",  dbf.receita,       dbf.prev_receita,       "brl0", "up"),
         ("ROAS",             dbf.roas,          dbf.prev_roas,          "roas", "up"),
         ("Total Vendas",  dbf.total_vendas, dbf.prev_total_vendas, "num", "up"),
         ("Ticket Médio",  dbf.ticket,       dbf.prev_ticket,       "brl", "up"),
-        ("Leads Captação", dbf.total_leads, dbf.prev_total_leads,  "num", "up"),
-        ("CPL Captação",  dbf.cpl,          dbf.prev_cpl,          "brl", "down"),
         ("Vendas na 1ª Hora", dbf.vendas_primeira_hora or 0, dbf.prev_vendas_primeira_hora or 0, "num", "up"),
         ("Pico Grupos VIP", dbf.pessoas_grupos_vip, dbf.prev_pessoas_grupos_vip, "num", "up"),
         ("Pico Grupos Normais", dbf.pessoas_grupos_normais, dbf.prev_pessoas_grupos_normais, "num", "up"),
@@ -779,7 +777,25 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
 
 
     <!-- Leads por fonte -->
-    <div class="dbf-kpi-grid" style="--kpi-cols:{{ dbf.fontes_leads | length * 2 }}">
+    {% set fontes_soma = dbf.fontes_leads | selectattr('has_data') | map(attribute='fonte') | list | join(' + ') %}
+    <div class="dbf-kpi-grid" style="--kpi-cols:{{ (dbf.fontes_leads | length * 2) + 2 }}">
+      {%- set totais_captacao = [
+        ("Leads Captação", dbf.total_leads, dbf.prev_total_leads, "num", "up"),
+        ("CPL Captação",   dbf.cpl,         dbf.prev_cpl,         "brl", "down"),
+      ] -%}
+      {% for lbl, val, pval, fmt, polarity in totais_captacao %}
+      <div class="dbf-kpi">
+        <div class="lbl">{{ lbl }}</div>
+        <div class="val {% if val == 0 %}zero{% endif %}">
+          {% if fmt == "num" %}{{ val | num }}{% elif fmt == "brl" %}{{ val | brl }}{% endif %}
+        </div>
+        {% if dbf.has_prev %}
+          {{ dbadge(val, pval, polarity) }}
+          <div class="prev-val">ant.: {% if fmt == "num" %}{{ pval | num }}{% elif fmt == "brl" %}{{ pval | brl }}{% endif %}</div>
+        {% endif %}
+        {% if fontes_soma %}<div class="prev-val" style="margin-top:2px">soma: {{ fontes_soma }}</div>{% endif %}
+      </div>
+      {% endfor %}
       {% for f in dbf.fontes_leads %}
       {%- set pairs = [
         (f.fonte ~ " — Leads", f.leads,   f.prev_leads, "num", "up"),

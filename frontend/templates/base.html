@@ -1142,12 +1142,39 @@ kbd {
     flex:1 1 auto; min-height:0; max-height:none; overflow-y:auto;
     box-shadow:none; border:none; border-radius:0; background:transparent; padding:0;
   }
+  /* Com o fundo do painel virando transparente acima, o texto passa a
+     sentar direto no degradê sempre-escuro da gaveta — mas os itens usam
+     tokens de tema (--bs-ink etc) pensados pra um cartão claro (--bs-card),
+     não pro fundo escuro. No tema padrão (claro) isso ficava ilegível:
+     texto quase preto sobre fundo quase preto. Troca pros mesmos tons
+     brancos translúcidos que .bs-mode-btn já usa pro resto da gaveta,
+     que funcionam em qualquer tema por não dependerem de --bs-ink. */
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-launch-picker-group,
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-picker-back {
+    color:rgba(255,255,255,.5);
+  }
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-launch-picker-item,
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-picker-subgroup-btn,
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-subnav-link,
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-theme-opt {
+    color:rgba(255,255,255,.75);
+  }
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-subnav-link i {
+    color:inherit; opacity:.85;
+  }
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-launch-picker-item:hover,
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-picker-subgroup-btn:hover,
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-subnav-link:hover,
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-theme-opt:hover {
+    background:rgba(255,255,255,.10); color:#fff;
+  }
   .bs-picker-back {
     display:flex; align-items:center; gap:8px; width:100%; font-family:inherit;
-    padding:12px 10px; margin-bottom:6px; border:none; border-bottom:1px solid var(--bs-border);
-    background:none; cursor:pointer; font-size:13px; font-weight:700; color:var(--bs-ink-muted);
+    padding:12px 10px; margin-bottom:6px; border:none; border-bottom:1px solid rgba(255,255,255,.15);
+    background:none; cursor:pointer; font-size:13px; font-weight:700;
   }
-  .bs-picker-back:active { color:var(--bs-ink); }
+  .bs-picker-back:active { color:#fff; }
+  .bs-picker-back.bs-picker-back-bottom { border-top:1px solid rgba(255,255,255,.15); }
   .bs-picker-mobile-only { display:block; }
 }
 

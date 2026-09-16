@@ -926,6 +926,13 @@ table th.sortable-header:hover { background-color:rgba(0,0,0,.15) !important; }
 .bs-table-filter-wrap .ti-search { position:absolute; left:10px; color:var(--bs-ink-subtle); font-size:14px; pointer-events:none; }
 .bs-table-filter { padding:6px 12px 6px 32px; font-size:var(--fs-sm); border:1px solid var(--bs-border); border-radius:var(--bs-r-md); outline:none; width:220px; font-family:inherit; color:var(--bs-ink); background:var(--bs-card); transition:border-color .15s; }
 .bs-table-filter:focus { border-color:var(--bs-accent); }
+.bs-table-export-btn {
+  margin-left:6px; display:inline-flex; align-items:center; justify-content:center;
+  width:30px; height:30px; border:1px solid var(--bs-border); border-radius:var(--bs-r-md);
+  background:var(--bs-card); color:var(--bs-ink-muted); font-size:14px; cursor:pointer;
+  transition:background-color .15s,color .15s;
+}
+.bs-table-export-btn:hover { background:var(--bs-accent-bg); color:var(--bs-accent); }
 .sort-indicator { margin-left:6px; display:inline-block; vertical-align:middle; font-size:9px; opacity:.8; }
 
 /* ── Animações ──────────────────────────────────────────────────────── */
@@ -2442,7 +2449,36 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   });
 
-  // 3. Filter input
+  // 3. Filter input + export CSV
+  function csvCell(v) {
+    v = String(v == null ? "" : v).replace(/\s+/g, " ").trim();
+    if (/[;"\r\n]/.test(v)) v = '"' + v.replace(/"/g, '""') + '"';
+    return v;
+  }
+  function tableTitle(table) {
+    var sec = table.closest(".section, .dbf-section");
+    var titleEl = sec && sec.querySelector(".section-title, .dbf-section-title");
+    var text = (titleEl ? titleEl.innerText : document.title) || "tabela";
+    var slug = text.normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9]+/g, "-").replace(/^-+|-+$/g, "").toLowerCase();
+    return (slug || "tabela").slice(0, 60);
+  }
+  function exportTableCsv(table) {
+    var lines = [];
+    var headCells = table.querySelectorAll("thead tr:last-child th, thead tr:last-child td");
+    if (headCells.length) lines.push(Array.from(headCells).map(c => csvCell(c.innerText)).join(";"));
+    var tbody = table.querySelector("tbody");
+    Array.from(tbody.rows).forEach(function(r) {
+      if (r.style.display === "none") return;
+      lines.push(Array.from(r.cells).map(c => csvCell(c.innerText)).join(";"));
+    });
+    var blob = new Blob(["\ufeff" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url; a.download = tableTitle(table) + ".csv";
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
   document.querySelectorAll("table").forEach(function(table) {
     if (table.closest("#bs-drawer")) return;
     if (table.closest("[data-no-filter]")) return;
@@ -2465,7 +2501,13 @@ document.addEventListener("DOMContentLoaded", function() {
         row.style.display = t.includes(q) ? "" : "none";
       });
     });
-    wrap.appendChild(icon); wrap.appendChild(inp);
+    var exportBtn = document.createElement("button");
+    exportBtn.type = "button";
+    exportBtn.className = "bs-table-export-btn";
+    exportBtn.title = "Exportar CSV (respeita filtro e ordena\u00e7\u00e3o atuais)";
+    exportBtn.innerHTML = '<i class="ti ti-download"></i>';
+    exportBtn.addEventListener("click", function() { exportTableCsv(table); });
+    wrap.appendChild(icon); wrap.appendChild(inp); wrap.appendChild(exportBtn);
     var parent = table.parentElement;
     if (parent && parent.classList.contains("table-wrap")) {
       parent.parentElement.insertBefore(wrap, parent);

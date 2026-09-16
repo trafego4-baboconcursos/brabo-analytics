@@ -466,12 +466,12 @@
     "sha256": "eccc7500045700e58d6150a920e526cfee934c4826453770751e548e46fe51db"
   },
   "read_launch_config": {
-    "bytes": 1205,
+    "bytes": 1229,
     "resumo": {
-      "__n__": 39,
-      "__sha__": "1933e772898e985e"
+      "__n__": 40,
+      "__sha__": "786e0417786fa79d"
     },
-    "sha256": "1933e772898e985ec50c4d1579e41911e9c03f3839afc321fd390db2a74268b3"
+    "sha256": "786e0417786fa79d7e07d3a00827ff3e901b9b8cec686a964a9706d0c4337e1b"
   },
   "read_leads": {
     "bytes": 33235,

@@ -37,17 +37,12 @@
 
 {% macro ad_label(ad_code, nome) %}{% if nome and nome != ad_code and not nome.upper().startswith(ad_code.upper()) %}{{ ad_code }} — {{ nome }}{% else %}{{ nome if nome else ad_code }}{% endif %}{% endmacro %}
 
-{# Badge de plataforma (logo + nome) pro título das seções — substitui o
-   "(Meta)"/"(Google)"/"(YouTube)"/"(TikTok)" que antes ficava solto no
-   texto do título (pedido do usuário 16/09/26). Mesmo tamanho de
-   .dbf-launch-badge/.bs-sec-tag — ver CSS em debriefing.html. #}
-{% set _PLAT_BADGE = {
-  "Meta":    {"icon": "ti-brand-meta",    "bg": "var(--meta-color)"},
-  "Google":  {"icon": "ti-brand-google",  "bg": "var(--google-color)"},
-  "YouTube": {"icon": "ti-brand-youtube", "bg": "var(--yt-color, #ff0000)"},
-  "TikTok":  {"icon": "ti-brand-tiktok",  "bg": "#000000"},
-} %}
-{% macro plat_badge(nome) %}{% set p = _PLAT_BADGE.get(nome) %}{% if p %}<span class="dbf-plat-badge" style="background:{{ p.bg }}"><i class="ti {{ p.icon }}"></i>{{ nome }}</span>{% endif %}{% endmacro %}
+{# plat_badge() mudou pra _macros_platform.html (17/09/26) — passou a ser
+   usado por outras páginas além do Debriefing (dashboard, pré-quali,
+   distribuição, perpétuo, comparativo), então não fazia mais sentido
+   morar num arquivo com "debriefing" no caminho. Import antigo daqui
+   continua funcionando? Não — quem usava daqui precisa trocar pra
+   `{% from "_macros_platform.html" import plat_badge %}`. #}
 
 {% macro thumb_th() %}{% if has_thumbs %}<th style="width:72px"></th>{% endif %}{% endmacro %}
 {% macro thumb_td(ad_code, extra={}) %}

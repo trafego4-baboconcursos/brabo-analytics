@@ -30,9 +30,11 @@
 
     {% else %}
 
+    {% from "_macros_platform.html" import plat_badge %}
+
     {# ── Resumo de Investimento — Pré-Qualificação ───────────────────────── #}
     <div class="section">
-    <div class="section-title">1. Resumo de Investimento — Pré-Qualificação</div>
+    <div class="section-title">1. Resumo de Investimento</div>
     <div class="tp-kpi-grid">
       <div class="tp-kpi">
         <div class="tp-kpi-top">
@@ -134,7 +136,7 @@
     {# ── Meta por etapa ──────────────────────────────────────────────────── #}
     {% if meta and meta.por_etapa %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-brand-meta" style="color:var(--meta-color)"></i>3. Meta Ads — Distribuição por Etapa</div>
+      <div class="section-title"><i class="ti ti-chart-donut" style="color:var(--meta-color)"></i> 3. Distribuição por Etapa {{ plat_badge("Meta") }}</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -179,7 +181,7 @@
     {# ── Google por etapa ───────────────────────────────────────────────── #}
     {% if google and google.por_etapa %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-brand-google" style="color:var(--google-color)"></i>4. Google Ads — Distribuição por Etapa</div>
+      <div class="section-title"><i class="ti ti-chart-donut" style="color:var(--google-color)"></i> 4. Distribuição por Etapa {{ plat_badge("Google") }}</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -418,7 +420,7 @@
     {# ── Ranking de Anúncios — Meta Ads ─────────────────────────────────── #}
     {% if meta_ads_preq %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-brand-meta" style="color:var(--meta-color)"></i>8. Ranking de Anúncios — Meta Ads (Pré-Qualificação)</div>
+      <div class="section-title"><i class="ti ti-trophy"></i> 8. Ranking de Anúncios {{ plat_badge("Meta") }}</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -493,7 +495,7 @@
     {# ── Ranking de Anúncios — YouTube (Google Ads) ─────────────────────── #}
     {% if youtube_ads_preq %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-brand-youtube" style="color:var(--yt-color)"></i>9. Ranking de Anúncios — YouTube (Pré-Qualificação)</div>
+      <div class="section-title"><i class="ti ti-trophy"></i> 9. Ranking de Anúncios {{ plat_badge("YouTube") }}</div>
       <div class="table-wrap">
         <table>
           <thead>

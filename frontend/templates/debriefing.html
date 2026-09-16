@@ -58,14 +58,8 @@
   letter-spacing: .04em;
 }
 .dbf-launch-badge.prev { background: var(--bs-ink-subtle); }
-/* Badge de plataforma no título — mesmo tamanho do launch-badge/etapa,
-   ver debriefing/_macros.html::plat_badge(). */
-.dbf-plat-badge {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: 11px; font-weight: 700; padding: 2px 8px;
-  border-radius: 20px; color: #fff; letter-spacing: .04em;
-}
-.dbf-plat-badge i { font-size: 12px; }
+/* .dbf-plat-badge (badge de plataforma no título) mudou pra base.html —
+   usado em mais páginas além do Debriefing, ver _macros_platform.html. */
 
 /* ── Sem dados banner ─────────────────────────────────────────── */
 .dbf-sem-dados {
@@ -569,7 +563,8 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
 {# sem_dados/thumb_th/thumb_td vivem em debriefing/_macros.html porque os
    fragmentos de seção carregados sob demanda (debriefing/_secao_*.html)
    também precisam delas. #}
-{% from "debriefing/_macros.html" import sem_dados, thumb_th, thumb_td, ad_label, plat_badge with context %}
+{% from "debriefing/_macros.html" import sem_dados, thumb_th, thumb_td, ad_label with context %}
+{% from "_macros_platform.html" import plat_badge %}
 {% set has_thumbs = drive_thumbnails is defined and drive_thumbnails | length > 0 %}
 {# Domínio das landing pages por produto — o GA4 só guarda o caminho
    (ex: /projeto-bb-fev-26-v5-pq-fb), sem host. #}

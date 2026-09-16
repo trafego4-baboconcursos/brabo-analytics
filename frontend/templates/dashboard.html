@@ -24,6 +24,7 @@
     {% else %}
 
     {% from "_macros_verba.html" import tabela_dia_publico, tabela_dia_publico_combinada, kpi_delta %}
+    {% from "_macros_platform.html" import plat_badge %}
 
     {# ── KPIs Principais (design system: tp-kpi) ─────────────────────────── #}
     <div class="section">
@@ -437,7 +438,7 @@
     {# ── Highlights ─────────────────────────────────────────────────────── #}
     {% if meta and meta.top_por_leads %}
     <div class="section">
-      <div class="section-title">7. Destaques de Criativos — Captação (Meta)</div>
+      <div class="section-title" data-tag="Captação">7. Destaques de Criativos {{ plat_badge("Meta") }}</div>
     <div class="highlights">
 
       <div class="highlight-box">
@@ -546,7 +547,7 @@
     {# ── Distribuição por etapa Meta ─────────────────────────────────────── #}
     {% if meta and meta.por_etapa %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-brand-meta" style="color:var(--meta-color)"></i>8. Meta Ads — Distribuição por Etapa</div>
+      <div class="section-title"><i class="ti ti-chart-donut" style="color:var(--meta-color)"></i> 8. Distribuição por Etapa {{ plat_badge("Meta") }}</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -591,7 +592,7 @@
     {# ── Google por etapa ───────────────────────────────────────────────── #}
     {% if google and google.por_etapa %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-brand-google" style="color:var(--google-color)"></i>9. Google Ads — Distribuição por Etapa</div>
+      <div class="section-title"><i class="ti ti-chart-donut" style="color:var(--google-color)"></i> 9. Distribuição por Etapa {{ plat_badge("Google") }}</div>
       <div class="table-wrap">
         <table>
           <thead>

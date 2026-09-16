@@ -34,10 +34,11 @@
     </div>
     {% else %}
 
+    {% from "_macros_platform.html" import plat_badge %}
     {% set ov1 = creative_overview %}
     {% if ov1 and (ov1.validados_all or ov1.novos_all) %}
     <div class="section">
-      <div class="section-title">1. Criativos Validados vs Novos (Captação Meta + Google)</div>
+      <div class="section-title" data-tag="Captação">1. Criativos Validados vs Novos {{ plat_badge("Meta") }}{{ plat_badge("Google") }}</div>
       <div class="note">
         Criativos cujo código <strong>AD\d+</strong> já apareceu em lançamentos anteriores do mesmo produto (Meta ou Google) são <strong>Validados</strong>. Os demais são <strong>Novos</strong>.
         A seção 2 abaixo consolida o ranking geral com vendas atribuídas por UTM.
@@ -141,7 +142,7 @@
     {% set ov = creative_overview %}
     {% if ov.rows %}
     <div class="section">
-      <div class="section-title">2. Ranking Geral - Todos os ADs de Captação (Meta + Google/YouTube)</div>
+      <div class="section-title" data-tag="Captação">2. Ranking Geral - Todos os ADs {{ plat_badge("Meta") }}{{ plat_badge("Google") }}{{ plat_badge("YouTube") }}</div>
       <div class="tp-kpi-grid">
         <div class="tp-kpi">
           <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-palette"></i></div></div>
@@ -244,7 +245,7 @@
 
     {% if ov.sales_only_rows %}
     <div class="section">
-      <div class="section-title">3. Compras atribuídas a ADs fora do ranking de Captação</div>
+      <div class="section-title" data-tag="Captação">3. Compras atribuídas a ADs fora do ranking</div>
       <div class="note warning">
         Compradores cujo UTM aponta pra um AD que não aparece na seção 2, que é só de Captação.
         <strong>"Veiculou na Pré-Quali"</strong> significa que o AD rodou neste mesmo lançamento, com verba real, só que na etapa de Pré-Qualificação — a venda é deste lançamento, ela só não entra no ROAS da seção 2 porque o investimento é de outra etapa.

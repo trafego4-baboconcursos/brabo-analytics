@@ -172,7 +172,7 @@
     {% set temp_vals = google.por_temperatura.values() | list %}
     {% if temp_vals | map(attribute='custo') | sum > 0 %}
     <div class="section">
-      <div class="section-title">3. Captação por Temperatura de Público</div>
+      <div class="section-title" data-tag="Captação">3. Por Temperatura de Público</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -222,7 +222,7 @@
     {% set seg_vals = google.por_segmento.values() | list %}
     {% if seg_vals | map(attribute='gasto') | sum > 0 %}
     <div class="section">
-      <div class="section-title">4. Segmentos de Captação (Temperatura × Bucket)</div>
+      <div class="section-title" data-tag="Captação">4. Segmentos (Temperatura × Bucket)</div>
       <div class="table-wrap">
         <table>
           <thead>

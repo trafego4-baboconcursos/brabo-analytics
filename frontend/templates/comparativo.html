@@ -100,6 +100,8 @@
   .seg-table-wrap { margin-top: 20px; }
 </style>
 
+{% from "_macros_platform.html" import plat_badge %}
+
 <div class="wrap">
   <div class="hdr">
     <a href="/?launch_code={{ active_code }}">
@@ -401,7 +403,7 @@
     {# ── 4. Meta Ads ── #}
     {% if comp.top_ads_a or comp.top_ads_b %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-brand-meta" style="color:var(--meta-color);"></i> Meta Ads — Comparativo</div>
+      <div class="section-title"><i class="ti ti-arrows-exchange" style="color:var(--meta-color);"></i> Comparativo {{ plat_badge("Meta") }}</div>
       <div class="tp-kpi-grid">
         <div class="tp-kpi">
           <div class="tp-kpi-top">
@@ -492,7 +494,7 @@
 
     {# ── 5. Google Ads ── #}
     <div class="section">
-      <div class="section-title"><i class="ti ti-brand-google" style="color:var(--google-color);"></i> Google Ads — Comparativo Estrat&eacute;gico</div>
+      <div class="section-title"><i class="ti ti-arrows-exchange" style="color:var(--google-color);"></i> Comparativo Estrat&eacute;gico {{ plat_badge("Google") }}</div>
       <div class="tp-kpi-grid">
         <div class="tp-kpi">
           <div class="tp-kpi-top">
@@ -625,7 +627,7 @@
     {% if comp.por_segmento %}
     {% macro plat_icon(plataforma) %}<i class="ti {{ 'ti-brand-meta' if plataforma == 'Facebook' else 'ti-brand-google' }}" style="color:{{ 'var(--meta-color)' if plataforma == 'Facebook' else 'var(--google-color)' }};font-size:13px;margin-right:5px;vertical-align:-1px;"></i>{% endmacro %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-chart-bar"></i> Leads por Segmento — Captação</div>
+      <div class="section-title" data-tag="Captação"><i class="ti ti-chart-bar"></i> Leads por Segmento</div>
       <p style="font-size:13px;color:var(--bs-ink-muted);margin:-8px 0 16px">
         <i class="ti ti-brand-meta" style="color:var(--meta-color);"></i> Facebook e <i class="ti ti-brand-google" style="color:var(--google-color);"></i> YouTube, quebrados por temperatura de público (cor da barra). Barra cheia = <strong>{{ comp.code_b }}</strong> (atual); contorno = <strong>{{ comp.code_a }}</strong> (anterior).
       </p>

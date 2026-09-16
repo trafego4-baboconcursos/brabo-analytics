@@ -19,6 +19,7 @@
     </div>
   {% else %}
 
+    {% from "_macros_platform.html" import plat_badge %}
     {% set base_url = "/perpetuo/" ~ perpetuo.vertical ~ (("?launch_code=" ~ active_code) if active_code else "") %}
     {% set sep = "&" if active_code else "?" %}
     <div class="section" style="margin-bottom:20px;">
@@ -86,7 +87,7 @@
 
     {% if perpetuo.criativos_meta %}
     <div class="section">
-      <div class="section-title">Criativos — Meta Ads</div>
+      <div class="section-title">Criativos {{ plat_badge("Meta") }}</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -126,7 +127,7 @@
 
     {% if perpetuo.criativos_google %}
     <div class="section">
-      <div class="section-title">Criativos — Google Ads</div>
+      <div class="section-title">Criativos {{ plat_badge("Google") }}</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -162,7 +163,7 @@
 
     {% if perpetuo.publico_meta %}
     <div class="section">
-      <div class="section-title">Público — Meta Ads (por ad set)</div>
+      <div class="section-title">Público (por ad set) {{ plat_badge("Meta") }}</div>
       <div class="note info">Meta não expõe uma tabela de interesse/público por anúncio — o nome do ad set já carrega a segmentação.</div>
       <div class="table-wrap">
         <table>
@@ -191,7 +192,7 @@
 
     {% if perpetuo.publico_google %}
     <div class="section">
-      <div class="section-title">Público — Google Ads</div>
+      <div class="section-title">Público {{ plat_badge("Google") }}</div>
       <div class="table-wrap">
         <table>
           <thead>

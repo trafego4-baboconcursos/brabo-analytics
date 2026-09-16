@@ -1,5 +1,5 @@
 {
-  "snapshot_version": 10,
+  "snapshot_version": 11,
   "chaves": [
     "antigo_novo",
     "boleto_hm",
@@ -89,6 +89,8 @@
     "saude_atingimento_meta",
     "saude_conversao_funil",
     "saude_custo_venda",
+    "saude_em_andamento",
+    "saude_faixa",
     "saude_meta_faturamento",
     "saude_pct_rastreado",
     "saude_pesos",

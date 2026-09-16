@@ -124,6 +124,12 @@
 .dbf-saude-score .label {
   margin-top: 4px; font-size: 12px; font-weight: 800; white-space: nowrap;
 }
+/* Aviso da trava por ROAS: só aparece quando a nota alcançaria uma faixa
+   acima da que o ROAS permite — sem ele a nota 80 🟡 "Bom" parece bug. */
+.dbf-saude-trava {
+  margin-top: 6px; font-size: 10px; font-weight: 700; line-height: 1.25;
+  max-width: 132px; color: rgba(255,255,255,.55); text-transform: uppercase; letter-spacing: .4px;
+}
 .dbf-saude-sep { width: 1px; align-self: stretch; background: rgba(255,255,255,.15); flex-shrink: 0; }
 .dbf-saude-items {
   flex: 1; display: flex; flex-wrap: wrap; gap: 18px 22px;
@@ -149,9 +155,10 @@
      (a linha do flex-wrap só quebra quando enche, então a nota "sobrava"
      no meio da pilha de itens em telas estreitas — achado 16/09/26). */
   .dbf-saude { flex-direction: column; align-items: stretch; gap: 18px; }
-  .dbf-saude-score { display: flex; align-items: baseline; justify-content: center; gap: 8px; }
+  .dbf-saude-score { display: flex; align-items: baseline; justify-content: center; gap: 8px; flex-wrap: wrap; }
   .dbf-saude-score .max { margin: 0; }
   .dbf-saude-score .label { margin: 0; }
+  .dbf-saude-trava { flex-basis: 100%; max-width: none; margin-top: 2px; text-align: center; }
   .dbf-saude-item { min-width: 100%; }
 }
 
@@ -695,9 +702,10 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
     <div class="dbf-section-title"><i class="ti ti-heart-rate-monitor"></i> Saúde do Lançamento</div>
     <div class="dbf-saude">
       <div class="dbf-saude-score">
-        <div class="num" style="color:{% if dbf.saude_score >= 80 %}#4ade80{% elif dbf.saude_score >= 60 %}#facc15{% else %}#f87171{% endif %}">{{ dbf.saude_score }}</div>
+        <div class="num" style="color:{{ dbf.saude_faixa.cor }}">{{ dbf.saude_score }}</div>
         <div class="max">/100</div>
-        <div class="label">{% if dbf.saude_score >= 80 %}🟢 Excelente{% elif dbf.saude_score >= 65 %}🟡 Bom{% elif dbf.saude_score >= 50 %}🟠 Regular{% else %}🔴 Atenção{% endif %}</div>
+        <div class="label">{{ dbf.saude_faixa.emoji }} {{ dbf.saude_faixa.label }}</div>
+        {% if dbf.saude_faixa.travado_por_roas %}<div class="dbf-saude-trava" title="A nota alcançaria uma faixa acima, mas o ROAS limita a classificação">ROAS {{ "%.2f"|format(dbf.roas) }}x limita a faixa</div>{% endif %}
       </div>
       <div class="dbf-saude-sep"></div>
       <div class="dbf-saude-items">
@@ -748,7 +756,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
         </div>
       </div>
     </div>
-    <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:8px">Nota de 0 a 100 combinando 7 fatores por peso: <strong>ROAS</strong> (50), <strong>Meta de Faturamento</strong> (15), <strong>CAC/Custo por Venda</strong> (10), <strong>Conversão do Funil</strong> (10), <strong>Eficiência dos Anúncios</strong> (5), <strong>Volume de Vendas</strong> (5) e <strong>Rastreabilidade</strong> (5). Meta de Faturamento e Volume de Vendas ficam <strong>fora da nota</strong> quando falta a referência (meta cadastrada no wizard, ou lançamento anterior do mesmo produto) — o peso é redistribuído entre os demais.</div>
+    <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:8px">Nota de 0 a 100 combinando 7 fatores por peso: <strong>ROAS</strong> (50), <strong>Meta de Faturamento</strong> (15), <strong>CAC/Custo por Venda</strong> (10), <strong>Conversão do Funil</strong> (10), <strong>Eficiência dos Anúncios</strong> (5), <strong>Volume de Vendas</strong> (5) e <strong>Rastreabilidade</strong> (5). Meta de Faturamento e Volume de Vendas ficam <strong>fora da nota</strong> quando falta a referência (meta cadastrada no wizard, ou lançamento anterior do mesmo produto) — o peso é redistribuído entre os demais. O <strong>ROAS limita a classificação</strong> independentemente da nota: a partir de 3x pode ser Excelente, de 2x a 2,99x no máximo Bom, de 1x a 1,99x no máximo Atenção, e abaixo de 1x é Péssimo — a receita não paga a mídia. {% if dbf.saude_em_andamento %}<strong>Este lançamento ainda está com o carrinho aberto</strong>, então a nota mede um lançamento pela metade e a classificação fica como “Em andamento” até o fechamento.{% endif %}</div>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════ -->

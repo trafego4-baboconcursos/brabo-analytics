@@ -20,6 +20,46 @@ _REMARKETING_SUBETAPAS = ["Lembrete", "Depoimento", "Aulas no Ar", "Replay", "Ma
 # cadastrados pro WhatsApp — de estouro virou sobra).
 _REMARKETING_ETAPAS_ORCAMENTO = _REMARKETING_SUBETAPAS + ["WhatsApp"]
 
+# Faixas da Saúde do Lançamento, da PIOR pra melhor — o índice é o que a trava
+# por ROAS limita. "Péssimo" não tem corte de nota: só se chega nele pela trava
+# (ROAS < 1x), porque aí a receita líquida não paga nem a mídia.
+_SAUDE_FAIXAS = (
+    ("Péssimo",   "🔴", "#ef4444"),
+    ("Atenção",   "🔴", "#f87171"),
+    ("Regular",   "🟠", "#fb923c"),
+    ("Bom",       "🟡", "#facc15"),
+    ("Excelente", "🟢", "#4ade80"),
+)
+# nota >= corte  ->  faixa que a nota alcança
+_SAUDE_CORTES = ((80, 4), (65, 3), (50, 2), (0, 1))
+# ROAS >= corte  ->  faixa MÁXIMA que o rótulo pode assumir (pauta Júlia/Michel,
+# 16/09/26): >=3x livre, 2–2,99x no máximo Bom, 1–1,99x no máximo Atenção,
+# <1x Péssimo na marra. A cor do número sai da mesma tupla do rótulo — antes o
+# template tinha corte próprio (60) e discordava do rótulo (65) na faixa 60-64.
+_SAUDE_TETO_ROAS = ((3.0, 4), (2.0, 3), (1.0, 1), (0.0, 0))
+
+
+def _saude_classificacao(nota: int, roas: float, *, em_andamento: bool, sem_dados: bool) -> dict:
+    """Rótulo da Saúde do Lançamento: nota dá a faixa, ROAS dá o teto.
+
+    A nota numérica não muda — o que a trava muda é como ela se chama. Sem
+    trava, uma nota alta sustentada por rastreabilidade e eficiência de anúncio
+    chamava de "Excelente" um lançamento que devolveu menos de 3x (PI-AGO-26:
+    80/100 com ROAS 2,78x).
+
+    As duas guardas vêm antes da trava porque senão ela mente nos extremos:
+    carrinho aberto mede um lançamento pela metade (o PES-SET-26 apareceria
+    "Péssimo" todo dia até fechar), e sem venda nenhuma não há o que classificar.
+    """
+    if sem_dados:
+        return {"label": "Sem dados", "emoji": "⚪", "cor": "#94a3b8", "travado_por_roas": False}
+    if em_andamento:
+        return {"label": "Em andamento", "emoji": "⏳", "cor": "#60a5fa", "travado_por_roas": False}
+    i_nota = next(i for corte, i in _SAUDE_CORTES if nota >= corte)
+    i_teto = next(i for corte, i in _SAUDE_TETO_ROAS if roas >= corte)
+    label, emoji, cor = _SAUDE_FAIXAS[min(i_nota, i_teto)]
+    return {"label": label, "emoji": emoji, "cor": cor, "travado_por_roas": i_teto < i_nota}
+
 
 def _build_clima_breakdown(obj: Any, attr: str, leads_key: str = "leads") -> list:
     d = getattr(obj, attr, {}) or {} if obj else {}
@@ -1033,6 +1073,17 @@ def _compute_debriefing_ctx(
         sum(s for s in _saude_scores.values() if s is not None) / _saude_peso_disponivel * 100
     )) if _saude_peso_disponivel > 0 else 0
 
+    # Rótulo (trava por ROAS + guardas) — regra em `_saude_classificacao`.
+    # "Em andamento" é o carrinho que ainda não fechou; sem data de carrinho
+    # cadastrada cai na data final do lançamento em dim_lancamentos.
+    from datetime import date as _date  # noqa: PLC0415
+    _fim_carrinho = str(c_end or (getattr(launch, "data_fim", "") if launch else "") or "")
+    saude_em_andamento = bool(not _fim_carrinho or _fim_carrinho[:10] >= _date.today().isoformat())
+    saude_sem_dados = receita <= 0 and total_vendas <= 0
+    saude_faixa = _saude_classificacao(
+        saude_score, roas, em_andamento=saude_em_andamento, sem_dados=saude_sem_dados,
+    )
+
     return {
         "has_data": bool(meta or google or vendas),
         "has_prev": bool(previous and (prev_meta or prev_google or prev_vendas)),
@@ -1046,6 +1097,7 @@ def _compute_debriefing_ctx(
         "fontes_leads": fontes_leads,
         # Saúde do lançamento
         "saude_score": saude_score, "saude_pesos": _SAUDE_PESOS,
+        "saude_faixa": saude_faixa, "saude_em_andamento": saude_em_andamento,
         "saude_score_roas": saude_score_roas, "saude_score_meta_fat": saude_score_meta_fat,
         "saude_score_cac": saude_score_cac, "saude_score_conv": saude_score_conv,
         "saude_score_ads": saude_score_ads, "saude_score_vol": saude_score_vol,

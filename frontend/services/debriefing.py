@@ -154,19 +154,27 @@ def _build_leads_detail_table(
     return curr_rows
 
 
-def _build_rmkt_adsets(meta: Any, whatsapp: float = 0.0, cfg: dict | None = None) -> list:
+def _build_rmkt_adsets(meta: Any, google: Any = None, whatsapp: float = 0.0, cfg: dict | None = None) -> list:
+    """Lembrete/Depoimento/Aulas no Ar/Replay/Matrículas Abertas — soma Meta +
+    Google (mesmas sub-etapas que get_etapa() usa pro total "Remarketing" do
+    quadro de cima; sem o Google aqui os dois números não batiam — achado
+    16/09/26, PI-AGO-26: topo R$69.211 vs detalhado R$66.208, diferença
+    exatamente o gasto do Google nessas sub-etapas, R$3.003,80)."""
     _order = ["Lembrete", "Depoimento", "Aulas no Ar", "Replay", "Matrículas Abertas"]
-    por_etapa = getattr(meta, "por_etapa", {}) or {}
+    m_por = getattr(meta, "por_etapa", {}) or {}
+    g_por = (getattr(google, "por_etapa", {}) or {}) if google else {}
     previsto_por_subetapa = {
         et.get("nome"): float(et.get("total") or 0)
         for et in ((cfg or {}).get("etapas") or [])
     }
     rows = []
     for e in _order:
-        d = por_etapa.get(e) or {}
-        gasto = float(d.get("gasto") or d.get("custo") or 0)
+        m_d = m_por.get(e) or {}
+        g_d = g_por.get(e) or {}
+        gasto = float(m_d.get("gasto") or m_d.get("custo") or 0) + float(g_d.get("custo") or 0)
+        leads = int(m_d.get("leads") or 0) + int(float(g_d.get("conversoes") or 0))
         rows.append({
-            "adset": e, "gasto": gasto, "leads": int(d.get("leads") or 0), "pct": 0.0,
+            "adset": e, "gasto": gasto, "leads": leads, "pct": 0.0,
             "previsto": previsto_por_subetapa.get(e, 0.0),
         })
     if whatsapp > 0:
@@ -1097,8 +1105,8 @@ def _compute_debriefing_ctx(
                 for c in _CLIMA_ORDER
             ) if v
         },
-        "rmkt_adsets": _build_rmkt_adsets(meta, whatsapp=wa_gasto, cfg=cfg),
-        "prev_rmkt_adsets": _build_rmkt_adsets(prev_meta, whatsapp=prev_wa_gasto, cfg=_launch_cfg(previous.code) if previous else None),
+        "rmkt_adsets": _build_rmkt_adsets(meta, google, whatsapp=wa_gasto, cfg=cfg),
+        "prev_rmkt_adsets": _build_rmkt_adsets(prev_meta, prev_google, whatsapp=prev_wa_gasto, cfg=_launch_cfg(previous.code) if previous else None),
         # Sales por temperatura/tipo
         "meta_temp_sales": meta_temp_sales, "google_tipo_sales": google_tipo_sales,
         "prev_meta_temp_sales": prev_meta_temp_sales, "prev_google_tipo_sales": prev_google_tipo_sales,

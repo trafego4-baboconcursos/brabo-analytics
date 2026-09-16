@@ -20,6 +20,23 @@
    barra injetada ficar mais baixa que o link do PDF). */
 .dbf-accordion-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 28px; }
 .dbf-accordion-controls .bs-accordion-controls { margin-bottom: 0; }
+.dbf-pdf-btn {
+  margin-left: auto; background: var(--bs-accent); color: #fff; border: 1px solid var(--bs-accent);
+  padding: 7px 16px; border-radius: 8px; font-size: 12px; font-weight: 700;
+  display: inline-flex; align-items: center; gap: 6px; text-decoration: none; flex-shrink: 0;
+}
+/* Celular: tudo numa linha só — "todas" já saiu dos botões de
+   Recolher/Expandir (base.html), e aqui o "Gerar PDF" perde o texto e
+   vira um quadrado só com o ícone, senão os 4 controles não cabem sem
+   quebrar linha (achado 16/09/26). */
+@media (max-width: 640px) {
+  .dbf-accordion-controls { flex-wrap: nowrap; gap: 6px; }
+  .dbf-accordion-controls .bs-accordion-controls { gap: 6px; }
+  .dbf-accordion-controls .bs-accordion-controls button,
+  .dbf-accordion-controls .bs-sec-picker-btn { padding: 7px 9px; font-size: 11px; }
+  .dbf-pdf-btn { padding: 9px; }
+  .dbf-pdf-btn-label { display: none; }
+}
 .dbf-launch-badge {
   font-size: 11px; font-weight: 700; padding: 2px 8px;
   border-radius: 20px; background: var(--bs-accent); color: #fff;
@@ -612,9 +629,9 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <div class="dbf-accordion-controls">
     {% if launch %}
     <a href="/debriefing?launch_code={{ launch.code }}&modo=slides&auto=1" target="_blank" rel="noopener"
-       style="margin-left:auto;background:var(--bs-accent);color:#fff;border:1px solid var(--bs-accent);padding:7px 16px;border-radius:8px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:6px;text-decoration:none"
+       class="dbf-pdf-btn"
        title="Abre a apresentação (slides 1920x1080) e o diálogo de impressão — escolha 'Salvar como PDF'">
-      <i class="ti ti-file-type-pdf"></i> Gerar PDF
+      <i class="ti ti-file-type-pdf"></i><span class="dbf-pdf-btn-label"> Gerar PDF</span>
     </a>
     {% endif %}
   </div>

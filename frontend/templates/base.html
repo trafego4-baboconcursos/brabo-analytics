@@ -75,6 +75,9 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, summary:focus-v
   scrollbar-width: none; z-index: 100;
 }
 #bs-drawer::-webkit-scrollbar { display: none; }
+/* Só no celular (ver media query) — no desktop a sidebar é fixa, sem
+   opção de recolher. */
+.bs-drawer-collapse-btn { display:none; }
 
 .bs-brand {
   padding-bottom:14px;
@@ -1093,8 +1096,21 @@ kbd {
     transition:transform .25s ease;
     z-index:210;
     box-shadow:0 0 40px rgba(0,0,0,.3);
+    padding-bottom:56px; /* espaço pro botão fixo .bs-drawer-collapse-btn não cobrir o último item */
   }
   #bs-drawer.open { transform:translateX(0); }
+  /* position:fixed aqui é relativo à própria #bs-drawer (o transform acima
+     cria um containing block novo), não ao viewport — por isso "gruda" no
+     rodapé da gaveta e desliza junto com ela, em vez de ficar cravado na
+     tela por trás quando a gaveta fecha. */
+  .bs-drawer-collapse-btn {
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    position:fixed; bottom:0; left:0; width:100%;
+    padding:15px; border:none; border-top:1px solid rgba(255,255,255,.15);
+    background:var(--bs-sidebar-dark); color:#fff; font-family:inherit;
+    font-size:13px; font-weight:700; cursor:pointer; z-index:2;
+  }
+  .bs-drawer-collapse-btn:active { background:rgba(255,255,255,.10); }
 
   #bs-drawer-overlay {
     display:block; position:fixed; inset:0; background:rgba(15,20,40,.5);
@@ -1133,7 +1149,7 @@ kbd {
      com um botão "Voltar" no topo pra retornar. :has() identifica qual
      bloco (trilha de modo ou bloco Sistema) contém o picker aberto, pra
      funcionar igual pros dois sem repetir regra pra cada item. */
-  #bs-drawer.bs-drilled > *:not(:has(.bs-launch-picker.open)) { display:none !important; }
+  #bs-drawer.bs-drilled > *:not(:has(.bs-launch-picker.open)):not(#bs-drawer-collapse) { display:none !important; }
   #bs-drawer.bs-drilled > *:has(.bs-launch-picker.open) {
     display:flex; flex-direction:column; flex:1 1 auto; min-height:0;
   }
@@ -2064,6 +2080,13 @@ html[data-bs-theme="custom"] .mat-num {
     {% else %}
     <div class="bs-drawer-footer"></div>
     {% endif %}
+
+    <!-- Recolher menu (só celular) — barra fixa no rodapé da gaveta,
+         disponível em qualquer nível (menu principal ou painel drillado),
+         pra fechar sem precisar rolar até o topo ou tocar fora. -->
+    <button type="button" id="bs-drawer-collapse" class="bs-drawer-collapse-btn" onclick="bsMenuToggle(false)">
+      <i class="ti ti-arrow-left"></i> Recolher menu
+    </button>
   </aside>
 
   <!-- ── CONTEÚDO PRINCIPAL ────────────────────────────────────────── -->

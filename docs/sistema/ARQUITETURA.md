@@ -171,6 +171,9 @@ relacionados:
 > - [[ARQUITETURA#O outro lado: campo que ninguém produz|O outro lado: campo que ninguém produz]]
 > - [[ARQUITETURA#Previsto e realizado tinham que somar as mesmas coisas (2026-09-16)|Previsto e realizado tinham que somar as mesmas coisas (2026-09-16)]]
 > - [[ARQUITETURA#Resumo do que protege o quê|Resumo do que protege o quê]]
+>
+> **Mobile: scroll horizontal em vez de esconder colunas (2026-09-16)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -1655,3 +1658,26 @@ impreciso, ele inverte a conclusão.
 | processo com código velho rebaixando o snapshot | guard de monotonicidade no `write_snapshot` |
 | não saber quem gravou um snapshot | `_writer` (`hostname#pid`) no payload |
 | processo velho servindo template novo | nada automático — **reinicie o servidor** |
+
+## Mobile: scroll horizontal em vez de esconder colunas (2026-09-16)
+
+`/debriefing` tinha duas formas distintas de "resolver" tabela larga no celular, e as duas
+perdiam dado: "Detalhamento de Tráfego" dava `display:none` em Previsto/Realizado/Var/Lanç. Ant.
+abaixo de 640px (`.alloc-row-budget`); "Dia a Dia de Captação" e a tabela de "Ebook → Compra" não
+tinham wrapper de scroll nenhum, deixavam o navegador encolher as colunas até quebrar "R$" numa
+linha e o valor na outra.
+
+Fix: toda tabela larga vira `overflow-x:auto` num wrapper próprio (`.alloc-scroll`,
+`.day-table-wrap`, ou o já existente `.table-wrap`), mantendo as colunas todas, em qualquer
+largura — rola em vez de esconder. `.dbf-table td` ganhou `white-space:nowrap` (o `th` já tinha),
+pra travar o valor numa linha só em vez de reflow.
+
+**A pegadinha:** `overflow-x:auto` no wrapper não bastava. `.cmp-curr`/`.cmp-prev` (os itens do
+grid `.cmp-grid`) e os `<div>` de `.day-tables-grid` são itens de grid/flex, que por padrão têm
+`min-width: auto` — respeitam o tamanho mínimo intrínseco do conteúdo em vez de encolher pra
+largura disponível. Sem `min-width: 0` explícito nesses itens, o wrapper de scroll nunca
+"sentia" falta de espaço (nunca ficava menor que o próprio conteúdo) e era a **página inteira**
+que ganhava barra de rolagem horizontal, não o card. Medido via
+`el.scrollWidth > el.clientWidth` no DevTools/Playwright: antes do `min-width:0`, todo
+`.alloc-scroll` reportava `scrollWidth === clientWidth` (não rolava nada, só empurrava a página);
+depois, `scrollWidth` (622px) > `clientWidth` (315px) e a página ficou sem overflow.

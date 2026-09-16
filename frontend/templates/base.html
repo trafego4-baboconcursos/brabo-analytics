@@ -218,6 +218,13 @@ a:focus-visible, button:focus-visible, [tabindex]:focus-visible, summary:focus-v
 .bs-picker-subgroup-btn.active { color:var(--bs-accent); }
 .bs-picker-subgroup-btn > i:first-child { font-size:15px; opacity:.8; flex-shrink:0; }
 .bs-picker-subgroup-label { flex:1; }
+/* Rótulo de produto (INSS/TJ-SP/...) reaproveitando o acordeão do picker
+   de Lançamento — mesma tipografia pequena/uppercase de .bs-launch-picker-group,
+   mas sem o padding próprio (o botão do acordeão já tem o dele). */
+.bs-picker-subgroup-label-caps {
+  font-size:10px; font-weight:700; color:var(--bs-ink-subtle); text-transform:uppercase;
+  letter-spacing:.06em;
+}
 .bs-picker-subgroup-chevron { font-size:12px; opacity:.6; transition:transform .15s; flex-shrink:0; }
 .bs-picker-subgroup.open .bs-picker-subgroup-chevron { transform:rotate(180deg); }
 .bs-picker-subgroup-body { display:none; padding-left:10px; }
@@ -1150,16 +1157,21 @@ kbd {
      brancos translúcidos que .bs-mode-btn já usa pro resto da gaveta,
      que funcionam em qualquer tema por não dependerem de --bs-ink. */
   #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-launch-picker-group,
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-picker-subgroup-label-caps,
   #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-picker-back {
     color:rgba(255,255,255,.5);
   }
-  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-launch-picker-item,
-  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-picker-subgroup-btn,
-  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-subnav-link,
-  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-theme-opt {
+  /* :not(.active) de propósito — sem isso, esse seletor (1 ID + N classes)
+     ganha do ".active" sozinho (N classes) por especificidade e pinta o
+     item selecionado de branco também, sumindo com o texto em cima do
+     próprio fundo (--bs-accent-bg) branco/claro do estado ativo. */
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-launch-picker-item:not(.active),
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-picker-subgroup-btn:not(.active),
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-subnav-link:not(.active),
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-theme-opt:not(.active) {
     color:rgba(255,255,255,.75);
   }
-  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-subnav-link i {
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-subnav-link:not(.active) i {
     color:inherit; opacity:.85;
   }
   #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-launch-picker-item:hover,
@@ -1167,6 +1179,16 @@ kbd {
   #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-subnav-link:hover,
   #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-theme-opt:hover {
     background:rgba(255,255,255,.10); color:#fff;
+  }
+  /* "Ver todos os lançamentos"/"Ver todos os perfis": a cor de destaque
+     (--bs-accent) direto sobre o fundo sempre-escuro do painel ficava
+     estranha dependendo do tema — branco negrito (já é bold na regra
+     base) combina com o resto dos CTAs da gaveta. */
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-launch-picker-all {
+    color:#fff;
+  }
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-launch-picker-all:hover {
+    background:rgba(255,255,255,.10);
   }
   .bs-picker-back {
     display:flex; align-items:center; gap:8px; width:100%; font-family:inherit;
@@ -1834,14 +1856,26 @@ html[data-bs-theme="custom"] .mat-num {
           </a>
           {% if launch_groups %}
           <div class="bs-launch-picker-sep"></div>
+          <!-- Produto vira acordeão — mais produtos (INSS/TJ-SP/Banco do
+               Brasil/...) significa mais códigos empilhados; só abre por
+               padrão o produto do lançamento ativo, resto fica fechado até
+               a pessoa procurar. -->
           {% for group in launch_groups %}
-          <div class="bs-launch-picker-group">{{ group.product or group.product_name }}</div>
-          {% for l in group.launches %}
-          <a class="bs-launch-picker-item {% if nav_mode == 'funis' and active_code == l.code %}active{% endif %}"
-             href="{{ _switch_base }}?launch_code={{ l.code }}">
-            {{ l.code }}
-          </a>
-          {% endfor %}
+          {% set _group_has_active = nav_mode == 'funis' and active_code and (group.launches | selectattr('code', 'equalto', active_code) | list) %}
+          <div class="bs-picker-subgroup {% if _group_has_active %}open{% endif %}">
+            <button type="button" class="bs-picker-subgroup-btn" onclick="bsPickerSubToggle(this)">
+              <span class="bs-picker-subgroup-label bs-picker-subgroup-label-caps">{{ group.product or group.product_name }}</span>
+              <i class="ti ti-chevron-down bs-picker-subgroup-chevron"></i>
+            </button>
+            <div class="bs-picker-subgroup-body">
+              {% for l in group.launches %}
+              <a class="bs-launch-picker-item {% if nav_mode == 'funis' and active_code == l.code %}active{% endif %}"
+                 href="{{ _switch_base }}?launch_code={{ l.code }}">
+                {{ l.code }}
+              </a>
+              {% endfor %}
+            </div>
+          </div>
           {% endfor %}
           {% endif %}
           <button type="button" class="bs-picker-back bs-picker-back-bottom" onclick="bsPickerToggle(this)">

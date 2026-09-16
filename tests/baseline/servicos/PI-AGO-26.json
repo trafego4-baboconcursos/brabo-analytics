@@ -1,0 +1,45 @@
+{
+  "creative_overview": {
+    "bytes": 168,
+    "resumo": {
+      "__excecao__": {
+        "__sha__": "9b46a13e77fd13e6",
+        "__texto__": 145
+      }
+    },
+    "sha256": "eabd45c40a0b3cbfbf408bfcbdcc36dc41676253974b8f10718fd34e55b0c736"
+  },
+  "debriefing_ctx": {
+    "bytes": 97577,
+    "resumo": {
+      "creative_data_error": false,
+      "data_errors": {
+        "__n__": 1,
+        "__sha__": "47a12da48e1adcce"
+      },
+      "dbf": {
+        "__n__": 113,
+        "__sha__": "f7bf24d3bade8f9f"
+      },
+      "drive_thumbnails": {
+        "__n__": 150,
+        "__sha__": "de3ae35bf73f11c3"
+      },
+      "falhas": {
+        "__n__": 2,
+        "__sha__": "7a26362916f18198"
+      }
+    },
+    "sha256": "756aee6a81a9ca8dbaaf8001f5f308bd78170b5521cde10956d60657512a94b5"
+  },
+  "sales_attribution": {
+    "bytes": 168,
+    "resumo": {
+      "__excecao__": {
+        "__sha__": "9b46a13e77fd13e6",
+        "__texto__": 145
+      }
+    },
+    "sha256": "eabd45c40a0b3cbfbf408bfcbdcc36dc41676253974b8f10718fd34e55b0c736"
+  }
+}

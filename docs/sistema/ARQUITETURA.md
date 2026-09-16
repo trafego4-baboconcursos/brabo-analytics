@@ -58,6 +58,9 @@ relacionados:
 > - [[ARQUITETURA#2. Fumaça (`-m smoke`) — precisa de banco|2. Fumaça (`-m smoke`) — precisa de banco]]
 > - [[ARQUITETURA#3. Caracterização (`-m caracterizacao`) — precisa de banco|3. Caracterização (`-m caracterizacao`) — precisa de banco]]
 >
+> **S11 — attribution.py dividido por responsabilidade (2026-09-15)**
+>
+>
 > **/debriefing em 500 — snapshot velho aprovado pelo guard de versão (2026-09-15)**
 >
 >
@@ -141,7 +144,9 @@ workspace-mmm/
 │   ├── formatters.py           ← fmt_brl, fmt_num, fmt_pct (filtros Jinja2)
 │   ├── services/
 │   │   ├── __init__.py
-│   │   ├── attribution.py      ← _classify_campaign, _extract_ad_code, _utm_score, _sales_attribution, _creative_overview, _creative_insights
+│   │   ├── attribution.py      ← _sales_attribution (casa venda↔lead e decide anúncio/campanha/etapa)
+│   │   ├── classificadores.py  ← puros, sobre UTM: _classify_campaign, _extract_ad_code, _utm_score, _inc_sales
+│   │   ├── criativos.py        ← _creative_overview, _creative_insights (ranking de ADxxx, Validados × Novos)
 │   │   ├── fetch.py            ← _launch_cfg, leitores com cache (_meta, _google, etc.), _fetch_all_data, _fetch_prev_for_debriefing
 │   │   └── debriefing.py       ← _CLIMA_ORDER, _build_clima_breakdown, _attach_clima_*, _build_leads_detail_table, _build_rmkt_adsets, _compute_debriefing_ctx
 │   ├── calendar_parser.py      ← Parser do HTML de calendário
@@ -447,6 +452,33 @@ ATUALIZAR_BASELINE=1 python -m pytest tests/test_caracterizacao_readers.py -m ca
 # depois de refatorar: confere que nada mudou
 python -m pytest tests/test_caracterizacao_readers.py -m caracterizacao
 ```
+
+---
+
+## S11 — attribution.py dividido por responsabilidade (2026-09-15)
+
+`services/attribution.py` tinha 859 linhas e três assuntos diferentes. Virou três módulos:
+
+| Módulo | Linhas | Responsabilidade |
+|---|---|---|
+| `classificadores.py` | 140 | Funções puras sobre texto de UTM — sem banco, sem estado |
+| `attribution.py` | 288 | `_sales_attribution`: casa venda com lead e decide anúncio/campanha/etapa |
+| `criativos.py` | 476 | `_creative_overview` e `_creative_insights`: ranking de ADxxx e Validados × Novos |
+
+`attribution.py` reexporta os dois outros, então `from frontend.services.attribution import
+_creative_overview` — que `core.py` e outros usam há tempo — continua valendo.
+
+**Não confundir `classificadores.py` com `db_readers/nomenclatura.py`.** O segundo lê o padrão
+de colchetes do nome da campanha na plataforma (`[MA][CAPTAÇÃO][QUENTE]…`); o primeiro trabalha
+sobre as UTMs que chegam com a venda, onde o texto vem solto e a decisão é por palavra
+encontrada. São regras diferentes para perguntas diferentes, e é por isso que continuam
+separadas em vez de unificadas.
+
+**Rede usada:** `tests/test_caracterizacao_servicos.py` (novo) congela a saída de
+`_sales_attribution`, `_creative_overview` e do contexto do debriefing para PBB-ABR-26 e
+PI-AGO-26. Foi gravado **antes** da divisão e verificado depois: as três saídas continuaram
+idênticas. Sem isso, mexer em `_creative_overview` — que carrega as correções sutis de escopo
+de etapa de 14/09 — seria aposta, não refatoração.
 
 ---
 

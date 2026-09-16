@@ -742,18 +742,6 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       {% endfor %}
     </div>
 
-    <!-- Grupos WhatsApp — Normal x VIP -->
-    <div class="dbf-kpi-grid" style="--kpi-cols:4">
-      {%- set kpis_grupos = [
-        ("Total de Grupos VIP", dbf.total_grupos_vip, dbf.prev_total_grupos_vip, "num", "up"),
-        ("Pessoas nos Grupos VIP", dbf.pessoas_grupos_vip, dbf.prev_pessoas_grupos_vip, "num", "up"),
-        ("Total de Grupos Normais", dbf.total_grupos_normais, dbf.prev_total_grupos_normais, "num", "up"),
-        ("Pessoas nos Grupos Normais", dbf.pessoas_grupos_normais, dbf.prev_pessoas_grupos_normais, "num", "up"),
-      ] -%}
-      {% for lbl, val, pval, fmt, polarity in kpis_grupos %}
-        {{ kpi_card(lbl, val, pval, fmt, polarity) }}
-      {% endfor %}
-    </div>
 
     <!-- Leads por fonte -->
     <div class="dbf-kpi-grid" style="--kpi-cols:{{ dbf.fontes_leads | length * 2 }}">

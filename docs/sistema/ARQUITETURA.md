@@ -70,7 +70,7 @@ relacionados:
 > **S11 — attribution.py dividido por responsabilidade (2026-09-15)**
 >
 >
-> **/debriefing em 500 — snapshot velho aprovado pelo guard de versão (2026-09-15)**
+> **/debriefing em 500 — campo removido do contexto, mantido no template (2026-09-15/16)**
 >
 >
 > **Ordem não determinística em listas ordenadas por contagem (2026-09-15)**
@@ -582,30 +582,36 @@ de etapa de 14/09 — seria aposta, não refatoração.
 
 ---
 
-## /debriefing em 500 — snapshot velho aprovado pelo guard de versão (2026-09-15)
+## /debriefing em 500 — campo removido do contexto, mantido no template (2026-09-15/16)
 
 **Sintoma:** `/debriefing` (e `?modo=slides`) devolvendo 500 com
 `UndefinedError: 'dict object' has no attribute 'total_grupos_vip'`.
 
-**Causa:** `SNAPSHOT_VERSION` existe justamente para invalidar snapshot cujo `dbf` mudou de
-forma — o comentário em `debriefing_snapshot.py` diz isso com todas as letras. Ele ficou em
-**5 desde 04/09**, enquanto em 15/09 o `dbf` ganhou 4 campos novos
-(`total_grupos_normais`/`total_grupos_vip` e os `prev_` correspondentes, commit `7bf3765`).
-Resultado: o snapshot gravado antes dessa mudança continuava passando no guard, a página
-renderizava a partir dele, e o template pedia um campo que aquele payload não tinha.
+**Causa real:** o commit `bf8065c` ("Resumo Executivo: Pessoas nos Grupos vira pico; remove Total
+de Grupos") tirou `total_grupos_normais`/`total_grupos_vip` e os `prev_` correspondentes do
+`_compute_debriefing_ctx`, e ajustou o primeiro grid de KPIs. Mas o template tinha **dois** blocos
+citando esses campos: `kpis_gerais` e um segundo, "Grupos WhatsApp — Normal x VIP", que passou
+despercebido e continuou pedindo `dbf.total_grupos_vip`.
 
-Medido: contexto calculado ao vivo = **113 campos**; snapshot gravado = **109**. A diferença
-eram exatamente os 4 campos novos.
+**Correção:** o segundo bloco foi removido por inteiro. Era o que o commit pretendia — os dois
+cards de "Total" saíram por decisão do usuário (a tabela do Supabase ficava incompleta em alguns
+lançamentos) e os dois de "Pessoas" já haviam subido para o grid principal, então o bloco era
+duplicata.
 
-**Correção:** `SNAPSHOT_VERSION = 6`. O snapshot velho passa a ser ignorado, a página cai no
-cálculo ao vivo (que funciona) e o próximo aquecimento regrava no formato novo.
+**Por que o diagnóstico demorou.** Um servidor de desenvolvimento rodando na máquina com o código
+novo já gravava snapshots no formato novo **no banco compartilhado**, enquanto o checkout usado na
+investigação estava um commit atrás, com o template velho. O sintoma — "o snapshot não tem o campo
+que o template pede" — parecia guard de versão quebrado, quando era só uma árvore desatualizada
+lendo snapshot de outra.
 
-**Regra que isso deixa:** mexeu nos campos que o template consome do `dbf`? Sobe
-`SNAPSHOT_VERSION` no mesmo commit. Não é opcional — sem isso o erro só aparece em produção,
-depois do deploy, e some sozinho no aquecimento seguinte, o que torna o diagnóstico bem pior.
+**Lição que fica:** um `.env` apontando para o banco compartilhado significa que *qualquer*
+servidor local escreve em produção-de-fato. Ao investigar divergência entre snapshot e código,
+confirme primeiro em que commit está o processo que **escreveu** o snapshot, não só o que o lê.
 
-**Não era regressão da refatoração S10:** o mesmo teste foi rodado em `HEAD` (código anterior)
-e falhou 3 de 3 vezes, igual.
+**`SNAPSHOT_VERSION` foi para 6 assim mesmo**, e continua valendo: `bf8065c` mudou o *significado*
+de `pessoas_grupos_*` (passou a ser o pico histórico, não o número atual). Sem o bump, os snapshots
+v5 seguiriam válidos e o dashboard mostraria a semântica antiga até o aquecimento seguinte. A regra
+não muda: mexeu nos campos que o template consome do `dbf`, sobe `SNAPSHOT_VERSION` no mesmo commit.
 
 ---
 

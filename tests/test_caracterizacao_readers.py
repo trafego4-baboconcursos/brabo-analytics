@@ -122,6 +122,14 @@ VOLATEIS = {
     "read_ebook_compradores",
     "read_vendas_por_dia_cadastro",
     "read_perfil_por_anuncio",
+    # Caso diferente dos de cima: não é dado chegando sozinho, é gente editando.
+    # `launch_config` é preenchida à mão pelo wizard de Configurações, a qualquer
+    # momento e inclusive em lançamento já fechado — e `updated_at` entra na
+    # resposta, então todo salvamento muda o digest. Congelar por valor faz este
+    # teste falhar sempre que alguém mexe no wizard (aconteceu em 16/09, quando a
+    # oferta do PI-AGO-26 foi preenchida no meio da rodada). A forma continua
+    # cobrada aqui; quem protege o contrato do conteúdo é test_dbf_contrato.py.
+    "read_launch_config",
 }
 
 # Nomes de parâmetro que recebem o código do lançamento.

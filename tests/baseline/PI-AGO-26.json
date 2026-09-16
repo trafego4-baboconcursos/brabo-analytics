@@ -475,12 +475,12 @@
     "sha256": "9e7a19e6aa10cfcecafff009d889f92830ae71e2c9db552c3304bb0269d23d5e"
   },
   "read_launch_config": {
-    "bytes": 4441,
+    "bytes": 4501,
     "resumo": {
-      "__n__": 40,
-      "__sha__": "c007ea47620f5560"
+      "__n__": 42,
+      "__sha__": "2016de44d22f41a9"
     },
-    "sha256": "c007ea47620f55609a394f4338c70dfd3bfa728bf8dc7e3ea8c4537c8dc27fb3"
+    "sha256": "2016de44d22f41a939f607b6ea574c171d905489e3324827a92d2576fa5a0bd6"
   },
   "read_leads": {
     "bytes": 8536,

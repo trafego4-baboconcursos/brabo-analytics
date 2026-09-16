@@ -32,7 +32,12 @@ ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(ROOT / ".env")
 os.environ["PRE_WARM_CACHE"] = "false"
 
-from tests.caracterizacao_util import impressao_digital, normalizar  # noqa: E402
+from tests.caracterizacao_util import (  # noqa: E402
+    _forma,
+    e_falha_de_infra,
+    impressao_digital,
+    normalizar,
+)
 
 BASELINE_DIR = Path(os.environ.get("BASELINE_DIR") or (ROOT / "tests" / "baseline")) / "servicos"
 ATUALIZAR = os.environ.get("ATUALIZAR_BASELINE", "").lower() in ("1", "true", "sim")
@@ -117,23 +122,6 @@ def _calcular(nome: str, ctx: dict, launches: list):
     raise AssertionError(f"serviço desconhecido: {nome}")
 
 
-def _forma(valor):
-    """Estrutura sem os valores — ver ``_forma`` em test_caracterizacao_readers."""
-    if isinstance(valor, dict):
-        if "__sha__" in valor:
-            return "<coleção>"
-        return {k: _forma(v) for k, v in sorted(valor.items())}
-    if isinstance(valor, bool):
-        return "<bool>"
-    if isinstance(valor, (int, float)):
-        return "<número>"
-    if isinstance(valor, str):
-        return "<texto>"
-    if valor is None:
-        return "<nulo>"
-    return f"<{type(valor).__name__}>"
-
-
 @pytest.mark.caracterizacao
 @pytest.mark.parametrize("codigo", LANCAMENTOS)
 @pytest.mark.parametrize("servico", ["sales_attribution", "creative_overview", "debriefing_ctx"])
@@ -145,6 +133,10 @@ def test_saida_do_servico_nao_mudou(servico, codigo, entradas, baselines):
     try:
         saida = normalizar(_calcular(servico, ctx, entradas["__launches__"]))
     except Exception as e:  # noqa: BLE001 — a exceção também é comportamento
+        motivo = e_falha_de_infra(e)
+        if motivo:
+            # Banco fora do ar ou lento demais não é regressão: pular, não falhar.
+            pytest.skip(f"falha de infraestrutura ({motivo}); nada a comparar")
         saida = {"__excecao__": f"{type(e).__name__}: {e}"}
 
     obtido = impressao_digital(saida)

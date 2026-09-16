@@ -1,5 +1,118 @@
 {
-  "ads_google.read_daily_breakdown": {
+  "read_ac_campaigns": {
+    "bytes": 12289,
+    "resumo": {
+      "campanhas": {
+        "__n__": 46,
+        "__sha__": "c0940a41b6f89c85"
+      },
+      "has_data": true,
+      "por_dia": {
+        "__n__": 26,
+        "__sha__": "cc9d0e8cbd89ac42"
+      },
+      "total_aberturas": 123872,
+      "total_cliques": 18247,
+      "total_envios": 656781,
+      "tx_abertura_media": 18.8605,
+      "tx_clique_media": 14.7305
+    },
+    "sha256": "d34576106d9835da88d59b3d76f520601d3e64ffc31bcc62d8308181cc4c0cd4"
+  },
+  "read_ac_leads_for_attribution": {
+    "bytes": 109152122,
+    "resumo": {
+      "__tipo__": "DataFrame",
+      "colunas": {
+        "__n__": 11,
+        "__sha__": "bc1bf780482fcb33"
+      },
+      "linhas": {
+        "__n__": 269189,
+        "__sha__": "0dbf2004961c7421"
+      }
+    },
+    "sha256": "08c33b1c14e2e174bba0df3cca948a235b4398989de338980a14134b9fb19c52"
+  },
+  "read_aulas_ao_vivo": {
+    "bytes": 36529,
+    "resumo": {
+      "aulas": {
+        "__n__": 5,
+        "__sha__": "4666ff3b29271d62"
+      },
+      "totais": {
+        "aula_pico_max": 1,
+        "chat_total": 341877,
+        "fonte_manual": true,
+        "minutos_total": 534,
+        "pico_max": 23940,
+        "qtd_aulas": 5,
+        "queda_1_ultima": -87.0,
+        "reacoes_total": 2040147,
+        "retencao_media": 50.1
+      }
+    },
+    "sha256": "bc909520e4c88378a31a6a4657ae70683cdff78723493cbae13ec59bad7c7137"
+  },
+  "read_caminho_comprador": {
+    "bytes": 582333,
+    "resumo": {
+      "resumo": {
+        "com_grupo": 2391,
+        "com_lead": 1787,
+        "com_pesquisa": 834,
+        "comercial_ia": 80,
+        "pct_comercial_ia": 3.1923,
+        "pct_grupo": 95.411,
+        "pct_lead": 71.3089,
+        "pct_pesquisa": 33.2801,
+        "total": 2506,
+        "vip": 2209
+      },
+      "rows": {
+        "__n__": 2506,
+        "__sha__": "e7a96d0a09a9f900"
+      }
+    },
+    "sha256": "30a729bda7425996d75125ae5446380eec066205094c6d9b3b127427f48fb338"
+  },
+  "read_compradores_por_dia_grupo": {
+    "bytes": 2939,
+    "resumo": {
+      "captacao": {
+        "total": 2135
+      },
+      "outro": {
+        "total": 177
+      },
+      "pre_quali": {
+        "total": 79
+      },
+      "sem_data": 115,
+      "timeline": {
+        "__n__": 36,
+        "__sha__": "6958e99c00779deb"
+      },
+      "total": 2391
+    },
+    "sha256": "3c7c18cdfa48ddd79ec03274d22598a840a91940a795f75df64a313cebccd94c"
+  },
+  "read_conversao_pagina_captura": {
+    "bytes": 1387,
+    "resumo": {
+      "Captação": {
+        "__n__": 6,
+        "__sha__": "ae1a2ea953fffc00"
+      },
+      "Pré-Qualificação": {
+        "__n__": 4,
+        "__sha__": "775976c9cf06e0b6"
+      }
+    },
+    "sha256": "6b6df74957fe0986d1841130194511ffd95483deb93aa52898beedb3ddcf94a7"
+  },
+  "read_daily_breakdown": {
     "bytes": 17346,
     "resumo": {
       "__n__": 2,
@@ -7,7 +120,68 @@
     },
     "sha256": "5fe5d96282641e15d2378909199e36b5635e1fb791c7f613da619ad0bf6adc50"
   },
-  "ads_google.read_google": {
+  "read_dia1_sales": {
+    "bytes": 1297,
+    "resumo": {
+      "checkpoints": {
+        "__n__": 14,
+        "__sha__": "4a386afcc837310a"
+      },
+      "data_abertura": "2026-08-13"
+    },
+    "sha256": "c798e0d12d395318324f37fe37e40299e5089b43a2e852147801757ff37d36af"
+  },
+  "read_disparo_resumo": {
+    "bytes": 155,
+    "resumo": {
+      "custo_total": 55723.11,
+      "janela_aberta": 868386,
+      "marketing": 70336,
+      "taxa_entrega": 96.4508,
+      "total_delivered": 1875852,
+      "total_sent": 1944879,
+      "utilitario": 937126
+    },
+    "sha256": "0279335b4cb93c9d0757c53035c66df9d72d590d1faeb90556900990d878883e"
+  },
+  "read_ebook_compradores": {
+    "bytes": 705,
+    "resumo": {
+      "com_email": 6403,
+      "compradores": 197,
+      "downloads": 6504,
+      "links": {
+        "__n__": 3,
+        "__sha__": "1428066413a69145"
+      },
+      "pct_compra": 3.0767,
+      "pct_dos_compradores": 7.8611,
+      "receita": 321878.29,
+      "sem_email": 101,
+      "total_compradores": 2506
+    },
+    "sha256": "7b58f429d9b99cfeca8aabd6a9059229c618a7408659e9b97652c3c8e8b664a7"
+  },
+  "read_eventos": {
+    "bytes": 7148,
+    "resumo": {
+      "__n__": 33,
+      "__sha__": "dd2b169962ee5a15"
+    },
+    "sha256": "dd2b169962ee5a150c982a79927ab9003e7782ce33ee95a4cc82adeb9672ee49"
+  },
+  "read_forma_pagamento_entrada": {
+    "bytes": 64,
+    "resumo": {
+      "rows": {
+        "__n__": 1,
+        "__sha__": "1f609c37e5330d9d"
+      },
+      "total": 874
+    },
+    "sha256": "050a876a54eeed69b3a96dc6c8cdbe926791b0faaf716541234c9b7715c3cfd7"
+  },
+  "read_google": {
     "bytes": 26920,
     "resumo": {
       "anuncios_por_ad": {
@@ -237,7 +411,247 @@
     },
     "sha256": "5d119e6d81ffb75b14cad9fa35a32ba447cd7bf74e4ccfbf84472ef3b5201b5e"
   },
-  "ads_meta.read_meta": {
+  "read_hotmart_details": {
+    "bytes": 6706,
+    "resumo": {
+      "__n__": 34,
+      "__sha__": "7d92dc6f0df2f09c"
+    },
+    "sha256": "7d92dc6f0df2f09c2c73efd579bd53be511cc8f60b94edb574d12fd43d8100fe"
+  },
+  "read_hotmart_recompra": {
+    "bytes": 600,
+    "resumo": {
+      "boleto": {
+        "nao_recompraram": 38,
+        "pct_recompra": 50.6494,
+        "pessoas": 77,
+        "por_meio": {
+          "__n__": 5,
+          "__sha__": "95f5a49b76674f91"
+        },
+        "recompraram": 39,
+        "transacoes": 82
+      },
+      "cartao": {
+        "nao_recompraram": 77,
+        "pct_recompra": 73.2639,
+        "pessoas": 288,
+        "por_meio": {
+          "__n__": 5,
+          "__sha__": "a4a7968e181f36ca"
+        },
+        "recompraram": 211,
+        "transacoes": 785
+      },
+      "cartao_atrasado": {
+        "pessoas": 449,
+        "transacoes": 2306
+      },
+      "janela": "13/07 a 31/08/2026"
+    },
+    "sha256": "a367f01a13d5cb9cad04773cdcf639f18d9a2f54f08be8a48ca1c35934c90c90"
+  },
+  "read_lancamentos_anteriores": {
+    "bytes": 873582,
+    "resumo": {
+      "__n__": 17703,
+      "__sha__": "a9c86ffbc9b05fba"
+    },
+    "sha256": "a9c86ffbc9b05fba05916724d82be617d7843522f721693680188776d2b2b6be"
+  },
+  "read_landing_pages_por_etapa": {
+    "bytes": 1597,
+    "resumo": {
+      "Captação": {
+        "__n__": 8,
+        "__sha__": "71a476774c1fd9b9"
+      },
+      "Pré-Qualificação": {
+        "__n__": 7,
+        "__sha__": "1ef5700bae3d939b"
+      }
+    },
+    "sha256": "9e7a19e6aa10cfcecafff009d889f92830ae71e2c9db552c3304bb0269d23d5e"
+  },
+  "read_launch_config": {
+    "bytes": 4113,
+    "resumo": {
+      "__n__": 39,
+      "__sha__": "3c583afb214c9fae"
+    },
+    "sha256": "3c583afb214c9fae1630935ae3c5357fd6e6b81c9eb75d788283671e8b35c60d"
+  },
+  "read_leads": {
+    "bytes": 8536,
+    "resumo": {
+      "compradores_rastreados": 0,
+      "compradores_sem_utm": 0,
+      "cpl": 0.0,
+      "emails_rastreados": {
+        "__n__": 0,
+        "__sha__": "4f53cda18c2baa0c"
+      },
+      "por_canal": {
+        "__n__": 4,
+        "__sha__": "38c4b051416c0fc0"
+      },
+      "por_dia": {
+        "__n__": 65,
+        "__sha__": "b92c7e42fb7e85f7"
+      },
+      "por_etapa": {
+        "__n__": 3,
+        "__sha__": "f0c6b98297ecf50c"
+      },
+      "por_temperatura": {
+        "__n__": 4,
+        "__sha__": "ef99a17e2b9fe699"
+      },
+      "por_utm_medium": {
+        "cpc": {
+          "conversao": 0.0,
+          "faturamento": 0,
+          "leads": 70103,
+          "medium": "cpc",
+          "vendas": 0
+        },
+        "organic": {
+          "conversao": 0.0,
+          "faturamento": 0,
+          "leads": 852,
+          "medium": "organic",
+          "vendas": 0
+        },
+        "organic_chat": {
+          "conversao": 0.0,
+          "faturamento": 0,
+          "leads": 1342,
+          "medium": "organic_chat",
+          "vendas": 0
+        },
+        "paid": {
+          "conversao": 0.0,
+          "faturamento": 0,
+          "leads": 1503,
+          "medium": "paid",
+          "vendas": 0
+        },
+        "paid_social": {
+          "conversao": 0.0,
+          "faturamento": 0,
+          "leads": 195382,
+          "medium": "paid_social",
+          "vendas": 0
+        },
+        "social": {
+          "conversao": 0.0,
+          "faturamento": 0,
+          "leads": 7,
+          "medium": "social",
+          "vendas": 0
+        }
+      },
+      "por_utm_source": {
+        "facebook": {
+          "conversao": 0.0,
+          "faturamento": 0,
+          "leads": 195381,
+          "source": "facebook",
+          "vendas": 0
+        },
+        "fb": {
+          "conversao": 0.0,
+          "faturamento": 0,
+          "leads": 579,
+          "source": "fb",
+          "vendas": 0
+        },
+        "google": {
+          "conversao": 0.0,
+          "faturamento": 0,
+          "leads": 70103,
+          "source": "google",
+          "vendas": 0
+        },
+        "ig": {
+          "conversao": 0.0,
+          "faturamento": 0,
+          "leads": 804,
+          "source": "ig",
+          "vendas": 0
+        },
+        "instagram": {
+          "conversao": 0.0,
+          "faturamento": 0,
+          "leads": 2190,
+          "source": "instagram",
+          "vendas": 0
+        },
+        "tiktok": {
+          "conversao": 0.0,
+          "faturamento": 0,
+          "leads": 132,
+          "source": "tiktok",
+          "vendas": 0
+        }
+      },
+      "total_compradores": 0,
+      "total_leads": 269189,
+      "tx_conversao": 0.0
+    },
+    "sha256": "5f985e4f14086a68643c72bff229689f603ea3272deb992f2436dfacbf00ae9b"
+  },
+  "read_leads_antigos_compradores": {
+    "bytes": 197,
+    "resumo": {
+      "antigo": {
+        "n": 742,
+        "pct": 29.6089,
+        "receita": 1204742.17
+      },
+      "inicio": "2026-07-13",
+      "novo": {
+        "n": 1393,
+        "pct": 55.5866,
+        "receita": 2299921.5
+      },
+      "sem_lead": {
+        "n": 371,
+        "pct": 14.8045,
+        "receita": 600669.32
+      },
+      "total": 2506
+    },
+    "sha256": "4dfaafb5015212310e559d24b4c3c91bff6f3a4c08f68cccbee317fcac54e5c4"
+  },
+  "read_leads_x_whatsapp": {
+    "bytes": 411,
+    "resumo": {
+      "normal": {
+        "saida_total": 19086,
+        "saida_total_data": "2026-08-10",
+        "taxa_entrada": 80.2555,
+        "total_whatsapp": 216039,
+        "total_whatsapp_data": "2026-08-09"
+      },
+      "saida_normal": 19086,
+      "saida_total": 22003,
+      "saida_vip": 2917,
+      "taxa_entrada": 84.7542,
+      "total_leads": 269189,
+      "total_whatsapp": 228149,
+      "vip": {
+        "saida_total": 2917,
+        "saida_total_data": "2026-08-13",
+        "taxa_entrada": 4.4987,
+        "total_whatsapp": 12110,
+        "total_whatsapp_data": "2026-08-13"
+      }
+    },
+    "sha256": "232e43e95b744362d892315456a0f649f5001a45a3c3c9bf5c10d7c0b3e71fea"
+  },
+  "read_meta": {
     "bytes": 111957,
     "resumo": {
       "captacao_por_ad": {
@@ -645,291 +1059,83 @@
     },
     "sha256": "cb3d0fbc9a7c7094e4fb85ee02d6c484775067b951b5586dc9c6abce91da7ae4"
   },
-  "caminho_comprador.read_caminho_comprador": {
-    "bytes": 582348,
+  "read_perfil_por_anuncio": {
+    "bytes": 351,
     "resumo": {
-      "resumo": {
-        "com_grupo": 2391,
-        "com_lead": 1788,
-        "com_pesquisa": 834,
-        "comercial_ia": 80,
-        "pct_comercial_ia": 3.1923,
-        "pct_grupo": 95.411,
-        "pct_lead": 71.3488,
-        "pct_pesquisa": 33.2801,
-        "total": 2506,
-        "vip": 2209
+      "ads": {
+        "__n__": 5,
+        "__sha__": "c4777b7dc3f3009d"
       },
-      "rows": {
-        "__n__": 2506,
-        "__sha__": "3bfb81ea9b4685b5"
-      }
-    },
-    "sha256": "203a5fb4a088fd6e0ed9f29ac0e5d23b4a75ae5a7ecd84b3451da0d130e57191"
-  },
-  "eventos.read_eventos": {
-    "bytes": 7148,
-    "resumo": {
-      "__n__": 33,
-      "__sha__": "dd2b169962ee5a15"
-    },
-    "sha256": "dd2b169962ee5a150c982a79927ab9003e7782ce33ee95a4cc82adeb9672ee49"
-  },
-  "ga4.read_conversao_pagina_captura": {
-    "bytes": 1386,
-    "resumo": {
-      "Captação": {
-        "__n__": 6,
-        "__sha__": "2eda59b57a905c73"
-      },
-      "Pré-Qualificação": {
-        "__n__": 4,
-        "__sha__": "775976c9cf06e0b6"
-      }
-    },
-    "sha256": "36ffda51a77e169a03b81c3efd9a75f334ecac497aa27cc6f796e1fa526a274d"
-  },
-  "ga4.read_landing_pages_por_etapa": {
-    "bytes": 1598,
-    "resumo": {
-      "Captação": {
-        "__n__": 8,
-        "__sha__": "70f9121a7e371a3d"
-      },
-      "Pré-Qualificação": {
-        "__n__": 7,
-        "__sha__": "1ef5700bae3d939b"
-      }
-    },
-    "sha256": "4ad74f713db8c16c5746b9e077f2ac68e1f1f94d79cc74445166e2dfe510a93a"
-  },
-  "launches.read_launch_config": {
-    "bytes": 4113,
-    "resumo": {
-      "__n__": 39,
-      "__sha__": "3c583afb214c9fae"
-    },
-    "sha256": "3c583afb214c9fae1630935ae3c5357fd6e6b81c9eb75d788283671e8b35c60d"
-  },
-  "leads.read_ac_campaigns": {
-    "bytes": 12288,
-    "resumo": {
-      "campanhas": {
-        "__n__": 46,
-        "__sha__": "cefe2fbf2d64f58b"
-      },
-      "has_data": true,
-      "por_dia": {
-        "__n__": 26,
-        "__sha__": "403bae3777b3a1c1"
-      },
-      "total_aberturas": 123824,
-      "total_cliques": 18242,
-      "total_envios": 656781,
-      "tx_abertura_media": 18.8532,
-      "tx_clique_media": 14.7322
-    },
-    "sha256": "78787fea01ade2d109901a7c8bf55525397866ecbd1549083ad7207482ae6328"
-  },
-  "leads.read_ac_leads_for_attribution": {
-    "bytes": 109155901,
-    "resumo": {
-      "__tipo__": "DataFrame",
-      "colunas": {
-        "__n__": 11,
-        "__sha__": "bc1bf780482fcb33"
-      },
-      "linhas": {
-        "__n__": 269202,
-        "__sha__": "d9ec2601a15c1924"
-      }
-    },
-    "sha256": "f4a731215218e22d13db5194037f94a13ccac3d5caa5783fa69bb61138fab341"
-  },
-  "leads.read_ebook_compradores": {
-    "bytes": 705,
-    "resumo": {
-      "com_email": 6400,
-      "compradores": 197,
-      "downloads": 6501,
-      "links": {
-        "__n__": 3,
-        "__sha__": "39ba4d2a320f38db"
-      },
-      "pct_compra": 3.0781,
-      "pct_dos_compradores": 7.8611,
-      "receita": 321878.29,
-      "sem_email": 101,
-      "total_compradores": 2506
-    },
-    "sha256": "3b81d93de116b164aacc9290ab8b62a11cc82313e03671b483cef81fecfe3bf8"
-  },
-  "leads.read_lancamentos_anteriores": {
-    "bytes": 865984,
-    "resumo": {
-      "__n__": 17572,
-      "__sha__": "08e7a95f37bfcc39"
-    },
-    "sha256": "08e7a95f37bfcc397edf1e9b849f38447320341734ce2d5d1e92d56eae8e447d"
-  },
-  "leads.read_leads": {
-    "bytes": 8536,
-    "resumo": {
-      "compradores_rastreados": 0,
-      "compradores_sem_utm": 0,
-      "cpl": 0.0,
-      "emails_rastreados": {
+      "perguntas": {
         "__n__": 0,
         "__sha__": "4f53cda18c2baa0c"
       },
-      "por_canal": {
-        "__n__": 4,
-        "__sha__": "4946afe087767f93"
-      },
-      "por_dia": {
-        "__n__": 65,
-        "__sha__": "49ef53086b64d450"
-      },
-      "por_etapa": {
-        "__n__": 3,
-        "__sha__": "645d703483f3fb2a"
-      },
-      "por_temperatura": {
-        "__n__": 4,
-        "__sha__": "d221f30ba99c5634"
-      },
-      "por_utm_medium": {
-        "cpc": {
-          "conversao": 0.0,
-          "faturamento": 0,
-          "leads": 70110,
-          "medium": "cpc",
-          "vendas": 0
-        },
-        "organic": {
-          "conversao": 0.0,
-          "faturamento": 0,
-          "leads": 853,
-          "medium": "organic",
-          "vendas": 0
-        },
-        "organic_chat": {
-          "conversao": 0.0,
-          "faturamento": 0,
-          "leads": 1342,
-          "medium": "organic_chat",
-          "vendas": 0
-        },
-        "paid": {
-          "conversao": 0.0,
-          "faturamento": 0,
-          "leads": 1507,
-          "medium": "paid",
-          "vendas": 0
-        },
-        "paid_social": {
-          "conversao": 0.0,
-          "faturamento": 0,
-          "leads": 195383,
-          "medium": "paid_social",
-          "vendas": 0
-        },
-        "social": {
-          "conversao": 0.0,
-          "faturamento": 0,
-          "leads": 7,
-          "medium": "social",
-          "vendas": 0
-        }
-      },
-      "por_utm_source": {
-        "facebook": {
-          "conversao": 0.0,
-          "faturamento": 0,
-          "leads": 195382,
-          "source": "facebook",
-          "vendas": 0
-        },
-        "fb": {
-          "conversao": 0.0,
-          "faturamento": 0,
-          "leads": 581,
-          "source": "fb",
-          "vendas": 0
-        },
-        "google": {
-          "conversao": 0.0,
-          "faturamento": 0,
-          "leads": 70110,
-          "source": "google",
-          "vendas": 0
-        },
-        "ig": {
-          "conversao": 0.0,
-          "faturamento": 0,
-          "leads": 806,
-          "source": "ig",
-          "vendas": 0
-        },
-        "instagram": {
-          "conversao": 0.0,
-          "faturamento": 0,
-          "leads": 2191,
-          "source": "instagram",
-          "vendas": 0
-        },
-        "tiktok": {
-          "conversao": 0.0,
-          "faturamento": 0,
-          "leads": 132,
-          "source": "tiktok",
-          "vendas": 0
-        }
-      },
-      "total_compradores": 0,
-      "total_leads": 269202,
-      "tx_conversao": 0.0
+      "total_cruzado": 37533
     },
-    "sha256": "9403711824c0d88d6d23b5886c31061f1217ffba53c24bdbb0a423958d47231c"
+    "sha256": "d52107ef5782d62561d2558ed530d1c55cffe5ae91fb664ebf18abce429da4f8"
   },
-  "leads.read_leads_antigos_compradores": {
-    "bytes": 197,
+  "read_pesquisa_engajamento": {
+    "bytes": 89,
     "resumo": {
-      "antigo": {
-        "n": 742,
-        "pct": 29.6089,
-        "receita": 1204742.17
-      },
-      "inicio": "2026-07-13",
-      "novo": {
-        "n": 1393,
-        "pct": 55.5866,
-        "receita": 2299921.5
-      },
-      "sem_lead": {
-        "n": 371,
-        "pct": 14.8045,
-        "receita": 600669.32
-      },
-      "total": 2506
+      "base_leads": 269189,
+      "respostas": 47140,
+      "respostas_da_base": 39312,
+      "taxa_resposta": 14.6039
     },
-    "sha256": "4dfaafb5015212310e559d24b4c3c91bff6f3a4c08f68cccbee317fcac54e5c4"
+    "sha256": "3fe154e1d4589a42a0d8077eff2c74a1cb4b43ff5aa06cf34bc5f46b07df4c44"
   },
-  "leads.read_recorrencia_lancamento": {
+  "read_qualidade_regiao": {
+    "bytes": 2292,
+    "resumo": {
+      "rows": {
+        "__n__": 27,
+        "__sha__": "99b9ed45426a4dc3"
+      },
+      "tem_invest_meta": true
+    },
+    "sha256": "1d0b4623bb66b875caf75f4ae28949b2b0157427b9736143814c4c70eb6f6087"
+  },
+  "read_recorrencia_lancamento": {
     "bytes": 1176,
     "resumo": {
-      "novos": 58932,
-      "pct_recorrentes": 23.05,
+      "novos": 59008,
+      "pct_recorrentes": 23.16,
       "por_lancamento_anterior": {
         "__n__": 30,
-        "__sha__": "681d9f55e3a236a0"
+        "__sha__": "7e69610151ba8b27"
       },
-      "recorrentes": 17652,
-      "total": 76584
+      "recorrentes": 17783,
+      "total": 76791
     },
-    "sha256": "539253e21fa309b8831b4f0d08e34989c24028c609090c45ddd6e58bd8badc00"
+    "sha256": "4fc9c99e9460ff385328ec64ebc0dbe3e064edc053b010e4b69812f3a010ecdc"
   },
-  "leads.read_term_campaign_map": {
+  "read_retencao_video": {
+    "bytes": 232051,
+    "resumo": {
+      "aulas": {
+        "__n__": 5,
+        "__sha__": "ceb7a8a355c70cf0"
+      },
+      "curvas_js": {
+        "__n__": 5,
+        "__sha__": "f04358ce7061ced7"
+      },
+      "segmentos": {
+        "__n__": 8,
+        "__sha__": "97f347d70a27ed7a"
+      },
+      "tem_pago": false,
+      "totais": {
+        "ctr": 8.45,
+        "impressoes": 515689,
+        "min_por_view": 24.0,
+        "views": 219683,
+        "watch_h": 87899.5
+      }
+    },
+    "sha256": "9187c0a426983b484c91a173bee117c573f86c0967aa0809a2cad7599be11069"
+  },
+  "read_term_campaign_map": {
     "bytes": 1222,
     "resumo": {
       "AD043": "[GA][captação][quente][principal][PI-AGO-26][27.07.26]",
@@ -954,102 +1160,7 @@
     },
     "sha256": "a65cab1c5de13fa316b6bcd816c27a509cc833861b399a011b6aab746cb5f708"
   },
-  "leads.read_utm_cobertura": {
-    "bytes": 47,
-    "resumo": {
-      "com_utm": 238446,
-      "pct": 88.5751,
-      "total": 269202
-    },
-    "sha256": "13ab35ecd3a726727b764166f406655a733cf95d993ea2941a0b6ac1aa914dee"
-  },
-  "leads.read_vendas_por_dia_cadastro": {
-    "bytes": 15884,
-    "resumo": {
-      "por_dia": {
-        "__n__": 330,
-        "__sha__": "0b4a63757ca8adf0"
-      },
-      "sem_data": 681,
-      "total": 2506
-    },
-    "sha256": "6ee952f60232817c0b8b772b69a1b8c1bb8fcb7599735302f2b9063011f705dd"
-  },
-  "sales.read_dia1_sales": {
-    "bytes": 1297,
-    "resumo": {
-      "checkpoints": {
-        "__n__": 14,
-        "__sha__": "4a386afcc837310a"
-      },
-      "data_abertura": "2026-08-13"
-    },
-    "sha256": "c798e0d12d395318324f37fe37e40299e5089b43a2e852147801757ff37d36af"
-  },
-  "sales.read_forma_pagamento_entrada": {
-    "bytes": 64,
-    "resumo": {
-      "rows": {
-        "__n__": 1,
-        "__sha__": "1f609c37e5330d9d"
-      },
-      "total": 874
-    },
-    "sha256": "050a876a54eeed69b3a96dc6c8cdbe926791b0faaf716541234c9b7715c3cfd7"
-  },
-  "sales.read_hotmart_details": {
-    "bytes": 6706,
-    "resumo": {
-      "__n__": 34,
-      "__sha__": "7d92dc6f0df2f09c"
-    },
-    "sha256": "7d92dc6f0df2f09c2c73efd579bd53be511cc8f60b94edb574d12fd43d8100fe"
-  },
-  "sales.read_hotmart_recompra": {
-    "bytes": 600,
-    "resumo": {
-      "boleto": {
-        "nao_recompraram": 38,
-        "pct_recompra": 50.6494,
-        "pessoas": 77,
-        "por_meio": {
-          "__n__": 5,
-          "__sha__": "95f5a49b76674f91"
-        },
-        "recompraram": 39,
-        "transacoes": 82
-      },
-      "cartao": {
-        "nao_recompraram": 77,
-        "pct_recompra": 73.2639,
-        "pessoas": 288,
-        "por_meio": {
-          "__n__": 5,
-          "__sha__": "a4a7968e181f36ca"
-        },
-        "recompraram": 211,
-        "transacoes": 785
-      },
-      "cartao_atrasado": {
-        "pessoas": 449,
-        "transacoes": 2306
-      },
-      "janela": "13/07 a 31/08/2026"
-    },
-    "sha256": "a367f01a13d5cb9cad04773cdcf639f18d9a2f54f08be8a48ca1c35934c90c90"
-  },
-  "sales.read_qualidade_regiao": {
-    "bytes": 2292,
-    "resumo": {
-      "rows": {
-        "__n__": 27,
-        "__sha__": "99b9ed45426a4dc3"
-      },
-      "tem_invest_meta": true
-    },
-    "sha256": "1d0b4623bb66b875caf75f4ae28949b2b0157427b9736143814c4c70eb6f6087"
-  },
-  "sales.read_tmb_details": {
+  "read_tmb_details": {
     "bytes": 3694,
     "resumo": {
       "cidades": {
@@ -1091,7 +1202,29 @@
     },
     "sha256": "bf06d7676436433ea98918a733fd09b4e1f5ab4bc88faaeafb1e9d14f4286bdd"
   },
-  "sales.read_vendas": {
+  "read_typeform": {
+    "bytes": 3323,
+    "resumo": {
+      "__n__": 55,
+      "__sha__": "ce7b8fb2ebddf55a"
+    },
+    "sha256": "ce7b8fb2ebddf55ab1f339274cba246026f9b4db415c0beebae1b77957d506e7"
+  },
+  "read_typeform_count": {
+    "bytes": 5,
+    "resumo": 47140,
+    "sha256": "7d867098ed5ce1e5b9d92676375a84a65328dd3c3c21afbc6932e36547a996da"
+  },
+  "read_utm_cobertura": {
+    "bytes": 47,
+    "resumo": {
+      "com_utm": 238440,
+      "pct": 88.5772,
+      "total": 269189
+    },
+    "sha256": "7a786d376cd5ed6808c0776e633821b415c6e4ab955c58f247b26cec50740424"
+  },
+  "read_vendas": {
     "bytes": 545205,
     "resumo": {
       "canal_por_email": {
@@ -1162,100 +1295,15 @@
     },
     "sha256": "74e3cd0357d4d876b1a6648bdf0b43d4d10da12694bb88b0fc13f79431fb5d68"
   },
-  "sales.read_vendas_consolidado": {
-    "bytes": 2285,
+  "read_vendas_consolidado": {
+    "bytes": 2287,
     "resumo": {
       "__n__": 33,
-      "__sha__": "d0b2842235e3ff66"
+      "__sha__": "1684af50546ed9bb"
     },
-    "sha256": "d0b2842235e3ff661bf41f62182f6008968c4ca9e059ced7f435db207992c2da"
+    "sha256": "1684af50546ed9bbd71cacf0a23f071c71e8d0c1231916ebb9046c46590d64f4"
   },
-  "typeform.read_perfil_por_anuncio": {
-    "bytes": 351,
-    "resumo": {
-      "ads": {
-        "__n__": 5,
-        "__sha__": "58fd1e16ccbce673"
-      },
-      "perguntas": {
-        "__n__": 0,
-        "__sha__": "4f53cda18c2baa0c"
-      },
-      "total_cruzado": 37533
-    },
-    "sha256": "218d36db1dddae8e8ab556f3e3c2c50600221ff3789083a046422328ba3710f4"
-  },
-  "typeform.read_pesquisa_engajamento": {
-    "bytes": 89,
-    "resumo": {
-      "base_leads": 269202,
-      "respostas": 47140,
-      "respostas_da_base": 39314,
-      "taxa_resposta": 14.6039
-    },
-    "sha256": "8092513ea02fac526fe99b9644950d78582f9ed6d32bade53d27f12a59fb1b24"
-  },
-  "typeform.read_typeform": {
-    "bytes": 3323,
-    "resumo": {
-      "__n__": 55,
-      "__sha__": "d90d4246787266cd"
-    },
-    "sha256": "d90d4246787266cd0e8b187890209148fc58f7d9044c2bd47a8d71f5e512826d"
-  },
-  "typeform.read_typeform_count": {
-    "bytes": 5,
-    "resumo": 47140,
-    "sha256": "7d867098ed5ce1e5b9d92676375a84a65328dd3c3c21afbc6932e36547a996da"
-  },
-  "whatsapp_groups.read_compradores_por_dia_grupo": {
-    "bytes": 2939,
-    "resumo": {
-      "captacao": {
-        "total": 2135
-      },
-      "outro": {
-        "total": 177
-      },
-      "pre_quali": {
-        "total": 79
-      },
-      "sem_data": 115,
-      "timeline": {
-        "__n__": 36,
-        "__sha__": "6958e99c00779deb"
-      },
-      "total": 2391
-    },
-    "sha256": "3c7c18cdfa48ddd79ec03274d22598a840a91940a795f75df64a313cebccd94c"
-  },
-  "whatsapp_groups.read_leads_x_whatsapp": {
-    "bytes": 411,
-    "resumo": {
-      "normal": {
-        "saida_total": 19086,
-        "saida_total_data": "2026-08-10",
-        "taxa_entrada": 80.2516,
-        "total_whatsapp": 216039,
-        "total_whatsapp_data": "2026-08-09"
-      },
-      "saida_normal": 19086,
-      "saida_total": 22003,
-      "saida_vip": 2917,
-      "taxa_entrada": 84.7501,
-      "total_leads": 269202,
-      "total_whatsapp": 228149,
-      "vip": {
-        "saida_total": 2917,
-        "saida_total_data": "2026-08-13",
-        "taxa_entrada": 4.4985,
-        "total_whatsapp": 12110,
-        "total_whatsapp_data": "2026-08-13"
-      }
-    },
-    "sha256": "e20f7683f17bae83d937767ad74bd85921b41fe0aa2c1fffbac87620802c87c9"
-  },
-  "whatsapp_groups.read_vendas_grupos_whatsapp": {
+  "read_vendas_grupos_whatsapp": {
     "bytes": 187,
     "resumo": {
       "com_telefone": 2506,
@@ -1271,7 +1319,19 @@
     },
     "sha256": "2035f448090d487cd34aeed95e06300e2b7ce14dc61eab5eeb2d20ba135c5df5"
   },
-  "whatsapp_groups.read_whatsapp_groups": {
+  "read_vendas_por_dia_cadastro": {
+    "bytes": 15884,
+    "resumo": {
+      "por_dia": {
+        "__n__": 330,
+        "__sha__": "d4aa6c1c2bc5ae75"
+      },
+      "sem_data": 682,
+      "total": 2506
+    },
+    "sha256": "7b6e7040fa2092c50a65621240b430ac3bfd0366f9c92c5a4da729f50816d9e9"
+  },
+  "read_whatsapp_groups": {
     "bytes": 38030,
     "resumo": {
       "compradores": {
@@ -1336,20 +1396,7 @@
     },
     "sha256": "12864d9482cc19cc97d2f8b40ff221aa7e18f7584f29039f7e8918b04d7aa50c"
   },
-  "whatsapp_messages.read_disparo_resumo": {
-    "bytes": 155,
-    "resumo": {
-      "custo_total": 55723.11,
-      "janela_aberta": 868386,
-      "marketing": 70336,
-      "taxa_entrega": 96.4508,
-      "total_delivered": 1875852,
-      "total_sent": 1944879,
-      "utilitario": 937126
-    },
-    "sha256": "0279335b4cb93c9d0757c53035c66df9d72d590d1faeb90556900990d878883e"
-  },
-  "whatsapp_messages.read_whatsapp_messages": {
+  "read_whatsapp_messages": {
     "bytes": 6378,
     "resumo": {
       "accounts": {
@@ -1370,54 +1417,7 @@
     },
     "sha256": "5a2c86f6e76f23a0c4fee1283275fba5ea3e59df1f77e38503a7cca9ef229ab0"
   },
-  "youtube_aulas.read_aulas_ao_vivo": {
-    "bytes": 36529,
-    "resumo": {
-      "aulas": {
-        "__n__": 5,
-        "__sha__": "4666ff3b29271d62"
-      },
-      "totais": {
-        "aula_pico_max": 1,
-        "chat_total": 341877,
-        "fonte_manual": true,
-        "minutos_total": 534,
-        "pico_max": 23940,
-        "qtd_aulas": 5,
-        "queda_1_ultima": -87.0,
-        "reacoes_total": 2040147,
-        "retencao_media": 50.1
-      }
-    },
-    "sha256": "bc909520e4c88378a31a6a4657ae70683cdff78723493cbae13ec59bad7c7137"
-  },
-  "youtube_aulas.read_retencao_video": {
-    "bytes": 232051,
-    "resumo": {
-      "aulas": {
-        "__n__": 5,
-        "__sha__": "ceb7a8a355c70cf0"
-      },
-      "curvas_js": {
-        "__n__": 5,
-        "__sha__": "f04358ce7061ced7"
-      },
-      "segmentos": {
-        "__n__": 8,
-        "__sha__": "97f347d70a27ed7a"
-      },
-      "tem_pago": false,
-      "totais": {
-        "ctr": 8.45,
-        "impressoes": 515689,
-        "min_por_view": 24.0,
-        "views": 219683,
-        "watch_h": 87899.5
-      }
-    },
-    "sha256": "9187c0a426983b484c91a173bee117c573f86c0967aa0809a2cad7599be11069"
-  },
-  "youtube_aulas.read_youtube_aulas": {
+  "read_youtube_aulas": {
     "bytes": 20461,
     "resumo": {
       "__n__": 5,

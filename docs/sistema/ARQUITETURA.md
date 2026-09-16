@@ -18,7 +18,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 28 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 30 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -58,14 +58,25 @@ relacionados:
 > - [[ARQUITETURA#2. Fumaça (`-m smoke`) — precisa de banco|2. Fumaça (`-m smoke`) — precisa de banco]]
 > - [[ARQUITETURA#3. Caracterização (`-m caracterizacao`) — precisa de banco|3. Caracterização (`-m caracterizacao`) — precisa de banco]]
 >
+> **Os dois modos da rede de caracterização — e qual vale de fato (2026-09-16)**
+>
+>
+> **A rede de caracterização precisou distinguir rede ruim de regressão (2026-09-16)**
+>
+>
+> **S12 — sales.py dividido por plataforma (2026-09-15)**
+>
+>
 > **S11 — attribution.py dividido por responsabilidade (2026-09-15)**
 >
 >
 > **/debriefing em 500 — snapshot velho aprovado pelo guard de versão (2026-09-15)**
 >
 >
-> **Ordem não determinística no CSV do Caminho do Comprador (2026-09-15)**
+> **Ordem não determinística em listas ordenadas por contagem (2026-09-15)**
 >
+> - [[ARQUITETURA#O mesmo defeito em `read_hotmart_recompra`|O mesmo defeito em `read_hotmart_recompra`]]
+> - [[ARQUITETURA#A regra|A regra]]
 >
 > **Bugs Corrigidos (2026-06-25)**
 >
@@ -455,6 +466,95 @@ python -m pytest tests/test_caracterizacao_readers.py -m caracterizacao
 
 ---
 
+## Os dois modos da rede de caracterização — e qual vale de fato (2026-09-16)
+
+O baseline commitado em `tests/baseline/` **envelhece**, e isso não é defeito: `leads`,
+`ga4` e `typeform` continuam recebendo linhas pelo sincronismo do Active Campaign e do GA4
+mesmo para lançamento encerrado. Um baseline gerado à noite e verificado no dia seguinte
+acusou 9 readers "divergentes" sem nenhuma mudança de código.
+
+Por isso a rede tem dois modos, e é importante não confundi-los:
+
+**Modo A/B (o que vale para aprovar uma refatoração).** Gera o baseline no código **antigo**,
+num worktree do commit anterior, e verifica no código novo minutos depois:
+
+```bash
+git worktree add "$TEMP/antes" <commit-anterior>
+cd "$TEMP/antes" && BASELINE_DIR="$TEMP/base" ATUALIZAR_BASELINE=1     pytest tests/test_caracterizacao_readers.py -m caracterizacao
+cd /c/dev/workspace-mmm && BASELINE_DIR="$TEMP/base"     pytest tests/test_caracterizacao_readers.py -m caracterizacao
+```
+
+Como as duas leituras acontecem com minutos de diferença, o dado não se move, e **toda**
+divergência é do código. Foi assim que S10, S11 e S12 foram validadas — e foi assim que o
+bug das constantes de UF órfãs apareceu.
+
+**Modo tripwire (o baseline commitado).** Serve para acusar mudança acidental no dia a dia.
+Para os readers que acompanham tabelas vivas ele compara só a forma (`VOLATEIS`), porque
+comparar valor contra um baseline de ontem só produziria alarme falso.
+
+**A regra:** divergência no baseline commitado é *suspeita*, não veredicto. Antes de tratar
+como regressão, rode o mesmo reader em dois processos separados — se o digest bate, o código
+é determinístico e o que mudou foi o dado. Se não bate, achou um bug de ordenação (já
+aconteceu duas vezes, ver a seção sobre desempate).
+
+---
+
+## A rede de caracterização precisou distinguir rede ruim de regressão (2026-09-16)
+
+Nas primeiras execuções a rede acusou falha três vezes sem que nada tivesse mudado no código.
+Duas causas, ambas defeito do teste, não do sistema:
+
+**1. Timeout do banco contava como "a saída mudou".** Quando o Supabase fica lento, a consulta
+estoura o `statement_timeout` e o reader levanta. O teste transformava a exceção em resultado e
+comparava com o baseline — acusando regressão onde só houve rede ruim. Numa das noites a suíte
+levou 23 minutos contra os ~5 habituais e 35 testes "falharam".
+
+Agora `caracterizacao_util.e_falha_de_infra` percorre a cadeia de causas (o SQLAlchemy embrulha o
+erro do psycopg2, e a frase reveladora está duas camadas abaixo) e o teste **pula** quando
+reconhece falha de acesso — timeout, conexão fechada, sem slot, deadlock. `KeyError` e
+`AttributeError` continuam sendo falha de verdade: são erros de *como o dado é calculado*, não de
+*chegar até o dado*.
+
+**2. A comparação por forma trocava de representação sozinha.** `resumir` colapsa um dicionário
+assim que ele passa de 30 chaves. Um dicionário aninhado que cruzasse esse limiar por dado novo
+mudava de representação sem nenhuma mudança de código, e o teste acusava "mudou de forma".
+`_forma` passou a ser deliberadamente raso: nomes dos campos de primeiro nível e a espécie de
+cada um.
+
+**Por que isso importa mais do que parece:** uma rede que grita lobo deixa de ser consultada, e
+aí não serve para nada. Se ela vai bloquear um commit, precisa errar para o lado de calar a boca
+quando o problema não é do código.
+
+---
+
+## S12 — sales.py dividido por plataforma (2026-09-15)
+
+`db_readers/sales.py` tinha 1.341 linhas e misturava a venda do lançamento com o detalhe de
+cada plataforma. Virou quatro módulos:
+
+| Módulo | Linhas | Responsabilidade |
+|---|---|---|
+| `sales.py` | ~660 | `read_vendas` (soma Hotmart + TMB na janela do carrinho), consolidado, qualidade por região, dia 1 |
+| `hotmart.py` | ~380 | `read_hotmart_details`, `read_hotmart_recompra` |
+| `tmb.py` | ~200 | `read_tmb_details`, `read_forma_pagamento_entrada` |
+| `_vendas_comum.py` | ~190 | O que os três consultam: `_parcela_unica_info`, `_hm_data_sql`, `_norm_uf`, `_canal_venda`… |
+
+`sales.py` reexporta os outros, então os imports existentes continuam valendo.
+
+`_vendas_comum.py` não é um "utils" genérico: cada peça está ali porque é usada de dois ou três
+lugares, e duplicá-la faria o número da Hotmart divergir do consolidado. O caso mais sensível é
+`_parcela_unica_info`, que decide se a linha é venda à vista, parcelada ou assinatura recorrente
+— critério usado na contagem, no faturamento e no dia 1.
+
+**Um bug meu, pego pela rede.** Na primeira tentativa, `_norm_uf` foi para `_vendas_comum.py` e
+as constantes que ela usa (`_UF_POR_NOME`, `_UFS_VALIDAS`) ficaram em `sales.py`. O teste de
+caracterização acusou 35 readers divergentes — `read_vendas` mudava e o erro se propagava para
+Meta, Google, Hotmart, TMB e dia 1. Sem a rede isso teria ido para produção como estado de
+comprador errado em relatório de região. A varredura de nomes órfãos com `ast` virou parte do
+procedimento de qualquer divisão de módulo daqui pra frente.
+
+---
+
 ## S11 — attribution.py dividido por responsabilidade (2026-09-15)
 
 `services/attribution.py` tinha 859 linhas e três assuntos diferentes. Virou três módulos:
@@ -509,7 +609,7 @@ e falhou 3 de 3 vezes, igual.
 
 ---
 
-## Ordem não determinística no CSV do Caminho do Comprador (2026-09-15)
+## Ordem não determinística em listas ordenadas por contagem (2026-09-15)
 
 **Sintoma:** dois downloads de `/api/caminho-comprador.csv` do mesmo lançamento, sem nenhum
 dado novo no meio, saíam com as linhas em ordem diferente — e portanto pareciam ter mudado.
@@ -528,6 +628,23 @@ Não muda nenhum valor, só torna a ordem reprodutível.
 único divergente entre o código antes e depois de S10. A investigação mostrou que o código
 **antigo** também divergia de si mesmo entre duas execuções — era defeito pré-existente, não
 regressão da refatoração.
+
+### O mesmo defeito em `read_hotmart_recompra`
+
+`por_meio` (Boleto / Pix / Cartão / TMB, na recompra) é montado iterando um `set` de e-mails e
+ordenado só por `qtd`. Com "Boleto" e "Pix" empatados em 1, os dois trocavam de posição entre
+dois carregamentos da página. Corrigido com o mesmo desempate: `key=lambda x: (-x["qtd"], x["meio"])`.
+
+### A regra
+
+**Ordenação por contagem ou por valor precisa de critério de desempate.** `sorted`/`sort_values`
+são estáveis, ou seja, preservam entre os empatados a ordem em que os itens chegaram — e quando
+essa ordem veio de iterar um `set` ou um `dict` montado a partir de um `set`, ela muda a cada
+processo, porque o Python aleatoriza o hash de string. Empate é a regra, não a exceção: preço
+igual, contagem 1, mesma data.
+
+Os dois casos foram achados pelos testes de caracterização, que comparam o resultado inteiro por
+digest — nenhum apareceria numa conferência visual do dashboard.
 
 ---
 

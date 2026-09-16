@@ -1,5 +1,108 @@
 {
-  "ads_google.read_daily_breakdown": {
+  "read_ac_campaigns": {
+    "bytes": 8283,
+    "resumo": {
+      "campanhas": {
+        "__n__": 29,
+        "__sha__": "5a4bbd349530c031"
+      },
+      "has_data": true,
+      "por_dia": {
+        "__n__": 23,
+        "__sha__": "0100350aa90f4b87"
+      },
+      "total_aberturas": 48030,
+      "total_cliques": 4135,
+      "total_envios": 209648,
+      "tx_abertura_media": 22.9098,
+      "tx_clique_media": 8.6092
+    },
+    "sha256": "afa33fc4d91338584a5f649044b426f98e81b115568b02ab4227fdc0008d6f12"
+  },
+  "read_ac_leads_for_attribution": {
+    "bytes": 29068021,
+    "resumo": {
+      "__tipo__": "DataFrame",
+      "colunas": {
+        "__n__": 11,
+        "__sha__": "bc1bf780482fcb33"
+      },
+      "linhas": {
+        "__n__": 76008,
+        "__sha__": "b7179a1ff32a6a77"
+      }
+    },
+    "sha256": "839fd18ddaf64828f2edae5c68b79802030371ad3352eb45c3c492309a34b176"
+  },
+  "read_aulas_ao_vivo": {
+    "bytes": 24,
+    "resumo": {
+      "aulas": {
+        "__n__": 0,
+        "__sha__": "4f53cda18c2baa0c"
+      },
+      "totais": {}
+    },
+    "sha256": "22de53cb72a12fe9407f22370191fbe0545499fa54b71cfee2b056e9d6303ece"
+  },
+  "read_caminho_comprador": {
+    "bytes": 130295,
+    "resumo": {
+      "resumo": {
+        "com_grupo": 508,
+        "com_lead": 368,
+        "com_pesquisa": 120,
+        "comercial_ia": 40,
+        "pct_comercial_ia": 7.3394,
+        "pct_grupo": 93.211,
+        "pct_lead": 67.5229,
+        "pct_pesquisa": 22.0183,
+        "total": 545,
+        "vip": 482
+      },
+      "rows": {
+        "__n__": 545,
+        "__sha__": "f69f7279b2ec97c0"
+      }
+    },
+    "sha256": "59f509dd9decd914eab3be331b60defd61b8554c3e97cff9332a7b2ee631937a"
+  },
+  "read_compradores_por_dia_grupo": {
+    "bytes": 1283,
+    "resumo": {
+      "captacao": {
+        "total": 319
+      },
+      "outro": {
+        "total": 185
+      },
+      "pre_quali": {
+        "total": 4
+      },
+      "sem_data": 37,
+      "timeline": {
+        "__n__": 15,
+        "__sha__": "e46702f2ac01d818"
+      },
+      "total": 508
+    },
+    "sha256": "8f78b6b5b88c88273a1b848de416db883c66e340a9c41661ff14bab2b8d3b0e4"
+  },
+  "read_conversao_pagina_captura": {
+    "bytes": 746,
+    "resumo": {
+      "Captação": {
+        "__n__": 6,
+        "__sha__": "eec108331b66c8a0"
+      },
+      "Pré-Qualificação": {
+        "__n__": 0,
+        "__sha__": "4f53cda18c2baa0c"
+      }
+    },
+    "sha256": "1b5d7a9ab17e39dd4de51fa55587cdb49e4d508cede0434f5e6104ed6fbee010"
+  },
+  "read_daily_breakdown": {
     "bytes": 12769,
     "resumo": {
       "__n__": 2,
@@ -7,7 +110,55 @@
     },
     "sha256": "ac515be13d925838bee6d5f2a8b1ea3e70e87dbdf4dfd302751fad5557ccefa0"
   },
-  "ads_google.read_google": {
+  "read_dia1_sales": {
+    "bytes": 1252,
+    "resumo": {
+      "checkpoints": {
+        "__n__": 14,
+        "__sha__": "5bd0ff0ac32724e9"
+      },
+      "data_abertura": "2026-04-16"
+    },
+    "sha256": "18db942a6f6b750f002635306c61b2e6b792aa48a1f5efa60c9841994e3f3f02"
+  },
+  "read_disparo_resumo": {
+    "bytes": 153,
+    "resumo": {
+      "custo_total": 29485.76,
+      "janela_aberta": 221615,
+      "marketing": 67643,
+      "taxa_entrega": 97.6615,
+      "total_delivered": 570637,
+      "total_sent": 584301,
+      "utilitario": 281378
+    },
+    "sha256": "b8f835bc9dc808a1e4b05bdc90eea9968229cf49c5da0636545956ce3d1f5a03"
+  },
+  "read_ebook_compradores": {
+    "bytes": 4,
+    "resumo": null,
+    "sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+  },
+  "read_eventos": {
+    "bytes": 2,
+    "resumo": {
+      "__n__": 0,
+      "__sha__": "4f53cda18c2baa0c"
+    },
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "read_forma_pagamento_entrada": {
+    "bytes": 64,
+    "resumo": {
+      "rows": {
+        "__n__": 1,
+        "__sha__": "adeb1b6bf6858192"
+      },
+      "total": 168
+    },
+    "sha256": "d4295ca287dd682539a62ced357abfd9563603866af3466c1eb06da33f357618"
+  },
+  "read_google": {
     "bytes": 37441,
     "resumo": {
       "anuncios_por_ad": {
@@ -251,7 +402,146 @@
     },
     "sha256": "d47bd967902c2c30247b4db6d2aa889ebdaadb454f4650dd419cf3f226b96ad4"
   },
-  "ads_meta.read_meta": {
+  "read_hotmart_details": {
+    "bytes": 5204,
+    "resumo": {
+      "__n__": 34,
+      "__sha__": "3e74f32bd75aabce"
+    },
+    "sha256": "3e74f32bd75aabce094c6474f3a0111bfadaf4e2c698a9e1bc995be95a91a4ea"
+  },
+  "read_hotmart_recompra": {
+    "bytes": 454,
+    "resumo": {
+      "boleto": {
+        "nao_recompraram": 18,
+        "pct_recompra": 45.4545,
+        "pessoas": 33,
+        "por_meio": {
+          "__n__": 2,
+          "__sha__": "05d244025eb95bb0"
+        },
+        "recompraram": 15,
+        "transacoes": 37
+      },
+      "cartao": {
+        "nao_recompraram": 34,
+        "pct_recompra": 66.0,
+        "pessoas": 100,
+        "por_meio": {
+          "__n__": 3,
+          "__sha__": "1f2d2768a318f0f7"
+        },
+        "recompraram": 66,
+        "transacoes": 237
+      },
+      "cartao_atrasado": {
+        "pessoas": 89,
+        "transacoes": 300
+      },
+      "janela": "16/03 a 04/05/2026"
+    },
+    "sha256": "e9faa29560f31c3663efaf1251ffe6bcf7549dbf6a1c7ec9f971189b6400f5af"
+  },
+  "read_lancamentos_anteriores": {
+    "bytes": 26000,
+    "resumo": {
+      "__n__": 439,
+      "__sha__": "3cec6cb0193c50ce"
+    },
+    "sha256": "3cec6cb0193c50ce10521736a0719c9eeb41563da85aa1fca4c0316e81eafef1"
+  },
+  "read_landing_pages_por_etapa": {
+    "bytes": 581,
+    "resumo": {
+      "Captação": {
+        "__n__": 6,
+        "__sha__": "94948bcf17aa9c07"
+      },
+      "Pré-Qualificação": {
+        "__n__": 0,
+        "__sha__": "4f53cda18c2baa0c"
+      }
+    },
+    "sha256": "eccc7500045700e58d6150a920e526cfee934c4826453770751e548e46fe51db"
+  },
+  "read_launch_config": {
+    "bytes": 1205,
+    "resumo": {
+      "__n__": 39,
+      "__sha__": "1933e772898e985e"
+    },
+    "sha256": "1933e772898e985ec50c4d1579e41911e9c03f3839afc321fd390db2a74268b3"
+  },
+  "read_leads": {
+    "bytes": 33235,
+    "resumo": {
+      "compradores_rastreados": 0,
+      "compradores_sem_utm": 0,
+      "cpl": 0.0,
+      "emails_rastreados": {
+        "__n__": 0,
+        "__sha__": "4f53cda18c2baa0c"
+      },
+      "por_canal": {
+        "__n__": 75,
+        "__sha__": "ad0aa9ba8924ec60"
+      },
+      "por_dia": {
+        "__n__": 69,
+        "__sha__": "b7ee9fb72f403b7c"
+      },
+      "por_etapa": {
+        "__n__": 1,
+        "__sha__": "c7110f4f8541f19c"
+      },
+      "por_temperatura": {
+        "__n__": 1,
+        "__sha__": "8f5326e6d1e977c5"
+      },
+      "por_utm_medium": {
+        "__n__": 43,
+        "__sha__": "898019640a5bcf80"
+      },
+      "por_utm_source": {
+        "__n__": 90,
+        "__sha__": "a61a954614145f12"
+      },
+      "total_compradores": 0,
+      "total_leads": 76008,
+      "tx_conversao": 0.0
+    },
+    "sha256": "725e35cf184612be721f6faa02c2575f11d08919169c049d9504dbdb3fe96041"
+  },
+  "read_leads_antigos_compradores": {
+    "bytes": 193,
+    "resumo": {
+      "antigo": {
+        "n": 101,
+        "pct": 18.5321,
+        "receita": 161255.64
+      },
+      "inicio": "2026-03-16",
+      "novo": {
+        "n": 325,
+        "pct": 59.633,
+        "receita": 524174.97
+      },
+      "sem_lead": {
+        "n": 119,
+        "pct": 21.8349,
+        "receita": 187601.25
+      },
+      "total": 545
+    },
+    "sha256": "d337da1f6531401a2d56c41f2dda49c8792ff4bead382a1e0e4c28c48d8d2884"
+  },
+  "read_leads_x_whatsapp": {
+    "bytes": 4,
+    "resumo": null,
+    "sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
+  },
+  "read_meta": {
     "bytes": 58651,
     "resumo": {
       "captacao_por_ad": {
@@ -613,289 +903,32 @@
     },
     "sha256": "38cb4aa5e6bd7ed0f5c1c0c9ebe338739e228caa0359b6a66e42c2930a717698"
   },
-  "caminho_comprador.read_caminho_comprador": {
-    "bytes": 130295,
+  "read_perfil_por_anuncio": {
+    "bytes": 346,
     "resumo": {
-      "resumo": {
-        "com_grupo": 508,
-        "com_lead": 368,
-        "com_pesquisa": 120,
-        "comercial_ia": 40,
-        "pct_comercial_ia": 7.3394,
-        "pct_grupo": 93.211,
-        "pct_lead": 67.5229,
-        "pct_pesquisa": 22.0183,
-        "total": 545,
-        "vip": 482
+      "ads": {
+        "__n__": 5,
+        "__sha__": "89bbcae194569e1b"
       },
-      "rows": {
-        "__n__": 545,
-        "__sha__": "f69f7279b2ec97c0"
-      }
-    },
-    "sha256": "59f509dd9decd914eab3be331b60defd61b8554c3e97cff9332a7b2ee631937a"
-  },
-  "eventos.read_eventos": {
-    "bytes": 2,
-    "resumo": {
-      "__n__": 0,
-      "__sha__": "4f53cda18c2baa0c"
-    },
-    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
-  },
-  "ga4.read_conversao_pagina_captura": {
-    "bytes": 746,
-    "resumo": {
-      "Captação": {
-        "__n__": 6,
-        "__sha__": "eec108331b66c8a0"
-      },
-      "Pré-Qualificação": {
-        "__n__": 0,
-        "__sha__": "4f53cda18c2baa0c"
-      }
-    },
-    "sha256": "1b5d7a9ab17e39dd4de51fa55587cdb49e4d508cede0434f5e6104ed6fbee010"
-  },
-  "ga4.read_landing_pages_por_etapa": {
-    "bytes": 581,
-    "resumo": {
-      "Captação": {
-        "__n__": 6,
-        "__sha__": "94948bcf17aa9c07"
-      },
-      "Pré-Qualificação": {
-        "__n__": 0,
-        "__sha__": "4f53cda18c2baa0c"
-      }
-    },
-    "sha256": "eccc7500045700e58d6150a920e526cfee934c4826453770751e548e46fe51db"
-  },
-  "launches.read_launch_config": {
-    "bytes": 1205,
-    "resumo": {
-      "__n__": 39,
-      "__sha__": "1933e772898e985e"
-    },
-    "sha256": "1933e772898e985ec50c4d1579e41911e9c03f3839afc321fd390db2a74268b3"
-  },
-  "leads.read_ac_campaigns": {
-    "bytes": 8283,
-    "resumo": {
-      "campanhas": {
-        "__n__": 29,
-        "__sha__": "5a4bbd349530c031"
-      },
-      "has_data": true,
-      "por_dia": {
-        "__n__": 23,
-        "__sha__": "0100350aa90f4b87"
-      },
-      "total_aberturas": 48030,
-      "total_cliques": 4135,
-      "total_envios": 209648,
-      "tx_abertura_media": 22.9098,
-      "tx_clique_media": 8.6092
-    },
-    "sha256": "afa33fc4d91338584a5f649044b426f98e81b115568b02ab4227fdc0008d6f12"
-  },
-  "leads.read_ac_leads_for_attribution": {
-    "bytes": 29067993,
-    "resumo": {
-      "__tipo__": "DataFrame",
-      "colunas": {
-        "__n__": 11,
-        "__sha__": "bc1bf780482fcb33"
-      },
-      "linhas": {
-        "__n__": 76008,
-        "__sha__": "7d19761bbaddbb43"
-      }
-    },
-    "sha256": "88ab7f436c15654cf34d4f90d0ac172c8eccd9057e8495b0b38345d6993dcd67"
-  },
-  "leads.read_ebook_compradores": {
-    "bytes": 4,
-    "resumo": null,
-    "sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
-  },
-  "leads.read_lancamentos_anteriores": {
-    "bytes": 25369,
-    "resumo": {
-      "__n__": 431,
-      "__sha__": "9b0338580b9d0881"
-    },
-    "sha256": "9b0338580b9d08816ebc69f6d048b21ccde3e045a9ade6ba928b64ede48a0d01"
-  },
-  "leads.read_leads": {
-    "bytes": 33235,
-    "resumo": {
-      "compradores_rastreados": 0,
-      "compradores_sem_utm": 0,
-      "cpl": 0.0,
-      "emails_rastreados": {
+      "perguntas": {
         "__n__": 0,
         "__sha__": "4f53cda18c2baa0c"
       },
-      "por_canal": {
-        "__n__": 75,
-        "__sha__": "ad0aa9ba8924ec60"
-      },
-      "por_dia": {
-        "__n__": 69,
-        "__sha__": "b7ee9fb72f403b7c"
-      },
-      "por_etapa": {
-        "__n__": 1,
-        "__sha__": "c7110f4f8541f19c"
-      },
-      "por_temperatura": {
-        "__n__": 1,
-        "__sha__": "8f5326e6d1e977c5"
-      },
-      "por_utm_medium": {
-        "__n__": 43,
-        "__sha__": "898019640a5bcf80"
-      },
-      "por_utm_source": {
-        "__n__": 90,
-        "__sha__": "a61a954614145f12"
-      },
-      "total_compradores": 0,
-      "total_leads": 76008,
-      "tx_conversao": 0.0
+      "total_cruzado": 8363
     },
-    "sha256": "725e35cf184612be721f6faa02c2575f11d08919169c049d9504dbdb3fe96041"
+    "sha256": "a864c6841efde5ce3c4327b4c3580e9ff4a74200a98e0591457589d2306165a6"
   },
-  "leads.read_leads_antigos_compradores": {
-    "bytes": 193,
+  "read_pesquisa_engajamento": {
+    "bytes": 87,
     "resumo": {
-      "antigo": {
-        "n": 101,
-        "pct": 18.5321,
-        "receita": 161255.64
-      },
-      "inicio": "2026-03-16",
-      "novo": {
-        "n": 325,
-        "pct": 59.633,
-        "receita": 524174.97
-      },
-      "sem_lead": {
-        "n": 119,
-        "pct": 21.8349,
-        "receita": 187601.25
-      },
-      "total": 545
+      "base_leads": 76008,
+      "respostas": 11104,
+      "respostas_da_base": 8651,
+      "taxa_resposta": 11.3817
     },
-    "sha256": "d337da1f6531401a2d56c41f2dda49c8792ff4bead382a1e0e4c28c48d8d2884"
+    "sha256": "e1633a3069d16e5a360c270824d7054684b7c0647d6bb9b5a384ed746522bff0"
   },
-  "leads.read_recorrencia_lancamento": {
-    "bytes": 956,
-    "resumo": {
-      "novos": 467,
-      "pct_recorrentes": 48.0,
-      "por_lancamento_anterior": {
-        "__n__": 25,
-        "__sha__": "22341eb449282420"
-      },
-      "recorrentes": 431,
-      "total": 898
-    },
-    "sha256": "351d365096283e9fecb77e1fa97de4106eccf41f6dc7afcc3bb8af9f635d7774"
-  },
-  "leads.read_term_campaign_map": {
-    "bytes": 22,
-    "resumo": {
-      "AD333": "pbb-abr-26"
-    },
-    "sha256": "20ce2f85473ca5f26bde34a2862fba442accf4bfcb1c7e021527da4f517a5922"
-  },
-  "leads.read_utm_cobertura": {
-    "bytes": 43,
-    "resumo": {
-      "com_utm": 76008,
-      "pct": 100.0,
-      "total": 76008
-    },
-    "sha256": "d3b6b26bfec48888e1422ad85ac2489866720fd843181f4030f46769f338887c"
-  },
-  "leads.read_vendas_por_dia_cadastro": {
-    "bytes": 4003,
-    "resumo": {
-      "por_dia": {
-        "__n__": 83,
-        "__sha__": "2e16b0cc15a16976"
-      },
-      "sem_data": 170,
-      "total": 545
-    },
-    "sha256": "3cb5bbcdd60fb10b814e2d41801a018d682550d3c836939d1f736ffbf84b5465"
-  },
-  "sales.read_dia1_sales": {
-    "bytes": 1252,
-    "resumo": {
-      "checkpoints": {
-        "__n__": 14,
-        "__sha__": "5bd0ff0ac32724e9"
-      },
-      "data_abertura": "2026-04-16"
-    },
-    "sha256": "18db942a6f6b750f002635306c61b2e6b792aa48a1f5efa60c9841994e3f3f02"
-  },
-  "sales.read_forma_pagamento_entrada": {
-    "bytes": 64,
-    "resumo": {
-      "rows": {
-        "__n__": 1,
-        "__sha__": "adeb1b6bf6858192"
-      },
-      "total": 168
-    },
-    "sha256": "d4295ca287dd682539a62ced357abfd9563603866af3466c1eb06da33f357618"
-  },
-  "sales.read_hotmart_details": {
-    "bytes": 5204,
-    "resumo": {
-      "__n__": 34,
-      "__sha__": "3e74f32bd75aabce"
-    },
-    "sha256": "3e74f32bd75aabce094c6474f3a0111bfadaf4e2c698a9e1bc995be95a91a4ea"
-  },
-  "sales.read_hotmart_recompra": {
-    "bytes": 454,
-    "resumo": {
-      "boleto": {
-        "nao_recompraram": 18,
-        "pct_recompra": 45.4545,
-        "pessoas": 33,
-        "por_meio": {
-          "__n__": 2,
-          "__sha__": "05d244025eb95bb0"
-        },
-        "recompraram": 15,
-        "transacoes": 37
-      },
-      "cartao": {
-        "nao_recompraram": 34,
-        "pct_recompra": 66.0,
-        "pessoas": 100,
-        "por_meio": {
-          "__n__": 3,
-          "__sha__": "1f2d2768a318f0f7"
-        },
-        "recompraram": 66,
-        "transacoes": 237
-      },
-      "cartao_atrasado": {
-        "pessoas": 89,
-        "transacoes": 300
-      },
-      "janela": "16/03 a 04/05/2026"
-    },
-    "sha256": "e9faa29560f31c3663efaf1251ffe6bcf7549dbf6a1c7ec9f971189b6400f5af"
-  },
-  "sales.read_qualidade_regiao": {
+  "read_qualidade_regiao": {
     "bytes": 2226,
     "resumo": {
       "rows": {
@@ -906,7 +939,43 @@
     },
     "sha256": "97c2f07c4079c18e370a80689d0fc013d3a9895b53214e0f8942e8173eef502f"
   },
-  "sales.read_tmb_details": {
+  "read_recorrencia_lancamento": {
+    "bytes": 957,
+    "resumo": {
+      "novos": 470,
+      "pct_recorrentes": 48.29,
+      "por_lancamento_anterior": {
+        "__n__": 25,
+        "__sha__": "13aa2c498d1cc251"
+      },
+      "recorrentes": 439,
+      "total": 909
+    },
+    "sha256": "f49942c6591fcce9771e79d191d3c606fe9245275146acf12e9b25afe62367f4"
+  },
+  "read_retencao_video": {
+    "bytes": 44,
+    "resumo": {
+      "aulas": {
+        "__n__": 0,
+        "__sha__": "4f53cda18c2baa0c"
+      },
+      "segmentos": {
+        "__n__": 0,
+        "__sha__": "4f53cda18c2baa0c"
+      },
+      "tem_pago": false
+    },
+    "sha256": "3a8aca5697c82bb358784968ae08b4b4dd465c96750c882034017fd516e5df56"
+  },
+  "read_term_campaign_map": {
+    "bytes": 22,
+    "resumo": {
+      "AD333": "pbb-abr-26"
+    },
+    "sha256": "20ce2f85473ca5f26bde34a2862fba442accf4bfcb1c7e021527da4f517a5922"
+  },
+  "read_tmb_details": {
     "bytes": 2818,
     "resumo": {
       "cidades": {
@@ -948,7 +1017,29 @@
     },
     "sha256": "4d7696efce0096f508e0eb43bff5f1c2f7a60dd3a8736a3c8d3bb447f14c75ef"
   },
-  "sales.read_vendas": {
+  "read_typeform": {
+    "bytes": 4091,
+    "resumo": {
+      "__n__": 55,
+      "__sha__": "836273c840332935"
+    },
+    "sha256": "836273c84033293547dc3721594a542ade7d87e7f3a855f643d3aecd55607599"
+  },
+  "read_typeform_count": {
+    "bytes": 5,
+    "resumo": 11104,
+    "sha256": "dd8c8d131c8f467c5122cdffc1d033c5e1b3215ac7b4ad450133b849cbced9f3"
+  },
+  "read_utm_cobertura": {
+    "bytes": 43,
+    "resumo": {
+      "com_utm": 76008,
+      "pct": 100.0,
+      "total": 76008
+    },
+    "sha256": "d3b6b26bfec48888e1422ad85ac2489866720fd843181f4030f46769f338887c"
+  },
+  "read_vendas": {
     "bytes": 119433,
     "resumo": {
       "canal_por_email": {
@@ -1019,7 +1110,7 @@
     },
     "sha256": "3c76280a20621561885438b5368f2ab387b9be7537b9d8afb2e6fd8b80eefb3c"
   },
-  "sales.read_vendas_consolidado": {
+  "read_vendas_consolidado": {
     "bytes": 4242,
     "resumo": {
       "__n__": 33,
@@ -1027,71 +1118,7 @@
     },
     "sha256": "256090637ab08e1b86994cc6f22ab9bd8770079c5571af3de6de74df4b64c680"
   },
-  "typeform.read_perfil_por_anuncio": {
-    "bytes": 346,
-    "resumo": {
-      "ads": {
-        "__n__": 5,
-        "__sha__": "89bbcae194569e1b"
-      },
-      "perguntas": {
-        "__n__": 0,
-        "__sha__": "4f53cda18c2baa0c"
-      },
-      "total_cruzado": 8363
-    },
-    "sha256": "a864c6841efde5ce3c4327b4c3580e9ff4a74200a98e0591457589d2306165a6"
-  },
-  "typeform.read_pesquisa_engajamento": {
-    "bytes": 87,
-    "resumo": {
-      "base_leads": 76008,
-      "respostas": 11104,
-      "respostas_da_base": 8651,
-      "taxa_resposta": 11.3817
-    },
-    "sha256": "e1633a3069d16e5a360c270824d7054684b7c0647d6bb9b5a384ed746522bff0"
-  },
-  "typeform.read_typeform": {
-    "bytes": 4091,
-    "resumo": {
-      "__n__": 55,
-      "__sha__": "836273c840332935"
-    },
-    "sha256": "836273c84033293547dc3721594a542ade7d87e7f3a855f643d3aecd55607599"
-  },
-  "typeform.read_typeform_count": {
-    "bytes": 5,
-    "resumo": 11104,
-    "sha256": "dd8c8d131c8f467c5122cdffc1d033c5e1b3215ac7b4ad450133b849cbced9f3"
-  },
-  "whatsapp_groups.read_compradores_por_dia_grupo": {
-    "bytes": 1283,
-    "resumo": {
-      "captacao": {
-        "total": 319
-      },
-      "outro": {
-        "total": 185
-      },
-      "pre_quali": {
-        "total": 4
-      },
-      "sem_data": 37,
-      "timeline": {
-        "__n__": 15,
-        "__sha__": "e46702f2ac01d818"
-      },
-      "total": 508
-    },
-    "sha256": "8f78b6b5b88c88273a1b848de416db883c66e340a9c41661ff14bab2b8d3b0e4"
-  },
-  "whatsapp_groups.read_leads_x_whatsapp": {
-    "bytes": 4,
-    "resumo": null,
-    "sha256": "74234e98afe7498fb5daf1f36ac2d78acc339464f950703b8c019892f982b90b"
-  },
-  "whatsapp_groups.read_vendas_grupos_whatsapp": {
+  "read_vendas_grupos_whatsapp": {
     "bytes": 179,
     "resumo": {
       "com_telefone": 545,
@@ -1107,7 +1134,19 @@
     },
     "sha256": "6d0bc39e612046b8b34b5d1e2df3c7508e6e04810ed738c095ccf089d1a36015"
   },
-  "whatsapp_groups.read_whatsapp_groups": {
+  "read_vendas_por_dia_cadastro": {
+    "bytes": 4003,
+    "resumo": {
+      "por_dia": {
+        "__n__": 83,
+        "__sha__": "2e16b0cc15a16976"
+      },
+      "sem_data": 170,
+      "total": 545
+    },
+    "sha256": "3cb5bbcdd60fb10b814e2d41801a018d682550d3c836939d1f736ffbf84b5465"
+  },
+  "read_whatsapp_groups": {
     "bytes": 12453,
     "resumo": {
       "compradores": {
@@ -1168,20 +1207,7 @@
     },
     "sha256": "1754b2e5660c47dbe2d690011d6b191fea02507d80b19fa4272989ae2ed8acce"
   },
-  "whatsapp_messages.read_disparo_resumo": {
-    "bytes": 153,
-    "resumo": {
-      "custo_total": 29485.76,
-      "janela_aberta": 221615,
-      "marketing": 67643,
-      "taxa_entrega": 97.6615,
-      "total_delivered": 570637,
-      "total_sent": 584301,
-      "utilitario": 281378
-    },
-    "sha256": "b8f835bc9dc808a1e4b05bdc90eea9968229cf49c5da0636545956ce3d1f5a03"
-  },
-  "whatsapp_messages.read_whatsapp_messages": {
+  "read_whatsapp_messages": {
     "bytes": 5572,
     "resumo": {
       "accounts": {
@@ -1202,33 +1228,7 @@
     },
     "sha256": "83480a6a20eb6abde34b2272d4c60d1fc93f6f0c7f951544c5a8be285fe17554"
   },
-  "youtube_aulas.read_aulas_ao_vivo": {
-    "bytes": 24,
-    "resumo": {
-      "aulas": {
-        "__n__": 0,
-        "__sha__": "4f53cda18c2baa0c"
-      },
-      "totais": {}
-    },
-    "sha256": "22de53cb72a12fe9407f22370191fbe0545499fa54b71cfee2b056e9d6303ece"
-  },
-  "youtube_aulas.read_retencao_video": {
-    "bytes": 44,
-    "resumo": {
-      "aulas": {
-        "__n__": 0,
-        "__sha__": "4f53cda18c2baa0c"
-      },
-      "segmentos": {
-        "__n__": 0,
-        "__sha__": "4f53cda18c2baa0c"
-      },
-      "tem_pago": false
-    },
-    "sha256": "3a8aca5697c82bb358784968ae08b4b4dd465c96750c882034017fd516e5df56"
-  },
-  "youtube_aulas.read_youtube_aulas": {
+  "read_youtube_aulas": {
     "bytes": 2,
     "resumo": {
       "__n__": 0,

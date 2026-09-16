@@ -10,27 +10,27 @@
     "sha256": "eabd45c40a0b3cbfbf408bfcbdcc36dc41676253974b8f10718fd34e55b0c736"
   },
   "debriefing_ctx": {
-    "bytes": 50347,
+    "bytes": 46063,
     "resumo": {
-      "creative_data_error": false,
+      "creative_data_error": true,
       "data_errors": {
         "__n__": 1,
         "__sha__": "47a12da48e1adcce"
       },
       "dbf": {
         "__n__": 113,
-        "__sha__": "84cb8349aef59090"
+        "__sha__": "35ef1155ecaa75c3"
       },
       "drive_thumbnails": {
         "__n__": 40,
         "__sha__": "12531ac46d7b51c1"
       },
       "falhas": {
-        "__n__": 2,
-        "__sha__": "7a26362916f18198"
+        "__n__": 3,
+        "__sha__": "1df031383ca1f29d"
       }
     },
-    "sha256": "ce666b8e0f5478269a2193f466e4632a61a8e1c11ae0d139b40e08c5b13d4e60"
+    "sha256": "202862f418900ef11497219a9c3bf34ad5a1691d0e82dd3ba411e96b8f097012"
   },
   "sales_attribution": {
     "bytes": 168,

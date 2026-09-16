@@ -47,7 +47,12 @@ load_dotenv(ROOT / ".env")
 # comparação; nos testes ele não deve subir.
 os.environ["PRE_WARM_CACHE"] = "false"
 
-from tests.caracterizacao_util import impressao_digital, normalizar  # noqa: E402
+from tests.caracterizacao_util import (  # noqa: E402
+    _forma,
+    e_falha_de_infra,
+    impressao_digital,
+    normalizar,
+)
 
 # Permite apontar o baseline para fora da árvore: é assim que se compara o
 # código de antes e o de depois de uma refatoração, gerando o baseline num
@@ -71,34 +76,51 @@ IGNORADOS = {
 
 # Readers cujo valor legitimamente muda com o tempo, mesmo para um lançamento
 # já encerrado: leem tabelas que continuam recebendo linhas (sendflow/WhatsApp,
-# formulários do sistema novo, sincronismo do Active Campaign) ou devolvem
+# formulários do sistema novo, sincronismo do Active Campaign, GA4) ou devolvem
 # totais globais, não recortados pela janela do lançamento.
 #
-# Medido, não chutado: duas execuções a ~15 min de distância divergiram nestes
-# e em nenhum outro. Chamados duas vezes seguidas, com o cache limpo entre elas,
-# todos devolvem exatamente o mesmo resultado — ou seja, o código é
-# determinístico; o que muda é o dado.
+# Medido, não chutado. Dois critérios, e a diferença entre eles importa:
 #
-# Para eles o teste exige só que a FORMA da resposta continue a mesma (mesmos
-# campos, sem exceção nova), que é o que uma refatoração pode quebrar.
+#   1. O CÓDIGO é determinístico — chamados duas vezes em processos separados
+#      (seed de hash diferente), todos devolvem o mesmo digest. Já achamos dois
+#      casos em que NÃO era, e eram bugs de verdade: ver a seção de ordenação
+#      sem desempate em docs/sistema/ARQUITETURA.md.
+#   2. O DADO muda sozinho. A primeira leva foi medida numa janela de ~15 min;
+#      a segunda (marcada abaixo) só apareceu quando o baseline passou a noite
+#      e foi verificado no dia seguinte — 18h de sincronismo do AC e do GA4.
+#
+# Para eles o teste exige só que a FORMA da resposta continue a mesma. A
+# comparação por VALOR desses readers ainda existe, mas no modo A/B: gerar o
+# baseline no código antigo (worktree) e verificar no novo minutos depois, que
+# é como as refatorações S10-S12 foram validadas de fato.
 VOLATEIS = {
-    "leads.read_lancamentos_anteriores",
-    "leads.read_leads",
-    "leads.read_recorrencia_lancamento",
-    "leads.read_utm_cobertura",
-    "sales.read_qualidade_regiao",
-    "sales.read_vendas_consolidado",
-    "typeform.read_pesquisa_engajamento",
-    "typeform.read_typeform",
-    "typeform.read_typeform_count",
-    "whatsapp_groups.read_compradores_por_dia_grupo",
-    "whatsapp_groups.read_leads_x_whatsapp",
-    "whatsapp_groups.read_vendas_grupos_whatsapp",
-    "whatsapp_groups.read_whatsapp_groups",
-    "whatsapp_messages.read_disparo_resumo",
-    "whatsapp_messages.read_whatsapp_messages",
-    "youtube_aulas.read_aulas_ao_vivo",
-    "youtube_aulas.read_retencao_video",
+    "read_lancamentos_anteriores",
+    "read_leads",
+    "read_recorrencia_lancamento",
+    "read_utm_cobertura",
+    "read_qualidade_regiao",
+    "read_vendas_consolidado",
+    "read_pesquisa_engajamento",
+    "read_typeform",
+    "read_typeform_count",
+    "read_compradores_por_dia_grupo",
+    "read_leads_x_whatsapp",
+    "read_vendas_grupos_whatsapp",
+    "read_whatsapp_groups",
+    "read_disparo_resumo",
+    "read_whatsapp_messages",
+    "read_aulas_ao_vivo",
+    "read_retencao_video",
+    # Medidos em 16/09/26, depois de o baseline passar a noite: estáveis entre
+    # processos, divergentes do baseline de 18h antes.
+    "read_caminho_comprador",
+    "read_conversao_pagina_captura",
+    "read_landing_pages_por_etapa",
+    "read_ac_campaigns",
+    "read_ac_leads_for_attribution",
+    "read_ebook_compradores",
+    "read_vendas_por_dia_cadastro",
+    "read_perfil_por_anuncio",
 }
 
 # Nomes de parâmetro que recebem o código do lançamento.
@@ -149,29 +171,6 @@ def launches_por_codigo() -> dict:
     return {lan.code: lan for lan in discover_launches()}
 
 
-def _forma(resumo: Any) -> Any:
-    """Só a estrutura de ``resumo``: nomes de campo e tipos, sem os valores.
-
-    É o que se exige de um reader volátil — que continue devolvendo os mesmos
-    campos, com os mesmos tipos, depois da refatoração.
-    """
-    if isinstance(resumo, dict):
-        # __n__/__sha__ descrevem uma coleção: a contagem varia com o dado, o
-        # que importa é que continue sendo uma coleção.
-        if "__sha__" in resumo:
-            return "<coleção>"
-        return {k: _forma(v) for k, v in sorted(resumo.items())}
-    if isinstance(resumo, bool):
-        return "<bool>"
-    if isinstance(resumo, (int, float)):
-        return "<número>"
-    if isinstance(resumo, str):
-        return "<texto>"
-    if resumo is None:
-        return "<nulo>"
-    return f"<{type(resumo).__name__}>"
-
-
 def _caminho_baseline(codigo: str) -> Path:
     return BASELINE_DIR / f"{codigo}.json"
 
@@ -204,6 +203,15 @@ def test_descobriu_readers():
     )
 
 
+def test_nome_de_reader_e_unico():
+    """O baseline é indexado pelo nome da função, então dois módulos não podem
+    definir o mesmo ``read_*`` — um sobrescreveria o baseline do outro."""
+    from collections import Counter
+
+    repetidos = [n for n, c in Counter(f for _, f, _ in READERS).items() if c > 1]
+    assert not repetidos, f"nome de reader duplicado entre módulos: {repetidos}"
+
+
 @pytest.mark.caracterizacao
 @pytest.mark.parametrize("codigo", LANCAMENTOS)
 @pytest.mark.parametrize(
@@ -219,11 +227,18 @@ def test_saida_do_reader_nao_mudou(
         pytest.skip(f"lançamento {codigo} não existe no banco")
 
     fn = getattr(importlib.import_module(f"frontend.db_readers.{modulo}"), funcao)
-    chave = f"{modulo}.{funcao}"
+    # Indexado pelo NOME DA FUNÇÃO, não por módulo.função: mover um reader de
+    # arquivo é justamente o que este teste precisa conseguir verificar, e com
+    # a chave amarrada ao módulo ele pularia em vez de comparar.
+    chave = funcao
 
     try:
         saida = normalizar(fn(launch if precisa_launch else codigo))
     except Exception as e:  # noqa: BLE001 — a exceção também é comportamento
+        motivo = e_falha_de_infra(e)
+        if motivo:
+            # Banco fora do ar ou lento demais não é regressão: pular, não falhar.
+            pytest.skip(f"falha de infraestrutura ({motivo}); nada a comparar")
         saida = {"__excecao__": f"{type(e).__name__}: {e}"}
 
     obtido = impressao_digital(saida)

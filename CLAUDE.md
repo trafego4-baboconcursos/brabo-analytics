@@ -29,7 +29,11 @@ python etl/run_all.py --since 2026-04-01 --until 2026-04-30 --only meta_ads
 python etl/scheduler.py
 ```
 
-### ETL — via CSV (manual exports)
+### ETL — via CSV (plano B, não o fluxo normal)
+Todo lançamento novo entra pela API. Este modo existe para quando a API de uma
+plataforma está fora no meio de um lançamento e o dado precisa subir pelo export
+manual — foi assim que o projeto começou, e continua disponível por isso.
+Lançamentos a partir de PBB-JUN-26 não têm CSV nas pastas de `analises/`.
 ```bash
 python etl/run_all.py --csv-mode --campaign-folder "analises/[PBB-ABR-26]" --period 2026-04
 ```
@@ -56,7 +60,7 @@ etl/ (ETL scripts)
       ↓
 Supabase (two DBs)
       ↓
-frontend/database_reader.py (reads DB + CSVs)
+frontend/db_readers/*.py (one module per domain)
       ↓
 frontend/app.py (FastAPI + Jinja2 → HTML pages)
 ```
@@ -75,14 +79,19 @@ The frontend auto-discovers launches by querying `dim_lancamentos` in the analyt
 
 ### Frontend (`frontend/`)
 - `app.py` — FastAPI app: routes, auth middleware, session signing, data aggregation logic
-- `database_reader.py` — all DB queries and CSV reads; returns typed dataclasses to routes
+- `db_readers/` — all DB queries, one module per domain (sales, hotmart, tmb, leads, ads_meta,
+  ads_google, typeform, launches, comparativo, …); returns typed dataclasses to routes.
+  `database_reader.py` was removed on 2026-09-15 — import from `frontend.db_readers`
 - `calendar_parser.py` — parses launch calendar HTML
+- O frontend lê tudo do banco. A única exceção é um fallback em
+  `db_readers/typeform.py`, que recupera o estado do respondente do CSV local em 6
+  lançamentos de jan–mai/26 (ver `docs/projetos/BACKFILL_ESTADO_TYPEFORM.md`)
 - `templates/` — Jinja2 HTML templates (one per page)
 
 Session auth uses HMAC-signed cookies. Roles: `admin > analista > trafego > leitura`. Product-scoped access (each user sees only their assigned products).
 
 ### ETL (`etl/`)
-- `run_all.py` — orchestrator, accepts API mode or CSV mode
+- `run_all.py` — orchestrator, accepts API mode or CSV mode (CSV = plano B, see above)
 - `etl_meta_ads.py`, `etl_google_ads.py`, `etl_active_campaign.py` — individual ETL scripts, each supports `--since/--until` (API mode) or `--from-csv` (CSV mode)
 - `etl_typeform.py` — no longer wired into `run_all.py`/`scheduler.py` (Typeform account was cancelled); `typeform_respostas` reads now come from a one-time Supabase backup (`typeform_respostas_backup`, `typeform_respostas_backup_2`, `typeform_forms`, `typeform_forms_2`) via `frontend/db_readers/typeform.py`. The script still exists for a manual one-off run if the token is ever valid again.
 - `scheduler.py` — runs `run_all.py` every hour with a rolling 3-day window
@@ -121,7 +130,9 @@ analises/
     ...
 ```
 
-The v2 dashboard reads CSVs directly from these subfolders; v1 static HTML reports are legacy and served as-is via `/analises` static mount.
+These CSVs are the exports from the launch's era. The v2 dashboard reads from the database,
+not from here — the single exception is the Typeform state fallback noted above. v1 static
+HTML reports are legacy and served as-is via the `/analises` static mount.
 
 ## Documentation (`docs/`)
 

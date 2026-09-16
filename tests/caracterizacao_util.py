@@ -138,3 +138,81 @@ def impressao_digital(valor: Any) -> dict:
         "bytes": len(texto),
         "resumo": resumir(valor),
     }
+
+
+# ── Falha de infraestrutura × mudança de comportamento ─────────────────────────
+#
+# Quando o Supabase está lento, a consulta estoura o statement_timeout e o reader
+# levanta. Se o teste tratasse isso como "a saída mudou", acusaria regressão onde
+# só houve rede ruim — e uma rede que grita lobo deixa de ser consultada.
+# Aconteceu três vezes em 15/09/26, inclusive numa execução que levou 23 min
+# contra os ~5 habituais.
+#
+# Estes são erros de *chegar até o dado*, nunca de *como o dado é calculado*:
+# um KeyError ou um AttributeError continuam sendo falha de verdade.
+_SINAIS_DE_INFRA = (
+    "statement timeout",
+    "canceling statement",
+    "server closed the connection",
+    "connection already closed",
+    "could not connect",
+    "connection refused",
+    "connection reset",
+    "ssl connection has been closed",
+    "timeout expired",
+    "too many connections",
+    "remaining connection slots",
+    "deadlock detected",
+    "terminating connection",
+)
+
+
+def e_falha_de_infra(e: BaseException) -> str | None:
+    """Devolve o motivo se ``e`` for falha de acesso ao banco, senão ``None``.
+
+    Percorre a cadeia de causas porque o SQLAlchemy embrulha o erro do
+    psycopg2, e a frase reveladora costuma estar duas camadas abaixo.
+    """
+    vistos = set()
+    atual: BaseException | None = e
+    while atual is not None and id(atual) not in vistos:
+        vistos.add(id(atual))
+        texto = f"{type(atual).__name__}: {atual}".lower()
+        for sinal in _SINAIS_DE_INFRA:
+            if sinal in texto:
+                return sinal
+        atual = atual.__cause__ or atual.__context__
+    return None
+
+
+# ── Comparação por forma, para as saídas que mudam de valor sozinhas ───────────
+
+def _especie(valor: Any) -> str:
+    """Que tipo de coisa é ``valor``, sem olhar o conteúdo."""
+    if isinstance(valor, dict):
+        return "<coleção>"
+    if isinstance(valor, bool):
+        return "<bool>"
+    if isinstance(valor, (int, float)):
+        return "<número>"
+    if isinstance(valor, str):
+        return "<texto>"
+    if valor is None:
+        return "<nulo>"
+    return f"<{type(valor).__name__}>"
+
+
+def _forma(resumo: Any) -> Any:
+    """Estrutura de primeiro nível: nomes dos campos e a espécie de cada um.
+
+    É o que se exige de um reader volátil — que continue devolvendo os mesmos
+    campos, das mesmas espécies, depois da refatoração.
+
+    Deliberadamente raso. ``resumir`` colapsa um dicionário assim que ele passa
+    de 30 chaves, então uma comparação profunda trocaria de representação
+    sozinha quando um dicionário aninhado cruzasse esse limiar por dado novo —
+    e acusaria "mudou de forma" sem nenhuma mudança de código. Já aconteceu.
+    """
+    if not isinstance(resumo, dict) or "__sha__" in resumo:
+        return _especie(resumo)
+    return {k: _especie(v) for k, v in sorted(resumo.items())}

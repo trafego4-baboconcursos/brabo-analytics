@@ -3,9 +3,9 @@
    badge (pedido do usuário 16/09/26, primeiro no Debriefing, depois
    estendido pras outras páginas). Mesmo tamanho de .dbf-launch-badge/
    .bs-sec-tag — CSS compartilhado em base.html.
-   Ícone fica num círculo branco (.dbf-plat-badge-dot), colorido com a
-   cor da própria plataforma — não branco em cima do fundo colorido do
-   badge (pedido do usuário 16/09/26, com desenho).
+   Ícone branco em cima do fundo colorido (mesma cor do texto) — círculo
+   branco atrás do ícone foi tentado e revertido a pedido do usuário
+   (16/09/26).
    Arquivo próprio SEM {% extends %} — importar macro de um template que
    estende base.html dispara o render do template inteiro (mesmo motivo
    de _macros_verba.html). #}
@@ -17,4 +17,4 @@
   "WhatsApp":        {"icon": "ti-brand-whatsapp", "bg": "var(--whatsapp-color)"},
   "Active Campaign": {"icon": "ti-mail",           "bg": "var(--ac-color)"},
 } %}
-{% macro plat_badge(nome) %}{% set p = _PLAT_BADGE.get(nome) %}{% if p %}<span class="dbf-plat-badge" style="background:{{ p.bg }}"><span class="dbf-plat-badge-dot"><i class="ti {{ p.icon }}" style="color:{{ p.bg }}"></i></span>{{ nome }}</span>{% endif %}{% endmacro %}
+{% macro plat_badge(nome) %}{% set p = _PLAT_BADGE.get(nome) %}{% if p %}<span class="dbf-plat-badge" style="background:{{ p.bg }}"><i class="ti {{ p.icon }}"></i>{{ nome }}</span>{% endif %}{% endmacro %}

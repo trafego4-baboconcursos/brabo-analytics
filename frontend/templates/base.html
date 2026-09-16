@@ -489,13 +489,17 @@ html[data-bs-theme="aranhaverso"] .bs-web-spokes {
 .bs-sec-orig { display:inline-flex; flex-wrap:wrap; align-items:center; gap:6px 10px; }
 .bs-sec-badges { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
 /* Badge de plataforma (logo + nome) no título — ver _macros_platform.html
-   ::plat_badge(). Mesmo tamanho de .bs-sec-tag/.dbf-launch-badge. */
+   ::plat_badge(). Mesmo tamanho de .bs-sec-tag/.dbf-launch-badge.
+   !important no ícone: .dbf-section-title i (debriefing.html) pinta
+   qualquer <i> descendente com var(--bs-accent) em 17px — sem isso, o
+   ícone do badge seguia a cor do lançamento (às vezes sumindo de vez,
+   se a cor bater com o fundo do badge) em vez de ficar sempre branco. */
 .dbf-plat-badge {
   display:inline-flex; align-items:center; gap:4px;
   font-size:11px; font-weight:700; padding:2px 8px;
   border-radius:20px; color:#fff; letter-spacing:.04em;
 }
-.dbf-plat-badge i { font-size:12px; }
+.dbf-plat-badge i { font-size:12px !important; color:#fff !important; }
 .collapsed > .section-title, .collapsed > .dbf-section-title { margin-bottom:0; border-bottom-color:var(--bs-border); }
 .collapsed > .section-title .bs-chevron, .collapsed > .dbf-section-title .bs-chevron { transform:translateY(-50%) rotate(-90deg); }
 .collapsed > *:not(.section-title):not(.dbf-section-title) { display:none !important; }

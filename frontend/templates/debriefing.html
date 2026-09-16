@@ -13,6 +13,20 @@
   cursor: pointer; user-select: none;
 }
 .dbf-section-title i { color: var(--bs-accent); font-size: 17px; }
+/* ── Cabeçalho — badge do lançamento (apagado) + pontinho de atualização ── */
+.dbf-hdr-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 3px; }
+.dbf-hdr-badge {
+  font-size: 12px; font-weight: 600; color: var(--bs-ink-subtle);
+  background: var(--bs-surface); border: 1px solid var(--bs-border);
+  border-radius: 999px; padding: 3px 10px; line-height: 1.3;
+}
+.dbf-hdr-fresh {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 12px; color: var(--bs-ink-muted); font-weight: 600; cursor: help;
+}
+.dbf-hdr-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.dbf-hdr-dot.fresh { background: var(--bs-success); box-shadow: 0 0 0 3px var(--bs-success-bg); }
+.dbf-hdr-dot.stale { background: var(--bs-danger); box-shadow: 0 0 0 3px var(--bs-danger-bg); }
 /* Recolher/expandir, reordenar, ocultar e tags agora são genéricos —
    ver o accordion em base.html (reconhece .dbf-section/.dbf-section-title
    junto com .section/.section-title). O JS insere a barra de controles
@@ -44,6 +58,14 @@
   letter-spacing: .04em;
 }
 .dbf-launch-badge.prev { background: var(--bs-ink-subtle); }
+/* Badge de plataforma no título — mesmo tamanho do launch-badge/etapa,
+   ver debriefing/_macros.html::plat_badge(). */
+.dbf-plat-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 11px; font-weight: 700; padding: 2px 8px;
+  border-radius: 20px; color: #fff; letter-spacing: .04em;
+}
+.dbf-plat-badge i { font-size: 12px; }
 
 /* ── Sem dados banner ─────────────────────────────────────────── */
 .dbf-sem-dados {
@@ -547,7 +569,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
 {# sem_dados/thumb_th/thumb_td vivem em debriefing/_macros.html porque os
    fragmentos de seção carregados sob demanda (debriefing/_secao_*.html)
    também precisam delas. #}
-{% from "debriefing/_macros.html" import sem_dados, thumb_th, thumb_td, ad_label with context %}
+{% from "debriefing/_macros.html" import sem_dados, thumb_th, thumb_td, ad_label, plat_badge with context %}
 {% set has_thumbs = drive_thumbnails is defined and drive_thumbnails | length > 0 %}
 {# Domínio das landing pages por produto — o GA4 só guarda o caminho
    (ex: /projeto-bb-fev-26-v5-pq-fb), sem host. #}
@@ -614,7 +636,17 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
     <img src="/img/logo-b-brabo-concursos.png" alt="Brabo">
     <div>
       <h1>Debriefing{% if launch %} — {{ launch.code }}{% endif %}</h1>
-      <p>{% if launch %}{{ launch.name }}{% endif %}{% if dbf.has_prev %} · comparativo vs {{ dbf.prev_code }}{% endif %}{% if snapshot_label %} · <span title="Dados pré-calculados pelo último aquecimento (boot ou fim da rodada do ETL). Acrescente ?ao_vivo=1 na URL para recalcular agora.">dados de {{ snapshot_label }}</span>{% endif %}</p>
+      <div class="dbf-hdr-meta">
+        {% if launch %}
+        <span class="dbf-hdr-badge">{{ launch.name }}{% if dbf.has_prev %} · vs {{ dbf.prev_code }}{% endif %}</span>
+        {% endif %}
+        {% if snapshot_label %}
+        <span class="dbf-hdr-fresh" title="Dados pré-calculados pelo último aquecimento (boot ou fim da rodada do ETL). Acrescente ?ao_vivo=1 na URL para recalcular agora.">
+          <span class="dbf-hdr-dot {{ 'fresh' if snapshot_fresh else 'stale' }}"></span>
+          Atualizado {{ snapshot_label }}
+        </span>
+        {% endif %}
+      </div>
     </div>
   </div>
 
@@ -1027,8 +1059,8 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <!-- Detalhamento por Dia de Captação -->
   {% if dbf.detalhamento_semanas %}
   <div class="dbf-section">
-    <div class="dbf-section-title">
-      <i class="ti ti-calendar-stats"></i> Detalhamento por Dia de Captação
+    <div class="dbf-section-title" data-tag="Captação">
+      <i class="ti ti-calendar-stats"></i> Detalhamento por Dia
       {% if launch %}<span class="dbf-launch-badge">{{ launch.code }}</span>{% endif %}
       {% if dbf.has_prev %}<span class="dbf-launch-badge prev">{{ dbf.prev_code }}</span>{% endif %}
     </div>
@@ -1233,7 +1265,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.prequali_invest and dbf.prequali_invest.total > 0 %}
   <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-target-arrow"></i> Investimento em Pré-Qualificação</div>
+    <div class="dbf-section-title" data-tag="Pré-Quali"><i class="ti ti-target-arrow"></i> Investimento</div>
     {% set preq_dates = [dbf.prequali_invest.meta.data_inicio, dbf.prequali_invest.google.data_inicio] | select | unique | list %}
     {% if preq_dates %}<div class="note" style="margin-bottom:10px">Início: {{ preq_dates | map('br_date') | join(' / ') }}</div>{% endif %}
     <div class="table-wrap" data-no-filter>
@@ -1376,7 +1408,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   {% if dbf.antigo_novo and dbf.antigo_novo.get('Pré-Qualificação') %}
   {% set g = dbf.antigo_novo['Pré-Qualificação'] %}
   <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-recycle"></i> Novos × Antigos — Pré-Qualificação</div>
+    <div class="dbf-section-title" data-tag="Pré-Quali"><i class="ti ti-recycle"></i> Novos × Antigos</div>
     <div class="table-wrap">
       <table class="dbf-table">
         <thead>
@@ -1435,7 +1467,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.top_ads_prequali and dbf.top_ads_prequali.combinado %}
   <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-trophy"></i> Top 5 Melhores Ads — Pré-Qualificação (Meta + Google)</div>
+    <div class="dbf-section-title" data-tag="Pré-Quali"><i class="ti ti-trophy"></i> Top 5 Melhores Ads {{ plat_badge("Meta") }}{{ plat_badge("Google") }}</div>
     {{ top_ads_table(dbf.top_ads_prequali.combinado, '#6b7280') }}
     <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
       Investimento/leads somados por código ADxxx entre as duas plataformas; vendas por atribuição UTM (mesmo código).
@@ -1448,7 +1480,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.preq_top_ads and dbf.preq_top_ads.meta %}
   <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-trophy"></i> Top 5 Melhores Ads — Pré-Qualificação (Meta)</div>
+    <div class="dbf-section-title" data-tag="Pré-Quali"><i class="ti ti-trophy"></i> Top 5 Melhores Ads {{ plat_badge("Meta") }}</div>
     <div class="table-wrap">
       <table class="dbf-table">
         <thead>
@@ -1487,7 +1519,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.preq_top_ads and dbf.preq_top_ads.google %}
   <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-trophy"></i> Top 5 Melhores Ads — Pré-Qualificação (YouTube)</div>
+    <div class="dbf-section-title" data-tag="Pré-Quali"><i class="ti ti-trophy"></i> Top 5 Melhores Ads {{ plat_badge("YouTube") }}</div>
     <div class="table-wrap">
       <table class="dbf-table">
         <thead>
@@ -1526,7 +1558,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.preq_top_ads and dbf.preq_top_ads.tiktok %}
   <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-trophy"></i> Top 3 Melhores Ads — Pré-Qualificação (TikTok)</div>
+    <div class="dbf-section-title" data-tag="Pré-Quali"><i class="ti ti-trophy"></i> Top 3 Melhores Ads {{ plat_badge("TikTok") }}</div>
     <div class="table-wrap">
       <table class="dbf-table">
         <thead>
@@ -1561,7 +1593,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.landing_pages_preq %}
   <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-world"></i> Landing Pages que Mais Converteram — Pré-Qualificação</div>
+    <div class="dbf-section-title" data-tag="Pré-Quali"><i class="ti ti-world"></i> Landing Pages que Mais Converteram</div>
     <div class="table-wrap" data-no-filter>
       <table class="dbf-table">
         <thead>
@@ -1595,7 +1627,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.leads_detail_table and (dbf.leads_detail_table | sum(attribute='vendas')) > 0 %}
   <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-chart-bar"></i> Detalhamento da Captação</div>
+    <div class="dbf-section-title" data-tag="Captação"><i class="ti ti-chart-bar"></i> Detalhamento</div>
     <div class="pub-chart-wrap" style="height:320px">
       <canvas id="captacaoDetalheChart"></canvas>
     </div>
@@ -1688,7 +1720,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <!-- 4. LEADS POR PÚBLICO — CAPTAÇÃO                           -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-users"></i> Leads por Público — Captação</div>
+    <div class="dbf-section-title" data-tag="Captação"><i class="ti ti-users"></i> Leads por Público</div>
 
     {% if dbf.leads_detail_table and (dbf.leads_detail_table | sum(attribute='gasto')) > 0 %}
     <div class="table-wrap">
@@ -1748,7 +1780,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   {% if dbf.antigo_novo and dbf.antigo_novo.get('Captação') %}
   {% set g = dbf.antigo_novo['Captação'] %}
   <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-recycle"></i> Novos × Antigos — Captação</div>
+    <div class="dbf-section-title" data-tag="Captação"><i class="ti ti-recycle"></i> Novos × Antigos</div>
     <div class="table-wrap">
       <table class="dbf-table">
         <thead>
@@ -1801,7 +1833,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.top_ads_captacao and dbf.top_ads_captacao.combinado %}
   <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-trophy"></i> Top 5 Melhores Ads — Captação (Meta + Google)</div>
+    <div class="dbf-section-title" data-tag="Captação"><i class="ti ti-trophy"></i> Top 5 Melhores Ads {{ plat_badge("Meta") }}{{ plat_badge("Google") }}</div>
     {{ top_ads_table(dbf.top_ads_captacao.combinado, '#6b7280') }}
     <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
       Investimento/leads somados por código ADxxx entre as duas plataformas; vendas por atribuição UTM (mesmo código).
@@ -1814,7 +1846,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.top_ads_captacao and dbf.top_ads_captacao.meta %}
   <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-brand-meta"></i> Top 5 Melhores Ads — Captação (Meta)</div>
+    <div class="dbf-section-title" data-tag="Captação"><i class="ti ti-trophy"></i> Top 5 Melhores Ads {{ plat_badge("Meta") }}</div>
     {{ top_ads_table(dbf.top_ads_captacao.meta, 'var(--meta-color)') }}
   </div>
   {% endif %}
@@ -1824,7 +1856,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.top_ads_captacao and dbf.top_ads_captacao.google %}
   <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-brand-youtube"></i> Top 5 Melhores Ads — Captação (YouTube)</div>
+    <div class="dbf-section-title" data-tag="Captação"><i class="ti ti-trophy"></i> Top 5 Melhores Ads {{ plat_badge("YouTube") }}</div>
     {{ top_ads_table(dbf.top_ads_captacao.google, 'var(--google-color)') }}
   </div>
   {% endif %}
@@ -1833,7 +1865,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <!-- 4b. DETALHAMENTO DOS PÚBLICOS — categoria de adset (Meta)  -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-users-group"></i> Detalhamento dos Públicos — Captação (Meta)</div>
+    <div class="dbf-section-title" data-tag="Captação"><i class="ti ti-users-group"></i> Detalhamento dos Públicos {{ plat_badge("Meta") }}</div>
     {% if dbf.publicos_captacao %}
     <div class="dbf-publicos-stack">
       {% for clima, pubs in dbf.publicos_captacao.items() %}
@@ -1881,7 +1913,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <!-- 4b0. DETALHAMENTO DOS PÚBLICOS — audiências (Google)        -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-users-group"></i> Detalhamento dos Públicos — Captação (Google)</div>
+    <div class="dbf-section-title" data-tag="Captação"><i class="ti ti-users-group"></i> Detalhamento dos Públicos {{ plat_badge("Google") }}</div>
     {% if dbf.publicos_captacao_google %}
     <div class="dbf-publicos-stack">
       {% for clima, pubs in dbf.publicos_captacao_google.items() %}
@@ -1930,7 +1962,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.landing_pages_capt %}
   <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-world"></i> Landing Pages que Mais Converteram — Captação</div>
+    <div class="dbf-section-title" data-tag="Captação"><i class="ti ti-world"></i> Landing Pages que Mais Converteram</div>
     <div class="table-wrap" data-no-filter>
       <table class="dbf-table">
         <thead>
@@ -1979,12 +2011,12 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if lazy %}
   <div class="dbf-section" data-lazy-section="qualidade_regiao">
-    <div class="dbf-section-title"><i class="ti ti-map-pin"></i> Qualidade por Estado — Captação</div>
+    <div class="dbf-section-title" data-tag="Captação"><i class="ti ti-map-pin"></i> Qualidade por Estado</div>
     {{ lazy_skeleton() }}
   </div>
   {% elif dbf.qualidade_regiao and dbf.qualidade_regiao.rows %}
   <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-map-pin"></i> Qualidade por Estado — Captação</div>
+    <div class="dbf-section-title" data-tag="Captação"><i class="ti ti-map-pin"></i> Qualidade por Estado</div>
     {% include "debriefing/_secao_qualidade_regiao.html" %}
   </div>
   {% endif %}
@@ -2465,7 +2497,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <!-- 7. DIA A DIA DE CAPTAÇÃO                                   -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-calendar-stats"></i> Dia a Dia de Captação</div>
+    <div class="dbf-section-title" data-tag="Captação"><i class="ti ti-calendar-stats"></i> Dia a Dia</div>
     {% if dbf.daily %}
       {% set half = (dbf.daily | length / 2) | round | int %}
       <div class="day-tables-grid">
@@ -2515,7 +2547,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <!-- 8. ENGAJAMENTO DAS AULAS (YouTube Analytics)              -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-brand-youtube"></i> Engajamento das Aulas — YouTube</div>
+    <div class="dbf-section-title"><i class="ti ti-brand-youtube"></i> Engajamento das Aulas {{ plat_badge("YouTube") }}</div>
 
     {% if not dbf.youtube_aulas %}
       {{ sem_dados("YouTube — sem API: exporte o relatório pós-transmissão de cada aula no Studio para analises/[" ~ (launch.code if launch else 'CODIGO') ~ "]/Youtube/Aula N/ e execute: python etl/etl_youtube_csv.py --launch-code " ~ (launch.code if launch else 'CODIGO') ~ " · Com API: python etl/etl_youtube_analytics.py --launch-code " ~ (launch.code if launch else 'CODIGO')) }}

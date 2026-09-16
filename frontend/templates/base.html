@@ -538,10 +538,14 @@ html[data-bs-theme="aranhaverso"] .bs-web-spokes {
 }
 .bs-sec-row:hover .bs-sec-row-btn { opacity:1; }
 .bs-sec-row-btn:hover { background:var(--bs-accent-bg); color:var(--bs-accent); }
-/* Tag na própria seção da página (aparece mesmo com a seção recolhida) */
+/* Tag na própria seção da página (aparece mesmo com a seção recolhida) —
+   mesmo tamanho das tags de lançamento (.dbf-launch-badge) e de
+   plataforma (.dbf-plat-badge), pedido do usuário 16/09/26: a etapa é a
+   primeira badge, do mesmo peso visual que as outras, não uma "etiqueta
+   menor" solta no meio. */
 .bs-sec-tag {
-  align-items:center; font-size:10px; font-weight:800; letter-spacing:.02em;
-  padding:2px 9px; border-radius:999px; margin-left:2px; cursor:default;
+  display:inline-flex; align-items:center; font-size:11px; font-weight:700;
+  letter-spacing:.04em; padding:2px 8px; border-radius:20px; cursor:default;
 }
 .bs-sec-sep { height:1px; background:var(--bs-border); margin:8px 6px; }
 .bs-view-list { display:flex; flex-direction:column; gap:2px; padding:2px 6px; max-height:160px; overflow-y:auto; }
@@ -2869,7 +2873,12 @@ document.addEventListener('DOMContentLoaded', bsThemeSyncActive);
     var meta = allSections.map(function (section, idx) {
       var title = section.querySelector(':scope > .section-title, :scope > .dbf-section-title');
       var label = title.textContent.trim();
-      return { el: section, title: title, key: 'section-' + idx, label: label, autoTag: detectTag(label) };
+      // data-tag no título força a etapa sem depender de palavra-chave no
+      // texto — necessário pras seções que tiraram "Captação"/"Pré-
+      // Qualificação" do nome (pedido do usuário 16/09/26: a palavra sai
+      // do título, mas a tag continua aparecendo).
+      var forcedTag = title.getAttribute('data-tag');
+      return { el: section, title: title, key: 'section-' + idx, label: label, autoTag: forcedTag || detectTag(label) };
     });
     var byKey = {}; meta.forEach(function (m) { byKey[m.key] = m; });
     var defaultOrder = meta.map(function (m) { return m.key; });
@@ -2956,6 +2965,16 @@ document.addEventListener('DOMContentLoaded', bsThemeSyncActive);
       orig.className = 'bs-sec-orig';
       var badges = document.createElement('div');
       badges.className = 'bs-sec-badges';
+      // tag de etapa vem primeiro (pedido do usuário 16/09/26: "etapa -
+      // plataforma - lançamento - lançamento anterior") — criada e
+      // inserida ANTES do while, que só faz appendChild (sempre no fim),
+      // então qualquer badge que já viesse solta no título (plataforma,
+      // lançamento atual/anterior — nessa ordem, é como cada template já
+      // as escreve) entra depois dela, na ordem certa.
+      var tagBadge = document.createElement('span');
+      tagBadge.className = 'bs-sec-tag';
+      tagBadge.style.display = 'none';
+      badges.appendChild(tagBadge);
       while (m.title.firstChild) {
         var node = m.title.firstChild;
         m.title.removeChild(node);
@@ -2965,10 +2984,6 @@ document.addEventListener('DOMContentLoaded', bsThemeSyncActive);
       var override = document.createElement('span');
       override.className = 'bs-sec-label-override';
       override.style.display = 'none';
-      var tagBadge = document.createElement('span');
-      tagBadge.className = 'bs-sec-tag';
-      tagBadge.style.display = 'none';
-      badges.appendChild(tagBadge);
 
       var body = document.createElement('div');
       body.className = 'bs-sec-body';

@@ -26,7 +26,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 40 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 41 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -166,6 +166,7 @@ relacionados:
 >
 > - [[ARQUITETURA#O teste que cobra|O teste que cobra]]
 > - [[ARQUITETURA#O outro lado: campo que ninguém produz|O outro lado: campo que ninguém produz]]
+> - [[ARQUITETURA#Previsto e realizado tinham que somar as mesmas coisas (2026-09-16)|Previsto e realizado tinham que somar as mesmas coisas (2026-09-16)]]
 > - [[ARQUITETURA#Resumo do que protege o quê|Resumo do que protege o quê]]
 
 <!-- SUMARIO:FIM -->
@@ -1443,6 +1444,14 @@ Dois cortes de nota são palpite documentado, não regra validada — ajustar se
 errado: CAC pontua cheio em custo-por-venda R$0 e zero a partir do ticket médio (ponto de
 empate); Conversão do Funil pontua cheio a partir de 3% leads→vendas.
 
+**Mobile (16/09):** abaixo de 640px, `.dbf-saude` era `flex-wrap` mas continuava `flex-direction:
+row` — a nota (bloco estreito) só ocupava parte da primeira linha do wrap, e o primeiro item
+(ROAS) entrava na MESMA linha ao lado dela em vez de abaixo; os itens seguintes empilhavam por
+baixo dos dois, deixando a nota "flutuando" no meio da pilha em vez de no topo. Fix: nesse
+breakpoint `.dbf-saude` vira `flex-direction: column` — nota em cima, ocupando a largura toda,
+itens empilhados abaixo. A legenda ("Nota de 0 a 100 combinando 7 fatores...") ganhou `<strong>`
+nos nomes dos 7 fatores e em "fora da nota".
+
 ## Wizard de Configurações — o que era gravado, e o que a página via (2026-09-16)
 
 Usuário salvou a verba de Captação do PES-SET-26 no wizard e não viu o número no `/debriefing`.
@@ -1554,6 +1563,7 @@ passava no guard de versão, o template pedia o que aquele payload não tinha, a
 | 6 → 7 | Saúde do Lançamento 2.0 — `saude_pesos`, `saude_score_meta_fat/cac/conv` |
 | 7 → 8 | Detalhamento de Oferta — `oferta_parcela_cartao`, `oferta_parcela_boleto` |
 | 8 → 9 | `oferta_preco_parcelado` |
+| 9 → 10 | mesma forma, valores diferentes: previsto de Remarketing passou a incluir o WhatsApp |
 
 O aviso estava escrito em `frontend/db_readers/debriefing_snapshot.py` desde a primeira vez, com
 todas as letras, dizendo que subir o número não é opcional. **Quatro vezes não bastou.** Um
@@ -1580,6 +1590,29 @@ quebra nada — só cai no ramo do "não configurado" para sempre.
 Foi o caso de `oferta_preco_parcelado`, achado por esse teste na primeira execução: o template lia,
 ninguém produzia, e a linha "Preço parcelado" do Detalhamento de Oferta mostrava "não configurado"
 mesmo com `produto_preco_parcelado` preenchido no wizard. Corrigido, e é o que levou a versão a 9.
+
+### Previsto e realizado tinham que somar as mesmas coisas (2026-09-16)
+
+Uma constante respondendo a duas perguntas diferentes. `_REMARKETING_SUBETAPAS`
+(`Lembrete`, `Depoimento`, `Aulas no Ar`, `Replay`, `Matrículas Abertas`) diz **quais chaves de
+`por_etapa` do Meta/Google compõem o gasto** de Remarketing — o WhatsApp não está lá, e com razão:
+não é campanha de mídia, o gasto dele entra separado por `wa_gasto`. Mas a mesma lista era usada
+para decidir **quais etapas do wizard compõem o orçamento**, e aí o WhatsApp precisa entrar, porque
+é uma etapa como as outras.
+
+Resultado: `get_etapa` somava o gasto do WhatsApp no realizado, `_previsto_por_etapa` não somava a
+verba dele no previsto. No PI-AGO-26, com R$ 115.024 cadastrados, o Remarketing aparecia como
+**previsto R$ 35.076 contra realizado R$ 69.211, ▲97,3%** — um estouro de orçamento que não existia.
+Com o WhatsApp no previsto: R$ 150.100, **▼53,9%**, sobra. O Total Investido também mudava de
+▲0,7% para ▼6,6%.
+
+A linha do WhatsApp no detalhamento tinha `"previsto": 0.0` cravado, então mostrava "—" mesmo com
+verba cadastrada — passa a ler do wizard como as outras, e aparece também quando há verba sem gasto
+(orçamento provisionado e não usado é informação, não ausência de dado).
+
+Separado em `_REMARKETING_ETAPAS_ORCAMENTO`. **O sintoma dessa classe de bug é a variação com o
+sinal trocado** — quando previsto e realizado não somam o mesmo conjunto, o número não fica só
+impreciso, ele inverte a conclusão.
 
 ### Resumo do que protege o quê
 

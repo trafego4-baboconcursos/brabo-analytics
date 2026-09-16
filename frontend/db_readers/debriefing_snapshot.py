@@ -32,13 +32,22 @@ TABLE = "debriefing_snapshot"
 # aquecimento regravar. (Ex.: 2 = saída dos grupos de WhatsApp, vendas x
 # grupos e detalhamento do disparo; 4 = thruview/pct_50 no Novos x Antigos
 # de Pré-Qualificação; 6 = total_grupos_normais/vip e os prev_ correspondentes,
-# no Resumo Executivo.)
+# no Resumo Executivo; 7 = Saúde do Lançamento 2.0, que trocou os 4 fatores
+# pelos 7 com peso — `saude_pesos`, `saude_score_meta_fat`, `saude_score_cac`,
+# `saude_score_conv`.)
 #
 # O número ficou em 5 de 04/09 até 15/09 enquanto o `dbf` ganhava campos novos,
 # e o resultado foi /debriefing devolvendo 500: o snapshot antigo passava no
 # guard e o template pedia `dbf.total_grupos_vip`, que aquele payload não tinha.
 # Subir este número é o que evita isso — não é opcional quando o `dbf` muda.
-SNAPSHOT_VERSION = 6
+#
+# Aconteceu de novo em 16/09 com a Saúde 2.0 (template pedindo `dbf.saude_pesos`),
+# e dessa vez com um agravante: enquanto um processo antigo seguia de pé gravando
+# no formato velho, os snapshots alternavam entre válido e quebrado a cada rodada
+# de aquecimento, então o 500 ia e voltava sozinho. Subir a versão resolve os dois
+# lados — o payload do processo velho passa a ser ignorado em vez de derrubar a
+# página —, mas o processo velho só para de sobrescrever quando for reiniciado.
+SNAPSHOT_VERSION = 7
 
 DDL = f"""
 CREATE TABLE IF NOT EXISTS {TABLE} (

@@ -22,7 +22,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 35 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 36 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -64,6 +64,7 @@ relacionados:
 >
 > **Rodar os testes escrevia no banco de producao (2026-09-16)**
 >
+> - [[ARQUITETURA#Reincidiu no mesmo dia, com três servidores (2026-09-16)|Reincidiu no mesmo dia, com três servidores (2026-09-16)]]
 >
 > **A rede congelou o bug que existia para pegar (2026-09-16)**
 >
@@ -514,6 +515,39 @@ isso a unica que vaza de um ambiente para o outro sem ninguem perceber.
 
 **Ao rodar o app localmente contra o `.env` de producao, use `PRE_WARM_CACHE=false`** a menos que
 queira mesmo regravar os snapshots que todo mundo le.
+
+### Reincidiu no mesmo dia, com três servidores (2026-09-16)
+
+Horas depois, `/debriefing` voltou a dar 500 — e desta vez **ia e voltava sozinho**, o mesmo
+lançamento alternando entre carregar e quebrar a cada rodada de aquecimento. Havia **três uvicorn
+de pé ao mesmo tempo** contra o `.env` de produção (portas 8000, 8934 e 8291, subidos às 09:11,
+09:55 e 10:15), cada um com uma versão diferente do código congelada em memória. Todos gravando
+`debriefing_snapshot` a cada ciclo, um por cima do outro. Quem abrisse a página pegava o payload
+de quem tivesse gravado por último.
+
+O gatilho foi a Saúde do Lançamento 2.0 ter mudado a forma do `dbf` (`saude_pesos` e os
+`saude_score_*` novos) **sem subir `SNAPSHOT_VERSION`** — exatamente o que o comentário em
+`frontend/db_readers/debriefing_snapshot.py` já dizia não ser opcional, depois de a mesma coisa ter
+acontecido entre 04/09 e 15/09. Subido para `7`.
+
+**A lição que faltava no registro anterior:** subir a versão **não conserta um processo já de pé**.
+O Jinja relê o template do disco a cada request, mas o Python fica congelado em memória — o
+servidor das 09:11 servia o template novo, que pede `dbf.saude_pesos`, com um código que nunca
+calcula esse campo. Por isso ele devolvia 500 em `?ao_vivo=1` de forma determinística, mesmo com o
+banco perfeito. Diagnóstico de 500 no `/debriefing` começa por **quantos processos estão de pé e
+desde quando**:
+
+```bash
+# PowerShell — todo uvicorn vivo, com porta e hora de início
+Get-CimInstance Win32_Process -Filter "Name='python.exe'" |
+  Where-Object { $_.CommandLine -like '*uvicorn*' } |
+  Select-Object ProcessId, CreationDate, CommandLine
+```
+
+Um servidor só, reiniciado depois de qualquer mudança no `dbf`. Enquanto sobram processos velhos,
+eles continuam sobrescrevendo o snapshot com o formato antigo; com a versão subida isso deixa de
+derrubar a página (o payload velho passa a ser ignorado), mas a página recalcula ao vivo a cada
+visita — correta e lenta — até o último processo velho morrer.
 
 ---
 

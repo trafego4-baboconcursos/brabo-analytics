@@ -109,6 +109,9 @@ relacionados:
 > **Calendário de lançamentos — fonte das datas-padrão (2026-09-14)**
 >
 >
+> **Calendário — linha do tempo editável (vis-timeline, 2026-09-16)**
+>
+>
 > **Documentação como sistema (2026-09-14)**
 >
 >
@@ -966,6 +969,35 @@ canônico e o fallback agora emite `logger.warning`.
 `launch_config` (banco operacional) é o *configurado*. Quando divergirem, `launch_config` manda.
 Na mesma correção o calendário ainda trazia o `PBB-AGO-26` sob o código antigo `PBB-OUT-26` com
 datas de set/out; código e as 5 etapas foram realinhados com o `launch_config`.
+
+**Segunda ocorrência do mesmo caminho quebrado (2026-09-16):** a correção acima trocou o caminho
+lido por `calendar_parser.py` (sugestão de datas do wizard), mas `frontend/routes/analytics.py::
+_load_calendario_assets` — usado só pela página `/calendario` pra reaproveitar o CSS/JS do HTML
+legado (métricas, chips, tabelas) — continuou apontando pra `frontend/static/calendario/`, que já
+não existia. O `try/except` engolia o erro e a página rodava sem esse CSS, silenciosamente, por 2
+dias. Corrigido pro mesmo caminho canônico (`analises/calendario/`).
+
+## Calendário — linha do tempo editável (vis-timeline, 2026-09-16)
+
+A página `/calendario` ganhou uma visualização tipo Gantt em cima das duas tabelas existentes
+(mantidas como estão): 1 linha por lançamento, 1 barra por etapa. Biblioteca
+[vis-timeline](https://github.com/visjs/vis-timeline) (MIT/Apache-2.0, via CDN jsdelivr, sem
+build step — mesmo padrão do Chart.js/Tabler Icons já usados no resto do sistema).
+
+`frontend/services/calendario.py::_build_timeline` monta os dados: um `group` por lançamento, um
+`item` por etapa. Etapa sem data vira um item "fantasma" (`ghost: true`, barra tracejada,
+posicionada logo após a última etapa conhecida daquele lançamento) — arrastar/redimensionar
+qualquer barra (real ou fantasma) chama `POST /api/launch-config/{code}` só com as 2 colunas
+daquela etapa. Esse endpoint já existia pro wizard de Configurações, já faz upsert parcial (não
+sobrescreve o resto da config) e já é role-guardado (`admin`/`analista`/`trafego`); a linha do
+tempo não precisou de endpoint novo. Quem não tem esses papéis vê a régua em modo leitura (a
+trava real é no servidor; o client só evita mostrar um arrastar que ia falhar).
+
+Datas: o servidor manda `"YYYY-MM-DD"` (sem hora); o JS converte pra `Date` local explícito antes
+de qualquer coisa (`localDateFromIso`), nunca deixa o parser de string do vis-timeline decidir —
+uma string ISO sem timezone é interpretada como UTC meia-noite, que em fuso negativo (BR) vira o
+dia anterior na hora local. Salvar recarrega a página inteira em vez de tentar sincronizar o
+estado client-side — mais simples, e garante que status/métricas recalculados batem com o banco.
 
 ## Documentação como sistema (2026-09-14)
 

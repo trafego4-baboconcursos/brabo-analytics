@@ -519,6 +519,11 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
 {# Domínio das landing pages por produto — o GA4 só guarda o caminho
    (ex: /projeto-bb-fev-26-v5-pq-fb), sem host. #}
 {% set lp_base_url = "https://lp.mateusandrade.com.br" if launch and launch.product == "INSS" else "https://lp.braboconcursos.com.br" %}
+{# Miniatura da landing page via thum.io (serviço público de screenshot,
+   sem chave de API) — pedido do usuário 16/09/26, "Landing Pages que Mais
+   Converteram". Zero infra própria; troca por captura via Playwright no
+   servidor só se compensar manter isso no longo prazo. #}
+{% macro lp_thumb(landing_page) %}<a href="{{ lp_base_url }}{{ landing_page }}" target="_blank" rel="noopener"><img src="https://image.thum.io/get/width/300/crop/200/noanimate/{{ lp_base_url }}{{ landing_page }}" loading="lazy" alt="" style="width:64px;height:44px;object-fit:cover;border-radius:4px;border:1px solid var(--bs-border);display:block;background:var(--bs-surface)"></a>{% endmacro %}
 
 {% if lazy %}
 {# ── Carregamento progressivo ─────────────────────────────────────────
@@ -1506,6 +1511,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       <table class="dbf-table">
         <thead>
           <tr>
+            <th style="width:74px">Preview</th>
             <th>Página</th>
             <th class="num">Sessões</th>
             <th class="num">Conversões</th>
@@ -1515,6 +1521,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
         <tbody>
           {% for lp in dbf.landing_pages_preq %}
           <tr>
+            <td>{{ lp_thumb(lp.landing_page) }}</td>
             <td style="max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ lp.landing_page }}"><a href="{{ lp_base_url }}{{ lp.landing_page }}" target="_blank" rel="noopener" style="color:var(--bs-accent)">{{ lp.landing_page }}</a></td>
             <td class="num">{{ lp.sessions | num }}</td>
             <td class="num"><strong>{{ lp.conversoes | num }}</strong></td>
@@ -1524,7 +1531,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
         </tbody>
       </table>
     </div>
-    <div class="note" style="margin-top:10px">Fonte: Google Analytics 4 (sessões por landing page × campanha, classificadas pela mesma tag [Pré-Qualificação] das campanhas de mídia).</div>
+    <div class="note" style="margin-top:10px">Fonte: Google Analytics 4 (sessões por landing page × campanha, classificadas pela mesma tag [Pré-Qualificação] das campanhas de mídia). Preview via thum.io — pode demorar alguns segundos pra carregar na primeira vez.</div>
   </div>
   {% endif %}
 
@@ -1873,6 +1880,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       <table class="dbf-table">
         <thead>
           <tr>
+            <th style="width:74px">Preview</th>
             <th>Página</th>
             <th class="num">Sessões</th>
             <th class="num">Conversões</th>
@@ -1882,6 +1890,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
         <tbody>
           {% for lp in dbf.landing_pages_capt %}
           <tr>
+            <td>{{ lp_thumb(lp.landing_page) }}</td>
             <td style="max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ lp.landing_page }}"><a href="{{ lp_base_url }}{{ lp.landing_page }}" target="_blank" rel="noopener" style="color:var(--bs-accent)">{{ lp.landing_page }}</a></td>
             <td class="num">{{ lp.sessions | num }}</td>
             <td class="num"><strong>{{ lp.conversoes | num }}</strong></td>
@@ -1891,7 +1900,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
         </tbody>
       </table>
     </div>
-    <div class="note" style="margin-top:10px">Fonte: Google Analytics 4 (sessões por landing page × campanha, classificadas pela mesma tag [Captação] das campanhas de mídia).</div>
+    <div class="note" style="margin-top:10px">Fonte: Google Analytics 4 (sessões por landing page × campanha, classificadas pela mesma tag [Captação] das campanhas de mídia). Preview via thum.io — pode demorar alguns segundos pra carregar na primeira vez.</div>
   </div>
   {% endif %}
 

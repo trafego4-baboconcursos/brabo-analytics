@@ -472,25 +472,6 @@ def _compute_debriefing_ctx(
     total_vendas = _i(getattr(vendas, "total_vendas", 0))
     ticket = _f(getattr(vendas, "total_ticket_medio", 0))
 
-    # Saúde do lançamento — mesmo cálculo do /insights (4 fatores de 25 pts
-    # cada): ROAS geral, % de compradores rastreados por UTM/Active Campaign,
-    # CPL médio do Meta e % de anúncios que geraram ao menos 1 venda.
-    _saude_resumo = (creative_data or {}).get("resumo") or {}
-    _saude_rows = (creative_data or {}).get("rows") or []
-    _saude_rastreados = _i(_saude_resumo.get("compradores_com_utm"))
-    _saude_total_buyers = _i(_saude_resumo.get("total_compradores")) or total_vendas
-    saude_pct_rastreado = round(_saude_rastreados / _saude_total_buyers * 100, 1) if _saude_total_buyers > 0 else 0.0
-    saude_ads_total = len(_saude_rows)
-    saude_ads_com_venda = len([r for r in _saude_rows if _f(r.get("vendas")) > 0])
-    saude_cpl_medio = _f(getattr(meta, "cpl_medio", 0))
-
-    saude_score_roas = 25.0 if roas >= 3 else round(roas / 3 * 25, 1)
-    saude_score_rastr = round(saude_pct_rastreado / 100 * 25, 1)
-    _score_cpl_raw = (25.0 - (saude_cpl_medio / 10 * 5)) if meta else 0.0
-    saude_score_cpl = max(0.0, min(25.0, _score_cpl_raw))
-    saude_score_criat = round(saude_ads_com_venda / saude_ads_total * 25, 1) if saude_ads_total > 0 else 0.0
-    saude_score = int(round(saude_score_roas + saude_score_rastr + saude_score_cpl + saude_score_criat))
-
     meta_capt   = _captacao(meta)
     meta_leads  = _i(meta_capt.get("leads"))
     meta_spend  = _f(meta_capt.get("custo"))
@@ -977,6 +958,59 @@ def _compute_debriefing_ctx(
     max_mt = max((_i(v.get("vendas")) for v in meta_temp_sales.values()),   default=1) or 1
     max_gt = max((_i(v.get("vendas")) for v in google_tipo_sales.values()), default=1) or 1
 
+    # Saúde do Lançamento 2.0 — pesos propostos pelo usuário (16/09/26), veio
+    # da versão anterior (4 fatores de 25 pts) pra 7 fatores com pesos
+    # diferentes. "Atingimento da meta de faturamento" (precisa de
+    # meta_faturamento cadastrada no wizard) e "Volume de vendas" (precisa do
+    # lançamento anterior do mesmo produto) ficam de fora da nota quando o
+    # dado de referência não existe — o peso deles é redistribuído
+    # proporcionalmente entre os fatores que TÊM dado, em vez de contar como
+    # 0 (não cadastrar a meta não é "lançamento ruim", é "sem referência").
+    _saude_resumo = (creative_data or {}).get("resumo") or {}
+    _saude_rows = (creative_data or {}).get("rows") or []
+    _saude_rastreados = _i(_saude_resumo.get("compradores_com_utm"))
+    _saude_total_buyers = _i(_saude_resumo.get("total_compradores")) or total_vendas
+    saude_pct_rastreado = round(_saude_rastreados / _saude_total_buyers * 100, 1) if _saude_total_buyers > 0 else 0.0
+    saude_ads_total = len(_saude_rows)
+    saude_ads_com_venda = len([r for r in _saude_rows if _f(r.get("vendas")) > 0])
+    saude_custo_venda = invest / total_vendas if total_vendas > 0 else 0.0
+    saude_conversao_funil = (total_vendas / total_leads * 100) if total_leads > 0 else 0.0
+    saude_meta_faturamento = _f(cfg.get("meta_faturamento")) or None
+    saude_atingimento_meta = (receita / saude_meta_faturamento * 100) if saude_meta_faturamento else None
+
+    _SAUDE_PESOS = {"roas": 50, "meta_fat": 15, "cac": 10, "conv": 10, "ads": 5, "vol": 5, "rastr": 5}
+    saude_score_roas = min(_SAUDE_PESOS["roas"], round(roas / 3 * _SAUDE_PESOS["roas"], 1))
+    saude_score_meta_fat = (
+        min(_SAUDE_PESOS["meta_fat"], round(saude_atingimento_meta / 100 * _SAUDE_PESOS["meta_fat"], 1))
+        if saude_atingimento_meta is not None else None
+    )
+    # CAC saudável é o que sobra margem em relação ao ticket — 10 pts se
+    # custo por venda = R$0, 0 pts se custo por venda >= ticket (ponto de
+    # empate, sem contar custo do produto/operação).
+    saude_score_cac = (
+        round(_SAUDE_PESOS["cac"] * max(0.0, 1 - saude_custo_venda / ticket), 1)
+        if ticket > 0 and total_vendas > 0 else 0.0
+    )
+    # Conversão do funil: nota cheia a partir de 3% (leads → vendas) —
+    # referência de mercado pra lançamento de curso, ajustável se o usuário
+    # achar o corte errado.
+    saude_score_conv = round(min(1.0, saude_conversao_funil / 3) * _SAUDE_PESOS["conv"], 1)
+    saude_score_ads = round(saude_ads_com_venda / saude_ads_total * _SAUDE_PESOS["ads"], 1) if saude_ads_total > 0 else 0.0
+    saude_score_vol = (
+        round(min(1.0, total_vendas / prev_total_vendas) * _SAUDE_PESOS["vol"], 1)
+        if prev_total_vendas > 0 else None
+    )
+    saude_score_rastr = round(saude_pct_rastreado / 100 * _SAUDE_PESOS["rastr"], 1)
+
+    _saude_scores = {
+        "roas": saude_score_roas, "meta_fat": saude_score_meta_fat, "cac": saude_score_cac,
+        "conv": saude_score_conv, "ads": saude_score_ads, "vol": saude_score_vol, "rastr": saude_score_rastr,
+    }
+    _saude_peso_disponivel = sum(p for k, p in _SAUDE_PESOS.items() if _saude_scores[k] is not None)
+    saude_score = int(round(
+        sum(s for s in _saude_scores.values() if s is not None) / _saude_peso_disponivel * 100
+    )) if _saude_peso_disponivel > 0 else 0
+
     return {
         "has_data": bool(meta or google or vendas),
         "has_prev": bool(previous and (prev_meta or prev_google or prev_vendas)),
@@ -989,10 +1023,14 @@ def _compute_debriefing_ctx(
         "total_leads": total_leads, "cpl": cpl,
         "fontes_leads": fontes_leads,
         # Saúde do lançamento
-        "saude_score": saude_score,
-        "saude_score_roas": saude_score_roas, "saude_score_rastr": saude_score_rastr,
-        "saude_score_cpl": saude_score_cpl, "saude_score_criat": saude_score_criat,
-        "saude_pct_rastreado": saude_pct_rastreado, "saude_cpl_medio": saude_cpl_medio,
+        "saude_score": saude_score, "saude_pesos": _SAUDE_PESOS,
+        "saude_score_roas": saude_score_roas, "saude_score_meta_fat": saude_score_meta_fat,
+        "saude_score_cac": saude_score_cac, "saude_score_conv": saude_score_conv,
+        "saude_score_ads": saude_score_ads, "saude_score_vol": saude_score_vol,
+        "saude_score_rastr": saude_score_rastr,
+        "saude_custo_venda": saude_custo_venda, "saude_conversao_funil": saude_conversao_funil,
+        "saude_meta_faturamento": saude_meta_faturamento, "saude_atingimento_meta": saude_atingimento_meta,
+        "saude_pct_rastreado": saude_pct_rastreado,
         "saude_ads_com_venda": saude_ads_com_venda, "saude_ads_total": saude_ads_total,
         # Prev KPIs
         "prev_invest": prev_invest, "prev_receita": prev_receita, "prev_roas": prev_roas,

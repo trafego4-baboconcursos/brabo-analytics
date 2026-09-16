@@ -2471,25 +2471,11 @@ window.bsMenuToggle = function(force) {
 document.querySelectorAll('#bs-drawer .bs-nav-link, #bs-drawer .bs-camp-select, #bs-drawer .bs-launch-picker-item, #bs-drawer .bs-launch-picker-all, #bs-drawer .bs-subnav-link').forEach(function(el) {
   el.addEventListener('click', function() {
     if (window.innerWidth > 1024) return;
-    /* Escolher um lançamento/perpétuo/distribuição/rede/página fecha a gaveta
-       pra navegar (recarrega a página) — sem isso o usuário só via o menu
-       daquele item (Visão Geral/Captação...) se reabrisse o hambúrguer na
-       mão. O flag sobrevive o reload e reabre a gaveta já na página nova. */
-    if (el.classList.contains('bs-launch-picker-item') || el.classList.contains('bs-launch-picker-all') || el.classList.contains('bs-subnav-link')) {
-      try {
-        sessionStorage.setItem('bs-reopen-menu', '1');
-        /* Página de dentro do painel de Lançamento (Visão Geral/Mídia Paga/...)
-           — reabrir já direto nesse painel, não só no menu principal, senão
-           some o contexto de onde a pessoa estava. */
-        if (el.classList.contains('bs-subnav-link')) {
-          var picker = el.closest('.bs-launch-picker');
-          if (picker && picker.id) sessionStorage.setItem('bs-reopen-picker', picker.id);
-          else sessionStorage.removeItem('bs-reopen-picker');
-        } else {
-          sessionStorage.removeItem('bs-reopen-picker');
-        }
-      } catch (e) {}
-    }
+    /* Escolher um destino (lançamento/página/perfil) fecha a gaveta pra
+       navegar — abrir/fechar acordeão dentro do painel não conta como
+       "escolher", só isso aqui fecha. A gaveta NÃO reabre sozinha depois:
+       a pessoa já decidiu pra onde ir, o próximo passo é ver a página
+       carregando, não o menu de novo. */
     bsMenuToggle(false);
   });
 });
@@ -2555,24 +2541,6 @@ window.bsPickerSubToggle = function(btn) {
   }
   sub.classList.toggle('open', !open);
 };
-/* Reabre a gaveta (e redrilla no picker certo, se houver) depois de um
-   reload disparado por um item dentro dela — precisa vir depois de
-   bsPickerToggle/bsPickerSubToggle estarem definidos, já que chama eles. */
-if (window.innerWidth <= 1024) {
-  try {
-    if (sessionStorage.getItem('bs-reopen-menu')) {
-      sessionStorage.removeItem('bs-reopen-menu');
-      bsMenuToggle(true);
-      var pickerId = sessionStorage.getItem('bs-reopen-picker');
-      sessionStorage.removeItem('bs-reopen-picker');
-      if (pickerId) {
-        var pickerEl = document.getElementById(pickerId);
-        var pickerBtn = pickerEl && pickerEl.querySelector('.bs-launch-picker-btn');
-        if (pickerBtn) bsPickerToggle(pickerBtn);
-      }
-    }
-  } catch (e) {}
-}
 ['scroll', 'resize'].forEach(function(evt) {
   window.addEventListener(evt, function() {
     if (bsIsMobileDrawer()) return;
@@ -3649,6 +3617,15 @@ document.addEventListener('keydown', function (e) {
         </div>
 
         <div class="lc-section">
+          <div class="lc-section-title">Meta</div>
+          <div class="lc-field">
+            <span class="lc-label">Meta de Faturamento</span>
+            <input class="lc-input" type="number" id="lc_meta_faturamento" placeholder="Ex: 5000000" min="0" step="1000">
+          </div>
+          <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:6px">Usada no indicador "Atingimento da meta de faturamento" da Saúde do Lançamento (debriefing).</div>
+        </div>
+
+        <div class="lc-section">
           <div class="lc-section-title">Oferta & Bônus</div>
           <div class="lc-field" style="margin-bottom:10px">
             <span class="lc-label">Descrição do Bônus</span>
@@ -3855,6 +3832,7 @@ document.addEventListener('keydown', function (e) {
     setVal("lc_produto_nome",           cfg.produto_nome            || "");
     setVal("lc_produto_preco_vista",    cfg.produto_preco_vista     || "");
     setVal("lc_produto_preco_parcelado",cfg.produto_preco_parcelado || "");
+    setVal("lc_meta_faturamento",       cfg.meta_faturamento        || "");
 
     var metaIds = cfg.meta_ad_account_ids || [];
     document.querySelectorAll("#lc-meta-menu input[type=checkbox]").forEach(function(cb){
@@ -4046,12 +4024,17 @@ document.addEventListener('keydown', function (e) {
     { key: "pre_qualificacao", nome: "Pré-Qualificação" },
     { key: "captacao",         nome: "Captação" },
   ];
+  // Os nomes aqui são chave de verdade, não rótulo: o /debriefing e o /verba
+  // casam a etapa pelo nome exato (ex.: `nome == "WhatsApp"` em
+  // routes/analytics.py). Renomear uma destas zera o previsto da seção
+  // correspondente sem erro nenhum.
   var LC_ETAPAS_EVENTO_DEFAULT = [
     { key: "lembrete",         nome: "Lembrete" },
     { key: "depoimento",       nome: "Depoimento" },
     { key: "aulas",            nome: "Aulas no Ar" },
     { key: "replay",           nome: "Replay" },
     { key: "matriculas",       nome: "Matrículas Abertas" },
+    { key: "whatsapp",         nome: "WhatsApp" },
   ];
 
   function lcEtapaId(key, suffix) { return "lc_etapa_" + key + "_" + suffix; }
@@ -4295,20 +4278,23 @@ document.addEventListener('keydown', function (e) {
       lcCreateEtapaBlock("lc-etapas-container", et.key, et.nome, false, true);
     });
 
+    // As padrão entram SEMPRE, mesmo quando o lançamento já tem etapas salvas.
+    // Antes, config existente caía no else e só renderizava o que estava no
+    // banco — uma etapa padrão nova (o "WhatsApp") nunca aparecia em lançamento
+    // antigo, e o previsto dela ficava zerado pra sempre no /debriefing.
+    // Efeito colateral aceito: etapa padrão removida à mão volta na próxima
+    // abertura, com total 0 (previsto "—") até alguém preencher.
     var eventoContainer = document.getElementById("lc-etapas-evento-container");
     eventoContainer.innerHTML = "";
-    var eventoEtapas = etapas.filter(function(e){ return !verbaNomes[e.nome]; });
-    if (!eventoEtapas.length) {
-      LC_ETAPAS_EVENTO_DEFAULT.forEach(function(et){
-        lcCreateEtapaBlock("lc-etapas-evento-container", et.key, et.nome, true);
-      });
-    } else {
-      eventoEtapas.forEach(function(e){
-        var defaultMatch = LC_ETAPAS_EVENTO_DEFAULT.filter(function(d){ return d.nome === e.nome; })[0];
-        var key = defaultMatch ? defaultMatch.key : lcUniqueEtapaKey(e.nome);
-        lcCreateEtapaBlock("lc-etapas-evento-container", key, e.nome, true);
-      });
-    }
+    LC_ETAPAS_EVENTO_DEFAULT.forEach(function(et){
+      lcCreateEtapaBlock("lc-etapas-evento-container", et.key, et.nome, true);
+    });
+    etapas.filter(function(e){
+      return !verbaNomes[e.nome]
+          && !LC_ETAPAS_EVENTO_DEFAULT.some(function(d){ return d.nome === e.nome; });
+    }).forEach(function(e){
+      lcCreateEtapaBlock("lc-etapas-evento-container", lcUniqueEtapaKey(e.nome), e.nome, true);
+    });
 
     Array.from(verbaContainer.children).concat(Array.from(eventoContainer.children)).forEach(function(block){
       var nome = block.dataset.etapaNome;
@@ -4350,8 +4336,33 @@ document.addEventListener('keydown', function (e) {
     return lcCollectEtapasFromContainer("lc-etapas-container").concat(lcCollectEtapasFromContainer("lc-etapas-evento-container"));
   }
 
+  // Num <input type=number>, texto que o navegador não consegue parsear (um
+  // "540.000" digitado no teclado brasileiro, por exemplo) some: `.value`
+  // devolve "" e fica indistinguível de campo apagado. O resultado era gravar
+  // NULL em silêncio com o botão dizendo "✓ Salvo!". `validity.badInput` é o
+  // único lugar onde esse estado ainda é visível, e só aqui no navegador —
+  // o servidor nunca chega a ver o que a pessoa digitou.
+  function lcCamposNumericosInvalidos() {
+    return Array.from(document.querySelectorAll("#lc-modal input[type=number]"))
+      .filter(function(el){ return el.validity && el.validity.badInput; })
+      .map(function(el){
+        var campo = el.closest(".lc-field") || el.closest(".lc-section");
+        var lbl = campo && campo.querySelector(".lc-label, .lc-section-title");
+        return (lbl ? lbl.textContent : el.id).trim();
+      });
+  }
+
   window.lcSave = function() {
     var btn = document.getElementById("lc-btn-save");
+
+    var invalidos = lcCamposNumericosInvalidos();
+    if (invalidos.length) {
+      alert("Número inválido em: " + invalidos.join(", ") +
+            "\n\nUse só dígitos, sem ponto de milhar (540000, não 540.000). " +
+            "Para centavos, use ponto decimal (997.50).");
+      return;
+    }
+
     btn.textContent = "Salvando...";
     btn.disabled = true;
 
@@ -4398,6 +4409,7 @@ document.addEventListener('keydown', function (e) {
       produto_nome:               v("lc_produto_nome"),
       produto_preco_vista:        v("lc_produto_preco_vista"),
       produto_preco_parcelado:    v("lc_produto_preco_parcelado"),
+      meta_faturamento:           v("lc_meta_faturamento"),
       youtube_aulas:              Array.from(document.querySelectorAll("#lc-yt-list .lc-product-row")).map(function(row){
         return {
           id:    (row.querySelector(".lc-yt-id")    || {}).value || "",
@@ -4414,6 +4426,9 @@ document.addEventListener('keydown', function (e) {
     })
     .then(function(r){ return r.json(); })
     .then(function(data){
+      // O motivo vem do servidor (número inválido, sem permissão): sem isso
+      // todo erro virava o mesmo "Erro ao salvar" e o valor sumia sem explicação.
+      if (!data.ok && data.error) alert(data.error);
       btn.textContent = data.ok ? "✓ Salvo!" : "Erro ao salvar";
       btn.style.background = data.ok ? "var(--bs-success)" : "var(--bs-danger)";
       setTimeout(function(){

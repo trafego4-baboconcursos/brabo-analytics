@@ -135,134 +135,126 @@ def read_launch_config(launch_code: str) -> dict:
     return d
 
 
+class ConfigInvalida(ValueError):
+    """Valor que o wizard mandou e não dá pra gravar. A mensagem é mostrada
+    pro usuário, então descreve o campo e o que está errado."""
+
+
+def _cfg_texto(val):
+    return val if val not in ("", None) else None
+
+
+def _cfg_decimal(val):
+    if val in ("", None):
+        return None
+    try:
+        return float(val)
+    except (ValueError, TypeError):
+        raise ConfigInvalida(f"{val!r} não é um número") from None
+
+
+def _cfg_inteiro(val):
+    if val in ("", None):
+        return None
+    try:
+        return int(val)
+    except (ValueError, TypeError):
+        raise ConfigInvalida(f"{val!r} não é um número inteiro") from None
+
+
+def _cfg_array(val):
+    return list(val or [])
+
+
+def _cfg_jsonb(val):
+    return _json.dumps(val or [])
+
+
+def _cfg_escopo(val):
+    return val or "campanhas"
+
+
+def _cfg_bonus(val):
+    return _json.dumps([b for b in (val or []) if b])
+
+
+# coluna de launch_config -> como converter o valor cru vindo do wizard.
+# É também a allowlist de escrita: só o que está aqui vai pro SQL, e os nomes
+# de coluna saem daqui (nunca do payload), então a montagem por f-string em
+# save_launch_config não tem como carregar entrada do usuário.
+_CONFIG_COLUNAS = {
+    "pre_quali_start_date":        _cfg_texto,
+    "pre_quali_end_date":          _cfg_texto,
+    "meta_leads_pre_quali":        _cfg_inteiro,
+    "meta_investimento_pre_quali": _cfg_decimal,
+    "captacao_start_date":         _cfg_texto,
+    "captacao_end_date":           _cfg_texto,
+    "meta_leads":                  _cfg_inteiro,
+    "meta_investimento_captacao":  _cfg_decimal,
+    "meta_ad_account_ids":         _cfg_array,
+    "google_ad_account_ids":       _cfg_array,
+    "filtro_lancamento":           _cfg_texto,
+    "filtro_captacao":             _cfg_texto,
+    "filtro_pre_quali":            _cfg_texto,
+    "filtro_quente":               _cfg_texto,
+    "filtro_quente_scope":         _cfg_escopo,
+    "filtro_frio":                 _cfg_texto,
+    "filtro_frio_scope":           _cfg_escopo,
+    "outras_temperaturas":         _cfg_jsonb,
+    "carrinho_start_date":         _cfg_texto,
+    "carrinho_end_date":           _cfg_texto,
+    "abertura_oficial_carrinho":   _cfg_texto,
+    "meta_faturamento":            _cfg_decimal,
+    "depoimento_start_date":       _cfg_texto,
+    "depoimento_end_date":         _cfg_texto,
+    "aulas_start_date":            _cfg_texto,
+    "aulas_end_date":              _cfg_texto,
+    "hotmart_produto_ids":         _cfg_array,
+    "tmb_produto_ids":             _cfg_array,
+    "drive_folder_url":            _cfg_texto,
+    "youtube_aulas":               _cfg_jsonb,
+    "etapas":                      _cfg_jsonb,
+    "produto_nome":                _cfg_texto,
+    "produto_preco_vista":         _cfg_decimal,
+    "produto_preco_parcelado":     _cfg_decimal,
+    "bonus_oferta":                _cfg_bonus,
+}
+
+
 def save_launch_config(launch_code: str, config: dict) -> None:
-    """Upsert da configuração do lançamento na tabela launch_config."""
-    upsert_sql = text("""
-        INSERT INTO launch_config (
-            lancamento_codigo,
-            pre_quali_start_date, pre_quali_end_date, meta_leads_pre_quali, meta_investimento_pre_quali,
-            captacao_start_date, captacao_end_date, meta_leads,
-            meta_investimento_captacao, meta_ad_account_ids, google_ad_account_ids,
-            filtro_lancamento, filtro_captacao, filtro_pre_quali,
-            filtro_quente, filtro_quente_scope,
-            filtro_frio, filtro_frio_scope,
-            outras_temperaturas,
-            carrinho_start_date, carrinho_end_date, abertura_oficial_carrinho,
-            depoimento_start_date, depoimento_end_date, aulas_start_date, aulas_end_date,
-            hotmart_produto_ids, tmb_produto_ids,
-            drive_folder_url,
-            youtube_aulas,
-            etapas,
-            produto_nome, produto_preco_vista, produto_preco_parcelado, bonus_oferta,
-            updated_at
-        ) VALUES (
-            :lancamento_codigo,
-            :pre_quali_start_date, :pre_quali_end_date, :meta_leads_pre_quali, :meta_investimento_pre_quali,
-            :captacao_start_date, :captacao_end_date, :meta_leads,
-            :meta_investimento_captacao, :meta_ad_account_ids, :google_ad_account_ids,
-            :filtro_lancamento, :filtro_captacao, :filtro_pre_quali,
-            :filtro_quente, :filtro_quente_scope,
-            :filtro_frio, :filtro_frio_scope,
-            :outras_temperaturas,
-            :carrinho_start_date, :carrinho_end_date, :abertura_oficial_carrinho,
-            :depoimento_start_date, :depoimento_end_date, :aulas_start_date, :aulas_end_date,
-            :hotmart_produto_ids, :tmb_produto_ids,
-            :drive_folder_url,
-            :youtube_aulas,
-            :etapas,
-            :produto_nome, :produto_preco_vista, :produto_preco_parcelado, :bonus_oferta,
-            NOW()
-        )
+    """Upsert *parcial* da configuração do lançamento em launch_config.
+
+    Grava só as colunas presentes em `config`; o que o chamador não mandar fica
+    como está no banco. Antes isso era um overwrite da linha inteira com uma
+    lista fixa de colunas, então todo campo fora do payload do wizard era zerado
+    sem ninguém pedir — era por isso que `bonus_oferta` voltava pra `[]` a cada
+    salvamento, e qualquer coluna nova teria o mesmo destino até alguém lembrar
+    de acrescentá-la no JS.
+
+    Número que não dá pra converter levanta ConfigInvalida em vez de virar NULL
+    calado: gravar NULL e responder "✓ Salvo!" é pior do que falhar."""
+    params: dict[str, Any] = {"lancamento_codigo": launch_code}
+    invalidos: list[str] = []
+    for coluna, converter in _CONFIG_COLUNAS.items():
+        if coluna not in config:
+            continue
+        try:
+            params[coluna] = converter(config[coluna])
+        except ConfigInvalida as e:
+            invalidos.append(f"{coluna}: {e}")
+    if invalidos:
+        raise ConfigInvalida("; ".join(invalidos))
+
+    colunas = [c for c in params if c != "lancamento_codigo"]
+    campos  = "".join(f", {c}" for c in colunas)
+    valores = "".join(f", :{c}" for c in colunas)
+    sets    = "".join(f"{c} = EXCLUDED.{c},\n            " for c in colunas)
+    upsert_sql = text(f"""
+        INSERT INTO launch_config (lancamento_codigo{campos}, updated_at)
+        VALUES (:lancamento_codigo{valores}, NOW())
         ON CONFLICT (lancamento_codigo) DO UPDATE SET
-            pre_quali_start_date       = EXCLUDED.pre_quali_start_date,
-            pre_quali_end_date         = EXCLUDED.pre_quali_end_date,
-            meta_leads_pre_quali       = EXCLUDED.meta_leads_pre_quali,
-            meta_investimento_pre_quali= EXCLUDED.meta_investimento_pre_quali,
-            captacao_start_date        = EXCLUDED.captacao_start_date,
-            captacao_end_date          = EXCLUDED.captacao_end_date,
-            meta_leads                 = EXCLUDED.meta_leads,
-            meta_investimento_captacao = EXCLUDED.meta_investimento_captacao,
-            meta_ad_account_ids        = EXCLUDED.meta_ad_account_ids,
-            google_ad_account_ids      = EXCLUDED.google_ad_account_ids,
-            filtro_lancamento          = EXCLUDED.filtro_lancamento,
-            filtro_captacao            = EXCLUDED.filtro_captacao,
-            filtro_pre_quali           = EXCLUDED.filtro_pre_quali,
-            filtro_quente              = EXCLUDED.filtro_quente,
-            filtro_quente_scope        = EXCLUDED.filtro_quente_scope,
-            filtro_frio                = EXCLUDED.filtro_frio,
-            filtro_frio_scope          = EXCLUDED.filtro_frio_scope,
-            outras_temperaturas        = EXCLUDED.outras_temperaturas,
-            carrinho_start_date        = EXCLUDED.carrinho_start_date,
-            carrinho_end_date          = EXCLUDED.carrinho_end_date,
-            abertura_oficial_carrinho  = EXCLUDED.abertura_oficial_carrinho,
-            depoimento_start_date      = EXCLUDED.depoimento_start_date,
-            depoimento_end_date        = EXCLUDED.depoimento_end_date,
-            aulas_start_date           = EXCLUDED.aulas_start_date,
-            aulas_end_date             = EXCLUDED.aulas_end_date,
-            hotmart_produto_ids        = EXCLUDED.hotmart_produto_ids,
-            tmb_produto_ids            = EXCLUDED.tmb_produto_ids,
-            drive_folder_url           = EXCLUDED.drive_folder_url,
-            youtube_aulas              = EXCLUDED.youtube_aulas,
-            etapas                     = EXCLUDED.etapas,
-            produto_nome               = EXCLUDED.produto_nome,
-            produto_preco_vista        = EXCLUDED.produto_preco_vista,
-            produto_preco_parcelado    = EXCLUDED.produto_preco_parcelado,
-            bonus_oferta               = EXCLUDED.bonus_oferta,
-            updated_at                 = NOW()
+            {sets}updated_at = NOW()
     """)
-
-    def _or_none(val):
-        return val if val not in ("", None) else None
-
-    def _or_zero(val):
-        try:
-            return float(val) if val not in ("", None) else None
-        except (ValueError, TypeError):
-            return None
-
-    def _or_int(val):
-        try:
-            return int(val) if val not in ("", None) else None
-        except (ValueError, TypeError):
-            return None
-
-    params = {
-        "lancamento_codigo":              launch_code,
-        "pre_quali_start_date":           _or_none(config.get("pre_quali_start_date")),
-        "pre_quali_end_date":             _or_none(config.get("pre_quali_end_date")),
-        "meta_leads_pre_quali":           _or_int(config.get("meta_leads_pre_quali")),
-        "meta_investimento_pre_quali":    _or_zero(config.get("meta_investimento_pre_quali")),
-        "captacao_start_date":            _or_none(config.get("captacao_start_date")),
-        "captacao_end_date":              _or_none(config.get("captacao_end_date")),
-        "meta_leads":                     _or_int(config.get("meta_leads")),
-        "meta_investimento_captacao":     _or_zero(config.get("meta_investimento_captacao")),
-        "meta_ad_account_ids":            config.get("meta_ad_account_ids") or [],
-        "google_ad_account_ids":          config.get("google_ad_account_ids") or [],
-        "filtro_lancamento":              _or_none(config.get("filtro_lancamento")),
-        "filtro_captacao":                _or_none(config.get("filtro_captacao")),
-        "filtro_pre_quali":               _or_none(config.get("filtro_pre_quali")),
-        "filtro_quente":                  _or_none(config.get("filtro_quente")),
-        "filtro_quente_scope":            config.get("filtro_quente_scope") or "campanhas",
-        "filtro_frio":                    _or_none(config.get("filtro_frio")),
-        "filtro_frio_scope":              config.get("filtro_frio_scope") or "campanhas",
-        "outras_temperaturas":            _json.dumps(config.get("outras_temperaturas") or []),
-        "carrinho_start_date":            _or_none(config.get("carrinho_start_date")),
-        "carrinho_end_date":              _or_none(config.get("carrinho_end_date")),
-        "abertura_oficial_carrinho":      _or_none(config.get("abertura_oficial_carrinho")),
-        "depoimento_start_date":          _or_none(config.get("depoimento_start_date")),
-        "depoimento_end_date":            _or_none(config.get("depoimento_end_date")),
-        "aulas_start_date":               _or_none(config.get("aulas_start_date")),
-        "aulas_end_date":                 _or_none(config.get("aulas_end_date")),
-        "hotmart_produto_ids":            config.get("hotmart_produto_ids") or [],
-        "tmb_produto_ids":                config.get("tmb_produto_ids") or [],
-        "drive_folder_url":               _or_none(config.get("drive_folder_url")),
-        "youtube_aulas":                  _json.dumps(config.get("youtube_aulas") or []),
-        "etapas":                         _json.dumps(config.get("etapas") or []),
-        "produto_nome":                   _or_none(config.get("produto_nome")),
-        "produto_preco_vista":            _or_zero(config.get("produto_preco_vista")),
-        "produto_preco_parcelado":        _or_zero(config.get("produto_preco_parcelado")),
-        "bonus_oferta":                   _json.dumps([b for b in (config.get("bonus_oferta") or []) if b]),
-    }
 
     with _get_users_engine().connect() as conn:
         conn.execute(upsert_sql, params)

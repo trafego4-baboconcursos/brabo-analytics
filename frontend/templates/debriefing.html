@@ -92,20 +92,22 @@
 }
 .dbf-saude-sep { width: 1px; align-self: stretch; background: rgba(255,255,255,.15); flex-shrink: 0; }
 .dbf-saude-items {
-  flex: 1; display: flex; gap: 24px; overflow-x: auto;
+  flex: 1; display: flex; flex-wrap: wrap; gap: 18px 22px;
 }
-.dbf-saude-item { flex: 1; min-width: 130px; }
+.dbf-saude-item { flex: 1; min-width: 128px; }
+.dbf-saude-item.na { opacity: .45; }
 .dbf-saude-item label {
   display: block; font-size: 10px; color: rgba(255,255,255,.55); font-weight: 700;
   text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px;
 }
+.dbf-saude-item .peso { font-weight: 400; color: rgba(255,255,255,.4); text-transform: none; letter-spacing: 0; }
 .dbf-saude-item .val { font-size: 16px; font-weight: 800; margin-bottom: 6px; }
+.dbf-saude-item .val.na { font-size: 12px; font-weight: 600; color: rgba(255,255,255,.55); }
 .dbf-saude-bar { height: 6px; background: rgba(255,255,255,.1); border-radius: 3px; overflow: hidden; }
 .dbf-saude-bar-fill { height: 100%; border-radius: 3px; }
 @media (max-width: 860px) {
   .dbf-saude { flex-wrap: wrap; }
   .dbf-saude-sep { display: none; }
-  .dbf-saude-items { flex-wrap: wrap; }
   .dbf-saude-item { min-width: 45%; }
 }
 
@@ -635,28 +637,53 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       <div class="dbf-saude-sep"></div>
       <div class="dbf-saude-items">
         <div class="dbf-saude-item">
-          <label>ROAS</label>
+          <label>ROAS <span class="peso">· {{ dbf.saude_pesos.roas }}pts</span></label>
           <div class="val">{{ "%.2f"|format(dbf.roas) }}x</div>
-          <div class="dbf-saude-bar"><div class="dbf-saude-bar-fill" style="width:{{ (dbf.saude_score_roas / 25 * 100) | round(0) }}%;background:#4ade80"></div></div>
+          <div class="dbf-saude-bar"><div class="dbf-saude-bar-fill" style="width:{{ (dbf.saude_score_roas / dbf.saude_pesos.roas * 100) | round(0) }}%;background:#4ade80"></div></div>
+        </div>
+        <div class="dbf-saude-item{{ ' na' if dbf.saude_atingimento_meta is none }}">
+          <label>Meta de Faturamento <span class="peso">· {{ dbf.saude_pesos.meta_fat }}pts</span></label>
+          {% if dbf.saude_atingimento_meta is not none %}
+          <div class="val">{{ dbf.saude_atingimento_meta | round(0) | int }}%</div>
+          <div class="dbf-saude-bar"><div class="dbf-saude-bar-fill" style="width:{{ (dbf.saude_score_meta_fat / dbf.saude_pesos.meta_fat * 100) | round(0) }}%;background:#22d3ee"></div></div>
+          {% else %}
+          <div class="val na">Meta não cadastrada</div>
+          <div class="dbf-saude-bar"></div>
+          {% endif %}
         </div>
         <div class="dbf-saude-item">
-          <label>Rastreabilidade UTM</label>
+          <label>CAC / Custo por Venda <span class="peso">· {{ dbf.saude_pesos.cac }}pts</span></label>
+          <div class="val">{{ dbf.saude_custo_venda | brl if dbf.total_vendas > 0 else '—' }}</div>
+          <div class="dbf-saude-bar"><div class="dbf-saude-bar-fill" style="width:{{ (dbf.saude_score_cac / dbf.saude_pesos.cac * 100) | round(0) }}%;background:#facc15"></div></div>
+        </div>
+        <div class="dbf-saude-item">
+          <label>Conversão do Funil <span class="peso">· {{ dbf.saude_pesos.conv }}pts</span></label>
+          <div class="val">{{ dbf.saude_conversao_funil | round(2) }}%</div>
+          <div class="dbf-saude-bar"><div class="dbf-saude-bar-fill" style="width:{{ (dbf.saude_score_conv / dbf.saude_pesos.conv * 100) | round(0) }}%;background:#a78bfa"></div></div>
+        </div>
+        <div class="dbf-saude-item">
+          <label>Eficiência dos Anúncios <span class="peso">· {{ dbf.saude_pesos.ads }}pts</span></label>
+          <div class="val">{{ dbf.saude_ads_com_venda }}/{{ dbf.saude_ads_total }}</div>
+          <div class="dbf-saude-bar"><div class="dbf-saude-bar-fill" style="width:{{ (dbf.saude_score_ads / dbf.saude_pesos.ads * 100) | round(0) }}%;background:#f472b6"></div></div>
+        </div>
+        <div class="dbf-saude-item{{ ' na' if dbf.saude_score_vol is none }}">
+          <label>Volume de Vendas <span class="peso">· {{ dbf.saude_pesos.vol }}pts</span></label>
+          {% if dbf.saude_score_vol is not none %}
+          <div class="val">{{ dbf.total_vendas | num }} <span style="font-size:11px;font-weight:400;opacity:.6">vs {{ dbf.prev_total_vendas | num }}</span></div>
+          <div class="dbf-saude-bar"><div class="dbf-saude-bar-fill" style="width:{{ (dbf.saude_score_vol / dbf.saude_pesos.vol * 100) | round(0) }}%;background:#fb923c"></div></div>
+          {% else %}
+          <div class="val na">Sem lançamento anterior</div>
+          <div class="dbf-saude-bar"></div>
+          {% endif %}
+        </div>
+        <div class="dbf-saude-item">
+          <label>Rastreabilidade <span class="peso">· {{ dbf.saude_pesos.rastr }}pts</span></label>
           <div class="val">{{ dbf.saude_pct_rastreado }}%</div>
           <div class="dbf-saude-bar"><div class="dbf-saude-bar-fill" style="width:{{ dbf.saude_pct_rastreado }}%;background:#60a5fa"></div></div>
         </div>
-        <div class="dbf-saude-item">
-          <label>CPL Médio Meta</label>
-          <div class="val">{{ dbf.saude_cpl_medio | brl }}</div>
-          <div class="dbf-saude-bar"><div class="dbf-saude-bar-fill" style="width:{{ (dbf.saude_score_cpl / 25 * 100) | round(0) }}%;background:#facc15"></div></div>
-        </div>
-        <div class="dbf-saude-item">
-          <label>Ads c/ Venda</label>
-          <div class="val">{{ dbf.saude_ads_com_venda }}/{{ dbf.saude_ads_total }}</div>
-          <div class="dbf-saude-bar"><div class="dbf-saude-bar-fill" style="width:{{ (dbf.saude_score_criat / 25 * 100) | round(0) }}%;background:#f472b6"></div></div>
-        </div>
       </div>
     </div>
-    <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:8px">Nota de 0 a 100 combinando 4 fatores (25 pts cada): ROAS geral, % de compradores rastreados por UTM/Active Campaign, CPL médio do Meta e % de anúncios que geraram ao menos 1 venda.</div>
+    <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:8px">Nota de 0 a 100 combinando 7 fatores por peso: ROAS (50), Meta de Faturamento (15), CAC/Custo por Venda (10), Conversão do Funil (10), Eficiência dos Anúncios (5), Volume de Vendas (5) e Rastreabilidade (5). Meta de Faturamento e Volume de Vendas ficam fora da nota quando falta a referência (meta cadastrada no wizard, ou lançamento anterior do mesmo produto) — o peso é redistribuído entre os demais.</div>
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════ -->

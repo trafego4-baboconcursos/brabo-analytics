@@ -217,6 +217,8 @@ _CONFIG_COLUNAS = {
     "produto_nome":                _cfg_texto,
     "produto_preco_vista":         _cfg_decimal,
     "produto_preco_parcelado":     _cfg_decimal,
+    "oferta_parcela_cartao":       _cfg_decimal,
+    "oferta_parcela_boleto":       _cfg_decimal,
     "bonus_oferta":                _cfg_bonus,
 }
 

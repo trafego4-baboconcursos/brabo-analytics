@@ -2145,14 +2145,20 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
         {% endfor %}
       </div>
     </div>
-    <div class="oferta-grid" style="margin-top:12px">
+    <div class="oferta-grid" style="margin-top:12px; grid-template-columns:1fr">
       <div class="oferta-card">
-        <div class="oferta-title">Preço à vista</div>
-        <div class="oferta-item" style="border-bottom:none; font-size:20px; font-weight:800; color:var(--bs-ink)">{{ dbf.oferta_preco_vista | brl if dbf.oferta_preco_vista else "não configurado" }}</div>
-      </div>
-      <div class="oferta-card">
-        <div class="oferta-title">Preço parcelado (total)</div>
-        <div class="oferta-item" style="border-bottom:none; font-size:20px; font-weight:800; color:var(--bs-ink)">{{ dbf.oferta_preco_parcelado | brl if dbf.oferta_preco_parcelado else "não configurado" }}</div>
+        <div class="oferta-item" style="border-bottom:none; font-size:18px; font-weight:800; color:var(--bs-ink)">
+          Cartão:
+          {% if dbf.oferta_parcela_cartao %}12x de {{ dbf.oferta_parcela_cartao | brl }}{% else %}—{% endif %}
+          {% if dbf.oferta_parcela_cartao and dbf.oferta_preco_vista %} ou {% endif %}
+          {% if dbf.oferta_preco_vista %}{{ dbf.oferta_preco_vista | brl }} à vista{% endif %}
+        </div>
+        <div class="oferta-item" style="border-bottom:none; font-size:18px; font-weight:800; color:var(--bs-ink)">
+          Boleto: {% if dbf.oferta_parcela_boleto %}12x de {{ dbf.oferta_parcela_boleto | brl }}{% else %}—{% endif %}
+        </div>
+        {% if not dbf.oferta_parcela_cartao and not dbf.oferta_preco_vista and not dbf.oferta_parcela_boleto %}
+        <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:6px">Preços ainda não cadastrados — preencher em Oferta & Bônus na configuração do lançamento.</div>
+        {% endif %}
       </div>
     </div>
     {% else %}

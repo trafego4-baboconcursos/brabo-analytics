@@ -3656,12 +3656,16 @@ document.addEventListener('keydown', function (e) {
           </div>
           <div class="lc-date-row">
             <div class="lc-field">
-              <span class="lc-label">Preço à vista</span>
-              <input class="lc-input" type="number" id="lc_produto_preco_vista" placeholder="Ex: 997" min="0" step="1">
+              <span class="lc-label">Cartão — Valor da parcela (12x)</span>
+              <input class="lc-input" type="number" id="lc_oferta_parcela_cartao" placeholder="Ex: 149.90" min="0" step="0.01">
             </div>
             <div class="lc-field">
-              <span class="lc-label">Preço parcelado (total)</span>
-              <input class="lc-input" type="number" id="lc_produto_preco_parcelado" placeholder="Ex: 1194" min="0" step="1">
+              <span class="lc-label">Cartão — Valor à vista</span>
+              <input class="lc-input" type="number" id="lc_produto_preco_vista" placeholder="Ex: 1618.92" min="0" step="0.01">
+            </div>
+            <div class="lc-field">
+              <span class="lc-label">Boleto — Valor da parcela (12x)</span>
+              <input class="lc-input" type="number" id="lc_oferta_parcela_boleto" placeholder="Ex: 179.90" min="0" step="0.01">
             </div>
           </div>
           <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">O período do carrinho usado no debriefing vem das datas acima.</div>
@@ -3854,7 +3858,8 @@ document.addEventListener('keydown', function (e) {
 
     setVal("lc_produto_nome",           cfg.produto_nome            || "");
     setVal("lc_produto_preco_vista",    cfg.produto_preco_vista     || "");
-    setVal("lc_produto_preco_parcelado",cfg.produto_preco_parcelado || "");
+    setVal("lc_oferta_parcela_cartao",  cfg.oferta_parcela_cartao   || "");
+    setVal("lc_oferta_parcela_boleto",  cfg.oferta_parcela_boleto   || "");
     setVal("lc_meta_faturamento",       cfg.meta_faturamento        || "");
 
     var metaIds = cfg.meta_ad_account_ids || [];
@@ -4431,7 +4436,8 @@ document.addEventListener('keydown', function (e) {
       drive_folder_url:           v("lc_drive_folder_url"),
       produto_nome:               v("lc_produto_nome"),
       produto_preco_vista:        v("lc_produto_preco_vista"),
-      produto_preco_parcelado:    v("lc_produto_preco_parcelado"),
+      oferta_parcela_cartao:      v("lc_oferta_parcela_cartao"),
+      oferta_parcela_boleto:      v("lc_oferta_parcela_boleto"),
       meta_faturamento:           v("lc_meta_faturamento"),
       youtube_aulas:              Array.from(document.querySelectorAll("#lc-yt-list .lc-product-row")).map(function(row){
         return {

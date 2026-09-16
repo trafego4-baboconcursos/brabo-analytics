@@ -1144,7 +1144,8 @@ def _compute_debriefing_ctx(
         # Oferta & bônus — preenchido manualmente no wizard de configuração
         "oferta_descricao": cfg.get("produto_nome"),
         "oferta_preco_vista": cfg.get("produto_preco_vista"),
-        "oferta_preco_parcelado": cfg.get("produto_preco_parcelado"),
+        "oferta_parcela_cartao": cfg.get("oferta_parcela_cartao"),
+        "oferta_parcela_boleto": cfg.get("oferta_parcela_boleto"),
         "oferta_carrinho_start": cfg.get("carrinho_start_date"),
         "oferta_carrinho_end": cfg.get("carrinho_end_date"),
     }

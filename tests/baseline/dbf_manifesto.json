@@ -1,5 +1,5 @@
 {
-  "snapshot_version": 13,
+  "snapshot_version": 14,
   "chaves": [
     "antigo_novo",
     "boleto_hm",
@@ -73,7 +73,6 @@
     "prev_roas_bruto",
     "prev_ticket",
     "prev_total_leads",
-    "prev_total_tmb",
     "prev_total_vendas",
     "prev_vendas_por_periodo",
     "prev_vendas_primeira_hora",
@@ -116,6 +115,7 @@
     "total_tmb",
     "total_vendas",
     "total_vendas_pay",
+    "vendas_forma",
     "vendas_grupos_whatsapp",
     "vendas_por_canal",
     "vendas_por_periodo",

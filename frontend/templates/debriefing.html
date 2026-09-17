@@ -315,29 +315,16 @@
 .day-table td { padding: 8px 10px; border-bottom: 1px solid var(--bs-surface); white-space: nowrap; }
 .day-table tr:hover td { background: var(--bs-surface); }
 
-/* ── Payment breakdown ────────────────────────────────────────── */
-.pay-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; }
-.pay-card {
-  background: var(--bs-card); border-radius: 10px; padding: 16px 12px;
-  text-align: center; box-shadow: var(--bs-sh-sm);
-}
-.pay-card .pay-num { font-size: 28px; font-weight: 900; color: var(--bs-ink); }
-.pay-card .pay-pct { font-size: 15px; font-weight: 700; color: var(--bs-accent); margin-top: 2px; }
-/* Sem uppercase: os rótulos agora são nomes em português ("Cartão de
-   Crédito", "Parcelado Hotmart") e em caixa alta a 10px ficavam gritados e
-   difíceis de ler. */
-.pay-card .pay-lbl {
-  font-size: 11.5px; color: var(--bs-ink-muted); font-weight: 700;
-  margin-top: 6px; line-height: 1.25;
-}
-.pay-card .pay-delta { margin-top: 5px; }
-/* À vista x parcelado dentro do método — só aparece quando há parcelado,
-   senão vira ruído em Pix/Boleto, que são sempre à vista. */
-.pay-card .pay-split {
-  font-size: 10.5px; color: var(--bs-ink-subtle); font-weight: 600;
-  margin-top: 5px; padding-top: 5px; border-top: 1px solid var(--bs-border);
-  line-height: 1.35;
-}
+/* ── Detalhamento de Vendas (forma de pagamento) ─────────────────── */
+.vf-badges { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 16px; margin-bottom: 8px; }
+.vf-badge-item { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.vf-badge-lbl { font-size: 11px; font-weight: 700; color: var(--bs-ink-muted); text-transform: uppercase; letter-spacing: .03em; }
+.vf-layout { display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; margin-top: 8px; }
+@media (max-width: 900px) { .vf-layout { grid-template-columns: 1fr; } }
+.vf-chart-wrap { position: relative; height: 300px; }
+.vf-chart-wrap.vf-pie { height: 280px; }
+.vf-metodos { margin-top: 20px; }
+.vf-metodos-tit { font-size: 12px; font-weight: 700; color: var(--bs-ink-muted); margin-bottom: 8px; }
 
 /* ── Comparison section ────────────────────────────────────────── */
 .cmp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
@@ -417,11 +404,9 @@
 /* ── Responsive ───────────────────────────────────────────────── */
 @media (max-width: 960px) {
   .mat-cmp, .platform-split, .cmp-grid, .day-tables-grid, .oferta-grid { grid-template-columns: 1fr; }
-  .pay-grid { grid-template-columns: repeat(3, 1fr); }
   .dbf-kpi-grid { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 640px) {
-  .pay-grid { grid-template-columns: 1fr 1fr; }
   .dbf-kpi-grid { grid-template-columns: repeat(2, 1fr); }
 }
 </style>
@@ -2257,6 +2242,131 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
     {% endif %}
   </div>
 
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 5h. DETALHAMENTO DE VENDAS (FORMA DE PAGAMENTO)             -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {# Seção única de pagamento (17/09/26): as barras/pizza mostram a FAIXA DE
+     PARCELAMENTO e a tabela embaixo mostra o MÉTODO, que antes vivia numa
+     segunda seção de cards. As 4 faixas são mutuamente exclusivas e somam o
+     total, então a pizza é legítima — ver o comentário em debriefing.py sobre
+     a barra "Recorrência" que existia aqui e estava errada. #}
+  {% set vf = dbf.vendas_forma or [] %}
+  {% set vf_total = vf | sum(attribute='qtd') %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-report-money"></i> Detalhamento de Vendas (Forma de Pagamento)</div>
+    {% if vf_total > 0 %}
+    <div style="margin-bottom:4px;font-size:12px;color:var(--bs-ink-muted)">
+      Total: {{ dbf.total_vendas_pay | num }} vendas
+      {% if dbf.total_hm > 0 %} · Hotmart: {{ dbf.total_hm | num }}{% endif %}
+      {% if dbf.total_tmb > 0 %} · TMB (boleto parcelado): {{ dbf.total_tmb | num }}{% endif %}
+    </div>
+    <div class="vf-badges">
+      {% for f in vf %}
+      <div class="vf-badge-item">
+        <span class="vf-badge-lbl">{{ f.label }}</span>
+        {{ dbadge(f.qtd, f.prev_qtd, 'up') }}
+      </div>
+      {% endfor %}
+    </div>
+    <div class="vf-layout">
+      <div class="vf-chart-wrap"><canvas id="vfBarChart"></canvas></div>
+      <div class="vf-chart-wrap vf-pie"><canvas id="vfPieChart"></canvas></div>
+    </div>
+
+    {% if dbf.pagamentos_hm %}
+    <div class="vf-metodos">
+      <div class="vf-metodos-tit">Hotmart — por método de pagamento</div>
+      <div class="table-wrap" data-no-filter>
+        <table class="table-compact" style="font-size:12px;max-width:560px">
+          <thead>
+            <tr>
+              <th class="th-dark">Método</th>
+              <th class="th-dark" style="text-align:left">Vendas</th>
+              <th class="th-dark" style="text-align:left">%</th>
+              <th class="th-dark" style="text-align:left">À vista</th>
+              <th class="th-dark" style="text-align:left">12x</th>
+              <th class="th-dark" style="text-align:left">Outras</th>
+              <th class="th-dark" style="text-align:left">vs {{ dbf.prev_code or 'anterior' }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in dbf.pagamentos_hm %}
+            <tr>
+              <td class="td-bold">{{ p.metodo }}</td>
+              <td style="text-align:left">{{ p.qtd | num }}</td>
+              <td style="text-align:left">{{ p.pct_vendas | round(1) }}%</td>
+              <td style="text-align:left">{{ p.a_vista | num }}</td>
+              <td style="text-align:left">{{ p.parcelado_12x | num }}</td>
+              <td style="text-align:left">{{ p.parcelado_outros | num }}</td>
+              <td style="text-align:left">{% if p.prev_qtd %}{{ dbadge(p.qtd, p.prev_qtd, 'up') }}{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    <script>
+    (function() {
+      const labels = [{% for f in vf %}"{{ f.label | e }}"{% if not loop.last %},{% endif %}{% endfor %}];
+      const values = [{% for f in vf %}{{ f.qtd }}{% if not loop.last %},{% endif %}{% endfor %}];
+      const colors = ['#3b82f6', '#22c55e', '#a855f7', '#ef4444'];
+      const cssVar = (name, fallback) => (getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback);
+      const inkColor = cssVar('--bs-ink', '#1f2330');
+      const total = values.reduce((a, b) => a + b, 0);
+
+      const barEl = document.getElementById('vfBarChart');
+      if (barEl) {
+        new Chart(barEl, {
+          type: 'bar',
+          plugins: [ChartDataLabels],
+          data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 4, maxBarThickness: 56 }] },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: { enabled: false },
+              datalabels: {
+                anchor: 'end', align: 'top', offset: 2,
+                font: { size: 12, weight: '700' }, color: inkColor,
+                formatter: v => v,
+              }
+            },
+            scales: {
+              x: { grid: { display: false }, ticks: { font: { size: 11 }, color: inkColor } },
+              y: { beginAtZero: true, ticks: { font: { size: 11 }, color: inkColor } },
+            },
+          },
+        });
+      }
+
+      const pieEl = document.getElementById('vfPieChart');
+      if (pieEl) {
+        new Chart(pieEl, {
+          type: 'doughnut',
+          plugins: [ChartDataLabels],
+          data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0 }] },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'bottom', labels: { font: { size: 11 }, color: inkColor, boxWidth: 12 } },
+              tooltip: { enabled: false },
+              datalabels: {
+                font: { size: 11, weight: '700' }, color: '#fff',
+                formatter: v => (total > 0 && v / total >= 0.03) ? (v / total * 100).toFixed(1) + '%' : '',
+              }
+            },
+          },
+        });
+      }
+    })();
+    </script>
+    {% else %}
+    {{ sem_dados("Detalhamento por forma de pagamento (Hotmart + TMB) ainda não disponível para este lançamento") }}
+    {% endif %}
+  </div>
+
   <!-- Forma de Pagamento da Entrada (Boleto Parcelado / TMB) -->
   {% set fpe = dbf.forma_pagamento_entrada %}
   <div class="dbf-section">
@@ -2847,59 +2957,6 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
     </div>
   </div>
   {% endif %}
-
-  <!-- ═══════════════════════════════════════════════════════════ -->
-  <!-- 10. DETALHAMENTO DE VENDAS POR PAGAMENTO                  -->
-  <!-- ═══════════════════════════════════════════════════════════ -->
-  <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-coin"></i> Detalhamento de Vendas por Pagamento</div>
-
-    {% if dbf.pagamentos_hm or dbf.total_tmb > 0 %}
-    <div style="margin-bottom:12px;font-size:12px;color:var(--bs-ink-muted)">
-      Total: {{ dbf.total_vendas_pay | num }} vendas
-      {% if dbf.total_hm > 0 %} · Hotmart: {{ dbf.total_hm | num }}{% endif %}
-      {% if dbf.total_tmb > 0 %} · TMB (boleto parcelado): {{ dbf.total_tmb | num }}{% endif %}
-    </div>
-
-    {% if dbf.pagamentos_hm %}
-    <div style="margin-bottom:16px">
-      <div style="font-size:12px;font-weight:700;color:var(--bs-ink-muted);margin-bottom:8px">Hotmart — por método de pagamento</div>
-      <div class="pay-grid">
-        {% for p in dbf.pagamentos_hm %}
-        <div class="pay-card">
-          <div class="pay-num">{{ p.qtd }}</div>
-          <div class="pay-pct">{{ p.pct_vendas | round(1) }}%</div>
-          <div class="pay-lbl">{{ p.metodo }}</div>
-          {% if p.prev_qtd %}<div class="pay-delta">{{ dbadge(p.qtd, p.prev_qtd, 'up') }}</div>{% endif %}
-          {% if p.parcelado %}
-          <div class="pay-split">
-            {{ p.a_vista | num }} à vista<br>
-            {{ p.parcelado_12x | num }} em 12x
-            {%- if p.parcelado_outros %}<br>{{ p.parcelado_outros | num }} em outras parcelas{% endif %}
-          </div>
-          {% endif %}
-        </div>
-        {% endfor %}
-      </div>
-    </div>
-    {% else %}
-    {{ sem_dados("Hotmart — CSV de vendas com campo de método de pagamento") }}
-    {% endif %}
-
-    {% if dbf.total_tmb > 0 and dbf.total_vendas_pay > 0 %}
-    <div class="info-box" style="margin-top:0;padding:14px 18px">
-      <div style="font-size:13px">
-        <strong>Boleto Parcelado TMB:</strong> {{ dbf.total_tmb | num }} vendas
-        ({{ (dbf.total_tmb / dbf.total_vendas_pay * 100) | round(1) }}% do total)
-        {% if dbf.prev_total_tmb %}{{ dbadge(dbf.total_tmb, dbf.prev_total_tmb, 'up') }}{% endif %}
-      </div>
-    </div>
-    {% endif %}
-
-    {% else %}
-    {{ sem_dados("Hotmart e TMB — CSVs de vendas com detalhe de forma de pagamento") }}
-    {% endif %}
-  </div>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 11. HISTÓRICO DE BOLETO (CROSS-LANÇAMENTO)                -->

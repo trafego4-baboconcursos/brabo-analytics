@@ -2141,36 +2141,31 @@ A linha só aparece quando há parcelado, senão Pix e Boleto (sempre à vista) 
 
 ### As duas seções de pagamento viraram uma (2026-09-17)
 
-Havia duas seções respondendo quase a mesma coisa. A de gráficos ("Detalhamento de Vendas (Forma
-de Pagamento)", `vendas_forma`) foi **removida**; ficou só a de cards, por método.
+Havia duas seções respondendo quase a mesma coisa. Ficou **uma**: "Detalhamento de Vendas (Forma
+de Pagamento)", com barras + pizza por **faixa de parcelamento** e, embaixo, uma tabela por
+**método** — que era o conteúdo da seção de cards ("Detalhamento de Vendas por Pagamento"),
+removida.
 
-O motivo não foi só duplicidade: a de gráficos estava **errada**. As cinco categorias somavam
-1.586 num lançamento de 1.013 vendas, e como era desenhada em pizza, a fatia "Recorrência 46,7%"
-saía de um denominador que não é número de venda nenhum.
+**A pizza estava sobre um denominador falso.** A versão antiga tinha 5 barras (à vista, 12x,
+outros, Recorrência, entrada TMB) que somavam 1.586 num lançamento de 1.013 vendas — e a fatia
+"Recorrência 46,7%" saía dessa soma. A raiz é o `recorrencia_qtd`, que **não conta recorrência**:
+ele vem do `eh_por_parcela` do `_parcela_unica_info`, cuja condição é `tipo == "recuperador
+inteligente" or (tipo_vazio and tem_cobrancas)`. Toda venda da era API tem `tipo_de_cobranca`
+vazio e `quantidade_de_cobrancas` preenchido, então o segundo ramo casa com quase tudo: **740 de
+752** no PES-SET-26. Pior, o contador incrementa no laço sobre o `df_paid` **antes** do drop das
+repetições, somando linhas que nem são venda — das 740, só **197** estavam no painel.
 
-**A raiz é o `recorrencia_qtd`, que não conta recorrência.** Ele vem do `eh_por_parcela` do
-`_parcela_unica_info`, cuja condição é `tipo == "recuperador inteligente" or (tipo_vazio and
-tem_cobrancas)`. Toda venda da era API tem `tipo_de_cobranca` vazio e `quantidade_de_cobrancas`
-preenchido, então o segundo ramo casa com quase tudo. Medido no PES-SET-26: **740 de 752**. Pior,
-o contador incrementa no laço sobre o `df_paid` **antes** do drop das repetições, então soma
-linhas que nem são venda — das 740, só **197** estavam no painel; 543 eram cobrança repetida já
-descartada.
+O flag está certo pro que existe: marcar que o valor gravado é o da PARCELA, pra multiplicar e
+chegar no faturamento. O erro foi reaproveitá-lo como contagem de vendas recorrentes. A barra foi
+**removida** e as faixas passaram a ser somadas a partir do `a_vista`/`parcelado_12x`/
+`parcelado_outros` de cada método (`hotmart.py`), que são exclusivas e fecham com o total — aí a
+pizza volta a significar algo. `recorrencia_qtd`/`recorrencia_receita` não são lidos por ninguém;
+o comentário no `hotmart.py` foi corrigido, porque afirmava o contrário e foi o que gerou o erro.
 
-O flag em si está certo pro que ele existe: marcar que o valor gravado é o da PARCELA, pra
-multiplicar e chegar no faturamento. O erro foi reaproveitá-lo como "quantidade de vendas
-recorrentes". `recorrencia_qtd`/`recorrencia_receita` não são lidos por ninguém agora, e o
-comentário no `hotmart.py` foi corrigido pra avisar (ele afirmava o contrário).
-
-**O que foi portado pros cards antes de apagar:** o detalhe de 12x (o card separa à vista / 12x /
-outras parcelas) e a badge de comparação com o lançamento anterior, casada pelo rótulo já
-normalizado — então `CREDIT_CARD` de um lançamento antigo compara com `Cartão de Crédito` do
-atual. O TMB do rodapé também ganhou badge. Tudo continua fechando: à vista + 12x + outras = qtd
-do card.
-
-Mudou a forma do `dbf` (saiu `vendas_forma`, entrou `prev_total_tmb`), então `SNAPSHOT_VERSION`
-foi de 12 pra 13 no mesmo commit, e o manifesto foi regravado com
+Mudou a forma do `dbf` duas vezes no mesmo dia (a seção de cards entrou e saiu), então
+`SNAPSHOT_VERSION` foi 12 → 13 → 14. O manifesto **tem que** ser regravado com
 `ATUALIZAR_MANIFESTO=1 python -m pytest tests/test_dbf_contrato.py` — editar o JSON à mão não
-basta, porque o manifesto guarda a versão também e o teste acusa "subiu a versão sem o dbf mudar".
+basta, porque ele guarda a versão também e o teste acusa "subiu a versão sem o dbf mudar de forma".
 
 ### Pendência: o painel soma 30 vendas a mais que o próprio cabeçalho
 

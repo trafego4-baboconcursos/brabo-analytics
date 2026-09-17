@@ -893,6 +893,27 @@ def _compute_debriefing_ctx(
     total_hm_v = _i(getattr(vendas, "hotmart_vendas", 0))
     prev_total_tmb = _i(getattr(prev_vendas, "tmb_vendas", 0))
 
+    # Vendas por faixa de parcelamento, somando as faixas de cada método.
+    # Estas 4 categorias são mutuamente exclusivas e somam o total de vendas,
+    # então a pizza é legítima. A versão antiga tinha uma 5ª barra,
+    # "Recorrência", vinda de `recorrencia_qtd` — que não conta recorrência
+    # (ver hotmart.py) e somava linhas já descartadas: as 5 categorias davam
+    # 1.586 num lançamento de 1.013 vendas, e a pizza saía sobre esse
+    # denominador. Removida em 17/09/26; não repor sem refazer o critério.
+    def _faixas(pgtos, tmb: int) -> list[tuple[str, int]]:
+        return [
+            ("À vista", sum(_i(p.get("a_vista")) for p in pgtos)),
+            ("Parcelado em 12x", sum(_i(p.get("parcelado_12x")) for p in pgtos)),
+            ("Outras parcelas", sum(_i(p.get("parcelado_outros")) for p in pgtos)),
+            ("Entrada (boleto parcelado)", tmb),
+        ]
+
+    prev_faixas = dict(_faixas(getattr(prev_hotmart, "pagamentos", []) or [], prev_total_tmb))
+    vendas_forma = [
+        {"label": lbl, "qtd": qtd, "prev_qtd": prev_faixas.get(lbl, 0)}
+        for lbl, qtd in _faixas(pagamentos_hm, total_tmb)
+    ]
+
     def _find_pay(metodo_keywords):
         for p in pagamentos_hm:
             m = (p.get("metodo") or "").lower()
@@ -1139,7 +1160,7 @@ def _compute_debriefing_ctx(
         "prev_vendas_primeira_hora": prev_vendas_primeira_hora,
         # Pagamentos
         "pagamentos_hm": pagamentos_hm, "total_tmb": total_tmb,
-        "prev_total_tmb": prev_total_tmb,
+        "vendas_forma": vendas_forma,
         "total_hm": total_hm_v, "total_vendas_pay": total_tmb + total_hm_v,
         "boleto_hm": boleto_hm, "cartao_hm": cartao_hm, "pix_hm": pix_hm,
         # Audiences (captação only)

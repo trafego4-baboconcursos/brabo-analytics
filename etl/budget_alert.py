@@ -50,8 +50,15 @@ from logger import get_logger  # noqa: E402
 from etl_meta_ads import fetch_insights, fetch_campaign_status as fetch_meta_status, extract_launch_code as extract_launch_code_meta  # noqa: E402
 from etl_google_ads import fetch_report, fetch_pmax_report, fetch_campaign_status as fetch_google_status, extract_launch_code as extract_launch_code_google  # noqa: E402
 
-from frontend.db_readers.ads_meta import _categorize_campaign as _categorize_meta  # noqa: E402
-from frontend.db_readers.ads_google import _categorize_campaign as _categorize_google  # noqa: E402
+# A categorização por nome de campanha saiu dos readers para
+# frontend/db_readers/nomenclatura.py. O primeiro item da tupla continua sendo a
+# etapa, que é só o que este módulo usa (`etapa, *_ = ...`).
+# O `legacy=True` do Meta existe só para a convenção antiga do BV-25; o alerta de
+# orçamento só olha lançamento com verba corrente, então fica no padrão.
+from frontend.db_readers.nomenclatura import (  # noqa: E402
+    categorizar_campanha_meta as _categorize_meta,
+    categorizar_campanha_google as _categorize_google,
+)
 
 logger = get_logger("etl.budget_alert")
 

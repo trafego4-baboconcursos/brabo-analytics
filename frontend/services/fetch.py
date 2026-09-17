@@ -123,8 +123,9 @@ def _pesquisa_engajamento(launch: Any, previous: Any = None):
 
 
 def _sorteio(launch: Any, previous: Any = None):
-    """`previous` opcional: mescla prev_taxa_participacao do lançamento
-    anterior — pauta comparativo no card "Sorteio" do debriefing."""
+    """`previous` opcional: mescla prev_taxa_participacao e a contagem por
+    aula do lançamento anterior — pauta comparativo (badge) no card
+    "Sorteio" do debriefing, tanto no total quanto item a item por aula."""
     from frontend.db_readers.sorteio import read_sorteio
     atual = _get_or_compute(launch.code, "sorteio", lambda: read_sorteio(launch.code))
     if not atual or not previous:
@@ -136,6 +137,11 @@ def _sorteio(launch: Any, previous: Any = None):
     out["has_prev"] = True
     out["prev_code"] = previous.code
     out["prev_taxa_participacao"] = prev.get("taxa_participacao")
+    prev_por_aula = {a["aula"]: a["participantes"] for a in prev.get("por_aula") or []}
+    out["por_aula"] = [
+        {**a, "prev_participantes": prev_por_aula.get(a["aula"])}
+        for a in out["por_aula"]
+    ]
     return out
 
 

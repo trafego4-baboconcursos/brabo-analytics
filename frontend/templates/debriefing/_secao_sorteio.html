@@ -24,7 +24,10 @@
     <div class="oferta-card">
       <div class="oferta-title">Participantes por Aula</div>
       {% for a in s.por_aula %}
-      <div class="oferta-item"><i class="ti ti-gift"></i> {{ a.aula }} — {{ a.participantes | num }}</div>
+      <div class="oferta-item">
+        <i class="ti ti-gift"></i> {{ a.aula }} — {{ a.participantes | num }}
+        {% if s.has_prev %}{{ dbadge(a.participantes, a.prev_participantes, 'up') }}{% endif %}
+      </div>
       {% endfor %}
     </div>
   </div>

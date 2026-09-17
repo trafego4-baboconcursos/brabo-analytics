@@ -9,8 +9,7 @@ from frontend.core import (
     templates, logger,
     get_launches, resolve_launch, find_previous_launch, _base_ctx,
     _fetch_all_data, _creative_overview, _v1_reports_for_launch,
-    _get_cached, _set_cached,
-    read_comparativo, get_drive_thumbnails,
+    get_drive_thumbnails,
     _fetch_prev_for_debriefing, _compute_debriefing_ctx,
     _sales_attribution, read_comparativo_historico, read_historico_grande,
 )
@@ -19,6 +18,7 @@ from frontend.services.fetch import (
     _leads_antigos_compradores, _qualidade_regiao, _caminho_comprador,
     _landing_pages_por_etapa, _leads_x_whatsapp, _vendas_grupos_whatsapp,
     _disparo_resumo, _conversao_pagina_captura, _utm_cobertura,
+    comparativo_cached,
 )
 from frontend.db_readers.eventos import read_eventos, eventos_por_dia, CORES_TIPO
 from frontend.services.calendario import build_calendario_ctx
@@ -509,16 +509,12 @@ def comparativo_page(request: Request, launch_code: str | None = None):
         comp_error = None
         if launch and previous:
             try:
-                cache_key = f"{previous.code}_{launch.code}_{previous2.code if previous2 else 'none'}"
-                comp_data = None if ao_vivo else _get_cached(cache_key, "comparativo")
-                if comp_data is None:
-                    token = force_refresh_start() if ao_vivo else None
-                    try:
-                        comp_data = read_comparativo(launch, previous, previous2)
-                    finally:
-                        if token is not None:
-                            force_refresh_end(token)
-                    _set_cached(cache_key, "comparativo", comp_data)
+                token = force_refresh_start() if ao_vivo else None
+                try:
+                    comp_data = comparativo_cached(launch, previous, previous2, ignorar_cache=ao_vivo)
+                finally:
+                    if token is not None:
+                        force_refresh_end(token)
             except Exception as exc:
                 logger.exception("Erro ao montar dados comparativos")
                 comp_error = "Não foi possível carregar os dados comparativos. Tente novamente."

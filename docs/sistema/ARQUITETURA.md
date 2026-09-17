@@ -27,7 +27,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 45 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 46 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -194,6 +194,7 @@ relacionados:
 > - [[ARQUITETURA#Segundo caso, no dia da abertura: TMB entra sem `lancamento_id`|Segundo caso, no dia da abertura: TMB entra sem `lancamento_id`]]
 > - [[ARQUITETURA#O Hotmart guarda a data como epoch em milissegundos|O Hotmart guarda a data como epoch em milissegundos]]
 > - [[ARQUITETURA#O cache da página é de 60 min — no dia da abertura isso aparece|O cache da página é de 60 min — no dia da abertura isso aparece]]
+> - [[ARQUITETURA#O aquecimento gravava numa chave que a rota nunca lia|O aquecimento gravava numa chave que a rota nunca lia]]
 
 <!-- SUMARIO:FIM -->
 
@@ -1991,3 +1992,25 @@ mundo, não só pra própria aba.
 não tinha breakpoint e estourava a largura no celular — 285px de overflow a 375px, fazendo a
 **página inteira** rolar na horizontal. Empilhado abaixo de 768px, igual `.cmp-funnel-grid` e
 `.cmp-ads-grid` já faziam. Era pré-existente, não veio do botão.
+
+### O aquecimento gravava numa chave que a rota nunca lia
+
+Investigando por que a primeira abertura do `/comparativo` custava ~2min mesmo com o aquecimento
+ativo: a rota e o aquecimento montavam a chave do cache cada um por sua conta, e as duas
+divergiram.
+
+| quem | chave | o que calculava |
+|---|---|---|
+| aquecimento (`fetch.py::f_comp`) | `PES-MAI-26_PES-SET-26` | `read_comparativo(launch, previous)` |
+| rota (`/comparativo`) | `PES-MAI-26_PES-SET-26_PES-MAR-26` | `read_comparativo(launch, previous, previous2)` |
+
+O sufixo entrou quando o dia 1 ganhou a variação da coluna "anterior" contra o ciclo dela mesma
+(o `previous2`); o aquecimento não foi junto. Resultado: ele pagava a consulta inteira, gravava
+numa chave órfã, e **toda** primeira visita recalculava do zero — inclusive depois de cada rodada
+do ETL. Ninguém percebeu porque não dá erro: só fica lento.
+
+**Fix:** `comparativo_cache_key()` e `comparativo_cached()` em `services/fetch.py` são agora o
+único lugar que monta a chave e lê/grava essa entrada; rota e aquecimento chamam a mesma função, e
+o aquecimento passou a receber `previous2` (`warm_launch` já tinha a lista de lançamentos pra
+derivar). A lição vale além daqui: **chave de cache montada em dois lugares diverge** — quando
+mais de um caminho lê a mesma entrada, a chave tem dono único.

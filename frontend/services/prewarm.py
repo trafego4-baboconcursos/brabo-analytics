@@ -63,6 +63,9 @@ def select_launches_to_warm(launches: list, codes: Iterable[str] | None = None) 
 async def warm_launch(launch: Any, previous: Any, launches: list | None = None) -> None:
     logger.info("Pre-warming cache para %s...", launch.code)
     launches = launches if launches is not None else ([previous] if previous else [])
+    # O /comparativo cacheia por (anterior, atual, anterior-do-anterior) — sem o
+    # terceiro aqui o aquecimento grava numa chave que a rota nunca lê.
+    previous2 = find_previous_launch(previous, launches) if previous else None
     d: dict = {}
     try:
         d = await _fetch_all_data(
@@ -72,6 +75,7 @@ async def warm_launch(launch: Any, previous: Any, launches: list | None = None) 
             needs_thumbnails=True,
             needs_comparativo=True,
             previous=previous,
+            previous2=previous2,
             needs_vendas_con=True,
             needs_hotmart=True,
             needs_tmb=True,

@@ -351,6 +351,35 @@ async def _warm_debriefing(launch: Any, previous: Any, vendas: Any) -> None:
         tasks.append(_prev())
     await asyncio.gather(*tasks)
 
+# ── Cache do /comparativo ──────────────────────────────────────────────────────
+
+def comparativo_cache_key(launch: Any, previous: Any, previous2: Any = None) -> str:
+    """Chave do cache do comparativo. Inclui `previous2` porque o dia 1 compara
+    a coluna "anterior" com o ciclo dela mesma: o mesmo par (anterior, atual)
+    com previous2 diferente dá números diferentes.
+
+    Existe como função porque a rota e o aquecimento já montaram essa chave por
+    conta própria e divergiram: o aquecimento gravava sem o `previous2` e a
+    rota procurava com ele, então nada batia e TODA primeira abertura do
+    /comparativo recalculava do zero (~2min) mesmo com o aquecimento tendo
+    acabado de fazer o mesmo trabalho (achado 17/09/26).
+    """
+    return f"{previous.code}_{launch.code}_{previous2.code if previous2 else 'none'}"
+
+
+def comparativo_cached(launch: Any, previous: Any, previous2: Any = None, ignorar_cache: bool = False) -> Any:
+    """Lê o comparativo do cache ou calcula e grava. Ponto único de leitura e
+    escrita dessa entrada — quem precisar do comparativo chama isto."""
+    key = comparativo_cache_key(launch, previous, previous2)
+    if not ignorar_cache:
+        cached = _get_cached(key, "comparativo")
+        if cached is not None:
+            return cached
+    data = read_comparativo(launch, previous, previous2)
+    _set_cached(key, "comparativo", data)
+    return data
+
+
 # ── Orquestrador assíncrono ────────────────────────────────────────────────────
 
 async def _fetch_all_data(
@@ -360,6 +389,7 @@ async def _fetch_all_data(
     needs_thumbnails: bool = False,
     needs_comparativo: bool = False,
     previous: Any = None,
+    previous2: Any = None,
     needs_vendas_con: bool = False,
     needs_hotmart: bool = False,
     needs_tmb: bool = False,
@@ -454,13 +484,8 @@ async def _fetch_all_data(
 
     async def f_comp():
         if not (launch and needs_comparativo and previous): return None
-        cache_key = f"{previous.code}_{launch.code}"
-        cached = _get_cached(cache_key, "comparativo")
-        if cached: return cached
         try:
-            comp_data = await run_in_threadpool(read_comparativo, launch, previous)
-            _set_cached(cache_key, "comparativo", comp_data)
-            return comp_data
+            return await run_in_threadpool(comparativo_cached, launch, previous, previous2)
         except Exception:
             logger.exception("Falha ao ler dados comparativos")
             _errors.append("Comparativo")

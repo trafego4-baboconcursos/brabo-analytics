@@ -1,5 +1,5 @@
 {
-  "snapshot_version": 11,
+  "snapshot_version": 12,
   "chaves": [
     "antigo_novo",
     "boleto_hm",
@@ -102,6 +102,7 @@
     "saude_score_rastr",
     "saude_score_roas",
     "saude_score_vol",
+    "sorteio",
     "ticket",
     "timeline",
     "top_ads_captacao",

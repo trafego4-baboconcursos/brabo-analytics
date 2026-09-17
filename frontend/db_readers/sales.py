@@ -540,18 +540,18 @@ def read_dia1_sales(launch: Any) -> dict:
     hotmart_ids = _normalize_product_ids(cfg.get("hotmart_produto_ids"))
     tmb_ids = _normalize_product_ids(cfg.get("tmb_produto_ids"))
 
-    # Sem product_ids no launch_config (ex.: PES-MAI-26) — mesmo fallback do
-    # read_vendas: filtra por projeto (via dim_lancamentos) em vez de
-    # codigo_do_produto/lancamento_id. Sem isso o dia 1 desses lançamentos
-    # ficava zerado mesmo com vendas reais no banco (achado 17/09/26).
-    project = None
-    if not hotmart_ids or not tmb_ids:
-        with _get_engine().connect() as conn:
-            row = conn.execute(
-                text("SELECT projeto FROM dim_lancamentos WHERE codigo = :code"),
-                {"code": code},
-            ).fetchone()
-        project = row[0] if row else None
+    # Filtrar por product_id falha em dois casos reais, os dois já tratados no
+    # read_vendas — aqui o dia 1 é só o par que faltava (achado 17/09/26):
+    #   1. launch_config sem product_ids (PES-MAI-26) — nunca acha nada;
+    #   2. venda nova do TMB entra com lancamento_id NULL e só é classificada
+    #      depois, então no dia da abertura o filtro por ID devolve vazio.
+    # Nos dois, cai pro projeto (via dim_lancamentos), igual ao read_vendas.
+    with _get_engine().connect() as conn:
+        row = conn.execute(
+            text("SELECT projeto FROM dim_lancamentos WHERE codigo = :code"),
+            {"code": code},
+        ).fetchone()
+    project = row[0] if row else None
 
     project_case = """CASE
               WHEN produto ILIKE '%inss%' THEN 'INSS'
@@ -609,9 +609,8 @@ def read_dia1_sales(launch: Any) -> dict:
             raw["ts"] = raw["ts"].dt.tz_localize(None)
         hm_df = raw[(raw["ts"] >= day_start) & (raw["ts"] <= day_end)].copy()
 
-    tmb_df = pd.DataFrame()
-    if tmb_ids or project:
-        if tmb_ids:
+    def _query_tmb(usar_ids: bool) -> pd.DataFrame:
+        if usar_ids:
             ids_literal = ", ".join(str(int(i)) for i in tmb_ids)
             filtro = f"lancamento_id = ANY(ARRAY[{ids_literal}]::int[])"
             params_tmb: dict = {"start": day_start, "end": day_end}
@@ -625,9 +624,18 @@ def read_dia1_sales(launch: Any) -> dict:
               AND {filtro}
               AND data_efetivado BETWEEN :start AND :end
         """
-        tmb_df = pd.read_sql(text(tmb_sql), ops_engine, params=params_tmb)
-        if not tmb_df.empty:
-            tmb_df["ts"] = pd.to_datetime(tmb_df["ts"])
+        return pd.read_sql(text(tmb_sql), ops_engine, params=params_tmb)
+
+    tmb_df = pd.DataFrame()
+    if tmb_ids:
+        tmb_df = _query_tmb(True)
+    # Vazio com os IDs cadastrados = venda de hoje ainda sem lancamento_id;
+    # o read_vendas faz esse mesmo retry por projeto (por isso o total da
+    # página mostrava a venda e o dia 1 não).
+    if tmb_df.empty and project:
+        tmb_df = _query_tmb(False)
+    if not tmb_df.empty:
+        tmb_df["ts"] = pd.to_datetime(tmb_df["ts"])
 
     def _hm_valor(row) -> float | None:
         def _v(x):

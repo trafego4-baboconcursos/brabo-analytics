@@ -27,7 +27,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 42 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 45 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -191,6 +191,9 @@ relacionados:
 >
 > **"Vendas Hora a Hora" do dia 1 zerava sem product_ids no launch_config (2026-09-17)**
 >
+> - [[ARQUITETURA#Segundo caso, no dia da abertura: TMB entra sem `lancamento_id`|Segundo caso, no dia da abertura: TMB entra sem `lancamento_id`]]
+> - [[ARQUITETURA#O Hotmart guarda a data como epoch em milissegundos|O Hotmart guarda a data como epoch em milissegundos]]
+> - [[ARQUITETURA#O cache da página é de 60 min — no dia da abertura isso aparece|O cache da página é de 60 min — no dia da abertura isso aparece]]
 
 <!-- SUMARIO:FIM -->
 
@@ -1933,3 +1936,34 @@ o dia 1 passa a bater com o resto dos números do próprio lançamento.
 **Como conferir se volta a acontecer:** um lançamento com `abertura_oficial_carrinho` preenchida
 e dia 1 inteiro zerado (nenhum checkpoint com venda, nenhum "ainda não chegou") é o sintoma —
 checar `hotmart_produto_ids`/`tmb_produto_ids` e se `dim_lancamentos.projeto` existe pro código.
+
+### Segundo caso, no dia da abertura: TMB entra sem `lancamento_id`
+
+No dia 1 do PES-SET-26 (17/09/26) o TMB continuou zerado mesmo **com** `tmb_produto_ids`
+cadastrado (`29395`). Causa: a venda nova chega em `tmb_clean_oficial` com `lancamento_id` **NULL**
+— a classificação só vem depois (196 linhas de set/26 ainda nulas às 8h30, todas do dia). O filtro
+`lancamento_id = ANY(...)` não casa com NULL, então o dia da abertura — justamente quando a tela é
+mais olhada — lê zero, e só ficaria certo horas depois.
+
+De novo o `read_vendas` já tratava: o retry dele do TMB dispara **sempre que o resultado vem
+vazio** (`if tmb_df.empty:`), não só quando faltam IDs. Por isso o total da página mostrava as
+vendas do dia e o dia 1 não. `read_dia1_sales` passou a fazer o mesmo retry por projeto.
+
+**Efeito colateral aceito:** se um lançamento tiver de verdade zero venda TMB no dia 1, o retry
+passa a contar as vendas TMB daquele projeto no dia. É o mesmo comportamento que o `read_vendas`
+já tem desde antes, e no dia da abertura a venda do projeto é a do lançamento — preferiu-se a
+consistência entre os dois números à precisão teórica de um caso que não apareceu.
+
+### O Hotmart guarda a data como epoch em milissegundos
+
+Investigando o mesmo dia: `hotmart_clean_oficial.data_da_transacao` grava as vendas novas como
+epoch ms (`1789642687000`), não como `DD/MM/YYYY`. O SQL do dia 1 e o `_hm_data_sql` já tratam os
+dois formatos — mas **qualquer consulta manual com `LIKE '17/09/2026%'` devolve zero linhas e dá a
+impressão de que a tabela está parada**. Pra conferir por data, usar sempre o `_hm_data_sql`.
+
+### O cache da página é de 60 min — no dia da abertura isso aparece
+
+`frontend/cache.py::_CACHE_TTL` = 3600s, e `/comparativo` guarda o `ComparativoData` inteiro. Num
+dia normal ninguém nota; no dia 1, em que os checkpoints viram de hora em hora, um checkpoint que
+acabou de ficar válido pode levar até 1h pra aparecer. Não é bug do leitor — se o número bate no
+`read_dia1_sales` direto e não na tela, é cache.

@@ -27,7 +27,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 47 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 49 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -103,6 +103,11 @@ relacionados:
 > **Bugs Corrigidos (2026-06-24)**
 >
 > - [[ARQUITETURA#`DatetimeFieldOverflow` no Hotmart e TMB|`DatetimeFieldOverflow` no Hotmart e TMB]]
+>
+> **Legendas dos criativos — `ad_transcricoes` (2026-09-17)**
+>
+> - [[ARQUITETURA#O que a `hook_confiavel` protege|O que a `hook_confiavel` protege]]
+> - [[ARQUITETURA#Vendas não entram na view|Vendas não entram na view]]
 >
 > **Desligamento do Typeform e sistema de pesquisa interno (2026-08-31)**
 >
@@ -962,6 +967,54 @@ tmb_lancamento_id = int(first) if first else None
 **Causa:** Campos de data (`data_da_transacao`, `confirmacao_do_pagamento`, `data_efetivado`) às vezes contêm Unix timestamps em milissegundos (ex: `"1781788622000"`). O `CASE WHEN` original só tratava `DD/MM/YYYY` e caía no `::timestamptz::date` genérico, que explode com valores numéricos grandes.
 
 **Fix:** Adicionado WHEN intermediário com regex `^\d{10,13}$` que converte via `to_timestamp(valor_ms / 1000)::date` antes de tentar o cast genérico. Aplicado em 4 queries (2 Hotmart + 2 TMB).
+
+---
+
+## Legendas dos criativos — `ad_transcricoes` (2026-09-17)
+
+Base da página "Análise de Copys". Ingere `analises/[LANCAMENTO]/Legendas/*.txt`
+(transcrição falada de cada `ADxxx`, com minutagem) para três tabelas no banco de
+analytics, mais a view `view_copy_performance`.
+
+```bash
+python etl/etl_legendas.py --launch PES-SET-26            # uma pasta
+python etl/etl_legendas.py --all                          # varre analises/*/Legendas/
+python etl/etl_legendas.py --launch PES-SET-26 --dry-run  # parseia e relata, sem gravar
+```
+
+Fica **fora do `scheduler.py`** de propósito: legenda não muda de hora em hora.
+
+| tabela | granularidade | para quê |
+|---|---|---|
+| `ad_transcricoes` | um registro por bloco `--- Fonte: ---` | texto completo, busca full-text em português, `roteiro_hash`, `fonte_tipo`, `is_canonica` |
+| `ad_transcricao_linhas` | uma linha por fala com timestamp | a minutagem: `t_ini_seg`, `t_fim_seg`, `quartil`, `falante` |
+| `ad_copy_atributos` | EAV `(dimensao, valor)` por `ADxxx` | classificação do copy; `origem='humano'` nunca é sobrescrita pelo ETL |
+
+### O que a `hook_confiavel` protege
+
+Levantamento do PES-SET-26 (33 arquivos): **só 9 são transcrição do corte final
+publicado**. 20 são material bruto de câmera e 4 são estáticos sem fala. Nos brutos
+a minutagem **não é a do anúncio** — em `AD269` os três blocos abrem todos em
+`[00:00]` com falas diferentes (um por ator), e `AD247` tem 299s de filmagem crua
+com takes descartados para um anúncio de ~60s.
+
+`hook_rate` (3s) continua confiável porque vem da plataforma. O **texto** desses 3
+segundos, não. Por isso só `fonte_tipo='corte_final'` recebe `hook_confiavel=True`,
+e **toda análise temporal (gancho, quartil, segundo do CTA) tem que filtrar por essa
+coluna** — senão mede texto que nunca foi ao ar.
+
+Decisão de 17/09/26: não reconstruir a timeline dos brutos. Eles entram para texto,
+busca e classificação, e ficam fora da análise temporal. Nos lançamentos novos, o
+caminho é transcrever o corte final desde o começo.
+
+### Vendas não entram na view
+
+`view_copy_performance` junta só gasto e métricas de vídeo. As vendas moram no banco
+operacional e `view_atribuicao` subestima gravemente — a página junta vendas em
+Python, via `frontend/services/criativos.py::_creative_overview`, como o resto do
+sistema.
+
+Plano completo: [[PLANO_ANALISE_COPYS]].
 
 ---
 

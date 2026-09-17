@@ -38,6 +38,16 @@ Lançamentos a partir de PBB-JUN-26 não têm CSV nas pastas de `analises/`.
 python etl/run_all.py --csv-mode --campaign-folder "analises/[PBB-ABR-26]" --period 2026-04
 ```
 
+### ETL — legendas dos criativos
+Ingere `analises/[LANCAMENTO]/Legendas/*.txt` (transcrição com minutagem por `ADxxx`).
+Fora do scheduler de propósito. Base da página "Análise de Copys" — ver
+`docs/projetos/PLANO_ANALISE_COPYS.md`.
+```bash
+python etl/etl_legendas.py --launch PES-SET-26
+python etl/etl_legendas.py --launch PES-SET-26 --dry-run   # parseia e relata, não grava
+python etl/etl_legendas.py --all
+```
+
 ### One-time setup
 ```bash
 # Apply DB schema (run in Supabase > SQL Editor)
@@ -96,6 +106,10 @@ Session auth uses HMAC-signed cookies. Roles: `admin > analista > trafego > leit
 - `etl_typeform.py` — no longer wired into `run_all.py`/`scheduler.py` (Typeform account was cancelled); `typeform_respostas` reads now come from a one-time Supabase backup (`typeform_respostas_backup`, `typeform_respostas_backup_2`, `typeform_forms`, `typeform_forms_2`) via `frontend/db_readers/typeform.py`. The script still exists for a manual one-off run if the token is ever valid again.
 - `scheduler.py` — runs `run_all.py` every hour with a rolling 3-day window
 - `schema.sql` — full DB schema + Supabase views (run once)
+- `etl_legendas.py` — transcrições dos criativos → `ad_transcricoes` / `ad_transcricao_linhas` /
+  `ad_copy_atributos`. Só `fonte_tipo='corte_final'` tem `hook_confiavel=True`: a maioria dos
+  arquivos é filmagem crua, não o corte publicado — toda análise temporal precisa filtrar por
+  essa coluna (ver `docs/sistema/ARQUITETURA.md`)
 - `db.py` — SQLAlchemy engine factory (reads `SUPABASE_DB_URL` from `.env`)
 
 ### Shared Modules (`src/`)

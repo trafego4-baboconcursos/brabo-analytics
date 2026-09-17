@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block head %}
+<style>
+/* Análise de Copys — thumb + gancho lado a lado */
+.copy-thumb { width:52px; height:52px; object-fit:cover; border-radius:6px; border:1px solid var(--bs-border); flex-shrink:0; display:block; background:var(--bs-accent-bg); }
+.copy-thumb-empty { width:52px; height:52px; border-radius:6px; border:1px dashed var(--bs-border-s); background:var(--bs-accent-bg); display:flex; align-items:center; justify-content:center; flex-shrink:0; color:var(--bs-muted); }
+.copy-ad { display:flex; align-items:center; gap:10px; min-width:0; }
+.copy-ad-txt { min-width:0; }
+.copy-ad-txt strong { display:block; }
+.copy-gancho { display:block; color:var(--bs-muted); font-size:.82rem; line-height:1.3;
+               overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; }
+.copy-exemplos { margin:0; padding-left:1.1em; color:var(--bs-muted); font-size:.8rem; }
+.copy-exemplos li { margin:1px 0; }
+.copy-fam { display:flex; align-items:center; gap:8px; }
+.copy-fam-thumbs { display:flex; gap:3px; flex-shrink:0; }
+.copy-fam-thumbs img { width:30px; height:30px; object-fit:cover; border-radius:4px; border:1px solid var(--bs-border); }
+.copy-vencedor { color:var(--bs-ok); font-weight:600; }
+.copy-perdedor { color:var(--bs-danger); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1>Análise de Copys{% if launch %} - {{ launch.code }}{% endif %}</h1>
+      <p>O que o anúncio fala nos 3 primeiros segundos, confrontado com retenção, CPL, venda e ROAS</p>
+    </div>
+  </div>
+  <div class="content">
+
+    {% if not copys or not copys.tabelas %}
+    <div class="no-data">
+      <i class="ti ti-message-2"></i>
+      <h3>Sem transcrição confiável neste lançamento</h3>
+      <p>Rode <code>python etl/etl_transcrever_meta.py --launch {{ active_code or 'CODIGO' }}</code>
+         para transcrever os vídeos publicados, ou
+         <code>python etl/etl_legendas.py --launch {{ active_code or 'CODIGO' }}</code>
+         se houver <code>.txt</code> em <code>analises/[{{ active_code or 'CODIGO' }}]/Legendas/</code>.</p>
+    </div>
+    {% else %}
+
+    {# Cobertura primeiro, e de propósito: um pódio decidido por poucos anúncios
+       parece representar o lançamento inteiro se ninguém disser o contrário. #}
+    {% set cob = copys.cobertura %}
+    {% if cob %}
+    <div class="note" style="margin-bottom:18px;">
+      <strong>Cobertura:</strong> a análise cobre <strong>{{ cob.ads }} anúncios</strong> e
+      <strong>{{ cob.gasto_analisado | brl }}</strong> de
+      {{ cob.gasto_total | brl }} — <strong>{{ '%.0f' % (cob.pct * 100) }}%</strong> da verba.
+      Só entram anúncios cuja transcrição vem do <strong>vídeo publicado</strong>
+      (<code>hook_confiavel</code>): nos <code>.txt</code> de filmagem crua o
+      <code>[00:00]</code> não é o início do anúncio, então o "gancho" seria texto
+      que nunca foi ao ar. Piso de {{ copys.piso_gasto | brl }} de gasto por anúncio.
+    </div>
+    {% endif %}
+
+    {% set c = copys.contraste %}
+    {% if c and not c.concordam %}
+    <div class="section">
+      <div class="section-title" data-tag="Leitura">A pergunta que esta página responde</div>
+      <div class="note">
+        <strong>CPL e CPA discordam, e o CPA é que paga a conta.</strong>
+        Otimizando por <strong>CPL</strong>, o gancho escolhido seria
+        <strong>{{ c.por_cpl.nome }}</strong> ({{ c.por_cpl.cpl | brl }} por lead) —
+        mas ele custa <strong>{{ c.por_cpl.cpa | brl }} por venda</strong>.
+        O melhor por <strong>CPA</strong> é <strong>{{ c.por_cpa.nome }}</strong>,
+        a {{ c.por_cpa.cpa | brl }} por venda e ROAS
+        {{ '%.2f' % c.por_cpa.roas }}. Escolher pelo CPL sairia
+        <strong>{{ '%.0f' % (c.penalidade_cpa * 100) }}% mais caro por venda</strong>.
+      </div>
+    </div>
+    {% elif c and c.concordam %}
+    <div class="note" style="margin-bottom:18px;">
+      CPL e CPA apontam para a mesma família nesta Captação:
+      <strong>{{ c.familia }}</strong>.
+    </div>
+    {% endif %}
+
+    {% for t in copys.tabelas %}
+    <div class="section">
+      <div class="section-title" data-tag="{{ t.etapa }}">
+        Famílias de gancho — {{ t.etapa }}
+      </div>
+      <div class="note">
+        {{ t.gasto | brl }} de gasto · {{ t.vendas }} vendas · {{ t.faturamento | brl }} de receita.
+        {% if t.etapa == 'Captação' %}
+        Campanhas de <strong>cadastro</strong>: CPL e CPA são comparáveis entre si aqui.
+        {% else %}
+        Campanhas de <strong>engajamento</strong>: o objetivo não é cadastro, então
+        <strong>CPL e CPA desta tabela não se comparam com os da Captação</strong> —
+        a leitura útil aqui é hook rate e retenção.
+        {% endif %}
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Família de gancho</th>
+              <th class="th-num" title="Anúncios na família">Ads</th>
+              <th class="th-num">Investimento</th>
+              <th class="th-num" title="views de 3s ÷ impressões">Hook</th>
+              <th class="th-num" title="ThruPlays ÷ views de 3s">Retenção</th>
+              <th class="th-num" title="views de 100% ÷ views de 3s">Assistiu tudo</th>
+              <th class="th-num">Leads</th>
+              <th class="th-num">CPL</th>
+              <th class="th-num">Vendas</th>
+              <th class="th-num">CPA</th>
+              <th class="th-num">ROAS</th>
+              <th class="th-num" title="vendas ÷ leads">Lead→venda</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for f in t.familias %}
+            <tr>
+              <td>
+                <div class="copy-fam">
+                  <div class="copy-fam-thumbs">
+                    {% for ex in f.exemplos %}
+                    <img src="/api/meta-creative/{{ active_code }}/{{ ex.ad_code }}/thumb"
+                         alt="{{ ex.ad_code }}" loading="lazy" title="{{ ex.ad_code }} — {{ ex.gancho }}"
+                         onerror="this.onerror=null;this.src='/api/creative-image/{{ active_code }}/{{ ex.ad_code }}';this.dataset.fb=1;">
+                    {% endfor %}
+                  </div>
+                  <div>
+                    <strong>{{ f.nome }}</strong>
+                    <ul class="copy-exemplos">
+                      {% for ex in f.exemplos %}
+                      <li>{{ ex.ad_code }}: “{{ ex.gancho | truncate(58) }}”</li>
+                      {% endfor %}
+                    </ul>
+                  </div>
+                </div>
+              </td>
+              <td class="td-num">{{ f.ads }}</td>
+              <td class="td-num">{{ f.gasto | brl }}</td>
+              <td class="td-num">{{ '%.1f' % (f.hook_rate * 100) }}%</td>
+              <td class="td-num">{{ '%.1f' % (f.hold_rate * 100) }}%</td>
+              <td class="td-num">{{ '%.1f' % (f.completion * 100) }}%</td>
+              <td class="td-num">{{ f.leads | num }}</td>
+              <td class="td-num">{{ f.cpl | brl }}</td>
+              <td class="td-num">{{ f.vendas }}</td>
+              <td class="td-num {% if loop.first and f.cpa %}copy-vencedor{% elif loop.last and f.cpa %}copy-perdedor{% endif %}">
+                {% if f.cpa %}{{ f.cpa | brl }}{% else %}—{% endif %}
+              </td>
+              <td class="td-num">{{ '%.2f' % f.roas }}</td>
+              <td class="td-num">{{ '%.2f' % (f.conv_lead_venda * 100) }}%</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endfor %}
+
+    <div class="section">
+      <div class="section-title" data-tag="Detalhe">Anúncio por anúncio</div>
+      <div class="note">
+        O gancho exibido é a transcrição literal dos <strong>3 primeiros segundos</strong>
+        do vídeo publicado, cortada no segundo exato via timestamp por palavra —
+        por isso a frase costuma terminar no meio.
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Anúncio e gancho (0–3s)</th>
+              <th>Família</th>
+              <th class="th-num">Etapa</th>
+              <th class="th-num">Dur.</th>
+              <th class="th-num">Investimento</th>
+              <th class="th-num">Hook</th>
+              <th class="th-num">Leads</th>
+              <th class="th-num">CPL</th>
+              <th class="th-num">Vendas</th>
+              <th class="th-num">CPA</th>
+              <th class="th-num">ROAS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in copys.por_ad %}
+            <tr>
+              <td>
+                <div class="copy-ad">
+                  <img class="copy-thumb" loading="lazy" alt="{{ r.ad_code }}"
+                       src="/api/meta-creative/{{ active_code }}/{{ r.ad_code }}/thumb"
+                       onerror="this.onerror=null;this.src='/api/creative-image/{{ active_code }}/{{ r.ad_code }}';">
+                  <div class="copy-ad-txt">
+                    <strong>{{ r.ad_code }}</strong>
+                    <span class="copy-gancho">“{{ r.gancho }}”</span>
+                  </div>
+                </div>
+              </td>
+              <td>{{ r.familia }}</td>
+              <td class="td-num">{{ r.etapa }}</td>
+              <td class="td-num">{{ r.duracao_seg }}s</td>
+              <td class="td-num">{{ r.gasto | brl }}</td>
+              <td class="td-num">{{ '%.1f' % (r.hook_rate * 100) }}%</td>
+              <td class="td-num">{{ r.leads | num }}</td>
+              <td class="td-num">{{ r.cpl | brl }}</td>
+              <td class="td-num">{{ r.vendas }}</td>
+              <td class="td-num">{% if r.cpa %}{{ r.cpa | brl }}{% else %}—{% endif %}</td>
+              <td class="td-num">{{ '%.2f' % r.roas }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

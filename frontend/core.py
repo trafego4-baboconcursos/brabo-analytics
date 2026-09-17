@@ -393,6 +393,8 @@ def _build_funis_nav_groups(launch, active_code, page, current_user, previous_la
             "links": [
                 {"page": "leads", "label": "Leads Confronto", "icon": "ti-users",
                  "href": _href("/leads"), "enabled": bool(launch and launch.has_ac)},
+                {"page": "analise-copys", "label": "Análise de Copys", "icon": "ti-message-2",
+                 "href": _href("/analise-copys"), "enabled": bool(launch and launch.has_meta)},
                 {"page": "crm_campanhas", "label": "Campanhas (E-mails)", "icon": "ti-mail",
                  "href": _href("/crm-campanhas"), "enabled": bool(launch and launch.has_ac)},
                 {"page": "meta-audiences", "label": "Meta Audiências", "icon": "ti-user-check",

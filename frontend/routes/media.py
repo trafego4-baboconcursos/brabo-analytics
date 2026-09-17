@@ -146,3 +146,23 @@ async def google_audiences(request: Request, launch_code: str | None = None):
     ctx = _base_ctx(request, "google-audiences", "Google Audiências", launch, launches, google=google,
                     data_errors=d.get("_errors", []))
     return templates.TemplateResponse("google_audiences.html", ctx)
+
+@router.get("/analise-copys", response_class=HTMLResponse)
+async def analise_copys_page(request: Request, launch_code: str | None = None):
+    """Gancho falado x retencao x CPL x venda x ROAS, por familia de gancho.
+
+    Precisa de needs_sales_attr: sem venda a pagina mostraria so CPL, e no
+    PES-SET-26 o ranking por CPL e quase o inverso do ranking por CPA."""
+    from frontend.services.copys import read_copys_page  # noqa: PLC0415
+
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    d = await _fetch_all_data(launch, needs_sales_attr=True)
+    copys = None
+    try:
+        copys = await run_in_threadpool(read_copys_page, launch, d.get("sales_attr"))
+    except Exception:
+        logger.exception("Analise de Copys: falha ao montar o confronto")
+    ctx = _base_ctx(request, "analise-copys", "Analise de Copys", launch, launches,
+                    copys=copys, data_errors=d.get("_errors", []))
+    return templates.TemplateResponse("analise_copys.html", ctx)

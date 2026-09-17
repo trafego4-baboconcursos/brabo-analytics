@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, Response
 from fastapi.concurrency import run_in_threadpool
 
+from frontend.cache import force_refresh_end, force_refresh_start
 from frontend.core import (
     templates, logger,
     get_launches, resolve_launch, find_previous_launch, _base_ctx,
@@ -495,14 +496,28 @@ def comparativo_page(request: Request, launch_code: str | None = None):
         previous = find_previous_launch(launch, launches) if launch else None
         previous2 = find_previous_launch(previous, launches) if previous else None
 
+        # `?ao_vivo=1` recalcula na hora, ignorando o cache da página e o dos
+        # leitores por baixo (force_refresh, o mesmo do re-aquecimento pós-ETL
+        # — sem ele read_vendas/read_meta devolveriam o valor velho e a página
+        # continuaria antiga). Existe por causa do dia da abertura: os
+        # checkpoints do "Dia 1" viram de hora em hora e o TTL de 1h segurava o
+        # número novo na tela. Recalcula tudo de forma síncrona, então é lento
+        # de propósito — é botão de conferência, não o caminho normal.
+        ao_vivo = request.query_params.get("ao_vivo") == "1"
+
         comp_data = None
         comp_error = None
         if launch and previous:
             try:
                 cache_key = f"{previous.code}_{launch.code}_{previous2.code if previous2 else 'none'}"
-                comp_data = _get_cached(cache_key, "comparativo")
+                comp_data = None if ao_vivo else _get_cached(cache_key, "comparativo")
                 if comp_data is None:
-                    comp_data = read_comparativo(launch, previous, previous2)
+                    token = force_refresh_start() if ao_vivo else None
+                    try:
+                        comp_data = read_comparativo(launch, previous, previous2)
+                    finally:
+                        if token is not None:
+                            force_refresh_end(token)
                     _set_cached(cache_key, "comparativo", comp_data)
             except Exception as exc:
                 logger.exception("Erro ao montar dados comparativos")

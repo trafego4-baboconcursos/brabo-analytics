@@ -1967,3 +1967,15 @@ impressão de que a tabela está parada**. Pra conferir por data, usar sempre o 
 dia normal ninguém nota; no dia 1, em que os checkpoints viram de hora em hora, um checkpoint que
 acabou de ficar válido pode levar até 1h pra aparecer. Não é bug do leitor — se o número bate no
 `read_dia1_sales` direto e não na tela, é cache.
+
+Por isso `/comparativo` ganhou **`?ao_vivo=1`** (17/09/26), mesmo nome do que o `/debriefing` já
+usava. Não basta ignorar o cache da página: `read_comparativo` chama `read_vendas`, `read_meta` e
+`read_google`, que têm cache próprio (`_get_or_compute`) e devolveriam o valor velho do mesmo
+jeito. A rota usa o `force_refresh_start()`/`force_refresh_end()` do `frontend/cache.py` — o
+mesmo par que o re-aquecimento pós-ETL usa — que faz o `_get_or_compute` recomputar de forma
+síncrona e gravar por cima. O resultado ainda vai pro cache, então a visita normal seguinte já
+pega o número novo.
+
+É **lento de propósito** (recalcula tudo, sem stale-while-revalidate): é botão de conferência no
+dia da abertura, não caminho de uso normal. Vale como padrão pra qualquer página cacheada que
+precise de um "confere agora" — copiar esse par, não só pular o `_get_cached`.

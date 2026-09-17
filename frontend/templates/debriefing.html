@@ -2207,28 +2207,19 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   {% endif %}
 
   <!-- ═══════════════════════════════════════════════════════════ -->
-  <!-- 5f. BLOCO PESQUISAS — SORTEIO (SEM FONTE, PLACEHOLDER)      -->
+  <!-- 5f. BLOCO PESQUISAS — SORTEIO (GOOGLE FORMS)                -->
   <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if lazy %}
+  <div class="dbf-section" data-lazy-section="sorteio">
+    <div class="dbf-section-title"><i class="ti ti-gift"></i> Sorteio</div>
+    {{ lazy_skeleton() }}
+  </div>
+  {% elif dbf.sorteio %}
   <div class="dbf-section">
     <div class="dbf-section-title"><i class="ti ti-gift"></i> Sorteio</div>
-    {{ sem_dados("Dados do sorteio ainda não integrados ao banco — sem fonte hoje (precisa de export/planilha da ferramenta que roda o sorteio e da automação de disparo)") }}
-    <div class="oferta-grid" style="margin-top:16px">
-      <div class="oferta-card">
-        <div class="oferta-title">Participantes por Aula</div>
-        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> Aula 1 — não configurado</div>
-        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> Aula 2 — não configurado</div>
-        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> Aula 3 — não configurado</div>
-        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> Aula 4 — não configurado</div>
-        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> Aula 5 — não configurado</div>
-        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> reSUMÃO — não configurado</div>
-      </div>
-      <div class="oferta-card">
-        <div class="oferta-title">Engajamento do Sorteio</div>
-        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> % da base que participou — não configurado</div>
-        <div class="oferta-item"><i class="ti ti-circle-dashed"></i> Abriram a janela da automação (domingo) — não configurado</div>
-      </div>
-    </div>
+    {% include "debriefing/_secao_sorteio.html" %}
   </div>
+  {% endif %}
 
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 5g. DETALHAMENTO DE OFERTA (CHECKLIST + PREÇOS)             -->

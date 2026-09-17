@@ -17,7 +17,7 @@ from frontend.services.fetch import (
     _launch_cfg, _perfil_por_anuncio, _pesquisa_engajamento,
     _leads_antigos_compradores, _qualidade_regiao, _caminho_comprador,
     _landing_pages_por_etapa, _leads_x_whatsapp, _vendas_grupos_whatsapp,
-    _disparo_resumo, _conversao_pagina_captura, _utm_cobertura,
+    _disparo_resumo, _conversao_pagina_captura, _utm_cobertura, _sorteio,
     comparativo_cached,
 )
 from frontend.db_readers.eventos import read_eventos, eventos_por_dia, CORES_TIPO
@@ -650,7 +650,7 @@ async def debriefing(request: Request, launch_code: str | None = None, modo: str
     return templates.TemplateResponse("debriefing.html", ctx)
 
 
-_DEBRIEFING_SECOES_LAZY = ("pesquisa_engajamento", "qualidade_regiao", "perfil_por_anuncio", "caminho_comprador", "leads_x_whatsapp", "vendas_grupos_whatsapp", "disparo_resumo", "funil_pesquisa", "comparativo_historico", "historico_grande")
+_DEBRIEFING_SECOES_LAZY = ("pesquisa_engajamento", "qualidade_regiao", "perfil_por_anuncio", "caminho_comprador", "leads_x_whatsapp", "vendas_grupos_whatsapp", "disparo_resumo", "funil_pesquisa", "comparativo_historico", "historico_grande", "sorteio")
 
 
 @router.get("/debriefing/secao/{secao}", response_class=HTMLResponse)
@@ -688,6 +688,9 @@ async def debriefing_secao(request: Request, secao: str, launch_code: str | None
             dbf[secao] = await run_in_threadpool(_vendas_grupos_whatsapp, launch, previous)
         elif secao == "disparo_resumo":
             dbf[secao] = await run_in_threadpool(_disparo_resumo, launch)
+        elif secao == "sorteio":
+            previous = find_previous_launch(launch, launches)
+            dbf[secao] = await run_in_threadpool(_sorteio, launch, previous)
         elif secao == "comparativo_historico":
             dbf[secao] = await run_in_threadpool(read_comparativo_historico, launch, launches)
         elif secao == "historico_grande":

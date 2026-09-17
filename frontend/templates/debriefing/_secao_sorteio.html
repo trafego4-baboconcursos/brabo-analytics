@@ -1,0 +1,20 @@
+{# Corpo da seção "Sorteio" — participação por aula (Google Forms, via
+   etl/etl_sorteio_forms.py -> sorteio_respostas) × base de leads do
+   lançamento. Vazio quando não há dado (produto sem formulário configurado
+   em config/sorteio_projetos.yaml, ou lançamento sem resposta na janela). #}
+{% if dbf.sorteio %}
+{% set s = dbf.sorteio %}
+<div class="dbf-lazy-body">
+  <div class="oferta-grid">
+    <div class="oferta-card">
+      <div class="oferta-title">Participantes por Aula</div>
+      {% for a in s.por_aula %}
+      <div class="oferta-item"><i class="ti ti-gift"></i> {{ a.aula }} — {{ a.participantes | num }}</div>
+      {% endfor %}
+    </div>
+  </div>
+  <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
+    Janela considerada: {{ s.janela_inicio | br_date }} a {{ s.janela_fim | br_date }} (início das Aulas no Ar deste lançamento até o início das do próximo).
+  </div>
+</div>
+{% endif %}

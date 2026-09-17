@@ -490,6 +490,7 @@ def _compute_debriefing_ctx(
     prev_whatsapp_groups_resumo: Any = None,
     dia1_sales: Any = None,
     prev_dia1_sales: Any = None,
+    sorteio: Any = None,
 ) -> dict:
     def _f(x): return float(x or 0)
     def _i(x): return int(x or 0)
@@ -1190,6 +1191,8 @@ def _compute_debriefing_ctx(
         ),
         # Engajamento da pesquisa (respostas × base de leads)
         "pesquisa_engajamento": pesquisa_engajamento,
+        # Sorteio — participação por aula (Google Forms) × base de leads
+        "sorteio": sorteio,
         # Comercial × IA × Orgânico (sck Hotmart / utm_source TMB)
         "vendas_por_canal": getattr(vendas, "por_canal", {}) or {},
         # Antigo × novo (ADxxx já usado em lançamento anterior do produto)

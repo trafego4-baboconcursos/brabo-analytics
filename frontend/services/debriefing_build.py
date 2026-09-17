@@ -28,7 +28,7 @@ from frontend.services.fetch import (
     _landing_pages_por_etapa, _leads_x_whatsapp, _vendas_grupos_whatsapp,
     _disparo_resumo, _ebook_compradores, _hotmart_recompra,
     _launch_cfg, _compradores_por_dia_grupo, _forma_pagamento_entrada,
-    _whatsapp_groups_resumo, _dia1_sales,
+    _whatsapp_groups_resumo, _dia1_sales, _sorteio,
 )
 from frontend.db_readers.sales import read_hotmart_details
 
@@ -148,6 +148,16 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         except Exception:
             logger.exception("Debriefing: falha ao montar vendas x grupos de WhatsApp")
             falhas.append("vendas_grupos_whatsapp")
+            return None
+
+    async def f_sorteio():
+        if not launch or lazy:
+            return None
+        try:
+            return await run_in_threadpool(_sorteio, launch, previous)
+        except Exception:
+            logger.exception("Debriefing: falha ao montar sorteio (participação por aula)")
+            falhas.append("sorteio")
             return None
 
     async def f_disparo_resumo():
@@ -326,6 +336,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         historico_grande,
         (whatsapp_groups_resumo, prev_whatsapp_groups_resumo),
         (dia1_sales, prev_dia1_sales),
+        sorteio,
     ) = await asyncio.gather(
         f_creative(), f_leads_antigos(), f_perfil_pesquisa(),
         f_qualidade_regiao(), f_caminho_comprador(), f_previous(),
@@ -334,6 +345,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         f_hotmart_semana_seguinte(), f_compradores_por_dia_grupo(),
         f_forma_pagamento_entrada(), f_comparativo_historico(),
         f_historico_grande(), f_whatsapp_groups_resumo(), f_dia1_sales(),
+        f_sorteio(),
     )
 
     dbf = _compute_debriefing_ctx(
@@ -369,6 +381,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         prev_whatsapp_groups_resumo=prev_whatsapp_groups_resumo,
         dia1_sales=dia1_sales,
         prev_dia1_sales=prev_dia1_sales,
+        sorteio=sorteio,
     )
     return {
         "dbf": dbf,

@@ -122,6 +122,23 @@ def _pesquisa_engajamento(launch: Any, previous: Any = None):
     return out
 
 
+def _sorteio(launch: Any, previous: Any = None):
+    """`previous` opcional: mescla prev_taxa_participacao do lançamento
+    anterior — pauta comparativo no card "Sorteio" do debriefing."""
+    from frontend.db_readers.sorteio import read_sorteio
+    atual = _get_or_compute(launch.code, "sorteio", lambda: read_sorteio(launch.code))
+    if not atual or not previous:
+        return atual
+    prev = _get_or_compute(previous.code, "sorteio", lambda: read_sorteio(previous.code))
+    if not prev:
+        return atual
+    out = dict(atual)
+    out["has_prev"] = True
+    out["prev_code"] = previous.code
+    out["prev_taxa_participacao"] = prev.get("taxa_participacao")
+    return out
+
+
 def _leads_x_whatsapp(launch: Any, previous: Any = None):
     """`previous` opcional: quando informado, mescla prev_total_leads e
     prev_total_whatsapp/prev_taxa_entrada/prev_saida_total (normal/vip) do

@@ -165,6 +165,40 @@ CREATE TABLE IF NOT EXISTS ad_copy_atributos (
 CREATE INDEX IF NOT EXISTS idx_copy_attr ON ad_copy_atributos (lancamento_codigo, dimensao, valor);
 
 
+-- ── COPY ESCRITO DO ANUNCIO — texto, nao fala ──────────────────────────────
+-- Populada por etl/etl_copy_meta.py a partir da Marketing API. Complementa
+-- ad_transcricoes: la fica o que e FALADO (com minutagem), aqui o que esta
+-- ESCRITO no anuncio (texto principal, titulo, descricao, CTA).
+--
+-- Por que tabela separada: copy escrito nao tem timeline, entao nao cabe em
+-- ad_transcricao_linhas (t_ini_seg e NOT NULL). E tem varios campos por
+-- anuncio, e varios cards por carrossel — dai uma linha por (campo, ordem)
+-- em vez de coluna fixa. Serve pro Google tambem, que tem N headlines e N
+-- descriptions por anuncio.
+--
+-- Fecha o buraco achado em 17/09/26: dos R$ 679k do PES-SET-26, R$ 106k
+-- rodaram em carrossel/imagem, que nunca teriam transcricao de fala porque
+-- nao ha fala — o copy deles e este texto.
+CREATE TABLE IF NOT EXISTS ad_copy_textos (
+    id                BIGSERIAL PRIMARY KEY,
+    lancamento_codigo TEXT NOT NULL,
+    ad_code           TEXT NOT NULL,
+    platform          TEXT NOT NULL,          -- 'meta' | 'google'
+    ad_id             TEXT,
+    formato           TEXT,                   -- video | carrossel | imagem
+    campo             TEXT NOT NULL,          -- message | title | description | cta | link
+    ordem             SMALLINT NOT NULL DEFAULT 0,  -- card do carrossel (0 = nivel do anuncio)
+    texto             TEXT NOT NULL,
+    n_palavras        INTEGER,
+    updated_at        TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (lancamento_codigo, ad_code, platform, campo, ordem)
+);
+
+CREATE INDEX IF NOT EXISTS idx_copy_textos_lanc ON ad_copy_textos (lancamento_codigo, ad_code);
+CREATE INDEX IF NOT EXISTS idx_copy_textos_fts  ON ad_copy_textos
+    USING GIN (to_tsvector('portuguese', texto));
+
+
 -- ── META ADS — performance diária por anúncio ────────────────────────────
 CREATE TABLE IF NOT EXISTS meta_ads_daily (
     id               BIGSERIAL PRIMARY KEY,

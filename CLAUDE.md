@@ -48,6 +48,27 @@ python etl/etl_legendas.py --launch PES-SET-26 --dry-run   # parseia e relata, n
 python etl/etl_legendas.py --all
 ```
 
+### ETL — copy escrito dos anúncios (Meta)
+Puxa da Marketing API o texto **escrito** no anúncio (`message`/`title`/`description`/`cta`
++ cards do carrossel) → `ad_copy_textos`. Complementa as legendas, que são o que é **falado**.
+Indispensável para carrossel/imagem, que não têm fala nenhuma.
+```bash
+python etl/etl_copy_meta.py --launch PES-SET-26
+python etl/etl_copy_meta.py --launch PES-SET-26 --dry-run
+```
+
+### ETL — transcrição automática dos vídeos
+Baixa o mp4 do criativo pela Marketing API e transcreve com `faster-whisper` (CPU, sem
+ffmpeg). Grava `fonte_tipo='corte_final'` + `hook_confiavel=True`, porque o vídeo do
+criativo **é** o anúncio publicado — minutagem real, diferente dos `.txt` de filmagem crua.
+```bash
+python etl/etl_transcrever_meta.py --launch PES-SET-26 --so-faltantes
+python etl/etl_transcrever_meta.py --launch PES-SET-26 --pasta "C:/dump"  # dump manual
+```
+A API **não libera `source`** de vídeo em criativo dinâmico (`asset_feed_spec`) — devolve 200
+sem o campo. Para esses, use `--pasta`: casa por `ADxxx` no nome do arquivo e, no que sobrar,
+por duração. Não rode com `| grep`: mascara o exit code.
+
 ### One-time setup
 ```bash
 # Apply DB schema (run in Supabase > SQL Editor)

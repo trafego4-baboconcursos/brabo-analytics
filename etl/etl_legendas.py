@@ -367,20 +367,20 @@ def validar(lancamento: str, blocos: list[dict], piso_gasto: float = 100.0) -> N
         key=lambda ad: -float(gasto[ad] or 0),
     )
 
-    print(f"\n{'=' * 70}\nVALIDAÇÃO — {lancamento}\n{'=' * 70}")
-    print(f"ADxxx com legenda: {len(com_legenda)} · que veicularam: {len(veiculados)}")
+    print(f"\n{'=' * 70}\nVALIDACAO - {lancamento}\n{'=' * 70}")
+    print(f"ADxxx com legenda: {len(com_legenda)} | que veicularam: {len(veiculados)}")
 
     if sem_veiculacao:
-        print(f"\n⚠️  Legenda sem veiculação neste lançamento ({len(sem_veiculacao)}):")
+        print(f"\n[!] Legenda sem veiculacao neste lancamento ({len(sem_veiculacao)}):")
         print("   " + ", ".join(sem_veiculacao))
     if sem_legenda:
-        print(f"\n❌ Gastaram ≥ R$ {piso_gasto:.0f} e NÃO têm legenda ({len(sem_legenda)}):")
+        print(f"\n[X] Gastaram >= R$ {piso_gasto:.0f} e NAO tem legenda ({len(sem_legenda)}):")
         for ad in sem_legenda[:20]:
             print(f"   {ad}: R$ {float(gasto[ad]):,.2f}")
         if len(sem_legenda) > 20:
             print(f"   ... e mais {len(sem_legenda) - 20}")
     if not sem_veiculacao and not sem_legenda:
-        print("\n✅ Cobertura completa: toda legenda veiculou e todo gasto tem legenda.")
+        print("\n[OK] Cobertura completa: toda legenda veiculou e todo gasto tem legenda.")
 
 
 def relatorio_parse(lancamento: str, blocos: list[dict]) -> None:
@@ -390,11 +390,11 @@ def relatorio_parse(lancamento: str, blocos: list[dict]) -> None:
     for b in canonicas:
         por_tipo[b["fonte_tipo"]] = por_tipo.get(b["fonte_tipo"], 0) + 1
 
-    print(f"\n{'=' * 70}\nPARSE — {lancamento}\n{'=' * 70}")
-    print(f"{len(canonicas)} anúncios · {len(blocos)} blocos · "
+    print(f"\n{'=' * 70}\nPARSE - {lancamento}\n{'=' * 70}")
+    print(f"{len(canonicas)} anuncios | {len(blocos)} blocos | "
           f"{sum(b['n_linhas'] for b in blocos)} linhas com timestamp")
-    print("Tipo da fonte canônica: " + " · ".join(f"{k}={v}" for k, v in sorted(por_tipo.items())))
-    print(f"Com gancho confiável (minutagem do vídeo publicado): "
+    print("Tipo da fonte canonica: " + " | ".join(f"{k}={v}" for k, v in sorted(por_tipo.items())))
+    print(f"Com gancho confiavel (minutagem do video publicado): "
           f"{sum(1 for b in canonicas if b['hook_confiavel'])}")
 
     grupos: dict[str, list[str]] = {}

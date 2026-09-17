@@ -2,10 +2,25 @@
    etl/etl_sorteio_forms.py -> sorteio_respostas) × base de leads do
    lançamento. Vazio quando não há dado (produto sem formulário configurado
    em config/sorteio_projetos.yaml, ou lançamento sem resposta na janela). #}
+{% from "debriefing/_macros.html" import dbadge with context %}
 {% if dbf.sorteio %}
 {% set s = dbf.sorteio %}
 <div class="dbf-lazy-body">
-  <div class="oferta-grid">
+  <div class="dbf-kpi-grid">
+    <div class="dbf-kpi">
+      <div class="lbl">Participantes (distintos)</div>
+      <div class="val">{{ s.total_participantes | num }}</div>
+    </div>
+    <div class="dbf-kpi">
+      <div class="lbl">% da base que participou</div>
+      <div class="val">{{ s.taxa_participacao | pct }}</div>
+      {% if s.has_prev %}
+        {{ dbadge(s.taxa_participacao, s.prev_taxa_participacao, 'up') }}
+        <div class="prev-val">ant.: {{ s.prev_taxa_participacao | pct }}</div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="oferta-grid" style="margin-top:16px">
     <div class="oferta-card">
       <div class="oferta-title">Participantes por Aula</div>
       {% for a in s.por_aula %}
@@ -14,7 +29,7 @@
     </div>
   </div>
   <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
-    Janela considerada: {{ s.janela_inicio | br_date }} a {{ s.janela_fim | br_date }} (início das Aulas no Ar deste lançamento até o início das do próximo).
+    Janela considerada: {{ s.janela_inicio | br_date }} a {{ s.janela_fim | br_date }} (início das Aulas no Ar deste lançamento até o início das do próximo). "Abriram a automação (domingo)" segue sem fonte — a automação de disparo do sorteio ainda não é rastreada.{% if s.has_prev %} Comparativo vs {{ s.prev_code }} (último lançamento do mesmo produto).{% endif %}
   </div>
 </div>
 {% endif %}

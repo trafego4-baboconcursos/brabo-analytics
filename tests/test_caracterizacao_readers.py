@@ -65,6 +65,20 @@ ATUALIZAR = os.environ.get("ATUALIZAR_BASELINE", "").lower() in ("1", "true", "s
 # esses números não se movem entre a gravação do baseline e a verificação.
 LANCAMENTOS = ["PBB-ABR-26", "PI-AGO-26"]
 
+# Readers que leem o backup do Typeform, restritos ao lançamento mais leve.
+# O `answers` (jsonb) tem ~4,8 KB por linha: o PI-AGO-26 são 458 MB por leitura
+# contra 92 MB do PBB-ABR-26. Rodar os dois torrava ~550 MB de egress por reader
+# a cada rodada da suíte — no mesmo dado que estamos tentando parar de reler em
+# produção (ver ARQUITETURA.md, 17/09/26). O PBB-ABR-26 exercita o mesmo caminho
+# com dado real, que é o que a caracterização precisa.
+LANCAMENTO_LEVE = "PBB-ABR-26"
+SO_NO_LANCAMENTO_LEVE = {
+    "read_typeform",
+    "read_typeform_count",
+    "read_perfil_por_anuncio",
+    "read_pesquisa_engajamento",
+}
+
 # Readers deixados de fora e por quê.
 IGNORADOS = {
     # Não recebem lançamento: operam sobre conta/vertical e mudam todo dia.
@@ -234,6 +248,8 @@ def test_saida_do_reader_nao_mudou(
     launch = launches_por_codigo.get(codigo)
     if launch is None:
         pytest.skip(f"lançamento {codigo} não existe no banco")
+    if funcao in SO_NO_LANCAMENTO_LEVE and codigo != LANCAMENTO_LEVE:
+        pytest.skip(f"{funcao} roda só em {LANCAMENTO_LEVE} (ver SO_NO_LANCAMENTO_LEVE)")
 
     fn = getattr(importlib.import_module(f"frontend.db_readers.{modulo}"), funcao)
     # Indexado pelo NOME DA FUNÇÃO, não por módulo.função: mover um reader de

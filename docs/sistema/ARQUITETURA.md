@@ -1979,3 +1979,15 @@ pega o número novo.
 É **lento de propósito** (recalcula tudo, sem stale-while-revalidate): é botão de conferência no
 dia da abertura, não caminho de uso normal. Vale como padrão pra qualquer página cacheada que
 precise de um "confere agora" — copiar esse par, não só pular o `_get_cached`.
+
+O botão "Atualizar agora" fica no `.hdr` da página (`.cmp-live-btn`, só o ícone abaixo de 640px), e
+com `?ao_vivo=1` ativo aparece um "Recalculado agora, sem cache" embaixo do subtítulo. Não tem
+estado de carregando próprio de propósito: o `base.html` já prende um overlay de carregamento em
+todo `a[href]` de conteúdo que navega na mesma aba (linha ~2407), então o clique já mostra o
+overlay com a frase durante o ~1min. Como o resultado vai pro cache, quem clica atualiza pra todo
+mundo, não só pra própria aba.
+
+**Bônus do mesmo dia:** o bloco "O Paradoxo" (`.cmp-paradox`, `grid-template-columns: 1fr auto 1fr`)
+não tinha breakpoint e estourava a largura no celular — 285px de overflow a 375px, fazendo a
+**página inteira** rolar na horizontal. Empilhado abaixo de 768px, igual `.cmp-funnel-grid` e
+`.cmp-ads-grid` já faziam. Era pré-existente, não veio do botão.

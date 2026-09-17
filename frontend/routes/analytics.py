@@ -536,6 +536,7 @@ def comparativo_page(request: Request, launch_code: str | None = None):
             comp_error=comp_error,
             previous_launch=previous,
             drive_thumbnails=drive_thumbnails,
+            ao_vivo=ao_vivo,
         )
         return templates.TemplateResponse("comparativo.html", ctx)
     except Exception as exc:

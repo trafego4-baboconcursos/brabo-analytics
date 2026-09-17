@@ -13,6 +13,12 @@
     margin-bottom: 24px;
     color: #fff;
   }
+  /* As 3 colunas não cabiam no celular e empurravam a PÁGINA inteira pra
+     rolar na horizontal (285px de estouro a 375px de largura) — empilha, que
+     é o mesmo que .cmp-funnel-grid e .cmp-ads-grid já fazem. */
+  @media (max-width: 768px) {
+    .cmp-paradox { grid-template-columns: 1fr; padding: 20px 16px; }
+  }
   .cmp-block {
     text-align: center;
     padding: 20px 16px;
@@ -57,6 +63,22 @@
   /* Top ads grid */
   .cmp-ads-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 16px; }
   @media (max-width: 900px) { .cmp-ads-grid { grid-template-columns: 1fr; } }
+
+  /* Botão "Atualizar agora" (?ao_vivo=1). Discreto de propósito: o caminho
+     normal é o cache, isto aqui recalcula tudo e leva ~1min. */
+  .cmp-live-btn {
+    margin-left: auto; background: var(--bs-surface); color: var(--bs-ink-muted);
+    border: 1px solid var(--bs-border); padding: 7px 14px; border-radius: 8px;
+    font-size: 12px; font-weight: 700; display: inline-flex; align-items: center;
+    gap: 6px; text-decoration: none; flex-shrink: 0; cursor: pointer;
+  }
+  .cmp-live-btn:hover { color: var(--bs-ink); border-color: var(--bs-ink-subtle); }
+  .cmp-live-note { font-size: 11px; color: var(--bs-ink-muted); margin-top: 3px; }
+  /* Celular: só o ícone, senão o botão rouba a linha do título. */
+  @media (max-width: 640px) {
+    .cmp-live-btn { padding: 9px; }
+    .cmp-live-btn-label { display: none; }
+  }
 
   /* No-data */
   .cmp-no-data {
@@ -116,7 +138,17 @@
         {% endif %}
       </h1>
       <p>An&aacute;lise comparativa entre lançamentos consecutivos do mesmo produto &mdash; dados consolidados de Investimento, Leads, Vendas e Receita</p>
+      {% if ao_vivo %}<p class="cmp-live-note"><i class="ti ti-check"></i> Recalculado agora, sem cache</p>{% endif %}
     </div>
+    {# Recalcula ignorando o cache (1h). Útil no dia da abertura, em que os
+       checkpoints do "Dia 1" viram de hora em hora. O overlay de carregamento
+       do base.html já cobre os ~1min de espera (pega todo a[href] de
+       conteúdo), então aqui não precisa de estado próprio. #}
+    <a class="cmp-live-btn"
+       href="?launch_code={{ active_code }}&amp;ao_vivo=1"
+       title="Ignora o cache de 1 hora e recalcula os dados agora. Leva cerca de 1 minuto.">
+      <i class="ti ti-refresh"></i><span class="cmp-live-btn-label">Atualizar agora</span>
+    </a>
   </div>
 
   <div class="content">

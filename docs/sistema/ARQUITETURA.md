@@ -1,8 +1,8 @@
 ---
-titulo: "Arquitetura do Brabo Analytics — 2026-09-16"
+titulo: "Arquitetura do Brabo Analytics — 2026-09-17"
 area: sistema
 status: vigente
-atualizado: 2026-09-16
+atualizado: 2026-09-17
 responde:
   - "como o sistema funciona por dentro"
   - "fluxo de dados"
@@ -17,6 +17,7 @@ responde:
   - "por que o debriefing quebrou depois de mexer no dbf"
   - "como regravar o baseline de caracterizacao sem perder o resto"
   - "por que read_launch_config e volatil no teste"
+  - "por que o dia 1 hora a hora aparece zerado no comparativo"
 relacionados:
   - "[[METODOLOGIA_EXTRACAO_DADOS]]"
   - "[[DESIGN_SYSTEM]]"
@@ -186,6 +187,9 @@ relacionados:
 >
 >
 > **Bug corrigido: etapa "Replay" do Meta sempre caía em "Outros" (2026-09-16)**
+>
+>
+> **"Vendas Hora a Hora" do dia 1 zerava sem product_ids no launch_config (2026-09-17)**
 >
 
 <!-- SUMARIO:FIM -->
@@ -1894,3 +1898,38 @@ que já rodou etapa Replay no Meta, não só esse.
 anterior) — 4 dos 1.311 casos mudaram de resultado de propósito (as 4 campanhas reais de Replay
 do Meta no banco: PES-MAR-26 aula 1/2/3, PES-SET-26 aula 1), fixture atualizada à mão pra refletir
 a classificação correta. Suite completa rodada depois do fix, sem outras regressões.
+
+---
+
+## "Vendas Hora a Hora" do dia 1 zerava sem product_ids no launch_config (2026-09-17)
+
+**Sintoma:** em `/comparativo?launch_code=PES-SET-26`, o bloco "Dia 1 — Vendas Hora a Hora" não
+trazia nada na coluna do PES-MAI-26 (todos os checkpoints zerados), enquanto o resto da página
+— investimento, leads, vendas totais, ROAS do mesmo PES-MAI-26 — aparecia normalmente.
+
+**Causa:** `read_dia1_sales` (`db_readers/sales.py`) só sabia consultar Hotmart/TMB por
+`codigo_do_produto`/`lancamento_id`, lidos de `hotmart_produto_ids`/`tmb_produto_ids` do
+`launch_config`. Quando essas listas vêm vazias, os `if hotmart_ids:` / `if tmb_ids:` pulavam a
+consulta inteira e os DataFrames ficavam vazios — sem erro, sem log, só zero. O PES-MAI-26 é o
+único lançamento regular com esses dois campos vazios no `launch_config` (o BV-25 também está
+vazio, mas não tem `abertura_oficial_carrinho`, então nem chega nessa parte).
+
+Só o dia 1 quebrava porque o `read_vendas` **já tinha** o fallback que faltava aqui: quando não há
+product_ids, ele consulta por projeto (`SELECT projeto FROM dim_lancamentos`, aplicado via `CASE`
+em `produto ILIKE`) em vez de por ID. Todos os outros números do PES-MAI-26 no sistema já vinham
+por esse caminho — o dia 1 era a única leitura que não tinha o par.
+
+**Fix:** mesmo fallback do `read_vendas` no `read_dia1_sales` — sem product_ids, filtra por
+projeto + o dia da abertura. Com product_ids, nada muda (cláusula e parâmetros idênticos aos de
+antes), então não há regressão nos lançamentos já configurados.
+
+**Diferença entre os dois caminhos, medida no PES-MAI-26:** filtrar por projeto pega 4 vendas
+Hotmart a mais no dia (678 vs 674 às 22h, R$760 em R$1,61 mi — 0,4%), provavelmente produto TJ
+fora do ID principal. Optou-se por **não** preencher os product_ids do PES-MAI-26 no
+`launch_config`: mexer neles mudaria o total, o ROAS e o debriefing do lançamento inteiro
+retroativamente, já que hoje tudo dele é calculado pelo fallback de projeto. Do jeito que ficou,
+o dia 1 passa a bater com o resto dos números do próprio lançamento.
+
+**Como conferir se volta a acontecer:** um lançamento com `abertura_oficial_carrinho` preenchida
+e dia 1 inteiro zerado (nenhum checkpoint com venda, nenhum "ainda não chegou") é o sintoma —
+checar `hotmart_produto_ids`/`tmb_produto_ids` e se `dim_lancamentos.projeto` existe pro código.

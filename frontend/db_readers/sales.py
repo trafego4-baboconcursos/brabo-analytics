@@ -540,12 +540,36 @@ def read_dia1_sales(launch: Any) -> dict:
     hotmart_ids = _normalize_product_ids(cfg.get("hotmart_produto_ids"))
     tmb_ids = _normalize_product_ids(cfg.get("tmb_produto_ids"))
 
+    # Sem product_ids no launch_config (ex.: PES-MAI-26) — mesmo fallback do
+    # read_vendas: filtra por projeto (via dim_lancamentos) em vez de
+    # codigo_do_produto/lancamento_id. Sem isso o dia 1 desses lançamentos
+    # ficava zerado mesmo com vendas reais no banco (achado 17/09/26).
+    project = None
+    if not hotmart_ids or not tmb_ids:
+        with _get_engine().connect() as conn:
+            row = conn.execute(
+                text("SELECT projeto FROM dim_lancamentos WHERE codigo = :code"),
+                {"code": code},
+            ).fetchone()
+        project = row[0] if row else None
+
+    project_case = """CASE
+              WHEN produto ILIKE '%inss%' THEN 'INSS'
+              WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%') THEN 'TJ'
+              WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'
+              ELSE 'OUTRO'
+          END"""
+
     ops_engine = _get_users_engine()
     day_start = f"{day} 00:00:00"
     day_end = f"{day} 23:59:59"
 
     hm_df = pd.DataFrame()
-    if hotmart_ids:
+    if hotmart_ids or project:
+        id_clause = (
+            "AND codigo_do_produto = ANY(:product_ids)" if hotmart_ids
+            else "AND " + project_case + " = :project"
+        )
         hm_sql = r"""
             SELECT
               COALESCE(
@@ -567,16 +591,18 @@ def read_dia1_sales(launch: Any) -> dict:
               quantidade_de_cobrancas, quantidade_total_de_parcelas
             FROM hotmart_clean_oficial
             WHERE status_da_transacao = ANY(:status)
-              AND codigo_do_produto = ANY(:product_ids)
+              """ + id_clause + r"""
               AND (email_do_a_comprador_a IS NULL OR (
                   email_do_a_comprador_a NOT ILIKE '%+teste%'
                   AND email_do_a_comprador_a NOT ILIKE '%@aprovasim.com'
               ))
         """
-        raw = pd.read_sql(
-            text(hm_sql), ops_engine,
-            params={"status": list(_HOTMART_STATUS_APROVADO), "product_ids": hotmart_ids},
-        )
+        params: dict = {"status": list(_HOTMART_STATUS_APROVADO)}
+        if hotmart_ids:
+            params["product_ids"] = hotmart_ids
+        else:
+            params["project"] = project
+        raw = pd.read_sql(text(hm_sql), ops_engine, params=params)
         raw = raw[raw["ts"].notna()]
         raw["ts"] = pd.to_datetime(raw["ts"])
         if raw["ts"].dt.tz is not None:
@@ -584,16 +610,22 @@ def read_dia1_sales(launch: Any) -> dict:
         hm_df = raw[(raw["ts"] >= day_start) & (raw["ts"] <= day_end)].copy()
 
     tmb_df = pd.DataFrame()
-    if tmb_ids:
-        ids_literal = ", ".join(str(int(i)) for i in tmb_ids)
+    if tmb_ids or project:
+        if tmb_ids:
+            ids_literal = ", ".join(str(int(i)) for i in tmb_ids)
+            filtro = f"lancamento_id = ANY(ARRAY[{ids_literal}]::int[])"
+            params_tmb: dict = {"start": day_start, "end": day_end}
+        else:
+            filtro = project_case + " = :project"
+            params_tmb = {"start": day_start, "end": day_end, "project": project}
         tmb_sql = f"""
             SELECT data_efetivado AS ts, valor_liquido
             FROM tmb_clean_oficial
             WHERE valor_liquido > 0
-              AND lancamento_id = ANY(ARRAY[{ids_literal}]::int[])
+              AND {filtro}
               AND data_efetivado BETWEEN :start AND :end
         """
-        tmb_df = pd.read_sql(text(tmb_sql), ops_engine, params={"start": day_start, "end": day_end})
+        tmb_df = pd.read_sql(text(tmb_sql), ops_engine, params=params_tmb)
         if not tmb_df.empty:
             tmb_df["ts"] = pd.to_datetime(tmb_df["ts"])
 

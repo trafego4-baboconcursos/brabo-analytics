@@ -468,6 +468,21 @@ class ComparativoData:
     tmb_b: int = 0
     receita_a: float = 0.0
     receita_b: float = 0.0
+    # Faturamento por plataforma — o card do Paradoxo mostra o total com o
+    # detalhe embaixo, do mesmo jeito que já fazia com a contagem de vendas.
+    receita_hotmart_a: float = 0.0
+    receita_hotmart_b: float = 0.0
+    receita_tmb_a: float = 0.0
+    receita_tmb_b: float = 0.0
+    # Gasto de WhatsApp (Unichat/Meta, já com IOF) — vem de
+    # read_whatsapp_messages, que casa a janela do lançamento com as contas do
+    # produto. Não entra em inv_a/inv_b: aqueles são só mídia de Captação
+    # (Meta+Google) e alimentam ROAS/CPA/CPL do resto da página.
+    inv_whatsapp_a: float = 0.0
+    inv_whatsapp_b: float = 0.0
+    # Total investido mostrado no card = mídia + WhatsApp.
+    inv_total_a: float = 0.0
+    inv_total_b: float = 0.0
     ticket_a: float = 0.0
     ticket_b: float = 0.0
     roas_a: float = 0.0

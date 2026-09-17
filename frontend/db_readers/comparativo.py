@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from sqlalchemy import text
 
+from logger import get_logger
 from frontend.db import _get_engine
 from frontend.db_readers.ads_google import read_google
 from frontend.db_readers.ads_meta import read_meta
@@ -19,6 +20,8 @@ from frontend.db_readers.launches import read_launch_config
 from frontend.db_readers.sales import read_vendas
 from frontend.models import ComparativoAd, ComparativoData, Launch
 from frontend.utils import _safe_div
+
+logger = get_logger("db")
 
 
 _SEG_TEMP_COLOR = {
@@ -230,6 +233,24 @@ def read_comparativo(launch_b: Launch, launch_a: Launch, launch_a2: Launch | Non
     data.inv_google_a = ra["google_inv"]
     data.inv_google_b = rb["google_inv"]
 
+    # WhatsApp entra no total do card, mas NÃO em inv_a/inv_b: aqueles são
+    # mídia de Captação e alimentam ROAS/CPA/CPL do resto da página — mexer
+    # neles mudaria essas métricas junto.
+    from frontend.db_readers.whatsapp_messages import read_whatsapp_messages  # noqa: PLC0415
+
+    def _wa(launch) -> float:
+        try:
+            wa = read_whatsapp_messages(launch) or {}
+        except Exception:
+            logger.exception("Comparativo: falha lendo custo de WhatsApp de %s", getattr(launch, "code", "?"))
+            return 0.0
+        return float(wa.get("total_cost_brl") or 0.0)
+
+    data.inv_whatsapp_a = _wa(launch_a)
+    data.inv_whatsapp_b = _wa(launch_b)
+    data.inv_total_a = inv_capt_a + data.inv_whatsapp_a
+    data.inv_total_b = inv_capt_b + data.inv_whatsapp_b
+
     # â€” Meta â€”
     data.meta_leads_a = ra["meta_leads"]
     data.meta_leads_b = rb["meta_leads"]
@@ -285,6 +306,10 @@ def read_comparativo(launch_b: Launch, launch_a: Launch, launch_a2: Launch | Non
     data.tmb_b      = rb["tmb_count"]
     data.receita_a  = receita_a
     data.receita_b  = receita_b
+    data.receita_hotmart_a = ra["hotmart_receita"]
+    data.receita_hotmart_b = rb["hotmart_receita"]
+    data.receita_tmb_a     = ra["tmb_receita"]
+    data.receita_tmb_b     = rb["tmb_receita"]
     data.ticket_a   = _safe_div(receita_a, vendas_a)
     data.ticket_b   = _safe_div(receita_b, vendas_b)
     data.roas_a     = _safe_div(receita_a, inv_capt_a)

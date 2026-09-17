@@ -195,6 +195,9 @@ relacionados:
 > - [[ARQUITETURA#O Hotmart guarda a data como epoch em milissegundos|O Hotmart guarda a data como epoch em milissegundos]]
 > - [[ARQUITETURA#O cache da página é de 60 min — no dia da abertura isso aparece|O cache da página é de 60 min — no dia da abertura isso aparece]]
 > - [[ARQUITETURA#O aquecimento gravava numa chave que a rota nunca lia|O aquecimento gravava numa chave que a rota nunca lia]]
+>
+> **Card "O Paradoxo" do /comparativo — ordem e gasto por plataforma (2026-09-17)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -2014,3 +2017,23 @@ do ETL. Ninguém percebeu porque não dá erro: só fica lento.
 o aquecimento passou a receber `previous2` (`warm_launch` já tinha a lista de lançamentos pra
 derivar). A lição vale além daqui: **chave de cache montada em dois lugares diverge** — quando
 mais de um caminho lê a mesma entrada, a chave tem dono único.
+
+## Card "O Paradoxo" do /comparativo — ordem e gasto por plataforma (2026-09-17)
+
+A ordem passou a ser **faturamento → vendas → investimento**, cada um com o detalhe por
+plataforma logo abaixo do total (pedido do usuário). A caixa de diferença do meio segue a mesma
+ordem. Plataforma com valor zero não é exibida (macro `plataformas()` em `comparativo.html`).
+
+Dados novos em `ComparativoData`: `receita_hotmart_*`/`receita_tmb_*` (já vinham da consulta,
+só não eram expostos) e `inv_whatsapp_*`, de `read_whatsapp_messages`, que casa a janela do
+lançamento com as contas do produto em `config/whatsapp_accounts.yaml`.
+
+**O total do card mudou.** Antes "Investimento" era só mídia de Captação (Meta+Google); agora é
+`inv_total_* = Meta + Google + WhatsApp`, senão o detalhe embaixo não fecharia com o total. No
+PES-SET-26 isso é R$ 577.327 → R$ 588.942, e a variação contra o PES-MAI-26 vai de -11,1% para
+-11,6%. `inv_a`/`inv_b` **continuam sendo só mídia** — são eles que alimentam ROAS, CPA e CPL
+no resto da página, e mexer neles mudaria essas métricas junto.
+
+**TikTok não aparece porque não há fonte de dado** — não existe tabela de gasto de TikTok no
+banco (só o rótulo em `leads.py`). Ele some pela mesma regra do valor zero, mas a causa é
+ausência de dado, não gasto zero: quando a integração existir, basta popular `inv_tiktok_*`.

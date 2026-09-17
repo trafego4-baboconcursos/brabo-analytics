@@ -30,6 +30,9 @@
   .cmp-block-code  { font-size: 20px; font-weight: 800; margin-bottom: 16px; }
   .cmp-block-num   { font-size: 30px; font-weight: 800; line-height: 1.1; }
   .cmp-block-sub   { font-size: 12px; opacity: .7; margin-top: 4px; }
+  /* Quebra Hotmart/TMB embaixo do total de vendas — os dois somam exatamente
+     o número de cima (read_vendas conta hotmart_count + tmb_count). */
+  .cmp-block-split { font-size: 11px; opacity: .55; margin-top: 4px; font-weight: 600; }
   .cmp-arrow { text-align: center; }
   .cmp-delta-box { background: rgba(0,0,0,.3); border-radius: var(--bs-r-lg); padding: 20px 24px; }
   .cmp-delta-title { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; opacity: .6; margin-bottom: 12px; }
@@ -202,6 +205,7 @@
           <div class="cmp-block-sub">Investimento</div>
           <div class="cmp-block-num" style="font-size:32px;margin-top:14px">{{ comp.vendas_b | num }}</div>
           <div class="cmp-block-sub">vendas</div>
+          <div class="cmp-block-split">Hotmart {{ comp.hotmart_b | num }} &middot; TMB {{ comp.tmb_b | num }}</div>
           <div class="cmp-block-num" style="font-size:20px;margin-top:10px">{{ comp.receita_b | brl }}</div>
           <div class="cmp-block-sub">faturamento</div>
         </div>
@@ -234,6 +238,7 @@
           <div class="cmp-block-sub">Investimento</div>
           <div class="cmp-block-num" style="font-size:32px;margin-top:14px">{{ comp.vendas_a | num }}</div>
           <div class="cmp-block-sub">vendas</div>
+          <div class="cmp-block-split">Hotmart {{ comp.hotmart_a | num }} &middot; TMB {{ comp.tmb_a | num }}</div>
           <div class="cmp-block-num" style="font-size:20px;margin-top:10px">{{ comp.receita_a | brl }}</div>
           <div class="cmp-block-sub">faturamento</div>
         </div>

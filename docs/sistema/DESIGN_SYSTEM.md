@@ -2,11 +2,14 @@
 titulo: "Design System — Brabo Analytics"
 area: sistema
 status: vigente
-atualizado: 2026-09-14
+atualizado: 2026-09-17
 responde:
   - "tokens, componentes e temas do dashboard"
   - "onde mexer no CSS"
   - "como funciona o gerador de temas"
+  - "como mudar a ordem padrão das seções de uma página"
+  - "onde ficam salvas as visualizações de seções"
+  - "como funciona a busca de seções"
 relacionados:
   - "[[ARQUITETURA]]"
 ---
@@ -54,13 +57,39 @@ Todo gráfico do sistema já segue esse padrão; se adicionar um novo, replicar.
 
 - **`.section` / `.section-title`** — bloco de conteúdo colapsável (accordion). É o padrão
   atual; usado na maioria das páginas de análise. Suporta drag-and-drop de ordem, ocultar/
-  mostrar, tags de etapa auto-detectadas e "visualizações" salvas nomeadas (igual ao
-  gerenciador de colunas do Google Ads) — tudo implementado numa IIFE única no fim de
-  `base.html` (`SKIP_PAGES`, `TAG_DEFS`, `detectTag`, `applyState`, `renderSecPanel`,
-  `renderViewsPanel`). Roda em toda página automaticamente por detectar o markup — não
-  precisa registrar nada por template, exceto páginas na lista `SKIP_PAGES` (`settings`,
-  `login`, `invite`, `index`) e o modo apresentação/PDF do debriefing (`?modo=slides`, guardado
-  via `document.documentElement.classList.contains('bs-slides')`).
+  mostrar, tags de etapa auto-detectadas, busca que filtra a página e "visualizações" salvas
+  nomeadas (igual ao gerenciador de colunas do Google Ads) — tudo implementado numa IIFE única
+  no fim de `base.html` (`SKIP_PAGES`, `TAG_DEFS`, `detectTag`, `applyState`, `renderSecPanel`,
+  `renderViewsPanel`, `aplicarBusca`). Roda em toda página automaticamente por detectar o
+  markup — não precisa registrar nada por template, exceto páginas na lista `SKIP_PAGES`
+  (`settings`, `login`, `invite`, `index`) e o modo apresentação/PDF do debriefing
+  (`?modo=slides`, guardado via `document.documentElement.classList.contains('bs-slides')`).
+
+  **Key da seção** vem do slug do título (`captacao-meta-ads`), não da posição no documento.
+  Era `section-<idx>` até 17/09/26 — com as visualizações no banco, índice quebraria em
+  silêncio assim que alguém inserisse uma seção no meio do template. `data-sec-key` no título
+  fixa a key à mão quando o título for mudar. Estado salvo com as keys antigas continua sendo
+  lido (`migrarKeys`).
+
+  **Visualizações** ficam no banco operacional (tabela `section_views`, migration 010), não
+  mais só no localStorage:
+  - escopo `user` — pessoais, seguem a pessoa entre navegadores;
+  - escopo `global` — da equipe; só **admin/analista** escreve. A marcada como `is_padrao` é a
+    que qualquer pessoa abre na primeira visita àquela página — é assim que se muda a ordem
+    "padrão" sem mexer no HTML.
+
+  Cada visualização guarda `order`, `hidden`, `collapsed` **e** `customs` (apelidos e tags das
+  seções). No painel dá pra aplicar, salvar por cima, renomear, excluir e promover a padrão.
+  "Ordem original do sistema" continua existindo como saída de emergência: volta pra ordem crua
+  do template. O estado *de trabalho* (o que está na tela agora) segue no localStorage — arrastar
+  seção não bate no banco a cada gesto. Sem a migration 010, o painel cai de volta no
+  localStorage sozinho e avisa na dica do rodapé.
+
+  **Busca** (`.bs-sec-search`, no topo, junto de Recolher/Expandir): filtra a página inteira —
+  o que casa fica, o resto some. Título e tag primeiro; conteúdo da seção só entra quando
+  **nenhum** título casa, senão procurar "vendas" traria meia página por causa de uma palavra
+  solta numa tabela. Ignora acento, expande o que achou e ganha de seção ocultada no painel
+  (`.bs-search-hit` vence `.bs-hidden-section`). É efêmera: limpar restaura o estado anterior.
 - **`.highlight-box`** (dentro de um `.highlights { display:grid; ... }`) — card titulado
   dentro de um grid de 2-3 colunas (ex.: "Top 5 Criativos" / "Melhores CPL" / "Piores CPL" lado
   a lado no dashboard, ou o card de perfil do Instagram). **Não é uma versão antiga do

@@ -31,6 +31,8 @@ from frontend.db_readers import (
     get_user_by_email, get_user_by_id, list_users, create_user,
     update_user, update_last_login, bootstrap_admin_if_needed,
     create_invite, get_invite, use_invite, list_invites, delete_invite,
+    list_section_views, save_section_view, rename_section_view,
+    set_section_view_padrao, delete_section_view, SectionViewErro,
     ROLE_LABELS, PRODUCT_LABELS,
     get_etl_status as _db_get_etl_status,
 )

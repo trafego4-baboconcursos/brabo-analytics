@@ -50,6 +50,10 @@ from frontend.db_readers.sales import (  # noqa: F401
     read_hotmart_recompra, read_qualidade_regiao, read_tmb_details, read_vendas,
     read_vendas_consolidado,
 )
+from frontend.db_readers.section_views import (  # noqa: F401
+    SectionViewErro, delete_section_view, list_section_views,
+    rename_section_view, save_section_view, set_section_view_padrao,
+)
 from frontend.db_readers.typeform import (  # noqa: F401
     _build_typeform_comparison, _generate_ia_insights, _get_typeform_fields,
     _get_typeform_forms, _reconstruct_tabular_df, _resolve_typeform_ids,

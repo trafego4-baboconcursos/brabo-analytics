@@ -18,12 +18,33 @@ from frontend.core import (
     _compute_launch_defaults,
     get_user_by_id, list_users, update_user,
     create_invite, delete_invite,
+    list_section_views, save_section_view, rename_section_view,
+    set_section_view_padrao, delete_section_view, SectionViewErro,
 )
+from frontend.db_readers.section_views import PAPEIS_GLOBAL
 import frontend.core as _core
 import re as _re
 from src.constants import PRODUCT_BY_PREFIX
 
 router = APIRouter()
+
+
+def _json_erro(mensagem: str, status: int):
+    """Erro em JSON com status HTTP de verdade.
+
+    O resto deste arquivo ainda devolve `{"error": ...}` com 200 (ou tuplas,
+    que o FastAPI serializa como lista) — os endpoints novos não herdam isso:
+    o front precisa distinguir "sem permissão" de "deu ruim no servidor"."""
+    from fastapi.responses import JSONResponse
+    return JSONResponse({"ok": False, "error": mensagem}, status_code=status)
+
+
+async def _json_body(request: Request) -> dict:
+    import json as _json
+    try:
+        return _json.loads(await request.body() or b"{}")
+    except Exception:
+        return {}
 
 
 # ── Usuários ───────────────────────────────────────────────────────────────────
@@ -424,6 +445,85 @@ async def api_run_etl(request: Request):
 
     asyncio.create_task(_invalidate_cache_when_done())
     return {"ok": True, "message": f"ETL disparado. Janela: {inicio} até {fim}. Pode levar alguns minutos."}
+
+
+# ── Visualizações de seções (ordem/visibilidade por página) ────────────────────
+# O painel "Seções" do design system (base.html) é quem consome. Escopo 'user'
+# é pessoal; 'global' é da equipe e só admin/analista escreve — a global marcada
+# como padrão é a que todo mundo abre na primeira visita à página.
+
+@router.get("/api/section-views")
+def api_list_section_views(request: Request, pagina: str = ""):
+    user = _get_current_user(request)
+    pagina = (pagina or "").strip()
+    if not pagina:
+        return _json_erro("Página não informada.", 400)
+    dados = list_section_views(pagina, user.get("email") or "")
+    dados["pode_global"] = user.get("role") in PAPEIS_GLOBAL
+    dados["email"] = user.get("email") or ""
+    dados["ok"] = True
+    return dados
+
+
+@router.post("/api/section-views")
+async def api_save_section_view(request: Request):
+    user = _get_current_user(request)
+    data = await _json_body(request)
+    try:
+        view = save_section_view(
+            pagina=(data.get("pagina") or "").strip(),
+            escopo=data.get("escopo") or "user",
+            nome=data.get("nome") or "",
+            estado=data.get("estado") or {},
+            user=user,
+            is_padrao=bool(data.get("is_padrao")),
+        )
+    except SectionViewErro as e:
+        return _json_erro(str(e), 400)
+    except Exception:
+        logger.exception("Falha ao salvar visualização de seções")
+        return _json_erro("Não foi possível salvar a visualização.", 500)
+    return {"ok": True, "view": view}
+
+
+@router.post("/api/section-views/{view_id}/rename")
+async def api_rename_section_view(request: Request, view_id: int):
+    user = _get_current_user(request)
+    data = await _json_body(request)
+    try:
+        view = rename_section_view(view_id, data.get("nome") or "", user)
+    except SectionViewErro as e:
+        return _json_erro(str(e), 400)
+    except Exception:
+        logger.exception("Falha ao renomear visualização de seções")
+        return _json_erro("Não foi possível renomear a visualização.", 500)
+    return {"ok": True, "view": view}
+
+
+@router.post("/api/section-views/{view_id}/padrao")
+def api_set_section_view_padrao(request: Request, view_id: int):
+    user = _get_current_user(request)
+    try:
+        view = set_section_view_padrao(view_id, user)
+    except SectionViewErro as e:
+        return _json_erro(str(e), 400)
+    except Exception:
+        logger.exception("Falha ao definir visualização padrão")
+        return _json_erro("Não foi possível definir a padrão.", 500)
+    return {"ok": True, "view": view}
+
+
+@router.delete("/api/section-views/{view_id}")
+def api_delete_section_view(request: Request, view_id: int):
+    user = _get_current_user(request)
+    try:
+        delete_section_view(view_id, user)
+    except SectionViewErro as e:
+        return _json_erro(str(e), 400)
+    except Exception:
+        logger.exception("Falha ao excluir visualização de seções")
+        return _json_erro("Não foi possível excluir a visualização.", 500)
+    return {"ok": True}
 
 
 # ── Debug ──────────────────────────────────────────────────────────────────────

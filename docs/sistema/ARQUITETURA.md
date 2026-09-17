@@ -18,6 +18,7 @@ responde:
   - "como regravar o baseline de caracterizacao sem perder o resto"
   - "por que read_launch_config e volatil no teste"
   - "por que o dia 1 hora a hora aparece zerado no comparativo"
+  - "quem pode mudar a ordem padrao das secoes de uma pagina"
 relacionados:
   - "[[METODOLOGIA_EXTRACAO_DADOS]]"
   - "[[DESIGN_SYSTEM]]"
@@ -247,6 +248,7 @@ workspace-mmm/
 │   │   ├── typeform.py         ← read_typeform, _resolve_typeform_ids, _build_typeform_comparison
 │   │   ├── leads.py            ← read_leads, read_ac_leads_for_attribution, read_ac_campaigns
 │   │   ├── sales.py            ← read_vendas, read_hotmart_details, read_tmb_details, read_vendas_consolidado
+│   │   ├── section_views.py    ← list/save/rename/delete_section_view, set_section_view_padrao (painel "Seções")
 │   │   └── users.py            ← get_user_by_email, create_user, create_invite, bootstrap_admin, etc.
 │   ├── routes/                 ← Routers FastAPI por domínio
 │   │   ├── __init__.py
@@ -487,6 +489,7 @@ O `etl/scheduler.py` usa **APScheduler** (`BlockingScheduler`) com:
 | Brute force | 10 tentativas / 5 min por IP com limpeza automática de memória |
 | Permissões por rota | `ROUTE_PERMISSIONS` dict verificado no middleware |
 | `/debug-path` | Requer role `admin` |
+| `/api/section-views` | Escopo `global` (inclusive a padrão da página) só com role `admin`/`analista`; escopo `user` só mexe nas próprias, checado por e-mail da sessão no servidor — o botão escondido no front não é a trava |
 | Writes em tabelas read-only | Guard via SQLAlchemy event em `_make_engine()` |
 | Env vars críticas | Log de erro no startup se `SUPABASE_DB_URL`/`SUPABASE_USERS_URL` ausentes |
 

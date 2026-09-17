@@ -130,12 +130,18 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
             # Venda "de parcela única" (tipo_de_cobranca = Recuperador
             # Inteligente, ou tipo vazio com quantidade_de_cobrancas
             # presente): valor gravado é o da PARCELA (ex: R$149,90) — vira
-            # faturamento real multiplicando pelo número de parcelas. Essas
-            # são as vendas de RECORRÊNCIA (produtos tipo "INSS 360
-            # (Recorrência)", cobrados em ciclo) — contam à parte no bucket
-            # details.recorrencia_qtd/receita, além de entrarem no
-            # total_vendas normal como sempre (não muda nada pro resto do
-            # debriefing).
+            # faturamento real multiplicando pelo número de parcelas. É isso
+            # que esse bloco resolve, e só isso.
+            #
+            # CUIDADO: recorrencia_qtd/receita NÃO são "vendas recorrentes".
+            # A condição `tipo vazio + tem quantidade_de_cobrancas` casa com
+            # praticamente toda venda vinda da API, então o contador dispara
+            # no lançamento inteiro (740 de 752 no PES-SET-26), e ainda soma
+            # linhas que o filtro de repetição descarta depois — das 740, só
+            # 197 eram venda do painel. Foram exibidas por engano como
+            # "Recorrência" num gráfico do debriefing até 17/09/26; hoje
+            # ninguém lê esses dois campos. Não use como contagem de nada
+            # sem refazer o critério.
             valor *= max(1, parcelas)
             valor_bruto *= max(1, parcelas)
             recorrencia_qtd += 1
@@ -200,12 +206,15 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
             # À vista x parcelado dentro do próprio método: calculado sobre as
             # linhas do grupo pra que a_vista + parcelado feche exatamente com
             # o "qtd" mostrado no card. Sem parcelas informadas = 1 (à vista).
+            # a_vista + parcelado_12x + parcelado_outros também fecha com qtd.
             parcelas_grupo = pd.to_numeric(group["quantidade_total_de_parcelas"], errors="coerce").fillna(1).astype(int)
             details.pagamentos.append({
                 "metodo": str(metodo),
                 "qtd": int(len(group)),
                 "a_vista": int((parcelas_grupo == 1).sum()),
                 "parcelado": int((parcelas_grupo >= 2).sum()),
+                "parcelado_12x": int((parcelas_grupo == 12).sum()),
+                "parcelado_outros": int(((parcelas_grupo >= 2) & (parcelas_grupo != 12)).sum()),
                 "pct_vendas": float(len(group) / details.total_vendas * 100) if details.total_vendas > 0 else 0.0,
                 "faturamento": faturamento,
                 "pct_faturamento": float(faturamento / details.faturamento * 100) if details.faturamento > 0 else 0.0,

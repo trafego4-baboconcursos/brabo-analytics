@@ -877,25 +877,21 @@ def _compute_debriefing_ctx(
                 "pct": (tmb_dia / total_dia * 100) if total_dia > 0 else 0.0,
             })
 
-    pagamentos_hm = getattr(hotmart, "pagamentos", []) or []
+    # Cada método com o número do lançamento anterior do mesmo método, pra
+    # badge de comparação no card. Casa pelo rótulo já normalizado pelo
+    # _metodo_pagamento_pt, então "CREDIT_CARD" de um lançamento antigo casa
+    # com "Cartão de Crédito" do atual.
+    prev_por_metodo = {
+        (p.get("metodo") or ""): _i(p.get("qtd"))
+        for p in (getattr(prev_hotmart, "pagamentos", []) or [])
+    }
+    pagamentos_hm = [
+        {**p, "prev_qtd": prev_por_metodo.get(p.get("metodo") or "", 0)}
+        for p in (getattr(hotmart, "pagamentos", []) or [])
+    ]
     total_tmb  = _i(getattr(vendas, "tmb_vendas",    0))
     total_hm_v = _i(getattr(vendas, "hotmart_vendas", 0))
-
-    # Detalhamento de Vendas por forma (pauta debriefing) — à vista, 12x,
-    # outros parcelamentos e recorrência vêm do Hotmart (read_hotmart_details);
-    # "Entrada (boleto parcelado)" é o TMB, já usado em total_tmb acima.
     prev_total_tmb = _i(getattr(prev_vendas, "tmb_vendas", 0))
-    vendas_forma = [
-        {"label": "À vista", "qtd": _i(getattr(hotmart, "a_vista_qtd", 0)),
-         "prev_qtd": _i(getattr(prev_hotmart, "a_vista_qtd", 0))},
-        {"label": "Parcelado em 12x", "qtd": _i(getattr(hotmart, "parcelado_12x_qtd", 0)),
-         "prev_qtd": _i(getattr(prev_hotmart, "parcelado_12x_qtd", 0))},
-        {"label": "Outros parcelamentos", "qtd": _i(getattr(hotmart, "outros_parcelamentos_qtd", 0)),
-         "prev_qtd": _i(getattr(prev_hotmart, "outros_parcelamentos_qtd", 0))},
-        {"label": "Recorrência", "qtd": _i(getattr(hotmart, "recorrencia_qtd", 0)),
-         "prev_qtd": _i(getattr(prev_hotmart, "recorrencia_qtd", 0))},
-        {"label": "Entrada (boleto parcelado)", "qtd": total_tmb, "prev_qtd": prev_total_tmb},
-    ]
 
     def _find_pay(metodo_keywords):
         for p in pagamentos_hm:
@@ -1143,7 +1139,7 @@ def _compute_debriefing_ctx(
         "prev_vendas_primeira_hora": prev_vendas_primeira_hora,
         # Pagamentos
         "pagamentos_hm": pagamentos_hm, "total_tmb": total_tmb,
-        "vendas_forma": vendas_forma,
+        "prev_total_tmb": prev_total_tmb,
         "total_hm": total_hm_v, "total_vendas_pay": total_tmb + total_hm_v,
         "boleto_hm": boleto_hm, "cartao_hm": cartao_hm, "pix_hm": pix_hm,
         # Audiences (captação only)

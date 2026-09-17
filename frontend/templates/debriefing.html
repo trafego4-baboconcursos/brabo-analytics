@@ -323,9 +323,12 @@
 }
 .pay-card .pay-num { font-size: 28px; font-weight: 900; color: var(--bs-ink); }
 .pay-card .pay-pct { font-size: 15px; font-weight: 700; color: var(--bs-accent); margin-top: 2px; }
+/* Sem uppercase: os rótulos agora são nomes em português ("Cartão de
+   Crédito", "Parcelado Hotmart") e em caixa alta a 10px ficavam gritados e
+   difíceis de ler. */
 .pay-card .pay-lbl {
-  font-size: 10px; color: var(--bs-ink-muted); font-weight: 700;
-  text-transform: uppercase; letter-spacing: .04em; margin-top: 6px;
+  font-size: 11.5px; color: var(--bs-ink-muted); font-weight: 700;
+  margin-top: 6px; line-height: 1.25;
 }
 
 /* ── Comparison section ────────────────────────────────────────── */
@@ -2960,7 +2963,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
         <div class="pay-card">
           <div class="pay-num">{{ p.qtd }}</div>
           <div class="pay-pct">{{ p.pct_vendas | round(1) }}%</div>
-          <div class="pay-lbl">{{ p.metodo[:20] }}</div>
+          <div class="pay-lbl">{{ p.metodo }}</div>
         </div>
         {% endfor %}
       </div>

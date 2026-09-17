@@ -20,6 +20,7 @@ from frontend.db import _get_engine, _get_users_engine
 from frontend.db_readers._vendas_comum import (
     _hm_data_sql,
     _hm_metodo_label,
+    _metodo_pagamento_pt,
     _hm_parse_date,
     _parcela_unica_info,
 )
@@ -191,11 +192,13 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
         details.outros_parcelamentos_qtd = int(((parcelas_regular > 1) & (parcelas_regular != 12)).sum())
 
     if not df_paid.empty and "metodo_de_pagamento" in df_paid.columns:
-        pay_grouped = df_paid.groupby(df_paid["metodo_de_pagamento"].fillna("Nao informado"))
+        # Agrupa pelo rótulo normalizado, não pelo valor cru: o mesmo método
+        # vem em português e em inglês conforme a época da venda (CSV x API).
+        pay_grouped = df_paid.groupby(df_paid["metodo_de_pagamento"].map(_metodo_pagamento_pt))
         for metodo, group in pay_grouped:
             faturamento = float(group["valor_liq"].sum())
             details.pagamentos.append({
-                "metodo": str(metodo).strip() or "Nao informado",
+                "metodo": str(metodo),
                 "qtd": int(len(group)),
                 "pct_vendas": float(len(group) / details.total_vendas * 100) if details.total_vendas > 0 else 0.0,
                 "faturamento": faturamento,

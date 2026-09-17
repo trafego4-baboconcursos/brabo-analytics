@@ -178,6 +178,52 @@ def _hm_metodo_label(metodo: Any, tipo_cobranca: Any = None) -> str:
     return str(metodo or "Outro").strip() or "Outro"
 
 
+# Rótulo de exibição do método de pagamento da Hotmart.
+#
+# O banco guarda os mesmos métodos em dois dialetos: português (export CSV da
+# época em que o projeto começou) e inglês maiúsculo (API atual). "Cartão de
+# Crédito" e "CREDIT_CARD" são a mesma coisa e apareciam como dois cards
+# separados no debriefing — 612 num, 1 no outro (achado 17/09/26). São 6 pares
+# nessa situação: cartão, pix, boleto, apple pay, paypal e pix automático.
+#
+# Não dá pra reusar o _hm_metodo_label aqui: ele classifica qualquer
+# "installment" como Recorrência, mas HOTMART_INSTALLMENTS é o parcelado da
+# própria Hotmart, não assinatura. Ele continua servindo a "Forma de pagamento
+# de entrada", que é outra pergunta.
+_METODO_PAGAMENTO_PT = {
+    "credit_card": "Cartão de Crédito",
+    "cartao de credito": "Cartão de Crédito",
+    "dois cartoes de credito": "Dois Cartões de Crédito",
+    "pix": "Pix",
+    "pix_automatic": "Pix Automático",
+    "pix automatico": "Pix Automático",
+    "billet": "Boleto Bancário",
+    "boleto": "Boleto Bancário",
+    "boleto bancario": "Boleto Bancário",
+    "hotmart_installments": "Parcelado Hotmart",
+    "apple_pay": "Apple Pay",
+    "apple pay": "Apple Pay",
+    "google_pay": "Google Pay",
+    "google pay": "Google Pay",
+    "paypal": "PayPal",
+    "nupay": "NuPay",
+    "wallet": "Saldo Hotmart",
+    "conta hotmart (saldo hotmart)": "Saldo Hotmart",
+    "conta hotmart (cartao)": "Conta Hotmart (Cartão)",
+    "conta hotmart (cartao + saldo)": "Conta Hotmart (Cartão + Saldo)",
+}
+
+
+def _metodo_pagamento_pt(metodo: Any) -> str:
+    """Nome em português do método de pagamento, unificando os dois dialetos.
+    Valor desconhecido volta como veio — aparecer cru na tela é o sinal de que
+    entrou um método novo pra mapear aqui."""
+    bruto = str(metodo or "").strip()
+    if not bruto or bruto.lower() == "nan":
+        return "Não informado"
+    return _METODO_PAGAMENTO_PT.get(_norm_text(bruto), bruto)
+
+
 def _bucket_metodo_pagamento(metodo: Any) -> str:
     s = str(metodo or "").strip().lower()
     if not s:

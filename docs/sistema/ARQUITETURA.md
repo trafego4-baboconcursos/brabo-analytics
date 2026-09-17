@@ -27,7 +27,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 46 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 47 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -198,6 +198,10 @@ relacionados:
 >
 > **Card "O Paradoxo" do /comparativo — ordem e gasto por plataforma (2026-09-17)**
 >
+>
+> **Método de pagamento vinha em dois idiomas e virava dois cards (2026-09-17)**
+>
+> - [[ARQUITETURA#Pendência: o painel soma 30 vendas a mais que o próprio cabeçalho|Pendência: o painel soma 30 vendas a mais que o próprio cabeçalho]]
 
 <!-- SUMARIO:FIM -->
 
@@ -2037,3 +2041,40 @@ no resto da página, e mexer neles mudaria essas métricas junto.
 **TikTok não aparece porque não há fonte de dado** — não existe tabela de gasto de TikTok no
 banco (só o rótulo em `leads.py`). Ele some pela mesma regra do valor zero, mas a causa é
 ausência de dado, não gasto zero: quando a integração existir, basta popular `inv_tiktok_*`.
+
+---
+
+## Método de pagamento vinha em dois idiomas e virava dois cards (2026-09-17)
+
+No "Detalhamento de Vendas por Pagamento" (`/debriefing`) apareciam **CREDIT_CARD com 612 vendas
+e "Cartão de Crédito" com 1** — o mesmo método, contado duas vezes. Causa: `hotmart.py` agrupava
+por `metodo_de_pagamento` **cru**, e a coluna guarda os mesmos métodos em dois dialetos, conforme
+a época da venda:
+
+| era | dialeto | exemplos |
+|---|---|---|
+| export CSV (início do projeto) | português | `Cartão de Crédito`, `Pix`, `Boleto Bancário` |
+| API (atual) | inglês maiúsculo | `CREDIT_CARD`, `PIX`, `BILLET`, `APPLE_PAY` |
+
+São 20 valores distintos na tabela, com **6 pares** que significam a mesma coisa: cartão, pix,
+boleto, Apple Pay, PayPal e Pix Automático. Depois de normalizar sobram 13 rótulos.
+
+**Fix:** `_metodo_pagamento_pt()` em `_vendas_comum.py`, aplicado no `groupby` do
+`read_hotmart_details`. Valor não mapeado volta cru de propósito — aparecer em inglês na tela é o
+sinal de que entrou um método novo pra incluir no dicionário.
+
+**Por que não reusar `_hm_metodo_label`:** ele classifica qualquer `installment` como
+"Recorrência", mas `HOTMART_INSTALLMENTS` é o parcelado da própria Hotmart, não assinatura — usá-lo
+aqui trocaria 373 vendas de categoria. Ele continua respondendo "Forma de Pagamento da Entrada",
+que é outra pergunta. Duas perguntas diferentes sobre a mesma coluna, dois normalizadores.
+
+Na tela, os rótulos perderam o `text-transform: uppercase` (nome em português a 10px em caixa alta
+fica gritado) e o corte em 20 caracteres, que truncava `HOTMART_INSTALLMEN`.
+
+### Pendência: o painel soma 30 vendas a mais que o próprio cabeçalho
+
+Já era assim antes desta correção. Na mesma seção, o cabeçalho diz "Hotmart: 662" (vem do
+`read_vendas`, que descarta linha de recorrência via `_parcela_unica_info`) e os cards somam 692
+(vem do `read_hotmart_details.total_vendas`, que não descarta) — 30 de diferença, consistente
+dentro de cada leitor, divergente entre os dois. Não mexi: decidir se cobrança recorrente conta
+como venda nesse painel é escolha de negócio, não bug de código.

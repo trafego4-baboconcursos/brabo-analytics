@@ -27,7 +27,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 49 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 50 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -206,6 +206,7 @@ relacionados:
 >
 > **Método de pagamento vinha em dois idiomas e virava dois cards (2026-09-17)**
 >
+> - [[ARQUITETURA#À vista x parcelado por método (2026-09-17)|À vista x parcelado por método (2026-09-17)]]
 > - [[ARQUITETURA#Pendência: o painel soma 30 vendas a mais que o próprio cabeçalho|Pendência: o painel soma 30 vendas a mais que o próprio cabeçalho]]
 
 <!-- SUMARIO:FIM -->
@@ -2123,6 +2124,19 @@ que é outra pergunta. Duas perguntas diferentes sobre a mesma coluna, dois norm
 
 Na tela, os rótulos perderam o `text-transform: uppercase` (nome em português a 10px em caixa alta
 fica gritado) e o corte em 20 caracteres, que truncava `HOTMART_INSTALLMEN`.
+
+### À vista x parcelado por método (2026-09-17)
+
+Cada card do método ganhou a divisão entre à vista (1 parcela) e parcelado (2x+), pedida pra
+saber quanto do cartão é parcelado. Calculada **dentro do grupo do próprio método**
+(`quantidade_total_de_parcelas` do grupo, sem parcela informada = 1), não a partir dos campos
+`a_vista_qtd`/`parcelado_12x_qtd` que já existiam: aqueles são do lançamento inteiro e partem de
+um `df_regular` que tenta remover recorrência por índice, então não fechariam com o número do
+card. Do jeito que ficou, `a_vista + parcelado == qtd` em todo método — dá pra conferir somando na
+tela.
+
+A linha só aparece quando há parcelado, senão Pix e Boleto (sempre à vista) ganhariam um
+"0 parcelado" que é só ruído.
 
 ### Pendência: o painel soma 30 vendas a mais que o próprio cabeçalho
 

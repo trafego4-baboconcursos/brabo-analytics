@@ -197,9 +197,15 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
         pay_grouped = df_paid.groupby(df_paid["metodo_de_pagamento"].map(_metodo_pagamento_pt))
         for metodo, group in pay_grouped:
             faturamento = float(group["valor_liq"].sum())
+            # À vista x parcelado dentro do próprio método: calculado sobre as
+            # linhas do grupo pra que a_vista + parcelado feche exatamente com
+            # o "qtd" mostrado no card. Sem parcelas informadas = 1 (à vista).
+            parcelas_grupo = pd.to_numeric(group["quantidade_total_de_parcelas"], errors="coerce").fillna(1).astype(int)
             details.pagamentos.append({
                 "metodo": str(metodo),
                 "qtd": int(len(group)),
+                "a_vista": int((parcelas_grupo == 1).sum()),
+                "parcelado": int((parcelas_grupo >= 2).sum()),
                 "pct_vendas": float(len(group) / details.total_vendas * 100) if details.total_vendas > 0 else 0.0,
                 "faturamento": faturamento,
                 "pct_faturamento": float(faturamento / details.faturamento * 100) if details.faturamento > 0 else 0.0,

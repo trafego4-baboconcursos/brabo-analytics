@@ -10,7 +10,7 @@ import os
 import time as _time_module
 
 from fastapi import Request
-from passlib.context import CryptContext
+import bcrypt as _bcrypt
 
 from frontend.models import Launch
 from logger import get_logger
@@ -18,13 +18,24 @@ from logger import get_logger
 logger = get_logger("frontend")
 
 # ── Constantes de auth ─────────────────────────────────────────────────────────
-BRABO_USER = os.environ.get("ADMIN_USERNAME") or os.environ.get("BRABO_USER", "brabo")
-BRABO_PASS = os.environ.get("ADMIN_PASSWORD") or os.environ.get("BRABO_PASS", "pbb2026")
+# Sem default: credencial não configurada desliga o fallback, em vez de abrir o
+# sistema com um usuário/senha que está no código-fonte (e portanto no GitHub).
+# Era o que acontecia até 18/09/26 — e como o .env não era carregado, valia
+# sempre: o acesso de admin do dashboard era literalmente "brabo"/"pbb2026".
+BRABO_USER = os.environ.get("ADMIN_USERNAME") or os.environ.get("BRABO_USER") or ""
+BRABO_PASS = os.environ.get("ADMIN_PASSWORD") or os.environ.get("BRABO_PASS") or ""
 SECRET_KEY = os.environ.get("SECRET_KEY", "brabo-dev-secret-change-me")
 SESSION_MAX_AGE = int(os.environ.get("SESSION_MAX_AGE", str(86400 * 7)))
 COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "false").lower() == "true"
 
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# bcrypt direto, sem passlib: o passlib 1.7.4 (último release, 2020) lê
+# `bcrypt.__about__`, que sumiu no bcrypt 4.1+. Com o bcrypt 5.x instalado
+# — o que qualquer build novo traz, já que o requirements não pinava — o
+# hash E a verificação estouravam. Efeito em cadeia: bootstrap do admin
+# falhava calado (tabela users vazia), create_user não funcionava e o
+# login por banco recusava todo mundo, deixando só o fallback legado de pé.
+# Hash gerado aqui é o mesmo formato $2b$, então hashes antigos continuam
+# válidos.
 
 # ── Permissões por rota ────────────────────────────────────────────────────────
 _ALL   = ["admin", "analista", "trafego", "leitura"]
@@ -62,12 +73,27 @@ ROUTE_PERMISSIONS: dict[str, list[str]] = {
 
 # ── Hashing de senha ───────────────────────────────────────────────────────────
 
+def _senha_bytes(plain: str) -> bytes:
+    """bcrypt trunca em 72 bytes e a partir da 4.x levanta erro em vez de
+    truncar sozinho — corta aqui, no limite de BYTES (não de caracteres, que
+    difere em acento)."""
+    return str(plain or "").encode("utf-8")[:72]
+
+
 def _hash_password(plain: str) -> str:
-    return _pwd_context.hash(plain)
+    return _bcrypt.hashpw(_senha_bytes(plain), _bcrypt.gensalt()).decode("utf-8")
 
 
 def _verify_password(plain: str, hashed: str) -> bool:
-    return _pwd_context.verify(plain, hashed)
+    """Senha confere com o hash. Hash inválido/corrompido devolve False em vez
+    de estourar — um registro ruim no banco não pode derrubar a rota de login."""
+    if not hashed:
+        return False
+    try:
+        return _bcrypt.checkpw(_senha_bytes(plain), str(hashed).encode("utf-8"))
+    except (ValueError, TypeError):
+        logger.warning("Hash de senha inválido no banco; login recusado")
+        return False
 
 # ── Sessão HMAC ────────────────────────────────────────────────────────────────
 

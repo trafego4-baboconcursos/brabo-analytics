@@ -53,7 +53,9 @@ def login_action(
     except Exception:
         logger.exception("Erro na autenticação via banco; usando fallback")
 
-    if email == BRABO_USER and password == BRABO_PASS:
+    # `BRABO_USER and BRABO_PASS` primeiro: sem credencial configurada os dois
+    # são "", e um POST com os campos em branco casaria na comparação.
+    if BRABO_USER and BRABO_PASS and email == BRABO_USER and password == BRABO_PASS:
         response = RedirectResponse(url=next_launch or "/", status_code=303)
         _set_session_cookie(response, "legacy", "admin", ["ALL"], BRABO_USER)
         return response

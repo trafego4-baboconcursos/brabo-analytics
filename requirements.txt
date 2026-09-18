@@ -13,7 +13,9 @@ jinja2>=3.1
 python-multipart>=0.0.32
 openpyxl>=3.1
 beautifulsoup4>=4.12  # parser do calendário (frontend/calendar_parser.py)
-passlib[bcrypt]>=1.7
+# bcrypt direto (sem passlib): o passlib 1.7.4 é de 2020 e quebra com
+# bcrypt >= 4.1, que qualquer build novo instala. Ver frontend/auth.py.
+bcrypt>=4.0
 pyyaml>=6.0
 
 # Retry HTTP com backoff exponencial (ETL scripts)

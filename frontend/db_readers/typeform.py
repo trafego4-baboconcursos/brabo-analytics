@@ -51,6 +51,37 @@ def _tf_source(where_sql: str, cols: str = "*") -> str:
     """
 
 
+# Tabela materializada com os VALORES já extraídos do `answers`, deduplicada por
+# response_id sobre as três tabelas de origem (ver etl/schema.sql). Existe porque
+# o `answers` cru carrega o metadado do Typeform — id, tipo e ref de cada
+# resposta — que _reconstruct_tabular_df descarta na hora: 4.844 bytes por linha
+# contra 951 só dos valores. Uma leitura do PI-AGO-26 caiu de 235 MB para 34 MB
+# (ver ARQUITETURA.md, 18/09/26 — egress).
+#
+# As linhas sem e-mail válido não entram: _reconstruct_tabular_df também as
+# descarta (o `continue` antes de montar row_data). Quem precisa da contagem
+# BRUTA, que inclui essas, usa _contar_respostas_brutas.
+_TF_VALORES = "typeform_respostas_valores"
+
+
+def _registros_materializados(where_sql: str, params: dict) -> list[dict[str, Any]]:
+    """Mesma saída de _reconstruct_tabular_df, lida já pronta do banco."""
+    with _get_engine().connect() as conn:
+        linhas = conn.execute(
+            text(f"SELECT email_norm, valores FROM {_TF_VALORES} WHERE {where_sql}"), params
+        ).fetchall()
+    return [{"email_norm": email, **(valores or {})} for email, valores in linhas]
+
+
+def _contar_respostas_brutas(where_sql: str, params: dict) -> int:
+    """Contagem sobre a fonte original, incluindo resposta sem e-mail válido —
+    é o que `total_tf_raw` sempre reportou. Devolve uma linha só."""
+    with _get_engine().connect() as conn:
+        return int(conn.execute(
+            text("SELECT count(*) FROM " + _tf_source(where_sql) + " t"), params
+        ).scalar() or 0)
+
+
 def _get_typeform_forms() -> dict[str, str]:
     """form_id -> título, lido do backup local (typeform_forms/typeform_forms_2).
 
@@ -292,16 +323,13 @@ def _reconstruct_tabular_df(tf_df_raw: pd.DataFrame) -> list[dict[str, Any]]:
 def _build_typeform_comparison(
     summary: TypeformSummary,
     df_proj: pd.DataFrame,
-    df_alunos_raw: pd.DataFrame,
+    records_alunos: list[dict[str, Any]],
     proj_id: str,
     alunos_id: str,
 ) -> None:
-    if df_proj.empty or df_alunos_raw.empty:
-        summary.compare_available = False
-        return
-
-    records_alunos = _reconstruct_tabular_df(df_alunos_raw)
-    if not records_alunos:
+    # Recebe os registros já prontos (antes recebia o DataFrame cru e chamava
+    # _reconstruct_tabular_df aqui) — hoje eles vêm da tabela materializada.
+    if df_proj.empty or not records_alunos:
         summary.compare_available = False
         return
 
@@ -497,24 +525,18 @@ def read_typeform(launch_folder_or_code: Any, start_date=None, end_date=None) ->
     if not proj_id:
         proj_id = code
 
-    # 1. Carrega dados do Typeform do Supabase
+    # 1. Carrega dados do Typeform do Supabase (tabela já materializada)
     fid_where = "upper(coalesce(form_id, '')) = :fid"
-    tf_df_raw = pd.read_sql(
-        text("SELECT * FROM " + _tf_source(fid_where) + " t"),
-        engine,
-        params={"fid": proj_id.upper()}
-    )
-    if tf_df_raw.empty:
+    fid_params = {"fid": proj_id.upper()}
+    records = _registros_materializados(fid_where, fid_params)
+    tf_raw_count = _contar_respostas_brutas(fid_where, fid_params)
+    if not records:
         # Fallback histórico por data e código do lançamento
         date_where = "submitted_at::date BETWEEN :start AND :end AND upper(coalesce(form_id, '')) = :code"
-        tf_df_raw = pd.read_sql(
-            text("SELECT * FROM " + _tf_source(date_where) + " t"),
-            engine,
-            params={"start": dim_start, "end": dim_end, "code": code.upper()}
-        )
+        date_params = {"start": dim_start, "end": dim_end, "code": code.upper()}
+        records = _registros_materializados(date_where, date_params)
+        tf_raw_count = _contar_respostas_brutas(date_where, date_params)
 
-    # Reconstruir o DataFrame tabular baseado nas respostas JSONB (Typeform)
-    records = _reconstruct_tabular_df(tf_df_raw) if not tf_df_raw.empty else []
     tf_df_typeform = pd.DataFrame(records)
 
     # Respostas do sistema de pesquisa novo (PBB-AGO-26 em diante) — mesmo
@@ -528,19 +550,15 @@ def read_typeform(launch_folder_or_code: Any, start_date=None, end_date=None) ->
     tf_df = tf_df.drop_duplicates("email_norm", keep="last")
 
     summary.has_data = True
-    summary.total_tf_raw = len(tf_df_raw) + len(novo_df)
+    summary.total_tf_raw = tf_raw_count + len(novo_df)
     summary.total_tf = len(tf_df)
 
     # Confrontar pesquisas
-    tf_alunos_raw = pd.DataFrame()
+    registros_alunos: list[dict[str, Any]] = []
     if alunos_id:
-        tf_alunos_raw = pd.read_sql(
-            text("SELECT * FROM " + _tf_source(fid_where) + " t"),
-            engine,
-            params={"fid": alunos_id.upper()}
-        )
-    if not tf_alunos_raw.empty:
-        _build_typeform_comparison(summary, tf_df, tf_alunos_raw, proj_id, alunos_id)
+        registros_alunos = _registros_materializados(fid_where, {"fid": alunos_id.upper()})
+    if registros_alunos:
+        _build_typeform_comparison(summary, tf_df, registros_alunos, proj_id, alunos_id)
 
     # 2. Carrega vendas e CRM para cruzamento
     # Mesma janela usada pelos demais readers — evita duplicar a consulta inteira
@@ -730,17 +748,22 @@ def read_typeform(launch_folder_or_code: Any, start_date=None, end_date=None) ->
             estado_col = "__estado_fallback__"
             break
     if estado_col:
-        vc_geral = tf_df[estado_col].value_counts()
-        summary.top_estados_geral = [
-            {"estado": str(est), "qtd": int(qtd), "pct": float(qtd / len(tf_df) * 100)}
-            for est, qtd in vc_geral.head(10).items() if str(est).strip() != ""
-        ]
+        # Desempate pelo nome do estado: o value_counts() do pandas mantém a
+        # ordem de aparição entre contagens iguais, então o top-10 mudava de
+        # ordem só porque as linhas chegaram em ordem diferente do banco. Sem
+        # isso, trocar a origem da leitura reordenava estados empatados sem que
+        # nenhum número tivesse mudado.
+        def _top_estados(serie: pd.Series, total: int) -> list[dict[str, Any]]:
+            vc = serie.value_counts()
+            ordenado = sorted(vc.items(), key=lambda kv: (-int(kv[1]), str(kv[0])))
+            return [
+                {"estado": str(est), "qtd": int(qtd),
+                 "pct": float(qtd / total * 100) if total > 0 else 0.0}
+                for est, qtd in ordenado[:10] if str(est).strip() != ""
+            ]
 
-        vc_comp = tf_comp[estado_col].value_counts()
-        summary.top_estados_comp = [
-            {"estado": str(est), "qtd": int(qtd), "pct": float(qtd / len(tf_comp) * 100) if len(tf_comp) > 0 else 0.0}
-            for est, qtd in vc_comp.head(10).items() if str(est).strip() != ""
-        ]
+        summary.top_estados_geral = _top_estados(tf_df[estado_col], len(tf_df))
+        summary.top_estados_comp = _top_estados(tf_comp[estado_col], len(tf_comp))
 
     # UTMs de leads AC dos respondentes compradores (Anúncios / utm_content).
     # Busca só esse subconjunto (respondentes que compraram — algumas centenas)
@@ -807,17 +830,7 @@ def read_perfil_por_anuncio(launch_folder_or_code: Any, top_n: int = 5) -> dict 
         "upper(coalesce(form_id, '')) = :fid "
         "AND lower(email) IN (SELECT lower(email) FROM leads WHERE lancamento_codigo = :code AND email IS NOT NULL)"
     )
-    with engine.connect() as conn:
-        conn.execute(text("SET statement_timeout = 180000"))
-        tf_df_raw = pd.read_sql(
-            text(
-                "SELECT response_id, form_id, email, answers FROM "
-                + _tf_source(_where, "response_id, updated_at, form_id, email, answers")
-                + " t"
-            ),
-            conn, params={"fid": proj_id.upper(), "code": code},
-        )
-    records = _reconstruct_tabular_df(tf_df_raw) if not tf_df_raw.empty else []
+    records = _registros_materializados(_where, {"fid": proj_id.upper(), "code": code})
     tf_df_typeform = pd.DataFrame(records)
 
     novo_df = _novo_sistema_respostas_cached(code)

@@ -273,6 +273,18 @@ CREATE TABLE IF NOT EXISTS typeform_respostas (
 CREATE INDEX IF NOT EXISTS idx_tf_email ON typeform_respostas (email);
 CREATE INDEX IF NOT EXISTS idx_tf_date  ON typeform_respostas (submitted_at);
 
+-- ── TYPEFORM — respostas com os VALORES já extraídos ─────────────────────
+-- `typeform_respostas_valores` é derivada das três tabelas acima, deduplicada
+-- por response_id, com o `answers` cru trocado pelos valores que o frontend de
+-- fato usa. O answers carrega metadado do Typeform (id, tipo e ref de cada
+-- resposta) que `_reconstruct_tabular_df` descarta: 4.844 bytes por linha contra
+-- 951 só dos valores. Uma leitura do PI-AGO-26 caiu de 464 MB para 48 MB, e a
+-- consulta parou de estourar o statement_timeout de 30s.
+--
+-- Não é criada aqui porque o CREATE TABLE AS leva ~25 min: mora em
+-- etl/materializar_typeform.sql e roda por `python scripts/materializar_typeform.py`.
+-- Só precisa ser recriada se typeform_respostas receber dado novo.
+
 -- Índices de expressão casando com o filtro real do frontend
 -- (`upper(coalesce(form_id, ''))`, ver frontend/db_readers/typeform.py::_tf_source).
 -- Um índice em form_id puro não é usado por esse predicado: as três tabelas

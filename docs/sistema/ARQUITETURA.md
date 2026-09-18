@@ -31,7 +31,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 55 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 58 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -223,6 +223,12 @@ relacionados:
 >
 > **"Conversões" da landing page contavam disparo de evento, não pessoa (2026-09-18)**
 >
+>
+> **Egress — o backup do Typeform materializado (2026-09-18)**
+>
+> - [[ARQUITETURA#O que foi feito|O que foi feito]]
+> - [[ARQUITETURA#Duas armadilhas na conversão|Duas armadilhas na conversão]]
+> - [[ARQUITETURA#Efeito colateral corrigido: top de estados desempatado|Efeito colateral corrigido: top de estados desempatado]]
 
 <!-- SUMARIO:FIM -->
 
@@ -2217,6 +2223,10 @@ grupo **Vendas** do menu, ao lado de Vendas/Hotmart/TMB.
   de propósito: é uma consulta só, carregar Meta/Google/Typeform junto custaria
   mais que a página inteira
 - `frontend/templates/afiliados.html`
+- `ROUTE_PERMISSIONS["/afiliados"] = _DTLD` (admin/analista), igual às outras
+  páginas de venda. Sem essa linha o default do middleware é `_ALL` e qualquer
+  papel logado leria nome de afiliado e comissão — esconder o item do menu não é
+  a trava.
 
 ### Só Hotmart
 
@@ -2305,3 +2315,64 @@ sessão sem campanha atribuída entra como NULL — a mesma página tem ~10.908 
 contra 4.527 dentro do lançamento. A etapa já é classificada pelo path da LP
 (`_etapa_from_landing_page`); dá pra derivar o lançamento do path também, mas isso muda o recorte
 de todos os números de GA4 e não foi feito agora.
+
+## Egress — o backup do Typeform materializado (2026-09-18)
+
+Medindo o egress restante **por byte** em vez de por linha, o quadro se inverteu: o
+`read_meta` liderava em número de linhas (51 milhões), mas cada linha tem 333 bytes. O
+Typeform tinha menos linhas e **4,8 KB cada**, por causa do `answers` (jsonb).
+
+| Consulta | Linhas/dia | Bytes/linha | GB/dia |
+|---|---|---|---|
+| Typeform `SELECT *` | 8,3 M | 4.791 | **41,4** |
+| Typeform 4 colunas | 7,1 M | 4.889 | **34,8** |
+| Pesquisa nova (`jsonb_object_agg`) | 5,6 M | 1.309 | 7,4 |
+| `read_meta` + `read_google` | 17,7 M | 333 | 5,9 |
+
+São 636 MB por ciclo de pré-aquecimento só de Typeform — a 2 ciclos/hora, 0,92 TB/mês.
+Sozinho explica o alerta de ~1 TB do Supabase. E o dado é **backup congelado** (última
+escrita entre 18/08 e 01/09) de três lançamentos encerrados; os ativos usam o sistema de
+pesquisa novo e têm zero.
+
+**Lição de método:** ranquear consumo por número de linhas engana. `scripts/checar_egress.py`
+conta linhas e por isso apontou o alvo errado por dois dias.
+
+### O que foi feito
+
+`typeform_respostas_valores` guarda a mesma informação com o `answers` trocado pelos valores
+que o frontend de fato usa. O `answers` carrega o metadado do Typeform (id, tipo e ref de cada
+resposta) que `_reconstruct_tabular_df` descarta na hora.
+
+- **464 MB → 48 MB** por leitura do PI-AGO-26 (9,7×)
+- A extração roda no servidor (`jsonb_array_elements` + `jsonb_object_agg`), então recriar a
+  tabela **não gera egress**
+- Recriação: `python scripts/materializar_typeform.py` (SQL em `etl/materializar_typeform.sql`).
+  Só necessária se `typeform_respostas` receber dado novo — hoje só por execução manual de
+  `etl_typeform.py`
+
+**Resolve junto a falha intermitente:** `read_typeform` do PI-AGO-26 levava ~33s contra o
+`statement_timeout` de 30s e falhava cerca de metade das vezes (o sintoma aparecia como
+`DatabaseError`/`SSL connection has been closed`, não como timeout). Depois: três execuções
+seguidas OK, com `total_tf=47.140` e `total_tf_raw=48.431` idênticos aos valores históricos.
+
+### Duas armadilhas na conversão
+
+A extração em SQL precisou replicar detalhes do Python que, se ignorados, mudariam a saída:
+
+- `str(True)` no Python dá `"True"`; o `->>` do Postgres dá `"true"`.
+- Quando o mesmo título aparece duas vezes, o dict do Python fica com o **último** da lista —
+  daí o `WITH ORDINALITY` e o `ORDER BY ord` no `jsonb_object_agg`.
+
+Validação: 360 respostas de 6 formulários comparadas campo a campo contra
+`_reconstruct_tabular_df`, **zero diferenças**.
+
+### Efeito colateral corrigido: top de estados desempatado
+
+Trocar a origem da leitura reordenou estados **empatados** no top-10 (`top_estados_comp`), sem
+nenhum número mudar: o `value_counts()` do pandas mantém a ordem de aparição entre contagens
+iguais. Agora o desempate é pelo nome do estado, o que torna a lista estável independente da
+ordem em que as linhas chegam.
+
+`total_tf_raw` continua contando a fonte original, incluindo resposta sem e-mail válido (que a
+tabela materializada não tem, porque `_reconstruct_tabular_df` também as descarta) — por isso
+`_contar_respostas_brutas` faz um `COUNT(*)` à parte, de uma linha só.

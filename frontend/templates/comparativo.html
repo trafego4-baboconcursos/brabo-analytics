@@ -221,6 +221,11 @@
          diferente do "Investimento" do Scorecard mais abaixo, que é só
          Captação (alimenta CPL/CPA/ROAS daquela seção). #}
       {{ plataformas([('Google', comp['inv_google_total_' ~ s]), ('Meta', comp['inv_meta_total_' ~ s]), ('WhatsApp', comp['inv_whatsapp_' ~ s])], money=true) }}
+
+      {# Sobre o mesmo investimento total acima (todas as etapas) — não o
+         roas_a/roas_b do Scorecard, que é só sobre Captação. #}
+      <div class="cmp-block-num" style="font-size:20px;margin-top:14px">{{ "%.2f"|format(comp['roas_total_' ~ s]) | replace(".", ",") }}x</div>
+      <div class="cmp-block-sub">ROAS</div>
     {% endmacro %}
 
     {# ── 1. O Paradoxo ── #}
@@ -237,12 +242,13 @@
         <div class="cmp-arrow">
           <div class="cmp-delta-box">
             <div class="cmp-delta-title">Diferença {{ comp.code_b }} vs {{ comp.code_a }}</div>
-            {# Mesma ordem dos cards: faturamento, vendas, investimento.
-               O investimento compara o TOTAL (mídia + WhatsApp), que é o número
-               mostrado nos dois lados. #}
+            {# Mesma ordem dos cards: faturamento, vendas, investimento, ROAS.
+               O investimento e o ROAS comparam o TOTAL (todas as etapas +
+               WhatsApp), que é o número mostrado nos dois lados. #}
             {% set inv_d = ((comp.inv_total_b - comp.inv_total_a) / comp.inv_total_a * 100) | round(1) if comp.inv_total_a else 0 %}
             {% set vnd_d = ((comp.vendas_b - comp.vendas_a) / comp.vendas_a * 100) | round(1) if comp.vendas_a else 0 %}
             {% set rec_d = ((comp.receita_b - comp.receita_a) / comp.receita_a * 100) | round(1) if comp.receita_a else 0 %}
+            {% set roas_d = ((comp.roas_total_b - comp.roas_total_a) / comp.roas_total_a * 100) | round(1) if comp.roas_total_a else 0 %}
             <div class="cmp-delta-row">
               <div class="cmp-delta-pct {{ 'pos' if rec_d > 0 else 'neg' }}">{{ '+' if rec_d > 0 else '' }}{{ rec_d }}%</div>
               <div class="cmp-delta-desc">faturamento</div>
@@ -254,6 +260,10 @@
             <div class="cmp-delta-row">
               <div class="cmp-delta-pct {{ 'neg' if inv_d > 0 else 'pos' }}">{{ '+' if inv_d > 0 else '' }}{{ inv_d }}%</div>
               <div class="cmp-delta-desc">investimento</div>
+            </div>
+            <div class="cmp-delta-row">
+              <div class="cmp-delta-pct {{ 'pos' if roas_d > 0 else 'neg' }}">{{ '+' if roas_d > 0 else '' }}{{ roas_d }}%</div>
+              <div class="cmp-delta-desc">ROAS</div>
             </div>
           </div>
         </div>

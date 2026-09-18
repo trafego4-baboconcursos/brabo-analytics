@@ -500,6 +500,10 @@ class ComparativoData:
     ticket_b: float = 0.0
     roas_a: float = 0.0
     roas_b: float = 0.0
+    # ROAS sobre inv_total (todas as etapas + WhatsApp) — só pro card "O
+    # Paradoxo". roas_a/roas_b acima seguem só sobre Captação (Scorecard).
+    roas_total_a: float = 0.0
+    roas_total_b: float = 0.0
     tx_conv_a: float = 0.0
     tx_conv_b: float = 0.0
     cpa_a: float = 0.0

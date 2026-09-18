@@ -339,6 +339,11 @@ def read_comparativo(launch_b: Launch, launch_a: Launch, launch_a2: Launch | Non
     data.ticket_b   = _safe_div(receita_b, vendas_b)
     data.roas_a     = _safe_div(receita_a, inv_capt_a)
     data.roas_b     = _safe_div(receita_b, inv_capt_b)
+    # ROAS do card "O Paradoxo": receita sobre o investimento do
+    # lançamento inteiro (inv_total_a/b, todas as etapas) — diferente do
+    # roas_a/roas_b do Scorecard acima, que é só sobre Captação.
+    data.roas_total_a = _safe_div(receita_a, data.inv_total_a)
+    data.roas_total_b = _safe_div(receita_b, data.inv_total_b)
     data.tx_conv_a  = _safe_div(vendas_a, ra["leads"]) * 100 if ra["leads"] else 0.0
     data.tx_conv_b  = _safe_div(vendas_b, rb["leads"]) * 100 if rb["leads"] else 0.0
     data.cpa_a      = _safe_div(inv_capt_a, vendas_a)

@@ -3,44 +3,13 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vis-timeline@7.7.3/styles/vis-timeline-graph2d.min.css">
 <script src="https://cdn.jsdelivr.net/npm/vis-timeline@7.7.3/standalone/umd/vis-timeline-graph2d.min.js"></script>
 <style>
-/* ── Calendário — tokens da página (padrão de design do sistema, não do
-   HTML estático legado) ──────────────────────────────────────────────── */
-.cal-content-wrap {
-  overflow: auto; padding: 0;
-  --pre: #e0f2fe; --cap: #dcfce7; --dep: #fef3c7; --aul: #ffe4e6; --car: #ddd6fe;
-}
-.cal-content-wrap .header {
-  background: linear-gradient(120deg, var(--bs-sidebar-dark) 0%, var(--bs-accent) 100%);
-  color: #fff; padding: 28px 30px; border-radius: var(--bs-r-lg) var(--bs-r-lg) 0 0;
-}
-.cal-content-wrap .header h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -.01em; }
-.cal-content-wrap .header p { margin: 0; opacity: .92; font-size: 14px; max-width: 760px; }
-.cal-content-wrap .content { padding: 24px; }
-.cal-content-wrap h2 { font-size: 18px; font-weight: 800; color: var(--bs-ink); margin: 26px 0 12px; }
+/* ── Calendário — vars locais não cobertas pelo base (cores de etapa,
+   reaproveitadas da legenda de chips até as barras do timeline/grade). */
+:root { --pre: #e0f2fe; --cap: #dcfce7; --dep: #fef3c7; --aul: #ffe4e6; --car: #ddd6fe; }
 
-.today-banner {
-  display: inline-flex; align-items: center; gap: 8px; margin-bottom: 14px;
-  padding: 7px 14px; border: 1px solid var(--bs-border); background: var(--bs-accent-bg);
-  color: var(--bs-ink); border-radius: 999px; font-size: 13px; font-weight: 700;
-}
-.today-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--bs-accent); box-shadow: 0 0 0 4px var(--bs-accent-bg);
-}
-
-.quick-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px; }
-.metric { border: 1px solid var(--bs-border); background: var(--bs-surface); border-radius: var(--bs-r-lg); padding: 14px 16px; }
-.metric .k { font-size: 11px; color: var(--bs-ink-muted); text-transform: uppercase; letter-spacing: .05em; font-weight: 700; margin-bottom: 5px; }
-.metric .v { font-size: 20px; font-weight: 800; color: var(--bs-ink); }
-
-.note {
-  background: var(--bs-warning-bg); border: 1px solid var(--bs-warning);
-  border-radius: var(--bs-r-lg); padding: 12px 16px; color: var(--bs-ink); font-size: 13px; margin-bottom: 16px;
-}
-
-.legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 20px; }
 .chip, .stage {
-  border-radius: 999px; padding: 5px 12px; font-size: 11.5px; font-weight: 700;
+  border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 700;
   border: 1px solid rgba(15,23,42,.12); color: #102136; display: inline-block;
 }
 .chip.pre, .stage.pre { background: var(--pre); }
@@ -49,14 +18,8 @@
 .chip.aul, .stage.aul { background: var(--aul); }
 .chip.car, .stage.car { background: var(--car); }
 
-.tag { display: inline-block; border-radius: 999px; padding: 4px 10px; font-size: 11px; font-weight: 700; }
-.tag.running       { background: var(--bs-accent-bg);  color: var(--bs-accent); }
-.tag.scheduled      { background: var(--bs-info-bg, var(--bs-accent-bg)); color: var(--bs-info, var(--bs-accent)); }
-.tag.done, .tag.uploaded    { background: var(--bs-success-bg); color: var(--bs-success); }
-.tag.pending, .tag.pending-upload { background: var(--bs-danger-bg); color: var(--bs-danger); }
-
 .launch-name, .project-badge {
-  display: inline-block; border-radius: 999px; padding: 5px 11px; font-size: 11px;
+  display: inline-block; border-radius: 999px; padding: 4px 10px; font-size: 11px;
   font-weight: 800; letter-spacing: .02em; border: 1px solid rgba(15,23,42,.14); color: #102136;
 }
 .launch-pbb { background: #fef3c7; }
@@ -66,7 +29,19 @@
 .proj-tj    { background: #fee2e2; }
 .proj-inss  { background: #dbeafe; }
 
-/* ── Toggle Linha do Tempo / Calendário ────────────────────────────── */
+/* ── Linha do Tempo/Calendário — cabeçalho no mesmo estilo visual de
+   .section-title (borda inferior colorida, ícone, negrito), mas fora do
+   accordion genérico (.section/.section-title) de propósito: o
+   vis-timeline calcula a largura só na primeira renderização, e
+   recolher/expandir via display:none quebraria esse cálculo sem um
+   redraw manual. As duas tabelas abaixo já usam .section normalmente. */
+.cal-h2 {
+  font-size: 16px; font-weight: 700; color: var(--bs-ink);
+  border-bottom: 2px solid var(--bs-accent); padding-bottom: 8px; margin: 0 0 16px;
+  display: flex; align-items: center; gap: 10px;
+}
+.cal-h2 i { font-size: 20px; color: var(--bs-accent); flex-shrink: 0; }
+
 .cal-view-toggle {
   display: inline-flex; gap: 2px; padding: 3px; background: var(--bs-surface);
   border: 1px solid var(--bs-border); border-radius: var(--bs-r-md); margin-bottom: 12px;
@@ -182,9 +157,6 @@
 .cal-grid-more { font-size: 10px; color: var(--bs-ink-muted); font-weight: 700; padding: 1px 4px; }
 
 @media (max-width: 768px) {
-  .cal-content-wrap .header { padding: 18px; }
-  .cal-content-wrap .header h1 { font-size: 21px; }
-  .cal-content-wrap .content { padding: 14px; }
   .cal-grid-day { min-height: 72px; }
 }
 </style>
@@ -192,41 +164,43 @@
 
 {% block content %}
 {% set stage_order = [('pre','Pré-Quali'), ('cap','Captação'), ('dep','Depoimento'), ('aul','Aulas Semana 0'), ('car','Carrinho aberto')] %}
-{% set tag_by_state = {'completed': ('done', 'Concluído'), 'running': ('running', 'Em andamento'), 'scheduled': ('scheduled', 'Programada')} %}
-<div class="cal-content-wrap">
-<div class="container">
-  <div class="header">
-    <h1>Calendário Operacional</h1>
-    <p>Datas geradas a partir das Configurações de cada lançamento — mude lá (ou arraste na Linha do Tempo abaixo) e o calendário acompanha.</p>
+{% set tag_by_state = {'completed': ('success', 'Concluído'), 'running': ('accent', 'Em andamento'), 'scheduled': ('info', 'Programada')} %}
+<div class="wrap">
+  <div class="hdr">
+    <img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics">
+    <div>
+      <h1><i class="ti ti-calendar-event"></i> Calendário Operacional</h1>
+      <p>Datas geradas a partir das Configurações de cada lançamento — mude lá (ou arraste na Linha do Tempo abaixo) e o calendário acompanha.</p>
+    </div>
   </div>
 
   <div class="content">
-    <div class="today-banner">
-      <span class="today-dot"></span>
-      <span>Hoje é {{ cal.today | br_date }}</span>
+    <div class="tp-kpi-grid tp-kpi-grid-4">
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-list-check"></i></div></div>
+        <div class="tp-value">{{ cal.metrics.total }}</div>
+        <div class="tp-label">Lançamentos cadastrados</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-database-check"></i></div></div>
+        <div class="tp-value">{{ cal.metrics.extraido }}</div>
+        <div class="tp-label">Extração feita</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon danger"><i class="ti ti-alert-triangle"></i></div></div>
+        <div class="tp-value">{{ cal.metrics.pendentes }}</div>
+        <div class="tp-label">Pendentes (já passaram)</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-calendar-time"></i></div></div>
+        <div class="tp-value">{{ cal.metrics.programadas }}</div>
+        <div class="tp-label">Programadas (próximas)</div>
+      </div>
     </div>
 
-    <div class="quick-grid">
-      <div class="metric">
-        <div class="k">Lançamentos cadastrados</div>
-        <div class="v">{{ cal.metrics.total }}</div>
-      </div>
-      <div class="metric">
-        <div class="k">Extração feita</div>
-        <div class="v">{{ cal.metrics.extraido }}</div>
-      </div>
-      <div class="metric">
-        <div class="k">Pendentes (já passaram)</div>
-        <div class="v">{{ cal.metrics.pendentes }}</div>
-      </div>
-      <div class="metric">
-        <div class="k">Programadas (próximas)</div>
-        <div class="v">{{ cal.metrics.programadas }}</div>
-      </div>
-    </div>
-
-    <div class="note">
-      Datas de Pré-Quali, Captação, Depoimento, Aulas Semana 0 e Carrinho vêm direto do launch_config de cada lançamento (aba Configurações). Lançamentos sem datas cadastradas não aparecem aqui.
+    <div class="note warning" style="display:flex;align-items:center;gap:8px">
+      <span style="width:8px;height:8px;border-radius:50%;background:var(--bs-accent);box-shadow:0 0 0 4px var(--bs-accent-bg);flex-shrink:0"></span>
+      Hoje é {{ cal.today | br_date }} — datas de Pré-Quali, Captação, Depoimento, Aulas Semana 0 e Carrinho vêm direto do launch_config de cada lançamento (aba Configurações). Lançamentos sem datas cadastradas não aparecem aqui.
     </div>
 
     <div class="legend">
@@ -238,7 +212,7 @@
     </div>
 
     {% if cal.rows %}
-    <h2>Linha do Tempo</h2>
+    <div class="cal-h2"><i class="ti ti-timeline"></i> Linha do Tempo</div>
     <div class="cal-view-toggle">
       <button type="button" class="cal-view-btn active" data-view="timeline"><i class="ti ti-timeline"></i> Linha do Tempo</button>
       <button type="button" class="cal-view-btn" data-view="grid"><i class="ti ti-calendar"></i> Calendário</button>
@@ -258,7 +232,7 @@
       </div>
     </div>
 
-    <div id="cal-grid-wrap" hidden>
+    <div id="cal-grid-wrap" hidden style="margin-bottom:32px">
       <div class="cal-grid-toolbar">
         <div class="cal-grid-nav">
           <button type="button" id="cal-grid-prev" title="Mês anterior"><i class="ti ti-chevron-left"></i></button>
@@ -270,84 +244,87 @@
       <div class="cal-grid" id="cal-grid"></div>
     </div>
 
-    <h2>Pipeline Completo de Lançamentos</h2>
-    <div class="table-wrap">
-      <table id="pipeline-table">
-        <thead>
-          <tr>
-            <th>Lançamento</th>
-            <th>Projeto</th>
-            <th>Início Pre-Quali</th>
-            <th>Início Captação</th>
-            <th>Início Aulas ao vivo</th>
-            <th>Abertura Carrinho</th>
-            <th>Fechamento Carrinho</th>
-            <th>Dados</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for r in cal.rows %}
-          <tr>
-            <td><span class="launch-name {{ r.launch_class }}">{{ r.code }}</span></td>
-            <td><span class="project-badge {{ r.proj_class }}">{{ r.project }}</span></td>
-            <td>{{ r.by_css.pre.start | br_date if r.by_css.pre else '' }}</td>
-            <td>{{ r.by_css.cap.start | br_date if r.by_css.cap else '' }}</td>
-            <td>{{ r.by_css.aul.start | br_date if r.by_css.aul else '' }}</td>
-            <td>{{ r.by_css.car.start | br_date if r.by_css.car else '' }}</td>
-            <td>{{ r.by_css.car.end | br_date if r.by_css.car else '' }}</td>
-            <td><span class="tag {{ 'uploaded' if r.extraido else 'pending-upload' }}">{{ 'Já subimos' if r.extraido else 'Pendente' }}</span></td>
-            <td><span class="tag {{ tag_by_state[r.state][0] }}">{{ tag_by_state[r.state][1] }}</span></td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="section">
+      <div class="section-title"><i class="ti ti-table"></i> Pipeline Completo de Lançamentos</div>
+      <div class="table-wrap">
+        <table id="pipeline-table">
+          <thead>
+            <tr>
+              <th>Lançamento</th>
+              <th>Projeto</th>
+              <th>Início Pre-Quali</th>
+              <th>Início Captação</th>
+              <th>Início Aulas ao vivo</th>
+              <th>Abertura Carrinho</th>
+              <th>Fechamento Carrinho</th>
+              <th>Dados</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in cal.rows %}
+            <tr>
+              <td><span class="launch-name {{ r.launch_class }}">{{ r.code }}</span></td>
+              <td><span class="project-badge {{ r.proj_class }}">{{ r.project }}</span></td>
+              <td>{{ r.by_css.pre.start | br_date if r.by_css.pre else '' }}</td>
+              <td>{{ r.by_css.cap.start | br_date if r.by_css.cap else '' }}</td>
+              <td>{{ r.by_css.aul.start | br_date if r.by_css.aul else '' }}</td>
+              <td>{{ r.by_css.car.start | br_date if r.by_css.car else '' }}</td>
+              <td>{{ r.by_css.car.end | br_date if r.by_css.car else '' }}</td>
+              <td><span class="bs-pill {{ 'success' if r.extraido else 'danger' }}">{{ 'Já subimos' if r.extraido else 'Pendente' }}</span></td>
+              <td><span class="bs-pill {{ tag_by_state[r.state][0] }}">{{ tag_by_state[r.state][1] }}</span></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
 
-    <h2>Agenda Por Lançamento</h2>
-    <div class="table-wrap">
-      <table id="agenda-table">
-        <thead>
-          <tr>
-            <th>Lançamento</th>
-            <th>Projeto</th>
-            <th>Fase</th>
-            <th>Etapa</th>
-            <th>Duração (Dias)</th>
-            <th>Início</th>
-            <th>Fim</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for r in cal.rows %}
-          {% for css, label in stage_order %}
-          {% set st = r.by_css.get(css) %}
-          {% if st %}
-          <tr data-launch="{{ r.code }}">
-            <td><span class="launch-name {{ r.launch_class }}">{{ r.code }}</span></td>
-            <td><span class="project-badge {{ r.proj_class }}">{{ r.project }}</span></td>
-            <td><span class="stage {{ css }}">{{ label }}</span></td>
-            <td>{{ loop.index }}</td>
-            <td>{{ (st.days / 7) | round(0, 'ceil') | int }}</td>
-            <td>{{ st.days }}</td>
-            <td>{{ st.start | br_date }}</td>
-            <td>{{ st.end | br_date }}</td>
-            <td>Definido em Configurações</td>
-            <td><span class="tag {{ tag_by_state[r.state][0] }}">{{ tag_by_state[r.state][1] }}</span></td>
-          </tr>
-          {% endif %}
-          {% endfor %}
-          {% endfor %}
-        </tbody>
-      </table>
+    <div class="section">
+      <div class="section-title"><i class="ti ti-calendar-event"></i> Agenda Por Lançamento</div>
+      <div class="table-wrap">
+        <table id="agenda-table">
+          <thead>
+            <tr>
+              <th>Lançamento</th>
+              <th>Projeto</th>
+              <th>Fase</th>
+              <th>Etapa</th>
+              <th>Duração (Dias)</th>
+              <th>Início</th>
+              <th>Fim</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in cal.rows %}
+            {% for css, label in stage_order %}
+            {% set st = r.by_css.get(css) %}
+            {% if st %}
+            <tr data-launch="{{ r.code }}">
+              <td><span class="launch-name {{ r.launch_class }}">{{ r.code }}</span></td>
+              <td><span class="project-badge {{ r.proj_class }}">{{ r.project }}</span></td>
+              <td><span class="stage {{ css }}">{{ label }}</span></td>
+              <td>{{ loop.index }}</td>
+              <td>{{ (st.days / 7) | round(0, 'ceil') | int }}</td>
+              <td>{{ st.days }}</td>
+              <td>{{ st.start | br_date }}</td>
+              <td>{{ st.end | br_date }}</td>
+              <td>Definido em Configurações</td>
+              <td><span class="bs-pill {{ tag_by_state[r.state][0] }}">{{ tag_by_state[r.state][1] }}</span></td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
     {% else %}
-    <div class="note" style="margin-top:16px">
+    <div class="note warning" style="margin-top:16px">
       Nenhum lançamento com datas cadastradas em Configurações ainda. Abra um lançamento e preencha as datas de Pré-Qualificação, Captação, Depoimento, Aulas Semana 0 e Carrinho para ele aparecer aqui.
     </div>
     {% endif %}
   </div>
-</div>
 </div>
 <script>
 (function () {

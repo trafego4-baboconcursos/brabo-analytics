@@ -31,7 +31,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 62 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 64 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -239,6 +239,11 @@ relacionados:
 > - [[ARQUITETURA#Segunda rodada: não precisamos dos valores, só do e-mail (2026-09-18)|Segunda rodada: não precisamos dos valores, só do e-mail (2026-09-18)]]
 > - [[ARQUITETURA#O passo que faltava: CLUSTER|O passo que faltava: CLUSTER]]
 > - [[ARQUITETURA#Armadilha que eu mesmo criei e corrigi|Armadilha que eu mesmo criei e corrigi]]
+>
+> **ETL — cadência por natureza do dado (2026-09-18)**
+>
+> - [[ARQUITETURA#Por que não uniformemente de hora em hora|Por que não uniformemente de hora em hora]]
+> - [[ARQUITETURA#Dois cuidados que o desenho embute|Dois cuidados que o desenho embute]]
 
 <!-- SUMARIO:FIM -->
 
@@ -2518,3 +2523,47 @@ Um `LIMIT 1` sobre um padrão que **nunca casa** não sai cedo: varre tudo procu
 existe — e no `read_perfil_por_anuncio` ainda arrastava junto a subconsulta de `leads`. Estourou
 o `statement_timeout` e derrubou a seção. A checagem agora olha só o `form_id`, com `LIMIT 200`
 interno: as perguntas são as mesmas em todas as respostas do formulário, então a amostra basta.
+
+## ETL — cadência por natureza do dado (2026-09-18)
+
+O scheduler rodava uma carga única a cada 30 min. Medido sobre 7 dias de `etl_runs`, o ciclo
+levava **19 min em média e 74 min no pior caso** — 247% da janela. Nem todas as fontes custam
+o mesmo nem mudam no mesmo ritmo:
+
+| fonte | média | máx | falhas (7d) |
+|---|---|---|---|
+| `active_campaign` | **538s** | 942s | **26** |
+| `instagram` | 290s | 394s | 0 |
+| `meta_ads` | 124s | 612s | 14 |
+| `ac_ebook` / `whatsapp` / `ac_campaigns` | 80s / 70s / 34s | — | 3 |
+| `ga4` / `google_ads` / `sheets_contagem` | 27s / 17s / 9s | — | 2 |
+
+Agora são dois jobs no mesmo processo (nada de container novo):
+
+- **Rápido, a cada 30 min** — `meta_ads`, `google_ads`, `ga4`, `sheets_contagem`: 177s de
+  trabalho, ciclo de ~3 min contra 19. É o que sustenta decisão de verba.
+- **Lento, de hora em hora** (`minute=20`, deslocado do `:00/:30` do rápido e do `:15` do
+  alerta de orçamento) — `active_campaign`, `instagram`, `ac_ebook`, `whatsapp`,
+  `ac_campaigns`.
+
+### Por que não uniformemente de hora em hora
+
+Medido no pico de Captação do PES-SET-26 (08-13/09): entram **~55 leads e ~R$ 1.187 de gasto a
+cada meia hora** no horário comercial. Dobrar o atraso do gasto é caro — há regra fixa de
+orçamento diário e já houve estouro real de 337%. Já 110 leads acumulados não mudam decisão
+nenhuma. Por isso a divisão é por **natureza do dado**, não uniforme.
+
+### Dois cuidados que o desenho embute
+
+**Locks separados.** Com lock único o ciclo curto seria pulado durante os ~17 min do longo e
+perderia o ganho todo. As fontes não se cruzam; e as três que batem na mesma API do Active
+Campaign estão todas na cadência lenta, no mesmo processo, então seguem serializadas entre si.
+
+**Só o ciclo curto avisa o dashboard.** Avisar nos dois levaria a 72 invalidações de cache por
+dia em vez de 48, aumentando o egress que passamos dias reduzindo. O dado do ciclo longo entra
+no re-aquecimento seguinte, no máximo 30 min depois (`rodar_carga(avisar=...)`).
+
+O isolamento de falha que um desmembramento em serviços traria **já existia**: cada fonte é um
+subprocesso com timeout próprio de 15 min, e o orquestrador segue para a próxima quando uma
+falha (`run_all.py`). O apagão de 7h12 em 17/09 não foi passo travado — foi o `scheduler.py`
+não subir por import quebrado, e nove containers teriam o mesmo import quebrado.

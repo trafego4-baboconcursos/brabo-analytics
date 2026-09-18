@@ -27,6 +27,26 @@ BASE_DIR     = Path(__file__).parent
 ORQUESTRADOR = BASE_DIR / "run_all.py"
 INTERVALO_MINUTOS = 30
 
+# Cadência por natureza do dado, medida em 18/09/26 sobre 7 dias de etl_runs.
+# O ciclo único levava 19 min em média e 74 min no pior caso (247% da janela de
+# 30 min). As fontes não custam o mesmo nem mudam no mesmo ritmo:
+#
+#   active_campaign  538s (26 falhas)   instagram  290s (0 falhas)
+#   meta_ads         124s              ac_ebook    80s   whatsapp  70s
+#   ac_campaigns      34s              ga4         27s
+#   google_ads        17s              sheets_contagem  9s
+#
+# RÁPIDAS são o que sustenta decisão de verba durante carrinho aberto: no pico
+# de Captação do PES-SET-26 entravam ~R$ 1.187 de gasto a cada meia hora, e
+# vocês têm regra fixa de orçamento por dia. Somam 177s — o ciclo curto passa
+# de 19 min para ~3.
+# LENTAS mudam devagar ou são caras: a cada meia hora entravam ~55 leads, que
+# não mudam decisão nenhuma. De hora em hora, `active_campaign` (o gargalo, 45%
+# do tempo e 63% das falhas) roda 24x/dia em vez de 48.
+FONTES_RAPIDAS = "meta_ads,google_ads,ga4,sheets_contagem"
+FONTES_LENTAS = "active_campaign,instagram,ac_ebook,whatsapp,ac_campaigns"
+INTERVALO_LENTAS_MINUTOS = 60
+
 load_dotenv(dotenv_path=BASE_DIR.parent / ".env")
 
 # ── Logging ────────────────────────────────────────────────────────────────────
@@ -45,7 +65,13 @@ file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 
 # ── Lock: impede execuções sobrepostas ────────────────────────────────────────
+# Um lock por cadência: com lock único, o ciclo curto seria pulado durante os
+# ~17 min do ciclo longo e perderia o ganho todo. As fontes não se cruzam (APIs
+# e tabelas diferentes), então rodar em paralelo é seguro — as três fontes que
+# batem na mesma API do Active Campaign estão todas na cadência lenta, juntas
+# no mesmo processo, então continuam serializadas entre si.
 _job_lock = threading.Lock()
+_job_lock_lento = threading.Lock()
 
 # ── Circuit breaker ────────────────────────────────────────────────────────────
 _FALHAS_CONSECUTIVAS: int = 0
@@ -98,7 +124,16 @@ def notificar_frontend_refresh() -> None:
         logger.warning("Não foi possível avisar o dashboard (%s): %s", base, e)
 
 
-def rodar_carga(dias_janela: int = 2) -> None:
+def rodar_carga(dias_janela: int = 2, fontes: str | None = None,
+                rotulo: str = "completo", lock: threading.Lock | None = None,
+                avisar: bool = True) -> None:
+    """Roda o orquestrador. `fontes` restringe a um subconjunto (`--only`).
+
+    `avisar=False` pula o POST /api/etl/refresh: com duas cadências, avisar nas
+    duas levaria a 72 invalidações de cache por dia em vez de 48, aumentando o
+    egress que passamos dias reduzindo. Só o ciclo curto avisa — o dado do ciclo
+    longo entra no re-aquecimento seguinte, no máximo 30 min depois.
+    """
     global _FALHAS_CONSECUTIVAS, _DESABILITADO_ATE
     import time as _time
 
@@ -109,8 +144,9 @@ def rodar_carga(dias_janela: int = 2) -> None:
         return
 
     # Se a execução anterior ainda não terminou, pula este ciclo
-    if not _job_lock.acquire(blocking=False):
-        logger.warning("ETL anterior ainda em execução — ciclo ignorado para evitar sobreposição.")
+    trava = lock if lock is not None else _job_lock
+    if not trava.acquire(blocking=False):
+        logger.warning("ETL (%s) anterior ainda em execução — ciclo ignorado para evitar sobreposição.", rotulo)
         return
 
     try:
@@ -118,9 +154,12 @@ def rodar_carga(dias_janela: int = 2) -> None:
         inicio = (hoje - timedelta(days=dias_janela)).strftime("%Y-%m-%d")
         fim    = hoje.strftime("%Y-%m-%d")
 
-        logger.info("Iniciando rodada do ETL. Janela de atualização: %s até %s (%d dias)", inicio, fim, dias_janela)
+        logger.info("Iniciando rodada do ETL (%s). Janela de atualização: %s até %s (%d dias)",
+                    rotulo, inicio, fim, dias_janela)
 
         cmd = [sys.executable, str(ORQUESTRADOR), "--since", inicio, "--until", fim]
+        if fontes:
+            cmd += ["--only", fontes]
         # Rede de segurança externa: run_all.py agora tem timeout por fonte
         # (ver run_all.py), mas esse timeout aqui cobre qualquer coisa que
         # escape dele (hang fora de subprocess, trava no nível do Python) —
@@ -135,7 +174,8 @@ def rodar_carga(dias_janela: int = 2) -> None:
                 logger.info("Saída do ETL:\n%s", result.stdout.strip())
             _FALHAS_CONSECUTIVAS = 0
             _DESABILITADO_ATE = 0.0
-            notificar_frontend_refresh()
+            if avisar:
+                notificar_frontend_refresh()
         else:
             _FALHAS_CONSECUTIVAS += 1
             msg_erro = f"Erro ao executar ETL (Código de Saída: {result.returncode}) — falha {_FALHAS_CONSECUTIVAS}/{_MAX_FALHAS}"
@@ -157,7 +197,7 @@ def rodar_carga(dias_janela: int = 2) -> None:
         logger.error(msg_erro)
         enviar_alerta_webhook(msg_erro, traceback.format_exc())
     finally:
-        _job_lock.release()
+        trava.release()
 
 
 def _on_job_event(event) -> None:
@@ -181,18 +221,35 @@ def main() -> None:
 
     # coalesce=True: se perdeu N disparos enquanto ocupado, executa apenas 1 ao desbloquear
     # misfire_grace_time=300: tolera até 5 min de atraso antes de marcar como misfire
+    # Ciclo curto: só o que sustenta decisão de verba (ver FONTES_RAPIDAS).
+    # É o único que avisa o dashboard — ver rodar_carga(avisar=...).
     scheduler.add_job(
-        rodar_carga,
+        partial(rodar_carga, fontes=FONTES_RAPIDAS, rotulo="rápido"),
         trigger="interval",
         minutes=INTERVALO_MINUTOS,
         coalesce=True,
         misfire_grace_time=300,
         id="etl_carga",
-        name="ETL Brabo Analytics",
+        name="ETL rápido (anúncios, GA4, planilhas)",
         # datetime "aware" (UTC) — um datetime.now() ingênuo aqui é
         # interpretado pelo APScheduler como já estando no timezone do
         # scheduler (America/Sao_Paulo); como o relógio do container é UTC,
         # isso empurrava a rodada "imediata" pra 3h no futuro a cada restart.
+        next_run_time=datetime.now(timezone.utc),
+    )
+
+    # Ciclo longo: fontes caras ou que mudam devagar. Lock próprio para não ser
+    # bloqueado pelo curto (e vice-versa); `minute=20` desloca do :00/:30 do
+    # curto e do :15 do alerta de orçamento, pra não baterem nas mesmas APIs.
+    scheduler.add_job(
+        partial(rodar_carga, fontes=FONTES_LENTAS, rotulo="lento",
+                lock=_job_lock_lento, avisar=False),
+        trigger="cron",
+        minute=20,
+        coalesce=True,
+        misfire_grace_time=600,
+        id="etl_carga_lenta",
+        name="ETL lento (Active Campaign, Instagram, WhatsApp)",
         next_run_time=datetime.now(timezone.utc),
     )
 

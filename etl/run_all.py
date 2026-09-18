@@ -127,7 +127,18 @@ def run_api_mode(since: str, until: str, only: str | None):
         # "refresh_views": [sys.executable, str(BASE / "refresh_views.py")],
     }
 
-    targets = {only: scripts[only]} if only else scripts
+    if only:
+        # Aceita lista separada por vírgula: o scheduler divide as fontes em
+        # cadências diferentes (rápidas a cada 30 min, lentas de hora em hora)
+        # e chama com `--only meta_ads,google_ads,ga4,sheets_contagem`.
+        pedidos = [n.strip() for n in only.split(",") if n.strip()]
+        desconhecidos = [n for n in pedidos if n not in scripts]
+        if desconhecidos:
+            raise SystemExit(f"--only: fonte desconhecida {desconhecidos} (válidas: {sorted(scripts)})")
+        # Preserva a ordem definida em `scripts`, não a ordem digitada.
+        targets = {k: v for k, v in scripts.items() if k in pedidos}
+    else:
+        targets = scripts
     errors = []
     for name, cmd in targets.items():
         timeout = _TIMEOUTS_POR_FONTE.get(name, _TIMEOUT_PADRAO_SEGUNDOS)
@@ -199,7 +210,7 @@ def main():
     mode.add_argument("--csv-mode",        action="store_true",  help="Importa via CSVs exportados manualmente")
 
     parser.add_argument("--until",          metavar="YYYY-MM-DD", default=datetime.now().strftime("%Y-%m-%d"))
-    parser.add_argument("--only",           metavar="SCRIPT",    help="Roda somente: active_campaign | meta_ads | google_ads | ac_campaigns | ac_ebook | whatsapp | instagram | sheets_contagem | ga4")
+    parser.add_argument("--only",           metavar="SCRIPT",    help="Roda somente estas fontes (separadas por vírgula): active_campaign | meta_ads | google_ads | ac_campaigns | ac_ebook | whatsapp | instagram | sheets_contagem | ga4")
     parser.add_argument("--campaign-folder", metavar="PATH",      help="Pasta da campanha (modo --csv-mode), ex: analises/[PBB-ABR-26]")
     parser.add_argument("--period",          metavar="YYYY-MM",   help="Período da campanha (modo --csv-mode), ex: 2026-04")
     args = parser.parse_args()

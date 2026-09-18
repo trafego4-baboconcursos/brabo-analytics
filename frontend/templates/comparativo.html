@@ -217,7 +217,10 @@
 
       <div class="cmp-block-num" style="font-size:20px;margin-top:14px">{{ comp['inv_total_' ~ s] | brl }}</div>
       <div class="cmp-block-sub">Investimento</div>
-      {{ plataformas([('Google', comp['inv_google_' ~ s]), ('Meta', comp['inv_meta_' ~ s]), ('WhatsApp', comp['inv_whatsapp_' ~ s])], money=true) }}
+      {# Todas as etapas (Pré-Quali + Captação + Remarketing/Replay etc.),
+         diferente do "Investimento" do Scorecard mais abaixo, que é só
+         Captação (alimenta CPL/CPA/ROAS daquela seção). #}
+      {{ plataformas([('Google', comp['inv_google_total_' ~ s]), ('Meta', comp['inv_meta_total_' ~ s]), ('WhatsApp', comp['inv_whatsapp_' ~ s])], money=true) }}
     {% endmacro %}
 
     {# ── 1. O Paradoxo ── #}

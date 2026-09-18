@@ -137,6 +137,20 @@ def read_comparativo(launch_b: Launch, launch_a: Launch, launch_a2: Launch | Non
             result["google_cpc"]   = float(r[3] or 0)
             result["google_ctr"]   = float(r[4] or 0)
 
+            # â€” Investimento Meta/Google do lanÃ§amento inteiro (todas as
+            # etapas: PrÃ©-Quali + CaptaÃ§Ã£o + Remarketing/Replay etc), sem o
+            # filtro de data da CaptaÃ§Ã£o acima. Sà para o card "O Paradoxo"
+            # â€” nÃ£o troca meta_inv/google_inv, que seguem escopados em
+            # CaptaÃ§Ã£o e alimentam CPL/CPA/ROAS e o resto da pÃ¡gina.
+            r = conn.execute(text("""
+                SELECT COALESCE(SUM(spend), 0) FROM meta_ads_daily WHERE lancamento_codigo = :code
+            """), p_base).fetchone()
+            result["meta_inv_total"] = float(r[0] or 0)
+            r = conn.execute(text("""
+                SELECT COALESCE(SUM(cost), 0) FROM google_ads_daily WHERE lancamento_codigo = :code
+            """), p_base).fetchone()
+            result["google_inv_total"] = float(r[0] or 0)
+
             # â€” Leads CRM â€”
             r = conn.execute(text(f"""
                 SELECT COUNT(*) FROM leads
@@ -248,8 +262,19 @@ def read_comparativo(launch_b: Launch, launch_a: Launch, launch_a2: Launch | Non
 
     data.inv_whatsapp_a = _wa(launch_a)
     data.inv_whatsapp_b = _wa(launch_b)
-    data.inv_total_a = inv_capt_a + data.inv_whatsapp_a
-    data.inv_total_b = inv_capt_b + data.inv_whatsapp_b
+
+    # "O Paradoxo" mostra o investimento do lançamento inteiro (todas as
+    # etapas), não só Captação — meta_inv_total/google_inv_total (sem
+    # filtro de data) + WhatsApp. Campos próprios (inv_meta_total_*/
+    # inv_google_total_*) pra não confundir com inv_meta_a/inv_google_a,
+    # que ficam Captação-only e alimentam o Scorecard/CPL/CPA daqui pra
+    # baixo na página.
+    data.inv_meta_total_a = ra["meta_inv_total"]
+    data.inv_meta_total_b = rb["meta_inv_total"]
+    data.inv_google_total_a = ra["google_inv_total"]
+    data.inv_google_total_b = rb["google_inv_total"]
+    data.inv_total_a = data.inv_meta_total_a + data.inv_google_total_a + data.inv_whatsapp_a
+    data.inv_total_b = data.inv_meta_total_b + data.inv_google_total_b + data.inv_whatsapp_b
 
     # â€” Meta â€”
     data.meta_leads_a = ra["meta_leads"]

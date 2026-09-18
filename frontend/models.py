@@ -486,7 +486,14 @@ class ComparativoData:
     # (Meta+Google) e alimentam ROAS/CPA/CPL do resto da página.
     inv_whatsapp_a: float = 0.0
     inv_whatsapp_b: float = 0.0
-    # Total investido mostrado no card = mídia + WhatsApp.
+    # Meta/Google do lançamento INTEIRO (todas as etapas — Pré-Quali,
+    # Captação, Remarketing/Replay etc.), sem o filtro de data da Captação
+    # usado em inv_meta_a/inv_google_a. Só para o card "O Paradoxo".
+    inv_meta_total_a: float = 0.0
+    inv_meta_total_b: float = 0.0
+    inv_google_total_a: float = 0.0
+    inv_google_total_b: float = 0.0
+    # Total investido mostrado no card = mídia (todas as etapas) + WhatsApp.
     inv_total_a: float = 0.0
     inv_total_b: float = 0.0
     ticket_a: float = 0.0

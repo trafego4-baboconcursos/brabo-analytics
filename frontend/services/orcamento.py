@@ -172,8 +172,30 @@ def buckets_previsto_x_realizado(meta: Any, google: Any, cfg: dict | None, etapa
         realizado = bucket_realizado(meta, google, b, etapa_nome)
         linhas.append({
             "nome": b.get("nome"), "plataforma": b.get("plataforma"),
+            "conta": str(b.get("conta") or "").strip(),
             "pct_previsto": _f(b.get("pct")), "previsto": previsto, "realizado": realizado,
         })
+
+    # Rateio de conta compartilhada: quando dois buckets apontam pra mesma conta
+    # (ex.: Mateus e Ivan dividem o customer 6482320788 no YouTube), cada um
+    # recebe de bucket_realizado o gasto TOTAL da conta — somá-los contaria o
+    # mesmo dinheiro duas vezes. Divide o total da conta entre eles na proporção
+    # do previsto. Grupo com um bucket só não muda nada.
+    from collections import defaultdict
+    grupos: dict[tuple, list[dict]] = defaultdict(list)
+    for l in linhas:
+        if l["conta"]:
+            grupos[(l["plataforma"], l["conta"])].append(l)
+    for membros in grupos.values():
+        if len(membros) < 2:
+            continue
+        total_conta = membros[0]["realizado"]  # todos têm o gasto cheio da conta
+        soma_prev = sum(m["previsto"] for m in membros)
+        for m in membros:
+            fatia = (m["previsto"] / soma_prev) if soma_prev > 0 else (1 / len(membros))
+            m["realizado"] = total_conta * fatia
+            m["conta_rateada"] = True
+
     total_realizado = sum(l["realizado"] for l in linhas)
     for l in linhas:
         l["pct_realizado"] = (l["realizado"] / total_realizado * 100) if total_realizado > 0 else 0.0

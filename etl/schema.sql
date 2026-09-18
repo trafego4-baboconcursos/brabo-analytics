@@ -1239,3 +1239,27 @@ CREATE TABLE IF NOT EXISTS eventos_trafego (
 CREATE INDEX IF NOT EXISTS idx_eventos_codigo_data ON eventos_trafego (codigo, data);
 CREATE INDEX IF NOT EXISTS idx_eventos_data        ON eventos_trafego (data);
 CREATE INDEX IF NOT EXISTS idx_eventos_escopo      ON eventos_trafego (escopo, data);
+
+
+-- ── PRINTS DAS LANDING PAGES — captura própria, substitui o thum.io ────────
+-- Guarda os bytes do print da LP (página inteira, renderizada em viewport
+-- desktop). Antes a miniatura vinha do thum.io, serviço público: sem controle
+-- de quando renderiza, versão responsiva por padrão e uma ida à rede a cada
+-- carregamento. Populada por scripts/capturar_lps.py, servida por
+-- /api/lp-screenshot/{landing_page}.
+-- landing_page é chave sozinha porque o path sempre carrega o código do
+-- lançamento (ex: /projeto-escrevente-pes-set-26-v7), então não colide entre
+-- lançamentos nem entre produtos.
+CREATE TABLE IF NOT EXISTS lp_screenshots (
+    landing_page      TEXT PRIMARY KEY,
+    url               TEXT NOT NULL,
+    lancamento_codigo TEXT,
+    content_type      TEXT NOT NULL DEFAULT 'image/jpeg',
+    image_data        BYTEA NOT NULL,
+    largura           INT,
+    altura            INT,
+    bytes             INT,
+    capturado_em      TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_lp_screenshots_lancamento ON lp_screenshots (lancamento_codigo);

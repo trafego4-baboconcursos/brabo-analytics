@@ -563,11 +563,16 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
 {# Domínio das landing pages por produto — o GA4 só guarda o caminho
    (ex: /projeto-bb-fev-26-v5-pq-fb), sem host. #}
 {% set lp_base_url = "https://lp.mateusandrade.com.br" if launch and launch.product == "INSS" else "https://lp.braboconcursos.com.br" %}
-{# Miniatura da landing page via thum.io (serviço público de screenshot,
-   sem chave de API) — pedido do usuário 16/09/26, "Landing Pages que Mais
-   Converteram". Zero infra própria; troca por captura via Playwright no
-   servidor só se compensar manter isso no longo prazo. #}
-{% macro lp_thumb(landing_page) %}<a href="{{ lp_base_url }}{{ landing_page }}" target="_blank" rel="noopener"><img src="https://image.thum.io/get/width/500/crop/340/viewportWidth/1440/noanimate/{{ lp_base_url }}{{ landing_page }}" loading="lazy" alt="" style="width:90px;height:62px;object-fit:cover;border-radius:4px;border:1px solid var(--bs-border);display:block;background:var(--bs-surface)"></a>{% endmacro %}
+{# Miniatura da landing page: print próprio, guardado no banco e servido por
+   /api/lp-screenshot (capturado por scripts/capturar_lps.py, página inteira
+   em viewport desktop). Trocou o thum.io em 18/09/26 — o serviço público
+   renderizava a versão responsiva e ia à rede a cada carregamento.
+   A captura é da página INTEIRA, mas a célula mostra só o topo com altura
+   limitada: a imagem tem milhares de pixels de altura e esticaria a linha da
+   tabela. Clicar abre a LP de verdade; o print completo fica na URL da rota.
+   `onerror` cai no thum.io pra página que ainda não foi capturada, senão a
+   coluna ficaria com ícone de imagem quebrada. #}
+{% macro lp_thumb(landing_page) %}<a href="{{ lp_base_url }}{{ landing_page }}" target="_blank" rel="noopener" title="Abrir {{ landing_page }}"><img src="/api/lp-screenshot{{ landing_page }}" loading="lazy" alt="" onerror="this.onerror=null;this.src='https://image.thum.io/get/width/600/crop/400/viewportWidth/1280/noanimate/{{ lp_base_url }}{{ landing_page }}'" style="width:300px;max-height:190px;object-fit:cover;object-position:top;border-radius:6px;border:1px solid var(--bs-border);display:block;background:var(--bs-surface)"></a>{% endmacro %}
 
 {% if lazy %}
 {# ── Carregamento progressivo ─────────────────────────────────────────
@@ -1587,7 +1592,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       <table class="dbf-table">
         <thead>
           <tr>
-            <th style="width:100px">Preview</th>
+            <th style="width:316px">Preview</th>
             <th>Página</th>
             <th class="num">Sessões</th>
             <th class="num">Leads</th>
@@ -1611,7 +1616,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
         </tbody>
       </table>
     </div>
-    <div class="note" style="margin-top:10px">Fonte: Google Analytics 4. <strong>Lead</strong> = sessão em que a pessoa preencheu o formulário (evento generate_lead); <strong>Grupo WhatsApp</strong> = sessão em que ela clicou pra entrar no grupo (qualify_lead). Conta sessão, não disparo de evento — o evento repete na mesma sessão. Preview via thum.io — pode demorar alguns segundos pra carregar na primeira vez.</div>
+    <div class="note" style="margin-top:10px">Fonte: Google Analytics 4. <strong>Lead</strong> = sessão em que a pessoa preencheu o formulário (evento generate_lead); <strong>Grupo WhatsApp</strong> = sessão em que ela clicou pra entrar no grupo (qualify_lead). Conta sessão, não disparo de evento — o evento repete na mesma sessão. Preview: print próprio da página, guardado no banco (<code>scripts/capturar_lps.py</code>). Página ainda não capturada cai no thum.io.</div>
   </div>
   {% endif %}
 
@@ -1960,7 +1965,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       <table class="dbf-table">
         <thead>
           <tr>
-            <th style="width:100px">Preview</th>
+            <th style="width:316px">Preview</th>
             <th>Página</th>
             <th class="num">Sessões</th>
             <th class="num">Leads</th>
@@ -1984,7 +1989,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
         </tbody>
       </table>
     </div>
-    <div class="note" style="margin-top:10px">Fonte: Google Analytics 4. <strong>Lead</strong> = sessão em que a pessoa preencheu o formulário (evento generate_lead); <strong>Grupo WhatsApp</strong> = sessão em que ela clicou pra entrar no grupo (qualify_lead). Conta sessão, não disparo de evento — o evento repete na mesma sessão. Preview via thum.io — pode demorar alguns segundos pra carregar na primeira vez.</div>
+    <div class="note" style="margin-top:10px">Fonte: Google Analytics 4. <strong>Lead</strong> = sessão em que a pessoa preencheu o formulário (evento generate_lead); <strong>Grupo WhatsApp</strong> = sessão em que ela clicou pra entrar no grupo (qualify_lead). Conta sessão, não disparo de evento — o evento repete na mesma sessão. Preview: print próprio da página, guardado no banco (<code>scripts/capturar_lps.py</code>). Página ainda não capturada cai no thum.io.</div>
   </div>
   {% endif %}
 

@@ -229,6 +229,9 @@ relacionados:
 > - [[ARQUITETURA#O que foi feito|O que foi feito]]
 > - [[ARQUITETURA#Duas armadilhas na conversão|Duas armadilhas na conversão]]
 > - [[ARQUITETURA#Efeito colateral corrigido: top de estados desempatado|Efeito colateral corrigido: top de estados desempatado]]
+>
+> **Print da landing page: captura própria no lugar do thum.io (2026-09-18)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -2376,3 +2379,53 @@ ordem em que as linhas chegam.
 `total_tf_raw` continua contando a fonte original, incluindo resposta sem e-mail válido (que a
 tabela materializada não tem, porque `_reconstruct_tabular_df` também as descarta) — por isso
 `_contar_respostas_brutas` faz um `COUNT(*)` à parte, de uma linha só.
+
+---
+
+## Print da landing page: captura própria no lugar do thum.io (2026-09-18)
+
+A miniatura da LP no "Landing Pages que Mais Converteram" passou a ser **print nosso, guardado no
+banco**. O thum.io (serviço público, adotado em 16/09) resolvia sem infra, mas não dava controle
+de nada: renderizava a versão responsiva por padrão, decidia sozinho quando recapturar e ia à rede
+a cada carregamento da página.
+
+| peça | onde |
+|---|---|
+| tabela | `lp_screenshots` (banco analytics), `landing_page` como PK |
+| captura | `scripts/capturar_lps.py --lancamento PES-SET-26` |
+| rota | `GET /api/lp-screenshot/{landing_page}` |
+| miniatura | macro `lp_thumb` no `debriefing.html`, 300px de largura |
+
+**Por que script e não parte do app.** A captura exige Chromium (~400MB via Playwright) e a imagem
+de produção é uma `python:3.10-slim`. Rodando a captura fora do container, o deploy continua leve —
+o app só lê bytes do banco, sem nenhuma dependência nova. O custo é a recaptura ser manual, o que
+casa com o fato de a LP mudar poucas vezes por lançamento. Se um dia isso tiver que ser automático,
+aí sim entra `playwright` no `requirements.txt` e `playwright install --with-deps chromium` no
+Dockerfile — decisão consciente, não esquecimento. Por isso o `playwright` **não** está no
+requirements: quem captura instala à parte.
+
+**Layout desktop com arquivo pequeno.** Estreitar o viewport pra diminuir a imagem renderizaria o
+layout mobile, que é justamente o defeito do thum.io. A saída é `device_scale_factor=0.5`: a página
+é montada em 1280px CSS (desktop) e o arquivo sai com 640px de largura. Exibida a 300px, ainda
+sobra resolução pra tela retina.
+
+**Captura é da página inteira, exibição não.** `full_page=True` guarda a página toda, mas a célula
+mostra só o topo com `max-height` — a imagem tem milhares de pixels de altura e esticaria a linha
+da tabela. O print completo fica acessível pela URL da rota.
+
+**Duas armadilhas que custaram as primeiras tentativas:**
+
+1. `wait_until="networkidle"` **não funciona nessas LPs.** Elas têm pixel de rastreamento, player
+   de vídeo e polling, então a rede nunca fica ociosa: o `goto` estourou 60s em **100%** das
+   páginas. O certo é esperar `domcontentloaded` + `load` (com o `load` opcional) — pro print o
+   que importa é o DOM montado, não a rede parar.
+2. **O domínio das LPs está atrás do Cloudflare**, que barra o User-Agent padrão do Playwright
+   (`HeadlessChrome`). A primeira captura gravou, sem erro nenhum, a tela "Um momento…" do desafio
+   no lugar da página — o defeito só apareceu quando abri a imagem. Basta um User-Agent de
+   navegador real; testei as quatro combinações (headless shell, headless+UA, Chrome real
+   headless, Chrome real com janela) e só a do UA padrão é barrada. O script agora **falha alto**
+   se detectar o desafio, em vez de gravar a imagem errada.
+
+**Página sem captura não quebra a coluna:** o `<img>` tem `onerror` que cai no thum.io. A rota só
+lê bytes do banco pela chave, nunca busca URL em tempo de request — não dá pra usá-la pra fazer o
+servidor acessar endereço arbitrário.

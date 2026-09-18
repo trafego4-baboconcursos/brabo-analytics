@@ -239,6 +239,32 @@ def api_creative_image(launch_code: str, ad_code: str):
     return _Response(content=bytes(image_data), media_type=content_type, headers={"Cache-Control": "public, max-age=31536000, immutable"})
 
 
+@router.get("/api/lp-screenshot/{landing_page:path}")
+def api_lp_screenshot(landing_page: str):
+    """Print da landing page, capturado por scripts/capturar_lps.py.
+
+    Só lê bytes do banco pela chave — não busca URL nenhuma em tempo de
+    request, então não dá pra usar a rota pra fazer o servidor acessar
+    endereço arbitrário."""
+    from fastapi.responses import Response as _Response
+    from sqlalchemy import text as _text
+    from frontend.db import _get_engine
+
+    path = "/" + landing_page.lstrip("/")
+    with _get_engine().connect() as conn:
+        row = conn.execute(
+            _text("SELECT content_type, image_data FROM lp_screenshots WHERE landing_page = :lp"),
+            {"lp": path},
+        ).fetchone()
+    if not row:
+        return _Response(status_code=404, content="print não capturado")
+    content_type, image_data = row
+    # max-age curto: a LP muda durante o lançamento e a recaptura é manual,
+    # então uma hora de cache é o bastante pra aliviar sem congelar a imagem.
+    return _Response(content=bytes(image_data), media_type=content_type or "image/jpeg",
+                     headers={"Cache-Control": "public, max-age=3600"})
+
+
 @router.get("/api/meta-creative/{launch_code}/{ad_code}/{kind}")
 def api_meta_creative(launch_code: str, ad_code: str, kind: str):
     """Serve os bytes da thumbnail/imagem do Meta persistidos em ad_creatives —

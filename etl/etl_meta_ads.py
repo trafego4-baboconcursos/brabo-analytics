@@ -39,6 +39,19 @@ logger = get_logger("etl.meta")
 API_VERSION = "v22.0"
 TABLE       = "meta_ads_daily"
 
+# Tamanho de página das chamadas de insights (nível anúncio + as com breakdown).
+# Era 50, o que tornava qualquer reprocessamento de período longo inviável:
+# a busca é por anúncio com quebra diária, então só a conta principal tem ~7.500
+# linhas numa janela de 6 semanas — ~150 páginas, vezes 5 contas. O backfill do
+# PES-SET-26 em 18/09/26 estourou o teto de 900s do run_all.py e foi morto.
+# Medido na conta act_1407542209639031, 3 dias, mesmas 1.126 linhas:
+#   limit=50 -> 23 páginas em 103,9s | 200 -> 6 em 37,0s
+#   limit=500 -> 3 páginas em 22,1s  | 1000 -> 2 em 18,2s
+# 500 pega quase todo o ganho (4,7x). De 500 pra 1000 sobra 18%, e não vale:
+# página muito grande é onde o insights começa a devolver timeout/"reduza a
+# quantidade de dados" em janela longa.
+PAGE_SIZE   = 500
+
 # Quantos criativos resolver por janela de hash. Pequeno o bastante pra URL
 # assinada de /adimages não expirar antes do download, grande o bastante pra
 # não virar uma chamada por anúncio.
@@ -97,7 +110,7 @@ def fetch_insights(since: str, until: str, account_ids: list[str] | None = None)
             "level":         "ad",
             "time_range":    f'{{"since":"{since}","until":"{until}"}}',
             "time_increment": 1,       # breakdown diário
-            "limit":         50,
+            "limit":         PAGE_SIZE,
         }
 
         while url:
@@ -202,7 +215,7 @@ def fetch_demographics(since: str, until: str) -> list[dict]:
             "breakdowns":    "age,gender",
             "time_range":    f'{{"since":"{since}","until":"{until}"}}',
             "time_increment": 1,
-            "limit":         50,
+            "limit":         PAGE_SIZE,
         }
 
         while url:
@@ -253,7 +266,7 @@ def fetch_region(since: str, until: str) -> list[dict]:
             "breakdowns":    "region",
             "time_range":    f'{{"since":"{since}","until":"{until}"}}',
             "time_increment": 1,
-            "limit":         50,
+            "limit":         PAGE_SIZE,
         }
 
         while url:

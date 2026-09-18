@@ -31,7 +31,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 65 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 66 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -248,6 +248,10 @@ relacionados:
 >
 > **"Form performance" do Typeform (Starts/Submissions/Completion rate/Tempo) no debriefing (2026-09-17)**
 >
+>
+> **Conta do Meta fora do ETL, e as armadilhas do backfill (2026-09-18)**
+>
+> - [[ARQUITETURA#Três armadilhas do backfill longo|Três armadilhas do backfill longo]]
 
 <!-- SUMARIO:FIM -->
 
@@ -2639,3 +2643,54 @@ snapshot. `.get()` num dict comum resolve isso sem precisar forçar rebuild.
 Pendência (fora deste repo): `docs/negocio/BRABO_ANALYTICS_APRESENTACAO_EXEC.md` deveria registrar
 essa mudança também, mas esse arquivo não está neste checkout (só `docs/sistema/` é versionado
 aqui, ver nota no topo do arquivo/CLAUDE.md) — quem tiver o vault completo precisa atualizar lá.
+
+---
+
+## Conta do Meta fora do ETL, e as armadilhas do backfill (2026-09-18)
+
+**O que estava errado.** O `META_AD_ACCOUNT_ID` do servidor tinha 3 contas; o `.env` local, 5.
+As duas ausentes eram `act_1572917053349409` (CA Ivan Anunciante) e `act_754583761035107`
+(Brabo Editora). Efeito no debriefing: o "Total Investido" do PES-SET-26 mostrava R$ 696.856 em
+vez de R$ 712.522 — faltava a campanha `[MA][cadastro][captação][específico][principal]`, que
+roda na conta do Ivan (R$ 15.612,65). O ROAS ficava otimista na mesma proporção e o segmento
+Específico aparecia com gasto zero.
+
+**Como foi achado:** confrontando campanha a campanha contra a Marketing API. Google bateu (3
+centavos em R$ 274 mil); Meta acusou uma campanha com gasto na API e **nenhuma linha** no banco.
+O `account_id` no `meta_ads_daily` (gravado desde 16/09) confirmou: só 2 das 5 contas apareciam.
+
+**Lição de escopo — meça antes de reprocessar.** A reação inicial foi reprocessar mai–set inteiro
+das duas plataformas. O usuário questionou *"por que puxar os lançamentos de novo?"* e a medição
+deu razão a ele: comparando API x banco por lançamento, **o dado de lançamento já estava completo**
+(Google: R$ 0,48 de diferença em R$ 1,49 mi). Todo o buraco — R$ 122 mil somando as duas
+plataformas — estava em **distribuição e perpétuo**, porque as contas ausentes só tinham campanhas
+sem tag de lançamento (fora o Específico, já corrigido por um backfill dirigido com
+`--launch-code`). Reprocessar lançamento era risco pelo risco.
+
+### Três armadilhas do backfill longo
+
+1. **`run_all.py` mata a fonte em 900s.** Meta em nível de anúncio, 6 semanas, não cabe. Morre
+   sem gravar nada — o ETL busca tudo antes de escrever, então o timeout não corrompe, só perde
+   o trabalho. Para período longo, chamar o script da fonte direto.
+2. **Janela longa faz o Meta devolver 500.** Mai–set numa sequência só: `500 Internal Server
+   Error`. Fatiado por mês, passa. Daí `scripts/backfill_ads.py`, que também limita o estrago:
+   o upsert apaga o período que vai reinserir, então uma fatia que falha deixa as outras de pé.
+3. **O upsert é DELETE + INSERT do período.** Sem `--launch-code`, apaga todos os lançamentos da
+   janela e reinsere só o que a API devolveu — uma busca incompleta vira perda permanente. Daí
+   `scripts/backup_ads_periodo.py`, que tira a foto antes e gera o resumo por lançamento usado
+   na conferência depois. Com `--launch-code`, o filtro vale pro DELETE **e** pro dataframe, então
+   dá pra reprocessar um lançamento sem tocar nos vizinhos.
+
+**`PAGE_SIZE` de 50 → 500** em `etl_meta_ads.py` (insights de anúncio, demografia e região).
+Medido na conta mais pesada, 3 dias, mesmas 1.126 linhas: 50 → 23 páginas em 103,9s; 200 → 6 em
+37,0s; 500 → 3 em 22,1s; 1000 → 2 em 18,2s. 500 pega 4,7x do ganho; de 500 pra 1000 sobra 18% e
+não compensa o risco de timeout em janela longa.
+
+**Falha de rede parece falha de dado.** Duas fatias abortaram com `getaddrinfo failed` /
+`ConnectionReset` — queda de DNS local, não a API. O log do `run_all` truncado escondia isso;
+sempre rodar com `python -u` e salvar o log **inteiro** (nada de `| tail`, que trunca e ainda
+segura a saída até o fim).
+
+**Resultado:** +R$ 122.211 recuperados (Meta R$ 63.333, Google R$ 58.878), nenhum lançamento
+perdendo um centavo, e campanhas `[ivan neto]` que estavam rotuladas como
+DISTRIBUICAO-BRABO-CONCURSOS reclassificadas corretamente nas duas plataformas.

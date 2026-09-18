@@ -1001,9 +1001,26 @@ table th.sortable-header:hover { background-color:rgba(0,0,0,.15) !important; }
 
 /* ── Table filter input ─────────────────────────────────────────────── */
 .bs-table-filter-wrap { position:relative; display:inline-flex; align-items:center; margin:10px 0 6px; }
-.bs-table-filter-wrap .ti-search { position:absolute; left:10px; color:var(--bs-ink-subtle); font-size:14px; pointer-events:none; }
+.bs-table-filter-toggle {
+  position:absolute; left:10px; top:50%; transform:translateY(-50%);
+  border:none; background:none; padding:0; color:var(--bs-ink-subtle); font-size:14px;
+  display:flex; cursor:default;
+}
 .bs-table-filter { padding:6px 12px 6px 32px; font-size:var(--fs-sm); border:1px solid var(--bs-border); border-radius:var(--bs-r-md); outline:none; width:220px; font-family:inherit; color:var(--bs-ink); background:var(--bs-card); transition:border-color .15s; }
 .bs-table-filter:focus { border-color:var(--bs-accent); }
+/* Celular: só a lupa até tocar — o campo de 220px sempre visível competia
+   demais com o resto do cabeçalho da tabela numa tela estreita. Tocar
+   revela o campo e chama o teclado (inp.focus() no JS); volta a recolher
+   quando perde o foco vazio, pra não ficar ocupando espaço à toa. */
+@media (max-width:640px) {
+  .bs-table-filter-wrap.bs-tf-collapsed .bs-table-filter-toggle {
+    position:static; transform:none; cursor:pointer;
+    width:30px; height:30px; display:flex; align-items:center; justify-content:center;
+    border:1px solid var(--bs-border); border-radius:var(--bs-r-md);
+    background:var(--bs-card); color:var(--bs-ink-muted);
+  }
+  .bs-table-filter-wrap.bs-tf-collapsed .bs-table-filter { display:none; }
+}
 .bs-table-export-btn {
   margin-left:6px; display:inline-flex; align-items:center; justify-content:center;
   width:30px; height:30px; border:1px solid var(--bs-border); border-radius:var(--bs-r-md);
@@ -2592,13 +2609,23 @@ document.addEventListener("DOMContentLoaded", function() {
     var dataRows = Array.from(tbody.rows).filter(r => !r.classList.contains("total-row"));
     if (dataRows.length <= 5) return;
     var wrap = document.createElement("div");
-    wrap.className = "bs-table-filter-wrap";
-    var icon = document.createElement("i");
-    icon.className = "ti ti-search";
+    wrap.className = "bs-table-filter-wrap bs-tf-collapsed";
+    var toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "bs-table-filter-toggle";
+    toggle.setAttribute("aria-label", "Filtrar tabela");
+    toggle.innerHTML = '<i class="ti ti-search"></i>';
     var inp = document.createElement("input");
     inp.type = "text";
     inp.placeholder = "Filtrar tabela...";
     inp.className = "bs-table-filter";
+    toggle.addEventListener("click", function() {
+      wrap.classList.remove("bs-tf-collapsed");
+      inp.focus();
+    });
+    inp.addEventListener("blur", function() {
+      if (!inp.value) wrap.classList.add("bs-tf-collapsed");
+    });
     inp.addEventListener("input", function() {
       var q = inp.value.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g,"");
       dataRows.forEach(function(row) {
@@ -2612,7 +2639,7 @@ document.addEventListener("DOMContentLoaded", function() {
     exportBtn.title = "Exportar CSV (respeita filtro e ordena\u00e7\u00e3o atuais)";
     exportBtn.innerHTML = '<i class="ti ti-download"></i>';
     exportBtn.addEventListener("click", function() { exportTableCsv(table); });
-    wrap.appendChild(icon); wrap.appendChild(inp); wrap.appendChild(exportBtn);
+    wrap.appendChild(toggle); wrap.appendChild(inp); wrap.appendChild(exportBtn);
     var parent = table.parentElement;
     if (parent && parent.classList.contains("table-wrap")) {
       parent.parentElement.insertBefore(wrap, parent);

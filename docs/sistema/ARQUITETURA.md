@@ -245,6 +245,9 @@ relacionados:
 > - [[ARQUITETURA#Por que não uniformemente de hora em hora|Por que não uniformemente de hora em hora]]
 > - [[ARQUITETURA#Dois cuidados que o desenho embute|Dois cuidados que o desenho embute]]
 > - [[ARQUITETURA#Rede de testes contra os dois apagões de setembro|Rede de testes contra os dois apagões de setembro]]
+>
+> **"Form performance" do Typeform (Starts/Submissions/Completion rate/Tempo) no debriefing (2026-09-17)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -2597,3 +2600,42 @@ removendo `customer_id` e volta a passar com a coluna de volta.
 Cobre hoje os 7 pares builder→tabela de `etl_google_ads` e `etl_meta_ads`. Os demais ETLs têm
 formato diferente e ficaram de fora **de propósito**: melhor não cobrir do que cobrir errado.
 Ao adicionar um builder novo, some uma linha em `CONTRATOS`.
+
+---
+
+## "Form performance" do Typeform (Starts/Submissions/Completion rate/Tempo) no debriefing (2026-09-17)
+
+Novas tabelas `typeform_insights`/`typeform_insights_2` (mesmo banco analytics, uma linha por
+`form_id`, colunas `total_visits`, `unique_visits`, `responses_count`, `completion_rate`,
+`average_time`, `platforms`/`fields` em jsonb) — snapshot da **Insights API** do Typeform
+(`/insights/{form_id}/summary`), capturado num backup pontual fora deste repo (conta cancelada,
+mesma razão do backup de `typeform_respostas_backup*`/`typeform_forms*`). Diferente da tabela de
+respostas, não é histórico incremental: uma linha por formulário, sobrescrita a cada captura.
+
+`read_pesquisa_engajamento()` (`frontend/db_readers/typeform.py`) resolve o `form_id` do
+lançamento do jeito que já fazia (`_resolve_typeform_ids`) e junta mais uma consulta pequena
+(`UNION ALL` das duas tabelas de insights, `WHERE upper(form_id) = :fid`) no mesmo dict de
+retorno: `form_starts` (= `total_visits`, é o que o Typeform chama "Starts" na tela — "Views" não
+vem dessa API, só existe na UI do Typeform), `form_submissions`, `form_completion_rate`,
+`form_avg_time` (segundos) e `form_avg_time_fmt` (`"MM:SS"`).
+
+Comparativo vs lançamento anterior segue o padrão já usado pra `prev_respostas`
+(`frontend/services/fetch.py::_pesquisa_engajamento`, badge `dbadge()` de
+`debriefing/_macros.html`) — `prev_form_starts`/`prev_form_submissions`/
+`prev_form_completion_rate`/`prev_form_avg_time`, mesmo cache por `launch.code`.
+
+**Achado ao mexer no `_pesquisa_engajamento`:** a rota lazy (`/debriefing/secao/pesquisa_engajamento`
+em `frontend/routes/analytics.py`) chamava `_pesquisa_engajamento(launch)` **sem** `previous` —
+só o branch irmão `funil_pesquisa` passava. Resultado: o comparativo só aparecia quando a página
+vinha do `debriefing_snapshot` (o caminho comum) ou em `modo=slides`; no live/`?ao_vivo=1` sumia
+sem erro nenhum. Corrigido junto (agora os dois branches resolvem `previous` e chamam igual).
+
+Template (`_secao_pesquisa_engajamento.html`) usa `pe.get('form_starts') is not none` — não
+`pe.form_starts is not none` — de propósito: uma linha de `debriefing_snapshot` gravada antes
+desse deploy não tem essas chaves, e o acesso direto por atributo em Jinja devolve `Undefined`
+(que passa em `is not none`), renderizando a seção nova com zeros até o próximo rebuild do
+snapshot. `.get()` num dict comum resolve isso sem precisar forçar rebuild.
+
+Pendência (fora deste repo): `docs/negocio/BRABO_ANALYTICS_APRESENTACAO_EXEC.md` deveria registrar
+essa mudança também, mas esse arquivo não está neste checkout (só `docs/sistema/` é versionado
+aqui, ver nota no topo do arquivo/CLAUDE.md) — quem tiver o vault completo precisa atualizar lá.

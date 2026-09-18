@@ -119,6 +119,10 @@ def _pesquisa_engajamento(launch: Any, previous: Any = None):
     out["has_prev"] = True
     out["prev_code"] = previous.code
     out["prev_respostas"] = prev.get("respostas")
+    out["prev_form_starts"] = prev.get("form_starts")
+    out["prev_form_submissions"] = prev.get("form_submissions")
+    out["prev_form_completion_rate"] = prev.get("form_completion_rate")
+    out["prev_form_avg_time"] = prev.get("form_avg_time")
     return out
 
 

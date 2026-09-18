@@ -964,10 +964,24 @@ def read_perfil_por_anuncio(launch_folder_or_code: Any, top_n: int = 5) -> dict 
     }
 
 
+def _fmt_mmss(seconds: Any) -> str | None:
+    try:
+        s = int(seconds)
+    except (TypeError, ValueError):
+        return None
+    return f"{s // 60:02d}:{s % 60:02d}"
+
+
 def read_pesquisa_engajamento(launch_folder_or_code: Any) -> dict | None:
     """Resumo de engajamento da pesquisa (pauta debriefing): quantos leads da
     base responderam. "Quem recebeu" depende da fonte de disparo (WhatsApp/
-    automação) — não existe no AC Campaigns, então a taxa é sobre a base."""
+    automação) — não existe no AC Campaigns, então a taxa é sobre a base.
+
+    Também traz o "form performance" do próprio Typeform (Insights API,
+    capturado no backup de typeform_insights/typeform_insights_2 antes do
+    cancelamento da conta): starts, submissions, completion rate e tempo
+    médio de preenchimento — mesmas métricas do painel "Form performance"
+    do Typeform."""
     code = _extract_launch_code(launch_folder_or_code)
     proj_id, _ = _resolve_typeform_ids(code)
     if not proj_id:
@@ -993,8 +1007,14 @@ def read_pesquisa_engajamento(launch_folder_or_code: Any) -> dict | None:
         " WHERE l.lancamento_codigo = :code "
         "   AND LOWER(TRIM(l.email)) IN (SELECT email_norm FROM resp))"
     )
+    insights_sql = (
+        "SELECT total_visits, responses_count, completion_rate, average_time FROM "
+        "(SELECT * FROM typeform_insights UNION ALL SELECT * FROM typeform_insights_2) ti "
+        "WHERE upper(ti.form_id) = :fid"
+    )
     with engine.connect() as conn:
         row = conn.execute(text(sql), {"fid": proj_id.upper(), "code": code, "fids": fids}).fetchone()
+        insights_row = conn.execute(text(insights_sql), {"fid": proj_id.upper()}).fetchone()
 
     respostas = int(row[0] or 0)
     if not respostas:
@@ -1002,12 +1022,22 @@ def read_pesquisa_engajamento(launch_folder_or_code: Any) -> dict | None:
     base = int(row[1] or 0)
     cruzadas = int(row[2] or 0)
 
-    return {
+    out = {
         "respostas": int(respostas),
         "base_leads": int(base),
         "respostas_da_base": int(cruzadas),
         "taxa_resposta": (cruzadas / base * 100) if base else 0.0,
     }
+    if insights_row:
+        avg_time = insights_row[3]
+        out.update({
+            "form_starts": int(insights_row[0]) if insights_row[0] is not None else None,
+            "form_submissions": int(insights_row[1]) if insights_row[1] is not None else None,
+            "form_completion_rate": float(insights_row[2]) if insights_row[2] is not None else None,
+            "form_avg_time": int(avg_time) if avg_time is not None else None,
+            "form_avg_time_fmt": _fmt_mmss(avg_time),
+        })
+    return out
 
 
 def _generate_ia_insights(summary: TypeformSummary) -> list[dict]:

@@ -65,7 +65,7 @@ TABLE = "debriefing_snapshot"
 # Isso agora é cobrado por `tests/test_dbf_contrato.py`, que compara as chaves do
 # `dbf` com um manifesto e falha pedindo o bump — de nada adiantou estar escrito
 # aqui três vezes.
-SNAPSHOT_VERSION = 14
+SNAPSHOT_VERSION = 15
 
 DDL = f"""
 CREATE TABLE IF NOT EXISTS {TABLE} (

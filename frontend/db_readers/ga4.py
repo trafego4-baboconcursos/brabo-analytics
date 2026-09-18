@@ -63,6 +63,32 @@ def read_landing_pages_por_etapa(launch_folder_or_code: Any, top_n: int = 8) -> 
     if df.empty:
         return {etapa: [] for etapa in _ETAPAS}
 
+    # Conversão = SESSÃO em que o evento ocorreu, não contagem de evento.
+    # `ga4_daily.key_events` conta disparos, e os dois eventos da LP disparam
+    # ~1,5-1,8x por sessão — a Pré-Quali do PES-SET-26 mostrava 1.000
+    # "conversões" para 636 sessões, e páginas de obrigado passavam de 100%
+    # de taxa, o que é impossível (achado 18/09/26).
+    #
+    # Os dois eventos são etapas diferentes do funil, conforme a configuração
+    # feita no GA4: `generate_lead` dispara quando a pessoa preenche o
+    # formulário e cai na página de obrigado (é o lead); `qualify_lead`
+    # quando ela clica pra entrar no grupo de WhatsApp.
+    ev = pd.read_sql(
+        text("""
+            SELECT landing_page,
+                   SUM(sessions) FILTER (WHERE event_name = 'generate_lead') AS leads,
+                   SUM(sessions) FILTER (WHERE event_name = 'qualify_lead')  AS whatsapp
+            FROM ga4_events_daily
+            WHERE lancamento_codigo = :code
+            GROUP BY landing_page
+        """),
+        engine,
+        params={"code": code},
+    )
+    df = df.merge(ev, on="landing_page", how="left")
+    df["leads"] = df["leads"].fillna(0)
+    df["whatsapp"] = df["whatsapp"].fillna(0)
+
     df["etapa"] = df["landing_page"].map(lambda lp: _etapa_from_landing_page(lp, code_slug))
     df["landing_page"] = df["landing_page"].fillna("(não identificada)").replace("", "(não identificada)")
 
@@ -74,10 +100,12 @@ def read_landing_pages_por_etapa(launch_folder_or_code: Any, top_n: int = 8) -> 
             continue
         grouped = d.groupby("landing_page").agg(
             sessions=("sessions", "sum"),
-            conversoes=("key_events", "sum"),
+            conversoes=("leads", "sum"),
+            whatsapp=("whatsapp", "sum"),
         ).reset_index()
         grouped = grouped[grouped["sessions"] > 0]
         grouped["taxa_conversao"] = grouped["conversoes"] / grouped["sessions"] * 100
+        grouped["taxa_whatsapp"] = grouped["whatsapp"] / grouped["sessions"] * 100
         grouped = grouped.sort_values("conversoes", ascending=False).head(top_n)
         result[etapa] = [
             {
@@ -85,6 +113,8 @@ def read_landing_pages_por_etapa(launch_folder_or_code: Any, top_n: int = 8) -> 
                 "sessions": int(r["sessions"]),
                 "conversoes": int(r["conversoes"]),
                 "taxa_conversao": float(r["taxa_conversao"]),
+                "whatsapp": int(r["whatsapp"]),
+                "taxa_whatsapp": float(r["taxa_whatsapp"]),
             }
             for _, r in grouped.iterrows()
         ]

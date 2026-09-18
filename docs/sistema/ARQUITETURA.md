@@ -1,8 +1,8 @@
 ---
-titulo: "Arquitetura do Brabo Analytics — 2026-09-17"
+titulo: "Arquitetura do Brabo Analytics — 2026-09-18"
 area: sistema
 status: vigente
-atualizado: 2026-09-17
+atualizado: 2026-09-18
 responde:
   - "como o sistema funciona por dentro"
   - "fluxo de dados"
@@ -14,6 +14,9 @@ responde:
   - "quais campos o wizard grava em launch_config"
   - "por que o previsto do WhatsApp aparece zerado"
   - "quando subir o SNAPSHOT_VERSION"
+  - "de onde vem a pagina de afiliados"
+  - "por que a pagina de afiliados aparece vazia"
+  - "quais campos de afiliado a hotmart entrega"
   - "por que o debriefing quebrou depois de mexer no dbf"
   - "como regravar o baseline de caracterizacao sem perder o resto"
   - "por que read_launch_config e volatil no teste"
@@ -28,7 +31,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 51 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 55 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -210,6 +213,16 @@ relacionados:
 > - [[ARQUITETURA#À vista x parcelado por método (2026-09-17)|À vista x parcelado por método (2026-09-17)]]
 > - [[ARQUITETURA#As duas seções de pagamento viraram uma (2026-09-17)|As duas seções de pagamento viraram uma (2026-09-17)]]
 > - [[ARQUITETURA#Pendência: o painel soma 30 vendas a mais que o próprio cabeçalho|Pendência: o painel soma 30 vendas a mais que o próprio cabeçalho]]
+>
+> **Página de Afiliados — `/afiliados` (2026-09-18)**
+>
+> - [[ARQUITETURA#Só Hotmart|Só Hotmart]]
+> - [[ARQUITETURA#A casa fica de fora — e por quê|A casa fica de fora — e por quê]]
+> - [[ARQUITETURA#Janela do carrinho e o aviso de "fora da janela"|Janela do carrinho e o aviso de "fora da janela"]]
+> - [[ARQUITETURA#Perpétuo|Perpétuo]]
+>
+> **"Conversões" da landing page contavam disparo de evento, não pessoa (2026-09-18)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -2190,3 +2203,105 @@ Já era assim antes desta correção. Na mesma seção, o cabeçalho diz "Hotmar
 (vem do `read_hotmart_details.total_vendas`, que não descarta) — 30 de diferença, consistente
 dentro de cada leitor, divergente entre os dois. Não mexi: decidir se cobrança recorrente conta
 como venda nesse painel é escolha de negócio, não bug de código.
+
+---
+
+## Página de Afiliados — `/afiliados` (2026-09-18)
+
+Lista quem vendeu pelo programa de afiliados da Hotmart, por lançamento. Entra no
+grupo **Vendas** do menu, ao lado de Vendas/Hotmart/TMB.
+
+- `frontend/db_readers/afiliados.py::read_afiliados` — única consulta da página
+- `frontend/models.py::AfiliadosSummary`
+- `frontend/routes/vendas.py::afiliados_page` — não passa pelo `_fetch_all_data`
+  de propósito: é uma consulta só, carregar Meta/Google/Typeform junto custaria
+  mais que a página inteira
+- `frontend/templates/afiliados.html`
+
+### Só Hotmart
+
+`tmb_clean_oficial` não tem nenhuma coluna de afiliado, então o item do menu
+segue `has_hotmart`, não `has_vendas`. Os campos que a Hotmart entrega, todos
+exibidos na página:
+
+| coluna | o que é |
+|---|---|
+| `nome_do_a_afiliado_a` | nome do afiliado |
+| `comissao_do_a_afiliado_a` | comissão em R$ |
+| `venda_feita_como` | papel da conta na venda (Produtor / PRODUCER / Coprodutor) |
+| `codigo_src` / `codigo_sck` | como o afiliado marca o tráfego |
+| `canal_usado_para_venda` | Página de Produto Hotmart, Mercado da Plataforma… |
+| `ferramenta_de_venda` | Produto principal / order bump / Hotmart Recomenda |
+
+### A casa fica de fora — e por quê
+
+`nome_do_a_afiliado_a` traz **"Aprovasim - Cursos, Treinamentos e Coaching
+Eireli" em 105.955 das 108.227 linhas** da base: toda venda do próprio produtor
+passa sob a indicação dela. Incluí-la faria a página repetir o faturamento total
+de `/hotmart` e enterrar os parceiros de verdade, que é o que a tela existe pra
+mostrar. O filtro está em `_SQL_SO_TERCEIROS`.
+
+Dimensão real do programa, medida em 18/09/26: **43 vendas por afiliado parceiro
+em toda a história da conta (2022-2026)**, sendo 25 com comissão > 0. Nenhuma
+linha tem `venda_feita_como = 'Afiliado'` — a conta nunca vendeu *como* afiliado,
+só *recebeu* venda de afiliado. Uma página vazia aqui quase sempre é o retrato
+correto, não um bug de leitura.
+
+### Janela do carrinho e o aviso de "fora da janela"
+
+O recorte é o mesmo de `sales.py`: janela do carrinho de `launch_config`, com
+`dim_lancamentos` de fallback, e escopo por `hotmart_produto_ids` quando o wizard
+tem os ids (PES-MAI-26 está sem, então cai no CASE de projeto).
+
+Só que **a venda por afiliado aqui é majoritariamente perpétua** — a Mentoria
+Vitalícia é vendida o ano inteiro, não no carrinho. Dos 20 casos de 2026, só
+9 caem dentro de uma janela (PES-MAI-26). Por isso o leitor também conta as
+vendas do mesmo produto que ficaram **fora** da janela e o template as anuncia:
+sem esse número a página pareceria vazia quando o que não pega é o recorte.
+
+### Perpétuo
+
+Pedido junto com a página de lançamento, mas **ainda não implementado**: a tabela
+de vendas do perpétuo ainda vai subir. Hoje `read_perpetuo` só lê
+`meta_ads_daily`/`google_ads_daily` — não há venda nenhuma ligada às 4 verticais.
+Quando a tabela existir, `read_afiliados` já aceita janela opcional: falta só
+passar o escopo de produto da vertical em vez do do lançamento.
+
+---
+
+## "Conversões" da landing page contavam disparo de evento, não pessoa (2026-09-18)
+
+**Sintoma:** o usuário estranhou 1.000 conversões numa LP de Pré-Qualificação do PES-SET-26 —
+22,1% de 4.527 sessões, enquanto a versão `-pq-yt` da mesma página fazia 3,7%.
+
+**Causa:** `read_landing_pages_por_etapa` usava `ga4_daily.key_events`, que é **contagem de
+disparos**, não de pessoas. Medindo pelo `ga4_events_daily`, o evento ocorreu em **636 sessões** e
+disparou **1.000 vezes** — 1,57x por sessão. Vale pra tudo: a LP de Captação v7 mostrava 20.098
+com o evento em 11.318 sessões (1,78x). A prova de que estava errado estava na própria tela: as
+páginas de obrigado passavam de **100% de taxa de conversão**, o que é impossível.
+
+**Qual evento é o quê** (configuração do GA4, confirmada pelo usuário em 18/09/26 e já descrita no
+`read_conversao_pagina_captura` desde 06/09/26):
+
+| evento | quando dispara |
+|---|---|
+| `generate_lead` | a pessoa preencheu o formulário e caiu na página de obrigado — **é o lead** |
+| `qualify_lead` | clicou no botão pra entrar no grupo de WhatsApp |
+
+Só o `qualify_lead` está marcado como key event no GA4, então `ga4_daily.key_events` era igual ao
+`qualify_lead` (conferido linha a linha) — a tabela mostrava a etapa errada do funil, e em
+contagem de disparo.
+
+**Fix:** a tabela passou a ler o `ga4_events_daily` por sessão, com as duas etapas em colunas
+separadas: Leads (`generate_lead`) e Grupo WhatsApp (`qualify_lead`). `read_conversao_pagina_captura`,
+no mesmo arquivo, já fazia assim — este leitor é que estava fora do padrão.
+
+PES-SET-26, Pré-Quali `-pq-fb`: de "1.000 conversões (22,1%)" para **753 leads (16,6%) e 636 no
+WhatsApp (14,0%)**. Nenhuma taxa passa de 100% agora.
+
+**Pendência conhecida:** boa parte do tráfego dessa LP fica de fora do recorte. O
+`lancamento_codigo` do `ga4_daily` vem do **nome da campanha** (`resolve_launch_code`), então
+sessão sem campanha atribuída entra como NULL — a mesma página tem ~10.908 sessões nesse estado,
+contra 4.527 dentro do lançamento. A etapa já é classificada pelo path da LP
+(`_etapa_from_landing_page`); dá pra derivar o lançamento do path também, mas isso muda o recorte
+de todos os números de GA4 e não foi feito agora.

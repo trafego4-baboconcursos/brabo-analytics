@@ -1590,8 +1590,10 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
             <th style="width:100px">Preview</th>
             <th>Página</th>
             <th class="num">Sessões</th>
-            <th class="num">Conversões</th>
-            <th class="num">Taxa de Conversão</th>
+            <th class="num">Leads</th>
+            <th class="num">Taxa de Lead</th>
+            <th class="num">Grupo WhatsApp</th>
+            <th class="num">Taxa WhatsApp</th>
           </tr>
         </thead>
         <tbody>
@@ -1602,12 +1604,14 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
             <td class="num">{{ lp.sessions | num }}</td>
             <td class="num"><strong>{{ lp.conversoes | num }}</strong></td>
             <td class="num">{{ lp.taxa_conversao | round(2) }}%</td>
+            <td class="num">{{ lp.whatsapp | num }}</td>
+            <td class="num">{{ lp.taxa_whatsapp | round(2) }}%</td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-    <div class="note" style="margin-top:10px">Fonte: Google Analytics 4 (sessões por landing page × campanha, classificadas pela mesma tag [Pré-Qualificação] das campanhas de mídia). Preview via thum.io — pode demorar alguns segundos pra carregar na primeira vez.</div>
+    <div class="note" style="margin-top:10px">Fonte: Google Analytics 4. <strong>Lead</strong> = sessão em que a pessoa preencheu o formulário (evento generate_lead); <strong>Grupo WhatsApp</strong> = sessão em que ela clicou pra entrar no grupo (qualify_lead). Conta sessão, não disparo de evento — o evento repete na mesma sessão. Preview via thum.io — pode demorar alguns segundos pra carregar na primeira vez.</div>
   </div>
   {% endif %}
 
@@ -1959,8 +1963,10 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
             <th style="width:100px">Preview</th>
             <th>Página</th>
             <th class="num">Sessões</th>
-            <th class="num">Conversões</th>
-            <th class="num">Taxa de Conversão</th>
+            <th class="num">Leads</th>
+            <th class="num">Taxa de Lead</th>
+            <th class="num">Grupo WhatsApp</th>
+            <th class="num">Taxa WhatsApp</th>
           </tr>
         </thead>
         <tbody>
@@ -1971,12 +1977,14 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
             <td class="num">{{ lp.sessions | num }}</td>
             <td class="num"><strong>{{ lp.conversoes | num }}</strong></td>
             <td class="num">{{ lp.taxa_conversao | round(2) }}%</td>
+            <td class="num">{{ lp.whatsapp | num }}</td>
+            <td class="num">{{ lp.taxa_whatsapp | round(2) }}%</td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-    <div class="note" style="margin-top:10px">Fonte: Google Analytics 4 (sessões por landing page × campanha, classificadas pela mesma tag [Captação] das campanhas de mídia). Preview via thum.io — pode demorar alguns segundos pra carregar na primeira vez.</div>
+    <div class="note" style="margin-top:10px">Fonte: Google Analytics 4. <strong>Lead</strong> = sessão em que a pessoa preencheu o formulário (evento generate_lead); <strong>Grupo WhatsApp</strong> = sessão em que ela clicou pra entrar no grupo (qualify_lead). Conta sessão, não disparo de evento — o evento repete na mesma sessão. Preview via thum.io — pode demorar alguns segundos pra carregar na primeira vez.</div>
   </div>
   {% endif %}
 

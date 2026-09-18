@@ -29,8 +29,10 @@ onde eles estão (só o que é compartilhado explicitamente entra no índice). C
 arquivos numa pasta local, casa por `ADxxx` no nome — que é como o Drive nomeia —
 e o que sobrar, por duração.
 
-Pré-requisitos: META_ACCESS_TOKEN no .env · pip install faster-whisper
-(não precisa de ffmpeg — o faster-whisper decodifica via PyAV)
+Pré-requisitos: META_ACCESS_TOKEN no .env e
+`pip install -r requirements-transcricao.txt` — o faster-whisper fica fora do
+requirements.txt de propósito (arrasta ~200 MB e nunca roda no servidor).
+Não precisa de ffmpeg: decodifica áudio via PyAV.
 """
 import argparse
 import os
@@ -200,7 +202,12 @@ def casar_por_duracao(restantes: dict[str, float], arquivos: list[Path],
     Só aceita quando UM único arquivo cai na tolerância — duas durações
     parecidas viram ambiguidade, e chutar aqui grava a transcrição errada
     no anúncio errado, que é pior que não gravar."""
-    from faster_whisper import decode_audio  # noqa: PLC0415
+    try:
+        from faster_whisper import decode_audio  # noqa: PLC0415
+    except ImportError:
+        logger.error("faster-whisper nao instalado, casamento por duracao pulado. Rode:"
+                     "  pip install -r requirements-transcricao.txt")
+        return {}
 
     duracoes: dict[Path, float] = {}
     for p in arquivos:
@@ -536,7 +543,14 @@ def main() -> int:
         if nao_casados:
             print("Sem arquivo correspondente: " + ", ".join(nao_casados))
 
-    from faster_whisper import WhisperModel  # noqa: PLC0415
+    try:
+        from faster_whisper import WhisperModel  # noqa: PLC0415
+    except ImportError:
+        # Nao esta no requirements.txt de proposito: arrasta ~200 MB e nunca
+        # roda no servidor. Sem mensagem, o erro aqui pareceria bug do ETL.
+        logger.error("faster-whisper nao instalado. Rode:"
+                     "  pip install -r requirements-transcricao.txt")
+        return 3
     logger.info("Carregando modelo %s (CPU/int8)", args.modelo)
     modelo = WhisperModel(args.modelo, device="cpu", compute_type="int8")
 

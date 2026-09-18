@@ -22,10 +22,8 @@ tenacity>=8.2
 # Agendador de ETL sem sobreposição de execuções
 apscheduler>=3.10
 
-# Transcricao de video (etl/etl_transcrever_meta.py)
-# Decodifica audio via PyAV, entao NAO precisa de ffmpeg no sistema.
-# Roda em CPU com compute_type=int8 (~3x realtime no modelo small).
-faster-whisper>=1.2
+# Transcricao de video: NAO fica aqui de proposito — ver
+# requirements-transcricao.txt (arrasta ~200 MB e nunca roda no servidor).
 
 # Testes
 pytest>=8.0

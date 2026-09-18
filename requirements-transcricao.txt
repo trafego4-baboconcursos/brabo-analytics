@@ -1,0 +1,14 @@
+# Dependencias SO do etl/etl_transcrever_meta.py — transcricao dos videos dos
+# anuncios. Ficam fora do requirements.txt de proposito.
+#
+# Por que separado: arrasta ctranslate2, onnxruntime e av (~200 MB de wheels)
+# e o ETL NUNCA roda no servidor — e uma rodada manual por lancamento, na
+# maquina de quem analisa. Instalar isso na imagem de producao so engorda o
+# build. O import e feito dentro da funcao, entao a aplicacao sobe normal sem
+# este arquivo; so o ETL de transcricao falha, com mensagem dizendo o que fazer.
+#
+#   pip install -r requirements-transcricao.txt
+#
+# Nao precisa de ffmpeg no sistema: o faster-whisper decodifica audio via PyAV.
+# Roda em CPU com compute_type=int8 (~3x realtime no modelo small).
+faster-whisper>=1.2

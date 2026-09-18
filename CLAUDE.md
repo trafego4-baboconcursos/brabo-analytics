@@ -60,7 +60,8 @@ python etl/etl_copy_google.py --launch PES-SET-26   # headlines/descriptions do 
 
 ### ETL — transcrição automática dos vídeos
 Baixa o mp4 do criativo pela Marketing API e transcreve com `faster-whisper` (CPU, sem
-ffmpeg). Grava `fonte_tipo='corte_final'` + `hook_confiavel=True`, porque o vídeo do
+ffmpeg). Exige `pip install -r requirements-transcricao.txt` — a dependência fica fora do
+`requirements.txt` porque pesa ~200 MB e o ETL nunca roda no servidor. Grava `fonte_tipo='corte_final'` + `hook_confiavel=True`, porque o vídeo do
 criativo **é** o anúncio publicado — minutagem real, diferente dos `.txt` de filmagem crua.
 ```bash
 python etl/etl_transcrever_meta.py --launch PES-SET-26 --so-faltantes

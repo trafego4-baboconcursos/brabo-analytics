@@ -4769,7 +4769,7 @@ document.addEventListener('keydown', function (e) {
     row.innerHTML =
       '<input class="lc-input lc-bucket-nome" type="text" value="' + (bucket.nome||"") + '" placeholder="Nome" style="flex:2;min-width:110px">' +
       '<input class="lc-input lc-bucket-pct" type="number" step="0.01" min="0" max="100" value="' + (bucket.pct||0) + '" placeholder="%" style="width:70px">' +
-      '<select class="lc-input lc-bucket-tipo" style="width:110px" onchange="this.closest(\'.lc-bucket-row\').querySelector(\'.lc-bucket-plataforma\').style.display = this.value===\'campanha\' ? \'\' : \'none\'">' +
+      '<select class="lc-input lc-bucket-tipo" style="width:110px" onchange="var r=this.closest(\'.lc-bucket-row\'),v=this.value===\'campanha\'?\'\':\'none\';r.querySelector(\'.lc-bucket-plataforma\').style.display=v;r.querySelector(\'.lc-bucket-conta\').style.display=v">' +
         '<option value="campanha"' + (tipo==="campanha"?" selected":"") + '>Campanha</option>' +
         '<option value="manual"'   + (tipo==="manual"  ?" selected":"") + '>Manual</option>' +
       '</select>' +
@@ -4779,6 +4779,10 @@ document.addEventListener('keydown', function (e) {
         '<option value="tiktok"' + (plataforma==="tiktok"?" selected":"") + '>TikTok</option>' +
         '<option value="outro"'  + (plataforma==="outro" ?" selected":"") + '>Outro</option>' +
       '</select>' +
+      // Conta de anúncio (opcional): quando preenchida, o realizado do bucket é
+      // lido pelo gasto DAQUELA conta, não pela temperatura no nome. É o que
+      // permite acompanhar verba por expert num lançamento multiproduto.
+      '<input class="lc-input lc-bucket-conta" type="text" value="' + (bucket.conta||"") + '" placeholder="Conta (opcional)" title="ID da conta de anúncio: act_… no Meta, o customer id no Google. Preenchido, mede o gasto por conta em vez da temperatura." style="width:150px;' + (tipo==="campanha"?"":"display:none") + '">' +
       '<button type="button" class="lc-icon-btn" onclick="this.closest(\'.lc-bucket-row\').remove()" title="Remover">' +
         '<i class="ti ti-x"></i>' +
       '</button>';
@@ -4914,6 +4918,7 @@ document.addEventListener('keydown', function (e) {
           pct: parseFloat(row.querySelector(".lc-bucket-pct").value) || 0,
           tipo: tipo,
           plataforma: tipo === "campanha" ? row.querySelector(".lc-bucket-plataforma").value : null,
+          conta: tipo === "campanha" ? (row.querySelector(".lc-bucket-conta").value || "").trim() : "",
         };
       }).filter(function(b){ return b.nome; });
       return {

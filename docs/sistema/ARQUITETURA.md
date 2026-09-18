@@ -1096,6 +1096,19 @@ anterior/próximo/hoje), só leitura — mostra as etapas já datadas num grid d
 continua sendo exclusivo da Linha do Tempo (arrastar uma barra). As duas visões e as duas tabelas
 de baixo (Pipeline Completo / Agenda por Lançamento) reaproveitam o mesmo `cal.timeline_items`.
 
+**Refatoração de layout pro padrão do sistema (2026-09-18):** a página ainda usava componentes
+locais reimplementando coisa que já existe compartilhada — trocado por `.wrap`/`.hdr` (cabeçalho
+sticky padrão, no lugar de `.container`/`.header` própria sem sticky nenhum), `.tp-kpi-grid`/
+`.tp-kpi` (cards de métrica, mesmo componente do dashboard), `.note.warning` (existia em
+`base.html`, a página reimplementava do zero) e `.bs-pill.accent/info/success/danger` (no lugar
+de 6 variantes de `.tag` próprias). "Pipeline Completo de Lançamentos" e "Agenda Por Lançamento"
+viram `.section`/`.section-title` de verdade — ganham recolher/reordenar/ocultar como qualquer
+tabela grande do sistema. A Linha do Tempo/toggle Calendário ficam de propósito FORA do accordion
+genérico (`.cal-h2` imita o visual sem usar a classe `.section-title`): o vis-timeline calcula a
+largura só na primeira renderização, e recolher via `display:none` sem um redraw manual deixaria
+a régua em branco ao expandir de novo. `.launch-name`/`.project-badge`/`.chip`/`.stage` seguem
+locais — cores por produto/etapa não têm componente compartilhado equivalente.
+
 ## Documentação como sistema (2026-09-14)
 
 `docs/` deixou de ser uma pasta de arquivos soltos e virou um vault com roteamento, para que

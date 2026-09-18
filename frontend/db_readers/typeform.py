@@ -64,8 +64,51 @@ def _tf_source(where_sql: str, cols: str = "*") -> str:
 _TF_VALORES = "typeform_respostas_valores"
 
 
-def _registros_materializados(where_sql: str, params: dict) -> list[dict[str, Any]]:
-    """Mesma saída de _reconstruct_tabular_df, lida já pronta do banco."""
+def _tem_titulo_legivel(fid: str) -> bool:
+    """Alguma pergunta do recorte tem TÍTULO, ou são todas id de campo?
+
+    O backup do Typeform não guardou `field.title` e a conta foi cancelada antes
+    de o mapeamento id→título ser salvo (ver _get_typeform_fields). Hoje as
+    chaves são todas do tipo `fAY7LnIKilfk` — conferido: zero respostas, em
+    nenhum formulário, têm título legível.
+
+    Isso importa porque toda a demografia (gênero, situação, nível, idade,
+    obstáculos, estado) é descoberta procurando o NOME da pergunta. Com id de
+    campo nada casa, e essas seções saem vazias de qualquer jeito — então não
+    faz sentido transportar os valores. A checagem fica no código, em vez de
+    assumir: se um dia o mapeamento for recuperado, volta a trazer tudo sozinho.
+    """
+    # Só o form_id, nunca o filtro do chamador: as perguntas são as mesmas em
+    # todas as respostas do formulário, e usar o where completo trazia junto a
+    # subconsulta de `leads` do read_perfil_por_anuncio, que é cara. O LIMIT
+    # interno também é essencial — sem ele um `LIMIT 1` sobre um padrão que
+    # nunca casa varre a tabela inteira procurando o que não existe, que foi
+    # exatamente o que estourou o statement_timeout.
+    with _get_engine().connect() as conn:
+        achou = conn.execute(text(
+            f"SELECT 1 FROM (SELECT valores FROM {_TF_VALORES} "
+            f"WHERE upper(coalesce(form_id, '')) = :fid LIMIT 200) v, "
+            f"LATERAL jsonb_object_keys(v.valores) k "
+            f"WHERE k LIKE '% %' OR length(k) > 20 LIMIT 1"
+        ), {"fid": fid}).scalar()
+    return bool(achou)
+
+
+def _registros_materializados(where_sql: str, params: dict, fid: str) -> list[dict[str, Any]]:
+    """Mesma saída de _reconstruct_tabular_df, lida já pronta do banco.
+
+    Traz os valores só quando eles têm uso: sem título de pergunta, o que sobra
+    é o e-mail — que é o que alimenta os cruzamentos, a contagem e o fallback de
+    estado pelo CSV local. Isso levou a leitura do PI-AGO-26 de 48 MB para
+    ~1,8 MB (ver ARQUITETURA.md, 18/09/26 — egress).
+    """
+    if not _tem_titulo_legivel(fid):
+        with _get_engine().connect() as conn:
+            emails = conn.execute(
+                text(f"SELECT email_norm FROM {_TF_VALORES} WHERE {where_sql}"), params
+            ).scalars().all()
+        return [{"email_norm": email} for email in emails]
+
     with _get_engine().connect() as conn:
         linhas = conn.execute(
             text(f"SELECT email_norm, valores FROM {_TF_VALORES} WHERE {where_sql}"), params
@@ -528,13 +571,13 @@ def read_typeform(launch_folder_or_code: Any, start_date=None, end_date=None) ->
     # 1. Carrega dados do Typeform do Supabase (tabela já materializada)
     fid_where = "upper(coalesce(form_id, '')) = :fid"
     fid_params = {"fid": proj_id.upper()}
-    records = _registros_materializados(fid_where, fid_params)
+    records = _registros_materializados(fid_where, fid_params, proj_id.upper())
     tf_raw_count = _contar_respostas_brutas(fid_where, fid_params)
     if not records:
         # Fallback histórico por data e código do lançamento
         date_where = "submitted_at::date BETWEEN :start AND :end AND upper(coalesce(form_id, '')) = :code"
         date_params = {"start": dim_start, "end": dim_end, "code": code.upper()}
-        records = _registros_materializados(date_where, date_params)
+        records = _registros_materializados(date_where, date_params, code.upper())
         tf_raw_count = _contar_respostas_brutas(date_where, date_params)
 
     tf_df_typeform = pd.DataFrame(records)
@@ -556,7 +599,7 @@ def read_typeform(launch_folder_or_code: Any, start_date=None, end_date=None) ->
     # Confrontar pesquisas
     registros_alunos: list[dict[str, Any]] = []
     if alunos_id:
-        registros_alunos = _registros_materializados(fid_where, {"fid": alunos_id.upper()})
+        registros_alunos = _registros_materializados(fid_where, {"fid": alunos_id.upper()}, alunos_id.upper())
     if registros_alunos:
         _build_typeform_comparison(summary, tf_df, registros_alunos, proj_id, alunos_id)
 
@@ -830,7 +873,7 @@ def read_perfil_por_anuncio(launch_folder_or_code: Any, top_n: int = 5) -> dict 
         "upper(coalesce(form_id, '')) = :fid "
         "AND lower(email) IN (SELECT lower(email) FROM leads WHERE lancamento_codigo = :code AND email IS NOT NULL)"
     )
-    records = _registros_materializados(_where, {"fid": proj_id.upper(), "code": code})
+    records = _registros_materializados(_where, {"fid": proj_id.upper(), "code": code}, proj_id.upper())
     tf_df_typeform = pd.DataFrame(records)
 
     novo_df = _novo_sistema_respostas_cached(code)

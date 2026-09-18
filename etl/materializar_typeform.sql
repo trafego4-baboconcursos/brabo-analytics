@@ -63,6 +63,19 @@ FROM validas v
 LEFT JOIN agregado g ON g.response_id = v.response_id;
 
 ALTER TABLE typeform_respostas_valores ADD PRIMARY KEY (response_id);
-CREATE INDEX idx_tf_val_fid ON typeform_respostas_valores ((upper(coalesce(form_id, ''))));
+
+-- Indice de COBERTURA: a maioria das leituras quer so o e-mail, e ter
+-- email_norm no proprio indice evita ir ao heap. Um indice so em form_id nao
+-- serve, e ainda faz o planejador preferir bitmap scan (que nunca e index-only).
+CREATE INDEX idx_tf_val_fid_email
+    ON typeform_respostas_valores ((upper(coalesce(form_id, ''))), email_norm);
 CREATE INDEX idx_tf_val_email ON typeform_respostas_valores (email_norm);
+
 ANALYZE typeform_respostas_valores;
+
+-- O CLUSTER e o passo que mais pesou: sem ele as linhas de um formulario ficam
+-- espalhadas pelas ~85 mil paginas da tabela, e ler um formulario tocava 39.460
+-- delas (21,5s). Reordenando fisicamente por formulario, a mesma leitura cai
+-- para 0,9s. Precisa rodar FORA de transacao (ver scripts/materializar_typeform.py).
+-- CLUSTER typeform_respostas_valores USING idx_tf_val_fid_email;
+-- VACUUM ANALYZE typeform_respostas_valores;

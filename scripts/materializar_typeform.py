@@ -63,6 +63,25 @@ def main() -> int:
             conn.execute(text("COMMIT"))
             print(f"{i}. ok ({time.time() - t0:>5.0f}s)  {cabeca}", flush=True)
 
+    # CLUSTER e VACUUM não rodam dentro de transação, e o CLUSTER é o passo que
+    # mais importa: sem ele as linhas de um formulário ficam espalhadas pelas
+    # ~85 mil páginas da tabela e ler um formulário toca 39.460 delas (21,5s).
+    # Reordenado fisicamente, cai para 0,9s.
+    bruta = _get_engine().raw_connection()
+    try:
+        bruta.set_isolation_level(0)
+        cur = bruta.cursor()
+        cur.execute("SET statement_timeout = '3600s'")
+        for passo in ("CLUSTER typeform_respostas_valores USING idx_tf_val_fid_email",
+                      "VACUUM ANALYZE typeform_respostas_valores"):
+            t0 = time.time()
+            cur.execute(passo)
+            print(f"   ok ({time.time() - t0:>5.0f}s)  {passo.split()[0]}", flush=True)
+        cur.close()
+    finally:
+        bruta.close()
+
+    with _get_engine().connect() as conn:
         n = conn.execute(text("SELECT count(*) FROM typeform_respostas_valores")).scalar()
         med = conn.execute(
             text("SELECT avg(octet_length(valores::text)) FROM typeform_respostas_valores")

@@ -31,7 +31,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 58 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 62 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -232,6 +232,13 @@ relacionados:
 >
 > **Print da landing page: captura própria no lugar do thum.io (2026-09-18)**
 >
+>
+> **Landing pages do PBB nunca apareceram na tabela — o nome da LP não tem o "P" (2026-09-18)**
+>
+> - [[ARQUITETURA#Print: recortar na largura do viewport, não na do documento|Print: recortar na largura do viewport, não na do documento]]
+> - [[ARQUITETURA#Segunda rodada: não precisamos dos valores, só do e-mail (2026-09-18)|Segunda rodada: não precisamos dos valores, só do e-mail (2026-09-18)]]
+> - [[ARQUITETURA#O passo que faltava: CLUSTER|O passo que faltava: CLUSTER]]
+> - [[ARQUITETURA#Armadilha que eu mesmo criei e corrigi|Armadilha que eu mesmo criei e corrigi]]
 
 <!-- SUMARIO:FIM -->
 
@@ -2429,3 +2436,85 @@ da tabela. O print completo fica acessível pela URL da rota.
 **Página sem captura não quebra a coluna:** o `<img>` tem `onerror` que cai no thum.io. A rota só
 lê bytes do banco pela chave, nunca busca URL em tempo de request — não dá pra usá-la pra fazer o
 servidor acessar endereço arbitrário.
+
+---
+
+## Landing pages do PBB nunca apareceram na tabela — o nome da LP não tem o "P" (2026-09-18)
+
+Ao capturar os prints do PBB-AGO-26, saíram 9 páginas e **todas eram de obrigado** (`/obg-...`),
+nenhuma LP. Não era falta de atribuição: as LPs têm `lancamento_codigo` preenchido e **371.323
+sessões** em 9 páginas.
+
+**Causa:** `_etapa_from_landing_page` exige o código do lançamento inteiro dentro do path, e a LP
+do PBB não tem o "P":
+
+| página | path | contém `pbb-ago-26`? |
+|---|---|---|
+| landing page | `/projeto-bb-ago-26-v2` | **não** (é `projeto-bb-`) |
+| obrigado | `/obg-pbb-ago-26-v2` | sim |
+
+Por isso só as páginas de obrigado passavam no filtro. Valia para **todos** os lançamentos do
+produto — PBB-FEV-26, PBB-ABR-26, PBB-JUN-26 e PBB-AGO-26, todos com 0 LPs listadas. INSS e TJ-SP
+não sofrem porque o path repete o código inteiro (`projeto-inss-pi-ago-26`,
+`projeto-escrevente-pes-set-26`).
+
+**Fix:** aceitar também o slug sem a primeira letra (`bb-ago-26`). Não corre risco de pegar
+lançamento vizinho porque o mês/ano continua no meio do termo — conferido que nenhum lançamento
+passa a listar página de outro. PBB-AGO-26 foi de 0 para 9 LPs; PES-SET-26 e PI-AGO-26 não mudaram.
+
+### Print: recortar na largura do viewport, não na do documento
+
+A v5 do PBB-AGO-26 tem um marquee que estica o `scrollWidth` para **7.975px**. Com `full_page`
+puro, o print saía um retângulo quase vazio com o conteúdo espremido em 13% da imagem. A captura
+agora usa `clip` fixo na largura do viewport (1280) e teto de 6.000px de altura. Várias outras LPs
+também estouravam de leve (1.492, 1.658) — o recorte normaliza todas.
+
+### Segunda rodada: não precisamos dos valores, só do e-mail (2026-09-18)
+
+A materialização cortou 9,7×, mas a pergunta certa era outra: **precisamos ler a tabela toda?**
+Não — e nem os valores.
+
+O `TypeformSummary` tem 45 campos e **todos são agregados**: percentuais por categoria, listas
+de top-10, contagens. Nenhum precisa da linha individual. Só que há um detalhe decisivo:
+
+**Nenhum formulário tem título de pergunta legível.** As chaves são todas id de campo
+(`fAY7LnIKilfk`) — conferido nas 697 mil respostas, zero com título. O backup não guardou
+`field.title` e a conta foi cancelada antes de o mapeamento id→título ser salvo. Como toda a
+demografia (gênero, situação, nível, idade, obstáculos, estado) é descoberta procurando o
+**nome** da pergunta, nada casa e essas seções saem vazias de qualquer jeito.
+
+Ou seja: o sistema transportava 48 MB de valores para alimentar seções que retornam `{}`.
+
+O que de fato se usa das respostas do Typeform é o **e-mail** — cruzamentos com CRM e
+compradores, contagem, e o fallback de estado pelo CSV local (que casa por e-mail). Então
+`_registros_materializados` só traz `valores` quando `_tem_titulo_legivel` encontra alguma
+pergunta com nome de verdade. A checagem fica no código em vez de a decisão ser assumida: se o
+mapeamento for recuperado um dia, volta a trazer tudo sozinho.
+
+**464 MB → 1,2 MB por leitura do PI-AGO-26 (387×).** Por ciclo de aquecimento: 636 MB → ~2,5 MB.
+
+### O passo que faltava: CLUSTER
+
+Reduzir o payload não bastou — a leitura ainda levava 21,5s. O plano mostrava o índice sendo
+usado (10 ms) e depois **39.460 páginas de heap** lidas. Causa: a tabela tem ~85 mil páginas e
+as respostas de um formulário estavam espalhadas por ela toda, então o bitmap scan tocava 46%
+do arquivo mesmo pedindo uma coluna só.
+
+Duas correções, nesta ordem de importância:
+
+- `CLUSTER typeform_respostas_valores USING idx_tf_val_fid_email` reordena fisicamente por
+  formulário: **21,5s → 0,9s**.
+- Índice de cobertura `((upper(coalesce(form_id,''))), email_norm)`, que também torna o índice
+  só de `form_id` redundante — e aquele ainda fazia o planejador preferir bitmap scan, que
+  nunca é index-only.
+
+`CLUSTER` e `VACUUM` não rodam dentro de transação; `scripts/materializar_typeform.py` faz os
+dois fora, com `isolation_level(0)`.
+
+### Armadilha que eu mesmo criei e corrigi
+
+A primeira versão de `_tem_titulo_legivel` usava o `where` completo do chamador com `LIMIT 1`.
+Um `LIMIT 1` sobre um padrão que **nunca casa** não sai cedo: varre tudo procurando o que não
+existe — e no `read_perfil_por_anuncio` ainda arrastava junto a subconsulta de `leads`. Estourou
+o `statement_timeout` e derrubou a seção. A checagem agora olha só o `form_id`, com `LIMIT 200`
+interno: as perguntas são as mesmas em todas as respostas do formulário, então a amostra basta.

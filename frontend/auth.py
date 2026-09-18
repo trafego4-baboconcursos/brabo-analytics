@@ -53,6 +53,10 @@ ROUTE_PERMISSIONS: dict[str, list[str]] = {
     "/vendas":            _DTLD,
     "/hotmart":           _DTLD,
     "/tmb":               _DTLD,
+    # Mesma faixa das outras páginas de venda: sem esta linha o default é _ALL
+    # e qualquer papel logado leria nome de afiliado e comissão, mesmo com o
+    # item escondido do menu (o menu não é a trava).
+    "/afiliados":         _DTLD,
     "/settings":          _ADM,
 }
 

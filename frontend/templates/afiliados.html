@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1>Afiliados{% if launch %} — {{ launch.code }}{% endif %}</h1>
+      <p>Hotmart | Quem vendeu pelo programa de afiliados</p>
+    </div>
+  </div>
+
+  <div class="content">
+    {% if not afiliados or not afiliados.has_data %}
+    <div class="no-data">
+      <i class="ti ti-users-group"></i>
+      <h3>Dados de afiliados não encontrados</h3>
+      <p>Não foi possível ler as vendas da Hotmart para o lançamento {{ active_code or 'selecionado' }}</p>
+    </div>
+
+    {% elif afiliados.total_vendas == 0 %}
+    {# Caso mais comum: o programa de afiliados existe na Hotmart, mas nenhum
+       parceiro vendeu nesta janela. Vale explicar em vez de só mostrar vazio. #}
+    <div class="no-data">
+      <i class="ti ti-users-group"></i>
+      <h3>Nenhuma venda por afiliado parceiro nesta janela</h3>
+      <p>
+        Entre {{ afiliados.janela_inicio | br_date }} e {{ afiliados.janela_fim | br_date }}
+        não houve venda atribuída a um afiliado parceiro.
+      </p>
+    </div>
+    {% if afiliados.fora_da_janela_qtd %}
+    <div class="section">
+      <div class="note warning">
+        Existem <strong>{{ afiliados.fora_da_janela_qtd | num }}</strong> venda(s) por afiliado
+        deste mesmo produto <strong>fora da janela do carrinho</strong>, somando
+        <strong>{{ afiliados.fora_da_janela_faturamento | brl }}</strong>. Elas não entram no
+        número acima porque não pertencem a este lançamento — a venda por afiliado aqui é
+        majoritariamente perpétua, ao longo do ano.
+      </div>
+    </div>
+    {% endif %}
+
+    {% else %}
+
+    {# ── KPIs ── #}
+    <div class="section">
+    <div class="section-title">1. Resumo do Programa de Afiliados</div>
+    <div class="tp-kpi-grid">
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-users-group"></i></div></div>
+        <div class="tp-value">{{ afiliados.total_afiliados | num }}</div>
+        <div class="tp-label">Afiliados com Venda</div>
+        <div class="tp-compare">Parceiros externos (a casa não entra)</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-shopping-cart"></i></div></div>
+        <div class="tp-value">{{ afiliados.total_vendas | num }}</div>
+        <div class="tp-label">Vendas por Afiliado</div>
+        <div class="tp-compare">Ticket médio {{ afiliados.ticket_medio | brl }}</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top">
+          <div class="tp-icon success"><i class="ti ti-coin"></i></div>
+          <div class="tp-delta flat">{{ afiliados.pct_faturamento | round(1) }}%</div>
+        </div>
+        <div class="tp-value">{{ afiliados.faturamento | brl }}</div>
+        <div class="tp-label">Faturamento Gerado</div>
+        <div class="tp-compare">Participação no faturamento Hotmart do lançamento</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-receipt-2"></i></div></div>
+        <div class="tp-value">{{ afiliados.comissao_total | brl }}</div>
+        <div class="tp-label">Comissão Paga</div>
+        <div class="tp-compare">Campo "comissão do afiliado" da Hotmart</div>
+      </div>
+    </div>
+    </div>
+
+    {# ── Ranking ── #}
+    <div class="section">
+      <div class="section-title">2. Afiliados</div>
+      <div class="note info">
+        Janela do carrinho: {{ afiliados.janela_inicio | br_date }} a {{ afiliados.janela_fim | br_date }}.
+        A <strong>Aprovasim</strong> não aparece nesta lista de propósito: toda venda do próprio
+        produtor passa sob a indicação dela, então ela viria como "afiliado" em praticamente
+        todas as linhas. O faturamento total continua em <a href="/hotmart?launch_code={{ active_code }}">Hotmart</a>.
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-dark">Afiliado</th>
+              <th class="th-dark" style="text-align:right">Vendas</th>
+              <th class="th-success" style="text-align:right">Faturamento</th>
+              <th class="th-success" style="text-align:right">Ticket Médio</th>
+              <th class="th-success-dark" style="text-align:right">Comissão</th>
+              <th class="th-success-dark" style="text-align:right">% Comissão</th>
+              <th class="th-dark">Produto(s)</th>
+              <th class="th-dark">Origem (SRC/SCK)</th>
+              <th class="th-dark" style="text-align:right">Período</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in afiliados.afiliados %}
+            <tr>
+              <td style="font-weight:600;">{{ a.nome }}</td>
+              <td class="numero td-bold">{{ a.vendas | num }}</td>
+              <td class="numero td-success">{{ a.faturamento | brl }}</td>
+              <td class="numero">{{ a.ticket_medio | brl }}</td>
+              <td class="numero td-success-dark">{{ a.comissao | brl }}</td>
+              <td class="numero td-success-dark" style="font-weight:700;">{{ a.comissao_pct | round(1) }}%</td>
+              <td class="td-muted" style="font-size:12px;">{{ a.produtos | join(', ') or '—' }}</td>
+              <td class="td-muted" style="font-size:12px;">{{ a.origens | join(', ') or '—' }}</td>
+              <td class="numero td-muted" style="font-size:12px;white-space:nowrap;">
+                {% if a.primeira_venda %}{{ a.primeira_venda | br_date }} → {{ a.ultima_venda | br_date }}{% else %}—{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {# ── Vendas linha a linha ── #}
+    <div class="section">
+      <div class="section-title">3. Vendas</div>
+      <div class="note info">
+        Cada transação paga atribuída a um afiliado parceiro, com os campos que a Hotmart
+        entrega: comissão, papel na venda, canal e os códigos SRC/SCK usados para marcar o tráfego.
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-dark">Data</th>
+              <th class="th-dark">Afiliado</th>
+              <th class="th-dark">Produto</th>
+              <th class="th-success" style="text-align:right">Valor</th>
+              <th class="th-success-dark" style="text-align:right">Comissão</th>
+              <th class="th-dark">Pagamento</th>
+              <th class="th-dark">Venda Feita Como</th>
+              <th class="th-dark">Canal</th>
+              <th class="th-dark">SRC / SCK</th>
+              <th class="th-dark">Ferramenta</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for v in afiliados.vendas %}
+            <tr>
+              <td class="td-muted" style="white-space:nowrap;">{{ v.data | br_date if v.data else '—' }}</td>
+              <td style="font-weight:600;">{{ v.afiliado }}</td>
+              <td class="td-muted" style="font-size:12px;">{{ v.produto or '—' }}</td>
+              <td class="numero td-success">{{ v.valor | brl }}</td>
+              <td class="numero td-success-dark">{{ v.comissao | brl }}</td>
+              <td class="td-muted" style="font-size:12px;">{{ v.metodo or '—' }}</td>
+              <td class="td-muted" style="font-size:12px;">{{ v.papel or '—' }}</td>
+              <td class="td-muted" style="font-size:12px;">{{ v.canal or '—' }}</td>
+              {# SRC e SCK são preenchidos de forma independente — juntar só os
+                 que existem evita a linha "— / valor" quando só um vem. #}
+              <td class="td-muted" style="font-size:12px;">
+                {{ [v.src, v.sck] | select | join(' / ') or '—' }}
+              </td>
+              <td class="td-muted" style="font-size:12px;">{{ v.ferramenta or '—' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if afiliados.fora_da_janela_qtd %}
+      <div class="note warning" style="margin-top:14px; font-size:12px;">
+        Fora desta janela há mais <strong>{{ afiliados.fora_da_janela_qtd | num }}</strong>
+        venda(s) por afiliado do mesmo produto ({{ afiliados.fora_da_janela_faturamento | brl }}),
+        que pertencem ao perpétuo e não a este lançamento.
+      </div>
+      {% endif %}
+    </div>
+
+    {% endif %}{# end if has_data #}
+  </div>
+  <div class="footing">Gerado em tempo real | Brabo Analytics{% if launch %} — {{ launch.code }}{% endif %}</div>
+</div>
+{% endblock %}

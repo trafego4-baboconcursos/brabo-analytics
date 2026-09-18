@@ -428,6 +428,10 @@ def _build_funis_nav_groups(launch, active_code, page, current_user, previous_la
                  "href": _href("/hotmart"), "enabled": bool(launch and launch.has_hotmart)},
                 {"page": "tmb", "label": "TMB", "icon": "ti-file-text",
                  "href": _href("/tmb"), "enabled": bool(launch and launch.has_tmb)},
+                # Afiliado é campo só da Hotmart — o TMB não tem coluna nenhuma
+                # disso, por isso o enabled segue has_hotmart.
+                {"page": "afiliados", "label": "Afiliados", "icon": "ti-users-group",
+                 "href": _href("/afiliados"), "enabled": bool(launch and launch.has_hotmart)},
             ],
         })
 

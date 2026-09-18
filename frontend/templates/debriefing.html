@@ -581,9 +581,16 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
    A captura é da página INTEIRA, mas a célula mostra só o topo com altura
    limitada: a imagem tem milhares de pixels de altura e esticaria a linha da
    tabela. Clicar abre a LP de verdade; o print completo fica na URL da rota.
-   `onerror` cai no thum.io pra página que ainda não foi capturada, senão a
-   coluna ficaria com ícone de imagem quebrada. #}
-{% macro lp_thumb(landing_page) %}<a href="{{ lp_base_url }}{{ landing_page }}" target="_blank" rel="noopener" title="Abrir {{ landing_page }}"><img src="/api/lp-screenshot{{ landing_page }}" loading="lazy" alt="" onerror="this.onerror=null;this.src='https://image.thum.io/get/width/600/crop/400/viewportWidth/1280/noanimate/{{ lp_base_url }}{{ landing_page }}'" style="width:300px;max-height:190px;object-fit:cover;object-position:top;border-radius:6px;border:1px solid var(--bs-border);display:block;background:var(--bs-surface)"></a>{% endmacro %}
+   Sem print, cai num aviso neutro em vez do thum.io: a LP de lançamento
+   antigo sai do ar (as de mai/26 já devolvem 404), e o serviço fotografaria
+   a página de erro — a coluna ficaria cheia de print de "não encontrado",
+   pior do que não mostrar nada. #}
+{# Sem escapar nada à mão aqui: o urlencode faz o trabalho. Escrever "%23" no
+   literal e ainda passar pelo filtro gera escape duplo ("%2523"), a cor vira
+   texto inválido e o SVG cai no preenchimento preto — foi o que aconteceu na
+   primeira versão. #}
+{% set _lp_sem_print = "data:image/svg+xml," ~ ("<svg xmlns='http://www.w3.org/2000/svg' width='300' height='120'><rect width='300' height='120' fill='#eef1f6'/><text x='150' y='66' font-family='sans-serif' font-size='13' fill='#8b95aa' text-anchor='middle'>sem print da página</text></svg>" | urlencode) %}
+{% macro lp_thumb(landing_page) %}<a href="{{ lp_base_url }}{{ landing_page }}" target="_blank" rel="noopener" title="Abrir {{ landing_page }}"><img src="/api/lp-screenshot{{ landing_page }}" loading="lazy" alt="" onerror="this.onerror=null;this.src=&quot;{{ _lp_sem_print }}&quot;;this.style.height='120px'" style="width:300px;max-height:190px;object-fit:cover;object-position:top;border-radius:6px;border:1px solid var(--bs-border);display:block;background:var(--bs-surface)"></a>{% endmacro %}
 
 {% if lazy %}
 {# ── Carregamento progressivo ─────────────────────────────────────────
@@ -1634,7 +1641,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
         </tbody>
       </table>
     </div>
-    <div class="note" style="margin-top:10px">Fonte: Google Analytics 4. <strong>Lead</strong> = sessão em que a pessoa preencheu o formulário (evento generate_lead); <strong>Grupo WhatsApp</strong> = sessão em que ela clicou pra entrar no grupo (qualify_lead). Conta sessão, não disparo de evento — o evento repete na mesma sessão. Preview: print próprio da página, guardado no banco (<code>scripts/capturar_lps.py</code>). Página ainda não capturada cai no thum.io.</div>
+    <div class="note" style="margin-top:10px">Fonte: Google Analytics 4. <strong>Lead</strong> = sessão em que a pessoa preencheu o formulário (evento generate_lead); <strong>Grupo WhatsApp</strong> = sessão em que ela clicou pra entrar no grupo (qualify_lead). Conta sessão, não disparo de evento — o evento repete na mesma sessão. Preview: print próprio da página, guardado no banco (<code>scripts/capturar_lps.py</code>). Lançamento cujas LPs saíram do ar não tem print — rode <code>scripts/capturar_lps.py --lancamento CODIGO</code> enquanto as páginas estiverem no ar.</div>
   </div>
   {% endif %}
 
@@ -2007,7 +2014,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
         </tbody>
       </table>
     </div>
-    <div class="note" style="margin-top:10px">Fonte: Google Analytics 4. <strong>Lead</strong> = sessão em que a pessoa preencheu o formulário (evento generate_lead); <strong>Grupo WhatsApp</strong> = sessão em que ela clicou pra entrar no grupo (qualify_lead). Conta sessão, não disparo de evento — o evento repete na mesma sessão. Preview: print próprio da página, guardado no banco (<code>scripts/capturar_lps.py</code>). Página ainda não capturada cai no thum.io.</div>
+    <div class="note" style="margin-top:10px">Fonte: Google Analytics 4. <strong>Lead</strong> = sessão em que a pessoa preencheu o formulário (evento generate_lead); <strong>Grupo WhatsApp</strong> = sessão em que ela clicou pra entrar no grupo (qualify_lead). Conta sessão, não disparo de evento — o evento repete na mesma sessão. Preview: print próprio da página, guardado no banco (<code>scripts/capturar_lps.py</code>). Lançamento cujas LPs saíram do ar não tem print — rode <code>scripts/capturar_lps.py --lancamento CODIGO</code> enquanto as páginas estiverem no ar.</div>
   </div>
   {% endif %}
 

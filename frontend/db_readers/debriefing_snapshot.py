@@ -65,7 +65,15 @@ TABLE = "debriefing_snapshot"
 # Isso agora é cobrado por `tests/test_dbf_contrato.py`, que compara as chaves do
 # `dbf` com um manifesto e falha pedindo o bump — de nada adiantou estar escrito
 # aqui três vezes.
-SNAPSHOT_VERSION = 15
+#
+# 18/09: o teste não pega este caso porque `pesquisa_engajamento` já existia como
+# chave do `dbf` — só o dicionário *dentro* dela ganhou campos novos (form_starts/
+# form_submissions/form_completion_rate/form_avg_time e os `prev_*` equivalentes,
+# "form performance" do Typeform). O template usa `.get()` pra não quebrar com
+# snapshot velho, então não é o 500 dos três incidentes — mas sem subir a versão
+# a seção nova só apareceria depois do próximo reaquecimento (~30min). Subindo
+# por precaução, no mesmo espírito da regra.
+SNAPSHOT_VERSION = 16
 
 DDL = f"""
 CREATE TABLE IF NOT EXISTS {TABLE} (

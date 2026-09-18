@@ -131,10 +131,12 @@ async def pre_warm_cache():
 
     # A mesma rotina roda de novo depois de cada rodada do ETL, via
     # POST /api/etl/refresh (ver frontend/services/prewarm.py), e também
-    # sozinha a cada PRE_WARM_INTERVAL_MIN (padrão 30), pra não depender
-    # do token do ETL estar configurado.
+    # sozinha a cada PRE_WARM_INTERVAL_MIN (padrão 60), pra não depender
+    # do token do ETL estar configurado. Era 30 — dobrado em 18/09/26 como
+    # parte da redução de egress do Supabase (ver etl/scheduler.py pro
+    # outro lado dessa mudança, que separou as fontes por cadência).
     schedule_warm(origem="boot")
-    schedule_periodic_warm(int(os.environ.get("PRE_WARM_INTERVAL_MIN", "30") or 0))
+    schedule_periodic_warm(int(os.environ.get("PRE_WARM_INTERVAL_MIN", "60") or 0))
 
 # ── Handler global de erros ────────────────────────────────────────────────────
 @app.exception_handler(Exception)

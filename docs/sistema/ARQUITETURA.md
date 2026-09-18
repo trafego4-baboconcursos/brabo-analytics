@@ -31,7 +31,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 64 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 65 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -244,6 +244,7 @@ relacionados:
 >
 > - [[ARQUITETURA#Por que não uniformemente de hora em hora|Por que não uniformemente de hora em hora]]
 > - [[ARQUITETURA#Dois cuidados que o desenho embute|Dois cuidados que o desenho embute]]
+> - [[ARQUITETURA#Rede de testes contra os dois apagões de setembro|Rede de testes contra os dois apagões de setembro]]
 
 <!-- SUMARIO:FIM -->
 
@@ -2567,3 +2568,32 @@ O isolamento de falha que um desmembramento em serviços traria **já existia**:
 subprocesso com timeout próprio de 15 min, e o orquestrador segue para a próxima quando uma
 falha (`run_all.py`). O apagão de 7h12 em 17/09 não foi passo travado — foi o `scheduler.py`
 não subir por import quebrado, e nove containers teriam o mesmo import quebrado.
+
+### Rede de testes contra os dois apagões de setembro
+
+Dois apagões com três dias de intervalo, ambos invisíveis para o CI:
+
+| Quando | O quê | Custo | Coberto por |
+|---|---|---|---|
+| 17/09 | `budget_alert.py` importava nome que a refatoração moveu; `scheduler.py` o importa no topo e entrou em crash-loop | **7h12 sem ETL** | `tests/test_imports.py` |
+| 18/09 | commit `c8c9421` passou a gravar `customer_id` em duas tabelas sem criar a coluna | ~3h de `google_ads` falhando | `tests/test_etl_schema.py` |
+
+O segundo é o mais traiçoeiro: **import saudável não garante schema compatível.** O código
+importava, o CI passava, e o ETL falhava com `UndefinedColumn` a cada rodada — só apareceu
+quando alguém leu o log.
+
+`test_etl_schema.py` monta o DataFrame de cada ETL e confere contra o `information_schema` que
+toda coluna que ele pretende escrever existe. Dois detalhes fazem funcionar sem rede nem
+fixture pesada:
+
+- os builders leem a linha da API com `r.get(...)`, então passar `[{}]` devolve as colunas
+  certas com valores nulos;
+- os `upsert` gravam com `df.to_sql(...)`, que usa exatamente `df.columns` — é o mesmo conjunto
+  que iria pro `INSERT`.
+
+Precisa de banco, então roda no marcador `smoke` (o CI não tem banco). Conferido que falha
+removendo `customer_id` e volta a passar com a coluna de volta.
+
+Cobre hoje os 7 pares builder→tabela de `etl_google_ads` e `etl_meta_ads`. Os demais ETLs têm
+formato diferente e ficaram de fora **de propósito**: melhor não cobrir do que cobrir errado.
+Ao adicionar um builder novo, some uma linha em `CONTRATOS`.

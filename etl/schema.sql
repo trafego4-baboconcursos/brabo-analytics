@@ -988,6 +988,7 @@ CREATE TABLE IF NOT EXISTS google_ads_audiences_daily (
     cost            NUMERIC(12,2) DEFAULT 0,
     conversions     NUMERIC(10,2) DEFAULT 0,
     lancamento_codigo TEXT,
+    customer_id     TEXT,
     updated_at      TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (audience_name, campaign_name, date, lancamento_codigo)
 );
@@ -1010,6 +1011,9 @@ CREATE TABLE IF NOT EXISTS google_ads_demographics_daily (
     cost            NUMERIC(12,2) DEFAULT 0,
     conversions     NUMERIC(10,2) DEFAULT 0,
     lancamento_codigo TEXT,
+    -- Conta de anúncio de origem (GOOGLE_ADS_CUSTOMER_ID, só dígitos). TEXT pelo
+    -- mesmo motivo de google_ads_daily.customer_id: é identificador, não número.
+    customer_id     TEXT,
     updated_at      TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (demographic_type, demographic_value, campaign_name, date, lancamento_codigo)
 );

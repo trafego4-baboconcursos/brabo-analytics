@@ -26,7 +26,19 @@ def _etapa_from_landing_page(landing_page: Any, code_slug: str) -> str | None:
     "obg-pi-ago-26-v5-pq-fb"). Páginas sem o código do lançamento no path
     (ex: "(not set)", "/matricula-inss") ficam fora de ambas as etapas."""
     lp = str(landing_page or "").lower()
-    if not code_slug or code_slug not in lp:
+    if not code_slug:
+        return None
+    # A LP do PBB se chama "/projeto-bb-ago-26-v2", sem o "P" do código
+    # PBB-AGO-26 — só as páginas de obrigado usam o código inteiro
+    # ("/obg-pbb-ago-26-v2"). Exigindo o slug completo, TODO lançamento PBB
+    # listava só páginas de obrigado e nenhuma LP de verdade (achado 18/09/26,
+    # valia pra PBB-FEV/ABR/JUN/AGO-26). Aceitar também o slug sem a primeira
+    # letra resolve sem risco de pegar outro lançamento: o mês/ano continua no
+    # meio, então "bb-ago-26" não casa com "/projeto-inss-pi-ago-26".
+    aceitos = {code_slug}
+    if code_slug.startswith("p") and len(code_slug) > 1:
+        aceitos.add(code_slug[1:])
+    if not any(s in lp for s in aceitos):
         return None
     if "-pq-" in lp or lp.endswith("-pq"):
         return "Pré-Qualificação"

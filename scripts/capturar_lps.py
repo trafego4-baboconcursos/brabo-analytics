@@ -152,9 +152,19 @@ def capturar(paths_e_urls: list[tuple[str, str]], code: str | None, forcar: bool
                         or "security verification" in corpo or "verify you are human" in corpo):
                     raise RuntimeError(f"veio o desafio do Cloudflare, não a página (título: {page.title()!r})")
 
-                img = page.screenshot(full_page=True, type="jpeg", quality=QUALIDADE_JPEG)
                 dims = page.evaluate(
                     "() => [document.documentElement.scrollWidth, document.documentElement.scrollHeight]"
+                )
+                # Recorta na largura do viewport em vez de aceitar a largura do
+                # documento: uma LP com marquee/ticker estoura o scrollWidth
+                # (a v5 do PBB-AGO-26 reportou 7.975px) e o full_page puro
+                # devolvia um retângulo quase vazio, com o conteúdo espremido
+                # em 13% da imagem. Altura também tem teto — página de 3.800px
+                # já é o normal aqui, mas não vale guardar uma de 20.000.
+                altura = min(int(dims[1]), 6000)
+                img = page.screenshot(
+                    full_page=True, type="jpeg", quality=QUALIDADE_JPEG,
+                    clip={"x": 0, "y": 0, "width": VIEWPORT_LARGURA, "height": altura},
                 )
                 with engine.begin() as conn:
                     conn.execute(text("""

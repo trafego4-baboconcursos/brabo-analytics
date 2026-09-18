@@ -103,7 +103,13 @@ def fetch_insights(since: str, until: str, account_ids: list[str] | None = None)
         while url:
             r = http_get(url, params=params)
             data = r.json()
-            rows.extend(data.get("data", []))
+            # Carimba a conta na linha: o insight não diz de qual conta veio, e
+            # é a conta que identifica o dono da verba — cada expert tem a sua.
+            # Sem isso não dá pra fechar previsto x realizado por expert num
+            # lançamento multiproduto como a Black.
+            for item in data.get("data", []):
+                item["account_id"] = account_id
+                rows.append(item)
             url    = data.get("paging", {}).get("next")
             params = {}   # próxima página já vem com todos os parâmetros na URL
 
@@ -157,6 +163,7 @@ def build_df_from_api(rows: list[dict]) -> pd.DataFrame:
             "adset_name":       r.get("adset_name"),
             "campaign_id":      r.get("campaign_id"),
             "campaign_name":    campaign_name,
+            "account_id":       r.get("account_id"),
             "lancamento_codigo": resolve_launch_code(campaign_name, date_start),
             "impressions":      int(r.get("impressions", 0)),
             "clicks":           int(r.get("clicks", 0)),

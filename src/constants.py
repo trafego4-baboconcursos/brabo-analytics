@@ -30,6 +30,7 @@ LAUNCH_ACCENT: dict[str, str] = {
     "PI-JAN-26":  "#16a085",
     "PERPETUO":   "#e74c3c",
     "BV-25":      "#111827",
+    "BV-26":      "#f97316",
 }
 
 LAUNCH_SHORT: dict[str, str] = {
@@ -42,6 +43,7 @@ LAUNCH_SHORT: dict[str, str] = {
     "PI-JAN-26":  "JAN",
     "PERPETUO":   "PERP",
     "BV-25":      "BLACK",
+    "BV-26":      "BLACK",
 }
 
 LAUNCH_NAMES: dict[str, str] = {
@@ -54,4 +56,5 @@ LAUNCH_NAMES: dict[str, str] = {
     "PI-JAN-26":  "INSS - Janeiro 2026",
     "PERPETUO":   "Perpétuo - Geral",
     "BV-25":      "Black Vitalícia 2025",
+    "BV-26":      "Black Vitalícia 2026",
 }

@@ -76,6 +76,10 @@ def _norm(s: str) -> str:
 
 def _temperatura_de_bucket(nome: str) -> str | None:
     n = _norm(nome)
+    # "aluno" antes de "quente": na Black o público é Aluno ou Super Quente, e
+    # "super quente" cairia em Quente se a ordem fosse outra.
+    if "aluno" in n:
+        return "Aluno"
     if "quente" in n:
         return "Quente"
     if "frio" in n:
@@ -125,6 +129,15 @@ def bucket_realizado(meta: Any, google: Any, bucket: dict, etapa_nome: str) -> f
     calculado por get_etapa pra essa etapa. TikTok não tem fonte de dado
     ainda (sempre 0 — ver memória project_tiktok_integracao_futura)."""
     plataforma = bucket.get("plataforma")
+    # Bucket com conta: o dono da verba é o expert, e cada um tem conta própria.
+    # Ler por conta não depende de convenção de nome de campanha — que é
+    # justamente o que falha em lançamento multiproduto como a Black.
+    conta = str(bucket.get("conta") or "").strip()
+    if conta:
+        attr = "por_conta_captacao" if etapa_nome == "Captação" else "por_conta"
+        fonte = meta if plataforma == "meta" else google if plataforma == "google" else None
+        d = (getattr(fonte, attr, {}) or {}).get(conta) or {}
+        return _f(d.get("custo") or d.get("gasto"))
     temp = _temperatura_de_bucket(bucket.get("nome", ""))
     if temp:
         if plataforma == "meta":

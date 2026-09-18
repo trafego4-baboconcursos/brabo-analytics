@@ -222,7 +222,12 @@ def fetch_report(since: str, until: str, customer_ids: list[str] | None = None) 
                 payload["pageToken"] = page_token
             r = http_post(search_url, headers=headers, json=payload)
             data = r.json()
-            rows.extend(data.get("results", []))
+            # Carimba a conta na linha: o resultado não diz de qual customer
+            # veio, e é a conta que identifica o dono da verba (um expert por
+            # conta) — necessário pra fechar previsto x realizado por expert.
+            for item in data.get("results", []):
+                item["_customer_id"] = customer_id
+                rows.append(item)
             page_token = data.get("nextPageToken")
             if not page_token:
                 break
@@ -335,7 +340,12 @@ def fetch_pmax_report(since: str, until: str, customer_ids: list[str] | None = N
                 payload["pageToken"] = page_token
             r = http_post(search_url, headers=headers, json=payload)
             data = r.json()
-            rows.extend(data.get("results", []))
+            # Carimba a conta na linha: o resultado não diz de qual customer
+            # veio, e é a conta que identifica o dono da verba (um expert por
+            # conta) — necessário pra fechar previsto x realizado por expert.
+            for item in data.get("results", []):
+                item["_customer_id"] = customer_id
+                rows.append(item)
             page_token = data.get("nextPageToken")
             if not page_token:
                 break
@@ -361,6 +371,7 @@ def build_df_from_pmax_api(rows: list[dict]) -> pd.DataFrame:
             "ad_group_name":   None,
             "campaign_id":     campaign_id,
             "campaign_name":   campaign_name,
+            "customer_id":     r.get("_customer_id"),
             "lancamento_codigo": resolve_launch_code(campaign_name, seg.get("date")),
             "impressions":     int(met.get("impressions", 0)),
             "clicks":          int(met.get("clicks", 0)),
@@ -463,6 +474,7 @@ def build_df_from_demographics_api(rows: list[dict]) -> pd.DataFrame:
             "demographic_type":  demo_type,
             "demographic_value": val,
             "campaign_name":     campaign_name,
+            "customer_id":     r.get("_customer_id"),
             "lancamento_codigo": resolve_launch_code(campaign_name, seg.get("date")),
             "impressions":       int(met.get("impressions", 0)),
             "clicks":            int(met.get("clicks", 0)),
@@ -493,6 +505,7 @@ def build_df_from_audiences_api(rows: list[dict]) -> pd.DataFrame:
             "audience_name":     crit.get("displayName", ""),
             "ad_group_name":     ad_group.get("name", ""),
             "campaign_name":     campaign_name,
+            "customer_id":     r.get("_customer_id"),
             "lancamento_codigo": resolve_launch_code(campaign_name, seg.get("date")),
             "impressions":       int(met.get("impressions", 0)),
             "clicks":            int(met.get("clicks", 0)),
@@ -565,6 +578,7 @@ def build_df_from_api(rows: list[dict]) -> pd.DataFrame:
             "ad_group_name":  group.get("name"),
             "campaign_id":    str(camp.get("id")),
             "campaign_name":  camp.get("name"),
+            "customer_id":    r.get("_customer_id"),
             "lancamento_codigo": resolve_launch_code(camp.get("name"), seg.get("date")),
             "impressions":    imp,
             "clicks":         int(met.get("clicks", 0)),

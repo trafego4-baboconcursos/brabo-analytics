@@ -147,7 +147,7 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
     code = _extract_launch_code(launch_folder_or_code)
     engine = _get_engine()
 
-    _COLS = "date, ad_id, ad_name, adset_name, campaign_name, impressions, clicks, spend, leads, video_thruplays, video_views_50"
+    _COLS = "date, ad_id, ad_name, adset_name, campaign_name, account_id, impressions, clicks, spend, leads, video_thruplays, video_views_50"
     if start_date and end_date:
         df = pd.read_sql(
             text(f"SELECT {_COLS} FROM meta_ads_daily WHERE lancamento_codigo = :code AND date BETWEEN :start AND :end"),
@@ -243,6 +243,23 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
             "cpl": float(r["custo"] / r["leads"]) if r["leads"] > 0 else 0.0,
             "pct": float(r["custo"] / total_spend_cap * 100)
         }
+
+    # Gasto por conta de anúncio — numa Black cada expert tem conta e verba
+    # próprias, e o nome da campanha não identifica o dono de forma confiável.
+    if "account_id" in df.columns:
+        for escopo, origem in (("por_conta", df), ("por_conta_captacao", df_cap)):
+            agrupado = origem.dropna(subset=["account_id"]).groupby("account_id").agg(
+                custo=("spend", "sum"), leads=("leads", "sum")
+            ).reset_index()
+            destino = getattr(summary, escopo)
+            for _, r in agrupado.iterrows():
+                destino[str(r["account_id"])] = {
+                    "conta": str(r["account_id"]),
+                    "custo": float(r["custo"]),
+                    "gasto": float(r["custo"]),
+                    "leads": int(r["leads"]),
+                    "cpl": float(r["custo"] / r["leads"]) if r["leads"] > 0 else 0.0,
+                }
 
     df_preq = df[df["etapa"] == "Pré-Qualificação"]
     preq_grouped = df_preq.groupby("temperatura").agg(

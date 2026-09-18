@@ -53,12 +53,18 @@ ETAPA_MAP_GOOGLE = {
 # ── Temperatura do público ─────────────────────────────────────────────────────
 # Só o Meta tem campanha nomeada "lookalike" (que é público frio); no Google o
 # equivalente já vem escrito como "frio".
+# "aluno" vem antes de "quente" de propósito: na Black o público é Aluno ou
+# Super Quente, e "super quente" casaria em "quente" se a ordem fosse outra —
+# jogando os dois públicos na mesma linha. Dict preserva ordem de inserção, e
+# `_primeiro_match` devolve o primeiro que casar.
 TEMPERATURA_MAP_META = {
+    "aluno": "Aluno", "alunos": "Aluno",
     "quente": "Quente", "frio": "Frio", "específico": "Específico", "especifico": "Específico",
     "lookalike": "Frio",
 }
 
 TEMPERATURA_MAP_GOOGLE = {
+    "aluno": "Aluno", "alunos": "Aluno",
     "quente": "Quente", "frio": "Frio", "específico": "Específico", "especifico": "Específico",
 }
 

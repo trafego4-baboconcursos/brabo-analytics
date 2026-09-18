@@ -71,6 +71,10 @@ class MetaSummary:
     por_etapa: dict = field(default_factory=dict)
     por_temperatura: dict = field(default_factory=dict)
     por_temperatura_captacao: dict = field(default_factory=dict)
+    # Gasto por conta de anúncio: numa Black cada expert tem conta própria e
+    # verba própria, e o nome da campanha não é fonte confiável de dono.
+    por_conta: dict = field(default_factory=dict)
+    por_conta_captacao: dict = field(default_factory=dict)
     por_temperatura_prequali: dict = field(default_factory=dict)
     por_bucket: dict = field(default_factory=dict)
     por_segmento: dict = field(default_factory=dict)
@@ -132,6 +136,8 @@ class GoogleSummary:
     ctr_medio: float = 0.0
     por_etapa: dict = field(default_factory=dict)
     por_temperatura: dict = field(default_factory=dict)
+    por_conta: dict = field(default_factory=dict)
+    por_conta_captacao: dict = field(default_factory=dict)
     por_temperatura_prequali: dict = field(default_factory=dict)
     por_segmento: dict = field(default_factory=dict)
     campanhas: list = field(default_factory=list)
@@ -496,3 +502,38 @@ class ComparativoData:
     top_google_a: list = field(default_factory=list)
     top_google_b: list = field(default_factory=list)
     canal_quality: list = field(default_factory=list)
+
+
+# ── Afiliados (Hotmart) ───────────────────────────────────────────────────────
+
+@dataclass
+class AfiliadosSummary:
+    """Vendas feitas por afiliados PARCEIROS na Hotmart.
+
+    A casa ("Aprovasim - Cursos, Treinamentos e Coaching Eireli") fica de fora
+    de propósito: ela aparece em `nome_do_a_afiliado_a` em 98% das linhas
+    porque toda venda do próprio produtor passa sob a indicação dela — contá-la
+    aqui transformaria a página num segundo relatório de faturamento total e
+    esconderia os parceiros de verdade, que é o que esta tela existe pra
+    mostrar. O total da casa continua em /hotmart e /vendas.
+
+    TMB não tem campo de afiliado nenhum, então esta página é só Hotmart.
+    """
+    has_data: bool = False
+    total_afiliados: int = 0
+    total_vendas: int = 0
+    faturamento: float = 0.0
+    comissao_total: float = 0.0
+    ticket_medio: float = 0.0
+    # Participação no faturamento Hotmart do recorte (0-100).
+    pct_faturamento: float = 0.0
+    afiliados: list[dict] = field(default_factory=list)
+    vendas: list[dict] = field(default_factory=list)
+    # Vendas por afiliado do mesmo produto que caíram FORA da janela do
+    # carrinho. Quase toda venda por afiliado da base é assim (a Mentoria é
+    # vendida o ano inteiro), então omitir esse número faria a página parecer
+    # vazia quando na verdade o recorte é que não pega.
+    fora_da_janela_qtd: int = 0
+    fora_da_janela_faturamento: float = 0.0
+    janela_inicio: date | None = None
+    janela_fim: date | None = None

@@ -48,7 +48,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
     code = _extract_launch_code(launch_folder_or_code)
     engine = _get_engine()
 
-    _COLS = "date, ad_name, ad_group_name, campaign_name, impressions, clicks, cost, conversions, video_views, video_views_50, video_views_100, video_id, avg_cpv"
+    _COLS = "date, ad_name, ad_group_name, campaign_name, customer_id, impressions, clicks, cost, conversions, video_views, video_views_50, video_views_100, video_id, avg_cpv"
     if start_date and end_date:
         df = pd.read_sql(
             text(f"SELECT {_COLS} FROM google_ads_daily WHERE lancamento_codigo = :code AND date BETWEEN :start AND :end"),
@@ -227,6 +227,24 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
             "conversoes": conv,
             "custo_conv": float(r["custo"] / conv) if conv > 0 else 0.0
         }
+
+    # Gasto por conta (customer) — o dono da verba é o expert, e cada um tem a
+    # sua conta; o nome da campanha não identifica o dono de forma confiável.
+    if "customer_id" in df.columns:
+        for escopo, origem in (("por_conta", df), ("por_conta_captacao", df[df["etapa"] == "Captação"])):
+            agrupado = origem.dropna(subset=["customer_id"]).groupby("customer_id").agg(
+                custo=("cost", "sum"), conversoes=("conversions", "sum")
+            ).reset_index()
+            destino = getattr(summary, escopo)
+            for _, r in agrupado.iterrows():
+                conv = float(r["conversoes"])
+                destino[str(r["customer_id"])] = {
+                    "conta": str(r["customer_id"]),
+                    "custo": float(r["custo"]),
+                    "gasto": float(r["custo"]),
+                    "conversoes": conv,
+                    "custo_conv": float(r["custo"] / conv) if conv > 0 else 0.0,
+                }
 
     # Agrega por temperatura — pré-qualificação
     preq_grouped = df[df["etapa"] == "Pré-Qualificação"].groupby("temperatura").agg(

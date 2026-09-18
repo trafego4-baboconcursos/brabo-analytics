@@ -242,7 +242,110 @@ def enriquecer(dados: dict) -> dict:
     return dados
 
 
+SQL_CURVA = r"""
+WITH g AS (
+    SELECT upper(regexp_replace(ad_name, '^(AD\d+).*', '\1')) AS ad_code,
+           sum(spend) AS gasto, sum(video_views_3s) AS v3,
+           sum(video_views_25) AS q25, sum(video_views_50) AS q50,
+           sum(video_views_75) AS q75, sum(video_views_100) AS q100
+    FROM   meta_ads_daily
+    WHERE  lancamento_codigo = :codigo
+      AND  campaign_name ILIKE '%capta%'
+      AND  upper(regexp_replace(ad_name, '^(AD\d+).*', '\1')) ~ '^AD[0-9]+$'
+    GROUP  BY 1
+    HAVING sum(video_views_3s) > 1000 AND sum(spend) >= :piso
+)
+SELECT t.ad_code, t.id, t.duracao_seg,
+       g.gasto, g.v3, g.q25, g.q50, g.q75, g.q100
+FROM   ad_transcricoes t JOIN g USING (ad_code)
+WHERE  t.lancamento_codigo = :codigo AND t.is_canonica AND t.hook_confiavel
+ORDER  BY g.gasto DESC
+"""
+
+
+def read_curva_retencao(launch_code: str, sales_attr: dict | None,
+                        piso_gasto: float = 2000.0) -> dict:
+    """Curva de retenção de cada criativo, com o que é falado em cada quartil.
+
+    Normaliza pelos views de 3s (não por impressões): o interesse é o que
+    acontece *depois* que a pessoa parou, e é o mesmo denominador do hold_rate.
+
+    Duas coisas que a leitura desta seção precisa deixar claras, porque os
+    dados do PES-SET-26 contrariam a intuição:
+
+    1. **A maior queda é sempre o Q1**, em todos os anúncios (71% a 81%).
+       Perguntar "qual quartil perde mais" não tem resposta útil — a perda é
+       toda na entrada. O que informa é comparar o mesmo quartil *entre*
+       anúncios.
+    2. **Retenção não prevê CPA.** Correlação de +0,13 entre retenção a 100% e
+       CPA em 13 criativos de Captação — perto de zero e no sinal errado. Os
+       três de melhor retenção têm CPA acima da mediana. Serve para *ler* o
+       criativo, não para decidir verba.
+    """
+    from sqlalchemy import text  # noqa: PLC0415
+
+    from frontend.db import _get_engine  # noqa: PLC0415
+
+    vendas = ((sales_attr or {}).get("por_criativo_por_etapa") or {}).get("Captação") or {}
+
+    with _get_engine().connect() as conn:
+        linhas = conn.execute(text(SQL_CURVA),
+                              {"codigo": launch_code, "piso": piso_gasto}).fetchall()
+        if not linhas:
+            return {"ads": [], "correlacao": None, "piso_gasto": piso_gasto}
+
+        falas = {}
+        for tid in {r[1] for r in linhas}:
+            falas[tid] = {
+                q: txt for q, txt in conn.execute(text(
+                    "SELECT quartil, string_agg(texto, ' ' ORDER BY ordem)"
+                    " FROM ad_transcricao_linhas WHERE transcricao_id = :t"
+                    " GROUP BY quartil"), {"t": tid}).fetchall()
+            }
+
+    ads = []
+    for ad_code, tid, duracao, gasto, v3, q25, q50, q75, q100 in linhas:
+        ret = [q25 / v3, q50 / v3, q75 / v3, q100 / v3]
+        n_vendas = int((vendas.get(ad_code) or {}).get("vendas") or 0)
+        ads.append({
+            "ad_code": ad_code,
+            "duracao_seg": duracao,
+            "gasto": float(gasto or 0),
+            "vendas": n_vendas,
+            "cpa": float(gasto) / n_vendas if n_vendas else None,
+            "retencao": [{"quartil": i + 1,
+                          "pct": ret[i],
+                          # Segundo aproximado em que o quartil termina — é o que
+                          # liga a curva à fala, já que o Meta só dá os 4 marcos.
+                          "ate_seg": round((duracao or 0) * (i + 1) / 4),
+                          "fala": (falas.get(tid, {}).get(i + 1) or "").strip()}
+                         for i in range(4)],
+            "queda_entrada": 1 - ret[0],
+        })
+
+    # Correlacao CPA x retencao a 100%, calculada na propria pagina pra o numero
+    # nunca ficar desatualizado em relacao aos dados exibidos.
+    amostra = [(a["cpa"], a["retencao"][3]["pct"]) for a in ads if a["cpa"]]
+    correlacao = None
+    if len(amostra) >= 4:
+        mc = sum(x for x, _ in amostra) / len(amostra)
+        mr = sum(y for _, y in amostra) / len(amostra)
+        num = sum((x - mc) * (y - mr) for x, y in amostra)
+        den = ((sum((x - mc) ** 2 for x, _ in amostra)
+                * sum((y - mr) ** 2 for _, y in amostra)) ** 0.5)
+        if den:
+            correlacao = {"r": num / den, "n": len(amostra)}
+
+    return {"ads": ads, "correlacao": correlacao, "piso_gasto": piso_gasto}
+
+
 def read_copys_page(launch: Any, sales_attr: dict | None) -> dict:
     if not launch:
-        return {"tabelas": [], "por_ad": [], "cobertura": None, "contraste": None}
-    return enriquecer(read_analise_copys(launch.code, sales_attr))
+        return {"tabelas": [], "por_ad": [], "cobertura": None,
+                "contraste": None, "curva": None}
+    dados = enriquecer(read_analise_copys(launch.code, sales_attr))
+    try:
+        dados["curva"] = read_curva_retencao(launch.code, sales_attr)
+    except Exception:  # a curva é complementar; não pode derrubar a página
+        dados["curva"] = None
+    return dados

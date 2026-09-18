@@ -16,6 +16,16 @@
 .copy-fam-thumbs img { width:30px; height:30px; object-fit:cover; border-radius:4px; border:1px solid var(--bs-border); }
 .copy-vencedor { color:var(--bs-ok); font-weight:600; }
 .copy-perdedor { color:var(--bs-danger); }
+
+/* Curva de retenção — 4 barras por anúncio, altura proporcional ao % */
+.ret-barras { display:flex; gap:6px; align-items:flex-end; min-width:190px; }
+.ret-col { display:flex; flex-direction:column; align-items:center; gap:2px; cursor:help; flex:1; }
+.ret-bar { height:34px; width:100%; display:flex; align-items:flex-end;
+           background:var(--bs-accent-bg); border-radius:3px; overflow:hidden; }
+.ret-bar span { display:block; width:100%; background:var(--meta-color, #0866ff);
+                border-radius:3px 3px 0 0; min-height:2px; }
+.ret-col small { color:var(--bs-muted); font-size:.7rem; white-space:nowrap; }
+.ret-col:hover .ret-bar span { opacity:.75; }
 </style>
 {% endblock %}
 
@@ -153,6 +163,73 @@
       </div>
     </div>
     {% endfor %}
+
+    {% set cv = copys.curva %}
+    {% if cv and cv.ads %}
+    <div class="section">
+      <div class="section-title" data-tag="Captação">Curva de retenção × minutagem</div>
+      <div class="note">
+        Quanto sobra da audiência em cada quarto do vídeo, sobre os views de 3s —
+        o interesse é o que acontece <strong>depois</strong> que a pessoa parou.
+        Passe o mouse na barra para ler o que é falado naquele trecho.
+        Só Captação, anúncios acima de {{ cv.piso_gasto | brl }}.
+        {% if cv.correlacao %}
+        <br><br>
+        <strong>Duas leituras que contrariam a intuição:</strong>
+        a maior queda é <strong>sempre o primeiro quartil</strong> em todos os
+        criativos — a perda é toda na entrada, então "qual quartil perde mais"
+        não tem resposta útil; o que informa é comparar o mesmo quartil entre
+        anúncios. E <strong>retenção não prevê CPA</strong>: a correlação entre
+        retenção a 100% e CPA é de
+        <strong>{{ '%+.2f' % cv.correlacao.r }}</strong> em {{ cv.correlacao.n }}
+        criativos — perto de zero{% if cv.correlacao.r > 0 %} e no sinal errado{% endif %}.
+        Use esta seção para <em>ler</em> o criativo, não para decidir verba.
+        {% endif %}
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Anúncio</th>
+              <th class="th-num">Dur.</th>
+              <th class="th-num">Investimento</th>
+              <th class="th-num">CPA</th>
+              <th class="th-num" title="quanto some entre o view de 3s e os 25%">Perda na entrada</th>
+              <th>Retenção por quartil (25% · 50% · 75% · 100%)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in cv.ads %}
+            <tr>
+              <td>
+                <div class="copy-ad">
+                  <img class="copy-thumb" loading="lazy" alt="{{ a.ad_code }}"
+                       src="/api/meta-creative/{{ active_code }}/{{ a.ad_code }}/thumb"
+                       onerror="this.onerror=null;this.src='/api/creative-image/{{ active_code }}/{{ a.ad_code }}';">
+                  <div class="copy-ad-txt"><strong>{{ a.ad_code }}</strong></div>
+                </div>
+              </td>
+              <td class="td-num">{{ a.duracao_seg }}s</td>
+              <td class="td-num">{{ a.gasto | brl }}</td>
+              <td class="td-num">{% if a.cpa %}{{ a.cpa | brl }}{% else %}—{% endif %}</td>
+              <td class="td-num">−{{ '%.0f' % (a.queda_entrada * 100) }}%</td>
+              <td>
+                <div class="ret-barras">
+                  {% for q in a.retencao %}
+                  <div class="ret-col" title="Até ~{{ q.ate_seg }}s — {{ q.fala | truncate(180) if q.fala else 'sem fala transcrita neste trecho' }}">
+                    <div class="ret-bar"><span style="height:{{ (q.pct * 100 * 3.2) | round | int }}px"></span></div>
+                    <small>{{ '%.1f' % (q.pct * 100) }}%</small>
+                  </div>
+                  {% endfor %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
 
     <div class="section">
       <div class="section-title" data-tag="Detalhe">Anúncio por anúncio</div>

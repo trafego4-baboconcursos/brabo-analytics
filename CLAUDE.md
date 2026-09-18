@@ -55,6 +55,7 @@ Indispensável para carrossel/imagem, que não têm fala nenhuma.
 ```bash
 python etl/etl_copy_meta.py --launch PES-SET-26
 python etl/etl_copy_meta.py --launch PES-SET-26 --dry-run
+python etl/etl_copy_google.py --launch PES-SET-26   # headlines/descriptions do Google
 ```
 
 ### ETL — transcrição automática dos vídeos

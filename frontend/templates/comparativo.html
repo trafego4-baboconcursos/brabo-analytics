@@ -1,46 +1,61 @@
 {% extends "base.html" %}
 {% block content %}
 <style>
-  /* ── Comparativo-specific styles ── */
+  /* ── O Paradoxo — medidor de eficiência (ROAS) + Faturamento/Vendas/
+     Investimento de apoio (redesenho 18/09/26, substitui o card de 3
+     colunas). Cores fixas (não var(--bs-success/--bs-danger)) de
+     propósito: o cartão usa fundo escuro fixo independente do tema ativo
+     — mesmo padrão do modal de vídeo/atalhos, que também não seguem tema. */
   .cmp-paradox {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    gap: 16px;
-    align-items: center;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    background: linear-gradient(160deg, #0f172a 0%, #152238 60%, #1e293b 100%);
     border-radius: var(--bs-r-xl);
-    padding: 28px 32px;
+    padding: 32px 36px;
     margin-bottom: 24px;
-    color: #fff;
+    color: #e8ecf5;
+    position: relative;
+    overflow: hidden;
   }
-  /* As 3 colunas não cabiam no celular e empurravam a PÁGINA inteira pra
-     rolar na horizontal (285px de estouro a 375px de largura) — empilha, que
-     é o mesmo que .cmp-funnel-grid e .cmp-ads-grid já fazem. */
+  .cmp-paradox-glow {
+    position: absolute; top: -120px; right: -80px; width: 360px; height: 360px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(245,87,118,.14) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .cmp-paradox-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; position: relative; z-index: 1; flex-wrap: wrap; gap: 8px; }
+  .cmp-paradox-eyebrow { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #94a3b8; }
+  .cmp-paradox-legend { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #94a3b8; }
+  .cmp-paradox-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .cmp-paradox-headline { font-size: 25px; font-weight: 800; letter-spacing: -.01em; line-height: 1.3; max-width: 760px; margin-bottom: 28px; position: relative; z-index: 1; }
+  .cmp-paradox-body { display: flex; gap: 36px; align-items: center; position: relative; z-index: 1; }
+  .cmp-gauge-wrap { display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0; }
+  .cmp-gauge-ring { position: relative; width: 200px; height: 200px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .cmp-gauge-inner { width: 156px; height: 156px; border-radius: 50%; background: #131f33; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+  .cmp-gauge-value { font-size: 30px; font-weight: 800; color: #fff; letter-spacing: -.01em; }
+  .cmp-gauge-label { font-size: 10.5px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+  .cmp-gauge-marker { position: absolute; top: -6px; left: 50%; width: 13px; height: 13px; border-radius: 50%; background: #f5576c; border: 3px solid #131f33; }
+  .cmp-gauge-delta { font-size: 12.5px; font-weight: 700; display: flex; align-items: center; gap: 5px; }
+  .cmp-gauge-note { font-size: 10px; color: #5b6b85; }
+  .cmp-paradox-divider { width: 1px; align-self: stretch; background: rgba(255,255,255,.08); }
+  .cmp-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; flex: 1; }
+  .cmp-stat { background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08); border-radius: 14px; padding: 18px; display: flex; flex-direction: column; gap: 5px; }
+  .cmp-stat-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #94a3b8; }
+  .cmp-stat-value { font-size: 22px; font-weight: 800; color: #fff; letter-spacing: -.01em; }
+  .cmp-stat-delta { display: inline-flex; align-self: flex-start; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 999px; }
+  .cmp-stat-delta.pos { background: rgba(49,193,108,.16); color: #31c16c; }
+  .cmp-stat-delta.neg { background: rgba(240,84,84,.16); color: #f05454; }
+  .cmp-stat-era { font-size: 10.5px; color: #64748b; margin-top: 1px; }
+  /* Mesmo motivo do comentário antigo (empilhar em telas estreitas): a
+     linha medidor+3-cards não cabe a partir de ~900px, e os 3 cards viram
+     1 coluna a partir de 768px, igual .cmp-funnel-grid/.cmp-ads-grid. */
+  @media (max-width: 900px) {
+    .cmp-paradox-body { flex-direction: column; }
+    .cmp-paradox-divider { display: none; }
+    .cmp-stats { width: 100%; }
+  }
   @media (max-width: 768px) {
-    .cmp-paradox { grid-template-columns: 1fr; padding: 20px 16px; }
+    .cmp-paradox { padding: 22px 18px; }
+    .cmp-paradox-headline { font-size: 20px; }
+    .cmp-stats { grid-template-columns: 1fr; }
   }
-  .cmp-block {
-    text-align: center;
-    padding: 20px 16px;
-    border-radius: var(--bs-r-lg);
-  }
-  .cmp-block.side-a { background: rgba(102,126,234,.25); border: 1.5px solid rgba(102,126,234,.5); }
-  .cmp-block.side-b { border: 1.5px solid rgba(255,255,255,.3); }
-  .cmp-block-label { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; opacity: .7; margin-bottom: 4px; }
-  .cmp-block-code  { font-size: 20px; font-weight: 800; margin-bottom: 16px; }
-  .cmp-block-num   { font-size: 30px; font-weight: 800; line-height: 1.1; }
-  .cmp-block-sub   { font-size: 12px; opacity: .7; margin-top: 4px; }
-  /* Quebra Hotmart/TMB embaixo do total de vendas — os dois somam exatamente
-     o número de cima (read_vendas conta hotmart_count + tmb_count). */
-  .cmp-block-split { font-size: 11px; opacity: .55; margin-top: 4px; font-weight: 600; }
-  .cmp-arrow { text-align: center; }
-  .cmp-delta-box { background: rgba(0,0,0,.3); border-radius: var(--bs-r-lg); padding: 20px 24px; }
-  .cmp-delta-title { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; opacity: .6; margin-bottom: 12px; }
-  .cmp-delta-row { margin-bottom: 10px; }
-  .cmp-delta-pct { font-size: 34px; font-weight: 800; line-height: 1; }
-  .cmp-delta-pct.pos { color: var(--bs-success); }
-  .cmp-delta-pct.neg { color: var(--bs-danger); }
-  .cmp-delta-desc { font-size: 12px; opacity: .7; margin-top: 2px; }
 
   /* Scorecard */
   .cmp-scorecard table th.h-a { background: var(--temp-frio) !important; }
@@ -193,87 +208,89 @@
       {% endif %}
     {% endmacro %}
 
-    {# Bloco do card: faturamento, vendas e investimento, cada um com o detalhe
-       por plataforma logo abaixo. Plataforma zerada não aparece — pedido do
-       usuário em 17/09/26, e é o que esconde o TikTok, que ainda não tem fonte
-       de dado (não existe tabela de gasto). #}
-    {% macro plataformas(itens, money=false) %}
-      {% set vivos = itens | selectattr('1') | list %}
-      {% if vivos %}
-      <div class="cmp-block-split">
-        {% for nome, valor in vivos %}{% if not loop.first %} &middot; {% endif %}{{ nome }} {{ valor | brl if money else valor | num }}{% endfor %}
-      </div>
-      {% endif %}
-    {% endmacro %}
-
-    {% macro cmp_corpo(comp, s) %}
-      <div class="cmp-block-num">{{ comp['receita_' ~ s] | brl }}</div>
-      <div class="cmp-block-sub">faturamento</div>
-      {{ plataformas([('Hotmart', comp['receita_hotmart_' ~ s]), ('TMB', comp['receita_tmb_' ~ s])], money=true) }}
-
-      <div class="cmp-block-num" style="font-size:32px;margin-top:14px">{{ comp['vendas_' ~ s] | num }}</div>
-      <div class="cmp-block-sub">vendas</div>
-      {{ plataformas([('Hotmart', comp['hotmart_' ~ s]), ('TMB', comp['tmb_' ~ s])]) }}
-
-      <div class="cmp-block-num" style="font-size:20px;margin-top:14px">{{ comp['inv_total_' ~ s] | brl }}</div>
-      <div class="cmp-block-sub">Investimento</div>
-      {# Todas as etapas (Pré-Quali + Captação + Remarketing/Replay etc.),
-         diferente do "Investimento" do Scorecard mais abaixo, que é só
-         Captação (alimenta CPL/CPA/ROAS daquela seção). #}
-      {{ plataformas([('Google', comp['inv_google_total_' ~ s]), ('Meta', comp['inv_meta_total_' ~ s]), ('WhatsApp', comp['inv_whatsapp_' ~ s])], money=true) }}
-
-      {# Sobre o mesmo investimento total acima (todas as etapas) — não o
-         roas_a/roas_b do Scorecard, que é só sobre Captação. #}
-      <div class="cmp-block-num" style="font-size:20px;margin-top:14px">{{ "%.2f"|format(comp['roas_total_' ~ s]) | replace(".", ",") }}x</div>
-      <div class="cmp-block-sub">ROAS</div>
-    {% endmacro %}
-
-    {# ── 1. O Paradoxo ── #}
+    {# ── 1. O Paradoxo — medidor de eficiência (ROAS), com Faturamento/
+       Vendas/Investimento como métricas de apoio (redesenho 18/09/26,
+       pedido do usuário: o card de 3 colunas ficava "jogado"). Investimento
+       e ROAS comparam o TOTAL de todas as etapas + WhatsApp — mesmo dado já
+       usado no Scorecard mais abaixo. #}
+    {% set roas_max = 5.0 %}
+    {% set roas_deg_b = 360 if (comp.roas_total_b / roas_max * 360) > 360 else (comp.roas_total_b / roas_max * 360) %}
+    {% set roas_deg_a = 360 if (comp.roas_total_a / roas_max * 360) > 360 else (comp.roas_total_a / roas_max * 360) %}
+    {% set inv_d = ((comp.inv_total_b - comp.inv_total_a) / comp.inv_total_a * 100) | round(1) if comp.inv_total_a else 0 %}
+    {% set vnd_d = ((comp.vendas_b - comp.vendas_a) / comp.vendas_a * 100) | round(1) if comp.vendas_a else 0 %}
+    {% set rec_d = ((comp.receita_b - comp.receita_a) / comp.receita_a * 100) | round(1) if comp.receita_a else 0 %}
+    {% set roas_d = ((comp.roas_total_b - comp.roas_total_a) / comp.roas_total_a * 100) | round(1) if comp.roas_total_a else 0 %}
+    {% set inv_mag = -inv_d if inv_d < 0 else inv_d %}
+    {% set rec_mag = -rec_d if rec_d < 0 else rec_d %}
+    {% set vnd_mag = -vnd_d if vnd_d < 0 else vnd_d %}
+    {% set roas_mag = -roas_d if roas_d < 0 else roas_d %}
+    {# Investimento: cair é bom (verde) — mesma inversão de polaridade que
+       já existia no delta box antigo. Faturamento/vendas/ROAS: subir é bom. #}
+    {% set inv_verbo = 'caiu' if inv_d < 0 else ('subiu' if inv_d > 0 else 'ficou igual') %}
+    {% set rec_verbo = 'caiu' if rec_d < 0 else ('subiu' if rec_d > 0 else 'ficou igual') %}
+    {% set inv_cor = '#31c16c' if inv_d <= 0 else '#f05454' %}
+    {% set rec_cor = '#31c16c' if rec_d >= 0 else '#f05454' %}
     <div class="section">
       <div class="section-title"><i class="ti ti-bolt" style="color:var(--bs-warning)"></i> O Paradoxo</div>
       <div class="cmp-paradox">
+        <div class="cmp-paradox-glow"></div>
 
-        <div class="cmp-block side-b" style="border-color: {{ comp.accent_b }}33; background: {{ comp.accent_b }}22;">
-          <div class="cmp-block-label">Lançamento Atual</div>
-          <div class="cmp-block-code">{{ comp.code_b }}</div>
-          {{ cmp_corpo(comp, 'b') }}
-        </div>
-
-        <div class="cmp-arrow">
-          <div class="cmp-delta-box">
-            <div class="cmp-delta-title">Diferença {{ comp.code_b }} vs {{ comp.code_a }}</div>
-            {# Mesma ordem dos cards: faturamento, vendas, investimento, ROAS.
-               O investimento e o ROAS comparam o TOTAL (todas as etapas +
-               WhatsApp), que é o número mostrado nos dois lados. #}
-            {% set inv_d = ((comp.inv_total_b - comp.inv_total_a) / comp.inv_total_a * 100) | round(1) if comp.inv_total_a else 0 %}
-            {% set vnd_d = ((comp.vendas_b - comp.vendas_a) / comp.vendas_a * 100) | round(1) if comp.vendas_a else 0 %}
-            {% set rec_d = ((comp.receita_b - comp.receita_a) / comp.receita_a * 100) | round(1) if comp.receita_a else 0 %}
-            {% set roas_d = ((comp.roas_total_b - comp.roas_total_a) / comp.roas_total_a * 100) | round(1) if comp.roas_total_a else 0 %}
-            <div class="cmp-delta-row">
-              <div class="cmp-delta-pct {{ 'pos' if rec_d > 0 else 'neg' }}">{{ '+' if rec_d > 0 else '' }}{{ rec_d }}%</div>
-              <div class="cmp-delta-desc">faturamento</div>
-            </div>
-            <div class="cmp-delta-row">
-              <div class="cmp-delta-pct {{ 'pos' if vnd_d > 0 else 'neg' }}">{{ '+' if vnd_d > 0 else '' }}{{ vnd_d }}%</div>
-              <div class="cmp-delta-desc">vendas</div>
-            </div>
-            <div class="cmp-delta-row">
-              <div class="cmp-delta-pct {{ 'neg' if inv_d > 0 else 'pos' }}">{{ '+' if inv_d > 0 else '' }}{{ inv_d }}%</div>
-              <div class="cmp-delta-desc">investimento</div>
-            </div>
-            <div class="cmp-delta-row">
-              <div class="cmp-delta-pct {{ 'pos' if roas_d > 0 else 'neg' }}">{{ '+' if roas_d > 0 else '' }}{{ roas_d }}%</div>
-              <div class="cmp-delta-desc">ROAS</div>
-            </div>
+        <div class="cmp-paradox-top">
+          <div class="cmp-paradox-eyebrow"><i class="ti ti-bolt" style="color:#f4b740"></i> O Paradoxo — {{ comp.code_b }} vs {{ comp.code_a }}</div>
+          <div class="cmp-paradox-legend">
+            <span class="cmp-paradox-dot" style="background:{{ comp.accent_b }}"></span> Atual
+            <span class="cmp-paradox-dot" style="background:{{ comp.accent_a }};margin-left:10px"></span> Anterior
           </div>
         </div>
 
-        <div class="cmp-block side-a">
-          <div class="cmp-block-label">Lançamento Anterior</div>
-          <div class="cmp-block-code">{{ comp.code_a }}</div>
-          {{ cmp_corpo(comp, 'a') }}
+        <div class="cmp-paradox-headline">
+          Investimento {{ inv_verbo }} <span style="color:{{ inv_cor }}">{{ "%.1f"|format(inv_mag)|replace(".", ",") }}%</span> — faturamento {{ rec_verbo }} <span style="color:{{ rec_cor }}">{{ "%.1f"|format(rec_mag)|replace(".", ",") }}%</span>.
         </div>
 
+        <div class="cmp-paradox-body">
+
+          <div class="cmp-gauge-wrap">
+            <div class="cmp-gauge-ring" style="background:conic-gradient({{ '#31c16c' if roas_d >= 0 else '#f05454' }} 0deg {{ roas_deg_b }}deg, rgba(255,255,255,.08) {{ roas_deg_b }}deg 360deg);">
+              <div class="cmp-gauge-inner">
+                <div class="cmp-gauge-value">{{ "%.2f"|format(comp.roas_total_b)|replace(".", ",") }}x</div>
+                <div class="cmp-gauge-label">ROAS atual</div>
+              </div>
+              <div class="cmp-gauge-marker" style="transform:translateX(-50%) rotate({{ roas_deg_a }}deg) translateY(-88px) rotate(-{{ roas_deg_a }}deg);" title="ROAS anterior: {{ '%.2f'|format(comp.roas_total_a)|replace('.', ',') }}x"></div>
+            </div>
+            <div class="cmp-gauge-delta" style="color:{{ '#31c16c' if roas_d >= 0 else '#f05454' }}">
+              {{ '↑' if roas_d > 0 else ('↓' if roas_d < 0 else '→') }} {{ "%.1f"|format(roas_mag)|replace(".", ",") }}%
+              <span style="color:#94a3b8;font-weight:500">— era {{ "%.2f"|format(comp.roas_total_a)|replace(".", ",") }}x</span>
+            </div>
+            <div class="cmp-gauge-note">escala ilustrativa 0–5x</div>
+          </div>
+
+          <div class="cmp-paradox-divider"></div>
+
+          <div class="cmp-stats">
+
+            <div class="cmp-stat">
+              <div class="cmp-stat-label">Faturamento</div>
+              <div class="cmp-stat-value">{{ comp.receita_b | brl }}</div>
+              <div class="cmp-stat-delta {{ 'pos' if rec_d >= 0 else 'neg' }}">{{ '↑' if rec_d > 0 else ('↓' if rec_d < 0 else '→') }} {{ "%.1f"|format(rec_mag)|replace(".", ",") }}%</div>
+              <div class="cmp-stat-era">era {{ comp.receita_a | brl }}</div>
+            </div>
+
+            <div class="cmp-stat">
+              <div class="cmp-stat-label">Vendas</div>
+              <div class="cmp-stat-value">{{ comp.vendas_b | num }}</div>
+              <div class="cmp-stat-delta {{ 'pos' if vnd_d >= 0 else 'neg' }}">{{ '↑' if vnd_d > 0 else ('↓' if vnd_d < 0 else '→') }} {{ "%.1f"|format(vnd_mag)|replace(".", ",") }}%</div>
+              <div class="cmp-stat-era">era {{ comp.vendas_a | num }}</div>
+            </div>
+
+            <div class="cmp-stat">
+              <div class="cmp-stat-label">Investimento</div>
+              <div class="cmp-stat-value">{{ comp.inv_total_b | brl }}</div>
+              <div class="cmp-stat-delta {{ 'pos' if inv_d <= 0 else 'neg' }}">{{ '↑' if inv_d > 0 else ('↓' if inv_d < 0 else '→') }} {{ "%.1f"|format(inv_mag)|replace(".", ",") }}%</div>
+              <div class="cmp-stat-era">era {{ comp.inv_total_a | brl }}</div>
+            </div>
+
+          </div>
+        </div>
       </div>
     </div>
 

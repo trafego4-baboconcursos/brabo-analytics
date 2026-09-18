@@ -8,6 +8,13 @@ Mantém o banco de dados do Supabase atualizado com duas cargas:
 Uso:
     python etl/scheduler.py
 """
+# Anotações preguiçosas: o container roda Python 3.10, onde a anotação é
+# avaliada na definição da função. `threading.Lock` é uma FÁBRICA, não uma
+# classe, então `threading.Lock | None` levanta TypeError no 3.10 e derrubou
+# o scheduler em 18/09/26. No 3.14 (usado no dev) a avaliação é preguiçosa e
+# o erro não aparece — por isso o teste local passou.
+from __future__ import annotations
+
 import sys
 import subprocess
 import os

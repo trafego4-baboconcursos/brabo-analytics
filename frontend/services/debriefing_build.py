@@ -29,6 +29,7 @@ from frontend.services.fetch import (
     _disparo_resumo, _ebook_compradores, _hotmart_recompra,
     _launch_cfg, _compradores_por_dia_grupo, _forma_pagamento_entrada,
     _whatsapp_groups_resumo, _dia1_sales, _sorteio,
+    _cadastrados_lancamentos_anteriores,
 )
 from frontend.db_readers.sales import read_hotmart_details
 
@@ -118,6 +119,16 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         except Exception:
             logger.exception("Debriefing: falha ao montar caminho do comprador")
             falhas.append("caminho_comprador")
+            return None
+
+    async def f_cadastrados_lancamentos_anteriores():
+        if not (launch and vendas) or lazy:
+            return None
+        try:
+            return await run_in_threadpool(_cadastrados_lancamentos_anteriores, launch, vendas)
+        except Exception:
+            logger.exception("Debriefing: falha ao montar cadastrados em lançamentos anteriores")
+            falhas.append("cadastrados_lancamentos_anteriores")
             return None
 
     async def f_landing_pages():
@@ -322,6 +333,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         (perfil_por_anuncio, pesquisa_engajamento),
         qualidade_regiao,
         caminho_comprador,
+        cadastrados_lancamentos_anteriores,
         (prev_meta, prev_google, prev_vendas, prev_wa_cost, prev_sales_attr, prev_hotmart, prev_daily_captacao),
         landing_pages_por_etapa,
         leads_x_whatsapp,
@@ -339,7 +351,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         sorteio,
     ) = await asyncio.gather(
         f_creative(), f_leads_antigos(), f_perfil_pesquisa(),
-        f_qualidade_regiao(), f_caminho_comprador(), f_previous(),
+        f_qualidade_regiao(), f_caminho_comprador(), f_cadastrados_lancamentos_anteriores(), f_previous(),
         f_landing_pages(), f_leads_x_whatsapp(), f_vendas_grupos_whatsapp(),
         f_disparo_resumo(), f_ebook(), f_hotmart_recompra(),
         f_hotmart_semana_seguinte(), f_compradores_por_dia_grupo(),
@@ -360,6 +372,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         pesquisa_engajamento=pesquisa_engajamento,
         qualidade_regiao=qualidade_regiao,
         caminho_comprador=caminho_comprador,
+        cadastrados_lancamentos_anteriores=cadastrados_lancamentos_anteriores,
         landing_pages_por_etapa=landing_pages_por_etapa,
         leads_x_whatsapp=leads_x_whatsapp,
         vendas_grupos_whatsapp=vendas_grupos_whatsapp,

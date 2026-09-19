@@ -294,6 +294,12 @@ def _caminho_comprador(launch: Any, vendas_data: Any):
                            lambda: read_caminho_comprador(launch.code, vendas_data))
 
 
+def _cadastrados_lancamentos_anteriores(launch: Any, vendas_data: Any):
+    from frontend.db_readers.leads import read_cadastrados_lancamentos_anteriores
+    return _get_or_compute(launch.code, "cadastrados_lancamentos_anteriores",
+                           lambda: read_cadastrados_lancamentos_anteriores(launch.code, vendas_data))
+
+
 def _landing_pages_por_etapa(launch: Any):
     from frontend.db_readers.ga4 import read_landing_pages_por_etapa
     return _get_or_compute(launch.code, "landing_pages_por_etapa",
@@ -366,6 +372,7 @@ async def _warm_debriefing(launch: Any, previous: Any, vendas: Any) -> None:
             _safe("leads_antigos", _leads_antigos_compradores, launch, vendas),
             _safe("qualidade_regiao", _qualidade_regiao, launch, vendas),
             _safe("caminho_comprador", _caminho_comprador, launch, vendas),
+            _safe("cadastrados_lancamentos_anteriores", _cadastrados_lancamentos_anteriores, launch, vendas),
         ]
     if previous:
         async def _prev():

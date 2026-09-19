@@ -188,6 +188,18 @@ def _launch_code_from_tag(tag_name: str) -> str | None:
     return m.group(1).upper() if m else None
 
 
+@retry(
+    stop=stop_after_attempt(4),
+    wait=wait_exponential(multiplier=2, min=2, max=30),
+    retry=retry_if_exception_type(OperationalError),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
+def _exec_chunk(engine, sql, chunk: list) -> None:
+    with engine.begin() as conn:
+        conn.execute(sql, chunk)
+
+
 def _upsert_lead_lancamentos(lanc_por_contato: dict[tuple[str, str], str]) -> None:
     """Grava o histórico contato × lançamento vindo das tags do AC."""
     if not lanc_por_contato:
@@ -203,9 +215,11 @@ def _upsert_lead_lancamentos(lanc_por_contato: dict[tuple[str, str], str]) -> No
         ON CONFLICT (contact_id, lancamento_codigo) DO UPDATE
             SET tagged_at = COALESCE(EXCLUDED.tagged_at, lead_lancamentos.tagged_at)
     """)
-    with engine.begin() as conn:
-        for i in range(0, len(linhas), 1000):
-            conn.execute(sql, linhas[i:i + 1000])
+    # Mesmo problema de conexão derrubada em cargas grandes documentado em
+    # _upsert_batch (achado 02/09/26); cada bloco de 1000 é atômico, então
+    # re-tentar só o bloco que falhou é seguro.
+    for i in range(0, len(linhas), 1000):
+        _exec_chunk(engine, sql, linhas[i:i + 1000])
     logger.info("lead_lancamentos: %d pares contato×lançamento gravados.", len(linhas))
 
 

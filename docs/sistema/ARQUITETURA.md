@@ -1,8 +1,8 @@
 ---
-titulo: "Arquitetura do Brabo Analytics — 2026-09-18"
+titulo: "Arquitetura do Brabo Analytics — 2026-09-19"
 area: sistema
 status: vigente
-atualizado: 2026-09-18
+atualizado: 2026-09-19
 responde:
   - "como o sistema funciona por dentro"
   - "fluxo de dados"
@@ -134,6 +134,9 @@ relacionados:
 > - [[ARQUITETURA#Como validar mudança de reader sem regressão|Como validar mudança de reader sem regressão]]
 >
 > **Histórico de lançamentos por lead — tags do Active Campaign (2026-09-14)**
+>
+>
+> **Cadastrados em lançamentos anteriores — nova seção no /debriefing (2026-09-19)**
 >
 >
 > **Atribuição por criativo — o sorteio do UTM e as vendas "sem veiculação" (2026-09-14)**
@@ -1326,6 +1329,69 @@ próximos lançamentos é automática. O backfill só serve pra leads de lançam
 não foram tocados desde então, e aí vale a passada direcionada por tag
 (`/contacts?tagid=N&include=contactTags.tag`, ~4,3 mil requisições pros três lançamentos em
 uso, ver `scratchpad/backfill_tags.py`).
+
+**Backfill fora do fluxo rastreado (2026-09-18).** Entre o levantamento acima (17/09) e hoje,
+alguém rodou um backfill direto no banco — sem passar por `etl_active_campaign.py` — que
+avançou `lead_lancamentos` para 153.534 pares / 110.474 contatos e, mais importante, criou
+duas colunas em `leads` que não estavam no `schema.sql`: `tags` (string crua com as tags do
+contato, separadas por ` | `) e `tags_atualizado_em` (timestamp), preenchidas para 98,3% dos
+1.247.312 leads. As colunas foram adicionadas ao `schema.sql` em 18/09/26 só pra não se
+perderem numa reinstalação; nenhum código do repositório lê ou escreve nelas. Isso duplica o
+mesmo fato (tags de lançamento por contato) em dois formatos sem um ETL que mantenha ambos
+sincronizados — decisão de manter `leads.tags` ou descartá-la em favor só de
+`lead_lancamentos`, e plano de ressync que cobre as duas frentes, em
+[[PLANO_RESSINCRONIZACAO_LEADS_AC]].
+
+**Datas corrompidas corrigidas (2026-09-19).** A carga de 13/08 tinha deixado 136.205 leads
+com `created_at` nulo e 23.254 no futuro (ver [[PLANO_RESSINCRONIZACAO_LEADS_AC]] pro
+diagnóstico). Corrigido ressincronizando só os 159.478 `id`s afetados contra `/contacts` do
+AC, em lotes de `ids[]` (532 requisições) em vez do crawl completo dos ~3,97M de contatos —
+`leads` hoje tem zero `created_at` nulo/futuro. De carona, `lead_lancamentos` subiu de
+110.474 para 270.596 contatos cobertos, porque a mesma busca já trazia `contactTags.tag`.
+`etl/ressync_leads_ac.py` fica no repo com os dois modos (`--so-corrompidos` pro que foi
+usado; o crawl completo original continua disponível sem essa flag, pra quando/se fizer
+sentido completar o histórico dos contatos que nunca corromperam). A decisão sobre
+`leads.tags`/`tags_atualizado_em` continua em aberto — nada escreveu nelas nessa correção.
+
+**Efeito colateral no teste de caracterização (2026-09-19).** Corrigir `leads.created_at`
+mudou de verdade a saída de readers que dependem dele pra lançamentos já "congelados" —
+`read_leads_antigos_compradores` (classifica comprador por `created_at` × início do
+lançamento) mudou pra PBB-ABR-26 porque leads que antes ficavam `sem_lead` (created_at nulo)
+ou classificados errado (created_at no futuro/trocado) agora caem na categoria certa
+(`novo`/`antigo`). `pytest tests/test_caracterizacao_readers.py` acusa isso — e mais 11
+falhas de outros readers (ads_google, ads_meta, hotmart, sales, typeform) que já estavam
+desatualizadas antes desta sessão, por deriva normal de dado em produção. Nenhuma das 12
+falhas tem a ver com código novo — são baseline desatualizado, não regressão. Regenerar com
+`ATUALIZAR_BASELINE=1 pytest tests/test_caracterizacao_readers.py -m caracterizacao`
+(decisão de quando fazer isso não foi tomada nesta sessão).
+
+## Cadastrados em lançamentos anteriores — nova seção no /debriefing (2026-09-19)
+
+`lead_lancamentos` tinha reader pronto desde 14/09/26 (`read_lancamentos_anteriores`,
+`read_recorrencia_lancamento`) mas nunca foi ligado a nenhuma rota — ver seção acima. Faltava
+responder "dos compradores DESTE lançamento, quantos já estavam cadastrados em lançamentos
+anteriores, e quantos compraram sem sequer se recadastrar" (pedido de negócio, com exemplo
+do relatório v1 legado "Cadastrados em Lançamentos Anteriores").
+
+**Por que não reusar `read_lancamentos_anteriores` direto:** ela exige que o contato também
+tenha a tag do lançamento **atual** em `lead_lancamentos` (`JOIN ... atual.lancamento_codigo
+= :code`) — perde quem comprou sem se recadastrar, que é justamente metade do que se queria
+medir. `read_cadastrados_lancamentos_anteriores` (nova, `frontend/db_readers/leads.py`) usa
+a data de início do lançamento como corte em vez da tag atual (mesmo critério já usado por
+`read_leads_antigos_compradores` pra "lead novo × antigo"), e devolve: contagem por
+lançamento anterior (ordenada cronologicamente, com fallback de ordenação pelo próprio código
+`PREFIXO-MES-AA` quando o lançamento é antigo demais pra estar em `dim_lancamentos`), + total
+de compradores com histórico e quantos desses não se cadastraram no lançamento atual.
+
+Ligada como seção lazy do `/debriefing` (`cadastrados_lancamentos_anteriores`, padrão de
+`caminho_comprador`/`historico_grande`): `frontend/services/fetch.py` →
+`frontend/services/debriefing_build.py` (`f_cadastrados_lancamentos_anteriores`) →
+`frontend/routes/analytics.py` (`_DEBRIEFING_SECOES_LAZY` + `/debriefing/secao/{secao}`) →
+`frontend/templates/debriefing/_secao_cadastrados_lancamentos_anteriores.html`. Testado ao
+vivo (`?ao_vivo=1`) e em modo slides contra PES-SET-26 antes de dar como pronto.
+
+**Mesma ressalva de cobertura parcial** de `lead_lancamentos` (seção acima) se aplica aqui —
+os números tendem a subestimar; a seção traz essa nota no rodapé.
 
 ## Atribuição por criativo — o sorteio do UTM e as vendas "sem veiculação" (2026-09-14)
 

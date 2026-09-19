@@ -38,8 +38,8 @@ from frontend.db_readers.launches import (  # noqa: F401
     get_platform_thumbnails, read_launch_config, save_launch_config,
 )
 from frontend.db_readers.leads import (  # noqa: F401
-    read_ac_campaigns, read_ac_leads_for_attribution, read_ebook_compradores,
-    read_lancamentos_anteriores, read_leads, read_leads_antigos_compradores,
+    read_ac_campaigns, read_ac_leads_for_attribution, read_cadastrados_lancamentos_anteriores,
+    read_ebook_compradores, read_lancamentos_anteriores, read_leads, read_leads_antigos_compradores,
     read_recorrencia_lancamento, read_term_campaign_map, read_utm_cobertura,
     read_vendas_por_dia_cadastro,
 )

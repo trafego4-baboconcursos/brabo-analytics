@@ -469,6 +469,7 @@ def _compute_debriefing_ctx(
     pesquisa_engajamento: Any = None,
     qualidade_regiao: Any = None,
     caminho_comprador: Any = None,
+    cadastrados_lancamentos_anteriores: Any = None,
     landing_pages_por_etapa: Any = None,
     leads_x_whatsapp: Any = None,
     vendas_grupos_whatsapp: Any = None,
@@ -1218,6 +1219,8 @@ def _compute_debriefing_ctx(
         "qualidade_regiao": qualidade_regiao,
         # Caminho do comprador — funil unificado por pessoa (lead→grupo→pesquisa→compra)
         "caminho_comprador": (caminho_comprador or {}).get("resumo"),
+        # Compradores que já estavam cadastrados em lançamentos anteriores
+        "cadastrados_lancamentos_anteriores": cadastrados_lancamentos_anteriores,
         # Landing pages que mais converteram (GA4), por etapa
         "landing_pages_preq": (landing_pages_por_etapa or {}).get("Pré-Qualificação") or [],
         "landing_pages_capt": (landing_pages_por_etapa or {}).get("Captação") or [],

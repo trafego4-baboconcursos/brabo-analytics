@@ -112,6 +112,7 @@ VOLATEIS = {
     "read_lancamentos_anteriores",
     "read_leads",
     "read_recorrencia_lancamento",
+    "read_cadastrados_lancamentos_anteriores",
     "read_utm_cobertura",
     "read_qualidade_regiao",
     "read_vendas_consolidado",

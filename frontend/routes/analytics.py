@@ -18,7 +18,7 @@ from frontend.services.fetch import (
     _leads_antigos_compradores, _qualidade_regiao, _caminho_comprador,
     _landing_pages_por_etapa, _leads_x_whatsapp, _vendas_grupos_whatsapp,
     _disparo_resumo, _conversao_pagina_captura, _utm_cobertura, _sorteio,
-    comparativo_cached,
+    _cadastrados_lancamentos_anteriores, comparativo_cached,
 )
 from frontend.db_readers.eventos import read_eventos, eventos_por_dia, CORES_TIPO
 from frontend.services.calendario import build_calendario_ctx
@@ -650,7 +650,7 @@ async def debriefing(request: Request, launch_code: str | None = None, modo: str
     return templates.TemplateResponse("debriefing.html", ctx)
 
 
-_DEBRIEFING_SECOES_LAZY = ("pesquisa_engajamento", "qualidade_regiao", "perfil_por_anuncio", "caminho_comprador", "leads_x_whatsapp", "vendas_grupos_whatsapp", "disparo_resumo", "funil_pesquisa", "comparativo_historico", "historico_grande", "sorteio")
+_DEBRIEFING_SECOES_LAZY = ("pesquisa_engajamento", "qualidade_regiao", "perfil_por_anuncio", "caminho_comprador", "leads_x_whatsapp", "vendas_grupos_whatsapp", "disparo_resumo", "funil_pesquisa", "comparativo_historico", "historico_grande", "sorteio", "cadastrados_lancamentos_anteriores")
 
 
 @router.get("/debriefing/secao/{secao}", response_class=HTMLResponse)
@@ -702,6 +702,8 @@ async def debriefing_secao(request: Request, secao: str, launch_code: str | None
         elif secao == "caminho_comprador":
             cc = await run_in_threadpool(_caminho_comprador, launch, None)
             dbf[secao] = (cc or {}).get("resumo")
+        elif secao == "cadastrados_lancamentos_anteriores":
+            dbf[secao] = await run_in_threadpool(_cadastrados_lancamentos_anteriores, launch, None)
         elif secao == "perfil_por_anuncio":
             # A pesquisa só traz ad_code/leads/respostas; nome, investimento e
             # vendas vêm de Meta/Google/atribuição (todos cacheados, rápido).

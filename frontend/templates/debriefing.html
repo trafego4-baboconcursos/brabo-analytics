@@ -2871,6 +2871,21 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   {% endif %}
 
   <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 9a3. CADASTRADOS EM LANÇAMENTOS ANTERIORES                 -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if lazy %}
+  <div class="dbf-section" data-lazy-section="cadastrados_lancamentos_anteriores">
+    <div class="dbf-section-title"><i class="ti ti-recycle"></i> Cadastrados em Lançamentos Anteriores</div>
+    {{ lazy_skeleton() }}
+  </div>
+  {% elif dbf.cadastrados_lancamentos_anteriores %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-recycle"></i> Cadastrados em Lançamentos Anteriores</div>
+    {% include "debriefing/_secao_cadastrados_lancamentos_anteriores.html" %}
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 9b. COMPRADORES: LEAD NOVO × LEAD ANTIGO                   -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.leads_antigos %}

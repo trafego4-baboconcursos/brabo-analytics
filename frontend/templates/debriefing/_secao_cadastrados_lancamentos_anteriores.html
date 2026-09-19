@@ -1,0 +1,42 @@
+{# Corpo da seção "Cadastrados em Lançamentos Anteriores" — dos compradores do
+   lançamento, quantos já estavam cadastrados (tag de lançamento no AC) em
+   lançamentos anteriores, em quais, e quantos compraram sem sequer se
+   recadastrar neste. Vazio quando não há dado (JS remove a seção). #}
+{% if dbf.cadastrados_lancamentos_anteriores %}
+{% set cla = dbf.cadastrados_lancamentos_anteriores %}
+<div class="dbf-lazy-body">
+  <div class="table-wrap">
+    <table class="dbf-table">
+      <thead>
+        <tr>
+          <th>Lançamento</th>
+          <th class="num">Compradores que já estavam cadastrados</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in cla.por_lancamento %}
+        <tr>
+          <td class="td-bold">{{ l.nome }}</td>
+          <td class="num">{{ l.n | num }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="dbf-kpi-grid" style="margin-top:12px">
+    <div class="dbf-kpi">
+      <div class="lbl">Compradores com cadastro em lançamento anterior</div>
+      <div class="val">{{ cla.total_com_historico | num }} <span class="ldt-pct">({{ cla.pct_com_historico | round(1) }}%)</span></div>
+      <div class="lbl">de {{ cla.total_compradores | num }} compradores</div>
+    </div>
+    <div class="dbf-kpi">
+      <div class="lbl">Não se cadastraram neste lançamento</div>
+      <div class="val">{{ cla.sem_cadastro_atual | num }} <span class="ldt-pct">({{ cla.pct_sem_cadastro_atual | round(1) }}%)</span></div>
+      <div class="lbl">vieram da comunicação com a base antiga</div>
+    </div>
+  </div>
+  <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
+    "Cadastrado" = tag de lançamento no Active Campaign aplicada antes do início deste lançamento. O histórico de tags (`lead_lancamentos`) ainda tem cobertura parcial da base do Active Campaign — os números acima refletem só compradores com dado disponível e tendem a subestimar o total real.
+  </div>
+</div>
+{% endif %}

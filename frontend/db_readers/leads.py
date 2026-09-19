@@ -199,6 +199,127 @@ def read_recorrencia_lancamento(launch_code: str) -> dict | None:
     }
 
 
+def read_cadastrados_lancamentos_anteriores(launch_folder_or_code: Any, vendas: VendasSummary | None = None) -> dict | None:
+    """Dos COMPRADORES do lançamento, quantos já estavam cadastrados (tag de
+    lançamento no AC) em lançamentos ANTERIORES — e em quais.
+
+    Diferente de `read_lancamentos_anteriores`: aquela função só devolve
+    histórico de quem também tem a tag do lançamento ATUAL em
+    `lead_lancamentos`, então perde quem comprou sem se recadastrar (respondeu
+    só à comunicação com a base antiga). Aqui o corte é a data de início do
+    lançamento (mesmo critério de `read_leads_antigos_compradores`), não a tag
+    atual — cobre os dois casos.
+
+    None quando não há vendas, não dá pra descobrir o início do lançamento, ou
+    nenhum comprador tem histórico em `lead_lancamentos` (cobertura do
+    backfill ainda é parcial — ver ARQUITETURA.md).
+    """
+    from frontend.db_readers.sales import read_vendas  # noqa: PLC0415 — evita import circular
+    from frontend.db_readers.launches import read_launch_config  # noqa: PLC0415
+    from src.constants import LAUNCH_NAMES  # noqa: PLC0415
+
+    code = _extract_launch_code(launch_folder_or_code)
+    if vendas is None:
+        vendas = read_vendas(code)
+    if not vendas:
+        return None
+    buyers = {e.strip().lower() for e in (vendas.emails_hotmart | vendas.emails_tmb) if e}
+    if not buyers:
+        return None
+
+    engine = _get_engine()
+    cfg = read_launch_config(code)
+    inicio = cfg.get("pre_quali_start_date") or cfg.get("captacao_start_date")
+    if not inicio:
+        row = pd.read_sql(
+            text("SELECT data_inicio FROM dim_lancamentos WHERE codigo = :code"),
+            engine, params={"code": code},
+        )
+        inicio = str(row.iloc[0, 0]) if not row.empty else None
+    if not inicio:
+        return None
+    inicio = str(inicio)[:10]
+
+    with engine.connect() as conn:
+        linhas = conn.execute(
+            text("""
+                SELECT LOWER(TRIM(l.email)) AS email, l.lancamento_codigo AS cadastro_recente,
+                       ll.lancamento_codigo AS lancamento_anterior
+                FROM leads l
+                LEFT JOIN lead_lancamentos ll
+                  ON ll.contact_id = l.id
+                 AND ll.lancamento_codigo <> :code
+                 AND ll.tagged_at < :inicio
+                WHERE l.email = ANY(:emails)
+            """),
+            {"code": code, "inicio": inicio, "emails": list(buyers)},
+        ).fetchall()
+
+    por_email: dict[str, dict] = {}
+    for email, cadastro_recente, lanc_anterior in linhas:
+        d = por_email.setdefault(email, {"cadastrado_atual": False, "anteriores": set()})
+        d["cadastrado_atual"] = d["cadastrado_atual"] or (cadastro_recente == code)
+        if lanc_anterior:
+            d["anteriores"].add(lanc_anterior)
+
+    contagem: dict[str, int] = {}
+    total_com_historico = 0
+    sem_cadastro_atual = 0
+    for d in por_email.values():
+        if not d["anteriores"]:
+            continue
+        total_com_historico += 1
+        if not d["cadastrado_atual"]:
+            sem_cadastro_atual += 1
+        for codigo in d["anteriores"]:
+            contagem[codigo] = contagem.get(codigo, 0) + 1
+
+    if not total_com_historico:
+        return None
+
+    datas: dict[str, Any] = {}
+    codigos = list(contagem.keys())
+    if codigos:
+        df_datas = pd.read_sql(
+            text("SELECT codigo, data_inicio FROM dim_lancamentos WHERE codigo = ANY(:codigos)"),
+            engine, params={"codigos": codigos},
+        )
+        datas = dict(zip(df_datas["codigo"], df_datas["data_inicio"]))
+
+    # Fallback de ordenação pra código sem `dim_lancamentos` (lançamento
+    # anterior ao sistema atual, ex.: PI-JUL-24): extrai ano/mês do próprio
+    # código (PREFIXO-MES-AA) em vez de jogar no fim sem ordem nenhuma.
+    _MES_NUM = {"JAN": 1, "FEV": 2, "MAR": 3, "ABR": 4, "MAI": 5, "JUN": 6,
+                "JUL": 7, "AGO": 8, "SET": 9, "OUT": 10, "NOV": 11, "DEZ": 12}
+
+    def _ordem(codigo: str, data_inicio: Any) -> tuple:
+        if data_inicio is not None:
+            return (0, str(data_inicio)[:10])
+        partes = codigo.split("-")
+        if len(partes) == 3 and partes[1].upper() in _MES_NUM and partes[2].isdigit():
+            ano = 2000 + int(partes[2])
+            return (0, f"{ano:04d}-{_MES_NUM[partes[1].upper()]:02d}")
+        return (1, codigo)
+
+    por_lancamento = sorted(
+        (
+            {"codigo": c, "nome": LAUNCH_NAMES.get(c, c), "n": n, "data_inicio": datas.get(c)}
+            for c, n in contagem.items()
+        ),
+        key=lambda x: _ordem(x["codigo"], x["data_inicio"]),
+    )
+
+    total_compradores = len(buyers)
+    return {
+        "total_compradores": total_compradores,
+        "total_com_historico": total_com_historico,
+        "pct_com_historico": round(total_com_historico / total_compradores * 100, 2) if total_compradores else 0.0,
+        "sem_cadastro_atual": sem_cadastro_atual,
+        "pct_sem_cadastro_atual": round(sem_cadastro_atual / total_com_historico * 100, 2) if total_com_historico else 0.0,
+        "por_lancamento": por_lancamento,
+    }
+
+
 def read_vendas_por_dia_cadastro(launch_folder_or_code: Any, vendas: VendasSummary | None = None) -> dict | None:
     """Vendas (Hotmart+TMB) agrupadas pela data em que o comprador virou LEAD
     na tabela `leads` (Active Campaign) — não pela data da compra em si.

@@ -1,11 +1,23 @@
 """
 ETL: WhatsApp Business (Meta Graph API) → Supabase (tabela: whatsapp_messages_daily)
 
-Não traz custo em R$ — as contas monitoradas são faturadas via Unichat como
-parceiro, e o Meta esconde o campo de custo pra WABAs faturadas por parceiro
-(erro "Custo não disponível" no endpoint conversation_analytics). O que a API
-expõe sem bloqueio é volume de mensagens enviadas/entregues por dia, pelo
-campo legado `analytics` de cada WhatsApp Business Account.
+Traz volume (campo legado `analytics`) e **custo** (`pricing_analytics`) por dia,
+por WhatsApp Business Account.
+
+Sobre o custo, uma correção de 21/09/26: o cabeçalho antigo dizia que o Meta
+esconde o valor "porque as contas são faturadas via Unichat como parceiro".
+Está errado nos dois pontos. O WhatsApp é pago **direto ao Meta**, as WABAs têm
+`currency: USD` (conferido na Graph API) e `pricing_analytics` devolve o custo
+sem bloqueio nenhum — quem não devolve é o `conversation_analytics`, que é outro
+endpoint. Os números batem com a tabela pública do Meta para o Brasil:
+UTILITY US$ 0,00644/msg, MARKETING US$ 0,0625/msg, SERVICE grátis desde nov/24.
+
+**O que este custo NÃO inclui:** a mensalidade da UnniChat (plano fixo em BRL,
+R$ 597/mês no plano Unnico de até 50 mil contatos — ela não cobra por disparo) e
+o SendFlow, usado nos grupos. As duas são faturas separadas, em real, e não
+entram em lugar nenhum do dashboard. Então `cost_brl_iof` é só a parte Meta: o
+custo real de WhatsApp de um lançamento é maior que isso. Ver
+`docs/performance/lancamentos/PES-MAI-26/MUDANCAS_PES-MAI-26.md`, item 1.
 
 Uso:
     python etl/etl_whatsapp.py --since 2026-08-01 --until 2026-08-26

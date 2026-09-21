@@ -3,10 +3,14 @@ frontend/db_readers/whatsapp_messages.py — Volume de mensagens WhatsApp Busine
 (banco analytics, tabela whatsapp_messages_daily), sincronizado com as datas do
 lançamento.
 
-Sem custo em R$ — as contas monitoradas são faturadas via Unichat como parceiro,
-e o Meta esconde o campo de custo pra WABAs faturadas por parceiro. O que dá pra
-mostrar é volume de mensagens enviadas/entregues por dia, por número, dentro da
-janela do lançamento (dim_lancamentos.data_inicio/data_fim).
+Mostra volume de mensagens enviadas/entregues e o custo por dia, por número,
+dentro da janela do lançamento (dim_lancamentos.data_inicio/data_fim).
+
+O custo é **só a parte do Meta** (`pricing_analytics`, em USD — as WABAs são
+faturadas direto pelo Meta, `currency: USD`). Não inclui a mensalidade da
+UnniChat nem o SendFlow, que são faturas separadas em real e não entram no
+dashboard. O texto antigo aqui dizia que não havia custo em R$ "porque as contas
+são faturadas via Unichat como parceiro" — errado, corrigido em 21/09/26.
 
 Além da janela de datas, filtra pelas contas do produto do lançamento (campo
 `product` em config/whatsapp_accounts.yaml, mapeado a partir da lista "Números

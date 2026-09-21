@@ -47,6 +47,9 @@ relacionados:
 > **Nome de campanha congelado e etapa gravada na escrita (2026-09-21)**
 >
 >
+> **Snapshot de lançamento fechado nunca reaquece sozinho (2026-09-21)**
+>
+>
 > **Fluxo de Dados**
 >
 >
@@ -483,6 +486,33 @@ as linhas mais antigas com ele, enquanto linhas de dezembro escritas uma hora an
 original. Vale a **era de nome**: cada nome distinto começa no `updated_at` mais antigo em que aparece, e
 a linha de data `D` carrega o nome da era que continha `D`. Quem foi escrito primeiro é que guarda o nome
 de época; a data do dado não diz nada sobre isso.
+
+## Snapshot de lançamento fechado nunca reaquece sozinho (2026-09-21)
+
+`frontend/services/prewarm.py` escolhe o que aquecer assim: o **último lançamento de cada produto**,
+os **ativos** (`data_fim >= hoje - 7 dias`) até o teto de `MAX_LAUNCHES = 5`, e o **anterior de cada
+um desses**. Lançamento fechado que não seja o anterior de um ativo **não entra em nenhum ciclo** —
+nem no boot, nem no periódico.
+
+Consequência prática, descoberta ao corrigir a janela de Pré-Qualificação: mudar dado de um
+lançamento antigo (`launch_config`, atribuição, reclassificação) **não aparece no `/debriefing`**,
+porque a página lê `debriefing_snapshot` e o snapshot daquele lançamento pode ter semanas. Em
+21/09/26 o do PES-MAR-26 era de **04/09** — 17 dias parado.
+
+Duas armadilhas somadas:
+
+1. **Snapshot velho.** Reinicia o app e o número não muda, porque o reaquecimento não passa por ali.
+2. **Cache em memória.** `_launch_cfg` fica 1 h (`frontend/cache.py::_CACHE_TTL`), então mesmo a
+   leitura ao vivo usa a config antiga se o processo subiu antes da alteração.
+
+**Ao mexer em dado de lançamento fechado, force o reaquecimento** em vez de contar com o boot:
+
+```python
+from frontend.services.prewarm import warm_active
+asyncio.run(warm_active(["PES-MAI-26", "PES-JAN-26"], invalidate=True, origem="correcao"))
+```
+
+`/debriefing?ao_vivo=1` ignora o snapshot e serve para conferir antes de reaquecer.
 
 ## Fluxo de Dados
 

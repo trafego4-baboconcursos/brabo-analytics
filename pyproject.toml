@@ -25,4 +25,5 @@ python_functions = ["test_*"]
 markers = [
     "smoke: testes de fumaça que exercitam as páginas contra o banco real (excluídos no CI)",
     "caracterizacao: congela a saída dos readers num baseline para proteger refatorações (precisa de banco)",
+    "visual: congela o que o browser calcula em cada página — tokens, layout, componentes, console (precisa de banco e do Chromium do Playwright)",
 ]

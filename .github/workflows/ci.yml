@@ -35,4 +35,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Testes (unitários + compilação de templates)
-        run: python -m pytest -m "not smoke" -q
+        # "visual" também fica de fora: precisa de banco E do Chromium do
+        # Playwright (~150 MB), que não vale instalar no CI só pra ele pular
+        # sozinho no login. Roda localmente — ver ARQUITETURA, seção Testes.
+        run: python -m pytest -m "not smoke and not visual" -q

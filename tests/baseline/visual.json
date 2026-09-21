@@ -1,0 +1,684 @@
+{
+  "_temas": {
+    "a": {
+      "--bs-accent": "#2f5ee3",
+      "--bs-bg": "#f1f3f5",
+      "--bs-border": "#e5e7eb",
+      "--bs-card": "#ffffff",
+      "--bs-ink": "#1f2330",
+      "--bs-sidebar": "#374151"
+    },
+    "aranhaverso": {
+      "--bs-accent": "#ff2ec4",
+      "--bs-bg": "#0a0a0d",
+      "--bs-border": "#262230",
+      "--bs-card": "#212129",
+      "--bs-ink": "#f4f2fa",
+      "--bs-sidebar": "#0c0c10"
+    },
+    "b": {
+      "--bs-accent": "#0e7490",
+      "--bs-bg": "#f1f3f5",
+      "--bs-border": "#d7e2ef",
+      "--bs-card": "#ffffff",
+      "--bs-ink": "#102136",
+      "--bs-sidebar": "#1d4ed8"
+    },
+    "brabo": {
+      "--bs-accent": "#ef3b24",
+      "--bs-bg": "#1a1a1a",
+      "--bs-border": "#3a3a3a",
+      "--bs-card": "#333333",
+      "--bs-ink": "#f2f2f2",
+      "--bs-sidebar": "#1e1e1e"
+    },
+    "c": {
+      "--bs-accent": "#0f766e",
+      "--bs-bg": "#f1f3f5",
+      "--bs-border": "#e2e8e6",
+      "--bs-card": "#ffffff",
+      "--bs-ink": "#1e293b",
+      "--bs-sidebar": "#334155"
+    },
+    "d": {
+      "--bs-accent": "#1d4ed8",
+      "--bs-bg": "#f1f3f5",
+      "--bs-border": "#e5e7eb",
+      "--bs-card": "#ffffff",
+      "--bs-ink": "#0f172a",
+      "--bs-sidebar": "#1d4ed8"
+    },
+    "outatime": {
+      "--bs-accent": "#ff7a00",
+      "--bs-bg": "#0a1330",
+      "--bs-border": "#263566",
+      "--bs-card": "#1c3060",
+      "--bs-ink": "#f2f2f6",
+      "--bs-sidebar": "#0a1330"
+    },
+    "predador": {
+      "--bs-accent": "#ff4500",
+      "--bs-bg": "#0b0f0c",
+      "--bs-border": "#263025",
+      "--bs-card": "#212a20",
+      "--bs-ink": "#eef0ea",
+      "--bs-sidebar": "#0c1a10"
+    },
+    "spidey": {
+      "--bs-accent": "#d81f26",
+      "--bs-bg": "#0a0e1a",
+      "--bs-border": "#24304f",
+      "--bs-card": "#1d2547",
+      "--bs-ink": "#f2f4fa",
+      "--bs-sidebar": "#0d1730"
+    },
+    "springfield": {
+      "--bs-accent": "#1565c0",
+      "--bs-bg": "#fff8dc",
+      "--bs-border": "#f0e6b8",
+      "--bs-card": "#ffffff",
+      "--bs-ink": "#1a1a2e",
+      "--bs-sidebar": "#1b3b6f"
+    }
+  },
+  "calendario": {
+    "body_data_page": "calendario",
+    "componentes": {
+      "canvas": 0,
+      "chevrons": 2,
+      "kpis": 4,
+      "nav_links": 32,
+      "pills": 64,
+      "secoes": 2,
+      "tabelas": 2,
+      "tabelas_com_wrap": 2,
+      "titulos_secao": 2
+    },
+    "controles_secao": {
+      "busca": true,
+      "recolher": false
+    },
+    "geometria": {
+      "main": [
+        1200,
+        900
+      ],
+      "sidebar": [
+        240,
+        900
+      ],
+      "topbar": [
+        1200,
+        3
+      ]
+    },
+    "globais": [
+      "bsMenuToggle",
+      "bsPickerToggle",
+      "bsRunEtl",
+      "bsSetTheme",
+      "bsShortcuts",
+      "bsStartProgress",
+      "lcOpen",
+      "openVideoModalFromEl"
+    ],
+    "tokens": {
+      "--bs-accent": "#2f5ee3",
+      "--bs-bg": "#f1f3f5",
+      "--bs-border": "#e5e7eb",
+      "--bs-card": "#ffffff",
+      "--bs-ink": "#1f2330",
+      "--bs-sidebar": "#374151"
+    }
+  },
+  "captacao": {
+    "body_data_page": "captacao",
+    "componentes": {
+      "canvas": 1,
+      "chevrons": 11,
+      "kpis": 8,
+      "nav_links": 55,
+      "pills": 13,
+      "secoes": 11,
+      "tabelas": 7,
+      "tabelas_com_wrap": 7,
+      "titulos_secao": 11
+    },
+    "controles_secao": {
+      "busca": true,
+      "recolher": false
+    },
+    "geometria": {
+      "main": [
+        1200,
+        900
+      ],
+      "sidebar": [
+        240,
+        900
+      ],
+      "topbar": [
+        1200,
+        3
+      ]
+    },
+    "globais": [
+      "bsMenuToggle",
+      "bsPickerToggle",
+      "bsRunEtl",
+      "bsSetTheme",
+      "bsShortcuts",
+      "bsStartProgress",
+      "lcOpen",
+      "openVideoModalFromEl"
+    ],
+    "tokens": {
+      "--bs-accent": "#2f5ee3",
+      "--bs-bg": "#f1f3f5",
+      "--bs-border": "#e5e7eb",
+      "--bs-card": "#ffffff",
+      "--bs-ink": "#1f2330",
+      "--bs-sidebar": "#374151"
+    }
+  },
+  "comparativo": {
+    "body_data_page": "comparativo",
+    "componentes": {
+      "canvas": 0,
+      "chevrons": 7,
+      "kpis": 8,
+      "nav_links": 55,
+      "pills": 2,
+      "secoes": 7,
+      "tabelas": 11,
+      "tabelas_com_wrap": 11,
+      "titulos_secao": 7
+    },
+    "controles_secao": {
+      "busca": true,
+      "recolher": false
+    },
+    "geometria": {
+      "main": [
+        1200,
+        900
+      ],
+      "sidebar": [
+        240,
+        900
+      ],
+      "topbar": [
+        1200,
+        3
+      ]
+    },
+    "globais": [
+      "bsMenuToggle",
+      "bsPickerToggle",
+      "bsRunEtl",
+      "bsSetTheme",
+      "bsShortcuts",
+      "bsStartProgress",
+      "lcOpen",
+      "openVideoModalFromEl"
+    ],
+    "tokens": {
+      "--bs-accent": "#2f5ee3",
+      "--bs-bg": "#f1f3f5",
+      "--bs-border": "#e5e7eb",
+      "--bs-card": "#ffffff",
+      "--bs-ink": "#1f2330",
+      "--bs-sidebar": "#374151"
+    }
+  },
+  "criativos": {
+    "body_data_page": "criativos",
+    "componentes": {
+      "canvas": 0,
+      "chevrons": 5,
+      "kpis": 8,
+      "nav_links": 55,
+      "pills": 6,
+      "secoes": 5,
+      "tabelas": 4,
+      "tabelas_com_wrap": 4,
+      "titulos_secao": 5
+    },
+    "controles_secao": {
+      "busca": true,
+      "recolher": false
+    },
+    "geometria": {
+      "main": [
+        1200,
+        900
+      ],
+      "sidebar": [
+        240,
+        900
+      ],
+      "topbar": [
+        1200,
+        3
+      ]
+    },
+    "globais": [
+      "bsMenuToggle",
+      "bsPickerToggle",
+      "bsRunEtl",
+      "bsSetTheme",
+      "bsShortcuts",
+      "bsStartProgress",
+      "lcOpen",
+      "openVideoModalFromEl"
+    ],
+    "tokens": {
+      "--bs-accent": "#2f5ee3",
+      "--bs-bg": "#f1f3f5",
+      "--bs-border": "#e5e7eb",
+      "--bs-card": "#ffffff",
+      "--bs-ink": "#1f2330",
+      "--bs-sidebar": "#374151"
+    }
+  },
+  "debriefing": {
+    "body_data_page": "debriefing",
+    "componentes": {
+      "canvas": 10,
+      "chevrons": 45,
+      "kpis": 55,
+      "nav_links": 55,
+      "pills": 0,
+      "secoes": 45,
+      "tabelas": 35,
+      "tabelas_com_wrap": 33,
+      "titulos_secao": 45
+    },
+    "controles_secao": {
+      "busca": true,
+      "recolher": true
+    },
+    "geometria": {
+      "main": [
+        1200,
+        900
+      ],
+      "sidebar": [
+        240,
+        900
+      ],
+      "topbar": [
+        1200,
+        3
+      ]
+    },
+    "globais": [
+      "bsMenuToggle",
+      "bsPickerToggle",
+      "bsRunEtl",
+      "bsSetTheme",
+      "bsShortcuts",
+      "bsStartProgress",
+      "lcOpen",
+      "openVideoModalFromEl"
+    ],
+    "tokens": {
+      "--bs-accent": "#2f5ee3",
+      "--bs-bg": "#f1f3f5",
+      "--bs-border": "#e5e7eb",
+      "--bs-card": "#ffffff",
+      "--bs-ink": "#1f2330",
+      "--bs-sidebar": "#374151"
+    }
+  },
+  "funil": {
+    "body_data_page": "funil",
+    "componentes": {
+      "canvas": 0,
+      "chevrons": 11,
+      "kpis": 6,
+      "nav_links": 55,
+      "pills": 23,
+      "secoes": 11,
+      "tabelas": 9,
+      "tabelas_com_wrap": 9,
+      "titulos_secao": 11
+    },
+    "controles_secao": {
+      "busca": true,
+      "recolher": false
+    },
+    "geometria": {
+      "main": [
+        1200,
+        900
+      ],
+      "sidebar": [
+        240,
+        900
+      ],
+      "topbar": [
+        1200,
+        3
+      ]
+    },
+    "globais": [
+      "bsMenuToggle",
+      "bsPickerToggle",
+      "bsRunEtl",
+      "bsSetTheme",
+      "bsShortcuts",
+      "bsStartProgress",
+      "lcOpen",
+      "openVideoModalFromEl"
+    ],
+    "tokens": {
+      "--bs-accent": "#2f5ee3",
+      "--bs-bg": "#f1f3f5",
+      "--bs-border": "#e5e7eb",
+      "--bs-card": "#ffffff",
+      "--bs-ink": "#1f2330",
+      "--bs-sidebar": "#374151"
+    }
+  },
+  "google": {
+    "body_data_page": "google",
+    "componentes": {
+      "canvas": 0,
+      "chevrons": 5,
+      "kpis": 6,
+      "nav_links": 55,
+      "pills": 52,
+      "secoes": 5,
+      "tabelas": 5,
+      "tabelas_com_wrap": 5,
+      "titulos_secao": 5
+    },
+    "controles_secao": {
+      "busca": true,
+      "recolher": false
+    },
+    "geometria": {
+      "main": [
+        1200,
+        900
+      ],
+      "sidebar": [
+        240,
+        900
+      ],
+      "topbar": [
+        1200,
+        3
+      ]
+    },
+    "globais": [
+      "bsMenuToggle",
+      "bsPickerToggle",
+      "bsRunEtl",
+      "bsSetTheme",
+      "bsShortcuts",
+      "bsStartProgress",
+      "lcOpen",
+      "openVideoModalFromEl"
+    ],
+    "tokens": {
+      "--bs-accent": "#2f5ee3",
+      "--bs-bg": "#f1f3f5",
+      "--bs-border": "#e5e7eb",
+      "--bs-card": "#ffffff",
+      "--bs-ink": "#1f2330",
+      "--bs-sidebar": "#374151"
+    }
+  },
+  "index": {
+    "body_data_page": "index",
+    "componentes": {
+      "canvas": 0,
+      "chevrons": 0,
+      "kpis": 0,
+      "nav_links": 55,
+      "pills": 0,
+      "secoes": 5,
+      "tabelas": 1,
+      "tabelas_com_wrap": 1,
+      "titulos_secao": 5
+    },
+    "controles_secao": {
+      "busca": false,
+      "recolher": false
+    },
+    "geometria": {
+      "main": [
+        1200,
+        900
+      ],
+      "sidebar": [
+        240,
+        900
+      ],
+      "topbar": [
+        1200,
+        3
+      ]
+    },
+    "globais": [
+      "bsMenuToggle",
+      "bsPickerToggle",
+      "bsRunEtl",
+      "bsSetTheme",
+      "bsShortcuts",
+      "bsStartProgress",
+      "lcOpen",
+      "openVideoModalFromEl"
+    ],
+    "tokens": {
+      "--bs-accent": "#2f5ee3",
+      "--bs-bg": "#f1f3f5",
+      "--bs-border": "#e5e7eb",
+      "--bs-card": "#ffffff",
+      "--bs-ink": "#1f2330",
+      "--bs-sidebar": "#374151"
+    }
+  },
+  "leads": {
+    "body_data_page": "leads",
+    "componentes": {
+      "canvas": 0,
+      "chevrons": 5,
+      "kpis": 4,
+      "nav_links": 55,
+      "pills": 6,
+      "secoes": 5,
+      "tabelas": 4,
+      "tabelas_com_wrap": 4,
+      "titulos_secao": 5
+    },
+    "controles_secao": {
+      "busca": true,
+      "recolher": false
+    },
+    "geometria": {
+      "main": [
+        1200,
+        900
+      ],
+      "sidebar": [
+        240,
+        900
+      ],
+      "topbar": [
+        1200,
+        3
+      ]
+    },
+    "globais": [
+      "bsMenuToggle",
+      "bsPickerToggle",
+      "bsRunEtl",
+      "bsSetTheme",
+      "bsShortcuts",
+      "bsStartProgress",
+      "lcOpen",
+      "openVideoModalFromEl"
+    ],
+    "tokens": {
+      "--bs-accent": "#2f5ee3",
+      "--bs-bg": "#f1f3f5",
+      "--bs-border": "#e5e7eb",
+      "--bs-card": "#ffffff",
+      "--bs-ink": "#1f2330",
+      "--bs-sidebar": "#374151"
+    }
+  },
+  "meta": {
+    "body_data_page": "meta",
+    "componentes": {
+      "canvas": 0,
+      "chevrons": 6,
+      "kpis": 6,
+      "nav_links": 55,
+      "pills": 11,
+      "secoes": 6,
+      "tabelas": 7,
+      "tabelas_com_wrap": 7,
+      "titulos_secao": 6
+    },
+    "controles_secao": {
+      "busca": true,
+      "recolher": false
+    },
+    "geometria": {
+      "main": [
+        1200,
+        900
+      ],
+      "sidebar": [
+        240,
+        900
+      ],
+      "topbar": [
+        1200,
+        3
+      ]
+    },
+    "globais": [
+      "bsMenuToggle",
+      "bsPickerToggle",
+      "bsRunEtl",
+      "bsSetTheme",
+      "bsShortcuts",
+      "bsStartProgress",
+      "lcOpen",
+      "openVideoModalFromEl"
+    ],
+    "tokens": {
+      "--bs-accent": "#2f5ee3",
+      "--bs-bg": "#f1f3f5",
+      "--bs-border": "#e5e7eb",
+      "--bs-card": "#ffffff",
+      "--bs-ink": "#1f2330",
+      "--bs-sidebar": "#374151"
+    }
+  },
+  "settings": {
+    "body_data_page": "settings",
+    "componentes": {
+      "canvas": 0,
+      "chevrons": 0,
+      "kpis": 0,
+      "nav_links": 55,
+      "pills": 16,
+      "secoes": 6,
+      "tabelas": 4,
+      "tabelas_com_wrap": 3,
+      "titulos_secao": 6
+    },
+    "controles_secao": {
+      "busca": false,
+      "recolher": false
+    },
+    "geometria": {
+      "main": [
+        1200,
+        900
+      ],
+      "sidebar": [
+        240,
+        900
+      ],
+      "topbar": [
+        1200,
+        3
+      ]
+    },
+    "globais": [
+      "bsMenuToggle",
+      "bsPickerToggle",
+      "bsRunEtl",
+      "bsSetTheme",
+      "bsShortcuts",
+      "bsStartProgress",
+      "lcOpen",
+      "openVideoModalFromEl"
+    ],
+    "tokens": {
+      "--bs-accent": "#2f5ee3",
+      "--bs-bg": "#f1f3f5",
+      "--bs-border": "#e5e7eb",
+      "--bs-card": "#ffffff",
+      "--bs-ink": "#1f2330",
+      "--bs-sidebar": "#374151"
+    }
+  },
+  "vendas": {
+    "body_data_page": "vendas",
+    "componentes": {
+      "canvas": 0,
+      "chevrons": 7,
+      "kpis": 8,
+      "nav_links": 55,
+      "pills": 0,
+      "secoes": 7,
+      "tabelas": 5,
+      "tabelas_com_wrap": 5,
+      "titulos_secao": 7
+    },
+    "controles_secao": {
+      "busca": true,
+      "recolher": false
+    },
+    "geometria": {
+      "main": [
+        1200,
+        900
+      ],
+      "sidebar": [
+        240,
+        900
+      ],
+      "topbar": [
+        1200,
+        3
+      ]
+    },
+    "globais": [
+      "bsMenuToggle",
+      "bsPickerToggle",
+      "bsRunEtl",
+      "bsSetTheme",
+      "bsShortcuts",
+      "bsStartProgress",
+      "lcOpen",
+      "openVideoModalFromEl"
+    ],
+    "tokens": {
+      "--bs-accent": "#2f5ee3",
+      "--bs-bg": "#f1f3f5",
+      "--bs-border": "#e5e7eb",
+      "--bs-card": "#ffffff",
+      "--bs-ink": "#1f2330",
+      "--bs-sidebar": "#374151"
+    }
+  }
+}

@@ -464,8 +464,18 @@ as colunas que existem (`frontend/db.py::colunas_da_tabela`, cacheado por proces
 as linhas que ainda estão com `NULL`. Sem isso, subir o código antes de rodar a migração derrubaria todas
 as páginas de anúncio de uma vez.
 
+**Escrita tolerante à ordem de deploy, também.** `preparar()` descarta as colunas de classificação
+que a tabela ainda não tem. Sem isso o ETL quebraria de hora em hora: `to_sql` monta o INSERT com
+**todas** as colunas do DataFrame, e o código foi para a `main` antes da migração rodar. O
+congelamento de nome, que não depende de coluna nova, morreria junto. A lição é que o guard tem de
+vir no **mesmo commit** que passa a gravar a coluna — deploy e migração não são atômicos.
+
 **Migração:** `scripts/migrar_classificacao_campanhas.py` (`--dry-run` mostra, sem argumento aplica).
 Cria as colunas, restaura o nome histórico e preenche a classificação do que já está gravado.
+**Aplicada em 21/09/26:** 2.174 linhas do PES-MAI-26 e 1.540 da distribuição voltaram ao nome de
+época, 211.102 linhas classificadas, zero `etapa` nula, e o gasto por etapa ficou idêntico ao de
+antes — nenhum dinheiro mudou de linha, que é o esperado, já que a função de classificação é a
+mesma dos dois lados.
 
 **A regra de qual nome vale.** Não é "o nome da data mais antiga" — o dry-run provou que erra. Na campanha
 de distribuição do Felipe Graton o prefixo `[OLD]` foi posto em 25/08/26 e um backfill já tinha regravado

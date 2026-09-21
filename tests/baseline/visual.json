@@ -83,15 +83,13 @@
   },
   "calendario": {
     "body_data_page": "calendario",
-    "componentes": {
+    "contadores": {
       "canvas": 0,
-      "chevrons": 2,
       "kpis": 4,
       "nav_links": 32,
-      "pills": 64,
+      "pills": 67,
       "secoes": 2,
       "tabelas": 2,
-      "tabelas_com_wrap": 2,
       "titulos_secao": 2
     },
     "controles_secao": {
@@ -122,6 +120,12 @@
       "lcOpen",
       "openVideoModalFromEl"
     ],
+    "invariantes": {
+      "tem_nav": true,
+      "tem_secoes": true,
+      "toda_tabela_tem_wrap": true,
+      "todo_titulo_tem_chevron": true
+    },
     "tokens": {
       "--bs-accent": "#2f5ee3",
       "--bs-bg": "#f1f3f5",
@@ -133,15 +137,13 @@
   },
   "captacao": {
     "body_data_page": "captacao",
-    "componentes": {
+    "contadores": {
       "canvas": 1,
-      "chevrons": 11,
       "kpis": 8,
       "nav_links": 55,
       "pills": 13,
       "secoes": 11,
       "tabelas": 7,
-      "tabelas_com_wrap": 7,
       "titulos_secao": 11
     },
     "controles_secao": {
@@ -172,6 +174,12 @@
       "lcOpen",
       "openVideoModalFromEl"
     ],
+    "invariantes": {
+      "tem_nav": true,
+      "tem_secoes": true,
+      "toda_tabela_tem_wrap": true,
+      "todo_titulo_tem_chevron": true
+    },
     "tokens": {
       "--bs-accent": "#2f5ee3",
       "--bs-bg": "#f1f3f5",
@@ -183,15 +191,13 @@
   },
   "comparativo": {
     "body_data_page": "comparativo",
-    "componentes": {
+    "contadores": {
       "canvas": 0,
-      "chevrons": 7,
       "kpis": 8,
       "nav_links": 55,
       "pills": 2,
       "secoes": 7,
       "tabelas": 11,
-      "tabelas_com_wrap": 11,
       "titulos_secao": 7
     },
     "controles_secao": {
@@ -222,6 +228,12 @@
       "lcOpen",
       "openVideoModalFromEl"
     ],
+    "invariantes": {
+      "tem_nav": true,
+      "tem_secoes": true,
+      "toda_tabela_tem_wrap": true,
+      "todo_titulo_tem_chevron": true
+    },
     "tokens": {
       "--bs-accent": "#2f5ee3",
       "--bs-bg": "#f1f3f5",
@@ -233,15 +245,13 @@
   },
   "criativos": {
     "body_data_page": "criativos",
-    "componentes": {
+    "contadores": {
       "canvas": 0,
-      "chevrons": 5,
       "kpis": 8,
       "nav_links": 55,
       "pills": 6,
       "secoes": 5,
       "tabelas": 4,
-      "tabelas_com_wrap": 4,
       "titulos_secao": 5
     },
     "controles_secao": {
@@ -272,6 +282,12 @@
       "lcOpen",
       "openVideoModalFromEl"
     ],
+    "invariantes": {
+      "tem_nav": true,
+      "tem_secoes": true,
+      "toda_tabela_tem_wrap": true,
+      "todo_titulo_tem_chevron": true
+    },
     "tokens": {
       "--bs-accent": "#2f5ee3",
       "--bs-bg": "#f1f3f5",
@@ -283,15 +299,13 @@
   },
   "debriefing": {
     "body_data_page": "debriefing",
-    "componentes": {
+    "contadores": {
       "canvas": 10,
-      "chevrons": 45,
       "kpis": 55,
       "nav_links": 55,
       "pills": 0,
       "secoes": 45,
       "tabelas": 35,
-      "tabelas_com_wrap": 33,
       "titulos_secao": 45
     },
     "controles_secao": {
@@ -322,6 +336,12 @@
       "lcOpen",
       "openVideoModalFromEl"
     ],
+    "invariantes": {
+      "tem_nav": true,
+      "tem_secoes": true,
+      "toda_tabela_tem_wrap": false,
+      "todo_titulo_tem_chevron": true
+    },
     "tokens": {
       "--bs-accent": "#2f5ee3",
       "--bs-bg": "#f1f3f5",
@@ -333,15 +353,13 @@
   },
   "funil": {
     "body_data_page": "funil",
-    "componentes": {
+    "contadores": {
       "canvas": 0,
-      "chevrons": 11,
       "kpis": 6,
       "nav_links": 55,
       "pills": 23,
       "secoes": 11,
       "tabelas": 9,
-      "tabelas_com_wrap": 9,
       "titulos_secao": 11
     },
     "controles_secao": {
@@ -372,6 +390,12 @@
       "lcOpen",
       "openVideoModalFromEl"
     ],
+    "invariantes": {
+      "tem_nav": true,
+      "tem_secoes": true,
+      "toda_tabela_tem_wrap": true,
+      "todo_titulo_tem_chevron": true
+    },
     "tokens": {
       "--bs-accent": "#2f5ee3",
       "--bs-bg": "#f1f3f5",
@@ -383,15 +407,13 @@
   },
   "google": {
     "body_data_page": "google",
-    "componentes": {
+    "contadores": {
       "canvas": 0,
-      "chevrons": 5,
       "kpis": 6,
       "nav_links": 55,
       "pills": 52,
       "secoes": 5,
       "tabelas": 5,
-      "tabelas_com_wrap": 5,
       "titulos_secao": 5
     },
     "controles_secao": {
@@ -422,6 +444,12 @@
       "lcOpen",
       "openVideoModalFromEl"
     ],
+    "invariantes": {
+      "tem_nav": true,
+      "tem_secoes": true,
+      "toda_tabela_tem_wrap": true,
+      "todo_titulo_tem_chevron": true
+    },
     "tokens": {
       "--bs-accent": "#2f5ee3",
       "--bs-bg": "#f1f3f5",
@@ -433,15 +461,13 @@
   },
   "index": {
     "body_data_page": "index",
-    "componentes": {
+    "contadores": {
       "canvas": 0,
-      "chevrons": 0,
       "kpis": 0,
       "nav_links": 55,
       "pills": 0,
       "secoes": 5,
       "tabelas": 1,
-      "tabelas_com_wrap": 1,
       "titulos_secao": 5
     },
     "controles_secao": {
@@ -472,6 +498,12 @@
       "lcOpen",
       "openVideoModalFromEl"
     ],
+    "invariantes": {
+      "tem_nav": true,
+      "tem_secoes": true,
+      "toda_tabela_tem_wrap": true,
+      "todo_titulo_tem_chevron": false
+    },
     "tokens": {
       "--bs-accent": "#2f5ee3",
       "--bs-bg": "#f1f3f5",
@@ -483,15 +515,13 @@
   },
   "leads": {
     "body_data_page": "leads",
-    "componentes": {
+    "contadores": {
       "canvas": 0,
-      "chevrons": 5,
       "kpis": 4,
       "nav_links": 55,
       "pills": 6,
       "secoes": 5,
       "tabelas": 4,
-      "tabelas_com_wrap": 4,
       "titulos_secao": 5
     },
     "controles_secao": {
@@ -522,6 +552,12 @@
       "lcOpen",
       "openVideoModalFromEl"
     ],
+    "invariantes": {
+      "tem_nav": true,
+      "tem_secoes": true,
+      "toda_tabela_tem_wrap": true,
+      "todo_titulo_tem_chevron": true
+    },
     "tokens": {
       "--bs-accent": "#2f5ee3",
       "--bs-bg": "#f1f3f5",
@@ -533,15 +569,13 @@
   },
   "meta": {
     "body_data_page": "meta",
-    "componentes": {
+    "contadores": {
       "canvas": 0,
-      "chevrons": 6,
       "kpis": 6,
       "nav_links": 55,
       "pills": 11,
       "secoes": 6,
       "tabelas": 7,
-      "tabelas_com_wrap": 7,
       "titulos_secao": 6
     },
     "controles_secao": {
@@ -572,6 +606,12 @@
       "lcOpen",
       "openVideoModalFromEl"
     ],
+    "invariantes": {
+      "tem_nav": true,
+      "tem_secoes": true,
+      "toda_tabela_tem_wrap": true,
+      "todo_titulo_tem_chevron": true
+    },
     "tokens": {
       "--bs-accent": "#2f5ee3",
       "--bs-bg": "#f1f3f5",
@@ -583,15 +623,13 @@
   },
   "settings": {
     "body_data_page": "settings",
-    "componentes": {
+    "contadores": {
       "canvas": 0,
-      "chevrons": 0,
       "kpis": 0,
       "nav_links": 55,
       "pills": 16,
       "secoes": 6,
       "tabelas": 4,
-      "tabelas_com_wrap": 3,
       "titulos_secao": 6
     },
     "controles_secao": {
@@ -622,6 +660,12 @@
       "lcOpen",
       "openVideoModalFromEl"
     ],
+    "invariantes": {
+      "tem_nav": true,
+      "tem_secoes": true,
+      "toda_tabela_tem_wrap": false,
+      "todo_titulo_tem_chevron": false
+    },
     "tokens": {
       "--bs-accent": "#2f5ee3",
       "--bs-bg": "#f1f3f5",
@@ -633,15 +677,13 @@
   },
   "vendas": {
     "body_data_page": "vendas",
-    "componentes": {
+    "contadores": {
       "canvas": 0,
-      "chevrons": 7,
       "kpis": 8,
       "nav_links": 55,
       "pills": 0,
       "secoes": 7,
       "tabelas": 5,
-      "tabelas_com_wrap": 5,
       "titulos_secao": 7
     },
     "controles_secao": {
@@ -672,6 +714,12 @@
       "lcOpen",
       "openVideoModalFromEl"
     ],
+    "invariantes": {
+      "tem_nav": true,
+      "tem_secoes": true,
+      "toda_tabela_tem_wrap": true,
+      "todo_titulo_tem_chevron": true
+    },
     "tokens": {
       "--bs-accent": "#2f5ee3",
       "--bs-bg": "#f1f3f5",

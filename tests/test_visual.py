@@ -183,9 +183,24 @@ def _abrir(pag, url: str) -> None:
 def _impressao(pag) -> dict:
     """O que o browser calculou, reduzido a algo comparável e estável.
 
-    De fora fica tudo que muda sozinho com o dado: texto, números, quantidade de
-    linha de tabela. O que entra é a *estrutura* e o *estilo resolvido* — que só
-    mudam quando alguém mexe no CSS, no JS ou no markup.
+    **Contagem de componente não entra na comparação, e a lição custou um falso
+    positivo no primeiro dia.** O baseline guardava "/calendario tem 64 pills";
+    três lançamentos novos entraram no calendário e viraram 67, com o template
+    intocado. Quase todo contador de página de dado é assim: as pills, as linhas
+    de tabela e boa parte das seções saem de um ``{% for %}`` sobre o banco. Um
+    teste que acusa dado novo como regressão é um teste que as pessoas aprendem
+    a ignorar — o mesmo motivo pelo qual o baseline de caracterização tem a
+    lista ``VOLATEIS``.
+
+    Entra na comparação exata só o que **não pode** mudar com o dado: tokens
+    resolvidos, geometria do layout, funções globais registradas, presença dos
+    controles do accordion. Mais as *invariantes* — relações que valem seja qual
+    for o volume: todo título de seção tem chevron (prova que ``secoes.js``
+    percorreu a página inteira), toda tabela está dentro de ``.table-wrap``
+    (prova que o markup seguiu o design system).
+
+    Os contadores continuam sendo coletados e gravados, mas só para diagnóstico
+    quando algo mais falhar; deles se compara a forma, nunca o valor.
     """
     return pag.evaluate(
         """(tokens) => {
@@ -206,13 +221,23 @@ def _impressao(pag) -> dict:
                 main: geo('#bs-main'),
                 topbar: geo('#bs-topbar'),
             },
-            // componentes que o JS monta ou que o CSS estiliza
-            componentes: {
+            // Relações que valem com 1 linha de dado ou com 10 mil. São o
+            // coração da comparação: se o JS não percorreu a página, ou se o
+            // markup fugiu do design system, alguma delas vira false.
+            invariantes: {
+                todo_titulo_tem_chevron:
+                    n('.section-title .ti-chevron-down, .dbf-section-title .ti-chevron-down')
+                    === n('.section-title, .dbf-section-title'),
+                toda_tabela_tem_wrap: n('.table-wrap table') === n('table'),
+                tem_secoes: n('.section, .dbf-section') > 0,
+                tem_nav: n('#bs-drawer a') > 0,
+            },
+            // Só diagnóstico: comparados pela forma (quais chaves existem),
+            // nunca pelo valor — ver o docstring.
+            contadores: {
                 secoes: n('.section, .dbf-section'),
                 titulos_secao: n('.section-title, .dbf-section-title'),
-                chevrons: n('.section-title .ti-chevron-down, .dbf-section-title .ti-chevron-down'),
                 tabelas: n('table'),
-                tabelas_com_wrap: n('.table-wrap table'),
                 kpis: n('.tp-kpi, .kpi-card, .dbf-kpi'),
                 canvas: n('canvas'),
                 pills: n('.bs-pill'),
@@ -281,15 +306,24 @@ def test_pagina_nao_mudou_visualmente(pagina_logada, servidor, nome, rota):
         pytest.skip(f"{nome} ainda não está no baseline visual (grave com ATUALIZAR_VISUAL=1)")
 
     esperado = baseline[nome]
-    for secao in ("tokens", "geometria", "componentes", "controles_secao",
-                  "globais", "body_data_page"):
+    dica = (f"  screenshot: {SHOTS / f'{nome}.png'}\n"
+            f"  contadores agora: {json.dumps(obtido['contadores'], ensure_ascii=False)}\n"
+            f"  Se a mudança é intencional: "
+            f"ATUALIZAR_VISUAL=1 pytest tests/test_visual.py -m visual")
+
+    for secao in ("tokens", "geometria", "controles_secao", "globais",
+                  "invariantes", "body_data_page"):
         assert obtido[secao] == esperado[secao], (
             f"{rota}: '{secao}' mudou.\n"
             f"  esperado: {json.dumps(esperado[secao], ensure_ascii=False)}\n"
-            f"  obtido:   {json.dumps(obtido[secao], ensure_ascii=False)}\n"
-            f"  screenshot: {SHOTS / f'{nome}.png'}\n"
-            f"  Se a mudança é intencional: ATUALIZAR_VISUAL=1 pytest tests/test_visual.py -m visual"
+            f"  obtido:   {json.dumps(obtido[secao], ensure_ascii=False)}\n" + dica
         )
+
+    # Dos contadores só a forma: chave que some é componente que deixou de ser
+    # coletado (bug do teste) ou seletor que mudou de nome (bug do CSS).
+    assert sorted(obtido["contadores"]) == sorted(esperado["contadores"]), (
+        f"{rota}: mudou o CONJUNTO de contadores (não o valor).\n" + dica
+    )
 
 
 @pytest.mark.parametrize("tema", ["a", "brabo", "b", "c", "d", "outatime",

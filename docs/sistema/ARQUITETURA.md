@@ -1,10 +1,12 @@
 ---
-titulo: "Arquitetura do Brabo Analytics — 2026-09-19"
+titulo: "Arquitetura do Brabo Analytics — 2026-09-21"
 area: sistema
 status: vigente
-atualizado: 2026-09-19
+atualizado: 2026-09-21
 responde:
   - "como o sistema funciona por dentro"
+  - "onde fica o css e o js do dashboard"
+  - "por que o navegador serve css velho depois do deploy"
   - "fluxo de dados"
   - "responsabilidade de cada arquivo"
   - "onde fica o calendario e por que"
@@ -31,7 +33,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 66 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 68 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -107,6 +109,11 @@ relacionados:
 > **Bugs Corrigidos (2026-06-24)**
 >
 > - [[ARQUITETURA#`DatetimeFieldOverflow` no Hotmart e TMB|`DatetimeFieldOverflow` no Hotmart e TMB]]
+>
+> **Venda por versão de landing page — `ad_copy_textos` como ponte (2026-09-19)**
+>
+> - [[ARQUITETURA#Três coisas que a tabela deliberadamente NÃO faz|Três coisas que a tabela deliberadamente NÃO faz]]
+> - [[ARQUITETURA#Limites conhecidos|Limites conhecidos]]
 >
 > **Legendas dos criativos — `ad_transcricoes` (2026-09-17)**
 >
@@ -255,6 +262,9 @@ relacionados:
 > **Conta do Meta fora do ETL, e as armadilhas do backfill (2026-09-18)**
 >
 > - [[ARQUITETURA#Três armadilhas do backfill longo|Três armadilhas do backfill longo]]
+>
+> **CSS e JS saíram do `base.html` para `/static` (2026-09-21)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -1020,6 +1030,55 @@ tmb_lancamento_id = int(first) if first else None
 
 ---
 
+## Venda por versão de landing page — `ad_copy_textos` como ponte (2026-09-19)
+
+Seção "Páginas de Captura — Venda por Versão" no `/debriefing` (Captação). Responde
+"qual versão da LP vende mais barato", que a seção vizinha ("Landing Pages que Mais
+Converteram") não alcança: aquela vem do GA4, que é anônimo — sabe sessão e evento,
+nunca venda.
+
+**A versão não está em nenhuma UTM, e não dá pra colocar.** Os cinco campos já
+carregam lançamento (`utm_campaign`), público (`utm_content` → `view_atribuicao_publicos`)
+e `ADxxx` (`utm_term` → `view_atribuicao`); sobrescrever qualquer um quebra uma view.
+
+**A ponte é o anúncio.** `etl_copy_meta.py`/`etl_copy_google.py` já ingerem o link de
+destino de cada anúncio em `ad_copy_textos` (`campo='link'`), e a versão está no slug
+da URL. Como a atribuição já casa comprador→lead→`ADxxx`, a cadeia fecha sozinha:
+
+```
+venda → lead (e-mail/telefone) → utm_term (ADxxx) → ad_copy_textos.campo='link' → slug → versão
+```
+
+| peça | papel |
+|---|---|
+| `frontend/db_readers/landing_pages.py::read_versao_lp_por_ad` | `ADxxx` → `{versao, path, ambiguo}` |
+| `frontend/services/debriefing.py::_paginas_captura_venda` | agrega por versão e cruza com venda |
+| `frontend/db_readers/ga4.py::_versao_da_pagina` | parser da versão, compartilhado com o GA4 |
+
+### Três coisas que a tabela deliberadamente NÃO faz
+
+1. **Não usa o investimento total do anúncio.** Gasto/leads/vendas saem de
+   `creative_data["rows"]`, que já é escopado em Captação. Somar verba de
+   Pré-Quali/Remarketing em cima de venda de Captação infla o ROAS — mesma armadilha
+   já documentada em `_creative_overview`.
+2. **Não chuta anúncio ambíguo.** Um anúncio pode apontar pra várias LPs ao mesmo
+   tempo (Google com vários `final_urls`, carrossel Meta com link por card). Esses vão
+   pro bloco `nao_atribuido`, nunca pra uma versão. No PES-SET-26 são 26 anúncios /
+   R$ 235 mil — 37% da verba de captação.
+3. **Não confunde "sem link" com "não tem link".** `ADxxx` que só existe na UTM, com
+   gasto casado no nível da campanha do Google, ganhou a flag `sem_ad_na_plataforma`
+   em `_creative_overview` e vai pra um bucket próprio. Sem isso a nota da página
+   mandaria rodar o ETL de copy pra resolver R$ 110 mil que o ETL não resolveria —
+   uma campanha inteira não tem destino único por natureza.
+
+### Limites conhecidos
+
+`ad_copy_textos` guarda o link **atual** do anúncio, sem histórico: LP trocada no meio
+do voo faz o período anterior aparecer com a página nova. E só existe link para
+lançamento em que os ETLs de copy rodaram. Fechar 100% (incluindo orgânico e e-mail,
+que não têm `ADxxx`) exige marcação nascida na própria LP — plano em
+[[PLANO_VERSAO_LANDING_PAGE]].
+
 ## Legendas dos criativos — `ad_transcricoes` (2026-09-17)
 
 Base da página "Análise de Copys". Ingere `analises/[LANCAMENTO]/Legendas/*.txt`
@@ -1087,8 +1146,9 @@ A conta do Typeform foi cancelada; `frontend/db_readers/typeform.py` não chama 
 `_compute_launch_defaults` em `core.py`, ou seja, os valores que o wizard de lançamento sugere.
 
 **Local canônico:** `analises/calendario/SISTEMA_CALENDARIO_2026.html`, junto dos CSVs de consulta
-(`BASE_CONSULTA_CALENDARIO_2026*.csv`). Fica sob `analises/` de propósito — é a única pasta montada
-como estático (`/analises`), então a mesma cópia serve o parser, os relatórios v1 (que linkam
+(`BASE_CONSULTA_CALENDARIO_2026*.csv`). Fica sob `analises/` de propósito — é a pasta montada
+como estático em `/analises` (desde 21/09/2026 há também `/static`, para o CSS/JS do design
+system — ver a seção do fim), então a mesma cópia serve o parser, os relatórios v1 (que linkam
 `../calendario/...`) e o navegador. Os dois CSVs têm exceção no `.gitignore`, que por padrão
 ignora `analises/**/*.csv`.
 
@@ -1352,6 +1412,11 @@ AC, em lotes de `ids[]` (532 requisições) em vez do crawl completo dos ~3,97M 
 usado; o crawl completo original continua disponível sem essa flag, pra quando/se fizer
 sentido completar o histórico dos contatos que nunca corromperam). A decisão sobre
 `leads.tags`/`tags_atualizado_em` continua em aberto — nada escreveu nelas nessa correção.
+
+**`leads.tags`/`tags_atualizado_em` descartadas (2026-09-21).** Decisão da seção 6 do
+[[PLANO_RESSINCRONIZACAO_LEADS_AC]] tomada: `DROP COLUMN` nas duas (e removidas do
+`schema.sql`). Nenhum código lia ou escrevia nelas; `lead_lancamentos` já cobre o caso de
+uso de forma consultável.
 
 **Efeito colateral no teste de caracterização (2026-09-19).** Corrigir `leads.created_at`
 mudou de verdade a saída de readers que dependem dele pra lançamentos já "congelados" —
@@ -2760,3 +2825,50 @@ segura a saída até o fim).
 **Resultado:** +R$ 122.211 recuperados (Meta R$ 63.333, Google R$ 58.878), nenhum lançamento
 perdendo um centavo, e campanhas `[ivan neto]` que estavam rotuladas como
 DISTRIBUICAO-BRABO-CONCURSOS reclassificadas corretamente nas duas plataformas.
+
+## CSS e JS saíram do `base.html` para `/static` (2026-09-21)
+
+O `base.html` tinha **5.053 linhas**: 1.827 de CSS e 2.343 de JS inline, mais 883 de markup.
+Como todo template faz `{% extends "base.html" %}`, qualquer ajuste de estilo ou de
+comportamento passava por esse arquivo — e ele não era cacheável, porque o middleware manda
+`Cache-Control: no-store` em tudo que é `text/html`. Ou seja: **cada navegação rebaixava 200 KB
+de CSS e JS que nunca mudam**.
+
+Agora são 16 arquivos em `frontend/static/` (8 CSS + 8 JS), servidos por um mount novo, e o
+`base.html` ficou com **942 linhas** só de markup. O mapa de qual arquivo tem o quê está em
+[[DESIGN_SYSTEM]], na seção "Onde estão as coisas".
+
+**A extração não mudou nenhuma regra nem nenhuma função.** Os 16 arquivos são byte-a-byte
+iguais ao que estava inline, com exatamente duas exceções, ambas porque Jinja não roda em
+arquivo `.css`/`.js`:
+
+| o que era | virou |
+|---|---|
+| `--bs-accent: {{ accent }}` dentro do `:root` | valor fixo em `tokens.css`; a cor do lançamento continua vindo do `<style id="brabo-accent">`, que segue inline e sobrescreve — era o que já acontecia antes |
+| `var PAGE = '{{ page }}'` dentro do JS | `document.body.dataset.page`, com o `<body>` recebendo `data-page="{{ page }}"` |
+
+**Duas coisas continuam inline de propósito:** o `<style id="brabo-accent">` (depende de
+`{{ accent }}`) e o script anti-flash do tema no `<head>` — esse precisa rodar antes do primeiro
+paint, e num `<script src>` a rede entraria no caminho crítico, trazendo de volta o flash de
+tema errado que ele existe para evitar.
+
+**Cache-busting é obrigatório aqui.** As URLs saem de `static_url()` (`frontend/core.py`), que
+anexa `?v=<mtime>`. Sem isso, o navegador serviria o CSS antigo depois de um deploy — o
+`no-store` do middleware só cobre `text/html`, e nada mais forçaria a atualização. O `stat` roda
+a cada render de propósito: com cache em memória, editar um `.css` em desenvolvimento não
+apareceria sem reiniciar o servidor, já que o `--reload` do uvicorn só observa `.py`.
+
+**O mount `/static` já era esperado pelo código.** O middleware de autenticação em
+`frontend/app.py` liberava `path.startswith("/static")` desde antes da pasta existir. Cuidado
+relacionado: `frontend/static/calendario/` foi um caminho morto que causou dois bugs silenciosos
+(ver a seção do calendário acima). Ele não voltou — a pasta nova tem só `css/` e `js/`, e o
+parser do calendário continua lendo de `analises/calendario/`.
+
+**Ordem de carga é contrato.** Os `<link>` e `<script>` no `base.html` estão na ordem da cascata
+do CSS e das dependências do JS; reordenar quebra em silêncio. Os `<script>` são síncronos, sem
+`defer`/`async`, pelo mesmo motivo.
+
+**Como foi verificado:** 85 testes unitários (inclui a compilação de todos os templates), 21
+páginas no smoke contra o banco real, os 16 estáticos respondendo 200, e uma passada de
+Playwright em 6 páginas conferindo tokens computados, largura da sidebar, contagem de seções,
+troca dos 10 temas, busca de seções, accordion e abertura do wizard — **zero erros de console**.

@@ -632,13 +632,6 @@ CREATE INDEX IF NOT EXISTS idx_meta_lancamento ON meta_ads_daily(lancamento_codi
 CREATE INDEX IF NOT EXISTS idx_google_lancamento ON google_ads_daily(lancamento_codigo);
 CREATE INDEX IF NOT EXISTS idx_leads_lancamento ON leads(lancamento_codigo);
 
--- tags/tags_atualizado_em: gravadas em produção em 18/09/26 por um backfill rodado
--- fora do ETL rastreado (ver PLANO_RESSINCRONIZACAO_LEADS_AC.md, secao 5-6). Coluna
--- adicionada aqui só pra não perder o dado numa reinstalação — nenhum código do
--- repositório lê ou escreve nelas ainda; decisão de manter/descartar em aberto.
-ALTER TABLE leads ADD COLUMN IF NOT EXISTS tags TEXT;
-ALTER TABLE leads ADD COLUMN IF NOT EXISTS tags_atualizado_em TIMESTAMPTZ;
-
 ALTER TABLE meta_ads_daily DROP CONSTRAINT IF EXISTS meta_ads_daily_ad_id_date_key;
 DO $$
 BEGIN

@@ -234,6 +234,48 @@ def fetch_report(since: str, until: str, customer_ids: list[str] | None = None) 
 
     return rows
 
+def _alertar_contas_vazias(df: pd.DataFrame, since: str, until: str,
+                           customer_ids: list[str] | None = None) -> None:
+    """Grita quando uma conta configurada nao rendeu NENHUMA linha gravavel.
+
+    Sem isso o ETL termina com status 'ok' e o dado simplesmente nao existe -
+    foi o que aconteceu com a conta do perpetuo (8399986700) entre 01/09 e
+    21/09/26: o scheduler rodou de 30 em 30 min, sempre verde, e o Mestre em
+    Questoes ficou 21 dias sem Google no dashboard, sem nenhum log denunciando.
+
+    ATENCAO - a checagem tem que ser feita sobre o DataFrame final, depois de
+    juntar `fetch_report` (ad_group_ad) com `fetch_pmax_report` (asset_group).
+    Uma conta que so tem campanha Performance Max devolve **zero** linhas em
+    ad_group_ad por definicao: P-Max nao tem ad_group_ad, so asset_group. E
+    exatamente o caso da conta do perpetuo - checar so o fetch_report faria
+    esse alerta disparar todo dia nela, e alerta que berra a toa e alerta que
+    ninguem le.
+
+    Nao levanta excecao de proposito: uma conta legitimamente sem veiculacao
+    no periodo nao pode derrubar a coleta das outras. O ERROR (nao WARNING)
+    e o que faz a linha aparecer no alerta de falha do ETL.
+    """
+    customer_ids = customer_ids or [
+        cid.strip().replace("-", "")
+        for cid in os.environ.get("GOOGLE_ADS_CUSTOMER_ID", "").split(",")
+        if cid.strip()
+    ]
+    if not customer_ids:
+        return
+    presentes = set()
+    if not df.empty and "customer_id" in df.columns:
+        presentes = {str(c) for c in df["customer_id"].dropna().unique()}
+    vazias = [cid for cid in customer_ids if cid not in presentes]
+    if not vazias:
+        return
+    logger.error(
+        "Conta(s) Google Ads sem NENHUMA linha em %s..%s: %s. "
+        "Ou nao houve veiculacao no periodo, ou a conta saiu de "
+        "GOOGLE_ADS_CUSTOMER_ID / perdeu acesso ao MCC. Conferir antes de "
+        "confiar no dado do periodo.",
+        since, until, ", ".join(vazias),
+    )
+
 
 GAQL_STATUS = """
 SELECT campaign.name, campaign.status
@@ -829,6 +871,10 @@ def main():
             df = pd.concat([df, df_pmax], ignore_index=True)
         else:
             logger.info("Nenhuma campanha P-Max encontrada no período")
+
+        # Depois de juntar ad_group_ad + P-Max: so aqui da pra dizer que uma
+        # conta nao rendeu nada (ver docstring de _alertar_contas_vazias).
+        _alertar_contas_vazias(df, args.since, args.until)
 
         if args.launch_code:
             df = df[df["lancamento_codigo"].fillna("").str.upper() == args.launch_code.upper()]

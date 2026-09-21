@@ -26,11 +26,13 @@ from frontend.services.fetch import (
     _perfil_por_anuncio, _pesquisa_engajamento,
     _leads_antigos_compradores, _qualidade_regiao, _caminho_comprador,
     _landing_pages_por_etapa, _leads_x_whatsapp, _vendas_grupos_whatsapp,
+    _conversao_pagina_captura,
     _disparo_resumo, _ebook_compradores, _hotmart_recompra,
     _launch_cfg, _compradores_por_dia_grupo, _forma_pagamento_entrada,
     _whatsapp_groups_resumo, _dia1_sales, _sorteio,
     _cadastrados_lancamentos_anteriores,
 )
+from frontend.db_readers.landing_pages import read_versao_lp_por_ad
 from frontend.db_readers.sales import read_hotmart_details
 
 
@@ -140,6 +142,22 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
             logger.exception("Debriefing: falha ao montar landing pages por etapa (GA4)")
             falhas.append("landing_pages")
             return None
+
+    async def f_versao_lp():
+        """Mapa ADxxx -> versão da LP + funil do GA4 por versão. Os dois
+        alimentam a mesma tabela (venda por versão de página): o mapa traz a
+        verba/venda pelo anúncio, o GA4 traz a taxa de conversão da página."""
+        if not launch:
+            return None, None
+        try:
+            return await asyncio.gather(
+                run_in_threadpool(read_versao_lp_por_ad, launch.code),
+                run_in_threadpool(_conversao_pagina_captura, launch),
+            )
+        except Exception:
+            logger.exception("Debriefing: falha ao montar versão da LP por anúncio")
+            falhas.append("versao_lp")
+            return None, None
 
     async def f_leads_x_whatsapp():
         if not launch or lazy:
@@ -349,6 +367,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         (whatsapp_groups_resumo, prev_whatsapp_groups_resumo),
         (dia1_sales, prev_dia1_sales),
         sorteio,
+        (versao_lp_por_ad, conversao_paginas_todas),
     ) = await asyncio.gather(
         f_creative(), f_leads_antigos(), f_perfil_pesquisa(),
         f_qualidade_regiao(), f_caminho_comprador(), f_cadastrados_lancamentos_anteriores(), f_previous(),
@@ -357,7 +376,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         f_hotmart_semana_seguinte(), f_compradores_por_dia_grupo(),
         f_forma_pagamento_entrada(), f_comparativo_historico(),
         f_historico_grande(), f_whatsapp_groups_resumo(), f_dia1_sales(),
-        f_sorteio(),
+        f_sorteio(), f_versao_lp(),
     )
 
     dbf = _compute_debriefing_ctx(
@@ -374,6 +393,8 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         caminho_comprador=caminho_comprador,
         cadastrados_lancamentos_anteriores=cadastrados_lancamentos_anteriores,
         landing_pages_por_etapa=landing_pages_por_etapa,
+        versao_lp_por_ad=versao_lp_por_ad,
+        conversao_paginas_capt=(conversao_paginas_todas or {}).get("Captação") or [],
         leads_x_whatsapp=leads_x_whatsapp,
         vendas_grupos_whatsapp=vendas_grupos_whatsapp,
         disparo_resumo=disparo_resumo,

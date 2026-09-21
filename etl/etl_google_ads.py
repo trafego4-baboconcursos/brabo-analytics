@@ -36,6 +36,7 @@ from logger import get_logger
 from http_retry import http_post
 from validation import validate_dataframe
 from launch_resolver import resolve_launch_code
+from campanha_historico import preparar as preparar_campanhas
 
 load_dotenv()
 
@@ -234,26 +235,27 @@ def fetch_report(since: str, until: str, customer_ids: list[str] | None = None) 
 
     return rows
 
+
 def _alertar_contas_vazias(df: pd.DataFrame, since: str, until: str,
                            customer_ids: list[str] | None = None) -> None:
-    """Grita quando uma conta configurada nao rendeu NENHUMA linha gravavel.
+    """Grita quando uma conta configurada não rendeu NENHUMA linha gravável.
 
-    Sem isso o ETL termina com status 'ok' e o dado simplesmente nao existe -
-    foi o que aconteceu com a conta do perpetuo (8399986700) entre 01/09 e
+    Sem isso o ETL termina com status 'ok' e o dado simplesmente não existe —
+    foi o que aconteceu com a conta do perpétuo (8399986700) entre 01/09 e
     21/09/26: o scheduler rodou de 30 em 30 min, sempre verde, e o Mestre em
-    Questoes ficou 21 dias sem Google no dashboard, sem nenhum log denunciando.
+    Questões ficou 21 dias sem Google no dashboard, sem nenhum log denunciando.
 
-    ATENCAO - a checagem tem que ser feita sobre o DataFrame final, depois de
+    ATENÇÃO — a checagem tem que ser feita sobre o DataFrame final, depois de
     juntar `fetch_report` (ad_group_ad) com `fetch_pmax_report` (asset_group).
-    Uma conta que so tem campanha Performance Max devolve **zero** linhas em
-    ad_group_ad por definicao: P-Max nao tem ad_group_ad, so asset_group. E
-    exatamente o caso da conta do perpetuo - checar so o fetch_report faria
-    esse alerta disparar todo dia nela, e alerta que berra a toa e alerta que
-    ninguem le.
+    Uma conta que só tem campanha Performance Max devolve **zero** linhas em
+    ad_group_ad por definição: P-Max não tem ad_group_ad, só asset_group. É
+    exatamente o caso da conta do perpétuo — checar só o fetch_report faria
+    esse alerta disparar todo dia nela, e alerta que berra à toa é alerta que
+    ninguém lê.
 
-    Nao levanta excecao de proposito: uma conta legitimamente sem veiculacao
-    no periodo nao pode derrubar a coleta das outras. O ERROR (nao WARNING)
-    e o que faz a linha aparecer no alerta de falha do ETL.
+    Não levanta exceção de propósito: uma conta legitimamente sem veiculação
+    no período não pode derrubar a coleta das outras. O ERROR (não WARNING)
+    é o que faz a linha aparecer no alerta de falha do ETL.
     """
     customer_ids = customer_ids or [
         cid.strip().replace("-", "")
@@ -270,9 +272,9 @@ def _alertar_contas_vazias(df: pd.DataFrame, since: str, until: str,
         return
     logger.error(
         "Conta(s) Google Ads sem NENHUMA linha em %s..%s: %s. "
-        "Ou nao houve veiculacao no periodo, ou a conta saiu de "
+        "Ou não houve veiculação no período, ou a conta saiu de "
         "GOOGLE_ADS_CUSTOMER_ID / perdeu acesso ao MCC. Conferir antes de "
-        "confiar no dado do periodo.",
+        "confiar no dado do período.",
         since, until, ", ".join(vazias),
     )
 
@@ -741,12 +743,19 @@ def total_cost_from_csv(filepath: str, launch_code: str | None = None) -> tuple[
 
 _GOOGLE_REQUIRED_COLS = ["date", "ad_id", "ad_name", "cost", "impressions", "clicks"]
 
-def upsert(df: pd.DataFrame, since: str, until: str, launch_code: str | None = None):
+def upsert(df: pd.DataFrame, since: str, until: str, launch_code: str | None = None,
+           renomear: bool = False):
     if not validate_dataframe(df, _GOOGLE_REQUIRED_COLS, "google_ads_daily", logger):
         return
     df["updated_at"] = datetime.now(timezone.utc).isoformat()
     engine = get_engine()
     with engine.begin() as conn:
+        # Antes do DELETE: preserva o nome que a campanha tinha no período e grava
+        # etapa/temperatura/segmento a partir dele (etl/campanha_historico.py).
+        df = preparar_campanhas(
+            conn, df, tabela=TABLE, plataforma="google", since=since, until=until,
+            launch_code=launch_code, renomear=renomear,
+        )
         if launch_code:
             conn.execute(
                 text(f"DELETE FROM {TABLE} WHERE date BETWEEN :s AND :u AND lancamento_codigo = :launch_code"),
@@ -816,6 +825,9 @@ def main():
     parser.add_argument("--until",    metavar="YYYY-MM-DD", default=datetime.now().strftime("%Y-%m-%d"))
     parser.add_argument("--period",   metavar="YYYY-MM",    help="Período do CSV (ex: 2026-04), usado como data de referência")
     parser.add_argument("--launch-code", metavar="CODE", help="Filtra e substitui dados apenas de um lancamento")
+    parser.add_argument("--renomear-campanhas", action="store_true",
+                        help="Deixa o nome atual da campanha sobrescrever o nome historico "
+                             "(padrao: congela o nome que a campanha tinha no periodo)")
     parser.add_argument("--campaign-total-csv", metavar="FILE", help="CSV de campanhas para ajustar o total do lancamento")
     args = parser.parse_args()
 
@@ -856,7 +868,7 @@ def main():
             since = period
             until = str(df["date"].max())
         logger.info("%d anúncios", len(df))
-        upsert(df, since, until, args.launch_code)
+        upsert(df, since, until, args.launch_code, args.renomear_campanhas)
     else:
         logger.info("[Google Ads] %s  [%s -> %s]  (API)", TABLE, args.since, args.until)
         rows = fetch_report(args.since, args.until)
@@ -872,13 +884,13 @@ def main():
         else:
             logger.info("Nenhuma campanha P-Max encontrada no período")
 
-        # Depois de juntar ad_group_ad + P-Max: so aqui da pra dizer que uma
-        # conta nao rendeu nada (ver docstring de _alertar_contas_vazias).
+        # Depois de juntar ad_group_ad + P-Max: só aqui dá pra dizer que uma
+        # conta não rendeu nada (ver docstring de _alertar_contas_vazias).
         _alertar_contas_vazias(df, args.since, args.until)
 
         if args.launch_code:
             df = df[df["lancamento_codigo"].fillna("").str.upper() == args.launch_code.upper()]
-        upsert(df, args.since, args.until, args.launch_code)
+        upsert(df, args.since, args.until, args.launch_code, args.renomear_campanhas)
 
         # Públicos
         aud_rows = fetch_audiences_report(args.since, args.until)

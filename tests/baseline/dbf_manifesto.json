@@ -1,9 +1,10 @@
 {
-  "snapshot_version": 16,
+  "snapshot_version": 17,
   "chaves": [
     "antigo_novo",
     "boleto_hm",
     "boleto_parcelado_curva",
+    "cadastrados_lancamentos_anteriores",
     "caminho_comprador",
     "cartao_hm",
     "clima_order",
@@ -47,6 +48,7 @@
     "oferta_preco_parcelado",
     "oferta_preco_vista",
     "pagamentos_hm",
+    "paginas_captura_venda",
     "perfil_por_anuncio",
     "periodo_atual",
     "periodo_prev",

@@ -32,6 +32,7 @@ from frontend.db_readers.eventos import CORES_TIPO, eventos_por_dia, read_evento
 from frontend.db_readers.ga4 import (  # noqa: F401
     read_conversao_pagina_captura, read_landing_pages_por_etapa,
 )
+from frontend.db_readers.landing_pages import read_versao_lp_por_ad  # noqa: F401
 from frontend.db_readers.launches import (  # noqa: F401
     _ETL_SOURCES, ConfigInvalida, autodetect_launch_data, count_campaigns_for_filter,
     create_launch, discover_launches, get_drive_thumbnails, get_etl_status, get_launch,

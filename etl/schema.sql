@@ -222,11 +222,21 @@ CREATE TABLE IF NOT EXISTS meta_ads_daily (
     video_views_100  INTEGER      DEFAULT 0,   -- views até 100% do vídeo
     video_thruplays  INTEGER      DEFAULT 0,   -- ThruPlays (15s+)
     lancamento_codigo TEXT,
+    -- Classificação gravada pelo ETL (etl/campanha_historico.py) a partir do
+    -- nome CONGELADO da campanha. Antes era calculada na leitura sobre o nome
+    -- vigente: campanha reaproveitada e renomeada trocando de etapa
+    -- reclassificava todo o histórico em silêncio.
+    etapa            TEXT,
+    temperatura      TEXT,
+    bucket           TEXT,
+    segmento         TEXT,
+    account_id       TEXT,
     updated_at       TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (ad_id, date, lancamento_codigo)
 );
 
 CREATE INDEX IF NOT EXISTS idx_meta_date   ON meta_ads_daily (date);
+CREATE INDEX IF NOT EXISTS idx_meta_campaign_id ON meta_ads_daily (campaign_id);
 CREATE INDEX IF NOT EXISTS idx_meta_ad_id  ON meta_ads_daily (ad_id);
 
 
@@ -252,11 +262,16 @@ CREATE TABLE IF NOT EXISTS google_ads_daily (
     video_id        VARCHAR,                  -- YouTube video ID do criativo (quando identificável)
     avg_cpv         NUMERIC(10,4) DEFAULT 0,  -- custo médio por view (metrics.average_cpv da API)
     lancamento_codigo TEXT,
+    -- Ver comentário equivalente em meta_ads_daily.
+    etapa           TEXT,
+    temperatura     TEXT,
+    segmento        TEXT,
     updated_at      TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE (ad_id, date, lancamento_codigo)
 );
 
 CREATE INDEX IF NOT EXISTS idx_google_date   ON google_ads_daily (date);
+CREATE INDEX IF NOT EXISTS idx_google_campaign_id ON google_ads_daily (campaign_id);
 CREATE INDEX IF NOT EXISTS idx_google_ad_id  ON google_ads_daily (ad_id);
 
 

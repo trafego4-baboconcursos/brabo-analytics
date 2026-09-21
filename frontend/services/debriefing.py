@@ -448,6 +448,116 @@ def _build_antigo_novo(meta: Any, google: Any, sales_attr: Any = None) -> dict:
     return out
 
 
+def _paginas_captura_venda(
+    creative_data: Any,
+    versao_lp_por_ad: Any,
+    conversao_paginas: Any = None,
+) -> dict:
+    """Venda, CPA e ROAS por versão da landing page de Captação.
+
+    Fecha o que a seção "Landing Pages que Mais Converteram" não alcança: ela
+    vem do GA4, que é anônimo e portanto só sabe sessão e evento, nunca venda.
+    Aqui a ponte é o anúncio — `ad_copy_textos` dá o link de destino por ADxxx
+    (logo a versão, pelo slug), e a atribuição já casa comprador→lead→ADxxx.
+
+    Gasto, leads e vendas saem de `creative_data["rows"]`, que já é
+    **escopado em Captação** (`captacao_por_ad`/`anuncios_por_ad` +
+    `por_criativo_por_etapa`). Usar o investimento total do anúncio somaria
+    verba de Pré-Quali/Remarketing em cima de venda de Captação e inflaria o
+    ROAS — mesma armadilha já documentada em `_creative_overview`.
+
+    Anúncio que aponta para várias LPs ao mesmo tempo não é chutado em
+    nenhuma versão: vai para `nao_atribuido`, junto com quem não tem link
+    ingerido. Sem isso a tabela mentiria por omissão — no PES-SET-26 são 33%
+    da verba. Ver `docs/projetos/PLANO_VERSAO_LANDING_PAGE.md`.
+    """
+    from frontend.db_readers.ga4 import _rotulo_versao  # noqa: PLC0415
+
+    rows_ad = (creative_data or {}).get("rows") or []
+    mapa = versao_lp_por_ad or {}
+    if not rows_ad or not mapa:
+        return {"rows": [], "nao_atribuido": {}}
+
+    # taxa de lead do GA4, por rótulo de versão ("Versão 5")
+    ga4_por_rotulo = {
+        str(p.get("pagina")): p
+        for p in (conversao_paginas or [])
+    }
+
+    por_versao: dict[str, dict] = {}
+    ambiguo = {"ads": 0, "gasto": 0.0, "leads": 0, "vendas": 0, "faturamento": 0.0}
+    sem_link = dict(ambiguo)
+    nivel_campanha = dict(ambiguo)
+
+    for row in rows_ad:
+        code = str(row.get("ad_code") or "").upper()
+        gasto = float(row.get("gasto") or 0.0)
+        leads = int(row.get("leads") or 0)
+        vendas = int(row.get("vendas") or 0)
+        faturamento = float(row.get("faturamento") or 0.0)
+
+        info = mapa.get(code)
+        if row.get("sem_ad_na_plataforma"):
+            # ADxxx que só existe na UTM, com gasto casado no nível da campanha
+            # do Google: uma campanha inteira não tem uma LP única, então isso
+            # nunca vira versão — e a nota não pode mandar rodar o ETL de copy,
+            # que não resolveria. No PES-SET-26 é R$ 110 mil num único código.
+            alvo = nivel_campanha
+        elif info is None:
+            alvo = sem_link
+        elif info.get("ambiguo"):
+            alvo = ambiguo
+        else:
+            versao = info.get("versao") or ""
+            # a tabela é de Captação; página de Pré-Quali tem propósito (e CPA)
+            # de outra natureza e não se compara com LP de captação
+            if "-pq-" in versao:
+                continue
+            alvo = por_versao.setdefault(versao, {
+                "versao_key": versao,
+                "versao": _rotulo_versao(versao),
+                "path": info.get("path"),
+                "ads": 0, "gasto": 0.0, "leads": 0, "vendas": 0, "faturamento": 0.0,
+            })
+        alvo["ads"] += 1
+        alvo["gasto"] += gasto
+        alvo["leads"] += leads
+        alvo["vendas"] += vendas
+        alvo["faturamento"] += faturamento
+
+    rows = []
+    for item in por_versao.values():
+        gasto, leads, vendas = item["gasto"], item["leads"], item["vendas"]
+        ga4 = ga4_por_rotulo.get(item["versao"]) or {}
+        item["cpl"] = gasto / leads if leads > 0 else 0.0
+        item["cpa"] = gasto / vendas if vendas > 0 else 0.0
+        item["roas"] = item["faturamento"] / gasto if gasto > 0 else 0.0
+        item["conv_venda"] = (vendas / leads * 100) if leads > 0 else 0.0
+        item["taxa_lead"] = float(ga4.get("ctr_obrigado") or 0.0)
+        item["sessoes"] = int(ga4.get("sessoes_captura") or 0)
+        rows.append(item)
+    rows.sort(key=lambda r: r["gasto"], reverse=True)
+
+    def _fechar(bloco: dict) -> dict:
+        bloco = dict(bloco)
+        bloco["cpa"] = bloco["gasto"] / bloco["vendas"] if bloco["vendas"] > 0 else 0.0
+        bloco["roas"] = bloco["faturamento"] / bloco["gasto"] if bloco["gasto"] > 0 else 0.0
+        return bloco
+
+    fora = ambiguo["gasto"] + sem_link["gasto"] + nivel_campanha["gasto"]
+    gasto_total = sum(r["gasto"] for r in rows) + fora
+    return {
+        "rows": rows,
+        "nao_atribuido": {
+            "ambiguo": _fechar(ambiguo),
+            "sem_link": _fechar(sem_link),
+            "nivel_campanha": _fechar(nivel_campanha),
+            "gasto": fora,
+            "pct_gasto": (fora / gasto_total * 100) if gasto_total > 0 else 0.0,
+        },
+    }
+
+
 def _compute_debriefing_ctx(
     launch: Any,
     previous: Any,
@@ -471,6 +581,8 @@ def _compute_debriefing_ctx(
     caminho_comprador: Any = None,
     cadastrados_lancamentos_anteriores: Any = None,
     landing_pages_por_etapa: Any = None,
+    versao_lp_por_ad: Any = None,
+    conversao_paginas_capt: Any = None,
     leads_x_whatsapp: Any = None,
     vendas_grupos_whatsapp: Any = None,
     disparo_resumo: Any = None,
@@ -1224,6 +1336,11 @@ def _compute_debriefing_ctx(
         # Landing pages que mais converteram (GA4), por etapa
         "landing_pages_preq": (landing_pages_por_etapa or {}).get("Pré-Qualificação") or [],
         "landing_pages_capt": (landing_pages_por_etapa or {}).get("Captação") or [],
+        # Venda/CPA/ROAS por VERSÃO da LP de captação — o que o GA4 não alcança
+        # (sessão anônima não tem e-mail, logo não tem venda). Ponte pelo ADxxx.
+        "paginas_captura_venda": _paginas_captura_venda(
+            creative_data, versao_lp_por_ad, conversao_paginas_capt,
+        ),
         # Leads (Active Campaign) × pessoas nos grupos de WhatsApp
         "leads_x_whatsapp": leads_x_whatsapp,
         "vendas_grupos_whatsapp": vendas_grupos_whatsapp,

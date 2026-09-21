@@ -15,6 +15,11 @@ from frontend.utils import _extract_launch_code, _normalize_ad_code
 from src.ad_codes import extract_ad_code, uses_legacy_ad_codes
 from frontend.db import _get_engine
 from frontend.db_readers.nomenclatura import categorizar_campanha_meta
+from frontend.db_readers.classificacao import (
+    CLASSIFICACAO_META as _CLASSIFICACAO_META,
+    aplicar_classificacao as _aplicar_classificacao,
+    com_classificacao as _com_classificacao,
+)
 from frontend.db_readers.sales import read_vendas
 from frontend.models import MetaCriativo, MetaSummary
 from src.constants import ETAPAS_ORDEM
@@ -147,7 +152,9 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
     code = _extract_launch_code(launch_folder_or_code)
     engine = _get_engine()
 
-    _COLS = "date, ad_id, ad_name, adset_name, campaign_name, account_id, impressions, clicks, spend, leads, video_thruplays, video_views_50"
+    _COLS = ("date, ad_id, ad_name, adset_name, campaign_name, account_id, impressions, "
+             "clicks, spend, leads, video_thruplays, video_views_50")
+    _COLS = _com_classificacao(_COLS, "meta_ads_daily", _CLASSIFICACAO_META)
     if start_date and end_date:
         df = pd.read_sql(
             text(f"SELECT {_COLS} FROM meta_ads_daily WHERE lancamento_codigo = :code AND date BETWEEN :start AND :end"),
@@ -176,13 +183,10 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
     summary.ctr_medio = summary.total_cliques / summary.total_impressoes * 100 if summary.total_impressoes > 0 else 0.0
     summary.cpm_medio = summary.total_gasto / summary.total_impressoes * 1000 if summary.total_impressoes > 0 else 0.0
 
-    df["etapa"] = "Outros"
-    df["temperatura"] = "Outros"
-    df["bucket"] = "Outros"
-
     _legacy = uses_legacy_ad_codes(code)
-    df["etapa"], df["temperatura"], df["bucket"], df["segmento"] = zip(
-        *df["campaign_name"].map(lambda c: categorizar_campanha_meta(c, legacy=_legacy))
+    df = _aplicar_classificacao(
+        df, _CLASSIFICACAO_META,
+        lambda nome: categorizar_campanha_meta(nome, legacy=_legacy),
     )
 
     # Agrupamentos

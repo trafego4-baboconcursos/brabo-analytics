@@ -73,7 +73,12 @@ TABLE = "debriefing_snapshot"
 # snapshot velho, então não é o 500 dos três incidentes — mas sem subir a versão
 # a seção nova só apareceria depois do próximo reaquecimento (~30min). Subindo
 # por precaução, no mesmo espírito da regra.
-SNAPSHOT_VERSION = 16
+#
+# 19/09: chave nova `paginas_captura_venda` (venda/CPA/ROAS por versão de landing
+# page na seção de Captação). Caso clássico da regra — sem o bump a seção só
+# apareceria no próximo reaquecimento, e foi exatamente o que aconteceu no
+# primeiro teste local: a página veio sem a seção porque leu o snapshot v16.
+SNAPSHOT_VERSION = 17
 
 DDL = f"""
 CREATE TABLE IF NOT EXISTS {TABLE} (

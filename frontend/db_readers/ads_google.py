@@ -19,6 +19,11 @@ from frontend.db import _get_engine
 from frontend.models import GoogleCampanha, GoogleSummary
 from frontend.db_readers.ads_meta import get_historico_ad_codes
 from frontend.db_readers.nomenclatura import categorizar_campanha_google
+from frontend.db_readers.classificacao import (
+    CLASSIFICACAO_GOOGLE as _CLASSIFICACAO_GOOGLE,
+    aplicar_classificacao as _aplicar_classificacao,
+    com_classificacao as _com_classificacao,
+)
 from frontend.db_readers.sales import read_vendas
 from src.constants import ETAPAS_ORDEM
 
@@ -48,7 +53,9 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
     code = _extract_launch_code(launch_folder_or_code)
     engine = _get_engine()
 
-    _COLS = "date, ad_name, ad_group_name, campaign_name, customer_id, impressions, clicks, cost, conversions, video_views, video_views_50, video_views_100, video_id, avg_cpv"
+    _COLS = ("date, ad_name, ad_group_name, campaign_name, customer_id, impressions, clicks, "
+             "cost, conversions, video_views, video_views_50, video_views_100, video_id, avg_cpv")
+    _COLS = _com_classificacao(_COLS, "google_ads_daily", _CLASSIFICACAO_GOOGLE)
     if start_date and end_date:
         df = pd.read_sql(
             text(f"SELECT {_COLS} FROM google_ads_daily WHERE lancamento_codigo = :code AND date BETWEEN :start AND :end"),
@@ -76,9 +83,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
     summary.custo_conv_medio = summary.total_custo / summary.total_conversoes if summary.total_conversoes > 0 else 0.0
     summary.ctr_medio = summary.total_cliques / summary.total_impressoes * 100 if summary.total_impressoes > 0 else 0.0
 
-    df["etapa"], df["temperatura"], df["segmento"] = zip(
-        *df["campaign_name"].map(categorizar_campanha_google)
-    )
+    df = _aplicar_classificacao(df, _CLASSIFICACAO_GOOGLE, categorizar_campanha_google)
 
     # Campanhas detalhadas
     camp_grouped = df.groupby("campaign_name").agg(

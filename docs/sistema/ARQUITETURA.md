@@ -6,6 +6,7 @@ atualizado: 2026-09-21
 responde:
   - "como o sistema funciona por dentro"
   - "onde fica o css e o js do dashboard"
+  - "como pegar regressao visual no frontend"
   - "por que o navegador serve css velho depois do deploy"
   - "fluxo de dados"
   - "responsabilidade de cada arquivo"
@@ -33,7 +34,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 68 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 69 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -42,6 +43,9 @@ relacionados:
 > **God Module Split (S1–S9 em 2026-07-01; encerrado em 2026-09-15)**
 >
 > - [[ARQUITETURA#S10 — fim do shim (2026-09-15)|S10 — fim do shim (2026-09-15)]]
+>
+> **Nome de campanha congelado e etapa gravada na escrita (2026-09-21)**
+>
 >
 > **Fluxo de Dados**
 >
@@ -72,6 +76,7 @@ relacionados:
 > - [[ARQUITETURA#1. Unitários — sem banco, rodam sempre|1. Unitários — sem banco, rodam sempre]]
 > - [[ARQUITETURA#2. Fumaça (`-m smoke`) — precisa de banco|2. Fumaça (`-m smoke`) — precisa de banco]]
 > - [[ARQUITETURA#3. Caracterização (`-m caracterizacao`) — precisa de banco|3. Caracterização (`-m caracterizacao`) — precisa de banco]]
+> - [[ARQUITETURA#4. Visual (`-m visual`) — precisa de banco **e** do Chromium do Playwright|4. Visual (`-m visual`) — precisa de banco **e** do Chromium do Playwright]]
 >
 > **Rodar os testes escrevia no banco de producao (2026-09-16)**
 >
@@ -385,7 +390,8 @@ O `database_reader.py` **não existe mais**. As três coisas que ainda moravam n
 explicitamente o que exporta, então `from frontend.db_readers import read_meta` continua funcionando sem
 que ninguém dependa do arquivo onde a função mora.
 
-**`frontend/db_readers/nomenclatura.py` (novo).** A classificação de campanha pelo nome (etapa, temperatura,
+**`frontend/db_readers/nomenclatura.py` (novo; virou re-export de `src/nomenclatura.py` em 21/09/26 —
+ver a seção "Nome de campanha congelado" abaixo).** A classificação de campanha pelo nome (etapa, temperatura,
 bucket, segmento) estava duplicada entre `ads_meta.py` e `ads_google.py`: `BUCKET_MAP` e `MODIFIER_MAP` eram
 byte a byte idênticos nos dois, e o laço de classificação era quase igual. Os mapas de **etapa** e
 **temperatura**, esses sim, diferem de propósito (o Meta casa a chave entre colchetes e lista `aula 1..4`
@@ -417,6 +423,56 @@ campanha real derruba o teste.
 - `read_youtube_aulas` importada por `core.py` mas nunca existiu em nenhum arquivo → crash no startup. Corrigido com stub que retorna `[]`.
 
 ---
+
+## Nome de campanha congelado e etapa gravada na escrita (2026-09-21)
+
+**O bug.** O upsert dos dois ETLs é `DELETE` da faixa de datas + `append`. Um backfill sobre período
+antigo regravava as linhas com o nome **atual** da campanha na API, então `campaign_name` significava
+"nome na última vez que o ETL rodou", não "nome durante o lançamento". Quando uma campanha é
+reaproveitada num lançamento novo e renomeada, o histórico do lançamento antigo passa a exibir o código
+do lançamento novo.
+
+Aconteceu: o backfill de 18/09/26 regravou 4.579 linhas de maio, e R$ 74 mil de Captação do PES-MAI-26
+passaram a aparecer como `[GA][...][old][PES-SET-26][04.09.26]`. No banco inteiro eram 4 campanhas com
+dois nomes (R$ 205 mil, que se partiam em duas nas visões por campanha) e 10 do PBB-JUN-26 com o
+histórico inteiro regravado (R$ 41 mil).
+
+**A correção.** `etl/campanha_historico.py`, chamado pelos dois `upsert()` **antes** do DELETE:
+
+1. lê o nome já gravado para cada `(campaign_id, date)` da faixa e devolve esse nome nas linhas que já
+   existiam — linha nova recebe o nome atual, normalmente;
+2. grava `etapa`/`temperatura`/`segmento` (e `bucket`, no Meta) derivados do nome **congelado**.
+
+O passo 2 fecha um risco que ainda não tinha estourado: a classificação era calculada em tempo de leitura
+sobre o nome vigente, então uma campanha reaproveitada que trocasse de etapa no nome
+(`[captação]` → `[matrículas abertas]`) reclassificaria todo o histórico em silêncio.
+
+**`campaign_id` não é chave de lançamento.** Serve para identidade e só para isso: 14 campanhas
+atravessam dois lançamentos (a mesma campanha tem gasto em maio no PES-MAI-26 e em setembro no
+PES-SET-26). Quem resolve lançamento continua sendo `(nome, data)` em `launch_resolver.py`.
+
+**Escape.** `--renomear-campanhas` nos dois ETLs desliga o congelamento, para quando o nome mudou porque
+estava **errado** e a correção deve mesmo se propagar para trás.
+
+**Onde o módulo mora.** `nomenclatura.py` saiu de `frontend/db_readers/` para `src/`, junto de
+`constants.py` e `ad_codes.py` — ETL e frontend precisam da mesma função, e ETL não deve importar de
+`frontend/`. `frontend/db_readers/nomenclatura.py` continua existindo como re-export, porque oito pontos
+do frontend e o `etl/budget_alert.py` importam de lá.
+
+**Leitura tolerante à ordem de deploy.** `frontend/db_readers/classificacao.py` monta o `SELECT` só com
+as colunas que existem (`frontend/db.py::colunas_da_tabela`, cacheado por processo) e calcula pelo nome
+as linhas que ainda estão com `NULL`. Sem isso, subir o código antes de rodar a migração derrubaria todas
+as páginas de anúncio de uma vez.
+
+**Migração:** `scripts/migrar_classificacao_campanhas.py` (`--dry-run` mostra, sem argumento aplica).
+Cria as colunas, restaura o nome histórico e preenche a classificação do que já está gravado.
+
+**A regra de qual nome vale.** Não é "o nome da data mais antiga" — o dry-run provou que erra. Na campanha
+de distribuição do Felipe Graton o prefixo `[OLD]` foi posto em 25/08/26 e um backfill já tinha regravado
+as linhas mais antigas com ele, enquanto linhas de dezembro escritas uma hora antes ainda tinham o nome
+original. Vale a **era de nome**: cada nome distinto começa no `updated_at` mais antigo em que aparece, e
+a linha de data `D` carrega o nome da era que continha `D`. Quem foi escrito primeiro é que guarda o nome
+de época; a data do dado não diz nada sobre isso.
 
 ## Fluxo de Dados
 
@@ -552,7 +608,7 @@ O `etl/scheduler.py` usa **APScheduler** (`BlockingScheduler`) com:
 
 ## Testes
 
-Três camadas, com dependências diferentes de banco.
+Quatro camadas, com dependências diferentes de banco.
 
 ### 1. Unitários — sem banco, rodam sempre
 
@@ -597,15 +653,46 @@ sempre que alguém mexia no wizard (foi o que aconteceu quando a oferta do PI-AG
 no meio de uma rodada: mesmas 42 chaves, sha diferente). Nenhuma medição de 15 minutos pega isso —
 depende de alguém abrir a tela.
 
+### 4. Visual (`-m visual`) — precisa de banco **e** do Chromium do Playwright
+
+`tests/test_visual.py` cobre o buraco que as três camadas acima deixam: um stylesheet que não
+carregou, um JS que morreu no console ou um accordion que parou de montar **não mudam o status
+HTTP nem os números**. O smoke vê 200, a caracterização vê os mesmos dados, e a página está crua
+na tela. Foi essa a lacuna que a extração do CSS/JS do `base.html` (21/09/2026) expôs.
+
+**Não compara pixel** — compara o que o browser *calculou*, pelo mesmo princípio do baseline de
+caracterização: tokens `--bs-*` resolvidos, geometria de sidebar/main/topbar, contagem dos
+componentes que o JS monta (chevrons, controles do accordion, `.table-wrap`), as funções globais
+que cada arquivo de `static/js/` registra, e o console limpo. PNG entre máquinas é flaky por
+fonte, antialiasing e versão do Chromium; `getComputedStyle` não é. Os screenshots são gravados
+assim mesmo em `tests/baseline/_visual/` (ignorado pelo git), porque quando cai a primeira
+pergunta é sempre "como ficou a tela?".
+
+Cobre 12 páginas (uma por trilha do menu, mais debriefing e settings), os 10 temas, o accordion
+(recolher/expandir/busca) e a abertura do wizard. Não são as 32 páginas de propósito: o que
+quebra o design system quebra em todas ao mesmo tempo, e cada página custa ~8s.
+
+**Duas armadilhas já pagas**, ambas erro do teste e não do app:
+
+- **`networkidle` não serve aqui.** Exige 500 ms sem nenhum request, e o teste sobe um servidor
+  novo — o cache está sempre frio. `/comparativo` estourava 120s. Usa `load` + espera curta.
+- **Procurar botão por texto pega o botão errado.** A sidebar tem um "Recolher menu" que casa com
+  `/Recolher/i` antes do "Recolher" do accordion; o teste acusava um bug de accordion inexistente.
+  Usa `[data-act="collapse"]`/`[data-act="expand"]`.
+
 ```bash
 # unitários (CI, sem banco)
-python -m pytest tests/ -m "not smoke and not caracterizacao"
+python -m pytest tests/ -m "not smoke and not caracterizacao and not visual"
 
 # antes de refatorar: grava a foto do comportamento atual
 ATUALIZAR_BASELINE=1 python -m pytest tests/test_caracterizacao_readers.py -m caracterizacao
 
 # depois de refatorar: confere que nada mudou
 python -m pytest tests/test_caracterizacao_readers.py -m caracterizacao
+
+# mesma ideia, do lado da tela (precisa do Chromium: playwright install chromium)
+ATUALIZAR_VISUAL=1 python -m pytest tests/test_visual.py -m visual
+python -m pytest tests/test_visual.py -m visual
 ```
 
 > ⚠️ **`ATUALIZAR_BASELINE=1` só vale na suíte inteira.** Escopado em alguns test ids, ele reescreve

@@ -2019,6 +2019,80 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   {% endif %}
 
   <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4b1b. PÁGINAS DE CAPTURA — VENDA POR VERSÃO                -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.paginas_captura_venda and dbf.paginas_captura_venda.rows %}
+  {% set pcv = dbf.paginas_captura_venda %}
+  <div class="dbf-section">
+    <div class="dbf-section-title" data-tag="Captação"><i class="ti ti-cash-register"></i> Páginas de Captura — Venda por Versão</div>
+    <div class="table-wrap" data-no-filter>
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            <th style="width:316px">Preview</th>
+            <th>Página</th>
+            <th class="num">Investido</th>
+            <th class="num">Leads</th>
+            <th class="num">CPL</th>
+            <th class="num">Taxa de Lead*</th>
+            <th class="num">Vendas</th>
+            <th class="num">Conv. de Venda</th>
+            <th class="num">CPA</th>
+            <th class="num">ROAS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in pcv.rows %}
+          <tr>
+            <td>{{ lp_thumb(p.path) }}</td>
+            <td><strong>{{ p.versao }}</strong><div class="note" style="margin:0">{{ p.ads }} anúncio{{ 's' if p.ads != 1 }}</div></td>
+            <td class="num">{{ p.gasto | brl(0) }}</td>
+            <td class="num">{{ p.leads | num }}</td>
+            <td class="num">{{ p.cpl | brl }}</td>
+            <td class="num">{% if p.taxa_lead %}{{ p.taxa_lead | round(2) }}%{% else %}—{% endif %}</td>
+            <td class="num"><strong>{{ p.vendas | num }}</strong></td>
+            <td class="num">{{ p.conv_venda | round(2) }}%</td>
+            <td class="num"><strong>{% if p.vendas %}{{ p.cpa | brl(0) }}{% else %}—{% endif %}</strong></td>
+            <td class="num {{ roas_cls(p.roas) }}">{{ "%.2f"|format(p.roas) }}x</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="note" style="margin-top:10px">
+      Fecha o que a tabela acima não alcança: o GA4 é anônimo, sabe sessão mas não sabe venda.
+      Aqui a ponte é o anúncio — o link de destino de cada <code>ADxxx</code> já vem da API
+      (<code>ad_copy_textos</code>) e a versão está no slug da URL; a venda vem da atribuição
+      comprador→lead→<code>ADxxx</code>. Tudo escopado em <strong>Captação</strong>.
+      <strong>Julgue por CPA e ROAS, não por CPL nem por taxa de lead</strong> — os rankings se
+      invertem: a página que capta mais barato não é a que vende mais barato.
+      <em>*Taxa de Lead vem do GA4 (evento generate_lead por sessão).</em>
+      {% if pcv.nao_atribuido and pcv.nao_atribuido.gasto %}
+      <br><br>
+      <strong>Fora da tabela: {{ pcv.nao_atribuido.gasto | brl(0) }} ({{ pcv.nao_atribuido.pct_gasto | round(0) | int }}% da verba de captação).</strong>
+      {% if pcv.nao_atribuido.ambiguo.ads %}
+        <strong>{{ pcv.nao_atribuido.ambiguo.ads }} anúncios apontam para mais de uma versão ao mesmo tempo</strong>
+        ({{ pcv.nao_atribuido.ambiguo.gasto | brl(0) }}, {{ pcv.nao_atribuido.ambiguo.vendas | num }} vendas) — Google com vários
+        <code>final_urls</code> e carrossel com link por card. Para esses o código do anúncio não
+        determina a página, e não são chutados em nenhuma versão. Some com a regra
+        <strong>um anúncio = uma LP</strong>: página nova, anúncio novo.
+      {% endif %}
+      {% if pcv.nao_atribuido.sem_link.ads %}
+        {{ pcv.nao_atribuido.sem_link.ads }} anúncios estão sem link ingerido
+        ({{ pcv.nao_atribuido.sem_link.gasto | brl(0) }}) — resolve rodando
+        <code>etl/etl_copy_meta.py</code> e <code>etl/etl_copy_google.py</code> no lançamento.
+      {% endif %}
+      {% if pcv.nao_atribuido.nivel_campanha.gasto %}
+        Outros {{ pcv.nao_atribuido.nivel_campanha.gasto | brl(0) }} são de código vindo só da UTM,
+        com gasto casado no nível da campanha do Google — uma campanha inteira não tem destino
+        único, então isso não vira versão por natureza.
+      {% endif %}
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 4b2. PESQUISA — ENGAJAMENTO (RESPOSTAS × BASE)             -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if lazy %}

@@ -31,6 +31,7 @@ from http_retry import http_get
 from validation import validate_dataframe
 from launch_resolver import resolve_launch_code
 from ad_codes import extract_ad_code
+from campanha_historico import preparar as preparar_campanhas
 
 load_dotenv()
 
@@ -410,12 +411,19 @@ def build_df_from_csv(filepath: str) -> pd.DataFrame:
 
 _META_REQUIRED_COLS = ["date", "ad_id", "ad_name", "spend", "impressions", "clicks"]
 
-def upsert(df: pd.DataFrame, since: str, until: str, launch_code: str | None = None):
+def upsert(df: pd.DataFrame, since: str, until: str, launch_code: str | None = None,
+           renomear: bool = False):
     if not validate_dataframe(df, _META_REQUIRED_COLS, "meta_ads_daily", logger):
         return
     df["updated_at"] = datetime.now(timezone.utc).isoformat()
     engine = get_engine()
     with engine.begin() as conn:
+        # Antes do DELETE: preserva o nome que a campanha tinha no período e grava
+        # etapa/temperatura/bucket/segmento a partir dele (etl/campanha_historico.py).
+        df = preparar_campanhas(
+            conn, df, tabela=TABLE, plataforma="meta", since=since, until=until,
+            launch_code=launch_code, renomear=renomear,
+        )
         if launch_code:
             conn.execute(
                 text(f"DELETE FROM {TABLE} WHERE date BETWEEN :s AND :u AND lancamento_codigo = :code"),
@@ -786,6 +794,9 @@ def main():
     parser.add_argument("--since-csv", metavar="YYYY-MM-DD", help="Data mínima ao importar via CSV (filtra linhas)")
     parser.add_argument("--until-csv", metavar="YYYY-MM-DD", help="Data máxima ao importar via CSV")
     parser.add_argument("--launch-code", metavar="CODE", help="Filtra e substitui dados apenas de um lancamento")
+    parser.add_argument("--renomear-campanhas", action="store_true",
+                        help="Deixa o nome atual da campanha sobrescrever o nome historico "
+                             "(padrao: congela o nome que a campanha tinha no periodo)")
     args = parser.parse_args()
 
     if args.thumbnails_only:
@@ -808,7 +819,7 @@ def main():
         if args.launch_code:
             df = df[df["lancamento_codigo"] == args.launch_code.upper()]
         logger.info("%d linhas  [%s -> %s]", len(df), since, until)
-        upsert(df, since, until, args.launch_code)
+        upsert(df, since, until, args.launch_code, args.renomear_campanhas)
     else:
         logger.info("[Meta Ads] %s  [%s -> %s]  (API)", TABLE, args.since, args.until)
         rows = fetch_insights(args.since, args.until)
@@ -816,7 +827,7 @@ def main():
         df   = build_df_from_api(rows)
         if args.launch_code:
             df = df[df["lancamento_codigo"] == args.launch_code.upper()]
-        upsert(df, args.since, args.until, args.launch_code)
+        upsert(df, args.since, args.until, args.launch_code, args.renomear_campanhas)
 
         # Demografia
         demo_rows = fetch_demographics(args.since, args.until)

@@ -135,6 +135,13 @@ def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dic
             "ad_code": code,
             "nome": f"{code} - criativo rastreado por UTM do lançamento",
             "origens": {"Google"},
+            # Não existe anúncio com esse código na plataforma: o ADxxx veio da
+            # UTM e o gasto foi casado no nível da CAMPANHA do Google. Quem
+            # agrega por atributo do anúncio (ex.: versão de landing page, em
+            # _paginas_captura_venda) precisa saber disso pra não tratar a linha
+            # como "anúncio sem o dado ingerido" — aqui o dado não existe por
+            # natureza, uma campanha inteira não tem um destino único.
+            "sem_ad_na_plataforma": True,
             "gasto": gasto,
             "leads": leads,
             "cliques": cliques,

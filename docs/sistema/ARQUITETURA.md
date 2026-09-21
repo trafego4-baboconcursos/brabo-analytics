@@ -34,7 +34,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 70 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 71 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -277,6 +277,7 @@ relacionados:
 >
 > **Visualização salva "perdia" seções em outro lançamento (2026-09-21)**
 >
+> - [[ARQUITETURA#Datas de cadastro dos leads — resolvido (2026-09-21)|Datas de cadastro dos leads — resolvido (2026-09-21)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -3066,3 +3067,24 @@ Cinco seções (Typeform ×3, Leads × Grupos de WhatsApp, Páginas de Captura) 
 renderizadas quando a fonte não existe naquele lançamento — Typeform foi cancelado e o GA4 só
 passou a ser coletado depois de mai/26. Mostrar a seção com `sem_dados()` em vez de omitir segue
 como decisão em aberto com o usuário.
+
+### Datas de cadastro dos leads — resolvido (2026-09-21)
+
+A carga de 13/08/26 gravou datas trocadas por `dayfirst=True`: com data ISO, o pandas troca mês
+e dia quando o dia é ≤ 12 (`2026-01-12` virava `2026-12-01`) e descarta a linha como nula
+quando é > 12. Resultado: **136 mil leads sem `created_at`** (10,9% da base) e 23 mil com data
+no futuro — qualquer corte por período simplesmente não os enxergava.
+
+A causa já estava corrigida no código desde 02/09 (formato explícito no lugar do `dayfirst`),
+mas o dado gravado não. Não dava para consertar com `UPDATE`: existe transformação inversa
+exata (trocar mês/dia e somar 3 horas, validada em 25 de 25 casos contra a API), mas ela só
+podia ser aplicada onde a troca era **certa** — nas 411 mil linhas de data passada com dia ≤ 12
+a troca produziu outra data plausível, e rodar ali corromperia as ~78% corretas.
+
+**Ressincronizado contra o `cdate` do Active Campaign entre 18 e 21/09/26.** Medido em 21/09:
+`created_at` nulo e data futura em **zero**, e o total de leads subiu de 1.247.308 para
+1.247.392 — datas foram preenchidas, nenhuma linha removida. O `lead_lancamentos` passou de
+153.374 para 364.773 pares na mesma passada.
+
+Detalhe do registro: **quem executou e por qual método não ficou documentado** — não houve
+commit correspondente no repositório. Se o problema reaparecer, esse é o rastro que falta.

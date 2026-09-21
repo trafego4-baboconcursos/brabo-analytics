@@ -28,7 +28,17 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from dotenv import load_dotenv  # noqa: E402
+# Aviso amigavel em vez de ModuleNotFoundError cru: e facil rodar com o Python
+# do sistema em vez do da .venv, e o traceback do `dotenv` nao diz o que fazer.
+try:
+    from dotenv import load_dotenv  # noqa: E402
+except ModuleNotFoundError:  # pragma: no cover - depende do ambiente
+    _venv = Path(__file__).resolve().parent.parent / ".venv" / "Scripts" / "python.exe"
+    raise SystemExit(
+        "Este script precisa do Python do projeto (.venv), nao o do sistema.\n"
+        f"  PowerShell:  {_venv} scripts/checar_egress.py\n"
+        "  ou ative a venv uma vez:  .\\.venv\\Scripts\\Activate.ps1"
+    ) from None
 load_dotenv()
 
 from sqlalchemy import text  # noqa: E402
@@ -52,8 +62,17 @@ ASSINATURAS = [
      " AND query NOT ILIKE '%SUM(%'", False),
     ("GA4: agregado por landing_page",
      "query ILIKE '%ga4_daily%' AND query ILIKE '%GROUP BY landing_page%'", True),
-    ("Typeform: colunas podadas no DISTINCT ON",
-     "query ILIKE '%response_id, updated_at, email%'", True),
+    # A poda de colunas do DISTINCT ON foi substituida em 18/09 pela tabela
+    # materializada: a assinatura antiga virou alarme falso (zero chamadas
+    # porque a consulta deixou de existir, nao porque o deploy falhou).
+    # O `count(*)` de _contar_respostas_brutas usa a forma antiga de proposito —
+    # total_tf_raw conta a fonte original, incluindo resposta sem e-mail valido,
+    # que a tabela materializada nao tem. Devolve 1 linha, entao nao e egress.
+    ("Typeform: SELECT * com answers cru",
+     "query ILIKE '%DISTINCT ON (response_id)%' AND query ILIKE '%SELECT * FROM typeform_respostas %'"
+     " AND query NOT ILIKE '%count(*)%'", False),
+    ("Typeform: le a tabela materializada",
+     "query ILIKE '%typeform_respostas_valores%'", True),
 ]
 
 # Relatório técnico de 14/09/26: 4,93 bi de linhas em ~10 dias.

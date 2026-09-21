@@ -1,0 +1,167 @@
+/* Extraído de frontend/templates/base.html em 21/09/2026.
+   A ORDEM DE CARGA IMPORTA (cascata): ver a sequência de <link> no <head>
+   do base.html antes de renomear, reordenar ou juntar arquivos. */
+/* media queries */
+
+/* ── Responsive ─────────────────────────────────────────────────────── */
+@media (max-width:1024px) {
+  #bs-mobile-topbar {
+    display:flex; align-items:center; justify-content:space-between;
+    position:fixed; top:0; left:0; right:0; height:56px;
+    background:linear-gradient(180deg, var(--bs-sidebar) 0%, var(--bs-sidebar-dark) 100%);
+    padding:0 8px 0 14px; z-index:150;
+    box-shadow:0 2px 10px rgba(20,26,52,.18);
+  }
+  #bs-mobile-topbar img { height:26px; display:block; }
+  #bs-mobile-topbar a { display:flex; align-items:center; text-decoration:none; }
+  #bs-menu-toggle {
+    background:none; border:none; color:#fff; font-size:24px;
+    display:flex; align-items:center; justify-content:center;
+    width:44px; height:44px; padding:0; cursor:pointer; border-radius:8px;
+    flex-shrink:0;
+  }
+  #bs-menu-toggle:active { background:rgba(255,255,255,.14); }
+
+  #bs-drawer {
+    position:fixed; top:0; left:0; height:100vh; width:270px; max-width:82vw;
+    flex-direction:column; flex-wrap:nowrap;
+    transform:translateX(-100%);
+    transition:transform .25s ease;
+    z-index:210;
+    box-shadow:0 0 40px rgba(0,0,0,.3);
+    padding-bottom:56px; /* espaço pro botão fixo .bs-drawer-collapse-btn não cobrir o último item */
+  }
+  #bs-drawer.open { transform:translateX(0); }
+  /* position:fixed aqui é relativo à própria #bs-drawer (o transform acima
+     cria um containing block novo), não ao viewport — por isso "gruda" no
+     rodapé da gaveta e desliza junto com ela, em vez de ficar cravado na
+     tela por trás quando a gaveta fecha. */
+  .bs-drawer-collapse-btn {
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    position:fixed; bottom:0; left:0; width:100%;
+    padding:15px; border:none; border-top:1px solid rgba(255,255,255,.15);
+    background:var(--bs-sidebar-dark); color:#fff; font-family:inherit;
+    font-size:13px; font-weight:700; cursor:pointer; z-index:2;
+  }
+  .bs-drawer-collapse-btn:active { background:rgba(255,255,255,.10); }
+
+  #bs-drawer-overlay {
+    display:block; position:fixed; inset:0; background:rgba(15,20,40,.5);
+    z-index:200; opacity:0; pointer-events:none; transition:opacity .2s ease;
+  }
+  #bs-drawer-overlay.open { opacity:1; pointer-events:auto; }
+
+  /* No desktop #bs-main rola sozinho (sidebar fixa do lado). No celular
+     isso quebra o header sticky: a barra de endereço do navegador some/
+     aparece e muda a altura real da tela, dessincronizando a rolagem do
+     #bs-main (height:100vh fixo) da rolagem da página — o resultado é
+     o .hdr "grudado" parecendo flutuar solto em vez de ficar preso no
+     topo. Solução: no celular, deixa a PÁGINA rolar (padrão robusto), o
+     sticky do .hdr passa a colar direto na tela. */
+  /* overflow-y:visible sozinho não funciona aqui: overflow-x:hidden continua
+     valendo (herdado da regra de desktop), e a spec do CSS força o eixo
+     "visible" a virar "auto" de novo quando o outro eixo não é visible —
+     então #bs-main continuava sendo o próprio scroller, e o position:sticky
+     do .hdr (relativo a esse scroller) empurrava o título 56px pra baixo da
+     posição normal antes de rolar (efeito "grudado" solto, com vão acima).
+     overflow:visible (os dois eixos) tira #bs-main de vez da equação. */
+  #bs-main   { margin-left:0; padding-top:56px; height:auto; overflow:visible; }
+  #bs-topbar { left:0; top:56px; }
+  .hdr       { top:56px; }
+  #bs-main.has-subnav .hdr { top:56px; }
+  .bs-nav    { flex-direction:column; flex-wrap:nowrap; }
+  .bs-drawer-footer { margin-top:0; }
+  .content   { padding:16px; }
+  .bs-subnav { display:none; }
+  .bs-nav.bs-nav-mobile-only { display:flex; }
+
+  /* Drill-down dos pickers (Lançamento/Perpétuo/Distribuição/Redes Sociais/
+     Tema) no celular: em vez de abrir um dropdown flutuando por cima do
+     menu principal inteiro (ilegível com tudo empilhado na gaveta), o
+     menu principal some e só o submenu do item escolhido ocupa a gaveta,
+     com um botão "Voltar" no topo pra retornar. :has() identifica qual
+     bloco (trilha de modo ou bloco Sistema) contém o picker aberto, pra
+     funcionar igual pros dois sem repetir regra pra cada item. */
+  #bs-drawer.bs-drilled > *:not(:has(.bs-launch-picker.open)):not(#bs-drawer-collapse) { display:none !important; }
+  #bs-drawer.bs-drilled > *:has(.bs-launch-picker.open) {
+    display:flex; flex-direction:column; flex:1 1 auto; min-height:0;
+  }
+  #bs-drawer.bs-drilled > *:has(.bs-launch-picker.open) > *:not(.bs-launch-picker) {
+    display:none !important;
+  }
+  #bs-drawer.bs-drilled .bs-launch-picker:not(.open) { display:none !important; }
+  #bs-drawer.bs-drilled .bs-launch-picker.open {
+    display:flex; flex-direction:column; min-height:0; flex:1 1 auto;
+  }
+  #bs-drawer.bs-drilled .bs-launch-picker-menu {
+    position:static !important; display:block !important; width:100% !important;
+    flex:1 1 auto; min-height:0; max-height:none; overflow-y:auto;
+    box-shadow:none; border:none; border-radius:0; background:transparent; padding:0;
+  }
+  /* Com o fundo do painel virando transparente acima, o texto passa a
+     sentar direto no degradê sempre-escuro da gaveta — mas os itens usam
+     tokens de tema (--bs-ink etc) pensados pra um cartão claro (--bs-card),
+     não pro fundo escuro. No tema padrão (claro) isso ficava ilegível:
+     texto quase preto sobre fundo quase preto. Troca pros mesmos tons
+     brancos translúcidos que .bs-mode-btn já usa pro resto da gaveta,
+     que funcionam em qualquer tema por não dependerem de --bs-ink. */
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-launch-picker-group,
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-picker-subgroup-label-caps,
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-picker-back {
+    color:rgba(255,255,255,.5);
+  }
+  /* :not(.active) de propósito — sem isso, esse seletor (1 ID + N classes)
+     ganha do ".active" sozinho (N classes) por especificidade e pinta o
+     item selecionado de branco também, sumindo com o texto em cima do
+     próprio fundo (--bs-accent-bg) branco/claro do estado ativo. */
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-launch-picker-item:not(.active),
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-picker-subgroup-btn:not(.active),
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-subnav-link:not(.active),
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-theme-opt:not(.active) {
+    color:rgba(255,255,255,.75);
+  }
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-subnav-link:not(.active) i {
+    color:inherit; opacity:.85;
+  }
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-launch-picker-item:hover,
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-picker-subgroup-btn:hover,
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-subnav-link:hover,
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-theme-opt:hover {
+    background:rgba(255,255,255,.10); color:#fff;
+  }
+  /* "Ver todos os lançamentos"/"Ver todos os perfis": a cor de destaque
+     (--bs-accent) direto sobre o fundo sempre-escuro do painel ficava
+     estranha dependendo do tema — branco negrito (já é bold na regra
+     base) combina com o resto dos CTAs da gaveta. */
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-launch-picker-all {
+    color:#fff;
+  }
+  #bs-drawer.bs-drilled .bs-launch-picker-menu .bs-launch-picker-all:hover {
+    background:rgba(255,255,255,.10);
+  }
+  .bs-picker-back {
+    display:flex; align-items:center; gap:8px; width:100%; font-family:inherit;
+    padding:12px 10px; margin-bottom:6px; border:none; border-bottom:1px solid rgba(255,255,255,.15);
+    background:none; cursor:pointer; font-size:13px; font-weight:700;
+  }
+  .bs-picker-back:active { color:#fff; }
+  .bs-picker-back.bs-picker-back-bottom { border-top:1px solid rgba(255,255,255,.15); }
+  .bs-picker-mobile-only { display:block; }
+}
+
+@media (max-width:520px) {
+  .hdr     { padding:14px 16px; gap:12px; }
+  .hdr h1  { font-size:17px; }
+  .content { padding:12px; }
+  .metrics-grid, .tp-kpi-grid, .highlights { grid-template-columns:1fr; }
+  table, .table-wrap table { font-size:12px; }
+
+}
+
+/* Título de seção (accordion) no celular: título e badges empilham em
+   duas linhas deliberadas (.bs-sec-body vira coluna) em vez de disputar
+   espaço no mesmo flex-wrap — ícone (se houver) e chevron continuam fora
+   desse bloco, sempre nas mesmas posições (ver regras não-mobile acima). */
+@media (max-width:640px) {
+  .bs-sec-body { flex-direction:column; align-items:flex-start; gap:4px; }
+}

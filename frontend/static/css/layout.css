@@ -1,0 +1,408 @@
+/* Extraído de frontend/templates/base.html em 21/09/2026.
+   A ORDEM DE CARGA IMPORTA (cascata): ver a sequência de <link> no <head>
+   do base.html antes de renomear, reordenar ou juntar arquivos. */
+/* frame, sidebar, seletor de lançamento, nav, progresso, overlay, main */
+
+/* ── Frame ─────────────────────────────────────────────────────────── */
+#bs-frame { display: block; min-height: 100vh; }
+
+/* ── Sidebar ────────────────────────────────────────────────────────── */
+#bs-drawer {
+  background: linear-gradient(180deg, var(--bs-sidebar) 0%, var(--bs-sidebar-dark) 100%);
+  color: #fff; padding: 20px 14px;
+  position: fixed; top:0; left:0; width:240px; height:100vh;
+  overflow-y: auto; display: flex; flex-direction: column; gap: 14px;
+  scrollbar-width: none; z-index: 100;
+}
+#bs-drawer::-webkit-scrollbar { display: none; }
+/* Só no celular (ver media query) — no desktop a sidebar é fixa, sem
+   opção de recolher. */
+.bs-drawer-collapse-btn { display:none; }
+
+.bs-brand {
+  padding-bottom:14px;
+  border-bottom:1px solid rgba(255,255,255,.15);
+  flex-shrink:0;
+}
+.bs-brand a {
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:8px;
+  text-decoration:none;
+}
+.bs-brand img {
+  display:block;
+  width:100%;
+  max-width:190px;
+  height:auto;
+}
+.bs-brand-name {
+  font-size:12px;
+  font-weight:700;
+  color:rgba(255,255,255,.9);
+  text-align:center;
+}
+
+/* Seletor de lançamento */
+.bs-launch-switch {
+  flex-shrink:0;
+}
+.bs-camp-select {
+  width:100%;
+  appearance:none;
+  border:1px solid rgba(255,255,255,.18);
+  border-radius:var(--bs-r-lg);
+  background:rgba(0,0,0,.25);
+  color:#fff;
+  padding:10px 38px 10px 12px;
+  font-size:12px;
+  font-weight:800;
+  line-height:1.25;
+  outline:none;
+  cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 10px center;
+  background-size:12px;
+  box-shadow:0 8px 18px rgba(0,0,0,.18);
+}
+.bs-camp-select:hover { filter:brightness(1.04); }
+.bs-camp-select:focus {
+  border-color:rgba(255,255,255,.42);
+  box-shadow:0 0 0 3px rgba(255,255,255,.12), 0 8px 18px rgba(0,0,0,.18);
+}
+.bs-camp-select optgroup {
+  color:#4b5563;
+  font-weight:800;
+  font-size:12px;
+  background:#eef2ff;
+}
+.bs-camp-select option {
+  color:#111827;
+  background:var(--bs-card);
+  font-size:12px;
+  font-weight:700;
+  padding:8px 10px;
+}
+
+/* Mode rail — Funis / Lançamentos / Perpétuo / Redes Sociais */
+.bs-mode-rail { display:flex; flex-direction:column; gap:3px; flex-shrink:0; }
+.bs-mode-btn {
+  display:flex; align-items:center; gap:9px;
+  padding:9px 10px; border-radius:var(--bs-r-md);
+  color:rgba(255,255,255,.6); text-decoration:none;
+  font-size:12.5px; font-weight:700; letter-spacing:.02em;
+  transition:background .12s,color .12s;
+  border:none; background:none; width:100%; text-align:left; cursor:pointer; font-family:inherit;
+}
+.bs-mode-btn i { font-size:16px; flex-shrink:0; opacity:.85; }
+.bs-mode-btn:hover { background:rgba(255,255,255,.10); color:#fff; }
+.bs-mode-btn.active { background:rgba(255,255,255,.18); color:#fff; }
+.bs-mode-btn.disabled { opacity:.35; cursor:default; pointer-events:none; }
+.bs-mode-btn .bs-mode-soon { margin-left:auto; font-size:9px; font-weight:700; text-transform:uppercase; background:rgba(255,255,255,.14); padding:2px 6px; border-radius:999px; letter-spacing:.04em; }
+
+/* Lançamentos — botão que dobra de navegação de modo + troca de lançamento */
+.bs-launch-picker { position:relative; }
+.bs-launch-picker-btn { flex-wrap:wrap; row-gap:6px; justify-content:flex-start; }
+.bs-launch-picker-label { display:flex; align-items:center; gap:9px; }
+/* Só quebra o rótulo pra linha própria quando tem badge junto (2 linhas);
+   sem badge, o ícone de seta fica alinhado na mesma linha do texto. */
+.bs-launch-picker-btn.bs-has-badge .bs-launch-picker-label { flex:0 0 100%; }
+.bs-launch-picker-btn .bs-live-badge { margin-right:2px; }
+.bs-launch-picker-chevron { margin-left:auto; font-size:12px; opacity:.6; transition:transform .15s; flex-shrink:0; }
+.bs-launch-picker.open .bs-launch-picker-chevron { transform:rotate(180deg); }
+.bs-launch-picker-menu {
+  /* position:fixed (não absolute) de propósito — a sidebar tem overflow-y:auto
+     pra rolar a lista de navegação, e um ancestral com overflow corta
+     qualquer descendente position:absolute que vaze pra fora da própria
+     largura. fixed escapa desse corte; top/left exatos vêm do JS
+     (bsPickerToggle), calculados a partir do botão no momento do clique. */
+  display:none; position:fixed; min-width:220px;
+  background:var(--bs-card); border-radius:12px; box-shadow:0 12px 30px rgba(20,26,52,.24);
+  border:1px solid var(--bs-border); z-index:500; max-height:70vh; overflow-y:auto;
+  padding:6px;
+}
+.bs-launch-picker.open .bs-launch-picker-menu { display:block; }
+/* Botão "Voltar" só aparece no modo drill-down mobile (ver media query
+   abaixo) — no desktop o dropdown flutua e fechar é só clicar fora/no botão. */
+.bs-picker-back { display:none; }
+.bs-launch-picker-all {
+  display:flex; align-items:center; gap:8px; padding:9px 10px; border-radius:8px;
+  color:var(--bs-accent); text-decoration:none; font-size:12.5px; font-weight:700;
+}
+.bs-launch-picker-all:hover { background:var(--bs-accent-bg); }
+.bs-launch-picker-sep { height:1px; background:var(--bs-accent-bg); margin:4px 2px; }
+.bs-launch-picker-group {
+  font-size:10px; font-weight:700; color:var(--bs-ink-subtle); text-transform:uppercase;
+  letter-spacing:.06em; padding:10px 10px 3px;
+}
+.bs-launch-picker-item {
+  display:block; padding:8px 10px; border-radius:8px;
+  color:var(--bs-ink); text-decoration:none; font-size:13px; font-weight:600;
+}
+.bs-launch-picker-item:hover { background:var(--bs-surface); }
+.bs-launch-picker-item.active { background:var(--bs-accent-bg); color:var(--bs-accent); }
+
+/* Painel do Lançamento (mobile): breadcrumb indicando que os grupos de
+   página (Visão Geral/Mídia Paga/...) abaixo pertencem ao lançamento atual,
+   não são itens soltos do menu principal — e cada grupo abre em acordeão
+   (expande no próprio painel) em vez de virar outro nível de drill-down. */
+.bs-picker-mobile-only { display:none; }
+.bs-picker-breadcrumb { display:flex; align-items:center; gap:4px; }
+.bs-picker-breadcrumb i:last-child { font-size:11px; opacity:.5; }
+.bs-picker-subgroup-btn {
+  display:flex; align-items:center; gap:9px; width:100%;
+  border:none; background:none; cursor:pointer; font-family:inherit;
+  padding:9px 10px; border-radius:8px;
+  color:var(--bs-ink); font-size:13px; font-weight:600; text-align:left;
+}
+.bs-picker-subgroup-btn:hover { background:var(--bs-surface); }
+.bs-picker-subgroup-btn.active { color:var(--bs-accent); }
+.bs-picker-subgroup-btn > i:first-child { font-size:15px; opacity:.8; flex-shrink:0; }
+.bs-picker-subgroup-label { flex:1; }
+/* Rótulo de produto (INSS/TJ-SP/...) reaproveitando o acordeão do picker
+   de Lançamento — mesma tipografia pequena/uppercase de .bs-launch-picker-group,
+   mas sem o padding próprio (o botão do acordeão já tem o dele). */
+.bs-picker-subgroup-label-caps {
+  font-size:10px; font-weight:700; color:var(--bs-ink-subtle); text-transform:uppercase;
+  letter-spacing:.06em;
+}
+.bs-picker-subgroup-chevron { font-size:12px; opacity:.6; transition:transform .15s; flex-shrink:0; }
+.bs-picker-subgroup.open .bs-picker-subgroup-chevron { transform:rotate(180deg); }
+.bs-picker-subgroup-body { display:none; padding-left:10px; }
+.bs-picker-subgroup.open .bs-picker-subgroup-body { display:block; }
+/* Variante do "Voltar" no fim do painel (não no topo) — separa com borda
+   em cima em vez de embaixo. Seletor composto (2 classes) de propósito:
+   precisa ganhar de ".bs-picker-back" sozinho, que também seta border-bottom
+   dentro da media query mobile (mesma especificidade, mas depois no
+   arquivo — sem o composto, a ordem de origem faria o border-bottom voltar). */
+.bs-picker-back.bs-picker-back-bottom { border-bottom:none; border-top:1px solid var(--bs-border); margin-top:6px; margin-bottom:0; }
+
+/* Item de tema (reaproveita o picker acima, mas é <button>, não <a>) */
+.bs-theme-opt {
+  display:flex; align-items:center; gap:9px; width:100%;
+  border:none; background:none; cursor:pointer; font-family:inherit;
+  padding:8px 10px; border-radius:8px;
+  color:var(--bs-ink); text-decoration:none; font-size:13px; font-weight:600; text-align:left;
+}
+.bs-theme-opt:hover { background:var(--bs-surface); }
+.bs-theme-opt.active { background:var(--bs-accent-bg); color:var(--bs-accent); }
+.bs-theme-dot { width:12px; height:12px; border-radius:4px; flex-shrink:0; box-shadow:inset 0 0 0 1px rgba(0,0,0,.08); }
+.bs-theme-opt.active .bs-theme-dot::after { content:'✓'; display:flex; align-items:center; justify-content:center; width:100%; height:100%; color:#fff; font-size:9px; }
+
+/* Subnav horizontal (modo Funis, desktop) — clique abre, não hover */
+.bs-nav.bs-nav-mobile-only { display:none; }
+.bs-subnav {
+  display:flex; align-items:stretch; gap:2px;
+  background:#111827; border-bottom:1px solid rgba(255,255,255,.08);
+  padding:0 20px; position:sticky; top:0; z-index:60;
+  box-shadow:0 1px 4px rgba(20,26,52,.04);
+}
+.bs-subnav-group { position:relative; }
+.bs-subnav-btn {
+  display:flex; align-items:center; gap:6px;
+  height:44px; padding:0 14px; border:none; background:none; cursor:pointer;
+  font-family:inherit; font-size:13px; font-weight:600; color:rgba(255,255,255,.75);
+  border-bottom:2px solid transparent; transition:color .12s,border-color .12s,background .12s;
+}
+.bs-subnav-btn i { font-size:15px; }
+.bs-subnav-btn .bs-subnav-chevron { font-size:12px; margin-left:2px; transition:transform .15s; opacity:.7; }
+.bs-subnav-btn:hover { color:#fff; background:rgba(255,255,255,.08); }
+.bs-subnav-btn.active { color:#fff; border-bottom-color:var(--bs-accent); background:rgba(255,255,255,.06); }
+.bs-subnav-btn.disabled { opacity:.4; cursor:default; pointer-events:none; }
+.bs-subnav-btn .bs-mode-soon { margin-left:2px; }
+.bs-subnav-group.open .bs-subnav-btn .bs-subnav-chevron { transform:rotate(180deg); }
+.bs-subnav-dropdown {
+  display:none; position:absolute; top:100%; left:0; min-width:220px;
+  background:var(--bs-card); border:1px solid var(--bs-border); border-radius:0 0 var(--bs-r-lg) var(--bs-r-lg);
+  box-shadow:0 12px 30px rgba(20,26,52,.14); padding:6px; z-index:60;
+}
+.bs-subnav-group.open .bs-subnav-dropdown { display:block; }
+.bs-subnav-link {
+  display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:var(--bs-r-md);
+  color:var(--bs-ink); text-decoration:none; font-size:13px; font-weight:500;
+  transition:background .1s;
+}
+.bs-subnav-link i { font-size:15px; color:var(--bs-ink-muted); width:18px; text-align:center; }
+.bs-subnav-link:hover { background:var(--bs-surface); }
+.bs-subnav-link.active { background:var(--bs-accent-bg); color:var(--bs-accent); font-weight:700; }
+.bs-subnav-link.disabled { opacity:.4; pointer-events:none; }
+#bs-main.has-subnav .hdr { top:44px; }
+
+/* Nav */
+.bs-nav { display:flex; flex-direction:column; gap:1px; flex:1; min-height:0; overflow-y:auto; scrollbar-width:none; }
+.bs-nav::-webkit-scrollbar { display:none; }
+.bs-nav-sep   { height:1px; background:rgba(255,255,255,.12); margin:11px 0; }
+.bs-nav-group { font-size:10px; font-weight:700; color:rgba(255,255,255,.4); text-transform:uppercase; letter-spacing:.08em; padding:15px 8px 3px; }
+.bs-nav-link  {
+  display:flex; align-items:center; gap:8px;
+  color:rgba(255,255,255,.75); text-decoration:none;
+  min-height:34px; padding:8px 10px; border-radius:var(--bs-r-md);
+  font-size:13px; font-weight:500;
+  transition:background .12s,color .12s;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  line-height:1.2;
+}
+.bs-nav-link:hover  { background:rgba(255,255,255,.14); color:#fff; }
+.bs-nav-link.active { background:rgba(255,255,255,.22); color:#fff; font-weight:700; }
+.bs-nav-link.disabled { opacity:.4; pointer-events:none; }
+.bs-nav-icon { display:flex; align-items:center; flex-shrink:0; }
+.bs-nav-icon i { font-size:15px; line-height:1; opacity:.85; }
+.bs-nav-link.loading { opacity:.7; pointer-events:none; }
+.bs-nav-link.loading .bs-nav-icon i { display:none; }
+.bs-nav-link.loading .bs-nav-icon::after {
+  content:''; display:block; width:14px; height:14px;
+  border:2px solid rgba(255,255,255,.3);
+  border-top-color:#fff;
+  border-radius:50%;
+  animation:bs-spin .6s linear infinite;
+}
+@keyframes bs-spin { to { transform:rotate(360deg); } }
+
+/* ── Barra de progresso no topo da área de conteúdo ── */
+#bs-topbar {
+  position:fixed; top:0; left:240px; right:0; height:3px; z-index:9999;
+  background:transparent; pointer-events:none;
+}
+#bs-topbar-fill {
+  height:100%; width:0%; background:var(--bs-accent,#2f5ee3);
+  border-radius:0 2px 2px 0;
+  transition:width .1s ease;
+  box-shadow:0 0 8px var(--bs-accent,#2f5ee3);
+}
+
+/* ── Overlay de carregamento (navegação entre páginas) ──────────────── */
+#bs-loading-overlay {
+  position:fixed; inset:0; z-index:9998;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:26px;
+  background:rgba(241,243,245,.6);
+  background:color-mix(in srgb, var(--bs-bg, #f1f3f5) 72%, transparent);  /* segue o tema (claro/escuro) */
+  backdrop-filter:blur(2px);
+  opacity:0; visibility:hidden; pointer-events:none;
+  transition:opacity .18s ease, visibility 0s linear .18s;
+}
+/* Frase de pensador enquanto a página carrega — só aparece se a espera
+   passar de ~400ms (bsQuoteStart), pra não piscar em navegação rápida. */
+.bs-loading-quote {
+  max-width:min(560px, 86vw); text-align:center; padding:0 12px;
+  opacity:0; transform:translateY(6px);
+  transition:opacity .45s ease, transform .45s ease;
+}
+.bs-loading-quote.in { opacity:1; transform:none; }
+.bs-loading-quote .q {
+  font-family:'Manrope','Inter',sans-serif; font-size:17px; font-weight:600; line-height:1.45;
+  color:var(--bs-ink); letter-spacing:-.005em;
+}
+.bs-loading-quote .q::before { content:'\201C'; color:var(--bs-accent); margin-right:2px; }
+.bs-loading-quote .q::after  { content:'\201D'; color:var(--bs-accent); margin-left:2px; }
+.bs-loading-quote .a {
+  margin-top:8px; font-size:12px; font-weight:700; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--bs-ink-muted);
+}
+#bs-loading-overlay.show {
+  opacity:1; visibility:visible; pointer-events:auto;
+  transition:opacity .18s ease;
+}
+.bs-loading-clock { display:none; }
+/* Easter egg "Outatime": troca o spinner pelo relógio da torre de Hill
+   Valley, ponteiros girando feito no salto no tempo. */
+html[data-bs-theme="outatime"] .bs-loading-spinner { display:none; }
+html[data-bs-theme="outatime"] .bs-loading-clock {
+  display:block; color:var(--bs-accent);
+  filter:drop-shadow(0 0 8px var(--bs-accent));
+}
+html[data-bs-theme="outatime"] .bs-clock-hour {
+  transform-origin:50px 60px; animation:bs-clock-spin 2.4s linear infinite;
+}
+html[data-bs-theme="outatime"] .bs-clock-min {
+  transform-origin:50px 60px; animation:bs-clock-spin 1s linear infinite;
+}
+@keyframes bs-clock-spin { to { transform:rotate(360deg); } }
+.bs-loading-reticle { display:none; }
+/* Easter egg "Predador": troca o spinner pela mira/retículo de caça
+   térmica, anel pontilhado girando feito escaneando o alvo. */
+html[data-bs-theme="predador"] .bs-loading-spinner { display:none; }
+html[data-bs-theme="predador"] .bs-loading-reticle {
+  display:block; color:var(--bs-accent);
+  filter:drop-shadow(0 0 8px var(--bs-accent));
+}
+html[data-bs-theme="predador"] .bs-ret-ring {
+  transform-origin:50px 50px; animation:bs-ret-spin 2.5s linear infinite;
+}
+@keyframes bs-ret-spin { to { transform:rotate(360deg); } }
+.bs-loading-web { display:none; }
+/* Easter egg "Amigão da Vizinhança": troca o spinner por uma teia,
+   pulsando/girando devagar feito o sentido aranha disparando. */
+html[data-bs-theme="spidey"] .bs-loading-spinner { display:none; }
+html[data-bs-theme="spidey"] .bs-loading-web {
+  display:block; color:var(--bs-accent);
+  filter:drop-shadow(0 0 8px var(--bs-accent));
+  animation:bs-web-pulse 1.6s ease-in-out infinite;
+}
+html[data-bs-theme="spidey"] .bs-web-spokes {
+  transform-origin:50px 50px; animation:bs-web-spin 6s linear infinite;
+}
+@keyframes bs-web-spin { to { transform:rotate(360deg); } }
+@keyframes bs-web-pulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.08); } }
+/* Easter egg "Aranhaverso": mesma teia, mas com o efeito glitch/cromático
+   rosa+ciano do filme e um tremor errático em vez de giro suave. */
+html[data-bs-theme="aranhaverso"] .bs-loading-spinner { display:none; }
+html[data-bs-theme="aranhaverso"] .bs-loading-web {
+  display:block; color:var(--bs-ink);
+  filter:drop-shadow(-2px 0 0 var(--bs-accent-2)) drop-shadow(2px 0 0 var(--bs-accent));
+  animation:bs-glitch-jitter 2.2s steps(1) infinite;
+}
+html[data-bs-theme="aranhaverso"] .bs-web-spokes {
+  transform-origin:50px 50px; animation:bs-web-spin 5s linear infinite;
+}
+@keyframes bs-glitch-jitter {
+  0%, 82%, 100% { transform:translate(0,0); }
+  84% { transform:translate(-2px,1px); }
+  86% { transform:translate(2px,-1px); }
+  88% { transform:translate(-1px,0); }
+  90% { transform:translate(0,0); }
+}
+.bs-loading-spinner {
+  width:44px; height:44px;
+  border:4px solid rgba(0,0,0,.08);
+  border-top-color:var(--bs-accent,#2f5ee3);
+  border-radius:50%;
+  animation:bs-spin .7s linear infinite;
+  box-shadow:0 4px 20px rgba(20,26,52,.12);
+}
+
+.bs-drawer-footer {
+  margin-top:0;
+  padding-top:0;
+  border-top:none;
+  flex-shrink:0;
+}
+
+/* ── Main ───────────────────────────────────────────────────────────── */
+#bs-main { background:var(--bs-surface); min-width:0; overflow-x:hidden; overflow-y:auto; height:100vh; margin-left:240px; }
+
+/* ── Wrap / hdr / content / section — PADRÃO MANUAL ────────────────── */
+.wrap  { animation:fadeInUp .4s ease-out forwards; }
+.hdr {
+  background:var(--bs-card); padding:18px 32px;
+  display:flex; align-items:center; gap:20px;
+  border-bottom:1px solid var(--bs-border);
+  position:sticky; top:0; z-index:50;
+  box-shadow:0 2px 12px rgba(20,26,52,.06);
+}
+.hdr img { height:36px; flex-shrink:0; }
+.hdr h1  { font-size:20px; font-weight:800; color:var(--bs-ink); margin:0 0 2px; }
+.hdr p   { font-size:13px; color:var(--bs-ink-muted); margin:0; }
+.content { padding:28px 32px; }
+
+/* Section */
+.section { margin-bottom:32px; }
+.section-title {
+  font-size:16px; font-weight:700; color:var(--bs-ink);
+  border-bottom:2px solid var(--bs-accent);
+  padding-bottom:8px; margin-bottom:16px;
+  display:flex; align-items:center; gap:10px;
+  position:relative; padding-right:26px;
+  cursor:pointer; user-select:none;
+}

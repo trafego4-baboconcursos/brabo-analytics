@@ -1,0 +1,566 @@
+/* Extraído de frontend/templates/base.html em 21/09/2026.
+   A ORDEM DE CARGA IMPORTA (cascata): ver a sequência de <link> no <head>
+   do base.html antes de renomear, reordenar ou juntar arquivos. */
+/* seções recolhíveis, KPI, tabelas, funil, pills, badges */
+
+/* ── Seções recolhíveis (accordion) — mesmo padrão do Debriefing,
+   aplicado automaticamente em qualquer página com .section/.section-title
+   (ver bsInitAccordion() no <script> do fim do body). O ícone original
+   (1º filho, se houver) fica maior, fora do fluxo de texto — ver regra
+   dedicada abaixo. Chevron sempre fora do flexbox (canto absoluto),
+   nunca disputa espaço com título/badges nem pula de linha. ── */
+.bs-chevron { position:absolute; top:50%; right:0; transform:translateY(-50%); transition:transform .15s; flex-shrink:0; }
+/* Ícone principal do título (1º filho de .section-title/.dbf-section-title,
+   nunca o chevron — que é sempre o último e fica fora do fluxo) — maior,
+   ~altura de 2 linhas de texto, pedido do usuário 16/09/26. */
+.section-title > i:first-child, .dbf-section-title > i:first-child { font-size:26px; flex-shrink:0; }
+/* .bs-sec-body agrupa texto (linha 1) + badges (linha 2) — ver
+   bsInitAccordion() no fim do body, que monta essa estrutura a partir do
+   conteúdo original solto no título. Linha única quando cabe (desktop);
+   empilha no celular (media query lá embaixo) — sem isso, título+badges
+   brigavam pelo mesmo flex-wrap e quebravam de qualquer jeito, cada
+   badge numa linha (achado 16/09/26). */
+.bs-sec-body { display:flex; flex-wrap:wrap; align-items:center; gap:6px 10px; flex:1; min-width:0; }
+.bs-sec-orig { display:inline-flex; flex-wrap:wrap; align-items:center; gap:6px 10px; }
+.bs-sec-badges { display:flex; flex-wrap:wrap; align-items:center; gap:6px; }
+/* Badge de plataforma (logo + nome) no título — ver _macros_platform.html
+   ::plat_badge(). Mesmo tamanho de .bs-sec-tag/.dbf-launch-badge.
+   !important no ícone: .dbf-section-title i (debriefing.html) pinta
+   qualquer <i> descendente com var(--bs-accent) em 17px — sem isso, o
+   ícone do badge seguia a cor do lançamento (às vezes sumindo de vez,
+   se a cor bater com o fundo do badge) em vez de ficar sempre branco. */
+.dbf-plat-badge {
+  display:inline-flex; align-items:center; gap:4px;
+  font-size:11px; font-weight:700; padding:2px 8px;
+  border-radius:20px; color:#fff; letter-spacing:.04em;
+}
+.dbf-plat-badge i { font-size:12px !important; color:#fff !important; }
+.collapsed > .section-title, .collapsed > .dbf-section-title { margin-bottom:0; border-bottom-color:var(--bs-border); }
+.collapsed > .section-title .bs-chevron, .collapsed > .dbf-section-title .bs-chevron { transform:translateY(-50%) rotate(-90deg); }
+.collapsed > *:not(.section-title):not(.dbf-section-title) { display:none !important; }
+/* wrap porque a barra ganhou o campo de busca (17/09/26) — no celular ele
+   desce pra uma linha só dele em vez de espremer os botões. */
+.bs-accordion-controls { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-bottom:24px; }
+.bs-accordion-controls button {
+  background:var(--bs-accent-bg); color:var(--bs-accent); border:1px solid var(--bs-border-s);
+  padding:7px 16px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;
+  display:inline-flex; align-items:center; gap:6px; font-family:inherit;
+}
+.bs-accordion-controls button:hover { filter:brightness(0.95); }
+.bs-hidden-section { display:none !important; }
+
+/* ── Dropdown "Seções" (ordem/visibilidade + visualizações salvas) ──── */
+.bs-sec-picker-btn {
+  background:var(--bs-accent-bg); color:var(--bs-accent); border:1px solid var(--bs-border-s);
+  padding:7px 16px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer;
+  display:inline-flex; align-items:center; gap:6px; font-family:inherit;
+}
+.bs-sec-picker-btn:hover { filter:brightness(0.95); }
+.bs-sec-menu { min-width:280px; padding:6px 0; }
+.bs-sec-list-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.bs-sec-bulk { display:flex; gap:2px; flex-shrink:0; }
+.bs-sec-bulk button {
+  border:none; background:none; cursor:pointer; font-family:inherit;
+  font-size:10px; font-weight:700; color:var(--bs-accent); padding:2px 6px;
+  border-radius:5px; text-transform:none; letter-spacing:0;
+}
+.bs-sec-bulk button:hover { background:var(--bs-accent-bg); }
+.bs-sec-bulk button + button { border-left:1px solid var(--bs-border); }
+.bs-sec-list { display:flex; flex-direction:column; gap:2px; padding:2px 6px; max-height:280px; overflow-y:auto; }
+.bs-sec-row {
+  display:flex; align-items:center; gap:8px; padding:7px 8px; border-radius:8px;
+  font-size:12.5px; font-weight:600; color:var(--bs-ink); border-top:2px solid transparent;
+}
+.bs-sec-row:hover { background:var(--bs-surface); }
+.bs-sec-row.dragging { opacity:.4; }
+.bs-sec-row.drag-over { border-top-color:var(--bs-accent); }
+.bs-sec-drag { cursor:grab; color:var(--bs-ink-subtle); flex-shrink:0; font-size:15px; }
+.bs-sec-row input[type=checkbox] { accent-color:var(--bs-accent); width:15px; height:15px; cursor:pointer; flex-shrink:0; }
+.bs-sec-row .lbl { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.bs-sec-row.is-hidden .lbl { color:var(--bs-ink-subtle); text-decoration:line-through; }
+.bs-sec-row-tag {
+  flex-shrink:0; font-size:9.5px; font-weight:800; padding:2px 8px; border-radius:999px;
+  cursor:pointer; white-space:nowrap; letter-spacing:.01em;
+}
+.bs-sec-row-btn {
+  border:none; background:none; cursor:pointer; color:var(--bs-ink-subtle);
+  display:flex; align-items:center; padding:3px; border-radius:5px; font-size:13px;
+  flex-shrink:0; opacity:0; transition:opacity .1s;
+}
+.bs-sec-row:hover .bs-sec-row-btn { opacity:1; }
+.bs-sec-row-btn:hover { background:var(--bs-accent-bg); color:var(--bs-accent); }
+/* Tag na própria seção da página (aparece mesmo com a seção recolhida) —
+   mesmo tamanho das tags de lançamento (.dbf-launch-badge) e de
+   plataforma (.dbf-plat-badge), pedido do usuário 16/09/26: a etapa é a
+   primeira badge, do mesmo peso visual que as outras, não uma "etiqueta
+   menor" solta no meio. */
+.bs-sec-tag {
+  display:inline-flex; align-items:center; font-size:11px; font-weight:700;
+  letter-spacing:.04em; padding:2px 8px; border-radius:20px; cursor:default;
+}
+.bs-sec-sep { height:1px; background:var(--bs-border); margin:8px 6px; }
+.bs-view-list { display:flex; flex-direction:column; gap:2px; padding:2px 6px; max-height:160px; overflow-y:auto; }
+.bs-view-item {
+  display:flex; align-items:center; gap:8px; padding:7px 8px; border-radius:8px;
+  font-size:12.5px; font-weight:600; color:var(--bs-ink); cursor:pointer;
+}
+.bs-view-item:hover { background:var(--bs-surface); }
+.bs-view-item .name { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.bs-view-item .del { flex-shrink:0; opacity:0; color:var(--bs-ink-subtle); cursor:pointer; padding:2px; border-radius:4px; transition:opacity .1s; }
+.bs-view-item:hover .del { opacity:1; }
+.bs-view-item .del:hover { color:var(--bs-danger); background:var(--bs-danger-bg); }
+.bs-view-save-row { display:flex; gap:6px; padding:8px 8px 2px; }
+.bs-view-save-row input {
+  flex:1; min-width:0; border:1px solid var(--bs-border-s); border-radius:8px;
+  padding:7px 10px; font-size:12.5px; font-family:inherit; color:var(--bs-ink);
+  background:var(--bs-card); outline:none;
+}
+.bs-view-save-row input:focus { border-color:var(--bs-accent); }
+.bs-view-save-row button {
+  border:none; background:var(--bs-accent); color:#fff; border-radius:8px;
+  padding:0 12px; cursor:pointer; font-size:14px; flex-shrink:0; display:flex; align-items:center;
+}
+.bs-view-save-row button:hover { filter:brightness(1.08); }
+.bs-view-save-row select {
+  border:1px solid var(--bs-border-s); border-radius:8px; padding:7px 4px;
+  font-size:11.5px; font-weight:700; font-family:inherit; color:var(--bs-ink);
+  background:var(--bs-card); cursor:pointer; flex-shrink:0;
+}
+.bs-view-hint { display:none; padding:6px 10px 2px; font-size:11px; font-weight:600; color:var(--bs-ink-muted); }
+.bs-view-hint.is-on { display:block; }
+.bs-view-hint.is-err { color:var(--bs-danger); }
+.bs-view-star { color:#eab308; }
+.bs-view-badge {
+  flex-shrink:0; font-size:9px; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
+  padding:2px 7px; border-radius:999px; background:#fef3c7; color:#92400e;
+}
+.bs-view-badge.equipe { background:var(--bs-accent-bg); color:var(--bs-accent); }
+/* Ações da visualização (padrão/salvar por cima/renomear/excluir) — só no
+   hover da linha, senão o painel vira uma parede de ícone. */
+.bs-view-acts { display:flex; gap:2px; flex-shrink:0; opacity:0; transition:opacity .1s; }
+.bs-view-item:hover .bs-view-acts { opacity:1; }
+.bs-view-acts i { padding:3px; border-radius:5px; color:var(--bs-ink-subtle); font-size:13px; cursor:pointer; }
+.bs-view-acts i:hover { background:var(--bs-accent-bg); color:var(--bs-accent); }
+.bs-view-acts i[data-act="excluir"]:hover { background:var(--bs-danger-bg); color:var(--bs-danger); }
+
+/* ── Busca de seções (filtra a página inteira) ───────────────────────── */
+.bs-sec-search { position:relative; display:flex; align-items:center; flex:1 1 170px; min-width:150px; max-width:280px; }
+.bs-sec-search > i { position:absolute; left:10px; font-size:14px; color:var(--bs-ink-subtle); pointer-events:none; }
+.bs-sec-search input {
+  width:100%; border:1px solid var(--bs-border-s); border-radius:8px;
+  padding:7px 26px 7px 30px; font-size:12px; font-weight:600; font-family:inherit;
+  color:var(--bs-ink); background:var(--bs-card); outline:none;
+}
+.bs-sec-search input:focus { border-color:var(--bs-accent); }
+.bs-sec-search-clear {
+  position:absolute; right:3px; border:none; background:none; cursor:pointer;
+  color:var(--bs-ink-subtle); display:none; align-items:center; padding:4px; border-radius:6px;
+}
+.bs-sec-search.has-value .bs-sec-search-clear { display:flex; }
+.bs-sec-search-info { display:none; font-size:11px; font-weight:700; color:var(--bs-ink-muted); white-space:nowrap; }
+.bs-sec-search-info.is-on { display:inline; }
+.bs-search-off { display:none !important; }
+/* Achou uma seção que estava desmarcada no painel: a busca ganha — procurar
+   por algo e não achar porque estava oculta seria o pior dos mundos.
+   Duas classes vencem o `display:none !important` de .bs-hidden-section. */
+.bs-search-hit.bs-hidden-section { display:block !important; }
+@media (max-width:640px) {
+  .bs-sec-search { flex:1 0 100%; max-width:none; order:5; }
+  .bs-sec-search-info { order:6; }
+}
+.footing { padding:16px 32px; font-size:11px; color:var(--bs-ink-muted); text-align:right; border-top:1px solid var(--bs-border); }
+
+/* ── Métricas grid (padrão das análises manuais) ────────────────────── */
+.metrics-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px; margin-bottom:24px; }
+.metric-card  { background:var(--bs-card); padding:20px; border-radius:var(--bs-r-lg); box-shadow:var(--bs-sh-sm); text-align:center; }
+.metric-card.destaque { background:linear-gradient(135deg,var(--bs-accent) 0%,var(--bs-sidebar-dark) 100%); color:#fff; }
+.metric-card .label   { font-size:12px; opacity:.8; margin-bottom:8px; font-weight:500; }
+.metric-card.destaque .label { opacity:1; font-weight:600; }
+.metric-card .value   { font-size:26px; font-weight:800; line-height:1.1; }
+.metric-card .subtext { font-size:11px; margin-top:6px; opacity:.7; }
+
+/* ── KPI destaque (design system: tp-kpi) ───────────────────────────── */
+.tp-kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin-bottom:24px; }
+/* Variante de 4 colunas fixas — cards mais largos e mais baixos (pauta
+   08/09/26, reformulação dos KPIs de /captacao). Especificidade de 2
+   classes vence a regra de auto-fit acima; media queries próprias porque
+   a regra mobile genérica (linha ~1145, 1 classe só) perderia por
+   especificidade e travaria 4 colunas apertadas no celular. */
+.tp-kpi-grid.tp-kpi-grid-4 { grid-template-columns:repeat(4,1fr); }
+@media (max-width:900px) { .tp-kpi-grid.tp-kpi-grid-4 { grid-template-columns:repeat(2,1fr); } }
+@media (max-width:520px) { .tp-kpi-grid.tp-kpi-grid-4 { grid-template-columns:1fr; } }
+.tp-kpi {
+  background:var(--bs-card); border-radius:var(--bs-r-lg); padding:16px 14px;
+  display:flex; flex-direction:column; gap:3px;
+  box-shadow:var(--bs-sh-sm); border-bottom:3px solid transparent;
+  animation:slideInUp .4s ease-out var(--anim-delay,0s) forwards;
+  transition:border-color .2s, transform .15s, box-shadow .15s;
+}
+.tp-kpi:hover { border-bottom-color:var(--bs-accent); transform:translateY(-2px); box-shadow:var(--bs-sh-md); }
+.tp-kpi-grid .tp-kpi:nth-child(1) { --anim-delay:.04s; }
+.tp-kpi-grid .tp-kpi:nth-child(2) { --anim-delay:.08s; }
+.tp-kpi-grid .tp-kpi:nth-child(3) { --anim-delay:.12s; }
+.tp-kpi-grid .tp-kpi:nth-child(4) { --anim-delay:.16s; }
+.tp-kpi-grid .tp-kpi:nth-child(5) { --anim-delay:.20s; }
+.tp-kpi-grid .tp-kpi:nth-child(6) { --anim-delay:.24s; }
+.tp-kpi-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+.tp-icon {
+  width:32px; height:32px; border-radius:9px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:16px; flex-shrink:0;
+  background:var(--bs-accent-bg); color:var(--bs-accent);
+}
+.tp-icon.success { background:var(--bs-success-bg); color:var(--bs-success); }
+.tp-icon.warning { background:var(--bs-warning-bg); color:var(--bs-warning); }
+.tp-icon.danger  { background:var(--bs-danger-bg);  color:var(--bs-danger); }
+.tp-icon.meta    { background:rgba(24,119,242,.10); color:var(--meta-color); }
+.tp-icon.google  { background:rgba(234,67,53,.10);  color:var(--google-color); }
+.tp-delta { font-size:11px; font-weight:700; padding:3px 7px; border-radius:999px; display:flex; align-items:center; gap:2px; }
+.tp-delta.up   { background:var(--bs-success-bg); color:var(--bs-success); }
+.tp-delta.down { background:var(--bs-danger-bg);  color:var(--bs-danger); }
+.tp-delta.flat { background:var(--bs-surface);    color:var(--bs-ink-muted); }
+.tp-value { font-size:24px; font-weight:800; color:var(--bs-ink); line-height:1.05; }
+.tp-value small { font-size:14px; font-weight:600; color:var(--bs-ink-muted); }
+.tp-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--bs-ink-muted); margin-top:1px; }
+.tp-compare { font-size:10px; color:var(--bs-ink-muted); padding-top:4px; border-top:1px solid var(--bs-border); margin-top:auto; }
+.kpi-prog { margin:4px 0 2px; }
+.kpi-prog-track { height:4px; border-radius:999px; background:var(--bs-border); overflow:hidden; }
+.kpi-prog-fill  { height:100%; border-radius:999px; background:var(--bs-accent); transition:width 1s ease-out; }
+.kpi-prog-fill.success { background:var(--bs-success); }
+.kpi-prog-fill.warning { background:var(--bs-warning); }
+.kpi-prog-lbl { font-size:9px; color:var(--bs-ink-muted); margin-top:2px; text-align:right; }
+
+/* Linha interna dos highlights (nome × valor) */
+.highlight-row { display:flex; justify-content:space-between; width:100%; gap:8px; }
+
+/* ── Highlights boxes ───────────────────────────────────────────────── */
+.highlights     { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; margin-bottom:24px; }
+.highlight-box  { background:var(--bs-card); padding:20px; border-radius:var(--bs-r-lg); box-shadow:var(--bs-sh-sm); }
+.highlight-box h3 { font-size:14px; font-weight:700; color:var(--bs-accent); margin:0 0 12px; }
+.highlight-item { padding:8px 0; border-bottom:1px solid var(--bs-border); display:flex; justify-content:space-between; align-items:flex-start; flex-direction:column; gap:2px; }
+.highlight-item:last-child { border-bottom:none; }
+.highlight-item .criativo { font-weight:700; color:var(--bs-ink); font-size:13px; }
+.highlight-item .value    { float:right; color:var(--bs-accent); font-weight:700; font-size:13px; }
+.highlight-item small     { color:var(--bs-ink-muted); font-size:11px; }
+
+/* ── Info box (tabela detalhada) ────────────────────────────────────── */
+.info-box   { background:var(--bs-card); padding:20px; border-radius:var(--bs-r-lg); margin-bottom:20px; box-shadow:var(--bs-sh-sm); }
+.info-box h2 { color:var(--bs-accent); margin:0 0 16px; font-size:16px; font-weight:700; border-bottom:2px solid var(--bs-accent); padding-bottom:8px; }
+.note {
+  background:var(--bs-info-bg); border-left:4px solid var(--bs-info);
+  padding:12px 16px; border-radius:var(--bs-r-md); font-size:13px;
+  margin-bottom:16px; line-height:1.6;
+}
+.note.warning { border-color:var(--bs-warning); background:var(--bs-warning-bg); }
+.note.danger  { border-color:var(--bs-danger);  background:var(--bs-danger-bg); }
+.note.success { border-color:var(--bs-success);  background:var(--bs-success-bg); }
+
+/* ── Tabelas ────────────────────────────────────────────────────────── */
+/* Fundo próprio (--bs-card, sempre o tom mais claro da hierarquia
+   bg/surface/card) pra tabela nunca se misturar com o fundo da página —
+   principalmente nos temas escuros, onde sem isso a tabela "some" no
+   fundo em vez de aparecer como um bloco separado. */
+/* overflow-x:auto (não "hidden") — deixa arrastar a tabela pros lados
+   quando ela é mais larga que a tela (celular) em vez de cortar as
+   colunas que não cabem; overflow-y:hidden mantém os cantos
+   arredondados do wrapper recortando a tabela por cima/baixo. */
+.table-wrap { background:var(--bs-card); border:1px solid var(--bs-border); border-radius:var(--bs-r-lg); overflow-x:auto; overflow-y:hidden; margin-top:12px; -webkit-overflow-scrolling:touch; }
+table { width:100%; border-collapse:collapse; font-size:13px; background:var(--bs-card); }
+.table-wrap table th { background:var(--bs-accent); color:#fff; padding:10px 12px; text-align:left; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:normal; }
+table td { padding:10px 12px; border-bottom:1px solid var(--bs-border); vertical-align:middle; }
+table tr:last-child td { border-bottom:none; }
+table tr:hover td { background:var(--bs-accent-bg) !important; }
+table tr.tr-total:hover td { background:#1f2937 !important; color:#fff !important; }
+.numero   { text-align:left; font-variant-numeric: tabular-nums; }
+table th, table td { text-align:left; }
+.positivo { color:var(--bs-success); font-weight:700; }
+.negativo { color:var(--bs-danger);  font-weight:700; }
+.top3     { background:var(--bs-warning-bg) !important; }
+
+/* Total row — JS (DOMContentLoaded) adiciona esta classe automaticamente em
+   qualquer <tr> cuja primeira célula contenha "total"/"média"/"consolidado",
+   em QUALQUER tabela do sistema. Fundo escuro (não var(--bs-accent-bg), que
+   fica claro e deixa texto branco ilegível) + guarda de hover pra não
+   clarear ao passar o mouse. */
+table tr.total-row td {
+  background:#1f2937 !important;
+  color:#fff !important;
+  font-weight:700 !important;
+  border-top:2px double var(--bs-accent) !important;
+  border-bottom:2px solid var(--bs-accent) !important;
+}
+table tr.total-row:hover td {
+  background:#1f2937 !important;
+  color:#fff !important;
+}
+
+/* ── KPI cards (estilo funil) ───────────────────────────────────────── */
+.kpi-funil-layout {
+  display:grid;
+  grid-template-columns:minmax(520px,1.15fr) minmax(420px,1fr);
+  gap:16px;
+  align-items:stretch;
+}
+.funil-kpi-wrap {
+  background:var(--bs-surface);
+  border:1px solid var(--bs-border);
+  border-radius:8px;
+  padding:22px 22px 18px;
+  min-width:0;
+}
+.funil-kpi-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:14px;
+}
+.funil-kpi-head h3 {
+  margin:0;
+  font-size:14px;
+  font-weight:800;
+  color:var(--bs-ink);
+}
+.funil-kpi-head p {
+  margin:0;
+  color:var(--bs-ink-muted);
+  font-size:12px;
+  white-space:nowrap;
+}
+.kpi-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; }
+.kpi-card { background:var(--bs-surface); border-radius:var(--bs-r-lg); padding:16px; border-top:4px solid var(--bs-accent); }
+.kpi-val  { font-size:22px; font-weight:800; color:var(--bs-ink); line-height:1.1; }
+.kpi-lbl  { font-size:11px; color:var(--bs-ink-muted); text-transform:uppercase; letter-spacing:.05em; font-weight:600; margin-top:4px; }
+.kpi-sub  { font-size:11px; color:var(--bs-ink-subtle); margin-top:4px; }
+.kpi-funil-layout .kpi-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.kpi-funil-layout .kpi-card {
+  background:var(--bs-card);
+  border-radius:8px;
+  padding:22px 20px;
+  border-top:4px solid var(--bs-accent);
+  min-height:112px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+}
+.kpi-funil-layout .kpi-val  { font-size:22px; line-height:1.05; }
+.kpi-funil-layout .kpi-lbl  { font-size:10px; color:var(--bs-ink-muted); font-weight:800; margin-top:12px; }
+.kpi-funil-layout .kpi-sub  { font-size:10px; color:var(--bs-ink-subtle); margin-top:8px; line-height:1.35; }
+
+/* ── Funil visual ───────────────────────────────────────────────────── */
+.funil-viz { display:flex; flex-direction:column; align-items:center; gap:10px; margin:14px 0 12px; }
+.funil-step {
+  position:relative;
+  display:flex; align-items:center; justify-content:space-between;
+  min-height:54px;
+  padding:10px 22px;
+  color:#fff;
+  background:var(--c,#667eea);
+  clip-path:polygon(0 0,100% 0,97.25% 100%,2.75% 100%);
+  border:none;
+  border-radius:4px;
+  max-width:var(--w,100%); width:100%;
+  transition:max-width .4s ease;
+}
+.funil-step-label { font-size:12px; font-weight:800; color:#fff; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.funil-step-value { display:flex; flex-direction:column; align-items:flex-end; font-size:16px; font-weight:800; color:#fff; white-space:nowrap; line-height:1.1; }
+.funil-step-value small { display:block; font-size:10px; font-weight:700; color:rgba(255,255,255,.9); margin:2px 0 0; }
+.funil-rates { display:flex; flex-wrap:wrap; gap:10px; margin-top:8px; }
+.funil-rate  {
+  background:var(--bs-card);
+  border:1px solid var(--bs-border);
+  color:var(--bs-ink-muted);
+  padding:7px 12px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:600;
+  box-shadow:0 1px 2px rgba(15,23,42,.03);
+}
+
+@media (max-width: 1180px) {
+  .kpi-funil-layout { grid-template-columns:1fr; }
+  .kpi-funil-layout .kpi-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
+
+@media (max-width: 760px) {
+  .kpi-funil-layout .kpi-grid { grid-template-columns:1fr; }
+  .funil-kpi-head { align-items:flex-start; flex-direction:column; gap:4px; }
+  .funil-kpi-head p { white-space:normal; }
+  .funil-step { min-height:58px; padding:10px 16px; clip-path:polygon(0 0,100% 0,96% 100%,4% 100%); }
+  .funil-step-label { font-size:11px; white-space:normal; }
+  .funil-step-value { font-size:14px; }
+}
+
+/* ── Progress bar inline ────────────────────────────────────────────── */
+.pbar-wrap { display:flex; align-items:center; gap:8px; }
+.pbar-track { background:var(--bs-border); border-radius:4px; height:16px; overflow:hidden; flex:1; min-width:40px; }
+.pbar-fill  { height:100%; border-radius:4px; background:var(--bs-accent); transition:width .3s ease; }
+
+.funil-table-wrap { overflow-x:auto; }
+.funil-table {
+  table-layout:fixed;
+  min-width:1120px;
+}
+.funil-table th,
+.funil-table td {
+  white-space:nowrap;
+}
+.funil-table .th-num {
+  text-align:left;
+}
+.funil-table .col-label { width:20%; }
+.funil-table .col-label-sm { width:11%; }
+.funil-table .col-money { width:12%; }
+.funil-table .col-share { width:11%; }
+.funil-table .col-count { width:9%; }
+.funil-table .col-roas { width:8%; }
+.funil-table .col-rank { width:5%; }
+.funil-table .col-creative { width:30%; }
+.funil-table .pbar-wrap {
+  justify-content:flex-end;
+  min-width:0;
+}
+.funil-table .pbar-track {
+  min-width:42px;
+  max-width:84px;
+}
+.funil-table .numero {
+  font-variant-numeric:tabular-nums;
+}
+
+/* ── Criativos layout (compartilhado com funil.html) ───────────────── */
+.criativos-stack { display:flex; flex-direction:column; gap:22px; }
+.criativos-block { min-width:0; }
+.criativos-title { margin:0 0 12px; font-size:15px; font-weight:800; }
+.criativos-title.validado { color:var(--bs-success); }
+.criativos-title.novo     { color:var(--bs-warning); }
+.criativos-table { min-width:1100px; }
+
+/* ── Pills e badges ─────────────────────────────────────────────────── */
+.bs-pill { display:inline-block; padding:2px 10px; border-radius:999px; font-size:11px; font-weight:700; color:#fff; white-space:nowrap; }
+.bs-pill.success { background:var(--bs-success); }
+.bs-pill.warning { background:var(--bs-warning); color:#1a1a2e; }
+.bs-pill.danger  { background:var(--bs-danger); }
+.bs-pill.info    { background:var(--bs-info); }
+.bs-pill.neutral { background:var(--bs-border-s); color:var(--bs-ink); }
+.bs-pill.accent  { background:var(--bs-accent); }
+
+/* ── Platform pill variants ─────────────────────────────────────────── */
+.bs-pill.meta    { background:var(--meta-color); }
+.bs-pill.google  { background:var(--google-color); }
+.bs-pill.youtube { background:var(--yt-color); }
+.bs-pill.search  { background:var(--search-color); }
+.bs-pill.pmax    { background:var(--pmax-color); color:#1a1a2e; }
+.bs-pill.display { background:var(--display-color); }
+.bs-pill.code    { background:rgba(139,92,246,.12); color:#8b5cf6; font-family:'Courier New',monospace; }
+
+/* ── Temperature pill variants ──────────────────────────────────────── */
+.bs-pill.temp-quente     { background:var(--temp-quente); }
+.bs-pill.temp-morno      { background:var(--temp-morno); color:#1a1a2e; }
+.bs-pill.temp-frio       { background:var(--temp-frio); }
+.bs-pill.temp-especifico { background:var(--temp-especifico); }
+.bs-pill.temp-outros     { background:var(--temp-outros); color:var(--bs-ink); }
+
+/* ── Platform KPI card variants ─────────────────────────────────────── */
+.metric-card.destaque-google { background:linear-gradient(135deg,var(--google-color),var(--yt-color)); color:#fff; }
+.metric-card.destaque-google .label { opacity:1; font-weight:600; }
+
+/* ── Progress bar color variants ────────────────────────────────────── */
+.pbar-fill.meta      { background:var(--meta-color); }
+.pbar-fill.google    { background:var(--google-color); }
+.pbar-fill.success   { background:var(--bs-success); }
+.pbar-fill.danger    { background:var(--bs-danger); }
+.pbar-fill.warning   { background:var(--bs-warning); }
+.pbar-fill.quente    { background:var(--temp-quente); }
+.pbar-fill.morno     { background:var(--temp-morno); }
+.pbar-fill.frio      { background:var(--temp-frio); }
+.pbar-fill.especifico { background:var(--temp-especifico); }
+.pbar-fill.outros    { background:var(--temp-outros); }
+
+/* ── Table header semantic classes ──────────────────────────────────── */
+.table-wrap table th.th-dark    { background:var(--bs-sidebar); }
+.table-wrap table th.th-meta    { background:var(--meta-color); }
+.table-wrap table th.th-google  { background:var(--google-color); }
+.table-wrap table th.th-youtube { background:var(--yt-color); }
+.table-wrap table th.th-search  { background:var(--search-color); }
+.table-wrap table th.th-pmax    { background:var(--pmax-color); color:#333; }
+.table-wrap table th.th-display { background:var(--display-color); }
+.table-wrap table th.th-success { background:var(--bs-success); }
+.table-wrap table th.th-success-dark { background:#059669; }
+.table-wrap table th.th-danger  { background:var(--bs-danger); }
+
+/* ── Table zebra rows ───────────────────────────────────────────────── */
+.table-wrap table tbody tr:nth-child(odd) td { background:var(--bs-surface); }
+
+/* ── CRM conv-bar ───────────────────────────────────────────────────── */
+.conv-bar   { display:flex; align-items:center; gap:6px; }
+.conv-track { flex:1; max-width:60px; height:6px; background:var(--bs-border); border-radius:3px; overflow:hidden; }
+.conv-fill  { height:100%; border-radius:3px; background:var(--bs-accent); }
+
+/* ── Table cell color helpers ───────────────────────────────────────── */
+.td-meta    { color:var(--meta-color); }
+.td-google  { color:var(--google-color); }
+.td-success { color:var(--bs-success); }
+.td-success-dark { color:#059669; }
+.td-danger  { color:var(--bs-danger); }
+.td-muted   { color:var(--bs-ink-muted); }
+.td-bold    { font-weight:700; }
+
+/* ── Compact table rows (daily breakdown) ───────────────────────────── */
+.table-compact td, .table-compact th { padding:4px 8px !important; }
+
+/* ── Metric card status borders ─────────────────────────────────────── */
+.metric-card.border-success { border-left:4px solid var(--bs-success); }
+.metric-card.border-warning { border-left:4px solid var(--bs-warning); }
+.metric-card.border-danger  { border-left:4px solid var(--bs-danger); }
+
+/* ── Source group (ads page) ────────────────────────────────────────── */
+.source-group { margin-bottom:30px; }
+.source-group-title { font-size:14px; font-weight:700; color:var(--bs-ink); margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+.source-dot { width:8px; height:8px; border-radius:50%; background:var(--temp-especifico); display:inline-block; flex-shrink:0; }
+
+/* ── Sem dados ──────────────────────────────────────────────────────── */
+.no-data {
+  text-align:center; padding:60px 32px;
+  background:var(--bs-card); border-radius:var(--bs-r-xl);
+  box-shadow:var(--bs-sh-sm); color:var(--bs-ink-muted);
+}
+.no-data i    { font-size:48px; opacity:.3; display:block; margin-bottom:16px; }
+.no-data h3   { font-size:18px; font-weight:700; color:var(--bs-ink); margin:0 0 8px; }
+.no-data p    { font-size:14px; margin:0; }
+.no-data code { background:var(--bs-bg); padding:2px 8px; border-radius:4px; font-size:12px; }
+
+/* ── Sortable tables ────────────────────────────────────────────────── */
+table th.sortable-header { position:relative; cursor:pointer; user-select:none; transition:background-color .2s; }
+table th.sortable-header:hover { background-color:rgba(0,0,0,.15) !important; }
+
+/* ── Table filter input ─────────────────────────────────────────────── */
+.bs-table-filter-wrap { position:relative; display:inline-flex; align-items:center; margin:10px 0 6px; }
+.bs-table-filter-toggle {
+  position:absolute; left:10px; top:50%; transform:translateY(-50%);
+  border:none; background:none; padding:0; color:var(--bs-ink-subtle); font-size:14px;
+  display:flex; cursor:default;
+}
+.bs-table-filter { padding:6px 12px 6px 32px; font-size:var(--fs-sm); border:1px solid var(--bs-border); border-radius:var(--bs-r-md); outline:none; width:220px; font-family:inherit; color:var(--bs-ink); background:var(--bs-card); transition:border-color .15s; }
+.bs-table-filter:focus { border-color:var(--bs-accent); }
+/* Celular: só a lupa até tocar — o campo de 220px sempre visível competia
+   demais com o resto do cabeçalho da tabela numa tela estreita. Tocar
+   revela o campo e chama o teclado (inp.focus() no JS); volta a recolher
+   quando perde o foco vazio, pra não ficar ocupando espaço à toa. */
+@media (max-width:640px) {
+  .bs-table-filter-wrap.bs-tf-collapsed .bs-table-filter-toggle {
+    position:static; transform:none; cursor:pointer;
+    width:30px; height:30px; display:flex; align-items:center; justify-content:center;
+    border:1px solid var(--bs-border); border-radius:var(--bs-r-md);
+    background:var(--bs-card); color:var(--bs-ink-muted);
+  }
+  .bs-table-filter-wrap.bs-tf-collapsed .bs-table-filter { display:none; }
+}
+.bs-table-export-btn {
+  margin-left:6px; display:inline-flex; align-items:center; justify-content:center;
+  width:30px; height:30px; border:1px solid var(--bs-border); border-radius:var(--bs-r-md);
+  background:var(--bs-card); color:var(--bs-ink-muted); font-size:14px; cursor:pointer;
+  transition:background-color .15s,color .15s;
+}
+.bs-table-export-btn:hover { background:var(--bs-accent-bg); color:var(--bs-accent); }
+.sort-indicator { margin-left:6px; display:inline-block; vertical-align:middle; font-size:9px; opacity:.8; }

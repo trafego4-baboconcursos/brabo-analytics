@@ -46,6 +46,11 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 if ANALISES_DIR.exists():
     app.mount("/analises", StaticFiles(directory=str(ANALISES_DIR)), name="analises")
 app.mount("/img", StaticFiles(directory=str(IMG_DIR)), name="img")
+# CSS/JS do design system, extraídos de base.html em 21/09/2026. As URLs saem do
+# helper static_url() (frontend/core.py), que anexa ?v=<mtime> pro navegador não
+# servir versão velha depois de um deploy. O middleware de auth abaixo já liberava
+# /static desde antes de a pasta existir.
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 # ── Security headers ───────────────────────────────────────────────────────────
 _HSTS_MAX_AGE = int(os.environ.get("HSTS_MAX_AGE", "0"))  # 0 = desativado (ativar após confirmar HTTPS)

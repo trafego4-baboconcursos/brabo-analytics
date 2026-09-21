@@ -2,7 +2,7 @@
 titulo: "Design System — Brabo Analytics"
 area: sistema
 status: vigente
-atualizado: 2026-09-17
+atualizado: 2026-09-21
 responde:
   - "tokens, componentes e temas do dashboard"
   - "onde mexer no CSS"
@@ -17,15 +17,21 @@ relacionados:
 # Design System — Brabo Analytics
 
 Como o design system do dashboard funciona por dentro: tokens, componentes compartilhados,
-temas e o gerador de temas. Tudo vive em `frontend/templates/base.html` (um único arquivo,
-~2700+ linhas) e é herdado por todo template via `{% extends "base.html" %}`.
+temas e o gerador de temas. Vive em `frontend/static/` e é herdado por todo template via
+`{% extends "base.html" %}`, que carrega os arquivos na ordem certa.
+
+**Até 21/09/2026 tudo isso era inline dentro do `base.html`** — 1.827 linhas de CSS e 2.343 de
+JS num arquivo de 5.053 linhas. Foi extraído para arquivos servidos em `/static` (o `base.html`
+ficou com 942 linhas, só markup). Nenhuma regra ou função mudou na extração; só saíram de dentro
+do HTML. Docs e comentários antigos que dizem "no fim de `base.html`" se referem a este estado
+anterior — o mapa atual está em **Onde estão as coisas**, no fim deste doc.
 
 **Não confundir com** `frontend/design-system.html` — é uma página de referência visual (HTML
 solto, fora do fluxo de rotas) que mostra os componentes isolados. Ela desatualiza com
 frequência porque não é gerada a partir do CSS real; trate como esboço, não como fonte da
-verdade. A fonte da verdade é sempre `base.html`.
+verdade. A fonte da verdade é sempre o CSS em `frontend/static/css/`.
 
-## Tokens (`:root`, `base.html` linha ~15)
+## Tokens (`:root`, `frontend/static/css/tokens.css`)
 
 Custom properties CSS, prefixo `--bs-`:
 
@@ -59,7 +65,7 @@ Todo gráfico do sistema já segue esse padrão; se adicionar um novo, replicar.
   atual; usado na maioria das páginas de análise. Suporta drag-and-drop de ordem, ocultar/
   mostrar, tags de etapa auto-detectadas, busca que filtra a página e "visualizações" salvas
   nomeadas (igual ao gerenciador de colunas do Google Ads) — tudo implementado numa IIFE única
-  no fim de `base.html` (`SKIP_PAGES`, `TAG_DEFS`, `detectTag`, `applyState`, `renderSecPanel`,
+  em `frontend/static/js/secoes.js` (`SKIP_PAGES`, `TAG_DEFS`, `detectTag`, `applyState`, `renderSecPanel`,
   `renderViewsPanel`, `aplicarBusca`). Roda em toda página automaticamente por detectar o
   markup — não precisa registrar nada por template, exceto páginas na lista `SKIP_PAGES`
   (`settings`, `login`, `invite`, `index`) e o modo apresentação/PDF do debriefing
@@ -117,9 +123,9 @@ Todo gráfico do sistema já segue esse padrão; se adicionar um novo, replicar.
 
 Dois mecanismos:
 
-1. **Temas pré-definidos** (`html[data-bs-theme="X"] { --bs-*: ... }` em `base.html`,
-   linha ~1405 em diante) — valores conhecidos em tempo de build, aplicados via atributo no
-   `<html>`. Lista atual (`BS_THEME_LABELS`, linha ~2657):
+1. **Temas pré-definidos** (`html[data-bs-theme="X"] { --bs-*: ... }` em
+   `frontend/static/css/temas.css`) — valores conhecidos em tempo de build, aplicados via
+   atributo no `<html>`. Lista atual (`BS_THEME_LABELS`, em `static/js/tema.js`):
 
    | valor | rótulo | observação |
    |---|---|---|
@@ -150,18 +156,59 @@ Dois mecanismos:
    críticos (ink×bg, ink×card, ink-muted×card, card×bg) e avisa inline se algum ficar ilegível.
 
 O script anti-flash no `<head>` de `base.html` aplica o tema salvo (incluindo tokens
-customizados) antes do primeiro paint, pra evitar flash de tema errado.
+customizados) antes do primeiro paint, pra evitar flash de tema errado. É o único JS que
+**continua inline** depois da extração de 21/09/2026, justamente por isso.
 
 **Repintura de gráficos ao trocar de tema**: como Chart.js não resolve `var()`, trocar de tema
 em runtime não repinta gráficos já desenhados sozinho — existe `bsRetintCharts(before, after)`
+(em `frontend/static/js/tema.js`)
 que percorre as instâncias Chart.js já montadas e troca os hex antigos pelos novos direto no
 config/data, evitando reload de página inteira.
 
 ## Onde estão as coisas
 
-| O quê | Onde |
+Os arquivos abaixo são carregados pelo `base.html` **nesta ordem**, que é a cascata do CSS e a
+ordem de dependência do JS. Reordenar quebra coisas em silêncio — ver o comentário no `<head>`.
+
+| # | CSS (`frontend/static/css/`) | o que tem dentro |
+|---|---|---|
+| 1 | `tokens.css` | `:root`, os 61 `--bs-*`, reset, `:focus-visible` |
+| 2 | `layout.css` | frame, sidebar, seletor de lançamento, mode rail, subnav, nav, barra de progresso, overlay de carregamento (e os easter eggs), main |
+| 3 | `componentes.css` | seções recolhíveis, dropdown de seções, busca, métricas grid, KPI, highlights, info-box, tabelas, funil, pills e badges |
+| 4 | `utilitarios.css` | animações, hover lift, live badge, menu de conta, modal de atalhos, topbar mobile |
+| 5 | `responsivo.css` | todas as media queries |
+| 6 | `wizard-lancamento.css` | modal do wizard de lançamento |
+| 7 | `temas.css` | os 10 temas (`html[data-bs-theme="X"]`) — sobrescreve os tokens, por isso vem depois |
+| 8 | `modal-video.css` | modal de preview de vídeo |
+
+| # | JS (`frontend/static/js/`) | o que tem dentro |
+|---|---|---|
+| 1 | `carregamento.js` | frases de loading, barra de progresso, overlay de navegação |
+| 2 | `tabelas.js` | export CSV de tabela, marcação da linha de total |
+| 3 | `nav.js` | menu mobile, `bsSoftNavigate`, pickers da trilha |
+| 4 | `tema.js` | `bsSetTheme`, `bsApplyCustomTokens`, `bsRetintCharts` |
+| 5 | `secoes.js` | accordion, ordem/visibilidade, visualizações salvas, busca (a IIFE grande) |
+| 6 | `acoes.js` | subnav, menu de conta, `bsRunEtl`, atalhos de teclado |
+| 7 | `modal-video.js` | `openVideoModalFromEl` e o painel de métricas |
+| 8 | `wizard-lancamento.js` | todo o `lc*` — etapas, curva de verba, buckets |
+
+**O que continua inline no `base.html`, de propósito:**
+
+| o quê | por quê |
 |---|---|
-| Tokens, temas, componentes CSS, acessórios JS (modal, accordion, gerador) | `frontend/templates/base.html` |
+| `<style id="brabo-accent">` | depende de `{{ accent }}` — a cor é do lançamento aberto |
+| script anti-flash no `<head>` | precisa rodar **antes do primeiro paint**; num `<script src>` a rede entraria no caminho crítico e voltaria o flash de tema errado que ele existe pra evitar |
+| markup do modal de vídeo e do wizard | é HTML, não CSS/JS |
+
+`secoes.js` lê a página atual de `document.body.dataset.page` (o `<body>` recebe
+`data-page="{{ page }}"`); antes era `{{ page }}` interpolado direto no JS.
+
+As URLs saem do helper `static_url()` (`frontend/core.py`), que anexa `?v=<mtime>` — sem isso o
+navegador serviria CSS velho depois do deploy, porque o `Cache-Control: no-store` do middleware
+só vale para `text/html`.
+
+| Outros | Onde |
+|---|---|
 | UI do gerador de temas | `frontend/templates/settings.html` (seção "Gerador de Temas") |
 | Página de referência visual (desatualizada, tratar com cautela) | `frontend/design-system.html` |
 

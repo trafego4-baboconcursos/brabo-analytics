@@ -102,6 +102,30 @@ templates.env.filters["num"] = fmt_num
 templates.env.filters["pct"] = fmt_pct
 templates.env.filters["br_date"] = fmt_br_date
 
+
+# ── Estáticos com cache-busting ────────────────────────────────────────────────
+STATIC_DIR = BASE_DIR / "static"
+
+
+def static_url(caminho: str) -> str:
+    """URL de um arquivo de ``frontend/static/`` com ``?v=<mtime>``.
+
+    O ``Cache-Control: no-store`` do middleware vale só para ``text/html`` — CSS e
+    JS são cacheados pelo navegador, então sem o sufixo a pessoa continuaria vendo
+    a versão antiga depois de um deploy. O ``stat`` roda a cada render (são ~14
+    arquivos por página, custo irrelevante perto de uma query) de propósito: com
+    cache em memória, editar um ``.css`` em dev não apareceria sem reiniciar o
+    servidor, já que o ``--reload`` do uvicorn só observa ``.py``.
+    """
+    try:
+        versao = int((STATIC_DIR / caminho).stat().st_mtime)
+    except OSError:
+        return f"/static/{caminho}"  # arquivo sumiu: serve sem versão, o 404 aparece no console
+    return f"/static/{caminho}?v={versao}"
+
+
+templates.env.globals["static_url"] = static_url
+
 # Cores categóricas de temperatura, compartilhadas entre funil/insights/audiências
 # (antes cada template redeclarava o dict — divergiam com o tempo).
 templates.env.globals["TEMP_COLORS"] = {

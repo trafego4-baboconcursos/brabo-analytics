@@ -1,0 +1,226 @@
+/* Extraído de frontend/templates/base.html em 21/09/2026.
+   A ORDEM DE CARGA IMPORTA (cascata): ver a sequência de <link> no <head>
+   do base.html antes de renomear, reordenar ou juntar arquivos. */
+/* modal do wizard de configuração de lançamento */
+
+/* ── Launch Config Modal ─────────────────────────────────────────────── */
+#lc-overlay {
+  position:fixed; inset:0; background:rgba(15,20,40,.55); backdrop-filter:blur(4px);
+  z-index:2000; display:flex; align-items:center; justify-content:center;
+  animation:fadeInUp .2s ease-out;
+}
+#lc-modal {
+  background:var(--bs-card); border-radius:20px; width:560px; max-width:calc(100vw - 32px);
+  max-height:calc(100vh - 48px); display:flex; flex-direction:column;
+  box-shadow:0 24px 80px rgba(10,15,40,.28);
+}
+#lc-header {
+  padding:24px 28px 0;
+  display:flex; align-items:center; justify-content:space-between; flex-shrink:0;
+}
+#lc-header h2 { font-size:18px; font-weight:800; color:var(--bs-ink); margin:0; }
+#lc-close {
+  border:none; background:none; cursor:pointer; color:var(--bs-ink-muted);
+  font-size:18px; display:flex; align-items:center; padding:4px;
+  border-radius:8px; transition:background .12s;
+}
+#lc-close:hover { background:var(--bs-bg); color:var(--bs-ink); }
+
+/* Stepper */
+#lc-stepper {
+  display:flex; align-items:center; gap:0; padding:20px 28px 0; flex-shrink:0;
+  overflow-x:auto; scrollbar-width:none;
+}
+#lc-stepper::-webkit-scrollbar { display:none; }
+.lc-step {
+  display:flex; align-items:center; gap:6px; flex-shrink:0; white-space:nowrap;
+  font-size:12px; font-weight:600; color:var(--bs-ink-subtle);
+}
+.lc-step.active { color:var(--bs-accent); }
+.lc-step.done   { color:var(--bs-success); }
+/* Só o passo ativo mostra o rótulo por extenso — com 6+ passos o texto
+   de todos ao mesmo tempo não cabe nos 560px do modal (ver título hover). */
+.lc-step span { display:none; }
+.lc-step.active span { display:inline; }
+.lc-step-circle {
+  width:24px; height:24px; border-radius:50%; border:2px solid var(--bs-border-s);
+  display:flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:800; flex-shrink:0;
+  background:var(--bs-card); color:var(--bs-ink-subtle);
+  transition:all .2s;
+}
+.lc-step.active .lc-step-circle {
+  border-color:var(--bs-accent); background:var(--bs-accent); color:#fff;
+}
+.lc-step.done .lc-step-circle {
+  border-color:var(--bs-success); background:var(--bs-success); color:#fff;
+}
+.lc-step-line {
+  flex:1 1 12px; min-width:12px; height:2px; background:var(--bs-border); margin:0 4px;
+  transition:background .2s;
+}
+.lc-step-line.done { background:var(--bs-success); }
+
+/* Body / panes */
+#lc-body {
+  flex:1; overflow-y:auto; padding:20px 28px;
+  scrollbar-width:thin; scrollbar-color:var(--bs-border) transparent;
+}
+.lc-section {
+  background:var(--bs-card); border:1px solid var(--bs-border); border-radius:14px;
+  padding:18px 20px; margin-bottom:14px;
+  border-left:3px solid var(--bs-accent);
+}
+.lc-section-title {
+  font-size:15px; font-weight:700; color:var(--bs-ink);
+  margin-bottom:14px;
+}
+.lc-info-banner {
+  background:var(--bs-surface); border:1px solid var(--bs-border);
+  border-radius:12px; padding:12px 16px; margin-bottom:14px;
+  display:flex; align-items:center; gap:10px;
+  font-size:13px; color:var(--bs-ink-muted);
+}
+.lc-info-banner i { font-size:18px; color:var(--bs-accent); flex-shrink:0; }
+
+/* Date row */
+.lc-date-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.lc-field { display:flex; flex-direction:column; gap:6px; }
+.lc-label { font-size:12px; font-weight:600; color:var(--bs-ink-muted); }
+.lc-date-btn {
+  display:flex; align-items:center; gap:8px;
+  border:2px solid var(--bs-border-s); border-radius:10px;
+  padding:10px 14px; cursor:pointer;
+  background:var(--bs-card); transition:border-color .15s;
+}
+.lc-date-btn:focus-within { border-color:var(--bs-accent); }
+.lc-date-btn i { color:var(--bs-accent); font-size:15px; flex-shrink:0; }
+.lc-date-btn input[type=date] {
+  border:none; outline:none; background:transparent;
+  font-family:inherit; font-size:13px; font-weight:600; color:var(--bs-ink);
+  width:100%; cursor:pointer;
+}
+
+/* Number / text inputs */
+.lc-input {
+  width:100%; border:2px solid var(--bs-border-s); border-radius:10px;
+  padding:10px 14px; font-family:inherit; font-size:14px; font-weight:600;
+  color:var(--bs-ink); outline:none; background:var(--bs-card); transition:border-color .15s;
+  box-sizing:border-box;
+}
+.lc-input:focus { border-color:var(--bs-accent); }
+
+/* Filter row with badge */
+.lc-filter-row {
+  display:flex; align-items:center; gap:8px; margin-bottom:12px;
+}
+.lc-filter-row .lc-input { flex:1; margin-bottom:0; }
+.lc-camp-badge {
+  white-space:nowrap; font-size:12px; font-weight:700;
+  background:var(--bs-accent-bg); color:var(--bs-accent);
+  border:1px solid rgba(47,94,227,.18); border-radius:20px;
+  padding:4px 10px; cursor:pointer; flex-shrink:0;
+  display:flex; align-items:center; gap:4px;
+  transition:background .12s;
+}
+.lc-camp-badge:hover { background:#dde7ff; }
+
+/* Temperature scope row */
+.lc-temp-row {
+  display:flex; align-items:center; gap:8px; margin-bottom:12px;
+}
+.lc-temp-row .lc-input { flex:1; margin-bottom:0; }
+.lc-scope-wrap { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--bs-ink-muted); }
+.lc-scope-select {
+  border:1px solid var(--bs-border-s); border-radius:8px;
+  padding:6px 10px; font-size:12px; font-family:inherit;
+  color:var(--bs-ink); background:var(--bs-card); outline:none; cursor:pointer;
+}
+.lc-scope-select:focus { border-color:var(--bs-accent); }
+
+/* Account multiselect */
+.lc-accounts-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+.lc-acc-group { display:flex; flex-direction:column; gap:6px; }
+.lc-acc-label { font-size:12px; font-weight:700; color:var(--bs-ink-muted); }
+.lc-acc-count { font-size:11px; font-weight:600; color:var(--bs-ink-subtle); }
+.lc-acc-dropdown {
+  position:relative;
+}
+.lc-acc-trigger {
+  width:100%; border:2px solid var(--bs-border-s); border-radius:10px;
+  padding:9px 14px; background:var(--bs-card); cursor:pointer;
+  font-family:inherit; font-size:13px; font-weight:600; color:var(--bs-ink);
+  display:flex; align-items:center; justify-content:space-between;
+  transition:border-color .15s;
+}
+.lc-acc-trigger:hover { border-color:var(--bs-accent); }
+.lc-acc-trigger.open  { border-color:var(--bs-accent); border-bottom-left-radius:0; border-bottom-right-radius:0; }
+.lc-acc-menu {
+  display:none; position:absolute; top:100%; left:0; right:0;
+  background:var(--bs-card); border:2px solid var(--bs-accent); border-top:none;
+  border-bottom-left-radius:10px; border-bottom-right-radius:10px;
+  z-index:10; overflow:hidden;
+}
+.lc-acc-menu.open { display:block; }
+.lc-acc-option {
+  display:flex; align-items:center; gap:10px; padding:10px 14px;
+  cursor:pointer; font-size:12px; font-weight:500;
+  transition:background .1s;
+}
+.lc-acc-option:hover { background:var(--bs-accent-bg); }
+.lc-acc-option input[type=checkbox] { width:15px; height:15px; accent-color:var(--bs-accent); cursor:pointer; }
+.lc-acc-option-name { font-weight:600; color:var(--bs-ink); }
+.lc-acc-option-id   { font-size:10px; color:var(--bs-ink-subtle); font-family:monospace; }
+
+/* Collapse "Outras temperaturas" */
+.lc-collapse-toggle {
+  display:flex; align-items:center; gap:6px; font-size:13px; font-weight:600;
+  color:var(--bs-accent); cursor:pointer; background:none; border:none;
+  padding:0; margin-top:4px;
+}
+.lc-collapse-toggle i { transition:transform .2s; }
+.lc-collapse-toggle.open i { transform:rotate(180deg); }
+.lc-collapse-body { display:none; margin-top:12px; }
+.lc-collapse-body.open { display:block; }
+
+/* Product list */
+.lc-product-list { display:flex; flex-direction:column; gap:8px; }
+.lc-product-row {
+  display:flex; align-items:center; gap:8px;
+}
+.lc-product-row .lc-input { flex:1; margin-bottom:0; }
+.lc-product-row .lc-icon-btn {
+  border:none; background:none; cursor:pointer; color:var(--bs-ink-muted);
+  font-size:16px; display:flex; align-items:center; padding:4px;
+  border-radius:6px; transition:color .12s, background .12s;
+}
+.lc-product-row .lc-icon-btn:hover { color:var(--bs-danger); background:var(--bs-danger-bg); }
+.lc-product-add {
+  display:flex; align-items:center; gap:8px; margin-top:4px;
+}
+.lc-product-add .lc-input { flex:1; }
+.lc-product-add .lc-add-btn {
+  border:2px solid var(--bs-accent); background:var(--bs-card); color:var(--bs-accent);
+  border-radius:10px; padding:9px 14px; cursor:pointer; font-size:18px; font-weight:700;
+  display:flex; align-items:center; transition:all .12s; flex-shrink:0;
+}
+.lc-product-add .lc-add-btn:hover { background:var(--bs-accent); color:#fff; }
+
+/* Footer */
+#lc-footer {
+  padding:16px 28px; border-top:1px solid var(--bs-border);
+  display:flex; justify-content:flex-end; gap:10px; flex-shrink:0;
+}
+.lc-btn {
+  padding:10px 24px; border-radius:10px; font-size:14px; font-weight:700;
+  cursor:pointer; border:none; transition:all .15s; font-family:inherit;
+}
+.lc-btn-secondary {
+  background:var(--bs-bg); color:var(--bs-ink);
+  border:1px solid var(--bs-border-s);
+}
+.lc-btn-secondary:hover { background:var(--bs-border); }
+.lc-btn-primary {
+  background:var(--bs-accent); color:#fff;
+}
+.lc-btn-primary:hover { filter:brightness(1.08); }

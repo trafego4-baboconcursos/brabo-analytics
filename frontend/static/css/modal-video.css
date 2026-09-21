@@ -1,0 +1,27 @@
+/* Extraído de frontend/templates/base.html em 21/09/2026.
+   A ORDEM DE CARGA IMPORTA (cascata): ver a sequência de <link> no <head>
+   do base.html antes de renomear, reordenar ou juntar arquivos. */
+/* modal de preview de vídeo do Drive */
+
+#video-modal-overlay .vm-shell { background:#101113; border-radius:14px; overflow:hidden; width:min(1040px,96vw); max-height:92vh; box-shadow:0 24px 80px rgba(0,0,0,.6); display:flex; flex-direction:column; }
+#video-modal-overlay .vm-header { display:flex; align-items:center; justify-content:space-between; padding:13px 18px; background:#17181b; border-bottom:1px solid rgba(255,255,255,.06); }
+#video-modal-overlay .vm-title { color:var(--bs-accent-bg); font-size:13px; font-weight:700; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#video-modal-overlay .vm-close { border:none; background:rgba(255,255,255,.06); color:var(--bs-ink-subtle); font-size:17px; cursor:pointer; padding:6px; border-radius:8px; line-height:1; display:flex; }
+#video-modal-overlay .vm-close:hover { background:rgba(255,255,255,.12); color:var(--bs-border); }
+#video-modal-overlay .vm-body { display:flex; flex-direction:row; flex-wrap:wrap; }
+#video-modal-overlay .vm-video { position:relative; padding-bottom:42.1875%; height:0; flex:1.6 1 460px; min-width:280px; background:#000; }
+#video-modal-overlay .vm-video iframe { position:absolute; inset:0; width:100%; height:100%; border:none; background:#000; }
+#video-modal-metrics { flex:1 1 260px; min-width:240px; max-width:340px; background:#16171a; padding:22px 20px; display:none; flex-direction:column; justify-content:center; gap:18px; border-left:1px solid rgba(255,255,255,.06); }
+#video-modal-metrics .vm-eyebrow { color:var(--bs-ink-muted); font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.08em; }
+#video-modal-metrics .vm-stats-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px 16px; }
+#video-modal-metrics .vm-stat { display:flex; align-items:flex-start; gap:8px; }
+#video-modal-metrics .vm-stat-icon { width:26px; height:26px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; }
+#video-modal-metrics .vm-stat-label { color:#7b8190; font-size:10px; font-weight:600; text-transform:uppercase; letter-spacing:.03em; }
+#video-modal-metrics .vm-stat-value { color:var(--bs-accent-bg); font-size:15px; font-weight:700; line-height:1.25; }
+#video-modal-metrics .vm-divider { height:1px; background:rgba(255,255,255,.07); }
+#video-modal-metrics .vm-rate-row { margin-bottom:12px; }
+#video-modal-metrics .vm-rate-row:last-child { margin-bottom:0; }
+#video-modal-metrics .vm-rate-top { display:flex; justify-content:space-between; align-items:baseline; font-size:11px; color:var(--bs-ink-subtle); margin-bottom:5px; }
+#video-modal-metrics .vm-rate-top b { color:var(--bs-accent-bg); font-weight:700; font-size:12px; }
+#video-modal-metrics .vm-bar-track { height:6px; background:rgba(255,255,255,.07); border-radius:3px; overflow:hidden; }
+#video-modal-metrics .vm-bar-fill { height:100%; border-radius:3px; transition:width .4s ease; }

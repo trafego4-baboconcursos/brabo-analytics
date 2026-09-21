@@ -1,0 +1,256 @@
+/* Extraído de frontend/templates/base.html em 21/09/2026.
+   A ORDEM DE CARGA IMPORTA (cascata): ver a sequência de <link> no <head>
+   do base.html antes de renomear, reordenar ou juntar arquivos. */
+/* temas alternativos e easter eggs (sobrescrevem os tokens) */
+
+/* "Brabo (marca)" — tema escuro seguindo o deck de debriefing oficial
+   (fundo navy quase preto + laranja da marca). Laranja #EF3B24 é o valor
+   exato do SVG do logo (img/logo-brabo-concursos-*.svg); os tons de navy
+   foram estimados a partir do PDF do deck — ajustar se destoar do
+   original quando comparado lado a lado. */
+html[data-bs-theme="brabo"] {
+  --bs-accent: #ef3b24; --bs-accent-2: #ff6a4d; --bs-accent-bg: #2b2118;
+  --bs-sidebar: #1e1e1e; --bs-sidebar-dark: #141414;
+  --bs-bg: #1a1a1a; --bs-surface: #262626; --bs-card: #333333;
+  --bs-ink: #f2f2f2; --bs-ink-muted: #a3a3a3; --bs-ink-subtle: #787878;
+  --bs-border: #3a3a3a; --bs-border-s: #484848;
+  --bs-success: #34d17a; --bs-success-bg: #1c2e22;
+  --bs-warning: #f4b740; --bs-warning-bg: #332a16;
+  --bs-danger: #ff5c5c; --bs-danger-bg: #331e1e;
+  --bs-info: #a3a3a3; --bs-info-bg: #242424;
+  --bs-sh-sm: 0 1px 3px rgba(0,0,0,.4); --bs-sh-md: 0 4px 14px rgba(0,0,0,.45);
+  --bs-sh-lg: 0 12px 32px rgba(0,0,0,.5); --bs-sh-xl: 0 20px 60px rgba(0,0,0,.55);
+}
+html[data-bs-theme="brabo"] body {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+html[data-bs-theme="brabo"] .hdr h1,
+html[data-bs-theme="brabo"] h1 {
+  font-family: 'Archivo Black', 'Inter', sans-serif; font-weight: 400; letter-spacing: -.01em;
+}
+
+/* Candidatos derivados do Calendário Operacional — mantidos como opções
+   à parte do tema de marca acima; nomes livres, sem ligação com o deck. */
+html[data-bs-theme="b"] {
+  --bs-accent: #0e7490; --bs-sidebar: #1d4ed8; --bs-sidebar-dark: #1e3a8a;
+  --bs-ink: #102136; --bs-ink-muted: #5c6b82; --bs-border: #d7e2ef;
+  --bs-success: #16a34a; --bs-success-bg: #dcfce7;
+  --bs-danger: #dc2626; --bs-danger-bg: #fee2e2;
+}
+html[data-bs-theme="c"] {
+  --bs-accent: #0f766e; --bs-sidebar: #334155; --bs-sidebar-dark: #1e293b;
+  --bs-ink: #1e293b; --bs-ink-muted: #64748b; --bs-border: #e2e8e6;
+  --bs-success: #16a34a; --bs-success-bg: #ecfdf3;
+  --bs-danger: #dc2626; --bs-danger-bg: #fef2f2;
+}
+html[data-bs-theme="d"] {
+  --bs-accent: #1d4ed8; --bs-sidebar: #1d4ed8; --bs-sidebar-dark: #0f172a;
+  --bs-ink: #0f172a; --bs-ink-muted: #64748b;
+}
+html[data-bs-theme="b"] body, html[data-bs-theme="c"] body, html[data-bs-theme="d"] body {
+  font-family: 'Manrope', 'Segoe UI', system-ui, sans-serif;
+}
+
+/* "Outatime" — easter egg De Volta para o Futuro: painel dos circuitos
+   temporais (laranja=destino, verde=presente, âmbar=passado) + Orbitron
+   nos números pra lembrar mostrador digital. Escondido de propósito —
+   não faz parte do rebranding "sério", é só diversão. */
+html[data-bs-theme="outatime"] {
+  --bs-accent: #ff7a00; --bs-accent-2: #ffb347; --bs-accent-bg: #2a2510;
+  --bs-sidebar: #0a1330; --bs-sidebar-dark: #050a1a;
+  --bs-bg: #0a1330; --bs-surface: #142248; --bs-card: #1c3060;
+  --bs-ink: #f2f2f6; --bs-ink-muted: #98a2c4; --bs-ink-subtle: #66709a;
+  --bs-border: #263566; --bs-border-s: #324278;
+  --bs-success: #00e64d; --bs-success-bg: #0a2414;
+  --bs-warning: #ffd400; --bs-warning-bg: #2e2500;
+  --bs-danger: #ff2222; --bs-danger-bg: #2e0a0a;
+  --bs-info: #33c9ff; --bs-info-bg: #0a1f2e;
+  --bs-sh-sm: 0 0 4px rgba(255,122,0,.15); --bs-sh-md: 0 0 16px rgba(255,122,0,.18);
+  --bs-sh-lg: 0 0 32px rgba(255,122,0,.22); --bs-sh-xl: 0 0 60px rgba(255,122,0,.28);
+}
+html[data-bs-theme="outatime"] body {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+html[data-bs-theme="outatime"] .hdr h1,
+html[data-bs-theme="outatime"] h1,
+html[data-bs-theme="outatime"] .tp-value,
+html[data-bs-theme="outatime"] .kpi-val,
+html[data-bs-theme="outatime"] .dbf-kpi .val,
+html[data-bs-theme="outatime"] .mat-num {
+  font-family: 'Orbitron', 'Inter', sans-serif;
+  text-shadow: 0 0 8px currentColor;
+  letter-spacing: .03em;
+}
+html[data-bs-theme="outatime"] .bs-live-dot {
+  background: #00e64d; box-shadow: 0 0 6px #00e64d;
+}
+
+/* "Predador" — easter egg Predador (1987): paleta de visão térmica
+   (laranja/vermelho quente sobre fundo escuro esverdeado), verde neon
+   de visão noturna no sucesso, estêncil militar (Black Ops One) nos
+   números — mesma ideia do Outatime, tema diferente. */
+html[data-bs-theme="predador"] {
+  --bs-accent: #ff4500; --bs-accent-2: #ffae00; --bs-accent-bg: #2b1608;
+  --bs-sidebar: #0c1a10; --bs-sidebar-dark: #050a06;
+  --bs-bg: #0b0f0c; --bs-surface: #171d17; --bs-card: #212a20;
+  --bs-ink: #eef0ea; --bs-ink-muted: #9aa393; --bs-ink-subtle: #67705f;
+  --bs-border: #263025; --bs-border-s: #344031;
+  --bs-success: #39ff14; --bs-success-bg: #0f2a08;
+  --bs-warning: #ffcc00; --bs-warning-bg: #2e2400;
+  --bs-danger: #ff2b2b; --bs-danger-bg: #300a0a;
+  --bs-info: #ffae00; --bs-info-bg: #241a06;
+  --bs-sh-sm: 0 0 4px rgba(255,69,0,.18); --bs-sh-md: 0 0 16px rgba(255,69,0,.2);
+  --bs-sh-lg: 0 0 32px rgba(255,69,0,.24); --bs-sh-xl: 0 0 60px rgba(255,69,0,.3);
+}
+html[data-bs-theme="predador"] body {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+html[data-bs-theme="predador"] .hdr h1,
+html[data-bs-theme="predador"] h1,
+html[data-bs-theme="predador"] .tp-value,
+html[data-bs-theme="predador"] .kpi-val,
+html[data-bs-theme="predador"] .dbf-kpi .val,
+html[data-bs-theme="predador"] .mat-num {
+  font-family: 'Black Ops One', 'Inter', sans-serif;
+  text-shadow: 0 0 8px currentColor;
+  letter-spacing: .02em;
+}
+html[data-bs-theme="predador"] .bs-live-dot {
+  background: #39ff14; box-shadow: 0 0 6px #39ff14;
+}
+
+/* "Amigão da Vizinhança" — easter egg Homem-Aranha (Sam Raimi): vermelho
+   de gibi + azul do traje, fonte de balão de quadrinho (Bangers) nos
+   números, teia no lugar do spinner. */
+html[data-bs-theme="spidey"] {
+  --bs-accent: #d81f26; --bs-accent-2: #1a3fa0; --bs-accent-bg: #2a0e0f;
+  --bs-sidebar: #0d1730; --bs-sidebar-dark: #060b18;
+  --bs-bg: #0a0e1a; --bs-surface: #151b33; --bs-card: #1d2547;
+  --bs-ink: #f2f4fa; --bs-ink-muted: #97a0c0; --bs-ink-subtle: #626a8c;
+  --bs-border: #24304f; --bs-border-s: #303f66;
+  --bs-success: #2f6fed; --bs-success-bg: #0f1f3f;
+  --bs-warning: #f5c518; --bs-warning-bg: #332b06;
+  --bs-danger: #ef3340; --bs-danger-bg: #35090d;
+  --bs-info: #2f6fed; --bs-info-bg: #0f1f3f;
+  --bs-sh-sm: 0 0 4px rgba(216,31,38,.2); --bs-sh-md: 0 0 16px rgba(216,31,38,.22);
+  --bs-sh-lg: 0 0 32px rgba(216,31,38,.26); --bs-sh-xl: 0 0 60px rgba(216,31,38,.32);
+}
+html[data-bs-theme="spidey"] body {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+html[data-bs-theme="spidey"] .hdr h1,
+html[data-bs-theme="spidey"] h1,
+html[data-bs-theme="spidey"] .tp-value,
+html[data-bs-theme="spidey"] .kpi-val,
+html[data-bs-theme="spidey"] .dbf-kpi .val,
+html[data-bs-theme="spidey"] .mat-num {
+  font-family: 'Bangers', 'Inter', sans-serif;
+  letter-spacing: .03em;
+  text-shadow: 0 0 8px currentColor;
+}
+html[data-bs-theme="spidey"] .bs-live-dot {
+  background: #2f6fed; box-shadow: 0 0 6px #2f6fed;
+}
+
+/* "Aranhaverso" — easter egg Miles Morales / Homem-Aranha no Aranhaverso:
+   preto quase puro + o glitch rosa/ciano de efeito cromático do filme,
+   fonte de grafite/pôster (Bungee) nos números. */
+html[data-bs-theme="aranhaverso"] {
+  --bs-accent: #ff2ec4; --bs-accent-2: #00e5ff; --bs-accent-bg: #2a0f24;
+  --bs-sidebar: #0c0c10; --bs-sidebar-dark: #050507;
+  --bs-bg: #0a0a0d; --bs-surface: #17171d; --bs-card: #212129;
+  --bs-ink: #f4f2fa; --bs-ink-muted: #a29cb8; --bs-ink-subtle: #6c6680;
+  --bs-border: #262230; --bs-border-s: #35304a;
+  --bs-success: #00e5ff; --bs-success-bg: #072a30;
+  --bs-warning: #f6ff41; --bs-warning-bg: #2c2e08;
+  --bs-danger: #ff3366; --bs-danger-bg: #300a17;
+  --bs-info: #00e5ff; --bs-info-bg: #072a30;
+  --bs-sh-sm: 0 0 4px rgba(255,46,196,.2); --bs-sh-md: 0 0 16px rgba(255,46,196,.22);
+  --bs-sh-lg: 0 0 32px rgba(255,46,196,.26); --bs-sh-xl: 0 0 60px rgba(255,46,196,.32);
+}
+html[data-bs-theme="aranhaverso"] body {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+html[data-bs-theme="aranhaverso"] .hdr h1,
+html[data-bs-theme="aranhaverso"] h1,
+html[data-bs-theme="aranhaverso"] .tp-value,
+html[data-bs-theme="aranhaverso"] .kpi-val,
+html[data-bs-theme="aranhaverso"] .dbf-kpi .val,
+html[data-bs-theme="aranhaverso"] .mat-num {
+  font-family: 'Bungee', 'Inter', sans-serif;
+  letter-spacing: .01em;
+  text-shadow: -1px 0 0 var(--bs-accent-2), 1px 0 0 var(--bs-accent);
+}
+html[data-bs-theme="aranhaverso"] .bs-live-dot {
+  background: #00e5ff; box-shadow: 0 0 6px #00e5ff;
+}
+
+/* "Springfield" — easter egg Os Simpsons: azul do cabelo da Marge de
+   accent (pra não colidir com texto branco em cima), amarelo clássico
+   reservado pro warning/realce, fundo creme claro (tema claro, não
+   escuro como os outros easter eggs). Fonte tipo logo do desenho
+   (Luckiest Guy). */
+html[data-bs-theme="springfield"] {
+  --bs-accent: #1565c0; --bs-accent-2: #ffd90f; --bs-accent-bg: #e3f0fc;
+  --bs-sidebar: #1b3b6f; --bs-sidebar-dark: #0d1f3d;
+  --bs-bg: #fff8dc; --bs-surface: #fffbea; --bs-card: #ffffff;
+  --bs-ink: #1a1a2e; --bs-ink-muted: #5b5b73; --bs-ink-subtle: #8c8ca3;
+  --bs-border: #f0e6b8; --bs-border-s: #e0d18f;
+  --bs-success: #2e9e44; --bs-success-bg: #e8f7ea;
+  --bs-warning: #ffd90f; --bs-warning-bg: #fff8dc;
+  --bs-danger: #d32f2f; --bs-danger-bg: #fdeaea;
+  --bs-info: #1565c0; --bs-info-bg: #e3f0fc;
+}
+html[data-bs-theme="springfield"] body {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+html[data-bs-theme="springfield"] .hdr h1,
+html[data-bs-theme="springfield"] h1,
+html[data-bs-theme="springfield"] .tp-value,
+html[data-bs-theme="springfield"] .kpi-val,
+html[data-bs-theme="springfield"] .dbf-kpi .val,
+html[data-bs-theme="springfield"] .mat-num {
+  font-family: 'Luckiest Guy', 'Inter', sans-serif;
+  letter-spacing: .02em;
+}
+html[data-bs-theme="springfield"] .bs-live-dot {
+  background: #2e9e44; box-shadow: 0 0 6px #2e9e44;
+}
+
+/* "Boss" — dashboard executivo preto e dourado (pedido do usuário
+   17/09/26, com print de referência: cards pretos com borda/ícone
+   dourado, números em branco-creme, fundo escuro). Sem fonte nem
+   easter egg de franquia — a paleta preto+ouro já carrega a identidade
+   sozinha. */
+html[data-bs-theme="boss"] {
+  --bs-accent: #d4a017; --bs-accent-2: #f0c419; --bs-accent-bg: #2b2308;
+  --bs-sidebar: #141414; --bs-sidebar-dark: #030303;
+  --bs-bg: #141414; --bs-surface: #191919; --bs-card: #1f1f1f;
+  --bs-ink: #f2ead2; --bs-ink-muted: #b8a878; --bs-ink-subtle: #7a7060;
+  --bs-border: #3a3220; --bs-border-s: #4d4326;
+  --bs-success: #2e9e44; --bs-success-bg: #14210f;
+  --bs-warning: #f0c419; --bs-warning-bg: #2b2308;
+  --bs-danger: #e0433f; --bs-danger-bg: #2b0f0d;
+  --bs-info: #d4a017; --bs-info-bg: #2b2308;
+  --bs-sh-sm: 0 0 4px rgba(212,160,23,.16); --bs-sh-md: 0 0 16px rgba(212,160,23,.18);
+  --bs-sh-lg: 0 0 32px rgba(212,160,23,.22); --bs-sh-xl: 0 0 60px rgba(212,160,23,.28);
+}
+html[data-bs-theme="boss"] body {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+html[data-bs-theme="boss"] .bs-live-dot {
+  background: #f0c419; box-shadow: 0 0 6px #f0c419;
+}
+
+/* Tema gerado em /settings (Gerador de Temas) — cores vêm via
+   --bs-* setadas direto no <html> (não dá pra prever de antemão como
+   nos outros temas, já que são escolhidas pela pessoa). Só a fonte
+   precisa de um hook de CSS aqui. */
+html[data-bs-theme="custom"] .hdr h1,
+html[data-bs-theme="custom"] h1,
+html[data-bs-theme="custom"] .tp-value,
+html[data-bs-theme="custom"] .kpi-val,
+html[data-bs-theme="custom"] .dbf-kpi .val,
+html[data-bs-theme="custom"] .mat-num {
+  font-family: var(--bs-custom-font, inherit);
+}

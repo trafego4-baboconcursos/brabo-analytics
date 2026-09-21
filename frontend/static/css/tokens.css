@@ -1,0 +1,60 @@
+/* Extraído de frontend/templates/base.html em 21/09/2026.
+   A ORDEM DE CARGA IMPORTA (cascata): ver a sequência de <link> no <head>
+   do base.html antes de renomear, reordenar ou juntar arquivos. */
+/* tokens :root, reset, foco de teclado */
+
+/* ── Basis Design System — Brabo Analytics ──────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&family=Archivo+Black&family=Orbitron:wght@600;700;800&family=Black+Ops+One&family=Bangers&family=Bungee&family=Luckiest+Guy&display=swap');
+
+:root {
+  --bs-ink:          #1f2330;
+  --bs-ink-muted:    #6b7280;
+  --bs-ink-subtle:   #9ca3af;
+  --bs-bg:           #f1f3f5;
+  --bs-surface:      #f6f7fb;
+  --bs-card:         #ffffff;
+  --bs-border:       #e5e7eb;
+  --bs-border-s:     #d1d5db;
+  --bs-accent-2:     #6b7280;
+  --bs-accent-bg:    #f3f4f6;
+  --bs-success:      #31c16c;
+  --bs-success-bg:   #f0fdf4;
+  --bs-warning:      #f4b740;
+  --bs-warning-bg:   #fffbeb;
+  --bs-danger:       #f05454;
+  --bs-danger-bg:    #fef2f2;
+  --bs-info:         #4b5563;
+  --bs-info-bg:      #f3f4f6;
+  --bs-sidebar:      #374151;
+  --bs-sidebar-dark: #1f2937;
+  --meta-color:      #1877F2;
+  --google-color:    #EA4335;
+  --yt-color:        #c0392b;
+  --search-color:    #34a853;
+  --pmax-color:      #fbbc05;
+  --display-color:   #ff6d00;
+  --whatsapp-color:  #25D366;
+  --ac-color:        #144BC2;
+  --temp-quente:     #f05454;
+  --temp-morno:      #f4b740;
+  --temp-frio:       #3b82f6;
+  --temp-especifico: #8b5cf6;
+  --temp-outros:     #9ca3af;
+  --bs-accent:       #374151;  /* sobrescrito por <style id="brabo-accent"> no base.html, com a cor do lancamento */
+  --bs-sh-sm:  0 1px 3px  rgba(20,26,52,.08);
+  --bs-sh-md:  0 4px 12px  rgba(20,26,52,.10);
+  --bs-sh-lg:  0 12px 30px rgba(20,26,52,.12);
+  --bs-sh-xl:  0 20px 60px rgba(20,26,52,.18);
+  --bs-r-sm: 6px; --bs-r-md: 8px; --bs-r-lg: 12px; --bs-r-xl: 16px; --bs-r-2xl: 20px;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s8:32px; --s10:40px;
+  --fs-2xs:10px; --fs-xs:11px; --fs-sm:12px; --fs-md:13px; --fs-lg:14px;
+  --fs-xl:16px; --fs-2xl:18px; --fs-3xl:22px; --fs-4xl:26px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0 !important; padding: 0 !important; font-family: 'Inter','Segoe UI',system-ui,sans-serif; font-size: 14px; line-height: 1.5; color: var(--bs-ink); background: var(--bs-bg); }
+
+/* ── Foco de teclado — visível em qualquer controle interativo, em todo tema ── */
+a:focus-visible, button:focus-visible, [tabindex]:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--bs-accent); outline-offset: 2px; border-radius: 4px;
+}

@@ -83,22 +83,54 @@
       // Qualificação" do nome (pedido do usuário 16/09/26: a palavra sai
       // do título, mas a tag continua aparecendo).
       var forcedTag = title.getAttribute('data-tag');
-      var base = title.getAttribute('data-sec-key') || slugKey(label) || 'secao';
+      // A chave sai do título SEM as badges de lançamento. Três seções
+      // (Resumo Executivo, Detalhamento de Tráfego, Detalhamento por Dia)
+      // carregam o código do lançamento no título, então usar o texto inteiro
+      // gerava chave diferente por lançamento — "resumo-executivo-pes-set-26-
+      // pes-mai-26" num, "resumo-executivo-pes-mai-26-pes-mar-26" noutro. A
+      // visualização salva num lançamento não reconhecia essas seções em
+      // outro e jogava as três pro fim da página; parecia que tinham sumido
+      // (relatado 21/09/26). A badge segue no `label`, que é o que aparece
+      // na lista de Seções.
+      var semBadge = title.cloneNode(true);
+      Array.prototype.forEach.call(semBadge.querySelectorAll('.dbf-launch-badge'),
+                                   function (b) { b.parentNode.removeChild(b); });
+      var labelEstavel = semBadge.textContent.trim();
+      var base = title.getAttribute('data-sec-key') || slugKey(labelEstavel) || 'secao';
       var key = base;
       for (var n = 2; usadas[key]; n++) key = base + '-' + n;   // títulos repetidos
       usadas[key] = true;
       return { el: section, title: title, key: key, legacyKey: 'section-' + idx,
+               legacySlug: slugKey(label),
                label: label, autoTag: forcedTag || detectTag(label) };
     });
     var byKey = {};    meta.forEach(function (m) { byKey[m.key] = m; });
-    var deLegacy = {}; meta.forEach(function (m) { deLegacy[m.legacyKey] = m.key; });
+    var deLegacy = {}; meta.forEach(function (m) {
+      deLegacy[m.legacyKey] = m.key;
+      // chave antiga (com a badge) do lançamento aberto agora
+      if (m.legacySlug && m.legacySlug !== m.key) deLegacy[m.legacySlug] = m.key;
+    });
     var defaultOrder = meta.map(function (m) { return m.key; });
 
     // Traduz um estado salvo (banco ou localStorage) pras keys de hoje e
     // garante as quatro partes — view antiga não tinha `customs`.
     function migrarKeys(est) {
       est = est || {};
-      function k(x) { return byKey[x] ? x : (deLegacy[x] || x); }
+      // View salva antes de 21/09/26 guarda a chave COM o código do
+      // lançamento. Tirar o código na marra recupera essas views em qualquer
+      // lançamento — sem isso, quem já tinha visualização continuaria vendo as
+      // três seções irem pro fim da página.
+      function semLancamento(x) {
+        return x.replace(/-(?:pbb|pes|pi)-[a-z]{3}-\d{2}/g, '')
+                .replace(/-bv-\d{2}/g, '')
+                .replace(/-+/g, '-').replace(/^-+|-+$/g, '');
+      }
+      function k(x) {
+        if (byKey[x]) return x;
+        if (deLegacy[x]) return deLegacy[x];
+        var limpo = semLancamento(x);
+        return byKey[limpo] ? limpo : x;
+      }
       function obj(o) {
         var out = {};
         Object.keys(o || {}).forEach(function (x) { out[k(x)] = o[x]; });

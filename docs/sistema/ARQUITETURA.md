@@ -274,6 +274,9 @@ relacionados:
 >
 > **CSS e JS saíram do `base.html` para `/static` (2026-09-21)**
 >
+>
+> **Visualização salva "perdia" seções em outro lançamento (2026-09-21)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -3024,3 +3027,42 @@ do CSS e das dependências do JS; reordenar quebra em silêncio. Os `<script>` s
 páginas no smoke contra o banco real, os 16 estáticos respondendo 200, e uma passada de
 Playwright em 6 páginas conferindo tokens computados, largura da sidebar, contagem de seções,
 troca dos 10 temas, busca de seções, accordion e abertura do wizard — **zero erros de console**.
+
+---
+
+## Visualização salva "perdia" seções em outro lançamento (2026-09-21)
+
+**Sintoma:** no `/debriefing` de um lançamento, o Resumo Executivo parecia ter sumido; só voltava
+clicando em **Seções → Ordem original do sistema**. Quem não tinha visualização salva nunca viu o
+problema.
+
+**Causa:** a chave de cada seção sai do **texto do título** (`slugKey(title.textContent)`), e três
+títulos carregam a badge com o código do lançamento — Resumo Executivo, Detalhamento de Tráfego e
+Detalhamento por Dia. A mesma seção virava chave diferente em cada lançamento:
+
+| lançamento aberto | chave gerada |
+|---|---|
+| PES-SET-26 | `resumo-executivo-pes-set-26-pes-mai-26` |
+| PES-MAI-26 | `resumo-executivo-pes-mai-26-pes-mar-26` |
+
+A visualização salva guarda a chave de **um** lançamento. Ao abrir outro, essas seções não eram
+reconhecidas e caíam no `meta.forEach(... indexOf === -1) container.appendChild(...)` — ou seja,
+iam para o **fim da página**. Não ficavam ocultas; ficavam no rodapé, o que passa a impressão de
+terem sumido.
+
+**Fix (`static/js/secoes.js`):** a chave passa a sair do título **sem** as `.dbf-launch-badge`
+(clona o nó, remove as badges, gera o slug). As três viram `resumo-executivo`,
+`detalhamento-de-trafego` e `detalhamento-por-dia` em qualquer lançamento. O `label` continua com a
+badge, que é o que aparece na lista de Seções.
+
+**Views antigas continuam valendo:** `k()` ganhou um passo que remove o padrão de código de
+lançamento da chave salva antes de desistir (`-pes-set-26`, `-bv-25`…), e cada seção registra a
+chave antiga do lançamento aberto em `deLegacy`. Verificado no navegador: com uma view gravada com
+as chaves do PES-SET-26, o PES-MAI-26 abre com o Resumo Executivo na posição salva em vez de no
+rodapé.
+
+**Nota de escopo:** este bug é diferente de "o debriefing não é igual em todos os lançamentos".
+Cinco seções (Typeform ×3, Leads × Grupos de WhatsApp, Páginas de Captura) realmente não são
+renderizadas quando a fonte não existe naquele lançamento — Typeform foi cancelado e o GA4 só
+passou a ser coletado depois de mai/26. Mostrar a seção com `sem_dados()` em vez de omitir segue
+como decisão em aberto com o usuário.

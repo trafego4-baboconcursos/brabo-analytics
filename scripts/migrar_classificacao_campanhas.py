@@ -244,8 +244,8 @@ def preencher_classificacao(conn, dry_run: bool) -> None:
 
 def _classificar(nome: str, codigo: str | None, plataforma: str) -> tuple:
     if plataforma == "meta":
-        return categorizar_campanha_meta(nome, legacy=uses_legacy_ad_codes(codigo))
-    return categorizar_campanha_google(nome)
+        return categorizar_campanha_meta(nome, launch_code=codigo, legacy=uses_legacy_ad_codes(codigo))
+    return categorizar_campanha_google(nome, launch_code=codigo)
 
 
 def main() -> None:

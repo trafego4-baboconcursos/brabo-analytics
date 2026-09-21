@@ -133,14 +133,17 @@ def classificar(df: pd.DataFrame, plataforma: str) -> pd.DataFrame:
 
     df = df.copy()
     nomes = df["campaign_name"].fillna("")
+    codigos = df["lancamento_codigo"] if "lancamento_codigo" in df.columns else pd.Series([None] * len(df))
     if plataforma == "meta":
-        codigos = df["lancamento_codigo"] if "lancamento_codigo" in df.columns else pd.Series([None] * len(df))
         resultado = [
-            categorizar_campanha_meta(nome, legacy=uses_legacy_ad_codes(codigo))
+            categorizar_campanha_meta(nome, launch_code=codigo, legacy=uses_legacy_ad_codes(codigo))
             for nome, codigo in zip(nomes, codigos)
         ]
     else:
-        resultado = [categorizar_campanha_google(nome) for nome in nomes]
+        resultado = [
+            categorizar_campanha_google(nome, launch_code=codigo)
+            for nome, codigo in zip(nomes, codigos)
+        ]
 
     for i, coluna in enumerate(colunas):
         df[coluna] = [r[i] for r in resultado]

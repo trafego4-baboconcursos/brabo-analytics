@@ -34,7 +34,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 69 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 70 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -46,6 +46,7 @@ relacionados:
 >
 > **Nome de campanha congelado e etapa gravada na escrita (2026-09-21)**
 >
+> - [[ARQUITETURA#Perfil de classificação da Black (2026-09-21)|Perfil de classificação da Black (2026-09-21)]]
 >
 > **Snapshot de lançamento fechado nunca reaquece sozinho (2026-09-21)**
 >
@@ -486,6 +487,30 @@ as linhas mais antigas com ele, enquanto linhas de dezembro escritas uma hora an
 original. Vale a **era de nome**: cada nome distinto começa no `updated_at` mais antigo em que aparece, e
 a linha de data `D` carrega o nome da era que continha `D`. Quem foi escrito primeiro é que guarda o nome
 de época; a data do dado não diz nada sobre isso.
+
+### Perfil de classificação da Black (2026-09-21)
+
+A Black Vitálicia é um funil diferente do lançamento normal e não cabe no mesmo vocabulário:
+tem etapa **Aquecimento** (inexistente no normal), públicos **Aluno / Super Quente / Novo**
+(em vez de Quente / Frio / Específico) e formatos **Volume / Carrossel / Trio**. Forçá-la no
+mapa normal jogava tudo em "Outros" (foi o caso do BV-25) ou, se as chaves fossem adicionadas
+ao mapa global, contaminaria a classificação dos lançamentos que rodam hoje.
+
+Solução: um **perfil por tipo de lançamento**, escolhido pelo código (`_is_black()` = começa com
+`BV`), em `src/nomenclatura.py`. `categorizar_campanha_meta`/`google` recebem `launch_code` e, se
+Black, usam `ETAPA_MAP_BLACK` / `TEMPERATURA_MAP_BLACK` / `BUCKET_MAP_BLACK` — que cobrem as duas
+grafias da Black: o **BV-25** (etapa no objetivo: `[CADASTRO]`=Captação, `[ENGAJAMENTO]`/Base
+Forte=Aquecimento, `[RECONHECIMENTO]`=Lembrete, `[VENDAS]`=Matrículas) e o **BV-26** (etapa direta:
+`[aquecimento][captação][lembrete][matrículas]`). Só o perfil Black usa fallback por substring em
+temperatura/bucket — o `legacy` normal continua fazendo fallback só de etapa, como antes.
+
+O lançamento normal **não muda em nada** — mesma máquina do commit anterior, mesmos mapas; o
+golden test (`test_meta_classifica_igual_a_implementacao_antiga`) garante isso, e o PES-SET-26 foi
+conferido linha a linha sem alteração. As colunas gravadas do BV-25/BV-26 foram reprocessadas em
+21/09 com o perfil novo (o ETL passa `launch_code` na escrita, então lançamento novo já nasce
+classificado). É o mesmo padrão de exceção-por-lançamento de `src/ad_codes.py`, mas para a
+classificação — e não confundir os dois: `uses_legacy_ad_codes()` é só BV-25 (regex de código de
+anúncio); `_is_black()` é BV-* (perfil de classificação).
 
 ## Snapshot de lançamento fechado nunca reaquece sozinho (2026-09-21)
 

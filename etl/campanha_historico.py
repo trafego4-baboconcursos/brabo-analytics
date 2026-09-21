@@ -147,6 +147,15 @@ def classificar(df: pd.DataFrame, plataforma: str) -> pd.DataFrame:
     return df
 
 
+def _colunas_da_tabela(conn, tabela: str) -> set[str]:
+    """Colunas que a tabela realmente tem, para não inserir coluna inexistente."""
+    linhas = conn.execute(
+        text("SELECT column_name FROM information_schema.columns WHERE table_name = :t"),
+        {"t": tabela},
+    ).fetchall()
+    return {r[0] for r in linhas}
+
+
 def preparar(
     conn,
     df: pd.DataFrame,
@@ -158,7 +167,14 @@ def preparar(
     launch_code: str | None = None,
     renomear: bool = False,
 ) -> pd.DataFrame:
-    """Congela o nome (salvo `renomear=True`) e classifica. Chamar antes do DELETE."""
+    """Congela o nome (salvo `renomear=True`) e classifica. Chamar antes do DELETE.
+
+    Descarta as colunas de classificação que a tabela ainda não tem. `to_sql`
+    monta o INSERT com **todas** as colunas do DataFrame, então mandar `etapa`
+    antes de `scripts/migrar_classificacao_campanhas.py` rodar derrubaria o ETL
+    inteiro a cada hora com "column etapa does not exist" — e o congelamento de
+    nome, que não depende de coluna nova, morreria junto.
+    """
     if not renomear:
         try:
             df, _ = congelar_nomes(df, nomes_congelados(conn, tabela, since, until, launch_code))
@@ -167,4 +183,21 @@ def preparar(
             # para gravar o dado do dia. Se a leitura prévia falhar, grava com o
             # nome atual — que é exatamente o comportamento anterior a 21/09/26.
             logger.exception("Falha ao ler nomes históricos de %s; gravando com o nome atual", tabela)
-    return classificar(df, plataforma)
+
+    df = classificar(df, plataforma)
+
+    colunas = COLUNAS_META if plataforma == "meta" else COLUNAS_GOOGLE
+    try:
+        existentes = _colunas_da_tabela(conn, tabela)
+    except Exception:
+        logger.exception("Falha ao ler colunas de %s; gravando sem classificação", tabela)
+        existentes = set()
+    ausentes = [c for c in colunas if c not in existentes]
+    if ausentes:
+        logger.warning(
+            "%s ainda não tem %s — rode scripts/migrar_classificacao_campanhas.py. "
+            "Gravando sem a classificação; o nome segue congelado.",
+            tabela, ", ".join(ausentes),
+        )
+        df = df.drop(columns=ausentes)
+    return df

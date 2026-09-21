@@ -19,6 +19,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "etl"))
 
+import campanha_historico  # noqa: E402
 from campanha_historico import classificar, congelar_nomes  # noqa: E402
 
 NOME_EPOCA = "[GA][cadastro][captação][quente][potencial][PES-MAI-26][27.04.26]"
@@ -107,3 +108,55 @@ def test_replay_vence_aula_tambem_na_escrita():
     ])
     saida = classificar(df, "google")
     assert list(saida["etapa"]) == ["Replay", "Aulas no Ar"]
+
+
+class _ConnFake:
+    """Conexão mínima: responde só ao SELECT de `information_schema.columns`."""
+
+    def __init__(self, colunas: list[str]):
+        self._colunas = colunas
+
+    def execute(self, *_args, **_kwargs):
+        colunas = self._colunas
+
+        class _Resultado:
+            @staticmethod
+            def fetchall():
+                return [(c,) for c in colunas]
+
+        return _Resultado()
+
+
+def test_preparar_descarta_coluna_que_a_tabela_nao_tem():
+    """Antes da migração, `to_sql` quebraria com "column etapa does not exist".
+
+    O INSERT do pandas usa **todas** as colunas do DataFrame, então mandar a
+    classificação numa tabela que ainda não migrou derrubaria o ETL de hora em
+    hora — e levaria junto o congelamento de nome, que não depende de coluna nova.
+    """
+    df = _df([{
+        "campaign_id": "1", "date": "2026-05-01",
+        "campaign_name": NOME_EPOCA, "lancamento_codigo": "PES-MAI-26",
+    }])
+    conn = _ConnFake(["campaign_id", "date", "campaign_name", "lancamento_codigo"])
+    saida = campanha_historico.preparar(
+        conn, df, tabela="google_ads_daily", plataforma="google",
+        since="2026-05-01", until="2026-05-01", renomear=True,
+    )
+    assert "etapa" not in saida.columns
+    assert "segmento" not in saida.columns
+    assert list(saida["campaign_name"]) == [NOME_EPOCA]
+
+
+def test_preparar_mantem_classificacao_quando_a_tabela_ja_migrou():
+    df = _df([{
+        "campaign_id": "1", "date": "2026-05-01",
+        "campaign_name": NOME_EPOCA, "lancamento_codigo": "PES-MAI-26",
+    }])
+    conn = _ConnFake(["campaign_id", "date", "campaign_name", "lancamento_codigo",
+                      "etapa", "temperatura", "segmento"])
+    saida = campanha_historico.preparar(
+        conn, df, tabela="google_ads_daily", plataforma="google",
+        since="2026-05-01", until="2026-05-01", renomear=True,
+    )
+    assert saida.loc[0, "etapa"] == "Captação"

@@ -120,6 +120,9 @@ TEMPERATURA_MAP_BLACK = {
 BUCKET_MAP_BLACK = {
     **BUCKET_MAP,
     "volume": "Volume", "trio": "Trio", "carrossel": "Carrossel", "feed": "Feed",
+    # "conteúdo" = aquecimento por peça de conteúdo (vs anúncio seco); no BV-25
+    # vinha como "Aquecimento Conteúdo ..." / "(conteúdo)".
+    "conteúdo": "Conteúdo", "conteudo": "Conteúdo",
 }
 
 

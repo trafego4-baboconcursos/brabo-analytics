@@ -60,6 +60,37 @@ ASSINATURAS = [
 BASE_LINHAS_DIA = 4_930_000_000 / 10
 
 
+# Bytes por linha, medidos com octet_length em 18/09/26. Sem isto o script ordena
+# por NÚMERO DE LINHAS e aponta o alvo errado — foi o que aconteceu em 17/09,
+# quando read_meta liderava com 51 milhões de linhas de 333 bytes e o Typeform,
+# com menos linhas de 4,8 KB, custava 7x mais.
+_PESOS = (
+    ("typeform_respostas_valores", 951),   # materializada, só os valores
+    ("typeform_respostas", 4844),          # `answers` cru, com metadado do Typeform
+    ("jsonb_object_agg", 1309),            # pesquisa nova, uma linha por submissão
+    ("submissoes", 1309),
+    ("meta_ads_daily", 333),
+    ("google_ads_daily", 333),
+    ("meta_ads_region_daily", 115),
+    ("email_norm", 37),
+    ("FROM leads", 120),
+)
+_PESO_PADRAO = 100
+
+
+def _peso_da_linha(consulta: str) -> int:
+    """Bytes por linha estimados pela tabela/coluna que a consulta toca.
+
+    Casa na ordem de _PESOS — o mais específico vem antes
+    (typeform_respostas_valores antes de typeform_respostas).
+    """
+    alvo = consulta.lower()
+    for padrao, peso in _PESOS:
+        if padrao.lower() in alvo:
+            return peso
+    return _PESO_PADRAO
+
+
 def main() -> int:
     with _get_engine().connect() as conn:
         # EXTRACT devolve numeric -> Decimal, que não opera com float
@@ -136,12 +167,20 @@ def main() -> int:
         print("=" * 66)
         print("MAIORES CONSUMIDORES NA JANELA")
         print("=" * 66)
+        print("  ATENÇÃO: egress é BYTE, não linha. Uma linha de `answers` (jsonb) pesa")
+        print("  ~4,8 KB; uma de meta_ads_daily pesa 333 bytes — 14x menos. A coluna de")
+        print("  peso abaixo corrige isso (medições de 18/09/26, octet_length real).")
+        print()
         for linhas, chamadas, q in conn.execute(text(
-            "SELECT rows, calls, left(regexp_replace(query, '\\s+', ' ', 'g'), 92)"
+            # Consulta INTEIRA aqui: o peso é casado pelo texto, e truncar antes
+            # de casar fazia "typeform_respostas" cair fora do corte e a linha
+            # pesada ser contada como leve. O corte fica só na hora de imprimir.
+            r"SELECT rows, calls, regexp_replace(query, '\s+', ' ', 'g')"
             " FROM pg_stat_statements WHERE query ILIKE 'select%'"
             " ORDER BY rows DESC LIMIT 10"
         )):
-            print(f"  {linhas:>12,} linhas {chamadas:>7,} ch.  {q}")
+            gb = linhas * _peso_da_linha(q) / 1e9 / max(horas, 1) * 24
+            print(f"  {linhas:>12,} lin {chamadas:>6,} ch {gb:>7.2f} GB/dia  {q[:66]}")
     return 0
 
 

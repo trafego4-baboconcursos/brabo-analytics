@@ -1,23 +1,28 @@
 {
   "read_ac_campaigns": {
-    "bytes": 12287,
+    "bytes": 18933,
     "resumo": {
       "campanhas": {
         "__n__": 46,
-        "__sha__": "4541dd1b8518e13f"
+        "__sha__": "6aa433c9f31891be"
       },
+      "compradores_abriram": 0,
+      "compradores_clicaram": 0,
       "has_data": true,
       "por_dia": {
         "__n__": 26,
-        "__sha__": "23e072b19017f514"
+        "__sha__": "6f02e52a0febb09a"
       },
-      "total_aberturas": 124270,
-      "total_cliques": 18278,
-      "total_envios": 656945,
-      "tx_abertura_media": 18.9163,
-      "tx_clique_media": 14.7083
+      "receita_clicaram": 0.0,
+      "tem_engajamento": false,
+      "total_aberturas": 124603,
+      "total_cliques": 18305,
+      "total_compradores": 0,
+      "total_envios": 657036,
+      "tx_abertura_media": 18.9644,
+      "tx_clique_media": 14.6907
     },
-    "sha256": "882be93852a47aa45f2fbbda2287543f5a5f40fce8f0ac1375472d2601b1ee8c"
+    "sha256": "73a281b14fc7f3e6f749b0ca663dba119f01367292afe385502b79cbc24d2d1e"
   },
   "read_ac_leads_for_attribution": {
     "bytes": 109123588,
@@ -519,8 +524,14 @@
     "sha256": "f944b2f8d7296e112829436efe60dc927f26dbd08c333fa3bbb55a0ed86163e5"
   },
   "read_leads": {
-    "bytes": 8536,
+    "bytes": 15397,
     "resumo": {
+      "compradores_base_antiga": 0,
+      "compradores_fora_crm": 0,
+      "compradores_por_origem": {
+        "__n__": 0,
+        "__sha__": "4f53cda18c2baa0c"
+      },
       "compradores_rastreados": 0,
       "compradores_sem_utm": 0,
       "cpl": 0.0,
@@ -528,62 +539,66 @@
         "__n__": 0,
         "__sha__": "4f53cda18c2baa0c"
       },
+      "por_anuncio": {
+        "__n__": 76,
+        "__sha__": "707445440a0e44d6"
+      },
       "por_canal": {
         "__n__": 4,
-        "__sha__": "c3ef0d25f8e246d3"
+        "__sha__": "5d91deeda9f4555b"
       },
       "por_dia": {
-        "__n__": 65,
-        "__sha__": "6155f14c2ea2d0ed"
+        "__n__": 64,
+        "__sha__": "34ac4adaa2be5371"
       },
       "por_etapa": {
         "__n__": 3,
-        "__sha__": "db949eb15f7893cc"
+        "__sha__": "d272321be1d5e122"
       },
       "por_temperatura": {
         "__n__": 4,
-        "__sha__": "a642792f63b3b1d6"
+        "__sha__": "2d5f78b94b90c196"
       },
       "por_utm_medium": {
         "cpc": {
           "conversao": 0.0,
           "faturamento": 0,
-          "leads": 70065,
+          "leads": 69792,
           "medium": "cpc",
           "vendas": 0
         },
         "organic": {
           "conversao": 0.0,
           "faturamento": 0,
-          "leads": 844,
+          "leads": 846,
           "medium": "organic",
           "vendas": 0
         },
         "organic_chat": {
           "conversao": 0.0,
           "faturamento": 0,
-          "leads": 1332,
+          "leads": 1321,
           "medium": "organic_chat",
           "vendas": 0
         },
         "paid": {
           "conversao": 0.0,
           "faturamento": 0,
-          "leads": 1487,
+          "leads": 1471,
           "medium": "paid",
           "vendas": 0
         },
         "paid_social": {
           "conversao": 0.0,
           "faturamento": 0,
-          "leads": 195362,
+          "leads": 194868,
           "medium": "paid_social",
           "vendas": 0
         },
         "social": {
           "conversao": 0.0,
           "faturamento": 0,
-          "leads": 7,
+          "leads": 9,
           "medium": "social",
           "vendas": 0
         }
@@ -592,51 +607,51 @@
         "facebook": {
           "conversao": 0.0,
           "faturamento": 0,
-          "leads": 195361,
+          "leads": 194867,
           "source": "facebook",
           "vendas": 0
         },
         "fb": {
           "conversao": 0.0,
           "faturamento": 0,
-          "leads": 575,
+          "leads": 561,
           "source": "fb",
           "vendas": 0
         },
         "google": {
           "conversao": 0.0,
           "faturamento": 0,
-          "leads": 70065,
+          "leads": 69792,
           "source": "google",
           "vendas": 0
         },
         "ig": {
           "conversao": 0.0,
           "faturamento": 0,
-          "leads": 792,
+          "leads": 773,
           "source": "ig",
           "vendas": 0
         },
         "instagram": {
           "conversao": 0.0,
           "faturamento": 0,
-          "leads": 2172,
+          "leads": 2163,
           "source": "instagram",
           "vendas": 0
         },
         "tiktok": {
           "conversao": 0.0,
           "faturamento": 0,
-          "leads": 132,
+          "leads": 151,
           "source": "tiktok",
           "vendas": 0
         }
       },
       "total_compradores": 0,
-      "total_leads": 269097,
+      "total_leads": 268307,
       "tx_conversao": 0.0
     },
-    "sha256": "7134ecdd9a6999970ae40de5f9d34d8f6cce6988aead042f07cc19325722a4da"
+    "sha256": "ca8fe0493b20b257fb601a1fb80f4a4f80d0157be084644721f236f5da99a417"
   },
   "read_leads_antigos_compradores": {
     "bytes": 198,

@@ -405,6 +405,17 @@ class AcCampaign:
     tx_abertura: float = 0.0
     tx_clique: float = 0.0
     tx_descadastro: float = 0.0
+    # Cruzamento com a venda (ac_campaign_engajamento): quantos dos que abriram /
+    # clicaram esta campanha compraram no lançamento. É sobreposição, não
+    # atribuição — o mesmo comprador aparece em várias campanhas, então a soma
+    # da coluna é maior que o total de vendas.
+    abriram: int = 0
+    clicaram: int = 0
+    compradores_abriram: int = 0
+    compradores_clicaram: int = 0
+    receita_clicaram: float = 0.0
+    tx_compra_abriu: float = 0.0
+    tx_compra_clicou: float = 0.0
 
 @dataclass
 class AcCampaignSummary:
@@ -416,6 +427,12 @@ class AcCampaignSummary:
     tx_clique_media: float = 0.0
     campanhas: list[AcCampaign] = field(default_factory=list)
     por_dia: list[dict] = field(default_factory=list)
+    # Sem duplicar comprador: união de todas as campanhas do lançamento.
+    tem_engajamento: bool = False
+    total_compradores: int = 0
+    compradores_abriram: int = 0
+    compradores_clicaram: int = 0
+    receita_clicaram: float = 0.0
 
 
 # ── Comparativo entre lançamentos ─────────────────────────────────────────────

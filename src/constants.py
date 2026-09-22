@@ -58,3 +58,21 @@ LAUNCH_NAMES: dict[str, str] = {
     "BV-25":      "Black Vitalícia 2025",
     "BV-26":      "Black Vitalícia 2026",
 }
+
+# Campanha de e-mail do AC raramente traz o código do lançamento no nome, então
+# ac_campaigns.lancamento_codigo fica NULL em praticamente todas (3.325 de 3.325
+# em set/26). O vínculo com o lançamento sai da data de envio + uma palavra do
+# produto no nome. Usado pelo leitor (frontend) e pelo ETL de engajamento, que
+# precisam enxergar exatamente o mesmo conjunto de campanhas.
+AC_KEYWORDS_BY_PREFIX: dict[str, list[str]] = {
+    "PBB": ["bb", "banco do brasil"],
+    "PES": ["tjsp", "escrevente"],
+    "PI":  ["inss"],
+}
+AC_KEYWORDS_TODAS: list[str] = ["inss", "tjsp", "bb", "banco do brasil"]
+
+
+def ac_keywords(launch_code: str) -> list[str]:
+    """Palavras que identificam o produto no nome da campanha de e-mail."""
+    prefixo = (launch_code or "").split("-")[0].upper()
+    return AC_KEYWORDS_BY_PREFIX.get(prefixo, AC_KEYWORDS_TODAS)

@@ -46,6 +46,33 @@
         <div class="tp-label">Total de Cliques</div>
         <div class="tp-compare">Taxa média Click/Open</div>
       </div>
+      {% if ac_summary.tem_engajamento %}
+      {% set tot_compr = ac_summary.total_compradores or 1 %}
+      <div class="tp-kpi">
+        <div class="tp-kpi-top">
+          <div class="tp-icon"><i class="ti ti-mail-check"></i></div>
+          <div class="tp-delta flat">{{ (ac_summary.compradores_abriram / tot_compr * 100) | round(1) }}%</div>
+        </div>
+        <div class="tp-value">{{ ac_summary.compradores_abriram | num }}</div>
+        <div class="tp-label">Compradores que Abriram</div>
+        <div class="tp-compare">De {{ ac_summary.total_compradores | num }} compradores do lançamento</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top">
+          <div class="tp-icon success"><i class="ti ti-shopping-cart"></i></div>
+          <div class="tp-delta up">{{ (ac_summary.compradores_clicaram / tot_compr * 100) | round(1) }}%</div>
+        </div>
+        <div class="tp-value">{{ ac_summary.compradores_clicaram | num }}</div>
+        <div class="tp-label">Compradores que Clicaram</div>
+        <div class="tp-compare">De {{ ac_summary.total_compradores | num }} compradores do lançamento</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-cash"></i></div></div>
+        <div class="tp-value">R$ {{ ac_summary.receita_clicaram | num }}</div>
+        <div class="tp-label">Receita de Quem Clicou</div>
+        <div class="tp-compare">Faturamento dos compradores que clicaram em algum e-mail</div>
+      </div>
+      {% endif %}
     </div>
     </div>
 
@@ -113,6 +140,52 @@
         </table>
       </div>
     </div>
+
+    {# ── Vendas por campanha (ac_campaign_engajamento × compradores) ── #}
+    {% if ac_summary.tem_engajamento %}
+    <div class="section">
+      <div class="section-title"><i class="ti ti-shopping-cart"></i> 4. Vendas por E-mail</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-dark">Data</th>
+              <th class="th-dark">Nome da Campanha</th>
+              <th class="th-success" style="text-align:right">Abriram</th>
+              <th class="th-success" style="text-align:right">Compraram</th>
+              <th class="th-success" style="text-align:right">% Compra</th>
+              <th class="th-success-dark" style="text-align:right">Clicaram</th>
+              <th class="th-success-dark" style="text-align:right">Compraram</th>
+              <th class="th-success-dark" style="text-align:right">% Compra</th>
+              <th class="th-dark" style="text-align:right">Receita</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in ac_summary.campanhas | sort(attribute='compradores_clicaram', reverse=true) %}
+            <tr>
+              <td class="td-muted" style="white-space:nowrap;">{{ c.data_envio }}</td>
+              <td style="font-weight:600;">{{ c.nome }}</td>
+              <td class="numero td-success">{{ c.abriram | num }}</td>
+              <td class="numero td-bold">{{ c.compradores_abriram | num }}</td>
+              <td class="numero" style="font-weight:700;color:var(--bs-accent);">{{ c.tx_compra_abriu | round(1) }}%</td>
+              <td class="numero td-success-dark">{{ c.clicaram | num }}</td>
+              <td class="numero td-bold">{{ c.compradores_clicaram | num }}</td>
+              <td class="numero td-success-dark" style="font-weight:700;">{{ c.tx_compra_clicou | round(1) }}%</td>
+              <td class="numero td-bold">R$ {{ c.receita_clicaram | num }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:8px">
+        Cruza quem abriu/clicou cada e-mail (contato a contato, via Active Campaign) com os
+        compradores do lançamento. É <strong>sobreposição, não atribuição</strong>: quem abriu seis
+        e-mails conta nos seis, então <strong>somar as colunas dá muito mais que o total de vendas</strong> —
+        o número sem repetição está nos KPIs no topo da página. O “% Compra” é o melhor sinal da
+        tabela: mostra o quanto quem tocou naquele e-mail acabou comprando.
+      </div>
+    </div>
+    {% endif %}
 
     {% endif %}{# end if has_data #}
   </div>

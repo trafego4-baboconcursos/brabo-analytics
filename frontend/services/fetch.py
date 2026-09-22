@@ -548,9 +548,6 @@ async def _fetch_all_data(
             _errors.append("TMB")
             return None
 
-    async def f_ac():
-        return await run_in_threadpool(read_ac_campaigns, launch) if launch and needs_ac_camps else None
-
     async def f_youtube():
         if not (launch and needs_youtube): return []
         try: return await run_in_threadpool(read_youtube_aulas, launch.code)
@@ -565,8 +562,8 @@ async def _fetch_all_data(
             logger.exception("Falha ao ler custo de WhatsApp")
             return None
 
-    meta, google, vendas, tfc, tf, daily_tuple, thumb, comp, vc, hm, tmb, ac_camps, yt_aulas, wa_cost = await asyncio.gather(
-        f_meta(), f_google(), f_vendas(), f_tfc(), f_tf(), f_daily(), f_thumb(), f_comp(), f_vc(), f_hm(), f_tmb(), f_ac(), f_youtube(), f_wa_cost()
+    meta, google, vendas, tfc, tf, daily_tuple, thumb, comp, vc, hm, tmb, yt_aulas, wa_cost = await asyncio.gather(
+        f_meta(), f_google(), f_vendas(), f_tfc(), f_tf(), f_daily(), f_thumb(), f_comp(), f_vc(), f_hm(), f_tmb(), f_youtube(), f_wa_cost()
     )
 
     daily_captacao, daily_preq = daily_tuple if isinstance(daily_tuple, tuple) else (daily_tuple, [])
@@ -577,6 +574,15 @@ async def _fetch_all_data(
         except Exception:
             logger.exception("Falha ao ler Leads")
             _errors.append("Leads")
+            return None
+
+    async def f_ac():
+        # Precisa de `vendas` pra cruzar quem abriu/clicou com quem comprou.
+        if not (launch and needs_ac_camps): return None
+        try: return await run_in_threadpool(read_ac_campaigns, launch, vendas)
+        except Exception:
+            logger.exception("Falha ao ler campanhas de e-mail")
+            _errors.append("Campanhas de e-mail")
             return None
 
     async def f_sales_attr():
@@ -598,8 +604,8 @@ async def _fetch_all_data(
     async def f_google_vendas():
         return google
 
-    leads, sales_attr, meta_enriched, google_enriched = await asyncio.gather(
-        f_leads(), f_sales_attr(), f_meta_vendas(), f_google_vendas()
+    leads, sales_attr, ac_camps, meta_enriched, google_enriched = await asyncio.gather(
+        f_leads(), f_sales_attr(), f_ac(), f_meta_vendas(), f_google_vendas()
     )
 
     return {

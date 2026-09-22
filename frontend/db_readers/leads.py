@@ -9,6 +9,7 @@ from typing import Any
 import pandas as pd
 from sqlalchemy import text
 
+from constants import ac_keywords
 from logger import get_logger
 from frontend.utils import _extract_launch_code, _norm_text
 from frontend.db import _get_engine
@@ -822,7 +823,131 @@ def read_ebook_compradores(launch_folder_or_code: Any, vendas: VendasSummary | N
     }
 
 
-def read_ac_campaigns(launch: Launch) -> AcCampaignSummary:
+def _ac_engajamento_por_campanha(launch: Launch, vendas: VendasSummary | None) -> dict[str, dict]:
+    """Por campanha de e-mail: quem abriu/clicou e quantos desses compraram.
+
+    Os contatos vêm de `ac_campaign_engajamento` (contact_id = leads.id) e os
+    compradores de read_vendas. É sobreposição, não atribuição: quem abriu seis
+    e-mails conta nos seis, então somar a coluna passa longe do total de vendas.
+    """
+    from frontend.db_readers.sales import read_vendas  # noqa: PLC0415 — evita import circular
+
+    engine = _get_engine()
+    with engine.connect() as conn:
+        try:
+            totais = conn.execute(
+                text("""
+                    SELECT campaign_id,
+                           COUNT(*) FILTER (WHERE abriu)  AS abriram,
+                           COUNT(*) FILTER (WHERE clicou) AS clicaram
+                    FROM ac_campaign_engajamento
+                    WHERE lancamento_codigo = :code
+                    GROUP BY campaign_id
+                """),
+                {"code": launch.code},
+            ).fetchall()
+        except Exception:
+            logger.debug("Tabela ac_campaign_engajamento indisponível; sem cruzamento com vendas")
+            return {}
+
+    # Lançamento sem coleta de engajamento sai antes de pagar o read_vendas.
+    if not totais:
+        return {}
+
+    if vendas is None:
+        vendas = read_vendas(launch.code)
+    if not vendas:
+        return {}
+    buyers = {e.strip().lower() for e in (vendas.emails_hotmart | vendas.emails_tmb) if e}
+    if not buyers:
+        return {}
+
+    with engine.connect() as conn:
+        try:
+            rows = conn.execute(
+                text("""
+                    SELECT e.campaign_id, e.abriu, e.clicou, LOWER(TRIM(l.email)) AS email
+                    FROM ac_campaign_engajamento e
+                    JOIN leads l ON l.id = e.contact_id
+                    WHERE e.lancamento_codigo = :code
+                      AND LOWER(TRIM(l.email)) = ANY(:buyers)
+                """),
+                {"code": launch.code, "buyers": list(buyers)},
+            ).fetchall()
+        except Exception:
+            logger.debug("Tabela ac_campaign_engajamento indisponível; sem cruzamento com vendas")
+            return {}
+
+    receita = getattr(vendas, "receita_por_email", None) or {}
+    out: dict[str, dict] = {
+        str(t[0]): {"abriram": t[1] or 0, "clicaram": t[2] or 0,
+                    "compradores_abriram": 0, "compradores_clicaram": 0, "receita_clicaram": 0.0}
+        for t in totais
+    }
+    for camp_id, abriu, clicou, email in rows:
+        d = out.get(str(camp_id))
+        if d is None:
+            continue
+        if abriu:
+            d["compradores_abriram"] += 1
+        if clicou:
+            d["compradores_clicaram"] += 1
+            d["receita_clicaram"] += float(receita.get(email, 0) or 0)
+    return out
+
+
+def _ac_totais_compradores(launch: Launch, summary: AcCampaignSummary, vendas: VendasSummary | None) -> None:
+    """Totais do lançamento contando cada comprador uma vez só.
+
+    Somar as colunas por campanha daria um número inflado (o mesmo comprador
+    abre vários e-mails), então a união vem de uma consulta própria.
+    """
+    from frontend.db_readers.sales import read_vendas  # noqa: PLC0415 — evita import circular
+
+    if not any(c.abriram or c.clicaram for c in summary.campanhas):
+        return
+    if vendas is None:
+        vendas = read_vendas(launch.code)
+    if not vendas:
+        return
+    buyers = {e.strip().lower() for e in (vendas.emails_hotmart | vendas.emails_tmb) if e}
+    if not buyers:
+        return
+
+    ids = [c.id for c in summary.campanhas]
+    engine = _get_engine()
+    with engine.connect() as conn:
+        try:
+            rows = conn.execute(
+                text("""
+                    SELECT LOWER(TRIM(l.email)) AS email,
+                           BOOL_OR(e.abriu)  AS abriu,
+                           BOOL_OR(e.clicou) AS clicou
+                    FROM ac_campaign_engajamento e
+                    JOIN leads l ON l.id = e.contact_id
+                    WHERE e.lancamento_codigo = :code
+                      AND e.campaign_id = ANY(:ids)
+                      AND LOWER(TRIM(l.email)) = ANY(:buyers)
+                    GROUP BY 1
+                """),
+                {"code": launch.code, "ids": ids, "buyers": list(buyers)},
+            ).fetchall()
+        except Exception:
+            logger.debug("Tabela ac_campaign_engajamento indisponível; sem totais de comprador")
+            return
+
+    receita = getattr(vendas, "receita_por_email", None) or {}
+    summary.tem_engajamento = True
+    summary.total_compradores = len(buyers)
+    for email, abriu, clicou in rows:
+        if abriu:
+            summary.compradores_abriram += 1
+        if clicou:
+            summary.compradores_clicaram += 1
+            summary.receita_clicaram += float(receita.get(email, 0) or 0)
+
+
+def read_ac_campaigns(launch: Launch, vendas: VendasSummary | None = None) -> AcCampaignSummary:
     """Busca estatísticas de campanhas de e-mail do Active Campaign filtradas por datas e keywords."""
     engine = _get_engine()
     summary = AcCampaignSummary()
@@ -852,15 +977,8 @@ def read_ac_campaigns(launch: Launch) -> AcCampaignSummary:
     if not rows:
         return summary
 
-    code_prefix = launch.code.split("-")[0].upper()
-    if code_prefix == "PBB":
-        keywords = ["bb", "banco do brasil"]
-    elif code_prefix == "PI":
-        keywords = ["inss"]
-    elif code_prefix == "PES":
-        keywords = ["tjsp", "escrevente"]
-    else:
-        keywords = ["inss", "tjsp", "bb", "banco do brasil"]
+    keywords = ac_keywords(launch.code)
+    engajamento = _ac_engajamento_por_campanha(launch, vendas)
 
     for row in rows:
         nome_campanha = (row[1] or "").lower()
@@ -886,6 +1004,17 @@ def read_ac_campaigns(launch: Launch) -> AcCampaignSummary:
             tx_clique=cliques / aberturas * 100 if aberturas > 0 else 0.0,
             tx_descadastro=descadastros / envios * 100 if envios > 0 else 0.0
         )
+        eng = engajamento.get(str(row[0]))
+        if eng:
+            c.abriram = eng["abriram"]
+            c.clicaram = eng["clicaram"]
+            c.compradores_abriram = eng["compradores_abriram"]
+            c.compradores_clicaram = eng["compradores_clicaram"]
+            c.receita_clicaram = eng["receita_clicaram"]
+            if c.abriram:
+                c.tx_compra_abriu = c.compradores_abriram / c.abriram * 100
+            if c.clicaram:
+                c.tx_compra_clicou = c.compradores_clicaram / c.clicaram * 100
         summary.campanhas.append(c)
         summary.total_envios += envios
         summary.total_aberturas += aberturas
@@ -900,6 +1029,8 @@ def read_ac_campaigns(launch: Launch) -> AcCampaignSummary:
         summary.tx_abertura_media = summary.total_aberturas / summary.total_envios * 100
     if summary.total_aberturas > 0:
         summary.tx_clique_media = summary.total_cliques / summary.total_aberturas * 100
+
+    _ac_totais_compradores(launch, summary, vendas)
 
     df = pd.DataFrame([{
         "data": c.data_envio,

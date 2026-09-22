@@ -1,23 +1,28 @@
 {
   "read_ac_campaigns": {
-    "bytes": 8284,
+    "bytes": 12520,
     "resumo": {
       "campanhas": {
         "__n__": 29,
-        "__sha__": "ea082f6e87841a8e"
+        "__sha__": "3d0980568f535c1f"
       },
+      "compradores_abriram": 0,
+      "compradores_clicaram": 0,
       "has_data": true,
       "por_dia": {
         "__n__": 23,
-        "__sha__": "e150d4e64955701d"
+        "__sha__": "f771cd682d18627c"
       },
-      "total_aberturas": 48038,
+      "receita_clicaram": 0.0,
+      "tem_engajamento": false,
+      "total_aberturas": 48039,
       "total_cliques": 4135,
+      "total_compradores": 0,
       "total_envios": 209648,
-      "tx_abertura_media": 22.9136,
-      "tx_clique_media": 8.6078
+      "tx_abertura_media": 22.9141,
+      "tx_clique_media": 8.6076
     },
-    "sha256": "97b8411654adc80872b1f1776bbf8974704794191371f3ac39b88a39b6251f96"
+    "sha256": "71007827e5578365b73a64512ed41d6f0bb44a0c735c95c138d8f3a8e82049f5"
   },
   "read_ac_leads_for_attribution": {
     "bytes": 29066675,
@@ -516,8 +521,14 @@
     "sha256": "f6d2e8e6ef96e98ea5ecddc817a780c366bba406d53aea5d757fe37d36fb294a"
   },
   "read_leads": {
-    "bytes": 33235,
+    "bytes": 29578,
     "resumo": {
+      "compradores_base_antiga": 0,
+      "compradores_fora_crm": 0,
+      "compradores_por_origem": {
+        "__n__": 0,
+        "__sha__": "4f53cda18c2baa0c"
+      },
       "compradores_rastreados": 0,
       "compradores_sem_utm": 0,
       "cpl": 0.0,
@@ -525,35 +536,39 @@
         "__n__": 0,
         "__sha__": "4f53cda18c2baa0c"
       },
+      "por_anuncio": {
+        "__n__": 0,
+        "__sha__": "4f53cda18c2baa0c"
+      },
       "por_canal": {
-        "__n__": 75,
-        "__sha__": "ad0aa9ba8924ec60"
+        "__n__": 76,
+        "__sha__": "9e7ff2d96dce52a1"
       },
       "por_dia": {
-        "__n__": 69,
-        "__sha__": "d4e81594e49c2d46"
+        "__n__": 19,
+        "__sha__": "439c9962f11f950d"
       },
       "por_etapa": {
         "__n__": 1,
-        "__sha__": "c7110f4f8541f19c"
+        "__sha__": "4e21293944e3bde3"
       },
       "por_temperatura": {
-        "__n__": 1,
-        "__sha__": "8f5326e6d1e977c5"
+        "__n__": 3,
+        "__sha__": "9604a9ffaa3bd039"
       },
       "por_utm_medium": {
-        "__n__": 43,
-        "__sha__": "898019640a5bcf80"
+        "__n__": 49,
+        "__sha__": "284242ef47df5165"
       },
       "por_utm_source": {
-        "__n__": 90,
-        "__sha__": "a61a954614145f12"
+        "__n__": 93,
+        "__sha__": "895321b25ff15055"
       },
       "total_compradores": 0,
-      "total_leads": 76008,
+      "total_leads": 75340,
       "tx_conversao": 0.0
     },
-    "sha256": "21f4d49bbd4f8205eda435dbe5ca4a3a14e756afcd04b046e004d7fff719917e"
+    "sha256": "9149f4ecb9dc8917e5d851946f78cc1fbdea2cda9196ede040d54b2ae549a940"
   },
   "read_leads_antigos_compradores": {
     "bytes": 193,

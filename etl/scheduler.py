@@ -41,6 +41,7 @@ INTERVALO_MINUTOS = 30
 #   active_campaign  538s (26 falhas)   instagram  290s (0 falhas)
 #   meta_ads         124s              ac_ebook    80s   whatsapp  70s
 #   ac_campaigns      34s              ga4         27s
+#   ac_engajamento   220s (13 campanhas do PES-SET-26)
 #   google_ads        17s              sheets_contagem  9s
 #
 # RÁPIDAS são o que sustenta decisão de verba durante carrinho aberto: no pico
@@ -51,7 +52,7 @@ INTERVALO_MINUTOS = 30
 # não mudam decisão nenhuma. De hora em hora, `active_campaign` (o gargalo, 45%
 # do tempo e 63% das falhas) roda 24x/dia em vez de 48.
 FONTES_RAPIDAS = "meta_ads,google_ads,ga4,sheets_contagem"
-FONTES_LENTAS = "active_campaign,instagram,ac_ebook,whatsapp,ac_campaigns"
+FONTES_LENTAS = "active_campaign,instagram,ac_ebook,ac_engajamento,whatsapp,ac_campaigns"
 INTERVALO_LENTAS_MINUTOS = 60
 
 load_dotenv(dotenv_path=BASE_DIR.parent / ".env")

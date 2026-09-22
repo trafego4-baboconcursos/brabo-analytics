@@ -12,6 +12,8 @@ responde:
   - "responsabilidade de cada arquivo"
   - "onde fica o calendario e por que"
   - "cache, scheduler, seguranca"
+  - "como a venda entra na pagina de campanhas de e-mail"
+  - "por que clique de e-mail vinha inflado"
   - "salvei no wizard e nao apareceu no debriefing"
   - "por que a verba configurada demora pra aparecer"
   - "quais campos o wizard grava em launch_config"
@@ -43,6 +45,9 @@ relacionados:
 > **God Module Split (S1–S9 em 2026-07-01; encerrado em 2026-09-15)**
 >
 > - [[ARQUITETURA#S10 — fim do shim (2026-09-15)|S10 — fim do shim (2026-09-15)]]
+>
+> **Engajamento de e-mail desce ao contato — e vira venda (2026-09-22)**
+>
 >
 > **Nome de campanha congelado e etapa gravada na escrita (2026-09-21)**
 >
@@ -441,6 +446,46 @@ campanha real derruba o teste.
 **Bugs críticos descobertos e corrigidos durante o split:**
 - `get_user_by_email` e demais funções de usuário foram extraídas em sessão anterior mas nunca re-exportadas de `database_reader.py` → app crashava no startup. Corrigido adicionando o bloco de re-exportação.
 - `read_youtube_aulas` importada por `core.py` mas nunca existiu em nenhum arquivo → crash no startup. Corrigido com stub que retorna `[]`.
+
+---
+
+## Engajamento de e-mail desce ao contato — e vira venda (2026-09-22)
+
+`ac_campaigns` guarda só o agregado da campanha (envios, aberturas, cliques), então
+`/crm-campanhas` não tinha como ligar e-mail a venda: faltava **quem** recebeu.
+
+**Onde o AC entrega o contato.** `/campaigns/{id}/links` lista os links da campanha e
+`/linkData?filters[linkid]=` devolve quem tocou em cada link — a mesma porta que
+`etl_ac_ebook.py` já usava para o PDF do guia. O `contact_id` do AC **é** o `leads.id`
+(casou 1:1 em 14.014 registros no PES-SET-26), e daí `leads.email` chega no comprador.
+
+**O link que não é link.** A URL literal `"open"` é o pixel de abertura, não um clique.
+Tratar os dois juntos infla "clique" em 10-30x: a campanha "Agenda de Mentoria" (01/09)
+tem 0 cliques reais e 2.232 aberturas. `etl_ac_engajamento.py` separa por
+`link == "open"` e grava duas colunas booleanas; conferido contra o agregado que já
+existia, os cliques únicos batem (141 de 179 totais, 61 de 75, 158 de 200 — a diferença
+é o mesmo contato clicando de novo).
+
+**Tabela `ac_campaign_engajamento`** — PK `(lancamento_codigo, campaign_id, contact_id)`,
+colunas `abriu`/`clicou`. Criada pelo próprio ETL (`CREATE TABLE IF NOT EXISTS`), como a
+do ebook, e não está no `schema.sql`. Guarda contato a contato de propósito: agregar no
+ETL congelaria a contagem de compradores no instante da coleta, e durante carrinho aberto
+ela muda a cada hora. O upsert é `DELETE` do lançamento + `append`.
+
+**Seleção de campanha ficou em um lugar só.** Campanha de e-mail quase nunca traz o código
+do lançamento no nome (`ac_campaigns.lancamento_codigo` é NULL em 3.325 de 3.325), então o
+vínculo sai de data de envio + palavra do produto no nome. Essa regra estava inline no
+leitor; virou `ac_keywords()` em `src/constants.py`, usada também pelo ETL — se as duas
+divergirem, a página mostra campanha que o ETL não coletou.
+
+**`read_ac_campaigns` passou a precisar de `vendas`**, então saiu da primeira rodada do
+`asyncio.gather` em `services/fetch.py` e foi para a segunda, junto de `f_leads`, onde
+`vendas` já está resolvido — em vez de disparar um `read_vendas` concorrente.
+
+**O número é sobreposição, não atribuição.** Quem abriu seis e-mails conta nos seis;
+somar as colunas por campanha dá muito mais que o total de vendas. O total sem repetição
+vem de `_ac_totais_compradores`, com consulta própria e `BOOL_OR` por e-mail, e a nota
+abaixo da tabela diz isso ao leitor.
 
 ---
 

@@ -345,8 +345,8 @@ _AC_REQUIRED_COLS = ["id", "email", "created_at", "lancamento_codigo"]
 # Cargas grandes (200k+ leads, ex.: reload de lançamento inteiro via CSV) têm
 # derrubado a conexão com o Supabase no meio do processo (server closed the
 # connection unexpectedly) — achado em 02/09/26 reprocessando o PI-AGO-26.
-# Cada lote já é atômico (DELETE+INSERT na mesma transação), então um retry
-# simples no lote que falhou é seguro: não duplica nem perde linha.
+# Cada lote é uma transação só, então um retry simples no lote que falhou é
+# seguro: o ON CONFLICT torna o INSERT idempotente — não duplica nem perde linha.
 @retry(
     stop=stop_after_attempt(4),
     wait=wait_exponential(multiplier=2, min=2, max=30),
@@ -354,23 +354,27 @@ _AC_REQUIRED_COLS = ["id", "email", "created_at", "lancamento_codigo"]
     before_sleep=before_sleep_log(logger, logging.WARNING),
     reraise=True,
 )
-def _upsert_batch(engine, ids: list, chunk: list, col_list: str, placeholders: str) -> None:
+def _upsert_batch(engine, chunk: list, col_list: str, placeholders: str,
+                  update_set: str) -> None:
     with engine.begin() as conn:
         conn.execute(
-            text(f"DELETE FROM {TABLE} WHERE id = ANY(:ids)"),
-            {"ids": ids},
-        )
-        conn.execute(
-            text(f"INSERT INTO {TABLE} ({col_list}) VALUES ({placeholders})"),
+            text(f"INSERT INTO {TABLE} ({col_list}) VALUES ({placeholders})"
+                 f" ON CONFLICT (id) DO UPDATE SET {update_set}"),
             chunk,
         )
 
 
 def upsert(df: pd.DataFrame, label: str = ""):
-    """DELETE + INSERT atômicos por lote: se o INSERT falhar no meio, o DELETE
-    daquele lote também é desfeito — nunca perde leads já gravados por causa
-    de uma queda de conexão no meio do processo. Lotes já commitados antes de
-    uma falha continuam válidos; só o lote em andamento é re-tentado."""
+    """INSERT ... ON CONFLICT (id) DO UPDATE, um lote por transação.
+
+    Só escreve as colunas do DataFrame. Coluna que existe na tabela e não vem
+    no DataFrame fica INTACTA — antes isto era DELETE+INSERT, que a devolvia
+    pro default (NULL) em toda linha tocada, apagando em silêncio dado que
+    este ETL nem sabe que existe (`ativo`, `status_listas`). Perda silenciosa
+    porque o INSERT não reclama de coluna ausente: só grava NULL.
+
+    `updated_at` é forçado no SET porque o DEFAULT NOW() da coluna só vale no
+    INSERT; sem isto ele congelaria no valor antigo a cada atualização."""
     if not validate_dataframe(df, _AC_REQUIRED_COLS, "leads", logger):
         return
     df = df.drop_duplicates(subset="id", keep="last")
@@ -379,12 +383,15 @@ def upsert(df: pd.DataFrame, label: str = ""):
     cols = list(df.columns)
     col_list = ", ".join(cols)
     placeholders = ", ".join(f":{c}" for c in cols)
+    # `id` é a chave do conflito, não se auto-atribui.
+    update_set = ", ".join(f"{c} = EXCLUDED.{c}" for c in cols if c != "id")
+    if "updated_at" not in cols:
+        update_set += ", updated_at = NOW()"
     records = df.to_dict("records")
     batch_size = 200
     for i in range(0, len(records), batch_size):
         chunk = records[i:i + batch_size]
-        ids = [r["id"] for r in chunk]
-        _upsert_batch(engine, ids, chunk, col_list, placeholders)
+        _upsert_batch(engine, chunk, col_list, placeholders, update_set)
     logger.info("Upsert concluído: %d leads gravados em '%s'%s", len(df), TABLE, label)
 
 

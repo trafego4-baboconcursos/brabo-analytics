@@ -3220,7 +3220,10 @@ descartar (`ee4e361`), mas nunca foram dropadas do banco; o fix passa a preserv�
 colateral. Se a decisão continua de pé, o caminho é um `DROP COLUMN` explícito, não deixar um ETL
 apagar por omissão.
 
-**Anomalia em aberto — mais importante que o fix.** Os números não fecham com o código:
+**O segundo escritor tem nome: o Mateus.** Confirmado pelo usuário no mesmo dia. Ele rodou um
+upsert de todos os leads do Active Campaign por fora do repositório — `ativo`, `status_listas` e
+`tags` são colunas dele. Isso fecha, de uma vez, por que não estão no `schema.sql`, por que nenhum
+código nosso as grava, e por que os números pareciam impossíveis:
 
 - a recarga de 3.969.286 linhas rodou 09:31–11:24 por esse caminho, com o código **antigo** (o
   arquivo só foi modificado às 11:31, depois do fim — `git status` às 09:45 não tinha nenhum
@@ -3232,11 +3235,24 @@ apagar por omissão.
 - linhas com e sem `ativo` compartilham o mesmo `min(updated_at)` ao microssegundo, então vieram
   da mesma transação.
 
-Ou seja: **algo que não está no repositório escreve em `leads` em produção**, e escreveu hoje,
-durante a recarga. É o mesmo padrão que `ee4e361` já descrevia ("colunas criadas por fora do fluxo
-rastreado em 18/09/26") e que o `customer_id` do Google Ads (`c8c9421`) causou antes. Enquanto esse
-escritor não for identificado, `schema.sql` não descreve a produção e qualquer código que assuma o
-contrário erra.
+O `min(updated_at)` idêntico era do lote **dele**, não do nosso. Não havia trigger nem default a
+procurar: havia uma pessoa.
+
+**Por que ainda importa.** `leads` tem dois escritores legítimos que não se conhecem. O nosso ETL
+só faz upsert de quem tem `utm_content` ou `utm_term` — 1.936.550 das 3.969.286 linhas — e nessa
+população 99,2% tem `tags` e 657.120 têm `ativo`. Era exatamente aí que o `DELETE+INSERT` mordia o
+trabalho dele. O `ON CONFLICT` elimina a interação: cada um escreve as suas colunas e nenhum apaga
+as do outro.
+
+**O que os dados NÃO sustentam:** a taxa de perda por ciclo. O total de `tags` não caiu entre
+11:55 e 14:09 (3.954.186 nas duas medições), mesmo com um ciclo lento no meio que reescreveu 14.830
+linhas, das quais só 0,86% tinham `tags`. Pode ser que já estivessem sem as colunas antes. A
+interação destrutiva está provada por leitura do código; o quanto ela de fato apagou, não.
+
+É o mesmo padrão de `ee4e361` ("colunas criadas por fora do fluxo rastreado em 18/09/26") e do
+`customer_id` do Google Ads (`c8c9421`): trabalho legítimo entrando pelo banco antes de entrar pelo
+repositório. Enquanto `ativo`/`status_listas` não estiverem no `schema.sql`, ele não descreve a
+produção — mas agora isso é combinação com o dono das colunas, não descarte.
 
 **Não validado contra o banco.** O fix passa nos 86 testes de import; a verificação em produção foi
 negada por permissão nesta sessão. As medições acima vieram de outra sessão, não de leitura própria.

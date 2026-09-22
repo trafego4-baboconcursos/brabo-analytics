@@ -199,6 +199,14 @@ class LeadsSummary:
     por_dia: list = field(default_factory=list)
     por_etapa: list = field(default_factory=list)
     por_temperatura: list = field(default_factory=list)
+    por_anuncio: list = field(default_factory=list)
+    # Onde o comprador estava cadastrado. `compradores_sem_utm` acima conta
+    # quem não é lead DESTE lançamento e era exibido como "sem CRM" — o que é
+    # falso: no PES-SET-26 os 1.440 compradores estavam no CRM, 432 com lead
+    # sem código e ~98 vindos de lançamentos anteriores (achado 22/09/26).
+    compradores_base_antiga: int = 0   # está no CRM, mas não como lead deste lançamento
+    compradores_fora_crm: int = 0      # não existe no CRM por e-mail nem telefone
+    compradores_por_origem: list = field(default_factory=list)
 
 @dataclass
 class HotmartDetails:

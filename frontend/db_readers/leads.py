@@ -447,6 +447,44 @@ def read_leads(launch_folder_or_code: Any, vendas: VendasSummary | None = None, 
     summary.emails_rastreados = rastreados_emails
     summary.tx_conversao = summary.compradores_rastreados / summary.total_leads * 100 if summary.total_leads > 0 else 0.0
 
+    # Onde o comprador que NÃO é lead deste lançamento está cadastrado.
+    # Antes a página chamava esse resto de "compradores sem CRM", o que é
+    # falso: medido no PES-SET-26, os 1.440 compradores estavam todos no CRM
+    # (432 com lead sem código de lançamento, ~98 de lançamentos anteriores).
+    # Além disso o casamento acima é só por e-mail; por telefone casam 1.415
+    # dos 1.440. Aqui a busca é por e-mail OU telefone, em qualquer lançamento.
+    resto = buyers - rastreados_emails
+    # Só os telefones DESSES compradores. Usar a agenda inteira faria o OR
+    # casar de novo quem já entrou por e-mail, e a quebra por origem passava a
+    # contar 1.007 no próprio lançamento — gente que não estava no `resto`.
+    fones_comprador = {
+        re.sub(r"\D", "", p)[-11:]
+        for em, p in (vendas.phone_por_email.items() if vendas else [])
+        if em in resto and p and len(re.sub(r"\D", "", p)) >= 10
+    }
+    if resto:
+        origem_df = pd.read_sql(
+            text("""
+                SELECT COALESCE(NULLIF(TRIM(lancamento_codigo), ''), '(lead sem lançamento)') AS origem,
+                       COUNT(DISTINCT LOWER(TRIM(email))) AS compradores
+                FROM leads
+                WHERE LOWER(TRIM(email)) = ANY(:resto)
+                   OR (:tem_fone AND RIGHT(regexp_replace(COALESCE(phone, ''), '\\D', '', 'g'), 11) = ANY(:fones))
+                GROUP BY 1
+            """),
+            engine,
+            params={"resto": list(resto), "fones": list(fones_comprador) or [""],
+                    "tem_fone": bool(fones_comprador)},
+        )
+        achados = int(origem_df["compradores"].sum()) if not origem_df.empty else 0
+        summary.compradores_base_antiga = min(achados, len(resto))
+        summary.compradores_por_origem = sorted(
+            [{"origem": r["origem"], "compradores": int(r["compradores"])}
+             for _, r in origem_df.iterrows()],
+            key=lambda x: x["compradores"], reverse=True,
+        )
+    summary.compradores_fora_crm = max(0, len(resto) - summary.compradores_base_antiga)
+
     comp_df["receita"] = (
         comp_df["email_norm"].map(lambda e: receita_por_email.get(e, 0.0))
         if not comp_df.empty else pd.Series(dtype=float)
@@ -587,6 +625,54 @@ def read_leads(launch_folder_or_code: Any, vendas: VendasSummary | None = None, 
         })
     TEMP_ORDER = ["Específico", "Quente", "Morno", "Frio", "Não classificado"]
     summary.por_temperatura = sorted(temp_rows, key=lambda x: TEMP_ORDER.index(x["temp"]) if x["temp"] in TEMP_ORDER else 99)
+
+    # ── Lead e venda por anúncio (ADxxx) ─────────────────────────────────────
+    # O ADxxx vem no utm_term (não no utm_content) e está preenchido em ~100%
+    # dos leads. É consulta própria, agregada no banco: juntar utm_term ao
+    # GROUP BY do `df` lá em cima multiplicaria a cardinalidade de todas as
+    # outras quebras à toa — aqui o resultado são algumas centenas de linhas.
+    ad_leads = pd.read_sql(
+        text("""
+            SELECT UPPER(substring(utm_term from '(?i)AD[0-9]+')) AS ad, COUNT(*) AS leads
+            FROM leads
+            WHERE lancamento_codigo = :code AND utm_term ~* 'AD[0-9]+'
+            GROUP BY 1
+        """),
+        engine, params={"code": code},
+    )
+    if not ad_leads.empty:
+        ad_comp = pd.read_sql(
+            text("""
+                SELECT UPPER(substring(utm_term from '(?i)AD[0-9]+')) AS ad,
+                       LOWER(TRIM(email)) AS email_norm
+                FROM leads
+                WHERE lancamento_codigo = :code AND utm_term ~* 'AD[0-9]+'
+                  AND LOWER(TRIM(email)) = ANY(:buyers)
+            """),
+            engine, params={"code": code, "buyers": list(buyers)},
+        ) if buyers else pd.DataFrame(columns=["ad", "email_norm"])
+
+        if not ad_comp.empty:
+            ad_comp["receita"] = ad_comp["email_norm"].map(lambda x: receita_por_email.get(x, 0.0))
+            por_ad = ad_comp.groupby("ad").agg(
+                compradores=("email_norm", "nunique"), faturamento=("receita", "sum"),
+            )
+        else:
+            por_ad = pd.DataFrame(columns=["compradores", "faturamento"])
+
+        linhas = []
+        for _, r in ad_leads.iterrows():
+            n = int(r["leads"])
+            v = int(por_ad["compradores"].get(r["ad"], 0)) if not por_ad.empty else 0
+            fat = float(por_ad["faturamento"].get(r["ad"], 0.0)) if not por_ad.empty else 0.0
+            linhas.append({
+                "ad": r["ad"], "leads": n, "compradores": v, "faturamento": fat,
+                "conversao": v / n * 100 if n > 0 else 0.0,
+                "ticket": fat / v if v > 0 else 0.0,
+            })
+        summary.por_anuncio = sorted(
+            [l for l in linhas if l["leads"] >= 10], key=lambda x: x["leads"], reverse=True,
+        )
 
     df["utm_source_norm"] = df["utm_source"].fillna("Sem source").str.strip()
     df["utm_medium_norm"] = df["utm_medium"].fillna("Sem medium").str.strip()

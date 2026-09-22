@@ -284,6 +284,9 @@ relacionados:
 >
 > **/google-audiences e /meta-audiences entram no acordeão padrão (2026-09-22)**
 >
+>
+> **/leads: "compradores sem CRM" era falso, e a página ganhou anúncio (2026-09-22)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -3142,3 +3145,47 @@ ignora quem tem a classe `bs-chevron`. Vale pra qualquer checagem futura de íco
 
 Conferido: google-audiences 5 seções, meta-audiences 6, todas com ícone de verdade, nada solto,
 Recolher/Expandir levando tudo a 0 e de volta, zero erro de JS e zero overflow horizontal.
+
+---
+
+## /leads: "compradores sem CRM" era falso, e a página ganhou anúncio (2026-09-22)
+
+**Conferência pedida pelo usuário.** Os números de topo batem com as fontes: 56.461 leads =
+linhas da tabela `leads` do lançamento; 1.440 compradores = `read_vendas` (a fonte correta, ver
+`feedback_vendas_fonte_correta`). O card **"Compradores sem CRM — 529"**, porém, estava errado.
+
+**O que ele media de verdade:** o casamento comprador↔lead roda com
+`WHERE lancamento_codigo = :code AND LOWER(TRIM(email)) = ANY(:buyers)` — só e-mail, e só leads
+**deste** lançamento. Quem não casava caía em "sem CRM". Medido no PES-SET-26, **nenhum dos 1.440
+compradores está fora do CRM**:
+
+| onde o comprador está cadastrado | qtd |
+|---|---|
+| lead deste lançamento (o que a página contava) | 910 |
+| lead **sem código de lançamento** | 486 |
+| lançamentos anteriores (PES-MAI/MAR/JAN, PI-AGO…) | ~100 |
+| casou só por **telefone** neste lançamento (comprou com outro e-mail) | 116 |
+
+Ou seja, era recompra e falha de etiquetagem sendo lida como furo de rastreamento. Por e-mail
+casam 910; incluindo telefone, 1.415 dos 1.440.
+
+**Fix:** o card virou dois — "Compradores que já eram base" (530) e "Compradores fora do CRM" (0,
+buscando por e-mail **ou** telefone, em qualquer lançamento) — mais a seção 7, que mostra em quais
+lançamentos essa gente está cadastrada. A soma das origens passa do total de propósito: a mesma
+pessoa aparece em mais de um lançamento.
+
+**Armadilha no meio do caminho:** a primeira versão do `OR telefone` usava a agenda inteira de
+compradores em vez de só os do `resto`, e a quebra por origem acusava 1.007 no próprio lançamento —
+gente que já tinha casado por e-mail. O filtro de telefone tem que ser dos mesmos compradores da
+consulta.
+
+**Seção nova: "Qualidade por Anúncio (ADxxx)".** O código do anúncio vem no `utm_term` do lead
+(não no `utm_content`) e está preenchido em ~100% da base — 59 anúncios com 10+ leads no
+PES-SET-26. Mostra que volume e venda não andam juntos: AD347 traz 6.757 leads e converte 1,60%,
+enquanto o AD290 traz 4.412 e converte **1,97%**; já o AD366 traz 3.677 e converte 0,44%. É
+consulta agregada própria — juntar `utm_term` ao GROUP BY principal multiplicaria a cardinalidade
+de todas as outras quebras (ver a nota de egress no próprio `read_leads`).
+
+**Ainda parado na tabela `leads`**, se quiser ampliar mais: `gclid` (19,6%) e `fbclid` (79,0%),
+insumo do projeto de conversão offline; e `tags`/`ativo`/`status_listas` (93%), que dariam saúde
+da base — quem segue ativo, quem descadastrou.

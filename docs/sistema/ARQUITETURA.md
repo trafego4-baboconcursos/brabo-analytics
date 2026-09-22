@@ -1,8 +1,8 @@
 ---
-titulo: "Arquitetura do Brabo Analytics — 2026-09-21"
+titulo: "Arquitetura do Brabo Analytics — 2026-09-22"
 area: sistema
 status: vigente
-atualizado: 2026-09-21
+atualizado: 2026-09-22
 responde:
   - "como o sistema funciona por dentro"
   - "onde fica o css e o js do dashboard"
@@ -286,6 +286,9 @@ relacionados:
 >
 >
 > **/leads: "compradores sem CRM" era falso, e a página ganhou anúncio (2026-09-22)**
+>
+>
+> **O upsert de `leads` apagava coluna que o ETL não conhece (2026-09-22)**
 >
 
 <!-- SUMARIO:FIM -->
@@ -3189,3 +3192,51 @@ de todas as outras quebras (ver a nota de egress no próprio `read_leads`).
 **Ainda parado na tabela `leads`**, se quiser ampliar mais: `gclid` (19,6%) e `fbclid` (79,0%),
 insumo do projeto de conversão offline; e `tags`/`ativo`/`status_listas` (93%), que dariam saúde
 da base — quem segue ativo, quem descadastrou.
+
+## O upsert de `leads` apagava coluna que o ETL não conhece (2026-09-22)
+
+**Sintoma:** colunas de `leads` gravadas por fora do ETL voltavam a NULL sozinhas, de hora em
+hora. Quem percebeu associou ao scheduler — `active_campaign` está em `FONTES_LENTAS`, cron
+`minute=20`.
+
+**Causa:** `upsert()` em `etl/etl_active_campaign.py` era `DELETE FROM leads WHERE id = ANY(...)`
+seguido de `INSERT (col_list)`, e `col_list` vem de `list(df.columns)` — as colunas do
+**DataFrame**, não as da tabela. Toda coluna que existe em `leads` e não vem no ETL era recriada
+no default (NULL) em cada linha tocada. Silencioso por construção: `INSERT` não reclama de coluna
+ausente, só grava NULL.
+
+**Fix (`f358ae6`):** virou `INSERT ... ON CONFLICT (id) DO UPDATE SET`, com o `SET` montado só a
+partir das colunas do DataFrame. O que está fora dele não é tocado. Corrige a classe inteira do
+problema sem o ETL precisar saber quais colunas existem — que é o ponto, porque hoje ele não sabe.
+`updated_at` entra no `SET` explicitamente: o `DEFAULT NOW()` da coluna só vale no `INSERT`, então
+sem isso ele congelaria no valor antigo a cada atualização.
+
+Vale para quem chama `upsert()` de fora também: `etl/ressync_leads_ac.py` (linhas 230 e 303)
+importa a mesma função, então a recarga completa do Active Campaign usa este mesmo caminho.
+
+**O que isso protege:** `ativo` (843.386 valores) e `status_listas` — em produção, **fora do
+`schema.sql`**, sem registro de decisão. Já `tags`/`tags_atualizado_em` têm decisão registrada de
+descartar (`ee4e361`), mas nunca foram dropadas do banco; o fix passa a preservá-las como efeito
+colateral. Se a decisão continua de pé, o caminho é um `DROP COLUMN` explícito, não deixar um ETL
+apagar por omissão.
+
+**Anomalia em aberto — mais importante que o fix.** Os números não fecham com o código:
+
+- a recarga de 3.969.286 linhas rodou 09:31–11:24 por esse caminho, com o código **antigo** (o
+  arquivo só foi modificado às 11:31, depois do fim — `git status` às 09:45 não tinha nenhum
+  arquivo tracked modificado, confirmado por três sessões);
+- ainda assim `ativo` ficou em 843.386 antes e depois, número idêntico;
+- não há `DEFAULT` em `ativo` nem trigger em `leads`;
+- nenhum código desta máquina (`etl/`, `scripts/`, `src/`, `.py` não rastreados) grava `ativo` ou
+  `status_listas`;
+- linhas com e sem `ativo` compartilham o mesmo `min(updated_at)` ao microssegundo, então vieram
+  da mesma transação.
+
+Ou seja: **algo que não está no repositório escreve em `leads` em produção**, e escreveu hoje,
+durante a recarga. É o mesmo padrão que `ee4e361` já descrevia ("colunas criadas por fora do fluxo
+rastreado em 18/09/26") e que o `customer_id` do Google Ads (`c8c9421`) causou antes. Enquanto esse
+escritor não for identificado, `schema.sql` não descreve a produção e qualquer código que assuma o
+contrário erra.
+
+**Não validado contra o banco.** O fix passa nos 86 testes de import; a verificação em produção foi
+negada por permissão nesta sessão. As medições acima vieram de outra sessão, não de leitura própria.

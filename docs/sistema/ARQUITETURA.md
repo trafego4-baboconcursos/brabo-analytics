@@ -278,6 +278,9 @@ relacionados:
 > **Visualização salva "perdia" seções em outro lançamento (2026-09-21)**
 >
 > - [[ARQUITETURA#Datas de cadastro dos leads — resolvido (2026-09-21)|Datas de cadastro dos leads — resolvido (2026-09-21)]]
+>
+> **/pesquisas entra no acordeão padrão (2026-09-22)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -3088,3 +3091,31 @@ a troca produziu outra data plausível, e rodar ali corromperia as ~78% corretas
 
 Detalhe do registro: **quem executou e por qual método não ficou documentado** — não houve
 commit correspondente no repositório. Se o problema reaparecer, esse é o rastro que falta.
+
+---
+
+## /pesquisas entra no acordeão padrão (2026-09-22)
+
+A página estava fora do padrão das demais: dois blocos grandes ficavam **soltos**, como filhos
+diretos do `.content`, então o acordeão não os enxergava — não dava pra recolher, reordenar nem
+ocultar:
+
+| bloco | virou |
+|---|---|
+| `.tp-kpi-grid` (respostas, respondentes, leads, faturamento) | seção "Resumo da Pesquisa" |
+| `.grid` com Top Estados + Top Anúncios | seção "Top Estados e Anúncios" |
+
+O acordeão descobre seção por `.section > .section-title` (`static/js/secoes.js`); bloco fora
+dessa estrutura simplesmente não existe pra ele. Com o ajuste, a página foi de 6 para **8 seções**
+reconhecidas, e nada mais sobra solto.
+
+Os outros 6 títulos ganharam ícone (`<i class="ti …">`), que era a outra diferença visível pro
+resto do sistema — no debriefing todo título abre com ícone.
+
+**O que NÃO foi mexido:** a página tem um acordeão caseiro (`toggleAccordion`, classes
+`.accordion-item/.accordion-header/.accordion-content`) usado **dentro** da seção "Roteiros e
+Ganchos de Copy" pra abrir cada roteiro. É aninhado e por item, não concorre com o acordeão de
+seção — trocar por outra coisa seria mexer no que funciona.
+
+Conferido no navegador: 8 seções, 8 com ícone, 8 chevrons, barra de controles presente,
+Recolher/Expandir levando de 8 pra 0, zero erro de JS e zero overflow horizontal.

@@ -448,7 +448,10 @@
     </div>
     {% else %}
 
-    <!-- KPIs (design system: tp-kpi) -->
+    <!-- KPIs (design system: tp-kpi) — dentro de .section pra entrar no
+         acordeão padrão (recolher/reordenar/ocultar), como nas outras páginas. -->
+    <div class="section">
+      <div class="section-title"><i class="ti ti-clipboard-list"></i> Resumo da Pesquisa</div>
     <div class="tp-kpi-grid">
       <div class="tp-kpi">
         <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-clipboard-list"></i></div></div>
@@ -493,11 +496,12 @@
         <div class="tp-compare">{{ tf.receita_tf_pct | pct }} da receita total</div>
       </div>
     </div>
+    </div>
 
     <!-- Confronto entre pesquisas (se disponível) -->
     {% if tf.compare_available %}
     <div class="section">
-      <div class="section-title">Confronto entre pesquisas</div>
+      <div class="section-title"><i class="ti ti-arrows-exchange"></i> Confronto entre pesquisas</div>
       <div class="metrics-grid" style="grid-template-columns: repeat(4, minmax(0, 1fr));">
         <div class="metric-card">
           <div class="label">{{ tf.compare_label_a }}</div>
@@ -548,7 +552,7 @@
 
     <!-- Proportional Funnel -->
     <div class="section">
-      <div class="section-title">Funil de convers&atilde;o de respondentes</div>
+      <div class="section-title"><i class="ti ti-filter"></i> Funil de convers&atilde;o de respondentes</div>
       {% set raw_total = tf.total_tf_raw | default(0) %}
       {% set unique_total = tf.total_tf | default(0) %}
       {% set crm_total = tf.tf_leads_crm | default(0) %}
@@ -661,7 +665,7 @@
 
     <!-- Demografia Section -->
     <div class="section">
-      <div class="section-title">Perfil Demogr&aacute;fico &mdash; Compradores vs N&atilde;o Compradores</div>
+      <div class="section-title"><i class="ti ti-users"></i> Perfil Demogr&aacute;fico &mdash; Compradores vs N&atilde;o Compradores</div>
       
       <!-- Gênero e Faixa Etária (Cima) -->
       <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-bottom: 20px; align-items: start;">
@@ -821,7 +825,7 @@
     <!-- Obstáculos Declarados -->
     {% if tf.obstaculos_comp_pct %}
     <div class="section">
-      <div class="section-title">Obst&aacute;culos Declarados (Dificuldades nos Estudos)</div>
+      <div class="section-title"><i class="ti ti-alert-triangle"></i> Obst&aacute;culos Declarados (Dificuldades nos Estudos)</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -857,7 +861,9 @@
     </div>
     {% endif %}
 
-    <!-- Top Estados & UTMs -->
+    <!-- Top Estados & UTMs — idem: precisa de .section pro acordeão pegar. -->
+    <div class="section">
+      <div class="section-title"><i class="ti ti-map-pin"></i> Top Estados e Anúncios</div>
     <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; margin-top: 20px;">
       
       <!-- Top Estados -->
@@ -915,11 +921,12 @@
       {% endif %}
 
     </div>
+    </div>
 
     <!-- Nova Seção: Insights dos Alunos -->
     {% if tf.top_influence_factors or tf.alunos_depoimentos_decidir or tf.alunos_depoimentos_convenceu or tf.alunos_depoimentos_atencao %}
     <div class="section">
-      <div class="section-title">Insights de Convers&atilde;o &mdash; Voz dos Alunos (Compradores)</div>
+      <div class="section-title"><i class="ti ti-message-2"></i> Insights de Convers&atilde;o &mdash; Voz dos Alunos (Compradores)</div>
       
       <div class="tf-alunos-grid">
         <!-- Coluna Esquerda: Fatores de Influência -->
@@ -1263,7 +1270,7 @@
 
     <!-- Bases de Dados Utilizadas -->
     <div class="section">
-      <div class="section-title">Bases de dados utilizadas</div>
+      <div class="section-title"><i class="ti ti-database"></i> Bases de dados utilizadas</div>
       <div class="table-wrap">
         <table>
           <thead>

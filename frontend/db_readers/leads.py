@@ -823,12 +823,25 @@ def read_ebook_compradores(launch_folder_or_code: Any, vendas: VendasSummary | N
     }
 
 
-def _ac_engajamento_por_campanha(launch: Launch, vendas: VendasSummary | None) -> dict[str, dict]:
-    """Por campanha de e-mail: quem abriu/clicou e quantos desses compraram.
+def _tabela_ausente(e: Exception) -> bool:
+    """A exceção é "relação não existe", e não uma falha de verdade?"""
+    texto = str(getattr(e, "orig", e)).lower()
+    return "does not exist" in texto or "undefinedtable" in type(e).__name__.lower()
 
-    Os contatos vêm de `ac_campaign_engajamento` (contact_id = leads.id) e os
-    compradores de read_vendas. É sobreposição, não atribuição: quem abriu seis
-    e-mails conta nos seis, então somar a coluna passa longe do total de vendas.
+
+def _ac_engajamento(launch: Launch, vendas: VendasSummary | None):
+    """Abertura/clique por campanha, e o mesmo por e-mail de comprador.
+
+    Devolve `(por_campanha, por_comprador, vendas)`. O segundo existe porque somar a
+    coluna por campanha infla: quem abriu seis e-mails conta nos seis, e o total
+    do lançamento precisa contar cada comprador uma vez só.
+
+    **Nenhuma das duas consultas toca em `leads`.** O e-mail já vem gravado em
+    `ac_campaign_engajamento` pelo ETL justamente por isso: `leads` tem 3,97 milhões
+    de linhas, e o join estourava o statement timeout — com 70 mil linhas (PI-AGO-26)
+    o planner troca o index scan por um seq scan da tabela inteira, enquanto com 22
+    mil (PBB-AGO-26) mantinha o index scan e passava. Era isso que fazia o bug
+    parecer intermitente.
     """
     from frontend.db_readers.sales import read_vendas  # noqa: PLC0415 — evita import circular
 
@@ -839,107 +852,85 @@ def _ac_engajamento_por_campanha(launch: Launch, vendas: VendasSummary | None) -
                 text("""
                     SELECT campaign_id,
                            COUNT(*) FILTER (WHERE abriu)  AS abriram,
-                           COUNT(*) FILTER (WHERE clicou) AS clicaram
+                           COUNT(*) FILTER (WHERE clicou) AS clicaram,
+                           COUNT(*) FILTER (WHERE email IS NOT NULL) AS com_email
                     FROM ac_campaign_engajamento
                     WHERE lancamento_codigo = :code
                     GROUP BY campaign_id
                 """),
                 {"code": launch.code},
             ).fetchall()
-        except Exception:
-            logger.debug("Tabela ac_campaign_engajamento indisponível; sem cruzamento com vendas")
-            return {}
+        except Exception as e:
+            # Tabela ausente (ETL nunca rodou) é estado esperado e some calado.
+            # Qualquer outra falha sobe: foi exatamente um `except` largo aqui que
+            # transformou timeout de statement em "sem engajamento" silencioso e
+            # fez o bug parecer intermitente.
+            if _tabela_ausente(e):
+                logger.debug("ac_campaign_engajamento ainda não existe para %s", launch.code)
+                return None
+            raise
 
     # Lançamento sem coleta de engajamento sai antes de pagar o read_vendas.
     if not totais:
-        return {}
+        return None
+
+    # Linha antiga, gravada antes da coluna `email` existir: o cruzamento daria
+    # zero comprador em tudo e a página mostraria a seção zerada, que é pior que
+    # não mostrar. Some até o ETL repassar no lançamento.
+    if not any(t[3] for t in totais):
+        logger.info("%s: engajamento sem e-mail gravado — rodar etl_ac_engajamento.py", launch.code)
+        return None
 
     if vendas is None:
         vendas = read_vendas(launch.code)
     if not vendas:
-        return {}
+        return None
     buyers = {e.strip().lower() for e in (vendas.emails_hotmart | vendas.emails_tmb) if e}
     if not buyers:
-        return {}
+        return None
 
     with engine.connect() as conn:
         try:
             rows = conn.execute(
                 text("""
-                    SELECT e.campaign_id, e.abriu, e.clicou, LOWER(TRIM(l.email)) AS email
-                    FROM ac_campaign_engajamento e
-                    JOIN leads l ON l.id = e.contact_id
-                    WHERE e.lancamento_codigo = :code
-                      AND LOWER(TRIM(l.email)) = ANY(:buyers)
+                    SELECT campaign_id, email, abriu, clicou
+                    FROM ac_campaign_engajamento
+                    WHERE lancamento_codigo = :code AND email = ANY(:buyers)
                 """),
                 {"code": launch.code, "buyers": list(buyers)},
             ).fetchall()
         except Exception:
-            logger.debug("Tabela ac_campaign_engajamento indisponível; sem cruzamento com vendas")
-            return {}
+            logger.exception("Cruzamento de engajamento com comprador falhou para %s", launch.code)
+            raise
 
     receita = getattr(vendas, "receita_por_email", None) or {}
-    out: dict[str, dict] = {
+    por_campanha: dict[str, dict] = {
         str(t[0]): {"abriram": t[1] or 0, "clicaram": t[2] or 0,
                     "compradores_abriram": 0, "compradores_clicaram": 0, "receita_clicaram": 0.0}
         for t in totais
     }
-    for camp_id, abriu, clicou, email in rows:
-        d = out.get(str(camp_id))
-        if d is None:
+    por_comprador: dict[str, tuple[bool, bool]] = {}
+    for camp_id, email, abriu, clicou in rows:
+        d = por_campanha.get(str(camp_id))
+        if d is None or not email:
             continue
         if abriu:
             d["compradores_abriram"] += 1
         if clicou:
             d["compradores_clicaram"] += 1
             d["receita_clicaram"] += float(receita.get(email, 0) or 0)
-    return out
+        ja_abriu, ja_clicou = por_comprador.get(email, (False, False))
+        por_comprador[email] = (ja_abriu or bool(abriu), ja_clicou or bool(clicou))
+    return por_campanha, por_comprador, vendas
 
 
-def _ac_totais_compradores(launch: Launch, summary: AcCampaignSummary, vendas: VendasSummary | None) -> None:
-    """Totais do lançamento contando cada comprador uma vez só.
-
-    Somar as colunas por campanha daria um número inflado (o mesmo comprador
-    abre vários e-mails), então a união vem de uma consulta própria.
-    """
-    from frontend.db_readers.sales import read_vendas  # noqa: PLC0415 — evita import circular
-
-    if not any(c.abriram or c.clicaram for c in summary.campanhas):
-        return
-    if vendas is None:
-        vendas = read_vendas(launch.code)
-    if not vendas:
-        return
-    buyers = {e.strip().lower() for e in (vendas.emails_hotmart | vendas.emails_tmb) if e}
-    if not buyers:
-        return
-
-    ids = [c.id for c in summary.campanhas]
-    engine = _get_engine()
-    with engine.connect() as conn:
-        try:
-            rows = conn.execute(
-                text("""
-                    SELECT LOWER(TRIM(l.email)) AS email,
-                           BOOL_OR(e.abriu)  AS abriu,
-                           BOOL_OR(e.clicou) AS clicou
-                    FROM ac_campaign_engajamento e
-                    JOIN leads l ON l.id = e.contact_id
-                    WHERE e.lancamento_codigo = :code
-                      AND e.campaign_id = ANY(:ids)
-                      AND LOWER(TRIM(l.email)) = ANY(:buyers)
-                    GROUP BY 1
-                """),
-                {"code": launch.code, "ids": ids, "buyers": list(buyers)},
-            ).fetchall()
-        except Exception:
-            logger.debug("Tabela ac_campaign_engajamento indisponível; sem totais de comprador")
-            return
-
+def _ac_totais_compradores(summary: AcCampaignSummary, vendas: VendasSummary,
+                           por_comprador: dict[str, tuple[bool, bool]]) -> None:
+    """Totais do lançamento contando cada comprador uma vez só."""
     receita = getattr(vendas, "receita_por_email", None) or {}
     summary.tem_engajamento = True
-    summary.total_compradores = len(buyers)
-    for email, abriu, clicou in rows:
+    summary.total_compradores = len({e.strip().lower() for e in (vendas.emails_hotmart | vendas.emails_tmb) if e})
+    for email, (abriu, clicou) in por_comprador.items():
         if abriu:
             summary.compradores_abriram += 1
         if clicou:
@@ -978,7 +969,8 @@ def read_ac_campaigns(launch: Launch, vendas: VendasSummary | None = None) -> Ac
         return summary
 
     keywords = ac_keywords(launch.code)
-    engajamento = _ac_engajamento_por_campanha(launch, vendas)
+    eng = _ac_engajamento(launch, vendas)
+    engajamento, por_comprador, vendas = eng if eng else ({}, {}, vendas)
 
     for row in rows:
         nome_campanha = (row[1] or "").lower()
@@ -1030,7 +1022,10 @@ def read_ac_campaigns(launch: Launch, vendas: VendasSummary | None = None) -> Ac
     if summary.total_aberturas > 0:
         summary.tx_clique_media = summary.total_cliques / summary.total_aberturas * 100
 
-    _ac_totais_compradores(launch, summary, vendas)
+    # Gate no engajamento, não no comprador: coletamos o e-mail e nenhum comprador
+    # casou é um resultado, não ausência de dado.
+    if engajamento and vendas:
+        _ac_totais_compradores(summary, vendas, por_comprador)
 
     df = pd.DataFrame([{
         "data": c.data_envio,

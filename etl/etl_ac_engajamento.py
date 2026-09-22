@@ -11,8 +11,11 @@ O link cuja URL é literalmente "open" não é link: é o pixel de abertura. Sem
 separar os dois, a contagem de "clique" fica 10-30x inflada — a campanha
 "Agenda de Mentoria" de 01/09/26 tem 0 cliques reais e 2.232 aberturas.
 
-O contact_id casa 1:1 com leads.id (é o mesmo id do AC), e é por aí que o
-frontend chega no e-mail e daí no comprador.
+O contact_id casa 1:1 com leads.id (é o mesmo id do AC), e o e-mail é resolvido
+AQUI, não na página: `leads` tem 3,97 milhões de linhas e um lookup por PK custa
+~4 ms com cache frio, então cruzar os 36 mil contatos do PI-AGO-26 a cada
+carregamento daria ~150 s e estourava o statement timeout. Gravando o e-mail na
+própria linha, a página lê uma tabela só (106 mil linhas) e nunca toca em `leads`.
 
 Uso:
   python etl/etl_ac_engajamento.py --api                          # lançamentos recentes
@@ -95,6 +98,41 @@ def campanhas_do_lancamento(code: str) -> list[tuple[str, str]]:
     return [(str(r[0]), r[1] or "") for r in rows if any(k in (r[1] or "").lower() for k in kws)]
 
 
+# Lookup por PK em `leads` (3,97 M linhas) custa ~4 ms com cache quente e muito
+# mais em página fria — contato antigo, que é a maioria aqui. Lotes de 500 com o
+# statement_timeout elevado: os 30 s padrão de src/db_engine.py são o limite certo
+# pra uma página web, não pra um job de fundo que ninguém está esperando.
+LOTE_EMAIL = 500
+TIMEOUT_LOTE_MS = 300_000
+
+
+def emails_dos_contatos(contact_ids: set[str]) -> dict[str, str]:
+    """contact_id → e-mail normalizado, resolvido em lotes contra `leads`.
+
+    Estoura em vez de devolver mapa parcial: linha sem e-mail some do cruzamento
+    com venda sem avisar ninguém, e o número apareceria menor na página sem
+    nenhum sinal de que faltou dado.
+    """
+    engine = get_engine()
+    # Ordem numérica, não lexicográfica ('12567' < '1000107' como texto): ids
+    # próximos caem em páginas próximas do índice, o que torna a varredura bem
+    # menos aleatória.
+    ids = sorted(contact_ids, key=lambda x: (len(x), x))
+    out: dict[str, str] = {}
+    with engine.connect() as conn:
+        conn.execute(text(f"SET statement_timeout = {TIMEOUT_LOTE_MS}"))
+        for i in range(0, len(ids), LOTE_EMAIL):
+            lote = ids[i:i + LOTE_EMAIL]
+            for cid, email in conn.execute(
+                text("SELECT id, LOWER(TRIM(email)) FROM leads WHERE id = ANY(:ids)"),
+                {"ids": lote},
+            ):
+                if email:
+                    out[str(cid)] = email
+    logger.info("e-mail resolvido para %d de %d contatos", len(out), len(ids))
+    return out
+
+
 def engajamento(code: str, campanhas: list[tuple[str, str]]) -> pd.DataFrame:
     registros: dict[tuple[str, str], dict] = {}
     now = datetime.now(timezone.utc).isoformat()
@@ -111,6 +149,7 @@ def engajamento(code: str, campanhas: list[tuple[str, str]]) -> pd.DataFrame:
                     "campaign_id": camp_id,
                     "campaign_name": nome,
                     "contact_id": str(cid),
+                    "email": None,
                     "abriu": False,
                     "clicou": False,
                     "updated_at": now,
@@ -124,6 +163,11 @@ def engajamento(code: str, campanhas: list[tuple[str, str]]) -> pd.DataFrame:
                         n_cl += 1
                     reg["clicou"] = True
         logger.info("%s: campanha %s — %d abriram, %d clicaram (%s)", code, camp_id, n_ab, n_cl, nome[:40])
+    if not registros:
+        return pd.DataFrame()
+    mapa = emails_dos_contatos({cid for _, cid in registros})
+    for (_, cid), reg in registros.items():
+        reg["email"] = mapa.get(cid)
     return pd.DataFrame(list(registros.values()))
 
 
@@ -136,13 +180,17 @@ def upsert(code: str, df: pd.DataFrame) -> None:
                 campaign_id       TEXT NOT NULL,
                 campaign_name     TEXT,
                 contact_id        TEXT NOT NULL,
+                email             TEXT,
                 abriu             BOOLEAN NOT NULL DEFAULT FALSE,
                 clicou            BOOLEAN NOT NULL DEFAULT FALSE,
                 updated_at        TIMESTAMPTZ DEFAULT NOW(),
                 PRIMARY KEY (lancamento_codigo, campaign_id, contact_id)
             )
         """))
+        conn.execute(text(f"ALTER TABLE {TABLE} ADD COLUMN IF NOT EXISTS email TEXT"))
         conn.execute(text(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_lanc ON {TABLE} (lancamento_codigo)"))
+        # A página filtra por e-mail de comprador direto aqui, sem passar por `leads`.
+        conn.execute(text(f"CREATE INDEX IF NOT EXISTS idx_{TABLE}_email ON {TABLE} (email)"))
         if df.empty:
             logger.warning("%s: nenhum engajamento encontrado — tabela mantida como está.", code)
             return

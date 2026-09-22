@@ -36,7 +36,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 71 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 74 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -295,6 +295,12 @@ relacionados:
 >
 > **O upsert de `leads` apagava coluna que o ETL não conhece (2026-09-22)**
 >
+>
+> **Integracao YouTube Analytics API e Multi-Token por Canal (2026-09-22)**
+>
+> - [[ARQUITETURA#Mudan?as Implementadas|Mudan?as Implementadas]]
+> - [[ARQUITETURA#Verificação do acesso (2026-09-22)|Verificação do acesso (2026-09-22)]]
+> - [[ARQUITETURA#Duas armadilhas encontradas no roteamento de token|Duas armadilhas encontradas no roteamento de token]]
 
 <!-- SUMARIO:FIM -->
 
@@ -467,10 +473,30 @@ existia, os cliques únicos batem (141 de 179 totais, 61 de 75, 158 de 200 — a
 é o mesmo contato clicando de novo).
 
 **Tabela `ac_campaign_engajamento`** — PK `(lancamento_codigo, campaign_id, contact_id)`,
-colunas `abriu`/`clicou`. Criada pelo próprio ETL (`CREATE TABLE IF NOT EXISTS`), como a
-do ebook, e não está no `schema.sql`. Guarda contato a contato de propósito: agregar no
-ETL congelaria a contagem de compradores no instante da coleta, e durante carrinho aberto
+colunas `email`/`abriu`/`clicou`. Criada pelo próprio ETL (`CREATE TABLE IF NOT EXISTS`),
+como a do ebook, e não está no `schema.sql`. Guarda contato a contato de propósito: agregar
+no ETL congelaria a contagem de compradores no instante da coleta, e durante carrinho aberto
 ela muda a cada hora. O upsert é `DELETE` do lançamento + `append`.
+
+**Por que o e-mail é resolvido no ETL, e não na página.** A primeira versão fazia
+`JOIN leads l ON l.id = e.contact_id` na leitura, como `read_ebook_compradores` faz até
+hoje. `leads` tem **3,97 milhões de linhas**, e o plano depende do tamanho do lado
+esquerdo: com 22 mil linhas (PBB-AGO-26) o Postgres mantinha o index scan em `leads_pkey`
+e respondia em 0,4 s; com 70 mil (PI-AGO-26) ele troca por **seq scan da tabela inteira** e
+estoura o `statement_timeout` de 30 s. Era isso que fazia o bug parecer intermitente — o
+PES-SET-26 passou no teste isolado e quebrou quando os três rodaram juntos.
+
+Nem chunking resolve: lookup por PK em página fria (contato antigo) custa muito mais que os
+~4 ms do caso quente, e 36 mil deles davam ~150 s. Com o e-mail gravado na linha, a página
+lê só `ac_campaign_engajamento` (106 mil linhas, índice em `email`) e **nunca toca em
+`leads`**. O custo foi para o job de hora em hora, que resolve os 36 mil contatos em 41 s
+em lotes de 500 com `statement_timeout` elevado para 300 s — os 30 s de `src/db_engine.py`
+são o limite certo para uma página web, não para um batch que ninguém está esperando. O ETL
+**estoura em vez de devolver mapa parcial**: linha sem e-mail sairia do cruzamento em
+silêncio e o número apareceria menor na página sem nenhum sinal de que faltou dado.
+
+`read_ebook_compradores` tem o mesmo join e passa só porque `ac_ebook_clicks` tem 6,5 mil
+linhas — é a mesma armadilha esperando a tabela crescer.
 
 **Seleção de campanha ficou em um lugar só.** Campanha de e-mail quase nunca traz o código
 do lançamento no nome (`ac_campaigns.lancamento_codigo` é NULL em 3.325 de 3.325), então o
@@ -3301,3 +3327,52 @@ produção — mas agora isso é combinação com o dono das colunas, não desca
 
 **Não validado contra o banco.** O fix passa nos 86 testes de import; a verificação em produção foi
 negada por permissão nesta sessão. As medições acima vieram de outra sessão, não de leitura própria.
+
+
+## Integracao YouTube Analytics API e Multi-Token por Canal (2026-09-22)
+
+A API do YouTube Analytics foi integrada com suporte a multi-canal (diferentes contas Google para cada expert/canal):
+
+- **Mateus Andrade (@mateusandrade.me)**: Lan?amentos PI-* via token YOUTUBE_REFRESH_TOKEN_PI.
+- **Ivan Neto (@braboconcursos)**: Lan?amentos PES-* via token YOUTUBE_REFRESH_TOKEN_PES (pendente autoriza??o da conta Google).
+- **Felipe Graton**: Lan?amentos PBB-* via token YOUTUBE_REFRESH_TOKEN / YOUTUBE_REFRESH_TOKEN_PBB (pendente autoriza??o).
+
+### Mudan?as Implementadas
+1. **Script de Autentica??o OAuth2 (etl/get_youtube_token.py)**:
+   - Gera URL de consentimento com escopos youtube.readonly e yt-analytics.readonly (--gerar-url).
+   - Troca o c?digo retornado na URL de callback pelo refresh token permanente (--trocar-codigo).
+2. **Roteamento de Tokens no ETL (etl/etl_youtube_analytics.py)**:
+   - _load_client_credentials(launch_code) e _get_access_token(launch_code) selecionam a vari?vel de ambiente correspondente ao prefixo do lan?amento.
+   - Extrai m?tricas agregadas por v?deo (youtube_aulas_stats) e curvas de reten??o minuto a minuto / percentual (youtube_video_retencao).
+3. **Carga Inicial Conclu?da (3/3 Lan?amentos PI)**:
+   - PI-JAN-26: 5 aulas sincronizadas com dados reais de visualiza??es, watch time e reten??o.
+   - PI-ABR-26: 5 aulas sincronizadas.
+   - PI-AGO-26: 5 aulas sincronizadas.
+   - Total de 15 aulas integradas no banco de dados SQLite/Postgres.
+
+### Verificação do acesso (2026-09-22)
+
+O token `YOUTUBE_REFRESH_TOKEN_PI` foi testado direto contra as duas APIs e responde:
+
+- `POST oauth2/token` → 200, escopos `yt-analytics.readonly` + `youtube.readonly`.
+- Data API `/channels?mine=true` → canal **Mateus Andrade - O Brabo dos Concursos**
+  (`@mateusandradeobrabo`, id `UC6yeThdN8E9i1go5dZ2TttA`), 2,05 mi de inscritos, 462 vídeos.
+- Analytics API `/reports` → série diária de `views`/`estimatedMinutesWatched` sem erro.
+
+Não há escopo monetário (`yt-analytics-monetary.readonly`), então métrica de receita não sai
+por esse token — só audiência e retenção.
+
+O ETL rodou ponta a ponta em PI-AGO-26 e PI-JAN-26 (exit 0, 5 aulas cada), com split
+live/replay preenchido.
+
+### Duas armadilhas encontradas no roteamento de token
+
+1. **A janela de datas precisa cobrir a publicação das aulas.** A Analytics API devolve
+   `rows: [[0,0,0,0]]` — não erro — para vídeo publicado fora do `--start-date/--end-date`.
+   Uma primeira rodada de PI-AGO-26 com 20/07→10/08 gravou 4 das 5 aulas zeradas, porque as
+   aulas 2–5 saíram entre 12 e 18/08. Confira `published_at` antes de escolher o período.
+2. **Fallback silencioso para o canal errado.** `_load_client_credentials` caía em
+   `YOUTUBE_REFRESH_TOKEN` (canal do BB) quando a variável do prefixo estava vazia — o caso
+   atual de PES e PBB. O resultado seria a tabela inteira zerada sem nenhum aviso. Agora esse
+   caminho emite `logger.warning` nomeando a variável que faltou. O log de sucesso também foi
+   corrigido: dizia sempre "Usando YOUTUBE_REFRESH_TOKEN do .env", mesmo usando o `_PI`.

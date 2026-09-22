@@ -17,6 +17,11 @@
     </div>
     {% else %}
 
+    <!-- KPIs dentro de .section: o acordeão padrão só enxerga
+         ".section > .section-title"; solto aqui, o bloco não podia ser
+         recolhido, reordenado nem ocultado. -->
+    <div class="section">
+      <div class="section-title"><i class="ti ti-chart-bar"></i> Visão Geral</div>
     <div class="tp-kpi-grid">
       <div class="tp-kpi">
         <div class="tp-kpi-top"><div class="tp-icon meta"><i class="ti ti-coin"></i></div></div>
@@ -43,10 +48,11 @@
         <div class="tp-compare">CPM médio: {{ meta.cpm_medio | brl }}</div>
       </div>
     </div>
+    </div>
 
     {% if meta.por_temperatura %}
     <div class="section">
-      <div class="section-title">1. Performance por Temperatura de Público</div>
+      <div class="section-title"><i class="ti ti-temperature"></i> 1. Performance por Temperatura de Público</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -81,7 +87,7 @@
     </div>
 
     <div class="section">
-      <div class="section-title">2. Leitura Rápida</div>
+      <div class="section-title"><i class="ti ti-bulb"></i> 2. Leitura Rápida</div>
       <div class="highlights">
         {% set temp_items = meta.por_temperatura.items() | sort(attribute='1.gasto', reverse=True) %}
         {% set best_items = meta.por_temperatura.items() | selectattr('1.leads', 'gt', 0) | sort(attribute='1.cpl') %}
@@ -113,7 +119,7 @@
 
     {% if meta.por_bucket %}
     <div class="section">
-      <div class="section-title">3. Performance por Bucket de Campanha</div>
+      <div class="section-title"><i class="ti ti-layout-grid"></i> 3. Performance por Bucket de Campanha</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -143,7 +149,7 @@
     {% if meta.publicos %}
     {% set total_custo_publicos = meta.publicos|map(attribute='custo')|sum or 1 %}
     <div class="section">
-      <div class="section-title">4. Top Públicos-Alvo por Investimento (Conjuntos de Anúncios)</div>
+      <div class="section-title"><i class="ti ti-trophy"></i> 4. Top Públicos-Alvo por Investimento (Conjuntos de Anúncios)</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -183,7 +189,7 @@
     {% endif %}
     <!-- Demografia Meta -->
     <div class="section">
-      <div class="section-title">5. Perfil Demográfico</div>
+      <div class="section-title"><i class="ti ti-users"></i> 5. Perfil Demográfico</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
         <!-- Idade -->
         {% set idade_total = meta.demografia_idade | sum(attribute='cost') or 1 %}

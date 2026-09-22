@@ -281,6 +281,9 @@ relacionados:
 >
 > **/pesquisas entra no acordeão padrão (2026-09-22)**
 >
+>
+> **/google-audiences e /meta-audiences entram no acordeão padrão (2026-09-22)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -3119,3 +3122,23 @@ seção — trocar por outra coisa seria mexer no que funciona.
 
 Conferido no navegador: 8 seções, 8 com ícone, 8 chevrons, barra de controles presente,
 Recolher/Expandir levando de 8 pra 0, zero erro de JS e zero overflow horizontal.
+
+---
+
+## /google-audiences e /meta-audiences entram no acordeão padrão (2026-09-22)
+
+Mesmo caso do `/pesquisas` no dia anterior: a faixa de KPIs (`.tp-kpi-grid`) ficava solta, como
+filho direto do `.content`, fora de qualquer `.section`. O acordeão descobre seção por
+`.section > .section-title`, então o bloco não podia ser recolhido, reordenado nem ocultado. Virou
+a seção **"Visão Geral"** nas duas páginas.
+
+Nenhum dos títulos tinha ícone — as duas páginas foram as únicas assim. Todos ganharam (`ti-`
+temperature/bulb/trophy/users/layout-grid), que é como o resto do sistema escreve título de seção.
+
+**Armadilha de verificação:** o primeiro teste automático disse "4 de 4 títulos com ícone" quando
+nenhum tinha. O seletor era `title.querySelector('i.ti')`, e o **chevron** do próprio acordeão é
+um `<i class="ti ti-chevron-down">` dentro do título — todo título "tinha ícone". O teste certo
+ignora quem tem a classe `bs-chevron`. Vale pra qualquer checagem futura de ícone em título.
+
+Conferido: google-audiences 5 seções, meta-audiences 6, todas com ícone de verdade, nada solto,
+Recolher/Expandir levando tudo a 0 e de volta, zero erro de JS e zero overflow horizontal.

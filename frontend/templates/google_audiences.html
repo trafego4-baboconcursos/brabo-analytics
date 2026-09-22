@@ -27,6 +27,11 @@
     {% set total_custo_publicos = google.publicos|map(attribute='custo')|sum or 1 %}
     {% set total_conv_publicos = google.publicos|map(attribute='conversoes')|sum %}
 
+    <!-- KPIs dentro de .section: o acordeão padrão só enxerga
+         ".section > .section-title"; solto aqui, o bloco não podia ser
+         recolhido, reordenado nem ocultado. -->
+    <div class="section">
+      <div class="section-title"><i class="ti ti-chart-bar"></i> Visão Geral</div>
     <div class="tp-kpi-grid">
       <div class="tp-kpi">
         <div class="tp-kpi-top"><div class="tp-icon google"><i class="ti ti-coin"></i></div></div>
@@ -53,10 +58,11 @@
         <div class="tp-compare">CPM médio: {{ (google.total_custo / google.total_impressoes * 1000) | brl if google.total_impressoes > 0 else "R$ 0,00" }}</div>
       </div>
     </div>
+    </div>
 
     {% if google.por_temperatura %}
     <div class="section">
-      <div class="section-title">1. Performance por Temperatura de Público</div>
+      <div class="section-title"><i class="ti ti-temperature"></i> 1. Performance por Temperatura de Público</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -92,7 +98,7 @@
     {% endif %}
 
     <div class="section">
-      <div class="section-title">2. Leitura Rápida</div>
+      <div class="section-title"><i class="ti ti-bulb"></i> 2. Leitura Rápida</div>
       <div class="highlights">
         {% set temp_items = google.publicos | sort(attribute='custo', reverse=True) %}
         {% set best_items = google.publicos | selectattr('conversoes', 'gt', 0) | sort(attribute='cpl') %}
@@ -121,7 +127,7 @@
       </div>
     </div>
     <div class="section">
-      <div class="section-title" data-tag="Captação">3. Top Grupos de Anúncio por Investimento</div>
+      <div class="section-title" data-tag="Captação"><i class="ti ti-trophy"></i> 3. Top Grupos de Anúncio por Investimento</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -162,7 +168,7 @@
     {% set demo_total = google.demografia_idade | sum(attribute='cost') %}
     {% set demo_pct_cob = (demo_total / google.total_custo * 100) | round(0) | int if google.total_custo > 0 else 0 %}
     <div class="section">
-      <div class="section-title">4. Perfil Demográfico
+      <div class="section-title"><i class="ti ti-users"></i> 4. Perfil Demográfico
         <span style="font-weight:400;font-size:12px;color:var(--bs-ink-muted);margin-left:8px">Cobertura {{ demo_pct_cob }}% do investimento (P-Max excluído — API do Google não reporta demographics para P-Max)</span>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">

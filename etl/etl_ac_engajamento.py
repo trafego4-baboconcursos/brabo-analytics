@@ -20,6 +20,7 @@ própria linha, a página lê uma tabela só (106 mil linhas) e nunca toca em `l
 Uso:
   python etl/etl_ac_engajamento.py --api                          # lançamentos recentes
   python etl/etl_ac_engajamento.py --api --launch-code PES-SET-26
+  python etl/etl_ac_engajamento.py --api --launch-code PI-AGO-26 --tudo   # recoleta o antigo
 """
 import argparse
 import os
@@ -46,6 +47,10 @@ logger = get_logger("etl.ac_engajamento")
 TABLE = "ac_campaign_engajamento"
 # Cliques e aberturas continuam pingando depois que o carrinho fecha.
 DIAS_APOS_FIM = 45
+# Campanha enviada há mais de tanto tempo só é coletada uma vez: abertura e
+# clique já pararam de se mover, e recoletar tudo não cabe no timeout do
+# run_all.py (ver campanhas_do_lancamento).
+JANELA_RECOLETA_DIAS = 14
 
 
 def _ac_get(path: str, **params) -> dict:
@@ -80,13 +85,21 @@ def launches_to_process(launch_code: str | None) -> list[str]:
     return [r[0] for r in rows if re.match(r"^(PBB|PES|PI)-", str(r[0] or ""), re.IGNORECASE)]
 
 
-def campanhas_do_lancamento(code: str) -> list[tuple[str, str]]:
-    """[(campaign_id, nome)] — mesma regra do frontend: janela do lançamento + produto no nome."""
+def campanhas_do_lancamento(code: str, tudo: bool = False) -> list[tuple[str, str]]:
+    """[(campaign_id, nome)] a coletar — janela do lançamento + produto no nome.
+
+    Por padrão só volta em campanha **recente ou ainda não coletada**. Um
+    lançamento fica na janela por 45 dias depois de fechar (clique tardio existe),
+    mas recoletar tudo de hora em hora custa 24 min só no PI-AGO-26 — acima do
+    timeout de 900 s do run_all.py, ou seja, o scheduler mataria a fonte no meio
+    e ela nunca terminaria. Abertura em e-mail de 30 dias atrás não se move mais;
+    `--tudo` força a recoleta completa quando for preciso.
+    """
     engine = get_engine()
     with engine.connect() as conn:
         rows = conn.execute(
             text("""
-                SELECT c.id, c.nome_campanha
+                SELECT c.id, c.nome_campanha, DATE(c.data_envio) AS envio
                 FROM ac_campaigns c
                 JOIN dim_lancamentos l ON l.codigo = :code
                 WHERE DATE(c.data_envio) BETWEEN l.data_inicio AND l.data_fim
@@ -94,8 +107,34 @@ def campanhas_do_lancamento(code: str) -> list[tuple[str, str]]:
             """),
             {"code": code},
         ).fetchall()
+        try:
+            ja_tem = {
+                str(r[0]) for r in conn.execute(
+                    text("SELECT DISTINCT campaign_id FROM ac_campaign_engajamento WHERE lancamento_codigo = :c AND email IS NOT NULL"),
+                    {"c": code},
+                )
+            }
+        except Exception:
+            # Primeira execução: a tabela ainda não existe. Cair pra "coletar
+            # tudo" é o lado seguro do erro — custa tempo, não perde dado.
+            logger.debug("%s: sem coleta anterior em %s", code, TABLE)
+            ja_tem = set()
+
     kws = ac_keywords(code)
-    return [(str(r[0]), r[1] or "") for r in rows if any(k in (r[1] or "").lower() for k in kws)]
+    corte = date.today() - timedelta(days=JANELA_RECOLETA_DIAS)
+    alvo, pulados = [], 0
+    for cid, nome, envio in rows:
+        if not any(k in (nome or "").lower() for k in kws):
+            continue
+        recente = envio is not None and envio >= corte
+        if tudo or recente or str(cid) not in ja_tem:
+            alvo.append((str(cid), nome or ""))
+        else:
+            pulados += 1
+    if pulados:
+        logger.info("%s: %d campanhas já coletadas e com mais de %d dias — mantidas como estão.",
+                    code, pulados, JANELA_RECOLETA_DIAS)
+    return alvo
 
 
 # Lookup por PK em `leads` (3,97 M linhas) custa ~4 ms com cache quente e muito
@@ -194,7 +233,13 @@ def upsert(code: str, df: pd.DataFrame) -> None:
         if df.empty:
             logger.warning("%s: nenhum engajamento encontrado — tabela mantida como está.", code)
             return
-        conn.execute(text(f"DELETE FROM {TABLE} WHERE lancamento_codigo = :c"), {"c": code})
+        # Apaga só as campanhas que estão sendo regravadas. Um DELETE do
+        # lançamento inteiro levaria junto as campanhas antigas que
+        # campanhas_do_lancamento() decidiu não recoletar.
+        conn.execute(
+            text(f"DELETE FROM {TABLE} WHERE lancamento_codigo = :c AND campaign_id = ANY(:ids)"),
+            {"c": code, "ids": sorted(df["campaign_id"].astype(str).unique().tolist())},
+        )
     df.to_sql(TABLE, engine, if_exists="append", index=False, method="multi", chunksize=1000)
     logger.info("%s: %d linhas gravadas em '%s' (%d abriram, %d clicaram)",
                 code, len(df), TABLE, int(df["abriu"].sum()), int(df["clicou"].sum()))
@@ -205,6 +250,8 @@ def main():
     parser.add_argument("--api", action="store_true", required=True)
     parser.add_argument("--launch-code", metavar="CODE")
     parser.add_argument("--dry-run", action="store_true", help="coleta e relata, não grava")
+    parser.add_argument("--tudo", action="store_true",
+                        help="recoleta todas as campanhas do lançamento, inclusive as antigas já gravadas")
     args = parser.parse_args()
 
     codes = launches_to_process(args.launch_code)
@@ -212,9 +259,9 @@ def main():
         logger.info("Nenhum lançamento ativo/recente pra processar.")
         return
     for code in codes:
-        campanhas = campanhas_do_lancamento(code)
+        campanhas = campanhas_do_lancamento(code, tudo=args.tudo)
         if not campanhas:
-            logger.info("%s: nenhuma campanha de e-mail na janela — pulando.", code)
+            logger.info("%s: nada novo pra coletar — pulando.", code)
             continue
         logger.info("%s: %d campanhas", code, len(campanhas))
         df = engajamento(code, campanhas)

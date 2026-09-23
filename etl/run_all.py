@@ -43,7 +43,11 @@ _TIMEOUT_PADRAO_SEGUNDOS = 900  # 15 min — folgado pra janela normal de 3 dias
 # 11/09/26: 900s deixou de bastar quando o "atualizados" no dia saltou de
 # ~1-10 mil/dia pra ~65 mil num único dia). 30 min dá folga sem deixar o
 # processo travar pra sempre se a API realmente cair.
-_TIMEOUTS_POR_FONTE = {"active_campaign": 1800}
+# ac_engajamento: a primeira passada de um lançamento novo desce ao contato em
+# todas as campanhas (24 min só no PI-AGO-26). Depois disso a coleta é
+# incremental e cai pra poucos minutos, mas os 900s padrão matariam a
+# primeira — e a fonte nunca terminaria uma vez sequer.
+_TIMEOUTS_POR_FONTE = {"active_campaign": 1800, "ac_engajamento": 3600}
 
 # Um traceback de erro HTTP carrega a URL COMPLETA da chamada que falhou — e
 # no Meta/Google o segredo vai na query string. Sem isso, o token vaza em

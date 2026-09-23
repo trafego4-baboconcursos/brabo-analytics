@@ -498,6 +498,17 @@ silêncio e o número apareceria menor na página sem nenhum sinal de que faltou
 `read_ebook_compradores` tem o mesmo join e passa só porque `ac_ebook_clicks` tem 6,5 mil
 linhas — é a mesma armadilha esperando a tabela crescer.
 
+**A coleta é incremental, senão o scheduler nunca a terminaria.** `run_all.py` mata qualquer
+fonte em 900 s, e a primeira passada do PI-AGO-26 (46 campanhas, contato a contato) leva
+24 min — a fonte morreria no meio a cada hora e **não completaria uma vez sequer**. Duas
+medidas: `_TIMEOUTS_POR_FONTE["ac_engajamento"] = 3600` para a primeira passada, e
+`campanhas_do_lancamento()` só recoleta campanha **enviada nos últimos 14 dias ou ainda sem
+linha gravada** — abertura de e-mail de 30 dias atrás não se move mais. O PI cai de 46 para
+17 campanhas por rodada (as de engajamento zero, que não gravam linha e são baratas). O
+`DELETE` do upsert é escopado nas campanhas regravadas; um `DELETE` do lançamento inteiro
+levaria junto exatamente as antigas que a regra decidiu preservar. `--tudo` força a
+recoleta completa.
+
 **Seleção de campanha ficou em um lugar só.** Campanha de e-mail quase nunca traz o código
 do lançamento no nome (`ac_campaigns.lancamento_codigo` é NULL em 3.325 de 3.325), então o
 vínculo sai de data de envio + palavra do produto no nome. Essa regra estava inline no

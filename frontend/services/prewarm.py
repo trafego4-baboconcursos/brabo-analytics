@@ -33,9 +33,19 @@ MAX_LAUNCHES = 5
 
 
 def select_launches_to_warm(launches: list, codes: Iterable[str] | None = None) -> list:
-    """Mais recente por produto + qualquer lançamento ainda em andamento
-    (data_fim no futuro ou nos últimos 7 dias), limitado a MAX_LAUNCHES. Se
-    `codes` vier, restringe a esses códigos (na ordem em que aparecem)."""
+    """Mais recente por produto (só se ainda em andamento ou encerrado há até
+    7 dias) + qualquer outro lançamento na mesma janela, limitado a
+    MAX_LAUNCHES. Se `codes` vier, restringe a esses códigos (na ordem em que
+    aparecem).
+
+    Antes, o "mais recente por produto" entrava sempre, mesmo encerrado há
+    meses (ex.: PI sem lançamento novo desde PI-AGO-26) — isso mantinha
+    Typeform/Meta/Google/etc. desse lançamento morto sendo relidos por
+    inteiro a cada ciclo, pra sempre, sem ninguém visitando a página (ver
+    ARQUITETURA.md, 18/09/26 — egress). Fora da janela de 7 dias, quem visitar
+    ainda é atendido — só não por aquecimento automático (ver
+    schedule_snapshot_only), que aquece na hora e cacheia pra próxima visita.
+    """
     if codes:
         wanted = [c.strip().upper() for c in codes if c and c.strip()]
         by_code = {l.code: l for l in launches}
@@ -45,17 +55,23 @@ def select_launches_to_warm(launches: list, codes: Iterable[str] | None = None) 
     latest_by_product: dict = {}
     for l in launches:
         latest_by_product[l.product] = l  # get_launches vem em ordem cronológica; o último de cada produto fica
-    to_warm = {l.code: l for l in latest_by_product.values()}
+    to_warm = {
+        l.code: l for l in latest_by_product.values()
+        if l.data_fim is None or l.data_fim >= cutoff
+    }
     active = [l for l in launches if l.data_fim and l.data_fim >= cutoff and l.code not in to_warm]
     for l in active[: max(0, MAX_LAUNCHES - len(to_warm))]:
         to_warm[l.code] = l
-    # O lançamento anterior de cada ativo também: o debriefing do ativo compara
-    # com ele (meta/google/vendas já eram aquecidos por tabela) e é o segundo
-    # debriefing mais aberto — sem snapshot ele caía no cálculo ao vivo
-    # (PI-AGO-26: 60-100s em toda visita).
+    # O lançamento anterior de cada ativo só entra se também estiver na janela.
+    # Antes entrava sempre (o debriefing do ativo compara com ele, e era o
+    # segundo debriefing mais aberto), mas isso mantinha um lançamento fechado
+    # há meses sendo relido por inteiro a cada ciclo. O comparativo do ativo
+    # continua quente pelo aquecimento do próprio ativo (needs_comparativo);
+    # o debriefing do anterior é servido pelo snapshot já gravado e só
+    # recalcula sob demanda (schedule_snapshot_only / ?ao_vivo=1).
     for l in list(to_warm.values()):
         prev = find_previous_launch(l, launches)
-        if prev and prev.code not in to_warm:
+        if prev and prev.code not in to_warm and (prev.data_fim is None or prev.data_fim >= cutoff):
             to_warm[prev.code] = prev
     return list(to_warm.values())
 

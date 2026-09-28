@@ -29,7 +29,9 @@ TABLE = "ac_campaigns"
 def extract_launch_code(campaign_name: str) -> str | None:
     if pd.isna(campaign_name) or not campaign_name:
         return None
-    match = re.search(r'(PBB|PES|PI)-\w{3}-\d{2}', str(campaign_name), re.IGNORECASE)
+    # BV (Black) é código de 2 partes (BV-26), sem mês — igual ao fix do
+    # etl_active_campaign (item 84 do MUDANCAS_BV-26).
+    match = re.search(r'\b(?:(?:PBB|PES|PI)-\w{3}|BV)-\d{2}\b', str(campaign_name), re.IGNORECASE)
     if match:
         return match.group(0).upper()
     return None

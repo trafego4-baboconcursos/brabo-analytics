@@ -38,7 +38,11 @@ logger = get_logger("etl.ac")
 def extract_launch_code(campaign_name: str) -> str | None:
     if pd.isna(campaign_name) or not campaign_name:
         return None
-    match = re.search(r'(PBB|PES|PI)-\w{3}-\d{2}', str(campaign_name), re.IGNORECASE)
+    # BV (Black) é código de 2 partes (BV-26), sem mês — diferente do PREFIXO-MÊS-AA
+    # dos lançamentos normais. Mesmo regex já usado em etl_meta_ads/etl_google_ads;
+    # os dois ETLs do AC tinham ficado com o padrão antigo, o que deixava os leads
+    # da Black sem lancamento_codigo (achado 28/09/26, item 84 do MUDANCAS_BV-26).
+    match = re.search(r'\b(?:(?:PBB|PES|PI)-\w{3}|BV)-\d{2}\b', str(campaign_name), re.IGNORECASE)
     if match:
         return match.group(0).upper()
     return None
@@ -182,10 +186,27 @@ _LAUNCH_TAG_RE = re.compile(
     r"\[LAN[CÇ]AMENTO\]\s*\[([A-Z]{2,4}-[A-Z]{3}-\d{2})\]", re.IGNORECASE
 )
 
+# A Black (BV) tem DUAS grafias de tag, as duas -> BV-YY (conferido na conta em
+# 28/09/26): o cadastro do lançamento é "[BLACK] [LANÇAMENTO] [VITALICIA-2026]"
+# (261 contatos; VITALICIA-2025 = 26.242) e o evento é "[BASE-FORTE-BV-26]"
+# (308 contatos; BV-25 = 2.307). Nenhuma casa no _LAUNCH_TAG_RE: a primeira usa
+# o ano cheio (VITALICIA-2026), a segunda é código de 2 partes (BV-26).
+_BLACK_TAG_RE = re.compile(r"\[BASE-FORTE-(BV-\d{2})\]", re.IGNORECASE)
+_VITALICIA_TAG_RE = re.compile(r"\[VITALICIA-\d{2}(\d{2})\]", re.IGNORECASE)
+
 
 def _launch_code_from_tag(tag_name: str) -> str | None:
-    m = _LAUNCH_TAG_RE.search(tag_name or "")
-    return m.group(1).upper() if m else None
+    t = tag_name or ""
+    m = _LAUNCH_TAG_RE.search(t)
+    if m:
+        return m.group(1).upper()
+    m = _BLACK_TAG_RE.search(t)
+    if m:
+        return m.group(1).upper()
+    m = _VITALICIA_TAG_RE.search(t)  # VITALICIA-2026 -> BV-26 (2 últimos dígitos do ano)
+    if m:
+        return f"BV-{m.group(1)}"
+    return None
 
 
 @retry(

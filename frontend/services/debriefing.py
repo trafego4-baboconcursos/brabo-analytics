@@ -251,36 +251,47 @@ def _build_trilhas_captacao(meta: Any, google: Any, prev_meta: Any, prev_google:
     linha só escondem qual está pagando a conta. Lista vazia fora da Black —
     é o sinal de que a página não deve dividir nada.
 
-    Venda por trilha sai do ad_code: `por_criativo_por_etapa["Captação"]` traz
-    venda/receita por ADxxx, e cada anúncio já vem carimbado com a trilha pelos
-    leitores. Cada ad_code é somado UMA vez (o mesmo roda em vários conjuntos e
-    nas duas plataformas — somar por linha multiplicaria a mesma venda).
+    Verba e leads saem de `por_trilha_captacao`, que os leitores agregam do gasto
+    diário. **Não** das listas de anúncio: elas só existem pra criativo com código
+    `ADxxx` reconhecido, e os criativos do BV-26 nasceram fora desse padrão
+    (`AD-TR08`, `ADC-MA27`) — a seção inteira sumia por isso. A venda, essa sim,
+    depende do ad_code, e fica em zero enquanto ele não existir.
     """
     por_criativo = ((sales_attr or {}).get("por_criativo_por_etapa", {}) or {}).get("Captação", {}) or {}
 
-    def _somar(m: Any, g: Any) -> dict:
+    def _base(m: Any, g: Any) -> dict:
+        acc: dict[str, dict] = {}
+        for origem in (m, g):
+            for trilha, d in (getattr(origem, "por_trilha_captacao", None) or {}).items():
+                alvo = acc.setdefault(trilha, {"trilha": trilha, "invest": 0.0, "leads": 0})
+                alvo["invest"] += float(d.get("custo") or 0)
+                alvo["leads"] += int(d.get("leads") or 0)
+        return acc
+
+    def _vendas(m: Any, g: Any) -> dict:
+        """Venda por trilha via ADxxx, contando cada código uma vez (o mesmo ad
+        roda em vários conjuntos e nas duas plataformas)."""
+        vistos: dict[str, set] = {}
         acc: dict[str, dict] = {}
         for origem, attr in ((m, "captacao_por_ad"), (g, "anuncios_por_ad")):
             for ad in (getattr(origem, attr, None) or []):
                 trilha = ad.get("trilha")
-                if not trilha:
-                    continue
-                d = acc.setdefault(trilha, {"trilha": trilha, "invest": 0.0, "leads": 0,
-                                            "vendas": 0, "receita": 0.0, "_codes": set()})
-                d["invest"] += float(ad.get("gasto") or 0)
-                d["leads"] += int(ad.get("leads") or 0)
                 code = str(ad.get("ad_code") or "").upper()
-                if code and code not in d["_codes"]:
-                    d["_codes"].add(code)
-                    v = por_criativo.get(code) or {}
-                    d["vendas"] += int(v.get("vendas") or 0)
-                    d["receita"] += float(v.get("receita") or 0)
+                if not trilha or not code:
+                    continue
+                if code in vistos.setdefault(trilha, set()):
+                    continue
+                vistos[trilha].add(code)
+                v = por_criativo.get(code) or {}
+                d = acc.setdefault(trilha, {"vendas": 0, "receita": 0.0})
+                d["vendas"] += int(v.get("vendas") or 0)
+                d["receita"] += float(v.get("receita") or 0)
         return acc
 
-    atual = _somar(meta, google)
+    atual, vendas = _base(meta, google), _vendas(meta, google)
     if not atual:
         return []
-    anterior = _somar(prev_meta, prev_google)
+    anterior = _base(prev_meta, prev_google)
 
     total_invest = sum(d["invest"] for d in atual.values()) or 1.0
     saida = []
@@ -289,7 +300,9 @@ def _build_trilhas_captacao(meta: Any, google: Any, prev_meta: Any, prev_google:
         if not d:
             continue
         p = anterior.get(trilha) or {}
-        d.pop("_codes", None)
+        v = vendas.get(trilha) or {}
+        d["vendas"] = int(v.get("vendas") or 0)
+        d["receita"] = float(v.get("receita") or 0.0)
         d["cpl"] = d["invest"] / d["leads"] if d["leads"] else 0.0
         d["cpa"] = d["invest"] / d["vendas"] if d["vendas"] else 0.0
         d["roas"] = d["receita"] / d["invest"] if d["invest"] else 0.0

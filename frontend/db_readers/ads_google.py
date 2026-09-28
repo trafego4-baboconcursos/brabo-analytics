@@ -15,6 +15,7 @@ from sqlalchemy import text
 from logger import get_logger
 from frontend.utils import _extract_launch_code, _normalize_ad_code
 from src.ad_codes import extract_ad_code
+from src.nomenclatura import trilha_black
 from frontend.db import _get_engine
 from frontend.models import GoogleCampanha, GoogleSummary
 from frontend.db_readers.ads_meta import get_historico_ad_codes
@@ -25,7 +26,7 @@ from frontend.db_readers.classificacao import (
     com_classificacao as _com_classificacao,
 )
 from frontend.db_readers.sales import read_vendas
-from src.constants import ETAPAS_ORDEM
+from src.constants import etapa_prequali, etapas_ordem
 
 logger = get_logger("db")
 
@@ -140,7 +141,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
         etapa = r["etapa"]
         if etapa == "Captação":
             target_list = summary.anuncios_por_ad
-        elif etapa == "Pré-Qualificação" and _classify_google_type(camp) == "youtube":
+        elif etapa == etapa_prequali(code) and _classify_google_type(camp) == "youtube":
             target_list = summary.preq_por_ad
         else:
             continue
@@ -180,6 +181,8 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
             "origem": "Google Ads",
             "video_id": video_id,
             "antigo": bool(_normalize_ad_code(ad_code) in _ad_codes_vistos_antes),
+            # Só na Black (ver ads_meta.py): Base Forte × Black Vitalícia.
+            "trilha": trilha_black(camp, code, etapa),
         })
     summary.anuncios_por_ad = sorted(summary.anuncios_por_ad, key=lambda x: x["leads"], reverse=True)
     summary.preq_por_ad = sorted(summary.preq_por_ad, key=lambda x: x["leads"], reverse=True)
@@ -214,7 +217,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
             ),
         }
     zero_google = {"custo": 0.0, "conversoes": 0.0, "cliques": 0, "impressoes": 0, "visualizacoes": 0, "custo_conv": 0.0, "pct": 0.0, "num_campanhas": 0}
-    for etapa in ETAPAS_ORDEM:
+    for etapa in etapas_ordem(code):
         summary.por_etapa[etapa] = etapa_google_raw.get(etapa, {"etapa": etapa, **zero_google})
     for etapa, data in etapa_google_raw.items():
         if etapa not in summary.por_etapa:
@@ -231,6 +234,21 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
             "custo": float(r["custo"]),
             "conversoes": conv,
             "custo_conv": float(r["custo"] / conv) if conv > 0 else 0.0
+        }
+
+    # Trilha da Captação — só na Black (ver ads_meta.py).
+    df_cap_g = df[df["etapa"] == "Captação"]
+    total_cap_g = float(df_cap_g["cost"].sum())
+    df_cap_g = df_cap_g.assign(trilha=[trilha_black(n, code, "Captação") for n in df_cap_g["campaign_name"]])
+    for trilha, bloco in df_cap_g.dropna(subset=["trilha"]).groupby("trilha"):
+        custo = float(bloco["cost"].sum())
+        conv = float(bloco["conversions"].sum())
+        summary.por_trilha_captacao[trilha] = {
+            "trilha": trilha, "custo": custo, "gasto": custo,
+            "leads": int(conv), "conversoes": conv,
+            "cpl": custo / conv if conv > 0 else 0.0,
+            "custo_conv": custo / conv if conv > 0 else 0.0,
+            "pct": custo / total_cap_g * 100 if total_cap_g else 0.0,
         }
 
     # Gasto por conta (customer) — o dono da verba é o expert, e cada um tem a
@@ -252,7 +270,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
                 }
 
     # Agrega por temperatura — pré-qualificação
-    preq_grouped = df[df["etapa"] == "Pré-Qualificação"].groupby("temperatura").agg(
+    preq_grouped = df[df["etapa"] == etapa_prequali(code)].groupby("temperatura").agg(
         custo=("cost", "sum"), conversoes=("conversions", "sum"),
         views=("video_views", "sum"), views_50=("video_views_50", "sum"),
         impressoes=("impressions", "sum"),

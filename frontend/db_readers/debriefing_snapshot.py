@@ -78,7 +78,7 @@ TABLE = "debriefing_snapshot"
 # page na seção de Captação). Caso clássico da regra — sem o bump a seção só
 # apareceria no próximo reaquecimento, e foi exatamente o que aconteceu no
 # primeiro teste local: a página veio sem a seção porque leu o snapshot v16.
-SNAPSHOT_VERSION = 17
+SNAPSHOT_VERSION = 18
 
 DDL = f"""
 CREATE TABLE IF NOT EXISTS {TABLE} (

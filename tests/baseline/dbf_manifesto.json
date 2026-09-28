@@ -1,5 +1,5 @@
 {
-  "snapshot_version": 17,
+  "snapshot_version": 18,
   "chaves": [
     "antigo_novo",
     "boleto_hm",
@@ -15,6 +15,7 @@
     "detalhamento_semanas",
     "disparo_resumo",
     "ebook_compradores",
+    "etapa_pq",
     "etapas",
     "fontes_leads",
     "forma_pagamento_entrada",
@@ -117,6 +118,7 @@
     "total_tmb",
     "total_vendas",
     "total_vendas_pay",
+    "trilhas_captacao",
     "vendas_forma",
     "vendas_grupos_whatsapp",
     "vendas_por_canal",

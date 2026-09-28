@@ -99,8 +99,17 @@ MODIFIER_MAP = {
 # a etapa direto ([aquecimento][captação][lembrete][matrículas]).
 ETAPA_MAP_BLACK = {
     "aquecimento": "Aquecimento", "engajamento": "Aquecimento",
-    "base forte": "Aquecimento", "tráfego": "Aquecimento", "trafego": "Aquecimento",
+    # "captação" ANTES de "base forte": no BV-26 a Base Forte é uma trilha DE
+    # CAPTAÇÃO (evento gratuito com LP e pixel próprios), e o nome traz as duas
+    # tags — `[captação][base forte][alunos]`. Com "base forte" na frente, essas
+    # campanhas caíam em Aquecimento no Meta e em Captação no Google (que escreve
+    # `[base-forte]`, com hífen, e por isso escapava): a mesma campanha
+    # classificada diferente nas duas plataformas.
     "captação": "Captação", "captacao": "Captação", "capta": "Captação", "cadastro": "Captação",
+    # No BV-25 "Base Forte" era outra coisa — campanha de TRÁFEGO, de aquecimento
+    # mesmo (`[TRÁFEGO] Base Forte Longo Mateus`). Essas continuam caindo aqui
+    # pelo `[tráfego]`, que casa antes de chegar nesta linha.
+    "base forte": "Aquecimento", "tráfego": "Aquecimento", "trafego": "Aquecimento",
     "lembrete": "Lembrete", "reconhecimento": "Lembrete",
     "matrículas abertas": "Matrículas Abertas", "matriculas abertas": "Matrículas Abertas",
     "matrículas": "Matrículas Abertas", "matriculas": "Matrículas Abertas",
@@ -111,8 +120,16 @@ ETAPA_MAP_BLACK = {
 # dentro de "super quente" e fundiria os dois públicos. Em colchete exato não há
 # colisão ([super quente] != [quente]), mas a ordem protege o modo substring.
 TEMPERATURA_MAP_BLACK = {
+    # BV-26 usa a tag [super quente] — a renomeação para "base forte" (22/09) foi
+    # revertida em 23/09. "base forte" fica no mapa só pra classificar as campanhas
+    # reais do BV-25, que traziam "Base Forte" no nome ("[TRÁFEGO] Base Forte ...").
     "super quentes": "Super Quente", "super quente": "Super Quente",
+    # "aluno" ANTES de "base forte" pelo mesmo motivo da etapa: no BV-26 a tag
+    # `[base forte]` marca a TRILHA, não o público, e o público vem logo depois
+    # (`[captação][base forte][alunos]`). Com "base forte" na frente, campanha de
+    # Aluno era reportada como Super Quente — dois públicos distintos fundidos.
     "aluno": "Aluno", "alunos": "Aluno",
+    "base-forte": "Super Quente", "base fortes": "Super Quente", "base forte": "Super Quente",
     "novos": "Novo", "novo": "Novo",
     "quente": "Quente", "frio": "Frio",
 }
@@ -214,3 +231,29 @@ def categorizar_campanha_google(camp: str, launch_code: str | None = None) -> tu
     modifier = _primeiro_match(camp, MODIFIER_MAP, entre_colchetes=True)
 
     return etapa, temp, _montar_segmento(temp, bucket, modifier)
+
+# ── Trilha da Captação numa Black ──────────────────────────────────────────────
+# A Black tem DUAS captações que correm em sequência e não se misturam:
+#   Base Forte      — evento gratuito com LP e pixel próprios (BV-26: 28/09→05/10)
+#   Black Vitalícia — a captação do lançamento em si (BV-26: a partir de 05/10)
+# Somar as duas numa linha só esconde que são ofertas diferentes, com CPL e CPA
+# que não se comparam. Fora da Black — e fora da Captação — não existe trilha.
+#
+# No BV-25 "Base Forte" era campanha de TRÁFEGO, classificada como Aquecimento;
+# por isso nada daquele lançamento cai em Base Forte e a Captação inteira aparece
+# como Black Vitalícia, que é o que ela era.
+TRILHA_BASE_FORTE = "Base Forte"
+TRILHA_VITALICIA = "Black Vitalícia"
+_MARCAS_BASE_FORTE = ("[base forte]", "[base-forte]", "base forte", "base-forte")
+
+
+def trilha_black(camp: str, launch_code: str | None, etapa: str | None) -> str | None:
+    """Trilha da Captação (``Base Forte`` / ``Black Vitalícia``), ou ``None``.
+
+    ``None`` fora de um lançamento Black e fora da etapa de Captação — é o sinal
+    de que a página não deve dividir nada.
+    """
+    if not _is_black(launch_code) or (etapa or "") != "Captação":
+        return None
+    camp = str(camp).lower()
+    return TRILHA_BASE_FORTE if any(m in camp for m in _MARCAS_BASE_FORTE) else TRILHA_VITALICIA

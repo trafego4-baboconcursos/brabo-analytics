@@ -10,6 +10,32 @@ ETAPAS_ORDEM: list[str] = [
     "Matrículas Abertas",
 ]
 
+# A Black não tem Pré-Qualificação: o lugar dela no funil é ocupado pelo
+# Aquecimento — mesma função (esquentar a base antes de abrir o cadastro), nome
+# diferente. Também não tem Aulas no Ar nem Replay. Em vez de espalhar
+# `if black` pelos leitores e pelo debriefing, tudo pergunta a estas duas
+# funções qual é a etapa e qual é a ordem.
+ETAPAS_ORDEM_BLACK: list[str] = [
+    "Aquecimento",
+    "Captação",
+    "Lembrete",
+    "Matrículas Abertas",
+]
+
+
+def _e_black(launch_code: str | None) -> bool:
+    return str(launch_code or "").strip().upper().startswith("BV")
+
+
+def etapas_ordem(launch_code: str | None = None) -> list[str]:
+    """Ordem das etapas do funil para este lançamento."""
+    return ETAPAS_ORDEM_BLACK if _e_black(launch_code) else ETAPAS_ORDEM
+
+
+def etapa_prequali(launch_code: str | None = None) -> str:
+    """Nome da etapa que ocupa o papel de Pré-Qualificação neste lançamento."""
+    return "Aquecimento" if _e_black(launch_code) else "Pré-Qualificação"
+
 PRODUCT_BY_PREFIX: dict[str, tuple[str, str, int]] = {
     "PI":       ("INSS",           "Instituto Nacional do Seguro Social", 1),
     "PES":      ("TJ-SP",          "Tribunal de Justiça de São Paulo",    2),

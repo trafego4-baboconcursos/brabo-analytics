@@ -71,6 +71,10 @@ class MetaSummary:
     por_etapa: dict = field(default_factory=dict)
     por_temperatura: dict = field(default_factory=dict)
     por_temperatura_captacao: dict = field(default_factory=dict)
+    # Só na Black: a Captação corre em duas trilhas que não se misturam
+    # (Base Forte = evento gratuito; Black Vitalícia = o lançamento).
+    # Vazio em lançamento normal, que é o sinal de não dividir nada.
+    por_trilha_captacao: dict = field(default_factory=dict)
     # Gasto por conta de anúncio: numa Black cada expert tem conta própria e
     # verba própria, e o nome da campanha não é fonte confiável de dono.
     por_conta: dict = field(default_factory=dict)
@@ -136,6 +140,10 @@ class GoogleSummary:
     ctr_medio: float = 0.0
     por_etapa: dict = field(default_factory=dict)
     por_temperatura: dict = field(default_factory=dict)
+    # Só na Black: a Captação corre em duas trilhas que não se misturam
+    # (Base Forte = evento gratuito; Black Vitalícia = o lançamento).
+    # Vazio em lançamento normal, que é o sinal de não dividir nada.
+    por_trilha_captacao: dict = field(default_factory=dict)
     por_conta: dict = field(default_factory=dict)
     por_conta_captacao: dict = field(default_factory=dict)
     por_temperatura_prequali: dict = field(default_factory=dict)

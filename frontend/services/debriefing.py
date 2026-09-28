@@ -5,6 +5,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from src.constants import etapa_prequali
+from src.nomenclatura import TRILHA_BASE_FORTE, TRILHA_VITALICIA
 from frontend.services.attribution import _merge_google_tipo_sales
 from frontend.services.fetch import _launch_cfg
 
@@ -133,6 +135,7 @@ def _build_leads_detail_table(
     google_attr: str = "por_temperatura",
     meta_sales_key: str = "meta_temperatura_sales_por_etapa",
     google_sales_key: str = "google_temperatura_sales_por_etapa",
+    etapa_pq: str = "Pré-Qualificação",
 ) -> list:
     """Público × Leads/Investimento/CPL/Conversão/Vendas/ROAS. Usado tanto
     pra "Leads por Público — Captação" (padrão) quanto pra "Performance da
@@ -142,7 +145,7 @@ def _build_leads_detail_table(
         d = (attr_sales or {}).get(key) or {}
         return d.get(etapa, {}) if etapa else d
 
-    etapa = "Pré-Qualificação" if "prequali" in meta_attr else "Captação"
+    etapa = (etapa_pq or "Pré-Qualificação") if "prequali" in meta_attr else "Captação"
     specs = [
         ("FB Quente",     meta,   meta_attr,   "Quente",     "leads",      _sales_dict(sales_attr, meta_sales_key, etapa)),
         ("FB Frio",       meta,   meta_attr,   "Frio",       "leads",      _sales_dict(sales_attr, meta_sales_key, etapa)),
@@ -237,6 +240,65 @@ def _build_rmkt_adsets(meta: Any, google: Any = None, whatsapp: float = 0.0, cfg
     for r in rows:
         r["pct"] = r["gasto"] / total * 100 if r["gasto"] > 0 else 0.0
     return rows
+
+
+def _build_trilhas_captacao(meta: Any, google: Any, prev_meta: Any, prev_google: Any,
+                            sales_attr: Any = None) -> list:
+    """Captação da Black quebrada nas duas trilhas que a compõem.
+
+    Base Forte (evento gratuito) e Black Vitalícia (o lançamento) são ofertas
+    diferentes: CPL e CPA de uma não dizem nada sobre a outra, e somadas numa
+    linha só escondem qual está pagando a conta. Lista vazia fora da Black —
+    é o sinal de que a página não deve dividir nada.
+
+    Venda por trilha sai do ad_code: `por_criativo_por_etapa["Captação"]` traz
+    venda/receita por ADxxx, e cada anúncio já vem carimbado com a trilha pelos
+    leitores. Cada ad_code é somado UMA vez (o mesmo roda em vários conjuntos e
+    nas duas plataformas — somar por linha multiplicaria a mesma venda).
+    """
+    por_criativo = ((sales_attr or {}).get("por_criativo_por_etapa", {}) or {}).get("Captação", {}) or {}
+
+    def _somar(m: Any, g: Any) -> dict:
+        acc: dict[str, dict] = {}
+        for origem, attr in ((m, "captacao_por_ad"), (g, "anuncios_por_ad")):
+            for ad in (getattr(origem, attr, None) or []):
+                trilha = ad.get("trilha")
+                if not trilha:
+                    continue
+                d = acc.setdefault(trilha, {"trilha": trilha, "invest": 0.0, "leads": 0,
+                                            "vendas": 0, "receita": 0.0, "_codes": set()})
+                d["invest"] += float(ad.get("gasto") or 0)
+                d["leads"] += int(ad.get("leads") or 0)
+                code = str(ad.get("ad_code") or "").upper()
+                if code and code not in d["_codes"]:
+                    d["_codes"].add(code)
+                    v = por_criativo.get(code) or {}
+                    d["vendas"] += int(v.get("vendas") or 0)
+                    d["receita"] += float(v.get("receita") or 0)
+        return acc
+
+    atual = _somar(meta, google)
+    if not atual:
+        return []
+    anterior = _somar(prev_meta, prev_google)
+
+    total_invest = sum(d["invest"] for d in atual.values()) or 1.0
+    saida = []
+    for trilha in (TRILHA_BASE_FORTE, TRILHA_VITALICIA):
+        d = atual.get(trilha)
+        if not d:
+            continue
+        p = anterior.get(trilha) or {}
+        d.pop("_codes", None)
+        d["cpl"] = d["invest"] / d["leads"] if d["leads"] else 0.0
+        d["cpa"] = d["invest"] / d["vendas"] if d["vendas"] else 0.0
+        d["roas"] = d["receita"] / d["invest"] if d["invest"] else 0.0
+        d["pct"] = d["invest"] / total_invest * 100
+        d["prev_invest"] = float(p.get("invest") or 0.0)
+        d["prev_leads"] = int(p.get("leads") or 0)
+        d["prev_cpl"] = (p["invest"] / p["leads"]) if p.get("leads") else 0.0
+        saida.append(d)
+    return saida
 
 
 def _build_top_ads_captacao(
@@ -378,7 +440,8 @@ def _enrich_perfil_por_anuncio(
     return perfil
 
 
-def _build_antigo_novo(meta: Any, google: Any, sales_attr: Any = None) -> dict:
+def _build_antigo_novo(meta: Any, google: Any, sales_attr: Any = None,
+                       etapa_pq: str = "Pré-Qualificação") -> dict:
     """Investimento/leads/vendas em anúncios antigos (ADxxx já usado em
     lançamento anterior do mesmo produto) × novos, por etapa. Combina Meta +
     Google; vendas/receita cruzadas por ad_code via atribuição UTM (mesma
@@ -395,7 +458,9 @@ def _build_antigo_novo(meta: Any, google: Any, sales_attr: Any = None) -> dict:
        mesma venda."""
     por_criativo_por_etapa = (sales_attr or {}).get("por_criativo_por_etapa", {}) or {}
     listas = {
-        "Pré-Qualificação": [
+        # Chave = etapa REAL: `por_criativo_por_etapa` é indexado por ela, e na
+        # Black o papel da Pré-Qualificação é do Aquecimento.
+        etapa_pq: [
             *(getattr(meta, "preq_por_ad", None) or []),
             *(getattr(google, "preq_por_ad", None) or []),
         ],
@@ -728,17 +793,21 @@ def _compute_debriefing_ctx(
             if et.get("nome") in _REMARKETING_ETAPAS_ORCAMENTO
         )
         return {
-            "Pré-Qualificação": _f(cfg.get("meta_investimento_pre_quali")),
+            etapa_pq: _f(cfg.get("meta_investimento_pre_quali")),
             "Captação": _f(cfg.get("meta_investimento_captacao")),
             "Remarketing": remarketing_previsto,
         }
 
+    # Etapa que ocupa o papel de Pré-Qualificação: na Black é o Aquecimento.
+    # Indexa por_etapa, a atribuição de venda e o GA4 — todos guardados pela
+    # etapa REAL —, e vai no ctx pro template usar como chave e como rótulo.
+    etapa_pq = etapa_prequali(launch.code if launch else None)
     cfg = _launch_cfg(launch.code) if launch else {}
     previsto_map = _previsto_por_etapa(cfg)
 
     base = invest or 1.0
     etapas = []
-    for name in ["Pré-Qualificação", "Captação", "Remarketing"]:
+    for name in [etapa_pq, "Captação", "Remarketing"]:
         e = get_etapa(meta, google, name, whatsapp=wa_gasto if name == "Remarketing" else 0.0)
         e["pct"] = e["invest"] / base * 100
         e["previsto"] = previsto_map.get(name, 0.0)
@@ -749,7 +818,7 @@ def _compute_debriefing_ctx(
         prev_cfg = _launch_cfg(previous.code) if previous else {}
         prev_previsto_map = _previsto_por_etapa(prev_cfg)
         prev_base = prev_invest or 1.0
-        for name in ["Pré-Qualificação", "Captação", "Remarketing"]:
+        for name in [etapa_pq, "Captação", "Remarketing"]:
             e = get_etapa(prev_meta, prev_google, name, whatsapp=prev_wa_gasto if name == "Remarketing" else 0.0)
             e["pct"] = e["invest"] / prev_base * 100
             e["previsto"] = prev_previsto_map.get(name, 0.0)
@@ -1068,10 +1137,10 @@ def _compute_debriefing_ctx(
     prev_google_preq_clima = _build_clima_breakdown(prev_google, "por_temperatura_prequali", leads_key="conversoes")
     _attach_clima_variation(google_preq_clima, prev_google_preq_clima)
 
-    meta_preq_etapa = (getattr(meta, "por_etapa", {}) or {}).get("Pré-Qualificação") or {}
-    prev_meta_preq_etapa = (getattr(prev_meta, "por_etapa", {}) or {}).get("Pré-Qualificação") or {}
-    google_preq_etapa = (getattr(google, "por_etapa", {}) or {}).get("Pré-Qualificação") or {}
-    prev_google_preq_etapa = (getattr(prev_google, "por_etapa", {}) or {}).get("Pré-Qualificação") or {}
+    meta_preq_etapa = (getattr(meta, "por_etapa", {}) or {}).get(etapa_pq) or {}
+    prev_meta_preq_etapa = (getattr(prev_meta, "por_etapa", {}) or {}).get(etapa_pq) or {}
+    google_preq_etapa = (getattr(google, "por_etapa", {}) or {}).get(etapa_pq) or {}
+    prev_google_preq_etapa = (getattr(prev_google, "por_etapa", {}) or {}).get(etapa_pq) or {}
     prequali_invest = {
         "meta": {
             "total": _f(meta_preq_etapa.get("custo")),
@@ -1140,6 +1209,7 @@ def _compute_debriefing_ctx(
         meta_attr="por_temperatura_prequali", google_attr="por_temperatura_prequali",
         meta_sales_key="meta_temperatura_sales_por_etapa",
         google_sales_key="google_temperatura_sales_por_etapa",
+        etapa_pq=etapa_pq,
     )
 
     meta_temp_sales        = (sales_attr or {}).get("meta_por_temperatura",   {}) or {}
@@ -1284,7 +1354,7 @@ def _compute_debriefing_ctx(
         "top_ads_captacao": _build_top_ads_captacao(meta, google, sales_attr),
         "top_ads_prequali": _build_top_ads_captacao(
             meta, google, sales_attr, meta_ads_attr="preq_por_ad", google_ads_attr="preq_por_ad",
-            etapa="Pré-Qualificação",
+            etapa=etapa_pq,
         ),
         "leads_detail_table": leads_detail_table,
         "leads_detail_table_prequali": leads_detail_table_prequali,
@@ -1326,7 +1396,12 @@ def _compute_debriefing_ctx(
         # Comercial × IA × Orgânico (sck Hotmart / utm_source TMB)
         "vendas_por_canal": getattr(vendas, "por_canal", {}) or {},
         # Antigo × novo (ADxxx já usado em lançamento anterior do produto)
-        "antigo_novo": _build_antigo_novo(meta, google, sales_attr),
+        "antigo_novo": _build_antigo_novo(meta, google, sales_attr, etapa_pq=etapa_pq),
+        # Nome da etapa que faz o papel de Pré-Qualificação: o template usa
+        # como rótulo e como chave. "Aquecimento" na Black.
+        "etapa_pq": etapa_pq,
+        # Captação em duas trilhas (só Black). Lista vazia = não dividir.
+        "trilhas_captacao": _build_trilhas_captacao(meta, google, prev_meta, prev_google, sales_attr),
         # Qualidade por estado (Meta invest/leads + compradores/receita)
         "qualidade_regiao": qualidade_regiao,
         # Caminho do comprador — funil unificado por pessoa (lead→grupo→pesquisa→compra)
@@ -1334,7 +1409,7 @@ def _compute_debriefing_ctx(
         # Compradores que já estavam cadastrados em lançamentos anteriores
         "cadastrados_lancamentos_anteriores": cadastrados_lancamentos_anteriores,
         # Landing pages que mais converteram (GA4), por etapa
-        "landing_pages_preq": (landing_pages_por_etapa or {}).get("Pré-Qualificação") or [],
+        "landing_pages_preq": (landing_pages_por_etapa or {}).get(etapa_pq) or [],
         "landing_pages_capt": (landing_pages_por_etapa or {}).get("Captação") or [],
         # Venda/CPA/ROAS por VERSÃO da LP de captação — o que o GA4 não alcança
         # (sessão anônima não tem e-mail, logo não tem venda). Ponte pelo ADxxx.

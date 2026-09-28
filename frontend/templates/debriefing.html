@@ -529,6 +529,9 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
 {% endblock head %}
 
 {% block content %}
+{# Etiqueta da área que faz o papel da Pré-Qualificação. Na Black a etapa
+   chama Aquecimento — mesmo lugar do funil, nome diferente. #}
+{% set tag_pq = 'Aquecimento' if dbf.etapa_pq == 'Aquecimento' else 'Pré-Quali' %}
 {# ─── macros ──────────────────────────────────────────────────────────── #}
 {# polarity: 'up' (subir é bom, padrão) | 'down' (subir é ruim, ex: CPL) | 'neutral' (nem bom nem ruim, ex: Investimento) #}
 {% macro dbadge(curr, prev, polarity='up') %}
@@ -1063,7 +1066,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
         })();
         </script>
         <div class="dbf-kpi-grid" style="margin-top:16px;grid-template-columns:repeat(2,1fr)">
-          {{ kpi_card("Compradores — Pré-Qualificação", cpg.pre_quali.total, pcpg.pre_quali.total if pcpg else 0, "num", "up") }}
+          {{ kpi_card("Compradores — " ~ dbf.etapa_pq, cpg.pre_quali.total, pcpg.pre_quali.total if pcpg else 0, "num", "up") }}
           {{ kpi_card("Compradores — Captação", cpg.captacao.total, pcpg.captacao.total if pcpg else 0, "num", "up") }}
         </div>
         <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
@@ -1139,7 +1142,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       {% if dbf.has_prev %}<span class="dbf-launch-badge prev">{{ dbf.prev_code }}</span>{% endif %}
     </div>
 
-    {% set color_map = {"Pré-Qualificação": "#16a34a", "Captação": "#2563eb",  "Remarketing": "#dc2626"} %}
+    {% set color_map = {"Pré-Qualificação": "#16a34a", "Aquecimento": "#16a34a", "Captação": "#2563eb",  "Remarketing": "#dc2626"} %}
 
     {% macro alloc_table(etapas, total_invest, prev_etapas=None, prev_total_invest=None) %}
       {% set total_previsto = etapas | sum(attribute='previsto') %}
@@ -1284,7 +1287,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.prequali_invest and dbf.prequali_invest.total > 0 %}
   <div class="dbf-section">
-    <div class="dbf-section-title" data-tag="Pré-Quali"><i class="ti ti-target-arrow"></i> Investimento</div>
+    <div class="dbf-section-title" data-tag="{{ tag_pq }}"><i class="ti ti-target-arrow"></i> Investimento</div>
     {% set preq_dates = [dbf.prequali_invest.meta.data_inicio, dbf.prequali_invest.google.data_inicio] | select | unique | list %}
     {% if preq_dates %}<div class="note" style="margin-bottom:10px">Início: {{ preq_dates | map('br_date') | join(' / ') }}</div>{% endif %}
     <div class="table-wrap" data-no-filter>
@@ -1323,7 +1326,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
     </div>
     <div style="font-size:11px;color:var(--bs-ink-subtle);margin-top:6px">Meta: "Viu 50%+" é contagem direta (ThruPlay). Google não expõe contagem, só a taxa de quartil da API — o % aqui é sobre quem iniciou o vídeo (impressões), não sobre ThruViews.</div>
     <div class="dbf-alloc-row total" style="margin-top:14px;border-radius:8px">
-      <span>Total Investido — Pré-Qualificação</span>
+      <span>Total Investido — {{ dbf.etapa_pq }}</span>
       <span><span class="amt">{{ dbf.prequali_invest.total | brl(0) }}</span>{% if dbf.prequali_invest.prev_total %} {{ dbadge(dbf.prequali_invest.total, dbf.prequali_invest.prev_total, 'up') }}{% endif %}</span>
     </div>
   </div>
@@ -1414,20 +1417,20 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       </table>
     </div>
     <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
-      Vendas/ROAS por atribuição UTM (último toque), escopado à etapa Pré-Qualificação — não soma com "Leads por Público — Captação" abaixo.
+      Vendas/ROAS por atribuição UTM (último toque), escopado à etapa {{ dbf.etapa_pq }} — não soma com "Leads por Público — Captação" abaixo.
     </div>
     {% else %}
-    {{ sem_dados("Campanhas de Pré-Qualificação sem clima (Quente/Frio/Específico) identificado no nome") }}
+    {{ sem_dados("Campanhas de " ~ dbf.etapa_pq ~ " sem clima (Quente/Frio/Específico) identificado no nome") }}
     {% endif %}
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 4b1. ANÚNCIOS ANTIGOS × NOVOS — PRÉ-QUALIFICAÇÃO           -->
   <!-- ═══════════════════════════════════════════════════════════ -->
-  {% if dbf.antigo_novo and dbf.antigo_novo.get('Pré-Qualificação') %}
-  {% set g = dbf.antigo_novo['Pré-Qualificação'] %}
+  {% if dbf.antigo_novo and dbf.antigo_novo.get(dbf.etapa_pq) %}
+  {% set g = dbf.antigo_novo[dbf.etapa_pq] %}
   <div class="dbf-section">
-    <div class="dbf-section-title" data-tag="Pré-Quali"><i class="ti ti-recycle"></i> Novos × Antigos</div>
+    <div class="dbf-section-title" data-tag="{{ tag_pq }}"><i class="ti ti-recycle"></i> Novos × Antigos</div>
     <div class="table-wrap">
       <table class="dbf-table">
         <thead>
@@ -1486,7 +1489,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.top_ads_prequali and dbf.top_ads_prequali.combinado %}
   <div class="dbf-section">
-    <div class="dbf-section-title" data-tag="Pré-Quali"><i class="ti ti-trophy"></i> Top 5 Melhores Ads {{ plat_badge("Meta") }}{{ plat_badge("Google") }}</div>
+    <div class="dbf-section-title" data-tag="{{ tag_pq }}"><i class="ti ti-trophy"></i> Top 5 Melhores Ads {{ plat_badge("Meta") }}{{ plat_badge("Google") }}</div>
     {{ top_ads_table(dbf.top_ads_prequali.combinado, '#6b7280') }}
     <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:8px;">
       Investimento/leads somados por código ADxxx entre as duas plataformas; vendas por atribuição UTM (mesmo código).
@@ -1499,7 +1502,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.preq_top_ads and dbf.preq_top_ads.meta %}
   <div class="dbf-section">
-    <div class="dbf-section-title" data-tag="Pré-Quali"><i class="ti ti-trophy"></i> Top 5 Melhores Ads {{ plat_badge("Meta") }}</div>
+    <div class="dbf-section-title" data-tag="{{ tag_pq }}"><i class="ti ti-trophy"></i> Top 5 Melhores Ads {{ plat_badge("Meta") }}</div>
     <div class="table-wrap">
       <table class="dbf-table">
         <thead>
@@ -1538,7 +1541,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.preq_top_ads and dbf.preq_top_ads.google %}
   <div class="dbf-section">
-    <div class="dbf-section-title" data-tag="Pré-Quali"><i class="ti ti-trophy"></i> Top 5 Melhores Ads {{ plat_badge("YouTube") }}</div>
+    <div class="dbf-section-title" data-tag="{{ tag_pq }}"><i class="ti ti-trophy"></i> Top 5 Melhores Ads {{ plat_badge("YouTube") }}</div>
     <div class="table-wrap">
       <table class="dbf-table">
         <thead>
@@ -1577,7 +1580,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.preq_top_ads and dbf.preq_top_ads.tiktok %}
   <div class="dbf-section">
-    <div class="dbf-section-title" data-tag="Pré-Quali"><i class="ti ti-trophy"></i> Top 3 Melhores Ads {{ plat_badge("TikTok") }}</div>
+    <div class="dbf-section-title" data-tag="{{ tag_pq }}"><i class="ti ti-trophy"></i> Top 3 Melhores Ads {{ plat_badge("TikTok") }}</div>
     <div class="table-wrap">
       <table class="dbf-table">
         <thead>
@@ -1612,7 +1615,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   <!-- ═══════════════════════════════════════════════════════════ -->
   {% if dbf.landing_pages_preq %}
   <div class="dbf-section">
-    <div class="dbf-section-title" data-tag="Pré-Quali"><i class="ti ti-world"></i> Landing Pages que Mais Converteram</div>
+    <div class="dbf-section-title" data-tag="{{ tag_pq }}"><i class="ti ti-world"></i> Landing Pages que Mais Converteram</div>
     <div class="table-wrap" data-no-filter>
       <table class="dbf-table">
         <thead>
@@ -1642,6 +1645,52 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       </table>
     </div>
     <div class="note" style="margin-top:10px">Fonte: Google Analytics 4. <strong>Lead</strong> = sessão em que a pessoa preencheu o formulário (evento generate_lead); <strong>Grupo WhatsApp</strong> = sessão em que ela clicou pra entrar no grupo (qualify_lead). Conta sessão, não disparo de evento — o evento repete na mesma sessão. Preview: print próprio da página, guardado no banco (<code>scripts/capturar_lps.py</code>). Lançamento cujas LPs saíram do ar não tem print — rode <code>scripts/capturar_lps.py --lancamento CODIGO</code> enquanto as páginas estiverem no ar.</div>
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 3.8b CAPTAÇÃO EM DUAS TRILHAS — só Black                    -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% if dbf.trilhas_captacao %}
+  <div class="dbf-section">
+    <div class="dbf-section-title" data-tag="Captação"><i class="ti ti-git-branch"></i> Base Forte × Black Vitalícia</div>
+    <div class="table-wrap">
+      <table class="dbf-table">
+        <thead>
+          <tr>
+            <th>Trilha</th>
+            <th class="num">Investido</th>
+            <th class="num">% da Captação</th>
+            <th class="num">Leads</th>
+            <th class="num">CPL</th>
+            <th class="num">Vendas</th>
+            <th class="num">CPA</th>
+            <th class="num">ROAS</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in dbf.trilhas_captacao %}
+          <tr>
+            <td style="font-weight:600">{{ t.trilha }}</td>
+            <td class="num">{{ t.invest | brl(0) }}{% if t.prev_invest %} {{ dbadge(t.invest, t.prev_invest, 'neutral') }}{% endif %}</td>
+            <td class="num">{{ t.pct | round(1) }}%</td>
+            <td class="num">{{ t.leads | num }}{% if t.prev_leads %} {{ dbadge(t.leads, t.prev_leads, 'up') }}{% endif %}</td>
+            <td class="num">{{ t.cpl | brl }}{% if t.prev_cpl %} {{ dbadge(t.cpl, t.prev_cpl, 'down') }}{% endif %}</td>
+            <td class="num">{{ t.vendas | num }}</td>
+            <td class="num">{% if t.vendas %}{{ t.cpa | brl(0) }}{% else %}—{% endif %}</td>
+            <td class="num">{% if t.vendas %}{{ t.roas | round(2) }}x{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:8px">
+      A Captação da Black corre em duas trilhas que não se misturam: a <strong>Base Forte</strong> é
+      um evento gratuito, com landing page e pixel próprios, e a <strong>Black Vitalícia</strong> é a
+      captação do lançamento em si. São ofertas diferentes — <strong>CPL e CPA de uma não dizem nada
+      sobre a outra</strong>, e somá-las numa linha só esconde qual está pagando a conta. A venda sai
+      do <code>ADxxx</code> por atribuição UTM, contando cada código uma vez.
+    </div>
   </div>
   {% endif %}
 

@@ -15,6 +15,7 @@ from frontend.utils import _extract_launch_code, _normalize_ad_code
 from src.ad_codes import extract_ad_code, uses_legacy_ad_codes
 from frontend.db import _get_engine
 from frontend.db_readers.nomenclatura import categorizar_campanha_meta
+from src.nomenclatura import trilha_black
 from frontend.db_readers.classificacao import (
     CLASSIFICACAO_META as _CLASSIFICACAO_META,
     aplicar_classificacao as _aplicar_classificacao,
@@ -22,7 +23,7 @@ from frontend.db_readers.classificacao import (
 )
 from frontend.db_readers.sales import read_vendas
 from frontend.models import MetaCriativo, MetaSummary
-from src.constants import ETAPAS_ORDEM
+from src.constants import etapa_prequali, etapas_ordem
 
 logger = get_logger("db")
 
@@ -217,7 +218,7 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
             ),
         }
     zero_meta = {"custo": 0.0, "gasto": 0.0, "leads": 0, "thruplays": 0, "cpl": 0.0, "custo_thruplay": 0.0, "pct": 0.0, "num_campanhas": 0}
-    for etapa in ETAPAS_ORDEM:
+    for etapa in etapas_ordem(code):
         summary.por_etapa[etapa] = etapa_data_raw.get(etapa, {"etapa": etapa, **zero_meta})
     for etapa, data in etapa_data_raw.items():
         if etapa not in summary.por_etapa:
@@ -248,6 +249,20 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
             "pct": float(r["custo"] / total_spend_cap * 100)
         }
 
+    # Trilha da Captação — só na Black. Base Forte (evento gratuito) e Black
+    # Vitalícia (o lançamento) são ofertas diferentes, com CPL e CPA que não se
+    # comparam; somadas numa linha só, escondem uma à outra. Dict vazio em
+    # lançamento normal é o sinal de que a página não deve dividir nada.
+    df_cap = df_cap.assign(trilha=[trilha_black(n, code, "Captação") for n in df_cap["campaign_name"]])
+    for trilha, bloco in df_cap.dropna(subset=["trilha"]).groupby("trilha"):
+        custo = float(bloco["spend"].sum())
+        leads = int(bloco["leads"].sum())
+        summary.por_trilha_captacao[trilha] = {
+            "trilha": trilha, "custo": custo, "gasto": custo, "leads": leads,
+            "cpl": custo / leads if leads > 0 else 0.0,
+            "pct": custo / total_spend_cap * 100 if total_spend_cap else 0.0,
+        }
+
     # Gasto por conta de anúncio — numa Black cada expert tem conta e verba
     # próprias, e o nome da campanha não identifica o dono de forma confiável.
     if "account_id" in df.columns:
@@ -265,7 +280,7 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
                     "cpl": float(r["custo"] / r["leads"]) if r["leads"] > 0 else 0.0,
                 }
 
-    df_preq = df[df["etapa"] == "Pré-Qualificação"]
+    df_preq = df[df["etapa"] == etapa_prequali(code)]
     preq_grouped = df_preq.groupby("temperatura").agg(
         custo=("spend", "sum"), leads=("leads", "sum"),
         thruplays=("video_thruplays", "sum"), views_50=("video_views_50", "sum"),
@@ -509,6 +524,9 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
             "impressoes": c.impressoes,
             "origem": "Meta Ads",
             "antigo": antigo,
+            # Só na Black: separa o anúncio da Base Forte do da Black Vitalícia.
+            # None em lançamento normal — quem lê usa isso pra não dividir nada.
+            "trilha": trilha_black(r["campaign_name"], code, r["etapa"]),
         }
 
         if r["etapa"] == "Captação":

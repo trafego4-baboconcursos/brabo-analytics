@@ -58,7 +58,11 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
 
     sql = (
         r"""
-        SELECT * FROM hotmart_clean_oficial
+        SELECT codigo_da_transacao, status_da_transacao, data_da_transacao, confirmacao_do_pagamento,
+               metodo_de_pagamento, tipo_de_cobranca, quantidade_de_cobrancas, quantidade_total_de_parcelas,
+               faturamento_liquido, valor_de_compra_sem_impostos, valor_de_compra_com_impostos,
+               nome_deste_preco, estado_provincia, cidade
+        FROM hotmart_clean_oficial
         WHERE CASE
               WHEN produto ILIKE '%inss%' THEN 'INSS'
               WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%') THEN 'TJ'
@@ -330,24 +334,48 @@ def read_hotmart_recompra(launch_folder_or_code: Any, vendas: Any = None) -> dic
     cfg = read_launch_config(code)
     hotmart_ids = _normalize_product_ids(cfg.get("hotmart_produto_ids"))
 
+    # Pré-filtro de data no SQL: antes descia o histórico INTEIRO do produto
+    # (~17,8 mil linhas por chamada, 180 milhões acumuladas — 30/09/26, egress)
+    # pra recortar a janela em pandas. Só datas nos 3 formatos conhecidos são
+    # recortadas aqui, com 1 dia de folga (o parser do pandas trabalha em UTC);
+    # formato desconhecido passa e continua sendo decidido pelo pandas abaixo,
+    # exatamente como antes — a hotmart_oficial é a tabela crua e não dá pra
+    # arriscar um cast que derrube a consulta.
+    from datetime import timedelta  # noqa: PLC0415
+
+    filtro_ids = " AND codigo_do_produto::text = ANY(:product_ids)" if hotmart_ids else ""
     sql = r"""
         SELECT codigo_da_transacao, status_da_transacao, data_da_transacao,
-               metodo_de_pagamento, tipo_de_cobranca, email_do_a_comprador_a AS email
-        FROM hotmart_oficial
-        WHERE CASE
-              WHEN produto ILIKE '%inss%' THEN 'INSS'
-              WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%') THEN 'TJ'
-              WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'
-              ELSE 'OUTRO'
-          END = :project
-          AND (email_do_a_comprador_a IS NULL OR (
-              email_do_a_comprador_a NOT ILIKE '%+teste%'
-              AND email_do_a_comprador_a NOT ILIKE '%@aprovasim.com'
-          ))
+               metodo_de_pagamento, tipo_de_cobranca, email
+        FROM (
+            SELECT codigo_da_transacao, status_da_transacao, data_da_transacao,
+                   metodo_de_pagamento, tipo_de_cobranca, email_do_a_comprador_a AS email,
+                   CASE WHEN NULLIF(data_da_transacao,'') ~ '^\d{2}/\d{2}/\d{4}'
+                            THEN to_date(substr(data_da_transacao, 1, 10), 'DD/MM/YYYY')
+                        WHEN NULLIF(data_da_transacao,'') ~ '^\d{10,13}$'
+                            THEN (to_timestamp(CASE WHEN length(data_da_transacao) = 13
+                                                    THEN data_da_transacao::bigint / 1000
+                                                    ELSE data_da_transacao::bigint END)
+                                  AT TIME ZONE 'America/Sao_Paulo')::date
+                        WHEN data_da_transacao ~ '^\d{4}-\d{2}-\d{2}'
+                            THEN substr(data_da_transacao, 1, 10)::date
+                        ELSE NULL END AS _data_aprox
+            FROM hotmart_oficial
+            WHERE CASE
+                  WHEN produto ILIKE '%inss%' THEN 'INSS'
+                  WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%') THEN 'TJ'
+                  WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'
+                  ELSE 'OUTRO'
+              END = :project
+              AND (email_do_a_comprador_a IS NULL OR (
+                  email_do_a_comprador_a NOT ILIKE '%+teste%'
+                  AND email_do_a_comprador_a NOT ILIKE '%@aprovasim.com'
+              ))""" + filtro_ids + r"""
+        ) t
+        WHERE _data_aprox IS NULL OR _data_aprox BETWEEN :d_ini AND :d_fim
     """
-    params: dict = {"project": project}
+    params: dict = {"project": project, "d_ini": start - timedelta(days=1), "d_fim": end_grace + timedelta(days=1)}
     if hotmart_ids:
-        sql += " AND codigo_do_produto::text = ANY(:product_ids)"
         params["product_ids"] = [str(i) for i in hotmart_ids]
     try:
         df = pd.read_sql(text(sql), _get_users_engine(), params=params)

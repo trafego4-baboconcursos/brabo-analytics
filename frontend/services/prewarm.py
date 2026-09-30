@@ -31,6 +31,61 @@ from frontend.services.fetch import _warm_debriefing
 _WARM_LOCK = asyncio.Lock()
 MAX_LAUNCHES = 5
 
+# Leitores (prefixo da chave de cache, antes de "::") que dependem de cada
+# fonte do ETL. Quando o scheduler avisa que uma rodada terminou
+# (/api/etl/refresh), só os leitores das fontes que rodaram são recomputados;
+# o resto segue no TTL de 1h e no aquecimento periódico, que continua
+# recomputando tudo. Antes, o ciclo curto (a cada 30 min) recomputava tudo —
+# Typeform congelado, pesquisa nova, leads, grupos de WhatsApp — e isso era a
+# maior parte do egress que sobrou depois de 14-18/09 (medido em 30/09/26).
+# Vendas não têm fonte no ETL (Hotmart/TMB sincronizam por fora), mas ficam no
+# ciclo curto de propósito: o dia 1 do carrinho é acompanhado hora a hora.
+LEITORES_POR_FONTE: dict[str, set[str]] = {
+    "meta_ads":        {"meta", "meta_temp", "sales_attribution", "utm_cobertura"},
+    "google_ads":      {"google", "sales_attribution", "utm_cobertura"},
+    "ga4":             {"landing_pages_por_etapa", "conversao_pagina_captura"},
+    "sheets_contagem": {"whatsapp_sheets", "whatsapp_sheets_diario"},
+    "active_campaign": {"leads", "utm_cobertura", "sales_attribution", "leads_antigos_compradores",
+                        "cadastrados_lancamentos_anteriores", "caminho_comprador", "qualidade_regiao",
+                        "typeform_data", "typeform_count", "perfil_por_anuncio"},
+    "ac_ebook":        {"ebook_compradores"},
+    "whatsapp":        {"wa_cost", "disparo_resumo", "whatsapp", "whatsapp_groups_resumo",
+                        "leads_x_whatsapp", "vendas_grupos_whatsapp", "compradores_por_dia_grupo"},
+}
+LEITORES_VENDAS: set[str] = {
+    "vendas", "vendas_consolidado", "dia1_sales", "hotmart_details", "tmb_details",
+    "forma_pagamento_entrada", "compradores_por_dia_grupo",
+}
+
+
+def leitores_para_fontes(fontes: Iterable[str] | None) -> set[str] | None:
+    """Prefixos a recomputar para as fontes que rodaram. None = tudo (aquecimento
+    periódico, ETL manual, ou quando não deu pra saber o que rodou)."""
+    if fontes is None:
+        return None
+    escopo = set(LEITORES_VENDAS)
+    for fonte in fontes:
+        escopo |= LEITORES_POR_FONTE.get(fonte, set())
+    return escopo
+
+
+def fontes_recem_concluidas(minutos: int = 15) -> list[str] | None:
+    """Fontes com rodada 'ok' terminada nos últimos `minutos`, lidas de etl_runs —
+    é como o dashboard descobre o que o scheduler acabou de rodar quando o aviso
+    não diz. None se não der pra saber (aí recomputa tudo, como antes)."""
+    from sqlalchemy import text  # noqa: PLC0415
+    from frontend.db import _get_engine  # noqa: PLC0415
+    try:
+        with _get_engine().connect() as conn:
+            rows = conn.execute(text(
+                "SELECT DISTINCT source FROM etl_runs "
+                "WHERE status = 'ok' AND finished_at > now() - make_interval(mins => :m)"
+            ), {"m": minutos}).fetchall()
+        return [r[0] for r in rows] or None
+    except Exception:
+        logger.exception("Não deu pra ler etl_runs pra descobrir as fontes da rodada")
+        return None
+
 
 def select_launches_to_warm(launches: list, codes: Iterable[str] | None = None) -> list:
     """Mais recente por produto (só se ainda em andamento ou encerrado há até
@@ -130,20 +185,32 @@ async def warm_launch(launch: Any, previous: Any, launches: list | None = None) 
         logger.exception("Falha no pre-warming de WhatsApp/SendFlow para %s", launch.code)
 
 
-async def warm_active(codes: Iterable[str] | None = None, invalidate: bool = False, origem: str = "boot") -> list[str]:
+async def warm_active(codes: Iterable[str] | None = None, invalidate: bool = False, origem: str = "boot",
+                      fontes: Iterable[str] | None = None) -> list[str]:
     """Aquece os lançamentos ativos (ou só `codes`), um por vez. Com
     `invalidate=True` (caminho pós-ETL: o banco mudou), recomputa cada
     leitura NO LUGAR — quem abrir a página durante o re-aquecimento segue
     recebendo o valor anterior na hora, sem janela fria (ver
     force_refresh_start em frontend/cache.py). Apagar o cache antes, como
-    era feito, deixava a página fria por minutos a cada rodada do ETL."""
+    era feito, deixava a página fria por minutos a cada rodada do ETL.
+
+    `fontes` (só com invalidate): quais fontes do ETL acabaram de rodar —
+    limita a recomputação aos leitores delas (LEITORES_POR_FONTE). None
+    recomputa tudo."""
     async with _WARM_LOCK:
         if invalidate:
             reset_launches_cache()  # lançamento criado/renomeado pelo ETL aparece na lista
         launches = await run_in_threadpool(get_launches)
         to_warm = select_launches_to_warm(launches, codes)
         logger.info("Aquecimento (%s) de %d lançamento(s): %s", origem, len(to_warm), ", ".join(l.code for l in to_warm) or "-")
-        token = force_refresh_start() if invalidate else None
+        escopo = leitores_para_fontes(list(fontes) if fontes is not None else None) if invalidate else None
+        if invalidate:
+            logger.info("Aquecimento (%s): fontes=%s -> recomputa %s", origem,
+                        ", ".join(fontes) if fontes else "todas",
+                        "todos os leitores" if escopo is None else ", ".join(sorted(escopo)))
+        # O escopo por código deixa o lançamento anterior (lido pelo comparativo
+        # do ativo) no TTL normal em vez de recomputá-lo a cada aviso do ETL.
+        token = force_refresh_start(readers=escopo, codes={l.code for l in to_warm}) if invalidate else None
         try:
             for l in to_warm:
                 await warm_launch(l, find_previous_launch(l, launches), launches)
@@ -159,8 +226,9 @@ async def warm_active(codes: Iterable[str] | None = None, invalidate: bool = Fal
 _TASKS: set = set()
 
 
-def schedule_warm(codes: Iterable[str] | None = None, invalidate: bool = False, origem: str = "boot") -> asyncio.Task:
-    task = asyncio.create_task(warm_active(codes, invalidate=invalidate, origem=origem))
+def schedule_warm(codes: Iterable[str] | None = None, invalidate: bool = False, origem: str = "boot",
+                  fontes: Iterable[str] | None = None) -> asyncio.Task:
+    task = asyncio.create_task(warm_active(codes, invalidate=invalidate, origem=origem, fontes=fontes))
     _TASKS.add(task)
     task.add_done_callback(_TASKS.discard)
     return task

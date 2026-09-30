@@ -6,7 +6,7 @@ from __future__ import annotations
 import contextvars
 import threading
 import time as _time_module
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 
 # ── Cache com TTL ──────────────────────────────────────────────────────────────
 _CACHE: dict[str, tuple[Any, float]] = {}
@@ -23,15 +23,52 @@ _CACHE_MAX_SIZE: int = 2000  # máx de entradas; evicta 20% das mais antigas ao 
 # dele, as requisições normais continuam recebendo o valor antigo na hora.
 # O timestamp evita recomputar duas vezes a mesma chave num mesmo
 # aquecimento (ex.: read_vendas chamado por meta, google e vendas).
-_FORCE_REFRESH_SINCE: contextvars.ContextVar[float | None] = contextvars.ContextVar("bs_force_refresh_since", default=None)
+#
+# Escopo (30/09/26 — egress): o ciclo curto do ETL (meta/google/ga4/sheets, a
+# cada 30 min) avisa o dashboard, e o aviso recomputava TODOS os leitores dos
+# lançamentos ativos — Typeform congelado, pesquisa nova, leads, WhatsApp —
+# embora só os anúncios tivessem mudado. Isso era a maior parte do egress que
+# sobrou depois das correções de 14-18/09. O contexto agora carrega também
+# quais prefixos de leitor (parte da chave antes de "::") e quais lançamentos
+# estão no escopo; o que fica fora segue no TTL normal e no aquecimento
+# periódico (que continua recomputando tudo).
+_FORCE_REFRESH: contextvars.ContextVar[tuple[float, frozenset[str] | None, frozenset[str] | None] | None] = (
+    contextvars.ContextVar("bs_force_refresh", default=None)
+)
 
 
-def force_refresh_start() -> contextvars.Token:
-    return _FORCE_REFRESH_SINCE.set(_time_module.time())
+def force_refresh_start(readers: Iterable[str] | None = None, codes: Iterable[str] | None = None) -> contextvars.Token:
+    """`readers`: prefixos de chave a recomputar (None = todos). `codes`:
+    lançamentos no escopo (None = todos)."""
+    return _FORCE_REFRESH.set((
+        _time_module.time(),
+        frozenset(readers) if readers is not None else None,
+        frozenset(codes) if codes is not None else None,
+    ))
 
 
 def force_refresh_end(token: contextvars.Token) -> None:
-    _FORCE_REFRESH_SINCE.reset(token)
+    _FORCE_REFRESH.reset(token)
+
+
+def _reader_prefix(reader: str) -> str:
+    return reader.split("::", 1)[0]
+
+
+def _force_refresh_since(launch_code: str, reader: str) -> float | None:
+    """Timestamp do refresh forçado em vigor para esta chave, ou None se não há
+    refresh forçado ou a chave está fora do escopo dele."""
+    ctx = _FORCE_REFRESH.get()
+    if ctx is None:
+        return None
+    since, readers, codes = ctx
+    if readers is not None and _reader_prefix(reader) not in readers:
+        return None
+    # Chave composta (comparativo: "{anterior}_{atual}_{anterior2}") entra se
+    # qualquer código do escopo aparecer nela — mesmo critério de _invalidate.
+    if codes is not None and launch_code not in codes and not any(p in codes for p in launch_code.split("_")):
+        return None
+    return since
 
 
 def _cache_key(launch_code: str, reader: str) -> str:
@@ -113,7 +150,7 @@ def _get_or_compute(launch_code: str, reader: str, compute: Callable[[], Any], t
     leve e atualizada a cada 30 min), pra refletir o dado novo mais rápido
     sem precisar esperar o TTL longo pensado pras consultas pesadas."""
     key = _cache_key(launch_code, reader)
-    force_since = _FORCE_REFRESH_SINCE.get()
+    force_since = _force_refresh_since(launch_code, reader)
     if force_since is not None and _STORED_AT.get(key, 0.0) < force_since:
         # Re-aquecimento pós-ETL: recomputa agora e grava por cima (quem está
         # fora deste contexto segue lendo o valor antigo até a gravação).

@@ -12,6 +12,7 @@ from typing import Any, Optional
 
 import pandas as pd
 from sqlalchemy import text
+from sqlalchemy.exc import ProgrammingError
 
 from logger import get_logger
 from frontend.utils import _norm_text, _extract_launch_code
@@ -205,9 +206,39 @@ def _read_novo_sistema_emails(formulario_ids: list[int]) -> set[str]:
     return {str(e).strip().lower() for e in emails if e and "@" in str(e)}
 
 
+# Materialização da pesquisa nova (etl/materializar_pesquisa.sql): uma linha
+# por submissão com os valores já extraídos do jsonb, atualizada pelo pg_cron a
+# cada 15 min. Tira do caminho quente o JOIN submissoes×respostas×perguntas
+# (929 mil linhas) e o envelope {'texto'/'opcao'/'opcoes'} de cada resposta —
+# a linha fica ~40% menor (30/09/26, egress). O leitor cacheia por 1h, então o
+# atraso de até 15 min da materialização não muda nada na prática.
+_PESQUISA_MATVIEW = "pesquisa_respostas_valores"
+
+
 def _read_novo_sistema_respostas(formulario_ids: list[int]) -> pd.DataFrame:
     """Tabular email_norm + uma coluna por pergunta (titulo), no mesmo formato
-    que _reconstruct_tabular_df produz pro Typeform — dá pra concatenar direto."""
+    que _reconstruct_tabular_df produz pro Typeform — dá pra concatenar direto.
+
+    Lê a materialização; se ela não existir (banco sem a migração), cai no
+    JOIN ao vivo (_read_novo_sistema_respostas_join), que produz a mesma saída."""
+    if not formulario_ids:
+        return pd.DataFrame()
+
+    engine = _get_engine()
+    try:
+        with engine.connect() as conn:
+            rows = conn.execute(text(
+                f"SELECT submissao_id, valores FROM {_PESQUISA_MATVIEW} "
+                "WHERE formulario_id = ANY(:fids) ORDER BY submissao_id"
+            ), {"fids": formulario_ids}).fetchall()
+    except ProgrammingError:
+        logger.warning("%s não existe — lendo a pesquisa nova pelo JOIN ao vivo", _PESQUISA_MATVIEW)
+        return _read_novo_sistema_respostas_join(formulario_ids)
+    return _wide_pesquisa([dict(valores or {}) for _sid, valores in rows])
+
+
+def _read_novo_sistema_respostas_join(formulario_ids: list[int]) -> pd.DataFrame:
+    """Versão sem materialização: agrega no banco e extrai o valor aqui."""
     if not formulario_ids:
         return pd.DataFrame()
 
@@ -249,10 +280,19 @@ def _read_novo_sistema_respostas(formulario_ids: list[int]) -> pd.DataFrame:
     # extraído do jsonb (mesmo formato do pivot antigo). Título repetido entre
     # formulários casados pelo mesmo código: o jsonb_object_agg fica com o
     # último — não é o caso hoje (1 formulário por código).
-    wide = pd.DataFrame.from_records([
+    return _wide_pesquisa([
         {pergunta: _extract_valor(valor) for pergunta, valor in (resp or {}).items()}
         for _sid, resp in rows
     ])
+
+
+def _wide_pesquisa(registros: list[dict[str, str]]) -> pd.DataFrame:
+    """Monta o DataFrame largo (email_norm + colunas por pergunta) a partir de
+    um dict {titulo: valor_texto} por submissão. Compartilhado pelos dois
+    caminhos de leitura pra que produzam exatamente a mesma saída."""
+    if not registros:
+        return pd.DataFrame()
+    wide = pd.DataFrame.from_records(registros)
     if wide.empty:
         return pd.DataFrame()
 

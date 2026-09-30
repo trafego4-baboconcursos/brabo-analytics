@@ -1,10 +1,13 @@
 ---
-titulo: "Arquitetura do Brabo Analytics — 2026-09-22"
+titulo: "Arquitetura do Brabo Analytics — 2026-09-30"
 area: sistema
 status: vigente
-atualizado: 2026-09-22
+atualizado: 2026-09-30
 responde:
   - "como o sistema funciona por dentro"
+  - "por que o aviso do etl recomputa so parte do cache"
+  - "onde fica a materializacao da pesquisa nova"
+  - "por que o egress do banco operacional (comercial_project) era alto"
   - "onde fica o css e o js do dashboard"
   - "como pegar regressao visual no frontend"
   - "por que o navegador serve css velho depois do deploy"
@@ -36,7 +39,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 74 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 78 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -301,6 +304,13 @@ relacionados:
 > - [[ARQUITETURA#Mudan?as Implementadas|Mudan?as Implementadas]]
 > - [[ARQUITETURA#Verificação do acesso (2026-09-22)|Verificação do acesso (2026-09-22)]]
 > - [[ARQUITETURA#Duas armadilhas encontradas no roteamento de token|Duas armadilhas encontradas no roteamento de token]]
+>
+> **Egress — refresh seletivo pós-ETL, vendas sem `SELECT *`, pesquisa nova materializada (2026-09-30)**
+>
+> - [[ARQUITETURA#1. O aviso do ETL recomputava tudo, a cada 30 min|1. O aviso do ETL recomputava tudo, a cada 30 min]]
+> - [[ARQUITETURA#2. Vendas: `SELECT *` de 66 colunas e histórico inteiro por chamada|2. Vendas: `SELECT *` de 66 colunas e histórico inteiro por chamada]]
+> - [[ARQUITETURA#3. Pesquisa nova materializada|3. Pesquisa nova materializada]]
+> - [[ARQUITETURA#Como conferir se valeu|Como conferir se valeu]]
 
 <!-- SUMARIO:FIM -->
 
@@ -3387,3 +3397,92 @@ live/replay preenchido.
    atual de PES e PBB. O resultado seria a tabela inteira zerada sem nenhum aviso. Agora esse
    caminho emite `logger.warning` nomeando a variável que faltou. O log de sucesso também foi
    corrigido: dizia sempre "Usando YOUTUBE_REFRESH_TOKEN do .env", mesmo usando o `_PI`.
+
+---
+
+## Egress — refresh seletivo pós-ETL, vendas sem `SELECT *`, pesquisa nova materializada (2026-09-30)
+
+Painel da org em 30/09 (ciclo 12/09–12/10, 18 dias): **588,7 GB** de egress, US$ 30,48 de
+excedente — `marketing_project` 495,8 GB e `comercial_project` 92,8 GB. O `comercial_project`
+é o banco **operacional** deste dashboard (`SUPABASE_USERS_URL`: hotmart, tmb, users,
+launch_config), então os dois números são nossos. Pelo `pg_stat_statements`, o que sobrou
+depois das correções de 14–18/09 tinha três causas, atacadas aqui nesta ordem de impacto.
+
+### 1. O aviso do ETL recomputava tudo, a cada 30 min
+
+O ciclo curto do scheduler (`meta_ads`, `google_ads`, `ga4`, `sheets_contagem`) chama
+`POST /api/etl/refresh`, e o dashboard respondia com `warm_active(invalidate=True)`: **todos**
+os leitores dos lançamentos ativos (e dos anteriores, via comparativo) eram recomputados —
+Typeform congelado, pesquisa nova, `leads`, grupos de WhatsApp, vendas — embora só os
+anúncios tivessem mudado. O que de fato muda a cada 30 min cabe em 1–2 GB/dia; o resto era
+releitura de dado parado. Foi por isso que dobrar `PRE_WARM_INTERVAL_MIN` (18/09) quase não
+apareceu no egress: a cadência efetiva era a do ETL.
+
+**O que mudou** (`frontend/cache.py`, `frontend/services/prewarm.py`, `frontend/routes/api.py`):
+
+- `force_refresh_start(readers=…, codes=…)` — o contexto do refresh forçado carrega um
+  conjunto de **prefixos de leitor** (parte da chave antes de `::`) e de **códigos de
+  lançamento**. `_get_or_compute` só recomputa no lugar a chave que está nos dois escopos; o
+  resto segue no TTL de 1h. Sem argumentos, o comportamento é o antigo (tudo) — é o que o
+  aquecimento periódico, o ETL manual e o `?ao_vivo=1` continuam usando.
+- `LEITORES_POR_FONTE` (prewarm.py) diz que leitores dependem de cada fonte do ETL.
+  `LEITORES_VENDAS` entra em todo aviso de propósito: vendas não têm fonte no ETL (Hotmart e
+  TMB sincronizam por fora), mas o dia 1 do carrinho é acompanhado hora a hora.
+- `/api/etl/refresh` aceita `{"sources": [...]}` no body. O scheduler ainda não manda; enquanto
+  isso o dashboard descobre pela `etl_runs` (`fontes_recem_concluidas`: rodadas `ok` nos
+  últimos 15 min). Se não der pra saber, recomputa tudo, como antes.
+- O escopo por código deixa o lançamento **anterior** (lido pelo comparativo do ativo) no TTL
+  normal em vez de recomputá-lo a cada aviso.
+
+Pré-requisito que não mudou: o aviso só existe se `ETL_REFRESH_TOKEN` e `FRONTEND_URL`
+estiverem configurados nos dois serviços. Sem eles, só o aquecimento periódico (1h, tudo) roda.
+
+### 2. Vendas: `SELECT *` de 66 colunas e histórico inteiro por chamada
+
+No banco operacional, `hotmart_clean_oficial` tem 66 colunas e **636 bytes por linha**; o
+dashboard usava ~13 delas (~120 bytes). Três leituras respondiam pela maior parte do egress
+desse banco (`pg_stat_statements` desde 12/02/26):
+
+| Leitor | Antes | Agora |
+|---|---|---|
+| `read_vendas` (`sales.py`) | `SELECT *` (66 col.) na Hotmart, `c.*` no TMB; 37 mil chamadas / 39 M linhas | só as colunas que o loop usa (13 Hotmart, 9 TMB) |
+| `read_hotmart_details` (`hotmart.py`) | `SELECT *` | 11 colunas |
+| `read_dia1_sales` (`sales.py`) | baixava **toda** venda aprovada do produto (~5,5 mil linhas/chamada, 109 M acumuladas) e recortava o dia no pandas | recorte do dia no SQL (`ts BETWEEN`); o filtro em pandas ficou como estava |
+| `read_hotmart_recompra` (`hotmart.py`) | histórico inteiro de `hotmart_oficial` (~17,8 mil linhas/chamada, 180 M acumuladas) | pré-filtro de data no SQL com 1 dia de folga; só os 3 formatos de data conhecidos são recortados — formato desconhecido passa e o pandas decide, como antes (a tabela é crua, um cast que falhe derrubaria a consulta) |
+
+Saída idêntica: verificado com `tests/test_caracterizacao_readers.py` contra baseline gerado
+com o código anterior minutos antes (PBB-ABR-26 e PI-AGO-26; ver
+"Como validar mudança de reader sem regressão").
+
+### 3. Pesquisa nova materializada
+
+`_read_novo_sistema_respostas` agregava `jsonb_object_agg(p.titulo, r.valor)` sobre o JOIN de
+929 mil respostas a cada recarga, devolvendo ~20 mil linhas de ~1,8 KB por lançamento
+(2,6 GB/dia). O envelope de cada resposta (`{'texto'}`, `{'opcao','texto_outro'}`,
+`{'opcoes'}`) era descartado logo em seguida pelo `_extract_valor`.
+
+- `etl/materializar_pesquisa.sql` cria a **materialized view** `pesquisa_respostas_valores`
+  (uma linha por submissão: `submissao_id`, `formulario_id`, `created_at`, `email_norm`,
+  `valores` jsonb já extraído — mesma regra do `_extract_valor`, replicada em SQL) e agenda
+  `REFRESH MATERIALIZED VIEW CONCURRENTLY` no **pg_cron a cada 15 min**
+  (job `pesquisa_respostas_valores_refresh`). Aplicada em produção em 30/09/26: 54.661 linhas,
+  94 MB, ~1,4 KB/linha, refresh em ~4 s. Como o leitor cacheia por 1h, o atraso de até 15 min
+  não aparece. É um arquivo à parte, como `etl/materializar_typeform.sql` — falta entrar no
+  `etl/schema.sql`.
+- O leitor lê da view (`ORDER BY submissao_id`, então a ordem passou a ser determinística);
+  se a view não existir, cai no JOIN antigo (`_read_novo_sistema_respostas_join`). Os dois
+  caminhos passam por `_wide_pesquisa`, que monta o DataFrame — e foram comparados célula a
+  célula nos formulários 9 (PBB-AGO-26, 27.160 × 20) e 13 (PES-SET-26, 17.206 × 20):
+  **zero diferenças**, inclusive depois do `drop_duplicates(keep="last")`. Leitura 2× mais
+  rápida.
+- Mudou a regra de extração no Python? Mude na view também e rode o `REFRESH`.
+
+### Como conferir se valeu
+
+`python scripts/checar_egress.py` (pesa por byte) depois de um `pg_stat_statements_reset()`
+com o código novo no ar. No banco operacional o `pg_stat_statements` nunca foi zerado
+(desde 12/02/26) — zerar lá também antes de medir. Meta: os dois projetos somados abaixo de
+~8 GB/dia (250 GB/mês).
+
+Reverter: `_backup_egress_leitores_20260930/` no repo tem os originais; a materialização pode
+ficar (o código antigo não a usa).

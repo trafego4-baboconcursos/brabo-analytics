@@ -2,7 +2,7 @@
 titulo: "Arquitetura do Brabo Analytics — 2026-09-22"
 area: sistema
 status: vigente
-atualizado: 2026-09-22
+atualizado: 2026-09-29
 responde:
   - "como o sistema funciona por dentro"
   - "onde fica o css e o js do dashboard"
@@ -12,6 +12,9 @@ responde:
   - "responsabilidade de cada arquivo"
   - "onde fica o calendario e por que"
   - "cache, scheduler, seguranca"
+  - "pagina acusa falha em Meta e Google mas o problema e outro"
+  - "senha com # na url do banco"
+  - "por que /vendas aparece sem dados"
   - "como a venda entra na pagina de campanhas de e-mail"
   - "por que clique de e-mail vinha inflado"
   - "salvei no wizard e nao apareceu no debriefing"
@@ -45,6 +48,12 @@ relacionados:
 > **God Module Split (S1–S9 em 2026-07-01; encerrado em 2026-09-15)**
 >
 > - [[ARQUITETURA#S10 — fim do shim (2026-09-15)|S10 — fim do shim (2026-09-15)]]
+>
+> **Banco operacional fora do ar: a página culpa Meta e Google (2026-10-01)**
+>
+>
+> **Operação de ads — `scripts/ads/` (2026-09-29)**
+>
 >
 > **Engajamento de e-mail desce ao contato — e vira venda (2026-09-22)**
 >
@@ -275,7 +284,7 @@ relacionados:
 >
 > **Conta do Meta fora do ETL, e as armadilhas do backfill (2026-09-18)**
 >
-> - [[ARQUITETURA#Três armadilhas do backfill longo|Três armadilhas do backfill longo]]
+> - [[ARQUITETURA#Quatro armadilhas do backfill longo|Quatro armadilhas do backfill longo]]
 >
 > **CSS e JS saíram do `base.html` para `/static` (2026-09-21)**
 >
@@ -454,6 +463,63 @@ campanha real derruba o teste.
 - `read_youtube_aulas` importada por `core.py` mas nunca existiu em nenhum arquivo → crash no startup. Corrigido com stub que retorna `[]`.
 
 ---
+
+## Banco operacional fora do ar: a página culpa Meta e Google (2026-10-01)
+
+**O sintoma mente.** Com `SUPABASE_USERS_URL` inválido, toda página mostra
+`Falha ao carregar: Meta Ads, Google Ads` — exatamente os dois que estão bem. O analytics
+responde normal; quem caiu é o operacional.
+
+**Por que a culpa cai no inocente.** `_meta()`/`_google()` em `services/fetch.py` começam por
+`_window(launch)`, que lê `launch_config` — tabela do banco **operacional**. Sem a janela de
+datas os dois leitores estouram, e o `_errors` que a página exibe nomeia o leitor que falhou,
+não a dependência que faltou. O debriefing ainda parece íntegro porque serve o
+`debriefing_snapshot` (analytics), então a tela fica convincente enquanto nada ao vivo funciona.
+
+**`/health` é a única fonte honesta** — ele testa as duas conexões em separado:
+
+```json
+{"status":"degraded","db_analytics":"ok","db_operational":"error","launches_cached":14}
+```
+
+Checar isso primeiro economiza o diagnóstico inteiro. Sinais de apoio, todos efeito e não causa:
+`/debriefing?ao_vivo=1` em 500, abas Hotmart/TMB desabilitadas no subnav (o `discover_launches`
+não acha linha nas tabelas de venda) e KPI de receita vazio.
+
+**Senha com `#` quebra em dois lugares diferentes** e nenhum erro menciona senha. No `.env` o
+`dotenv` trata `#` como início de comentário e trunca o valor; na URL o `#` é o delimitador de
+fragmento, então `urlparse` corta a senha e tenta ler o resto como porta — o erro que aparece é
+`Port could not be cast to integer value as '<pedaço da senha>'`. **Aspas não resolvem** (o
+problema é o parser de URL, não o dotenv): a senha tem de ir percent-encoded, `#` → `%23`. Vale
+para o `.env` local **e** para a variável no EasyPanel. Ver [[RESTAURAR_MAQUINA_NOVA]].
+
+**`/vendas` não serve de termômetro:** é página da era CSV e pede
+`analises/[LANCAMENTO]/Vendas/hotmart*.csv`; não lê o banco. "Sem dados" ali é o normal dela,
+não incidente. Venda de verdade está no `/debriefing`, no `/hotmart` e no `/afiliados`.
+
+---
+
+## Operação de ads — `scripts/ads/` (2026-09-29)
+
+Cada operação nas plataformas (trocar público, verba, data de fim, status, subir lista) era refeita num script
+temporário que sumia no fim da conversa — e os erros se repetiam (helper que engolia HTTP 4xx e devolvia vazio,
+dict sem `json.dumps` no payload do Meta, pixel faltando em anúncio replicado, lista do Google com duração 0).
+Virou um pacote no repositório:
+
+- `scripts/ads/padroes.py` — valores fixos (contas, pixels, páginas, UTM, idade, geo, regulação BR, pisos de verba).
+- `scripts/ads/meta.py` — cliente da Marketing API que **falha alto** (`MetaErro` com subcode e explicação),
+  serializa sozinho campos aninhados e traz operações que conferem o resultado: targeting lido-alterado-devolvido
+  inteiro, status e fim nos 3 níveis, verba com piso, usersreplace, criativo com UTM em `url_tags`, anúncio sempre
+  com pixel no `tracking_specs`.
+- `scripts/ads/google.py` — cliente REST do Google Ads + Data Manager (`GoogleErro`; recusa mutar VIDEO com
+  `ManualObrigatorio`; verba só em orçamento próprio; exclusão no resource Audience; Customer Match com MCC).
+- `scripts/ads/conferir.py` — `python -m scripts.ads.conferir BV-26`: checklist do padrão em todas as campanhas
+  de um lançamento, só leitura. Na primeira rodada achou 19 anúncios do BV-26 sem pixel e 6 Demand Gen sem região.
+- Testes das partes puras em `tests/test_ads.py`. Uso e regras: `docs/performance/playbooks/MANUAL_OPERACAO_ADS.md`.
+- `scripts/orcamento.py <LANC>` — previsto × realizado de verba de qualquer lançamento: lê o bloco `CONFIG`
+  (contas, início, etapas pelo nome da campanha) e a tabela `PLANO` do `ORCAMENTO_<LANC>.md`, busca o gasto e a
+  verba ao vivo e reescreve as seções geradas do doc. Substituiu o `bv26_orcamento.py` (29/09), com saída idêntica.
+  Molde em `docs/performance/playbooks/MODELO_ORCAMENTO.md`.
 
 ## Engajamento de e-mail desce ao contato — e vira venda (2026-09-22)
 
@@ -1465,6 +1531,12 @@ a régua em branco ao expandir de novo. `.launch-name`/`.project-badge`/`.chip`/
 locais — cores por produto/etapa não têm componente compartilhado equivalente.
 
 ## Documentação como sistema (2026-09-14)
+
+**Navegação da performance (2026-09-29):** cada lançamento tem um hub — o diário `MUDANCAS_<LANÇAMENTO>` —
+com uma linha 🧭 logo abaixo do título listando os docs da pasta, o lançamento anterior/seguinte do mesmo
+produto e as referências fixas (`REGRAS_DECISAO`, `MANUAL_OPERACAO_ADS`, `FECHAMENTO_LANCAMENTO`). Todo doc
+da pasta tem o hub em `relacionados`. O `INDICE_PERFORMANCE` abre com a tabela "quero saber X → abra Y" e lista
+os lançamentos por produto. Doc novo de lançamento: pôr o hub nos `relacionados` e o doc na linha 🧭 do hub.
 
 `docs/` deixou de ser uma pasta de arquivos soltos e virou um vault com roteamento, para que
 nem pessoa nem agente precise ler tudo para achar uma coisa. Três camadas:
@@ -3048,7 +3120,7 @@ plataformas — estava em **distribuição e perpétuo**, porque as contas ausen
 sem tag de lançamento (fora o Específico, já corrigido por um backfill dirigido com
 `--launch-code`). Reprocessar lançamento era risco pelo risco.
 
-### Três armadilhas do backfill longo
+### Quatro armadilhas do backfill longo
 
 1. **`run_all.py` mata a fonte em 900s.** Meta em nível de anúncio, 6 semanas, não cabe. Morre
    sem gravar nada — o ETL busca tudo antes de escrever, então o timeout não corrompe, só perde
@@ -3061,6 +3133,12 @@ sem tag de lançamento (fora o Específico, já corrigido por um backfill dirigi
    `scripts/backup_ads_periodo.py`, que tira a foto antes e gera o resumo por lançamento usado
    na conferência depois. Com `--launch-code`, o filtro vale pro DELETE **e** pro dataframe, então
    dá pra reprocessar um lançamento sem tocar nos vizinhos.
+4. **Backfill não sobrevive à causa raiz.** O scheduler roda um job profundo de **18 dias**
+   toda madrugada (`etl_carga_profunda`, 3h40). Como o upsert apaga a janela inteira sem filtro
+   de conta, tudo que foi backfillado dentro desses 18 dias é apagado na madrugada seguinte se a
+   conta de origem não estiver no `.env` **do servidor**. Aconteceu com o perpétuo: o backfill de
+   21/09 (R$ 3,7 mil do Google) durou menos de 24h e o dado voltou a terminar em 03/09 — ver
+   [[ACOMPANHAMENTO_PERPETUO_MEQ]] § 3. **Ordem certa: corrigir a variável → redeploy → backfill.**
 
 **`PAGE_SIZE` de 50 → 500** em `etl_meta_ads.py` (insights de anúncio, demografia e região).
 Medido na conta mais pesada, 3 dias, mesmas 1.126 linhas: 50 → 23 páginas em 103,9s; 200 → 6 em

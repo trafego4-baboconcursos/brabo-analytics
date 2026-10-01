@@ -361,16 +361,23 @@ async def api_etl_refresh(request: Request):
         return JSONResponse({"ok": False, "error": "não autorizado"}, status_code=403)
 
     codes = None
+    fontes = None
     body = await request.body()
     if body:
         try:
-            codes = (_json.loads(body) or {}).get("launch_codes") or None
+            dados = _json.loads(body) or {}
+            codes = dados.get("launch_codes") or None
+            fontes = dados.get("sources") or None
         except Exception:
             return JSONResponse({"ok": False, "error": "body inválido"}, status_code=400)
 
-    from frontend.services.prewarm import schedule_warm  # noqa: PLC0415
-    schedule_warm(codes, invalidate=True, origem="etl")
-    return {"ok": True, "scheduled": codes or "ativos"}
+    from frontend.services.prewarm import schedule_warm, fontes_recem_concluidas  # noqa: PLC0415
+    if fontes is None:
+        # O scheduler não diz quais fontes rodaram; etl_runs diz. Só os
+        # leitores dessas fontes são recomputados (ver LEITORES_POR_FONTE).
+        fontes = await run_in_threadpool(fontes_recem_concluidas)
+    schedule_warm(codes, invalidate=True, origem="etl", fontes=fontes)
+    return {"ok": True, "scheduled": codes or "ativos", "sources": fontes or "todas"}
 
 
 # ── Health ─────────────────────────────────────────────────────────────────────

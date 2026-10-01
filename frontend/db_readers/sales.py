@@ -104,7 +104,11 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
     def _query_hotmart(use_ids: bool) -> pd.DataFrame:
         sql = (
             r"""
-            SELECT * FROM hotmart_clean_oficial
+            SELECT codigo_da_transacao, email_do_a_comprador_a, metodo_de_pagamento,
+                   tipo_de_cobranca, quantidade_de_cobrancas, quantidade_total_de_parcelas,
+                   faturamento_liquido, valor_de_compra_sem_impostos, valor_de_compra_com_impostos,
+                   telefone, comprador_a, estado_provincia, codigo_sck
+            FROM hotmart_clean_oficial
             WHERE status_da_transacao IN ('Completa', 'Aprovada', 'Paga', 'Completo', 'Aprovado', 'Pago', 'approved', 'complete', 'APPROVED', 'COMPLETED')
               AND CASE
                   WHEN produto ILIKE '%inss%' THEN 'INSS'
@@ -139,7 +143,9 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
         # cobrança, então usa data_efetivado (data real do evento de pagamento).
         sql = r"""
             SELECT * FROM (
-                SELECT c.*, o.criado_em AS tmb_oficial_criado_em,
+                SELECT c.pedido, c.email_cliente, c.valor_liquido, c.forma_pagamento,
+                       c.telefone, c.nome_cliente, c.estado, c.utm_source, c.lancamento_id,
+                       o.criado_em AS tmb_oficial_criado_em,
                     CASE WHEN NULLIF(TRIM(o.criado_em),'') ~ '^\d{2}/\d{2}/\d{4}' THEN to_timestamp(TRIM(o.criado_em),'DD/MM/YYYY HH24:MI:SS')::date
                          WHEN NULLIF(TRIM(o.criado_em),'') ~ '^\d{4}-\d{2}-\d{2}' THEN TRIM(o.criado_em)::timestamp::date
                          ELSE NULL END AS _criado_date,
@@ -571,6 +577,9 @@ def read_dia1_sales(launch: Any) -> dict:
             else "AND " + project_case + " = :project"
         )
         hm_sql = r"""
+            SELECT ts, faturamento_liquido, valor_de_compra_sem_impostos, valor_de_compra_com_impostos,
+                   tipo_de_cobranca, venda_feita_como, quantidade_de_cobrancas, quantidade_total_de_parcelas
+            FROM (
             SELECT
               COALESCE(
                 CASE WHEN NULLIF(data_da_transacao,'') ~ '^\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}$'
@@ -596,8 +605,14 @@ def read_dia1_sales(launch: Any) -> dict:
                   email_do_a_comprador_a NOT ILIKE '%+teste%'
                   AND email_do_a_comprador_a NOT ILIKE '%@aprovasim.com'
               ))
+            ) t
+            WHERE t.ts IS NOT NULL AND t.ts BETWEEN :day_start AND :day_end
         """
-        params: dict = {"status": list(_HOTMART_STATUS_APROVADO)}
+        # O recorte do dia era feito no pandas depois de baixar TODA a venda
+        # aprovada do produto (~5,5 mil linhas por chamada; 109 milhões de
+        # linhas acumuladas no banco operacional — 30/09/26, egress). Agora só
+        # volta o dia da abertura; o filtro em pandas abaixo fica como estava.
+        params: dict = {"status": list(_HOTMART_STATUS_APROVADO), "day_start": day_start, "day_end": day_end}
         if hotmart_ids:
             params["product_ids"] = hotmart_ids
         else:

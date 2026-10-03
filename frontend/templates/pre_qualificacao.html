@@ -7,7 +7,7 @@
       <img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics">
     </a>
     <div>
-      <h1>Pré-Qualificação{% if launch %} — {{ launch.code }}{% endif %}</h1>
+      <h1>{{ etapa_pq }}{% if launch %} — {{ launch.code }}{% endif %}</h1>
       <p>{% if launch %}{{ launch.name }}{% endif %} | Performance diária por plataforma na etapa de pré-qualificação</p>
     </div>
   </div>
@@ -32,7 +32,7 @@
 
     {% from "_macros_platform.html" import plat_badge %}
 
-    {# ── Resumo de Investimento — Pré-Qualificação ───────────────────────── #}
+    {# ── Resumo de Investimento — etapa ───────────────────────── #}
     <div class="section">
     <div class="section-title">1. Resumo de Investimento</div>
     <div class="tp-kpi-grid">
@@ -41,7 +41,7 @@
           <div class="tp-icon warning"><i class="ti ti-coin"></i></div>
         </div>
         <div class="tp-value">{{ invest_preq | brl }}</div>
-        <div class="tp-label">Investimento — Pré-Qualificação</div>
+        <div class="tp-label">Investimento — {{ etapa_pq }}</div>
         <div class="tp-compare">
           {% if meta %}Meta: {{ meta_preq_gasto | brl }}{% endif %}
           {% if google %}{% if meta %} · {% endif %}Google: {{ google_preq_gasto | brl }}{% endif %}
@@ -53,7 +53,7 @@
           <div class="tp-icon meta"><i class="ti ti-users"></i></div>
         </div>
         <div class="tp-value">{{ leads_preq | num }}</div>
-        <div class="tp-label">Leads — Pré-Qualificação</div>
+        <div class="tp-label">Leads — {{ etapa_pq }}</div>
         <div class="tp-compare">
           {% if meta %}Meta: {{ meta_preq_leads | num }}{% endif %}
           {% if google %}{% if meta %} · {% endif %}Google: {{ "%.0f"|format(google_preq_conv) }}{% endif %}
@@ -65,7 +65,7 @@
           <div class="tp-icon success"><i class="ti ti-report-money"></i></div>
         </div>
         <div class="tp-value">{{ cpl_preq | brl }}</div>
-        <div class="tp-label">CPL — Pré-Qualificação</div>
+        <div class="tp-label">CPL — {{ etapa_pq }}</div>
         <div class="tp-compare">Investimento / leads (Meta + Google)</div>
       </div>
 
@@ -74,7 +74,7 @@
           <div class="tp-icon"><i class="ti ti-player-play"></i></div>
         </div>
         <div class="tp-value">{{ thruviews_preq | num }}</div>
-        <div class="tp-label">ThruViews/Views — Pré-Qualificação</div>
+        <div class="tp-label">ThruViews/Views — {{ etapa_pq }}</div>
         <div class="tp-compare">
           {% if meta %}Meta (ThruView): {{ meta_preq_thruviews | num }}{% endif %}
           {% if google %}{% if meta %} · {% endif %}Google (TrueView): {{ google_preq_views | num }}{% endif %}
@@ -153,7 +153,7 @@
           <tbody>
             {% set total_meta = meta.total_gasto or 1 %}
             {% for etapa, d in meta.por_etapa.items() %}
-            <tr {% if etapa != "Pré-Qualificação" %}style="opacity:0.45;"{% endif %}>
+            <tr {% if etapa != etapa_pq %}style="opacity:0.45;"{% endif %}>
               <td><span class="bs-pill meta">{{ etapa }}</span></td>
               <td class="numero">{{ d.gasto | brl }}</td>
               <td>
@@ -196,7 +196,7 @@
           <tbody>
             {% set total_google = google.total_custo or 1 %}
             {% for etapa, d in google.por_etapa.items() %}
-            <tr {% if etapa != "Pré-Qualificação" %}style="opacity:0.45;"{% endif %}>
+            <tr {% if etapa != etapa_pq %}style="opacity:0.45;"{% endif %}>
               <td><span class="bs-pill google">{{ etapa }}</span></td>
               <td class="numero">{{ d.custo | brl }}</td>
               <td>
@@ -334,7 +334,7 @@
     {% endif %}
     {% endmacro %}
 
-    {{ daily_table(daily_breakdown_preq, "5. Performance Diária por Plataforma — Pré-Qualificação") }}
+    {{ daily_table(daily_breakdown_preq, "5. Performance Diária por Plataforma — " ~ etapa_pq) }}
 
     {# ── % de Leads por Campanha ──────────────────────────────────────────── #}
     {% if leads_por_campanha %}

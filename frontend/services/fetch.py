@@ -8,6 +8,7 @@ from typing import Any
 
 from fastapi.concurrency import run_in_threadpool
 
+from src.constants import etapa_prequali
 from frontend.cache import _get_cached, _get_or_compute, _set_cached
 from frontend.db_readers import (
     read_meta, read_google, read_vendas, read_leads,
@@ -484,7 +485,11 @@ async def _fetch_all_data(
     async def _f_daily_inner():
         _cfg = await run_in_threadpool(_launch_cfg, launch.code)
         capt_filter = _cfg.get("filtro_captacao") or "captação"
-        preq_filter = _cfg.get("filtro_pre_quali") or "pré-qualificação"
+        # Sem filtro cadastrado, o padrão tem de ser o nome da etapa NESTE
+        # lançamento: campanha da Black se chama `[aquecimento]`, então o
+        # literal "pré-qualificação" nunca casava e a página inteira vinha
+        # vazia no BV-26 (o guard do template depende deste breakdown).
+        preq_filter = _cfg.get("filtro_pre_quali") or etapa_prequali(launch.code).lower()
         capt_start = _cfg.get("captacao_start_date") or _get_global_start(_cfg)
         capt_end   = _cfg.get("captacao_end_date")   or _get_global_end(_cfg)
         preq_start = _cfg.get("pre_quali_start_date") or _get_global_start(_cfg)

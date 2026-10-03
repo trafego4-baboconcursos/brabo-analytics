@@ -36,6 +36,19 @@ def etapa_prequali(launch_code: str | None = None) -> str:
     """Nome da etapa que ocupa o papel de Pré-Qualificação neste lançamento."""
     return "Aquecimento" if _e_black(launch_code) else "Pré-Qualificação"
 
+
+# Vocabulário de público ("clima"). A Black não tem Quente/Frio/Específico: o
+# público dela é Aluno (base do LMS), Super Quente (engajou com a oferta) e Novo.
+# Quem fixa a lista normal numa página da Black mostra três linhas zeradas —
+# foi o que aconteceu em /pre-qualificacao e /captacao com o BV-26.
+CLIMAS_ORDEM: list[str] = ["Quente", "Frio", "Específico"]
+CLIMAS_ORDEM_BLACK: list[str] = ["Aluno", "Super Quente", "Novo"]
+
+
+def climas_ordem(launch_code: str | None = None) -> list[str]:
+    """Públicos a exibir, na ordem, para este lançamento."""
+    return CLIMAS_ORDEM_BLACK if _e_black(launch_code) else CLIMAS_ORDEM
+
 PRODUCT_BY_PREFIX: dict[str, tuple[str, str, int]] = {
     "PI":       ("INSS",           "Instituto Nacional do Seguro Social", 1),
     "PES":      ("TJ-SP",          "Tribunal de Justiça de São Paulo",    2),

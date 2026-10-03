@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.constants import etapa_prequali
+from src.constants import climas_ordem, etapa_prequali
 from src.nomenclatura import TRILHA_BASE_FORTE, TRILHA_VITALICIA
 from frontend.services.attribution import _merge_google_tipo_sales
 from frontend.services.fetch import _launch_cfg
@@ -63,10 +63,11 @@ def _saude_classificacao(nota: int, roas: float, *, em_andamento: bool, sem_dado
     return {"label": label, "emoji": emoji, "cor": cor, "travado_por_roas": i_teto < i_nota}
 
 
-def _build_clima_breakdown(obj: Any, attr: str, leads_key: str = "leads") -> list:
+def _build_clima_breakdown(obj: Any, attr: str, leads_key: str = "leads",
+                           climas: list | None = None) -> list:
     d = getattr(obj, attr, {}) or {} if obj else {}
     rows = []
-    for c in _CLIMA_ORDER:
+    for c in (climas or _CLIMA_ORDER):
         v = d.get(c) or {}
         gasto = float(v.get("gasto") or v.get("custo") or 0)
         leads = v.get(leads_key)
@@ -815,6 +816,9 @@ def _compute_debriefing_ctx(
     # Indexa por_etapa, a atribuição de venda e o GA4 — todos guardados pela
     # etapa REAL —, e vai no ctx pro template usar como chave e como rótulo.
     etapa_pq = etapa_prequali(launch.code if launch else None)
+    # Vocabulário de público: a Black é Aluno/Super Quente/Novo, não
+    # Quente/Frio/Específico. Fixar a lista normal zera a seção na Black.
+    _climas = climas_ordem(launch.code if launch else None)
     cfg = _launch_cfg(launch.code) if launch else {}
     previsto_map = _previsto_por_etapa(cfg)
 
@@ -1132,22 +1136,22 @@ def _compute_debriefing_ctx(
         key=lambda x: _f(x.get("gasto")), reverse=True,
     )[:12] if google else []
 
-    meta_clima = _build_clima_breakdown(meta, "por_temperatura_captacao")
-    prev_meta_clima = _build_clima_breakdown(prev_meta, "por_temperatura_captacao")
+    meta_clima = _build_clima_breakdown(meta, "por_temperatura_captacao", climas=_climas)
+    prev_meta_clima = _build_clima_breakdown(prev_meta, "por_temperatura_captacao", climas=_climas)
     _attach_clima_variation(meta_clima, prev_meta_clima)
     _attach_clima_sales(meta_clima, (sales_attr or {}).get("meta_por_temperatura"))
 
-    google_clima = _build_clima_breakdown(google, "por_temperatura", leads_key="conversoes")
-    prev_google_clima = _build_clima_breakdown(prev_google, "por_temperatura", leads_key="conversoes")
+    google_clima = _build_clima_breakdown(google, "por_temperatura", leads_key="conversoes", climas=_climas)
+    prev_google_clima = _build_clima_breakdown(prev_google, "por_temperatura", leads_key="conversoes", climas=_climas)
     _attach_clima_variation(google_clima, prev_google_clima)
     _attach_clima_sales(google_clima, (sales_attr or {}).get("google_por_temperatura"))
 
-    meta_preq_clima = _build_clima_breakdown(meta, "por_temperatura_prequali")
-    prev_meta_preq_clima = _build_clima_breakdown(prev_meta, "por_temperatura_prequali")
+    meta_preq_clima = _build_clima_breakdown(meta, "por_temperatura_prequali", climas=_climas)
+    prev_meta_preq_clima = _build_clima_breakdown(prev_meta, "por_temperatura_prequali", climas=_climas)
     _attach_clima_variation(meta_preq_clima, prev_meta_preq_clima)
 
-    google_preq_clima = _build_clima_breakdown(google, "por_temperatura_prequali", leads_key="conversoes")
-    prev_google_preq_clima = _build_clima_breakdown(prev_google, "por_temperatura_prequali", leads_key="conversoes")
+    google_preq_clima = _build_clima_breakdown(google, "por_temperatura_prequali", leads_key="conversoes", climas=_climas)
+    prev_google_preq_clima = _build_clima_breakdown(prev_google, "por_temperatura_prequali", leads_key="conversoes", climas=_climas)
     _attach_clima_variation(google_preq_clima, prev_google_preq_clima)
 
     meta_preq_etapa = (getattr(meta, "por_etapa", {}) or {}).get(etapa_pq) or {}
@@ -1375,14 +1379,14 @@ def _compute_debriefing_ctx(
         "publicos_captacao": {
             c: v for c, v in (
                 (c, (getattr(meta, "por_publico_captacao", {}) or {}).get(c))
-                for c in _CLIMA_ORDER
+                for c in _climas
             ) if v
         },
         # Idem, Google Ads (audiências reais da API, sem categorização por nome)
         "publicos_captacao_google": {
             c: v for c, v in (
                 (c, (getattr(google, "por_publico_captacao", {}) or {}).get(c))
-                for c in _CLIMA_ORDER
+                for c in _climas
             ) if v
         },
         "rmkt_adsets": _build_rmkt_adsets(meta, google, whatsapp=wa_gasto, cfg=cfg),
@@ -1391,7 +1395,7 @@ def _compute_debriefing_ctx(
         "meta_temp_sales": meta_temp_sales, "google_tipo_sales": google_tipo_sales,
         "prev_meta_temp_sales": prev_meta_temp_sales, "prev_google_tipo_sales": prev_google_tipo_sales,
         "google_temp_sales": google_temp_sales, "prev_google_temp_sales": prev_google_temp_sales,
-        "clima_order": _CLIMA_ORDER,
+        "clima_order": _climas,
         "max_mt": max_mt, "max_gt": max_gt,
         "youtube_aulas": youtube_aulas or [],
         "max_peak_yt": max_peak_yt,

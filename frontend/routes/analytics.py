@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, Response
 from fastapi.concurrency import run_in_threadpool
 
+from src.constants import climas_ordem, etapa_prequali
 from frontend.cache import force_refresh_end, force_refresh_start
 from frontend.core import (
     templates, logger,
@@ -105,7 +106,9 @@ async def captacao(request: Request, launch_code: str | None = None):
     # % de Leads por Campanha — Facebook/YouTube por temperatura (só
     # Captação; a segmentação por temperatura não existe em Pré-Qualificação
     # neste sistema) + TikTok (sempre 0, sem fonte de dado ainda).
-    _clima_labels = ["Quente", "Frio", "Específico"]
+    # Na Black o vocabulário de público é outro (Aluno/Super Quente/Novo);
+    # fixar Quente/Frio/Específico mostrava três linhas zeradas.
+    _clima_labels = climas_ordem(launch.code if launch else None)
     meta_temp_capt = (getattr(meta, "por_temperatura_captacao", {}) or {})
     google_temp = (getattr(google, "por_temperatura", {}) or {})
     leads_por_campanha_raw = []
@@ -194,8 +197,11 @@ async def pre_qualificacao(request: Request, launch_code: str | None = None):
     # Resumo de investimento/leads — escopado pela etapa (por_etapa["Pré-
     # Qualificação"]), igual ao fix da página de Captação (não pode somar o
     # total do lançamento inteiro).
-    meta_preq = (getattr(meta, "por_etapa", {}) or {}).get("Pré-Qualificação") or {}
-    google_preq = (getattr(google, "por_etapa", {}) or {}).get("Pré-Qualificação") or {}
+    # Na Black a etapa que ocupa este lugar do funil é o Aquecimento — mesmo
+    # papel, nome diferente. Com a string fixa, a página vinha zerada no BV.
+    _etapa_pq = etapa_prequali(launch.code if launch else None)
+    meta_preq = (getattr(meta, "por_etapa", {}) or {}).get(_etapa_pq) or {}
+    google_preq = (getattr(google, "por_etapa", {}) or {}).get(_etapa_pq) or {}
     meta_preq_gasto = float(meta_preq.get("gasto") or meta_preq.get("custo") or 0)
     google_preq_gasto = float(google_preq.get("custo") or 0)
     meta_preq_leads = int(meta_preq.get("leads") or 0)
@@ -220,7 +226,7 @@ async def pre_qualificacao(request: Request, launch_code: str | None = None):
     # % de Leads por Campanha — Facebook/YouTube por temperatura, escopado
     # pela Pré-Qualificação (por_temperatura_prequali existe em ambas as
     # plataformas) + TikTok (sempre 0, sem fonte de dado ainda).
-    _clima_labels = ["Quente", "Frio", "Específico"]
+    _clima_labels = climas_ordem(launch.code if launch else None)
     meta_temp_preq = (getattr(meta, "por_temperatura_prequali", {}) or {})
     google_temp_preq = (getattr(google, "por_temperatura_prequali", {}) or {})
     leads_por_campanha_preq_raw = []
@@ -250,13 +256,15 @@ async def pre_qualificacao(request: Request, launch_code: str | None = None):
             "pct_leads": r["leads"] / total_leads_camp_preq * 100,
         })
 
-    ctx = _base_ctx(request, "pre_qualificacao", "Pré-Qualificação", launch, launches,
+    ctx = _base_ctx(request, "pre_qualificacao", _etapa_pq, launch, launches,
         meta=meta, google=google,
+        # Rótulo da etapa: "Aquecimento" na Black. O template usa em todo título.
+        etapa_pq=_etapa_pq,
         daily_breakdown_preq=daily_breakdown_preq,
         meta_ads_preq=meta_ads_preq,
         youtube_ads_preq=youtube_ads_preq,
         drive_thumbnails=d.get("drive_thumbnails") or {},
-        conversao_paginas=(conversao_pagina_captura or {}).get("Pré-Qualificação") or [],
+        conversao_paginas=(conversao_pagina_captura or {}).get(_etapa_pq) or [],
         data_errors=d.get("_errors", []),
         invest_preq=invest_preq, leads_preq=leads_preq, cpl_preq=cpl_preq,
         meta_preq_gasto=meta_preq_gasto, google_preq_gasto=google_preq_gasto,

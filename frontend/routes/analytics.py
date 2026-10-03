@@ -545,6 +545,10 @@ def comparativo_page(request: Request, launch_code: str | None = None):
         return templates.TemplateResponse("comparativo.html", ctx)
     except Exception as exc:
         import html
+        # Logar antes de responder: a página mostra só tipo e mensagem, e
+        # "'NoneType' object is not subscriptable" sem traceback não diz em que
+        # linha foi. Sem isso o diagnóstico começa reproduzindo na mão.
+        logger.exception("Falha ao montar/renderizar /comparativo (launch=%s)", launch_code)
         msg = html.escape(f"{type(exc).__name__}: {exc}")
         body = (
             "<html><body style='font-family:Arial,sans-serif;padding:24px'>"

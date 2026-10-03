@@ -297,9 +297,20 @@
     {# ── 1.5 Dia 1 — Vendas hora a hora (abertura do carrinho) ── #}
     {% if comp.dia1_a.checkpoints or comp.dia1_b.checkpoints %}
     {% macro dia1_table(dia1, code, color, head_color=None, compare=None, compare_code=None) %}
+      {# A seção abre quando QUALQUER um dos lados tem checkpoints, então um lado
+         pode chegar aqui sem carrinho aberto ainda — `data_abertura` vem None e
+         fatiar None derrubava a página inteira (BV-26 em 03/10, carrinho só 15/10). #}
       <h3 style="margin:0 0 10px;font-size:14px;color:{{ color }}">
-        {{ code }} <small style="font-weight:400;opacity:.7;">— abertura {{ dia1.data_abertura[8:10] }}/{{ dia1.data_abertura[5:7] }}</small>
+        {{ code }}
+        {% if dia1.data_abertura %}
+        <small style="font-weight:400;opacity:.7;">— abertura {{ dia1.data_abertura[8:10] }}/{{ dia1.data_abertura[5:7] }}</small>
+        {% endif %}
       </h3>
+      {% if not dia1.checkpoints %}
+      <p style="font-size:12px;color:var(--bs-ink-muted);margin:0;">
+        {% if dia1.data_abertura %}Sem venda registrada no primeiro dia.{% else %}Carrinho ainda não abriu.{% endif %}
+      </p>
+      {% else %}
       {% if compare and compare_code %}
       <p style="font-size:11.5px;color:var(--bs-ink-muted);margin:0 0 10px;">Variação em relação a <strong>{{ compare_code }}</strong>, mesmo horário do dia 1.</p>
       {% endif %}
@@ -333,6 +344,7 @@
           </tbody>
         </table>
       </div>
+      {% endif %}
     {% endmacro %}
     <div class="section">
       <div class="section-title"><i class="ti ti-clock-hour-4"></i> Dia 1 — Vendas Hora a Hora</div>

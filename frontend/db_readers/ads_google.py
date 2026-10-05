@@ -14,7 +14,7 @@ from sqlalchemy import text
 
 from logger import get_logger
 from frontend.utils import _extract_launch_code, _normalize_ad_code
-from src.ad_codes import extract_ad_code
+from src.ad_codes import extract_ad_code, limpar_nome_ad
 from src.nomenclatura import trilha_black
 from frontend.db import _get_engine
 from frontend.models import GoogleCampanha, GoogleSummary
@@ -131,6 +131,9 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
         agg_cols["views_100"] = ("video_views_100", "sum")
     if "video_views_50" in df.columns:
         agg_cols["views_50"] = ("video_views_50", "sum")
+    # Ver ads_meta.py: a variação autogerada do Google é o MESMO criativo com
+    # nome embrulhado — normalizar antes do groupby une ao anúncio principal.
+    df["ad_name"] = df["ad_name"].map(limpar_nome_ad)
     ad_grouped = df.groupby("ad_name").agg(**agg_cols).reset_index()
 
     _ad_codes_vistos_antes = get_historico_ad_codes(code)

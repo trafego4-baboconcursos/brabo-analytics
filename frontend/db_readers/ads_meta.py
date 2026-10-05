@@ -12,7 +12,7 @@ from sqlalchemy import text
 
 from logger import get_logger
 from frontend.utils import _extract_launch_code, _normalize_ad_code
-from src.ad_codes import extract_ad_code, uses_legacy_ad_codes
+from src.ad_codes import extract_ad_code, limpar_nome_ad, uses_legacy_ad_codes
 from frontend.db import _get_engine
 from frontend.db_readers.nomenclatura import categorizar_campanha_meta
 from src.nomenclatura import trilha_black
@@ -476,6 +476,9 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
     # Ad codes que já apareceram em lançamentos ANTERIORES do mesmo produto
     _ad_codes_vistos_antes: set[str] = get_historico_ad_codes(code)
 
+    # Variação autogerada pelo Google embrulha o nome do anúncio original; sem
+    # normalizar antes do groupby ela vira linha separada do mesmo criativo.
+    df["ad_name"] = df["ad_name"].map(limpar_nome_ad)
     ad_grouped = df.groupby("ad_name").agg(
         ad_id=("ad_id", "first"), campaign_name=("campaign_name", "first"),
         adset_name=("adset_name", "first"), etapa=("etapa", "first"),

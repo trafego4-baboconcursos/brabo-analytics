@@ -58,3 +58,19 @@ def extract_ad_code(ad_name: str | None, launch_code: str | None = None) -> str:
         return ""
     match = AD_CODE_RE.search(name)
     return match.group(1).upper() if match else ""
+
+# Variação que o Google gera sozinho a partir de um anúncio existente: ele
+# embrulha o nome original em parênteses e acrescenta o sufixo
+# ("(ADC-TR06 - Todos os cursos acesso vitalicio) auto-generated video ad").
+# É o MESMO criativo — mesma peça, mesmo código — mas com nome diferente, então
+# aparecia como linha separada em /google e /ads, e sequestrava o rótulo em
+# /criativos, que usa o nome mais longo da linha. No BV-26 são 15 variações,
+# R$ 73,11. Normalizar antes de agrupar junta tudo no anúncio principal.
+_AUTOGERADO_RE = re.compile(r"^\s*\((?P<nome>.+)\)\s*auto[- ]?generated\b.*$", re.IGNORECASE | re.DOTALL)
+
+
+def limpar_nome_ad(ad_name: str | None) -> str:
+    """Nome do anúncio sem o embrulho de variação autogerada do Google."""
+    nome = str(ad_name or "").strip()
+    m = _AUTOGERADO_RE.match(nome)
+    return m.group("nome").strip() if m else nome

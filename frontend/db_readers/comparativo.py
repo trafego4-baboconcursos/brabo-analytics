@@ -29,6 +29,8 @@ _SEG_TEMP_COLOR = {
     "Específico": "var(--temp-especifico)", "Morno": "var(--temp-morno)",
     "Outros": "var(--bs-ink-muted)",
 }
+from src.constants import etapa_prequali
+
 _SEG_TEMP_ORDER = ["Quente", "Frio", "Específico", "Morno", "Outros"]
 
 
@@ -228,8 +230,9 @@ def read_comparativo(launch_b: Launch, launch_a: Launch, launch_a2: Launch | Non
                                           lambda: read_google(launch.code, start_date=gs, end_date=ge))
         result["meta_temp"]   = meta_summary.por_temperatura_captacao if meta_summary else {}
         result["google_temp"] = google_summary.por_temperatura if google_summary else {}
-        meta_pq   = meta_summary.por_etapa.get("Pré-Qualificação", {}).get("custo", 0.0) if meta_summary else 0.0
-        google_pq = google_summary.por_etapa.get("Pré-Qualificação", {}).get("custo", 0.0) if google_summary else 0.0
+        _pq = etapa_prequali(launch.code)
+        meta_pq   = meta_summary.por_etapa.get(_pq, {}).get("custo", 0.0) if meta_summary else 0.0
+        google_pq = google_summary.por_etapa.get(_pq, {}).get("custo", 0.0) if google_summary else 0.0
         result["inv_prequali"] = meta_pq + google_pq
 
         return result

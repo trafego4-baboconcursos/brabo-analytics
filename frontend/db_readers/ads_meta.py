@@ -536,7 +536,9 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
                 summary.validados.append(c)
             else:
                 summary.novos.append(c)
-        elif r["etapa"] == "Pré-Qualificação":
+        elif r["etapa"] == etapa_prequali(code):
+            # Na Black essa etapa chama Aquecimento. Com o literal, os 25
+            # criativos do BV-26 nunca entravam em preq_por_ad.
             summary.preq_por_ad.append(ad_dict)
 
     summary.captacao_por_ad = sorted(summary.captacao_por_ad, key=lambda x: x["leads"], reverse=True)

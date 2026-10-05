@@ -21,6 +21,7 @@ from frontend.utils import _norm_text
 
 def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dict | None, launch_code: str = "") -> dict:
     from frontend.db_readers.ads_meta import get_historico_ad_codes  # noqa: PLC0415
+    from src.constants import etapa_prequali as _etapa_prequali  # noqa: PLC0415
 
     rows_by_ad: dict[str, dict] = {}
     platform_source_rows: dict[str, list[dict]] = {"Meta Ads": [], "Google Ads": []}
@@ -450,7 +451,61 @@ def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dic
         "insights": _creative_insights(rows, resumo),
         "validados_all": validados_all,
         "novos_all": novos_all,
+        # Etapa anterior (Pré-Qualificação / Aquecimento), em bloco próprio.
+        "prequali_rows": _creative_rows_prequali(meta, google, sales_attr, launch_code),
+        "etapa_pq": _etapa_prequali(launch_code),
     }
+
+
+def _creative_rows_prequali(meta: Any, google: Any, sales_attr: dict | None,
+                            launch_code: str = "") -> list[dict]:
+    """Criativos da etapa que ocupa o papel de Pré-Qualificação (Aquecimento na Black).
+
+    Seção SEPARADA de propósito, não somada ao ranking de Captação. Juntar as
+    duas põe gasto de uma etapa debaixo da venda de outra e infla o ROAS — é o
+    mesmo erro que o comentário de `_creative_overview` descreve, e que já
+    custou um número errado no debriefing (14/09/26). Aqui a venda vem de
+    `por_criativo_por_etapa[<etapa>]`, escopada na etapa certa.
+
+    No BV-26 são 30 criativos e R$ 20.814 que não apareciam em lugar nenhum.
+    """
+    from src.constants import etapa_prequali  # noqa: PLC0415
+
+    etapa = etapa_prequali(launch_code)
+    vendas_etapa = (sales_attr or {}).get("por_criativo_por_etapa", {}).get(etapa, {}) or {}
+    acc: dict[str, dict] = {}
+    for origem, attr in ((meta, "preq_por_ad"), (google, "preq_por_ad")):
+        for item in (getattr(origem, attr, None) or []):
+            code = str(item.get("ad_code") or "").upper()
+            if not code:
+                continue
+            r = acc.setdefault(code, {
+                "ad_code": code, "nome": item.get("nome") or code, "etapa": etapa,
+                "gasto": 0.0, "leads": 0, "cliques": 0, "impressoes": 0,
+                "origens": set(), "video_id": None,
+            })
+            r["origens"].add(item.get("origem") or "")
+            r["gasto"] += float(item.get("gasto") or 0.0)
+            r["leads"] += int(item.get("leads") or 0)
+            r["cliques"] += int(item.get("cliques") or 0)
+            r["impressoes"] += int(item.get("impressoes") or 0)
+            if item.get("video_id") and not r.get("video_id"):
+                r["video_id"] = item["video_id"]
+            if len(str(item.get("nome") or "")) > len(r["nome"]):
+                r["nome"] = item["nome"]
+
+    saida = []
+    for code, r in acc.items():
+        v = vendas_etapa.get(code, {})
+        r["vendas"] = int(v.get("vendas") or 0)
+        r["faturamento"] = float(v.get("faturamento") or 0.0)
+        r["cpl"] = r["gasto"] / r["leads"] if r["leads"] > 0 else 0.0
+        r["ctr"] = r["cliques"] / r["impressoes"] * 100 if r["impressoes"] > 0 else 0.0
+        r["roas"] = r["faturamento"] / r["gasto"] if r["gasto"] > 0 else 0.0
+        r["origem"] = " + ".join(sorted(o.replace(" Ads", "") for o in r["origens"] if o))
+        r.pop("origens", None)
+        saida.append(r)
+    return sorted(saida, key=lambda x: x["gasto"], reverse=True)
 
 
 # ── Creative Insights ──────────────────────────────────────────────────────────

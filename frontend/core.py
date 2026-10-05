@@ -3,6 +3,7 @@ frontend/core.py — Estado compartilhado, lógica de negócio e orquestrador do
 Importado por frontend/app.py e por todos os módulos em frontend/routes/.
 """
 from __future__ import annotations
+from src.constants import etapa_prequali
 import sys
 import io
 import re
@@ -291,7 +292,7 @@ def read_historico_grande(launch: Launch, all_launches: list[Launch], n: int = 8
         pico_aula1 = int(getattr(aula1, "peak_concurrent", 0) or 0) if aula1 else None
         comp_aula1 = (pico_aula1 / grupos_wpp * 100) if (pico_aula1 and grupos_wpp > 0) else None
 
-        e_pq = get_etapa(m, g, "Pré-Qualificação")
+        e_pq = get_etapa(m, g, etapa_prequali(l.code))
         e_capt = get_etapa(m, g, "Captação")
         e_rmk = get_etapa(m, g, "Remarketing")
         div_total = e_pq["invest"] + e_capt["invest"] + e_rmk["invest"]

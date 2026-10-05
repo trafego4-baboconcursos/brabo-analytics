@@ -243,6 +243,64 @@
       </div>
     </div>
 
+    {% if ov.prequali_rows %}
+    <div class="section">
+      <div class="section-title" data-tag="{{ ov.etapa_pq }}">
+        <i class="ti ti-flame"></i> Criativos — {{ ov.etapa_pq }} {{ plat_badge("Meta") }}{{ plat_badge("Google") }}
+      </div>
+      <div class="note">
+        Etapa anterior à Captação, em bloco próprio <strong>de propósito</strong>: somar as duas põe o gasto de
+        uma etapa debaixo da venda da outra e infla o ROAS. As vendas aqui são as atribuídas a anúncios
+        <strong>desta</strong> etapa.
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Criativo</th>
+              <th style="text-align:center;">Origem</th>
+              <th class="th-num">Investimento</th>
+              <th class="th-num">Leads</th>
+              <th class="th-num">CPL</th>
+              <th class="th-num">CTR</th>
+              <th class="th-num">Vendas</th>
+              <th class="th-num">Faturamento</th>
+              <th class="th-num">ROAS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in ov.prequali_rows %}
+            <tr>
+              <td>{{ loop.index }}</td>
+              <td style="font-weight:600;">{{ r.nome }}</td>
+              <td style="text-align:center;">{{ r.origem or '—' }}</td>
+              <td class="numero td-bold">{{ r.gasto | brl }}</td>
+              <td class="numero">{{ r.leads | num }}</td>
+              <td class="numero">{{ r.cpl | brl }}</td>
+              <td class="numero">{{ r.ctr | round(2) }}%</td>
+              <td class="numero td-success">{{ r.vendas | num }}</td>
+              <td class="numero">{{ r.faturamento | brl }}</td>
+              <td class="numero td-bold">{% if r.gasto > 0 %}{{ r.roas | round(2) }}x{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="3"><strong>Total ({{ ov.prequali_rows | length }} criativos)</strong></td>
+              <td class="numero td-bold">{{ ov.prequali_rows | sum(attribute='gasto') | brl }}</td>
+              <td class="numero td-bold">{{ ov.prequali_rows | sum(attribute='leads') | num }}</td>
+              <td colspan="2"></td>
+              <td class="numero td-bold">{{ ov.prequali_rows | sum(attribute='vendas') | num }}</td>
+              <td class="numero td-bold">{{ ov.prequali_rows | sum(attribute='faturamento') | brl }}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
     {% if ov.sales_only_rows %}
     <div class="section">
       <div class="section-title" data-tag="Captação">3. Compras atribuídas a ADs fora do ranking</div>

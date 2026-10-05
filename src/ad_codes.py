@@ -19,17 +19,23 @@ import re
 # Convenção corrente — não mexer sem revisar a atribuição de todos os lançamentos.
 AD_CODE_RE = re.compile(r"(AD\d+)", re.IGNORECASE)
 
-# BV-25: prefixo de etapa (AD/ADC/ADR/ADL) ou UGC, hífen e espaços opcionais,
-# iniciais do responsável opcionais (FE=Felipe, IV=Ivan, MA=Mateus, TR=trio).
-# Cobre os 237 nomes distintos do lançamento (Meta + Google).
+# Convenção da Black: prefixo de etapa (AD/ADC/ADR/ADL) ou UGC, hífen e espaços
+# opcionais, iniciais do responsável opcionais (FE=Felipe, IV=Ivan, MA=Mateus,
+# TR=trio). Cobre os 237 nomes do BV-25 e os 195 do BV-26 (Meta + Google).
 LEGACY_AD_CODE_RE = re.compile(r"\b(AD[CRL]?|UGC)\s*-?\s*([A-Z]{2})?\s*(\d+)\b", re.IGNORECASE)
 
-# Lançamentos que não seguem a convenção corrente.
+# Lançamentos que não seguem a convenção corrente (`ADxxx`).
+#
+# Vale para TODA Black, não só o BV-25: o BV-26 nomeia igual (`AD-TR24`,
+# `ADC-MA38`) e ficava com os 195 anúncios — R$ 53.386 de investimento —
+# invisíveis em /criativos, porque `AD_CODE_RE` exige dígito colado em "AD".
+# Checar o prefixo, em vez de listar código a código, evita repetir no BV-27.
 _LEGACY_LAUNCHES = {"BV-25"}
 
 
 def uses_legacy_ad_codes(launch_code: str | None) -> bool:
-    return (launch_code or "").strip().upper() in _LEGACY_LAUNCHES
+    code = (launch_code or "").strip().upper()
+    return code in _LEGACY_LAUNCHES or code.startswith("BV-")
 
 
 def extract_ad_code(ad_name: str | None, launch_code: str | None = None) -> str:

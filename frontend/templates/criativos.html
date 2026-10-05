@@ -37,7 +37,8 @@
     {% from "_macros_platform.html" import plat_badge %}
 
     {# ── Blocos por etapa/trilha: macro única, usada 3x ───────────────── #}
-    {% macro bloco_criativos(rows, titulo, tag, nota) %}
+    {# modo='video' (Aquecimento: campanha de envolvimento) | 'lead' (Captação) #}
+    {% macro bloco_criativos(rows, titulo, tag, nota, modo='lead') %}
     {% set ht = drive_thumbnails | length > 0 %}
     <div class="section">
       <div class="dbf-section-title section-title" data-tag="{{ tag }}">
@@ -51,11 +52,17 @@
               <th>#</th>{% if ht %}<th>Miniatura</th>{% endif %}<th>Criativo</th>
               <th style="text-align:center;">Origem</th>
               <th class="th-num">Investimento</th>
+              {% if modo == 'video' %}
               <th class="th-num">Leads</th>
               <th class="th-num">CPL</th>
               <th class="th-num" title="Meta: ThruPlay. Google: TrueView.">Views</th>
               <th class="th-num" title="Investimento dividido pelas views">Custo/View</th>
               <th class="th-num" title="Base: impressões (o Google devolve taxa de quartil, não contagem)">Viu 50%</th>
+              {% else %}
+              <th class="th-num">Leads</th>
+              <th class="th-num">CPL</th>
+              <th class="th-num">CTR</th>
+              {% endif %}
               <th class="th-num">Vendas</th>
               <th class="th-num">ROAS</th>
             </tr>
@@ -85,11 +92,17 @@
               <td style="font-weight:600;">{{ c.nome }}</td>
               <td style="text-align:center;">{{ c.origem or '—' }}</td>
               <td class="numero td-bold">{{ c.gasto | brl }}</td>
+              {% if modo == 'video' %}
               <td class="numero">{{ c.leads | num }}</td>
-              <td class="numero">{{ c.cpl | brl }}</td>
+              <td class="numero">{% if c.leads %}{{ c.cpl | brl }}{% else %}—{% endif %}</td>
               <td class="numero">{{ c.views | num }}</td>
               <td class="numero">{% if c.views %}{{ c.cpv | brl }}{% else %}—{% endif %}</td>
               <td class="numero">{% if c.impressoes %}{{ c.views_50 | num }} <span style="opacity:.65">({{ c.pct_50 | round(1) }}%)</span>{% else %}—{% endif %}</td>
+              {% else %}
+              <td class="numero">{{ c.leads | num }}</td>
+              <td class="numero">{% if c.leads %}{{ c.cpl | brl }}{% else %}—{% endif %}</td>
+              <td class="numero">{{ c.ctr | round(2) }}%</td>
+              {% endif %}
               <td class="numero td-success">{{ c.vendas | num }}</td>
               <td class="numero td-bold">{% if c.gasto > 0 %}{{ c.roas | round(2) }}x{% else %}—{% endif %}</td>
             </tr>
@@ -99,12 +112,17 @@
             <tr>
               <td colspan="{{ 4 if ht else 3 }}"><strong>Total ({{ rows | length }} criativos)</strong></td>
               <td class="numero td-bold">{{ rows | sum(attribute='gasto') | brl }}</td>
+              {# CPL/CPV/CTR/% são médias: somar não significa nada. Só contagem soma. #}
+              {% if modo == 'video' %}
               <td class="numero td-bold">{{ rows | sum(attribute='leads') | num }}</td>
               <td></td>
               <td class="numero td-bold">{{ rows | sum(attribute='views') | num }}</td>
-              {# CPL/CPV/% são médias: somar não significa nada, só a contagem do viu-50% soma. #}
               <td></td>
               <td class="numero td-bold">{{ rows | sum(attribute='views_50') | num }}</td>
+              {% else %}
+              <td class="numero td-bold">{{ rows | sum(attribute='leads') | num }}</td>
+              <td colspan="2"></td>
+              {% endif %}
               <td class="numero td-bold">{{ rows | sum(attribute='vendas') | num }}</td>
               <td></td>
             </tr>
@@ -123,7 +141,8 @@
 
     {% if ov.prequali_rows %}
     {{ bloco_criativos(ov.prequali_rows, "Criativos — " ~ ov.etapa_pq, ov.etapa_pq,
-       "Etapa anterior à Captação, em bloco próprio de propósito: somar as duas põe o gasto de uma etapa debaixo da venda da outra e infla o ROAS. As vendas aqui são as atribuídas a anúncios desta etapa.") }}
+       "Etapa anterior à Captação, em bloco próprio de propósito: somar as duas põe o gasto de uma etapa debaixo da venda da outra e infla o ROAS. Campanha de envolvimento, então a métrica que importa é vídeo (view), não lead.",
+       modo='video') }}
     {% endif %}
 
     {% for b in ov.trilha_blocos %}
@@ -341,7 +360,8 @@
 
     {% if not e_black and ov.prequali_rows %}
     {{ bloco_criativos(ov.prequali_rows, "Criativos — " ~ ov.etapa_pq, ov.etapa_pq,
-       "Etapa anterior à Captação, em bloco próprio de propósito: somar as duas põe o gasto de uma etapa debaixo da venda da outra e infla o ROAS. As vendas aqui são as atribuídas a anúncios desta etapa.") }}
+       "Etapa anterior à Captação, em bloco próprio de propósito: somar as duas põe o gasto de uma etapa debaixo da venda da outra e infla o ROAS. Campanha de envolvimento, então a métrica que importa é vídeo (view), não lead.",
+       modo='video') }}
     {% endif %}
 
     {% if ov.sales_only_rows %}

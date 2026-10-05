@@ -18,16 +18,21 @@ from datetime import date, timedelta
 from sqlalchemy import text
 
 from logger import get_logger
-from frontend.db import _get_engine
+from frontend.db import _get_engine, _get_users_engine
 from frontend.services.attribution import _extract_ad_code
+from frontend.db_readers._vendas_comum import _hm_data_sql
 
 logger = get_logger("db")
 
 VERTICALS: dict[str, dict] = {
-    "pmq-tjsp": {"codigo": "PERPETUO-PMQ-TJSP", "nome": "Mestre em Questões — TJ-SP"},
-    "pmq-inss": {"codigo": "PERPETUO-PMQ-INSS", "nome": "Mestre em Questões — INSS"},
-    "pmq-pbb":  {"codigo": "PERPETUO-PMQ-PBB",  "nome": "Mestre em Questões — Banco do Brasil"},
-    "planner":  {"codigo": "PERPETUO-PLANNER",  "nome": "Planner"},
+    "pmq-tjsp": {"codigo": "PERPETUO-PMQ-TJSP", "nome": "Mestre em Questões — TJ-SP",
+                 "hotmart": ["6857217", "6024397", "6030870"]},
+    "pmq-inss": {"codigo": "PERPETUO-PMQ-INSS", "nome": "Mestre em Questões — INSS",
+                 "hotmart": ["6859776"]},
+    "pmq-pbb":  {"codigo": "PERPETUO-PMQ-PBB",  "nome": "Mestre em Questões — Banco do Brasil",
+                 "hotmart": ["6859789"]},
+    "planner":  {"codigo": "PERPETUO-PLANNER",  "nome": "Planner",
+                 "hotmart": ["5334881", "4924116", "7040689", "5004680"]},
 }
 
 
@@ -67,6 +72,39 @@ def _google_audience_rows(conn, codigo: str, start: date, end: date):
         ),
         {"codigo": codigo, "start": start, "end": end},
     ).fetchall()
+
+
+def _vendas(produtos: list[str], start: date, end: date) -> dict:
+    """Vendas Hotmart dos produtos da vertical no período.
+
+    **Não é venda atribuída ao anúncio** — é toda venda do produto na janela.
+    O perpétuo vende direto, sem captura de lead: o comprador não tem UTM desta
+    campanha (o que existe em `leads` é o cadastro antigo dele, de um
+    lançamento, e creditar aquilo seria pior que não creditar), e o `src` da
+    Hotmart chega vazio porque os anúncios não o passam no link de checkout.
+    Enquanto o `src` não for configurado, o número aqui é **teto**: inclui
+    orgânico, e-mail e régua. A página diz isso na tela.
+
+    Vive no banco OPERACIONAL (`hotmart_clean_oficial`), não no analytics.
+    """
+    if not produtos:
+        return {"vendas": 0, "receita": 0.0}
+    data_sql = _hm_data_sql("data_da_transacao")
+    valor = "COALESCE(NULLIF(replace(valor_de_compra_com_impostos,',','.'),'')::numeric,0)"
+    try:
+        with _get_users_engine().connect() as conn:
+            r = conn.execute(
+                text(
+                    f"SELECT COUNT(*) AS vendas, COALESCE(SUM({valor}),0) AS receita "
+                    f"FROM hotmart_clean_oficial "
+                    f"WHERE codigo_do_produto = ANY(:ids) AND {data_sql} BETWEEN :start AND :end"
+                ),
+                {"ids": produtos, "start": start, "end": end},
+            ).fetchone()
+    except Exception:
+        logger.exception("read_perpetuo: falha ao ler vendas dos produtos %s", produtos)
+        return {"vendas": 0, "receita": 0.0}
+    return {"vendas": int(r[0] or 0), "receita": float(r[1] or 0.0)}
 
 
 def _meta_totals(rows) -> dict:
@@ -180,6 +218,7 @@ def read_perpetuo(vertical: str, days: int = 30, compare: bool = False) -> dict 
 
     meta_totals = _meta_totals(meta_rows)
     google_totals = _google_totals(google_rows)
+    vendas = _vendas(info.get("hotmart") or [], start, end)
     investimento_total = meta_totals["spend"] + google_totals["cost"]
     leads_total = meta_totals["leads"] + google_totals["conversions"]
 
@@ -198,6 +237,12 @@ def read_perpetuo(vertical: str, days: int = 30, compare: bool = False) -> dict 
         "conversoes_google": google_totals["conversions"],
         "leads_total": leads_total,
         "cpl": round(investimento_total / leads_total, 2) if leads_total else None,
+        # Venda do PRODUTO no período, não venda atribuída ao anúncio — ver _vendas().
+        "vendas": vendas["vendas"],
+        "receita": round(vendas["receita"], 2),
+        "cpa": round(investimento_total / vendas["vendas"], 2) if vendas["vendas"] else None,
+        "roas": round(vendas["receita"] / investimento_total, 2) if investimento_total else None,
+        "vendas_atribuidas": False,
         "criativos_meta": _meta_criativos(meta_rows),
         "criativos_google": _google_criativos(google_rows),
         "publico_meta": _meta_publico(meta_rows),
@@ -208,12 +253,17 @@ def read_perpetuo(vertical: str, days: int = 30, compare: bool = False) -> dict 
         prev_meta_totals = _meta_totals(prev_meta_rows)
         prev_google_totals = _google_totals(prev_google_rows)
         prev_investimento_total = prev_meta_totals["spend"] + prev_google_totals["cost"]
+        prev_vendas = _vendas(info.get("hotmart") or [], prev_start, prev_end)
         prev_leads_total = prev_meta_totals["leads"] + prev_google_totals["conversions"]
         result["prev_range_start"] = prev_start.isoformat()
         result["prev_range_end"] = prev_end.isoformat()
+        prev_cpa = (prev_investimento_total / prev_vendas["vendas"]) if prev_vendas["vendas"] else 0.0
         result["deltas"] = {
             "investimento_total": _pct_delta(investimento_total, prev_investimento_total),
             "leads_total": _pct_delta(leads_total, prev_leads_total),
+            "vendas": _pct_delta(vendas["vendas"], prev_vendas["vendas"]),
+            "receita": _pct_delta(vendas["receita"], prev_vendas["receita"]),
+            "cpa": _pct_delta(result["cpa"] or 0.0, prev_cpa),
         }
 
     return result

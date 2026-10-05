@@ -82,6 +82,59 @@
           <div class="tp-value">{{ perpetuo.cpl | brl if perpetuo.cpl is not none else "—" }}</div>
           <div class="tp-label">CPL</div>
         </div>
+
+        {# Venda do PRODUTO no período — ver a nota abaixo do grid. #}
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon success"><i class="ti ti-shopping-cart"></i></div>
+            {% if perpetuo.compare and perpetuo.deltas.vendas is not none %}
+            <div class="tp-delta {{ 'up' if perpetuo.deltas.vendas >= 0 else 'down' }}">
+              {{ '+' if perpetuo.deltas.vendas >= 0 }}{{ perpetuo.deltas.vendas }}%
+            </div>
+            {% endif %}
+          </div>
+          <div class="tp-value">{{ perpetuo.vendas | num }}</div>
+          <div class="tp-label">Vendas do produto</div>
+          <div class="tp-compare">Não atribuídas ao anúncio</div>
+        </div>
+
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon success"><i class="ti ti-cash"></i></div>
+            {% if perpetuo.compare and perpetuo.deltas.receita is not none %}
+            <div class="tp-delta {{ 'up' if perpetuo.deltas.receita >= 0 else 'down' }}">
+              {{ '+' if perpetuo.deltas.receita >= 0 }}{{ perpetuo.deltas.receita }}%
+            </div>
+            {% endif %}
+          </div>
+          <div class="tp-value">{{ perpetuo.receita | brl(0) }}</div>
+          <div class="tp-label">Faturamento do produto</div>
+        </div>
+
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon warning"><i class="ti ti-receipt"></i></div>
+            {% if perpetuo.compare and perpetuo.deltas.cpa is not none %}
+            <div class="tp-delta {{ 'down' if perpetuo.deltas.cpa >= 0 else 'up' }}">
+              {{ '+' if perpetuo.deltas.cpa >= 0 }}{{ perpetuo.deltas.cpa }}%
+            </div>
+            {% endif %}
+          </div>
+          <div class="tp-value">{{ perpetuo.cpa | brl if perpetuo.cpa is not none else "—" }}</div>
+          <div class="tp-label">Custo por venda (teto)</div>
+          <div class="tp-compare">{% if perpetuo.roas is not none %}ROAS {{ perpetuo.roas }}x{% else %}sem venda no período{% endif %}</div>
+        </div>
+      </div>
+
+      <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:12px">
+        <strong>Vendas e faturamento são do produto no período, não atribuídos ao anúncio.</strong>
+        O perpétuo vende direto, sem captura de lead: o comprador não tem UTM desta campanha — o que
+        existe na base de leads é o cadastro antigo dele, de um lançamento, e creditar aquilo seria
+        pior que não creditar. O campo <code>src</code> da Hotmart, que resolveria, chega vazio
+        porque os anúncios não o passam no link de checkout. Então <strong>custo por venda e ROAS
+        são teto</strong>: incluem venda orgânica, de e-mail e de régua. Para medir de verdade,
+        acrescentar <code>?src=</code> com o código da campanha no link de checkout dos anúncios
+        <code>[compra]</code> — a partir daí a venda chega carimbada.
       </div>
     </div>
 

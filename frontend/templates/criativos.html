@@ -35,7 +35,103 @@
     {% else %}
 
     {% from "_macros_platform.html" import plat_badge %}
+
+    {# ── Blocos por etapa/trilha: macro única, usada 3x ───────────────── #}
+    {% macro bloco_criativos(rows, titulo, tag, nota) %}
+    {% set ht = drive_thumbnails | length > 0 %}
+    <div class="section">
+      <div class="dbf-section-title section-title" data-tag="{{ tag }}">
+        <i class="ti ti-player-play"></i> {{ titulo }} {{ plat_badge("Meta") }}{{ plat_badge("Google") }}
+      </div>
+      {% if nota %}<div class="note">{{ nota }}</div>{% endif %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>{% if ht %}<th>Miniatura</th>{% endif %}<th>Criativo</th>
+              <th style="text-align:center;">Origem</th>
+              <th class="th-num">Investimento</th>
+              <th class="th-num">Leads</th>
+              <th class="th-num">CPL</th>
+              <th class="th-num" title="Meta: ThruPlay. Google: TrueView.">Views</th>
+              <th class="th-num" title="Investimento dividido pelas views">Custo/View</th>
+              <th class="th-num" title="Base: impressões (o Google devolve taxa de quartil, não contagem)">Viu 50%</th>
+              <th class="th-num">Vendas</th>
+              <th class="th-num">ROAS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in rows %}
+            {% set td = drive_thumbnails.get(c.ad_code) if ht else None %}
+            <tr>
+              <td class="numero">{{ loop.index }}</td>
+              {% if ht %}
+              <td style="padding:4px 6px;">
+                {% if td %}
+                <img src="{{ td.thumb }}" alt="{{ c.ad_code }}"
+                     style="width:80px;height:52px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);cursor:pointer;display:block"
+                     data-preview="{{ td.preview }}" data-title="{{ c.ad_code }}"
+                     data-gasto="{{ c.gasto | brl }}" data-leads="{{ c.leads | num }}" data-cpl="{{ c.cpl | brl }}"
+                     data-vendas="{{ c.vendas | num }}" data-roas="{{ '%.2f'|format(c.roas) | replace('.', ',') }}x"
+                     data-ctr="{{ '%.2f'|format(c.ctr) | replace('.', ',') }}"
+                     onclick="openVideoModalFromEl(this)" onerror="this.style.display='none'">
+                {% else %}
+                <div style="width:80px;height:52px;border-radius:5px;border:1px dashed var(--bs-border-s);background:var(--bs-accent-bg);display:flex;align-items:center;justify-content:center">
+                  <i class="ti ti-photo" style="color:var(--bs-ink-subtle);font-size:20px"></i>
+                </div>
+                {% endif %}
+              </td>
+              {% endif %}
+              <td style="font-weight:600;">{{ c.nome }}</td>
+              <td style="text-align:center;">{{ c.origem or '—' }}</td>
+              <td class="numero td-bold">{{ c.gasto | brl }}</td>
+              <td class="numero">{{ c.leads | num }}</td>
+              <td class="numero">{{ c.cpl | brl }}</td>
+              <td class="numero">{{ c.views | num }}</td>
+              <td class="numero">{% if c.views %}{{ c.cpv | brl }}{% else %}—{% endif %}</td>
+              <td class="numero">{% if c.impressoes %}{{ c.views_50 | num }} <span style="opacity:.65">({{ c.pct_50 | round(1) }}%)</span>{% else %}—{% endif %}</td>
+              <td class="numero td-success">{{ c.vendas | num }}</td>
+              <td class="numero td-bold">{% if c.gasto > 0 %}{{ c.roas | round(2) }}x{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="{{ 4 if ht else 3 }}"><strong>Total ({{ rows | length }} criativos)</strong></td>
+              <td class="numero td-bold">{{ rows | sum(attribute='gasto') | brl }}</td>
+              <td class="numero td-bold">{{ rows | sum(attribute='leads') | num }}</td>
+              <td></td>
+              <td class="numero td-bold">{{ rows | sum(attribute='views') | num }}</td>
+              {# CPL/CPV/% são médias: somar não significa nada, só a contagem do viu-50% soma. #}
+              <td></td>
+              <td class="numero td-bold">{{ rows | sum(attribute='views_50') | num }}</td>
+              <td class="numero td-bold">{{ rows | sum(attribute='vendas') | num }}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+    {% endmacro %}
+
     {% set ov1 = creative_overview %}
+    {% set ov = creative_overview %}
+    {# Black: Aquecimento, Base Forte e Black Vitalícia vêm ANTES do ranking
+       de Captação. Fora da Black a ordem da página não muda. #}
+    {% set e_black = (ov.trilha_blocos | length > 0) if ov else false %}
+    {% if e_black %}
+
+    {% if ov.prequali_rows %}
+    {{ bloco_criativos(ov.prequali_rows, "Criativos — " ~ ov.etapa_pq, ov.etapa_pq,
+       "Etapa anterior à Captação, em bloco próprio de propósito: somar as duas põe o gasto de uma etapa debaixo da venda da outra e infla o ROAS. As vendas aqui são as atribuídas a anúncios desta etapa.") }}
+    {% endif %}
+
+    {% for b in ov.trilha_blocos %}
+    {{ bloco_criativos(b.rows, "Criativos — Captação " ~ b.trilha, b.trilha,
+       "Trilha da Captação da Black. Base Forte é evento gratuito com LP e pixel próprios; Black Vitalícia é a captação do lançamento. CPL e CPA de uma não dizem nada sobre a outra.") }}
+    {% endfor %}
+    {% endif %}
+
     {% if ov1 and (ov1.validados_all or ov1.novos_all) %}
     <div class="section">
       <div class="section-title" data-tag="Captação">1. Criativos Validados vs Novos {{ plat_badge("Meta") }}{{ plat_badge("Google") }}</div>
@@ -243,62 +339,9 @@
       </div>
     </div>
 
-    {% if ov.prequali_rows %}
-    <div class="section">
-      <div class="section-title" data-tag="{{ ov.etapa_pq }}">
-        <i class="ti ti-flame"></i> Criativos — {{ ov.etapa_pq }} {{ plat_badge("Meta") }}{{ plat_badge("Google") }}
-      </div>
-      <div class="note">
-        Etapa anterior à Captação, em bloco próprio <strong>de propósito</strong>: somar as duas põe o gasto de
-        uma etapa debaixo da venda da outra e infla o ROAS. As vendas aqui são as atribuídas a anúncios
-        <strong>desta</strong> etapa.
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>#</th>
-              <th>Criativo</th>
-              <th style="text-align:center;">Origem</th>
-              <th class="th-num">Investimento</th>
-              <th class="th-num">Leads</th>
-              <th class="th-num">CPL</th>
-              <th class="th-num">CTR</th>
-              <th class="th-num">Vendas</th>
-              <th class="th-num">Faturamento</th>
-              <th class="th-num">ROAS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for r in ov.prequali_rows %}
-            <tr>
-              <td>{{ loop.index }}</td>
-              <td style="font-weight:600;">{{ r.nome }}</td>
-              <td style="text-align:center;">{{ r.origem or '—' }}</td>
-              <td class="numero td-bold">{{ r.gasto | brl }}</td>
-              <td class="numero">{{ r.leads | num }}</td>
-              <td class="numero">{{ r.cpl | brl }}</td>
-              <td class="numero">{{ r.ctr | round(2) }}%</td>
-              <td class="numero td-success">{{ r.vendas | num }}</td>
-              <td class="numero">{{ r.faturamento | brl }}</td>
-              <td class="numero td-bold">{% if r.gasto > 0 %}{{ r.roas | round(2) }}x{% else %}—{% endif %}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colspan="3"><strong>Total ({{ ov.prequali_rows | length }} criativos)</strong></td>
-              <td class="numero td-bold">{{ ov.prequali_rows | sum(attribute='gasto') | brl }}</td>
-              <td class="numero td-bold">{{ ov.prequali_rows | sum(attribute='leads') | num }}</td>
-              <td colspan="2"></td>
-              <td class="numero td-bold">{{ ov.prequali_rows | sum(attribute='vendas') | num }}</td>
-              <td class="numero td-bold">{{ ov.prequali_rows | sum(attribute='faturamento') | brl }}</td>
-              <td></td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    </div>
+    {% if not e_black and ov.prequali_rows %}
+    {{ bloco_criativos(ov.prequali_rows, "Criativos — " ~ ov.etapa_pq, ov.etapa_pq,
+       "Etapa anterior à Captação, em bloco próprio de propósito: somar as duas põe o gasto de uma etapa debaixo da venda da outra e infla o ROAS. As vendas aqui são as atribuídas a anúncios desta etapa.") }}
     {% endif %}
 
     {% if ov.sales_only_rows %}

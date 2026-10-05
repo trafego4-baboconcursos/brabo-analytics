@@ -453,59 +453,96 @@ def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dic
         "novos_all": novos_all,
         # Etapa anterior (Pré-Qualificação / Aquecimento), em bloco próprio.
         "prequali_rows": _creative_rows_prequali(meta, google, sales_attr, launch_code),
+        # Captação da Black em duas trilhas; vazio em lançamento normal.
+        "trilha_blocos": _creative_rows_por_trilha(meta, google, sales_attr),
         "etapa_pq": _etapa_prequali(launch_code),
     }
+
+
+def _bloco_criativos(itens: Any, vendas_por_code: dict) -> list[dict]:
+    """Agrega uma lista de anúncios por ADxxx, com vídeo e venda já escopados.
+
+    Views misturam bases de propósito e isso precisa ficar dito: no Meta é
+    ThruPlay (contagem real), no Google é TrueView. Como cada criativo quase
+    sempre roda numa plataforma só, a soma por linha é legítima — o que não
+    seria legítimo é comparar uma linha de Meta com uma de Google.
+
+    "Viu 50%" usa IMPRESSÕES como base, não views: o Google não devolve
+    contagem de quartil, devolve taxa × impressões, e dividir por TrueView
+    (base menor, conceito diferente) passa de 100%. Mesma regra do debriefing.
+    """
+    acc: dict[str, dict] = {}
+    for item in itens or []:
+        code = str(item.get("ad_code") or "").upper()
+        if not code:
+            continue
+        r = acc.setdefault(code, {
+            "ad_code": code, "nome": item.get("nome") or code,
+            "gasto": 0.0, "leads": 0, "cliques": 0, "impressoes": 0,
+            "views": 0, "views_50": 0, "origens": set(), "video_id": None,
+        })
+        r["origens"].add(item.get("origem") or "")
+        r["gasto"] += float(item.get("gasto") or 0.0)
+        r["leads"] += int(item.get("leads") or 0)
+        r["cliques"] += int(item.get("cliques") or 0)
+        r["impressoes"] += int(item.get("impressoes") or 0)
+        r["views"] += int(item.get("thruplays") or item.get("video_views") or 0)
+        r["views_50"] += int(item.get("views_50") or 0)
+        if item.get("video_id") and not r.get("video_id"):
+            r["video_id"] = item["video_id"]
+        if len(str(item.get("nome") or "")) > len(r["nome"]):
+            r["nome"] = item["nome"]
+
+    saida = []
+    for code, r in acc.items():
+        v = vendas_por_code.get(code, {})
+        r["vendas"] = int(v.get("vendas") or 0)
+        r["faturamento"] = float(v.get("faturamento") or 0.0)
+        r["cpl"] = r["gasto"] / r["leads"] if r["leads"] > 0 else 0.0
+        r["ctr"] = r["cliques"] / r["impressoes"] * 100 if r["impressoes"] > 0 else 0.0
+        r["cpv"] = r["gasto"] / r["views"] if r["views"] > 0 else 0.0
+        r["pct_50"] = r["views_50"] / r["impressoes"] * 100 if r["impressoes"] > 0 else 0.0
+        r["roas"] = r["faturamento"] / r["gasto"] if r["gasto"] > 0 else 0.0
+        r["origem"] = " + ".join(sorted(o.replace(" Ads", "") for o in r["origens"] if o))
+        r.pop("origens", None)
+        saida.append(r)
+    return sorted(saida, key=lambda x: x["gasto"], reverse=True)
 
 
 def _creative_rows_prequali(meta: Any, google: Any, sales_attr: dict | None,
                             launch_code: str = "") -> list[dict]:
     """Criativos da etapa que ocupa o papel de Pré-Qualificação (Aquecimento na Black).
 
-    Seção SEPARADA de propósito, não somada ao ranking de Captação. Juntar as
-    duas põe gasto de uma etapa debaixo da venda de outra e infla o ROAS — é o
-    mesmo erro que o comentário de `_creative_overview` descreve, e que já
-    custou um número errado no debriefing (14/09/26). Aqui a venda vem de
-    `por_criativo_por_etapa[<etapa>]`, escopada na etapa certa.
-
-    No BV-26 são 30 criativos e R$ 20.814 que não apareciam em lugar nenhum.
+    Bloco SEPARADO de propósito, não somado ao ranking de Captação: juntar põe
+    gasto de uma etapa debaixo da venda de outra e infla o ROAS — mesmo erro que
+    o comentário de `_creative_overview` descreve e que já custou um número
+    errado no debriefing (14/09/26).
     """
     from src.constants import etapa_prequali  # noqa: PLC0415
 
     etapa = etapa_prequali(launch_code)
-    vendas_etapa = (sales_attr or {}).get("por_criativo_por_etapa", {}).get(etapa, {}) or {}
-    acc: dict[str, dict] = {}
-    for origem, attr in ((meta, "preq_por_ad"), (google, "preq_por_ad")):
-        for item in (getattr(origem, attr, None) or []):
-            code = str(item.get("ad_code") or "").upper()
-            if not code:
-                continue
-            r = acc.setdefault(code, {
-                "ad_code": code, "nome": item.get("nome") or code, "etapa": etapa,
-                "gasto": 0.0, "leads": 0, "cliques": 0, "impressoes": 0,
-                "origens": set(), "video_id": None,
-            })
-            r["origens"].add(item.get("origem") or "")
-            r["gasto"] += float(item.get("gasto") or 0.0)
-            r["leads"] += int(item.get("leads") or 0)
-            r["cliques"] += int(item.get("cliques") or 0)
-            r["impressoes"] += int(item.get("impressoes") or 0)
-            if item.get("video_id") and not r.get("video_id"):
-                r["video_id"] = item["video_id"]
-            if len(str(item.get("nome") or "")) > len(r["nome"]):
-                r["nome"] = item["nome"]
+    vendas = (sales_attr or {}).get("por_criativo_por_etapa", {}).get(etapa, {}) or {}
+    itens = list(getattr(meta, "preq_por_ad", None) or []) + list(getattr(google, "preq_por_ad", None) or [])
+    return _bloco_criativos(itens, vendas)
 
-    saida = []
-    for code, r in acc.items():
-        v = vendas_etapa.get(code, {})
-        r["vendas"] = int(v.get("vendas") or 0)
-        r["faturamento"] = float(v.get("faturamento") or 0.0)
-        r["cpl"] = r["gasto"] / r["leads"] if r["leads"] > 0 else 0.0
-        r["ctr"] = r["cliques"] / r["impressoes"] * 100 if r["impressoes"] > 0 else 0.0
-        r["roas"] = r["faturamento"] / r["gasto"] if r["gasto"] > 0 else 0.0
-        r["origem"] = " + ".join(sorted(o.replace(" Ads", "") for o in r["origens"] if o))
-        r.pop("origens", None)
-        saida.append(r)
-    return sorted(saida, key=lambda x: x["gasto"], reverse=True)
+
+def _creative_rows_por_trilha(meta: Any, google: Any, sales_attr: dict | None) -> list[dict]:
+    """Captação da Black dividida em Base Forte × Black Vitalícia.
+
+    Lista vazia fora da Black (`trilha` vem None). No BV-26 os dois conjuntos de
+    ADxxx são disjuntos — nenhum criativo roda nas duas trilhas —, então dividir
+    não duplica venda nenhuma.
+    """
+    from src.nomenclatura import TRILHA_BASE_FORTE, TRILHA_VITALICIA  # noqa: PLC0415
+
+    vendas = (sales_attr or {}).get("por_criativo_por_etapa", {}).get("Captação", {}) or {}
+    itens = list(getattr(meta, "captacao_por_ad", None) or []) + list(getattr(google, "anuncios_por_ad", None) or [])
+    blocos = []
+    for trilha in (TRILHA_BASE_FORTE, TRILHA_VITALICIA):
+        rows = _bloco_criativos([i for i in itens if i.get("trilha") == trilha], vendas)
+        if rows:
+            blocos.append({"trilha": trilha, "rows": rows})
+    return blocos
 
 
 # ── Creative Insights ──────────────────────────────────────────────────────────

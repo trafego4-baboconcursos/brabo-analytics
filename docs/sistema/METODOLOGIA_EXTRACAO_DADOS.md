@@ -285,3 +285,18 @@ coisas em seções separadas, cada uma com a janela de datas do seu export.
 relatório de retenção) e "Fontes de tráfego" (notificações, pesquisa, externo…). Nenhum dos
 dois quebra por campanha ou por `ADxxx` — atribuição por criativo continua vindo do Google
 Ads, e só para campanha de vídeo cujo destino seja o próprio vídeo.
+
+## 12. Metricas das aulas no YouTube via API (2026-09-22)
+
+Com a integracao da YouTube Analytics API (etl/etl_youtube_analytics.py), as metricas oficiais de engajamento das lives e replays passam a ser coletadas automaticamente:
+
+- **Identificacao de Videos**: A API mapeia os IDs dos videos das aulas atraves dos arquivos YAML de configuracao do lancamento (config/lancamentos/{launch_code}.yaml).
+- **Metricas Coletadas**:
+  - iews / estimatedMinutesWatched: visualizacoes totais e minutos assistidos.
+  - verageViewDuration / verageViewPercentage: tempo medio e retencao percentual media real da aula.
+  - Curva de retencao percentual segundo a segundo (0% a 100% da duracao do video), persistida em youtube_video_retencao.
+- **Roteamento Multi-Token**:
+  - Cada expert possui um canal proprio e uma conta Google responsavel. O ETL direciona automaticamente:
+    - PI-* -> YOUTUBE_REFRESH_TOKEN_PI (Canal Mateus Andrade)
+    - PES-* -> YOUTUBE_REFRESH_TOKEN_PES (Canal Ivan Neto / Brabo Concursos)
+    - PBB-* -> YOUTUBE_REFRESH_TOKEN (Canal Felipe Graton)

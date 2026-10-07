@@ -37,10 +37,13 @@ create table if not exists unnichat_atendentes (
 );
 
 -- Uma linha por mensagem, sem o conteúdo.
--- atendente_id em mensagem RECEBIDA = o atendente responsável pelo contato no
--- momento da coleta (a API não diz "para quem" o cliente escreveu). Em mensagem
--- ENVIADA = quem enviou, se a API informar; senão também o responsável.
--- Qual dos dois vale é o ponto "a validar" do briefing.
+-- atendente_id = quem atendia a conversa NA HORA da mensagem. O coletor
+-- reconstrói isso pelas mensagens de sistema do Unnichat (senderBy=platform,
+-- type=info: "Conversa atribuída automaticamente ao X", "...pela ação em massa
+-- para X", "A conversa foi transferida por X"). Trecho sem atribuição conhecida
+-- antes do primeiro evento = null (ex.: automação antes de cair num atendente);
+-- último trecho depois de uma transferência = responsável atual (/assign).
+-- Mensagens de sistema não entram aqui.
 create table if not exists unnichat_mensagens (
     conexao       text not null,
     message_id    text not null,
@@ -48,7 +51,7 @@ create table if not exists unnichat_mensagens (
     enviada_em    timestamptz not null,
     direcao       text not null check (direcao in ('enviada', 'recebida')),
     atendente_id  text,
-    tipo          text,                 -- "type" cru da API (text, audio, template…)
+    tipo          text,                 -- "type" cru: message, template, button, cta-url, image, audio…
     is_template   boolean not null default false,
     coletada_em   timestamptz not null default now(),
     primary key (conexao, message_id)
@@ -75,6 +78,31 @@ create table if not exists unnichat_contatos (
 
 create index if not exists idx_unnichat_contatos_abertos
     on unnichat_contatos (conexao) where aberta is not false;
+
+-- Fila do coletor: o webhook só grava aqui e responde na hora; os workers
+-- consomem aos poucos, e um contato reinicia daqui se o serviço cair. O índice
+-- parcial impede o mesmo contato duas vezes na fila enquanto não for processado.
+create table if not exists unnichat_atendimento_fila (
+    id             bigint generated always as identity primary key,
+    conexao        text not null,
+    contact_id     text not null,
+    telefone       text,
+    nome           text,
+    origem         text not null default 'webhook',   -- webhook | recoleta
+    status         text not null default 'pendente'
+                   check (status in ('pendente', 'processando', 'feito', 'erro')),
+    tentativas     int  not null default 0,
+    erro           text,
+    criado_em      timestamptz not null default now(),
+    atualizado_em  timestamptz not null default now()
+);
+
+create unique index if not exists uq_unnichat_atendimento_fila_ativo
+    on unnichat_atendimento_fila (conexao, contact_id)
+    where status in ('pendente', 'processando');
+
+create index if not exists idx_unnichat_atendimento_fila_status
+    on unnichat_atendimento_fila (status, id);
 
 -- O que a página lê para KPIs, série diária e ranking: uma linha por
 -- dia × conexão × atendente. Dia no fuso de São Paulo, como o resto do painel.

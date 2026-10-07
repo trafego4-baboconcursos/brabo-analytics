@@ -1311,3 +1311,41 @@ CREATE TABLE IF NOT EXISTS atribuicao_congelada (
     atualizado_em     timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (lancamento_codigo, email)
 );
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- lead_utm_lancamento — histórico de UTM por (contato, lançamento[, trilha])
+--
+-- `leads` espelha o AC: uma linha por contato, sobrescrita quando a pessoa
+-- entra num lançamento novo. Aqui fica uma linha por (contato, lançamento):
+-- mesmo lançamento -> a última UTM vence; lançamento novo -> linha nova.
+-- Na Black a trilha entra na chave. Gravada por etl/historico_utm.py, chamado
+-- de dentro de etl_active_campaign.upsert() ANTES de sobrescrever a `leads`.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS lead_utm_lancamento (
+    contact_id        text        NOT NULL,
+    lancamento_codigo text        NOT NULL,
+    trilha            text        NOT NULL DEFAULT '',
+    email             text        NOT NULL DEFAULT '',
+    utm_source        text        NOT NULL DEFAULT '',
+    utm_medium        text        NOT NULL DEFAULT '',
+    utm_campaign      text        NOT NULL DEFAULT '',
+    utm_content       text        NOT NULL DEFAULT '',
+    utm_term          text        NOT NULL DEFAULT '',
+    gclid             text,
+    fbclid            text,
+    ttclid            text,
+    vk_source         text,
+    vk_ad_id          text,
+    -- Quando ESTE sistema viu a combinação pela primeira e pela última vez.
+    -- Não é a data do cadastro no AC (o AC não guarda isso por lançamento).
+    primeiro_visto_em timestamptz NOT NULL DEFAULT now(),
+    ultimo_visto_em   timestamptz NOT NULL DEFAULT now(),
+    -- etl_ac = capturado na passada horária, seed_leads = semeado da `leads`
+    -- em 07/10/26, export_ac / backup = remontado de arquivo da época.
+    origem            text        NOT NULL DEFAULT 'etl_ac',
+    PRIMARY KEY (contact_id, lancamento_codigo, trilha)
+);
+
+CREATE INDEX IF NOT EXISTS idx_lead_utm_lancamento_lanc  ON lead_utm_lancamento (lancamento_codigo);
+
+CREATE INDEX IF NOT EXISTS idx_lead_utm_lancamento_email ON lead_utm_lancamento (email);

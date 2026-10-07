@@ -29,6 +29,7 @@ from db import get_engine
 from logger import get_logger
 from http_retry import http_get
 from validation import validate_dataframe
+import historico_utm
 
 load_dotenv()
 
@@ -385,7 +386,7 @@ def _upsert_batch(engine, chunk: list, col_list: str, placeholders: str,
         )
 
 
-def upsert(df: pd.DataFrame, label: str = ""):
+def upsert(df: pd.DataFrame, label: str = "", origem: str = "etl_ac"):
     """INSERT ... ON CONFLICT (id) DO UPDATE, um lote por transação.
 
     Só escreve as colunas do DataFrame. Coluna que existe na tabela e não vem
@@ -399,6 +400,10 @@ def upsert(df: pd.DataFrame, label: str = ""):
     if not validate_dataframe(df, _AC_REQUIRED_COLS, "leads", logger):
         return
     df = df.drop_duplicates(subset="id", keep="last")
+    # O histórico vem ANTES da sobrescrita, aqui dentro e não no main(): o
+    # ressync_leads_ac.py chama upsert() direto, e um ressync completo é
+    # justamente a operação que apagaria tudo de uma vez.
+    gravar_historico_antes(df, origem=origem)
     df = df.astype(object).where(df.notna(), None)
     engine = get_engine()
     cols = list(df.columns)
@@ -417,6 +422,26 @@ def upsert(df: pd.DataFrame, label: str = ""):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+
+def gravar_historico_antes(df: pd.DataFrame, origem: str) -> None:
+    """Grava (contato, lançamento) no histórico ANTES de sobrescrever a `leads`.
+
+    A `leads` guarda uma linha por contato e o upsert abaixo a sobrescreve:
+    quem já estava na base e se cadastrou num lançamento novo perde o
+    lançamento antigo ali. O histórico (`etl/historico_utm.py`) guarda uma
+    linha por (contato, lançamento): mesmo lançamento → a última UTM vence;
+    lançamento novo → linha nova, e a antiga não é tocada.
+
+    Roda ANTES e falha alto de propósito: se o histórico não gravar, o
+    processo para e a `leads` fica com o estado anterior — nada se perde e a
+    próxima passada (janela móvel) tenta de novo. Ao contrário, perderia.
+    """
+    if df is None or df.empty:
+        return
+    linhas = historico_utm.linhas_historico(
+        df.to_dict("records"), extract_launch_code, origem=origem)
+    historico_utm.gravar_historico(get_engine(), linhas)
+
 
 def main():
     parser = argparse.ArgumentParser(description="ETL Active Campaign - Supabase")
@@ -438,7 +463,7 @@ def main():
         logger.info("[AC] %s <- CSV: %s", TABLE, args.from_csv)
         df = load_from_csv(args.from_csv, args.launch_code)
         logger.info("%d leads com utm_content ou utm_term preenchido", len(df))
-        upsert(df)
+        upsert(df, origem="csv_ac")
     else:
         logger.info("[AC] %s  [%s -> %s]  (API)", TABLE, args.since, args.until)
         df = load_from_api(args.since, args.until)

@@ -42,7 +42,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 80 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 81 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -256,6 +256,7 @@ relacionados:
 > - [[ARQUITETURA#A casa fica de fora — e por quê|A casa fica de fora — e por quê]]
 > - [[ARQUITETURA#Janela do carrinho e o aviso de "fora da janela"|Janela do carrinho e o aviso de "fora da janela"]]
 > - [[ARQUITETURA#Perpétuo|Perpétuo]]
+> - [[ARQUITETURA#Histórico de UTM por lançamento (`lead_utm_lancamento`)|Histórico de UTM por lançamento (`lead_utm_lancamento`)]]
 > - [[ARQUITETURA#Trava da atribuição (`atribuicao_congelada`)|Trava da atribuição (`atribuicao_congelada`)]]
 > - [[ARQUITETURA#Apelidos de armazenamento (`APELIDOS_ARMAZENAMENTO`)|Apelidos de armazenamento (`APELIDOS_ARMAZENAMENTO`)]]
 >
@@ -2775,6 +2776,38 @@ código da campanha no checkout dos anúncios `[compra]`.
 fechado** e com as 4 verticais juntas, porque o seletor da página é em dias
 corridos (7/30/90) e nunca fecha um mês. Uma seção só, repetida nas 4 páginas de
 propósito: a pergunta "quanto o perpétuo deu em agosto?" é do perpétuo inteiro.
+
+### Histórico de UTM por lançamento (`lead_utm_lancamento`)
+
+A `leads` espelha o Active Campaign — **uma linha por contato** — e
+`etl_active_campaign.upsert()` a sobrescreve quando quem já está na base se cadastra num
+lançamento novo. Desde 07/10/26, **antes** de sobrescrever, o mesmo `upsert()` grava
+`lead_utm_lancamento` (`etl/historico_utm.py`), uma linha por
+`(contact_id, lancamento_codigo, trilha)`:
+
+- mesmo lançamento → a **última** UTM vence (regra do Michel);
+- lançamento diferente → linha nova; a do lançamento antigo **nunca é tocada**;
+- `trilha` é `''` fora da Black; na Black separa Base Forte × Black Vitalícia (mesmo código
+  BV-26). Guardar separado é a escolha reversível.
+
+O código do lançamento vem **só** da própria `utm_campaign` — UTM que não nomeia lançamento
+não entra, e o fallback por pasta do modo CSV é ignorado.
+
+O gancho fica **dentro** do `upsert()`, não no `main()`, porque `ressync_leads_ac.py` chama
+`upsert()` direto — e um ressync completo é a operação que apagaria tudo de uma vez. Roda
+**antes** da sobrescrita e falha alto: se o histórico não gravar, a `leads` fica como estava.
+
+Semeado em 07/10/26 com o estado atual da `leads` (`semear_da_leads`, INSERT…SELECT no
+servidor, `DO NOTHING`): **1.898.635 linhas, 24 lançamentos**. A coluna `origem` separa
+`seed_leads`, `etl_ac`, `csv_ac`, `ressync_ac` e (no backfill) `export_ac`/`backup`.
+
+**Os leitores ainda não usam a tabela** — o frontend segue lendo a `leads`. A migração (view
+com o formato da `leads`, atribuição primeiro) é o passo 3 de
+[[CONGELAR_ATRIBUICAO_LANCAMENTO]].
+
+Duas armadilhas pegas na construção: o DDL é uma **lista de comandos**, nunca dividido por
+`;` (comentário com ponto e vírgula quebrou a divisão); e o módulo usa o logger do projeto
+(o `logging` cru não tem handler no ETL e a linha de contagem sumia).
 
 ### Trava da atribuição (`atribuicao_congelada`)
 

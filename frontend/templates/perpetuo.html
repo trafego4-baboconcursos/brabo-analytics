@@ -138,6 +138,67 @@
       </div>
     </div>
 
+    {# ── Mês a mês (todas as verticais) ────────────────────────────────
+       Em paralelo ao seletor de 7/30/90 dias, que nunca fecha um mês. É a
+       mesma tabela nas 4 páginas de propósito: a pergunta "quanto o perpétuo
+       deu em agosto?" é do perpétuo inteiro, não de uma vertical. #}
+    {% if perpetuo_mensal and perpetuo_mensal.meses %}
+    <div class="section">
+      <div class="section-title">Mês a mês — todas as verticais</div>
+      <div class="note">
+        Mês civil fechado, independente do seletor de período acima. Investimento de Meta + Google;
+        venda e faturamento do produto na Hotmart. <strong>Mesma ressalva do bloco anterior:</strong>
+        a venda não é atribuída ao anúncio, então custo por venda e ROAS são teto.
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Vertical</th>
+              <th class="th-num">Investido</th>
+              <th class="th-num">Vendas</th>
+              <th class="th-num">Receita</th>
+              <th class="th-num">Custo/venda</th>
+              <th class="th-num">ROAS (teto)</th>
+            </tr>
+          </thead>
+          {% for m in perpetuo_mensal.meses %}
+          <tbody>
+            <tr class="linha-mes">
+              <td colspan="6">
+                <strong>{{ m.label }}</strong>
+                {% if m.parcial %}<span class="bs-pill neutral" style="margin-left:8px">mês em curso</span>{% endif %}
+              </td>
+            </tr>
+            {% for l in m.linhas %}
+            <tr{% if l.slug == perpetuo.vertical %} class="linha-atual"{% endif %}>
+              <td>{{ l.nome }}{% if l.slug == perpetuo.vertical %} <span class="bs-pill accent" style="margin-left:6px">esta página</span>{% endif %}</td>
+              <td class="numero">{{ l.investido | brl }}</td>
+              <td class="numero">{{ l.vendas | num }}</td>
+              <td class="numero">{{ l.receita | brl }}</td>
+              <td class="numero">{% if l.vendas and l.investido %}{{ l.cpa | brl }}{% else %}—{% endif %}</td>
+              <td class="numero {{ 'positivo' if l.roas >= 1 else ('negativo' if l.investido and l.roas < 1 else '') }}">
+                {% if l.investido %}{{ "%.2f"|format(l.roas) | replace(".", ",") }}x{% else %}—{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+            <tr class="linha-total-mes">
+              <td><strong>Total {{ m.label }}</strong></td>
+              <td class="numero td-bold">{{ m.total.investido | brl }}</td>
+              <td class="numero td-bold">{{ m.total.vendas | num }}</td>
+              <td class="numero td-bold">{{ m.total.receita | brl }}</td>
+              <td class="numero td-bold">{% if m.total.vendas %}{{ m.total.cpa | brl }}{% else %}—{% endif %}</td>
+              <td class="numero td-bold {{ 'positivo' if m.total.roas >= 1 else 'negativo' }}">
+                {{ "%.2f"|format(m.total.roas) | replace(".", ",") }}x
+              </td>
+            </tr>
+          </tbody>
+          {% endfor %}
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
     {% if perpetuo.criativos_meta %}
     <div class="section">
       <div class="section-title">Criativos {{ plat_badge("Meta") }}</div>

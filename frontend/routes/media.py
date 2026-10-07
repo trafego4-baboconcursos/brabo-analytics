@@ -111,8 +111,17 @@ async def perpetuo_page(request: Request, vertical: str, launch_code: str | None
     launches = await run_in_threadpool(get_launches)
     launch = resolve_launch(launch_code, launches)
     detail = await run_in_threadpool(read_perpetuo, vertical, days, bool(compare))
+    # Mês fechado, em paralelo ao seletor de dias corridos: o seletor nunca
+    # responde "quanto o perpétuo deu em agosto?" — ver read_perpetuo_mensal.
+    mensal = None
+    try:
+        from frontend.db_readers.perpetuo import read_perpetuo_mensal  # noqa: PLC0415
+        mensal = await run_in_threadpool(read_perpetuo_mensal, 6)
+    except Exception:
+        logger.exception("Perpétuo: falha ao montar a visão mês a mês")
     nome = PERPETUO_VERTICALS.get(vertical, {}).get("nome", vertical)
-    ctx = _base_ctx(request, "perpetuo", nome, launch, launches, perpetuo=detail)
+    ctx = _base_ctx(request, "perpetuo", nome, launch, launches,
+                    perpetuo=detail, perpetuo_mensal=mensal)
     return templates.TemplateResponse("perpetuo.html", ctx)
 
 

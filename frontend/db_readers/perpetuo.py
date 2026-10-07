@@ -267,3 +267,120 @@ def read_perpetuo(vertical: str, days: int = 30, compare: bool = False) -> dict 
         }
 
     return result
+
+
+# ── Visão mês a mês ───────────────────────────────────────────────────────────
+
+_MESES_PT = ("Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+             "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro")
+
+
+def _rotulo_mes(ano: int, mes: int) -> str:
+    return f"{_MESES_PT[mes - 1]}/{ano % 100:02d}"
+
+
+def _primeiro_dia(ano: int, mes: int) -> date:
+    return date(ano, mes, 1)
+
+
+def _ultimo_dia(ano: int, mes: int) -> date:
+    return (_primeiro_dia(ano + (mes == 12), 1 if mes == 12 else mes + 1)
+            - timedelta(days=1))
+
+
+def read_perpetuo_mensal(meses: int = 6) -> dict:
+    """Investimento, vendas, receita, CPA e ROAS por MÊS CIVIL e por vertical.
+
+    O seletor da página é em dias corridos (7/30/90) e nunca fecha um mês: a
+    pergunta "quanto o perpétuo deu em agosto?" não tinha resposta na tela e
+    saía de consulta manual (06/10/26). Aqui o corte é o mês fechado.
+
+    Mesmas fontes da página: verba em `meta_ads_daily`/`google_ads_daily`
+    (analytics, pelo pseudo-lançamento PERPETUO-*), venda em
+    `hotmart_clean_oficial` (operacional, pelo código do produto). A venda
+    continua NÃO atribuída ao anúncio — ver o docstring de `_vendas`: o ROAS
+    aqui é teto, porque inclui orgânico, e-mail e régua.
+    """
+    hoje = date.today()
+    pares: list[tuple[int, int]] = []
+    ano, mes = hoje.year, hoje.month
+    for _ in range(max(1, meses)):
+        pares.append((ano, mes))
+        ano, mes = (ano - 1, 12) if mes == 1 else (ano, mes - 1)
+    pares.reverse()
+    inicio, fim = _primeiro_dia(*pares[0]), _ultimo_dia(*pares[-1])
+
+    codigos = [v["codigo"] for v in VERTICALS.values()]
+    # chave: (YYYY-MM, codigo do pseudo-lançamento) -> investido
+    investido: dict[tuple[str, str], float] = {}
+    try:
+        with _get_engine().connect() as conn:
+            for tabela, col in (("meta_ads_daily", "spend"), ("google_ads_daily", "cost")):
+                for ym, codigo, custo in conn.execute(
+                    text(f"SELECT to_char(date, 'YYYY-MM'), lancamento_codigo, "
+                         f"COALESCE(SUM({col}), 0) FROM {tabela} "
+                         f"WHERE lancamento_codigo = ANY(:codigos) "
+                         f"AND date BETWEEN :inicio AND :fim GROUP BY 1, 2"),
+                    {"codigos": codigos, "inicio": inicio, "fim": fim},
+                ).fetchall():
+                    investido[(ym, codigo)] = investido.get((ym, codigo), 0.0) + float(custo or 0)
+    except Exception:
+        logger.exception("read_perpetuo_mensal: falha ao ler investimento")
+        return {"meses": [], "erro": "investimento"}
+
+    produto_da_vertical = {p: slug for slug, v in VERTICALS.items() for p in v["hotmart"]}
+    # chave: (YYYY-MM, slug da vertical) -> (vendas, receita)
+    vendas: dict[tuple[str, str], tuple[int, float]] = {}
+    data_sql = _hm_data_sql("data_da_transacao")
+    valor = "COALESCE(NULLIF(replace(valor_de_compra_com_impostos,',','.'),'')::numeric,0)"
+    try:
+        with _get_users_engine().connect() as conn:
+            for ym, produto, n, receita in conn.execute(
+                text(f"SELECT to_char({data_sql}, 'YYYY-MM'), codigo_do_produto, "
+                     f"COUNT(*), COALESCE(SUM({valor}), 0) FROM hotmart_clean_oficial "
+                     f"WHERE codigo_do_produto = ANY(:ids) "
+                     f"AND {data_sql} BETWEEN :inicio AND :fim GROUP BY 1, 2"),
+                {"ids": list(produto_da_vertical), "inicio": inicio, "fim": fim},
+            ).fetchall():
+                slug = produto_da_vertical.get(str(produto))
+                if not slug:
+                    continue
+                v, r = vendas.get((ym, slug), (0, 0.0))
+                vendas[(ym, slug)] = (v + int(n or 0), r + float(receita or 0))
+    except Exception:
+        logger.exception("read_perpetuo_mensal: falha ao ler vendas")
+        return {"meses": [], "erro": "vendas"}
+
+    saida = []
+    for ano, mes in pares:
+        ym = f"{ano:04d}-{mes:02d}"
+        linhas, t_inv, t_vnd, t_rec = [], 0.0, 0, 0.0
+        for slug, v in VERTICALS.items():
+            inv = investido.get((ym, v["codigo"]), 0.0)
+            qtd, rec = vendas.get((ym, slug), (0, 0.0))
+            if not inv and not qtd:
+                continue
+            linhas.append({
+                "slug": slug, "nome": v["nome"],
+                "investido": inv, "vendas": qtd, "receita": rec,
+                "cpa": inv / qtd if qtd else 0.0,
+                "roas": rec / inv if inv else 0.0,
+            })
+            t_inv += inv
+            t_vnd += qtd
+            t_rec += rec
+        if not linhas:
+            continue
+        saida.append({
+            "ym": ym,
+            "label": _rotulo_mes(ano, mes),
+            "parcial": (ano, mes) == (hoje.year, hoje.month),
+            "linhas": linhas,
+            "total": {
+                "investido": t_inv, "vendas": t_vnd, "receita": t_rec,
+                "cpa": t_inv / t_vnd if t_vnd else 0.0,
+                "roas": t_rec / t_inv if t_inv else 0.0,
+            },
+        })
+    saida.reverse()  # mês mais recente primeiro
+    return {"meses": saida}

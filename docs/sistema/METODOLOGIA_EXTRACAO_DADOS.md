@@ -2,12 +2,15 @@
 titulo: "Metodologia de Extração e Atribuição de Dados por Lançamento"
 area: sistema
 status: vigente
-atualizado: 2026-09-15
+atualizado: 2026-10-07
 responde:
   - "como cada metrica e extraida"
   - "regras de atribuicao lead-venda"
   - "o que mudou com o fim do Typeform"
   - "como as metricas das aulas do YouTube sao extraidas sem API"
+  - "por que o roas de um lancamento fechado cai sozinho"
+  - "por que o debriefing de um lancamento antigo muda de numero"
+  - "por que compradores somem da atribuicao"
 relacionados:
   - "[[ARQUITETURA]]"
 ---
@@ -300,3 +303,67 @@ Com a integracao da YouTube Analytics API (etl/etl_youtube_analytics.py), as met
     - PI-* -> YOUTUBE_REFRESH_TOKEN_PI (Canal Mateus Andrade)
     - PES-* -> YOUTUBE_REFRESH_TOKEN_PES (Canal Ivan Neto / Brabo Concursos)
     - PBB-* -> YOUTUBE_REFRESH_TOKEN (Canal Felipe Graton)
+
+---
+
+## 13. A atribuição de lançamento fechado apaga sozinha (2026-10-07)
+
+**Sintoma:** o teste de caracterização de `_sales_attribution` quebrou em dois lançamentos
+fechados. O PI-AGO-26, que fechou em 24/08, passou de **2.051 para 1.680** compradores
+rastreados — o ROAS caiu de **2,36x para 1,97x** sem uma venda nova ter entrado. Nenhuma linha
+de código de atribuição tinha mudado.
+
+**Causa:** a tabela `leads` guarda **uma linha por contato** — conferido: os 2.501 compradores
+do PI-AGO-26 têm 2.501 linhas, nenhum tem duas. O lançamento vive numa coluna só,
+`lancamento_codigo`, e um processo externo reescreve a tabela inteira periodicamente (todas as
+linhas dos compradores do PI-AGO-26 têm `updated_at` em outubro/26, inclusive as 1.450 que ainda
+dizem PI-AGO-26).
+
+Quando a pessoa se cadastra num lançamento novo, a linha dela é reescrita com o código novo. O
+`_sales_attribution` casa comprador com lead por
+`WHERE lancamento_codigo = :code` — então **o comprador some da atribuição do lançamento
+antigo**, junto com a UTM que dizia qual anúncio o trouxe.
+
+**Para onde foram os 1.027 compradores do PI-AGO-26 que não têm mais linha dele:**
+
+| destino | compradores |
+|---|---|
+| `NULL` | 479 |
+| **BV-26** (a Black, captando agora) | **387** |
+| PBB-AGO-26 | 94 |
+| outros 9 lançamentos | 67 |
+
+**Não é um caso isolado — todo lançamento fechado já perdeu de um terço a 40%:**
+
+| lançamento | compradores | ainda com linha própria | perdidos | % |
+|---|---|---|---|---|
+| PI-AGO-26 | 2.501 | 1.474 | 1.027 | **41,1%** |
+| PBB-JUN-26 | 698 | 424 | 274 | 39,3% |
+| PES-SET-26 | 1.524 | 942 | 582 | 38,2% |
+| PI-ABR-26 | 3.074 | 1.990 | 1.084 | 35,3% |
+| PBB-AGO-26 | 532 | 353 | 179 | 33,6% |
+| PBB-ABR-26 | 545 | 370 | 175 | 32,1% |
+
+**Consequências:**
+- O ROAS de um lançamento fechado **cai sozinho com o tempo**, e hoje está subestimado em
+  ~1/3 em todos eles. O debriefing de um lançamento fechado dá um número diferente a cada vez
+  que é aberto.
+- A erosão **acelera enquanto um lançamento novo capta**: a Black levou 387 compradores do
+  PI-AGO-26 e 320 do PI-ABR-26 só nas últimas semanas.
+- Não dá pra remendar na leitura: a linha reescrita carrega a UTM do lançamento **novo**, não a
+  do antigo. O dado antigo não está escondido — **foi sobrescrito**.
+
+**O que resolve, em ordem:**
+1. **Fora do nosso código (o conserto de verdade):** `leads` precisa de uma linha por
+   (contato, lançamento), ou de uma coluna de origem imutável, gravada na primeira captura e
+   nunca sobrescrita. É com quem mantém o upsert externo.
+2. **Dentro do nosso código:** congelar a atribuição quando o carrinho fecha — persistir
+   comprador + UTM escolhida numa tabela por lançamento e ler dali, em vez de recalcular
+   sobre uma `leads` que muda. Preserva daqui pra frente; **não recupera** o que já foi
+   sobrescrito.
+3. Enquanto nenhum dos dois existir, **todo ROAS histórico é piso**, e comparar o ROAS de um
+   lançamento fechado com o de um lançamento em curso é comparar uma medida erodida com uma
+   intacta.
+
+**Enquanto isso, o baseline de caracterização não deve ser regravado** nesses dois serviços: ele
+é hoje o único alarme que existe pra essa erosão.

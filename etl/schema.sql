@@ -1282,3 +1282,32 @@ CREATE TABLE IF NOT EXISTS lp_screenshots (
 );
 
 CREATE INDEX IF NOT EXISTS idx_lp_screenshots_lancamento ON lp_screenshots (lancamento_codigo);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- atribuicao_congelada — trava da atribuição por lançamento
+--
+-- `leads` tem UMA linha por contato, com um `lancamento_codigo` só. Quando a
+-- pessoa se cadastra num lançamento novo, a linha é reescrita e o lançamento
+-- antigo perde aquele comprador junto com a UTM que o trouxe. Em 07/10/26 todo
+-- lançamento fechado já tinha perdido de 32% a 41% dos compradores rastreados
+-- (ver seção 13 de docs/sistema/METODOLOGIA_EXTRACAO_DADOS.md).
+--
+-- Esta tabela guarda a MELHOR UTM já observada por (lançamento, comprador). A
+-- gravação é monotônica: só sobrescreve com score maior, então uma linha
+-- congelada nunca piora. Alimentada por scripts/congelar_atribuicao.py e lida
+-- por frontend/services/attribution.py, que a usa para preencher o que a
+-- `leads` já perdeu.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS atribuicao_congelada (
+    lancamento_codigo text        NOT NULL,
+    email             text        NOT NULL,
+    score             integer     NOT NULL DEFAULT 0,
+    utm_source        text        NOT NULL DEFAULT '',
+    utm_medium        text        NOT NULL DEFAULT '',
+    utm_campaign      text        NOT NULL DEFAULT '',
+    utm_content       text        NOT NULL DEFAULT '',
+    utm_term          text        NOT NULL DEFAULT '',
+    congelado_em      timestamptz NOT NULL DEFAULT now(),
+    atualizado_em     timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (lancamento_codigo, email)
+);

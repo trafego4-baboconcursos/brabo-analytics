@@ -367,3 +367,22 @@ antigo**, junto com a UTM que dizia qual anúncio o trouxe.
 
 **Enquanto isso, o baseline de caracterização não deve ser regravado** nesses dois serviços: ele
 é hoje o único alarme que existe pra essa erosão.
+
+### 13.1 A trava (07/10/26, mesmo dia)
+
+O caminho 2 foi implementado: `atribuicao_congelada` guarda a **melhor UTM já observada** por
+(lançamento, comprador) e entra em `_sales_attribution` **antes** da leitura ao vivo — o dado de
+hoje só a substitui com score maior. Gravação monotônica, então rodar de novo nunca piora.
+
+Congelado no mesmo dia: **11 lançamentos, 12.904 pares comprador×UTM**. Detalhe das peças e a
+decisão em aberto (de quanto em quanto tempo rodar) em [[CONGELAR_ATRIBUICAO_LANCAMENTO]].
+
+**O número parou de cair; não voltou.** O que foi sobrescrito antes de 07/10/26 está perdido.
+
+### 13.2 A tag do AC já guardava o histórico
+
+`etl_active_campaign.py` grava **`lead_lancamentos`** (contato × lançamento) a partir das tags
+do AC, que são **cumulativas** — o contato nunca perde a tag do lançamento anterior. É a origem
+imutável que falta na `leads`, e ninguém estava usando pra isso. Recupera **quem** era do
+lançamento (PI-AGO-26: 2.125 compradores contra 1.474 pela `leads`), mas **não guarda UTM**,
+então não diz qual anúncio creditar. Ver [[CONGELAR_ATRIBUICAO_LANCAMENTO]], frente 1.

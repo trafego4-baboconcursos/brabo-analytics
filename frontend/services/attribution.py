@@ -14,7 +14,10 @@ from __future__ import annotations
 import re
 from typing import Any
 
+from logger import get_logger
 from frontend.utils import _norm_text
+
+logger = get_logger("db")
 
 from frontend.services.classificadores import (  # noqa: F401 — reexport
     _classify_campaign,
@@ -32,14 +35,25 @@ from frontend.services.criativos import (  # noqa: F401 — reexport
 )
 
 
-def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
+def _sales_attribution(launch: Any, vendas_data: Any, devolver_utms: bool = False) -> dict:
+    """Atribui a venda ao anúncio que trouxe o comprador.
+
+    `devolver_utms=True` acrescenta `_buyer_utms` ao resultado: o mapa
+    e-mail → UTM escolhida, que é o que `scripts/congelar_atribuicao.py`
+    precisa gravar. Fica atrás de um parâmetro porque são milhares de dicts
+    que as páginas não usam e que, no resultado cacheado, só ocupariam
+    memória — e porque mudaria a impressão digital dos testes de
+    caracterização sem necessidade. Com a flag, o resultado também NÃO é
+    lido nem gravado no cache: é um caminho de script, não de página.
+    """
     from frontend.cache import _get_cached, _set_cached  # noqa: PLC0415
     from frontend.services.fetch import _launch_cfg, _get_global_start, _get_global_end  # noqa: PLC0415
     from frontend.db_readers.leads import read_ac_leads_for_attribution  # noqa: PLC0415
 
-    cached = _get_cached(launch.code, "sales_attribution")
-    if cached is not None:
-        return cached
+    if not devolver_utms:
+        cached = _get_cached(launch.code, "sales_attribution")
+        if cached is not None:
+            return cached
     result: dict = {
         "total_rastreado": 0,
         "emails_rastreados": set(),
@@ -90,10 +104,32 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
         "por_criativo_utm": {},
     }
     if not vendas_data:
-        _set_cached(launch.code, "sales_attribution", result)
+        if not devolver_utms:
+            _set_cached(launch.code, "sales_attribution", result)
         return result
     buyers = vendas_data.emails_hotmart | vendas_data.emails_tmb
     buyer_utms: dict[str, dict] = {}
+
+    # Trava: a UTM congelada entra ANTES da leitura ao vivo, e o dado de hoje
+    # só a substitui com score MAIOR. A `leads` tem uma linha por contato;
+    # quando a pessoa entra num lançamento novo, a linha é reescrita e o
+    # comprador some da atribuição do antigo — 32% a 41% em todo lançamento
+    # fechado, medido em 07/10/26. Semear aqui (e não depois) é o que faz a
+    # trava valer também quando a `leads` não devolve NADA, que é o pior caso
+    # e o que o teste test_atribuicao_congelada cobre. Tabela ausente = dict
+    # vazio = comportamento idêntico ao de antes da trava.
+    from frontend.db_readers.atribuicao_congelada import ler_congelada  # noqa: PLC0415
+
+    _congeladas = {
+        email: dict(utm)
+        for email, utm in (ler_congelada(launch.code) or {}).items()
+        if email in buyers  # venda estornada depois do congelamento não volta
+    }
+    buyer_utms.update(_congeladas)
+    if _congeladas:
+        logger.info("atribuicao: %s partiu de %d compradores congelados",
+                    launch.code, len(_congeladas))
+
     _sa_cfg = _launch_cfg(launch.code)
     # Só interessam os leads que casam com um comprador (por e-mail ou por
     # telefone) — o filtro vai pro SQL em vez de baixar a base inteira do
@@ -110,10 +146,13 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
         emails=buyers,
         phones=_buyer_phones,
     )
-    if leads_df.empty:
-        _set_cached(launch.code, "sales_attribution", result)
+    if leads_df.empty and not buyer_utms:
+        if not devolver_utms:
+            _set_cached(launch.code, "sales_attribution", result)
         return result
-    leads_df_email = leads_df[leads_df["email_norm"].isin(buyers)]
+    leads_df_email = (
+        leads_df[leads_df["email_norm"].isin(buyers)] if not leads_df.empty else leads_df
+    )
     for _, row in leads_df_email.iterrows():
         email = row["email_norm"]
         if not email:
@@ -141,7 +180,11 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
     # Cobre casos onde o e-mail usado na compra difere do cadastrado no AC.
     # Nome completo NÃO entra como fallback: homônimos herdariam UTM de outra pessoa.
     unmatched = buyers - buyer_utms.keys()
-    if unmatched:
+    # `not leads_df.empty` é obrigatório: quando a consulta não devolve linha,
+    # o DataFrame vem com as colunas do SQL e SEM `phone`/`email_norm` (a
+    # normalização é pulada no retorno antecipado de read_ac_leads_for_attribution).
+    # Antes da trava isso não acontecia, porque a função já tinha retornado.
+    if unmatched and not leads_df.empty:
         def _row_score(row) -> int:
             return _utm_score(launch.code, row["utm_source"], row["utm_medium"], row["utm_campaign"], row["utm_content"], row["utm_term"])
 
@@ -289,5 +332,8 @@ def _sales_attribution(launch: Any, vendas_data: Any) -> dict:
             google_campaign_key = _norm_text(campaign)
             if google_campaign_key:
                 _inc_sales(result["google_sem_ad_por_campanha"], google_campaign_key, receita_email, vendas_email)
+    if devolver_utms:
+        result["_buyer_utms"] = buyer_utms
+        return result
     _set_cached(launch.code, "sales_attribution", result)
     return result

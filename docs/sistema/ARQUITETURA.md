@@ -42,7 +42,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 79 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 80 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -256,6 +256,7 @@ relacionados:
 > - [[ARQUITETURA#A casa fica de fora — e por quê|A casa fica de fora — e por quê]]
 > - [[ARQUITETURA#Janela do carrinho e o aviso de "fora da janela"|Janela do carrinho e o aviso de "fora da janela"]]
 > - [[ARQUITETURA#Perpétuo|Perpétuo]]
+> - [[ARQUITETURA#Trava da atribuição (`atribuicao_congelada`)|Trava da atribuição (`atribuicao_congelada`)]]
 > - [[ARQUITETURA#Apelidos de armazenamento (`APELIDOS_ARMAZENAMENTO`)|Apelidos de armazenamento (`APELIDOS_ARMAZENAMENTO`)]]
 >
 > **"Conversões" da landing page contavam disparo de evento, não pessoa (2026-09-18)**
@@ -2774,6 +2775,24 @@ código da campanha no checkout dos anúncios `[compra]`.
 fechado** e com as 4 verticais juntas, porque o seletor da página é em dias
 corridos (7/30/90) e nunca fecha um mês. Uma seção só, repetida nas 4 páginas de
 propósito: a pergunta "quanto o perpétuo deu em agosto?" é do perpétuo inteiro.
+
+### Trava da atribuição (`atribuicao_congelada`)
+
+`_sales_attribution` casa comprador com lead por `leads.lancamento_codigo`. A `leads` tem
+**uma linha por contato**, então quando a pessoa entra num lançamento novo a linha é reescrita
+e o lançamento antigo perde o comprador junto com a UTM — 32% a 41% em todo lançamento fechado
+(medido em 07/10/26, seção 13 de [[METODOLOGIA_EXTRACAO_DADOS]]).
+
+`atribuicao_congelada` guarda a **melhor UTM já observada** por (lançamento, comprador), com o
+`score` do próprio `_utm_score`. `_sales_attribution` semeia `buyer_utms` com ela **antes** de
+ler a `leads`; o dado ao vivo só substitui com score maior. Gravação monotônica
+(`ON CONFLICT ... WHERE EXCLUDED.score > ...`), então congelar de novo nunca piora.
+
+Semear antes, e não depois, é o que faz a trava valer no pior caso — a `leads` não devolver
+linha nenhuma. Nesse caso o DataFrame vem sem `phone`/`email_norm` (retorno antecipado de
+`read_ac_leads_for_attribution`), por isso a cascata de telefone tem guarda de vazio.
+
+Alimentada por `scripts/congelar_atribuicao.py`; passo 0 do [[FECHAMENTO_LANCAMENTO]].
 
 ### Apelidos de armazenamento (`APELIDOS_ARMAZENAMENTO`)
 

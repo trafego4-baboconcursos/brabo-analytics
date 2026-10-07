@@ -37,6 +37,25 @@ def etapa_prequali(launch_code: str | None = None) -> str:
     return "Aquecimento" if _e_black(launch_code) else "Pré-Qualificação"
 
 
+# Apelidos de armazenamento: onde o dado de um lançamento foi gravado quando o
+# nome usado NÃO é o código do lançamento. A automação de grupos de WhatsApp
+# gravou a Black com o nome da trilha — a tabela de membros é `base_forte` e as
+# linhas do Sheets vêm com `launch_code = 'base-forte'`. Como a tabela `BV_26`
+# existe mas está VAZIA, sem este apelido a /whatsapp do BV-26 abre toda zerada
+# (achado em 07/10/26: 17.136 membros e 10 dias de diário invisíveis).
+#
+# O conserto definitivo é a automação gravar o código do lançamento; até lá o
+# apelido fica aqui, num lugar só, e não espalhado pelos leitores.
+APELIDOS_ARMAZENAMENTO: dict[str, tuple[str, ...]] = {
+    "BV-26": ("base_forte", "base-forte"),
+}
+
+
+def apelidos_armazenamento(launch_code: str | None = None) -> tuple[str, ...]:
+    """Outros nomes sob os quais o dado deste lançamento pode estar gravado."""
+    return APELIDOS_ARMAZENAMENTO.get(str(launch_code or "").strip().upper(), ())
+
+
 # Vocabulário de público ("clima"). A Black não tem Quente/Frio/Específico: o
 # público dela é Aluno (base do LMS), Super Quente (engajou com a oferta) e Novo.
 # Quem fixa a lista normal numa página da Black mostra três linhas zeradas —

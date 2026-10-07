@@ -45,17 +45,27 @@ _ACCOUNTS_CONFIG_PATH = Path(__file__).parent.parent.parent / "config" / "whatsa
 
 def _allowed_waba_ids(prefix: str) -> set[str] | None:
     """WABA ids do produto do lançamento (+ bot_ia, que cobre os 3).
-    Retorna None se o config não existir (nesse caso não filtra por conta)."""
+    Retorna None se o config não existir (nesse caso não filtra por conta).
+
+    A Black (prefixo BV) é multiproduto: roda nos números dos três experts ao
+    mesmo tempo, e nenhuma conta tem `product: BV`. Filtrar por produto ali
+    devolvia conjunto vazio e zerava a página — 277 mil mensagens da janela do
+    BV-26 ficavam invisíveis (achado em 07/10/26). Para ela valem todas as
+    contas com produto identificado; `product: null` continua fora, porque são
+    números institucionais ainda não confirmados com a equipe."""
     try:
         cfg = yaml.safe_load(_ACCOUNTS_CONFIG_PATH.read_text(encoding="utf-8")) or {}
     except FileNotFoundError:
         return None
+    multiproduto = prefix.strip().upper() == "BV"
     out = set()
     for acc in cfg.get("accounts", []):
         waba_id = acc.get("waba_id")
         if not waba_id:
             continue
         if acc.get("bot_ia") or acc.get("product") == prefix:
+            out.add(waba_id)
+        elif multiproduto and acc.get("product"):
             out.add(waba_id)
     return out
 

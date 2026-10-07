@@ -16,6 +16,14 @@ from sqlalchemy import text
 
 from frontend.db import _get_engine
 from frontend.utils import _extract_launch_code
+from src.constants import apelidos_armazenamento
+
+
+def _codigos(code: str) -> list[str]:
+    """O código do lançamento mais os apelidos sob os quais ele pode estar
+    gravado. O poller do Sheets escreveu a Black como `base-forte`, não como
+    `BV-26`, e sem isto o diário do BV-26 volta vazio."""
+    return [code, *apelidos_armazenamento(code)]
 
 
 def _resumo_por_bloco(code: str) -> dict[str, dict]:
@@ -25,9 +33,9 @@ def _resumo_por_bloco(code: str) -> dict[str, dict]:
             text("""
                 SELECT bloco, total_grupos_cheios, total_leads, total_limpo
                 FROM whatsapp_sheets_resumo
-                WHERE launch_code = :code
+                WHERE launch_code = ANY(:codes)
             """),
-            {"code": code},
+            {"codes": _codigos(code)},
         ).fetchall()
     return {
         bloco: {"grupos_cheios": gc, "total_leads": tl, "total_limpo": tlimp}
@@ -42,10 +50,10 @@ def _diario_por_bloco(code: str) -> dict[str, list[dict]]:
             text("""
                 SELECT bloco, date::text, entradas, saidas, leads_no_dia
                 FROM whatsapp_sheets_diario
-                WHERE launch_code = :code
+                WHERE launch_code = ANY(:codes)
                 ORDER BY date
             """),
-            {"code": code},
+            {"codes": _codigos(code)},
         ).fetchall()
 
     out: dict[str, list[dict]] = {"normal": [], "vip": []}
@@ -82,10 +90,10 @@ def pico_por_bloco(code: str) -> dict[str, dict]:
             text("""
                 SELECT bloco, date::text, entradas, saidas, leads_no_dia
                 FROM whatsapp_sheets_diario
-                WHERE launch_code = :code
+                WHERE launch_code = ANY(:codes)
                 ORDER BY bloco, date
             """),
-            {"code": code},
+            {"codes": _codigos(code)},
         ).fetchall()
 
     out: dict[str, dict] = {}

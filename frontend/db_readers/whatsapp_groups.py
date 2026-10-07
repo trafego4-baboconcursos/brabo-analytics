@@ -24,6 +24,7 @@ from sqlalchemy import text
 
 from logger import get_logger
 from frontend.utils import _extract_launch_code, _safe_date
+from src.constants import apelidos_armazenamento
 from frontend.db import _get_engine
 
 logger = get_logger("db")
@@ -344,7 +345,9 @@ def _read_whatsapp_uncached(code: str, start_date=None, end_date=None) -> dict |
     base = code.replace("-", "_")
     # Padrões por geração da automação: novos "_API", antigos sem sufixo/_VIPS;
     # o "_VIP" solto cobre exceções tipo PES_SET_VIP (base sem o ano).
-    candidatos_normal = [f"{base}_API", base]
+    # O apelido vem PRIMEIRO: no BV-26 a tabela `BV_26` existe e está vazia, e
+    # os 17 mil membros estão em `base_forte` (ver APELIDOS_ARMAZENAMENTO).
+    candidatos_normal = [*apelidos_armazenamento(code), f"{base}_API", base]
     candidatos_vip = [f"{base}_VIP_API", f"{base}_VIPS", f"{base}_VIP",
                       base.rsplit("_", 1)[0] + "_VIP"]
 
@@ -583,7 +586,8 @@ def read_compradores_por_dia_grupo(launch_folder_or_code: Any) -> dict | None:
     cp_end   = cfg.get("captacao_end_date") or ""
 
     base = code.replace("-", "_")
-    candidatos_normal = [f"{base}_API", base]
+    # Mesmo apelido do bloco acima — ver APELIDOS_ARMAZENAMENTO.
+    candidatos_normal = [*apelidos_armazenamento(code), f"{base}_API", base]
     candidatos_vip = [f"{base}_VIP_API", f"{base}_VIPS", f"{base}_VIP",
                       base.rsplit("_", 1)[0] + "_VIP"]
 

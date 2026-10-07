@@ -2,7 +2,7 @@
 titulo: "Arquitetura do Brabo Analytics — 2026-10-01"
 area: sistema
 status: vigente
-atualizado: 2026-10-01
+atualizado: 2026-10-07
 responde:
   - "como o sistema funciona por dentro"
   - "por que o aviso do etl recomputa so parte do cache"
@@ -42,7 +42,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 78 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 79 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -256,6 +256,7 @@ relacionados:
 > - [[ARQUITETURA#A casa fica de fora — e por quê|A casa fica de fora — e por quê]]
 > - [[ARQUITETURA#Janela do carrinho e o aviso de "fora da janela"|Janela do carrinho e o aviso de "fora da janela"]]
 > - [[ARQUITETURA#Perpétuo|Perpétuo]]
+> - [[ARQUITETURA#Apelidos de armazenamento (`APELIDOS_ARMAZENAMENTO`)|Apelidos de armazenamento (`APELIDOS_ARMAZENAMENTO`)]]
 >
 > **"Conversões" da landing page contavam disparo de evento, não pessoa (2026-09-18)**
 >
@@ -2757,11 +2758,45 @@ sem esse número a página pareceria vazia quando o que não pega é o recorte.
 
 ### Perpétuo
 
-Pedido junto com a página de lançamento, mas **ainda não implementado**: a tabela
-de vendas do perpétuo ainda vai subir. Hoje `read_perpetuo` só lê
-`meta_ads_daily`/`google_ads_daily` — não há venda nenhuma ligada às 4 verticais.
-Quando a tabela existir, `read_afiliados` já aceita janela opcional: falta só
-passar o escopo de produto da vertical em vez do do lançamento.
+**Implementado em 05/10/26.** `read_perpetuo` lê verba em
+`meta_ads_daily`/`google_ads_daily` pelo pseudo-lançamento `PERPETUO-*` (analytics)
+e venda em `hotmart_clean_oficial` pelo código do produto (banco **operacional**,
+via `_get_users_engine` + `_hm_data_sql`). O mapa vertical → produto vive em
+`VERTICALS`, no próprio leitor.
+
+A venda **não é atribuída ao anúncio**: o perpétuo vende direto, sem captura de
+lead, e o `src` da Hotmart chega vazio porque os anúncios não o passam no link de
+checkout. Custo por venda e ROAS são **teto** — incluem orgânico, e-mail e régua —,
+e a página diz isso na tela. O que resolve é ad-ops, não código: `?src=` com o
+código da campanha no checkout dos anúncios `[compra]`.
+
+`read_perpetuo_mensal(meses=6)` (07/10/26) dá o mesmo recorte por **mês civil
+fechado** e com as 4 verticais juntas, porque o seletor da página é em dias
+corridos (7/30/90) e nunca fecha um mês. Uma seção só, repetida nas 4 páginas de
+propósito: a pergunta "quanto o perpétuo deu em agosto?" é do perpétuo inteiro.
+
+### Apelidos de armazenamento (`APELIDOS_ARMAZENAMENTO`)
+
+Quando o dado de um lançamento foi gravado sob um nome que **não** é o código do
+lançamento, o apelido fica em `src/constants.py::APELIDOS_ARMAZENAMENTO` — num
+lugar só, não espalhado pelos leitores. Hoje tem uma entrada: a automação de
+grupos de WhatsApp gravou a Black como a trilha, então `BV-26` →
+(`base_forte`, `base-forte`).
+
+Isso fazia a `/whatsapp?launch_code=BV-26` abrir **toda zerada** (07/10/26), e a
+armadilha vale registrar: a tabela `BV_26` **existe e tem 0 linhas**.
+`_escolhe_tabela` prefere a primeira candidata *com* linhas, mas `base_forte` não
+estava entre as candidatas — então ele caía na vazia e devolvia zero em vez de
+nada. Zero e "sem dado" são diagnósticos diferentes.
+
+A mesma página tinha um segundo problema, de outra natureza: `read_whatsapp_messages`
+filtra conta por `product` do prefixo do lançamento, e **a Black é multiproduto** —
+roda nos números dos três experts e nenhuma conta tem `product: BV`. Para o prefixo
+`BV` valem todas as contas com produto identificado; `product: null` (institucional
+não confirmado) continua fora.
+
+O conserto definitivo dos dois é upstream — a automação gravar o código do
+lançamento —, mas enquanto não for, o apelido resolve na leitura.
 
 ---
 

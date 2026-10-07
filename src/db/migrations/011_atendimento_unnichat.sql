@@ -25,6 +25,20 @@ ALTER TABLE invite_links ADD CONSTRAINT invite_links_role_check
     CHECK (role IN ('admin', 'analista', 'trafego', 'leitura', 'comercial'));
 
 -- ── Tabelas do coletor ────────────────────────────────────────────────────────
+
+-- Conexões do Unnichat (uma por número de WhatsApp, cada uma com seu token).
+-- São muitas e mudam (Principal, B1, B2…), então ficam num cadastro em vez de
+-- fixas no código. O coletor registra sozinho cada conexão que tiver token
+-- (env UNNICHAT_TOKEN_<CHAVE>), com produto vazio; o admin preenche nome e
+-- produto aqui. Quem vê: usuário com o produto liberado; conexão sem produto,
+-- só quem tem acesso a todos (ALL). ativa = false tira do painel sem apagar.
+create table if not exists unnichat_conexoes (
+    chave      text primary key,      -- minúscula, ex. ivan_neto_principal (vai no webhook)
+    nome       text not null,         -- como aparece no Unnichat, ex. "Ivan Neto (Principal)"
+    produto    text,                  -- PI | PES | PBB | PERPETUO | vazio
+    ativa      boolean not null default true,
+    criado_em  timestamptz not null default now()
+);
 -- Atendentes, como GET /attendants devolve. A conta do Unnichat é uma só para
 -- todas as conexões (o atendente traz tenant.connections), então o id é global.
 create table if not exists unnichat_atendentes (
@@ -32,7 +46,7 @@ create table if not exists unnichat_atendentes (
     nome          text,
     email         text,
     status        text,                 -- online | offline
-    conexoes      text[],               -- INSS | TJ | BB | PERPETUO
+    conexoes      text[],               -- chaves de unnichat_conexoes onde aparece
     atualizado_em timestamptz not null default now()
 );
 

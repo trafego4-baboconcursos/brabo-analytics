@@ -78,11 +78,18 @@
       </div>
     </div>
 
-    {% if not conexoes %}
+    {% if not a.tabelas_ok %}
+    <div class="no-data">
+      <i class="ti ti-plug-connected-x"></i>
+      <h3>A coleta do Unnichat ainda não está ligada</h3>
+      <p>As tabelas do atendimento ainda não foram criadas no banco comercial (migration 011).</p>
+    </div>
+
+    {% elif not conexoes %}
     <div class="no-data">
       <i class="ti ti-lock"></i>
       <h3>Nenhuma conexão liberada</h3>
-      <p>Seu acesso não inclui nenhum produto com atendimento no Unnichat. Peça a um admin para liberar em Configurações.</p>
+      <p>Nenhuma conexão do Unnichat está cadastrada para os produtos do seu acesso. Peça a um admin para liberar em Configurações.</p>
     </div>
 
     {% elif not a.coleta_ativa %}

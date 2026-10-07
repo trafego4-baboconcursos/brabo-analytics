@@ -10,9 +10,10 @@ linha a linha: KPIs, série diária e ranking saem da view agregada
 `vw_unnichat_atendimento_diario`, e as conversas abertas de `unnichat_contatos`
 (uma linha por conversa, com limite).
 
-Conexão do Unnichat ↔ produto do usuário: INSS = PI, TJ = PES, BB = PBB,
-PERPETUO = PERPETUO. O mesmo `user_product_access` que filtra os lançamentos
-filtra as conexões aqui.
+Conexões: cada número de WhatsApp do Unnichat é uma conexão, cadastrada em
+`unnichat_conexoes` com o produto (PI, PES, PBB, PERPETUO). O mesmo
+`user_product_access` que filtra os lançamentos filtra as conexões aqui;
+conexão sem produto só aparece pra quem tem acesso a todos (ALL).
 """
 from __future__ import annotations
 
@@ -29,29 +30,16 @@ logger = get_logger("db")
 
 _TZ = ZoneInfo("America/Sao_Paulo")
 
-# Ordem de exibição = ordem dos produtos no resto do painel.
-CONEXAO_POR_PRODUTO: dict[str, str] = {
-    "PI": "INSS",
-    "PES": "TJ",
-    "PBB": "BB",
-    "PERPETUO": "PERPETUO",
-}
-CONEXAO_LABELS: dict[str, str] = {
-    "INSS": "INSS",
-    "TJ": "TJ",
-    "BB": "BB",
-    "PERPETUO": "Perpétuo",
-}
 PERIODOS = (7, 15, 30)
 _LIMITE_CONVERSAS = 200
 
 
-def conexoes_do_usuario(products: list[str] | None) -> list[str]:
-    """Conexões que o usuário pode ver, a partir dos produtos liberados pra ele."""
+def conexoes_visiveis(cadastro: list[dict], products: list[str] | None) -> list[dict]:
+    """Conexões ativas do cadastro que o usuário pode ver pelos produtos dele."""
     products = products or ["ALL"]
     if "ALL" in products:
-        return list(CONEXAO_POR_PRODUTO.values())
-    return [c for p, c in CONEXAO_POR_PRODUTO.items() if p in products]
+        return list(cadastro)
+    return [c for c in cadastro if c.get("produto") in products]
 
 
 def _tabelas_existem(conn) -> bool:
@@ -59,26 +47,41 @@ def _tabelas_existem(conn) -> bool:
         "SELECT to_regclass('public.vw_unnichat_atendimento_diario') IS NOT NULL"
         "   AND to_regclass('public.unnichat_contatos') IS NOT NULL"
         "   AND to_regclass('public.unnichat_atendentes') IS NOT NULL"
+        "   AND to_regclass('public.unnichat_conexoes') IS NOT NULL"
     )).scalar()
     return bool(row)
 
 
-def read_atendimento(dias: int, conexoes: list[str], hoje: date | None = None) -> AtendimentoSummary:
+def read_atendimento(
+    dias: int, products: list[str] | None, conexao: str | None = None, hoje: date | None = None,
+) -> AtendimentoSummary:
+    """`conexao` = chave escolhida no filtro; fora das conexões do usuário é ignorada."""
     dias = dias if dias in PERIODOS else PERIODOS[0]
     hoje = hoje or datetime.now(_TZ).date()
     inicio = hoje - timedelta(days=dias - 1)
     inicio_ant = inicio - timedelta(days=dias)
     resumo = AtendimentoSummary(dias=dias, inicio=inicio, fim=hoje)
-    if not conexoes:
-        return resumo
-
-    params = {"conexoes": list(conexoes), "inicio": inicio, "inicio_ant": inicio_ant, "fim": hoje}
-    expanding = [bindparam("conexoes", expanding=True)]
 
     with _get_users_engine().connect() as conn:
         if not _tabelas_existem(conn):
             logger.info("read_atendimento: tabelas do Unnichat ainda não criadas no banco comercial")
             return resumo
+        resumo.tabelas_ok = True
+
+        cadastro = [dict(r._mapping) for r in conn.execute(text(
+            "SELECT chave, nome, produto FROM unnichat_conexoes WHERE ativa ORDER BY produto NULLS LAST, nome"
+        ))]
+        visiveis = conexoes_visiveis(cadastro, products)
+        resumo.conexoes = [(c["chave"], c["nome"]) for c in visiveis]
+        nome_conexao = dict(resumo.conexoes)
+        chaves = list(nome_conexao)
+        if conexao in nome_conexao:
+            resumo.conexao, chaves = conexao, [conexao]
+        if not chaves:
+            return resumo
+
+        params = {"conexoes": chaves, "inicio": inicio, "inicio_ant": inicio_ant, "fim": hoje}
+        expanding = [bindparam("conexoes", expanding=True)]
 
         nomes = {
             r.atendente_id: {"nome": r.nome or r.atendente_id, "status": r.status}
@@ -170,7 +173,7 @@ def read_atendimento(dias: int, conexoes: list[str], hoje: date | None = None) -
             espera = max(0, int((agora - c.ultima_msg_em).total_seconds() // 60))
         info = nomes.get(c.atendente_id, {})
         resumo.conversas.append({
-            "conexao": CONEXAO_LABELS.get(c.conexao, c.conexao),
+            "conexao": nome_conexao.get(c.conexao, c.conexao),
             "contato": c.nome or c.telefone or c.contact_id,
             "telefone": c.telefone,
             "atendente": info.get("nome") or ("Sem atendente" if not c.atendente_id else c.atendente_id),

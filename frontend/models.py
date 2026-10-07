@@ -605,7 +605,11 @@ class AtendimentoSummary:
     template e conversa finalizada — `aberta_conhecida` False quer dizer que o
     coletor ainda não sabe distinguir e toda conversa conta como aberta.
     """
+    tabelas_ok: bool = False
     coleta_ativa: bool = False
+    # Conexões que o usuário pode ver: [(chave, nome)], e a escolhida no filtro.
+    conexoes: list[tuple[str, str]] = field(default_factory=list)
+    conexao: str | None = None
     dias: int = 7
     inicio: date | None = None
     fim: date | None = None

@@ -13,19 +13,26 @@ os.environ.setdefault("SECRET_KEY", "smoke-secret-key-para-testes")
 os.environ.setdefault("SUPABASE_DB_URL", "postgresql://smoke:smoke@127.0.0.1:1/smoke")
 os.environ.setdefault("SUPABASE_USERS_URL", "postgresql://smoke:smoke@127.0.0.1:1/smoke")
 
-from frontend.db_readers.atendimento import conexoes_do_usuario  # noqa: E402
+from frontend.db_readers.atendimento import conexoes_visiveis  # noqa: E402
+
+CADASTRO = [
+    {"chave": "ivan_principal", "nome": "Ivan Neto (Principal)", "produto": "PI"},
+    {"chave": "felipe_principal", "nome": "Felipe Graton (Principal)", "produto": "PES"},
+    {"chave": "felipe_b1", "nome": "Felipe Graton (B1)", "produto": "PES"},
+    {"chave": "perpetuo", "nome": "Perpétuo", "produto": "PERPETUO"},
+    {"chave": "cs", "nome": "CS - Brabo Concursos", "produto": None},
+]
 
 
 @pytest.mark.parametrize("products, esperado", [
-    (["ALL"], ["INSS", "TJ", "BB", "PERPETUO"]),
-    (None, ["INSS", "TJ", "BB", "PERPETUO"]),
-    (["PI"], ["INSS"]),
-    (["PES", "PBB"], ["TJ", "BB"]),
-    (["PERPETUO"], ["PERPETUO"]),
-    (["XYZ"], []),
+    (["ALL"], ["ivan_principal", "felipe_principal", "felipe_b1", "perpetuo", "cs"]),
+    (None, ["ivan_principal", "felipe_principal", "felipe_b1", "perpetuo", "cs"]),
+    (["PI"], ["ivan_principal"]),
+    (["PES", "PERPETUO"], ["felipe_principal", "felipe_b1", "perpetuo"]),
+    (["PBB"], []),
 ])
-def test_conexoes_do_usuario(products, esperado):
-    assert conexoes_do_usuario(products) == esperado
+def test_conexoes_visiveis(products, esperado):
+    assert [c["chave"] for c in conexoes_visiveis(CADASTRO, products)] == esperado
 
 
 @pytest.fixture(scope="module")

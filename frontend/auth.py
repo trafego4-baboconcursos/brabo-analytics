@@ -43,6 +43,9 @@ _MEDIA = ["admin", "analista", "trafego"]
 _ANLT  = ["admin", "analista", "leitura"]
 _DTLD  = ["admin", "analista"]
 _ADM   = ["admin"]
+# Time comercial: só enxerga /atendimento (qualquer rota fora da lista cai no
+# default _ALL, que não inclui "comercial" — o marketing fica fechado pra ele).
+_CMRC  = ["admin", "analista", "comercial"]
 
 ROUTE_PERMISSIONS: dict[str, list[str]] = {
     "/":                  _ALL,
@@ -68,6 +71,7 @@ ROUTE_PERMISSIONS: dict[str, list[str]] = {
     # e qualquer papel logado leria nome de afiliado e comissão, mesmo com o
     # item escondido do menu (o menu não é a trava).
     "/afiliados":         _DTLD,
+    "/atendimento":       _CMRC,
     "/settings":          _ADM,
 }
 

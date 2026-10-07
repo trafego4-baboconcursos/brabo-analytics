@@ -26,6 +26,9 @@ from frontend.db_readers.ads_meta import (  # noqa: F401
     find_ad_code_real_launches, get_historico_ad_codes, read_meta,
 )
 from frontend.db_readers.afiliados import read_afiliados  # noqa: F401
+from frontend.db_readers.atendimento import (  # noqa: F401
+    CONEXAO_LABELS, PERIODOS, conexoes_do_usuario, read_atendimento,
+)
 from frontend.db_readers.caminho_comprador import read_caminho_comprador  # noqa: F401
 from frontend.db_readers.comparativo import read_comparativo  # noqa: F401
 from frontend.db_readers.eventos import CORES_TIPO, eventos_por_dia, read_eventos  # noqa: F401

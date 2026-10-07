@@ -23,6 +23,7 @@ ROLE_LABELS: dict[str, str] = {
     "analista": "Analista",
     "trafego":  "Tráfego",
     "leitura":  "Leitura",
+    "comercial": "Comercial",
 }
 
 

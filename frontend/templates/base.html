@@ -117,7 +117,7 @@
   <button id="bs-menu-toggle" onclick="bsMenuToggle()" aria-label="Abrir menu">
     <i class="ti ti-menu-2"></i>
   </button>
-  <a href="/calendario">
+  <a href="{{ '/atendimento' if current_user and current_user.role == 'comercial' else '/calendario' }}">
     <img src="/img/logo-brabo-concursos-white.svg" alt="Brabo Analytics">
   </a>
   <span style="width:44px"></span>
@@ -128,7 +128,7 @@
   <!-- ── SIDEBAR ─────────────────────────────────────────────────────── -->
   <aside id="bs-drawer">
     <div class="bs-brand">
-      <a href="/calendario">
+      <a href="{{ '/atendimento' if current_user and current_user.role == 'comercial' else '/calendario' }}">
         <img src="/img/logo-brabo-concursos-white.svg" alt="Brabo Analytics">
         <span class="bs-brand-name">Brabo Analytics - V3.0</span>
       </a>
@@ -146,6 +146,14 @@
        levar pra home do lançamento (Índice). #}
     {% set _switch_base = request.url.path if nav_mode == 'funis' else '/' %}
     <nav class="bs-mode-rail">
+      {# O papel "comercial" só tem acesso a /atendimento: o menu de marketing
+         inteiro levaria a 403. #}
+      {% if current_user and current_user.role == 'comercial' %}
+      <div class="bs-nav-group">Comercial</div>
+      <a class="bs-mode-btn active" href="/atendimento">
+        <i class="ti ti-headset"></i> Atendimento
+      </a>
+      {% else %}
       <a class="bs-mode-btn {% if nav_mode == 'calendario' %}active{% endif %}"
          href="/calendario">
         <i class="ti ti-calendar"></i> Calendário
@@ -307,6 +315,16 @@
           {% endif %}
         </div>
       </div>
+
+      {# Comercial: atendimento do Unnichat. Não é página de lançamento. #}
+      {% if not current_user or current_user.role in ('admin', 'analista') %}
+      <div class="bs-nav-sep"></div>
+      <div class="bs-nav-group">Comercial</div>
+      <a class="bs-mode-btn {% if nav_mode == 'comercial' %}active{% endif %}" href="/atendimento">
+        <i class="ti ti-headset"></i> Atendimento
+      </a>
+      {% endif %}
+      {% endif %}{# fim do menu de marketing #}
     </nav>
 
     <!-- Sistema — fora dos modos, só pra admin -->

@@ -4,7 +4,7 @@ frontend/models.py — Dataclasses de domínio do Brabo Analytics.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 
@@ -589,3 +589,38 @@ class AfiliadosSummary:
     fora_da_janela_faturamento: float = 0.0
     janela_inicio: date | None = None
     janela_fim: date | None = None
+
+
+# ── Atendimento Comercial (Unnichat) ──────────────────────────────────────────
+
+@dataclass
+class AtendimentoSummary:
+    """Mensagens, templates e conversas por atendente do Unnichat (/atendimento).
+
+    Lido do banco COMERCIAL (tabelas de src/db/migrations/011_atendimento_unnichat.sql),
+    que o coletor do Unnichat alimenta. `coleta_ativa` False = as tabelas ainda
+    não existem ou estão vazias; a página mostra o aviso em vez de zeros.
+
+    Templates e "conversa aberta" dependem de como a API do Unnichat marca
+    template e conversa finalizada — `aberta_conhecida` False quer dizer que o
+    coletor ainda não sabe distinguir e toda conversa conta como aberta.
+    """
+    coleta_ativa: bool = False
+    dias: int = 7
+    inicio: date | None = None
+    fim: date | None = None
+    enviadas: int = 0
+    recebidas: int = 0
+    templates: int = 0
+    # Mesmos totais na janela anterior de mesmo tamanho, para o delta dos KPIs.
+    enviadas_ant: int = 0
+    recebidas_ant: int = 0
+    templates_ant: int = 0
+    serie: list[dict] = field(default_factory=list)        # {dia, enviadas, recebidas}
+    atendentes: list[dict] = field(default_factory=list)   # ranking do período
+    conversas: list[dict] = field(default_factory=list)    # abertas agora, mais antiga primeiro
+    conversas_total: int = 0
+    aguardando_total: int = 0
+    aguardando_1h: int = 0
+    aberta_conhecida: bool = False
+    ultima_coleta: datetime | None = None

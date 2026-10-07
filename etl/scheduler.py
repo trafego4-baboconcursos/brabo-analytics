@@ -208,6 +208,32 @@ def rodar_carga(dias_janela: int = 2, fontes: str | None = None,
         trava.release()
 
 
+def rodar_congelamento_atribuicao() -> None:
+    """Congela a UTM de cada comprador dos lançamentos cuja live já começou.
+
+    Roda em subprocesso, como o ETL: o script importa o frontend inteiro, e um
+    erro lá não pode derrubar o scheduler. Monotônico — no pior caso não
+    acrescenta nada.
+    """
+    script = BASE_DIR.parent / "scripts" / "congelar_atribuicao.py"
+    logger.info("Trava da atribuição: iniciando.")
+    try:
+        r = subprocess.run(
+            [sys.executable, str(script), "--desde-a-live"],
+            capture_output=True, text=True, timeout=1800,
+            cwd=str(BASE_DIR.parent),
+        )
+    except subprocess.TimeoutExpired:
+        logger.error("Trava da atribuição: estourou 30 min e foi abortada.")
+        enviar_alerta_webhook("Trava da atribuição estourou o tempo (30 min).")
+        return
+    if r.returncode != 0:
+        logger.error("Trava da atribuição falhou (exit %s): %s", r.returncode, (r.stderr or "")[-2000:])
+        enviar_alerta_webhook("Trava da atribuição falhou.", (r.stderr or "")[-1500:])
+        return
+    logger.info("Trava da atribuição concluída.\n%s", (r.stdout or "").strip()[-2000:])
+
+
 def _on_job_event(event) -> None:
     """Callback do APScheduler para erros e jobs perdidos (misfire)."""
     if event.code == EVENT_JOB_MISSED:
@@ -278,6 +304,27 @@ def main() -> None:
         misfire_grace_time=3600,
         id="etl_carga_profunda",
         name="ETL janela profunda diária (18 dias)",
+    )
+
+    # Trava da atribuição, 4h10 — depois da janela profunda das 3h40, pra
+    # congelar já com a venda e o lead do dia anteriores atualizados.
+    #
+    # POR QUE DIÁRIO E POR QUE A PARTIR DA PRIMEIRA LIVE: a `leads` tem uma
+    # linha por contato; quando a pessoa entra num lançamento novo, a linha é
+    # reescrita e o lançamento antigo perde o comprador junto com a UTM que o
+    # trouxe. Quando isso foi medido (07/10/26) todo lançamento fechado já
+    # tinha perdido de 32% a 41%. A venda começa na primeira live — é dali em
+    # diante que há o que travar, e cada dia sem travar é um dia de perda
+    # possível. Ver docs/projetos/CONGELAR_ATRIBUICAO_LANCAMENTO.md.
+    scheduler.add_job(
+        rodar_congelamento_atribuicao,
+        trigger="cron",
+        hour=4,
+        minute=10,
+        coalesce=True,
+        misfire_grace_time=3600,
+        id="congelar_atribuicao",
+        name="Trava da atribuição (diária, 4h10)",
     )
 
     # Alerta de orçamento (planejado x real), 3x/dia — minute=15 propositalmente

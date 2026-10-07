@@ -13,7 +13,7 @@ recomendado: cada rodada trava o que ainda não foi perdido.
 
 Uso:
     python scripts/congelar_atribuicao.py --launch PI-AGO-26
-    python scripts/congelar_atribuicao.py --todos
+    python scripts/congelar_atribuicao.py --desde-a-live   # o que o scheduler roda
     python scripts/congelar_atribuicao.py --todos --dry-run
 """
 from __future__ import annotations
@@ -72,19 +72,51 @@ def _congelar(code: str, dry_run: bool) -> tuple[int, int, int]:
     return compradores, rastreados, enviadas
 
 
+def _desde_a_live() -> list[str]:
+    """Lançamentos cuja primeira live já aconteceu.
+
+    É quando a venda começa, e é a partir dali que a UTM do comprador precisa
+    estar travada: antes disso não há comprador pra congelar; depois, cada dia
+    sem travar é um dia em que a linha dele na `leads` pode ser reescrita por um
+    lançamento novo e a UTM se perder pra sempre.
+    """
+    from datetime import date  # noqa: PLC0415
+
+    from frontend.core import get_launches  # noqa: PLC0415
+    from frontend.db_readers.launches import read_launch_config  # noqa: PLC0415
+    from frontend.utils import _safe_date  # noqa: PLC0415
+
+    hoje = date.today()
+    escolhidos = []
+    for lan in get_launches():
+        cfg = read_launch_config(lan.code) or {}
+        inicio = (_safe_date(cfg.get("evento_start_date"))
+                  or _safe_date(cfg.get("carrinho_start_date")))
+        if inicio and inicio <= hoje:
+            escolhidos.append(lan.code)
+    return escolhidos
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--launch", help="código do lançamento (ex: PI-AGO-26)")
     ap.add_argument("--todos", action="store_true", help="todos os lançamentos conhecidos")
+    ap.add_argument("--desde-a-live", action="store_true",
+                    help="só os lançamentos cuja primeira live já aconteceu")
     ap.add_argument("--dry-run", action="store_true", help="só relata, não grava")
     args = ap.parse_args()
 
-    if not args.launch and not args.todos:
-        ap.error("informe --launch CODE ou --todos")
+    if not (args.launch or args.todos or args.desde_a_live):
+        ap.error("informe --launch CODE, --todos ou --desde-a-live")
 
     from frontend.core import get_launches  # noqa: PLC0415
 
-    codes = [args.launch] if args.launch else [x.code for x in get_launches()]
+    if args.launch:
+        codes = [args.launch]
+    elif args.desde_a_live:
+        codes = _desde_a_live()
+    else:
+        codes = [x.code for x in get_launches()]
     print(f"congelando atribuição de {len(codes)} lançamento(s)"
           f"{' (dry-run)' if args.dry_run else ''}:")
     falhas = 0

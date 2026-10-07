@@ -2792,7 +2792,18 @@ Semear antes, e não depois, é o que faz a trava valer no pior caso — a `lead
 linha nenhuma. Nesse caso o DataFrame vem sem `phone`/`email_norm` (retorno antecipado de
 `read_ac_leads_for_attribution`), por isso a cascata de telefone tem guarda de vazio.
 
-Alimentada por `scripts/congelar_atribuicao.py`; passo 0 do [[FECHAMENTO_LANCAMENTO]].
+Alimentada por `scripts/congelar_atribuicao.py --desde-a-live`, que o `etl/scheduler.py` roda
+**todo dia às 4h10** (job `congelar_atribuicao`, em subprocesso, timeout 30 min, alerta no
+webhook se falhar) para os lançamentos cuja primeira live já aconteceu.
+
+O que já tinha sido perdido antes da trava foi remontado por
+`scripts/recuperar_utms_export_ac.py`, a partir dos exports do AC da época em
+`analises/[LANC]/Active Campaign/` — só UTM que nomeia o lançamento, gravada com
+`origem = 'export_ac'`. A coluna `origem` separa medida do dia (`ao_vivo`) de história remontada.
+
+`ler_congelada` só engole "relation does not exist" — qualquer outro erro sobe. Engolir
+qualquer "does not exist" fez a trava devolver vazio quando uma coluna nova ainda não existia
+(pego no mesmo dia em que foi escrito).
 
 ### Apelidos de armazenamento (`APELIDOS_ARMAZENAMENTO`)
 

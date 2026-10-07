@@ -379,7 +379,18 @@ decisão em aberto (de quanto em quanto tempo rodar) em [[CONGELAR_ATRIBUICAO_LA
 
 **O número parou de cair; não voltou.** O que foi sobrescrito antes de 07/10/26 está perdido.
 
-### 13.2 A tag do AC já guardava o histórico
+### 13.2 Recuperação pelo export do AC da época + trava diária
+
+Os CSVs em `analises/[LANC]/Active Campaign/` guardam a UTM como estava no dia do export.
+`scripts/recuperar_utms_export_ac.py` recuperou **1.216 compradores em 10 lançamentos**, só
+os que têm UTM nomeando o lançamento (o resto seria crédito chutado ou errado), marcados
+`origem = 'export_ac'`. O PI-AGO-26 voltou de 1.680 para 2.003 compradores atribuídos.
+
+A trava passou a rodar sozinha, **diária às 4h10, a partir da primeira live de cada
+lançamento** (job `congelar_atribuicao` no `etl/scheduler.py`). Detalhes em
+[[CONGELAR_ATRIBUICAO_LANCAMENTO]].
+
+### 13.3 A tag do AC já guardava o histórico
 
 `etl_active_campaign.py` grava **`lead_lancamentos`** (contato × lançamento) a partir das tags
 do AC, que são **cumulativas** — o contato nunca perde a tag do lançamento anterior. É a origem

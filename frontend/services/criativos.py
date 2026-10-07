@@ -455,6 +455,12 @@ def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dic
         "prequali_rows": _creative_rows_prequali(meta, google, sales_attr, launch_code),
         # Captação da Black em duas trilhas; vazio em lançamento normal.
         "trilha_blocos": _creative_rows_por_trilha(meta, google, sales_attr),
+        # Mesmos blocos por plataforma, para /meta e /google: lá a página é de
+        # um canal só, somar o outro misturaria verba que não é daquela tela.
+        "meta_prequali_rows": _creative_rows_prequali(meta, None, sales_attr, launch_code, "Meta Ads"),
+        "google_prequali_rows": _creative_rows_prequali(None, google, sales_attr, launch_code, "Google Ads"),
+        "meta_trilha_blocos": _creative_rows_por_trilha(meta, None, sales_attr, "Meta Ads"),
+        "google_trilha_blocos": _creative_rows_por_trilha(None, google, sales_attr, "Google Ads"),
         "etapa_pq": _etapa_prequali(launch_code),
     }
 
@@ -509,8 +515,22 @@ def _bloco_criativos(itens: Any, vendas_por_code: dict) -> list[dict]:
     return sorted(saida, key=lambda x: x["gasto"], reverse=True)
 
 
+def _vendas_do_bloco(sales_attr: dict | None, etapa: str,
+                     plataforma: str | None = None) -> dict:
+    """Venda por ADxxx para um bloco, escopada por plataforma quando pedido.
+
+    As páginas /meta e /google mostram uma plataforma só. Sem o escopo, um
+    ADxxx que roda nas duas apareceria com a venda inteira dos dois lados e a
+    soma das duas páginas daria mais venda do que o lançamento teve.
+    """
+    if plataforma:
+        return ((sales_attr or {}).get("por_criativo_canal_por_etapa", {})
+                .get(plataforma, {}).get(etapa, {}) or {})
+    return (sales_attr or {}).get("por_criativo_por_etapa", {}).get(etapa, {}) or {}
+
+
 def _creative_rows_prequali(meta: Any, google: Any, sales_attr: dict | None,
-                            launch_code: str = "") -> list[dict]:
+                            launch_code: str = "", plataforma: str | None = None) -> list[dict]:
     """Criativos da etapa que ocupa o papel de Pré-Qualificação (Aquecimento na Black).
 
     Bloco SEPARADO de propósito, não somado ao ranking de Captação: juntar põe
@@ -521,12 +541,13 @@ def _creative_rows_prequali(meta: Any, google: Any, sales_attr: dict | None,
     from src.constants import etapa_prequali  # noqa: PLC0415
 
     etapa = etapa_prequali(launch_code)
-    vendas = (sales_attr or {}).get("por_criativo_por_etapa", {}).get(etapa, {}) or {}
+    vendas = _vendas_do_bloco(sales_attr, etapa, plataforma)
     itens = list(getattr(meta, "preq_por_ad", None) or []) + list(getattr(google, "preq_por_ad", None) or [])
     return _bloco_criativos(itens, vendas)
 
 
-def _creative_rows_por_trilha(meta: Any, google: Any, sales_attr: dict | None) -> list[dict]:
+def _creative_rows_por_trilha(meta: Any, google: Any, sales_attr: dict | None,
+                              plataforma: str | None = None) -> list[dict]:
     """Captação da Black dividida em Base Forte × Black Vitalícia.
 
     Lista vazia fora da Black (`trilha` vem None). No BV-26 os dois conjuntos de
@@ -535,7 +556,7 @@ def _creative_rows_por_trilha(meta: Any, google: Any, sales_attr: dict | None) -
     """
     from src.nomenclatura import TRILHA_BASE_FORTE, TRILHA_VITALICIA  # noqa: PLC0415
 
-    vendas = (sales_attr or {}).get("por_criativo_por_etapa", {}).get("Captação", {}) or {}
+    vendas = _vendas_do_bloco(sales_attr, "Captação", plataforma)
     itens = list(getattr(meta, "captacao_por_ad", None) or []) + list(getattr(google, "anuncios_por_ad", None) or [])
     blocos = []
     for trilha in (TRILHA_BASE_FORTE, TRILHA_VITALICIA):

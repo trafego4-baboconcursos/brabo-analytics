@@ -104,12 +104,54 @@
               <td class="numero"><strong>{{ s.get('vendas', 0) | num }}</strong></td>
               <td class="numero {{ 'positivo' if s_roas >= 1 else ('negativo' if s_roas == 0 else '') }}">{{ "%.2f"|format(s_roas) | replace(".", ",") }}x</td>
             </tr>
+            {# Na Black a Captação corre em duas trilhas que não se comparam:
+               Base Forte é evento gratuito, Black Vitalícia é o lançamento.
+               Fora da Black o dict vem vazio e nada aqui é renderizado. #}
+            {% if etapa == 'Captação' and google.por_trilha_captacao %}
+            {% for trilha, tr in google.por_trilha_captacao.items() | sort(attribute='1.custo', reverse=True) %}
+            <tr class="linha-trilha">
+              <td style="padding-left:26px"><span class="bs-pill trilha-{{ 'bf' if trilha == 'Base Forte' else 'bv' }}">↳ {{ trilha }}</span></td>
+              <td class="numero">{{ tr.custo | brl }}</td>
+              <td>
+                <div class="pbar-wrap">
+                  <div class="pbar-track"><div class="pbar-fill google" style="width:{{ (tr.custo / total * 100)|round(1) }}%"></div></div>
+                  <strong class="td-google" style="font-size:12px">{{ (tr.custo / total * 100)|pct }}</strong>
+                </div>
+              </td>
+              <td class="numero">{{ "%.0f"|format(tr.conversoes) }}</td>
+              <td class="numero">{{ tr.custo_conv | brl if tr.conversoes > 0 else "–" }}</td>
+              <td class="numero">–</td>
+              <td class="numero" title="A venda é atribuída por etapa, não por trilha">–</td>
+              <td class="numero">–</td>
+            </tr>
+            {% endfor %}
+            {% endif %}
             {% endif %}
             {% endfor %}
           </tbody>
         </table>
       </div>
     </div>
+    {% endif %}
+
+    {# ── Black: Aquecimento, Base Forte e Black Vitalícia ──────────────
+       Os três grupos que o time opera como etapas distintas. Fora da Black
+       `google_trilha_blocos` vem vazio e nada abaixo é renderizado. #}
+    {% set ovb = creative_overview %}
+    {% if ovb and ovb.google_trilha_blocos %}
+    {% from "_macros_criativos.html" import bloco_criativos with context %}
+
+    {% if ovb.google_prequali_rows %}
+    {{ bloco_criativos(ovb.google_prequali_rows, "Criativos — " ~ ovb.etapa_pq, ovb.etapa_pq,
+       "Etapa anterior à Captação, em bloco próprio: somar as duas põe o gasto de uma debaixo da venda da outra e infla o ROAS. Campanha de envolvimento, então a métrica é vídeo (view), não lead.",
+       modo='video', plataforma='Google') }}
+    {% endif %}
+
+    {% for b in ovb.google_trilha_blocos %}
+    {{ bloco_criativos(b.rows, "Criativos — Captação " ~ b.trilha, b.trilha,
+       "Base Forte é o evento gratuito, com LP e pixel próprios; Black Vitalícia é a captação do lançamento. CPL e CPA de uma não dizem nada sobre a outra. Só os anúncios do Google — o Meta está na página dele.",
+       plataforma='Google') }}
+    {% endfor %}
     {% endif %}
 
     {# ── 2. Campanhas Detalhadas ──────────────────────────────────────── #}
@@ -213,6 +255,44 @@
           </tbody>
         </table>
       </div>
+
+      {# Mesma tabela aberta por trilha — ver o comentário gêmeo em meta.html.
+         Só na Black; fora dela o dict vem vazio. #}
+      {% if google.por_temperatura_por_trilha %}
+      {% for trilha, temps in google.por_temperatura_por_trilha.items() %}
+      <div class="trilha-bloco">
+        <h3 class="trilha-sub">↳ Captação {{ trilha }}</h3>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="th-google">Público</th><th class="th-google">Investimento</th>
+                <th class="th-google">% da trilha</th><th class="th-google">Conversões</th><th class="th-google">CPA</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for temp, d in temps.items() | sort(attribute='1.custo', reverse=True) %}
+              {% if d.custo > 0 %}
+              <tr>
+                <td><span class="bs-pill {{ {'Quente':'temp-quente','Frio':'temp-frio','Específico':'temp-especifico'}.get(temp,'temp-outros') }}">{{ temp }}</span></td>
+                <td class="numero">{{ d.custo | brl }}</td>
+                <td>
+                  <div class="pbar-wrap">
+                    <div class="pbar-track"><div class="pbar-fill google" style="width:{{ d.pct|round(1) }}%"></div></div>
+                    <strong class="td-google" style="font-size:12px">{{ d.pct | pct }}</strong>
+                  </div>
+                </td>
+                <td class="numero">{{ "%.0f"|format(d.conversoes) }}</td>
+                <td class="numero">{{ d.custo_conv | brl if d.conversoes > 0 else "–" }}</td>
+              </tr>
+              {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endfor %}
+      {% endif %}
     </div>
     {% endif %}
     {% endif %}

@@ -263,6 +263,23 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
             "pct": custo / total_spend_cap * 100 if total_spend_cap else 0.0,
         }
 
+    # Temperatura DENTRO de cada trilha. A tabela de público some as duas
+    # trilhas num "Aluno" só, e como a Base Forte gasta mais e converte a
+    # R$ 10 contra R$ 52 da Vitalícia, o CPL da linha vira o da Base Forte.
+    for trilha, bloco in df_cap.dropna(subset=["trilha"]).groupby("trilha"):
+        total_trilha = float(bloco["spend"].sum()) or 1.0
+        por_temp: dict[str, dict] = {}
+        for temp, sub in bloco.groupby("temperatura"):
+            custo_t = float(sub["spend"].sum())
+            leads_t = int(sub["leads"].sum())
+            por_temp[str(temp)] = {
+                "temperatura": str(temp),
+                "custo": custo_t, "gasto": custo_t, "leads": leads_t,
+                "cpl": custo_t / leads_t if leads_t > 0 else 0.0,
+                "pct": custo_t / total_trilha * 100,
+            }
+        summary.por_temperatura_por_trilha[trilha] = por_temp
+
     # Gasto por conta de anúncio — numa Black cada expert tem conta e verba
     # próprias, e o nome da campanha não identifica o dono de forma confiável.
     if "account_id" in df.columns:

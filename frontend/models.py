@@ -75,6 +75,10 @@ class MetaSummary:
     # (Base Forte = evento gratuito; Black Vitalícia = o lançamento).
     # Vazio em lançamento normal, que é o sinal de não dividir nada.
     por_trilha_captacao: dict = field(default_factory=dict)
+    # Mesma divisão, uma camada abaixo: {trilha: {temperatura: dados}}. Sem
+    # isso a tabela de público soma Base Forte com Black Vitalícia na mesma
+    # linha de "Aluno", e um CPL de R$ 10 esconde um de R$ 52.
+    por_temperatura_por_trilha: dict = field(default_factory=dict)
     # Gasto por conta de anúncio: numa Black cada expert tem conta própria e
     # verba própria, e o nome da campanha não é fonte confiável de dono.
     por_conta: dict = field(default_factory=dict)
@@ -144,6 +148,10 @@ class GoogleSummary:
     # (Base Forte = evento gratuito; Black Vitalícia = o lançamento).
     # Vazio em lançamento normal, que é o sinal de não dividir nada.
     por_trilha_captacao: dict = field(default_factory=dict)
+    # Mesma divisão, uma camada abaixo: {trilha: {temperatura: dados}}. Sem
+    # isso a tabela de público soma Base Forte com Black Vitalícia na mesma
+    # linha de "Aluno", e um CPL de R$ 10 esconde um de R$ 52.
+    por_temperatura_por_trilha: dict = field(default_factory=dict)
     por_conta: dict = field(default_factory=dict)
     por_conta_captacao: dict = field(default_factory=dict)
     por_temperatura_prequali: dict = field(default_factory=dict)

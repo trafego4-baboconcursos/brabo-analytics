@@ -254,6 +254,23 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
             "pct": custo / total_cap_g * 100 if total_cap_g else 0.0,
         }
 
+    # Temperatura dentro de cada trilha (ver o mesmo trecho em ads_meta.py).
+    for trilha, bloco in df_cap_g.dropna(subset=["trilha"]).groupby("trilha"):
+        total_trilha = float(bloco["cost"].sum()) or 1.0
+        por_temp: dict[str, dict] = {}
+        for temp, sub in bloco.groupby("temperatura"):
+            custo_t = float(sub["cost"].sum())
+            conv_t = float(sub["conversions"].sum())
+            por_temp[str(temp)] = {
+                "temperatura": str(temp),
+                "custo": custo_t, "gasto": custo_t,
+                "leads": int(conv_t), "conversoes": conv_t,
+                "cpl": custo_t / conv_t if conv_t > 0 else 0.0,
+                "custo_conv": custo_t / conv_t if conv_t > 0 else 0.0,
+                "pct": custo_t / total_trilha * 100,
+            }
+        summary.por_temperatura_por_trilha[trilha] = por_temp
+
     # Gasto por conta (customer) — o dono da verba é o expert, e cada um tem a
     # sua conta; o nome da campanha não identifica o dono de forma confiável.
     if "customer_id" in df.columns:

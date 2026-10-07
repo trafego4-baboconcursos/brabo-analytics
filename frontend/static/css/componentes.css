@@ -461,6 +461,28 @@ table tr.total-row:hover td {
 .bs-pill.temp-especifico { background:var(--temp-especifico); }
 .bs-pill.temp-outros     { background:var(--temp-outros); color:var(--bs-ink); }
 
+/* ── Trilhas da Black (Base Forte x Black Vitalicia) ─────────────────── */
+/* Sub-linha de uma etapa: recuada e com fundo mais fraco, para nao somar
+   visualmente com as linhas de etapa que estao no mesmo <tbody>. */
+.bs-pill.trilha-bf  { background:var(--bs-info); }
+.bs-pill.trilha-bv  { background:var(--bs-accent); }
+tr.linha-trilha > td { background:var(--bs-accent-bg); font-size:12px; opacity:.92; }
+.trilha-bloco { margin-top:18px; }
+.trilha-sub {
+  margin:0 0 8px; font-size:13px; font-weight:700;
+  color:var(--bs-ink-subtle); letter-spacing:.2px;
+}
+
+/* ── Tabela agrupada por mes (Perpetuo mes a mes) ────────────────────── */
+/* Um <tbody> por mes: a linha de cabecalho do grupo e a de total precisam
+   se distinguir das linhas de vertical, que ficam entre as duas. */
+tr.linha-mes > td {
+  background:var(--bs-accent-bg); font-size:13px;
+  padding-top:12px; padding-bottom:8px;
+}
+tr.linha-total-mes > td { border-top:1px solid var(--bs-border-s); font-size:12px; }
+tr.linha-atual > td { background:var(--bs-accent-bg); }
+
 /* ── Platform KPI card variants ─────────────────────────────────────── */
 .metric-card.destaque-google { background:linear-gradient(135deg,var(--google-color),var(--yt-color)); color:#fff; }
 .metric-card.destaque-google .label { opacity:1; font-weight:600; }

@@ -485,13 +485,26 @@
       Banco de dados temporariamente indisponível — exibindo dados em cache. Recarregue em alguns minutos.
     </div>
     {% endif %}
+    {# Vigia do ETL (frontend/services/vigia_etl.py): limite de 2-3h por fonte,
+       bem mais curto que a faixa de 25h logo abaixo. A mesma mensagem vai pro
+       Slack. Quando o vigia já acusou, a faixa antiga sobra e é escondida. #}
+    {% if vigia_etl %}
+    <div style="background:var(--bs-danger);color:#fff;padding:10px 20px;font-size:13px;font-weight:500;display:flex;align-items:flex-start;gap:8px;border-radius:0 0 var(--bs-r-md) var(--bs-r-md);margin-bottom:16px;">
+      <i class="ti ti-plug-connected-x" style="margin-top:2px"></i>
+      <div>
+        <strong>ETL parado:</strong>
+        {% for p in vigia_etl %}{{ p.texto }}{% if not loop.last %}; {% endif %}{% endfor %}.
+        Enquanto isso, os números não atualizam e o histórico de UTM não registra cadastros novos.
+      </div>
+    </div>
+    {% endif %}
     {% set stale_sources = [] %}
     {% for source, info in etl_status.items() %}
       {% if info.hours_ago is not none and info.hours_ago > etl_stale_hours %}
         {% set _ = stale_sources.append(source.replace('_', ' ')) %}
       {% endif %}
     {% endfor %}
-    {% if stale_sources %}
+    {% if stale_sources and not vigia_etl %}
     <div style="background:var(--bs-warning);color:#1f2330;padding:10px 20px;font-size:13px;font-weight:500;display:flex;align-items:center;gap:8px;border-radius:0 0 var(--bs-r-md) var(--bs-r-md);margin-bottom:16px;">
       <i class="ti ti-clock-exclamation"></i>
       Dados desatualizados: <strong>{{ stale_sources | join(', ') }}</strong> — última atualização há mais de {{ etl_stale_hours | int }}h. Verifique se o ETL está rodando.

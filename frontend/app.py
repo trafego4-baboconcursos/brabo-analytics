@@ -143,6 +143,17 @@ async def pre_warm_cache():
     schedule_warm(origem="boot")
     schedule_periodic_warm(int(os.environ.get("PRE_WARM_INTERVAL_MIN", "60") or 0))
 
+
+@app.on_event("startup")
+async def vigia_do_etl():
+    # Handler próprio, fora do pre_warm_cache: aquele retorna cedo quando
+    # PRE_WARM_CACHE está desligado, e o vigia precisa rodar de qualquer jeito.
+    # Ver frontend/services/vigia_etl.py — o site avisa porque o ETL parado
+    # não consegue avisar que parou.
+    from frontend.services.vigia_etl import agendar_vigia  # noqa: PLC0415
+
+    agendar_vigia()
+
 # ── Handler global de erros ────────────────────────────────────────────────────
 @app.exception_handler(Exception)
 async def _global_error_handler(request: Request, exc: Exception):  # noqa: ARG001

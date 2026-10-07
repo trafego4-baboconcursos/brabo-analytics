@@ -73,6 +73,9 @@ CREATE TABLE IF NOT EXISTS {TABELA} (
 """,
     f"CREATE INDEX IF NOT EXISTS idx_{TABELA}_lanc  ON {TABELA} (lancamento_codigo)",
     f"CREATE INDEX IF NOT EXISTS idx_{TABELA}_email ON {TABELA} (email)",
+    # O vigia do ETL (frontend/services/vigia_etl.py) lê max(ultimo_visto_em)
+    # a cada 15 min; sem índice é varredura de 1,9 mi de linhas.
+    f"CREATE INDEX IF NOT EXISTS idx_{TABELA}_visto ON {TABELA} (ultimo_visto_em)",
 ]
 # Só para o etl/schema.sql — o código executa _DDL_COMANDOS um a um.
 DDL = ";\n\n".join(c.strip() for c in _DDL_COMANDOS)

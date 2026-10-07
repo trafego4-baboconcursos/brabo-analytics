@@ -42,7 +42,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 81 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 82 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -257,6 +257,7 @@ relacionados:
 > - [[ARQUITETURA#Janela do carrinho e o aviso de "fora da janela"|Janela do carrinho e o aviso de "fora da janela"]]
 > - [[ARQUITETURA#Perpétuo|Perpétuo]]
 > - [[ARQUITETURA#Histórico de UTM por lançamento (`lead_utm_lancamento`)|Histórico de UTM por lançamento (`lead_utm_lancamento`)]]
+> - [[ARQUITETURA#Vigia do ETL (`frontend/services/vigia_etl.py`)|Vigia do ETL (`frontend/services/vigia_etl.py`)]]
 > - [[ARQUITETURA#Trava da atribuição (`atribuicao_congelada`)|Trava da atribuição (`atribuicao_congelada`)]]
 > - [[ARQUITETURA#Apelidos de armazenamento (`APELIDOS_ARMAZENAMENTO`)|Apelidos de armazenamento (`APELIDOS_ARMAZENAMENTO`)]]
 >
@@ -2808,6 +2809,40 @@ com o formato da `leads`, atribuição primeiro) é o passo 3 de
 Duas armadilhas pegas na construção: o DDL é uma **lista de comandos**, nunca dividido por
 `;` (comentário com ponto e vírgula quebrou a divisão); e o módulo usa o logger do projeto
 (o `logging` cru não tem handler no ETL e a linha de contagem sumia).
+
+### Vigia do ETL (`frontend/services/vigia_etl.py`)
+
+**O site avisa quando o ETL para, porque o ETL parado não consegue avisar que parou.** São
+serviços separados no EasyPanel. A cada 15 min (primeira rodada 5 min depois do boot) o site lê
+o `etl_runs` e o histórico de UTM e acusa dois problemas:
+
+1. **ETL parado** — fonte crítica sem carga OK além do limite: Meta e Google 2h, Active
+   Campaign 3h (~4x a cadência real medida no `etl_runs`: 30 min e 60 min).
+2. **Histórico não grava** — o Active Campaign carrega mas o `lead_utm_lancamento` não é escrito
+   há mais de 3h. Foi o estado real de 07/10/26 às 16:24: site atualizado, serviço do ETL ainda
+   com o código antigo, reescrevendo 16.271 leads sem gravar histórico. Com o AC parado, só o
+   primeiro aviso sai (o segundo seria consequência).
+
+**Mensagem no Slack** pelo mesmo bot e canal do alerta de orçamento (`SLACK_BOT_TOKEN`,
+`SLACK_BUDGET_CHANNEL`) — **essas variáveis precisam existir no serviço do site**, não só no do
+ETL; sem elas o vigia avisa só na tela e loga um aviso. Uma mensagem quando o problema aparece,
+lembrete a cada 6h, e uma quando normaliza. Estado em memória: depois de um restart, no máximo
+uma mensagem repetida.
+
+**Na tela**, faixa vermelha no topo de todas as páginas, vinda do mesmo estado (zero consulta
+por página). A faixa antiga de "dados desatualizados" (`ETL_STALE_HOURS`, 25h) fica escondida
+quando o vigia já acusou.
+
+Antes disso ninguém era avisado: a faixa de 25h só aparecia para quem abrisse o site, e o canal
+de falha do próprio ETL (`ERROR_WEBHOOK_URL`) estava vazio.
+
+A checagem do histórico usa `ORDER BY ultimo_visto_em DESC LIMIT 1` sobre o índice
+`idx_lead_utm_lancamento_visto` — 0,1 s, contra 3,5 s do `max()`. Precisou de `ANALYZE` depois da
+semeadura de 1,9 mi de linhas, senão o planejador ignorava o índice.
+
+**Correção junto:** `ler_congelada` chamava `criar_tabela()` a cada leitura — `ALTER TABLE ...
+ADD COLUMN IF NOT EXISTS` pega lock exclusivo mesmo com a coluna existindo, e isso rodava a cada
+atribuição de cada página. Leitura não faz mais DDL; quem cria é quem grava.
 
 ### Trava da atribuição (`atribuicao_congelada`)
 

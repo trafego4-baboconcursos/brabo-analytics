@@ -593,6 +593,9 @@ def _base_ctx(
         "db_ok":           _LAUNCHES_DB_OK,
         "etl_status":      get_etl_status(),
         "etl_stale_hours": ETL_STALE_HOURS,
+        # Problemas que o vigia do ETL achou na última rodada (memória, sem
+        # consulta por página) — ver frontend/services/vigia_etl.py.
+        "vigia_etl":       _problemas_vigia_etl(),
         **extra,
     }
 
@@ -694,6 +697,14 @@ _ETL_STATUS_CACHE: dict = {}
 _ETL_STATUS_CACHE_AT: float = 0.0
 _ETL_STATUS_CACHE_TTL: int = 300          # 5 minutos
 ETL_STALE_HOURS: float = float(os.environ.get("ETL_STALE_HOURS", "25"))
+
+
+def _problemas_vigia_etl() -> list[dict]:
+    try:
+        from frontend.services.vigia_etl import ESTADO  # noqa: PLC0415
+        return list(ESTADO.get("problemas") or [])
+    except Exception:
+        return []
 
 def get_etl_status() -> dict:
     global _ETL_STATUS_CACHE, _ETL_STATUS_CACHE_AT

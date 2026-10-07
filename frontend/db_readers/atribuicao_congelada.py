@@ -71,7 +71,10 @@ def ler_congelada(launch_code: str) -> dict[str, dict]:
     """
     if not launch_code:
         return {}
-    criar_tabela()  # idempotente; garante tabela E colunas novas
+    # SEM criar_tabela() aqui. Leitura não faz DDL: o ALTER TABLE ... ADD
+    # COLUMN IF NOT EXISTS pega lock exclusivo mesmo quando a coluna já existe,
+    # e isto roda a cada atribuição de cada página. Quem cria/altera é quem
+    # grava (gravar_congelada); tabela ausente cai no except abaixo.
     try:
         with _get_engine().connect() as conn:
             linhas = conn.execute(

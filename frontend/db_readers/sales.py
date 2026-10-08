@@ -387,14 +387,15 @@ def read_vendas_consolidado(launch_folder_or_code: Any, start_date=None, end_dat
     # chamada (ver ARQUITETURA.md, 14/09/26 — egress).
     with engine.connect() as conn:
         total_leads_crm = conn.execute(
-            text("SELECT COUNT(*) FROM leads WHERE lancamento_codigo = :code"),
+            text("SELECT COUNT(DISTINCT contact_id) FROM lead_utm_lancamento WHERE lancamento_codigo = :code"),
             {"code": code},
         ).scalar() or 0
     leads_df = pd.read_sql(
-        text("SELECT email, utm_source, utm_medium FROM leads "
-             "WHERE lancamento_codigo = :code AND LOWER(TRIM(email)) = ANY(:buyers)"),
+        text("SELECT DISTINCT ON (contact_id) email, utm_source, utm_medium FROM lead_utm_lancamento "
+             "WHERE lancamento_codigo = :code AND email = ANY(:buyers) "
+             "ORDER BY contact_id, (trilha = 'Black Vitalícia') DESC"),
         engine,
-        params={"code": code, "buyers": list(buyers)}
+        params={"code": code, "buyers": [b.lower().strip() for b in buyers]}
     ) if buyers else pd.DataFrame(columns=["email", "utm_source", "utm_medium"])
 
     if total_leads_crm:

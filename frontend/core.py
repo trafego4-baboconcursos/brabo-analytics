@@ -277,7 +277,7 @@ def read_historico_grande(launch: Launch, all_launches: list[Launch], n: int = 8
         try:
             with _get_engine().connect() as conn:
                 total_leads = int(conn.execute(
-                    _text("SELECT COUNT(*) FROM leads WHERE lancamento_codigo = :code"), {"code": l.code}
+                    _text("SELECT COUNT(DISTINCT contact_id) FROM lead_utm_lancamento WHERE lancamento_codigo = :code"), {"code": l.code}
                 ).fetchone()[0] or 0)
         except Exception:
             total_leads = 0

@@ -145,6 +145,7 @@ def _sales_attribution(launch: Any, vendas_data: Any, devolver_utms: bool = Fals
         end_date=_get_global_end(_sa_cfg),
         emails=buyers,
         phones=_buyer_phones,
+        phone_por_email=getattr(vendas_data, "phone_por_email", None),
     )
     if leads_df.empty and not buyer_utms:
         if not devolver_utms:

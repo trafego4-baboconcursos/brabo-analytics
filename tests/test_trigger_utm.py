@@ -48,6 +48,7 @@ def cur():
         c.execute(f"CREATE TABLE {N.estado} (LIKE lead_utm_lancamento INCLUDING ALL)")
         for comando in ht.ddl_completo(N):
             c.execute(comando)
+        c.execute(ht.ddl_visao(N))
         yield c
     finally:
         conn.rollback()
@@ -191,3 +192,77 @@ def test_regex_do_codigo_igual_ao_do_python(cur):
     divergentes = [(s, sql, extract_launch_code(s)) for s, sql in cur.fetchall()
                    if (sql or None) != extract_launch_code(s)]
     assert not divergentes, f"{len(divergentes)} divergências, ex.: {divergentes[:5]}"
+
+
+# ── a visão `leads_por_lancamento` ────────────────────────────────────────────
+
+def _visao(c, cid):
+    c.execute(f"SELECT lancamento_codigo, utm_content FROM {N.visao} WHERE id = %s ORDER BY 1", (cid,))
+    return c.fetchall()
+
+
+def test_visao_devolve_o_contato_sob_cada_lancamento_com_a_utm_daquele_lancamento(cur):
+    """O caso que motivou tudo: a `leads` já aponta para a Black, mas o PI-AGO-26 continua achando a pessoa."""
+    _upsert(cur, "v1", PI, content="AD100")
+    cur.execute(f"UPDATE {N.leads} SET lancamento_codigo = 'PI-AGO-26' WHERE id = 'v1'")
+    _upsert(cur, "v1", BF, content="AD-BF01")
+    cur.execute(f"UPDATE {N.leads} SET lancamento_codigo = 'BV-26' WHERE id = 'v1'")
+    cur.execute(f"SELECT count(*) FROM {N.leads} WHERE id = 'v1' AND lancamento_codigo = 'PI-AGO-26'")
+    assert cur.fetchone()[0] == 0                                   # a leads sozinha já perdeu
+    assert _visao(cur, "v1") == [("BV-26", "AD-BF01"), ("PI-AGO-26", "AD100")]   # a visão recupera
+
+
+def test_visao_mantem_contato_que_so_a_leads_marca_com_o_lancamento(cur):
+    """Código vindo do fallback por pasta (sem UTM que o nomeie): comportamento antigo preservado."""
+    cur.execute(f"""INSERT INTO {N.leads} (id, email, utm_campaign, utm_content, lancamento_codigo)
+                    VALUES ('v2', 'v2@teste.com', 'link_bio', 'AD777', 'PBB-JUN-26')""")
+    assert _visao(cur, "v2") == [("PBB-JUN-26", "AD777")]
+
+
+def test_visao_nunca_devolve_menos_do_que_a_leads(cur):
+    """Para qualquer lançamento: contatos da visão >= contatos de `leads WHERE lancamento_codigo = X`."""
+    for i in range(30):
+        _upsert(cur, f"s{i}", PI, content=f"AD{i}")
+        cur.execute(f"UPDATE {N.leads} SET lancamento_codigo = 'PI-AGO-26' WHERE id = %s", (f"s{i}",))
+    for i in range(10):                                              # 10 deles migram para a Black
+        _upsert(cur, f"s{i}", BF, content="AD-BF01")
+        cur.execute(f"UPDATE {N.leads} SET lancamento_codigo = 'BV-26' WHERE id = %s", (f"s{i}",))
+    for cod in ("PI-AGO-26", "BV-26"):
+        cur.execute(f"SELECT count(*) FROM {N.leads} WHERE lancamento_codigo = %s AND id LIKE 's%%'", (cod,))
+        antes = cur.fetchone()[0]
+        cur.execute(f"SELECT count(*) FROM {N.visao} WHERE lancamento_codigo = %s AND id LIKE 's%%'", (cod,))
+        assert cur.fetchone()[0] >= antes
+    cur.execute(f"SELECT count(*) FROM {N.visao} WHERE lancamento_codigo = 'PI-AGO-26' AND id LIKE 's%%'")
+    assert cur.fetchone()[0] == 30                                   # os 10 que saíram voltaram
+
+
+def test_visao_devolve_uma_linha_por_contato_e_lancamento_na_black(cur):
+    """Base Forte e Vitalícia são o mesmo BV-26: nenhum contato pode contar em dobro."""
+    _upsert(cur, "v3", BF, content="AD-BF01")
+    _upsert(cur, "v3", BV, content="AD-BV07")
+    _upsert(cur, "v4", BF, content="AD-BF02")
+    assert _visao(cur, "v3") == [("BV-26", "AD-BV07")]               # a da Vitalícia, a oferta vendida
+    assert _visao(cur, "v4") == [("BV-26", "AD-BF02")]               # só Base Forte: cai nela
+    cur.execute(f"SELECT count(*) FROM {N.visao} WHERE id IN ('v3', 'v4') AND lancamento_codigo = 'BV-26'")
+    assert cur.fetchone()[0] == 2
+
+
+def test_visao_tem_exatamente_as_colunas_da_leads(cur):
+    """É o que permite trocar `FROM leads` por `FROM leads_por_lancamento` sem mexer no resto da consulta."""
+    cur.execute(f"SELECT * FROM {N.leads} LIMIT 0")
+    da_leads = [d[0] for d in cur.description]
+    cur.execute(f"SELECT * FROM {N.visao} LIMIT 0")
+    assert [d[0] for d in cur.description] == da_leads
+
+
+def test_reverter_a_visao_devolve_o_comportamento_antigo(cur):
+    _upsert(cur, "v5", PI, content="AD100")
+    cur.execute(f"UPDATE {N.leads} SET lancamento_codigo = 'PI-AGO-26' WHERE id = 'v5'")
+    _upsert(cur, "v5", BF, content="AD-BF01")
+    cur.execute(f"UPDATE {N.leads} SET lancamento_codigo = 'BV-26' WHERE id = 'v5'")
+    cur.execute("SAVEPOINT reverte")
+    try:
+        cur.execute(ht.ddl_visao_reverter(N))
+        assert _visao(cur, "v5") == [("BV-26", "AD-BF01")]           # só o que a leads tem, como antes
+    finally:
+        cur.execute("ROLLBACK TO SAVEPOINT reverte")

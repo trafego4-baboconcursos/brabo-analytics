@@ -51,6 +51,7 @@ class Nomes:
     leads: str = "leads"
     estado: str = "lead_utm_lancamento"
     historico: str = "lead_utm_historico"
+    visao: str = "leads_por_lancamento"
     hash_fn: str = "fn_utm_hash"
     fn_ins: str = "fn_lead_utm_ins"
     fn_upd: str = "fn_lead_utm_upd"
@@ -61,7 +62,7 @@ class Nomes:
     def teste(cls) -> "Nomes":
         """Prefixo zz_ em tudo: o teste roda numa transação desfeita no fim."""
         return cls(leads="zz_leads", estado="zz_estado", historico="zz_historico",
-                   hash_fn="zz_utm_hash", fn_ins="zz_fn_ins", fn_upd="zz_fn_upd",
+                   visao="zz_visao", hash_fn="zz_utm_hash", fn_ins="zz_fn_ins", fn_upd="zz_fn_upd",
                    trg_ins="zz_trg_ins", trg_upd="zz_trg_upd")
 
 
@@ -206,6 +207,61 @@ FOR EACH STATEMENT EXECUTE FUNCTION public.{n.fn_ins}()""",
 REFERENCING OLD TABLE AS antigas NEW TABLE AS novas
 FOR EACH STATEMENT EXECUTE FUNCTION public.{n.fn_upd}()""",
     ]
+
+
+COLUNAS_LEADS = ("id", "email", "created_at", "utm_source", "utm_medium", "utm_campaign", "utm_content",
+                 "utm_term", "updated_at", "lancamento_codigo", "phone", "nome", "sobrenome", "gclid", "fbclid",
+                 "ttclid", "vk_source", "vk_ad_id", "tags", "tags_atualizado_em", "ativo", "status_listas")
+
+
+def ddl_visao(n: Nomes) -> str:
+    """`leads_por_lancamento`: as MESMAS colunas da `leads`, uma linha por (contato, lançamento),
+    com o lançamento e a UTM vindos do estado — não da linha única do contato.
+
+    É por onde as consultas passam a ler "os contatos do lançamento X": trocar `FROM leads` por
+    `FROM leads_por_lancamento` e o `WHERE lancamento_codigo = :code` continua valendo.
+
+      - ramo 1: o estado (`lead_utm_lancamento`), junto com os dados do contato (telefone, nome, tags...);
+      - ramo 2: contatos que a `leads` ainda marca com o lançamento mas que não têm estado (o código
+        veio do fallback por pasta do modo CSV, sem UTM que o nomeie). Mantém o comportamento antigo:
+        a visão é sempre um SUPERCONJUNTO do que `leads WHERE lancamento_codigo = X` devolvia.
+      - Black: o contato tem uma linha por trilha; a visão devolve UMA por lançamento, a da
+        Vitalícia (a captação da oferta vendida) e, se não houver, a da Base Forte.
+
+    Reverter sem deploy: recriar a visão como `SELECT * FROM leads` (`--reverter-visao`).
+    O email é o do cadastro naquele lançamento, com a `leads` como alternativa."""
+    leads = f"public.{n.leads}"
+    l_cols = ",\n       ".join(f"l.{c}" for c in COLUNAS_LEADS)
+    cols = []
+    for c in COLUNAS_LEADS:
+        if c == "email":
+            cols.append("COALESCE(NULLIF(e.email, ''), l.email) AS email")
+        elif c in CAMPOS_UTM or c == "lancamento_codigo":
+            cols.append(f"e.{c}")
+        elif c in CAMPOS_ID:
+            cols.append(f"COALESCE(e.{c}, l.{c}) AS {c}")
+        else:
+            cols.append(f"l.{c}")
+    ramo1 = ",\n       ".join(cols)
+    return f"""CREATE OR REPLACE VIEW public.{n.visao} AS
+SELECT {ramo1}
+FROM (
+  SELECT DISTINCT ON (contact_id, lancamento_codigo) *
+  FROM public.{n.estado}
+  ORDER BY contact_id, lancamento_codigo, (trilha = 'Black Vitalícia') DESC, ultimo_visto_em DESC
+) e
+JOIN {leads} l ON l.id = e.contact_id
+UNION ALL
+SELECT {l_cols}
+FROM {leads} l
+WHERE l.lancamento_codigo IS NOT NULL
+  AND NOT EXISTS (SELECT 1 FROM public.{n.estado} e
+                  WHERE e.contact_id = l.id AND e.lancamento_codigo = l.lancamento_codigo)"""
+
+
+def ddl_visao_reverter(n: Nomes) -> str:
+    """Volta a visão a ser a própria `leads`. Colunas idênticas: nenhuma consulta quebra."""
+    return f"CREATE OR REPLACE VIEW public.{n.visao} AS SELECT {', '.join(COLUNAS_LEADS)} FROM public.{n.leads}"
 
 
 def ddl_completo(n: Nomes) -> list[str]:

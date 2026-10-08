@@ -660,21 +660,21 @@ def read_typeform(launch_folder_or_code: Any, start_date=None, end_date=None) ->
     tf_emails = set(tf_df["email_norm"])
     with engine.connect() as conn:
         summary.leads_crm_total = conn.execute(
-            text("SELECT COUNT(*) FROM leads WHERE lancamento_codigo = :code"),
+            text("SELECT COUNT(DISTINCT contact_id) FROM lead_utm_lancamento WHERE lancamento_codigo = :code"),
             {"code": code},
         ).scalar() or 0
         tf_e_crm_n = conn.execute(
-            text("SELECT COUNT(DISTINCT LOWER(TRIM(email))) FROM leads "
-                 "WHERE lancamento_codigo = :code AND LOWER(TRIM(email)) = ANY(:emails)"),
+            text("SELECT COUNT(DISTINCT email) FROM lead_utm_lancamento "
+                 "WHERE lancamento_codigo = :code AND email = ANY(:emails)"),
             {"code": code, "emails": list(tf_emails)},
         ).scalar() or 0
         # compradores que também são lead: subconjunto de `buyers` (~2,5 mil),
         # serve tanto pro tf_compras_crm quanto pro tx_venda_lead_pct
         crm_e_buyers = {
             r[0] for r in conn.execute(
-                text("SELECT DISTINCT LOWER(TRIM(email)) FROM leads "
-                     "WHERE lancamento_codigo = :code AND LOWER(TRIM(email)) = ANY(:emails)"),
-                {"code": code, "emails": list(buyers)},
+                text("SELECT DISTINCT email FROM lead_utm_lancamento "
+                     "WHERE lancamento_codigo = :code AND email = ANY(:emails)"),
+                {"code": code, "emails": [b.lower().strip() for b in buyers]},
             )
         } if buyers else set()
 
@@ -853,8 +853,8 @@ def read_typeform(launch_folder_or_code: Any, start_date=None, end_date=None) ->
     # em vez da lista de leads inteira do lançamento.
     if tf_e_vendas:
         crm_comp_tf = pd.read_sql(
-            text("SELECT LOWER(TRIM(email)) AS email_norm, utm_source, utm_content "
-                 "FROM leads WHERE lancamento_codigo = :code AND LOWER(TRIM(email)) = ANY(:emails)"),
+            text("SELECT email AS email_norm, utm_source, utm_content "
+                 "FROM lead_utm_lancamento WHERE lancamento_codigo = :code AND email = ANY(:emails)"),
             engine,
             params={"code": code, "emails": list(tf_e_vendas)},
         )
@@ -911,7 +911,7 @@ def read_perfil_por_anuncio(launch_folder_or_code: Any, top_n: int = 5) -> dict 
     # uma vez por aquecimento, então pode demorar em segundo plano.
     _where = (
         "upper(coalesce(form_id, '')) = :fid "
-        "AND lower(email) IN (SELECT lower(email) FROM leads WHERE lancamento_codigo = :code AND email IS NOT NULL)"
+        "AND lower(email) IN (SELECT email FROM lead_utm_lancamento WHERE lancamento_codigo = :code AND email <> '')"
     )
     records = _registros_materializados(_where, {"fid": proj_id.upper(), "code": code}, proj_id.upper())
     tf_df_typeform = pd.DataFrame(records)
@@ -939,11 +939,11 @@ def read_perfil_por_anuncio(launch_folder_or_code: Any, top_n: int = 5) -> dict 
     tf_email_list = [e for e in tf_df["email_norm"].tolist() if e]
     leads_df = pd.read_sql(
         text(f"""
-            SELECT LOWER(TRIM(email)) AS email_norm, {_AD_CODE_SQL} AS ad_code
-            FROM leads
+            SELECT email AS email_norm, {_AD_CODE_SQL} AS ad_code
+            FROM lead_utm_lancamento
             WHERE lancamento_codigo = :code
               AND {_AD_CODE_SQL} IS NOT NULL
-              AND LOWER(TRIM(email)) = ANY(:emails)
+              AND email = ANY(:emails)
         """),
         engine, params={"code": code, "emails": tf_email_list},
     )
@@ -960,8 +960,8 @@ def read_perfil_por_anuncio(launch_folder_or_code: Any, top_n: int = 5) -> dict 
             r[0]: int(r[1])
             for r in conn.execute(
                 text(f"""
-                    SELECT {_AD_CODE_SQL} AS ad_code, COUNT(DISTINCT LOWER(TRIM(email)))
-                    FROM leads
+                    SELECT {_AD_CODE_SQL} AS ad_code, COUNT(DISTINCT email)
+                    FROM lead_utm_lancamento
                     WHERE lancamento_codigo = :code AND {_AD_CODE_SQL} IS NOT NULL
                     GROUP BY 1
                 """),
@@ -1041,11 +1041,11 @@ def read_pesquisa_engajamento(launch_folder_or_code: Any) -> dict | None:
         "resp AS (SELECT DISTINCT lower(btrim(email)) AS email_norm FROM tf "
         "UNION " + novo + ") "
         "SELECT (SELECT count(*) FROM resp), "
-        "(SELECT COUNT(DISTINCT LOWER(TRIM(l.email))) FROM leads l "
-        " WHERE l.lancamento_codigo = :code AND l.email IS NOT NULL AND l.email <> ''), "
-        "(SELECT COUNT(DISTINCT LOWER(TRIM(l.email))) FROM leads l "
+        "(SELECT COUNT(DISTINCT l.email) FROM lead_utm_lancamento l "
+        " WHERE l.lancamento_codigo = :code AND l.email <> ''), "
+        "(SELECT COUNT(DISTINCT l.email) FROM lead_utm_lancamento l "
         " WHERE l.lancamento_codigo = :code "
-        "   AND LOWER(TRIM(l.email)) IN (SELECT email_norm FROM resp))"
+        "   AND l.email IN (SELECT email_norm FROM resp))"
     )
     insights_sql = (
         "SELECT total_visits, responses_count, completion_rate, average_time FROM "

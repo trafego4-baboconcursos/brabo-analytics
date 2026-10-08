@@ -42,7 +42,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 85 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 86 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -260,6 +260,7 @@ relacionados:
 > - [[ARQUITETURA#Aluno × não aluno nos grupos (`frontend/db_readers/whatsapp_alunos.py`, 08/10/26)|Aluno × não aluno nos grupos (`frontend/db_readers/whatsapp_alunos.py`, 08/10/26)]]
 > - [[ARQUITETURA#Alerta de orçamento na Black (`etl/budget_alert.py`, 08/10/26)|Alerta de orçamento na Black (`etl/budget_alert.py`, 08/10/26)]]
 > - [[ARQUITETURA#Vigia do ETL (`frontend/services/vigia_etl.py`)|Vigia do ETL (`frontend/services/vigia_etl.py`)]]
+> - [[ARQUITETURA#As páginas passaram a ler o ESTADO, não a `leads` (08/10/26)|As páginas passaram a ler o ESTADO, não a `leads` (08/10/26)]]
 > - [[ARQUITETURA#Trigger do histórico de UTM (`etl/historico_utm_trigger.py`) — INSTALADO em 08/10/26|Trigger do histórico de UTM (`etl/historico_utm_trigger.py`) — INSTALADO em 08/10/26]]
 > - [[ARQUITETURA#Trava da atribuição (`atribuicao_congelada`)|Trava da atribuição (`atribuicao_congelada`)]]
 > - [[ARQUITETURA#Apelidos de armazenamento (`APELIDOS_ARMAZENAMENTO`)|Apelidos de armazenamento (`APELIDOS_ARMAZENAMENTO`)]]
@@ -2869,6 +2870,48 @@ semeadura de 1,9 mi de linhas, senão o planejador ignorava o índice.
 **Correção junto:** `ler_congelada` chamava `criar_tabela()` a cada leitura — `ALTER TABLE ...
 ADD COLUMN IF NOT EXISTS` pega lock exclusivo mesmo com a coluna existindo, e isso rodava a cada
 atribuição de cada página. Leitura não faz mais DDL; quem cria é quem grava.
+
+### As páginas passaram a ler o ESTADO, não a `leads` (08/10/26)
+
+**Por quê.** A `leads` tem uma linha por contato; quem se cadastrou depois em outro lançamento some do
+anterior, junto com a UTM. Medido no PI-AGO-26: **1,9% dos leads mas 18,1% dos compradores** (quem se perde
+compra 11,6x mais). O estado (`lead_utm_lancamento`) tem uma linha por (contato, lançamento) e é de 10 a 80x
+mais rápido: contagem do lançamento 0,29 s contra 7,2 s; UTM dos 2,5 mil compradores 0,09 s contra 7,7 s.
+
+**O que leem o estado agora:** a atribuição de vendas (`read_ac_leads_for_attribution`), `read_vendas_consolidado`
+(leads no CRM e compradores no CRM), as contagens de `core.py` e `whatsapp_groups`, `read_utm_cobertura`,
+`read_term_campaign_map`, `read_vendas_por_dia_cadastro`, `caminho_comprador`, a busca de compradores em
+`ads_meta`/`ads_google`, `sorteio` e as consultas de `typeform` (respondente × lead, perfil por anúncio,
+pesquisa de engajamento). Contagem passa a ser `COUNT(DISTINCT contact_id)`: na Black há uma linha por trilha.
+
+**O que continua na `leads`, e por quê.** `read_leads` (série por dia e por UTM): ela precisa de `created_at`
+de todos os contatos, que não está no estado, e várias consultas dela se somam na mesma página — misturar as
+duas fontes faria os totais não fecharem. O `_date_clause` do comparativo (filtro por data de criação), a
+detecção de lançamentos, as consultas de tags de lançamentos anteriores e a de e-book (dependem de `leads.id`
+e do `lancamento_codigo` como "lançamento atual do contato"). O passo por telefone da atribuição também lê a
+`leads` (não há índice por telefone), mas agora só para quem não casou por e-mail.
+
+**Nada cai.** O estado é um superconjunto do que `leads WHERE lancamento_codigo = X` devolvia:
+(a) `seed_leads`: o que a `leads` tinha em 07/10/26; (b) `export_ac`: o backfill dos exports do Active da
+época; (c) `seed_fallback`: 20.601 contatos que a `leads` marca com o lançamento pelo caminho legado do modo
+CSV, sem UTM que o nomeie; (d) `trigger`: tudo daqui para frente. Conferido nos 10 lançamentos: contagem do
+estado >= `leads` em todos (PI-AGO-26 267.200 → 272.076), compradores no CRM >= em todos (PI-AGO-26
+1.473 → 1.799), cobertura de UTM idêntica.
+
+**Regra do backfill (estendida em 08/10/26).** Código do lançamento na `utm_campaign` sempre vale. Quando a
+campanha **não nomeia nenhum lançamento**, vale o código nos outros campos (nome do anúncio em `utm_term`,
+nome do público em `utm_content`): os primeiros lançamentos (PBB-JUN-26, PES-MAI-26, PI-JAN-26) nomeavam a
+campanha só com a data. Se a campanha nomeia **outro** lançamento, não vale: o anúncio pode ter sido
+reaproveitado. A extensão acrescentou 2.793 contatos, 2.734 no PBB-JUN-26.
+
+**Resultado na atribuição (10 lançamentos fechados):** compradores rastreados **12.467 → 13.698 (+1.231)**,
+idêntico ao que a trava (`atribuicao_congelada`) já dava — a trava vira rede de segurança, não mais remendo.
+Fica o `lead_utm_lancamento` como fonte única; `leads_por_lancamento` (visão com junção) foi criada e **não é
+usada**: 18 a 60 s nas leituras grandes, contra 7 s da própria `leads`.
+
+**Limite conhecido.** Um carregamento pelo modo CSV (plano B) que marque o lançamento só pela pasta, sem UTM
+que o nomeie, não entra no estado em tempo real (o trigger só registra UTM que nomeia o lançamento) e não
+aparece nas contagens novas. Só vale para lançamentos antigos, já semeados.
 
 ### Trigger do histórico de UTM (`etl/historico_utm_trigger.py`) — INSTALADO em 08/10/26
 

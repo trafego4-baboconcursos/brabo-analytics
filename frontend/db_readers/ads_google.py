@@ -357,9 +357,9 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
         # então não faz sentido baixar a lista de leads inteira do lançamento
         # pra descartar 99% em memória (ver ARQUITETURA.md, 14/09/26 — egress).
         df_leads = pd.read_sql(
-            text("SELECT utm_content, email FROM leads WHERE lancamento_codigo = :code AND (utm_source ILIKE '%google%' OR utm_source ILIKE '%youtube%') AND email = ANY(:buyers)"),
+            text("SELECT utm_content, email FROM lead_utm_lancamento WHERE lancamento_codigo = :code AND (utm_source ILIKE '%google%' OR utm_source ILIKE '%youtube%') AND email = ANY(:buyers)"),
             engine,
-            params={"code": code, "buyers": list(buyers)}
+            params={"code": code, "buyers": [b.lower().strip() for b in buyers]}
         )
         if not df_leads.empty:
             df_leads = df_leads.drop_duplicates(subset="email")

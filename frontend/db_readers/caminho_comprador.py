@@ -53,10 +53,11 @@ def read_caminho_comprador(launch_folder_or_code: Any, vendas: Any = None) -> di
     # 1. Lead: código do anúncio (utm_term, fallback utm_content), plataforma, data de cadastro
     leads_df = pd.read_sql(
         text("""
-            SELECT LOWER(email) AS email, utm_term, utm_content, utm_source, created_at
-            FROM leads WHERE lancamento_codigo = :code AND LOWER(email) = ANY(:emails)
+            SELECT e.email AS email, e.utm_term, e.utm_content, e.utm_source, l.created_at
+            FROM lead_utm_lancamento e JOIN leads l ON l.id = e.contact_id
+            WHERE e.lancamento_codigo = :code AND e.email = ANY(:emails)
         """),
-        engine, params={"code": code, "emails": [e.lower() for e in buyers]},
+        engine, params={"code": code, "emails": [e.lower().strip() for e in buyers]},
     )
     lead_info: dict[str, dict] = {}
     if not leads_df.empty:

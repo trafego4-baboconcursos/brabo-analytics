@@ -117,8 +117,8 @@ def read_sorteio(launch_folder_or_code: Any) -> dict | None:
 
             resumo = conn.execute(text(
                 cte + ", leads_base AS ("
-                "  SELECT DISTINCT lower(btrim(email)) AS email_norm FROM leads"
-                "  WHERE lancamento_codigo = :code AND email IS NOT NULL AND email <> ''"
+                "  SELECT DISTINCT email AS email_norm FROM lead_utm_lancamento"
+                "  WHERE lancamento_codigo = :code AND email <> ''"
                 ") "
                 "SELECT (SELECT count(DISTINCT COALESCE(email_norm, response_id)) FROM janela), "
                 "(SELECT count(*) FROM leads_base), "

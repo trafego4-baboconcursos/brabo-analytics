@@ -481,7 +481,7 @@ def read_leads_x_whatsapp(launch_folder_or_code: Any) -> dict | None:
     engine = _get_engine()
     with engine.connect() as conn:
         total_leads = conn.execute(
-            text("SELECT COUNT(*) FROM leads WHERE lancamento_codigo = :code"), {"code": code}
+            text("SELECT COUNT(DISTINCT contact_id) FROM lead_utm_lancamento WHERE lancamento_codigo = :code"), {"code": code}
         ).fetchone()[0]
     total_leads = int(total_leads or 0)
 

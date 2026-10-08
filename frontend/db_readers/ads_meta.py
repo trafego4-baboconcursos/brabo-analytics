@@ -347,9 +347,9 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
             # descartar 99% em memória — era uma das maiores fontes de egress do
             # banco (ver ARQUITETURA.md, 14/09/26).
             df_leads = pd.read_sql(
-                text("SELECT utm_content, email FROM leads WHERE lancamento_codigo = :code AND (utm_source ILIKE '%facebook%' OR utm_source ILIKE '%ig%' OR utm_source ILIKE '%meta%') AND email = ANY(:buyers)"),
+                text("SELECT utm_content, email FROM lead_utm_lancamento WHERE lancamento_codigo = :code AND (utm_source ILIKE '%facebook%' OR utm_source ILIKE '%ig%' OR utm_source ILIKE '%meta%') AND email = ANY(:buyers)"),
                 engine,
-                params={"code": code, "buyers": list(buyers)}
+                params={"code": code, "buyers": [b.lower().strip() for b in buyers]}
             )
             if not df_leads.empty:
                 df_leads = df_leads.drop_duplicates(subset="email")

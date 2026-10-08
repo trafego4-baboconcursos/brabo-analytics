@@ -8,6 +8,8 @@ O que o trigger faz e por quê: ver `etl/historico_utm_trigger.py`.
     python scripts/instalar_trigger_utm.py --instalar
     python scripts/instalar_trigger_utm.py --verificar   # fumaça: grava e DESFAZ
     python scripts/instalar_trigger_utm.py --remover     # botão de emergência (as tabelas ficam)
+    python scripts/instalar_trigger_utm.py --visao       # cria/atualiza a visão leads_por_lancamento
+    python scripts/instalar_trigger_utm.py --reverter-visao   # a visão volta a ser a própria leads
 
 CUIDADOS DE PRODUÇÃO
   - `CREATE TRIGGER` pede um lock na `leads` que espera as gravações em andamento
@@ -119,6 +121,8 @@ def main() -> int:
     g.add_argument("--instalar", action="store_true")
     g.add_argument("--verificar", action="store_true")
     g.add_argument("--remover", action="store_true")
+    g.add_argument("--visao", action="store_true")
+    g.add_argument("--reverter-visao", dest="reverter_visao", action="store_true")
     a = ap.parse_args()
 
     if a.dry_run:
@@ -134,6 +138,14 @@ def main() -> int:
         return 0 if verificar() else 1
     if a.verificar:
         return 0 if verificar() else 1
+    if a.visao:
+        print("criando a visão leads_por_lancamento (só leitura: nenhuma tabela muda)...")
+        _executar([ht.ddl_visao(N)])
+        return 0
+    if a.reverter_visao:
+        print("revertendo: leads_por_lancamento volta a ser a própria leads...")
+        _executar([ht.ddl_visao_reverter(N)])
+        return 0
     print("removendo os triggers (as tabelas e os dados ficam)...")
     _executar(ht.ddl_remover(N))
     return 0

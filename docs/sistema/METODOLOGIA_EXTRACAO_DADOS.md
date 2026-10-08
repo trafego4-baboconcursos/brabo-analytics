@@ -2,7 +2,7 @@
 titulo: "Metodologia de Extração e Atribuição de Dados por Lançamento"
 area: sistema
 status: vigente
-atualizado: 2026-10-07
+atualizado: 2026-10-08
 responde:
   - "como cada metrica e extraida"
   - "regras de atribuicao lead-venda"
@@ -378,6 +378,18 @@ Congelado no mesmo dia: **11 lançamentos, 12.904 pares comprador×UTM**. Detalh
 decisão em aberto (de quanto em quanto tempo rodar) em [[CONGELAR_ATRIBUICAO_LANCAMENTO]].
 
 **O número parou de cair; não voltou.** O que foi sobrescrito antes de 07/10/26 está perdido.
+
+### 13.1b As leituras passaram a vir do estado (08/10/26)
+
+Os leitores por lançamento (atribuição, vendas × CRM, contagens, UTM dos compradores, typeform) leem agora
+`lead_utm_lancamento` — uma linha por (contato, lançamento) —, não a `leads`. Detalhe, lista do que ficou na
+`leads` e conferência em [[ARQUITETURA]]. Efeito na atribuição dos 10 lançamentos fechados: **12.467 →
+13.698 compradores rastreados**, igual ao da trava; contagens de leads no CRM sobem pelos contatos recuperados
+(PI-AGO-26 267.200 → 272.076) e nunca descem.
+
+**Quem credita a venda:** cada lançamento lê as UTMs do seu próprio lançamento; a venda é do lançamento em
+cujo carrinho a compra aconteceu. Na Black, o comprador com linha nas duas trilhas é creditado pela da
+**Vitalícia** (a captação da oferta vendida), com a Base Forte de reserva.
 
 ### 13.2 Recuperação pelo export do AC da época + trava diária
 

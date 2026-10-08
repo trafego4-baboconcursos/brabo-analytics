@@ -24,40 +24,73 @@ logger = get_logger("db")
 def read_ac_leads_for_attribution(
     launch_code: str, start_date=None, end_date=None,
     emails: set | None = None, phones: set | None = None,
+    phone_por_email: dict | None = None,
 ) -> pd.DataFrame:  # noqa: ARG001
-    """Retorna DataFrame com email_norm e UTMs da tabela leads para o lançamento.
+    """Retorna DataFrame com email_norm e UTMs dos contatos do lançamento, para a atribuição.
 
-    Com `emails`/`phones`, traz só as linhas que casam por e-mail OU telefone —
-    é o que a atribuição precisa (ela só olha comprador). Sem eles, devolve a
-    base inteira, o que custa caro: eram 269 mil linhas por chamada no
-    PI-AGO-26 (ver ARQUITETURA.md, 14/09/26 — egress).
+    Lê o ESTADO (`lead_utm_lancamento`), não a `leads`. A `leads` tem uma linha por contato:
+    quem se cadastrou depois em outro lançamento some do anterior, junto com a UTM que o
+    trouxe — 18% dos compradores de um lançamento fechado, contra 1,9% dos leads (medido
+    em 08/10/26). O estado tem uma linha por (contato, lançamento) e nunca é sobrescrita por
+    outro lançamento. Também é muito mais rápido: 0,1 s contra ~8 s pelos 2,5 mil compradores.
+
+    Dois passos:
+      1. por e-mail, no estado (indexado). Black: um contato tem uma linha por trilha, e
+         vale a da Vitalícia — a captação da oferta vendida — com a Base Forte de reserva.
+      2. por telefone, só para quem NÃO casou por e-mail (compra feita com outro e-mail).
+         Esse passo ainda lê a `leads`, que não tem índice por telefone; com `phone_por_email`
+         ele leva só os telefones de quem ficou sem casar, em vez dos de todos os compradores.
     """
     engine = _get_engine()
-    filtro = ""
-    params: dict = {"code": launch_code}
+    colunas = ["email", "utm_source", "utm_medium", "utm_campaign", "utm_content",
+               "utm_term", "phone", "nome", "sobrenome"]
     if emails is not None or phones is not None:
-        condicoes = []
+        if not emails and not phones:
+            return pd.DataFrame(columns=[*colunas, "email_norm", "nome_norm"])
+        partes = []
+        casados: set[str] = set()
         if emails:
-            condicoes.append("LOWER(TRIM(email)) = ANY(:emails)")
-            params["emails"] = list(emails)
+            lista = [e.lower().strip() for e in emails]
+            por_email = pd.read_sql(
+                text("""
+                    SELECT DISTINCT ON (e.contact_id)
+                           e.email, e.utm_source, e.utm_medium, e.utm_campaign, e.utm_content, e.utm_term,
+                           COALESCE(l.phone, '') AS phone, l.nome, l.sobrenome
+                    FROM lead_utm_lancamento e
+                    LEFT JOIN leads l ON l.id = e.contact_id
+                    WHERE e.lancamento_codigo = :code AND e.email = ANY(:emails)
+                    ORDER BY e.contact_id, (e.trilha = 'Black Vitalícia') DESC
+                """),
+                engine, params={"code": launch_code, "emails": lista},
+            )
+            partes.append(por_email)
+            casados = set(por_email["email"].astype(str).str.strip().str.lower())
         if phones:
-            condicoes.append("TRIM(COALESCE(phone, '')) = ANY(:phones)")
-            params["phones"] = list(phones)
-        if not condicoes:
-            return pd.DataFrame(columns=[
-                "email", "utm_source", "utm_medium", "utm_campaign", "utm_content",
-                "utm_term", "phone", "nome", "sobrenome", "email_norm", "nome_norm",
-            ])
-        filtro = " AND (" + " OR ".join(condicoes) + ")"
-    df = pd.read_sql(
-        text(f"""
-            SELECT email, utm_source, utm_medium, utm_campaign, utm_content, utm_term, phone, nome, sobrenome
-            FROM leads
-            WHERE lancamento_codigo = :code{filtro}
-        """),
-        engine,
-        params=params,
-    )
+            fones = {str(p).strip() for p in phones if p and str(p).strip()}
+            if phone_por_email is not None:
+                # só quem não casou por e-mail precisa do telefone
+                fones = {str(phone_por_email.get(e)).strip() for e in (emails or ())
+                         if e not in casados and phone_por_email.get(e)}
+            if fones:
+                partes.append(pd.read_sql(
+                    text("""
+                        SELECT email, utm_source, utm_medium, utm_campaign, utm_content, utm_term, phone, nome, sobrenome
+                        FROM leads
+                        WHERE lancamento_codigo = :code AND TRIM(COALESCE(phone, '')) = ANY(:phones)
+                    """),
+                    engine, params={"code": launch_code, "phones": list(fones)},
+                ))
+        partes = [x for x in partes if not x.empty]
+        df = pd.concat(partes, ignore_index=True) if partes else pd.DataFrame(columns=colunas)
+    else:
+        df = pd.read_sql(
+            text("""
+                SELECT email, utm_source, utm_medium, utm_campaign, utm_content, utm_term, phone, nome, sobrenome
+                FROM leads
+                WHERE lancamento_codigo = :code
+            """),
+            engine, params={"code": launch_code},
+        )
     if df.empty:
         return df
     df["email_norm"] = df["email"].astype(str).str.strip().str.lower()
@@ -88,7 +121,7 @@ def read_term_campaign_map(launch_code: str) -> dict[str, str]:
         linhas = conn.execute(
             text("""
                 SELECT BTRIM(utm_term) AS termo, BTRIM(utm_campaign) AS campanha, COUNT(*) AS n
-                FROM leads
+                FROM lead_utm_lancamento
                 WHERE lancamento_codigo = :code
                   AND BTRIM(COALESCE(utm_term, '')) <> ''
                   AND BTRIM(COALESCE(utm_campaign, '')) <> ''
@@ -343,11 +376,11 @@ def read_vendas_por_dia_cadastro(launch_folder_or_code: Any, vendas: VendasSumma
     engine = _get_engine()
     df = pd.read_sql(
         text("""
-            SELECT LOWER(TRIM(email)) AS email, created_at
-            FROM leads
-            WHERE lancamento_codigo = :code AND LOWER(TRIM(email)) = ANY(:emails)
+            SELECT e.email AS email, l.created_at
+            FROM lead_utm_lancamento e JOIN leads l ON l.id = e.contact_id
+            WHERE e.lancamento_codigo = :code AND e.email = ANY(:emails)
         """),
-        engine, params={"code": code, "emails": [e.lower() for e in buyers]},
+        engine, params={"code": code, "emails": [e.lower().strip() for e in buyers]},
     )
     # Alguém pode ter mais de uma linha em `leads` (recadastro/re-captura) —
     # fica a data do PRIMEIRO cadastro, é quando o potencial de venda nasceu.
@@ -384,9 +417,9 @@ def read_utm_cobertura(launch_folder_or_code: Any) -> dict | None:
     with engine.connect() as conn:
         row = conn.execute(
             text("""
-                SELECT COUNT(*) AS total,
-                       COUNT(*) FILTER (WHERE COALESCE(NULLIF(TRIM(utm_content), ''), '') != '') AS com_utm
-                FROM leads WHERE lancamento_codigo = :code
+                SELECT COUNT(DISTINCT contact_id) AS total,
+                       COUNT(DISTINCT contact_id) FILTER (WHERE COALESCE(NULLIF(TRIM(utm_content), ''), '') != '') AS com_utm
+                FROM lead_utm_lancamento WHERE lancamento_codigo = :code
             """),
             {"code": code},
         ).fetchone()

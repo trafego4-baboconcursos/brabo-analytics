@@ -180,6 +180,10 @@ async def warm_launch(launch: Any, previous: Any, launches: list | None = None) 
     try:
         from frontend.db_readers.whatsapp_groups import read_whatsapp_groups  # noqa: PLC0415
         await run_in_threadpool(read_whatsapp_groups, launch.code)
+        # Aluno × não aluno (só Black): ~15 s de consulta — aquecer evita que o
+        # primeiro acesso pós-boot pague.
+        from frontend.db_readers.whatsapp_alunos import read_whatsapp_alunos  # noqa: PLC0415
+        await run_in_threadpool(read_whatsapp_alunos, launch.code)
         logger.info("Pre-warming de WhatsApp/SendFlow para %s concluído.", launch.code)
     except Exception:
         logger.exception("Falha no pre-warming de WhatsApp/SendFlow para %s", launch.code)

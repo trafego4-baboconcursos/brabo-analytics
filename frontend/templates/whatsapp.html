@@ -269,6 +269,80 @@
   {% endif %}
   {% endfor %}
 
+  {# Aluno × não aluno dos membros (só Black) — frontend/db_readers/whatsapp_alunos.py.
+     A régua de aluno vem da plataforma e é uma foto: a data dela fica na tela. #}
+  {% if wa_alunos and wa_alunos.total %}
+  {% set al = wa_alunos %}
+  <div class="section">
+    <div class="section-title">Quem está nos grupos — aluno × não aluno</div>
+    <div class="note info">
+      <strong>{{ al.total | num }} números</strong> já entraram nos grupos ({{ al.no_grupo | num }} ainda estão).
+      <strong>{{ "%.1f"|format(al.pct_ativo) | replace(".", ",") }}% são alunos ativos</strong> e
+      <strong>{{ "%.1f"|format(al.pct_nao) | replace(".", ",") }}% não são alunos</strong>.
+      Régua de alunos da plataforma de <strong>{{ al.referencia | br_date }}</strong>.
+    </div>
+
+    <div class="table-wrap">
+      <table class="funil-table">
+        <thead>
+          <tr><th>Classificação</th><th class="th-num">Números</th><th class="th-num">%</th></tr>
+        </thead>
+        <tbody>
+          {% for c in al.classes %}
+          <tr>
+            {% if c.nivel %}
+            <td style="padding-left:26px">↳ {{ c.rotulo }}</td>
+            <td class="numero">{{ c.n | num }}</td>
+            <td class="numero">{{ "%.1f"|format(c.pct) | replace(".", ",") }}%</td>
+            {% else %}
+            <td><strong>{{ c.rotulo }}</strong></td>
+            <td class="numero td-bold">{{ c.n | num }}</td>
+            <td class="numero td-bold">{{ "%.1f"|format(c.pct) | replace(".", ",") }}%</td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <ul style="margin:14px 0 0 18px;font-size:13px;line-height:1.7;">
+      <li><strong>Por expert (aluno ativo):</strong>
+        {% for exp, n in al.por_expert.items() %}{{ exp }} {{ n | num }}{% if not loop.last %} · {% endif %}{% endfor %}.
+        Uma pessoa pode ser aluna de mais de um expert.</li>
+      {% if al.recentes.n %}
+      <li><strong>Nos últimos {{ al.recentes.dias }} dias entraram {{ al.recentes.n | num }}:</strong>
+        {{ "%.0f"|format(al.recentes.ativo_pct) }}% alunos ativos e {{ "%.0f"|format(al.recentes.nao_pct) }}% não alunos.</li>
+      {% endif %}
+    </ul>
+
+    <div class="table-wrap" style="margin-top:14px;">
+      <table>
+        <thead>
+          <tr><th>Grupo</th><th class="th-num">Números</th><th class="th-num">% aluno ativo</th><th class="th-num">% não aluno</th></tr>
+        </thead>
+        <tbody>
+          {% for g in al.por_grupo %}
+          <tr>
+            <td>{{ g.grupo }}</td>
+            <td class="numero">{{ g.n | num }}</td>
+            <td class="numero">{{ "%.0f"|format(g.ativo_pct) }}%</td>
+            <td class="numero">{{ "%.0f"|format(g.nao_pct) }}%</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="note" style="margin-top:12px;">
+      <strong>"Não aluno" é o máximo possível:</strong> 21% dos cadastros da plataforma não têm telefone, e quem não
+      casou nem pelo e-mail do CRM entra como não aluno.
+      <strong>"Aluno ativo" quer dizer que tem acesso ao curso</strong>, não que estuda.
+      A régua é uma foto de {{ al.referencia | br_date }}: quem comprou depois aparece como não aluno até ela ser
+      recarregada (<code>scripts/carregar_regua_alunos.py</code>).
+    </div>
+  </div>
+  {% endif %}
+
   {% for tipo, chave in [("Grupos Normais", "normal"), ("Grupos VIP", "vip")] %}
   {% set linhas = wa_hist.get(chave) if wa_hist else None %}
   {% if linhas %}

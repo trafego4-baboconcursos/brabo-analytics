@@ -53,8 +53,12 @@ async def whatsapp_page(request: Request, launch_code: str | None = None):
     wa_hist = await run_in_threadpool(historico_diario, launch.code if launch else "") if launch else None
     wa_msgs = await run_in_threadpool(read_whatsapp_messages, launch) if launch else None
     launch_cfg = await run_in_threadpool(read_launch_config, launch.code) if launch else {}
+    # Aluno × não aluno dos membros — só Black; None fora dela ou sem régua.
+    from frontend.db_readers.whatsapp_alunos import read_whatsapp_alunos  # noqa: PLC0415
+    wa_alunos = await run_in_threadpool(read_whatsapp_alunos, launch.code) if launch else None
     ctx = _base_ctx(request, "whatsapp", "Grupos de WhatsApp", launch, launches,
-                    wa=wa, wa_hist=wa_hist, wa_msgs=wa_msgs, launch_cfg=launch_cfg, data_errors=[])
+                    wa=wa, wa_hist=wa_hist, wa_msgs=wa_msgs, launch_cfg=launch_cfg,
+                    wa_alunos=wa_alunos, data_errors=[])
     return templates.TemplateResponse("whatsapp.html", ctx)
 
 

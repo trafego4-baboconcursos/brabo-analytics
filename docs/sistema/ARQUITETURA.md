@@ -42,7 +42,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 83 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 84 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -257,6 +257,7 @@ relacionados:
 > - [[ARQUITETURA#Janela do carrinho e o aviso de "fora da janela"|Janela do carrinho e o aviso de "fora da janela"]]
 > - [[ARQUITETURA#Perpétuo|Perpétuo]]
 > - [[ARQUITETURA#Histórico de UTM por lançamento (`lead_utm_lancamento`)|Histórico de UTM por lançamento (`lead_utm_lancamento`)]]
+> - [[ARQUITETURA#Aluno × não aluno nos grupos (`frontend/db_readers/whatsapp_alunos.py`, 08/10/26)|Aluno × não aluno nos grupos (`frontend/db_readers/whatsapp_alunos.py`, 08/10/26)]]
 > - [[ARQUITETURA#Alerta de orçamento na Black (`etl/budget_alert.py`, 08/10/26)|Alerta de orçamento na Black (`etl/budget_alert.py`, 08/10/26)]]
 > - [[ARQUITETURA#Vigia do ETL (`frontend/services/vigia_etl.py`)|Vigia do ETL (`frontend/services/vigia_etl.py`)]]
 > - [[ARQUITETURA#Trava da atribuição (`atribuicao_congelada`)|Trava da atribuição (`atribuicao_congelada`)]]
@@ -2810,6 +2811,16 @@ com o formato da `leads`, atribuição primeiro) é o passo 3 de
 Duas armadilhas pegas na construção: o DDL é uma **lista de comandos**, nunca dividido por
 `;` (comentário com ponto e vírgula quebrou a divisão); e o módulo usa o logger do projeto
 (o `logging` cru não tem handler no ETL e a linha de contagem sumia).
+
+### Aluno × não aluno nos grupos (`frontend/db_readers/whatsapp_alunos.py`, 08/10/26)
+
+Seção da `/whatsapp`, **só em lançamento Black**. Cruza os membros da tabela de grupo (resolvida com os
+mesmos apelidos de `whatsapp_groups`) com a régua `aluno_regua`, carregada de arquivo por
+`scripts/carregar_regua_alunos.py` (foto; recarregar substitui tudo). Regra, em SQL no servidor: a plataforma
+decide quem é aluno — telefone (DDD + 8) e, sem casamento, telefone → e-mail no CRM → e-mail na plataforma; a
+lista de ex-aluno do Active só marca ex-aluno de quem não é ativo. ~15 s (o casamento por e-mail varre a
+`leads`), cache de 1h com recálculo em segundo plano e aquecido junto com o WhatsApp. Conferido contra a
+análise manual de 05/10: 11 diferenças em 16.614 números.
 
 ### Alerta de orçamento na Black (`etl/budget_alert.py`, 08/10/26)
 

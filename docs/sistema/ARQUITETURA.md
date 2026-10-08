@@ -260,7 +260,7 @@ relacionados:
 > - [[ARQUITETURA#Aluno × não aluno nos grupos (`frontend/db_readers/whatsapp_alunos.py`, 08/10/26)|Aluno × não aluno nos grupos (`frontend/db_readers/whatsapp_alunos.py`, 08/10/26)]]
 > - [[ARQUITETURA#Alerta de orçamento na Black (`etl/budget_alert.py`, 08/10/26)|Alerta de orçamento na Black (`etl/budget_alert.py`, 08/10/26)]]
 > - [[ARQUITETURA#Vigia do ETL (`frontend/services/vigia_etl.py`)|Vigia do ETL (`frontend/services/vigia_etl.py`)]]
-> - [[ARQUITETURA#Trigger do histórico de UTM (`etl/historico_utm_trigger.py`) — construído e testado, NÃO instalado|Trigger do histórico de UTM (`etl/historico_utm_trigger.py`) — construído e testado, NÃO instalado]]
+> - [[ARQUITETURA#Trigger do histórico de UTM (`etl/historico_utm_trigger.py`) — INSTALADO em 08/10/26|Trigger do histórico de UTM (`etl/historico_utm_trigger.py`) — INSTALADO em 08/10/26]]
 > - [[ARQUITETURA#Trava da atribuição (`atribuicao_congelada`)|Trava da atribuição (`atribuicao_congelada`)]]
 > - [[ARQUITETURA#Apelidos de armazenamento (`APELIDOS_ARMAZENAMENTO`)|Apelidos de armazenamento (`APELIDOS_ARMAZENAMENTO`)]]
 >
@@ -2870,9 +2870,20 @@ semeadura de 1,9 mi de linhas, senão o planejador ignorava o índice.
 ADD COLUMN IF NOT EXISTS` pega lock exclusivo mesmo com a coluna existindo, e isso rodava a cada
 atribuição de cada página. Leitura não faz mais DDL; quem cria é quem grava.
 
-### Trigger do histórico de UTM (`etl/historico_utm_trigger.py`) — construído e testado, NÃO instalado
+### Trigger do histórico de UTM (`etl/historico_utm_trigger.py`) — INSTALADO em 08/10/26
 
-**Estado em 08/10/26: pronto, testado, aguardando o ok para instalar na `leads` de produção.**
+**Estado: instalado na `leads` de produção em 08/10/26 (~14:57 BRT), com o ok do Michel.** Teste de
+fumaça no trigger real passou (grava um contato sintético, confere e desfaz). A primeira carga do Active
+depois da instalação terminou `ok` com 13.496 leads gravados — o trigger não atrapalha a gravação — e ele
+registrou por conta própria um caso real (contato que trocou para a UTM `pbb-out-25`).
+
+**O passo antigo do ETL foi removido do código** (`gravar_historico_antes` em `etl_active_campaign.upsert`):
+ele gravava o estado ANTES da `leads`, e por isso escondia do trigger a troca de UTM vinda do ETL. Medido
+logo após a instalação: o ETL de produção, ainda com o passo antigo, regravou o estado de 12.803 contatos
+(origem `etl_ac`) e o histórico ficou em 0. **Só passa a registrar as trocas vindas do ETL depois do deploy
+do serviço do ETL com este código.** Não registra o que não mudou: a carga horária reenvia os mesmos contatos
+e o trigger só age quando o contato é novo ou a UTM mudou.
+
 
 O problema é o mesmo do `lead_utm_lancamento` (a `leads` guarda uma linha por contato e quem grava nela
 sobrescreve a UTM), mas a captura sai do Python e vai para **dentro do banco**: um trigger na `leads` que
@@ -2902,10 +2913,9 @@ maiúscula/espaço não criam UTM nova; **falha no histórico não derruba a `le
 regex do código igual à do Python sobre nomes reais. Quebrando o trigger de propósito, 3 testes falham.
 Custo: 20 mil contatos em 1 comando = +1,2 s; um cadastro isolado ~20 ms com e sem trigger (dentro do ruído).
 
-**Para instalar:** `python scripts/instalar_trigger_utm.py --instalar` (uma transação, `lock_timeout` curto
-com nova tentativa porque o ETL grava em transações de minutos; fumaça no fim, que grava e desfaz).
-Reverter: `--remover`. **Depois**, tirar do ETL o passo `gravar_historico_antes` e fazer o deploy: enquanto
-ele existir, grava o estado antes da `leads` e o trigger não enxerga a troca de UTM vinda do ETL.
+**Instalar/reverter:** `python scripts/instalar_trigger_utm.py --instalar | --verificar | --remover`
+(uma transação, `lock_timeout` curto com nova tentativa porque o ETL grava em transações de minutos).
+`--remover` desliga os triggers e mantém as tabelas e os dados.
 
 ### Trava da atribuição (`atribuicao_congelada`)
 

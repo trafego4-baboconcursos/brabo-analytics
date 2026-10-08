@@ -1349,3 +1349,38 @@ CREATE TABLE IF NOT EXISTS lead_utm_lancamento (
 CREATE INDEX IF NOT EXISTS idx_lead_utm_lancamento_lanc  ON lead_utm_lancamento (lancamento_codigo);
 
 CREATE INDEX IF NOT EXISTS idx_lead_utm_lancamento_email ON lead_utm_lancamento (email);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- lead_utm_historico — UTMs SUBSTITUÍDAS (o estado atual fica em lead_utm_lancamento)
+--
+-- Alimentada por um TRIGGER na `leads` (etl/historico_utm_trigger.py), instalado por
+-- scripts/instalar_trigger_utm.py — não por código de ETL. Só entra UTM que nomeia um
+-- lançamento. O trigger e as funções não estão neste arquivo: ver o módulo.
+-- ─────────────────────────────────────────────────────────────────────────────
+ALTER TABLE lead_utm_lancamento ADD COLUMN IF NOT EXISTS utm_desde timestamptz;
+
+CREATE TABLE IF NOT EXISTS lead_utm_historico (
+        contact_id        text        NOT NULL,
+        lancamento_codigo text        NOT NULL,
+        trilha            text        NOT NULL DEFAULT '',
+        utm_hash          text        NOT NULL,
+        email             text        NOT NULL DEFAULT '',
+        utm_source        text        NOT NULL DEFAULT '',
+        utm_medium        text        NOT NULL DEFAULT '',
+        utm_campaign      text        NOT NULL DEFAULT '',
+        utm_content       text        NOT NULL DEFAULT '',
+        utm_term          text        NOT NULL DEFAULT '',
+        gclid text,
+        fbclid text,
+        ttclid text,
+        vk_source text,
+        vk_ad_id text,
+        visto_desde       timestamptz,
+        substituida_em    timestamptz,
+        origem            text        NOT NULL DEFAULT 'trigger',
+        PRIMARY KEY (contact_id, lancamento_codigo, trilha, utm_hash)
+    );
+
+CREATE INDEX IF NOT EXISTS idx_lead_utm_historico_lanc  ON lead_utm_historico (lancamento_codigo);
+
+CREATE INDEX IF NOT EXISTS idx_lead_utm_historico_email ON lead_utm_historico (email);

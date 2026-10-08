@@ -227,7 +227,7 @@ def run_corrompidos(batch_size: int, max_batches: int | None, reset: bool, dry_r
         # created_at (e capturar tags), não decidir de novo se o lead entra.
         if not dry_run:
             if not df.empty:
-                upsert(df, f"  [ressync corrompidos lote={lote_atual}]", origem="ressync_ac")
+                upsert(df, f"  [ressync corrompidos lote={lote_atual}]")
             _upsert_lead_lancamentos(lanc_por_contato)
         else:
             logger.info("[dry-run] lote=%d: %d ids pedidos, %d contatos retornados, %d pares de tag",
@@ -300,7 +300,7 @@ def run(max_pages: int | None, reset: bool, dry_run: bool) -> None:
 
         if not dry_run:
             if not df_leads.empty:
-                upsert(df_leads, f"  [ressync offset={offset}]", origem="ressync_ac")
+                upsert(df_leads, f"  [ressync offset={offset}]")
             _upsert_lead_lancamentos(lanc_por_contato)
         else:
             logger.info("[dry-run] offset=%d: %d contatos, %d elegíveis para leads, %d pares de tag",

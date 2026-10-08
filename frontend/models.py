@@ -601,9 +601,7 @@ class AtendimentoSummary:
     que o coletor do Unnichat alimenta. `coleta_ativa` False = as tabelas ainda
     não existem ou estão vazias; a página mostra o aviso em vez de zeros.
 
-    Templates e "conversa aberta" dependem de como a API do Unnichat marca
-    template e conversa finalizada — `aberta_conhecida` False quer dizer que o
-    coletor ainda não sabe distinguir e toda conversa conta como aberta.
+    Conversa aberta = o cliente escreveu nas últimas 24h (janela do WhatsApp).
     """
     tabelas_ok: bool = False
     coleta_ativa: bool = False
@@ -627,5 +625,4 @@ class AtendimentoSummary:
     conversas_total: int = 0
     aguardando_total: int = 0
     aguardando_1h: int = 0
-    aberta_conhecida: bool = False
     ultima_coleta: datetime | None = None

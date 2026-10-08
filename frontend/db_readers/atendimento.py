@@ -10,6 +10,10 @@ linha a linha: KPIs, série diária e rankings saem da view agregada
 `vw_unnichat_atendimento_diario`, e as conversas abertas de `unnichat_contatos`
 (uma linha por conversa, com limite).
 
+Conversa aberta = o cliente escreveu nas últimas 24h (janela de atendimento do
+WhatsApp). O Unnichat não marca conversa finalizada e mantém o responsável por
+semanas, então o tempo é o único sinal confiável (teste de 08/10/2026).
+
 Conta = conexão do Unnichat = um número de WhatsApp (Ivan Neto (Principal),
 Felipe Graton (B1)…), cadastrada em `unnichat_conexoes`. O que importa pro
 Comercial é em qual conta o atendimento aconteceu (Mateus, 08/10/2026), não o
@@ -114,7 +118,7 @@ def agregar(
     for aid, m in por_atendente.items():
         info = nomes.get(aid, {})
         resumo.atendentes.append({
-            "nome": info.get("nome") or ("Sem atendente" if not aid else aid),
+            "nome": info.get("nome") or ("Automação / sem atendente" if not aid else aid),
             "status": info.get("status"),
             "enviadas": m["enviadas"], "recebidas": m["recebidas"], "templates": m["templates"],
             "total": m["enviadas"] + m["recebidas"],
@@ -189,7 +193,7 @@ def read_atendimento(dias: int, conexao: str | None = None, hoje: date | None = 
                    (MAX(EXTRACT(EPOCH FROM now() - ultima_msg_em) / 60)
                         FILTER (WHERE ultima_msg_de = 'cliente'))::int AS maior_espera
               FROM unnichat_contatos
-             WHERE conexao IN :conexoes AND aberta IS NOT FALSE
+             WHERE conexao IN :conexoes AND ultima_msg_cliente_em > now() - interval '24 hours'
              GROUP BY conexao, atendente_id
             """
         ).bindparams(*expanding), params).fetchall()
@@ -197,9 +201,9 @@ def read_atendimento(dias: int, conexao: str | None = None, hoje: date | None = 
         conversas = conn.execute(text(
             """
             SELECT conexao, contact_id, telefone, nome, atendente_id,
-                   ultima_msg_em, ultima_msg_de, aberta
+                   ultima_msg_em, ultima_msg_de
               FROM unnichat_contatos
-             WHERE conexao IN :conexoes AND aberta IS NOT FALSE
+             WHERE conexao IN :conexoes AND ultima_msg_cliente_em > now() - interval '24 hours'
              ORDER BY (ultima_msg_de = 'cliente') DESC, ultima_msg_em ASC NULLS LAST
              LIMIT :limite
             """
@@ -209,10 +213,9 @@ def read_atendimento(dias: int, conexao: str | None = None, hoje: date | None = 
             """
             SELECT COUNT(*) FILTER (WHERE ultima_msg_de = 'cliente'
                                       AND ultima_msg_em < now() - interval '1 hour') AS aguardando_1h,
-                   BOOL_OR(aberta IS NOT NULL) AS aberta_conhecida,
                    MAX(atualizado_em) AS ultima_coleta
               FROM unnichat_contatos
-             WHERE conexao IN :conexoes AND aberta IS NOT FALSE
+             WHERE conexao IN :conexoes AND ultima_msg_cliente_em > now() - interval '24 hours'
             """
         ).bindparams(*expanding), so_escolhidas).one()
 
@@ -237,10 +240,7 @@ def read_atendimento(dias: int, conexao: str | None = None, hoje: date | None = 
             "espera_min": espera,
         })
 
-    resumo.conversas_total = sum(r.abertas for r in abertas)
-    resumo.aguardando_total = sum(r.aguardando for r in abertas)
     resumo.aguardando_1h = contagem.aguardando_1h or 0
-    resumo.aberta_conhecida = bool(contagem.aberta_conhecida)
     # Fuso de São Paulo aqui, não no template: o servidor roda em UTC.
     resumo.ultima_coleta = contagem.ultima_coleta.astimezone(_TZ) if contagem.ultima_coleta else None
     return resumo

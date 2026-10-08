@@ -56,13 +56,15 @@ create table if not exists unnichat_atendentes (
 -- para X", "A conversa foi transferida por X"). Trecho sem atribuição conhecida
 -- antes do primeiro evento = null (ex.: automação antes de cair num atendente);
 -- último trecho depois de uma transferência = responsável atual (/assign).
--- Mensagens de sistema não entram aqui.
+-- Mensagens de sistema não entram aqui. Mensagem de automação (origin =
+-- automation) fica com atendente_id null: não conta pra atendente nenhum.
 create table if not exists unnichat_mensagens (
     conexao       text not null,
     message_id    text not null,
     contact_id    text not null,
     enviada_em    timestamptz not null,
     direcao       text not null check (direcao in ('enviada', 'recebida')),
+    origem        text,                 -- atendente | automacao | agendada | cliente (campo "origin" da API)
     atendente_id  text,
     tipo          text,                 -- "type" cru: message, template, button, cta-url, image, audio…
     is_template   boolean not null default false,
@@ -74,8 +76,9 @@ create index if not exists idx_unnichat_mensagens_enviada_em
     on unnichat_mensagens (enviada_em);
 
 -- Estado atual de cada conversa: alimenta "conversas abertas" e "aguardando
--- resposta". aberta = null enquanto não soubermos como a API indica conversa
--- finalizada; a página trata null como "aberta, a validar".
+-- resposta". Aberta = o cliente escreveu nas últimas 24h (janela de atendimento
+-- do WhatsApp), regra aplicada na leitura. O Unnichat não marca conversa
+-- finalizada e mantém o responsável por semanas, então não serve de sinal.
 create table if not exists unnichat_contatos (
     conexao        text not null,
     contact_id     text not null,
@@ -84,13 +87,13 @@ create table if not exists unnichat_contatos (
     atendente_id   text,                -- responsável atual (GET /contact/{id}/assign)
     ultima_msg_em  timestamptz,
     ultima_msg_de  text check (ultima_msg_de in ('cliente', 'atendente')),
-    aberta         boolean,
+    ultima_msg_cliente_em  timestamptz, -- última mensagem DO CLIENTE: define a janela de 24h
     atualizado_em  timestamptz not null default now(),
     primary key (conexao, contact_id)
 );
 
-create index if not exists idx_unnichat_contatos_abertos
-    on unnichat_contatos (conexao) where aberta is not false;
+create index if not exists idx_unnichat_contatos_cliente_em
+    on unnichat_contatos (conexao, ultima_msg_cliente_em);
 
 -- Fila do coletor: o webhook só grava aqui e responde na hora; os workers
 -- consomem aos poucos, e um contato reinicia daqui se o serviço cair. O índice

@@ -45,7 +45,7 @@ def test_agregar_por_conta_e_por_atendente():
     assert atend["Ana"]["contas"] == ["Felipe Graton (Principal)", "Ivan Neto (Principal)"]
     assert atend["Ana"]["total"] == 27
     assert atend["Bia"]["abertas"] == 2 and atend["Bia"]["total"] == 0
-    assert atend["Sem atendente"]["templates"] == 3
+    assert atend["Automação / sem atendente"]["templates"] == 3
 
 
 def test_agregar_com_conta_escolhida_mantem_a_comparacao_de_todas():

@@ -137,9 +137,8 @@
           <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-message-circle"></i></div></div>
           <div class="tp-value">{{ a.conversas_total | num }}</div>
           <div class="tp-label">Conversas abertas
-            {% if not a.aberta_conhecida %}<span class="at-tag" title="O Unnichat ainda não informa quando a conversa foi finalizada: toda conversa com atendente conta como aberta">a validar</span>{% endif %}
           </div>
-          <div class="tp-compare">Situação agora</div>
+          <div class="tp-compare">Cliente escreveu nas últimas 24h</div>
         </div>
         <div class="tp-kpi">
           <div class="tp-kpi-top">
@@ -241,9 +240,9 @@
     <div class="section">
       <div class="section-title">3. Por atendente{% if nome_sel %} — {{ nome_sel }}{% endif %}</div>
       <div class="note info">
-        Cada mensagem conta para quem atendia a conversa naquela hora. "Sem atendente" = mensagens
-        antes de a conversa cair num atendente (automação). Enviadas, recebidas e templates são do
-        período; abertas e aguardando são o retrato de agora.
+        Cada mensagem conta para quem atendia a conversa naquela hora. Mensagens da automação, e as
+        de antes de a conversa cair num atendente, ficam em "Automação / sem atendente". Enviadas,
+        recebidas e templates são do período; abertas e aguardando são o retrato de agora.
       </div>
       {% set max_tpl = (a.atendentes | map(attribute='templates') | max) if a.atendentes else 0 %}
       <div class="table-wrap">
@@ -291,9 +290,9 @@
     {# ── 4. Conversas abertas ── #}
     <div class="section">
       <div class="section-title">4. Conversas abertas{% if nome_sel %} — {{ nome_sel }}{% endif %}
-        {% if not a.aberta_conhecida %}<span class="at-tag" title="O Unnichat ainda não informa quando a conversa foi finalizada: toda conversa com atendente conta como aberta">a validar</span>{% endif %}
       </div>
       <div class="note info">
+        Aberta = o cliente escreveu nas últimas 24h, a janela em que o WhatsApp deixa responder sem template.
         "Aguardando" = o cliente falou por último e ainda não teve resposta. Atenção a partir de 1h, crítico a partir de 4h.
         {% if a.conversas_total > a.conversas | length %}Mostrando as {{ a.conversas | length }} mais antigas de {{ a.conversas_total | num }}.{% endif %}
       </div>

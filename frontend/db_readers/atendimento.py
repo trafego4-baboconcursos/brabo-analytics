@@ -34,7 +34,9 @@ logger = get_logger("db")
 
 _TZ = ZoneInfo("America/Sao_Paulo")
 
-PERIODOS = (7, 15, 30)
+# 1 = "Hoje": série por hora e comparação com ontem até o mesmo horário.
+PERIODOS = (1, 7, 15, 30)
+RECARREGAR_HORAS = 2   # a página se recarrega sozinha (o coletor atualiza a cada 30 min)
 _LIMITE_CONVERSAS = 200
 _ZERO = {"enviadas": 0, "recebidas": 0, "templates": 0}
 _SEM_ABERTAS = {"abertas": 0, "aguardando": 0, "maior_espera": None}
@@ -58,12 +60,14 @@ def _somar(alvo: dict, r) -> None:
 
 def agregar(
     resumo: AtendimentoSummary, diario, abertas, nomes: dict, nome_conexao: dict,
-    selecionada: str | None = None,
+    selecionada: str | None = None, pontos: list | None = None,
 ) -> None:
     """Monta totais, série, ranking por atendente e por conta.
 
     `diario`: linhas (dia, conexao, atendente_id, enviadas, recebidas, templates)
-    desde o início do período ANTERIOR (para o delta). `abertas`: linhas
+    desde o início do período ANTERIOR (para o delta). `dia` é a data, ou a
+    hora quando `pontos` vem preenchido ("Hoje": as horas de 00h até agora,
+    e o período anterior é ontem até o mesmo horário). `abertas`: linhas
     (conexao, atendente_id, abertas, aguardando, maior_espera) de agora.
 
     A comparação por conta usa sempre TODAS as contas (é o seletor da página);
@@ -73,8 +77,10 @@ def agregar(
     def conta(r) -> bool:
         return selecionada is None or r.conexao == selecionada
 
-    inicio, dias = resumo.inicio, resumo.dias
-    serie = {inicio + timedelta(days=i): {"enviadas": 0, "recebidas": 0} for i in range(dias)}
+    if pontos is None:
+        pontos = [resumo.inicio + timedelta(days=i) for i in range(resumo.dias)]
+    inicio = pontos[0]
+    serie = {p: {"enviadas": 0, "recebidas": 0} for p in pontos}
     por_atendente: dict = {}
     por_conta: dict = {}
     for r in diario:
@@ -92,12 +98,16 @@ def agregar(
         resumo.enviadas += r.enviadas
         resumo.recebidas += r.recebidas
         resumo.templates += r.templates
-        serie[r.dia]["enviadas"] += r.enviadas
-        serie[r.dia]["recebidas"] += r.recebidas
+        if r.dia in serie:
+            serie[r.dia]["enviadas"] += r.enviadas
+            serie[r.dia]["recebidas"] += r.recebidas
         a = por_atendente.setdefault(r.atendente_id, {**_ZERO, "contas": set()})
         _somar(a, r)
         a["contas"].add(r.conexao)
-    resumo.serie = [{"dia": d, **v} for d, v in serie.items()]
+    resumo.serie = [
+        {"dia": d, "rotulo": f"{d.hour:02d}h" if isinstance(d, datetime) else d.strftime("%d/%m"), **v}
+        for d, v in serie.items()
+    ]
 
     abertas_atendente: dict = {}
     abertas_conta: dict = {}
@@ -142,8 +152,9 @@ def agregar(
 
 def read_atendimento(dias: int, conexao: str | None = None, hoje: date | None = None) -> AtendimentoSummary:
     """`conexao` = chave da conta escolhida no filtro; chave desconhecida é ignorada."""
-    dias = dias if dias in PERIODOS else PERIODOS[0]
-    hoje = hoje or datetime.now(_TZ).date()
+    dias = dias if dias in PERIODOS else 7
+    agora = datetime.now(_TZ)
+    hoje = hoje or agora.date()
     inicio = hoje - timedelta(days=dias - 1)
     inicio_ant = inicio - timedelta(days=dias)
     resumo = AtendimentoSummary(dias=dias, inicio=inicio, fim=hoje)
@@ -174,7 +185,31 @@ def read_atendimento(dias: int, conexao: str | None = None, hoje: date | None = 
             for r in conn.execute(text("SELECT atendente_id, nome, status FROM unnichat_atendentes"))
         }
 
-        diario = conn.execute(text(
+        pontos = None
+        if dias == 1:
+            # "Hoje": por hora, direto de unnichat_mensagens (só 2 dias, agregados
+            # no SQL). Ontem conta só até o mesmo horário de agora.
+            ini_hoje = datetime.combine(hoje, datetime.min.time(), _TZ)
+            ini_ontem = ini_hoje - timedelta(days=1)
+            pontos = [ini_hoje.replace(tzinfo=None) + timedelta(hours=h) for h in range(agora.hour + 1)]
+            diario = conn.execute(text(
+                """
+                SELECT date_trunc('hour', enviada_em AT TIME ZONE 'America/Sao_Paulo') AS dia,
+                       conexao, atendente_id,
+                       COUNT(*) FILTER (WHERE direcao = 'enviada')::int AS enviadas,
+                       COUNT(*) FILTER (WHERE direcao = 'recebida')::int AS recebidas,
+                       COUNT(*) FILTER (WHERE direcao = 'enviada' AND is_template)::int AS templates
+                  FROM unnichat_mensagens
+                 WHERE conexao IN :conexoes
+                   AND (enviada_em >= :ini_hoje
+                        OR (enviada_em >= :ini_ontem AND enviada_em < :agora_ontem))
+                 GROUP BY 1, 2, 3
+                """
+            ).bindparams(*expanding), {"conexoes": todas, "ini_hoje": ini_hoje, "ini_ontem": ini_ontem,
+                                       "agora_ontem": agora - timedelta(days=1)}).fetchall()
+        else:
+            diario = None
+        diario = diario if diario is not None else conn.execute(text(
             """
             SELECT dia, conexao, atendente_id,
                    SUM(enviadas)::int AS enviadas, SUM(recebidas)::int AS recebidas,
@@ -224,7 +259,7 @@ def read_atendimento(dias: int, conexao: str | None = None, hoje: date | None = 
     if not diario and not abertas:
         return resumo
     resumo.coleta_ativa = True
-    agregar(resumo, diario, abertas, nomes, nome_conexao, resumo.conexao)
+    agregar(resumo, diario, abertas, nomes, nome_conexao, resumo.conexao, pontos)
 
     agora = datetime.now(_TZ)
     for c in conversas:

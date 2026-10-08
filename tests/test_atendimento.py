@@ -48,6 +48,22 @@ def test_agregar_por_conta_e_por_atendente():
     assert atend["Automação / sem atendente"]["templates"] == 3
 
 
+def test_agregar_hoje_por_hora_compara_com_ontem():
+    from datetime import datetime
+    r = AtendimentoSummary(dias=1, inicio=date(2026, 10, 8), fim=date(2026, 10, 8))
+    h = lambda d, hh: datetime(2026, 10, d, hh)  # noqa: E731
+    pontos = [h(8, x) for x in range(15)]   # 00h..14h
+    diario = [
+        L(dia=h(7, 9), conexao="ivan", atendente_id="a1", enviadas=4, recebidas=2, templates=1),
+        L(dia=h(8, 9), conexao="ivan", atendente_id="a1", enviadas=6, recebidas=3, templates=0),
+        L(dia=h(8, 14), conexao="ivan", atendente_id="a1", enviadas=1, recebidas=1, templates=1),
+    ]
+    agregar(r, diario, [], {}, {"ivan": "Ivan"}, None, pontos)
+    assert (r.enviadas, r.enviadas_ant) == (7, 4)
+    assert len(r.serie) == 15 and r.serie[9]["enviadas"] == 6 and r.serie[9]["rotulo"] == "09h"
+    assert r.serie[0]["rotulo"] == "00h"
+
+
 def test_agregar_com_conta_escolhida_mantem_a_comparacao_de_todas():
     r = AtendimentoSummary(dias=1, inicio=date(2026, 10, 8), fim=date(2026, 10, 8))
     diario = [

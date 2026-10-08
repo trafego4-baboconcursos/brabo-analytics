@@ -27,7 +27,7 @@ from frontend.db_readers.ads_meta import (  # noqa: F401
 )
 from frontend.db_readers.afiliados import read_afiliados  # noqa: F401
 from frontend.db_readers.atendimento import (  # noqa: F401
-    PERIODOS, conexoes_visiveis, read_atendimento,
+    PERIODOS, read_atendimento,
 )
 from frontend.db_readers.caminho_comprador import read_caminho_comprador  # noqa: F401
 from frontend.db_readers.comparativo import read_comparativo  # noqa: F401

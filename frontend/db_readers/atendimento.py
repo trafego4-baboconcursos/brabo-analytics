@@ -6,14 +6,14 @@ Lê o banco COMERCIAL (`SUPABASE_USERS_URL`), não o analítico: as tabelas de
 coletor do Unnichat (serviço próprio no EasyPanel, fora deste repo).
 
 Para não repetir o egress de setembro, a página nunca lê `unnichat_mensagens`
-linha a linha: KPIs, série diária e ranking saem da view agregada
+linha a linha: KPIs, série diária e rankings saem da view agregada
 `vw_unnichat_atendimento_diario`, e as conversas abertas de `unnichat_contatos`
 (uma linha por conversa, com limite).
 
-Conexões: cada número de WhatsApp do Unnichat é uma conexão, cadastrada em
-`unnichat_conexoes` com o produto (PI, PES, PBB, PERPETUO). O mesmo
-`user_product_access` que filtra os lançamentos filtra as conexões aqui;
-conexão sem produto só aparece pra quem tem acesso a todos (ALL).
+Conta = conexão do Unnichat = um número de WhatsApp (Ivan Neto (Principal),
+Felipe Graton (B1)…), cadastrada em `unnichat_conexoes`. O que importa pro
+Comercial é em qual conta o atendimento aconteceu (Mateus, 08/10/2026), não o
+produto: toda conta ativa aparece pra quem tem acesso à página.
 """
 from __future__ import annotations
 
@@ -32,14 +32,8 @@ _TZ = ZoneInfo("America/Sao_Paulo")
 
 PERIODOS = (7, 15, 30)
 _LIMITE_CONVERSAS = 200
-
-
-def conexoes_visiveis(cadastro: list[dict], products: list[str] | None) -> list[dict]:
-    """Conexões ativas do cadastro que o usuário pode ver pelos produtos dele."""
-    products = products or ["ALL"]
-    if "ALL" in products:
-        return list(cadastro)
-    return [c for c in cadastro if c.get("produto") in products]
+_ZERO = {"enviadas": 0, "recebidas": 0, "templates": 0}
+_SEM_ABERTAS = {"abertas": 0, "aguardando": 0, "maior_espera": None}
 
 
 def _tabelas_existem(conn) -> bool:
@@ -52,10 +46,79 @@ def _tabelas_existem(conn) -> bool:
     return bool(row)
 
 
-def read_atendimento(
-    dias: int, products: list[str] | None, conexao: str | None = None, hoje: date | None = None,
-) -> AtendimentoSummary:
-    """`conexao` = chave escolhida no filtro; fora das conexões do usuário é ignorada."""
+def _somar(alvo: dict, r) -> None:
+    alvo["enviadas"] += r.enviadas
+    alvo["recebidas"] += r.recebidas
+    alvo["templates"] += r.templates
+
+
+def agregar(resumo: AtendimentoSummary, diario, abertas, nomes: dict, nome_conexao: dict) -> None:
+    """Monta totais, série, ranking por atendente e por conta.
+
+    `diario`: linhas (dia, conexao, atendente_id, enviadas, recebidas, templates)
+    desde o início do período ANTERIOR (para o delta). `abertas`: linhas
+    (conexao, atendente_id, abertas, aguardando, maior_espera) de agora.
+    """
+    inicio, dias = resumo.inicio, resumo.dias
+    serie = {inicio + timedelta(days=i): {"enviadas": 0, "recebidas": 0} for i in range(dias)}
+    por_atendente: dict = {}
+    por_conta: dict = {}
+    for r in diario:
+        if r.dia < inicio:
+            resumo.enviadas_ant += r.enviadas
+            resumo.recebidas_ant += r.recebidas
+            resumo.templates_ant += r.templates
+            continue
+        resumo.enviadas += r.enviadas
+        resumo.recebidas += r.recebidas
+        resumo.templates += r.templates
+        serie[r.dia]["enviadas"] += r.enviadas
+        serie[r.dia]["recebidas"] += r.recebidas
+        a = por_atendente.setdefault(r.atendente_id, {**_ZERO, "contas": set()})
+        _somar(a, r)
+        a["contas"].add(r.conexao)
+        _somar(por_conta.setdefault(r.conexao, {**_ZERO, "atendentes": set()}), r)
+        if r.atendente_id:
+            por_conta[r.conexao]["atendentes"].add(r.atendente_id)
+    resumo.serie = [{"dia": d, **v} for d, v in serie.items()]
+
+    abertas_atendente: dict = {}
+    abertas_conta: dict = {}
+    for r in abertas:
+        for chave, alvo in ((r.atendente_id, abertas_atendente), (r.conexao, abertas_conta)):
+            o = alvo.setdefault(chave, dict(_SEM_ABERTAS))
+            o["abertas"] += r.abertas
+            o["aguardando"] += r.aguardando
+            if r.maior_espera is not None:
+                o["maior_espera"] = max(o["maior_espera"] or 0, r.maior_espera)
+        por_atendente.setdefault(r.atendente_id, {**_ZERO, "contas": set()})["contas"].add(r.conexao)
+
+    for aid, m in por_atendente.items():
+        info = nomes.get(aid, {})
+        resumo.atendentes.append({
+            "nome": info.get("nome") or ("Sem atendente" if not aid else aid),
+            "status": info.get("status"),
+            "enviadas": m["enviadas"], "recebidas": m["recebidas"], "templates": m["templates"],
+            "total": m["enviadas"] + m["recebidas"],
+            "contas": sorted(nome_conexao.get(c, c) for c in m["contas"]),
+            **abertas_atendente.get(aid, _SEM_ABERTAS),
+        })
+    resumo.atendentes.sort(key=lambda a: (a["total"], a["abertas"]), reverse=True)
+
+    for chave in set(por_conta) | set(abertas_conta):
+        m = por_conta.get(chave, {**_ZERO, "atendentes": set()})
+        resumo.contas.append({
+            "nome": nome_conexao.get(chave, chave),
+            "enviadas": m["enviadas"], "recebidas": m["recebidas"], "templates": m["templates"],
+            "total": m["enviadas"] + m["recebidas"],
+            "atendentes": len(m["atendentes"]),
+            **abertas_conta.get(chave, _SEM_ABERTAS),
+        })
+    resumo.contas.sort(key=lambda c: (c["total"], c["abertas"]), reverse=True)
+
+
+def read_atendimento(dias: int, conexao: str | None = None, hoje: date | None = None) -> AtendimentoSummary:
+    """`conexao` = chave da conta escolhida no filtro; chave desconhecida é ignorada."""
     dias = dias if dias in PERIODOS else PERIODOS[0]
     hoje = hoje or datetime.now(_TZ).date()
     inicio = hoje - timedelta(days=dias - 1)
@@ -68,11 +131,9 @@ def read_atendimento(
             return resumo
         resumo.tabelas_ok = True
 
-        cadastro = [dict(r._mapping) for r in conn.execute(text(
-            "SELECT chave, nome, produto FROM unnichat_conexoes WHERE ativa ORDER BY produto NULLS LAST, nome"
+        resumo.conexoes = [tuple(r) for r in conn.execute(text(
+            "SELECT chave, nome FROM unnichat_conexoes WHERE ativa ORDER BY nome"
         ))]
-        visiveis = conexoes_visiveis(cadastro, products)
-        resumo.conexoes = [(c["chave"], c["nome"]) for c in visiveis]
         nome_conexao = dict(resumo.conexoes)
         chaves = list(nome_conexao)
         if conexao in nome_conexao:
@@ -80,24 +141,35 @@ def read_atendimento(
         if not chaves:
             return resumo
 
-        params = {"conexoes": chaves, "inicio": inicio, "inicio_ant": inicio_ant, "fim": hoje}
+        params = {"conexoes": chaves, "inicio_ant": inicio_ant, "fim": hoje}
         expanding = [bindparam("conexoes", expanding=True)]
 
         nomes = {
             r.atendente_id: {"nome": r.nome or r.atendente_id, "status": r.status}
-            for r in conn.execute(text(
-                "SELECT atendente_id, nome, status FROM unnichat_atendentes"
-            ))
+            for r in conn.execute(text("SELECT atendente_id, nome, status FROM unnichat_atendentes"))
         }
 
         diario = conn.execute(text(
             """
-            SELECT dia, atendente_id,
+            SELECT dia, conexao, atendente_id,
                    SUM(enviadas)::int AS enviadas, SUM(recebidas)::int AS recebidas,
                    SUM(templates)::int AS templates
               FROM vw_unnichat_atendimento_diario
              WHERE conexao IN :conexoes AND dia BETWEEN :inicio_ant AND :fim
-             GROUP BY dia, atendente_id
+             GROUP BY dia, conexao, atendente_id
+            """
+        ).bindparams(*expanding), params).fetchall()
+
+        abertas = conn.execute(text(
+            """
+            SELECT conexao, atendente_id,
+                   COUNT(*)::int AS abertas,
+                   COUNT(*) FILTER (WHERE ultima_msg_de = 'cliente')::int AS aguardando,
+                   (MAX(EXTRACT(EPOCH FROM now() - ultima_msg_em) / 60)
+                        FILTER (WHERE ultima_msg_de = 'cliente'))::int AS maior_espera
+              FROM unnichat_contatos
+             WHERE conexao IN :conexoes AND aberta IS NOT FALSE
+             GROUP BY conexao, atendente_id
             """
         ).bindparams(*expanding), params).fetchall()
 
@@ -112,27 +184,9 @@ def read_atendimento(
             """
         ).bindparams(*expanding), {**params, "limite": _LIMITE_CONVERSAS}).fetchall()
 
-        abertas_por = {
-            r.atendente_id: {"abertas": r.abertas, "aguardando": r.aguardando, "maior_espera": r.maior_espera}
-            for r in conn.execute(text(
-                """
-                SELECT atendente_id,
-                       COUNT(*)::int AS abertas,
-                       COUNT(*) FILTER (WHERE ultima_msg_de = 'cliente')::int AS aguardando,
-                       (MAX(EXTRACT(EPOCH FROM now() - ultima_msg_em) / 60)
-                            FILTER (WHERE ultima_msg_de = 'cliente'))::int AS maior_espera
-                  FROM unnichat_contatos
-                 WHERE conexao IN :conexoes AND aberta IS NOT FALSE
-                 GROUP BY atendente_id
-                """
-            ).bindparams(*expanding), params)
-        }
-
         contagem = conn.execute(text(
             """
-            SELECT COUNT(*) AS abertas,
-                   COUNT(*) FILTER (WHERE ultima_msg_de = 'cliente') AS aguardando,
-                   COUNT(*) FILTER (WHERE ultima_msg_de = 'cliente'
+            SELECT COUNT(*) FILTER (WHERE ultima_msg_de = 'cliente'
                                       AND ultima_msg_em < now() - interval '1 hour') AS aguardando_1h,
                    BOOL_OR(aberta IS NOT NULL) AS aberta_conhecida,
                    MAX(atualizado_em) AS ultima_coleta
@@ -141,30 +195,10 @@ def read_atendimento(
             """
         ).bindparams(*expanding), params).one()
 
-    if not diario and not contagem.abertas:
+    if not diario and not abertas:
         return resumo
     resumo.coleta_ativa = True
-
-    # ── KPIs, série e ranking ─────────────────────────────────────────────────
-    serie = {inicio + timedelta(days=i): {"enviadas": 0, "recebidas": 0} for i in range(dias)}
-    por_atendente: dict[str | None, dict] = {}
-    for r in diario:
-        if r.dia >= inicio:
-            resumo.enviadas += r.enviadas
-            resumo.recebidas += r.recebidas
-            resumo.templates += r.templates
-            ponto = serie[r.dia]
-            ponto["enviadas"] += r.enviadas
-            ponto["recebidas"] += r.recebidas
-            a = por_atendente.setdefault(r.atendente_id, {"enviadas": 0, "recebidas": 0, "templates": 0})
-            a["enviadas"] += r.enviadas
-            a["recebidas"] += r.recebidas
-            a["templates"] += r.templates
-        else:
-            resumo.enviadas_ant += r.enviadas
-            resumo.recebidas_ant += r.recebidas
-            resumo.templates_ant += r.templates
-    resumo.serie = [{"dia": d, **v} for d, v in serie.items()]
+    agregar(resumo, diario, abertas, nomes, nome_conexao)
 
     agora = datetime.now(_TZ)
     for c in conversas:
@@ -182,20 +216,8 @@ def read_atendimento(
             "espera_min": espera,
         })
 
-    for aid in set(por_atendente) | set(abertas_por):
-        info = nomes.get(aid, {})
-        m = por_atendente.get(aid, {"enviadas": 0, "recebidas": 0, "templates": 0})
-        o = abertas_por.get(aid, {"abertas": 0, "aguardando": 0, "maior_espera": None})
-        resumo.atendentes.append({
-            "nome": info.get("nome") or ("Sem atendente" if not aid else aid),
-            "status": info.get("status"),
-            "total": m["enviadas"] + m["recebidas"],
-            **m, **o,
-        })
-    resumo.atendentes.sort(key=lambda a: a["total"], reverse=True)
-
-    resumo.conversas_total = contagem.abertas or 0
-    resumo.aguardando_total = contagem.aguardando or 0
+    resumo.conversas_total = sum(r.abertas for r in abertas)
+    resumo.aguardando_total = sum(r.aguardando for r in abertas)
     resumo.aguardando_1h = contagem.aguardando_1h or 0
     resumo.aberta_conhecida = bool(contagem.aberta_conhecida)
     # Fuso de São Paulo aqui, não no template: o servidor roda em UTC.

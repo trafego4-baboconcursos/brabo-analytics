@@ -26,16 +26,15 @@ ALTER TABLE invite_links ADD CONSTRAINT invite_links_role_check
 
 -- ── Tabelas do coletor ────────────────────────────────────────────────────────
 
--- Conexões do Unnichat (uma por número de WhatsApp, cada uma com seu token).
--- São muitas e mudam (Principal, B1, B2…), então ficam num cadastro em vez de
--- fixas no código. O coletor registra sozinho cada conexão que tiver token
--- (env UNNICHAT_TOKEN_<CHAVE>), com produto vazio; o admin preenche nome e
--- produto aqui. Quem vê: usuário com o produto liberado; conexão sem produto,
--- só quem tem acesso a todos (ALL). ativa = false tira do painel sem apagar.
+-- Contas do Unnichat = conexões, uma por número de WhatsApp, cada uma com seu
+-- token. São muitas e mudam (Principal, B1, B2…), então ficam num cadastro em
+-- vez de fixas no código. O coletor registra sozinho cada conta que tiver
+-- token (env UNNICHAT_TOKEN_<CHAVE>); o admin só ajusta o nome aqui. Sem
+-- produto de propósito: o painel mostra em qual conta o atendimento aconteceu
+-- (decisão do Mateus, 08/10/2026). ativa = false tira do painel sem apagar.
 create table if not exists unnichat_conexoes (
     chave      text primary key,      -- minúscula, ex. ivan_neto_principal (vai no webhook)
     nome       text not null,         -- como aparece no Unnichat, ex. "Ivan Neto (Principal)"
-    produto    text,                  -- PI | PES | PBB | PERPETUO | vazio
     ativa      boolean not null default true,
     criado_em  timestamptz not null default now()
 );

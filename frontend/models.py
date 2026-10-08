@@ -607,7 +607,7 @@ class AtendimentoSummary:
     """
     tabelas_ok: bool = False
     coleta_ativa: bool = False
-    # Conexões que o usuário pode ver: [(chave, nome)], e a escolhida no filtro.
+    # Contas (conexões) ativas: [(chave, nome)], e a escolhida no filtro.
     conexoes: list[tuple[str, str]] = field(default_factory=list)
     conexao: str | None = None
     dias: int = 7
@@ -621,7 +621,8 @@ class AtendimentoSummary:
     recebidas_ant: int = 0
     templates_ant: int = 0
     serie: list[dict] = field(default_factory=list)        # {dia, enviadas, recebidas}
-    atendentes: list[dict] = field(default_factory=list)   # ranking do período
+    atendentes: list[dict] = field(default_factory=list)   # ranking do período (com as contas onde atendeu)
+    contas: list[dict] = field(default_factory=list)       # totais por conta (número de WhatsApp)
     conversas: list[dict] = field(default_factory=list)    # abertas agora, mais antiga primeiro
     conversas_total: int = 0
     aguardando_total: int = 0

@@ -14,14 +14,12 @@ router = APIRouter()
 async def atendimento_page(request: Request, dias: int = 7, conexao: str | None = None):
     """Mensagens, templates e conversas abertas por atendente do Unnichat.
 
-    Não é página de lançamento: o atendimento comercial é contínuo. As conexões
-    (números de WhatsApp) vêm do cadastro unnichat_conexoes e respeitam os
-    produtos liberados pro usuário: um gestor só do INSS nunca vê conexão do TJ,
-    nem pela URL.
+    Não é página de lançamento: o atendimento comercial é contínuo. O filtro é
+    por conta (número de WhatsApp do Unnichat, cadastro unnichat_conexoes), não
+    por produto: o que importa é em qual conta o atendimento aconteceu.
     """
-    user = _get_current_user(request)
     launches = await run_in_threadpool(get_launches)
-    atendimento = await run_in_threadpool(read_atendimento, dias, user.get("products"), conexao)
+    atendimento = await run_in_threadpool(read_atendimento, dias, conexao)
     ctx = _base_ctx(
         request, "atendimento", "Atendimento", None, launches,
         atendimento=atendimento, dias=atendimento.dias, periodos=PERIODOS,

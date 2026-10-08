@@ -62,9 +62,9 @@
         {% if conexoes | length > 1 %}
         <form method="get" action="/atendimento">
           <input type="hidden" name="dias" value="{{ dias }}">
-          <label for="at-conexao">Conexão</label>
+          <label for="at-conexao">Conta</label>
           <select id="at-conexao" name="conexao" onchange="this.form.submit()">
-            <option value="">Todas</option>
+            <option value="">Todas as contas</option>
             {% for c, label in conexoes %}
             <option value="{{ c }}" {% if conexao == c %}selected{% endif %}>{{ label }}</option>
             {% endfor %}
@@ -87,9 +87,9 @@
 
     {% elif not conexoes %}
     <div class="no-data">
-      <i class="ti ti-lock"></i>
-      <h3>Nenhuma conexão liberada</h3>
-      <p>Nenhuma conexão do Unnichat está cadastrada para os produtos do seu acesso. Peça a um admin para liberar em Configurações.</p>
+      <i class="ti ti-brand-whatsapp"></i>
+      <h3>Nenhuma conta do Unnichat cadastrada</h3>
+      <p>As contas entram sozinhas quando o coletor recebe o token de cada número de WhatsApp.</p>
     </div>
 
     {% elif not a.coleta_ativa %}
@@ -192,13 +192,56 @@
     })();
     </script>
 
-    {# ── 3. Por atendente ── #}
+    {# ── 3. Por conta ── #}
     <div class="section">
-      <div class="section-title">3. Por atendente</div>
+      <div class="section-title">3. Por conta</div>
       <div class="note info">
-        Mensagem recebida conta para o atendente responsável pelo contato. Templates
-        <span class="at-tag" title="Depende de confirmar como a API do Unnichat identifica uma mensagem de template">a validar</span>
-        e conversas abertas são o retrato de agora; enviadas, recebidas e templates são do período.
+        Cada conta é um número de WhatsApp do Unnichat. Enviadas, recebidas e templates são do período;
+        abertas e aguardando são o retrato de agora.
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-dark">Conta</th>
+              <th class="th-dark" style="text-align:right">Enviadas</th>
+              <th class="th-dark" style="text-align:right">Recebidas</th>
+              <th class="th-dark" style="text-align:right">Total</th>
+              <th class="th-dark" style="text-align:right">Templates</th>
+              <th class="th-dark" style="text-align:right">Atendentes</th>
+              <th class="th-dark" style="text-align:right">Abertas</th>
+              <th class="th-dark" style="text-align:right">Aguardando</th>
+              <th class="th-dark" style="text-align:right">Maior espera</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in a.contas %}
+            <tr>
+              <td style="font-weight:600;white-space:nowrap;"><i class="ti ti-brand-whatsapp" style="color:var(--bs-success);margin-right:6px;"></i>{{ c.nome }}</td>
+              <td class="numero">{{ c.enviadas | num }}</td>
+              <td class="numero">{{ c.recebidas | num }}</td>
+              <td class="numero td-bold">{{ c.total | num }}</td>
+              <td class="numero">{{ c.templates | num }}</td>
+              <td class="numero">{{ c.atendentes | num }}</td>
+              <td class="numero">{{ c.abertas | num }}</td>
+              <td class="numero">{{ c.aguardando | num }}</td>
+              <td class="numero" style="white-space:nowrap;">
+                {% if c.maior_espera is not none and c.maior_espera >= 60 %}{{ situacao(c.maior_espera) }} {% endif %}{{ espera(c.maior_espera) }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {# ── 4. Por atendente ── #}
+    <div class="section">
+      <div class="section-title">4. Por atendente</div>
+      <div class="note info">
+        Cada mensagem conta para quem atendia a conversa naquela hora. "Sem atendente" = mensagens
+        antes de a conversa cair num atendente (automação). Enviadas, recebidas e templates são do
+        período; abertas e aguardando são o retrato de agora.
       </div>
       {% set max_tpl = (a.atendentes | map(attribute='templates') | max) if a.atendentes else 0 %}
       <div class="table-wrap">
@@ -206,6 +249,7 @@
           <thead>
             <tr>
               <th class="th-dark">Atendente</th>
+              <th class="th-dark">Contas</th>
               <th class="th-dark" style="text-align:right">Enviadas</th>
               <th class="th-dark" style="text-align:right">Recebidas</th>
               <th class="th-dark" style="text-align:right">Total</th>
@@ -221,6 +265,7 @@
               <td style="font-weight:600;white-space:nowrap;">
                 <span class="at-dot {{ 'online' if r.status == 'online' }}" title="{{ r.status or 'status desconhecido' }}"></span>{{ r.nome }}
               </td>
+              <td class="td-muted" style="font-size:12px;">{{ r.contas | join(', ') or '—' }}</td>
               <td class="numero">{{ r.enviadas | num }}</td>
               <td class="numero">{{ r.recebidas | num }}</td>
               <td class="numero td-bold">{{ r.total | num }}</td>
@@ -243,7 +288,7 @@
 
     {# ── 4. Conversas abertas ── #}
     <div class="section">
-      <div class="section-title">4. Conversas abertas
+      <div class="section-title">5. Conversas abertas
         {% if not a.aberta_conhecida %}<span class="at-tag" title="O Unnichat ainda não informa quando a conversa foi finalizada: toda conversa com atendente conta como aberta">a validar</span>{% endif %}
       </div>
       <div class="note info">

@@ -2,7 +2,7 @@
 titulo: "Arquitetura do Brabo Analytics — 2026-10-01"
 area: sistema
 status: vigente
-atualizado: 2026-10-07
+atualizado: 2026-10-08
 responde:
   - "como o sistema funciona por dentro"
   - "por que o aviso do etl recomputa so parte do cache"
@@ -42,7 +42,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 82 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 83 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -257,6 +257,7 @@ relacionados:
 > - [[ARQUITETURA#Janela do carrinho e o aviso de "fora da janela"|Janela do carrinho e o aviso de "fora da janela"]]
 > - [[ARQUITETURA#Perpétuo|Perpétuo]]
 > - [[ARQUITETURA#Histórico de UTM por lançamento (`lead_utm_lancamento`)|Histórico de UTM por lançamento (`lead_utm_lancamento`)]]
+> - [[ARQUITETURA#Alerta de orçamento na Black (`etl/budget_alert.py`, 08/10/26)|Alerta de orçamento na Black (`etl/budget_alert.py`, 08/10/26)]]
 > - [[ARQUITETURA#Vigia do ETL (`frontend/services/vigia_etl.py`)|Vigia do ETL (`frontend/services/vigia_etl.py`)]]
 > - [[ARQUITETURA#Trava da atribuição (`atribuicao_congelada`)|Trava da atribuição (`atribuicao_congelada`)]]
 > - [[ARQUITETURA#Apelidos de armazenamento (`APELIDOS_ARMAZENAMENTO`)|Apelidos de armazenamento (`APELIDOS_ARMAZENAMENTO`)]]
@@ -2809,6 +2810,19 @@ com o formato da `leads`, atribuição primeiro) é o passo 3 de
 Duas armadilhas pegas na construção: o DDL é uma **lista de comandos**, nunca dividido por
 `;` (comentário com ponto e vírgula quebrou a divisão); e o módulo usa o logger do projeto
 (o `logging` cru não tem handler no ETL e a linha de contagem sumia).
+
+### Alerta de orçamento na Black (`etl/budget_alert.py`, 08/10/26)
+
+O classificador de campanha (`categorizar_campanha_meta/_google`) só usa o vocabulário da Black
+quando recebe o **código do lançamento**. O alerta chamava sem ele em quatro pontos, e as
+campanhas da BV-26 viravam "Outros": nenhuma etapa contava como ativa, o alerta anunciou
+Aquecimento "encerrado, R$ 0,00", marcou a etapa como pausada e parou de reportar a Black. Agora
+toda chamada passa `codigo`. Junto: etapa que **nunca gastou** (WhatsApp manual, Reserva) não é
+mais anunciada como "encerrada" — fica pausada em silêncio. Detalhe no item 204 do
+`MUDANCAS_BV-26`.
+
+**Regra geral que isso reforça:** toda chamada a classificador de campanha passa o código do
+lançamento, mesmo onde hoje só há lançamento normal.
 
 ### Vigia do ETL (`frontend/services/vigia_etl.py`)
 

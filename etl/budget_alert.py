@@ -55,6 +55,11 @@ from etl_google_ads import fetch_report, fetch_pmax_report, fetch_campaign_statu
 # etapa, que é só o que este módulo usa (`etapa, *_ = ...`).
 # O `legacy=True` do Meta existe só para a convenção antiga do BV-25; o alerta de
 # orçamento só olha lançamento com verba corrente, então fica no padrão.
+# Toda chamada a _categorize_* passa o CODIGO do lançamento: é ele que liga o
+# vocabulário da Black (Aquecimento/Base Forte/Vitalícia). Sem ele, as 30
+# campanhas ativas da BV-26 viravam 'Outros', nenhuma etapa contava como
+# ativa e o alerta anunciou Aquecimento 'encerrado, R$ 0,00' e calou
+# (achado em 08/10/26). Para lançamento normal, passar o código não muda nada.
 from frontend.db_readers.nomenclatura import (  # noqa: E402
     categorizar_campanha_meta as _categorize_meta,
     categorizar_campanha_google as _categorize_google,
@@ -322,7 +327,7 @@ def _categorizar_gasto(rows_meta: list[dict], rows_google: list[dict], codigo: s
         nome_camp = r.get("campaign_name") or ""
         if extract_launch_code_meta(nome_camp) != codigo:
             continue
-        etapa, *_ = _categorize_meta(nome_camp)
+        etapa, *_ = _categorize_meta(nome_camp, codigo)
         if etapa == "Performance Max":
             etapa = ETAPA_PMAX_REDIRECIONA_PARA
         b = _bucket(etapa)
@@ -332,7 +337,7 @@ def _categorizar_gasto(rows_meta: list[dict], rows_google: list[dict], codigo: s
         nome_camp = (r.get("campaign") or {}).get("name") or ""
         if extract_launch_code_google(nome_camp) != codigo:
             continue
-        etapa, *_ = _categorize_google(nome_camp)
+        etapa, *_ = _categorize_google(nome_camp, codigo)
         if etapa == "Performance Max":
             etapa = ETAPA_PMAX_REDIRECIONA_PARA
         cost = int((r.get("metrics") or {}).get("costMicros", 0)) / 1_000_000
@@ -371,14 +376,14 @@ def _gasto_db_periodo(codigo: str, data_ini: str, data_fim: str) -> dict[str, di
         ), {"c": codigo, "ini": data_ini, "fim": data_fim}).fetchall()
 
     for nome_camp, spend in rows_m:
-        etapa, *_ = _categorize_meta(nome_camp or "")
+        etapa, *_ = _categorize_meta(nome_camp or "", codigo)
         if etapa == "Performance Max":
             etapa = ETAPA_PMAX_REDIRECIONA_PARA
         b = _bucket(etapa)
         b["spend_meta"] += float(spend or 0)
         b["campanhas_meta"].add(nome_camp)
     for nome_camp, cost in rows_g:
-        etapa, *_ = _categorize_google(nome_camp or "")
+        etapa, *_ = _categorize_google(nome_camp or "", codigo)
         if etapa == "Performance Max":
             etapa = ETAPA_PMAX_REDIRECIONA_PARA
         b = _bucket(etapa)
@@ -392,7 +397,7 @@ def _etapa_ativa(nome: str, codigo: str, status_meta: dict[str, str], status_goo
     for camp_name, st in status_meta.items():
         if extract_launch_code_meta(camp_name) != codigo:
             continue
-        etapa, *_ = _categorize_meta(camp_name)
+        etapa, *_ = _categorize_meta(camp_name, codigo)
         if etapa == "Performance Max":
             etapa = ETAPA_PMAX_REDIRECIONA_PARA
         if etapa == nome and st in STATUS_ATIVO_META:
@@ -400,7 +405,7 @@ def _etapa_ativa(nome: str, codigo: str, status_meta: dict[str, str], status_goo
     for camp_name, st in status_google.items():
         if extract_launch_code_google(camp_name) != codigo:
             continue
-        etapa, *_ = _categorize_google(camp_name)
+        etapa, *_ = _categorize_google(camp_name, codigo)
         if etapa == "Performance Max":
             etapa = ETAPA_PMAX_REDIRECIONA_PARA
         if etapa == nome and st in STATUS_ATIVO_GOOGLE:
@@ -544,6 +549,13 @@ def _processar_lancamento(codigo: str, cfg: dict, hoje: date, state: dict) -> tu
                 except Exception:
                     logger.exception("Falha ao buscar gasto total de fechamento pra %s / %s", codigo, nome)
                     gasto_total = None
+                # Etapa que nunca gastou não "encerrou" — nunca começou, ou não é
+                # de mídia (WhatsApp com verba manual, Reserva). Anunciar
+                # "encerrada, R$ 0,00" era informação falsa (BV-26, 08/10/26).
+                # Só fica marcada como pausada, em silêncio.
+                if gasto_total is not None and gasto_total <= 0:
+                    state_launch[nome] = "paused"
+                    continue
                 valor_txt = _formatar_valor(gasto_total) if gasto_total is not None else "(falha ao consultar)"
                 linhas.append(
                     f"\n  *{nome}* — 🔴 campanhas pausadas/encerradas\n"

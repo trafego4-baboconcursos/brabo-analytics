@@ -51,6 +51,9 @@
   .at-legenda { display:flex; gap:16px; font-size:12px; color:var(--bs-ink-muted); margin-bottom:8px; }
   .at-legenda i { display:inline-block; width:14px; height:3px; border-radius:2px; vertical-align:middle; margin-right:6px; }
 </style>
+{# data-sec-key: chave fixa por seção. Os títulos mudam com o período e a conta
+   escolhida, e o acordeão (secoes.js) manda seção de título desconhecido pro
+   fim da página — foi o que sumiu com o gráfico no "Hoje" (08/10/2026). #}
 <div class="wrap">
   <div class="hdr">
     <a href="/atendimento"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
@@ -109,7 +112,7 @@
     {% set nome_sel = (conexoes | selectattr(0, 'equalto', conexao) | map(attribute=1) | first) if conexao else none %}
     {% set url_conta = '/atendimento?dias=' ~ dias %}
     <div class="section">
-      <div class="section-title">1. Por conta</div>
+      <div class="section-title" data-sec-key="por-conta">1. Por conta</div>
       <div class="at-contas" role="group" aria-label="Escolher conta">
         <a href="{{ url_conta }}" class="bs-pill {{ 'neutral' if conexao else 'accent' }}" {% if not conexao %}aria-current="true"{% endif %}>Todas as contas</a>
         {% for c, label in conexoes %}
@@ -199,7 +202,7 @@
 
     {# ── 2. Mensagens por dia ── #}
     <div class="section">
-      <div class="section-title">2. Mensagens por {{ 'hora' if dias == 1 else 'dia' }}{% if nome_sel %} — {{ nome_sel }}{% endif %}</div>
+      <div class="section-title" data-sec-key="mensagens-por-periodo">2. Mensagens por {{ 'hora' if dias == 1 else 'dia' }}{% if nome_sel %} — {{ nome_sel }}{% endif %}</div>
       <div class="at-legenda">
         <span><i style="background:#2a78d6"></i>Enviadas</span>
         <span><i style="background:#eb6834"></i>Recebidas</span>
@@ -244,7 +247,7 @@
 
     {# ── 3. Por atendente ── #}
     <div class="section">
-      <div class="section-title">3. Por atendente{% if nome_sel %} — {{ nome_sel }}{% endif %}</div>
+      <div class="section-title" data-sec-key="por-atendente">3. Por atendente{% if nome_sel %} — {{ nome_sel }}{% endif %}</div>
       <div class="note info">
         Cada mensagem conta para quem atendia a conversa naquela hora. Mensagens da automação, e as
         de antes de a conversa cair num atendente, ficam em "Automação / sem atendente". Enviadas,
@@ -295,7 +298,7 @@
 
     {# ── 4. Conversas abertas ── #}
     <div class="section">
-      <div class="section-title">4. Conversas abertas{% if nome_sel %} — {{ nome_sel }}{% endif %}
+      <div class="section-title" data-sec-key="conversas-abertas">4. Conversas abertas{% if nome_sel %} — {{ nome_sel }}{% endif %}
       </div>
       <div class="note info">
         Aberta = o cliente escreveu nas últimas 24h, a janela em que o WhatsApp deixa responder sem template.

@@ -302,6 +302,15 @@
           </tr>
           {% endfor %}
         </tbody>
+        {# Soma só das linhas principais: as ↳ já estão dentro de "Aluno ativo". #}
+        {% set principais = al.classes | selectattr('nivel', 'equalto', 0) | list %}
+        <tfoot>
+          <tr>
+            <td><strong>Total</strong></td>
+            <td class="numero td-bold">{{ principais | sum(attribute='n') | num }}</td>
+            <td class="numero td-bold">{{ "%.1f"|format(principais | sum(attribute='pct')) | replace(".", ",") }}%</td>
+          </tr>
+        </tfoot>
       </table>
     </div>
 
@@ -330,6 +339,14 @@
           </tr>
           {% endfor %}
         </tbody>
+        <tfoot>
+          <tr>
+            <td><strong>Total ({{ al.por_grupo | length }} grupos)</strong></td>
+            <td class="numero td-bold">{{ al.por_grupo | sum(attribute='n') | num }}</td>
+            <td class="numero td-bold">{{ "%.0f"|format(al.pct_ativo) }}%</td>
+            <td class="numero td-bold">{{ "%.0f"|format(al.pct_nao) }}%</td>
+          </tr>
+        </tfoot>
       </table>
     </div>
 

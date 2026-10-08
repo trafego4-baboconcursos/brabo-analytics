@@ -36,7 +36,8 @@
 
     {% from "_macros_platform.html" import plat_badge %}
     {# Blocos por etapa/trilha: macro compartilhada com /meta e /google. #}
-    {% from "_macros_criativos.html" import bloco_criativos with context %}
+    {% from "_macros_criativos.html" import bloco_criativos, faixa_cobertura with context %}
+    {{ faixa_cobertura(creative_overview) }}
 
     {% set ov1 = creative_overview %}
     {% set ov = creative_overview %}

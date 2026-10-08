@@ -462,6 +462,45 @@ def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dic
         "meta_trilha_blocos": _creative_rows_por_trilha(meta, None, sales_attr, "Meta Ads"),
         "google_trilha_blocos": _creative_rows_por_trilha(None, google, sales_attr, "Google Ads"),
         "etapa_pq": _etapa_prequali(launch_code),
+        # Quanto do lançamento o ranking consegue explicar. Fica fora de `resumo`
+        # de propósito: o `resumo` entra na impressão digital dos testes de
+        # caracterização, e este bloco é só apresentação.
+        "cobertura": _cobertura_atribuicao(resumo, vendas_data),
+    }
+
+
+def _cobertura_atribuicao(resumo: dict, vendas_data: Any) -> dict | None:
+    """Quanto das compras o ranking de criativos consegue explicar.
+
+    Dois números, porque respondem coisas diferentes e não são o mesmo:
+      - compradores com UTM: a pessoa foi achada no cadastro do lançamento.
+        Inclui quem veio de e-mail, orgânico e outros canais.
+      - vendas ligadas a um criativo: a venda chegou a um anúncio do ranking.
+        É menor, e é o que importa para "qual criativo chamou a venda".
+
+    O resto não é só perda: compra direta e canal sem UTM também caem aí. Por
+    isso o ROAS e o custo por venda mostrados são PISO/TETO: o ROAS real é
+    maior ou igual ao mostrado. `None` sem venda (lançamento ainda sem carrinho).
+    """
+    compradores = int(resumo.get("total_compradores") or 0)
+    if not compradores:
+        return None
+    com_utm = int(resumo.get("compradores_com_utm") or 0)
+    vendas_total = int(getattr(vendas_data, "total_vendas", 0) or 0)
+    receita_total = float(getattr(vendas_data, "total_receita", 0.0) or 0.0)
+    vendas_ads = int(resumo.get("total_vendas_ads") or 0)
+    receita_ads = float(resumo.get("total_faturamento_ads") or 0.0)
+    return {
+        "compradores": compradores,
+        "compradores_com_utm": com_utm,
+        "compradores_pct": com_utm / compradores * 100,
+        "vendas": vendas_total,
+        "vendas_ads": min(vendas_ads, vendas_total) if vendas_total else vendas_ads,
+        "vendas_pct": (min(vendas_ads, vendas_total) / vendas_total * 100) if vendas_total else 0.0,
+        "receita": receita_total,
+        "receita_ads": min(receita_ads, receita_total) if receita_total else receita_ads,
+        "receita_sem_criativo": max(0.0, receita_total - receita_ads),
+        "vendas_sem_criativo": max(0, vendas_total - vendas_ads),
     }
 
 

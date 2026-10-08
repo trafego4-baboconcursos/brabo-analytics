@@ -390,6 +390,20 @@ A trava passou a rodar sozinha, **diária às 4h10, a partir da primeira live de
 lançamento** (job `congelar_atribuicao` no `etl/scheduler.py`). Detalhes em
 [[CONGELAR_ATRIBUICAO_LANCAMENTO]].
 
+### 13.2b O que isso significa para a decisão de criativo (08/10/26)
+
+Medição no PI-AGO-26, detalhada no item 54 do [[MUDANCAS_PI-AGO-26]]: a erosão atinge **1,9% dos leads mas
+18,1% dos compradores** (quem se perde compra 11,6x mais). O ranking de criativos por CPA é estável (correlação
+0,96), mas o CPA individual muda mais de 15% em 24 de 34 criativos. Por isso as páginas `/criativos`, `/meta` e
+`/google` passaram a mostrar a **faixa de cobertura** (vendas que chegam a um criativo × total), e o ROAS vale como
+**piso** e o custo por venda como **teto**.
+
+**Quem decide o quê, num cadastro em vários lançamentos:** a venda pertence ao lançamento em que a compra
+aconteceu (produto + janela do carrinho). Dentro dele, o criativo creditado é o que captou a pessoa **naquele
+lançamento** (a última UTM, regra do Michel). Os cadastros em lançamentos anteriores são leads que não converteram
+na época e não recebem crédito. A origem do cliente na vida toda (primeiro lançamento em que apareceu) é uma lente
+**separada**, que o histórico `lead_utm_lancamento` já permite montar por ter uma linha por lançamento.
+
 ### 13.3 A tag do AC já guardava o histórico
 
 `etl_active_campaign.py` grava **`lead_lancamentos`** (contato × lançamento) a partir das tags

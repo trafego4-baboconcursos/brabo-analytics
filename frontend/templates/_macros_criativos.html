@@ -105,3 +105,24 @@
   </div>
 </div>
 {% endmacro %}
+
+{# Faixa de cobertura da atribuição — usada no topo de /criativos, /meta e /google.
+   Diz quanto do lançamento o ranking explica ANTES de a pessoa ler o ranking:
+   o ROAS e o custo por venda dos criativos só contam o que foi ligado a eles.
+   Cor: >=75% informativo, 55-75% atenção, <55% alerta. Sem venda, não aparece. #}
+{% macro faixa_cobertura(ov) %}
+{% set cb = ov.cobertura if ov else none %}
+{% if cb %}
+{% set classe = 'info' if cb.vendas_pct >= 75 else ('warning' if cb.vendas_pct >= 55 else 'danger') %}
+<div class="note {{ classe }}" style="margin-bottom:16px;">
+  <strong>Cobertura da atribuição:</strong>
+  <strong>{{ cb.vendas_ads | num }} de {{ cb.vendas | num }} vendas ({{ "%.0f"|format(cb.vendas_pct) }}%)</strong>
+  chegam a um criativo; {{ cb.compradores_com_utm | num }} de {{ cb.compradores | num }} compradores
+  ({{ "%.0f"|format(cb.compradores_pct) }}%) têm UTM.
+  As {{ cb.vendas_sem_criativo | num }} vendas restantes ({{ cb.receita_sem_criativo | brl }}) ficaram sem criativo:
+  compra direta, e-mail, orgânico ou UTM que se perdeu.
+  <strong>O ROAS abaixo é piso e o custo por venda é teto:</strong> o resultado real de cada criativo é igual ou melhor.
+</div>
+{% endif %}
+{% endmacro %}
+

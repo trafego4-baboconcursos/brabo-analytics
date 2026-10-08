@@ -66,6 +66,10 @@
       </div>
     </div>
 
+    {# Quanto do lançamento o ranking explica — macro compartilhada com /criativos. #}
+    {% from "_macros_criativos.html" import faixa_cobertura with context %}
+    {{ faixa_cobertura(creative_overview) }}
+
     {# ── 1. Por Etapa ──────────────────────────────────────────────── #}
     {% if meta.por_etapa %}
     <div class="section">

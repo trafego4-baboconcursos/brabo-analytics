@@ -66,6 +66,10 @@
     </div>
 
     {# ── 1. Por Etapa ─────────────────────────────────────────────────── #}
+    {# Quanto do lançamento o ranking explica — macro compartilhada com /criativos. #}
+    {% from "_macros_criativos.html" import faixa_cobertura with context %}
+    {{ faixa_cobertura(creative_overview) }}
+
     {% if google.por_etapa %}
     <div class="section">
       <div class="section-title">1. Investimento por Etapa de Funil</div>

@@ -48,6 +48,23 @@ def test_agregar_por_conta_e_por_atendente():
     assert atend["Sem atendente"]["templates"] == 3
 
 
+def test_agregar_com_conta_escolhida_mantem_a_comparacao_de_todas():
+    r = AtendimentoSummary(dias=1, inicio=date(2026, 10, 8), fim=date(2026, 10, 8))
+    diario = [
+        L(dia=date(2026, 10, 8), conexao="ivan", atendente_id="a1", enviadas=10, recebidas=5, templates=1),
+        L(dia=date(2026, 10, 8), conexao="felipe", atendente_id="a2", enviadas=7, recebidas=3, templates=2),
+    ]
+    abertas = [L(conexao="ivan", atendente_id="a1", abertas=4, aguardando=2, maior_espera=30),
+               L(conexao="felipe", atendente_id="a2", abertas=6, aguardando=5, maior_espera=300)]
+    nome = {"ivan": "Ivan", "felipe": "Felipe", "mateus": "Mateus"}
+    agregar(r, diario, abertas, {}, nome, selecionada="felipe")
+
+    assert (r.enviadas, r.recebidas, r.templates) == (7, 3, 2)
+    assert (r.conversas_total, r.aguardando_total) == (6, 5)
+    assert [a["nome"] for a in r.atendentes] == ["a2"]
+    assert {c["chave"]: c["total"] for c in r.contas} == {"ivan": 15, "felipe": 10, "mateus": 0}
+
+
 @pytest.fixture(scope="module")
 def client_comercial():
     from fastapi.testclient import TestClient

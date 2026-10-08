@@ -52,18 +52,34 @@ def _somar(alvo: dict, r) -> None:
     alvo["templates"] += r.templates
 
 
-def agregar(resumo: AtendimentoSummary, diario, abertas, nomes: dict, nome_conexao: dict) -> None:
+def agregar(
+    resumo: AtendimentoSummary, diario, abertas, nomes: dict, nome_conexao: dict,
+    selecionada: str | None = None,
+) -> None:
     """Monta totais, série, ranking por atendente e por conta.
 
     `diario`: linhas (dia, conexao, atendente_id, enviadas, recebidas, templates)
     desde o início do período ANTERIOR (para o delta). `abertas`: linhas
     (conexao, atendente_id, abertas, aguardando, maior_espera) de agora.
+
+    A comparação por conta usa sempre TODAS as contas (é o seletor da página);
+    totais, série e ranking por atendente usam só a `selecionada`, ou todas
+    quando nenhuma foi escolhida.
     """
+    def conta(r) -> bool:
+        return selecionada is None or r.conexao == selecionada
+
     inicio, dias = resumo.inicio, resumo.dias
     serie = {inicio + timedelta(days=i): {"enviadas": 0, "recebidas": 0} for i in range(dias)}
     por_atendente: dict = {}
     por_conta: dict = {}
     for r in diario:
+        if r.dia >= inicio:
+            _somar(por_conta.setdefault(r.conexao, {**_ZERO, "atendentes": set()}), r)
+            if r.atendente_id:
+                por_conta[r.conexao]["atendentes"].add(r.atendente_id)
+        if not conta(r):
+            continue
         if r.dia < inicio:
             resumo.enviadas_ant += r.enviadas
             resumo.recebidas_ant += r.recebidas
@@ -77,21 +93,23 @@ def agregar(resumo: AtendimentoSummary, diario, abertas, nomes: dict, nome_conex
         a = por_atendente.setdefault(r.atendente_id, {**_ZERO, "contas": set()})
         _somar(a, r)
         a["contas"].add(r.conexao)
-        _somar(por_conta.setdefault(r.conexao, {**_ZERO, "atendentes": set()}), r)
-        if r.atendente_id:
-            por_conta[r.conexao]["atendentes"].add(r.atendente_id)
     resumo.serie = [{"dia": d, **v} for d, v in serie.items()]
 
     abertas_atendente: dict = {}
     abertas_conta: dict = {}
     for r in abertas:
-        for chave, alvo in ((r.atendente_id, abertas_atendente), (r.conexao, abertas_conta)):
+        alvos = [(r.conexao, abertas_conta)]
+        if conta(r):
+            alvos.append((r.atendente_id, abertas_atendente))
+            por_atendente.setdefault(r.atendente_id, {**_ZERO, "contas": set()})["contas"].add(r.conexao)
+            resumo.conversas_total += r.abertas
+            resumo.aguardando_total += r.aguardando
+        for chave, alvo in alvos:
             o = alvo.setdefault(chave, dict(_SEM_ABERTAS))
             o["abertas"] += r.abertas
             o["aguardando"] += r.aguardando
             if r.maior_espera is not None:
                 o["maior_espera"] = max(o["maior_espera"] or 0, r.maior_espera)
-        por_atendente.setdefault(r.atendente_id, {**_ZERO, "contas": set()})["contas"].add(r.conexao)
 
     for aid, m in por_atendente.items():
         info = nomes.get(aid, {})
@@ -105,9 +123,10 @@ def agregar(resumo: AtendimentoSummary, diario, abertas, nomes: dict, nome_conex
         })
     resumo.atendentes.sort(key=lambda a: (a["total"], a["abertas"]), reverse=True)
 
-    for chave in set(por_conta) | set(abertas_conta):
+    for chave in set(por_conta) | set(abertas_conta) | set(nome_conexao):
         m = por_conta.get(chave, {**_ZERO, "atendentes": set()})
         resumo.contas.append({
+            "chave": chave,
             "nome": nome_conexao.get(chave, chave),
             "enviadas": m["enviadas"], "recebidas": m["recebidas"], "templates": m["templates"],
             "total": m["enviadas"] + m["recebidas"],
@@ -135,13 +154,15 @@ def read_atendimento(dias: int, conexao: str | None = None, hoje: date | None = 
             "SELECT chave, nome FROM unnichat_conexoes WHERE ativa ORDER BY nome"
         ))]
         nome_conexao = dict(resumo.conexoes)
-        chaves = list(nome_conexao)
-        if conexao in nome_conexao:
-            resumo.conexao, chaves = conexao, [conexao]
-        if not chaves:
+        todas = list(nome_conexao)
+        if not todas:
             return resumo
+        if conexao in nome_conexao:
+            resumo.conexao = conexao
+        escolhidas = [resumo.conexao] if resumo.conexao else todas
 
-        params = {"conexoes": chaves, "inicio_ant": inicio_ant, "fim": hoje}
+        params = {"conexoes": todas, "inicio_ant": inicio_ant, "fim": hoje}
+        so_escolhidas = {**params, "conexoes": escolhidas}
         expanding = [bindparam("conexoes", expanding=True)]
 
         nomes = {
@@ -182,7 +203,7 @@ def read_atendimento(dias: int, conexao: str | None = None, hoje: date | None = 
              ORDER BY (ultima_msg_de = 'cliente') DESC, ultima_msg_em ASC NULLS LAST
              LIMIT :limite
             """
-        ).bindparams(*expanding), {**params, "limite": _LIMITE_CONVERSAS}).fetchall()
+        ).bindparams(*expanding), {**so_escolhidas, "limite": _LIMITE_CONVERSAS}).fetchall()
 
         contagem = conn.execute(text(
             """
@@ -193,12 +214,12 @@ def read_atendimento(dias: int, conexao: str | None = None, hoje: date | None = 
               FROM unnichat_contatos
              WHERE conexao IN :conexoes AND aberta IS NOT FALSE
             """
-        ).bindparams(*expanding), params).one()
+        ).bindparams(*expanding), so_escolhidas).one()
 
     if not diario and not abertas:
         return resumo
     resumo.coleta_ativa = True
-    agregar(resumo, diario, abertas, nomes, nome_conexao)
+    agregar(resumo, diario, abertas, nomes, nome_conexao, resumo.conexao)
 
     agora = datetime.now(_TZ)
     for c in conversas:

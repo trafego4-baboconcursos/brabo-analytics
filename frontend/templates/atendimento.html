@@ -35,6 +35,15 @@
   .at-dot.online { background:var(--bs-success); }
   .at-barra { display:flex; align-items:center; gap:8px; justify-content:flex-end; }
   .at-barra span { display:block; height:10px; border-radius:0 4px 4px 0; background:#1baf7a; min-width:2px; }
+  .at-contas { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+  .at-contas .bs-pill { text-decoration:none; display:inline-flex; align-items:center; gap:5px; }
+  .at-sel { font-size:12.5px; color:var(--bs-ink-muted); margin-bottom:14px; }
+  .at-sub { font-size:13px; font-weight:700; color:var(--bs-ink); margin-top:22px; }
+  .at-sub span { font-weight:400; color:var(--bs-ink-muted); }
+  .at-linha-conta { cursor:pointer; }
+  .at-linha-conta a { color:inherit; text-decoration:none; }
+  .at-linha-conta a i { color:var(--bs-success); margin-right:4px; }
+  .at-linha-conta.sel td { background:var(--bs-accent-bg); box-shadow:inset 0 0 0 9999px rgba(42,120,214,.06); }
   .at-legenda { display:flex; gap:16px; font-size:12px; color:var(--bs-ink-muted); margin-bottom:8px; }
   .at-legenda i { display:inline-block; width:14px; height:3px; border-radius:2px; vertical-align:middle; margin-right:6px; }
 </style>
@@ -59,18 +68,6 @@
              style="text-decoration:none;">{{ d }} dias</a>
           {% endfor %}
         </div>
-        {% if conexoes | length > 1 %}
-        <form method="get" action="/atendimento">
-          <input type="hidden" name="dias" value="{{ dias }}">
-          <label for="at-conexao">Conta</label>
-          <select id="at-conexao" name="conexao" onchange="this.form.submit()">
-            <option value="">Todas as contas</option>
-            {% for c, label in conexoes %}
-            <option value="{{ c }}" {% if conexao == c %}selected{% endif %}>{{ label }}</option>
-            {% endfor %}
-          </select>
-        </form>
-        {% endif %}
       </div>
       <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:8px;">
         Período: <strong>{{ a.inicio | br_date }}</strong> a <strong>{{ a.fim | br_date }}</strong>
@@ -102,9 +99,19 @@
 
     {% else %}
 
-    {# ── 1. Resumo ── #}
+    {# ── 1. Por conta: escolher a conta muda a página inteira ── #}
+    {% set nome_sel = (conexoes | selectattr(0, 'equalto', conexao) | map(attribute=1) | first) if conexao else none %}
+    {% set url_conta = '/atendimento?dias=' ~ dias %}
     <div class="section">
-      <div class="section-title">1. Resumo do período</div>
+      <div class="section-title">1. Por conta</div>
+      <div class="at-contas" role="group" aria-label="Escolher conta">
+        <a href="{{ url_conta }}" class="bs-pill {{ 'neutral' if conexao else 'accent' }}" {% if not conexao %}aria-current="true"{% endif %}>Todas as contas</a>
+        {% for c, label in conexoes %}
+        <a href="{{ url_conta }}&conexao={{ c }}" class="bs-pill {{ 'accent' if conexao == c else 'neutral' }}" {% if conexao == c %}aria-current="true"{% endif %}>
+          <i class="ti ti-brand-whatsapp"></i> {{ label }}</a>
+        {% endfor %}
+      </div>
+      <div class="at-sel">Mostrando: <strong>{{ nome_sel or 'todas as contas' }}</strong>. Resumo, gráfico, atendentes e conversas abaixo seguem a conta escolhida.</div>
       <div class="tp-kpi-grid">
         <div class="tp-kpi">
           <div class="tp-kpi-top">
@@ -145,11 +152,49 @@
           </div>
         </div>
       </div>
+
+      <div class="at-sub">Comparação entre as contas <span>(clique numa linha para ver só ela)</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-dark">Conta</th>
+              <th class="th-dark" style="text-align:right">Enviadas</th>
+              <th class="th-dark" style="text-align:right">Recebidas</th>
+              <th class="th-dark" style="text-align:right">Total</th>
+              <th class="th-dark" style="text-align:right">Templates</th>
+              <th class="th-dark" style="text-align:right">Atendentes</th>
+              <th class="th-dark" style="text-align:right">Abertas</th>
+              <th class="th-dark" style="text-align:right">Aguardando</th>
+              <th class="th-dark" style="text-align:right">Maior espera</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in a.contas %}
+            <tr class="at-linha-conta {{ 'sel' if conexao == c.chave }}" onclick="location.href=this.querySelector('a').href">
+              <td style="font-weight:600;white-space:nowrap;">
+                <a href="{{ url_conta }}{% if conexao != c.chave %}&conexao={{ c.chave }}{% endif %}"><i class="ti ti-brand-whatsapp"></i> {{ c.nome }}</a>
+              </td>
+              <td class="numero">{{ c.enviadas | num }}</td>
+              <td class="numero">{{ c.recebidas | num }}</td>
+              <td class="numero td-bold">{{ c.total | num }}</td>
+              <td class="numero">{{ c.templates | num }}</td>
+              <td class="numero">{{ c.atendentes | num }}</td>
+              <td class="numero">{{ c.abertas | num }}</td>
+              <td class="numero">{{ c.aguardando | num }}</td>
+              <td class="numero" style="white-space:nowrap;">
+                {% if c.maior_espera is not none and c.maior_espera >= 60 %}{{ situacao(c.maior_espera) }} {% endif %}{{ espera(c.maior_espera) }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
     </div>
 
     {# ── 2. Mensagens por dia ── #}
     <div class="section">
-      <div class="section-title">2. Mensagens por dia</div>
+      <div class="section-title">2. Mensagens por dia{% if nome_sel %} — {{ nome_sel }}{% endif %}</div>
       <div class="at-legenda">
         <span><i style="background:#2a78d6"></i>Enviadas</span>
         <span><i style="background:#eb6834"></i>Recebidas</span>
@@ -192,52 +237,9 @@
     })();
     </script>
 
-    {# ── 3. Por conta ── #}
+    {# ── 3. Por atendente ── #}
     <div class="section">
-      <div class="section-title">3. Por conta</div>
-      <div class="note info">
-        Cada conta é um número de WhatsApp do Unnichat. Enviadas, recebidas e templates são do período;
-        abertas e aguardando são o retrato de agora.
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th class="th-dark">Conta</th>
-              <th class="th-dark" style="text-align:right">Enviadas</th>
-              <th class="th-dark" style="text-align:right">Recebidas</th>
-              <th class="th-dark" style="text-align:right">Total</th>
-              <th class="th-dark" style="text-align:right">Templates</th>
-              <th class="th-dark" style="text-align:right">Atendentes</th>
-              <th class="th-dark" style="text-align:right">Abertas</th>
-              <th class="th-dark" style="text-align:right">Aguardando</th>
-              <th class="th-dark" style="text-align:right">Maior espera</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for c in a.contas %}
-            <tr>
-              <td style="font-weight:600;white-space:nowrap;"><i class="ti ti-brand-whatsapp" style="color:var(--bs-success);margin-right:6px;"></i>{{ c.nome }}</td>
-              <td class="numero">{{ c.enviadas | num }}</td>
-              <td class="numero">{{ c.recebidas | num }}</td>
-              <td class="numero td-bold">{{ c.total | num }}</td>
-              <td class="numero">{{ c.templates | num }}</td>
-              <td class="numero">{{ c.atendentes | num }}</td>
-              <td class="numero">{{ c.abertas | num }}</td>
-              <td class="numero">{{ c.aguardando | num }}</td>
-              <td class="numero" style="white-space:nowrap;">
-                {% if c.maior_espera is not none and c.maior_espera >= 60 %}{{ situacao(c.maior_espera) }} {% endif %}{{ espera(c.maior_espera) }}
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    {# ── 4. Por atendente ── #}
-    <div class="section">
-      <div class="section-title">4. Por atendente</div>
+      <div class="section-title">3. Por atendente{% if nome_sel %} — {{ nome_sel }}{% endif %}</div>
       <div class="note info">
         Cada mensagem conta para quem atendia a conversa naquela hora. "Sem atendente" = mensagens
         antes de a conversa cair num atendente (automação). Enviadas, recebidas e templates são do
@@ -288,7 +290,7 @@
 
     {# ── 4. Conversas abertas ── #}
     <div class="section">
-      <div class="section-title">5. Conversas abertas
+      <div class="section-title">4. Conversas abertas{% if nome_sel %} — {{ nome_sel }}{% endif %}
         {% if not a.aberta_conhecida %}<span class="at-tag" title="O Unnichat ainda não informa quando a conversa foi finalizada: toda conversa com atendente conta como aberta">a validar</span>{% endif %}
       </div>
       <div class="note info">

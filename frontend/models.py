@@ -622,7 +622,7 @@ class AtendimentoSummary:
     templates_ant: int = 0
     serie: list[dict] = field(default_factory=list)        # {dia, enviadas, recebidas}
     atendentes: list[dict] = field(default_factory=list)   # ranking do período (com as contas onde atendeu)
-    contas: list[dict] = field(default_factory=list)       # totais por conta (número de WhatsApp)
+    contas: list[dict] = field(default_factory=list)       # comparação de TODAS as contas (o seletor da página)
     conversas: list[dict] = field(default_factory=list)    # abertas agora, mais antiga primeiro
     conversas_total: int = 0
     aguardando_total: int = 0

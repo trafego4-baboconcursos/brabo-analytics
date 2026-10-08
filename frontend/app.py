@@ -30,7 +30,7 @@ from frontend.core import (
 )
 import os
 
-from frontend.routes import auth, media, analytics, leads, vendas, settings_router, api
+from frontend.routes import auth, media, analytics, leads, vendas, comercial, settings_router, api
 
 # ── App ────────────────────────────────────────────────────────────────────────
 _SHOW_DOCS = os.environ.get("SHOW_API_DOCS", "false").lower() == "true"
@@ -96,6 +96,11 @@ async def auth_middleware(request: Request, call_next):
             url=f"/login?next={urllib.parse.quote_plus(next_url)}",
             status_code=303,
         )
+
+    # O time comercial só tem uma página: a home (e o "voltar ao início" do 403)
+    # leva pra ela em vez de cair num 403 atrás do outro.
+    if user["role"] == "comercial" and path == "/":
+        return RedirectResponse(url="/atendimento", status_code=303)
 
     allowed_roles = ROUTE_PERMISSIONS.get(path, _ALL)
     if user["role"] not in allowed_roles:
@@ -187,5 +192,6 @@ app.include_router(analytics.router)
 app.include_router(media.router)
 app.include_router(leads.router)
 app.include_router(vendas.router)
+app.include_router(comercial.router)
 app.include_router(settings_router.router)
 app.include_router(api.router)

@@ -548,6 +548,8 @@ def _base_ctx(
         nav_mode = "lancamentos"
     elif page == "calendario":
         nav_mode = "calendario"
+    elif page == "atendimento":
+        nav_mode = "comercial"
     else:
         nav_mode = "funis"
 

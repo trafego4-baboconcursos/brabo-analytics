@@ -63,6 +63,7 @@ PAGINAS = [
     "/hotmart",
     "/tmb",
     "/comparativo-v1-v2",
+    "/atendimento",  # lê o banco comercial; sem as tabelas do Unnichat mostra o aviso
 ]
 
 

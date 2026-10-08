@@ -4,7 +4,7 @@ frontend/models.py — Dataclasses de domínio do Brabo Analytics.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 
 
@@ -589,3 +589,40 @@ class AfiliadosSummary:
     fora_da_janela_faturamento: float = 0.0
     janela_inicio: date | None = None
     janela_fim: date | None = None
+
+
+# ── Atendimento Comercial (Unnichat) ──────────────────────────────────────────
+
+@dataclass
+class AtendimentoSummary:
+    """Mensagens, templates e conversas por atendente do Unnichat (/atendimento).
+
+    Lido do banco COMERCIAL (tabelas de src/db/migrations/011_atendimento_unnichat.sql),
+    que o coletor do Unnichat alimenta. `coleta_ativa` False = as tabelas ainda
+    não existem ou estão vazias; a página mostra o aviso em vez de zeros.
+
+    Conversa aberta = o cliente escreveu nas últimas 24h (janela do WhatsApp).
+    """
+    tabelas_ok: bool = False
+    coleta_ativa: bool = False
+    # Contas (conexões) ativas: [(chave, nome)], e a escolhida no filtro.
+    conexoes: list[tuple[str, str]] = field(default_factory=list)
+    conexao: str | None = None
+    dias: int = 7
+    inicio: date | None = None
+    fim: date | None = None
+    enviadas: int = 0
+    recebidas: int = 0
+    templates: int = 0
+    # Mesmos totais na janela anterior de mesmo tamanho, para o delta dos KPIs.
+    enviadas_ant: int = 0
+    recebidas_ant: int = 0
+    templates_ant: int = 0
+    serie: list[dict] = field(default_factory=list)        # {dia, enviadas, recebidas}
+    atendentes: list[dict] = field(default_factory=list)   # ranking do período (com as contas onde atendeu)
+    contas: list[dict] = field(default_factory=list)       # comparação de TODAS as contas (o seletor da página)
+    conversas: list[dict] = field(default_factory=list)    # abertas agora, mais antiga primeiro
+    conversas_total: int = 0
+    aguardando_total: int = 0
+    aguardando_1h: int = 0
+    ultima_coleta: datetime | None = None

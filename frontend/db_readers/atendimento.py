@@ -211,11 +211,13 @@ def read_atendimento(dias: int, conexao: str | None = None, hoje: date | None = 
 
         contagem = conn.execute(text(
             """
-            SELECT COUNT(*) FILTER (WHERE ultima_msg_de = 'cliente'
+            SELECT COUNT(*) FILTER (WHERE ultima_msg_cliente_em > now() - interval '24 hours'
+                                      AND ultima_msg_de = 'cliente'
                                       AND ultima_msg_em < now() - interval '1 hour') AS aguardando_1h,
+                   -- Sem o filtro de 24h: a última coleta vale mesmo sem conversa aberta.
                    MAX(atualizado_em) AS ultima_coleta
               FROM unnichat_contatos
-             WHERE conexao IN :conexoes AND ultima_msg_cliente_em > now() - interval '24 hours'
+             WHERE conexao IN :conexoes
             """
         ).bindparams(*expanding), so_escolhidas).one()
 

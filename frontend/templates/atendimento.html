@@ -4,7 +4,7 @@
 {% macro delta(atual, anterior) -%}
   {%- if anterior -%}
     {%- set d = ((atual - anterior) / anterior * 100) | round(1) -%}
-    <div class="tp-delta {{ 'up' if d >= 0 else 'down' }}" title="vs {{ a.dias }} dias anteriores">{{ '+' if d >= 0 }}{{ d }}%</div>
+    <div class="tp-delta {{ 'up' if d >= 0 else 'down' }}" title="{{ 'vs ontem até este horário' if a.dias == 1 else 'vs ' ~ a.dias ~ ' dias anteriores' }}">{{ '+' if d >= 0 }}{{ d }}%</div>
   {%- endif -%}
 {%- endmacro %}
 {% macro espera(min) -%}
@@ -44,6 +44,10 @@
   .at-linha-conta a { color:inherit; text-decoration:none; }
   .at-linha-conta a i { color:var(--bs-success); margin-right:4px; }
   .at-linha-conta.sel td { background:var(--bs-accent-bg); box-shadow:inset 0 0 0 9999px rgba(42,120,214,.06); }
+  /* Números e seus cabeçalhos à direita, como planilha. O padrão do dashboard
+     (.numero à esquerda) desencontra cabeçalho e valor em tela larga. */
+  .at-tabela th.n, .at-tabela td.numero { text-align:right; }
+  .at-tabela td.numero .at-barra { justify-content:flex-end; }
   .at-legenda { display:flex; gap:16px; font-size:12px; color:var(--bs-ink-muted); margin-bottom:8px; }
   .at-legenda i { display:inline-block; width:14px; height:3px; border-radius:2px; vertical-align:middle; margin-right:6px; }
 </style>
@@ -65,13 +69,15 @@
           {% for d in periodos %}
           <a href="/atendimento?dias={{ d }}{% if conexao %}&conexao={{ conexao }}{% endif %}"
              class="bs-pill {% if dias == d %}accent{% else %}neutral{% endif %}"
-             style="text-decoration:none;">{{ d }} dias</a>
+             style="text-decoration:none;">{{ 'Hoje' if d == 1 else d ~ ' dias' }}</a>
           {% endfor %}
         </div>
       </div>
       <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:8px;">
-        Período: <strong>{{ a.inicio | br_date }}</strong> a <strong>{{ a.fim | br_date }}</strong>
+        {% if dias == 1 %}Hoje, <strong>{{ a.fim | br_date }}</strong>, comparado com ontem até o mesmo horário
+        {% else %}Período: <strong>{{ a.inicio | br_date }}</strong> a <strong>{{ a.fim | br_date }}</strong>{% endif %}
         {% if a.ultima_coleta %} · última coleta {{ a.ultima_coleta.strftime('%d/%m %H:%M') }}{% endif %}
+        · a página se atualiza sozinha a cada {{ recarregar_horas }}h
       </div>
     </div>
 
@@ -154,18 +160,18 @@
 
       <div class="at-sub">Comparação entre as contas <span>(clique numa linha para ver só ela)</span></div>
       <div class="table-wrap">
-        <table>
+        <table class="at-tabela">
           <thead>
             <tr>
               <th class="th-dark">Conta</th>
-              <th class="th-dark" style="text-align:right">Enviadas</th>
-              <th class="th-dark" style="text-align:right">Recebidas</th>
-              <th class="th-dark" style="text-align:right">Total</th>
-              <th class="th-dark" style="text-align:right">Templates</th>
-              <th class="th-dark" style="text-align:right">Atendentes</th>
-              <th class="th-dark" style="text-align:right">Abertas</th>
-              <th class="th-dark" style="text-align:right">Aguardando</th>
-              <th class="th-dark" style="text-align:right">Maior espera</th>
+              <th class="th-dark n">Enviadas</th>
+              <th class="th-dark n">Recebidas</th>
+              <th class="th-dark n">Total</th>
+              <th class="th-dark n">Templates</th>
+              <th class="th-dark n">Atendentes</th>
+              <th class="th-dark n">Abertas</th>
+              <th class="th-dark n">Aguardando</th>
+              <th class="th-dark n">Maior espera</th>
             </tr>
           </thead>
           <tbody>
@@ -193,7 +199,7 @@
 
     {# ── 2. Mensagens por dia ── #}
     <div class="section">
-      <div class="section-title">2. Mensagens por dia{% if nome_sel %} — {{ nome_sel }}{% endif %}</div>
+      <div class="section-title">2. Mensagens por {{ 'hora' if dias == 1 else 'dia' }}{% if nome_sel %} — {{ nome_sel }}{% endif %}</div>
       <div class="at-legenda">
         <span><i style="background:#2a78d6"></i>Enviadas</span>
         <span><i style="background:#eb6834"></i>Recebidas</span>
@@ -205,7 +211,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
     <script>
     (function() {
-      const labels    = [{% for p in a.serie %}"{{ p.dia.strftime('%d/%m') }}"{% if not loop.last %},{% endif %}{% endfor %}];
+      const labels    = [{% for p in a.serie %}"{{ p.rotulo }}"{% if not loop.last %},{% endif %}{% endfor %}];
       const enviadas  = [{% for p in a.serie %}{{ p.enviadas }}{% if not loop.last %},{% endif %}{% endfor %}];
       const recebidas = [{% for p in a.serie %}{{ p.recebidas }}{% if not loop.last %},{% endif %}{% endfor %}];
       const el = document.getElementById('atMensagensDia');
@@ -246,18 +252,18 @@
       </div>
       {% set max_tpl = (a.atendentes | map(attribute='templates') | max) if a.atendentes else 0 %}
       <div class="table-wrap">
-        <table>
+        <table class="at-tabela">
           <thead>
             <tr>
               <th class="th-dark">Atendente</th>
               <th class="th-dark">Contas</th>
-              <th class="th-dark" style="text-align:right">Enviadas</th>
-              <th class="th-dark" style="text-align:right">Recebidas</th>
-              <th class="th-dark" style="text-align:right">Total</th>
-              <th class="th-dark" style="text-align:right">Templates</th>
-              <th class="th-dark" style="text-align:right">Abertas</th>
-              <th class="th-dark" style="text-align:right">Aguardando</th>
-              <th class="th-dark" style="text-align:right">Maior espera</th>
+              <th class="th-dark n">Enviadas</th>
+              <th class="th-dark n">Recebidas</th>
+              <th class="th-dark n">Total</th>
+              <th class="th-dark n">Templates</th>
+              <th class="th-dark n">Abertas</th>
+              <th class="th-dark n">Aguardando</th>
+              <th class="th-dark n">Maior espera</th>
             </tr>
           </thead>
           <tbody>
@@ -298,14 +304,14 @@
       </div>
       {% if a.conversas %}
       <div class="table-wrap">
-        <table>
+        <table class="at-tabela">
           <thead>
             <tr>
               <th class="th-dark">Contato</th>
               <th class="th-dark">Atendente</th>
               <th class="th-dark">Conexão</th>
               <th class="th-dark">Última mensagem</th>
-              <th class="th-dark" style="text-align:right">Esperando há</th>
+              <th class="th-dark n">Esperando há</th>
               <th class="th-dark">Situação</th>
             </tr>
           </thead>
@@ -332,4 +338,17 @@
   </div>
   <div class="footing">Gerado em tempo real | Brabo Analytics — Atendimento Comercial</div>
 </div>
+<script>
+// Recarrega sozinha a cada {{ recarregar_horas }}h. Com a aba escondida, espera
+// a pessoa voltar pra recarregar (não gasta banco com tela que ninguém vê).
+(function () {
+  const intervalo = {{ recarregar_horas }} * 60 * 60 * 1000;
+  const aberta = Date.now();
+  function talvezRecarregar() {
+    if (Date.now() - aberta >= intervalo && document.visibilityState === 'visible') location.reload();
+  }
+  setInterval(talvezRecarregar, 60 * 1000);
+  document.addEventListener('visibilitychange', talvezRecarregar);
+})();
+</script>
 {% endblock %}

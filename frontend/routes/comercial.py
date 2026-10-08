@@ -5,7 +5,7 @@ from fastapi.concurrency import run_in_threadpool
 
 from frontend.auth import _get_current_user
 from frontend.core import templates, get_launches, _base_ctx
-from frontend.db_readers import PERIODOS, read_atendimento
+from frontend.db_readers import PERIODOS, RECARREGAR_HORAS, read_atendimento
 
 router = APIRouter()
 
@@ -22,7 +22,7 @@ async def atendimento_page(request: Request, dias: int = 7, conexao: str | None 
     atendimento = await run_in_threadpool(read_atendimento, dias, conexao)
     ctx = _base_ctx(
         request, "atendimento", "Atendimento", None, launches,
-        atendimento=atendimento, dias=atendimento.dias, periodos=PERIODOS,
+        atendimento=atendimento, dias=atendimento.dias, periodos=PERIODOS, recarregar_horas=RECARREGAR_HORAS,
         conexao=atendimento.conexao, conexoes=atendimento.conexoes,
     )
     return templates.TemplateResponse("atendimento.html", ctx)

@@ -42,7 +42,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 84 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 85 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -260,6 +260,7 @@ relacionados:
 > - [[ARQUITETURA#Aluno × não aluno nos grupos (`frontend/db_readers/whatsapp_alunos.py`, 08/10/26)|Aluno × não aluno nos grupos (`frontend/db_readers/whatsapp_alunos.py`, 08/10/26)]]
 > - [[ARQUITETURA#Alerta de orçamento na Black (`etl/budget_alert.py`, 08/10/26)|Alerta de orçamento na Black (`etl/budget_alert.py`, 08/10/26)]]
 > - [[ARQUITETURA#Vigia do ETL (`frontend/services/vigia_etl.py`)|Vigia do ETL (`frontend/services/vigia_etl.py`)]]
+> - [[ARQUITETURA#Trigger do histórico de UTM (`etl/historico_utm_trigger.py`) — construído e testado, NÃO instalado|Trigger do histórico de UTM (`etl/historico_utm_trigger.py`) — construído e testado, NÃO instalado]]
 > - [[ARQUITETURA#Trava da atribuição (`atribuicao_congelada`)|Trava da atribuição (`atribuicao_congelada`)]]
 > - [[ARQUITETURA#Apelidos de armazenamento (`APELIDOS_ARMAZENAMENTO`)|Apelidos de armazenamento (`APELIDOS_ARMAZENAMENTO`)]]
 >
@@ -2868,6 +2869,43 @@ semeadura de 1,9 mi de linhas, senão o planejador ignorava o índice.
 **Correção junto:** `ler_congelada` chamava `criar_tabela()` a cada leitura — `ALTER TABLE ...
 ADD COLUMN IF NOT EXISTS` pega lock exclusivo mesmo com a coluna existindo, e isso rodava a cada
 atribuição de cada página. Leitura não faz mais DDL; quem cria é quem grava.
+
+### Trigger do histórico de UTM (`etl/historico_utm_trigger.py`) — construído e testado, NÃO instalado
+
+**Estado em 08/10/26: pronto, testado, aguardando o ok para instalar na `leads` de produção.**
+
+O problema é o mesmo do `lead_utm_lancamento` (a `leads` guarda uma linha por contato e quem grava nela
+sobrescreve a UTM), mas a captura sai do Python e vai para **dentro do banco**: um trigger na `leads` que
+dispara na mesma gravação de qualquer escritor — nosso ETL, o upsert em tempo real do Mateus, qualquer um
+futuro. **Zero requisição a mais**, em tempo real, sem ninguém mudar código. É o padrão de mercado do
+audit trigger: tabela de estado atual + tabela de histórico.
+
+**Duas tabelas, sem duplicar:**
+- `lead_utm_lancamento` (já existe, 1,9 mi de linhas): o **estado atual**, uma linha por
+  (contato, lançamento, trilha). É o que as páginas vão ler. Ganha a coluna `utm_desde`.
+- `lead_utm_historico` (nova): só as UTMs **substituídas**. Dentro do mesmo lançamento a UTM quase não muda
+  (11 a 57 contatos por lançamento, <0,1%), então é pequena. Uma cópia completa de todo toque seria 99,9%
+  repetida num banco que já está com 8,9 GB.
+- Lançamento diferente é outra chave no estado: a linha do lançamento antigo **nunca é tocada**. Primeiro
+  toque = o registro mais antigo do histórico, ou o próprio estado se não houve troca.
+
+**Como o trigger é seguro** (um defeito nele poderia bloquear a gravação na `leads`):
+`EXCEPTION WHEN OTHERS` vira WARNING — se o histórico falhar, a `leads` grava do mesmo jeito;
+`SECURITY DEFINER` — escritor sem permissão nas tabelas novas não faz falhar em silêncio; dispara **por
+comando** com tabelas de transição (uma inserção em lote, não uma por linha); só age quando o contato é novo
+ou a UTM mudou; só entra UTM que nomeia um lançamento (`link_bio`, `{{campaign.name}}` e orgânico não entram).
+
+**Provas (`tests/test_trigger_utm.py`, 12 casos, numa transação desfeita no fim):** contato novo; UTM sem
+código não entra; UTM nova no mesmo lançamento guarda a antiga; outro lançamento não toca no anterior;
+trilhas da Black separadas; atualizar outra coisa não faz nada; voltar à UTM anterior não duplica;
+maiúscula/espaço não criam UTM nova; **falha no histórico não derruba a `leads`**; lote de 20 mil;
+regex do código igual à do Python sobre nomes reais. Quebrando o trigger de propósito, 3 testes falham.
+Custo: 20 mil contatos em 1 comando = +1,2 s; um cadastro isolado ~20 ms com e sem trigger (dentro do ruído).
+
+**Para instalar:** `python scripts/instalar_trigger_utm.py --instalar` (uma transação, `lock_timeout` curto
+com nova tentativa porque o ETL grava em transações de minutos; fumaça no fim, que grava e desfaz).
+Reverter: `--remover`. **Depois**, tirar do ETL o passo `gravar_historico_antes` e fazer o deploy: enquanto
+ele existir, grava o estado antes da `leads` e o trigger não enxerga a troca de UTM vinda do ETL.
 
 ### Trava da atribuição (`atribuicao_congelada`)
 

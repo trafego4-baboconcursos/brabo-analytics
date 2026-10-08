@@ -30,7 +30,7 @@ from frontend.core import (
 )
 import os
 
-from frontend.routes import auth, media, analytics, leads, vendas, comercial, settings_router, api
+from frontend.routes import auth, media, analytics, leads, vendas, comercial, unnichat, settings_router, api
 
 # ── App ────────────────────────────────────────────────────────────────────────
 _SHOW_DOCS = os.environ.get("SHOW_API_DOCS", "false").lower() == "true"
@@ -80,6 +80,7 @@ async def auth_middleware(request: Request, call_next):
     if (
         path in ("/login", "/logout")
         or path == "/api/etl/refresh"  # autenticado por token no próprio handler (chamado pelo ETL, não por pessoa)
+        or path.startswith("/api/unnichat/webhook/")  # chamado pela automação do Unnichat; autenticado por X-Webhook-Secret
         or path.startswith("/invite/")
         or path.startswith("/img")
         or path.startswith("/static")
@@ -159,6 +160,15 @@ async def vigia_do_etl():
 
     agendar_vigia()
 
+@app.on_event("startup")
+async def coletor_unnichat():
+    # Coletor do Atendimento Comercial (página /atendimento). Só liga com os
+    # UNNICHAT_TOKEN_* e o UNNICHAT_WEBHOOK_SECRET no Environment; ver
+    # frontend/services/unnichat/coletor.py.
+    from frontend.services.unnichat.coletor import iniciar  # noqa: PLC0415
+
+    iniciar()
+
 # ── Handler global de erros ────────────────────────────────────────────────────
 @app.exception_handler(Exception)
 async def _global_error_handler(request: Request, exc: Exception):  # noqa: ARG001
@@ -193,5 +203,6 @@ app.include_router(media.router)
 app.include_router(leads.router)
 app.include_router(vendas.router)
 app.include_router(comercial.router)
+app.include_router(unnichat.router)
 app.include_router(settings_router.router)
 app.include_router(api.router)

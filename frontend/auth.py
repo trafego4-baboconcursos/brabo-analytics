@@ -72,6 +72,7 @@ ROUTE_PERMISSIONS: dict[str, list[str]] = {
     # item escondido do menu (o menu não é a trava).
     "/afiliados":         _DTLD,
     "/atendimento":       _CMRC,
+    "/api/unnichat/status": _ADM,
     "/settings":          _ADM,
 }
 

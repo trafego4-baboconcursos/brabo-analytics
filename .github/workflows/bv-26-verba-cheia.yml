@@ -1,0 +1,50 @@
+name: BV-26 - Verba cheia da Captacao (09/10)
+
+# Sobe a verba cheia das 14 campanhas de captacao ativas em 08/10 (imagem nos 3 experts + carrossel do Mateus).
+# Valores em config/orcamentos/BV-26-captacao-v2.json. O script so aplica no dia "aplicar_em" do plano (09/10/26,
+# fuso de Brasilia): o cron abaixo repete todo ano, mas nos outros dias o script sai sem fazer nada.
+# Falha de qualquer campanha => o job fica VERMELHO (o script sai com codigo 1).
+
+on:
+  schedule:
+    # 00:05 America/Sao_Paulo (UTC-3) de 09/10 = 03:05 UTC de 09/10. O GitHub pode atrasar alguns minutos.
+    - cron: "5 3 9 10 *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Somente ler e comparar (nao grava)"
+        type: boolean
+        default: true
+      forcar:
+        description: "Aplicar mesmo fora da data do plano"
+        type: boolean
+        default: false
+
+jobs:
+  aplicar-verba:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests python-dotenv
+
+      - name: Aplicar verba cheia
+        env:
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          GOOGLE_ADS_REFRESH_TOKEN: ${{ secrets.GOOGLE_ADS_REFRESH_TOKEN }}
+          GOOGLE_ADS_CLIENT_ID: ${{ secrets.GOOGLE_ADS_CLIENT_ID }}
+          GOOGLE_ADS_CLIENT_SECRET: ${{ secrets.GOOGLE_ADS_CLIENT_SECRET }}
+          GOOGLE_ADS_DEVELOPER_TOKEN: ${{ secrets.GOOGLE_ADS_DEVELOPER_TOKEN }}
+          GOOGLE_ADS_LOGIN_CUSTOMER_ID: ${{ secrets.GOOGLE_ADS_LOGIN_CUSTOMER_ID }}
+          # No agendamento (cron) os inputs vem vazios: dry-run so quando pedido explicitamente.
+          DRY: ${{ github.event.inputs.dry_run == 'true' && '--dry-run' || '' }}
+          FORCAR: ${{ github.event.inputs.forcar == 'true' && '--forcar' || '' }}
+        run: |
+          python -m scripts.ajustar_verba_lista --arquivo config/orcamentos/BV-26-captacao-v2.json $DRY $FORCAR

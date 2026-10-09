@@ -1,0 +1,105 @@
+{
+  "lancamento": "BV-26",
+  "descricao": "Captação Black v2 — verba cheia/dia das 14 campanhas ATIVAS em 08/10 (parte dos R$ 20.000 dedicada a elas): imagem aluno+super quente nos 3 experts (Meta e Google) e carrossel do Mateus (Meta).",
+  "aplicar_em": "2026-10-09",
+  "campanhas": [
+    {
+      "plataforma": "meta",
+      "id": "120248296033880014",
+      "nome": "[MA][mateus][cadastro][captação][alunos][imagem][black-vitalícia][BV-26][08.10.26]",
+      "valor": 1136.0,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248299808610014",
+      "nome": "[MA][mateus][cadastro][captação][super quente][imagem][black-vitalícia][BV-26][08.10.26]",
+      "valor": 284.0,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248296061330014",
+      "nome": "[MA][ivan][cadastro][captação][alunos][imagem][black-vitalícia][BV-26][08.10.26]",
+      "valor": 737.28,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248299844850014",
+      "nome": "[MA][ivan][cadastro][captação][super quente][imagem][black-vitalícia][BV-26][08.10.26]",
+      "valor": 184.32,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120250712779750549",
+      "nome": "[MA][felipe][cadastro][captação][alunos][imagem][black-vitalícia][BV-26][08.10.26]",
+      "valor": 232.96,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120250716295850549",
+      "nome": "[MA][felipe][cadastro][captação][super quente][imagem][black-vitalícia][BV-26][08.10.26]",
+      "valor": 58.24,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248296031760014",
+      "nome": "[MA][mateus][cadastro][captação][alunos][carrossel][black-vitalícia][BV-26][08.10.26]",
+      "valor": 1420.0,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248296040270014",
+      "nome": "[MA][mateus][cadastro][captação][super quente][carrossel][black-vitalícia][BV-26][08.10.26]",
+      "valor": 355.0,
+      "conta": ""
+    },
+    {
+      "plataforma": "google",
+      "conta": "6482320788",
+      "id": "24333285557",
+      "nome": "[GA][mateus][cadastro][captação][alunos][imagem][black-vitalícia][BV-26][08.10.26]",
+      "valor": 618.67
+    },
+    {
+      "plataforma": "google",
+      "conta": "6482320788",
+      "id": "24340062475",
+      "nome": "[GA][mateus][cadastro][captação][super quente][imagem][black-vitalícia][BV-26][08.10.26]",
+      "valor": 154.67
+    },
+    {
+      "plataforma": "google",
+      "conta": "6482320788",
+      "id": "24339258367",
+      "nome": "[GA][ivan][cadastro][captação][alunos][imagem][black-vitalícia][BV-26][08.10.26]",
+      "valor": 552.96
+    },
+    {
+      "plataforma": "google",
+      "conta": "6482320788",
+      "id": "24328883973",
+      "nome": "[GA][ivan][cadastro][captação][super quente][imagem][black-vitalícia][BV-26][08.10.26]",
+      "valor": 138.24
+    },
+    {
+      "plataforma": "google",
+      "conta": "1450466453",
+      "id": "24339272308",
+      "nome": "[GA][felipe][cadastro][captação][alunos][imagem][black-vitalícia][BV-26][08.10.26]",
+      "valor": 286.72
+    },
+    {
+      "plataforma": "google",
+      "conta": "1450466453",
+      "id": "24328884867",
+      "nome": "[GA][felipe][cadastro][captação][super quente][imagem][black-vitalícia][BV-26][08.10.26]",
+      "valor": 71.68
+    }
+  ]
+}

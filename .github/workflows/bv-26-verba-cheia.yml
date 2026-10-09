@@ -1,14 +1,14 @@
-name: BV-26 - Verba cheia da Captacao (09/10)
+name: BV-26 - Verba cheia da Captacao (diario, 00h05)
 
-# Sobe a verba cheia das 14 campanhas de captacao ativas em 08/10 (imagem nos 3 experts + carrossel do Mateus).
-# Valores em config/orcamentos/BV-26-captacao-v2.json. O script so aplica no dia "aplicar_em" do plano (09/10/26,
-# fuso de Brasilia): o cron abaixo repete todo ano, mas nos outros dias o script sai sem fazer nada.
-# Falha de qualquer campanha => o job fica VERMELHO (o script sai com codigo 1).
+# Todo dia as 00h05 (Brasilia) aplica os planos config/orcamentos/BV-26-*.json cujo "aplicar_em" e o dia de hoje.
+# Para subir a verba cheia de campanhas ativadas "proporcional" no dia D, crie um plano com aplicar_em = D+1
+# (ver BV-26-captacao-v2.json como modelo), commite E faca push na main antes da meia-noite.
+# Plano de outro dia = o script sai sem fazer nada. Falha de qualquer campanha => job VERMELHO (codigo 1).
 
 on:
   schedule:
-    # 00:05 America/Sao_Paulo (UTC-3) de 09/10 = 03:05 UTC de 09/10. O GitHub pode atrasar alguns minutos.
-    - cron: "5 3 9 10 *"
+    # 00:05 America/Sao_Paulo (UTC-3) = 03:05 UTC, todo dia. O GitHub pode atrasar alguns minutos.
+    - cron: "5 3 * * *"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -35,7 +35,7 @@ jobs:
       - name: Install dependencies
         run: pip install requests python-dotenv
 
-      - name: Aplicar verba cheia
+      - name: Aplicar verba cheia (todos os planos BV-26 do dia)
         env:
           META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
           GOOGLE_ADS_REFRESH_TOKEN: ${{ secrets.GOOGLE_ADS_REFRESH_TOKEN }}
@@ -47,4 +47,9 @@ jobs:
           DRY: ${{ github.event.inputs.dry_run == 'true' && '--dry-run' || '' }}
           FORCAR: ${{ github.event.inputs.forcar == 'true' && '--forcar' || '' }}
         run: |
-          python -m scripts.ajustar_verba_lista --arquivo config/orcamentos/BV-26-captacao-v2.json $DRY $FORCAR
+          rc=0
+          for f in config/orcamentos/BV-26-*.json; do
+            echo "=== $f"
+            python -m scripts.ajustar_verba_lista --arquivo "$f" $DRY $FORCAR || rc=1
+          done
+          exit $rc

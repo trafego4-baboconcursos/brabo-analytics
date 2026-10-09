@@ -1,0 +1,109 @@
+{
+  "aplicar_em": "2026-10-10",
+  "campanhas": [
+    {
+      "plataforma": "meta",
+      "id": "120248296035320014",
+      "nome": "[MA][mateus][cadastro][captação][alunos][principal][black-vitalícia][BV-26][08.10.26]",
+      "valor": 852.0
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248296047430014",
+      "nome": "[MA][mateus][cadastro][captação][super quente][principal][black-vitalícia][BV-26][08.10.26]",
+      "valor": 213.0
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248296036930014",
+      "nome": "[MA][mateus][cadastro][captação][alunos][principal][novos][feed][black-vitalícia][BV-26][08.10.26]",
+      "valor": 1136.0
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248296053120014",
+      "nome": "[MA][mateus][cadastro][captação][super quente][principal][novos][feed][black-vitalícia][BV-26][08.10.26]",
+      "valor": 284.0
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248296038700014",
+      "nome": "[MA][mateus][cadastro][captação][alunos][principal][novos][reels][black-vitalícia][BV-26][08.10.26]",
+      "valor": 1136.0
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248296056200014",
+      "nome": "[MA][mateus][cadastro][captação][super quente][principal][novos][reels][black-vitalícia][BV-26][08.10.26]",
+      "valor": 284.0
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248296063650014",
+      "nome": "[MA][ivan][cadastro][captação][alunos][principal][black-vitalícia][BV-26][08.10.26]",
+      "valor": 552.96
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248296065960014",
+      "nome": "[MA][ivan][cadastro][captação][alunos][principal][novos][reels][black-vitalícia][BV-26][08.10.26]",
+      "valor": 1474.56
+    },
+    {
+      "plataforma": "google",
+      "conta": "6482320788",
+      "id": "24339252439",
+      "nome": "[GA][mateus][cadastro][captação][alunos][principal][black-vitalícia][BV-26][08.10.26]",
+      "valor": 464.0
+    },
+    {
+      "plataforma": "google",
+      "conta": "6482320788",
+      "id": "24328065798",
+      "nome": "[GA][mateus][cadastro][captação][super quente][principal][black-vitalícia][BV-26][08.10.26]",
+      "valor": 116.0
+    },
+    {
+      "plataforma": "google",
+      "conta": "6482320788",
+      "id": "24333291101",
+      "nome": "[GA][mateus][cadastro][captação][alunos][principal][novos][feed][black-vitalícia][BV-26][08.10.26]",
+      "valor": 618.67
+    },
+    {
+      "plataforma": "google",
+      "conta": "6482320788",
+      "id": "24333294626",
+      "nome": "[GA][mateus][cadastro][captação][super quente][principal][novos][feed][black-vitalícia][BV-26][08.10.26]",
+      "valor": 154.67
+    },
+    {
+      "plataforma": "google",
+      "conta": "6482320788",
+      "id": "24333291776",
+      "nome": "[GA][mateus][cadastro][captação][alunos][principal][novos][shorts][black-vitalícia][BV-26][08.10.26]",
+      "valor": 618.67
+    },
+    {
+      "plataforma": "google",
+      "conta": "6482320788",
+      "id": "24339257953",
+      "nome": "[GA][mateus][cadastro][captação][super quente][principal][novos][shorts][black-vitalícia][BV-26][08.10.26]",
+      "valor": 154.67
+    },
+    {
+      "plataforma": "google",
+      "conta": "6482320788",
+      "id": "24333297575",
+      "nome": "[GA][ivan][cadastro][captação][alunos][principal][black-vitalícia][BV-26][08.10.26]",
+      "valor": 414.72
+    },
+    {
+      "plataforma": "google",
+      "conta": "6482320788",
+      "id": "24328070388",
+      "nome": "[GA][ivan][cadastro][captação][alunos][principal][novos][shorts][black-vitalícia][BV-26][08.10.26]",
+      "valor": 1105.92
+    }
+  ]
+}

@@ -640,6 +640,8 @@ CREATE TABLE IF NOT EXISTS dim_lancamentos (
 
 -- ── COLUNAS E ÍNDICES OPERACIONAIS ──────────────────────────────────────────
 ALTER TABLE meta_ads_daily ADD COLUMN IF NOT EXISTS lancamento_codigo TEXT;
+-- landing_page_view do Meta: cliques no link que chegaram a disparar o PageView do pixel na LP.
+ALTER TABLE meta_ads_daily ADD COLUMN IF NOT EXISTS landing_page_views INTEGER DEFAULT 0;
 ALTER TABLE google_ads_daily ADD COLUMN IF NOT EXISTS lancamento_codigo TEXT;
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS lancamento_codigo TEXT;
 

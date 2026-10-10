@@ -330,6 +330,9 @@ relacionados:
 > - [[ARQUITETURA#3. Pesquisa nova materializada|3. Pesquisa nova materializada]]
 > - [[ARQUITETURA#Como conferir se valeu|Como conferir se valeu]]
 > - [[ARQUITETURA#Vendas da Black no dashboard (10/10/26)|Vendas da Black no dashboard (10/10/26)]]
+>
+> **Auditoria das LPs dos anúncios + GTM/PageSpeed (2026-10-10)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -3836,3 +3839,15 @@ ficar (o código antigo não a usa).
 ### Vendas da Black no dashboard (10/10/26)
 
 Todo `CASE` produto→projeto dos leitores de venda (`sales`, `hotmart`, `tmb`, `afiliados`, `launches`) tem o ramo `produto ILIKE '%black vital%' THEN 'BLACK'`. Sem ele os produtos da Black caíam em `OUTRO` e nunca casavam com `dim_lancamentos.projeto='BLACK'` (BV-25 mostrava 0 venda; agora 3.551). BV-26: `launch_config.hotmart_produto_ids = ['8643509','8680648']` (Black Vitalícia 2026 e a BLP das 16h40). TMB ainda sem ID cadastrado — cai no filtro por projeto. Teste: `tests/test_projeto_black_vendas.py`.
+
+## Auditoria das LPs dos anúncios + GTM/PageSpeed (2026-10-10)
+
+- **`scripts/ads/auditar_lps.py`** (`python -m scripts.ads.auditar_lps <LANC> [--todos] [--sem-velocidade]`): só leitura. Junta as URLs de todos os anúncios do lançamento (Meta `links_do_criativo`; Google `ad_group_ad.ad.final_urls`), normaliza (sem query, com barra) e, por URL distinta:
+  1. confere em `padroes.LPS_OFICIAIS` (lançamento → {url: tag esperada});
+  2. abre no Chromium (Playwright, user-agent de celular: o Cloudflare segura o headless padrão e o `curl`). Depois **rola a página**, porque o site adia GTM/pixel até a 1ª interação. Lê `_form_NNN` no HTML, `gtm.js?id=` e o pixel em `facebook.com/tr` (GET com `?id=` **ou** POST multipart com `name="id"`; o fbevents.js usa os dois);
+  3. lê o formulário em `GET /api/3/forms/{id}` do AC: `name` e as ações `add-a-tag` de `actiondata`;
+  4. PageSpeed Insights (mobile) com OAuth.
+  Sai com 1 se alguma LP tiver alerta. Testes em `tests/test_ads.py`.
+- **Acesso Google novo:** `GTM_REFRESH_TOKEN` (escopos `tagmanager.readonly` + `openid`; mesmo OAuth client do Google Ads; gerado por `etl/get_gtm_token.py`). O `openid` é o que a PageSpeed aceita em OAuth: sem auth a API devolve 429 (cota compartilhada), e com os tokens de Ads/GA4 devolve 403.
+- **`meta_ads_daily.landing_page_views`** (**pendente**: no `schema.sql`, falta o `ALTER` no banco e a linha no `etl_meta_ads.build_df_from_api`): `actions[landing_page_view]` dos insights. **Atenção ao ler:** a LP só carrega o pixel depois da 1ª interação, então LPV/clique subconta quem abre e sai sem tocar. Não é medida pura de velocidade (MUDANCAS_BV-26 item 264).
+

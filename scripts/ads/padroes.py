@@ -91,3 +91,21 @@ GOOGLE_PARAMETROS = {"campanha": "campaignname", "grupo": "adgroupname", "anunci
 
 # --------------------------------------------------------------------------- Nomes
 EXPERTS = ("mateus", "ivan", "felipe")
+
+# --------------------------------------------------------------------------- Landing pages
+# LPs oficiais por lançamento e a tag que o formulário do AC tem que aplicar. Fonte: lista do usuário
+# (captação/aquecimento) e as LPs da Base Forte que os anúncios já usavam (forms 690/692, "BASE FORTE [BV-26]").
+# Fora desta lista = alerta na auditoria (scripts/ads/auditar_lps.py). Ex.: a -v3a/ da BV-26 carregava o
+# form 422 da Black 2025 e tirou o cadastro de aluno da régua 2026 (MUDANCAS_BV-26 item 253).
+_LP = "https://lp.braboconcursos.com.br/"
+LPS_OFICIAIS = {   # lançamento → {url: tag que o formulário aplica}
+    "BV-26": {**{f"{_LP}black-vitalicia-26-{v}/": "VITALICIA-2026" for v in ("v1a", "v2", "v3", "v4", "v5", "v1b")},
+              **{f"{_LP}cadastro-base-forte-{v}/": "BASE-FORTE-BV-26" for v in ("v2", "v3")}},
+}
+
+# Container GTM esperado por domínio de LP.
+GTM_POR_DOMINIO = {"lp.braboconcursos.com.br": "GTM-KHKZXK7L"}
+
+# PageSpeed (celular): abaixo destes limites a LP entra como alerta. LCP > 4 s é "ruim" para o Google.
+LP_NOTA_MINIMA = 50
+LP_LCP_MAXIMO_S = 4.0

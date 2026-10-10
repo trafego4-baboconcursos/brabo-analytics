@@ -87,3 +87,58 @@ def test_links_do_criativo_cobre_os_formatos():
 def test_expert_do_nome():
     assert expert_do_nome("[MA][trio][ivan][captação]") == "ivan"
     assert expert_do_nome("[MA][M][aquecimento]") is None
+
+
+# ---------------------------------------------------------------------------- auditoria de LPs
+from scripts.ads.auditar_lps import codigos_lancamento, normalizar_url, pixels_disparados, problemas_lp  # noqa: E402
+
+_V1A = "https://lp.braboconcursos.com.br/black-vitalicia-26-v1a/"
+
+
+def _lp(url=_V1A, forms=None, **kw):
+    base = {"url": url, "status": 200, "final": url, "gtm": {"GTM-KHKZXK7L"},
+            "pixels": {"608218362997432", "990033038146806"}, "nota": 95, "lcp": 2.6,
+            "forms": forms if forms is not None else
+            [{"id": "678", "nome": "FORMULÁRIO [BV-26] - V1A", "tags": ["[BLACK] [LANÇAMENTO] [VITALICIA-2026]"]}]}
+    return base | kw
+
+
+def test_normalizar_url_tira_query_e_poe_barra():
+    assert normalizar_url("https://LP.braboconcursos.com.br/black-vitalicia-26-v1a?utm_source=x#f") == _V1A
+
+
+def test_codigos_lancamento():
+    assert codigos_lancamento("FORMULÁRIO BLACK 2025 v3 A - BV-25 - Mateus") == {"BV-25"}
+    assert codigos_lancamento("[PES-SET-26] form") == {"PES-SET-26"}
+
+
+def test_pixel_por_get_e_por_post():
+    reqs = ["https://www.facebook.com/tr/?id=608218362997432&ev=PageView",
+            "https://www.facebook.com/tr/ id=990033038146806&ev=PageView&dl=x",
+            'https://www.facebook.com/tr/ ------B\r\nContent-Disposition: form-data; name="id"\r\n\r\n111\r\n']
+    assert pixels_disparados(reqs) == {"608218362997432", "990033038146806", "111"}
+
+
+def test_lp_certa_sem_alerta():
+    assert problemas_lp(_lp(), "BV-26", {"mateus", "felipe"}) == []
+
+
+def test_lp_v3a_com_form_da_black_2025():
+    url = "https://lp.braboconcursos.com.br/black-vitalicia-26-v3a/"
+    lp = _lp(url, [{"id": "422", "nome": "FORMULÁRIO BLACK 2025 v3 A - BV-25 - Mateus",
+                    "tags": ["[BLACK] [LANÇAMENTO] [VITALICIA-2025]"]}])
+    probs = problemas_lp(lp, "BV-26", {"mateus"})
+    assert "fora da lista oficial do lançamento" in probs
+    assert any("outro lançamento" in p for p in probs)
+    assert any("nenhuma tag do lançamento" in p for p in probs)
+
+
+def test_lp_base_forte_aceita_a_tag_dela():
+    url = "https://lp.braboconcursos.com.br/cadastro-base-forte-v2/"
+    lp = _lp(url, [{"id": "690", "nome": "FORMULÁRIO BASE FORTE [BV-26] - V2", "tags": ["[BASE-FORTE-BV-26]"]}])
+    assert problemas_lp(lp, "BV-26", {"ivan"}) == []
+
+
+def test_lp_lenta_sem_gtm_e_sem_pixel():
+    probs = problemas_lp(_lp(gtm=set(), pixels=set(), nota=30, lcp=6.2), "BV-26", {"felipe"})
+    assert len(probs) == 4

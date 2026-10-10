@@ -24,7 +24,7 @@ from sqlalchemy import text
 
 from logger import get_logger
 from frontend.utils import _extract_launch_code, _safe_date
-from src.constants import apelidos_armazenamento
+from src.constants import apelidos_armazenamento, e_black
 from frontend.db import _get_engine
 
 logger = get_logger("db")
@@ -69,6 +69,21 @@ def _ensure_norm_phone_fn() -> None:
         $$;
     """))
     _NORM_PHONE_FN_READY = True
+
+
+def _candidatos_tabelas(code: str, base: str) -> tuple[list[str], list[str]]:
+    """Tabelas candidatas do bloco principal ("normal") e do segundo ("vip").
+
+    Lançamento normal: `<COD>_API`/`<COD>` e as variantes VIP.
+    Black: o bloco principal é a VITALÍCIA (`BV_26`, os grupos "Desconto Black Vitalícia"
+    e "Black Vitalícia 2026") e o segundo é a BASE FORTE (`base_forte`, gravada com o nome
+    da trilha — ver APELIDOS_ARMAZENAMENTO). Até 09/10/26 a `BV_26` estava vazia e a página
+    só tinha a Base Forte; a automação passou a gravar a Vitalícia nela em 09/10 e a página
+    seguia escondendo os 25 grupos dela."""
+    if e_black(code):
+        return [f"{base}_API", base], list(apelidos_armazenamento(code))
+    return ([f"{base}_API", base],
+            [f"{base}_VIP_API", f"{base}_VIPS", f"{base}_VIP", base.rsplit("_", 1)[0] + "_VIP"])
 
 
 def _tabela_existe(conn, nome: str) -> bool:
@@ -345,11 +360,7 @@ def _read_whatsapp_uncached(code: str, start_date=None, end_date=None) -> dict |
     base = code.replace("-", "_")
     # Padrões por geração da automação: novos "_API", antigos sem sufixo/_VIPS;
     # o "_VIP" solto cobre exceções tipo PES_SET_VIP (base sem o ano).
-    # O apelido vem PRIMEIRO: no BV-26 a tabela `BV_26` existe e está vazia, e
-    # os 17 mil membros estão em `base_forte` (ver APELIDOS_ARMAZENAMENTO).
-    candidatos_normal = [*apelidos_armazenamento(code), f"{base}_API", base]
-    candidatos_vip = [f"{base}_VIP_API", f"{base}_VIPS", f"{base}_VIP",
-                      base.rsplit("_", 1)[0] + "_VIP"]
+    candidatos_normal, candidatos_vip = _candidatos_tabelas(code, base)
 
     cfg = read_launch_config(code)
     start = _safe_date(start_date) or _safe_date(cfg.get("pre_quali_start_date"))
@@ -586,10 +597,7 @@ def read_compradores_por_dia_grupo(launch_folder_or_code: Any) -> dict | None:
     cp_end   = cfg.get("captacao_end_date") or ""
 
     base = code.replace("-", "_")
-    # Mesmo apelido do bloco acima — ver APELIDOS_ARMAZENAMENTO.
-    candidatos_normal = [*apelidos_armazenamento(code), f"{base}_API", base]
-    candidatos_vip = [f"{base}_VIP_API", f"{base}_VIPS", f"{base}_VIP",
-                      base.rsplit("_", 1)[0] + "_VIP"]
+    candidatos_normal, candidatos_vip = _candidatos_tabelas(code, base)
 
     alvo_fones = {p for p in (_norm_phone(phone_por_email.get(e)) for e in buyers) if p}
 

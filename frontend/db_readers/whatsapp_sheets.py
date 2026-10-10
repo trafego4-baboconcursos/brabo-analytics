@@ -26,16 +26,29 @@ def _codigos(code: str) -> list[str]:
     return [code, *apelidos_armazenamento(code)]
 
 
+def _alias_base_forte(code: str) -> str:
+    """Código sob o qual o poller gravou a Base Forte (`base-forte`); vazio fora da Black.
+
+    Na Black as linhas do Sheets vêm sob DOIS códigos: `BV-26` (a Vitalícia, desde 09/10/26)
+    e `base-forte`. Eles são blocos diferentes e NÃO podem se misturar na mesma série: as
+    linhas de `base-forte` viram o bloco "vip" (o segundo bloco da página), e as de `BV-26`
+    ficam como "normal". Antes isso era uma lista só e o dia 10/10 saía com duas linhas."""
+    return next((a for a in apelidos_armazenamento(code) if "-" in a), "")
+
+
+_BLOCO_SQL = "CASE WHEN launch_code = :bf THEN 'vip' ELSE bloco END"
+
+
 def _resumo_por_bloco(code: str) -> dict[str, dict]:
     engine = _get_engine()
     with engine.connect() as conn:
         rows = conn.execute(
             text("""
-                SELECT bloco, total_grupos_cheios, total_leads, total_limpo
+                SELECT {bloco}, total_grupos_cheios, total_leads, total_limpo
                 FROM whatsapp_sheets_resumo
                 WHERE launch_code = ANY(:codes)
-            """),
-            {"codes": _codigos(code)},
+            """.replace("{bloco}", _BLOCO_SQL)),
+            {"codes": _codigos(code), "bf": _alias_base_forte(code)},
         ).fetchall()
     return {
         bloco: {"grupos_cheios": gc, "total_leads": tl, "total_limpo": tlimp}
@@ -48,12 +61,12 @@ def _diario_por_bloco(code: str) -> dict[str, list[dict]]:
     with engine.connect() as conn:
         rows = conn.execute(
             text("""
-                SELECT bloco, date::text, entradas, saidas, leads_no_dia
+                SELECT {bloco}, date::text, entradas, saidas, leads_no_dia
                 FROM whatsapp_sheets_diario
                 WHERE launch_code = ANY(:codes)
                 ORDER BY date
-            """),
-            {"codes": _codigos(code)},
+            """.replace("{bloco}", _BLOCO_SQL)),
+            {"codes": _codigos(code), "bf": _alias_base_forte(code)},
         ).fetchall()
 
     out: dict[str, list[dict]] = {"normal": [], "vip": []}
@@ -88,12 +101,12 @@ def pico_por_bloco(code: str) -> dict[str, dict]:
     with engine.connect() as conn:
         rows = conn.execute(
             text("""
-                SELECT bloco, date::text, entradas, saidas, leads_no_dia
+                SELECT {bloco} AS bloco, date::text, entradas, saidas, leads_no_dia
                 FROM whatsapp_sheets_diario
                 WHERE launch_code = ANY(:codes)
-                ORDER BY bloco, date
-            """),
-            {"codes": _codigos(code)},
+                ORDER BY 1, date
+            """.replace("{bloco}", _BLOCO_SQL)),
+            {"codes": _codigos(code), "bf": _alias_base_forte(code)},
         ).fetchall()
 
     out: dict[str, dict] = {}

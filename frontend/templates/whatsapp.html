@@ -205,7 +205,7 @@
     (pré-quali → fechamento do carrinho). "Saíram" = pessoas que entraram no período e já não estão mais no grupo
     — a automação não registra a data de saída, só o estado atual.</div>
 
-  {% for tipo, dados in [("Grupos Normais", wa.normal), ("Grupos VIP", wa.vip)] %}
+  {% for tipo, dados in [(rotulos_blocos.normal, wa.normal), (rotulos_blocos.vip, wa.vip)] %}
   {% if dados %}
   <div class="section">
     <div class="section-title">{{ tipo }}</div>
@@ -256,12 +256,12 @@
         <div class="tp-compare">mesma pessoa em vários grupos</div>
       </div>
       {% endif %}
-      {% if tipo == "Grupos VIP" and wa.overlap_vip %}
+      {% if tipo == rotulos_blocos.vip and wa.overlap_vip %}
       <div class="tp-kpi">
         <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-arrows-join"></i></div></div>
         <div class="tp-value">{{ wa.overlap_vip | num }}</div>
-        <div class="tp-label">Também no Normal</div>
-        <div class="tp-compare">presentes nos dois tipos</div>
+        <div class="tp-label">Também {{ 'na Black Vitalícia' if rotulos_blocos.vip == 'Base Forte' else 'no Normal' }}</div>
+        <div class="tp-compare">presentes nos dois blocos</div>
       </div>
       {% endif %}
     </div>
@@ -271,10 +271,9 @@
 
   {# Aluno × não aluno dos membros (só Black) — frontend/db_readers/whatsapp_alunos.py.
      A régua de aluno vem da plataforma e é uma foto: a data dela fica na tela. #}
-  {% if wa_alunos and wa_alunos.total %}
-  {% set al = wa_alunos %}
+  {% for rotulo_bloco, al in wa_alunos_blocos %}
   <div class="section">
-    <div class="section-title">Quem está nos grupos — aluno × não aluno</div>
+    <div class="section-title">Quem está nos grupos{% if wa_alunos_blocos | length > 1 %} — {{ rotulo_bloco }}{% endif %} — aluno × não aluno</div>
     <div class="note info">
       <strong>{{ al.total | num }} números</strong> já entraram nos grupos ({{ al.no_grupo | num }} ainda estão).
       <strong>{{ "%.1f"|format(al.pct_ativo) | replace(".", ",") }}% são alunos ativos</strong> e
@@ -358,9 +357,9 @@
       recarregada (<code>scripts/carregar_regua_alunos.py</code>).
     </div>
   </div>
-  {% endif %}
+  {% endfor %}
 
-  {% for tipo, chave in [("Grupos Normais", "normal"), ("Grupos VIP", "vip")] %}
+  {% for tipo, chave in [(rotulos_blocos.normal, "normal"), (rotulos_blocos.vip, "vip")] %}
   {% set linhas = wa_hist.get(chave) if wa_hist else None %}
   {% if linhas %}
   <div class="section">
@@ -535,8 +534,8 @@
     data: {
       labels: lbl,
       datasets: [
-        { label: 'Normal', data: mapa(normal), backgroundColor: cssVar('--temp-frio', '#3b82f6') },
-        { label: 'VIP',    data: mapa(vip),    backgroundColor: cssVar('--temp-especifico', '#a78bfa') },
+        { label: {{ rotulos_blocos.normal | tojson }}, data: mapa(normal), backgroundColor: cssVar('--temp-frio', '#3b82f6') },
+        { label: {{ rotulos_blocos.vip | tojson }},    data: mapa(vip),    backgroundColor: cssVar('--temp-especifico', '#a78bfa') },
       ]
     },
     options: {

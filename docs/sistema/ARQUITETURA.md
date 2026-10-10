@@ -2,7 +2,7 @@
 titulo: "Arquitetura do Brabo Analytics — 2026-10-01"
 area: sistema
 status: vigente
-atualizado: 2026-10-08
+atualizado: 2026-10-10
 responde:
   - "como o sistema funciona por dentro"
   - "por que o aviso do etl recomputa so parte do cache"
@@ -42,7 +42,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 86 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 87 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -260,6 +260,7 @@ relacionados:
 > - [[ARQUITETURA#Aluno × não aluno nos grupos (`frontend/db_readers/whatsapp_alunos.py`, 08/10/26)|Aluno × não aluno nos grupos (`frontend/db_readers/whatsapp_alunos.py`, 08/10/26)]]
 > - [[ARQUITETURA#Alerta de orçamento na Black (`etl/budget_alert.py`, 08/10/26)|Alerta de orçamento na Black (`etl/budget_alert.py`, 08/10/26)]]
 > - [[ARQUITETURA#Vigia do ETL (`frontend/services/vigia_etl.py`)|Vigia do ETL (`frontend/services/vigia_etl.py`)]]
+> - [[ARQUITETURA#`/whatsapp` na Black: dois blocos, Vitalícia e Base Forte (10/10/26)|`/whatsapp` na Black: dois blocos, Vitalícia e Base Forte (10/10/26)]]
 > - [[ARQUITETURA#As páginas passaram a ler o ESTADO, não a `leads` (08/10/26)|As páginas passaram a ler o ESTADO, não a `leads` (08/10/26)]]
 > - [[ARQUITETURA#Trigger do histórico de UTM (`etl/historico_utm_trigger.py`) — INSTALADO em 08/10/26|Trigger do histórico de UTM (`etl/historico_utm_trigger.py`) — INSTALADO em 08/10/26]]
 > - [[ARQUITETURA#Trava da atribuição (`atribuicao_congelada`)|Trava da atribuição (`atribuicao_congelada`)]]
@@ -538,6 +539,11 @@ Virou um pacote no repositório:
   (contas, início, etapas pelo nome da campanha) e a tabela `PLANO` do `ORCAMENTO_<LANC>.md`, busca o gasto e a
   verba ao vivo e reescreve as seções geradas do doc. Substituiu o `bv26_orcamento.py` (29/09), com saída idêntica.
   Molde em `docs/performance/playbooks/MODELO_ORCAMENTO.md`.
+- `scripts/ajustar_verba_lista.py` + `.github/workflows/bv-26-verba-cheia.yml` (2026-10-09) — verba diária agendada: o
+  workflow roda **todo dia às 00h05 (Brasília)** e aplica cada `config/orcamentos/BV-26-*.json` cujo `aplicar_em` é o dia
+  (outro dia = sai sem fazer nada); relê cada campanha e **falha o job** se alguma não bater. Uso típico: campanha ativada
+  com verba proporcional às horas restantes → plano com a cheia para D+1, commitado **e com push** antes da meia-noite
+  (o Actions só enxerga o que está na `main`; `config/orcamentos/` é rastreado). Primeira rodada diária: 10/10/26, 20 campanhas.
 
 ## Engajamento de e-mail desce ao contato — e vira venda (2026-09-22)
 
@@ -2870,6 +2876,18 @@ semeadura de 1,9 mi de linhas, senão o planejador ignorava o índice.
 **Correção junto:** `ler_congelada` chamava `criar_tabela()` a cada leitura — `ALTER TABLE ...
 ADD COLUMN IF NOT EXISTS` pega lock exclusivo mesmo com a coluna existindo, e isso rodava a cada
 atribuição de cada página. Leitura não faz mais DDL; quem cria é quem grava.
+
+### `/whatsapp` na Black: dois blocos, Vitalícia e Base Forte (10/10/26)
+
+Num lançamento normal a página tem dois blocos de grupos (Normais e VIP). Na Black são a **Black Vitalícia**
+(bloco principal: tabela `BV_26`, grupos "Desconto Black Vitalícia" e "Black Vitalícia 2026") e a **Base Forte**
+(segundo bloco: `base_forte`, gravada com o nome da trilha — `APELIDOS_ARMAZENAMENTO`). Quem decide é
+`whatsapp_groups._candidatos_tabelas`; os rótulos vêm de `src.constants.rotulos_blocos_whatsapp`. Na série diária
+do Sheets (`whatsapp_sheets`) as linhas do código `base-forte` viram o bloco `vip` e as de `BV-26` o `normal`.
+A seção de aluno × não aluno (`whatsapp_alunos`) é calculada por bloco (`"vitalicia"` | `"base_forte"`).
+
+Armadilha que originou isto: o seletor de tabela pega **a primeira candidata com linhas**. Com a `base_forte` na
+frente, a `BV_26` — vazia até 09/10 — nunca era relida depois de preenchida.
 
 ### As páginas passaram a ler o ESTADO, não a `leads` (08/10/26)
 

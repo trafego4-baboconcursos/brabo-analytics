@@ -30,6 +30,7 @@ aluno quem comprou NAQUELE lançamento — outra pergunta, e enganosa.
 """
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import pandas as pd
@@ -131,8 +132,11 @@ def resumir(membros: pd.DataFrame, hoje: pd.Timestamp | None = None) -> dict:
     por_expert = dict(sorted(por_expert.items(), key=lambda kv: -kv[1]))
 
     def _numero_grupo(g: str) -> int:
-        digitos = "".join(ch for ch in str(g).split()[0] if ch.isdigit())
-        return int(digitos) if digitos else 10**6
+        # O número fica depois do "#" e não no começo do nome: "#7 Desafio Base Forte",
+        # "Desconto Black Vitalícia #7", "Black Vitalícia 2026 #16". A numeração é contínua
+        # entre as duas famílias da Vitalícia (#1–#15 e #16–#25), então ordena só por ela.
+        m = re.search(r"#\s*(\d+)", str(g))
+        return int(m.group(1)) if m else 10**6
 
     por_grupo = []
     for grupo, bloco in membros.groupby("grupo"):
@@ -166,7 +170,17 @@ def resumir(membros: pd.DataFrame, hoje: pd.Timestamp | None = None) -> dict:
     }
 
 
-def _ler_sem_cache(code: str) -> dict | None:
+BLOCOS = {"vitalicia": "Black Vitalícia", "base_forte": "Base Forte"}
+
+
+def _candidatos_tabela(code: str, bloco: str) -> list[str]:
+    """Vitalícia = `BV_26` (grupos "Desconto Black Vitalícia" e "Black Vitalícia 2026");
+    Base Forte = `base_forte`, gravada com o nome da trilha. Ver APELIDOS_ARMAZENAMENTO."""
+    base = code.replace("-", "_")
+    return list(apelidos_armazenamento(code)) if bloco == "base_forte" else [f"{base}_API", base]
+
+
+def _ler_sem_cache(code: str, bloco: str = "vitalicia") -> dict | None:
     from frontend.db_readers.whatsapp_groups import (  # noqa: PLC0415
         _ensure_norm_phone_fn, _escolhe_tabela,
     )
@@ -177,7 +191,7 @@ def _ler_sem_cache(code: str) -> dict | None:
             return None
         referencia = conn.execute(text("SELECT max(referencia) FROM aluno_regua")).scalar()
         base = code.replace("-", "_")
-        tabela = _escolhe_tabela(conn, [*apelidos_armazenamento(code), f"{base}_API", base])
+        tabela = _escolhe_tabela(conn, _candidatos_tabela(code, bloco))
     if not tabela or referencia is None:
         return None
 
@@ -194,19 +208,20 @@ def _ler_sem_cache(code: str) -> dict | None:
     resumo = resumir(membros)
     resumo["referencia"] = referencia
     resumo["tabela"] = tabela
+    resumo["bloco"] = bloco
     return resumo
 
 
-def read_whatsapp_alunos(launch_folder_or_code: Any) -> dict | None:
-    """Aluno × não aluno dos membros dos grupos. None fora da Black, sem régua
-    carregada ou sem tabela de grupo."""
+def read_whatsapp_alunos(launch_folder_or_code: Any, bloco: str = "vitalicia") -> dict | None:
+    """Aluno × não aluno dos membros dos grupos de UM bloco da Black: "vitalicia" ou
+    "base_forte". None fora da Black, sem régua carregada ou sem tabela de grupo."""
     from frontend.cache import _get_or_compute  # noqa: PLC0415
 
     code = _extract_launch_code(launch_folder_or_code)
     if not str(code or "").upper().startswith("BV"):
         return None
     try:
-        return _get_or_compute(code, "whatsapp_alunos", lambda: _ler_sem_cache(code), ttl=3600)
+        return _get_or_compute(code, f"whatsapp_alunos_{bloco}", lambda: _ler_sem_cache(code, bloco), ttl=3600)
     except Exception:
         logger.exception("read_whatsapp_alunos: falha para %s", code)
         return None

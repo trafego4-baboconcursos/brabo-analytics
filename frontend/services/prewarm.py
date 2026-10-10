@@ -183,7 +183,8 @@ async def warm_launch(launch: Any, previous: Any, launches: list | None = None) 
         # Aluno × não aluno (só Black): ~15 s de consulta — aquecer evita que o
         # primeiro acesso pós-boot pague.
         from frontend.db_readers.whatsapp_alunos import read_whatsapp_alunos  # noqa: PLC0415
-        await run_in_threadpool(read_whatsapp_alunos, launch.code)
+        for _bloco in ("vitalicia", "base_forte"):
+            await run_in_threadpool(read_whatsapp_alunos, launch.code, _bloco)
         logger.info("Pre-warming de WhatsApp/SendFlow para %s concluído.", launch.code)
     except Exception:
         logger.exception("Falha no pre-warming de WhatsApp/SendFlow para %s", launch.code)

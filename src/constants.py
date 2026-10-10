@@ -51,6 +51,21 @@ APELIDOS_ARMAZENAMENTO: dict[str, tuple[str, ...]] = {
 }
 
 
+# A /whatsapp mostra dois blocos de grupos. Num lançamento normal são Normais e VIP; na Black são a
+# BLACK VITALÍCIA (o bloco principal: grupos "Desconto Black Vitalícia #N" e "Black Vitalícia 2026 #N",
+# gravados na tabela `BV_26`) e a BASE FORTE (tabela `base_forte`, já encerrada).
+ROTULOS_BLOCOS_WHATSAPP: dict[str, str] = {"normal": "Grupos Normais", "vip": "Grupos VIP"}
+ROTULOS_BLOCOS_WHATSAPP_BLACK: dict[str, str] = {"normal": "Black Vitalícia", "vip": "Base Forte"}
+
+
+def rotulos_blocos_whatsapp(launch_code: str | None = None) -> dict[str, str]:
+    return ROTULOS_BLOCOS_WHATSAPP_BLACK if _e_black(launch_code) else ROTULOS_BLOCOS_WHATSAPP
+
+
+def e_black(launch_code: str | None = None) -> bool:
+    return _e_black(launch_code)
+
+
 def apelidos_armazenamento(launch_code: str | None = None) -> tuple[str, ...]:
     """Outros nomes sob os quais o dado deste lançamento pode estar gravado."""
     return APELIDOS_ARMAZENAMENTO.get(str(launch_code or "").strip().upper(), ())

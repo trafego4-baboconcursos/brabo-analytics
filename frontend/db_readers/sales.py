@@ -111,6 +111,7 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
             FROM hotmart_clean_oficial
             WHERE status_da_transacao IN ('Completa', 'Aprovada', 'Paga', 'Completo', 'Aprovado', 'Pago', 'approved', 'complete', 'APPROVED', 'COMPLETED')
               AND CASE
+                  WHEN produto ILIKE '%black vital%' THEN 'BLACK'
                   WHEN produto ILIKE '%inss%' THEN 'INSS'
                   WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%') THEN 'TJ'
                   WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'
@@ -161,6 +162,7 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
                 LEFT JOIN tmb_oficial o ON o.pedido = c.pedido
                 WHERE c.valor_liquido > 0
                   AND CASE
+                      WHEN c.produto ILIKE '%black vital%' THEN 'BLACK'
                       WHEN c.produto ILIKE '%inss%' THEN 'INSS'
                       WHEN (c.produto ILIKE '%tj%' OR c.produto ILIKE '%tjsp%') THEN 'TJ'
                       WHEN (c.produto ILIKE '%bb%' OR c.produto ILIKE '%banco do brasil%' OR c.produto ILIKE '%bbsa%') THEN 'BB'
@@ -561,6 +563,7 @@ def read_dia1_sales(launch: Any) -> dict:
     project = row[0] if row else None
 
     project_case = """CASE
+              WHEN produto ILIKE '%black vital%' THEN 'BLACK'
               WHEN produto ILIKE '%inss%' THEN 'INSS'
               WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%') THEN 'TJ'
               WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'

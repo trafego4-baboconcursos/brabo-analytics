@@ -42,7 +42,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 87 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 88 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -329,6 +329,7 @@ relacionados:
 > - [[ARQUITETURA#2. Vendas: `SELECT *` de 66 colunas e histórico inteiro por chamada|2. Vendas: `SELECT *` de 66 colunas e histórico inteiro por chamada]]
 > - [[ARQUITETURA#3. Pesquisa nova materializada|3. Pesquisa nova materializada]]
 > - [[ARQUITETURA#Como conferir se valeu|Como conferir se valeu]]
+> - [[ARQUITETURA#Vendas da Black no dashboard (10/10/26)|Vendas da Black no dashboard (10/10/26)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -3831,3 +3832,7 @@ com o código novo no ar. No banco operacional o `pg_stat_statements` nunca foi 
 
 Reverter: `_backup_egress_leitores_20260930/` no repo tem os originais; a materialização pode
 ficar (o código antigo não a usa).
+
+### Vendas da Black no dashboard (10/10/26)
+
+Todo `CASE` produto→projeto dos leitores de venda (`sales`, `hotmart`, `tmb`, `afiliados`, `launches`) tem o ramo `produto ILIKE '%black vital%' THEN 'BLACK'`. Sem ele os produtos da Black caíam em `OUTRO` e nunca casavam com `dim_lancamentos.projeto='BLACK'` (BV-25 mostrava 0 venda; agora 3.551). BV-26: `launch_config.hotmart_produto_ids = ['8643509','8680648']` (Black Vitalícia 2026 e a BLP das 16h40). TMB ainda sem ID cadastrado — cai no filtro por projeto. Teste: `tests/test_projeto_black_vendas.py`.

@@ -45,6 +45,7 @@ def read_tmb_details(launch_folder_or_code: Any, start_date=None, end_date=None)
         text(r"""
             SELECT * FROM tmb_clean_oficial
             WHERE CASE
+                  WHEN produto ILIKE '%black vital%' THEN 'BLACK'
                   WHEN produto ILIKE '%inss%' THEN 'INSS'
                   WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%') THEN 'TJ'
                   WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'
@@ -169,6 +170,7 @@ def read_forma_pagamento_entrada(launch_folder_or_code: Any, start_date=None, en
         text(r"""
             SELECT forma_pagamento, status FROM tmb_clean_oficial
             WHERE CASE
+                  WHEN produto ILIKE '%black vital%' THEN 'BLACK'
                   WHEN produto ILIKE '%inss%' THEN 'INSS'
                   WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%') THEN 'TJ'
                   WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'

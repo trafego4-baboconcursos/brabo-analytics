@@ -136,6 +136,7 @@ def read_afiliados(launch_folder_or_code: Any, start_date=None, end_date=None) -
         params: dict = {"product_ids": produto_ids}
     else:
         escopo_sql = """CASE
+              WHEN produto ILIKE '%black vital%' THEN 'BLACK'
               WHEN produto ILIKE '%inss%' THEN 'INSS'
               WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%') THEN 'TJ'
               WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'

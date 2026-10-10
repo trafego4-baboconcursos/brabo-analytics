@@ -64,6 +64,7 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
                nome_deste_preco, estado_provincia, cidade
         FROM hotmart_clean_oficial
         WHERE CASE
+              WHEN produto ILIKE '%black vital%' THEN 'BLACK'
               WHEN produto ILIKE '%inss%' THEN 'INSS'
               WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%') THEN 'TJ'
               WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'
@@ -362,6 +363,7 @@ def read_hotmart_recompra(launch_folder_or_code: Any, vendas: Any = None) -> dic
                         ELSE NULL END AS _data_aprox
             FROM hotmart_oficial
             WHERE CASE
+                  WHEN produto ILIKE '%black vital%' THEN 'BLACK'
                   WHEN produto ILIKE '%inss%' THEN 'INSS'
                   WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%') THEN 'TJ'
                   WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'

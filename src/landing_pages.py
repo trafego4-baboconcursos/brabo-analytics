@@ -1,12 +1,36 @@
 """Landing page de um anúncio — extração do link do criativo e normalização da URL.
 
-Compartilhado entre o ETL do Meta (grava `ad_landing_pages`, base da seção "Carregamento da página"
-em /meta) e a auditoria de LPs (`scripts/ads/auditar_lps.py`): os dois precisam chegar na mesma URL
-para o mesmo anúncio.
+Compartilhado entre o ETL do Meta (grava `ad_landing_pages`), a auditoria de LPs
+(`scripts/ads/auditar_lps.py`) e a página /landing-pages: os três precisam chegar na mesma URL para o
+mesmo anúncio e ler as métricas com as mesmas faixas.
 """
 from __future__ import annotations
 
 from urllib.parse import urlsplit
+
+# Faixas de leitura no celular — (limite do "bom", limite do "ruim"), pelo corte do Google
+# (web.dev/vitals para LCP/INP/CLS/FCP/TTFB; Lighthouse para TBT e nota). Entre os dois = "precisa
+# melhorar". Usadas pela auditoria (alerta no "ruim") e pela página /landing-pages (cores).
+FAIXAS_CWV = {
+    "lcp": (2.5, 4.0),        # s — maior elemento visível carregado
+    "fcp": (1.8, 3.0),        # s — primeiro conteúdo na tela
+    "cls": (0.1, 0.25),       # layout pulando
+    "tbt_ms": (200, 600),     # ms — tempo travado por script (proxy do INP no laboratório)
+    "inp_ms": (200, 500),     # ms — resposta ao toque (só usuários reais, CrUX)
+    "ttfb_ms": (800, 1800),   # ms — resposta do servidor
+    "si": (3.4, 5.8),         # s — Speed Index
+}
+NOTA_BOA, NOTA_RUIM = 90, 50  # nota de performance do Lighthouse (maior é melhor)
+
+
+def faixa(metrica: str, valor) -> str:
+    """'bom' | 'medio' | 'ruim' | '' (sem valor) — para colorir a métrica."""
+    if valor is None:
+        return ""
+    if metrica == "nota":
+        return "bom" if valor >= NOTA_BOA else ("ruim" if valor < NOTA_RUIM else "medio")
+    bom, ruim = FAIXAS_CWV[metrica]
+    return "bom" if valor <= bom else ("ruim" if valor > ruim else "medio")
 
 
 def links_do_criativo(creative: dict) -> list[str]:

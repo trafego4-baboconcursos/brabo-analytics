@@ -93,22 +93,19 @@ GOOGLE_PARAMETROS = {"campanha": "campaignname", "grupo": "adgroupname", "anunci
 EXPERTS = ("mateus", "ivan", "felipe")
 
 # --------------------------------------------------------------------------- Landing pages
-# LPs oficiais por lançamento e a tag que o formulário do AC tem que aplicar. Fonte: lista do usuário
-# (captação/aquecimento) e as LPs da Base Forte que os anúncios já usavam (forms 690/692, "BASE FORTE [BV-26]").
-# Fora desta lista = alerta na auditoria (scripts/ads/auditar_lps.py). Ex.: a -v3a/ da BV-26 carregava o
-# form 422 da Black 2025 e tirou o cadastro de aluno da régua 2026 (MUDANCAS_BV-26 item 253).
-_LP = "https://lp.braboconcursos.com.br/"
-LPS_OFICIAIS = {   # lançamento → {url: tag que o formulário aplica}
-    "BV-26": {**{f"{_LP}black-vitalicia-26-{v}/": "VITALICIA-2026" for v in ("v1a", "v2", "v3", "v4", "v5", "v1b")},
-              **{f"{_LP}cadastro-base-forte-{v}/": "BASE-FORTE-BV-26" for v in ("v2", "v3")}},
-}
+# A LISTA OFICIAL de LPs por lançamento fica no banco operacional (tabela lp_oficiais), editável na página
+# /landing-pages. Aqui só os limites da auditoria (scripts/ads/auditar_lps.py).
 
 # Container GTM esperado por domínio de LP.
 GTM_POR_DOMINIO = {"lp.braboconcursos.com.br": "GTM-KHKZXK7L"}
 
-# PageSpeed (celular): abaixo destes limites a LP entra como alerta. LCP > 4 s é "ruim" para o Google.
-LP_NOTA_MINIMA = 50
-LP_LCP_MAXIMO_S = 4.0
+# Limites de alerta, celular: o corte "ruim" do Google, de src/landing_pages.FAIXAS_CWV (fonte única,
+# a página /landing-pages usa as mesmas faixas para colorir).
+from src.landing_pages import FAIXAS_CWV, NOTA_RUIM  # noqa: E402
+LP_NOTA_MINIMA = NOTA_RUIM
+LP_LCP_MAXIMO_S = FAIXAS_CWV["lcp"][1]
+LP_CLS_MAXIMO = FAIXAS_CWV["cls"][1]
+LP_TBT_MAXIMO_MS = FAIXAS_CWV["tbt_ms"][1]
 
 # Lead por página aberta (Meta) abaixo disto, com volume, = suspeita de Lead não contado. Caso real: a -v3a
 # da BV-26 mandava para /obg-black-vitalicia-25-v3a, fora do gatilho do GTM — 2,7% contra 22–44% das outras.

@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+{% block head %}
+<style>
+  .lp-card { background:var(--bs-card); border:1px solid var(--bs-border); border-radius:var(--bs-r-lg); padding:16px; margin-bottom:16px; }
+  .lp-head { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-bottom:8px; }
+  .lp-head h3 { margin:0; font-size:15px; word-break:break-all; }
+  .lp-head a.ext { font-size:12px; color:var(--bs-ink-muted); }
+  .lp-chip { font-size:11px; padding:2px 8px; border-radius:999px; background:var(--bs-surface); border:1px solid var(--bs-border); color:var(--bs-ink-muted); white-space:nowrap; }
+  .lp-chip.ok { background:var(--bs-success-bg); color:var(--bs-success); border-color:transparent; }
+  .lp-chip.alerta { background:var(--bs-danger-bg); color:var(--bs-danger); border-color:transparent; }
+  .lp-chip.aviso { background:var(--bs-warning-bg); color:var(--bs-warning); border-color:transparent; }
+  .lp-alertas { margin:4px 0 12px; padding:8px 12px; background:var(--bs-danger-bg); border-radius:var(--bs-r-md); font-size:12px; color:var(--bs-danger); }
+  .lp-alertas li { margin:2px 0; }
+  .lp-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px; }
+  .lp-bloco { background:var(--bs-surface); border-radius:var(--bs-r-md); padding:10px 12px; font-size:12px; }
+  .lp-bloco h4 { margin:0 0 6px; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--bs-ink-muted); }
+  .lp-linha { display:flex; justify-content:space-between; gap:8px; padding:2px 0; border-bottom:1px dashed var(--bs-border); }
+  .lp-linha:last-child { border-bottom:0; }
+  .lp-linha > span:first-child { color:var(--bs-ink-muted); }
+  .lp-linha > span:last-child { text-align:right; font-variant-numeric:tabular-nums; }
+  .f-bom { color:var(--bs-success); font-weight:700; }
+  .f-medio { color:var(--bs-warning); font-weight:700; }
+  .f-ruim { color:var(--bs-danger); font-weight:700; }
+  .lp-sub { font-size:11px; color:var(--bs-ink-subtle); margin-top:4px; }
+  .lp-form-edit { display:grid; grid-template-columns:2fr 1fr 1fr 2fr auto; gap:8px; align-items:end; margin-top:12px; }
+  .lp-form-edit input { width:100%; padding:6px 8px; border:1px solid var(--bs-border); border-radius:var(--bs-r-sm); background:var(--bs-card); color:var(--bs-ink); font-size:12px; }
+  .lp-form-edit label { font-size:11px; color:var(--bs-ink-muted); display:block; margin-bottom:2px; }
+  .lp-btn { padding:6px 12px; border:1px solid var(--bs-border); border-radius:var(--bs-r-sm); background:var(--bs-accent); color:#fff; font-size:12px; cursor:pointer; }
+  .lp-btn:hover { filter:brightness(.95); }
+  td .lp-btn { background:transparent; color:var(--bs-ink-muted); padding:4px 8px; }
+  @media (max-width:900px) { .lp-form-edit { grid-template-columns:1fr; } }
+</style>
+{% endblock %}
+{% block content %}
+{% macro valor(v, metrica, fmt) -%}
+  {%- if v is none -%}–{%- else -%}<span class="f-{{ v | faixa(metrica) }}">{{ fmt | format(v) | replace('.', ',') }}</span>{%- endif -%}
+{%- endmacro %}
+{% macro sim_nao(v, bom=True) -%}
+  {%- if v is none -%}–{%- elif v == bom -%}<span class="f-bom">sim</span>{%- else -%}<span class="f-ruim">não</span>{%- endif -%}
+{%- endmacro %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1><i class="ti ti-world-www"></i> Landing Pages{% if launch %} — {{ launch.code }}{% endif %}</h1>
+      <p>Cada página do lançamento: lista oficial, formulário e tag, página de obrigado, rastreio, velocidade, usuários reais e resultado nos anúncios.</p>
+    </div>
+  </div>
+
+  <div class="content">
+  {% if not lp or lp.erro %}
+    <div class="no-data"><h3>Sem dados de landing page para este lançamento</h3></div>
+  {% else %}
+
+    {% set tm = lp.total_meta %}
+    <div class="tp-kpi-grid">
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-world-www"></i></div></div>
+        <div class="tp-value">{{ lp.lps | length }}</div>
+        <div class="tp-label">LPs ({{ lp.oficiais | length }} na lista oficial)</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-alert-triangle"></i></div></div>
+        <div class="tp-value {{ 'negativo' if lp.n_alerta else 'positivo' }}">{{ lp.n_alerta }}</div>
+        <div class="tp-label">com alerta na auditoria</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-click"></i></div></div>
+        <div class="tp-value">{{ (tm.taxa if tm else 0) | pct }}</div>
+        <div class="tp-label">abriu / clicou no Meta ({{ (tm.lpv if tm else 0) | num }} de {{ (tm.cliques if tm else 0) | num }})</div>
+      </div>
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-user-plus"></i></div></div>
+        <div class="tp-value">{{ (tm.lead_por_lpv if tm else 0) | pct }}</div>
+        <div class="tp-label">lead por página aberta (Meta)</div>
+      </div>
+    </div>
+
+    <div class="note info">
+      Auditoria de {{ lp.auditado_em | br_date if lp.auditado_em else "—" }}
+      {%- if lp.auditado_em %} {{ lp.auditado_em.strftime('%H:%M') }} UTC{% endif %}.
+      Ela abre cada página num celular simulado e confere formulário, tag, página de obrigado no gatilho de Lead do GTM,
+      pixel e velocidade (PageSpeed). Para atualizar: <code>python -m scripts.ads.auditar_lps {{ lp.code }}</code>.
+      Funil do Meta e GA4 desde {{ lp.desde | br_date }}. Cores pelo corte do Google:
+      <span class="f-bom">bom</span> · <span class="f-medio">precisa melhorar</span> · <span class="f-ruim">ruim</span>.
+      {% if lp.sem_auditoria %}<br><strong>Sem auditoria ainda:</strong> {{ lp.sem_auditoria | join(', ') }}.{% endif %}
+    </div>
+
+    {% for x in lp.lps %}
+    {% set aud = x.auditoria %}{% set d = x.dados %}{% set m = x.meta %}{% set g = x.google %}{% set a = x.ga4 %}
+    <div class="lp-card">
+      <div class="lp-head">
+        <h3>{{ x.rotulo }}</h3>
+        <a class="ext" href="{{ x.url }}" target="_blank" rel="noopener">abrir <i class="ti ti-external-link"></i></a>
+        {% if x.oficial %}<span class="lp-chip ok">oficial{% if x.oficial.funcao %} · {{ x.oficial.funcao }}{% endif %}</span>
+        {% else %}<span class="lp-chip alerta">fora da lista oficial</span>{% endif %}
+        {% if aud %}
+          {% if aud.ok %}<span class="lp-chip ok"><i class="ti ti-check"></i> auditoria ok</span>
+          {% else %}<span class="lp-chip alerta"><i class="ti ti-alert-triangle"></i> {{ aud.alertas | length }} alerta(s)</span>{% endif %}
+        {% else %}<span class="lp-chip aviso">sem auditoria</span>{% endif %}
+        {% set ativos = d.anuncios_ativos or {} %}
+        {% if ativos.Meta or ativos.Google %}<span class="lp-chip">no ar: {{ ativos.Meta or 0 }} Meta · {{ ativos.Google or 0 }} Google</span>
+        {% elif aud %}<span class="lp-chip">nenhum anúncio ativo</span>{% endif %}
+      </div>
+      {% if x.oficial and x.oficial.observacao %}<div class="lp-sub">{{ x.oficial.observacao }}</div>{% endif %}
+      {% if aud and aud.alertas %}
+      <ul class="lp-alertas">{% for al in aud.alertas %}<li>{{ al }}</li>{% endfor %}</ul>
+      {% endif %}
+
+      <div class="lp-grid">
+        <div class="lp-bloco">
+          <h4>Formulário e rastreio</h4>
+          {% for f in x.forms %}
+          <div class="lp-linha"><span>Form</span><span>{{ f.id }} · {{ f.nome }}</span></div>
+          <div class="lp-linha"><span>Tag</span><span>{{ f.tags | join(', ') or '—' }}</span></div>
+          {% set obg_ok = d.gatilhos_lead and f.obrigado and (d.gatilhos_lead | select('in', f.obrigado) | list) %}
+          <div class="lp-linha"><span>Obrigado</span><span title="{{ f.obrigado }}">{{ (f.obrigado or '—') | replace('https://lp.braboconcursos.com.br', '') }}</span></div>
+          <div class="lp-linha"><span>Obrigado dispara Lead (GTM)</span><span>{{ sim_nao(obg_ok | length > 0 if d.gatilhos_lead and f.obrigado else none) }}</span></div>
+          <div class="lp-linha"><span>Envios do form (AC, total)</span><span>{{ f.envios | num if f.envios is defined else '–' }}</span></div>
+          {% else %}
+          <div class="lp-linha"><span>Form</span><span>{{ '—' if aud else 'sem auditoria' }}</span></div>
+          {% endfor %}
+          {% if aud %}
+          <div class="lp-linha"><span>GTM</span><span>{{ (d.gtm or []) | join(', ') or '—' }}</span></div>
+          <div class="lp-linha"><span>Pixels Meta</span><span>{{ (d.pixels or []) | join(', ') or '—' }}</span></div>
+          <div class="lp-linha" title="Se 'não', quem abre e sai sem rolar/tocar não é medido (nem entra nos públicos de site)."><span>Rastreio antes da interação</span><span>{{ sim_nao(d.rastreio_antes_interacao) }}</span></div>
+          <div class="lp-linha" title="Menos campos = mais conversão. 3 ou menos é o padrão de captura."><span>Campos no formulário</span><span class="{{ 'f-bom' if (d.campos_form or 0) <= 3 else ('f-medio' if (d.campos_form or 0) <= 5 else 'f-ruim') }}">{{ d.campos_form if d.campos_form is not none else '–' }}</span></div>
+          {% set dobra = d.form_topo_px is not none and d.altura_tela and d.form_topo_px < d.altura_tela %}
+          <div class="lp-linha" title="O formulário começa dentro da primeira tela do celular (sem rolar)?"><span>Form na 1ª tela do celular</span><span>{{ sim_nao(dobra if d.form_topo_px is not none else none) }}{% if d.form_topo_px is not none %} <span class="lp-sub">({{ d.form_topo_px }} de {{ d.altura_tela }} px)</span>{% endif %}</span></div>
+          <div class="lp-linha"><span>HTTPS · viewport celular</span><span>{{ sim_nao(d.https) }} · {{ sim_nao(d.viewport_meta) }}</span></div>
+          {% endif %}
+        </div>
+
+        <div class="lp-bloco">
+          <h4>Velocidade — laboratório (celular, 4G lento)</h4>
+          {% if d.nota is defined and d.nota is not none %}
+          <div class="lp-linha"><span>Nota PageSpeed</span><span>{{ valor(d.nota, 'nota', '%d') }}</span></div>
+          <div class="lp-linha" title="Largest Contentful Paint: quando o maior elemento visível termina de carregar."><span>LCP</span><span>{{ valor(d.lcp, 'lcp', '%.1f s') }}</span></div>
+          <div class="lp-linha" title="First Contentful Paint: primeiro conteúdo na tela."><span>FCP</span><span>{{ valor(d.fcp, 'fcp', '%.1f s') }}</span></div>
+          <div class="lp-linha" title="Cumulative Layout Shift: quanto o layout pula enquanto carrega."><span>CLS</span><span>{{ valor(d.cls, 'cls', '%.2f') }}</span></div>
+          <div class="lp-linha" title="Total Blocking Time: tempo em que a página fica travada por script (proxy do INP)."><span>TBT</span><span>{{ valor(d.tbt_ms, 'tbt_ms', '%.0f ms') }}</span></div>
+          <div class="lp-linha" title="Time to First Byte: resposta do servidor."><span>TTFB</span><span>{{ valor(d.ttfb_ms, 'ttfb_ms', '%.0f ms') }}</span></div>
+          <div class="lp-linha"><span>Speed Index</span><span>{{ valor(d.si, 'si', '%.1f s') }}</span></div>
+          <div class="lp-linha"><span>Peso · requisições</span><span>{{ (d.peso_kb or 0) | round | int }} KB · {{ d.requisicoes or '–' }}</span></div>
+          {% if d.oportunidades %}
+          <div class="lp-sub" style="margin-top:6px"><strong>Onde ganhar tempo:</strong>
+            {% for o in d.oportunidades %}<br>· {{ o.titulo }} (~{{ "%.1f"|format(o.economia_ms / 1000) | replace('.', ',') }} s){% endfor %}
+          </div>
+          {% endif %}
+          {% else %}
+          <div class="lp-linha"><span>PageSpeed</span><span>{{ d.erro_psi or 'não medido' }}</span></div>
+          {% endif %}
+        </div>
+
+        <div class="lp-bloco">
+          {% set cu = d.crux_url or {} %}{% set co = d.crux_origem or {} %}{% set cr = cu if cu else co %}
+          <h4>Usuários reais (Chrome, 28 dias){% if not cu and co %} — domínio inteiro{% endif %}</h4>
+          {% if cr %}
+          <div class="lp-linha"><span>LCP (p75)</span><span>{{ valor((cr.lcp_ms.p75 / 1000) if cr.lcp_ms else none, 'lcp', '%.1f s') }}</span></div>
+          <div class="lp-linha" title="Interaction to Next Paint: quanto a página demora para responder a um toque."><span>INP (p75)</span><span>{{ valor(cr.inp_ms.p75 if cr.inp_ms else none, 'inp_ms', '%.0f ms') }}</span></div>
+          <div class="lp-linha"><span>CLS (p75)</span><span>{{ valor(cr.cls.p75 if cr.cls else none, 'cls', '%.2f') }}</span></div>
+          <div class="lp-linha"><span>FCP (p75)</span><span>{{ valor((cr.fcp_ms.p75 / 1000) if cr.fcp_ms else none, 'fcp', '%.1f s') }}</span></div>
+          <div class="lp-linha"><span>TTFB (p75)</span><span>{{ valor(cr.ttfb_ms.p75 if cr.ttfb_ms else none, 'ttfb_ms', '%.0f ms') }}</span></div>
+          <div class="lp-sub">p75 = 75% das visitas foram iguais ou melhores. {% if not cu %}A página sozinha não tem visitas suficientes no Chrome; o número é do domínio.{% endif %}</div>
+          {% else %}
+          <div class="lp-linha"><span>CrUX</span><span>sem dados</span></div>
+          {% endif %}
+        </div>
+
+        <div class="lp-bloco">
+          <h4>Resultado</h4>
+          {% if m %}
+          <div class="lp-linha"><span>Meta · anúncios</span><span>{{ m.anuncios }} · {{ m.gasto | brl }}</span></div>
+          <div class="lp-linha"><span>Cliques → páginas abertas</span><span>{{ m.cliques | num }} → {{ m.lpv | num }} (<strong>{{ m.taxa | pct }}</strong>)</span></div>
+          <div class="lp-linha"><span>Leads (pixel) · lead/página</span><span>{{ m.leads | num }} · <span class="{{ 'f-ruim' if m.lpv >= 200 and m.lead_por_lpv < 5 else '' }}">{{ m.lead_por_lpv | pct if m.lpv else '–' }}</span></span></div>
+          <div class="lp-linha"><span>CPL Meta</span><span>{{ m.cpl | brl if m.leads else '–' }}</span></div>
+          {% endif %}
+          {% if g %}
+          <div class="lp-linha"><span>Google · anúncios</span><span>{{ g.anuncios }} · {{ g.gasto | brl }}</span></div>
+          <div class="lp-linha"><span>Cliques · conversões</span><span>{{ g.cliques | num }} · {{ g.conversoes | round | int | num }}</span></div>
+          <div class="lp-linha"><span>CPL Google</span><span>{{ g.cpl | brl if g.conversoes else '–' }}</span></div>
+          {% endif %}
+          {% if a %}
+          <div class="lp-linha"><span>GA4 · sessões</span><span>{{ a.sessoes | num }}</span></div>
+          <div class="lp-linha" title="Sessão engajada = ficou 10 s ou mais, viu 2+ páginas ou converteu."><span>Taxa de engajamento</span><span>{{ a.taxa_engajamento | pct }}</span></div>
+          <div class="lp-linha"><span>Tempo médio</span><span>{{ a.duracao_media_s | round | int }} s</span></div>
+          <div class="lp-linha" title="Um cadastro dispara mais de um evento-chave (lead e lead qualificado): não é taxa de conversão."><span>Eventos-chave / sessão</span><span>{{ "%.2f"|format(a.eventos_por_sessao) | replace('.', ',') }}</span></div>
+          {% endif %}
+          {% if not m and not g and not a %}<div class="lp-linha"><span>Tráfego</span><span>nenhum ainda</span></div>{% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
+    {% if lp.por_campanha %}
+    <div class="section">
+      <div class="section-title">Por Campanha (Meta) — Cliques que Viraram Página Aberta</div>
+      <p style="font-size:12px;color:var(--bs-ink-muted);margin:0 0 10px">
+        Campanhas com 50+ cliques desde {{ lp.desde | br_date }}. A LP é a atual do anúncio: link trocado no lugar leva o histórico junto.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Campanha</th><th>LP</th><th>Cliques</th><th>Páginas abertas</th><th>Abriu / clicou</th>
+                <th>Leads</th><th>Lead / página</th><th>CPL</th></tr>
+          </thead>
+          <tbody>
+            {% for r in lp.por_campanha %}
+            <tr>
+              <td style="max-width:320px;font-size:11px">{{ r.campanha }}</td>
+              <td style="font-size:11px">{{ (r.url or "–") | replace('https://lp.braboconcursos.com.br', '') }}</td>
+              <td class="numero">{{ r.cliques | num }}</td>
+              <td class="numero">{{ r.lpv | num }}</td>
+              <td class="numero"><strong>{{ r.taxa | pct }}</strong></td>
+              <td class="numero">{{ r.leads | num }}</td>
+              <td class="numero">{{ r.lead_por_lpv | pct if r.lpv else "–" }}</td>
+              <td class="numero">{{ r.cpl | brl if r.leads else "–" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="section">
+      <div class="section-title">Lista Oficial de LPs do Lançamento</div>
+      <p style="font-size:12px;color:var(--bs-ink-muted);margin:0 0 10px">
+        LP de anúncio só da lista (regra VER-7). A auditoria acusa qualquer URL fora dela e confere se o formulário aplica a tag esperada.
+        Cadastre a LP aqui <strong>antes</strong> de pôr no anúncio.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>URL</th><th>Função</th><th>Tag esperada</th><th>Observação</th><th>Atualizado por</th>{% if pode_editar %}<th></th>{% endif %}</tr></thead>
+          <tbody>
+            {% for o in lp.oficiais %}
+            <tr>
+              <td style="font-size:11px"><a href="{{ o.url }}" target="_blank" rel="noopener">{{ o.url | replace('https://', '') }}</a></td>
+              <td>{{ o.funcao or '–' }}</td>
+              <td style="font-size:11px">{{ o.tag_esperada or '–' }}</td>
+              <td style="font-size:11px">{{ o.observacao or '' }}</td>
+              <td style="font-size:11px">{{ o.atualizado_por or '' }}{% if o.updated_at %} · {{ o.updated_at | br_date }}{% endif %}</td>
+              {% if pode_editar %}<td><button type="button" class="lp-btn" data-remover="{{ o.url }}" title="Tirar da lista"><i class="ti ti-trash"></i></button></td>{% endif %}
+            </tr>
+            {% else %}
+            <tr><td colspan="6">Nenhuma LP cadastrada para {{ lp.code }} — a auditoria não acusa "fora da lista" enquanto a lista estiver vazia.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if pode_editar %}
+      <form class="lp-form-edit" id="lp-form-oficial">
+        <div><label>URL da LP</label><input name="url" required placeholder="https://lp.braboconcursos.com.br/..."></div>
+        <div><label>Função</label><input name="funcao" placeholder="captação, aquecimento..."></div>
+        <div><label>Tag esperada (trecho)</label><input name="tag" placeholder="VITALICIA-2026"></div>
+        <div><label>Observação</label><input name="observacao"></div>
+        <div><button type="submit" class="lp-btn"><i class="ti ti-plus"></i> Salvar</button></div>
+      </form>
+      <div class="lp-sub" id="lp-form-msg"></div>
+      <script>
+      (function () {
+        const base = '/api/landing-pages/' + encodeURIComponent({{ lp.code | tojson }}) + '/oficiais';
+        const msg = document.getElementById('lp-form-msg');
+        async function enviar(url, corpo) {
+          const r = await fetch(url, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(corpo)});
+          const j = await r.json().catch(() => ({}));
+          if (!r.ok || !j.ok) { msg.textContent = j.error || 'Não foi possível salvar.'; msg.className = 'lp-sub f-ruim'; return; }
+          location.reload();
+        }
+        document.getElementById('lp-form-oficial').addEventListener('submit', e => {
+          e.preventDefault();
+          enviar(base, Object.fromEntries(new FormData(e.target)));
+        });
+        document.querySelectorAll('[data-remover]').forEach(b => b.addEventListener('click', () => {
+          if (confirm('Tirar da lista oficial?\n' + b.dataset.remover)) enviar(base + '/remover', {url: b.dataset.remover});
+        }));
+      })();
+      </script>
+      {% endif %}
+    </div>
+
+  {% endif %}
+  </div>
+  <div class="footing">Brabo Analytics{% if launch %} — {{ launch.code }}{% endif %}</div>
+</div>
+{% endblock %}

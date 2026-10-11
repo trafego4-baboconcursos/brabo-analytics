@@ -1,0 +1,53 @@
+name: Auditoria das landing pages (3x ao dia)
+
+# Abre cada LP dos lançamentos com gasto nos últimos 3 dias (Playwright), confere formulário/tag do AC,
+# página de obrigado no gatilho de Lead do GTM, pixel e velocidade (PageSpeed) e grava em lp_auditoria —
+# a página /landing-pages lê dali. Roda aqui (e não no scheduler do servidor) porque precisa de navegador.
+# Job VERMELHO = alguma LP com alerta (o GitHub manda e-mail): abrir /landing-pages para ver qual.
+# Segredos além dos de anúncio: SUPABASE_DB_URL, SUPABASE_USERS_URL, AC_API_URL, AC_API_KEY, GTM_REFRESH_TOKEN.
+
+on:
+  schedule:
+    # 9h, 14h e 20h America/Sao_Paulo (UTC-3)
+    - cron: "0 12,17,23 * * *"
+  workflow_dispatch:
+    inputs:
+      lancamento:
+        description: "Código do lançamento (vazio = todos com gasto nos últimos 3 dias)"
+        type: string
+        default: ""
+
+jobs:
+  auditar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install requests python-dotenv sqlalchemy psycopg2-binary pandas playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Auditar LPs
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_USERS_URL: ${{ secrets.SUPABASE_USERS_URL }}
+          AC_API_URL: ${{ secrets.AC_API_URL }}
+          AC_API_KEY: ${{ secrets.AC_API_KEY }}
+          GTM_REFRESH_TOKEN: ${{ secrets.GTM_REFRESH_TOKEN }}
+          META_ACCESS_TOKEN: ${{ secrets.META_ACCESS_TOKEN }}
+          GOOGLE_ADS_REFRESH_TOKEN: ${{ secrets.GOOGLE_ADS_REFRESH_TOKEN }}
+          GOOGLE_ADS_CLIENT_ID: ${{ secrets.GOOGLE_ADS_CLIENT_ID }}
+          GOOGLE_ADS_CLIENT_SECRET: ${{ secrets.GOOGLE_ADS_CLIENT_SECRET }}
+          GOOGLE_ADS_DEVELOPER_TOKEN: ${{ secrets.GOOGLE_ADS_DEVELOPER_TOKEN }}
+          GOOGLE_ADS_LOGIN_CUSTOMER_ID: ${{ secrets.GOOGLE_ADS_LOGIN_CUSTOMER_ID }}
+          LANC: ${{ github.event.inputs.lancamento }}
+          PYTHONPATH: .:src
+        run: python -m scripts.ads.auditar_lps "${LANC:-ativos}"

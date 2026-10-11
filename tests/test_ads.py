@@ -93,6 +93,9 @@ def test_expert_do_nome():
 from scripts.ads.auditar_lps import codigos_lancamento, normalizar_url, pixels_disparados, problemas_lp  # noqa: E402
 
 _V1A = "https://lp.braboconcursos.com.br/black-vitalicia-26-v1a/"
+_LP = "https://lp.braboconcursos.com.br/"
+_OFICIAIS = {**{f"{_LP}black-vitalicia-26-{v}/": "VITALICIA-2026" for v in ("v1a", "v3", "v1b")},
+             f"{_LP}cadastro-base-forte-v2/": "BASE-FORTE-BV-26"}
 
 
 def _lp(url=_V1A, forms=None, **kw):
@@ -120,14 +123,14 @@ def test_pixel_por_get_e_por_post():
 
 
 def test_lp_certa_sem_alerta():
-    assert problemas_lp(_lp(), "BV-26", {"mateus", "felipe"}) == []
+    assert problemas_lp(_lp(), "BV-26", {"mateus", "felipe"}, oficiais=_OFICIAIS) == []
 
 
 def test_lp_v3a_com_form_da_black_2025():
     url = "https://lp.braboconcursos.com.br/black-vitalicia-26-v3a/"
     lp = _lp(url, [{"id": "422", "nome": "FORMULÁRIO BLACK 2025 v3 A - BV-25 - Mateus",
                     "tags": ["[BLACK] [LANÇAMENTO] [VITALICIA-2025]"]}])
-    probs = problemas_lp(lp, "BV-26", {"mateus"})
+    probs = problemas_lp(lp, "BV-26", {"mateus"}, oficiais=_OFICIAIS)
     assert "fora da lista oficial do lançamento" in probs
     assert any("outro lançamento" in p for p in probs)
     assert any("nenhuma tag do lançamento" in p for p in probs)
@@ -136,7 +139,7 @@ def test_lp_v3a_com_form_da_black_2025():
 def test_lp_base_forte_aceita_a_tag_dela():
     url = "https://lp.braboconcursos.com.br/cadastro-base-forte-v2/"
     lp = _lp(url, [{"id": "690", "nome": "FORMULÁRIO BASE FORTE [BV-26] - V2", "tags": ["[BASE-FORTE-BV-26]"]}])
-    assert problemas_lp(lp, "BV-26", {"ivan"}) == []
+    assert problemas_lp(lp, "BV-26", {"ivan"}, oficiais=_OFICIAIS) == []
 
 
 def test_lp_lenta_sem_gtm_e_sem_pixel():
@@ -174,3 +177,38 @@ def test_gatilhos_de_lead_da_versao_gtm():
     }
     from scripts.ads.auditar_lps import gatilhos_de_lead
     assert gatilhos_de_lead(versao) == ["/obg-base-forte-v", "/obg-black-vitalicia-26"]
+
+
+def test_sem_lista_oficial_nao_acusa_fora_da_lista():
+    probs = problemas_lp(_lp(), "PI-NOV-26", set())
+    assert not any("lista oficial" in p for p in probs)
+    assert any("outro lançamento" in p for p in probs)   # o form de exemplo é do BV-26
+
+
+def test_cls_e_tbt_ruins_alertam():
+    probs = problemas_lp(_lp(cls=0.4, tbt_ms=900), "BV-26", set(), oficiais=_OFICIAIS)
+    assert any("CLS" in p for p in probs) and any("TBT" in p for p in probs)
+
+
+def test_obrigado_fora_do_ar_alerta():
+    lp = _lp(forms=[{"id": "678", "nome": "FORMULÁRIO [BV-26] - V1A", "tags": ["[BLACK] [LANÇAMENTO] [VITALICIA-2026]"],
+                     "obrigado": "https://lp.braboconcursos.com.br/obg-black-vitalicia-26-v1a", "obrigado_status": 404}])
+    assert any("HTTP 404" in p for p in problemas_lp(lp, "BV-26", set(), oficiais=_OFICIAIS))
+
+
+def test_resumo_pagespeed():
+    from scripts.ads.auditar_lps import resumo_pagespeed
+    audits = {"largest-contentful-paint": {"numericValue": 2600}, "first-contentful-paint": {"numericValue": 1900},
+              "cumulative-layout-shift": {"numericValue": 0.01}, "total-blocking-time": {"numericValue": 30},
+              "speed-index": {"numericValue": 3000}, "server-response-time": {"numericValue": 120},
+              "total-byte-weight": {"numericValue": 2048 * 1024},
+              "network-requests": {"details": {"items": [1, 2, 3]}},
+              "render-blocking": {"title": "Elimine recursos que bloqueiam", "details": {"type": "opportunity", "overallSavingsMs": 900}}}
+    j = {"lighthouseResult": {"categories": {"performance": {"score": 0.95}}, "audits": audits},
+         "loadingExperience": {"origin_fallback": True, "metrics": {}},
+         "originLoadingExperience": {"metrics": {"CUMULATIVE_LAYOUT_SHIFT_SCORE": {"percentile": 5, "category": "FAST"},
+                                                 "INTERACTION_TO_NEXT_PAINT": {"percentile": 180, "category": "FAST"}}}}
+    r = resumo_pagespeed(j)
+    assert r["nota"] == 95 and r["lcp"] == 2.6 and r["peso_kb"] == 2048 and r["requisicoes"] == 3
+    assert r["oportunidades"][0]["economia_ms"] == 900
+    assert r["crux_url"] == {} and r["crux_origem"]["cls"]["p75"] == 0.05 and r["crux_origem"]["inp_ms"]["p75"] == 180

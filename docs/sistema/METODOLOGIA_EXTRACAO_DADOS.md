@@ -6,6 +6,8 @@ atualizado: 2026-10-10
 responde:
   - "como e medido o carregamento da pagina dos anuncios"
   - "o que e landing page view"
+  - "como ler a velocidade das landing pages"
+  - "o que e crux lcp inp cls"
   - "como cada metrica e extraida"
   - "regras de atribuicao lead-venda"
   - "o que mudou com o fim do Typeform"
@@ -433,3 +435,10 @@ então não diz qual anúncio creditar. Ver [[CONGELAR_ATRIBUICAO_LANCAMENTO]], 
 - **LP do anúncio** = primeiro link do criativo (asset_feed_spec, link_data ou CTA do vídeo), sem query, em `ad_landing_pages`. É a URL **atual**: o anúncio que teve o link trocado no lugar leva o histórico inteiro para a LP nova.
 - **Subcontagem conhecida:** as LPs da Black 2026 adiam GTM/pixel até a 1ª interação ("delay JS"). Quem abre e sai sem tocar não vira página aberta, então a taxa não mede só velocidade. As LPs a partir do PI-NOV-26 vêm sem esse atraso (decisão do usuário com o desenvolvedor, 10/10/26).
 - Google não tem métrica equivalente na API: a seção é só do Meta.
+
+- **Página:** desde 11/10/26 a leitura está em /landing-pages, junto da velocidade e do GA4:
+  - **Laboratório (PageSpeed, celular em 4G lento):** nota, LCP, FCP, CLS, TBT (proxy do INP), TTFB, Speed Index, peso e requisições. Mede a página em condição controlada; serve para comparar versões.
+  - **Usuários reais (CrUX):** p75 dos últimos 28 dias no Chrome. Uma LP de lançamento quase nunca tem visitas suficientes sozinha, então em geral o número é do domínio inteiro (a página avisa).
+  - **Faixas:** LCP ≤ 2,5 s bom / > 4 s ruim; INP ≤ 200 / > 500 ms; CLS ≤ 0,1 / > 0,25; TBT ≤ 200 / > 600 ms; FCP ≤ 1,8 / > 3 s; TTFB ≤ 800 / > 1.800 ms; nota ≥ 90 / < 50 (`src/landing_pages.FAIXAS_CWV`).
+  - **GA4 por LP:** sessões, taxa de engajamento (sessão ≥ 10 s, 2+ páginas ou conversão), tempo médio e eventos-chave por sessão. **Eventos-chave não é taxa de conversão**: um cadastro dispara mais de um (lead e lead qualificado). A página de obrigado não serve de contagem no `ga4_daily`, porque lá ela só aparece quando a sessão começa nela.
+  - **Envios do form (AC)** = `entries` do formulário, total desde a criação (não por período).

@@ -42,7 +42,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 89 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 90 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -334,6 +334,7 @@ relacionados:
 > **Auditoria das LPs dos anúncios + GTM/PageSpeed (2026-10-10)**
 >
 > - [[ARQUITETURA#Carregamento da página em /meta + LP por anúncio (2026-10-10)|Carregamento da página em /meta + LP por anúncio (2026-10-10)]]
+> - [[ARQUITETURA#Página /landing-pages + lista oficial + auditoria agendada (2026-10-11)|Página /landing-pages + lista oficial + auditoria agendada (2026-10-11)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -3858,3 +3859,11 @@ Todo `CASE` produto→projeto dos leitores de venda (`sales`, `hotmart`, `tmb`, 
 - **Tabela `ad_landing_pages`** (analytics, PK `platform, ad_id`): URL da LP de cada anúncio, normalizada sem query (`src/landing_pages.py`, compartilhado com a auditoria). O `etl_meta_ads` busca os criativos uma vez por rodada (`fetch_creative_details`) e usa o resultado para as LPs (`upsert_landing_pages`) e para as miniaturas (`build_thumbnails_df(df, details)`). Link editado no anúncio sobrescreve a URL, e o histórico do anúncio passa a contar para a LP nova.
 - **`frontend/db_readers/carregamento_lp.py::read_carregamento_lp`** → seção "7. Carregamento da Página" de `meta.html` (rota `/meta`): link_clicks → landing_page_views → leads, por LP e por campanha, só a partir de `LPV_DESDE` (2026-09-23).
 - **Auditoria** (`scripts/ads/auditar_lps.py`) passou a ler: a página de obrigado do form (`submitdata.url`), que precisa casar com os gatilhos de Lead da versão publicada do GTM (`gatilhos_de_lead`); e a taxa real do Meta dos últimos 3 dias (mesmo reader do dashboard).
+
+### Página /landing-pages + lista oficial + auditoria agendada (2026-10-11)
+
+- **Rota** `GET /landing-pages` (`frontend/routes/media.py`, permissão `_MEDIA`), menu em Leads & Audiências e em Audiências (tráfego). Leitor `frontend/db_readers/lp_pagina.py::read_landing_pages`: junta `lp_oficiais` (operacional), `lp_auditoria`, Meta (`carregamento_lp`), Google (`google_ads_daily` × `ad_landing_pages` platform='google') e GA4 (`ga4_daily` por caminho da LP). Não confundir com `db_readers/landing_pages.py`, que é a versão da LP por ADxxx do debriefing (via `ad_copy_textos`; ver [[PLANO_VERSAO_LANDING_PAGE]]).
+- **Lista oficial** `lp_oficiais` no banco operacional (`src/db/migrations/012_lp_oficiais.sql`), editada por `POST /api/landing-pages/{LANC}/oficiais` e `/oficiais/remover` (admin/analista/tráfego, produto no escopo do usuário). Saiu de `scripts/ads/padroes.py`.
+- **Auditoria** grava `lp_auditoria` (analytics; `dados` JSONB com tudo o que leu) e o mapa anúncio → LP do Google em `ad_landing_pages`. Modo `ativos` = lançamentos com gasto nos últimos 3 dias. Agendada em `.github/workflows/auditoria-lps.yml` (9h/14h/20h): roda no Actions porque precisa de navegador, e o container do scheduler não tem Playwright.
+- **Faixas de leitura** (bom/precisa melhorar/ruim do Google) num lugar só: `src/landing_pages.FAIXAS_CWV`, usadas pela auditoria (alerta no "ruim") e pelo filtro Jinja `faixa`.
+- A seção "7. Carregamento da Página" do /meta virou um link para a página nova.

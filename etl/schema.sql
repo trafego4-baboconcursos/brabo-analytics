@@ -644,6 +644,18 @@ ALTER TABLE meta_ads_daily ADD COLUMN IF NOT EXISTS lancamento_codigo TEXT;
 ALTER TABLE meta_ads_daily ADD COLUMN IF NOT EXISTS landing_page_views INTEGER DEFAULT 0;
 -- LP de cada anúncio (link do criativo, normalizado sem query). Gravada pelo etl_meta_ads a cada
 -- rodada; junta com meta_ads_daily.landing_page_views na seção "Carregamento da página" de /meta.
+-- Último resultado da auditoria de cada LP (scripts/ads/auditar_lps.py --gravar). `dados` guarda o que
+-- foi lido (form, tag, obrigado, GTM, pixels, PageSpeed, CrUX, boas práticas); `alertas`, a lista
+-- de problemas. Lida pela página /landing-pages.
+CREATE TABLE IF NOT EXISTS lp_auditoria (
+    lancamento_codigo TEXT NOT NULL,
+    url               TEXT NOT NULL,
+    auditado_em       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    ok                BOOLEAN NOT NULL,
+    alertas           JSONB NOT NULL DEFAULT '[]',
+    dados             JSONB NOT NULL DEFAULT '{}',
+    PRIMARY KEY (lancamento_codigo, url)
+);
 CREATE TABLE IF NOT EXISTS ad_landing_pages (
     platform          TEXT NOT NULL,
     ad_id             TEXT NOT NULL,

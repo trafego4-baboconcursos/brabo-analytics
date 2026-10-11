@@ -102,6 +102,8 @@ templates.env.filters["brl"] = fmt_brl
 templates.env.filters["num"] = fmt_num
 templates.env.filters["pct"] = fmt_pct
 templates.env.filters["br_date"] = fmt_br_date
+from src.landing_pages import faixa as _faixa_cwv  # noqa: E402
+templates.env.filters["faixa"] = lambda valor, metrica: _faixa_cwv(metrica, valor)
 
 
 # ── Estáticos com cache-busting ────────────────────────────────────────────────
@@ -426,6 +428,8 @@ def _build_funis_nav_groups(launch, active_code, page, current_user, previous_la
                  "href": _href("/meta-audiences"), "enabled": bool(launch and launch.has_meta)},
                 {"page": "google-audiences", "label": "Google Audiências", "icon": "ti-trending-up",
                  "href": _href("/google-audiences"), "enabled": bool(launch and launch.has_google)},
+                {"page": "landing-pages", "label": "Landing Pages", "icon": "ti-world-www",
+                 "href": _href("/landing-pages"), "enabled": bool(launch)},
                 {"page": "pesquisas", "label": "Pesquisas", "icon": "ti-clipboard-list",
                  "href": _href("/pesquisas"), "enabled": bool(launch and launch.has_typeform)},
                 {"page": "whatsapp", "label": "Grupos de WhatsApp", "icon": "ti-brand-whatsapp",
@@ -440,6 +444,8 @@ def _build_funis_nav_groups(launch, active_code, page, current_user, previous_la
                  "href": _href("/meta-audiences"), "enabled": bool(launch and launch.has_meta)},
                 {"page": "google-audiences", "label": "Google Audiências", "icon": "ti-trending-up",
                  "href": _href("/google-audiences"), "enabled": bool(launch and launch.has_google)},
+                {"page": "landing-pages", "label": "Landing Pages", "icon": "ti-world-www",
+                 "href": _href("/landing-pages"), "enabled": bool(launch)},
             ],
         })
 

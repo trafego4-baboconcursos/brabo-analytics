@@ -45,9 +45,17 @@ async def index_page(request: Request, launch_code: str | None = None):
 
 
 @router.get("/captacao", response_class=HTMLResponse)
-async def captacao(request: Request, launch_code: str | None = None):
+async def captacao(request: Request, launch_code: str | None = None, trilha: str | None = None):
     launches = await run_in_threadpool(get_launches)
     launch = resolve_launch(launch_code, launches)
+    # Black: ?trilha=base-forte|vitalicia abre a Captação de uma trilha só. Fora
+    # da Black o parâmetro é ignorado.
+    from src.constants import e_black  # noqa: PLC0415
+    from src.nomenclatura import TRILHA_BASE_FORTE, TRILHA_VITALICIA  # noqa: PLC0415
+
+    trilha_nome = None
+    if launch and e_black(launch.code):
+        trilha_nome = {"base-forte": TRILHA_BASE_FORTE, "vitalicia": TRILHA_VITALICIA}.get((trilha or "").lower())
     d = await _fetch_all_data(launch, needs_daily=True, needs_thumbnails=True)
     meta, google, vendas = d["meta"], d["google"], d["vendas"]
     daily_breakdown      = d["daily_breakdown"]
@@ -74,13 +82,33 @@ async def captacao(request: Request, launch_code: str | None = None):
     invest  = ads_invest + wa_gasto
     roas    = receita / invest if invest > 0 else 0.0
 
+    # Trilha: investimento e leads saem só dela. Meta e verba do lançamento valem
+    # para o conjunto, então não aparecem como progresso de uma trilha.
+    leads_active_trilha = None
+    if trilha_nome:
+        mt = (getattr(meta, "por_trilha_captacao", {}) or {}).get(trilha_nome) or {}
+        gt = (getattr(google, "por_trilha_captacao", {}) or {}).get(trilha_nome) or {}
+        meta_capt_gasto = float(mt.get("gasto") or 0)
+        google_capt_gasto = float(gt.get("custo") or 0)
+        meta_capt_leads = int(mt.get("leads") or 0)
+        google_capt_conv = float(gt.get("conversoes") or 0)
+        wa_gasto = 0.0
+        ads_invest = meta_capt_gasto + google_capt_gasto
+        invest = ads_invest
+        receita, roas = 0.0, 0.0
+        try:
+            from frontend.db_readers.leads import read_leads_por_trilha  # noqa: PLC0415
+            leads_active_trilha = await run_in_threadpool(read_leads_por_trilha, launch.code, trilha_nome)
+        except Exception:
+            logger.exception("Captação: falha ao contar leads da trilha")
+
     cfg = await run_in_threadpool(_launch_cfg, launch.code) if launch else {}
     goal_leads  = int(cfg.get("meta_leads") or 0)
     goal_invest = float(cfg.get("meta_investimento_captacao") or 0)
     leads_meta  = meta_capt_leads + int(round(google_capt_conv))
-    prog_leads  = min(100.0, leads_meta / goal_leads * 100) if goal_leads > 0 else None
+    prog_leads  = min(100.0, leads_meta / goal_leads * 100) if goal_leads > 0 and not trilha_nome else None
     valor_medio_lead = ads_invest / leads_meta if leads_meta > 0 else 0.0
-    prog_invest = min(100.0, ads_invest / goal_invest * 100) if goal_invest > 0 else None
+    prog_invest = min(100.0, ads_invest / goal_invest * 100) if goal_invest > 0 and not trilha_nome else None
 
     conversao_pagina_captura = None
     if launch:
@@ -111,6 +139,9 @@ async def captacao(request: Request, launch_code: str | None = None):
     _clima_labels = climas_ordem(launch.code if launch else None)
     meta_temp_capt = (getattr(meta, "por_temperatura_captacao", {}) or {})
     google_temp = (getattr(google, "por_temperatura", {}) or {})
+    if trilha_nome:
+        meta_temp_capt = (getattr(meta, "por_temperatura_por_trilha", {}) or {}).get(trilha_nome) or {}
+        google_temp = (getattr(google, "por_temperatura_por_trilha", {}) or {}).get(trilha_nome) or {}
     leads_por_campanha_raw = []
     for c in _clima_labels:
         m = meta_temp_capt.get(c) or {}
@@ -161,7 +192,14 @@ async def captacao(request: Request, launch_code: str | None = None):
     )
     verba_diaria_combinada = combinar_previsto_realizado(dia_publico_previsto, dia_publico_realizado)
 
-    ctx = _base_ctx(request, "captacao", "Captação", launch, launches,
+    if trilha_nome == TRILHA_BASE_FORTE:
+        page_key, page_title = "captacao_base_forte", "Captação Base Forte"
+    elif trilha_nome:
+        page_key, page_title = "captacao", "Captação BV"
+    else:
+        page_key, page_title = "captacao", "Captação"
+    ctx = _base_ctx(request, page_key, page_title, launch, launches,
+        trilha_nome=trilha_nome, leads_active_trilha=leads_active_trilha,
         meta=meta, google=google, vendas=vendas, wa_gasto=wa_gasto,
         meta_capt_gasto=meta_capt_gasto, google_capt_gasto=google_capt_gasto,
         meta_capt_leads=meta_capt_leads, google_capt_conv=google_capt_conv,

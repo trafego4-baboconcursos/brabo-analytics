@@ -1072,3 +1072,14 @@ def read_ac_campaigns(launch: Launch, vendas: VendasSummary | None = None) -> Ac
         summary.por_dia = df_grouped.to_dict("records")
 
     return summary
+
+
+def read_leads_por_trilha(launch_code: str, trilha: str) -> int:
+    """Contatos distintos do lançamento numa trilha da Black (Base Forte / Black
+    Vitalícia), pelo estado de UTM — a `leads` guarda uma trilha só por contato."""
+    with _get_engine().connect() as conn:
+        return int(conn.execute(
+            text("SELECT COUNT(DISTINCT contact_id) FROM lead_utm_lancamento "
+                 "WHERE lancamento_codigo = :c AND trilha = :t"),
+            {"c": launch_code, "t": trilha},
+        ).scalar() or 0)

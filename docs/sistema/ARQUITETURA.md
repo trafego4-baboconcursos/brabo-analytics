@@ -42,7 +42,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 91 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 92 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -336,6 +336,7 @@ relacionados:
 > - [[ARQUITETURA#Carregamento da página em /meta + LP por anúncio (2026-10-10)|Carregamento da página em /meta + LP por anúncio (2026-10-10)]]
 > - [[ARQUITETURA#Página /landing-pages + lista oficial + auditoria agendada (2026-10-11)|Página /landing-pages + lista oficial + auditoria agendada (2026-10-11)]]
 > - [[ARQUITETURA#Criativos da Black por expert e Validado × Novo (11/10/26)|Criativos da Black por expert e Validado × Novo (11/10/26)]]
+> - [[ARQUITETURA#Menu e Captação por trilha na Black (11/10/26)|Menu e Captação por trilha na Black (11/10/26)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -3873,3 +3874,8 @@ Todo `CASE` produto→projeto dos leitores de venda (`sales`, `hotmart`, `tmb`, 
 ### Criativos da Black por expert e Validado × Novo (11/10/26)
 
 Nas linhas dos blocos por etapa (`_bloco_criativos`), só na Black, entram `expert` (prefixo do código: FE/IV/MA; TR = Trio/misto) e `selo` (`validado` = mesmo código e mesmo nome em lançamento anterior; `reaproveitado` = código já usado com outro criativo; `novo`). O histórico vem de `ads_meta.get_historico_ad_nomes`, não de `get_historico_ad_codes` (que só reconhece `AD\d+`). O macro `bloco_criativos` agrupa por expert com subtotal; `/criativos` mostra, em cada etapa, YouTube (Google) e depois Meta. Lançamento normal: linhas e página inalteradas. Teste: `tests/test_criativos_expert_validado.py`.
+
+
+### Menu e Captação por trilha na Black (11/10/26)
+
+`_build_funis_nav_groups` troca, só na Black, "Pré-Qualificação" por "Aquecimento" e divide "Captação" em "Captação Base Forte" (`/captacao?trilha=base-forte`) e "Captação BV" (`/captacao?trilha=vitalicia`). Na trilha, `/captacao` troca investimento/leads/público por `por_trilha_captacao` e `por_temperatura_por_trilha` e esconde o que não existe por trilha (receita, ROAS, UTM, WhatsApp, diário, conversão de páginas, vendas, verba). Leads no Active da trilha: `read_leads_por_trilha` (estado de UTM). Teste: `tests/test_menu_black.py`.

@@ -7,8 +7,8 @@
       <img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics">
     </a>
     <div>
-      <h1>Análise Consolidada{% if launch %} — {{ launch.code }}{% endif %}</h1>
-      <p>{% if launch %}{{ launch.name }}{% endif %} | Performance geral da campanha</p>
+      <h1>{% if trilha_nome %}{{ "Captação Base Forte" if trilha_nome == "Base Forte" else "Captação BV" }}{% else %}Análise Consolidada{% endif %}{% if launch %} — {{ launch.code }}{% endif %}</h1>
+      <p>{% if launch %}{{ launch.name }}{% endif %} | {% if trilha_nome %}Só a trilha {{ trilha_nome }}: investimento, leads e público desta trilha. As demais seções do lançamento inteiro estão em <a href="/captacao?launch_code={{ active_code }}">Captação (todas as trilhas)</a> e em <a href="/criativos?launch_code={{ active_code }}">Criativos</a>.{% else %}Performance geral da campanha{% endif %}</p>
     </div>
   </div>
 
@@ -93,11 +93,12 @@
         <div class="tp-kpi-top">
           <div class="tp-icon"><i class="ti ti-database-export"></i></div>
         </div>
-        <div class="tp-value">{{ leads_x_whatsapp.total_leads | num if leads_x_whatsapp else "–" }}</div>
+        <div class="tp-value">{% if trilha_nome %}{{ leads_active_trilha | num if leads_active_trilha is not none else "–" }}{% else %}{{ leads_x_whatsapp.total_leads | num if leads_x_whatsapp else "–" }}{% endif %}</div>
         <div class="tp-label">Leads que Caíram no Active</div>
-        <div class="tp-compare">Tabela de leads (Active Campaign)</div>
+        <div class="tp-compare">{% if trilha_nome %}Contatos da trilha {{ trilha_nome }} (Active Campaign){% else %}Tabela de leads (Active Campaign){% endif %}</div>
       </div>
 
+      {% if not trilha_nome %}
       <div class="tp-kpi">
         <div class="tp-kpi-top">
           <div class="tp-icon"><i class="ti ti-tag"></i></div>
@@ -108,7 +109,9 @@
           {% if utm_cobertura %}{{ utm_cobertura.com_utm | num }} de {{ utm_cobertura.total | num }} leads com UTM{% else %}Sem dados{% endif %}
         </div>
       </div>
+      {% endif %}
 
+      {% if not trilha_nome %}
       <div class="tp-kpi">
         <div class="tp-kpi-top">
           <div class="tp-icon success"><i class="ti ti-brand-whatsapp"></i></div>
@@ -119,7 +122,9 @@
           {% if leads_x_whatsapp %}Taxa de entrada: {{ leads_x_whatsapp.taxa_entrada | round(1) }}%{% else %}Sem dados{% endif %}
         </div>
       </div>
+      {% endif %}
 
+      {% if not trilha_nome %}
       <div class="tp-kpi">
         <div class="tp-kpi-top">
           <div class="tp-icon success"><i class="ti ti-cash"></i></div>
@@ -133,7 +138,9 @@
         <div class="tp-compare">{{ kpi_delta(receita, prev_kpis.receita) }} vs {{ prev_kpis.receita | brl }}</div>
         {% endif %}
       </div>
+      {% endif %}
 
+      {% if not trilha_nome %}
       <div class="tp-kpi">
         <div class="tp-kpi-top">
           <div class="tp-icon"><i class="ti ti-chart-bar"></i></div>
@@ -150,6 +157,7 @@
         <div class="tp-compare">{{ kpi_delta(roas, prev_kpis.roas) }} vs {{ "%.2f"|format(prev_kpis.roas) | replace(".", ",") }}x</div>
         {% endif %}
       </div>
+      {% endif %}
 
     </div>
     </div>
@@ -272,6 +280,7 @@
     {% endif %}
     {% endmacro %}
 
+    {% if not trilha_nome %}
     {{ daily_table(daily_breakdown, "2. Performance Diária por Plataforma") }}
 
     {# ── Taxa de Conversão da Página de Captura ───────────────────────────── #}
@@ -354,6 +363,8 @@
     </div>
     {% endif %}
 
+    {% endif %}{# fim das seções do lançamento inteiro (2-4) #}
+
     {# ── % de Leads por Campanha ──────────────────────────────────────────── #}
     {% if leads_por_campanha %}
     <div class="section">
@@ -435,6 +446,7 @@
     </script>
     {% endif %}
 
+    {% if not trilha_nome %}
     {# ── Highlights ─────────────────────────────────────────────────────── #}
     {% if meta and meta.top_por_leads %}
     <div class="section">
@@ -663,6 +675,8 @@
     {% endif %}
 
     {{ tabela_dia_publico_combinada("11. Verba Diária — Previsto × Realizado", verba_diaria_combinada) }}
+
+    {% endif %}{# fim das seções 7-11, só do lançamento inteiro #}
 
     {% endif %}{# end if launch #}
 

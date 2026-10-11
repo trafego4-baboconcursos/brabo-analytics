@@ -468,6 +468,27 @@ def _build_funis_nav_groups(launch, active_code, page, current_user, previous_la
 
     for group in groups:
         group["active"] = any(item["page"] == page for item in group["links"])
+    # Black: o menu usa o vocabulário da Black. Pré-Qualificação vira Aquecimento,
+    # a Captação se divide nas duas trilhas (Base Forte e Black Vitalícia — "BV").
+    # Só vale para a Black; lançamento normal fica como sempre foi.
+    from src.constants import e_black  # noqa: PLC0415
+
+    if active_code and e_black(active_code):
+        links = groups[0]["links"]
+        novo: list[dict] = []
+        for link in links:
+            if link["page"] == "pre_qualificacao":
+                novo.append({**link, "label": etapa_prequali(active_code)})
+            elif link["page"] == "captacao":
+                novo.append({"page": "captacao_base_forte", "label": "Captação Base Forte",
+                             "icon": "ti-users-group",
+                             "href": f"/captacao?launch_code={active_code}&trilha=base-forte",
+                             "enabled": True})
+                novo.append({**link, "label": "Captação BV",
+                             "href": f"/captacao?launch_code={active_code}&trilha=vitalicia"})
+            else:
+                novo.append(link)
+        groups[0]["links"] = novo
     return groups
 
 

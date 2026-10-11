@@ -134,6 +134,9 @@ def classificar(df: pd.DataFrame, plataforma: str) -> pd.DataFrame:
     df = df.copy()
     nomes = df["campaign_name"].fillna("")
     codigos = df["lancamento_codigo"] if "lancamento_codigo" in df.columns else pd.Series([None] * len(df))
+    # Campanha sem lançamento chega como NaN (float) quando o df passa pelo nome congelado — o
+    # uses_legacy_ad_codes faz .strip() e quebrava o backfill de janela longa (10/10/26).
+    codigos = [c if isinstance(c, str) else None for c in codigos]
     if plataforma == "meta":
         resultado = [
             categorizar_campanha_meta(nome, launch_code=codigo, legacy=uses_legacy_ad_codes(codigo))

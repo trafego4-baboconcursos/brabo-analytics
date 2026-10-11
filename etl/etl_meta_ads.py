@@ -184,6 +184,9 @@ def build_df_from_api(rows: list[dict]) -> pd.DataFrame:
             "spend":            float(r.get("spend", 0)),
             "leads":            _action_value(r.get("actions"), "lead"),
             "link_clicks":      _action_value(r.get("actions"), "link_click"),
+            # PageView do pixel depois do clique. A LP adia o pixel até a 1ª interação: subconta quem
+            # abre e sai sem tocar — não é medida pura de velocidade (MUDANCAS_BV-26 item 264).
+            "landing_page_views": _action_value(r.get("actions"), "landing_page_view"),
             "outbound_clicks":  _action_list_value(r.get("outbound_clicks")),
             "video_views_3s":   _action_value(r.get("actions"), "video_view"),
             "video_views_25":   _action_list_value(r.get("video_p25_watched_actions")),

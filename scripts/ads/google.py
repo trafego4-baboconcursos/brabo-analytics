@@ -230,10 +230,13 @@ class Google:
             self.mutar(conta, "adGroupCriteria", ops, validar=validar)
         return len(ops)
 
-    def customer_match(self, conta: str, lista_id: str, pessoas: list[dict], remover: bool = False) -> str:
+    def customer_match(self, conta: str, lista_id: str, pessoas: list[dict], remover: bool = False) -> list[str]:
         """Adiciona (ou remove) pessoas de uma lista de Customer Match pela Data Manager API, com
         login_account = MCC (sem ele aceita e não popula). A conta precisa estar com consentimento
-        "Consentido" (Configurações de consentimento → Dados importados e enviados). Retorna o request id."""
+        "Consentido" (Configurações de consentimento → Dados importados e enviados).
+        Retorna o request id de CADA lote — "aceito" não é "entrou": conferir todos com
+        `status_pedidos`. Guardar só o último escondeu lotes perdidos (BV-26 item 270).
+        Não ingerir na mesma hora em que a lista foi criada (aceita e descarta — REGRAS VER-5)."""
         import google.auth.transport.requests
         import google.oauth2.credentials
         from google.ads import datamanager_v1 as dm
@@ -250,7 +253,7 @@ class Google:
         destino = dm.Destination(operating_account=dm.ProductAccount(product=dm.Product.GOOGLE_ADS, account_id=conta),
                                  login_account=dm.ProductAccount(product=dm.Product.GOOGLE_ADS, account_id=P.GOOGLE_MCC),
                                  product_destination_id=str(lista_id))
-        ultimo = ""
+        ids = []
         for i in range(0, len(membros), 5000):
             lote = membros[i:i + 5000]
             if remover:
@@ -263,8 +266,31 @@ class Google:
                                        ad_personalization=dm.ConsentStatus.CONSENT_GRANTED),
                     terms_of_service=dm.TermsOfService(
                         customer_match_terms_of_service_status=dm.TermsOfServiceStatus.ACCEPTED)))
-            ultimo = resp.request_id
-        return ultimo
+            ids.append(resp.request_id)
+        return ids
+
+    def status_pedidos(self, request_ids: list[str]) -> list[dict]:
+        """Status de cada pedido da Data Manager: PROCESSING, SUCCESS, PARTIAL_SUCCESS ou FAILURE, com a
+        contagem de registros e, se houver, os erros. Uma linha por pedido."""
+        import google.auth.transport.requests
+        import google.oauth2.credentials
+        from google.ads import datamanager_v1 as dm
+
+        creds = google.oauth2.credentials.Credentials(
+            token=None, refresh_token=os.environ["GOOGLE_ADS_REFRESH_TOKEN"], token_uri="https://oauth2.googleapis.com/token",
+            client_id=os.environ["GOOGLE_ADS_CLIENT_ID"], client_secret=os.environ["GOOGLE_ADS_CLIENT_SECRET"],
+            scopes=["https://www.googleapis.com/auth/adwords", "https://www.googleapis.com/auth/datamanager"])
+        creds.refresh(google.auth.transport.requests.Request())
+        cliente = dm.IngestionServiceClient(credentials=creds)
+        out = []
+        for rid in request_ids:
+            r = cliente.retrieve_request_status(request=dm.RetrieveRequestStatusRequest(request_id=rid))
+            for d in r.request_status_per_destination:
+                ing = d.audience_members_ingestion_status.user_data_ingestion_status
+                out.append({"request_id": rid, "lista": d.destination.product_destination_id,
+                            "status": dm.RequestStatusPerDestination.RequestStatus(d.request_status).name,
+                            "registros": ing.record_count, "erros": str(d.error_info) if d.error_info else ""})
+        return out
 
     # ------------------------------------------------------------------ conferência
     def conferir_campanha(self, conta: str, campanha_id: str) -> list[str]:

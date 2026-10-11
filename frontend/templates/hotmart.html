@@ -229,13 +229,13 @@
           <h3>Impacto de Fluxo de Caixa</h3>
           <div style="margin-bottom: 16px;">
             <div class="label" style="font-size: 11px; text-transform: uppercase; color: var(--bs-ink-muted);">Recebido à Vista (Pix + Cartão 1x)</div>
-            <div style="font-size:24px; font-weight:800; color:var(--bs-success);">{{ hotmart.fluxo_caixa.a_vista | brl }}</div>
+            <div style="font-size:24px; font-weight:800; color:var(--bs-success);">{{ hotmart.fluxo_caixa.get("a_vista", 0) | brl }}</div>
             <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:4px;">Disponibilização imediata em D+30</div>
           </div>
           <hr style="border:none; border-top:1px solid var(--bs-border); margin:16px 0;">
           <div>
             <div class="label" style="font-size: 11px; text-transform: uppercase; color: var(--bs-ink-muted);">Fluxo Parcelado (Cartão 2x a 12x)</div>
-            <div style="font-size:24px; font-weight:800; color:var(--bs-accent);">{{ hotmart.fluxo_caixa.parcelado | brl }}</div>
+            <div style="font-size:24px; font-weight:800; color:var(--bs-accent);">{{ hotmart.fluxo_caixa.get("parcelado", 0) | brl }}</div>
             <div style="font-size:12px; color:var(--bs-ink-muted); margin-top:4px;">Entrada diluída nos meses correspondentes</div>
           </div>
           <div class="note warning" style="margin-top:20px; font-size:12px;">

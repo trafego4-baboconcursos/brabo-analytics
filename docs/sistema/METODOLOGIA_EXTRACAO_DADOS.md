@@ -2,8 +2,10 @@
 titulo: "Metodologia de Extração e Atribuição de Dados por Lançamento"
 area: sistema
 status: vigente
-atualizado: 2026-10-08
+atualizado: 2026-10-10
 responde:
+  - "como e medido o carregamento da pagina dos anuncios"
+  - "o que e landing page view"
   - "como cada metrica e extraida"
   - "regras de atribuicao lead-venda"
   - "o que mudou com o fim do Typeform"
@@ -423,3 +425,11 @@ do AC, que são **cumulativas** — o contato nunca perde a tag do lançamento a
 imutável que falta na `leads`, e ninguém estava usando pra isso. Recupera **quem** era do
 lançamento (PI-AGO-26: 2.125 compradores contra 1.474 pela `leads`), mas **não guarda UTM**,
 então não diz qual anúncio creditar. Ver [[CONGELAR_ATRIBUICAO_LANCAMENTO]], frente 1.
+
+## 14. Carregamento da página — `landing_page_views` e LP por anúncio (2026-10-10)
+
+- **Página aberta** = `actions[landing_page_view]` dos insights do Meta (o pixel disparou PageView depois do clique), em `meta_ads_daily.landing_page_views`. Existe desde **23/09/26**; antes disso a coluna é 0 e não deve ser lida como "0% carregou".
+- **Abriu / clicou** = landing_page_views ÷ link_clicks. **Lead / página** = leads ÷ landing_page_views.
+- **LP do anúncio** = primeiro link do criativo (asset_feed_spec, link_data ou CTA do vídeo), sem query, em `ad_landing_pages`. É a URL **atual**: o anúncio que teve o link trocado no lugar leva o histórico inteiro para a LP nova.
+- **Subcontagem conhecida:** as LPs da Black 2026 adiam GTM/pixel até a 1ª interação ("delay JS"). Quem abre e sai sem tocar não vira página aberta, então a taxa não mede só velocidade. As LPs a partir do PI-NOV-26 vêm sem esse atraso (decisão do usuário com o desenvolvedor, 10/10/26).
+- Google não tem métrica equivalente na API: a seção é só do Meta.

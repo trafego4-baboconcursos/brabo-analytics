@@ -642,6 +642,16 @@ CREATE TABLE IF NOT EXISTS dim_lancamentos (
 ALTER TABLE meta_ads_daily ADD COLUMN IF NOT EXISTS lancamento_codigo TEXT;
 -- landing_page_view do Meta: cliques no link que chegaram a disparar o PageView do pixel na LP.
 ALTER TABLE meta_ads_daily ADD COLUMN IF NOT EXISTS landing_page_views INTEGER DEFAULT 0;
+-- LP de cada anúncio (link do criativo, normalizado sem query). Gravada pelo etl_meta_ads a cada
+-- rodada; junta com meta_ads_daily.landing_page_views na seção "Carregamento da página" de /meta.
+CREATE TABLE IF NOT EXISTS ad_landing_pages (
+    platform          TEXT NOT NULL,
+    ad_id             TEXT NOT NULL,
+    url               TEXT NOT NULL,
+    lancamento_codigo TEXT,
+    updated_at        TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (platform, ad_id)
+);
 ALTER TABLE google_ads_daily ADD COLUMN IF NOT EXISTS lancamento_codigo TEXT;
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS lancamento_codigo TEXT;
 

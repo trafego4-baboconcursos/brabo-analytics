@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.concurrency import run_in_threadpool
 
+from frontend.db_readers.carregamento_lp import read_carregamento_lp
 from frontend.core import (
     templates, logger, get_launches, resolve_launch, _base_ctx,
     _fetch_all_data, _creative_overview, get_instagram_profiles,
@@ -29,8 +30,9 @@ async def meta_page(request: Request, launch_code: str | None = None):
         )
     except Exception:
         logger.exception("Meta: falha ao montar creative overview")
+    carregamento = await run_in_threadpool(read_carregamento_lp, launch.code) if launch and meta else None
     ctx = _base_ctx(request, "meta", "Meta Ads", launch, launches, meta=meta,
-                    sales_attr=sales_attr,
+                    sales_attr=sales_attr, carregamento=carregamento,
                     creative_overview=creative_overview,
                     drive_thumbnails=drive_thumbnails,
                     data_errors=d.get("_errors", []))

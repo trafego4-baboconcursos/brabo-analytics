@@ -32,6 +32,7 @@ from validation import validate_dataframe
 from launch_resolver import resolve_launch_code
 from ad_codes import extract_ad_code
 from campanha_historico import preparar as preparar_campanhas
+from landing_pages import lp_do_criativo
 
 load_dotenv()
 
@@ -622,9 +623,10 @@ def _creative_image_url(creative: dict) -> str | None:
     return None
 
 
-def build_thumbnails_df(insights_df: pd.DataFrame) -> pd.DataFrame:
+def build_thumbnails_df(insights_df: pd.DataFrame, details: dict[str, dict] | None = None) -> pd.DataFrame:
     """A partir do df de insights (que já tem ad_id + lancamento_codigo),
-    busca os detalhes do criativo só para os anúncios com AD\\d+ no nome."""
+    busca os detalhes do criativo só para os anúncios com AD\\d+ no nome.
+    `details` já buscado (mesma chamada das LPs) evita ir à API duas vezes."""
     if insights_df.empty:
         return pd.DataFrame()
     ad_meta = (
@@ -645,7 +647,8 @@ def build_thumbnails_df(insights_df: pd.DataFrame) -> pd.DataFrame:
     if ad_meta.empty:
         return pd.DataFrame()
 
-    details = fetch_creative_details(ad_meta["ad_id"].astype(str).tolist())
+    if details is None:
+        details = fetch_creative_details(ad_meta["ad_id"].astype(str).tolist())
 
     records = []
     for _, row in ad_meta.iterrows():
@@ -786,6 +789,37 @@ def upsert_thumbnails(df: pd.DataFrame):
 
 # ─────────────────────────────────────────────────────────────────────────────
 
+def upsert_landing_pages(insights_df: pd.DataFrame, details: dict[str, dict]) -> int:
+    """Grava a LP de cada anúncio (ad_id → URL do criativo) em `ad_landing_pages`. Base da seção
+    "Carregamento da página" de /meta (landing_page_views ÷ link_clicks por LP). Upsert: o link
+    editado no próprio anúncio (como na troca v3a → v3 da BV-26) sobrescreve o anterior — o
+    histórico do anúncio passa a contar para a LP atual."""
+    if insights_df.empty or not details:
+        return 0
+    codigos = {str(a): (c if isinstance(c, str) else None) for a, c in
+               zip(insights_df["ad_id"], insights_df["lancamento_codigo"])}
+    linhas = []
+    for ad_id, obj in details.items():
+        url = lp_do_criativo((obj or {}).get("creative") or {})
+        if url:
+            linhas.append({"ad_id": str(ad_id), "url": url, "code": codigos.get(str(ad_id))})
+    if not linhas:
+        return 0
+    with get_engine().begin() as conn:
+        conn.execute(text("""
+            INSERT INTO ad_landing_pages (platform, ad_id, url, lancamento_codigo, updated_at)
+            VALUES ('meta', :ad_id, :url, :code, NOW())
+            ON CONFLICT (platform, ad_id) DO UPDATE
+               SET url = EXCLUDED.url,
+                   lancamento_codigo = COALESCE(EXCLUDED.lancamento_codigo, ad_landing_pages.lancamento_codigo),
+                   updated_at = NOW()
+        """), linhas)
+    logger.info("LP de %d anúncios gravada em ad_landing_pages", len(linhas))
+    return len(linhas)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+
 def main():
     parser = argparse.ArgumentParser(description="ETL Meta Ads - Supabase")
     group = parser.add_mutually_exclusive_group(required=True)
@@ -853,8 +887,14 @@ def main():
         # Thumbnails de criativos: reaproveita ad_id/ad_name/lancamento_codigo
         # ja retornados pelos insights, so busca creative{} para eles.
         # Nao deve derrubar o resto do ETL se a API de criativos falhar/atrasar.
+        details: dict[str, dict] = {}
         try:
-            df_thumb = build_thumbnails_df(df)
+            details = fetch_creative_details(df["ad_id"].astype(str).tolist()) if not df.empty else {}
+            upsert_landing_pages(df, details)
+        except Exception:
+            logger.exception("Falha ao gravar a LP dos anúncios; seguindo sem ela")
+        try:
+            df_thumb = build_thumbnails_df(df, details or None)
             if args.launch_code:
                 df_thumb = df_thumb[df_thumb["lancamento_codigo"] == args.launch_code.upper()] if not df_thumb.empty else df_thumb
             upsert_thumbnails(df_thumb)

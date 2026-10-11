@@ -8,11 +8,16 @@ Para cada URL distinta que um anúncio usa:
 1. está na lista oficial do lançamento (padroes.LPS_OFICIAIS: url → tag esperada)?
 2. abre a página no navegador (Playwright — o site bloqueia curl) e lê o formulário do AC (`_form_NNN`);
 3. o formulário (GET /api/3/forms/{id}) aplica a tag do lançamento e não é de outro lançamento?
-4. o container GTM do domínio e o pixel Meta do expert disparam? (o site só carrega os scripts depois da
+4. a página de obrigado do formulário bate com um gatilho de Lead do GTM publicado? (API do GTM)
+5. o container GTM do domínio e o pixel Meta do expert disparam? (o site só carrega os scripts depois da
    primeira interação — a auditoria rola a página antes de olhar a rede);
-5. velocidade no celular pela PageSpeed Insights (token GTM_REFRESH_TOKEN, escopo openid).
+6. velocidade no celular pela PageSpeed Insights (token GTM_REFRESH_TOKEN, escopo openid);
+7. taxa real dos anúncios do Meta nessa LP nos últimos 3 dias: abriu/clicou e lead/página aberta
+   (meta_ads_daily + ad_landing_pages, a mesma conta da seção "Carregamento da página" de /meta).
 
-Nasceu do erro da -v3a/ na BV-26 (form 422 da Black 2025). Não altera nada; sai com 1 se houver alerta.
+Nasceu do erro da -v3a/ na BV-26: form 422 da Black 2025, que aplicava a tag de 2025 e mandava para
+/obg-black-vitalicia-25-v3a — fora do gatilho de Lead do GTM, então nenhum cadastro contou como Lead no
+Meta nem no Google. Não altera nada; sai com 1 se houver alerta.
 """
 from __future__ import annotations
 
@@ -28,7 +33,8 @@ import requests
 
 from scripts.ads import padroes as P
 from scripts.ads.google import Google
-from scripts.ads.meta import Meta, expert_do_nome, links_do_criativo
+from scripts.ads.meta import Meta, expert_do_nome
+from src.landing_pages import links_do_criativo, normalizar_url
 
 CONTAS_META = [P.META_CONTAS["ca2_anunciante"], P.META_CONTAS["felipe_nova"]]
 UA_CELULAR = ("Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -36,13 +42,6 @@ UA_CELULAR = ("Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTM
 
 
 # ---------------------------------------------------------------------------- funções puras (testadas)
-def normalizar_url(url: str) -> str:
-    """Sem query/fragmento, host minúsculo, com barra no fim — a UTM e o {lpurl} não mudam a página."""
-    p = urlsplit(url.strip())
-    caminho = p.path if p.path.endswith("/") else p.path + "/"
-    return f"{p.scheme.lower() or 'https'}://{p.netloc.lower()}{caminho}"
-
-
 def codigos_lancamento(texto: str) -> set[str]:
     """'FORMULÁRIO BLACK 2025 v3 A - BV-25' → {'BV-25'}; '[PES-SET-26]' → {'PES-SET-26'}."""
     return set(re.findall(r"\b([A-Z]{2,3}(?:-[A-Z]{3})?-\d{2})\b", texto or ""))
@@ -59,8 +58,10 @@ def pixels_disparados(reqs: list[str]) -> set[str]:
     return ids
 
 
-def problemas_lp(lp: dict, lancamento: str, experts: set[str]) -> list[str]:
-    """Alertas de uma LP já lida. `lp`: url, status, final, forms [{id,nome,tags}], gtm, pixels, nota, lcp."""
+def problemas_lp(lp: dict, lancamento: str, experts: set[str], gatilhos_lead: list[str] | None = None) -> list[str]:
+    """Alertas de uma LP já lida. `lp`: url, status, final, forms [{id,nome,tags,obrigado}], gtm, pixels,
+    nota, lcp e, se houver dado, `real` (cliques, lpv, leads, lead_por_lpv). `gatilhos_lead`: trechos de
+    URL dos gatilhos de Lead do GTM publicado (None = não conferir)."""
     cfg, out = P.LPS_OFICIAIS.get(lancamento), []
     tag = (cfg or {}).get(lp["url"])
     if cfg and not tag:
@@ -81,6 +82,10 @@ def problemas_lp(lp: dict, lancamento: str, experts: set[str]) -> list[str]:
             out.append(f"form {f['id']} não aplica a tag {tag} (aplica {f['tags'] or 'nenhuma'})")
         elif cfg and not tag and not any(e in t for e in set(cfg.values()) for t in f["tags"]):
             out.append(f"form {f['id']} não aplica nenhuma tag do lançamento (aplica {f['tags'] or 'nenhuma'})")
+        obg = f.get("obrigado")
+        if gatilhos_lead and obg and not any(g in obg for g in gatilhos_lead):
+            out.append(f"form {f['id']} manda para {obg}, que não dispara Lead no GTM "
+                       f"(gatilhos: {', '.join(gatilhos_lead)})")
     esperado = P.GTM_POR_DOMINIO.get(urlsplit(lp["url"]).netloc)
     if esperado and esperado not in lp["gtm"]:
         out.append(f"GTM {esperado} não carregou (carregou {sorted(lp['gtm']) or 'nenhum'})")
@@ -91,7 +96,27 @@ def problemas_lp(lp: dict, lancamento: str, experts: set[str]) -> list[str]:
         out.append(f"PageSpeed celular {lp['nota']} (< {P.LP_NOTA_MINIMA})")
     if lp.get("lcp") is not None and lp["lcp"] > P.LP_LCP_MAXIMO_S:
         out.append(f"LCP {lp['lcp']:.1f} s (> {P.LP_LCP_MAXIMO_S:.0f} s)")
+    real = lp.get("real")
+    if real and real["lpv"] >= P.LP_MIN_PAGINAS_PARA_TAXA and real["lead_por_lpv"] < P.LP_LEAD_POR_PAGINA_MIN:
+        out.append(f"só {real['lead_por_lpv']:.1f}% de lead por página aberta no Meta ({real['leads']} leads em "
+                   f"{real['lpv']} páginas) — o Lead está sendo contado?")
     return out
+
+
+def gatilhos_de_lead(versao_gtm: dict) -> list[str]:
+    """Trechos de URL ("contains") dos gatilhos que disparam as tags de Lead/conversão de uma versão
+    publicada do GTM. Ex.: ['/obg-black-vitalicia-26', '/obg-base-forte-v']."""
+    gatilhos = {t["triggerId"]: t for t in versao_gtm.get("trigger", [])}
+    trechos = set()
+    for tag in versao_gtm.get("tag", []):
+        if tag.get("paused") or not re.search(r"lead|convers", tag.get("name", ""), re.I):
+            continue
+        for tid in tag.get("firingTriggerId", []):
+            for f in (gatilhos.get(tid) or {}).get("filter", []):
+                valores = [p.get("value", "") for p in f.get("parameter", [])]
+                if f.get("type") == "contains" and len(valores) == 2 and "{{Page URL}}" in valores[0] + valores[1]:
+                    trechos.add(valores[1] if "{{" in valores[0] else valores[0])
+    return sorted(trechos)
 
 
 # ---------------------------------------------------------------------------- coleta
@@ -137,7 +162,8 @@ def ler_forms_ac(ids: set[str]) -> dict[str, dict]:
             continue
         f = r.json().get("form", {})
         acoes = (f.get("actiondata") or {}).get("actions", [])
-        out[i] = {"id": i, "nome": f.get("name", ""), "tags": [a["tag"] for a in acoes if a.get("type") == "add-a-tag"]}
+        out[i] = {"id": i, "nome": f.get("name", ""), "tags": [a["tag"] for a in acoes if a.get("type") == "add-a-tag"],
+                  "obrigado": (f.get("submitdata") or {}).get("url") if f.get("submit") == "open-url" else None}
     return out
 
 
@@ -169,12 +195,35 @@ def abrir_paginas(urls: list[str]) -> dict[str, dict]:
     return out
 
 
-def _token_pagespeed() -> str:
+def _token_google_leitura() -> str:
+    """Token de leitura do GTM + PageSpeed (escopos tagmanager.readonly e openid)."""
     r = requests.post("https://oauth2.googleapis.com/token", timeout=30, data={
         "grant_type": "refresh_token", "refresh_token": os.environ["GTM_REFRESH_TOKEN"],
         "client_id": os.environ["GOOGLE_ADS_CLIENT_ID"], "client_secret": os.environ["GOOGLE_ADS_CLIENT_SECRET"]})
     r.raise_for_status()
     return r.json()["access_token"]
+
+
+def gtm_publicado(public_id: str, token: str) -> dict:
+    """Versão publicada (live) de um container, pelo ID público (GTM-XXXX)."""
+    h, base = {"Authorization": f"Bearer {token}"}, "https://tagmanager.googleapis.com/tagmanager/v2/"
+    for conta in requests.get(base + "accounts", headers=h, timeout=30).json().get("account", []):
+        for c in requests.get(base + conta["path"] + "/containers", headers=h, timeout=30).json().get("container", []):
+            if c["publicId"] == public_id:
+                r = requests.get(base + c["path"] + "/versions:live", headers=h, timeout=30)
+                r.raise_for_status()
+                return r.json()
+    raise RuntimeError(f"container {public_id} não visível com o GTM_REFRESH_TOKEN")
+
+
+def taxa_real_meta(lancamento: str, dias: int = 3) -> dict[str, dict]:
+    """URL → cliques/lpv/leads dos anúncios do Meta nos últimos `dias` (mesma leitura de /meta). Janela
+    curta de propósito: o link é editado no próprio anúncio, e o histórico inteiro deixaria o alerta da
+    LP antiga aceso na LP nova por semanas."""
+    from datetime import date, timedelta
+    from frontend.db_readers.carregamento_lp import read_carregamento_lp
+    d = read_carregamento_lp(lancamento, date.today() - timedelta(days=dias), date.today())
+    return {r["url"]: r | {"desde": d["desde"]} for r in (d or {}).get("por_lp", [])}
 
 
 def velocidade(url: str, token: str) -> dict:
@@ -208,25 +257,41 @@ def main() -> int:
 
     paginas = abrir_paginas(sorted(por_url))
     forms = ler_forms_ac({i for p in paginas.values() for i in p["form_ids"]})
+    token = _token_google_leitura()
+    gatilhos: dict[str, list[str]] = {}
+    for gtm_id in sorted(set(P.GTM_POR_DOMINIO.values())):
+        try:
+            gatilhos[gtm_id] = gatilhos_de_lead(gtm_publicado(gtm_id, token))
+        except Exception as e:  # noqa: BLE001
+            print(f"!! GTM {gtm_id} não lido ({e}) — página de obrigado não conferida")
+    try:
+        real = taxa_real_meta(a.lancamento)
+    except Exception as e:  # noqa: BLE001
+        real = {}
+        print(f"!! taxa real do Meta não lida ({e})")
     if not a.sem_velocidade:
-        token = _token_pagespeed()
         with ThreadPoolExecutor(4) as ex:
             for url, v in zip(por_url, ex.map(lambda u: velocidade(u, token), por_url)):
                 paginas[url].update(v)
 
     total = 0
     for url in sorted(por_url, key=lambda u: -len(por_url[u])):
-        lp = paginas[url] | {"forms": [forms[i] for i in paginas[url]["form_ids"]]}
+        lp = paginas[url] | {"forms": [forms[i] for i in paginas[url]["form_ids"]], "real": real.get(url)}
         experts = {x["expert"] for x in por_url[url] if x["expert"]}
-        probs = problemas_lp(lp, a.lancamento, experts)
+        gtm_lp = P.GTM_POR_DOMINIO.get(urlsplit(url).netloc)
+        probs = problemas_lp(lp, a.lancamento, experts, gatilhos.get(gtm_lp))
         total += bool(probs)
         print(f"[{'OK' if not probs else '!!'}] {url}")
         for f in lp["forms"]:
-            print(f"      form {f['id']} · {f['nome']} · tags {f['tags']}")
+            print(f"      form {f['id']} · {f['nome']} · tags {f['tags']} · obrigado {f.get('obrigado') or '-'}")
         if lp.get("nota") is not None:
             print(f"      celular: nota {lp['nota']} · LCP {lp['lcp']:.1f} s · {lp['peso_kb']:.0f} KB")
         elif lp.get("erro_psi"):
             print(f"      PageSpeed falhou: {lp['erro_psi']}")
+        if lp["real"]:
+            r = lp["real"]
+            print(f"      Meta desde {r['desde'][8:10]}/{r['desde'][5:7]} (3 dias): {r['cliques']} cliques → {r['lpv']} páginas abertas "
+                  f"({r['taxa']:.0f}%) → {r['leads']} leads ({r['lead_por_lpv']:.1f}% por página)")
         for p in probs:
             print(f"      !! {p}")
         campanhas = defaultdict(int)

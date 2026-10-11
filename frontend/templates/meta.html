@@ -489,6 +489,79 @@
     </div>
     {% endif %}
 
+    {# ── 7. Carregamento da página ─────────────────────────────────── #}
+    {% if carregamento %}
+    {% set ct = carregamento.total %}
+    <div class="section">
+      <div class="section-title">7. Carregamento da Página — Cliques que Viraram Página Aberta</div>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 10px">
+        "Página aberta" é o <code>landing_page_view</code> do Meta: o pixel disparou depois do clique.
+        Desde {{ carregamento.desde | br_date }}. As LPs atuais só carregam o pixel depois que a pessoa
+        rola ou toca na página, então quem abre e sai sem mexer não conta — a taxa fica abaixo do real
+        e não mede só velocidade.
+      </p>
+      <div class="kpi-row" style="display:flex;gap:24px;flex-wrap:wrap;font-size:13px;margin-bottom:8px">
+        <div>Cliques no link <strong>{{ ct.cliques | num }}</strong></div>
+        <div>Páginas abertas <strong>{{ ct.lpv | num }}</strong></div>
+        <div>Abriu / clicou <strong>{{ ct.taxa | pct }}</strong></div>
+        <div>Lead / página aberta <strong>{{ ct.lead_por_lpv | pct }}</strong></div>
+      </div>
+
+      <h3 class="trilha-sub">Por landing page</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>LP</th><th>Anúncios</th><th>Cliques</th><th>Páginas abertas</th><th>Abriu / clicou</th>
+                <th>Leads</th><th>Lead / página</th><th>Investimento</th><th>CPL</th></tr>
+          </thead>
+          <tbody>
+            {% for r in carregamento.por_lp %}
+            <tr>
+              <td style="font-size:11px" title="{{ r.url }}"><strong>{{ r.url | replace('https://', '') | replace('http://', '') }}</strong></td>
+              <td class="numero">{{ r.anuncios | num }}</td>
+              <td class="numero">{{ r.cliques | num }}</td>
+              <td class="numero">{{ r.lpv | num }}</td>
+              <td class="numero"><strong>{{ r.taxa | pct }}</strong></td>
+              <td class="numero">{{ r.leads | num }}</td>
+              <td class="numero">{{ r.lead_por_lpv | pct if r.lpv else "–" }}</td>
+              <td class="numero">{{ r.gasto | brl }}</td>
+              <td class="numero">{{ r.cpl | brl if r.leads else "–" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if carregamento.por_campanha %}
+      <details style="margin-top:12px">
+        <summary class="trilha-sub" style="cursor:pointer">Por campanha ({{ carregamento.por_campanha | length }}, com 50+ cliques)</summary>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th>Campanha</th><th>LP</th><th>Cliques</th><th>Páginas abertas</th><th>Abriu / clicou</th>
+                  <th>Leads</th><th>Lead / página</th><th>CPL</th></tr>
+            </thead>
+            <tbody>
+              {% for r in carregamento.por_campanha %}
+              <tr>
+                <td style="max-width:320px;font-size:11px">{{ r.campanha }}</td>
+                <td style="font-size:11px">{{ (r.url or "–") | replace('https://lp.braboconcursos.com.br', '') }}</td>
+                <td class="numero">{{ r.cliques | num }}</td>
+                <td class="numero">{{ r.lpv | num }}</td>
+                <td class="numero"><strong>{{ r.taxa | pct }}</strong></td>
+                <td class="numero">{{ r.leads | num }}</td>
+                <td class="numero">{{ r.lead_por_lpv | pct if r.lpv else "–" }}</td>
+                <td class="numero">{{ r.cpl | brl if r.leads else "–" }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </details>
+      {% endif %}
+    </div>
+    {% endif %}
+
     {% endif %}{# end if meta #}
   </div>
   <div class="footing">Gerado em tempo real | Brabo Analytics{% if launch %} — {{ launch.code }}{% endif %}</div>

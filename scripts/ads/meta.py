@@ -29,6 +29,7 @@ import requests
 from dotenv import load_dotenv
 
 from scripts.ads import padroes as P
+from src.landing_pages import links_do_criativo  # noqa: F401 — reexportado (testes e auditoria)
 
 load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
@@ -333,15 +334,6 @@ def targeting_padrao(publico_ids: list[str], excluidos: list[str] | None = None,
     if reels:
         t.update(P.POSICOES_REELS)
     return t
-
-
-def links_do_criativo(creative: dict) -> list[str]:
-    oss, afs = creative.get("object_story_spec") or {}, creative.get("asset_feed_spec") or {}
-    links = [u.get("website_url", "") for u in afs.get("link_urls", [])]
-    ld, vd = oss.get("link_data") or {}, oss.get("video_data") or {}
-    links += [ld.get("link", "")] + [c.get("link", "") for c in ld.get("child_attachments", [])]
-    links.append(((vd.get("call_to_action") or {}).get("value") or {}).get("link", ""))
-    return [l for l in links if l]
 
 
 def regra_site_por_url(pixel_ids: list[str], url_contem: list[str], dias: int = 180) -> dict:

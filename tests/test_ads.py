@@ -142,3 +142,35 @@ def test_lp_base_forte_aceita_a_tag_dela():
 def test_lp_lenta_sem_gtm_e_sem_pixel():
     probs = problemas_lp(_lp(gtm=set(), pixels=set(), nota=30, lcp=6.2), "BV-26", {"felipe"})
     assert len(probs) == 4
+
+
+def test_obrigado_fora_do_gatilho_de_lead():
+    lp = _lp(forms=[{"id": "422", "nome": "FORMULÁRIO [BV-26] - V3", "tags": ["[BLACK] [LANÇAMENTO] [VITALICIA-2026]"],
+                     "obrigado": "https://lp.braboconcursos.com.br/obg-black-vitalicia-25-v3a"}])
+    probs = problemas_lp(lp, "BV-26", set(), ["/obg-black-vitalicia-26", "/obg-base-forte-v"])
+    assert any("não dispara Lead" in p for p in probs)
+    lp["forms"][0]["obrigado"] = "https://lp.braboconcursos.com.br/obg-black-vitalicia-26-v3"
+    assert problemas_lp(lp, "BV-26", set(), ["/obg-black-vitalicia-26"]) == []
+
+
+def test_lead_por_pagina_baixo_alerta():
+    real = {"cliques": 4295, "lpv": 1938, "leads": 52, "lead_por_lpv": 2.7, "taxa": 45.1}
+    assert any("lead por página" in p for p in problemas_lp(_lp(real=real), "BV-26", set()))
+    assert problemas_lp(_lp(real=real | {"lpv": 50}), "BV-26", set()) == []
+
+
+def test_gatilhos_de_lead_da_versao_gtm():
+    versao = {
+        "tag": [{"name": "Tag - Meta Pixel - Leads - Lançamentos", "firingTriggerId": ["1", "2"]},
+                {"name": "Tag - Meta Pixel - Lançamentos", "firingTriggerId": ["2147479553"]},
+                {"name": "Conversão pausada", "paused": True, "firingTriggerId": ["3"]}],
+        "trigger": [
+            {"triggerId": "1", "filter": [{"type": "contains", "parameter": [
+                {"key": "arg0", "value": "{{Page URL}}"}, {"key": "arg1", "value": "/obg-black-vitalicia-26"}]}]},
+            {"triggerId": "2", "filter": [{"type": "contains", "parameter": [
+                {"key": "arg0", "value": "{{Page URL}}"}, {"key": "arg1", "value": "/obg-base-forte-v"}]}]},
+            {"triggerId": "3", "filter": [{"type": "contains", "parameter": [
+                {"key": "arg0", "value": "{{Page URL}}"}, {"key": "arg1", "value": "/nao-conta"}]}]}],
+    }
+    from scripts.ads.auditar_lps import gatilhos_de_lead
+    assert gatilhos_de_lead(versao) == ["/obg-base-forte-v", "/obg-black-vitalicia-26"]

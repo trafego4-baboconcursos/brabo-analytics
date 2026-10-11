@@ -109,3 +109,8 @@ GTM_POR_DOMINIO = {"lp.braboconcursos.com.br": "GTM-KHKZXK7L"}
 # PageSpeed (celular): abaixo destes limites a LP entra como alerta. LCP > 4 s é "ruim" para o Google.
 LP_NOTA_MINIMA = 50
 LP_LCP_MAXIMO_S = 4.0
+
+# Lead por página aberta (Meta) abaixo disto, com volume, = suspeita de Lead não contado. Caso real: a -v3a
+# da BV-26 mandava para /obg-black-vitalicia-25-v3a, fora do gatilho do GTM — 2,7% contra 22–44% das outras.
+LP_LEAD_POR_PAGINA_MIN = 5.0
+LP_MIN_PAGINAS_PARA_TAXA = 200

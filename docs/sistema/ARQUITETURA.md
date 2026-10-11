@@ -42,7 +42,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 88 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 89 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -333,6 +333,7 @@ relacionados:
 >
 > **Auditoria das LPs dos anúncios + GTM/PageSpeed (2026-10-10)**
 >
+> - [[ARQUITETURA#Carregamento da página em /meta + LP por anúncio (2026-10-10)|Carregamento da página em /meta + LP por anúncio (2026-10-10)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -3851,3 +3852,9 @@ Todo `CASE` produto→projeto dos leitores de venda (`sales`, `hotmart`, `tmb`, 
 - **Acesso Google novo:** `GTM_REFRESH_TOKEN` (escopos `tagmanager.readonly` + `openid`; mesmo OAuth client do Google Ads; gerado por `etl/get_gtm_token.py`). O `openid` é o que a PageSpeed aceita em OAuth: sem auth a API devolve 429 (cota compartilhada), e com os tokens de Ads/GA4 devolve 403.
 - **`meta_ads_daily.landing_page_views`** (desde 10/10/26, backfill a partir de 23/09/26; antes disso fica 0): `actions[landing_page_view]` dos insights, gravado por `etl_meta_ads.build_df_from_api`. **Atenção ao ler:** a LP só carrega o pixel depois da 1ª interação, então LPV/clique subconta quem abre e sai sem tocar. Não é medida pura de velocidade (MUDANCAS_BV-26 item 264).
 - **Fix `campanha_historico.classificar`:** em janela longa, o nome congelado deixava `lancamento_codigo` = NaN (float) nas campanhas sem lançamento, e `uses_legacy_ad_codes` quebrava no `.strip()`. Isso derrubava qualquer backfill do Meta com campanha de distribuição renomeada. O scheduler (3 dias) não era afetado. Agora o que não é string vira `None`.
+
+### Carregamento da página em /meta + LP por anúncio (2026-10-10)
+
+- **Tabela `ad_landing_pages`** (analytics, PK `platform, ad_id`): URL da LP de cada anúncio, normalizada sem query (`src/landing_pages.py`, compartilhado com a auditoria). O `etl_meta_ads` busca os criativos uma vez por rodada (`fetch_creative_details`) e usa o resultado para as LPs (`upsert_landing_pages`) e para as miniaturas (`build_thumbnails_df(df, details)`). Link editado no anúncio sobrescreve a URL, e o histórico do anúncio passa a contar para a LP nova.
+- **`frontend/db_readers/carregamento_lp.py::read_carregamento_lp`** → seção "7. Carregamento da Página" de `meta.html` (rota `/meta`): link_clicks → landing_page_views → leads, por LP e por campanha, só a partir de `LPV_DESDE` (2026-09-23).
+- **Auditoria** (`scripts/ads/auditar_lps.py`) passou a ler: a página de obrigado do form (`submitdata.url`), que precisa casar com os gatilhos de Lead da versão publicada do GTM (`gatilhos_de_lead`); e a taxa real do Meta dos últimos 3 dias (mesmo reader do dashboard).

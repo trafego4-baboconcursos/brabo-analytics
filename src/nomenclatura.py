@@ -19,6 +19,9 @@ lados precisam da mesma função, e ETL não deve importar de ``frontend/``.
 """
 from __future__ import annotations
 
+import re
+import unicodedata
+
 # ── Etapa do funil ─────────────────────────────────────────────────────────────
 # Meta casa a chave entre colchetes ("[aula 1]"); Google casa como substring,
 # então aqui uma chave mais curta ("aula") cobre "aula 1".."aula 4".
@@ -257,3 +260,36 @@ def trilha_black(camp: str, launch_code: str | None, etapa: str | None) -> str |
         return None
     camp = str(camp).lower()
     return TRILHA_BASE_FORTE if any(m in camp for m in _MARCAS_BASE_FORTE) else TRILHA_VITALICIA
+
+
+# ── Experts e validação de criativos da Black ──────────────────────────────────
+# O código da Black é AD-XX## / ADC-XX##; as duas letras dizem quem é a cara do
+# vídeo. TR é o criativo com os três (ADC-TR26 se chama "Felipe Ivan e Mateus").
+EXPERTS_POR_PREFIXO = {"FE": "Felipe", "IV": "Ivan", "MA": "Mateus", "TR": "Trio/misto"}
+ORDEM_EXPERTS = ("Felipe", "Ivan", "Mateus", "Trio/misto", "Sem expert")
+REGEX_CODIGO_BLACK = r"\bADC?-[A-Z]{2}\d+\b"
+
+
+def expert_do_codigo(ad_code: str | None) -> str:
+    m = re.match(r"ADC?-([A-Z]{2})\d+$", str(ad_code or "").strip(), re.IGNORECASE)
+    return EXPERTS_POR_PREFIXO.get(m.group(1).upper(), "Sem expert") if m else "Sem expert"
+
+
+def normalizar_nome_criativo(nome: str | None) -> str:
+    """Nome sem código, sem tag de lançamento (BV-25/BV25/BV-26), sem acento e sem
+    pontuação — o que sobra é o conteúdo do criativo, para saber se o mesmo código
+    de um lançamento anterior era o MESMO vídeo ou só o número reaproveitado."""
+    t = unicodedata.normalize("NFKD", str(nome or ""))
+    t = "".join(ch for ch in t if not unicodedata.combining(ch))
+    t = re.sub(REGEX_CODIGO_BLACK, "", t, flags=re.IGNORECASE)
+    t = re.sub(r"\bBV-?\d{2}\b", "", t, flags=re.IGNORECASE)
+    return re.sub(r"[^a-z0-9]", "", t.lower())
+
+
+def selo_validacao(ad_code: str | None, nome: str | None, historico: dict[str, set[str]]) -> str:
+    """'validado' (mesmo código e mesmo nome já rodaram), 'reaproveitado' (o
+    código já rodou com OUTRO criativo) ou 'novo'."""
+    nomes = historico.get(str(ad_code or "").upper())
+    if not nomes:
+        return "novo"
+    return "validado" if normalizar_nome_criativo(nome) in nomes else "reaproveitado"

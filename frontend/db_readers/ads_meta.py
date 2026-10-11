@@ -57,6 +57,34 @@ def get_historico_ad_codes(code: str) -> set[str]:
     return vistos
 
 
+def get_historico_ad_nomes(code: str) -> dict[str, set[str]]:
+    """Black: código (AD-FE02) -> nomes normalizados que ele teve em lançamentos
+    ANTERIORES do mesmo produto. O número do código é reaproveitado com outro
+    vídeo (AD-IV09 era "caixinha de pergunta" na BV-25 e virou "Tudo em 1 min"),
+    então só o código não prova que o criativo já rodou."""
+    from src.nomenclatura import REGEX_CODIGO_BLACK, normalizar_nome_criativo  # noqa: PLC0415
+
+    produto_prefix = code.split("-")[0].upper() if code else ""
+    if not produto_prefix:
+        return {}
+    historico: dict[str, set[str]] = {}
+    try:
+        with _get_engine().connect() as conn:
+            for tabela in ("meta_ads_daily", "google_ads_daily"):
+                rows = conn.execute(
+                    text(f"SELECT DISTINCT ad_name FROM {tabela} "
+                         "WHERE lancamento_codigo != :code AND lancamento_codigo ILIKE :prefix"),
+                    {"code": code, "prefix": f"{produto_prefix}-%"},
+                ).fetchall()
+                for (ad_name,) in rows:
+                    m = re.search(REGEX_CODIGO_BLACK, str(ad_name or ""), flags=re.IGNORECASE)
+                    if m:
+                        historico.setdefault(m.group(0).upper(), set()).add(normalizar_nome_criativo(ad_name))
+    except Exception:
+        logger.exception("Falha ao buscar histórico de nomes de criativos; retornando vazio")
+    return historico
+
+
 def find_ad_code_real_launches(ad_codes: set[str], code: str) -> dict[str, list[dict]]:
     """Para cada AD code em `ad_codes`, procura em QUAIS lançamentos do MESMO
     produto (mesmo prefixo de `code`, ex.: PI-%) ele teve investimento real

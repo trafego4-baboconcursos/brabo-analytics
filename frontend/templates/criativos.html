@@ -46,15 +46,26 @@
     {% set e_black = (ov.trilha_blocos | length > 0) if ov else false %}
     {% if e_black %}
 
-    {% if ov.prequali_rows %}
-    {{ bloco_criativos(ov.prequali_rows, "Criativos — " ~ ov.etapa_pq, ov.etapa_pq,
-       "Etapa anterior à Captação, em bloco próprio de propósito: somar as duas põe o gasto de uma etapa debaixo da venda da outra e infla o ROAS. Campanha de envolvimento, então a métrica que importa é vídeo (view), não lead.",
-       modo='video') }}
+    {# Em cada etapa: YouTube (Google) primeiro, Meta depois, e dentro de cada um
+       separado por expert, com selo Validado/Novo (ver _macros_criativos.html). #}
+    {% set nota_pq = "Etapa anterior à Captação, em bloco próprio de propósito: somar as duas põe o gasto de uma etapa debaixo da venda da outra e infla o ROAS. Campanha de envolvimento, então a métrica que importa é vídeo (view), não lead." %}
+    {% if ov.google_prequali_rows %}
+    {{ bloco_criativos(ov.google_prequali_rows, "YouTube — " ~ ov.etapa_pq, ov.etapa_pq, nota_pq, modo='video', plataforma='Google') }}
+    {% endif %}
+    {% if ov.meta_prequali_rows %}
+    {{ bloco_criativos(ov.meta_prequali_rows, "Meta — " ~ ov.etapa_pq, ov.etapa_pq, nota_pq, modo='video', plataforma='Meta') }}
     {% endif %}
 
+    {% set nota_tr = "Trilha da Captação da Black. Base Forte é evento gratuito com LP e pixel próprios; Black Vitalícia é a captação do lançamento. CPL e CPA de uma não dizem nada sobre a outra." %}
     {% for b in ov.trilha_blocos %}
-    {{ bloco_criativos(b.rows, "Criativos — Captação " ~ b.trilha, b.trilha,
-       "Trilha da Captação da Black. Base Forte é evento gratuito com LP e pixel próprios; Black Vitalícia é a captação do lançamento. CPL e CPA de uma não dizem nada sobre a outra.") }}
+    {% set gb = ov.google_trilha_blocos | selectattr('trilha', 'equalto', b.trilha) | list %}
+    {% set mb = ov.meta_trilha_blocos | selectattr('trilha', 'equalto', b.trilha) | list %}
+    {% if gb %}
+    {{ bloco_criativos(gb[0].rows, "YouTube — Captação " ~ b.trilha, b.trilha, nota_tr, plataforma='Google') }}
+    {% endif %}
+    {% if mb %}
+    {{ bloco_criativos(mb[0].rows, "Meta — Captação " ~ b.trilha, b.trilha, nota_tr, plataforma='Meta') }}
+    {% endif %}
     {% endfor %}
     {% endif %}
 
@@ -62,7 +73,7 @@
     <div class="section">
       <div class="section-title" data-tag="Captação">1. Criativos Validados vs Novos {{ plat_badge("Meta") }}{{ plat_badge("Google") }}</div>
       <div class="note">
-        Criativos cujo código <strong>AD\d+</strong> já apareceu em lançamentos anteriores do mesmo produto (Meta ou Google) são <strong>Validados</strong>. Os demais são <strong>Novos</strong>.
+        {% if e_black %}Na Black o <strong>Validado</strong> exige o mesmo código (<strong>AD-XX##</strong>) <em>e</em> o mesmo nome de criativo já veiculados em lançamento anterior (Meta ou Google), porque o número do código é reaproveitado com outro vídeo. Código que já rodou com outro criativo conta como <strong>Novo · código reaproveitado</strong>. Validado quer dizer "já rodou", não "já vendeu": a BV-25 não tem venda por criativo.{% else %}Criativos cujo código <strong>AD\d+</strong> já apareceu em lançamentos anteriores do mesmo produto (Meta ou Google) são <strong>Validados</strong>. Os demais são <strong>Novos</strong>.{% endif %}
         A seção 2 abaixo consolida o ranking geral com vendas atribuídas por UTM.
       </div>
 

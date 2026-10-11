@@ -42,7 +42,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 90 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 91 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -335,6 +335,7 @@ relacionados:
 >
 > - [[ARQUITETURA#Carregamento da página em /meta + LP por anúncio (2026-10-10)|Carregamento da página em /meta + LP por anúncio (2026-10-10)]]
 > - [[ARQUITETURA#Página /landing-pages + lista oficial + auditoria agendada (2026-10-11)|Página /landing-pages + lista oficial + auditoria agendada (2026-10-11)]]
+> - [[ARQUITETURA#Criativos da Black por expert e Validado × Novo (11/10/26)|Criativos da Black por expert e Validado × Novo (11/10/26)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -3867,3 +3868,8 @@ Todo `CASE` produto→projeto dos leitores de venda (`sales`, `hotmart`, `tmb`, 
 - **Auditoria** grava `lp_auditoria` (analytics; `dados` JSONB com tudo o que leu) e o mapa anúncio → LP do Google em `ad_landing_pages`. Modo `ativos` = lançamentos com gasto nos últimos 3 dias. Agendada em `.github/workflows/auditoria-lps.yml` (9h/14h/20h): roda no Actions porque precisa de navegador, e o container do scheduler não tem Playwright.
 - **Faixas de leitura** (bom/precisa melhorar/ruim do Google) num lugar só: `src/landing_pages.FAIXAS_CWV`, usadas pela auditoria (alerta no "ruim") e pelo filtro Jinja `faixa`.
 - A seção "7. Carregamento da Página" do /meta virou um link para a página nova.
+
+
+### Criativos da Black por expert e Validado × Novo (11/10/26)
+
+Nas linhas dos blocos por etapa (`_bloco_criativos`), só na Black, entram `expert` (prefixo do código: FE/IV/MA; TR = Trio/misto) e `selo` (`validado` = mesmo código e mesmo nome em lançamento anterior; `reaproveitado` = código já usado com outro criativo; `novo`). O histórico vem de `ads_meta.get_historico_ad_nomes`, não de `get_historico_ad_codes` (que só reconhece `AD\d+`). O macro `bloco_criativos` agrupa por expert com subtotal; `/criativos` mostra, em cada etapa, YouTube (Google) e depois Meta. Lançamento normal: linhas e página inalteradas. Teste: `tests/test_criativos_expert_validado.py`.

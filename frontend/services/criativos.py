@@ -20,7 +20,9 @@ from frontend.utils import _norm_text
 
 
 def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dict | None, launch_code: str = "") -> dict:
-    from frontend.db_readers.ads_meta import get_historico_ad_codes  # noqa: PLC0415
+    from frontend.db_readers.ads_meta import get_historico_ad_codes, get_historico_ad_nomes  # noqa: PLC0415
+    from src.constants import e_black  # noqa: PLC0415
+    from src.nomenclatura import selo_validacao  # noqa: PLC0415
     from src.constants import etapa_prequali as _etapa_prequali  # noqa: PLC0415
 
     rows_by_ad: dict[str, dict] = {}
@@ -359,6 +361,9 @@ def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dic
     google_rows = build_platform_rows("Google Ads")
 
     historico = get_historico_ad_codes(launch_code) if launch_code else set()
+    # Black: o código (AD-FE02) é reaproveitado com outro vídeo de um lançamento
+    # para o outro, então "validado" exige mesmo código E mesmo nome.
+    historico_nomes = get_historico_ad_nomes(launch_code) if e_black(launch_code) else None
     creative_sales = (sales_attr or {}).get("por_criativo", {})
     # all_captacao (abaixo) só tem gasto de Captação — mesmo fix de escopo
     # dos blocos acima, aqui pra Validados × Novos.
@@ -433,7 +438,10 @@ def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dic
             "hold_rate": (r["_meta_thruplays"] / r["_meta_views_3s"] * 100) if r["_meta_views_3s"] > 0 else None,
             "body_rate": (r["_views_100"] / r["_hook_views"] * 100) if r["_hook_views"] > 0 else 0.0,
         }
-        if ad_code in historico:
+        if historico_nomes is not None:
+            entry["selo"] = selo_validacao(ad_code, r["nome"], historico_nomes)
+            (validados_all if entry["selo"] == "validado" else novos_all).append(entry)
+        elif ad_code in historico:
             validados_all.append(entry)
         else:
             novos_all.append(entry)
@@ -452,15 +460,15 @@ def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dic
         "validados_all": validados_all,
         "novos_all": novos_all,
         # Etapa anterior (Pré-Qualificação / Aquecimento), em bloco próprio.
-        "prequali_rows": _creative_rows_prequali(meta, google, sales_attr, launch_code),
+        "prequali_rows": _creative_rows_prequali(meta, google, sales_attr, launch_code, historico=historico_nomes),
         # Captação da Black em duas trilhas; vazio em lançamento normal.
-        "trilha_blocos": _creative_rows_por_trilha(meta, google, sales_attr),
+        "trilha_blocos": _creative_rows_por_trilha(meta, google, sales_attr, historico=historico_nomes),
         # Mesmos blocos por plataforma, para /meta e /google: lá a página é de
         # um canal só, somar o outro misturaria verba que não é daquela tela.
-        "meta_prequali_rows": _creative_rows_prequali(meta, None, sales_attr, launch_code, "Meta Ads"),
-        "google_prequali_rows": _creative_rows_prequali(None, google, sales_attr, launch_code, "Google Ads"),
-        "meta_trilha_blocos": _creative_rows_por_trilha(meta, None, sales_attr, "Meta Ads"),
-        "google_trilha_blocos": _creative_rows_por_trilha(None, google, sales_attr, "Google Ads"),
+        "meta_prequali_rows": _creative_rows_prequali(meta, None, sales_attr, launch_code, "Meta Ads", historico_nomes),
+        "google_prequali_rows": _creative_rows_prequali(None, google, sales_attr, launch_code, "Google Ads", historico_nomes),
+        "meta_trilha_blocos": _creative_rows_por_trilha(meta, None, sales_attr, "Meta Ads", historico_nomes),
+        "google_trilha_blocos": _creative_rows_por_trilha(None, google, sales_attr, "Google Ads", historico_nomes),
         "etapa_pq": _etapa_prequali(launch_code),
         # Quanto do lançamento o ranking consegue explicar. Fica fora de `resumo`
         # de propósito: o `resumo` entra na impressão digital dos testes de
@@ -504,7 +512,7 @@ def _cobertura_atribuicao(resumo: dict, vendas_data: Any) -> dict | None:
     }
 
 
-def _bloco_criativos(itens: Any, vendas_por_code: dict) -> list[dict]:
+def _bloco_criativos(itens: Any, vendas_por_code: dict, historico: dict | None = None) -> list[dict]:
     """Agrega uma lista de anúncios por ADxxx, com vídeo e venda já escopados.
 
     Views misturam bases de propósito e isso precisa ficar dito: no Meta é
@@ -515,6 +523,9 @@ def _bloco_criativos(itens: Any, vendas_por_code: dict) -> list[dict]:
     "Viu 50%" usa IMPRESSÕES como base, não views: o Google não devolve
     contagem de quartil, devolve taxa × impressões, e dividir por TrueView
     (base menor, conceito diferente) passa de 100%. Mesma regra do debriefing.
+
+    `historico` (só na Black) acrescenta `expert` e `selo` (validado/reaproveitado/novo)
+    a cada linha; sem ele as linhas saem como sempre saíram.
     """
     acc: dict[str, dict] = {}
     for item in itens or []:
@@ -550,6 +561,10 @@ def _bloco_criativos(itens: Any, vendas_por_code: dict) -> list[dict]:
         r["roas"] = r["faturamento"] / r["gasto"] if r["gasto"] > 0 else 0.0
         r["origem"] = " + ".join(sorted(o.replace(" Ads", "") for o in r["origens"] if o))
         r.pop("origens", None)
+        if historico is not None:
+            from src.nomenclatura import expert_do_codigo, selo_validacao  # noqa: PLC0415
+            r["expert"] = expert_do_codigo(code)
+            r["selo"] = selo_validacao(code, r["nome"], historico)
         saida.append(r)
     return sorted(saida, key=lambda x: x["gasto"], reverse=True)
 
@@ -569,7 +584,8 @@ def _vendas_do_bloco(sales_attr: dict | None, etapa: str,
 
 
 def _creative_rows_prequali(meta: Any, google: Any, sales_attr: dict | None,
-                            launch_code: str = "", plataforma: str | None = None) -> list[dict]:
+                            launch_code: str = "", plataforma: str | None = None,
+                            historico: dict | None = None) -> list[dict]:
     """Criativos da etapa que ocupa o papel de Pré-Qualificação (Aquecimento na Black).
 
     Bloco SEPARADO de propósito, não somado ao ranking de Captação: juntar põe
@@ -582,11 +598,11 @@ def _creative_rows_prequali(meta: Any, google: Any, sales_attr: dict | None,
     etapa = etapa_prequali(launch_code)
     vendas = _vendas_do_bloco(sales_attr, etapa, plataforma)
     itens = list(getattr(meta, "preq_por_ad", None) or []) + list(getattr(google, "preq_por_ad", None) or [])
-    return _bloco_criativos(itens, vendas)
+    return _bloco_criativos(itens, vendas, historico)
 
 
 def _creative_rows_por_trilha(meta: Any, google: Any, sales_attr: dict | None,
-                              plataforma: str | None = None) -> list[dict]:
+                              plataforma: str | None = None, historico: dict | None = None) -> list[dict]:
     """Captação da Black dividida em Base Forte × Black Vitalícia.
 
     Lista vazia fora da Black (`trilha` vem None). No BV-26 os dois conjuntos de
@@ -599,7 +615,7 @@ def _creative_rows_por_trilha(meta: Any, google: Any, sales_attr: dict | None,
     itens = list(getattr(meta, "captacao_por_ad", None) or []) + list(getattr(google, "anuncios_por_ad", None) or [])
     blocos = []
     for trilha in (TRILHA_BASE_FORTE, TRILHA_VITALICIA):
-        rows = _bloco_criativos([i for i in itens if i.get("trilha") == trilha], vendas)
+        rows = _bloco_criativos([i for i in itens if i.get("trilha") == trilha], vendas, historico)
         if rows:
             blocos.append({"trilha": trilha, "rows": rows})
     return blocos

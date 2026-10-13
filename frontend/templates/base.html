@@ -317,7 +317,7 @@
       </div>
 
       {# Comercial: atendimento do Unnichat. Não é página de lançamento. #}
-      {% if not current_user or current_user.role in ('admin', 'analista') %}
+      {% if not current_user or current_user.role in ('admin', 'analista', 'leitura') %}
       <div class="bs-nav-sep"></div>
       <div class="bs-nav-group">Comercial</div>
       <a class="bs-mode-btn {% if nav_mode == 'comercial' %}active{% endif %}" href="/atendimento">

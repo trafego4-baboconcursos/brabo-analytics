@@ -374,7 +374,9 @@ def _build_funis_nav_groups(launch, active_code, page, current_user, previous_la
         return f"{path}?launch_code={active_code}" if active_code else path
 
     user_role = (current_user or {}).get("role") if current_user else None
-    is_admin_or_analista = not current_user or user_role in ("admin", "analista")
+    # "leitura" enxerga os mesmos grupos de admin/analista (só não edita —
+    # a trava é o ROUTE_PERMISSIONS/checagem dos POSTs, não o menu).
+    is_admin_or_analista = not current_user or user_role in ("admin", "analista", "leitura")
     is_trafego = bool(current_user) and user_role == "trafego"
 
     groups = [

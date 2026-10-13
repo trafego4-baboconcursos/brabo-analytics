@@ -49,6 +49,11 @@
   .at-tabela th.n, .at-tabela td.numero { text-align:right; }
   .at-tabela td.numero .at-barra { justify-content:flex-end; }
   .at-legenda { display:flex; gap:16px; font-size:12px; color:var(--bs-ink-muted); margin-bottom:8px; }
+  .at-conv-filtros { display:flex; align-items:center; flex-wrap:wrap; gap:10px 14px; margin:4px 0 10px; font-size:12.5px; color:var(--bs-ink-muted); }
+  .at-conv-filtros label { display:inline-flex; align-items:center; gap:6px; }
+  .at-conv-filtros select { border:1px solid var(--bs-border-s); border-radius:8px; padding:5px 9px; font:inherit; font-size:12.5px; color:var(--bs-ink); background:var(--bs-card); }
+  .at-conv-baixar { margin-left:auto; display:inline-flex; align-items:center; gap:6px; text-decoration:none; font-size:12.5px; font-weight:600; border:1px solid var(--bs-border-s); border-radius:8px; padding:6px 11px; color:var(--bs-ink); background:var(--bs-card); }
+  .at-conv-baixar:hover { background:var(--bs-surface); }
   .at-legenda i { display:inline-block; width:14px; height:3px; border-radius:2px; vertical-align:middle; margin-right:6px; }
 </style>
 {# data-sec-key: chave fixa por seção. Os títulos mudam com o período e a conta
@@ -303,11 +308,32 @@
       <div class="note info">
         Aberta = o cliente escreveu nas últimas 24h, a janela em que o WhatsApp deixa responder sem template.
         "Aguardando" = o cliente falou por último e ainda não teve resposta. Atenção a partir de 1h, crítico a partir de 4h.
-        {% if a.conversas_total > a.conversas | length %}Mostrando as {{ a.conversas | length }} mais antigas de {{ a.conversas_total | num }}.{% endif %}
+        {% if a.conversas_total > a.conversas | length %}Mostrando as {{ a.conversas | length }} mais antigas de {{ a.conversas_total | num }} — o relatório completo (botão abaixo) traz todas.{% endif %}
       </div>
       {% if a.conversas %}
+      {% set atendentes_conv = a.conversas | map(attribute='atendente') | unique | sort %}
+      <div class="at-conv-filtros" id="at-conv-filtros">
+        <label>Atendente
+          <select data-filtro="atendente">
+            <option value="">Todos</option>
+            {% for n in atendentes_conv %}<option value="{{ n }}">{{ n }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>Situação
+          <select data-filtro="situacao">
+            <option value="">Todas</option>
+            {% for k, label in situacoes.items() %}<option value="{{ k }}">{{ label }}</option>{% endfor %}
+          </select>
+        </label>
+        <span class="at-conv-contagem" id="at-conv-contagem"></span>
+        <a class="at-conv-baixar" id="at-conv-baixar"
+           href="/atendimento/conversas.csv{% if conexao %}?conexao={{ conexao }}{% endif %}"
+           title="Todas as conversas abertas (não só as {{ a.conversas | length }} da tela), com os filtros de atendente e situação escolhidos">
+          <i class="ti ti-file-download"></i> Baixar relatório completo (CSV)
+        </a>
+      </div>
       <div class="table-wrap">
-        <table class="at-tabela">
+        <table class="at-tabela" id="at-conv-tabela">
           <thead>
             <tr>
               <th class="th-dark">Contato</th>
@@ -320,7 +346,7 @@
           </thead>
           <tbody>
             {% for c in a.conversas %}
-            <tr>
+            <tr data-atendente="{{ c.atendente }}" data-situacao="{{ c.situacao }}">
               <td style="white-space:nowrap;">{{ c.contato }}{% if c.telefone and c.telefone != c.contato %} <span class="td-muted" style="font-size:12px;">{{ c.telefone }}</span>{% endif %}</td>
               <td>{{ c.atendente }}</td>
               <td class="td-muted">{{ c.conexao }}</td>
@@ -332,6 +358,50 @@
           </tbody>
         </table>
       </div>
+      <script>
+      // Filtros de atendente/situação da tabela de conversas abertas. Combinam
+      // com a busca por texto que tabelas.js cria (o listener dele roda antes e
+      // mexe no display; este roda depois, no documento, e decide por último),
+      // e o botão de exportar CSV do tabelas.js respeita o que ficou visível.
+      // O "relatório completo" é outra coisa: vai no servidor buscar TODAS as
+      // conversas (a tabela mostra no máximo 200) com os mesmos filtros.
+      (function () {
+        var box = document.getElementById('at-conv-filtros');
+        var tabela = document.getElementById('at-conv-tabela');
+        var linhas = Array.from(tabela.tBodies[0].rows);
+        var selects = Array.from(box.querySelectorAll('select[data-filtro]'));
+        var contagem = document.getElementById('at-conv-contagem');
+        var baixar = document.getElementById('at-conv-baixar');
+        var baseHref = baixar.getAttribute('href');
+        function norm(s) { return (s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, ''); }
+        function aplicar() {
+          var f = {}; selects.forEach(function (s) { f[s.dataset.filtro] = s.value; });
+          var busca = tabela.parentElement.previousElementSibling;
+          var inp = busca && busca.querySelector('input.bs-table-filter');
+          var q = norm(inp ? inp.value : '');
+          var visiveis = 0;
+          linhas.forEach(function (tr) {
+            var ok = (!f.atendente || tr.dataset.atendente === f.atendente)
+                  && (!f.situacao || tr.dataset.situacao === f.situacao)
+                  && (!q || norm(tr.innerText).indexOf(q) !== -1);
+            tr.style.display = ok ? '' : 'none';
+            if (ok) visiveis++;
+          });
+          contagem.textContent = visiveis + ' de ' + linhas.length + ' na tela';
+          var p = new URLSearchParams(baseHref.split('?')[1] || '');
+          f.atendente ? p.set('atendente', f.atendente) : p.delete('atendente');
+          f.situacao ? p.set('situacao', f.situacao) : p.delete('situacao');
+          var qs = p.toString();
+          baixar.setAttribute('href', baseHref.split('?')[0] + (qs ? '?' + qs : ''));
+        }
+        selects.forEach(function (s) { s.addEventListener('change', aplicar); });
+        document.addEventListener('input', function (e) {
+          if (e.target.classList && e.target.classList.contains('bs-table-filter') && tabela.parentElement.previousElementSibling
+              && tabela.parentElement.previousElementSibling.contains(e.target)) aplicar();
+        });
+        aplicar();
+      })();
+      </script>
       {% else %}
       <div class="note">Nenhuma conversa aberta nesta seleção.</div>
       {% endif %}

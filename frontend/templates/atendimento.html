@@ -313,6 +313,17 @@
       {% if a.conversas %}
       {% set atendentes_conv = a.conversas | map(attribute='atendente') | unique | sort %}
       <div class="at-conv-filtros" id="at-conv-filtros">
+        {% if not conexao %}
+        {# Com uma conta escolhida no topo da página a tabela já é só dela;
+           o select só faz sentido na visão de todas. value = chave (vai pro
+           CSV), data-nome = o que está escrito na linha. #}
+        <label>Conexão
+          <select data-filtro="conexao">
+            <option value="">Todas</option>
+            {% for chave, nome in conexoes %}<option value="{{ chave }}" data-nome="{{ nome }}">{{ nome }}</option>{% endfor %}
+          </select>
+        </label>
+        {% endif %}
         <label>Atendente
           <select data-filtro="atendente">
             <option value="">Todos</option>
@@ -346,7 +357,7 @@
           </thead>
           <tbody>
             {% for c in a.conversas %}
-            <tr data-atendente="{{ c.atendente }}" data-situacao="{{ c.situacao }}">
+            <tr data-atendente="{{ c.atendente }}" data-situacao="{{ c.situacao }}" data-conexao="{{ c.conexao }}">
               <td style="white-space:nowrap;">{{ c.contato }}{% if c.telefone and c.telefone != c.contato %} <span class="td-muted" style="font-size:12px;">{{ c.telefone }}</span>{% endif %}</td>
               <td>{{ c.atendente }}</td>
               <td class="td-muted">{{ c.conexao }}</td>
@@ -376,12 +387,16 @@
         function norm(s) { return (s || '').toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, ''); }
         function aplicar() {
           var f = {}; selects.forEach(function (s) { f[s.dataset.filtro] = s.value; });
+          // A linha mostra o NOME da conta; o CSV quer a CHAVE. O select guarda os dois.
+          var selConexao = selects.find(function (s) { return s.dataset.filtro === 'conexao'; });
+          f.conexaoNome = selConexao && selConexao.value ? selConexao.selectedOptions[0].dataset.nome : '';
           var busca = tabela.parentElement.previousElementSibling;
           var inp = busca && busca.querySelector('input.bs-table-filter');
           var q = norm(inp ? inp.value : '');
           var visiveis = 0;
           linhas.forEach(function (tr) {
-            var ok = (!f.atendente || tr.dataset.atendente === f.atendente)
+            var ok = (!f.conexaoNome || tr.dataset.conexao === f.conexaoNome)
+                  && (!f.atendente || tr.dataset.atendente === f.atendente)
                   && (!f.situacao || tr.dataset.situacao === f.situacao)
                   && (!q || norm(tr.innerText).indexOf(q) !== -1);
             tr.style.display = ok ? '' : 'none';
@@ -389,6 +404,7 @@
           });
           contagem.textContent = visiveis + ' de ' + linhas.length + ' na tela';
           var p = new URLSearchParams(baseHref.split('?')[1] || '');
+          f.conexao ? p.set('conexao', f.conexao) : p.delete('conexao');
           f.atendente ? p.set('atendente', f.atendente) : p.delete('atendente');
           f.situacao ? p.set('situacao', f.situacao) : p.delete('situacao');
           var qs = p.toString();

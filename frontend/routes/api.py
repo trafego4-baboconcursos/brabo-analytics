@@ -133,7 +133,11 @@ async def api_get_launch_config(launch_code: str):
 
 
 @router.post("/api/ad-accounts/refresh")
-async def api_refresh_ad_accounts():
+async def api_refresh_ad_accounts(request: Request):
+    # Só quem edita lançamento (mesma faixa do wizard que usa esta lista).
+    if _get_current_user(request).get("role") not in ("admin", "analista", "trafego"):
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"ok": False, "error": "Sem permissão."}, status_code=403)
     meta_accounts, google_accounts = await run_in_threadpool(get_ad_accounts_for_wizard, True)
     return {"meta_accounts": meta_accounts, "google_accounts": google_accounts}
 
@@ -331,7 +335,12 @@ def api_campaign_count(launch_code: str, term: str = ""):
 # ── Cache ──────────────────────────────────────────────────────────────────────
 
 @router.post("/api/clear-cache")
-def clear_cache(launch_code: str | None = None):
+def clear_cache(request: Request, launch_code: str | None = None):
+    # Limpar o cache derruba o pré-aquecimento inteiro (minutos de recarga e
+    # egress) — não é pra qualquer papel logado disparar.
+    if _get_current_user(request).get("role") not in ("admin", "analista"):
+        from fastapi.responses import JSONResponse
+        return JSONResponse({"ok": False, "error": "Sem permissão."}, status_code=403)
     if launch_code:
         readers = _invalidate(launch_code)
         return {"cleared": launch_code, "readers": readers}

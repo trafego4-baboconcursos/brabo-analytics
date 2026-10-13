@@ -24,6 +24,15 @@
   .at-filtros { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
   .at-filtros form { display:flex; align-items:center; gap:8px; font-size:13px; color:var(--bs-ink-muted); }
   .at-filtros select { border:1px solid var(--bs-border-s); border-radius:8px; padding:6px 10px; font:inherit; color:var(--bs-ink); background:var(--bs-card); }
+  .at-atualizar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .at-atualizar-status { font-size:12px; color:var(--bs-ink-muted); }
+  .at-btn { display:inline-flex; align-items:center; gap:6px; border:1px solid var(--bs-border-s); background:var(--bs-card); color:var(--bs-ink);
+            border-radius:8px; padding:6px 12px; font:inherit; font-size:13px; font-weight:600; cursor:pointer; }
+  .at-btn:hover:not(:disabled) { background:var(--bs-surface); }
+  .at-btn:disabled { opacity:.6; cursor:wait; }
+  .at-btn:disabled .ti-refresh { animation:at-gira 1s linear infinite; }
+  @keyframes at-gira { to { transform:rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce) { .at-btn:disabled .ti-refresh { animation:none; } }
   .at-tag { font-size:10.5px; font-weight:600; padding:2px 8px; border-radius:999px; border:1px dashed var(--bs-border-s); color:var(--bs-ink-muted); white-space:nowrap; cursor:help; vertical-align:middle; }
   .at-chip { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:600; padding:3px 9px; border-radius:999px; white-space:nowrap; }
   .at-chip i { font-size:13px; }
@@ -80,6 +89,15 @@
              style="text-decoration:none;">{{ 'Hoje' if d == 1 else d ~ ' dias' }}</a>
           {% endfor %}
         </div>
+        {% if coleta_ligada %}
+        <div class="at-atualizar">
+          <span id="at-atualizar-status" class="at-atualizar-status" role="status" aria-live="polite"></span>
+          <button type="button" id="at-atualizar" class="at-btn" data-conexao="{{ conexao or '' }}"
+                  title="Relê agora as conversas com mensagem nas últimas 24h{{ ' desta conta' if conexao else '' }}">
+            <i class="ti ti-refresh"></i> Atualizar agora
+          </button>
+        </div>
+        {% endif %}
       </div>
       <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:8px;">
         {% if dias == 1 %}Hoje, <strong>{{ a.fim | br_date }}</strong>, comparado com ontem até o mesmo horário
@@ -427,6 +445,46 @@
   </div>
   <div class="footing">Gerado em tempo real | Brabo Analytics — Atendimento Comercial</div>
 </div>
+<script>
+// Botão "Atualizar agora": pede ao coletor pra reler as conversas das últimas
+// 24h (passam na frente da recoleta automática), acompanha a fila e recarrega
+// a página quando termina. Desiste de esperar depois de 4 min e recarrega assim mesmo.
+(function () {
+  const btn = document.getElementById('at-atualizar');
+  if (!btn) return;
+  const st = document.getElementById('at-atualizar-status');
+  const q = btn.dataset.conexao ? '?conexao=' + encodeURIComponent(btn.dataset.conexao) : '';
+  const conversas = n => n === 1 ? '1 conversa' : n + ' conversas';
+  function falhou(msg) { st.textContent = msg; btn.disabled = false; }
+  async function acompanhar(inicio) {
+    try {
+      const r = await fetch('/atendimento/atualizar/status' + q, { credentials: 'same-origin' });
+      const j = await r.json();
+      if (!j.na_fila) { st.textContent = 'Pronto. Recarregando…'; location.reload(); return; }
+      if (Date.now() - inicio > 4 * 60 * 1000) {
+        st.textContent = 'Ainda faltam ' + conversas(j.na_fila) + '. Recarregando com o que já chegou…';
+        location.reload(); return;
+      }
+      st.textContent = 'Atualizando… faltam ' + conversas(j.na_fila);
+    } catch (e) { /* tenta de novo no próximo ciclo */ }
+    setTimeout(() => acompanhar(inicio), 3000);
+  }
+  btn.addEventListener('click', async () => {
+    btn.disabled = true;
+    st.textContent = 'Pedindo atualização…';
+    try {
+      const r = await fetch('/atendimento/atualizar' + q, { method: 'POST', credentials: 'same-origin' });
+      const j = await r.json();
+      if (!r.ok || !j.ok) return falhou(j.erro || 'Não deu para atualizar agora. Tente de novo em instantes.');
+      if (!j.na_fila) { st.textContent = 'Nenhuma conversa com mensagem nas últimas 24h. Recarregando…'; location.reload(); return; }
+      st.textContent = 'Atualizando… faltam ' + conversas(j.na_fila);
+      setTimeout(() => acompanhar(Date.now()), 3000);
+    } catch (e) {
+      falhou('Não deu para falar com o servidor. Recarregue a página e tente de novo.');
+    }
+  });
+})();
+</script>
 <script>
 // Recarrega sozinha a cada {{ recarregar_horas }}h. Com a aba escondida, espera
 // a pessoa voltar pra recarregar (não gasta banco com tela que ninguém vê).

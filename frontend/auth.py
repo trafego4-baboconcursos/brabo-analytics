@@ -78,6 +78,8 @@ ROUTE_PERMISSIONS: dict[str, list[str]] = {
     "/afiliados":         _DTLD,
     "/atendimento":       _CMRC,
     "/atendimento/conversas.csv": _CMRC,
+    "/atendimento/atualizar": _CMRC,          # botão "Atualizar agora": só pede releitura, não edita dado
+    "/atendimento/atualizar/status": _CMRC,
     "/api/unnichat/status": _ADM,
     "/settings":          _ADM,
 }

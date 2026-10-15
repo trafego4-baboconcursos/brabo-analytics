@@ -57,12 +57,14 @@ def read_vendas(launch_folder_or_code: Any, start_date=None, end_date=None) -> V
     """Cache + single-flight: read_meta/read_google/typeform chamam read_vendas
     internamente e em paralelo; sem isso a mesma consulta rodava 3-4x por página."""
     from frontend.cache import _get_or_compute  # noqa: PLC0415 — evita import circular
+    from frontend.services.fetch import ttl_vendas  # noqa: PLC0415 — fetch importa este módulo
 
     code = _extract_launch_code(launch_folder_or_code)
     return _get_or_compute(
         code,
         f"vendas::{start_date}::{end_date}",
         lambda: _read_vendas_uncached(code, start_date, end_date),
+        ttl=ttl_vendas(code),  # 5 min com o carrinho aberto, 1h fora dele
     )
 
 

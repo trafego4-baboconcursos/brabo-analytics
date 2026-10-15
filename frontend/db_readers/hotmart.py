@@ -262,7 +262,11 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
                 return dt
             except Exception: return pd.NaT
         df_paid["data_parsed"] = df_paid["data_da_transacao"].apply(_parse_hm_date)
-        d1_date = df_paid["data_parsed"].min()
+        # "Abertura" = a data oficial cadastrada no wizard. Pelo mínimo da série,
+        # uma venda antecipada (BV-26: 1 venda em 14/10, abertura em 15/10)
+        # virava o "D1" da página e a abertura real aparecia como cauda.
+        abertura = _safe_date(cfg.get("abertura_oficial_carrinho"))
+        d1_date = pd.Timestamp(abertura) if abertura else df_paid["data_parsed"].min()
         timeline_grouped = df_paid.groupby(df_paid["data_parsed"].dt.date).agg(
             vendas=("valor_liq", "count"),
             faturamento=("valor_liq", "sum")

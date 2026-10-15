@@ -640,6 +640,32 @@ async def comparativo_v1_v2(request: Request, launch_code: str | None = None):
     return templates.TemplateResponse("comparativo_v1_v2.html", ctx)
 
 
+_SNAPSHOT_CARRINHO_MIN = 10
+_ULTIMO_REAQUECIMENTO: dict[str, float] = {}
+
+
+def _carrinho_aberto(code: str) -> bool:
+    from datetime import date  # noqa: PLC0415
+    from frontend.utils import _safe_date  # noqa: PLC0415
+
+    cfg = _launch_cfg(code) or {}
+    ini, fim = _safe_date(cfg.get("carrinho_start_date")), _safe_date(cfg.get("carrinho_end_date"))
+    return bool(ini and fim and ini <= date.today() <= fim)
+
+
+def _reaquecer_com_carrinho_aberto(code: str) -> None:
+    """Re-aquece o lançamento (caches + snapshot do debriefing), no máximo a cada
+    `_SNAPSHOT_CARRINHO_MIN` minutos por lançamento, sem esperar a página."""
+    import time as _time  # noqa: PLC0415
+    from frontend.services.prewarm import schedule_warm  # noqa: PLC0415
+
+    agora = _time.monotonic()
+    if agora - _ULTIMO_REAQUECIMENTO.get(code, -1e9) < _SNAPSHOT_CARRINHO_MIN * 60:
+        return
+    _ULTIMO_REAQUECIMENTO[code] = agora
+    schedule_warm([code], invalidate=True, origem="carrinho-aberto")
+
+
 @router.get("/debriefing", response_class=HTMLResponse)
 async def debriefing(request: Request, launch_code: str | None = None, modo: str | None = None):
     """``modo=slides`` renderiza o mesmo conteúdo em modo apresentação
@@ -688,6 +714,14 @@ async def debriefing(request: Request, launch_code: str | None = None, modo: str
             # depois de todo ETL — 60min de folga cobre isso sem virar "vermelho"
             # à toa por uma rodada atrasada.
             snapshot_fresh = age_minutes <= 60
+            # Carrinho aberto: a venda não passa pelo ETL (entra direto no banco
+            # operacional), então nada dispara o aquecimento quando ela chega e o
+            # snapshot ficaria até 1h mostrando o carrinho de antes (15/10/26: foi
+            # gerado minutos antes de abrir e mostrou R$ 0 com 270 vendas). Com o
+            # carrinho aberto e o snapshot com mais de 10 min, serve o que tem
+            # e re-aquece em segundo plano; a próxima abertura já vem atualizada.
+            if age_minutes > _SNAPSHOT_CARRINHO_MIN and await run_in_threadpool(_carrinho_aberto, launch.code):
+                _reaquecer_com_carrinho_aberto(launch.code)
         except Exception:
             snapshot_label = str(snapshot_at)[:16]
 

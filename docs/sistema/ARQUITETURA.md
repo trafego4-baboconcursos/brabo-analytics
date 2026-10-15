@@ -42,7 +42,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 92 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 93 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -337,6 +337,7 @@ relacionados:
 > - [[ARQUITETURA#Página /landing-pages + lista oficial + auditoria agendada (2026-10-11)|Página /landing-pages + lista oficial + auditoria agendada (2026-10-11)]]
 > - [[ARQUITETURA#Criativos da Black por expert e Validado × Novo (11/10/26)|Criativos da Black por expert e Validado × Novo (11/10/26)]]
 > - [[ARQUITETURA#Menu e Captação por trilha na Black (11/10/26)|Menu e Captação por trilha na Black (11/10/26)]]
+> - [[ARQUITETURA#Snapshot do debriefing com carrinho aberto (15/10/26)|Snapshot do debriefing com carrinho aberto (15/10/26)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -3879,3 +3880,8 @@ Nas linhas dos blocos por etapa (`_bloco_criativos`), só na Black, entram `expe
 ### Menu e Captação por trilha na Black (11/10/26)
 
 `_build_funis_nav_groups` troca, só na Black, "Pré-Qualificação" por "Aquecimento" e divide "Captação" em "Captação Base Forte" (`/captacao?trilha=base-forte`) e "Captação BV" (`/captacao?trilha=vitalicia`). Na trilha, `/captacao` troca investimento/leads/público por `por_trilha_captacao` e `por_temperatura_por_trilha` e esconde o que não existe por trilha (receita, ROAS, UTM, WhatsApp, diário, conversão de páginas, vendas, verba). Leads no Active da trilha: `read_leads_por_trilha` (estado de UTM). Teste: `tests/test_menu_black.py`.
+
+
+### Snapshot do debriefing com carrinho aberto (15/10/26)
+
+A venda (Hotmart/TMB) entra no banco operacional sem passar pelo ETL, então nada re-aquece o snapshot quando ela chega. Com o carrinho aberto (`carrinho_start_date`..`carrinho_end_date` contém hoje) e o snapshot com mais de 10 min, `/debriefing` serve o snapshot e dispara `schedule_warm([código], invalidate=True)` em segundo plano, no máximo a cada 10 min por lançamento. Fora do carrinho nada muda (ciclo periódico + pós-ETL). Teste: `tests/test_debriefing_carrinho_aberto.py`.

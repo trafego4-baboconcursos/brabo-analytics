@@ -175,3 +175,46 @@ def test_webhook_enfileira_contato(cliente_webhook):
 def test_status_do_coletor_so_admin():
     from frontend.auth import ROUTE_PERMISSIONS
     assert ROUTE_PERMISSIONS["/api/unnichat/status"] == ["admin"]
+
+
+# ── Botão "Atualizar agora" ───────────────────────────────────────────────────
+
+@pytest.fixture()
+def cliente_leitura(monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from frontend.app import app
+    from frontend.auth import _sign_session
+
+    with TestClient(app, follow_redirects=False) as c:
+        c.cookies.set("session_token", _sign_session("u-leitura", "leitura", ["ALL"], "comercial@teste.local"))
+        monkeypatch.setenv("UNNICHAT_TOKEN_IVAN_NETO_PRINCIPAL", "tok")
+        monkeypatch.setenv("UNNICHAT_TOKEN_MATEUS_ANDRADE_B2", "tok")
+        yield c
+
+
+def test_atualizar_com_coleta_desligada_avisa(cliente_leitura, monkeypatch):
+    from frontend.services.unnichat import coletor
+    monkeypatch.setitem(coletor.ESTADO, "ligado", False)
+    r = cliente_leitura.post("/atendimento/atualizar")
+    assert r.status_code == 503 and r.json()["ok"] is False
+
+
+def test_atualizar_pede_releitura_da_conta_escolhida(cliente_leitura, monkeypatch):
+    from frontend.services.unnichat import banco, coletor
+    monkeypatch.setitem(coletor.ESTADO, "ligado", True)
+    pedidos = []
+    monkeypatch.setattr(banco, "pedir_atualizacao", lambda contas, horas: pedidos.append((contas, horas)) or 7)
+    monkeypatch.setattr(banco, "atualizacao_pendente", lambda contas: 3)
+
+    r = cliente_leitura.post("/atendimento/atualizar?conexao=mateus_andrade_b2")
+    assert r.status_code == 200 and r.json() == {"ok": True, "na_fila": 7}
+    cliente_leitura.post("/atendimento/atualizar?conexao=conta_que_nao_existe")   # cai pra todas
+    assert pedidos == [(["mateus_andrade_b2"], 24), (["ivan_neto_principal", "mateus_andrade_b2"], 24)]
+    assert cliente_leitura.get("/atendimento/atualizar/status").json() == {"na_fila": 3}
+
+
+def test_atualizar_liberado_pra_quem_abre_a_pagina():
+    from frontend.auth import ROUTE_PERMISSIONS
+    assert ROUTE_PERMISSIONS["/atendimento/atualizar"] == ROUTE_PERMISSIONS["/atendimento"]
+    assert ROUTE_PERMISSIONS["/atendimento/atualizar/status"] == ROUTE_PERMISSIONS["/atendimento"]

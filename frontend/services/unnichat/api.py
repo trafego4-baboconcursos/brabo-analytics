@@ -56,7 +56,15 @@ class Unnichat:
         return resp.json()
 
     def mensagens(self, conexao: str, contact_id: str) -> list[dict]:
-        return self._get(conexao, f"/contact/{contact_id}/messages").get("data") or []
+        """[] quando o contato não existe mais pra esse token: 404 (apagado) ou
+        400 (apagado ou de outra conta). Visto na carga do backup e no teste do
+        botão "Atualizar agora" (13/10/2026). Não é erro: não há o que reler."""
+        try:
+            return self._get(conexao, f"/contact/{contact_id}/messages").get("data") or []
+        except requests.HTTPError as exc:
+            if exc.response is not None and exc.response.status_code in (400, 404):
+                return []
+            raise
 
     def responsavel(self, conexao: str, contact_id: str) -> dict:
         """{} quando o contato foi apagado no Unnichat (400 "Contact not exists").

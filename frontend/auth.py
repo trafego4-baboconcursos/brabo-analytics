@@ -39,13 +39,17 @@ COOKIE_SECURE = os.environ.get("COOKIE_SECURE", "false").lower() == "true"
 
 # ── Permissões por rota ────────────────────────────────────────────────────────
 _ALL   = ["admin", "analista", "trafego", "leitura"]
-_MEDIA = ["admin", "analista", "trafego"]
+# "leitura" vê TUDO que admin/analista veem, só não escreve: nenhum endpoint
+# de escrita (launch-config, lançamentos, usuários, ETL, seções globais) o
+# aceita. Até 13/10/26 via só Início/Funil/Insights — virou o papel do time
+# comercial, que precisa do sistema inteiro sem poder editar.
+_MEDIA = ["admin", "analista", "trafego", "leitura"]
 _ANLT  = ["admin", "analista", "leitura"]
-_DTLD  = ["admin", "analista"]
+_DTLD  = ["admin", "analista", "leitura"]
 _ADM   = ["admin"]
 # Time comercial: só enxerga /atendimento (qualquer rota fora da lista cai no
 # default _ALL, que não inclui "comercial" — o marketing fica fechado pra ele).
-_CMRC  = ["admin", "analista", "comercial"]
+_CMRC  = ["admin", "analista", "leitura", "comercial"]
 
 ROUTE_PERMISSIONS: dict[str, list[str]] = {
     "/":                  _ALL,
@@ -73,6 +77,9 @@ ROUTE_PERMISSIONS: dict[str, list[str]] = {
     # item escondido do menu (o menu não é a trava).
     "/afiliados":         _DTLD,
     "/atendimento":       _CMRC,
+    "/atendimento/conversas.csv": _CMRC,
+    "/atendimento/atualizar": _CMRC,          # botão "Atualizar agora": só pede releitura, não edita dado
+    "/atendimento/atualizar/status": _CMRC,
     "/api/unnichat/status": _ADM,
     "/settings":          _ADM,
 }

@@ -107,4 +107,4 @@ def test_comercial_nao_ve_marketing(client_comercial, pagina):
 def test_atendimento_liberado_so_pros_papeis_certos():
     from frontend.auth import ROUTE_PERMISSIONS
 
-    assert sorted(ROUTE_PERMISSIONS["/atendimento"]) == ["admin", "analista", "comercial"]
+    assert sorted(ROUTE_PERMISSIONS["/atendimento"]) == ["admin", "analista", "comercial", "leitura"]

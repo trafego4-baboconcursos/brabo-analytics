@@ -261,23 +261,96 @@ def read_atendimento(dias: int, conexao: str | None = None, hoje: date | None = 
     resumo.coleta_ativa = True
     agregar(resumo, diario, abertas, nomes, nome_conexao, resumo.conexao, pontos)
 
-    agora = datetime.now(_TZ)
-    for c in conversas:
-        espera = None
-        if c.ultima_msg_de == "cliente" and c.ultima_msg_em:
-            espera = max(0, int((agora - c.ultima_msg_em).total_seconds() // 60))
-        info = nomes.get(c.atendente_id, {})
-        resumo.conversas.append({
-            "conexao": nome_conexao.get(c.conexao, c.conexao),
-            "contato": c.nome or c.telefone or c.contact_id,
-            "telefone": c.telefone,
-            "atendente": info.get("nome") or ("Sem atendente" if not c.atendente_id else c.atendente_id),
-            "ultima_msg_de": c.ultima_msg_de,
-            "ultima_msg_em": c.ultima_msg_em,
-            "espera_min": espera,
-        })
+    resumo.conversas = _montar_conversas(conversas, nomes, nome_conexao)
 
     resumo.aguardando_1h = contagem.aguardando_1h or 0
     # Fuso de São Paulo aqui, não no template: o servidor roda em UTC.
     resumo.ultima_coleta = contagem.ultima_coleta.astimezone(_TZ) if contagem.ultima_coleta else None
     return resumo
+
+
+# Situação da conversa pelo tempo que o cliente espera (mesma régua do template:
+# atenção a partir de 1h, crítico a partir de 4h; None = atendente falou por
+# último, a bola está com o cliente).
+SITUACOES = {
+    "critico": "Crítico",
+    "atencao": "Atenção",
+    "prazo": "No prazo",
+    "aguardando_cliente": "Aguardando cliente",
+}
+
+
+def situacao_conversa(espera_min: int | None) -> str:
+    if espera_min is None:
+        return "aguardando_cliente"
+    if espera_min >= 240:
+        return "critico"
+    if espera_min >= 60:
+        return "atencao"
+    return "prazo"
+
+
+def espera_texto(espera_min: int | None) -> str:
+    if espera_min is None:
+        return "—"
+    if espera_min < 60:
+        return f"{espera_min} min"
+    return f"{espera_min // 60}h {espera_min % 60:02d}"
+
+
+def _montar_conversas(rows, nomes: dict, nome_conexao: dict) -> list[dict]:
+    agora = datetime.now(_TZ)
+    saida = []
+    for c in rows:
+        espera = None
+        if c.ultima_msg_de == "cliente" and c.ultima_msg_em:
+            espera = max(0, int((agora - c.ultima_msg_em).total_seconds() // 60))
+        info = nomes.get(c.atendente_id, {})
+        saida.append({
+            "conexao": nome_conexao.get(c.conexao, c.conexao),
+            "contato": c.nome or c.telefone or c.contact_id,
+            "telefone": c.telefone,
+            "atendente": info.get("nome") or ("Sem atendente" if not c.atendente_id else c.atendente_id),
+            "ultima_msg_de": c.ultima_msg_de,
+            "ultima_msg_em": c.ultima_msg_em.astimezone(_TZ) if c.ultima_msg_em else None,
+            "espera_min": espera,
+            "situacao": situacao_conversa(espera),
+        })
+    return saida
+
+
+def read_conversas_abertas(conexao: str | None = None, atendente: str | None = None,
+                           situacao: str | None = None) -> list[dict]:
+    """TODAS as conversas abertas (sem o limite da página), já filtradas — base
+    do relatório CSV. `atendente` compara com o nome exibido; `situacao` é uma
+    chave de SITUACOES. Mesma ordem da página: aguardando primeiro, mais
+    antigas primeiro."""
+    with _get_users_engine().connect() as conn:
+        if not _tabelas_existem(conn):
+            return []
+        nome_conexao = dict(conn.execute(text(
+            "SELECT chave, nome FROM unnichat_conexoes WHERE ativa"
+        )).fetchall())
+        if not nome_conexao:
+            return []
+        escolhidas = [conexao] if conexao in nome_conexao else list(nome_conexao)
+        nomes = {
+            r.atendente_id: {"nome": r.nome or r.atendente_id, "status": r.status}
+            for r in conn.execute(text("SELECT atendente_id, nome, status FROM unnichat_atendentes"))
+        }
+        rows = conn.execute(text(
+            """
+            SELECT conexao, contact_id, telefone, nome, atendente_id,
+                   ultima_msg_em, ultima_msg_de
+              FROM unnichat_contatos
+             WHERE conexao IN :conexoes AND ultima_msg_cliente_em > now() - interval '24 hours'
+             ORDER BY (ultima_msg_de = 'cliente') DESC, ultima_msg_em ASC NULLS LAST
+            """
+        ).bindparams(bindparam("conexoes", expanding=True)), {"conexoes": escolhidas}).fetchall()
+
+    conversas = _montar_conversas(rows, nomes, nome_conexao)
+    if atendente:
+        conversas = [c for c in conversas if c["atendente"] == atendente]
+    if situacao in SITUACOES:
+        conversas = [c for c in conversas if c["situacao"] == situacao]
+    return conversas

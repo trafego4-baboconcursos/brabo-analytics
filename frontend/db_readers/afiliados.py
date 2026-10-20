@@ -31,7 +31,7 @@ import pandas as pd
 from sqlalchemy import text
 
 from frontend.db import _get_engine, _get_users_engine
-from frontend.db_readers._vendas_comum import _hm_data_sql, _parcela_unica_info, valor_sem_impostos_liquido
+from frontend.db_readers._vendas_comum import _hm_data_sql, _parcela_unica_info
 from frontend.models import AfiliadosSummary
 from frontend.utils import (
     _extract_launch_code,
@@ -90,7 +90,7 @@ def _valor_da_linha(row) -> float:
         return None
     valor = _num(row.get("faturamento_liquido"))
     if not valor:
-        valor = valor_sem_impostos_liquido(row, _num)
+        valor = _num(row.get("valor_de_compra_sem_impostos"))
     if eh_por_parcela:
         valor *= max(1, parcelas)
     return valor
@@ -148,7 +148,7 @@ def read_afiliados(launch_folder_or_code: Any, start_date=None, end_date=None) -
         SELECT nome_do_a_afiliado_a, comissao_do_a_afiliado_a, venda_feita_como,
                codigo_src, codigo_sck, canal_usado_para_venda, ferramenta_de_venda,
                produto, codigo_do_produto, metodo_de_pagamento, faturamento_liquido,
-               valor_de_compra_sem_impostos, taxa_de_processamento, valor_de_compra_com_impostos,
+               valor_de_compra_sem_impostos, valor_de_compra_com_impostos,
                tipo_de_cobranca, quantidade_de_cobrancas, quantidade_total_de_parcelas,
                {data_sql} AS data_venda
         FROM hotmart_clean_oficial

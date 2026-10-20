@@ -26,7 +26,6 @@ from frontend.db_readers._vendas_comum import (  # noqa: F401 — reexport
     _UFS_VALIDAS,
     _bucket_metodo_pagamento,
     _canal_venda,
-    valor_sem_impostos_liquido,
     _hm_data_sql,
     _hm_metodo_label,
     _hm_parse_date,
@@ -210,7 +209,7 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
 
             valor = _hm_val(row.get("faturamento_liquido"))
             if valor is None:
-                valor = valor_sem_impostos_liquido(row, _hm_val)
+                valor = _hm_val(row.get("valor_de_compra_sem_impostos"))
             if valor is None:
                 valor = 0.0
             valor_bruto = _hm_val(row.get("valor_de_compra_com_impostos"))
@@ -234,11 +233,12 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
             summary.hotmart_receita += valor
             summary.hotmart_receita_bruta += valor_bruto
             summary.hotmart_receita_liquida += valor
-            _sem = _hm_val(row.get("valor_de_compra_sem_impostos"))
-            _antes = _sem * (max(1, parcelas) if eh_por_parcela else 1) if _sem else valor
-            _antes = max(_antes, valor)
-            summary.hotmart_antes_taxa += _antes
-            summary.hotmart_taxa += _antes - valor
+            # Ponte do pago ao líquido (só apresentação): o líquido `valor` já vem depois
+            # das duas taxas — nas vendas de 2026 o `valor_de_compra_sem_impostos` É o
+            # faturamento líquido do produtor (pago − parcelamento − taxa de processamento).
+            _taxa = (_hm_val(row.get("taxa_de_processamento")) or 0.0) * (max(1, parcelas) if eh_por_parcela else 1)
+            summary.hotmart_taxa += _taxa
+            summary.hotmart_parcelamento += max(valor_bruto - valor - _taxa, 0.0)
             if email:
                 summary.emails_hotmart.add(email)
                 summary.receita_por_email[email] = summary.receita_por_email.get(email, 0.0) + valor
@@ -589,7 +589,7 @@ def read_dia1_sales(launch: Any) -> dict:
             else "AND " + project_case + " = :project"
         )
         hm_sql = r"""
-            SELECT ts, faturamento_liquido, valor_de_compra_sem_impostos, taxa_de_processamento, valor_de_compra_com_impostos,
+            SELECT ts, faturamento_liquido, valor_de_compra_sem_impostos, valor_de_compra_com_impostos,
                    tipo_de_cobranca, venda_feita_como, quantidade_de_cobrancas, quantidade_total_de_parcelas
             FROM (
             SELECT
@@ -607,7 +607,7 @@ def read_dia1_sales(launch: Any) -> dict:
                        THEN (data_da_transacao::timestamptz AT TIME ZONE 'America/Sao_Paulo')
                 END
               ) AS ts,
-              faturamento_liquido, valor_de_compra_sem_impostos, taxa_de_processamento, valor_de_compra_com_impostos,
+              faturamento_liquido, valor_de_compra_sem_impostos, valor_de_compra_com_impostos,
               tipo_de_cobranca, venda_feita_como,
               quantidade_de_cobrancas, quantidade_total_de_parcelas
             FROM hotmart_clean_oficial
@@ -675,7 +675,7 @@ def read_dia1_sales(launch: Any) -> dict:
                 return None
         valor = _v(row.get("faturamento_liquido"))
         if valor is None:
-            valor = valor_sem_impostos_liquido(row, _v)
+            valor = _v(row.get("valor_de_compra_sem_impostos"))
         if valor is None:
             valor = 0.0
         eh_por_parcela, eh_repeticao, cobrancas, parcelas = _parcela_unica_info(row)

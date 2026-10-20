@@ -49,26 +49,6 @@ def _hm_data_sql(col: str) -> str:
     )
 
 
-def valor_sem_impostos_liquido(row, num):
-    """Valor da venda DEPOIS da taxa da Hotmart, para linhas sem `faturamento_liquido`.
-
-    As vendas gravadas pelo webhook/API (todas as de 2026) chegam com
-    `faturamento_liquido` vazio, mas com `taxa_de_processamento` preenchida. Nas
-    96,9 mil linhas antigas que trazem os dois, o líquido é exatamente
-    `valor_de_compra_sem_impostos - taxa_de_processamento` (99,3% batem ao centavo).
-    Usar só o valor sem impostos entregava a receita BRUTA (~4,5% acima) como se
-    fosse líquida — achado em 20/10/26 no BV-26. Sem taxa válida, devolve o valor
-    sem impostos como antes. `num` é o conversor numérico do leitor que chama.
-    """
-    sem = num(row.get("valor_de_compra_sem_impostos"))
-    if not sem:
-        return sem
-    taxa = num(row.get("taxa_de_processamento"))
-    if taxa is None or taxa < 0 or taxa >= sem:
-        return sem
-    return sem - taxa
-
-
 def _parcela_unica_info(row) -> tuple[bool, bool, int, int]:
     """Identifica vendas do Hotmart gravadas com o VALOR DA PARCELA em vez do total,
     e separa isso de "é retentativa de cobrança" (que é sempre indicado por

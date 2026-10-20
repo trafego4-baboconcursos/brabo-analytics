@@ -863,19 +863,16 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       {% endfor %}
     </div>
 
-    {# Parte da Hotmart: quanto a plataforma fica de taxa. Os 3 primeiros cards são só da
-       Hotmart (a Receita Líquida do topo soma Hotmart + TMB, então no lançamento
-       anterior ela é maior que o "antes da taxa" daqui quando houve venda na TMB). #}
-    {% if dbf.taxa_hotmart > 0 %}
+    {# Parte da Hotmart: do que o cliente pagou até o que cai pro produtor. Só Hotmart
+       (a Receita Líquida do topo soma Hotmart + TMB). O líquido já vem depois das duas
+       taxas: nas vendas de 2026 o `valor_de_compra_sem_impostos` é o faturamento
+       líquido do produtor (pago − parcelamento − taxa de processamento). #}
+    {% if dbf.taxa_hotmart > 0 or dbf.parcelamento_hotmart > 0 %}
     <div class="dbf-kpi-grid" style="--kpi-cols:4">
-      {{ kpi_card("Faturamento Hotmart antes da taxa", dbf.antes_taxa_hotmart, dbf.prev_antes_taxa_hotmart, "brl0", "up") }}
-      {{ kpi_card("Taxa Hotmart", dbf.taxa_hotmart, dbf.prev_taxa_hotmart, "brl0", "down") }}
-      {{ kpi_card("Receita líquida só da Hotmart", dbf.hotmart_liquido, dbf.prev_hotmart_liquido, "brl0", "up") }}
-      <div class="dbf-kpi">
-        <div class="lbl">Taxa Hotmart (% do faturamento)</div>
-        <div class="val">{{ "%.1f"|format(dbf.taxa_hotmart_pct) | replace(".", ",") }}%</div>
-        {% if dbf.has_prev and dbf.prev_taxa_hotmart_pct %}<div class="prev-val">ant.: {{ "%.1f"|format(dbf.prev_taxa_hotmart_pct) | replace(".", ",") }}%</div>{% endif %}
-      </div>
+      {{ kpi_card("Pago pelos clientes (Hotmart)", dbf.pago_hotmart, dbf.prev_pago_hotmart, "brl0", "up") }}
+      {{ kpi_card("Taxa de parcelamento · " ~ ("%.1f"|format(dbf.parcelamento_hotmart_pct) | replace(".", ",")) ~ "% do pago", dbf.parcelamento_hotmart, dbf.prev_parcelamento_hotmart, "brl0", "down") }}
+      {{ kpi_card("Taxa Hotmart · " ~ ("%.1f"|format(dbf.taxa_hotmart_pct) | replace(".", ",")) ~ "% do pago", dbf.taxa_hotmart, dbf.prev_taxa_hotmart, "brl0", "down") }}
+      {{ kpi_card("Líquido do produtor (só Hotmart)", dbf.hotmart_liquido, dbf.prev_hotmart_liquido, "brl0", "up") }}
     </div>
     {% endif %}
 

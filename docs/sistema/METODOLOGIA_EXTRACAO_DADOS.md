@@ -85,7 +85,7 @@ relacionados:
 > **14. Carregamento da página — `landing_page_views` e LP por anúncio (2026-10-10)**
 >
 >
-> **15. Receita líquida da Hotmart: descontar a taxa quando `faturamento_liquido` vem vazio (2026-10-20)**
+> **15. Receita líquida da Hotmart: o que cada coluna significa em cada origem (2026-10-20, corrigido no mesmo dia)**
 >
 
 <!-- SUMARIO:FIM -->
@@ -513,12 +513,15 @@ então não diz qual anúncio creditar. Ver [[CONGELAR_ATRIBUICAO_LANCAMENTO]], 
   - **Envios do form (AC)** = `entries` do formulário, total desde a criação (não por período).
 
 
-## 15. Receita líquida da Hotmart: descontar a taxa quando `faturamento_liquido` vem vazio (2026-10-20)
+## 15. Receita líquida da Hotmart: o que cada coluna significa em cada origem (2026-10-20, corrigido no mesmo dia)
 
-`hotmart_clean_oficial` tem duas origens. As linhas antigas (export CSV) trazem `faturamento_liquido`. As do webhook/API (todas as de 2026) chegam com ele **vazio**, mas com `taxa_de_processamento` preenchida. Nas 96,9 mil linhas antigas que têm os dois, `faturamento_liquido = valor_de_compra_sem_impostos - taxa_de_processamento` (99,3% batem ao centavo).
+`hotmart_clean_oficial` tem duas origens com semânticas **diferentes** na mesma coluna:
 
-Até 20/10/26 o leitor caía no `valor_de_compra_sem_impostos`, que ainda inclui a taxa da Hotmart: a "Receita Líquida" do debriefing era bruta (~4,5% acima no BV-26) e, entre lançamentos, BV-25/PI-ABR (líquido real) eram comparados com BV-26/PI-AGO (bruto). Agora `valor_sem_impostos_liquido` (`_vendas_comum.py`) devolve `sem impostos - taxa` quando a taxa é válida (0 <= taxa < valor), e o valor sem impostos como antes quando não há taxa. Usado em `read_vendas`, `read_dia1_sales`, `read_hotmart_details` e `read_afiliados`.
+- **Linhas antigas (export CSV):** trazem `faturamento_liquido`. Nelas `valor_de_compra_sem_impostos` é *antes* da taxa de processamento e `faturamento_liquido = sem_impostos - taxa_de_processamento` (99,3% de 96,9 mil linhas).
+- **Linhas do webhook/API (2026):** `faturamento_liquido` vem vazio e `valor_de_compra_sem_impostos` **já é o faturamento líquido do produtor**: `com_impostos - taxa de parcelamento - taxa de processamento`. Prova: a venda de cartão 12x do export da Hotmart (pago 1.898,64; parcelamento 274,67; processamento 65,96; líquido 1.558,01) existe no banco com `com=1898.64`, `sem=1558.01`, `taxa=65.96`; no BV-26 inteiro, Pix e boleto têm "sobra" (com − sem − taxa) ≈ 0 e o cartão parcelado concentra os R$ 286 mil.
 
-Efeito medido: BV-26 -4,5%, PI-AGO-26 -2,7%, PBB-AGO-26 -3,0%, PES-SET-26 -2,9%; lançamentos com `faturamento_liquido` (BV-25, PES-MAI-26, PI-ABR-26) não mudam. A TMB já usa `valor_liquido`. A "receita bruta" (`hotmart_receita_bruta`) segue sendo o valor com impostos.
+O leitor usa `faturamento_liquido` quando existe e, senão, o valor sem impostos. **Isso está certo para as duas origens.** Em 20/10/26 foi feito (e revertido no mesmo dia) um ajuste que descontava `taxa_de_processamento` também das linhas de 2026 — descontava a taxa duas vezes e derrubava a receita do BV-26 em 4,5% (R$ 2,00 mi em vez de R$ 2,10 mi). A extrapolação partiu das linhas antigas, onde a regra vale, sem testar as novas. Antes de mexer: comparar com a linha real do export.
 
-O debriefing mostra o quadro **Parte da Hotmart** (Resumo Executivo): faturamento antes da taxa (`hotmart_antes_taxa`, valor sem impostos × parcelas), taxa (`hotmart_taxa` = antes − líquido) e a taxa em % do faturamento, com o lançamento anterior ao lado. Só aparece com taxa > 0. BV-26: R$ 93.509 de R$ 2.093.266 (4,5%).
+O debriefing mostra a ponte **pago → líquido** (só Hotmart): `hotmart_receita_bruta` (o que o cliente pagou), `hotmart_parcelamento` (= pago − líquido − taxa), `hotmart_taxa` (taxa de processamento) e o líquido (`hotmart_receita`). BV-26: 2.477.143 − 286.665 − 93.660 = 2.096.819; BV-25: 5.803.942 − 545.637 − 220.430 = 5.037.875. A "Receita Líquida" do topo soma Hotmart + TMB.
+
+Pendente de conferência humana: o total "Faturamento líquido" do painel da Hotmart para os 3 produtos no mesmo período deve bater com `hotmart_receita`.

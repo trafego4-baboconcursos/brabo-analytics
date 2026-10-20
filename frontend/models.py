@@ -175,9 +175,9 @@ class VendasSummary:
     hotmart_receita: float = 0.0
     hotmart_receita_bruta: float = 0.0
     hotmart_receita_liquida: float = 0.0
-    # Parte da Hotmart: faturamento antes da taxa e a taxa (a diferença para o líquido).
-    hotmart_antes_taxa: float = 0.0
+    # Ponte pago -> líquido da Hotmart: taxa de processamento e taxa de parcelamento.
     hotmart_taxa: float = 0.0
+    hotmart_parcelamento: float = 0.0
     hotmart_ticket_medio: float = 0.0
     tmb_vendas: int = 0
     tmb_receita: float = 0.0

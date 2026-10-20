@@ -49,6 +49,19 @@ def _hm_data_sql(col: str) -> str:
     )
 
 
+# Ofertas que a regra geral de `_parcela_unica_info` classifica errado. Chave: codigo_do_produto.
+#   total_se_parcelado — o webhook grava `quantidade_de_cobrancas = 1` em TODA venda do
+#     produto, inclusive no cartão 12x que grava o TOTAL do contrato; sem isto a regra geral
+#     lê o total como "valor da parcela" e multiplica por 12.
+#   drp_parcelas — ofertas cujo código de preço termina em "DRP" são a cobrança MENSAL
+#     recorrente; o payload manda `quantidade_total_de_parcelas = 1`, mas o plano tem N parcelas.
+# 8743334 = "Black Vitalícia 2026 - AC": 12x no cartão de R$ 1.198,80 (total) e DRP de R$ 99,90
+# por mês em 24x (confirmado pelo time em 20/10/26).
+_REGRAS_POR_PRODUTO: dict[str, dict] = {
+    "8743334": {"total_se_parcelado": True, "drp_parcelas": 24},
+}
+
+
 def _parcela_unica_info(row) -> tuple[bool, bool, int, int]:
     """Identifica vendas do Hotmart gravadas com o VALOR DA PARCELA em vez do total,
     e separa isso de "é retentativa de cobrança" (que é sempre indicado por
@@ -107,6 +120,13 @@ def _parcela_unica_info(row) -> tuple[bool, bool, int, int]:
 
     eh_por_parcela = tipo == "recuperador inteligente" or (tipo_vazio and tem_cobrancas)
     eh_repeticao = tem_cobrancas and cobrancas != 1
+
+    regra = _REGRAS_POR_PRODUTO.get(str(row.get("codigo_do_produto") or "").strip())
+    if regra:
+        if regra.get("drp_parcelas") and str(row.get("codigo_do_preco") or "").endswith("DRP"):
+            return True, eh_repeticao, cobrancas, int(regra["drp_parcelas"])
+        if regra.get("total_se_parcelado") and parcelas > 1:
+            eh_por_parcela = False
     return eh_por_parcela, eh_repeticao, cobrancas, parcelas
 
 

@@ -147,7 +147,7 @@ def read_afiliados(launch_folder_or_code: Any, start_date=None, end_date=None) -
     sql = f"""
         SELECT nome_do_a_afiliado_a, comissao_do_a_afiliado_a, venda_feita_como,
                codigo_src, codigo_sck, canal_usado_para_venda, ferramenta_de_venda,
-               produto, codigo_do_produto, metodo_de_pagamento, faturamento_liquido,
+               produto, codigo_do_produto, codigo_do_preco, metodo_de_pagamento, faturamento_liquido,
                valor_de_compra_sem_impostos, valor_de_compra_com_impostos,
                tipo_de_cobranca, quantidade_de_cobrancas, quantidade_total_de_parcelas,
                {data_sql} AS data_venda

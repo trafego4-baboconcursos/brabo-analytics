@@ -23,7 +23,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 20 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 21 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **1. Visão Geral da Arquitetura (2.0 vs 1.0)**
@@ -87,6 +87,7 @@ relacionados:
 >
 > **15. Receita líquida da Hotmart: o que cada coluna significa em cada origem (2026-10-20, corrigido no mesmo dia)**
 >
+> - [[METODOLOGIA_EXTRACAO_DADOS#15.1 Regras por produto para parcelas (2026-10-20)|15.1 Regras por produto para parcelas (2026-10-20)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -525,3 +526,11 @@ O leitor usa `faturamento_liquido` quando existe e, senão, o valor sem impostos
 O debriefing mostra a ponte **pago → líquido** (só Hotmart): `hotmart_receita_bruta` (o que o cliente pagou), `hotmart_parcelamento` (= pago − líquido − taxa), `hotmart_taxa` (taxa de processamento) e o líquido (`hotmart_receita`). BV-26: 2.477.143 − 286.665 − 93.660 = 2.096.819; BV-25: 5.803.942 − 545.637 − 220.430 = 5.037.875. A "Receita Líquida" do topo soma Hotmart + TMB.
 
 **Receita contratada, não caixa:** `hotmart_receita` projeta o contrato completo das vendas gravadas por parcela (valor da parcela × nº de parcelas; regra de `_parcela_unica_info`, validada contra o export do PI-AGO-26). O "Faturamento líquido" do painel da Hotmart conta só o que já foi cobrado (no cartão mês a mês, boleto parcelado e 24x, só a 1ª parcela). Por isso o painel da Hotmart fica abaixo do dashboard e **não serve de prova do total**. Conferências que valem: (1) uma venda específica (ex.: HP0729340238, cartão 12x) deve mostrar R$ 1.558,01 de líquido; (2) a soma **sem projetar** (uma cobrança por linha: R$ 992.909 em 20/10 para os 3 produtos do BV-26) deve ficar perto do "Faturamento líquido" do painel.
+
+### 15.1 Regras por produto para parcelas (2026-10-20)
+
+A regra geral de `_parcela_unica_info` (webhook com `quantidade_de_cobrancas` presente ⇒ valor da parcela ⇒ multiplica pelas parcelas) foi validada no PI-AGO-26, mas erra em produtos cujo webhook manda `quantidade_de_cobrancas = 1` em TODA venda. Exceções ficam em `_REGRAS_POR_PRODUTO` (`_vendas_comum.py`), com `codigo_do_produto` e `codigo_do_preco` nas consultas dos leitores:
+
+- **8743334 ("Black Vitalícia 2026 - AC"):** (a) cartão 12x de R$ 1.198,80 grava o **total** do contrato (12 × R$ 99,90), não a parcela — `total_se_parcelado` impede o ×12 (eram 39 vendas contadas como R$ 11.800 líquidos cada, ~R$ 411 mil a mais); (b) ofertas com código de preço terminado em **DRP** são a cobrança mensal recorrente de R$ 99,90 em **24x** (confirmado pelo time) — `drp_parcelas: 24` (o payload manda 1 parcela e só R$ 94,90 por venda entrava). Segunda cobrança da mesma assinatura continua sendo repetição e não conta como venda.
+- Efeito no BV-26 (20/10, líquido projetado): R$ 2.114.741 → R$ 1.760.447; pago R$ 2.499.662 → R$ 2.058.304.
+- Para um produto novo com o mesmo defeito: testar `com × parcelas` contra o preço da oferta antes de aceitar a regra geral.

@@ -107,6 +107,7 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
         sql = (
             r"""
             SELECT codigo_da_transacao, email_do_a_comprador_a, metodo_de_pagamento, taxa_de_processamento,
+                   codigo_do_produto, codigo_do_preco,
                    tipo_de_cobranca, quantidade_de_cobrancas, quantidade_total_de_parcelas,
                    faturamento_liquido, valor_de_compra_sem_impostos, valor_de_compra_com_impostos,
                    telefone, comprador_a, estado_provincia, codigo_sck
@@ -589,7 +590,7 @@ def read_dia1_sales(launch: Any) -> dict:
             else "AND " + project_case + " = :project"
         )
         hm_sql = r"""
-            SELECT ts, faturamento_liquido, valor_de_compra_sem_impostos, valor_de_compra_com_impostos,
+            SELECT ts, codigo_do_produto, codigo_do_preco, faturamento_liquido, valor_de_compra_sem_impostos, valor_de_compra_com_impostos,
                    tipo_de_cobranca, venda_feita_como, quantidade_de_cobrancas, quantidade_total_de_parcelas
             FROM (
             SELECT
@@ -607,6 +608,7 @@ def read_dia1_sales(launch: Any) -> dict:
                        THEN (data_da_transacao::timestamptz AT TIME ZONE 'America/Sao_Paulo')
                 END
               ) AS ts,
+              codigo_do_produto, codigo_do_preco,
               faturamento_liquido, valor_de_compra_sem_impostos, valor_de_compra_com_impostos,
               tipo_de_cobranca, venda_feita_como,
               quantidade_de_cobrancas, quantidade_total_de_parcelas

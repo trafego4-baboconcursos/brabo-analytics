@@ -61,7 +61,7 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
         SELECT codigo_da_transacao, status_da_transacao, data_da_transacao, confirmacao_do_pagamento,
                metodo_de_pagamento, tipo_de_cobranca, quantidade_de_cobrancas, quantidade_total_de_parcelas,
                faturamento_liquido, valor_de_compra_sem_impostos, valor_de_compra_com_impostos,
-               nome_deste_preco, estado_provincia, cidade
+               nome_deste_preco, codigo_do_produto, codigo_do_preco, estado_provincia, cidade
         FROM hotmart_clean_oficial
         WHERE CASE
               WHEN produto ILIKE '%black vital%' THEN 'BLACK'

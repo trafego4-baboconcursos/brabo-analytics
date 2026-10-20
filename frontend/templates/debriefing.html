@@ -176,11 +176,11 @@
 /* ── Matrículas ───────────────────────────────────────────────── */
 .mat-cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .mat-card {
-  border-radius: 10px; padding: 24px 20px;
+  border-radius: 10px; padding: 24px;
   display: flex; flex-direction: column; gap: 6px;
 }
 .mat-card.curr { background: var(--bs-accent); color: #fff; }
-.mat-card.prev { background: var(--bs-surface); }
+.mat-card.prev { background: var(--bs-border); }
 .mat-card .mat-num { font-size: 56px; font-weight: 900; line-height: 1; }
 .mat-card.curr .mat-num { color: #fff; }
 .mat-card.prev .mat-num { color: var(--bs-ink); }
@@ -799,7 +799,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
             </span>
           {% endif %}
         </div>
-        {% if dbf.periodo_atual %}<div style="font-size:12px;color:rgba(255,255,255,.65);margin-top:8px"><i class="ti ti-calendar"></i> {{ dbf.periodo_atual }}</div>{% endif %}
+        {% if dbf.periodo_atual %}<div style="font-size:12px;font-weight:700;color:#fff;margin-top:8px"><i class="ti ti-calendar"></i> {{ dbf.periodo_atual }}</div>{% endif %}
       </div>
       <div class="mat-card prev">
         <div style="display:flex;align-items:baseline;gap:10px">
@@ -809,7 +809,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
           <span class="mat-tag" style="margin-top:0">{% if dbf.has_prev %}{{ dbf.prev_code }}{% else %}Lançamento anterior{% endif %}</span>
         </div>
         <div style="font-size:18px;font-weight:700;color:var(--bs-ink)">matrículas</div>
-        {% if dbf.has_prev and dbf.periodo_prev %}<div style="font-size:12px;color:var(--bs-ink-subtle);margin-top:8px"><i class="ti ti-calendar"></i> {{ dbf.periodo_prev }}</div>{% endif %}
+        {% if dbf.has_prev and dbf.periodo_prev %}<div style="font-size:12px;font-weight:600;color:var(--bs-ink-subtle);margin-top:8px"><i class="ti ti-calendar"></i> {{ dbf.periodo_prev }}</div>{% endif %}
       </div>
     </div>
   </div>

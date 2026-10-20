@@ -15,7 +15,8 @@ Para cada LP (URL usada em anúncio ou cadastrada na lista oficial `lp_oficiais`
    interação? (as LPs da Black 2026 adiam até a pessoa rolar/tocar — a auditoria rola antes de olhar);
 6. velocidade no celular pela PageSpeed Insights: nota, LCP, FCP, CLS, TBT, Speed Index, TTFB, peso,
    requisições, as maiores oportunidades e o CrUX (usuários reais do Chrome, por URL ou origem);
-7. taxa real dos anúncios do Meta nessa LP nos últimos 3 dias: abriu/clicou e lead/página aberta.
+7. print da página (lp_screenshots, o mesmo do debriefing) para quem ainda não tem ou passou de 7 dias;
+8. taxa real dos anúncios do Meta nessa LP nos últimos 3 dias: abriu/clicou e lead/página aberta.
 
 Grava o resultado em `lp_auditoria` (base da página /landing-pages) e o mapa anúncio → LP do Google em
 `ad_landing_pages` (o do Meta vem do ETL). Nasceu do erro da -v3a/ na BV-26: form 422 da Black 2025, tag
@@ -492,6 +493,12 @@ def auditar(lancamento: str, a: argparse.Namespace) -> int:
     if not a.nao_gravar:
         gravar_auditoria(lanc, resultados)
         print(f"auditoria gravada em lp_auditoria ({len(resultados)} LP(s))")
+        # Print da página para /landing-pages e o debriefing: só o que falta ou passou de 7 dias.
+        try:
+            from scripts.capturar_lps import capturar_urls
+            capturar_urls([u for u in por_url if not paginas[u].get("erro")], lanc, dias=7)
+        except Exception as e:  # noqa: BLE001 — print é enfeite; não derruba a auditoria
+            print(f"!! print das LPs não capturado ({e})")
     if sem_link:
         print(f"{len(sem_link)} anúncio(s) sem link legível pela API (post existente / vídeo sem CTA):")
         for x in sem_link:

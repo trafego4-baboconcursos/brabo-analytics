@@ -6,6 +6,8 @@ Fontes (uma linha por URL, normalizada sem query e com barra no fim):
 - saúde e velocidade → lp_auditoria (gravada por `python -m scripts.ads.auditar_lps <LANC>`)
 - Meta               → meta_ads_daily (link_clicks, landing_page_views, leads, spend) × ad_landing_pages
 - Google             → google_ads_daily (clicks, cost, conversions) × ad_landing_pages (gravado pela auditoria)
+- print da página   → lp_screenshots (o mesmo do debriefing, servido por /api/lp-screenshot/<caminho>;
+                       capturado por scripts/capturar_lps.py, que a auditoria chama a cada rodada)
 - GA4                → ga4_daily por caminho da LP: sessões, engajadas, eventos-chave e duração. Eventos-chave
                        não é taxa de conversão: um cadastro dispara mais de um (lead + lead qualificado).
                        A página de obrigado não serve de contagem: no ga4_daily ela só aparece quando a
@@ -91,6 +93,15 @@ def _ga4(conn, caminhos: set[str]) -> dict[str, dict]:
     return out
 
 
+def _prints(conn, caminhos: set[str]) -> dict[str, object]:
+    """caminho → data da captura, para as LPs que têm print em lp_screenshots."""
+    if not caminhos:
+        return {}
+    return {r.landing_page: r.capturado_em for r in conn.execute(text(
+        "SELECT landing_page, capturado_em FROM lp_screenshots WHERE landing_page = ANY(:c)"),
+        {"c": sorted(caminhos)})}
+
+
 def read_landing_pages(launch_folder_or_code) -> dict:
     code = _extract_launch_code(launch_folder_or_code)
     oficiais = read_oficiais(code)
@@ -103,6 +114,7 @@ def read_landing_pages(launch_folder_or_code) -> dict:
             urls = {o["url"] for o in oficiais} | set(auditoria) | set(meta) | set(google)
             urls.discard("(sem link lido)")
             ga4 = _ga4(conn, {_caminho(u) for u in urls})
+            prints = _prints(conn, {_caminho(u) for u in urls})
     except Exception:
         logger.exception("landing_pages: falha ao ler %s", code)
         return {"code": code, "lps": [], "oficiais": oficiais, "por_campanha": [], "erro": True}
@@ -116,6 +128,7 @@ def read_landing_pages(launch_folder_or_code) -> dict:
         forms = d.get("forms") or []
         lps.append({
             "url": u, "rotulo": urlsplit(u).path.strip("/") or u,
+            "caminho": _caminho(u), "print_em": prints.get(_caminho(u)),
             "oficial": por_oficial.get(u), "auditoria": aud, "dados": d, "forms": forms,
             "meta": meta.get(u), "google": google.get(u), "ga4": g4,
             "envios_ac": sum(int(f.get("envios") or 0) for f in forms) if forms else None,

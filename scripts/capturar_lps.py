@@ -16,6 +16,11 @@ Uso:
     python scripts/capturar_lps.py --lancamento PES-SET-26
     python scripts/capturar_lps.py --lancamento PES-SET-26 --forcar
     python scripts/capturar_lps.py --url https://lp.braboconcursos.com.br/xxx
+    python scripts/capturar_lps.py --lancamento BV-26 --oficiais     # LPs da lista oficial (lp_oficiais)
+    python scripts/capturar_lps.py --lancamento BV-26 --oficiais --dias 7   # recaptura print com +7 dias
+
+A auditoria (scripts/ads/auditar_lps.py) chama `capturar_urls` a cada rodada, então as LPs que ela
+audita ganham print sozinhas; a página /landing-pages mostra o mesmo print do debriefing.
 
 Requer (só na máquina que captura, não em produção):
     pip install playwright && playwright install chromium
@@ -90,11 +95,33 @@ def _landing_pages_do_lancamento(code: str) -> list[str]:
     return paths
 
 
-def _ja_capturadas(conn) -> set[str]:
-    return {r[0] for r in conn.execute(text("SELECT landing_page FROM lp_screenshots"))}
+def _ja_capturadas(conn, dias: int | None = None) -> set[str]:
+    """Caminhos com print. Com `dias`, só os capturados há menos que isso (os mais velhos são refeitos)."""
+    if dias is None:
+        return {r[0] for r in conn.execute(text("SELECT landing_page FROM lp_screenshots"))}
+    return {r[0] for r in conn.execute(text(
+        "SELECT landing_page FROM lp_screenshots WHERE capturado_em >= NOW() - make_interval(days => :d)"), {"d": dias})}
 
 
-def capturar(paths_e_urls: list[tuple[str, str]], code: str | None, forcar: bool) -> int:
+def chave_da_url(url: str) -> str:
+    """Chave em lp_screenshots: o caminho sem barra no fim — o formato do GA4, que o debriefing usa."""
+    from urllib.parse import urlparse
+    return (urlparse(url).path.rstrip("/") or "/")
+
+
+def capturar_urls(urls: list[str], code: str | None, dias: int | None = 7) -> int:
+    """Print das URLs que ainda não têm (ou cujo print passou de `dias`). Usada pela auditoria."""
+    return capturar([(chave_da_url(u), u) for u in urls], code, False, dias)
+
+
+def _oficiais(code: str) -> list[str]:
+    from frontend.db import _get_users_engine
+    with _get_users_engine().connect() as conn:
+        return [r[0] for r in conn.execute(
+            text("SELECT url FROM lp_oficiais WHERE lancamento_codigo = :c ORDER BY url"), {"c": code})]
+
+
+def capturar(paths_e_urls: list[tuple[str, str]], code: str | None, forcar: bool, dias: int | None = None) -> int:
     try:
         from playwright.sync_api import sync_playwright
     except ImportError:
@@ -105,7 +132,7 @@ def capturar(paths_e_urls: list[tuple[str, str]], code: str | None, forcar: bool
     with engine.begin() as conn:
         for stmt in filter(None, (s.strip() for s in DDL.split(";"))):
             conn.execute(text(stmt))
-        existentes = set() if forcar else _ja_capturadas(conn)
+        existentes = set() if forcar else _ja_capturadas(conn, dias)
 
     pendentes = [(lp, url) for lp, url in paths_e_urls if lp not in existentes]
     if not pendentes:
@@ -195,6 +222,8 @@ def main() -> int:
     ap.add_argument("--lancamento", help="Código do lançamento (ex: PES-SET-26)")
     ap.add_argument("--url", help="Captura uma URL avulsa em vez do lançamento inteiro")
     ap.add_argument("--forcar", action="store_true", help="Recaptura mesmo o que já está no banco")
+    ap.add_argument("--oficiais", action="store_true", help="Usa a lista oficial (lp_oficiais) em vez do GA4")
+    ap.add_argument("--dias", type=int, help="Recaptura prints com mais de N dias")
     args = ap.parse_args()
 
     if args.url:
@@ -206,6 +235,12 @@ def main() -> int:
         ap.error("informe --lancamento ou --url")
 
     code = args.lancamento.upper()
+    if args.oficiais:
+        urls = _oficiais(code)
+        if not urls:
+            logger.error("Nenhuma LP na lista oficial de %s.", code)
+            return 1
+        return capturar([(chave_da_url(u), u) for u in urls], code, args.forcar, args.dias)
     from frontend.core import get_launches, resolve_launch
     launch = resolve_launch(code, get_launches())
     if not launch:

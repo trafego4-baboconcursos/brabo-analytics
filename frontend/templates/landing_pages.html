@@ -11,6 +11,13 @@
   .lp-chip.aviso { background:var(--bs-warning-bg); color:var(--bs-warning); border-color:transparent; }
   .lp-alertas { margin:4px 0 12px; padding:8px 12px; background:var(--bs-danger-bg); border-radius:var(--bs-r-md); font-size:12px; color:var(--bs-danger); }
   .lp-alertas li { margin:2px 0; }
+  .lp-corpo { display:grid; grid-template-columns:240px 1fr; gap:14px; align-items:start; }
+  .lp-print { display:block; position:sticky; top:12px; }
+  .lp-print img { width:100%; height:340px; object-fit:cover; object-position:top; border-radius:var(--bs-r-md);
+                  border:1px solid var(--bs-border); background:var(--bs-surface); display:block; }
+  .lp-print:hover img { border-color:var(--bs-accent); }
+  .lp-print-data { font-size:11px; color:var(--bs-ink-subtle); margin-top:4px; text-align:center; }
+  @media (max-width:900px) { .lp-corpo { grid-template-columns:1fr; } .lp-print { position:static; } .lp-print img { height:260px; } }
   .lp-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px; }
   .lp-bloco { background:var(--bs-surface); border-radius:var(--bs-r-md); padding:10px 12px; font-size:12px; }
   .lp-bloco h4 { margin:0 0 6px; font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--bs-ink-muted); }
@@ -35,6 +42,8 @@
 {% macro valor(v, metrica, fmt) -%}
   {%- if v is none -%}–{%- else -%}<span class="f-{{ v | faixa(metrica) }}">{{ fmt | format(v) | replace('.', ',') }}</span>{%- endif -%}
 {%- endmacro %}
+{# Print da LP: o mesmo do debriefing (lp_screenshots, via /api/lp-screenshot). Sem print, aviso neutro. #}
+{% set _lp_sem_print = "data:image/svg+xml," ~ ("<svg xmlns='http://www.w3.org/2000/svg' width='240' height='340'><rect width='240' height='340' fill='#eef1f6'/><text x='120' y='170' font-family='sans-serif' font-size='13' fill='#8b95aa' text-anchor='middle'>sem print da página</text></svg>" | urlencode) %}
 {% macro sim_nao(v, bom=True) -%}
   {%- if v is none -%}–{%- elif v == bom -%}<span class="f-bom">sim</span>{%- else -%}<span class="f-ruim">não</span>{%- endif -%}
 {%- endmacro %}
@@ -107,6 +116,14 @@
       <ul class="lp-alertas">{% for al in aud.alertas %}<li>{{ al }}</li>{% endfor %}</ul>
       {% endif %}
 
+      <div class="lp-corpo">
+        <div>
+          <a class="lp-print" href="/api/lp-screenshot{{ x.caminho }}" target="_blank" rel="noopener" title="Ver o print inteiro da página">
+            <img src="/api/lp-screenshot{{ x.caminho }}" loading="lazy" alt="Print de {{ x.rotulo }}"
+                 onerror="this.onerror=null;this.src=&quot;{{ _lp_sem_print }}&quot;">
+          </a>
+          <div class="lp-print-data">{% if x.print_em %}print de {{ x.print_em | br_date }} · desktop{% else %}sem print ainda{% endif %}</div>
+        </div>
       <div class="lp-grid">
         <div class="lp-bloco">
           <h4>Formulário e rastreio</h4>
@@ -188,6 +205,7 @@
           {% endif %}
           {% if not m and not g and not a %}<div class="lp-linha"><span>Tráfego</span><span>nenhum ainda</span></div>{% endif %}
         </div>
+      </div>
       </div>
     </div>
     {% endfor %}

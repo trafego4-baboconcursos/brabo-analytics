@@ -2,7 +2,7 @@
 titulo: "Arquitetura do Brabo Analytics — 2026-10-15"
 area: sistema
 status: vigente
-atualizado: 2026-10-15
+atualizado: 2026-10-20
 responde:
   - "como o sistema funciona por dentro"
   - "por que o aviso do etl recomputa so parte do cache"
@@ -3872,6 +3872,7 @@ Todo `CASE` produto→projeto dos leitores de venda (`sales`, `hotmart`, `tmb`, 
 - **Faixas de leitura** (bom/precisa melhorar/ruim do Google) num lugar só: `src/landing_pages.FAIXAS_CWV`, usadas pela auditoria (alerta no "ruim") e pelo filtro Jinja `faixa`.
 - A seção "7. Carregamento da Página" do /meta virou um link para a página nova.
 
+- **Print da LP na página (2026-10-20):** cada cartão de /landing-pages mostra o print da página, o mesmo do debriefing (`lp_screenshots`, servido por `/api/lp-screenshot/<caminho>`). Chave = caminho sem barra no fim (`scripts/capturar_lps.chave_da_url`, formato do GA4). `scripts/capturar_lps.py --lancamento X --oficiais [--dias N]` captura a lista oficial; a auditoria chama `capturar_urls(..., dias=7)` a cada rodada, então LP nova ganha print sozinha e o print é refeito a cada 7 dias. O workflow passou a instalar o `requirements.txt` inteiro, porque a captura importa os leitores do dashboard.
 
 ### Criativos da Black por expert e Validado × Novo (11/10/26)
 

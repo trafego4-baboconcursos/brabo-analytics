@@ -32,7 +32,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests python-dotenv sqlalchemy psycopg2-binary pandas playwright
+          # requirements inteiro: a captura do print importa os leitores do dashboard (frontend.db_readers)
+          pip install -r requirements.txt playwright
           python -m playwright install --with-deps chromium
 
       - name: Auditar LPs

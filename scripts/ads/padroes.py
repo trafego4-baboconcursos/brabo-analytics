@@ -97,7 +97,8 @@ EXPERTS = ("mateus", "ivan", "felipe")
 # /landing-pages. Aqui só os limites da auditoria (scripts/ads/auditar_lps.py).
 
 # Container GTM esperado por domínio de LP.
-GTM_POR_DOMINIO = {"lp.braboconcursos.com.br": "GTM-KHKZXK7L"}
+GTM_POR_DOMINIO = {"lp.braboconcursos.com.br": "GTM-KHKZXK7L",   # PBB, PES, Black
+                   "lp.mateusandrade.com.br": "GTM-MTMB99T3"}    # INSS (PI)
 
 # Limites de alerta, celular: o corte "ruim" do Google, de src/landing_pages.FAIXAS_CWV (fonte única,
 # a página /landing-pages usa as mesmas faixas para colorir).

@@ -212,3 +212,9 @@ def test_resumo_pagespeed():
     assert r["nota"] == 95 and r["lcp"] == 2.6 and r["peso_kb"] == 2048 and r["requisicoes"] == 3
     assert r["oportunidades"][0]["economia_ms"] == 900
     assert r["crux_url"] == {} and r["crux_origem"]["cls"]["p75"] == 0.05 and r["crux_origem"]["inp_ms"]["p75"] == 180
+
+
+def test_chave_do_print_e_o_caminho_sem_barra():
+    from scripts.capturar_lps import chave_da_url
+    assert chave_da_url("https://lp.braboconcursos.com.br/black-vitalicia-26-v1a/") == "/black-vitalicia-26-v1a"
+    assert chave_da_url("https://lp.braboconcursos.com.br/x?utm_source=y") == "/x"

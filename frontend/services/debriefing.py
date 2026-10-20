@@ -722,6 +722,8 @@ def _compute_debriefing_ctx(
     invest = _f(getattr(meta, "total_gasto", 0)) + _f(getattr(google, "total_custo", 0)) + wa_gasto
     receita = _f(getattr(vendas, "total_receita_liquida", 0)) or _f(getattr(vendas, "total_receita", 0))
     receita_bruta = _f(getattr(vendas, "total_receita_bruta", 0)) or _f(getattr(vendas, "total_receita", 0))
+    taxa_hotmart = _f(getattr(vendas, "hotmart_taxa", 0))
+    antes_taxa_hotmart = _f(getattr(vendas, "hotmart_antes_taxa", 0))
     roas = receita / invest if invest > 0 else 0.0
     roas_bruto = receita_bruta / invest if invest > 0 else 0.0
     total_vendas = _i(getattr(vendas, "total_vendas", 0))
@@ -751,6 +753,8 @@ def _compute_debriefing_ctx(
     prev_receita_bruta = _f(getattr(prev_vendas, "total_receita_bruta", 0)) or _f(getattr(prev_vendas, "total_receita", 0))
     prev_roas = prev_receita / prev_invest if prev_invest > 0 else 0.0
     prev_roas_bruto = prev_receita_bruta / prev_invest if prev_invest > 0 else 0.0
+    prev_taxa_hotmart = _f(getattr(prev_vendas, "hotmart_taxa", 0))
+    prev_antes_taxa_hotmart = _f(getattr(prev_vendas, "hotmart_antes_taxa", 0))
     prev_total_vendas = _i(getattr(prev_vendas, "total_vendas", 0))
     prev_ticket = _f(getattr(prev_vendas, "total_ticket_medio", 0))
     prev_meta_capt    = _captacao(prev_meta)
@@ -1310,6 +1314,8 @@ def _compute_debriefing_ctx(
         # KPIs
         "invest": invest, "wa_gasto": wa_gasto, "receita": receita, "roas": roas,
         "receita_bruta": receita_bruta, "roas_bruto": roas_bruto,
+        "taxa_hotmart": taxa_hotmart, "antes_taxa_hotmart": antes_taxa_hotmart,
+        "taxa_hotmart_pct": taxa_hotmart / antes_taxa_hotmart * 100 if antes_taxa_hotmart > 0 else 0.0,
         "total_vendas": total_vendas, "ticket": ticket,
         "total_leads": total_leads, "cpl": cpl,
         "fontes_leads": fontes_leads,
@@ -1327,6 +1333,8 @@ def _compute_debriefing_ctx(
         # Prev KPIs
         "prev_invest": prev_invest, "prev_receita": prev_receita, "prev_roas": prev_roas,
         "prev_receita_bruta": prev_receita_bruta, "prev_roas_bruto": prev_roas_bruto,
+        "prev_taxa_hotmart": prev_taxa_hotmart, "prev_antes_taxa_hotmart": prev_antes_taxa_hotmart,
+        "prev_taxa_hotmart_pct": prev_taxa_hotmart / prev_antes_taxa_hotmart * 100 if prev_antes_taxa_hotmart > 0 else 0.0,
         "prev_total_vendas": prev_total_vendas, "prev_ticket": prev_ticket,
         "prev_total_leads": prev_total_leads, "prev_cpl": prev_cpl,
         # Etapas

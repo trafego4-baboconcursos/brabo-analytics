@@ -234,6 +234,11 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
             summary.hotmart_receita += valor
             summary.hotmart_receita_bruta += valor_bruto
             summary.hotmart_receita_liquida += valor
+            _sem = _hm_val(row.get("valor_de_compra_sem_impostos"))
+            _antes = _sem * (max(1, parcelas) if eh_por_parcela else 1) if _sem else valor
+            _antes = max(_antes, valor)
+            summary.hotmart_antes_taxa += _antes
+            summary.hotmart_taxa += _antes - valor
             if email:
                 summary.emails_hotmart.add(email)
                 summary.receita_por_email[email] = summary.receita_por_email.get(email, 0.0) + valor

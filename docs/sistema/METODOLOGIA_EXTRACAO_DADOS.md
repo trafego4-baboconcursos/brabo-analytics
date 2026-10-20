@@ -21,6 +21,75 @@ relacionados:
 
 # Metodologia de Extração e Atribuição de Dados por Lançamento
 
+<!-- SUMARIO:INICIO -->
+
+> [!abstract]- Sumario - 20 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+>
+>
+> **1. Visão Geral da Arquitetura (2.0 vs 1.0)**
+>
+> - [[METODOLOGIA_EXTRACAO_DADOS#Arquitetura 2.0 (Atual / Automatizada)|Arquitetura 2.0 (Atual / Automatizada)]]
+> - [[METODOLOGIA_EXTRACAO_DADOS#Arquitetura 1.0 (Legado / Baseado em CSV)|Arquitetura 1.0 (Legado / Baseado em CSV)]]
+>
+> **2. Fontes de Dados e Integração (2.0)**
+>
+>
+> **3. Metodologia de Cálculo (Atribuição)**
+>
+> - [[METODOLOGIA_EXTRACAO_DADOS#3.1 Atribuição de Leads (UTM Content)|3.1 Atribuição de Leads (UTM Content)]]
+> - [[METODOLOGIA_EXTRACAO_DADOS#3.2 Cruzamento Vendas vs. Leads|3.2 Cruzamento Vendas vs. Leads]]
+> - [[METODOLOGIA_EXTRACAO_DADOS#3.3 Métricas Derivadas na View|3.3 Métricas Derivadas na View]]
+>
+> **4. Limitações Conhecidas e Gaps Sistemáticos**
+>
+> - [[METODOLOGIA_EXTRACAO_DADOS#4.1 Leads: subcontagem de ~26% em relação aos Pixels|4.1 Leads: subcontagem de ~26% em relação aos Pixels]]
+> - [[METODOLOGIA_EXTRACAO_DADOS#4.2 Vendas: subcontagem de ~32%|4.2 Vendas: subcontagem de ~32%]]
+> - [[METODOLOGIA_EXTRACAO_DADOS#4.3 Confiabilidade das Fontes|4.3 Confiabilidade das Fontes]]
+>
+> **5. Como Iniciar um Novo Lançamento (Modelo 2.0)**
+>
+>
+> **7. Status Atual e Evolução da V2 (Junho 2026)**
+>
+>
+> **8. Marcos Concluídos na V2 (Junho 2026)**
+>
+>
+> **9. Correções Críticas no Pipeline ETL (2026-06-25)**
+>
+> - [[METODOLOGIA_EXTRACAO_DADOS#9.1 `sys.path` invertido nos scripts ETL|9.1 `sys.path` invertido nos scripts ETL]]
+> - [[METODOLOGIA_EXTRACAO_DADOS#9.2 `import pandas` ausente no `etl_meta_ads.py`|9.2 `import pandas` ausente no `etl_meta_ads.py`]]
+> - [[METODOLOGIA_EXTRACAO_DADOS#9.3 Typeform deletava todos os dados do form no upsert|9.3 Typeform deletava todos os dados do form no upsert]]
+> - [[METODOLOGIA_EXTRACAO_DADOS#9.4 Active Campaign API varrendo toda a conta para buscar UTMs|9.4 Active Campaign API varrendo toda a conta para buscar UTMs]]
+> - [[METODOLOGIA_EXTRACAO_DADOS#9.5 Campos UTM do Active Campaign não configurados no `.env`|9.5 Campos UTM do Active Campaign não configurados no `.env`]]
+> - [[METODOLOGIA_EXTRACAO_DADOS#Status após correções|Status após correções]]
+>
+> **10. Desligamento do Typeform e migração pro sistema de pesquisa interno (2026-08-31)**
+>
+>
+> **11. Métricas das aulas no YouTube sem API (2026-09-15)**
+>
+> - [[METODOLOGIA_EXTRACAO_DADOS#Os três exports do Studio medem coisas diferentes (2026-09-15)|Os três exports do Studio medem coisas diferentes (2026-09-15)]]
+>
+> **12. Metricas das aulas no YouTube via API (2026-09-22)**
+>
+>
+> **13. A atribuição de lançamento fechado apaga sozinha (2026-10-07)**
+>
+> - [[METODOLOGIA_EXTRACAO_DADOS#13.1 A trava (07/10/26, mesmo dia)|13.1 A trava (07/10/26, mesmo dia)]]
+> - [[METODOLOGIA_EXTRACAO_DADOS#13.1b As leituras passaram a vir do estado (08/10/26)|13.1b As leituras passaram a vir do estado (08/10/26)]]
+> - [[METODOLOGIA_EXTRACAO_DADOS#13.2 Recuperação pelo export do AC da época + trava diária|13.2 Recuperação pelo export do AC da época + trava diária]]
+> - [[METODOLOGIA_EXTRACAO_DADOS#13.2b O que isso significa para a decisão de criativo (08/10/26)|13.2b O que isso significa para a decisão de criativo (08/10/26)]]
+> - [[METODOLOGIA_EXTRACAO_DADOS#13.3 A tag do AC já guardava o histórico|13.3 A tag do AC já guardava o histórico]]
+>
+> **14. Carregamento da página — `landing_page_views` e LP por anúncio (2026-10-10)**
+>
+>
+> **15. Receita líquida da Hotmart: descontar a taxa quando `faturamento_liquido` vem vazio (2026-10-20)**
+>
+
+<!-- SUMARIO:FIM -->
+
 **Última atualização:** Junho de 2026 (Transição para Análises 2.0)
 **Aplicável a:** PBB-ABR-26, PBB-FEV-26, PES-JAN-26, PES-MAI-26 e lançamentos futuros
 
@@ -442,3 +511,12 @@ então não diz qual anúncio creditar. Ver [[CONGELAR_ATRIBUICAO_LANCAMENTO]], 
   - **Faixas:** LCP ≤ 2,5 s bom / > 4 s ruim; INP ≤ 200 / > 500 ms; CLS ≤ 0,1 / > 0,25; TBT ≤ 200 / > 600 ms; FCP ≤ 1,8 / > 3 s; TTFB ≤ 800 / > 1.800 ms; nota ≥ 90 / < 50 (`src/landing_pages.FAIXAS_CWV`).
   - **GA4 por LP:** sessões, taxa de engajamento (sessão ≥ 10 s, 2+ páginas ou conversão), tempo médio e eventos-chave por sessão. **Eventos-chave não é taxa de conversão**: um cadastro dispara mais de um (lead e lead qualificado). A página de obrigado não serve de contagem no `ga4_daily`, porque lá ela só aparece quando a sessão começa nela.
   - **Envios do form (AC)** = `entries` do formulário, total desde a criação (não por período).
+
+
+## 15. Receita líquida da Hotmart: descontar a taxa quando `faturamento_liquido` vem vazio (2026-10-20)
+
+`hotmart_clean_oficial` tem duas origens. As linhas antigas (export CSV) trazem `faturamento_liquido`. As do webhook/API (todas as de 2026) chegam com ele **vazio**, mas com `taxa_de_processamento` preenchida. Nas 96,9 mil linhas antigas que têm os dois, `faturamento_liquido = valor_de_compra_sem_impostos - taxa_de_processamento` (99,3% batem ao centavo).
+
+Até 20/10/26 o leitor caía no `valor_de_compra_sem_impostos`, que ainda inclui a taxa da Hotmart: a "Receita Líquida" do debriefing era bruta (~4,5% acima no BV-26) e, entre lançamentos, BV-25/PI-ABR (líquido real) eram comparados com BV-26/PI-AGO (bruto). Agora `valor_sem_impostos_liquido` (`_vendas_comum.py`) devolve `sem impostos - taxa` quando a taxa é válida (0 <= taxa < valor), e o valor sem impostos como antes quando não há taxa. Usado em `read_vendas`, `read_dia1_sales`, `read_hotmart_details` e `read_afiliados`.
+
+Efeito medido: BV-26 -4,5%, PI-AGO-26 -2,7%, PBB-AGO-26 -3,0%, PES-SET-26 -2,9%; lançamentos com `faturamento_liquido` (BV-25, PES-MAI-26, PI-ABR-26) não mudam. A TMB já usa `valor_liquido`. A "receita bruta" (`hotmart_receita_bruta`) segue sendo o valor com impostos.

@@ -128,7 +128,8 @@ def get_static_fallback_bounds() -> dict[str, dict[str, Any]]:
         "PI-AGO-26": ("2026-07-13", "2026-08-24"),
         "PES-SET-26": ("2026-08-17", "2026-09-28"),
         "PBB-OUT-26": ("2026-09-07", "2026-10-19"),
-        "PI-NOV-26": ("2026-10-12", "2026-11-23"),
+        "PI-NOV-26": ("2026-10-12", "2026-11-30"),
+        "PES-NOV-26": ("2026-10-19", "2026-11-23"),
     }
     bounds = {}
     for code, (start_str, end_str) in fallback.items():

@@ -23,6 +23,7 @@ from frontend.db_readers._vendas_comum import (
     _metodo_pagamento_pt,
     _hm_parse_date,
     _parcela_unica_info,
+    valor_sem_impostos_liquido,
 )
 from frontend.models import HotmartDetails
 from frontend.utils import (
@@ -60,7 +61,7 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
         r"""
         SELECT codigo_da_transacao, status_da_transacao, data_da_transacao, confirmacao_do_pagamento,
                metodo_de_pagamento, tipo_de_cobranca, quantidade_de_cobrancas, quantidade_total_de_parcelas,
-               faturamento_liquido, valor_de_compra_sem_impostos, valor_de_compra_com_impostos,
+               faturamento_liquido, valor_de_compra_sem_impostos, taxa_de_processamento, valor_de_compra_com_impostos,
                nome_deste_preco, estado_provincia, cidade
         FROM hotmart_clean_oficial
         WHERE CASE
@@ -124,7 +125,7 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
     for idx, row in df_paid.iterrows():
         valor = _hmd_num(row.get("faturamento_liquido"))
         if valor is None:
-            valor = _hmd_num(row.get("valor_de_compra_sem_impostos"))
+            valor = valor_sem_impostos_liquido(row, _hmd_num)
         if valor is None:
             valor = 0.0
         valor_bruto = _hmd_num(row.get("valor_de_compra_com_impostos"))

@@ -863,12 +863,14 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       {% endfor %}
     </div>
 
-    {# Parte da Hotmart: quanto a plataforma fica de taxa. A receita líquida acima já
-       vem depois dela; aqui o quadro mostra o tamanho do desconto. #}
+    {# Parte da Hotmart: quanto a plataforma fica de taxa. Os 3 primeiros cards são só da
+       Hotmart (a Receita Líquida do topo soma Hotmart + TMB, então no lançamento
+       anterior ela é maior que o "antes da taxa" daqui quando houve venda na TMB). #}
     {% if dbf.taxa_hotmart > 0 %}
-    <div class="dbf-kpi-grid" style="--kpi-cols:3">
+    <div class="dbf-kpi-grid" style="--kpi-cols:4">
       {{ kpi_card("Faturamento Hotmart antes da taxa", dbf.antes_taxa_hotmart, dbf.prev_antes_taxa_hotmart, "brl0", "up") }}
       {{ kpi_card("Taxa Hotmart", dbf.taxa_hotmart, dbf.prev_taxa_hotmart, "brl0", "down") }}
+      {{ kpi_card("Receita líquida só da Hotmart", dbf.hotmart_liquido, dbf.prev_hotmart_liquido, "brl0", "up") }}
       <div class="dbf-kpi">
         <div class="lbl">Taxa Hotmart (% do faturamento)</div>
         <div class="val">{{ "%.1f"|format(dbf.taxa_hotmart_pct) | replace(".", ",") }}%</div>

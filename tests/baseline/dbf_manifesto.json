@@ -1,5 +1,5 @@
 {
-  "snapshot_version": 19,
+  "snapshot_version": 20,
   "chaves": [
     "antes_taxa_hotmart",
     "antigo_novo",
@@ -27,6 +27,7 @@
     "has_data",
     "has_prev",
     "historico_grande",
+    "hotmart_liquido",
     "hotmart_recompra",
     "invest",
     "landing_pages_capt",
@@ -67,6 +68,7 @@
     "prev_etapas",
     "prev_google_temp_sales",
     "prev_google_tipo_sales",
+    "prev_hotmart_liquido",
     "prev_invest",
     "prev_meta_temp_sales",
     "prev_pessoas_grupos_normais",

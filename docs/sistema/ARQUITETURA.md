@@ -1,8 +1,8 @@
 ---
-titulo: "Arquitetura do Brabo Analytics — 2026-10-01"
+titulo: "Arquitetura do Brabo Analytics — 2026-10-15"
 area: sistema
 status: vigente
-atualizado: 2026-10-10
+atualizado: 2026-10-15
 responde:
   - "como o sistema funciona por dentro"
   - "por que o aviso do etl recomputa so parte do cache"
@@ -42,7 +42,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 93 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 94 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -338,6 +338,7 @@ relacionados:
 > - [[ARQUITETURA#Criativos da Black por expert e Validado × Novo (11/10/26)|Criativos da Black por expert e Validado × Novo (11/10/26)]]
 > - [[ARQUITETURA#Menu e Captação por trilha na Black (11/10/26)|Menu e Captação por trilha na Black (11/10/26)]]
 > - [[ARQUITETURA#Snapshot do debriefing com carrinho aberto (15/10/26)|Snapshot do debriefing com carrinho aberto (15/10/26)]]
+> - [[ARQUITETURA#Páginas de venda com carrinho aberto: cache de 5 min (15/10/26)|Páginas de venda com carrinho aberto: cache de 5 min (15/10/26)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -3885,3 +3886,11 @@ Nas linhas dos blocos por etapa (`_bloco_criativos`), só na Black, entram `expe
 ### Snapshot do debriefing com carrinho aberto (15/10/26)
 
 A venda (Hotmart/TMB) entra no banco operacional sem passar pelo ETL, então nada re-aquece o snapshot quando ela chega. Com o carrinho aberto (`carrinho_start_date`..`carrinho_end_date` contém hoje) e o snapshot com mais de 10 min, `/debriefing` serve o snapshot e dispara `schedule_warm([código], invalidate=True)` em segundo plano, no máximo a cada 10 min por lançamento. Fora do carrinho nada muda (ciclo periódico + pós-ETL). Teste: `tests/test_debriefing_carrinho_aberto.py`.
+
+### Páginas de venda com carrinho aberto: cache de 5 min (15/10/26)
+
+Mesma causa, outro sintoma: `/hotmart`, `/vendas`, `/tmb` e os cards de venda do Início leem do cache em memória (`vendas::`, `hotmart_details::`, `tmb_details::`, `vendas_consolidado::`, `dia1_sales`, `forma_pagamento_entrada::`), com TTL de 1h. Na abertura do BV-26 a tela mostrava 147 vendas com 304 já no banco. `fetch.ttl_vendas(code)` devolve **300 s** quando `fetch.carrinho_aberto(code)` (mesma regra do snapshot acima) e `None` (1h) fora do carrinho; todos esses leitores passam esse TTL ao `_get_or_compute` — inclusive `sales.read_vendas`, que tem o próprio cache. O stale-while-revalidate continua: expirado, a primeira visita ainda vê o valor antigo e dispara o recálculo; a seguinte vê o novo.
+
+Dois acertos na mesma tela, achados no mesmo print:
+- **"Abertura" da timeline do `/hotmart`** era o menor dia com venda. Uma venda antecipada (14/10) virava o D1 e a abertura real (15/10) ia pra cauda. Agora `is_d1` usa `abertura_oficial_carrinho` do wizard; sem ele, o mínimo como antes.
+- **Card "Concentração Abertura vs Cauda"** mostrava sempre "0 vendas" no D1 e 100% na cauda: `{% set %}` dentro de `{% for %}` não escapa do laço no Jinja. Virou `namespace`.

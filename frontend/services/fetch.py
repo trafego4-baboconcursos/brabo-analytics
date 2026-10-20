@@ -36,6 +36,32 @@ def _get_global_start(cfg: dict) -> str:
 def _get_global_end(cfg: dict) -> str:
     return cfg.get("carrinho_end_date") or cfg.get("evento_end_date") or cfg.get("captacao_end_date") or cfg.get("pre_quali_end_date")
 
+def carrinho_aberto(launch_code: str) -> bool:
+    """Hoje está dentro de carrinho_start_date..carrinho_end_date do lançamento."""
+    from datetime import date  # noqa: PLC0415
+    from frontend.utils import _safe_date  # noqa: PLC0415
+
+    cfg = _launch_cfg(launch_code) or {}
+    ini, fim = _safe_date(cfg.get("carrinho_start_date")), _safe_date(cfg.get("carrinho_end_date"))
+    return bool(ini and fim and ini <= date.today() <= fim)
+
+
+# A venda entra no banco operacional por fora do ETL, então nada avisa o
+# dashboard quando ela chega: com o TTL padrão de 1h, /hotmart, /vendas e o
+# Início mostravam o carrinho de uma hora atrás no dia da abertura (15/10/26,
+# BV-26: 147 na tela contra 304 no banco). Com o carrinho aberto os leitores de
+# venda expiram em 5 min; fora dele, 1h como sempre.
+TTL_VENDAS_CARRINHO_ABERTO = 300
+
+
+def ttl_vendas(launch_code: str) -> int | None:
+    try:
+        return TTL_VENDAS_CARRINHO_ABERTO if carrinho_aberto(launch_code) else None
+    except Exception:
+        logger.exception("ttl_vendas: não deu pra ler a config de %s", launch_code)
+        return None
+
+
 # ── Leitores com cache ─────────────────────────────────────────────────────────
 
 def _window(launch: Any) -> tuple:
@@ -75,19 +101,22 @@ def _typeform(launch: Any):
 def _hotmart_details(launch: Any):
     start, end = _window(launch)
     return _get_or_compute(launch.code, f"hotmart_details::{start}::{end}",
-                           lambda: read_hotmart_details(launch.folder, start_date=start, end_date=end))
+                           lambda: read_hotmart_details(launch.folder, start_date=start, end_date=end),
+                           ttl=ttl_vendas(launch.code))
 
 
 def _tmb_details(launch: Any):
     start, end = _window(launch)
     return _get_or_compute(launch.code, f"tmb_details::{start}::{end}",
-                           lambda: read_tmb_details(launch.folder, start_date=start, end_date=end))
+                           lambda: read_tmb_details(launch.folder, start_date=start, end_date=end),
+                           ttl=ttl_vendas(launch.code))
 
 
 def _vendas_consolidado(launch: Any):
     start, end = _window(launch)
     return _get_or_compute(launch.code, f"vendas_consolidado::{start}::{end}",
-                           lambda: read_vendas_consolidado(launch.folder, start_date=start, end_date=end))
+                           lambda: read_vendas_consolidado(launch.folder, start_date=start, end_date=end),
+                           ttl=ttl_vendas(launch.code))
 
 
 def _typeform_count(launch: Any) -> int:
@@ -243,14 +272,15 @@ def _dia1_sales(launch: Any):
     (15/09/26; carrinho abre ~8h, "1ª hora" = checkpoint das 9h)."""
     from frontend.db_readers.sales import read_dia1_sales
     return _get_or_compute(launch.code, "dia1_sales",
-                           lambda: read_dia1_sales(launch))
+                           lambda: read_dia1_sales(launch), ttl=ttl_vendas(launch.code))
 
 
 def _forma_pagamento_entrada(launch: Any):
     from frontend.db_readers.sales import read_forma_pagamento_entrada
     start, end = _window(launch)
     return _get_or_compute(launch.code, f"forma_pagamento_entrada::{start}::{end}",
-                           lambda: read_forma_pagamento_entrada(launch.code, start, end))
+                           lambda: read_forma_pagamento_entrada(launch.code, start, end),
+                           ttl=ttl_vendas(launch.code))
 
 
 def _compradores_por_dia_grupo(launch: Any):

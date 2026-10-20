@@ -101,14 +101,18 @@
           <h3>Concentração Abertura vs Cauda</h3>
           
           {% set total_v = hotmart.total_vendas or 1 %}
-          {% set d1_v = 0 %}
-          {% set d1_f = 0 %}
+          {# namespace: `set` dentro de `for` não escapa do laço no Jinja — por
+             isso o card mostrava "0 vendas" na abertura e 100% na cauda,
+             mesmo com a linha "Abertura" da tabela cheia (BV-26, 15/10/26). #}
+          {% set d1 = namespace(v=0, f=0) %}
           {% for r in hotmart.timeline %}
             {% if r.is_d1 %}
-              {% set d1_v = r.vendas %}
-              {% set d1_f = r.faturamento %}
+              {% set d1.v = r.vendas %}
+              {% set d1.f = r.faturamento %}
             {% endif %}
           {% endfor %}
+          {% set d1_v = d1.v %}
+          {% set d1_f = d1.f %}
           {% set d1_v_pct = (d1_v / total_v * 100) %}
           {% set cauda_v = total_v - d1_v %}
           {% set cauda_f = hotmart.faturamento - d1_f %}

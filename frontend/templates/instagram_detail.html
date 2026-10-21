@@ -229,7 +229,7 @@
 
     {% if ig.follower_series | length > 1 %}
     <div class="section">
-      <div class="section-title">Evolução de Seguidores</div>
+      <div class="section-title"><i class="ti ti-calendar-stats"></i> Evolução de Seguidores</div>
       <div class="note info">Seguidores reconstruídos a partir do ganho diário — a API do Meta só permite consultar os últimos 30 dias; daqui pra frente, o histórico segue acumulando sozinho.</div>
       <div style="height:220px;"><canvas id="igFollowerChart"></canvas></div>
     </div>
@@ -241,7 +241,7 @@
 
     {% if ig.top_posts %}
     <div class="section">
-      <div class="section-title">Top 3 Posts por Engajamento</div>
+      <div class="section-title"><i class="ti ti-trophy"></i> Top 3 Posts por Engajamento</div>
       <div class="highlights">
         {% for p in ig.top_posts %}
         <div class="highlight-box">
@@ -277,7 +277,7 @@
 
     {% if ig.posts %}
     <div class="section">
-      <div class="section-title">Posts Recentes ({{ ig.total_posts_analisados }})</div>
+      <div class="section-title"><i class="ti ti-photo"></i> Posts Recentes ({{ ig.total_posts_analisados }})</div>
       <div class="table-wrap">
         <table>
           <thead>

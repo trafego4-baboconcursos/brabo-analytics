@@ -28,7 +28,7 @@
 
     {# ── Bloco 1: TOTAL — Previsto x Realizado por etapa ───────────────────── #}
     <div class="section">
-      <div class="section-title">TOTAL — Previsto × Realizado</div>
+      <div class="section-title"><i class="ti ti-coin"></i> TOTAL — Previsto × Realizado</div>
       <div class="table-wrap">
         <table class="table-compact" style="font-size:12px;">
           <thead>
@@ -73,7 +73,7 @@
 
     {% macro bloco_publico(titulo, bloco) %}
     <div class="section">
-      <div class="section-title">{{ titulo }}</div>
+      <div class="section-title"><i class="ti ti-coin"></i> {{ titulo }}</div>
       {% if bloco.linhas %}
       <div class="table-wrap">
         <table class="table-compact" style="font-size:12px;">
@@ -126,7 +126,7 @@
 
     {% macro bloco_curva(titulo, curva, chart_id) %}
     <div class="section">
-      <div class="section-title">{{ titulo }}</div>
+      <div class="section-title"><i class="ti ti-coin"></i> {{ titulo }}</div>
       {% if curva.dias %}
       <div class="table-wrap" style="margin-bottom:8px">
         <table class="table-compact" style="font-size:11px">
@@ -236,7 +236,7 @@
     {# ── Blocos 8+: Previsto x Realizado por sub-etapa de remarketing ──── #}
     {% for sub in subetapas_blocos %}
     <div class="section">
-      <div class="section-title">{{ 8 + loop.index0 }}. {{ sub.nome }} — Previsto × Realizado</div>
+      <div class="section-title"><i class="ti ti-coin"></i> {{ sub.nome }} — Previsto × Realizado</div>
       {% if sub.bucket.linhas %}
       <div class="table-wrap">
         <table class="table-compact" style="font-size:12px;max-width:480px">

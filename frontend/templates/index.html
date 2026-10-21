@@ -25,7 +25,7 @@
 
     <div class="section">
       <div class="section-title" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-        <span>Identificação do Lançamento</span>
+        <i class="ti ti-rocket"></i> <span>Identificação do Lançamento</span>
         <button onclick="lcOpen('{{ launch.code }}')"
           style="background:var(--bs-accent);color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
           <i class="ti ti-settings"></i> Editar Configuração
@@ -58,7 +58,7 @@
     {% else %}
 
     <div class="section">
-      <div class="section-title">Datas por Etapa</div>
+      <div class="section-title"><i class="ti ti-calendar"></i> Datas por Etapa</div>
       <div class="highlights">
         <div class="highlight-box">
           <div class="highlight-item"><span>Pré-Quali</span><span class="value">{% if cfg.pre_quali_start_date %}De {{ cfg.pre_quali_start_date | br_date }} a {{ cfg.pre_quali_end_date | br_date }}{% else %}—{% endif %}</span></div>
@@ -71,7 +71,7 @@
     </div>
 
     <div class="section">
-      <div class="section-title">Tráfego</div>
+      <div class="section-title"><i class="ti ti-target-arrow"></i> Tráfego</div>
       <div class="highlights">
         <div class="highlight-box">
           <h3>Contas de Anúncio</h3>
@@ -94,7 +94,7 @@
 
     {% if cfg.etapas %}
     <div class="section">
-      <div class="section-title">Provisão de Verba por Etapa</div>
+      <div class="section-title"><i class="ti ti-coin"></i> Provisão de Verba por Etapa</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -121,7 +121,7 @@
     {% endif %}
 
     <div class="section">
-      <div class="section-title">Outros</div>
+      <div class="section-title"><i class="ti ti-dots"></i> Outros</div>
       <div class="highlights">
         <div class="highlight-box">
           <h3>Diversos</h3>

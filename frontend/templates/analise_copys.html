@@ -69,7 +69,7 @@
     {% set c = copys.contraste %}
     {% if c and not c.concordam %}
     <div class="section">
-      <div class="section-title" data-tag="Leitura">A pergunta que esta página responde</div>
+      <div class="section-title" data-tag="Leitura"><i class="ti ti-bulb"></i> A pergunta que esta página responde</div>
       <div class="note">
         <strong>CPL e CPA discordam, e o CPA é que paga a conta.</strong>
         Otimizando por <strong>CPL</strong>, o gancho escolhido seria
@@ -91,7 +91,7 @@
     {% for t in copys.tabelas %}
     <div class="section">
       <div class="section-title" data-tag="{{ t.etapa }}">
-        Famílias de gancho — {{ t.etapa }}
+        <i class="ti ti-message-2"></i> Famílias de gancho — {{ t.etapa }}
       </div>
       <div class="note">
         {{ t.gasto | brl }} de gasto · {{ t.vendas }} vendas · {{ t.faturamento | brl }} de receita.
@@ -167,7 +167,7 @@
     {% set cv = copys.curva %}
     {% if cv and cv.ads %}
     <div class="section">
-      <div class="section-title" data-tag="Captação">Curva de retenção × minutagem</div>
+      <div class="section-title" data-tag="Captação"><i class="ti ti-brand-youtube"></i> Curva de retenção × minutagem</div>
       <div class="note">
         Quanto sobra da audiência em cada quarto do vídeo, sobre os views de 3s —
         o interesse é o que acontece <strong>depois</strong> que a pessoa parou.
@@ -232,7 +232,7 @@
     {% endif %}
 
     <div class="section">
-      <div class="section-title" data-tag="Detalhe">Anúncio por anúncio</div>
+      <div class="section-title" data-tag="Detalhe"><i class="ti ti-palette"></i> Anúncio por anúncio</div>
       <div class="note">
         O gancho exibido é a transcrição literal dos <strong>3 primeiros segundos</strong>
         do vídeo publicado, cortada no segundo exato via timestamp por palavra —

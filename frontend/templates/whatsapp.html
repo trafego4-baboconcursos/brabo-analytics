@@ -13,7 +13,7 @@
 
   {% if wa_msgs and wa_msgs.accounts %}
   <div class="section">
-    <div class="section-title">Volume de Mensagens (Meta API) — sincronizado com o lançamento</div>
+    <div class="section-title"><i class="ti ti-brand-whatsapp"></i> Volume de Mensagens (Meta API) — sincronizado com o lançamento</div>
     <div class="note info">
       Período do lançamento: <strong>{{ wa_msgs.start | br_date }}</strong> até <strong>{{ wa_msgs.end | br_date }}</strong>.
       Volume (enviado/entregue) e custo por dia, só dos números do expert responsável por este produto
@@ -93,7 +93,7 @@
 
   {% if wa_msgs.by_category %}
   <div class="section">
-    <div class="section-title">Por Categoria de Cobrança</div>
+    <div class="section-title"><i class="ti ti-credit-card"></i> Por Categoria de Cobrança</div>
     <div class="note info" style="margin-bottom:12px;">
       Categoria oficial do Meta (<code>pricing_analytics</code>). "Serviço" é a mensagem dentro da janela
       de 24h aberta pelo lead — sempre grátis. "Utilidade" e "Marketing" são as iniciadas por template
@@ -208,7 +208,7 @@
   {% for tipo, dados in [(rotulos_blocos.normal, wa.normal), (rotulos_blocos.vip, wa.vip)] %}
   {% if dados %}
   <div class="section">
-    <div class="section-title">{{ tipo }}</div>
+    <div class="section-title"><i class="ti ti-brand-whatsapp"></i> {{ tipo }}</div>
     <div class="tp-kpi-grid">
       <div class="tp-kpi">
         <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-users"></i></div></div>
@@ -273,7 +273,7 @@
      A régua de aluno vem da plataforma e é uma foto: a data dela fica na tela. #}
   {% for rotulo_bloco, al in wa_alunos_blocos %}
   <div class="section">
-    <div class="section-title">Quem está nos grupos{% if wa_alunos_blocos | length > 1 %} — {{ rotulo_bloco }}{% endif %} — aluno × não aluno</div>
+    <div class="section-title"><i class="ti ti-users-group"></i> Quem está nos grupos{% if wa_alunos_blocos | length > 1 %} — {{ rotulo_bloco }}{% endif %} — aluno × não aluno</div>
     <div class="note info">
       <strong>{{ al.total | num }} números</strong> já entraram nos grupos ({{ al.no_grupo | num }} ainda estão).
       <strong>{{ "%.1f"|format(al.pct_ativo) | replace(".", ",") }}% são alunos ativos</strong> e
@@ -363,7 +363,7 @@
   {% set linhas = wa_hist.get(chave) if wa_hist else None %}
   {% if linhas %}
   <div class="section">
-    <div class="section-title">Contagem Diária — {{ tipo }}</div>
+    <div class="section-title"><i class="ti ti-calendar-stats"></i> Contagem Diária — {{ tipo }}</div>
 
     <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap;">
       <label for="wa-date-{{ chave }}" style="font-size:12px; font-weight:600; color:var(--bs-ink-muted);">Buscar um dia:</label>
@@ -475,7 +475,7 @@
   {% if wa.compradores %}
   {% set cp = wa.compradores %}
   <div class="section">
-    <div class="section-title">Compradores × Grupos</div>
+    <div class="section-title"><i class="ti ti-users-group"></i> Compradores × Grupos</div>
     <div class="tp-kpi-grid">
       <div class="tp-kpi">
         <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-user-check"></i></div></div>
@@ -510,7 +510,7 @@
 
   <!-- Timeline de entradas -->
   <div class="section">
-    <div class="section-title">Entradas por Dia</div>
+    <div class="section-title"><i class="ti ti-calendar-stats"></i> Entradas por Dia</div>
     <div style="height:320px"><canvas id="waTimeline"></canvas></div>
   </div>
 

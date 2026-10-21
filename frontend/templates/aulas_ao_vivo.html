@@ -59,7 +59,7 @@
 
     {# ── 1. Visão geral do conjunto de aulas ─────────────────────────────── #}
     <div class="section">
-      <div class="section-title">Visão Geral das {{ totais.qtd_aulas }} Aulas</div>
+      <div class="section-title"><i class="ti ti-brand-youtube"></i> Visão Geral das {{ totais.qtd_aulas }} Aulas</div>
       <div class="kpi-grid">
         <div class="kpi-card">
           <div class="kpi-val">{{ totais.pico_max | num }}</div>
@@ -104,7 +104,7 @@
 
     {# ── 2. Curvas sobrepostas ───────────────────────────────────────────── #}
     <div class="section">
-      <div class="section-title">Audiência ao Vivo — Todas as Aulas</div>
+      <div class="section-title"><i class="ti ti-brand-youtube"></i> Audiência ao Vivo — Todas as Aulas</div>
       <div class="line-chart-wrap" style="height:340px"><canvas id="cv-todas"></canvas></div>
       <div class="aovivo-legenda" id="lg-todas"></div>
       <div style="font-size:var(--fs-xs);color:var(--bs-ink-muted);margin-top:8px">
@@ -115,7 +115,7 @@
 
     {# ── 3. Mesma curva, normalizada ─────────────────────────────────────── #}
     <div class="section">
-      <div class="section-title">Formato da Audiência (% do pico de cada aula)</div>
+      <div class="section-title"><i class="ti ti-brand-youtube"></i> Formato da Audiência (% do pico de cada aula)</div>
       <div class="line-chart-wrap" style="height:300px"><canvas id="cv-norm"></canvas></div>
       <div style="font-size:var(--fs-xs);color:var(--bs-ink-muted);margin-top:8px">
         Cada aula na sua própria escala. Tira o tamanho da audiência da conta e deixa só o
@@ -125,7 +125,7 @@
 
     {# ── 4. Tabela comparativa ───────────────────────────────────────────── #}
     <div class="section">
-      <div class="section-title">Comparativo por Aula</div>
+      <div class="section-title"><i class="ti ti-brand-youtube"></i> Comparativo por Aula</div>
       <div class="table-wrap">
         <table class="table-compact" style="font-size:12px">
           <thead>
@@ -177,7 +177,7 @@
 
     {# ── 5. Régua de retenção ────────────────────────────────────────────── #}
     <div class="section">
-      <div class="section-title">Régua de Retenção — % do pico a cada 15 minutos</div>
+      <div class="section-title"><i class="ti ti-brand-youtube"></i> Régua de Retenção — % do pico a cada 15 minutos</div>
       {# Colunas só até a aula mais longa: uma coluna que nenhuma aula alcança
          é uma coluna de travessões. #}
       {% set max_min = aulas | map(attribute='duracao_min') | max %}
@@ -221,7 +221,7 @@
 
     {# ── 6. Aula a aula ──────────────────────────────────────────────────── #}
     <div class="section">
-      <div class="section-title">Aula a Aula — Audiência, Chat e Reações</div>
+      <div class="section-title"><i class="ti ti-brand-youtube"></i> Aula a Aula — Audiência, Chat e Reações</div>
       {% for a in aulas %}
       <div class="aovivo-aula">
         <div class="aovivo-aula-hdr">
@@ -267,7 +267,7 @@
     {# ── 7. Retenção do vídeo (replay) ───────────────────────────────────── #}
     {% if ret and ret.aulas %}
     <div class="section">
-      <div class="section-title">Retenção do Vídeo e Origem do Tráfego</div>
+      <div class="section-title"><i class="ti ti-brand-youtube"></i> Retenção do Vídeo e Origem do Tráfego</div>
 
       <div style="background:var(--bs-surface);border-left:3px solid var(--bs-accent);border-radius:6px;padding:12px 14px;margin-bottom:16px;font-size:var(--fs-xs);color:var(--bs-ink-muted)">
         <b style="color:var(--bs-ink)">Esta seção mede o vídeo, não a transmissão.</b>

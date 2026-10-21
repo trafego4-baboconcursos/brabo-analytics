@@ -93,7 +93,7 @@
     {% set vendas_criativo = sales_attr.por_criativo if sales_attr else {} %}
 
     <div class="section">
-      <div class="section-title">KPIs do Funil Completo</div>
+      <div class="section-title"><i class="ti ti-gauge"></i> KPIs do Funil Completo</div>
       <div class="kpi-funil-layout">
         <div class="funil-kpi-wrap">
           <div class="funil-kpi-head">
@@ -298,7 +298,7 @@
 
     {% if meta and meta.por_temperatura %}
     <div class="section">
-      <div class="section-title" data-tag="Captação">Performance por Temperatura de Público {{ plat_badge("Meta") }}</div>
+      <div class="section-title" data-tag="Captação"><i class="ti ti-temperature"></i> Performance por Temperatura de Público {{ plat_badge("Meta") }}</div>
       <div class="table-wrap funil-table-wrap">
         <table class="funil-table">
           <colgroup><col class="col-label"><col class="col-money"><col class="col-share"><col class="col-count"><col class="col-count"><col class="col-money"><col class="col-roas"><col class="col-money"></colgroup>
@@ -326,7 +326,7 @@
     {% endif %}
 
     <div class="section">
-      <div class="section-title" data-tag="Pré-Quali">Views e Custo</div>
+      <div class="section-title" data-tag="Pré-Quali"><i class="ti ti-filter"></i> Views e Custo</div>
       <div class="table-wrap">
         {% set meta_preq_gasto = meta_preq.gasto if meta_preq else 0 %}
         {% set meta_preq_thruplays = meta_preq.thruplays if meta_preq else 0 %}
@@ -349,7 +349,7 @@
     {% if meta and (meta.validados or meta.novos) %}
     {% set has_thumbs = drive_thumbnails is defined and drive_thumbnails | length > 0 %}
     <div class="section">
-      <div class="section-title">Criativos Validados vs Novos</div>
+      <div class="section-title"><i class="ti ti-palette"></i> Criativos Validados vs Novos</div>
       <div class="criativos-stack">
         <div class="criativos-block">
           <h3 class="criativos-title validado">Criativos Validados</h3>
@@ -458,7 +458,7 @@
     {% endif %}
 
     <div class="section">
-      <div class="section-title">Comparativo de Canais - Meta vs Google</div>
+      <div class="section-title"><i class="ti ti-arrows-exchange"></i> Comparativo de Canais - Meta vs Google</div>
       <div class="table-wrap funil-table-wrap">
         <table class="funil-table">
           <colgroup><col class="col-label"><col class="col-money"><col class="col-count"><col class="col-count"><col class="col-money"><col class="col-roas"><col class="col-money"><col class="col-label-sm"><col class="col-share"></colgroup>
@@ -476,7 +476,7 @@
 
     {% if meta and meta.por_dia %}
     <div class="section">
-      <div class="section-title">Curva Diária (Fases do Lançamento) {{ plat_badge("Meta") }}</div>
+      <div class="section-title"><i class="ti ti-calendar-stats"></i> Curva Diária (Fases do Lançamento) {{ plat_badge("Meta") }}</div>
       {% set etapa_cores = {'Captação': '#667eea', 'Pré-Qualificação': '#f5576c', 'Pitch/ROAS': '#28a745', 'RMK/Engajamento': '#17a2b8', 'Outros': 'var(--bs-ink-subtle)'} %}
       {% set max_gasto_dia = meta.por_dia|map(attribute='gasto')|max or 1 %}
       <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
@@ -511,7 +511,7 @@
     {% endif %}
 
     <div class="section">
-      <div class="section-title">Diagnóstico e Recomendações</div>
+      <div class="section-title"><i class="ti ti-bulb"></i> Diagnóstico e Recomendações</div>
       {% if meta and meta.por_bucket %}
         {% set principal = meta.por_bucket.get('Principal') %}
         {% set reels = meta.por_bucket.get('Reels') %}

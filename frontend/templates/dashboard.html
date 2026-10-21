@@ -28,7 +28,7 @@
 
     {# ── KPIs Principais (design system: tp-kpi) ─────────────────────────── #}
     <div class="section">
-    <div class="section-title">KPIs Principais</div>
+    <div class="section-title"><i class="ti ti-gauge"></i> KPIs Principais</div>
     {% if prev_kpis %}
     <div style="font-size:11px;color:var(--bs-ink-muted);margin-bottom:10px">Comparativo com {{ prev_kpis.dias }} dia(s) equivalentes do lançamento anterior ({{ prev_kpis.periodo }})</div>
     {% endif %}
@@ -166,7 +166,7 @@
     {% macro daily_table(rows, title) %}
     {% if rows %}
     <div class="section">
-      <div class="section-title">{{ title }}</div>
+      <div class="section-title"><i class="ti ti-calendar-stats"></i> {{ title }}</div>
       <div class="table-wrap" style="overflow-x:auto;">
         <table class="table-compact" style="min-width:900px;font-size:12px;">
           <colgroup>
@@ -286,7 +286,7 @@
     {# ── Taxa de Conversão da Página de Captura ───────────────────────────── #}
     {% if conversao_paginas %}
     <div class="section">
-      <div class="section-title">Taxa de Conversão da Página de Captura</div>
+      <div class="section-title"><i class="ti ti-filter"></i> Taxa de Conversão da Página de Captura</div>
       <div class="table-wrap" style="overflow-x:auto;">
         <table class="table-compact" style="font-size:12px;" data-no-filter>
           <thead>
@@ -336,7 +336,7 @@
     {# ── Taxa de Comparecimento WPP ────────────────────────────────────────── #}
     {% if leads_x_whatsapp %}
     <div class="section">
-      <div class="section-title">Taxa de Conversão da Página de Obrigado</div>
+      <div class="section-title"><i class="ti ti-filter"></i> Taxa de Conversão da Página de Obrigado</div>
       <div class="table-wrap">
         <table class="table-compact" style="font-size:12px;" data-no-filter>
           <thead>
@@ -368,7 +368,7 @@
     {# ── % de Leads por Campanha ──────────────────────────────────────────── #}
     {% if leads_por_campanha %}
     <div class="section">
-      <div class="section-title">% de Leads por Campanha</div>
+      <div class="section-title"><i class="ti ti-target-arrow"></i> % de Leads por Campanha</div>
       <div class="table-wrap">
         <table class="table-compact" style="font-size:12px;" data-no-filter>
           <thead>
@@ -407,7 +407,7 @@
 
     {# ── Quantidade de Leads por Público (%) ──────────────────────────────── #}
     <div class="section">
-      <div class="section-title">Quantidade de Leads por Público (%)</div>
+      <div class="section-title"><i class="ti ti-users-group"></i> Quantidade de Leads por Público (%)</div>
       <div class="chart-wrap" style="height:280px">
         <canvas id="leadsPorCampanhaChart"></canvas>
       </div>
@@ -450,7 +450,7 @@
     {# ── Highlights ─────────────────────────────────────────────────────── #}
     {% if meta and meta.top_por_leads %}
     <div class="section">
-      <div class="section-title" data-tag="Captação">Destaques de Criativos {{ plat_badge("Meta") }}</div>
+      <div class="section-title" data-tag="Captação"><i class="ti ti-trophy"></i> Destaques de Criativos {{ plat_badge("Meta") }}</div>
     <div class="highlights">
 
       <div class="highlight-box">
@@ -643,7 +643,7 @@
     {# ── Vendas detalhado ────────────────────────────────────────────────── #}
     {% if vendas %}
     <div class="section">
-      <div class="section-title">Vendas — Hotmart × TMB</div>
+      <div class="section-title"><i class="ti ti-shopping-cart"></i> Vendas — Hotmart × TMB</div>
       <div class="metrics-grid" style="margin-bottom:16px">
         <div class="metric-card">
           <div class="label">Hotmart — Vendas</div>

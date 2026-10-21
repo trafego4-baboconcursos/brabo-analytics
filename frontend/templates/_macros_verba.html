@@ -15,7 +15,7 @@
 
 {% macro tabela_dia_publico(titulo, dados, rotulo_total="Total") %}
 <div class="section">
-  <div class="section-title">{{ titulo }}</div>
+  <div class="section-title"><i class="ti ti-coin"></i> {{ titulo }}</div>
   {% if dados.dias %}
   <div class="table-wrap" style="overflow-x:auto">
     <table class="table-compact" style="font-size:11px;white-space:nowrap">
@@ -58,7 +58,7 @@
 
 {% macro tabela_dia_publico_combinada(titulo, dados) %}
 <div class="section">
-  <div class="section-title">{{ titulo }}</div>
+  <div class="section-title"><i class="ti ti-coin"></i> {{ titulo }}</div>
   {% if dados.dias %}
   <div class="table-wrap" style="overflow-x:auto">
     <table class="table-compact" style="font-size:11px;white-space:nowrap">

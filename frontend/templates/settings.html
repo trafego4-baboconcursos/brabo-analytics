@@ -12,7 +12,7 @@
 
     <div class="section">
       <div class="section-title" style="display:flex;align-items:center;justify-content:space-between">
-        <span>Lançamentos Disponíveis no Datalake</span>
+        <i class="ti ti-database"></i> <span>Lançamentos Disponíveis no Datalake</span>
         <button onclick="document.getElementById('new-launch-form').classList.toggle('hidden')"
           style="background:var(--bs-accent);color:#fff;border:none;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
           <i class="ti ti-calendar-plus"></i> Novo lançamento
@@ -97,7 +97,7 @@
     </div>
 
     <div class="section">
-      <div class="section-title">Cache do Painel</div>
+      <div class="section-title"><i class="ti ti-database"></i> Cache do Painel</div>
       <div class="note">
         Os dados analíticos do Supabase são indexados e mantidos em cache de memória pelo FastAPI para máxima velocidade. Se a rotina do ETL diário/horário foi executada e você deseja atualizar os relatórios na hora, clique em limpar cache.
       </div>
@@ -119,7 +119,7 @@
     <!-- ── Gerenciar Usuários (somente admin) ── -->
     <div class="section">
       <div class="section-title" style="display:flex;align-items:center;justify-content:space-between">
-        <span>Usuários</span>
+        <i class="ti ti-users"></i> <span>Usuários</span>
         <button onclick="document.getElementById('invite-form').classList.toggle('hidden')"
           style="background:var(--bs-accent);color:#fff;border:none;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px">
           <i class="ti ti-user-plus"></i> Convidar usuário
@@ -231,7 +231,7 @@
     <!-- ── Links de convite ativos ── -->
     {% if invites_list %}
     <div class="section">
-      <div class="section-title">Links de Convite</div>
+      <div class="section-title"><i class="ti ti-link"></i> Links de Convite</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -288,7 +288,7 @@
     {% endif %}
 
     <div class="section">
-      <div class="section-title">Arquitetura de Dados Analíticos (Supabase)</div>
+      <div class="section-title"><i class="ti ti-database"></i> Arquitetura de Dados Analíticos (Supabase)</div>
       <div style="background:var(--bs-sidebar-dark);color:var(--bs-border);padding:20px;border-radius:12px;font-family:monospace;font-size:13px;line-height:1.8">
         <pre style="margin:0">Pipeline ETL (scheduler.py) ➔ Datalake Supabase
   ├── dim_lancamentos       ➔ Cadastro de lançamentos e períodos

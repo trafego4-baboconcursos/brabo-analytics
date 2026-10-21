@@ -66,3 +66,43 @@ def test_meta_pode_ser_trocada_por_variavel_de_ambiente(monkeypatch):
     assert meta_faturamento_anual(2026) == 50_000_000.0
     monkeypatch.setenv("META_FATURAMENTO_ANUAL_2026", "texto invalido")
     assert meta_faturamento_anual(2026) == 38_000_000.0
+
+
+# ── Faturamento mensal (aproximado) ─────────────────────────────────────────
+from datetime import date  # noqa: E402
+
+from frontend.routes.analytics import _fracao_por_mes, _faturamento_mensal, _rotulo_curto  # noqa: E402
+
+
+def test_carrinho_que_atravessa_o_mes_e_dividido_pelos_dias():
+    # 19/01 a 02/02 = 15 dias: 13 em janeiro e 2 em fevereiro
+    f = _fracao_por_mes(date(2026, 1, 19), date(2026, 2, 2), 2026)
+    assert round(f[1], 4) == round(13 / 15, 4) and round(f[2], 4) == round(2 / 15, 4)
+    assert round(sum(f.values()), 6) == 1.0
+
+
+def test_dia_fora_do_ano_vai_para_o_mes_mais_proximo():
+    f = _fracao_por_mes(date(2025, 12, 30), date(2026, 1, 2), 2026)
+    assert set(f) == {1} and f[1] == 1.0
+
+
+def test_faturamento_mensal_preserva_o_total_e_separa_investimento_de_2025():
+    lancs = [L(code="PES-JAN-26", data_fim=date(2026, 2, 2), data_inicio=date(2026, 1, 1)),
+             L(code="PI-ABR-26", data_fim=date(2026, 4, 19), data_inicio=date(2026, 3, 9)),
+             L(code="PI-NOV-26", data_fim=date(2026, 11, 30), data_inicio=date(2026, 10, 12))]
+    resumo = {"PES-JAN-26": {"receita": 1500.0, "vendas": 15}, "PI-ABR-26": {"receita": 400.0, "vendas": 4},
+              "PI-NOV-26": {"receita": 0.0, "vendas": 0}}
+    carrinhos = {"PES-JAN-26": (date(2026, 1, 19), date(2026, 2, 2)), "PI-ABR-26": (date(2026, 4, 6), date(2026, 4, 19))}
+    invest = {(2025, 12): 50.0, (2026, 1): 100.0, (2026, 3): 200.0}
+    m = _faturamento_mensal(lancs, resumo, 2026, carrinhos, invest)
+    assert len(m["meses"]) == 12
+    assert round(sum(x["receita"] for x in m["meses"]), 6) == 1900.0
+    assert sum(x["vendas"] for x in m["meses"]) == 19
+    assert round(m["meses"][0]["receita"], 2) == round(1500 * 13 / 15, 2)   # janeiro
+    assert m["meses"][3]["receita"] == 400.0                                # abril
+    assert m["invest_antes"] == 50.0 and m["meses"][0]["invest"] == 100.0 and m["meses"][2]["invest"] == 200.0
+    assert m["melhor_mes"] == "Jan"
+
+
+def test_rotulo_curto():
+    assert _rotulo_curto(2_450_000) == "2,5 mi" and _rotulo_curto(850_000) == "850 mil" and _rotulo_curto(0) == ""

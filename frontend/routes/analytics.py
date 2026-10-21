@@ -532,6 +532,13 @@ async def lancamentos_page(request: Request, launch_code: str | None = None):
     summary_by_code = {l.code: s for l, s in zip(ctx["launches"], summaries)}
     ctx["summary_by_code"] = summary_by_code
     ctx["resumo_ano"] = _resumo_do_ano(ctx["launches"], summary_by_code)
+    if ctx["resumo_ano"]:
+        ano = ctx["resumo_ano"]["ano"]
+        do_ano = [l for l in ctx["launches"] if str(l.code).upper().endswith(f"-{str(ano)[-2:]}")]
+        codes = [l.code for l in do_ano]
+        carrinhos, invest_mensal = await asyncio.gather(
+            run_in_threadpool(_carrinhos_do_ano, codes), run_in_threadpool(_invest_mensal_do_ano, codes))
+        ctx["resumo_ano"]["mensal"] = _faturamento_mensal(do_ano, summary_by_code, ano, carrinhos, invest_mensal)
 
     return templates.TemplateResponse("lancamentos.html", ctx)
 
@@ -593,6 +600,111 @@ def _resumo_do_ano(launches, summary_by_code, ano: int | None = None) -> dict | 
 
     return {"ano": ano, "n_lancamentos": len(do_ano), "total": total,
             "produtos": produtos, "ranking": ranking, "meta": _meta_do_ano(ano, total, ranking, len(do_ano))}
+
+
+_MESES_PT = ("Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez")
+
+
+def _rotulo_curto(v: float) -> str:
+    """R$ em formato curto para o rótulo das barras: 2,5 mi / 850 mil / 90."""
+    v = float(v or 0)
+    if v >= 1_000_000:
+        return f"{v / 1_000_000:.1f}".replace(".", ",") + " mi"
+    if v >= 1_000:
+        return f"{v / 1_000:.0f} mil"
+    return f"{v:.0f}" if v else ""
+
+
+def _fracao_por_mes(ini, fim, ano: int) -> dict[int, float]:
+    """Fração dos dias de [ini, fim] que cai em cada mês de `ano`. Dia fora do ano conta
+    no mês mais próximo (janeiro ou dezembro), para o total do ano nunca se perder."""
+    from datetime import timedelta  # noqa: PLC0415
+
+    dias = (fim - ini).days + 1
+    if dias <= 0:
+        return {}
+    cont: dict[int, int] = {}
+    for i in range(dias):
+        d = ini + timedelta(days=i)
+        m = d.month if d.year == ano else (1 if d.year < ano else 12)
+        cont[m] = cont.get(m, 0) + 1
+    return {m: n / dias for m, n in cont.items()}
+
+
+def _faturamento_mensal(do_ano, summary_by_code: dict, ano: int, carrinhos: dict, invest_mensal: dict) -> dict:
+    """Faturamento e matrículas por mês (APROXIMADO) + investimento real do mês.
+
+    Faturamento e matrículas de cada lançamento são distribuídos pelos dias do carrinho
+    (o que atravessa a virada de mês é dividido); sem janela de carrinho, vai para o mês
+    de término do lançamento. É por mês da VENDA (contratado), não de caixa. O investimento
+    é o gasto real de Meta + Google em cada mês; o que foi gasto antes de janeiro (campanha
+    de pré-lançamento do PI-JAN-26 em 2025) entra em `invest_antes`.
+    """
+    meses = [{"mes": i + 1, "nome": _MESES_PT[i], "receita": 0.0, "vendas": 0.0, "invest": 0.0} for i in range(12)]
+    for l in do_ano:
+        x = summary_by_code.get(l.code) or {}
+        receita, vendas = float(x.get("receita") or 0), float(x.get("vendas") or 0)
+        if receita <= 0 and vendas <= 0:
+            continue
+        janela = carrinhos.get(l.code)
+        if janela and janela[0] and janela[1]:
+            fracoes = _fracao_por_mes(janela[0], janela[1], ano)
+        else:
+            fim = getattr(l, "data_fim", None) or getattr(l, "data_inicio", None)
+            fracoes = {max(1, min(12, fim.month)) if fim and fim.year == ano else (1 if fim and fim.year < ano else 12): 1.0} if fim else {}
+        for m, f in fracoes.items():
+            meses[m - 1]["receita"] += receita * f
+            meses[m - 1]["vendas"] += vendas * f
+
+    invest_antes = 0.0
+    for (a, m), v in (invest_mensal or {}).items():
+        if a < ano:
+            invest_antes += float(v)
+        elif a == ano:
+            meses[m - 1]["invest"] += float(v)
+    teto = max([m["receita"] for m in meses] + [m["invest"] for m in meses] + [0.0])
+    for m in meses:
+        m["vendas"] = int(round(m["vendas"]))
+        m["receita_rot"], m["invest_rot"] = _rotulo_curto(m["receita"]), _rotulo_curto(m["invest"])
+        m["h_receita"] = m["receita"] / teto * 100 if teto > 0 else 0.0
+        m["h_invest"] = m["invest"] / teto * 100 if teto > 0 else 0.0
+    return {"meses": meses, "invest_antes": invest_antes,
+            "melhor_mes": max(meses, key=lambda m: m["receita"])["nome"] if teto > 0 else None}
+
+
+def _carrinhos_do_ano(codes: list[str]) -> dict:
+    from frontend.services.fetch import _launch_cfg  # noqa: PLC0415
+    from frontend.utils import _safe_date  # noqa: PLC0415
+
+    saida = {}
+    for code in codes:
+        try:
+            cfg = _launch_cfg(code) or {}
+            saida[code] = (_safe_date(cfg.get("carrinho_start_date")), _safe_date(cfg.get("carrinho_end_date")))
+        except Exception:
+            logger.exception("Lançamentos: falha ao ler o carrinho de %s", code)
+    return saida
+
+
+def _invest_mensal_do_ano(codes: list[str]) -> dict:
+    """{(ano, mês): R$} do gasto real de Meta + Google dos lançamentos."""
+    from sqlalchemy import text as _text  # noqa: PLC0415
+
+    from frontend.db import _get_engine  # noqa: PLC0415
+
+    try:
+        with _get_engine().connect() as conn:
+            rows = conn.execute(_text("""
+                SELECT EXTRACT(YEAR FROM d)::int, EXTRACT(MONTH FROM d)::int, SUM(v)
+                FROM (SELECT date AS d, spend AS v FROM meta_ads_daily WHERE lancamento_codigo = ANY(:c)
+                      UNION ALL
+                      SELECT date, cost FROM google_ads_daily WHERE lancamento_codigo = ANY(:c)) t
+                GROUP BY 1, 2
+            """), {"c": codes}).fetchall()
+        return {(int(a), int(m)): float(v or 0) for a, m, v in rows}
+    except Exception:
+        logger.exception("Lançamentos: falha ao somar o investimento por mês")
+        return {}
 
 
 def _meta_do_ano(ano: int, total: dict, ranking: list, n_lancamentos: int) -> dict | None:

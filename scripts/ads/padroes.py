@@ -65,7 +65,7 @@ ADSET_THRUPLAY = {"optimization_goal": "THRUPLAY", "billing_event": "IMPRESSIONS
 META_CBO_MINIMO = 24.00
 
 # --------------------------------------------------------------------------- Google Ads
-GOOGLE_API_VERSAO = "v22"
+GOOGLE_API_VERSAO = "v23"  # v22 desligada pelo Google em out/26
 GOOGLE_MCC = "9335944411"          # login-customer-id e login_account da Data Manager
 GOOGLE_CONTAS = {
     "lancamentos": "6482320788",   # Mateus (INSS) + Ivan (TJ-SP) — tag AW-828953349
@@ -91,6 +91,8 @@ GOOGLE_PARAMETROS = {"campanha": "campaignname", "grupo": "adgroupname", "anunci
 
 # --------------------------------------------------------------------------- Nomes
 EXPERTS = ("mateus", "ivan", "felipe")
+# Lançamento normal não leva tag de expert no nome (só as Blacks): o expert sai do prefixo do código.
+EXPERT_POR_PREFIXO = {"PI": "mateus", "PES": "ivan", "PBB": "felipe"}
 
 # --------------------------------------------------------------------------- Landing pages
 # A LISTA OFICIAL de LPs por lançamento fica no banco operacional (tabela lp_oficiais), editável na página

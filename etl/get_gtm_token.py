@@ -8,6 +8,8 @@ ser autorizada:
 
     python etl/get_gtm_token.py                      # grava GTM_REFRESH_TOKEN
     python etl/get_gtm_token.py --env-var GTM_REFRESH_TOKEN_OUTRA
+    python etl/get_gtm_token.py --sheets             # grava GOOGLE_SHEETS_REFRESH_TOKEN
+                                                     # (leitura e escrita nas planilhas do Drive)
 
 No navegador, faça login com a conta Google que tem acesso ao(s)
 container(s) GTM das LPs (permissao Leitura basta).
@@ -31,6 +33,7 @@ PORT = 8080
 REDIRECT_URI = f"http://localhost:{PORT}"
 # openid: a PageSpeed Insights API aceita OAuth com esse escopo (dispensa API key)
 SCOPE = "https://www.googleapis.com/auth/tagmanager.readonly openid"
+SCOPE_SHEETS = "https://www.googleapis.com/auth/spreadsheets openid"
 
 
 class OAuthCallbackHandler(BaseHTTPRequestHandler):
@@ -83,9 +86,14 @@ def update_env_file(env_var: str, refresh_token: str) -> bool:
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--env-var", default="GTM_REFRESH_TOKEN",
-                        help="Nome da variavel gravada no .env (default: GTM_REFRESH_TOKEN)")
+    parser.add_argument("--env-var", default=None,
+                        help="Nome da variavel gravada no .env (default: GTM_REFRESH_TOKEN, "
+                             "ou GOOGLE_SHEETS_REFRESH_TOKEN com --sheets)")
+    parser.add_argument("--sheets", action="store_true",
+                        help="Escopo do Google Sheets (escrita) em vez do GTM")
     args = parser.parse_args()
+    scope = SCOPE_SHEETS if args.sheets else SCOPE
+    args.env_var = args.env_var or ("GOOGLE_SHEETS_REFRESH_TOKEN" if args.sheets else "GTM_REFRESH_TOKEN")
 
     client_id = os.environ.get("GOOGLE_ADS_CLIENT_ID")
     client_secret = os.environ.get("GOOGLE_ADS_CLIENT_SECRET")
@@ -96,7 +104,7 @@ def main():
         "client_id": client_id,
         "redirect_uri": REDIRECT_URI,
         "response_type": "code",
-        "scope": SCOPE,
+        "scope": scope,
         "access_type": "offline",
         "prompt": "consent",
     })

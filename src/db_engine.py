@@ -34,6 +34,7 @@ def make_engine(env_var: str, readonly_guard: bool = False):
     raw = os.environ[env_var]
     p = urlparse(raw)
     pool = _POOL_CONFIG.get(env_var, {"pool_size": 5, "max_overflow": 5})
+    os.environ.setdefault("PGCLIENTENCODING", "UTF8")
     eng = create_engine(
         SA_URL.create(
             "postgresql+psycopg2",

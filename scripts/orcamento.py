@@ -3,7 +3,7 @@
 Lê docs/performance/lancamentos/<LANC>/ORCAMENTO_<LANC>.md: o bloco CONFIG (contas, início da janela, como
 reconhecer a etapa pelo nome da campanha) e a tabela PLANO. Busca ao vivo todas as campanhas com o código do
 lançamento no nome e reescreve as seções PREVISTO e NO_AR do doc. Teto = gasto até agora + verba/dia × tempo até
-o fim real da campanha (Meta: maior end_time dos ad sets; Google: end_date às 23h59). Campanha pausada entra só
+o fim real da campanha (Meta: maior end_time dos ad sets; Google: end_date_time, 23h59). Campanha pausada entra só
 com o que gastou.
 
 Falha alto em qualquer erro de API — um relatório de verba com uma conta faltando em silêncio é pior que nenhum.
@@ -42,7 +42,7 @@ from scripts.ads.padroes import GOOGLE_MCC, META_EXPERTS  # noqa: E402
 
 BRT = timezone(timedelta(hours=-3))
 GRAPH = "https://graph.facebook.com/v21.0"
-GADS_VERSAO = "v22"
+GADS_VERSAO = "v23"
 EXPERTS = list(META_EXPERTS)
 
 
@@ -147,12 +147,11 @@ def google_campanhas(lanc: str, contas: list[str], desde: str, hoje: str) -> lis
     for conta in contas:
         base = {}
         for r in _google_search(token, conta, f"""
-                SELECT campaign.id, campaign.name, campaign.status, campaign.end_date,
+                SELECT campaign.id, campaign.name, campaign.status, campaign.end_date_time,
                        campaign_budget.amount_micros
                 FROM campaign WHERE campaign.name LIKE '%{lanc}%' AND campaign.status != 'REMOVED'"""):
             c = r["campaign"]
-            fim = datetime.fromisoformat(c["endDate"]).replace(hour=23, minute=59, tzinfo=BRT) \
-                if c.get("endDate") else None
+            fim = datetime.fromisoformat(c["endDateTime"]).replace(tzinfo=BRT) if c.get("endDateTime") else None
             base[c["id"]] = {"plataforma": "Google", "id": c["id"], "nome": c["name"],
                              "ativa": c["status"] == "ENABLED", "status": c["status"],
                              "dia": int(r["campaignBudget"]["amountMicros"]) / 1e6, "fim": fim, "gasto": 0.0}

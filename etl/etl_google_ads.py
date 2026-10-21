@@ -42,7 +42,7 @@ load_dotenv()
 
 logger = get_logger("etl.google")
 
-API_VERSION = "v22"
+API_VERSION = "v23"
 TABLE       = "google_ads_daily"
 
 def extract_launch_code(campaign_name: str) -> str | None:

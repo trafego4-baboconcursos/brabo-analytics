@@ -87,6 +87,11 @@ def test_links_do_criativo_cobre_os_formatos():
 def test_expert_do_nome():
     assert expert_do_nome("[MA][trio][ivan][captação]") == "ivan"
     assert expert_do_nome("[MA][M][aquecimento]") is None
+    # lançamento normal: sem tag de expert, sai do prefixo do código
+    assert expert_do_nome("[MA][engajamento][pré-qualificação][quente][reels][PES-NOV-26][19.10.26]") == "ivan"
+    assert expert_do_nome("[GA][pré-qualificação][frio][PI-NOV-26][12.10.26]") == "mateus"
+    assert expert_do_nome("[MA][cadastro][captação][PBB-AGO-26]") == "felipe"
+    assert expert_do_nome("[MA][captação][BV-26][05.10.26]") is None
 
 
 # ---------------------------------------------------------------------------- auditoria de LPs

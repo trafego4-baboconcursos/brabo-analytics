@@ -53,7 +53,7 @@ YT_ANALYTICS_BASE = "https://youtubeanalytics.googleapis.com/v2"
 
 # ─── Credenciais ─────────────────────────────────────────────────────────────
 
-def _load_client_credentials() -> tuple[str, str, str]:
+def _load_client_credentials(launch_code: str = "") -> tuple[str, str, str]:
     """Retorna (client_id, client_secret, refresh_token).
 
     Prioridade:
@@ -65,14 +65,27 @@ def _load_client_credentials() -> tuple[str, str, str]:
     secrets_path = Path(__file__).parent.parent / "youtube" / "client_secrets.json"
 
     # 1. .env tem refresh token dedicado ao analytics → usa com client_secrets.json
-    rt_env = os.environ.get("YOUTUBE_REFRESH_TOKEN", "")
+    prefix = launch_code.upper().split("-")[0] if launch_code else ""
+    TOKEN_VAR_MAP = {"PI": "YOUTUBE_REFRESH_TOKEN_PI", "PES": "YOUTUBE_REFRESH_TOKEN_PES", "PBB": "YOUTUBE_REFRESH_TOKEN"}
+    token_var = TOKEN_VAR_MAP.get(prefix, "YOUTUBE_REFRESH_TOKEN")
+    rt_env = os.environ.get(token_var, "")
+    if rt_env:
+        logger.info("Usando %s para launch_code=%s", token_var, launch_code or "(nao definido)")
+    else:
+        rt_env = os.environ.get("YOUTUBE_REFRESH_TOKEN", "")
+        if rt_env:
+            logger.warning(
+                "%s vazio para %s — caindo em YOUTUBE_REFRESH_TOKEN, que e de outro canal. "
+                "O analytics vai voltar zerado. Rode get_youtube_token.py na conta certa.",
+                token_var, launch_code or "(nao definido)",
+            )
     if rt_env and secrets_path.exists():
         data = json.loads(secrets_path.read_text(encoding="utf-8"))
         installed = data.get("installed") or data.get("web") or {}
         cid = installed.get("client_id", "")
         csecret = installed.get("client_secret", "")
         if cid and csecret:
-            logger.info("Usando YOUTUBE_REFRESH_TOKEN do .env (escopo analytics)")
+            logger.info("Credenciais de client_secrets.json + %s (escopo analytics)", token_var)
             return cid, csecret, rt_env
 
     # 2. Fallback: token_bb.json (escopo youtube.force-ssl — sem analytics)
@@ -94,14 +107,14 @@ def _load_client_credentials() -> tuple[str, str, str]:
 
 # ─── OAuth ───────────────────────────────────────────────────────────────────
 
-def _get_access_token() -> str:
+def _get_access_token(launch_code: str = "") -> str:
     try:
         import google.oauth2.credentials
         import google.auth.transport.requests
     except ImportError:
         sys.exit("Instale google-auth:  pip install google-auth")
 
-    client_id, client_secret, refresh_token = _load_client_credentials()
+    client_id, client_secret, refresh_token = _load_client_credentials(launch_code)
     if not all([client_id, client_secret, refresh_token]):
         sys.exit(
             "Erro: credenciais incompletas. Coloque youtube/token_bb.json ou defina "
@@ -302,9 +315,9 @@ def run(launch_code: str, start_date: str, end_date: str):
         logger.error('        label: "Aula 1 — Titulo"')
         return
 
-    logger.info("Lançamento: %s | %d aulas | %s → %s | channel=%s", launch_code, len(aulas), start_date, end_date, channel_id)
+    logger.info("Lançamento: %s | %d aulas | %s -> %s | channel=%s", launch_code, len(aulas), start_date, end_date, channel_id)
 
-    token = _get_access_token()
+    token = _get_access_token(launch_code)
     video_ids = [a["id"] for a in aulas]
 
     logger.info("Buscando detalhes via YouTube Data API...")

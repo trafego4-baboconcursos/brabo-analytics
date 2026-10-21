@@ -118,13 +118,13 @@ class Google:
         filtro = f"AND campaign.name LIKE '%{contem}%'" if contem else ""
         return [x["campaign"] | {"campaignBudget": x.get("campaignBudget", {})} for x in self.buscar(conta, f"""
             SELECT campaign.id, campaign.name, campaign.status, campaign.advertising_channel_type,
-                   campaign.start_date, campaign.end_date, campaign_budget.amount_micros,
+                   campaign.start_date_time, campaign.end_date_time, campaign_budget.amount_micros,
                    campaign_budget.explicitly_shared, campaign_budget.reference_count, campaign_budget.resource_name
             FROM campaign WHERE campaign.status != 'REMOVED' {filtro}""")]
 
     def _campanha(self, conta: str, campanha_id: str) -> dict:
         r = self.buscar(conta, f"""SELECT campaign.name, campaign.advertising_channel_type, campaign.status,
-            campaign.end_date, campaign.bidding_strategy_type, campaign.tracking_url_template,
+            campaign.end_date_time, campaign.bidding_strategy_type, campaign.tracking_url_template,
             campaign.url_custom_parameters, campaign.audience_setting.use_audience_grouped,
             campaign_budget.resource_name, campaign_budget.amount_micros, campaign_budget.explicitly_shared,
             campaign_budget.reference_count FROM campaign WHERE campaign.id = {campanha_id}""")
@@ -140,11 +140,12 @@ class Google:
 
     # ------------------------------------------------------------------ status, verba, datas
     def definir_fim(self, conta: str, campanha_id: str, data: str) -> None:
-        """`data` = 'AAAA-MM-DD'. No Google a campanha para no fim desse dia."""
+        """`data` = 'AAAA-MM-DD'. No Google a campanha para no fim desse dia (23:59:59; v23: end_date_time)."""
         self._nao_video(conta, campanha_id)
         rn = f"customers/{conta}/campaigns/{campanha_id}"
-        self.mutar(conta, "campaigns", [{"update": {"resourceName": rn, "endDate": data}, "updateMask": "end_date"}])
-        if self._campanha(conta, campanha_id)["campaign"].get("endDate") != data:
+        self.mutar(conta, "campaigns", [{"update": {"resourceName": rn, "endDateTime": f"{data} 23:59:59"},
+                                         "updateMask": "end_date_time"}])
+        if not self._campanha(conta, campanha_id)["campaign"].get("endDateTime", "").startswith(data):
             raise RuntimeError(f"{campanha_id}: end_date não aplicou")
 
     def definir_status(self, conta: str, campanha_id: str, status: str) -> dict:
@@ -302,8 +303,8 @@ class Google:
         # VIDEO não é problema — só não dá para corrigir por API. conferir.py mostra como aviso.
         if b.get("explicitlyShared") or int(b.get("referenceCount", 1)) > 1:
             out.append(f"{nome}: orçamento compartilhado")
-        if not camp.get("endDate") or camp["endDate"].startswith("2037"):
-            out.append(f"{nome}: sem data de fim ({camp.get('endDate') or 'vazia'})")
+        if not camp.get("endDateTime") or camp["endDateTime"].startswith("2037"):
+            out.append(f"{nome}: sem data de fim ({camp.get('endDateTime') or 'vazia'})")
         if not camp.get("trackingUrlTemplate"):
             out.append(f"{nome}: sem tracking_url_template")
         params = {p["key"]: p.get("value") for p in camp.get("urlCustomParameters", [])}

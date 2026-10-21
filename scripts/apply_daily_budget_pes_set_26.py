@@ -30,7 +30,7 @@ load_dotenv(os.path.join(ROOT, ".env"))
 
 META_ACCOUNT_ID = "act_1407542209639031"
 GOOGLE_CUSTOMER_ID = "6482320788"
-GOOGLE_API_VERSION = "v22"
+GOOGLE_API_VERSION = "v23"
 
 
 def load_plan():

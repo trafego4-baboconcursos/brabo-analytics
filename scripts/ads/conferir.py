@@ -38,7 +38,7 @@ def main() -> int:
             if expert:
                 probs += problemas_anuncios(m.anuncios(c["id"]), P.META_EXPERTS[expert]["pixel_id"])
             else:
-                probs.append("nome sem tag de expert ([mateus]/[ivan]/[felipe]) — pixel não conferido")
+                probs.append("expert não identificado (sem tag de expert nem código PI/PES/PBB no nome) — pixel não conferido")
             total += len(probs)
             print(f"[{'OK' if not probs else '!!'}] Meta {c['name']}")
             for p in probs:

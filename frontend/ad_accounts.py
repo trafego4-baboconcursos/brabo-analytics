@@ -23,7 +23,7 @@ _ACCOUNTS_CACHE: dict[str, tuple[list[dict], float]] = {}
 _ACCOUNTS_CACHE_TTL = 6 * 3600  # 6 horas — contas de anúncio raramente mudam
 
 META_API_VERSION = "v22.0"
-GOOGLE_ADS_API_VERSION = "v22"
+GOOGLE_ADS_API_VERSION = "v23"
 
 
 def _cached(key: str) -> list[dict] | None:

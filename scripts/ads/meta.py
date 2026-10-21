@@ -386,5 +386,10 @@ def problemas_adset(adset: dict, nome_campanha: str) -> list[str]:
 
 
 def expert_do_nome(nome: str) -> str | None:
+    """Tag de expert (Blacks) ou, sem ela, o prefixo do código do lançamento ([PES-NOV-26] → ivan)."""
     n = nome.lower()
-    return next((e for e in P.EXPERTS if f"[{e}]" in n), None)
+    tag = next((e for e in P.EXPERTS if f"[{e}]" in n), None)
+    if tag:
+        return tag
+    m = re.search(r"\[(PI|PES|PBB)-[A-Z]{3}-\d{2}\]", nome.upper())
+    return P.EXPERT_POR_PREFIXO[m.group(1)] if m else None

@@ -97,7 +97,7 @@ def _build_auth_url(client_id: str) -> str:
         "response_type": "code",
         "scope":         SCOPES,
         "access_type":   "offline",
-        "prompt":        "consent",
+        "prompt":        "select_account consent",
     })
 
 

@@ -2,7 +2,7 @@
 titulo: "Arquitetura do Brabo Analytics — 2026-10-15"
 area: sistema
 status: vigente
-atualizado: 2026-10-20
+atualizado: 2026-10-21
 responde:
   - "como o sistema funciona por dentro"
   - "por que o aviso do etl recomputa so parte do cache"
@@ -42,7 +42,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 94 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 96 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Estrutura de Arquivos**
@@ -339,6 +339,8 @@ relacionados:
 > - [[ARQUITETURA#Menu e Captação por trilha na Black (11/10/26)|Menu e Captação por trilha na Black (11/10/26)]]
 > - [[ARQUITETURA#Snapshot do debriefing com carrinho aberto (15/10/26)|Snapshot do debriefing com carrinho aberto (15/10/26)]]
 > - [[ARQUITETURA#Páginas de venda com carrinho aberto: cache de 5 min (15/10/26)|Páginas de venda com carrinho aberto: cache de 5 min (15/10/26)]]
+> - [[ARQUITETURA#Google Ads API v22 → v23 (20/10/26)|Google Ads API v22 → v23 (20/10/26)]]
+> - [[ARQUITETURA#Deploy automático no push do `main` (21/10/26)|Deploy automático no push do `main` (21/10/26)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -3895,3 +3897,19 @@ Mesma causa, outro sintoma: `/hotmart`, `/vendas`, `/tmb` e os cards de venda do
 Dois acertos na mesma tela, achados no mesmo print:
 - **"Abertura" da timeline do `/hotmart`** era o menor dia com venda. Uma venda antecipada (14/10) virava o D1 e a abertura real (15/10) ia pra cauda. Agora `is_d1` usa `abertura_oficial_carrinho` do wizard; sem ele, o mínimo como antes.
 - **Card "Concentração Abertura vs Cauda"** mostrava sempre "0 vendas" no D1 e 100% na cauda: `{% set %}` dentro de `{% for %}` não escapa do laço no Jinja. Virou `namespace`.
+
+### Google Ads API v22 → v23 (20/10/26)
+
+O Google começou a desligar a v22: primeiro `UNSUPPORTED_VERSION` intermitente (19–20/10), depois explícito, *"Version v22 is deprecated. Requests to this version will be blocked."* Tudo que roda em produção passou para **v23**: `etl/etl_google_ads.py` (`API_VERSION`; o `etl_copy_google.py` herda), `frontend/ad_accounts.py`, `scripts/ads/padroes.py` (`GOOGLE_API_VERSAO`, usado por `Google()`, `conferir`, `auditar_lps`, `ajustar_verba_lista`), `scripts/orcamento.py` e `scripts/apply_daily_budget*.py`. Os `scratch_*` e `scripts-python/_debug` ficaram na v22 (descartáveis).
+
+Campos renomeados na v23 (GAQL): `campaign.start_date`/`end_date` → **`start_date_time`/`end_date_time`** (`"AAAA-MM-DD HH:MM:SS"`); `metrics.video_views` → `video_trueview_views`; `video_view_rate` → `video_trueview_view_rate`; `average_cpv` → `trueview_average_cpv`. O ETL já usava `video_trueview_views`; suas 6 consultas e a do copy rodaram iguais na v23. Ajustados `Google.campanhas/_campanha/definir_fim/conferir_campanha` (fim = `end_date_time` às 23:59:59) e o fim do Google no `orcamento.py`. Testado: `tests/test_ads.py` + `test_saude_lancamento.py` (42), `conferir PES-NOV-26`, `orcamento.py --dry-run`, fetch do ETL sem gravar, e `definir_fim` com `validate_only`. **Só vale no servidor depois do deploy.**
+
+Junto: `meta.expert_do_nome` passa a tirar o expert do código do lançamento (`[PES-…]` → ivan, `[PI-…]` → mateus, `[PBB-…]` → felipe) quando o nome não tem tag de expert, que é só das Blacks. O `conferir` acusava "sem tag de expert" em todo lançamento normal.
+
+### Deploy automático no push do `main` (21/10/26)
+
+Até aqui o deploy era manual: push no GitHub e alguém clicava **Deploy** no EasyPanel. Agora os dois serviços do projeto `typebot` no EasyPanel — `brabo-analytics` (dashboard) e `brabo-analytics-scheduler` (`python etl/scheduler.py`) — têm um webhook no repositório `trafego4-baboconcursos/brabo-analytics` (evento `push`, `application/json`) que chama o `/api/deploy/<token>` de cada serviço. **Todo push no `main` vai para produção nos dois**, inclusive o ETL do scheduler; testar antes do push deixou de ser cuidado e virou a única barreira.
+
+- O botão "Auto Deploy" do EasyPanel (`enableAppGithubDeploy`) falha com 404 em `/repos/.../hooks`: o token do GitHub ligado ao painel não gerencia webhooks. Por isso os webhooks foram criados à mão no GitHub e o campo `autoDeploy` do serviço continua `false` — o deploy vem do webhook, não do painel.
+- O content type **tem** que ser `application/json`: com `x-www-form-urlencoded` o endpoint responde **415**. O "Redeliver" do GitHub reenvia com os headers originais, então uma entrega que falhou como formulário continua 415 mesmo depois de corrigir o webhook.
+- A URL de deploy carrega o token do serviço; se vazar, `refreshAppDeployToken` no EasyPanel gera outro (e o webhook precisa ser atualizado).

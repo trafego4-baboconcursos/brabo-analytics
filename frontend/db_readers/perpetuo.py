@@ -20,19 +20,23 @@ from sqlalchemy import text
 from logger import get_logger
 from frontend.db import _get_engine, _get_users_engine
 from frontend.services.attribution import _extract_ad_code
-from frontend.db_readers._vendas_comum import _HOTMART_STATUS_APROVADO, _hm_data_sql
+from frontend.db_readers._vendas_comum import (
+    _HOTMART_STATUS_APROVADO,
+    HOTMART_IDS_PERPETUO_POR_VERTICAL as _IDS,
+    _hm_data_sql,
+)
 
 logger = get_logger("db")
 
 VERTICALS: dict[str, dict] = {
     "pmq-tjsp": {"codigo": "PERPETUO-PMQ-TJSP", "nome": "Mestre em Questões — TJ-SP",
-                 "hotmart": ["6857217", "6024397", "6030870"]},
+                 "hotmart": _IDS["pmq-tjsp"]},
     "pmq-inss": {"codigo": "PERPETUO-PMQ-INSS", "nome": "Mestre em Questões — INSS",
-                 "hotmart": ["6859776"]},
+                 "hotmart": _IDS["pmq-inss"]},
     "pmq-pbb":  {"codigo": "PERPETUO-PMQ-PBB",  "nome": "Mestre em Questões — Banco do Brasil",
-                 "hotmart": ["6859789"]},
+                 "hotmart": _IDS["pmq-pbb"]},
     "planner":  {"codigo": "PERPETUO-PLANNER",  "nome": "Planner",
-                 "hotmart": ["5334881", "4924116", "7040689", "5004680"]},
+                 "hotmart": _IDS["planner"]},
 }
 
 

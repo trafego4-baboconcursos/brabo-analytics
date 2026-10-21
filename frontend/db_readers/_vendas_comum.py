@@ -20,6 +20,19 @@ import pandas as pd
 from frontend.utils import _norm_text
 
 
+# Produtos Hotmart do PERPÉTUO, por vertical. Venda desses produtos é SEMPRE perpétuo — mesmo
+# que caia dentro do carrinho de um lançamento do mesmo projeto (o nome do produto tem "INSS",
+# "TJ" ou "BB", e o filtro por projeto dos lançamentos o pegava). Os leitores de lançamento
+# excluem estes IDs; `perpetuo.py` monta as verticais a partir daqui.
+HOTMART_IDS_PERPETUO_POR_VERTICAL: dict[str, list[str]] = {
+    "pmq-tjsp": ["6857217", "6024397", "6030870"],
+    "pmq-inss": ["6859776"],
+    "pmq-pbb": ["6859789"],
+    "planner": ["5334881", "4924116", "7040689", "5004680"],
+}
+HOTMART_IDS_PERPETUO: list[str] = sorted({i for ids in HOTMART_IDS_PERPETUO_POR_VERTICAL.values() for i in ids})
+
+
 def _hm_data_sql(col: str) -> str:
     """Fragmento SQL que extrai a data (fuso America/Sao_Paulo) de uma coluna
     de data da Hotmart — aceita os 3 formatos que a tabela mistura (DD/MM/YYYY,

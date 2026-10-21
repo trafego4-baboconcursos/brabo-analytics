@@ -26,6 +26,7 @@ from frontend.db_readers._vendas_comum import (  # noqa: F401 — reexport
     _UFS_VALIDAS,
     _bucket_metodo_pagamento,
     _canal_venda,
+    HOTMART_IDS_PERPETUO,
     _hm_data_sql,
     _hm_metodo_label,
     _hm_parse_date,
@@ -134,6 +135,10 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
         if use_ids:
             sql += " AND codigo_do_produto = ANY(:product_ids)"
             params["product_ids"] = hotmart_ids
+        else:
+            # filtro por projeto: produto do perpétuo é perpétuo, mesmo vendido dentro do carrinho
+            sql += " AND NOT (codigo_do_produto = ANY(:perp_ids))"
+            params["perp_ids"] = HOTMART_IDS_PERPETUO
         return pd.read_sql(text(sql), ops_engine, params=params)
 
     def _query_tmb(use_ids: bool) -> pd.DataFrame:
@@ -587,7 +592,7 @@ def read_dia1_sales(launch: Any) -> dict:
     if hotmart_ids or project:
         id_clause = (
             "AND codigo_do_produto = ANY(:product_ids)" if hotmart_ids
-            else "AND " + project_case + " = :project"
+            else "AND " + project_case + " = :project AND NOT (codigo_do_produto = ANY(:perp_ids))"
         )
         hm_sql = r"""
             SELECT ts, codigo_do_produto, codigo_do_preco, faturamento_liquido, valor_de_compra_sem_impostos, valor_de_compra_com_impostos,
@@ -631,6 +636,7 @@ def read_dia1_sales(launch: Any) -> dict:
             params["product_ids"] = hotmart_ids
         else:
             params["project"] = project
+            params["perp_ids"] = HOTMART_IDS_PERPETUO
         raw = pd.read_sql(text(hm_sql), ops_engine, params=params)
         raw = raw[raw["ts"].notna()]
         raw["ts"] = pd.to_datetime(raw["ts"])

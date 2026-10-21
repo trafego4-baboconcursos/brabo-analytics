@@ -151,3 +151,22 @@ def test_meta_usa_o_total_da_empresa_mas_a_media_e_so_dos_lancamentos(monkeypatc
     assert m["atingido"] == 33_000_000.0 and m["falta"] == 5_000_000.0
     assert m["media_lancamento"] == 10_000_000.0      # 30 mi / 3 lançamentos com venda
     assert m["restantes"] == 2 and m["necessario_por_restante"] == 2_500_000.0
+
+
+# ── Perpétuo nunca conta dentro de um lançamento ────────────────────────────
+def test_ids_do_perpetuo_vem_de_um_lugar_so():
+    from frontend.db_readers._vendas_comum import HOTMART_IDS_PERPETUO, HOTMART_IDS_PERPETUO_POR_VERTICAL
+    from frontend.db_readers.perpetuo import VERTICALS
+
+    das_verticais = sorted({i for v in VERTICALS.values() for i in v["hotmart"]})
+    assert das_verticais == HOTMART_IDS_PERPETUO
+    assert {s: v["hotmart"] for s, v in VERTICALS.items()} == HOTMART_IDS_PERPETUO_POR_VERTICAL
+    assert "6859776" in HOTMART_IDS_PERPETUO and "8643509" not in HOTMART_IDS_PERPETUO   # Black 2026 não é perpétuo
+
+
+def test_leitores_de_lancamento_excluem_os_produtos_do_perpetuo():
+    from pathlib import Path
+
+    base = Path(__file__).resolve().parent.parent / "frontend" / "db_readers"
+    for arq in ("sales.py", "hotmart.py", "afiliados.py"):
+        assert "NOT (codigo_do_produto" in (base / arq).read_text(encoding="utf-8"), arq

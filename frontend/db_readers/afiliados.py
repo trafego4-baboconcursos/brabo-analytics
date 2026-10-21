@@ -31,7 +31,7 @@ import pandas as pd
 from sqlalchemy import text
 
 from frontend.db import _get_engine, _get_users_engine
-from frontend.db_readers._vendas_comum import _hm_data_sql, _parcela_unica_info
+from frontend.db_readers._vendas_comum import HOTMART_IDS_PERPETUO, _hm_data_sql, _parcela_unica_info
 from frontend.models import AfiliadosSummary
 from frontend.utils import (
     _extract_launch_code,
@@ -141,8 +141,8 @@ def read_afiliados(launch_folder_or_code: Any, start_date=None, end_date=None) -
               WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%') THEN 'TJ'
               WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'
               ELSE 'OUTRO'
-          END = :project"""
-        params = {"project": project}
+          END = :project AND NOT (codigo_do_produto = ANY(:perp_ids))"""
+        params = {"project": project, "perp_ids": HOTMART_IDS_PERPETUO}
 
     sql = f"""
         SELECT nome_do_a_afiliado_a, comissao_do_a_afiliado_a, venda_feita_como,

@@ -23,6 +23,7 @@ from frontend.db_readers._vendas_comum import (
     _metodo_pagamento_pt,
     _hm_parse_date,
     _parcela_unica_info,
+    HOTMART_IDS_PERPETUO,
 )
 from frontend.models import HotmartDetails
 from frontend.utils import (
@@ -84,6 +85,9 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
     if hotmart_ids:
         sql += " AND codigo_do_produto = ANY(:product_ids)"
         params["product_ids"] = hotmart_ids
+    else:
+        sql += " AND NOT (codigo_do_produto = ANY(:perp_ids))"   # produto do perpétuo não é do lançamento
+        params["perp_ids"] = HOTMART_IDS_PERPETUO
 
     df_all = pd.read_sql(text(sql), ops_engine, params=params)
     if df_all.empty:
@@ -348,7 +352,8 @@ def read_hotmart_recompra(launch_folder_or_code: Any, vendas: Any = None) -> dic
     # arriscar um cast que derrube a consulta.
     from datetime import timedelta  # noqa: PLC0415
 
-    filtro_ids = " AND codigo_do_produto::text = ANY(:product_ids)" if hotmart_ids else ""
+    filtro_ids = (" AND codigo_do_produto::text = ANY(:product_ids)" if hotmart_ids
+                  else " AND NOT (codigo_do_produto::text = ANY(:perp_ids))")
     sql = r"""
         SELECT codigo_da_transacao, status_da_transacao, data_da_transacao,
                metodo_de_pagamento, tipo_de_cobranca, email
@@ -383,6 +388,8 @@ def read_hotmart_recompra(launch_folder_or_code: Any, vendas: Any = None) -> dic
     params: dict = {"project": project, "d_ini": start - timedelta(days=1), "d_fim": end_grace + timedelta(days=1)}
     if hotmart_ids:
         params["product_ids"] = [str(i) for i in hotmart_ids]
+    else:
+        params["perp_ids"] = list(HOTMART_IDS_PERPETUO)
     try:
         df = pd.read_sql(text(sql), _get_users_engine(), params=params)
     except Exception:

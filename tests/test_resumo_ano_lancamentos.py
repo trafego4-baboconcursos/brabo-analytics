@@ -47,9 +47,9 @@ def test_meta_anual_progresso_e_necessario_por_lancamento_restante(monkeypatch):
               "PI-NOV-26": {"receita": 0.0, "invest": 5.0},
               "PES-NOV-26": {"receita": 0.0, "invest": 5.0}}
     m = _resumo_do_ano(lancs, resumo, ano=2026)["meta"]
-    assert m["valor"] == 44_000_000.0 and m["atingido"] == 24_000_000.0
-    assert round(m["pct"], 1) == 54.5 and m["falta"] == 20_000_000.0
-    assert m["restantes"] == 2 and m["necessario_por_restante"] == 10_000_000.0
+    assert m["valor"] == 38_000_000.0 and m["atingido"] == 24_000_000.0
+    assert round(m["pct"], 1) == 63.2 and m["falta"] == 14_000_000.0
+    assert m["restantes"] == 2 and m["necessario_por_restante"] == 7_000_000.0
     assert m["media_lancamento"] == 12_000_000.0 and m["batida"] is False
 
 
@@ -65,4 +65,4 @@ def test_meta_pode_ser_trocada_por_variavel_de_ambiente(monkeypatch):
     monkeypatch.setenv("META_FATURAMENTO_ANUAL_2026", "50.000.000,00")
     assert meta_faturamento_anual(2026) == 50_000_000.0
     monkeypatch.setenv("META_FATURAMENTO_ANUAL_2026", "texto invalido")
-    assert meta_faturamento_anual(2026) == 44_000_000.0
+    assert meta_faturamento_anual(2026) == 38_000_000.0

@@ -153,8 +153,8 @@ def ac_keywords(launch_code: str) -> list[str]:
 
 # Meta de faturamento líquido do ano (R$), somando todos os lançamentos do ano. Aparece
 # no Resumo Executivo de /lancamentos. Para mudar sem editar código: variável de ambiente
-# META_FATURAMENTO_ANUAL_2026=44000000 no serviço do site.
-META_FATURAMENTO_ANUAL: dict[int, float] = {2026: 44_000_000.0}
+# META_FATURAMENTO_ANUAL_2026=38000000 no serviço do site.
+META_FATURAMENTO_ANUAL: dict[int, float] = {2026: 38_000_000.0}
 
 
 def meta_faturamento_anual(ano: int) -> float | None:

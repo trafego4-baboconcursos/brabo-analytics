@@ -15,8 +15,7 @@
 .ldg-panel { background: var(--bs-card); border-radius: var(--bs-r-lg); box-shadow: var(--bs-sh-sm); padding: 18px 20px; }
 .ldg-panel-title { font-size: 13px; font-weight: 800; color: var(--bs-ink); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
 .ldg-ano-note { font-size: 12px; color: var(--bs-ink-muted); line-height: 1.55; }
-.ldg-duas { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 18px; align-items: start; }
-@media (max-width: 960px) { .ldg-duas { grid-template-columns: 1fr; } }
+.ldg-duas { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
 
 /* ── Meta anual ────────────────────────────────────────────────────────── */
 .ldg-meta { border-top: 3px solid var(--bs-success); margin-bottom: 18px; }
@@ -49,15 +48,15 @@
 .ldg-mes.vazio .ldg-mes-nome, .ldg-mes.vazio .ldg-mes-mat { opacity: .45; }
 .ldg-mes.melhor .ldg-mes-nome { color: var(--bs-success); }
 
-/* ── Ranking de lançamentos ────────────────────────────────────────────── */
-.ldg-ano-row { display: grid; grid-template-columns: 112px 1fr 118px 40px; align-items: center; gap: 10px; padding: 7px 0; font-size: 12px; border-bottom: 1px solid var(--bs-border); }
-.ldg-ano-row:last-child { border-bottom: 0; }
-.ldg-ano-bar { background: var(--bs-accent-bg); border-radius: 999px; height: 9px; overflow: hidden; }
-.ldg-ano-bar > span { display: block; height: 100%; border-radius: 999px; background: var(--bs-accent); }
-.ldg-ano-code { font-weight: 800; color: var(--bs-ink); text-decoration: none; display: block; }
-.ldg-ano-mat { font-size: 10px; color: var(--bs-ink-muted); font-weight: 600; }
-.ldg-ano-val { text-align: right; font-weight: 700; color: var(--bs-ink); }
-.ldg-ano-pct { text-align: right; color: var(--bs-ink-muted); }
+/* ── Ranking de lançamentos (colunas lado a lado) ─────────────────────── */
+.ldg-rank-wrap { overflow-x: auto; }
+.ldg-rank { display: grid; grid-template-columns: repeat(auto-fit, minmax(78px, 1fr)); gap: 10px; min-width: 640px; }
+.ldg-rank-item { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.ldg-rank-area { position: relative; height: 150px; width: 100%; display: flex; align-items: flex-end; justify-content: center; border-bottom: 1px solid var(--bs-border); }
+.ldg-rank-bar { width: 46%; max-width: 38px; border-radius: 6px 6px 0 0; background: var(--bs-accent); position: relative; }
+.ldg-rank-bar > em { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); font-style: normal; font-size: 11px; font-weight: 800; color: var(--bs-ink); white-space: nowrap; padding-bottom: 3px; }
+.ldg-rank-code { font-size: 11px; font-weight: 800; color: var(--bs-ink); text-decoration: none; margin-top: 7px; }
+.ldg-rank-sub { font-size: 10px; color: var(--bs-ink-muted); line-height: 1.35; }
 
 /* ── Cartões dos lançamentos ───────────────────────────────────────────── */
 .ldg-sec-head { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 800; color: var(--bs-ink); margin: 0 0 6px; }
@@ -267,18 +266,21 @@
           </div>
         </div>
         <div class="ldg-panel">
-          <div class="ldg-panel-title"><i class="ti ti-trophy"></i> Faturamento por lançamento</div>
-          {% for r in ra.ranking %}
-          <div class="ldg-ano-row">
-            <div>
-              <a class="ldg-ano-code" href="/?launch_code={{ r.code }}">{{ r.code }}</a>
-              <span class="ldg-ano-mat">{{ r.vendas | num }} matrículas</span>
+          <div class="ldg-panel-title"><i class="ti ti-trophy"></i> Faturamento por lançamento
+            <span class="ldg-product-count">do maior para o menor</span></div>
+          <div class="ldg-rank-wrap">
+            <div class="ldg-rank">
+              {% for r in ra.ranking %}
+              <div class="ldg-rank-item">
+                <div class="ldg-rank-area">
+                  <div class="ldg-rank-bar" style="height:{{ r.pct_barra | round(1) }}%;{% if r.accent %}background:{{ r.accent }};{% endif %}"><em>{{ r.rot }}</em></div>
+                </div>
+                <a class="ldg-rank-code" href="/?launch_code={{ r.code }}">{{ r.code }}</a>
+                <span class="ldg-rank-sub">{{ r.vendas | num }} matr.<br>{{ "%.0f"|format(r.pct_ano) }}% do ano</span>
+              </div>
+              {% endfor %}
             </div>
-            <div class="ldg-ano-bar"><span style="width:{{ r.pct_barra | round(1) }}%;{% if r.accent %}background:{{ r.accent }};{% endif %}"></span></div>
-            <div class="ldg-ano-val">{{ r.receita | brl(0) }}</div>
-            <div class="ldg-ano-pct">{{ "%.0f"|format(r.pct_ano) }}%</div>
           </div>
-          {% endfor %}
         </div>
       </div>
     </div>
@@ -302,7 +304,9 @@
         <i class="ti ti-folder"></i>
         {% if group.product and group.product_name and group.product != group.product_name %}{{ group.product }} — {{ group.product_name }}
         {% else %}{{ group.product_name or group.product }}{% endif %}
-        <span class="ldg-product-count">{{ group.launches | length }} lançamento{{ 's' if group.launches | length != 1 else '' }}</span>
+        {% set n_ano = namespace(v=0) %}
+        {% if resumo_ano %}{% for l in group.launches %}{% if l.code.upper().endswith('-' ~ (resumo_ano.ano | string)[-2:]) %}{% set n_ano.v = n_ano.v + 1 %}{% endif %}{% endfor %}{% endif %}
+        <span class="ldg-product-count">{{ group.launches | length }} lançamento{{ 's' if group.launches | length != 1 else '' }}{% if resumo_ano and n_ano.v != group.launches | length %} · {{ n_ano.v }} em {{ resumo_ano.ano }}{% endif %}</span>
       </div>
       <div class="ldg-grid">
         {% for l in group.launches %}

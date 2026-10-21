@@ -596,6 +596,7 @@ def _resumo_do_ano(launches, summary_by_code, ano: int | None = None) -> dict | 
     maximo = ranking[0]["receita"] if ranking else 0.0
     for r in ranking:
         r["pct_barra"] = r["receita"] / maximo * 100 if maximo > 0 else 0.0
+        r["rot"] = _rotulo_curto(r["receita"])
         r["pct_ano"] = r["receita"] / total["receita"] * 100 if total["receita"] > 0 else 0.0
 
     return {"ano": ano, "n_lancamentos": len(do_ano), "total": total,

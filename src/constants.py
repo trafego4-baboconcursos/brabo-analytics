@@ -149,3 +149,22 @@ def ac_keywords(launch_code: str) -> list[str]:
     """Palavras que identificam o produto no nome da campanha de e-mail."""
     prefixo = (launch_code or "").split("-")[0].upper()
     return AC_KEYWORDS_BY_PREFIX.get(prefixo, AC_KEYWORDS_TODAS)
+
+
+# Meta de faturamento líquido do ano (R$), somando todos os lançamentos do ano. Aparece
+# no Resumo Executivo de /lancamentos. Para mudar sem editar código: variável de ambiente
+# META_FATURAMENTO_ANUAL_2026=44000000 no serviço do site.
+META_FATURAMENTO_ANUAL: dict[int, float] = {2026: 44_000_000.0}
+
+
+def meta_faturamento_anual(ano: int) -> float | None:
+    import os  # noqa: PLC0415
+
+    bruto = os.environ.get(f"META_FATURAMENTO_ANUAL_{ano}")
+    if bruto:
+        try:
+            return float(bruto.replace(".", "").replace(",", ".")) if "," in bruto else float(bruto)
+        except ValueError:
+            pass
+    return META_FATURAMENTO_ANUAL.get(ano)
+

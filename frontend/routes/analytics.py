@@ -592,7 +592,39 @@ def _resumo_do_ano(launches, summary_by_code, ano: int | None = None) -> dict | 
         r["pct_ano"] = r["receita"] / total["receita"] * 100 if total["receita"] > 0 else 0.0
 
     return {"ano": ano, "n_lancamentos": len(do_ano), "total": total,
-            "produtos": produtos, "ranking": ranking}
+            "produtos": produtos, "ranking": ranking, "meta": _meta_do_ano(ano, total, ranking, len(do_ano))}
+
+
+def _meta_do_ano(ano: int, total: dict, ranking: list, n_lancamentos: int) -> dict | None:
+    """Progresso da meta anual de faturamento (só informativo).
+
+    `ritmo`: quanto do ano já passou, para comparar com o % da meta atingido.
+    `restantes`: lançamentos do ano que ainda não venderam nada; `necessario_por_restante`
+    é quanto cada um teria de faturar, em média, para fechar a meta.
+    """
+    from datetime import date  # noqa: PLC0415
+
+    from src.constants import meta_faturamento_anual  # noqa: PLC0415
+
+    meta = meta_faturamento_anual(ano)
+    if not meta:
+        return None
+    hoje = date.today()
+    dias_ano = (date(ano, 12, 31) - date(ano, 1, 1)).days + 1
+    decorridos = min(max((hoje - date(ano, 1, 1)).days + 1, 0), dias_ano) if hoje.year == ano else (dias_ano if hoje.year > ano else 0)
+    atingido = total["receita"]
+    falta = max(meta - atingido, 0.0)
+    restantes = max(n_lancamentos - len(ranking), 0)
+    com_venda = len(ranking)
+    return {
+        "valor": meta, "atingido": atingido, "falta": falta,
+        "pct": atingido / meta * 100, "pct_barra": min(atingido / meta * 100, 100.0),
+        "pct_ano": decorridos / dias_ano * 100,
+        "media_lancamento": atingido / com_venda if com_venda else 0.0,
+        "restantes": restantes,
+        "necessario_por_restante": falta / restantes if restantes else 0.0,
+        "batida": atingido >= meta,
+    }
 
 
 @router.get("/comparativo", response_class=HTMLResponse)

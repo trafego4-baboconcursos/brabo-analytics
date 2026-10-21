@@ -93,7 +93,7 @@
     {% set vendas_criativo = sales_attr.por_criativo if sales_attr else {} %}
 
     <div class="section">
-      <div class="section-title">1. KPIs do Funil Completo</div>
+      <div class="section-title">KPIs do Funil Completo</div>
       <div class="kpi-funil-layout">
         <div class="funil-kpi-wrap">
           <div class="funil-kpi-head">
@@ -161,7 +161,7 @@
           <svg width="14" height="14" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M24 4C12.95 4 4 12.95 4 24s8.95 20 20 20 20-8.95 20-20S35.05 4 24 4zm-2 29v-9h-3v-4h3v-3c0-3.31 2.01-5 4.87-5 1.38 0 2.83.25 2.83.25V15h-1.59c-1.57 0-2.06.98-2.06 1.98V20h3.5l-.56 4H26v9h-4z" fill="#fff"/></svg>
           Meta Ads
         </span>
-        2. Investimento por Etapa de Funil
+        Investimento por Etapa de Funil
       </div>
       <div class="table-wrap funil-table-wrap">
         <table class="funil-table funil-table-meta">
@@ -200,7 +200,7 @@
           <svg width="14" height="14" viewBox="0 0 48 48" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M43.2 20H24v8h11C33.6 33.2 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 2.8l5.7-5.7C34 6.5 29.3 4.5 24 4.5 13.2 4.5 4.5 13.2 4.5 24S13.2 43.5 24 43.5c10.8 0 19.5-8.7 19.5-19.5 0-1.3-.1-2.7-.3-4z"/></svg>
           Google Ads
         </span>
-        3. Investimento por Etapa de Funil
+        Investimento por Etapa de Funil
       </div>
       <div class="table-wrap funil-table-wrap">
         <table class="funil-table funil-table-google">
@@ -237,7 +237,7 @@
           <svg width="14" height="14" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M24 4C12.95 4 4 12.95 4 24s8.95 20 20 20 20-8.95 20-20S35.05 4 24 4zm-2 29v-9h-3v-4h3v-3c0-3.31 2.01-5 4.87-5 1.38 0 2.83.25 2.83.25V15h-1.59c-1.57 0-2.06.98-2.06 1.98V20h3.5l-.56 4H26v9h-4z" fill="#fff"/></svg>
           Meta Ads
         </span>
-        4. Distribuição de Verba por Segmento
+        Distribuição de Verba por Segmento
       </div>
       <div class="note">Segmento = Temperatura + Tipo de Público | Apenas campanhas de Captação</div>
       <div class="table-wrap funil-table-wrap">
@@ -268,7 +268,7 @@
           <svg width="14" height="14" viewBox="0 0 48 48" fill="white" xmlns="http://www.w3.org/2000/svg"><path d="M43.2 20H24v8h11C33.6 33.2 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.7 1.1 7.8 2.8l5.7-5.7C34 6.5 29.3 4.5 24 4.5 13.2 4.5 4.5 13.2 4.5 24S13.2 43.5 24 43.5c10.8 0 19.5-8.7 19.5-19.5 0-1.3-.1-2.7-.3-4z"/></svg>
           Google Ads
         </span>
-        5. Distribuição de Verba por Segmento
+        Distribuição de Verba por Segmento
       </div>
       <div class="note">Segmento = Temperatura + Tipo de Público | Apenas campanhas de Captação</div>
       {% if google.por_segmento %}
@@ -298,7 +298,7 @@
 
     {% if meta and meta.por_temperatura %}
     <div class="section">
-      <div class="section-title" data-tag="Captação">6. Performance por Temperatura de Público {{ plat_badge("Meta") }}</div>
+      <div class="section-title" data-tag="Captação">Performance por Temperatura de Público {{ plat_badge("Meta") }}</div>
       <div class="table-wrap funil-table-wrap">
         <table class="funil-table">
           <colgroup><col class="col-label"><col class="col-money"><col class="col-share"><col class="col-count"><col class="col-count"><col class="col-money"><col class="col-roas"><col class="col-money"></colgroup>
@@ -326,7 +326,7 @@
     {% endif %}
 
     <div class="section">
-      <div class="section-title" data-tag="Pré-Quali">7. Views e Custo</div>
+      <div class="section-title" data-tag="Pré-Quali">Views e Custo</div>
       <div class="table-wrap">
         {% set meta_preq_gasto = meta_preq.gasto if meta_preq else 0 %}
         {% set meta_preq_thruplays = meta_preq.thruplays if meta_preq else 0 %}
@@ -349,7 +349,7 @@
     {% if meta and (meta.validados or meta.novos) %}
     {% set has_thumbs = drive_thumbnails is defined and drive_thumbnails | length > 0 %}
     <div class="section">
-      <div class="section-title">8. Criativos Validados vs Novos</div>
+      <div class="section-title">Criativos Validados vs Novos</div>
       <div class="criativos-stack">
         <div class="criativos-block">
           <h3 class="criativos-title validado">Criativos Validados</h3>
@@ -458,7 +458,7 @@
     {% endif %}
 
     <div class="section">
-      <div class="section-title">9. Comparativo de Canais - Meta vs Google</div>
+      <div class="section-title">Comparativo de Canais - Meta vs Google</div>
       <div class="table-wrap funil-table-wrap">
         <table class="funil-table">
           <colgroup><col class="col-label"><col class="col-money"><col class="col-count"><col class="col-count"><col class="col-money"><col class="col-roas"><col class="col-money"><col class="col-label-sm"><col class="col-share"></colgroup>
@@ -476,7 +476,7 @@
 
     {% if meta and meta.por_dia %}
     <div class="section">
-      <div class="section-title">10. Curva Diária (Fases do Lançamento) {{ plat_badge("Meta") }}</div>
+      <div class="section-title">Curva Diária (Fases do Lançamento) {{ plat_badge("Meta") }}</div>
       {% set etapa_cores = {'Captação': '#667eea', 'Pré-Qualificação': '#f5576c', 'Pitch/ROAS': '#28a745', 'RMK/Engajamento': '#17a2b8', 'Outros': 'var(--bs-ink-subtle)'} %}
       {% set max_gasto_dia = meta.por_dia|map(attribute='gasto')|max or 1 %}
       <div style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap">
@@ -511,7 +511,7 @@
     {% endif %}
 
     <div class="section">
-      <div class="section-title">10. Diagnóstico e Recomendações</div>
+      <div class="section-title">Diagnóstico e Recomendações</div>
       {% if meta and meta.por_bucket %}
         {% set principal = meta.por_bucket.get('Principal') %}
         {% set reels = meta.por_bucket.get('Reels') %}

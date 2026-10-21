@@ -72,7 +72,7 @@
 
     {% if google.por_etapa %}
     <div class="section">
-      <div class="section-title">1. Investimento por Etapa de Funil</div>
+      <div class="section-title">Investimento por Etapa de Funil</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -163,7 +163,7 @@
     {% set tipo_classes = {'youtube': 'google', 'search': 'search', 'pmax': 'pmax', 'display': 'display'} %}
     {% set tipo_labels  = {'youtube': 'YouTube', 'search': 'Search', 'pmax': 'P-Max', 'display': 'Display'} %}
     <div class="section">
-      <div class="section-title">2. Campanhas Detalhadas</div>
+      <div class="section-title">Campanhas Detalhadas</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -218,7 +218,7 @@
     {% set temp_vals = google.por_temperatura.values() | list %}
     {% if temp_vals | map(attribute='custo') | sum > 0 %}
     <div class="section">
-      <div class="section-title" data-tag="Captação">3. Por Temperatura de Público</div>
+      <div class="section-title" data-tag="Captação">Por Temperatura de Público</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -306,7 +306,7 @@
     {% set seg_vals = google.por_segmento.values() | list %}
     {% if seg_vals | map(attribute='gasto') | sum > 0 %}
     <div class="section">
-      <div class="section-title" data-tag="Captação">4. Segmentos (Temperatura × Bucket)</div>
+      <div class="section-title" data-tag="Captação">Segmentos (Temperatura × Bucket)</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -355,7 +355,7 @@
     {% set google_creative_rows = creative_overview.google_rows if creative_overview else [] %}
     {% if google_creative_rows %}
     <div class="section">
-      <div class="section-title">5. Ranking de Anúncios — Ranking Geral</div>
+      <div class="section-title">Ranking de Anúncios — Ranking Geral</div>
       <div class="table-wrap funil-table-wrap">
         <table class="funil-table" style="table-layout:fixed;width:100%;">
           <colgroup>

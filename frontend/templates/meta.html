@@ -73,7 +73,7 @@
     {# ── 1. Por Etapa ──────────────────────────────────────────────── #}
     {% if meta.por_etapa %}
     <div class="section">
-      <div class="section-title">1. Investimento por Etapa de Funil</div>
+      <div class="section-title">Investimento por Etapa de Funil</div>
       <div class="note">
         Segmentação automática via tags nas nomenclaturas:
         <strong>[captação]</strong> → geração de leads |
@@ -174,7 +174,7 @@
     {# ── 2. Por Temperatura ─────────────────────────────────────────── #}
     {% if meta.por_temperatura %}
     <div class="section">
-      <div class="section-title" data-tag="Captação">2. Por Temperatura de Público</div>
+      <div class="section-title" data-tag="Captação">Por Temperatura de Público</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -259,7 +259,7 @@
     {# ── 3. Por Bucket ──────────────────────────────────────────────── #}
     {% if meta.por_bucket %}
     <div class="section">
-      <div class="section-title">3. Distribuição de Verba Meta Captação vs Meta Estratégica</div>
+      <div class="section-title">Distribuição de Verba Meta Captação vs Meta Estratégica</div>
       <div class="note">Meta estratégica: <strong>Principal 70%</strong> | <strong>Potencial 25%</strong> | <strong>Reels 5%</strong></div>
       <div class="table-wrap">
         <table>
@@ -306,7 +306,7 @@
     {% set seg_vals = meta.por_segmento.values() | list %}
     {% if seg_vals | map(attribute='gasto') | sum > 0 %}
     <div class="section">
-      <div class="section-title" data-tag="Captação">4. Segmentos (Temperatura × Bucket)</div>
+      <div class="section-title" data-tag="Captação">Segmentos (Temperatura × Bucket)</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -357,7 +357,7 @@
     {% set meta_creative_rows = creative_overview.meta_rows if creative_overview else [] %}
     {% if meta_creative_rows %}
     <div class="section">
-      <div class="section-title">5. Top Criativos — Ranking Geral</div>
+      <div class="section-title">Top Criativos — Ranking Geral</div>
       <div class="table-wrap funil-table-wrap">
         <table class="funil-table" style="table-layout:fixed;width:100%;">
           <colgroup>
@@ -426,7 +426,7 @@
     {# ── 6. Melhores e Piores CPL ──────────────────────────────────── #}
     {% if meta.top_por_cpl or meta.piores_cpl %}
     <div class="section">
-      <div class="section-title">6. Eficiência de CPL — Melhores e Piores Criativos</div>
+      <div class="section-title">Eficiência de CPL — Melhores e Piores Criativos</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
 
         {% if meta.top_por_cpl %}

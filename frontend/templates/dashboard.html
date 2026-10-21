@@ -28,7 +28,7 @@
 
     {# ── KPIs Principais (design system: tp-kpi) ─────────────────────────── #}
     <div class="section">
-    <div class="section-title">1. KPIs Principais</div>
+    <div class="section-title">KPIs Principais</div>
     {% if prev_kpis %}
     <div style="font-size:11px;color:var(--bs-ink-muted);margin-bottom:10px">Comparativo com {{ prev_kpis.dias }} dia(s) equivalentes do lançamento anterior ({{ prev_kpis.periodo }})</div>
     {% endif %}
@@ -281,12 +281,12 @@
     {% endmacro %}
 
     {% if not trilha_nome %}
-    {{ daily_table(daily_breakdown, "2. Performance Diária por Plataforma") }}
+    {{ daily_table(daily_breakdown, "Performance Diária por Plataforma") }}
 
     {# ── Taxa de Conversão da Página de Captura ───────────────────────────── #}
     {% if conversao_paginas %}
     <div class="section">
-      <div class="section-title">3. Taxa de Conversão da Página de Captura</div>
+      <div class="section-title">Taxa de Conversão da Página de Captura</div>
       <div class="table-wrap" style="overflow-x:auto;">
         <table class="table-compact" style="font-size:12px;" data-no-filter>
           <thead>
@@ -336,7 +336,7 @@
     {# ── Taxa de Comparecimento WPP ────────────────────────────────────────── #}
     {% if leads_x_whatsapp %}
     <div class="section">
-      <div class="section-title">4. Taxa de Conversão da Página de Obrigado</div>
+      <div class="section-title">Taxa de Conversão da Página de Obrigado</div>
       <div class="table-wrap">
         <table class="table-compact" style="font-size:12px;" data-no-filter>
           <thead>
@@ -368,7 +368,7 @@
     {# ── % de Leads por Campanha ──────────────────────────────────────────── #}
     {% if leads_por_campanha %}
     <div class="section">
-      <div class="section-title">5. % de Leads por Campanha</div>
+      <div class="section-title">% de Leads por Campanha</div>
       <div class="table-wrap">
         <table class="table-compact" style="font-size:12px;" data-no-filter>
           <thead>
@@ -407,7 +407,7 @@
 
     {# ── Quantidade de Leads por Público (%) ──────────────────────────────── #}
     <div class="section">
-      <div class="section-title">6. Quantidade de Leads por Público (%)</div>
+      <div class="section-title">Quantidade de Leads por Público (%)</div>
       <div class="chart-wrap" style="height:280px">
         <canvas id="leadsPorCampanhaChart"></canvas>
       </div>
@@ -450,7 +450,7 @@
     {# ── Highlights ─────────────────────────────────────────────────────── #}
     {% if meta and meta.top_por_leads %}
     <div class="section">
-      <div class="section-title" data-tag="Captação">7. Destaques de Criativos {{ plat_badge("Meta") }}</div>
+      <div class="section-title" data-tag="Captação">Destaques de Criativos {{ plat_badge("Meta") }}</div>
     <div class="highlights">
 
       <div class="highlight-box">
@@ -559,7 +559,7 @@
     {# ── Distribuição por etapa Meta ─────────────────────────────────────── #}
     {% if meta and meta.por_etapa %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-chart-donut" style="color:var(--meta-color)"></i> 8. Distribuição por Etapa {{ plat_badge("Meta") }}</div>
+      <div class="section-title"><i class="ti ti-chart-donut" style="color:var(--meta-color)"></i> Distribuição por Etapa {{ plat_badge("Meta") }}</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -604,7 +604,7 @@
     {# ── Google por etapa ───────────────────────────────────────────────── #}
     {% if google and google.por_etapa %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-chart-donut" style="color:var(--google-color)"></i> 9. Distribuição por Etapa {{ plat_badge("Google") }}</div>
+      <div class="section-title"><i class="ti ti-chart-donut" style="color:var(--google-color)"></i> Distribuição por Etapa {{ plat_badge("Google") }}</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -643,7 +643,7 @@
     {# ── Vendas detalhado ────────────────────────────────────────────────── #}
     {% if vendas %}
     <div class="section">
-      <div class="section-title">10. Vendas — Hotmart × TMB</div>
+      <div class="section-title">Vendas — Hotmart × TMB</div>
       <div class="metrics-grid" style="margin-bottom:16px">
         <div class="metric-card">
           <div class="label">Hotmart — Vendas</div>
@@ -674,7 +674,7 @@
     </div>
     {% endif %}
 
-    {{ tabela_dia_publico_combinada("11. Verba Diária — Previsto × Realizado", verba_diaria_combinada) }}
+    {{ tabela_dia_publico_combinada("Verba Diária — Previsto × Realizado", verba_diaria_combinada) }}
 
     {% endif %}{# fim das seções 7-11, só do lançamento inteiro #}
 

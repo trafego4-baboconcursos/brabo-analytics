@@ -34,7 +34,7 @@
 
     {# ── Resumo de Investimento — etapa ───────────────────────── #}
     <div class="section">
-    <div class="section-title">1. Resumo de Investimento</div>
+    <div class="section-title"><i class="ti ti-coin"></i> Resumo de Investimento</div>
     <div class="tp-kpi-grid">
       <div class="tp-kpi">
         <div class="tp-kpi-top">
@@ -86,7 +86,7 @@
     {# ── Taxa de Conversão da Página de Captura ───────────────────────────── #}
     {% if conversao_paginas %}
     <div class="section">
-      <div class="section-title">2. Taxa de Conversão da Página de Captura</div>
+      <div class="section-title"><i class="ti ti-filter"></i> Taxa de Conversão da Página de Captura</div>
       <div class="table-wrap" style="overflow-x:auto;">
         <table class="table-compact" style="font-size:12px;" data-no-filter>
           <thead>
@@ -136,7 +136,7 @@
     {# ── Meta por etapa ──────────────────────────────────────────────────── #}
     {% if meta and meta.por_etapa %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-chart-donut" style="color:var(--meta-color)"></i> 3. Distribuição por Etapa {{ plat_badge("Meta") }}</div>
+      <div class="section-title"><i class="ti ti-chart-donut" style="color:var(--meta-color)"></i> Distribuição por Etapa {{ plat_badge("Meta") }}</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -181,7 +181,7 @@
     {# ── Google por etapa ───────────────────────────────────────────────── #}
     {% if google and google.por_etapa %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-chart-donut" style="color:var(--google-color)"></i> 4. Distribuição por Etapa {{ plat_badge("Google") }}</div>
+      <div class="section-title"><i class="ti ti-chart-donut" style="color:var(--google-color)"></i> Distribuição por Etapa {{ plat_badge("Google") }}</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -220,7 +220,7 @@
     {% macro daily_table(rows, title) %}
     {% if rows %}
     <div class="section">
-      <div class="section-title">{{ title }}</div>
+      <div class="section-title"><i class="ti ti-calendar-stats"></i> {{ title }}</div>
       <div class="table-wrap" style="overflow-x:auto;">
         <table class="table-compact" style="min-width:900px;font-size:12px;">
           <colgroup>
@@ -334,12 +334,12 @@
     {% endif %}
     {% endmacro %}
 
-    {{ daily_table(daily_breakdown_preq, "5. Performance Diária por Plataforma — " ~ etapa_pq) }}
+    {{ daily_table(daily_breakdown_preq, "Performance Diária por Plataforma — " ~ etapa_pq) }}
 
     {# ── % de Leads por Campanha ──────────────────────────────────────────── #}
     {% if leads_por_campanha %}
     <div class="section">
-      <div class="section-title">6. % de Leads por Campanha</div>
+      <div class="section-title"><i class="ti ti-broadcast"></i> % de Leads por Campanha</div>
       <div class="table-wrap">
         <table class="table-compact" style="font-size:12px;" data-no-filter>
           <thead>
@@ -378,7 +378,7 @@
 
     {# ── Quantidade de Leads por Público (%) ──────────────────────────────── #}
     <div class="section">
-      <div class="section-title">7. Quantidade de Leads por Público (%)</div>
+      <div class="section-title"><i class="ti ti-users-group"></i> Quantidade de Leads por Público (%)</div>
       <div class="chart-wrap" style="height:280px">
         <canvas id="leadsPorCampanhaPreqChart"></canvas>
       </div>
@@ -420,7 +420,7 @@
     {# ── Ranking de Anúncios — Meta Ads ─────────────────────────────────── #}
     {% if meta_ads_preq %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-trophy"></i> 8. Ranking de Anúncios {{ plat_badge("Meta") }}</div>
+      <div class="section-title"><i class="ti ti-trophy"></i> Ranking de Anúncios {{ plat_badge("Meta") }}</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -495,7 +495,7 @@
     {# ── Ranking de Anúncios — YouTube (Google Ads) ─────────────────────── #}
     {% if youtube_ads_preq %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-trophy"></i> 9. Ranking de Anúncios {{ plat_badge("YouTube") }}</div>
+      <div class="section-title"><i class="ti ti-trophy"></i> Ranking de Anúncios {{ plat_badge("YouTube") }}</div>
       <div class="table-wrap">
         <table>
           <thead>

@@ -20,7 +20,7 @@
 
     {# ── KPIs (design system: tp-kpi) ── #}
     <div class="section">
-    <div class="section-title"><i class="ti ti-gauge"></i> 1. KPIs — Qualidade de Lead</div>
+    <div class="section-title"><i class="ti ti-gauge"></i> KPIs — Qualidade de Lead</div>
     <div class="tp-kpi-grid">
       <div class="tp-kpi">
         <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-users"></i></div></div>
@@ -68,7 +68,7 @@
     {# ── Curva diária ── #}
     {% if leads.por_dia %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-calendar-stats"></i> 2. Leads por Dia</div>
+      <div class="section-title"><i class="ti ti-calendar-stats"></i> Leads por Dia</div>
       {% set max_leads = leads.por_dia | map(attribute='leads') | max %}
       <div class="table-wrap" style="overflow-x:auto;">
         <table class="table-compact" style="min-width:600px;">
@@ -113,7 +113,7 @@
     {# ── Por canal ── #}
     {% if leads.por_canal %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-broadcast"></i> 3. Qualidade por Canal</div>
+      <div class="section-title"><i class="ti ti-broadcast"></i> Qualidade por Canal</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -171,7 +171,7 @@
     {# ── Por etapa ── #}
     {% if leads.por_etapa %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-filter"></i> 4. Qualidade por Etapa do Funil</div>
+      <div class="section-title"><i class="ti ti-filter"></i> Qualidade por Etapa do Funil</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -216,7 +216,7 @@
     {# ── Por temperatura ── #}
     {% if leads.por_temperatura %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-temperature"></i> 5. Qualidade por Temperatura de Público</div>
+      <div class="section-title"><i class="ti ti-temperature"></i> Qualidade por Temperatura de Público</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -263,7 +263,7 @@
     {# ── Por anúncio (ADxxx) ── #}
     {% if leads.por_anuncio %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-trophy"></i> 6. Qualidade por Anúncio (ADxxx)</div>
+      <div class="section-title"><i class="ti ti-trophy"></i> Qualidade por Anúncio (ADxxx)</div>
       <div class="note" style="margin-bottom:10px">
         O código do anúncio vem no <code>utm_term</code> do lead, preenchido em praticamente 100% da base.
         Mostra quem traz <strong>volume</strong> e quem traz <strong>venda</strong> — nem sempre é o mesmo anúncio.
@@ -301,7 +301,7 @@
     {# ── Onde o comprador estava cadastrado ── #}
     {% if leads.compradores_por_origem %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-users-group"></i> 7. Origem dos Compradores que já eram Base</div>
+      <div class="section-title"><i class="ti ti-users-group"></i> Origem dos Compradores que já eram Base</div>
       <div class="note" style="margin-bottom:10px">
         Os {{ leads.compradores_base_antiga | num }} compradores que <strong>não</strong> são lead deste lançamento,
         e onde eles estão cadastrados. A mesma pessoa pode aparecer em mais de uma linha (participou de vários

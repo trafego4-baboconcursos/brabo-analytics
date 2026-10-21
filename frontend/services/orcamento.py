@@ -456,7 +456,7 @@ def kpis_captacao_periodo_comparavel(launch, previous, cfg: dict | None, prev_cf
     (mesma quantidade de dias corridos desde o início da Captação) que o
     lançamento atual já percorreu até hoje — não a mesma data de
     calendário, nem a janela inteira do lançamento anterior. Pauta
-    debriefing 08/09/26 — "1. KPIs Principais" precisa do comparativo."""
+    debriefing 08/09/26 — "KPIs Principais" precisa do comparativo."""
     from datetime import date, timedelta
     from frontend.db_readers import read_google, read_meta, read_vendas
 

@@ -71,10 +71,10 @@
 
     {% if ov1 and (ov1.validados_all or ov1.novos_all) %}
     <div class="section">
-      <div class="section-title" data-tag="Captação">1. Criativos Validados vs Novos {{ plat_badge("Meta") }}{{ plat_badge("Google") }}</div>
+      <div class="section-title" data-tag="Captação">Criativos Validados vs Novos {{ plat_badge("Meta") }}{{ plat_badge("Google") }}</div>
       <div class="note">
         {% if e_black %}Na Black o <strong>Validado</strong> exige o mesmo código (<strong>AD-XX##</strong>) <em>e</em> o mesmo nome de criativo já veiculados em lançamento anterior (Meta ou Google), porque o número do código é reaproveitado com outro vídeo. Código que já rodou com outro criativo conta como <strong>Novo · código reaproveitado</strong>. Validado quer dizer "já rodou", não "já vendeu": a BV-25 não tem venda por criativo.{% else %}Criativos cujo código <strong>AD\d+</strong> já apareceu em lançamentos anteriores do mesmo produto (Meta ou Google) são <strong>Validados</strong>. Os demais são <strong>Novos</strong>.{% endif %}
-        A seção 2 abaixo consolida o ranking geral com vendas atribuídas por UTM.
+        O Ranking Geral abaixo traz o ranking de todos os ADs com vendas atribuídas por UTM.
       </div>
 
       {% macro criativo_table(lista, titulo, css_class, empty_msg) %}
@@ -175,7 +175,7 @@
     {% set ov = creative_overview %}
     {% if ov.rows %}
     <div class="section">
-      <div class="section-title" data-tag="Captação">2. Ranking Geral - Todos os ADs {{ plat_badge("Meta") }}{{ plat_badge("Google") }}{{ plat_badge("YouTube") }}</div>
+      <div class="section-title" data-tag="Captação">Ranking Geral - Todos os ADs {{ plat_badge("Meta") }}{{ plat_badge("Google") }}{{ plat_badge("YouTube") }}</div>
       <div class="tp-kpi-grid">
         <div class="tp-kpi">
           <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-palette"></i></div></div>
@@ -284,13 +284,13 @@
 
     {% if ov.sales_only_rows %}
     <div class="section">
-      <div class="section-title" data-tag="Captação">3. Compras atribuídas a ADs fora do ranking</div>
+      <div class="section-title" data-tag="Captação">Compras atribuídas a ADs fora do ranking</div>
       <div class="note warning">
-        Compradores cujo UTM aponta pra um AD que não aparece na seção 2, que é só de Captação.
-        <strong>"Veiculou na Pré-Quali"</strong> significa que o AD rodou neste mesmo lançamento, com verba real, só que na etapa de Pré-Qualificação — a venda é deste lançamento, ela só não entra no ROAS da seção 2 porque o investimento é de outra etapa.
+        Compradores cujo UTM aponta pra um AD que não aparece no Ranking Geral, que é só de Captação.
+        <strong>"Veiculou na Pré-Quali"</strong> significa que o AD rodou neste mesmo lançamento, com verba real, só que na etapa de Pré-Qualificação — a venda é deste lançamento, ela só não entra no ROAS do Ranking Geral porque o investimento é de outra etapa.
         Quando o código rodou com verba em <strong>outro lançamento do mesmo produto</strong>, a coluna "Veiculação real" mostra onde — esse é o lançamento correto pra essas vendas, não o atual.
         Sem nenhuma das duas (célula vazia), aí sim não há investimento registrado no lançamento atual: pode ser UTM de outro produto, remarketing antigo, ou um anúncio/campanha renomeado depois que o lead clicou (o UTM congela o nome antigo e o código deixa de casar).
-        Essas vendas não entram no ROAS da seção 2.
+        Essas vendas não entram no ROAS do Ranking Geral.
       </div>
       <div class="table-wrap funil-table-wrap">
         <table class="funil-table" style="table-layout:fixed;width:100%;">
@@ -334,7 +334,7 @@
 
     {% if ov.google_campaign_rows %}
     <div class="section">
-      <div class="section-title">4. Google Search, PMax e Display</div>
+      <div class="section-title">Google Search, PMax e Display</div>
       <div class="note">
         Estas linhas concentram vendas rastreadas por UTM pelo nome da campanha Google, usando termos como `search`, `p-max`, `pmax`, `performance max` e `display`.
       </div>
@@ -379,7 +379,7 @@
     {% endif %}
 
     <div class="section">
-      <div class="section-title">5. Diagnóstico de Vendas Rastreadas e Leitura Criativa</div>
+      <div class="section-title">Diagnóstico de Vendas Rastreadas e Leitura Criativa</div>
       <div class="tp-kpi-grid">
         <div class="tp-kpi">
           <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-users"></i></div></div>
@@ -467,7 +467,7 @@
 
     {% if ov.meta_rows or ov.google_rows %}
     <div class="section">
-      <div class="section-title">6. Recortes por Canal</div>
+      <div class="section-title">Recortes por Canal</div>
       <div class="highlights">
         <div class="highlight-box">
           <h3>Meta Ads</h3>

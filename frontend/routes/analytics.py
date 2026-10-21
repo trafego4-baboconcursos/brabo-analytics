@@ -540,6 +540,25 @@ async def lancamentos_page(request: Request, launch_code: str | None = None):
             run_in_threadpool(_carrinhos_do_ano, codes), run_in_threadpool(_invest_mensal_do_ano, codes))
         ctx["resumo_ano"]["mensal"] = _faturamento_mensal(do_ano, summary_by_code, ano, carrinhos, invest_mensal)
 
+        # Empresa inteira: perpétuo, setor de vendas (fora do carrinho) e investimento fora de lançamento.
+        # A meta anual passa a medir o faturamento TOTAL da empresa, não só o dos lançamentos.
+        from frontend.cache import _get_or_compute  # noqa: PLC0415
+        from frontend.db_readers.empresa import read_empresa_ano  # noqa: PLC0415
+        from frontend.db_readers.perpetuo import read_perpetuo_ano  # noqa: PLC0415
+
+        try:
+            empresa_raw, perp = await asyncio.gather(
+                run_in_threadpool(_get_or_compute, "EMPRESA", f"empresa_ano::{ano}", lambda: read_empresa_ano(ano), 600),
+                run_in_threadpool(_get_or_compute, "EMPRESA", f"perpetuo_ano::{ano}", lambda: read_perpetuo_ano(ano), 600),
+            )
+            emp = _empresa_do_ano(ctx["resumo_ano"], empresa_raw, perp)
+            ctx["resumo_ano"]["empresa"] = emp
+            ctx["resumo_ano"]["meta"] = _meta_do_ano(
+                ano, ctx["resumo_ano"]["total"], ctx["resumo_ano"]["ranking"],
+                ctx["resumo_ano"]["n_lancamentos"], atingido=emp["receita"])
+        except Exception:
+            logger.exception("Lançamentos: falha ao montar o faturamento total da empresa")
+
     return templates.TemplateResponse("lancamentos.html", ctx)
 
 
@@ -708,7 +727,55 @@ def _invest_mensal_do_ano(codes: list[str]) -> dict:
         return {}
 
 
-def _meta_do_ano(ano: int, total: dict, ranking: list, n_lancamentos: int) -> dict | None:
+def _empresa_do_ano(resumo: dict, empresa: dict, perpetuo: dict) -> dict:
+    """Faturamento e investimento da empresa inteira no ano, repartidos por origem.
+
+    `resumo["total"]` são os lançamentos (venda dentro do carrinho). Perpétuo vem do leitor
+    próprio. O **setor de vendas** é o que sobra do total vendido (Hotmart + TMB) depois de
+    tirar lançamentos e perpétuo: mentorias e outros produtos vendidos fora da janela do
+    carrinho. A distribuição não tem venda ligada — entra só com o investimento.
+    """
+    t = resumo["total"]
+    vendido_r = empresa["hotmart"]["receita"] + empresa["tmb"]["receita"]
+    vendido_v = empresa["hotmart"]["vendas"] + empresa["tmb"]["vendas"]
+    perp_r, perp_v = perpetuo["total"]["receita"], perpetuo["total"]["vendas"]
+    setor_r = max(vendido_r - t["receita"] - perp_r, 0.0)
+    setor_v = max(vendido_v - t["vendas"] - perp_v, 0)
+    total_r = t["receita"] + perp_r + setor_r
+    total_v = t["vendas"] + perp_v + setor_v
+
+    inv = empresa["invest"]
+    inv_dist = inv["distribuicao"] + inv["sem_codigo"]
+    inv_total = t["invest"] + inv["perpetuo"] + inv_dist
+
+    def _linha(chave, nome, icone, descricao, receita, vendas, invest):
+        return {"chave": chave, "nome": nome, "icone": icone, "descricao": descricao,
+                "receita": receita, "vendas": vendas, "invest": invest,
+                "pct": receita / total_r * 100 if total_r > 0 else 0.0}
+
+    linhas = [
+        _linha("lancamentos", "Lançamentos", "ti-rocket",
+               f"Vendas dentro do carrinho dos {resumo['n_lancamentos']} lançamentos do ano",
+               t["receita"], t["vendas"], t["invest"]),
+        _linha("vendas", "Setor de vendas", "ti-headset",
+               "Vendas fora do carrinho: mentorias, apostilas e cursos vendidos fora da janela de um lançamento",
+               setor_r, setor_v, 0.0),
+        _linha("perpetuo", "Perpétuo", "ti-infinity",
+               "Mestre em Questões (TJ-SP, INSS, BB) e Planner",
+               perp_r, perp_v, inv["perpetuo"]),
+        _linha("distribuicao", "Distribuição", "ti-share",
+               "Só anúncio: as campanhas de distribuição não têm venda ligada; o que trazem aparece nos lançamentos ou no setor de vendas",
+               0.0, 0, inv_dist),
+    ]
+    return {
+        "linhas": linhas, "receita": total_r, "vendas": total_v, "invest": inv_total,
+        "resultado": total_r - inv_total, "roas": total_r / inv_total if inv_total > 0 else 0.0,
+        "completo": bool(empresa.get("completo", True)),
+        "vendido_hotmart": empresa["hotmart"]["receita"], "vendido_tmb": empresa["tmb"]["receita"],
+    }
+
+
+def _meta_do_ano(ano: int, total: dict, ranking: list, n_lancamentos: int, atingido: float | None = None) -> dict | None:
     """Progresso da meta anual de faturamento (só informativo).
 
     `ritmo`: quanto do ano já passou, para comparar com o % da meta atingido.
@@ -725,7 +792,9 @@ def _meta_do_ano(ano: int, total: dict, ranking: list, n_lancamentos: int) -> di
     hoje = date.today()
     dias_ano = (date(ano, 12, 31) - date(ano, 1, 1)).days + 1
     decorridos = min(max((hoje - date(ano, 1, 1)).days + 1, 0), dias_ano) if hoje.year == ano else (dias_ano if hoje.year > ano else 0)
-    atingido = total["receita"]
+    # `total` são os lançamentos (base da média por lançamento); `atingido` é o que conta para a meta
+    # — o total da empresa quando disponível, senão só os lançamentos.
+    atingido = total["receita"] if atingido is None else atingido
     falta = max(meta - atingido, 0.0)
     restantes = max(n_lancamentos - len(ranking), 0)
     com_venda = len(ranking)
@@ -733,7 +802,7 @@ def _meta_do_ano(ano: int, total: dict, ranking: list, n_lancamentos: int) -> di
         "valor": meta, "atingido": atingido, "falta": falta,
         "pct": atingido / meta * 100, "pct_barra": min(atingido / meta * 100, 100.0),
         "pct_ano": decorridos / dias_ano * 100,
-        "media_lancamento": atingido / com_venda if com_venda else 0.0,
+        "media_lancamento": total["receita"] / com_venda if com_venda else 0.0,
         "restantes": restantes,
         "necessario_por_restante": falta / restantes if restantes else 0.0,
         "batida": atingido >= meta,

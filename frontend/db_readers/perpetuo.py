@@ -20,7 +20,7 @@ from sqlalchemy import text
 from logger import get_logger
 from frontend.db import _get_engine, _get_users_engine
 from frontend.services.attribution import _extract_ad_code
-from frontend.db_readers._vendas_comum import _hm_data_sql
+from frontend.db_readers._vendas_comum import _HOTMART_STATUS_APROVADO, _hm_data_sql
 
 logger = get_logger("db")
 
@@ -74,6 +74,16 @@ def _google_audience_rows(conn, codigo: str, start: date, end: date):
     ).fetchall()
 
 
+# Receita do perpétuo = LÍQUIDO de venda APROVADA, como no resto do sistema. Até 21/10/26 somava
+# `valor_de_compra_com_impostos` (o que o cliente pagou, parcelamento incluído) de QUALQUER status —
+# reembolso e cancelamento entravam. Nas vendas de 2026 `valor_de_compra_sem_impostos` já é o líquido
+# do produtor; nas antigas o líquido está em `faturamento_liquido`.
+_VALOR_LIQUIDO_SQL = (
+    "COALESCE(NULLIF(replace(faturamento_liquido,',','.'),'')::numeric, "
+    "NULLIF(replace(valor_de_compra_sem_impostos,',','.'),'')::numeric, 0)"
+)
+
+
 def _vendas(produtos: list[str], start: date, end: date) -> dict:
     """Vendas Hotmart dos produtos da vertical no período.
 
@@ -90,16 +100,17 @@ def _vendas(produtos: list[str], start: date, end: date) -> dict:
     if not produtos:
         return {"vendas": 0, "receita": 0.0}
     data_sql = _hm_data_sql("data_da_transacao")
-    valor = "COALESCE(NULLIF(replace(valor_de_compra_com_impostos,',','.'),'')::numeric,0)"
+    valor = _VALOR_LIQUIDO_SQL
     try:
         with _get_users_engine().connect() as conn:
             r = conn.execute(
                 text(
                     f"SELECT COUNT(*) AS vendas, COALESCE(SUM({valor}),0) AS receita "
                     f"FROM hotmart_clean_oficial "
-                    f"WHERE codigo_do_produto = ANY(:ids) AND {data_sql} BETWEEN :start AND :end"
+                    f"WHERE codigo_do_produto = ANY(:ids) AND status_da_transacao = ANY(:ok) "
+                    f"AND {data_sql} BETWEEN :start AND :end"
                 ),
-                {"ids": produtos, "start": start, "end": end},
+                {"ids": produtos, "ok": list(_HOTMART_STATUS_APROVADO), "start": start, "end": end},
             ).fetchone()
     except Exception:
         logger.exception("read_perpetuo: falha ao ler vendas dos produtos %s", produtos)
@@ -332,15 +343,16 @@ def read_perpetuo_mensal(meses: int = 6) -> dict:
     # chave: (YYYY-MM, slug da vertical) -> (vendas, receita)
     vendas: dict[tuple[str, str], tuple[int, float]] = {}
     data_sql = _hm_data_sql("data_da_transacao")
-    valor = "COALESCE(NULLIF(replace(valor_de_compra_com_impostos,',','.'),'')::numeric,0)"
+    valor = _VALOR_LIQUIDO_SQL
     try:
         with _get_users_engine().connect() as conn:
             for ym, produto, n, receita in conn.execute(
                 text(f"SELECT to_char({data_sql}, 'YYYY-MM'), codigo_do_produto, "
                      f"COUNT(*), COALESCE(SUM({valor}), 0) FROM hotmart_clean_oficial "
-                     f"WHERE codigo_do_produto = ANY(:ids) "
+                     f"WHERE codigo_do_produto = ANY(:ids) AND status_da_transacao = ANY(:ok) "
                      f"AND {data_sql} BETWEEN :inicio AND :fim GROUP BY 1, 2"),
-                {"ids": list(produto_da_vertical), "inicio": inicio, "fim": fim},
+                {"ids": list(produto_da_vertical), "ok": list(_HOTMART_STATUS_APROVADO),
+                 "inicio": inicio, "fim": fim},
             ).fetchall():
                 slug = produto_da_vertical.get(str(produto))
                 if not slug:
@@ -384,3 +396,21 @@ def read_perpetuo_mensal(meses: int = 6) -> dict:
         })
     saida.reverse()  # mês mais recente primeiro
     return {"meses": saida}
+
+
+def read_perpetuo_ano(ano: int) -> dict:
+    """Vendas (aprovadas, líquidas) dos produtos do perpétuo no ano civil, por vertical.
+
+    Alimenta o faturamento total da empresa em /lancamentos. Devolve
+    {"total": {"vendas", "receita"}, "verticais": {slug: {"nome", "vendas", "receita"}}}.
+    """
+    verticais: dict[str, dict] = {}
+    for slug, info in VERTICALS.items():
+        v = _vendas(info.get("hotmart") or [], date(ano, 1, 1), date(ano, 12, 31))
+        verticais[slug] = {"nome": info["nome"], "vendas": v["vendas"], "receita": v["receita"]}
+    return {
+        "total": {"vendas": sum(x["vendas"] for x in verticais.values()),
+                  "receita": sum(x["receita"] for x in verticais.values())},
+        "verticais": verticais,
+    }
+

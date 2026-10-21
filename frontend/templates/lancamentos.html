@@ -17,6 +17,20 @@
 .ldg-ano-note { font-size: 12px; color: var(--bs-ink-muted); line-height: 1.55; }
 .ldg-duas { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
 
+/* ── Faturamento total da empresa ──────────────────────────────────────── */
+.ldg-emp { margin-bottom: 18px; border-top: 3px solid var(--bs-accent); }
+.ldg-emp-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.ldg-emp-big { font-size: 30px; font-weight: 800; color: var(--bs-ink); line-height: 1.1; }
+.ldg-emp-side { display: flex; gap: 22px; flex-wrap: wrap; }
+.ldg-emp-side .v { font-size: 16px; font-weight: 800; color: var(--bs-ink); }
+.ldg-emp-side .l { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--bs-ink-subtle); margin-top: 2px; }
+.ldg-emp-bar { display: flex; height: 16px; border-radius: 999px; overflow: hidden; margin: 14px 0 8px; background: var(--bs-accent-bg); }
+.ldg-emp-bar > span { display: block; height: 100%; }
+.ldg-emp-leg { display: flex; gap: 16px; flex-wrap: wrap; font-size: 11px; color: var(--bs-ink-muted); margin-bottom: 12px; }
+.ldg-emp-leg i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.ldg-emp-desc { font-size: 11px; color: var(--bs-ink-muted); font-weight: 500; }
+.ldg-emp-aviso { font-size: 12px; color: var(--bs-warning); margin-top: 8px; }
+
 /* ── Meta anual ────────────────────────────────────────────────────────── */
 .ldg-meta { border-top: 3px solid var(--bs-success); margin-bottom: 18px; }
 .ldg-meta-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
@@ -105,11 +119,69 @@
         <a class="ldg-cal-link" href="/calendario"><i class="ti ti-calendar"></i> Calendário operacional</a>
       </div>
 
+      {% if ra.empresa %}{% set em = ra.empresa %}
+      <div class="ldg-panel ldg-emp">
+        <div class="ldg-emp-top">
+          <div>
+            <div class="ldg-meta-title"><i class="ti ti-building"></i> Faturamento total da empresa em {{ ra.ano }}</div>
+            <div class="ldg-emp-big">{{ em.receita | brl(0) }}</div>
+          </div>
+          <div class="ldg-emp-side">
+            <div><div class="v">{{ em.vendas | num }}</div><div class="l">Matrículas</div></div>
+            <div><div class="v">{{ em.invest | brl(0) }}</div><div class="l">Investimento total</div></div>
+            <div><div class="v">{{ em.resultado | brl(0) }}</div><div class="l">Resultado</div></div>
+            <div><div class="v">{{ "%.2f"|format(em.roas) | replace(".", ",") }}x</div><div class="l">ROAS da empresa</div></div>
+          </div>
+        </div>
+        {% set cores = {'lancamentos': 'var(--bs-success)', 'vendas': '#5b8def', 'perpetuo': '#8e7cc3', 'distribuicao': '#f5b13d'} %}
+        <div class="ldg-emp-bar" title="Participação de cada origem no faturamento">
+          {% for ln in em.linhas if ln.receita > 0 %}<span style="width:{{ ln.pct | round(2) }}%;background:{{ cores[ln.chave] }}" title="{{ ln.nome }}: {{ ln.receita | brl(0) }}"></span>{% endfor %}
+        </div>
+        <div class="ldg-emp-leg">
+          {% for ln in em.linhas %}<span><i style="background:{{ cores[ln.chave] }}"></i>{{ ln.nome }}</span>{% endfor %}
+        </div>
+        <div class="table-wrap">
+          <table class="table-compact" style="font-size:12px;" data-no-filter>
+            <thead><tr>
+              <th class="th-dark">Origem</th>
+              <th class="th-dark" style="text-align:right">Matrículas</th>
+              <th class="th-dark" style="text-align:right">Faturamento líquido</th>
+              <th class="th-dark" style="text-align:right">% do total</th>
+              <th class="th-dark" style="text-align:right">Investimento</th>
+            </tr></thead>
+            <tbody>
+              {% for ln in em.linhas %}
+              <tr>
+                <td><span class="td-bold"><i class="ti {{ ln.icone }}"></i> {{ ln.nome }}</span><div class="ldg-emp-desc">{{ ln.descricao }}</div></td>
+                <td style="text-align:right">{{ ln.vendas | num if ln.vendas else '—' }}</td>
+                <td style="text-align:right">{{ ln.receita | brl(0) if ln.receita else '—' }}</td>
+                <td style="text-align:right">{{ "%.1f"|format(ln.pct) | replace(".", ",") }}%</td>
+                <td style="text-align:right">{{ ln.invest | brl(0) if ln.invest else '—' }}</td>
+              </tr>
+              {% endfor %}
+              <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
+                <td>Total da empresa</td>
+                <td style="text-align:right">{{ em.vendas | num }}</td>
+                <td style="text-align:right">{{ em.receita | brl(0) }}</td>
+                <td style="text-align:right">100%</td>
+                <td style="text-align:right">{{ em.invest | brl(0) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="ldg-ano-note" style="margin-top:10px">
+          Total vendido no ano pela Hotmart ({{ em.vendido_hotmart | brl(0) }}) e pela TMB ({{ em.vendido_tmb | brl(0) }}), líquido e contratado.
+          O <strong>setor de vendas</strong> é o que sobra depois de tirar lançamentos e perpétuo: toda venda fora do carrinho.
+        </div>
+        {% if not em.completo %}<div class="ldg-emp-aviso"><i class="ti ti-alert-triangle"></i> Alguma fonte não carregou; o total da empresa pode estar incompleto.</div>{% endif %}
+      </div>
+      {% endif %}
+
       {% if ra.meta %}{% set m = ra.meta %}
       <div class="ldg-panel ldg-meta">
         <div class="ldg-meta-top">
           <div>
-            <div class="ldg-meta-title"><i class="ti ti-flag"></i> Meta de faturamento {{ ra.ano }}</div>
+            <div class="ldg-meta-title"><i class="ti ti-flag"></i> Meta de faturamento {{ ra.ano }}{% if ra.empresa %} · total da empresa{% endif %}</div>
             <div class="ldg-meta-big">{{ m.atingido | brl(0) }} <small>de {{ m.valor | brl(0) }}</small></div>
           </div>
           <div class="ldg-meta-pct">{{ "%.1f"|format(m.pct) | replace(".", ",") }}%{% if m.batida %} <i class="ti ti-circle-check"></i>{% endif %}</div>
@@ -119,12 +191,12 @@
           <div class="ldg-meta-ritmo" style="left:{{ m.pct_ano | round(1) }}%"></div>
         </div>
         <div class="ldg-meta-legenda">
-          <span>Barra verde: faturamento líquido atingido</span>
+          <span>Barra verde: faturamento líquido atingido{% if ra.empresa %} (lançamentos + setor de vendas + perpétuo){% endif %}</span>
           <span>Linha escura: {{ "%.0f"|format(m.pct_ano) }}% do ano já passou</span>
         </div>
         <div class="ldg-meta-stats">
           <div><div class="ldg-meta-stat-val">{{ m.falta | brl(0) }}</div><div class="ldg-meta-stat-lbl">Falta para a meta</div></div>
-          <div><div class="ldg-meta-stat-val">{{ m.media_lancamento | brl(0) }}</div><div class="ldg-meta-stat-lbl">Média por lançamento com venda</div></div>
+          <div><div class="ldg-meta-stat-val">{{ m.media_lancamento | brl(0) }}</div><div class="ldg-meta-stat-lbl">Média por lançamento com venda (só carrinho)</div></div>
           <div><div class="ldg-meta-stat-val">{{ m.restantes }}</div><div class="ldg-meta-stat-lbl">Lançamentos do ano ainda sem venda</div></div>
           <div><div class="ldg-meta-stat-val">{% if m.restantes %}{{ m.necessario_por_restante | brl(0) }}{% else %}—{% endif %}</div><div class="ldg-meta-stat-lbl">Cada um precisaria faturar (média)</div></div>
         </div>
@@ -135,19 +207,19 @@
         <div class="tp-kpi">
           <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-cash"></i></div></div>
           <div class="tp-value">{{ t.receita | brl(0) }}</div>
-          <div class="tp-label">Faturamento líquido {{ ra.ano }}</div>
-          <div class="tp-compare">Hotmart + TMB, já sem as taxas</div>
+          <div class="tp-label">Faturamento dos lançamentos {{ ra.ano }}</div>
+          <div class="tp-compare">Dentro do carrinho, Hotmart + TMB, já sem as taxas</div>
         </div>
         <div class="tp-kpi">
           <div class="tp-kpi-top"><div class="tp-icon warning"><i class="ti ti-coin"></i></div></div>
           <div class="tp-value">{{ t.invest | brl(0) }}</div>
-          <div class="tp-label">Investimento em anúncios</div>
+          <div class="tp-label">Investimento dos lançamentos</div>
           <div class="tp-compare">Meta + Google dos lançamentos</div>
         </div>
         <div class="tp-kpi">
           <div class="tp-kpi-top"><div class="tp-icon {{ 'success' if t.resultado >= 0 else 'danger' }}"><i class="ti ti-report-money"></i></div></div>
           <div class="tp-value">{{ t.resultado | brl(0) }}</div>
-          <div class="tp-label">Resultado (faturamento − anúncios)</div>
+          <div class="tp-label">Resultado dos lançamentos</div>
           <div class="tp-compare">Antes de equipe, ferramentas e comissões</div>
         </div>
         <div class="tp-kpi">
@@ -182,15 +254,15 @@
         </div>
       </div>
       <div class="ldg-ano-note" style="margin-top:12px">
-        Faturamento líquido <strong>contratado</strong>: nas vendas parceladas inclui as parcelas que ainda vão ser cobradas, e lançamentos em andamento entram com o que já foi vendido.
-        Investimento é só Meta + Google dos lançamentos — não inclui perpétuo, distribuição nem WhatsApp.
+        Os indicadores abaixo são <strong>só dos lançamentos</strong> (venda dentro do carrinho). Faturamento líquido <strong>contratado</strong>: nas vendas parceladas inclui as parcelas que ainda vão ser cobradas, e lançamentos em andamento entram com o que já foi vendido.
+        O investimento é só Meta + Google dos lançamentos; perpétuo e distribuição estão no quadro da empresa, acima.
       </div>
     </div>
 
     <!-- ═══ 2. Faturamento mês a mês ═════════════════════════════════════ -->
     {% if ra.mensal %}{% set mm = ra.mensal %}
     <div class="ldg-bloco">
-      <div class="ldg-sec-head"><i class="ti ti-calendar-stats"></i> Faturamento mês a mês
+      <div class="ldg-sec-head"><i class="ti ti-calendar-stats"></i> Faturamento mês a mês · lançamentos
         {% if mm.melhor_mes %}<span class="ldg-product-count">melhor mês: {{ mm.melhor_mes }}</span>{% endif %}
       </div>
       <div class="ldg-ano-note" style="margin:2px 0 12px">Aproximado: o faturamento e as matrículas de cada lançamento são distribuídos pelos dias do carrinho; o investimento é o gasto real do mês.</div>

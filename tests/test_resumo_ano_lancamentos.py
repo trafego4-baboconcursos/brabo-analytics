@@ -106,3 +106,48 @@ def test_faturamento_mensal_preserva_o_total_e_separa_investimento_de_2025():
 
 def test_rotulo_curto():
     assert _rotulo_curto(2_450_000) == "2,5 mi" and _rotulo_curto(850_000) == "850 mil" and _rotulo_curto(0) == ""
+
+
+# ── Empresa inteira (perpétuo, setor de vendas, distribuição) ───────────────
+from frontend.routes.analytics import _empresa_do_ano, _meta_do_ano  # noqa: E402
+
+
+def _base():
+    resumo = {"n_lancamentos": 3, "ranking": [{}], "total": {"receita": 900.0, "vendas": 90, "invest": 100.0}}
+    empresa = {"hotmart": {"receita": 700.0, "vendas": 60}, "tmb": {"receita": 400.0, "vendas": 45},
+               "invest": {"distribuicao": 30.0, "perpetuo": 5.0, "sem_codigo": 1.0}, "completo": True}
+    perp = {"total": {"receita": 10.0, "vendas": 4}}
+    return resumo, empresa, perp
+
+
+def test_setor_de_vendas_e_o_que_sobra_do_total_vendido():
+    r = _empresa_do_ano(*_base())
+    por = {x["chave"]: x for x in r["linhas"]}
+    assert por["lancamentos"]["receita"] == 900.0 and por["perpetuo"]["receita"] == 10.0
+    assert por["vendas"]["receita"] == 190.0 and por["vendas"]["vendas"] == 11   # 1100 - 900 - 10 ; 105 - 90 - 4
+    assert r["receita"] == 1100.0 and r["vendas"] == 105
+    assert round(sum(x["pct"] for x in r["linhas"]), 6) == 100.0
+
+
+def test_distribuicao_so_tem_investimento_e_o_total_soma_tudo():
+    r = _empresa_do_ano(*_base())
+    por = {x["chave"]: x for x in r["linhas"]}
+    assert por["distribuicao"]["receita"] == 0.0 and por["distribuicao"]["invest"] == 31.0   # 30 + 1 sem código
+    assert r["invest"] == 100.0 + 5.0 + 31.0 and r["resultado"] == 1100.0 - 136.0
+    assert round(r["roas"], 4) == round(1100.0 / 136.0, 4)
+
+
+def test_setor_de_vendas_nunca_fica_negativo():
+    resumo, empresa, perp = _base()
+    empresa["hotmart"]["receita"] = 100.0      # total vendido menor que os lançamentos: dado incompleto
+    r = _empresa_do_ano(resumo, empresa, perp)
+    assert {x["chave"]: x for x in r["linhas"]}["vendas"]["receita"] == 0.0
+
+
+def test_meta_usa_o_total_da_empresa_mas_a_media_e_so_dos_lancamentos(monkeypatch):
+    monkeypatch.delenv("META_FATURAMENTO_ANUAL_2026", raising=False)
+    total = {"receita": 30_000_000.0}
+    m = _meta_do_ano(2026, total, [{}, {}, {}], 5, atingido=33_000_000.0)
+    assert m["atingido"] == 33_000_000.0 and m["falta"] == 5_000_000.0
+    assert m["media_lancamento"] == 10_000_000.0      # 30 mi / 3 lançamentos com venda
+    assert m["restantes"] == 2 and m["necessario_por_restante"] == 2_500_000.0

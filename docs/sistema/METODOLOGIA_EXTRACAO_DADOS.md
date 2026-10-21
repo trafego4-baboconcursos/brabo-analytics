@@ -88,6 +88,9 @@ relacionados:
 > **15. Receita líquida da Hotmart: o que cada coluna significa em cada origem (2026-10-20, corrigido no mesmo dia)**
 >
 > - [[METODOLOGIA_EXTRACAO_DADOS#15.1 Regras por produto para parcelas (2026-10-20)|15.1 Regras por produto para parcelas (2026-10-20)]]
+>
+> **16. Faturamento total da empresa no ano (2026-10-21)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -534,3 +537,16 @@ A regra geral de `_parcela_unica_info` (webhook com `quantidade_de_cobrancas` pr
 - **8743334 ("Black Vitalícia 2026 - AC"):** (a) cartão 12x de R$ 1.198,80 grava o **total** do contrato (12 × R$ 99,90), não a parcela — `total_se_parcelado` impede o ×12 (eram 39 vendas contadas como R$ 11.800 líquidos cada, ~R$ 411 mil a mais); (b) ofertas com código de preço terminado em **DRP** são a cobrança mensal recorrente de R$ 99,90 em **24x** (confirmado pelo time) — `drp_parcelas: 24` (o payload manda 1 parcela e só R$ 94,90 por venda entrava). Segunda cobrança da mesma assinatura continua sendo repetição e não conta como venda.
 - Efeito no BV-26 (20/10, líquido projetado): R$ 2.114.741 → R$ 1.760.447; pago R$ 2.499.662 → R$ 2.058.304.
 - Para um produto novo com o mesmo defeito: testar `com × parcelas` contra o preço da oferta antes de aceitar a regra geral.
+
+## 16. Faturamento total da empresa no ano (2026-10-21)
+
+`/lancamentos` mostra, no Resumo Executivo, a conta da **empresa inteira**, não só dos lançamentos. Fonte: `frontend/db_readers/empresa.py` (`read_empresa_ano`) + `read_perpetuo_ano`.
+
+- **Total vendido** = tudo que a Hotmart e a TMB venderam no ano civil, com a regra de valor de `read_vendas` (líquido; venda por parcela projetada; cobrança repetida e e-mail de teste fora).
+- **Lançamentos** = a venda dentro do carrinho (soma dos cartões). **Perpétuo** = produtos das verticais (`VERTICALS`), líquido de venda aprovada. **Setor de vendas** = o que sobra: `total vendido − lançamentos − perpétuo` (mentorias, apostilas e cursos vendidos fora da janela do carrinho). Nunca fica negativo.
+- **Distribuição** não tem venda ligada (só anúncio) e entra só no investimento: gasto Meta + Google de `DISTRIBUICAO-*` e de campanhas sem código com "distribui" no nome; o perpétuo entra com `PERPETUO-*`.
+- 2026 em 21/10: R$ 33,76 mi = lançamentos R$ 31,20 mi (92,4%) + setor de vendas R$ 2,47 mi (7,3%) + perpétuo R$ 0,09 mi (0,3%); investimento R$ 10,17 mi (lançamentos 9,02 + distribuição 1,08 + perpétuo 0,07).
+- **Limite conhecido:** um produto do perpétuo cuja venda caia dentro do carrinho de um lançamento do mesmo projeto é contado nos dois (lançamento e perpétuo) e o setor de vendas fica menor pelo mesmo valor; é pequeno (o perpétuo inteiro soma R$ 93 mil no ano).
+- **Perpétuo corrigido:** a página `/perpetuo` e o "Mês a mês" somavam `valor_de_compra_com_impostos` (o que o cliente pagou) de **qualquer status**, inclusive reembolso e cancelamento. Agora somam o líquido de venda aprovada, como o resto do sistema; os números do perpétuo ficam menores.
+- A meta anual (R$ 38 mi) passou a medir o **total da empresa**.
+

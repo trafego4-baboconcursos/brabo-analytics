@@ -72,14 +72,20 @@ def read_ac_leads_for_attribution(
                 fones = {str(phone_por_email.get(e)).strip() for e in (emails or ())
                          if e not in casados and phone_por_email.get(e)}
             if fones:
-                partes.append(pd.read_sql(
-                    text("""
-                        SELECT email, utm_source, utm_medium, utm_campaign, utm_content, utm_term, phone, nome, sobrenome
-                        FROM leads
-                        WHERE lancamento_codigo = :code AND TRIM(COALESCE(phone, '')) = ANY(:phones)
-                    """),
-                    engine, params={"code": launch_code, "phones": list(fones)},
-                ))
+                # A `leads` não tem índice por telefone: no PES-SET-26 essa consulta leva
+                # ~30 s (cache frio) e estourava o limite do sistema, derrubando a
+                # atribuição ("Falha ao carregar: Atribuição", 21/10/26). 120 s só aqui,
+                # via SET LOCAL (vale para esta transação e não vaza para o pool).
+                with engine.connect() as _conn_fone:
+                    _conn_fone.execute(text("SET LOCAL statement_timeout = 120000"))
+                    partes.append(pd.read_sql(
+                        text("""
+                            SELECT email, utm_source, utm_medium, utm_campaign, utm_content, utm_term, phone, nome, sobrenome
+                            FROM leads
+                            WHERE lancamento_codigo = :code AND TRIM(COALESCE(phone, '')) = ANY(:phones)
+                        """),
+                        _conn_fone, params={"code": launch_code, "phones": list(fones)},
+                    ))
         partes = [x for x in partes if not x.empty]
         df = pd.concat(partes, ignore_index=True) if partes else pd.DataFrame(columns=colunas)
     else:
@@ -431,8 +437,19 @@ def read_utm_cobertura(launch_folder_or_code: Any) -> dict | None:
 
 
 def read_leads(launch_folder_or_code: Any, vendas: VendasSummary | None = None, start_date=None, end_date=None) -> LeadsSummary | None:  # noqa: ARG001
+    """Leads de um lançamento. As consultas rodam numa transação só, com limite de
+    120 s (o padrão do sistema é 30 s). Num lançamento fechado, a primeira leitura
+    encontra o cache do banco frio: buscar ~56 mil linhas espalhadas em ~2 GB leva
+    mais de 30 s e a consulta era cancelada (PES-SET-26, 21/10/26: "Falha ao
+    carregar: Leads" no debriefing); a mesma consulta com o cache quente leva 0,4 s.
+    `SET LOCAL` vale só nesta transação e não vaza para o resto do pool."""
+    with _get_engine().connect() as conn:
+        conn.execute(text("SET LOCAL statement_timeout = 120000"))
+        return _read_leads(launch_folder_or_code, vendas, conn)
+
+
+def _read_leads(launch_folder_or_code: Any, vendas: VendasSummary | None, engine) -> LeadsSummary | None:
     code = _extract_launch_code(launch_folder_or_code)
-    engine = _get_engine()
 
     # Agregado por combinação (UTM + dia) em vez de linha a linha: as seis
     # quebras montadas abaixo (canal, dia, etapa, temperatura, source, medium)

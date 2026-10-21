@@ -531,6 +531,8 @@ async def lancamentos_page(request: Request, launch_code: str | None = None):
     ])
     summary_by_code = {l.code: s for l, s in zip(ctx["launches"], summaries)}
     ctx["summary_by_code"] = summary_by_code
+    from src.constants import PALETA_PRODUTO  # noqa: PLC0415
+    ctx["paleta_produto"] = PALETA_PRODUTO
     ctx["resumo_ano"] = _resumo_do_ano(ctx["launches"], summary_by_code)
     if ctx["resumo_ano"]:
         ano = ctx["resumo_ano"]["ano"]

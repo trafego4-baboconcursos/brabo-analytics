@@ -170,3 +170,17 @@ def test_leitores_de_lancamento_excluem_os_produtos_do_perpetuo():
     base = Path(__file__).resolve().parent.parent / "frontend" / "db_readers"
     for arq in ("sales.py", "hotmart.py", "afiliados.py"):
         assert "NOT (codigo_do_produto" in (base / arq).read_text(encoding="utf-8"), arq
+
+
+# ── Paleta por produto (faixa dos cartões) ──────────────────────────────────
+def test_paleta_dos_produtos_e_do_perpetuo():
+    import re
+
+    from src.constants import PALETA_PRODUTO, paleta_do_produto
+
+    assert paleta_do_produto("PI")[:3] == ["#009A44", "#F2B83A", "#005EB8"]          # INSS: verde, amarelo, azul 300 C
+    assert paleta_do_produto("pes") == ["#FFFFFF", "#C8102E", "#00A859"]            # TJ-SP: branco, vermelho, verde
+    assert paleta_do_produto("PBB") == ["#FCFC30", "#465EFF"]                       # BB: RGB 252 252 48 e 70 94 255
+    assert len(paleta_do_produto("PERPETUO")) == 3 and paleta_do_produto("XX") == []
+    for chave, p in PALETA_PRODUTO.items():
+        assert all(re.fullmatch(r"#[0-9A-Fa-f]{6}", c) for c in p["cores"]), chave

@@ -168,3 +168,21 @@ def meta_faturamento_anual(ano: int) -> float | None:
             pass
     return META_FATURAMENTO_ANUAL.get(ano)
 
+
+# Cores de cada produto (identidade dos concursos), usadas na faixa dos cartões de /lancamentos.
+# A chave é o prefixo do código do lançamento (PI-AGO-26 -> "PI"); PERPETUO não é lançamento,
+# mas tem paleta própria (criada em 21/10/26: violeta + turquesa, que não colide com os concursos).
+# Pantone convertido para o hex mais próximo na tela: 347 C ~ #009A44, 136 C ~ #F2B83A,
+# 300 C ~ #005EB8, 538 C ~ #C9D5E6; BB: amarelo RGB 252 252 48 e azul RGB 70 94 255.
+PALETA_PRODUTO: dict[str, dict] = {
+    "PI": {"nome": "INSS", "cores": ["#009A44", "#F2B83A", "#005EB8", "#C9D5E6", "#6B7280", "#111827"]},
+    "PES": {"nome": "TJ-SP", "cores": ["#FFFFFF", "#C8102E", "#00A859"]},
+    "PBB": {"nome": "Banco do Brasil", "cores": ["#FCFC30", "#465EFF"]},
+    "BV": {"nome": "Black Vitalícia", "cores": ["#111827", "#C9A227"]},
+    "PERPETUO": {"nome": "Perpétuo", "cores": ["#6C4FD3", "#14B8A6", "#C4B5FD"]},
+}
+
+
+def paleta_do_produto(prefixo: str | None) -> list[str]:
+    return list((PALETA_PRODUTO.get(str(prefixo or "").upper()) or {}).get("cores") or [])
+

@@ -79,11 +79,13 @@
 .ldg-product-count { font-size: 11px; font-weight: 700; color: var(--bs-ink-muted); background: var(--bs-accent-bg); padding: 2px 10px; border-radius: 999px; }
 .ldg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
 .ldg-card {
-  display: block; background: var(--bs-card); border-radius: var(--bs-r-lg);
-  padding: 16px; box-shadow: var(--bs-sh-sm); text-decoration: none; color: inherit;
+  display: block; position: relative; overflow: hidden; background: var(--bs-card); border-radius: var(--bs-r-lg);
+  padding: 16px 16px 26px; box-shadow: var(--bs-sh-sm); text-decoration: none; color: inherit;
   border-top: 3px solid var(--bs-accent); transition: box-shadow .15s, transform .15s;
 }
 .ldg-card:hover { box-shadow: var(--bs-sh-md); transform: translateY(-2px); }
+.ldg-faixa { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; display: flex; border-top: 1px solid rgba(0,0,0,.07); }
+.ldg-faixa > span { flex: 1; display: block; }
 .ldg-card-code { font-size: 15px; font-weight: 800; color: var(--bs-ink); }
 .ldg-card-dates { font-size: 11px; color: var(--bs-ink-muted); margin-top: 2px; }
 .ldg-card-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--bs-border); }
@@ -133,7 +135,7 @@
             <div><div class="v">{{ "%.2f"|format(em.roas) | replace(".", ",") }}x</div><div class="l">ROAS da empresa</div></div>
           </div>
         </div>
-        {% set cores = {'lancamentos': 'var(--bs-success)', 'vendas': '#5b8def', 'perpetuo': '#8e7cc3', 'distribuicao': '#f5b13d'} %}
+        {% set cores = {'lancamentos': 'var(--bs-success)', 'vendas': '#5b8def', 'perpetuo': paleta_produto['PERPETUO'].cores[0], 'distribuicao': '#f5b13d'} %}
         <div class="ldg-emp-bar" title="Participação de cada origem no faturamento">
           {% for ln in em.linhas if ln.receita > 0 %}<span style="width:{{ ln.pct | round(2) }}%;background:{{ cores[ln.chave] }}" title="{{ ln.nome }}: {{ ln.receita | brl(0) }}"></span>{% endfor %}
         </div>
@@ -407,6 +409,12 @@
               <div class="ldg-stat-lbl">ROAS</div>
             </div>
           </div>
+          {% set cores = (paleta_produto.get(l.code.split('-')[0].upper()) or {}).get('cores') or [] %}
+          {% if cores %}
+          <div class="ldg-faixa" title="Cores do produto">
+            {% for c in cores %}<span style="background:{{ c }};{% if c | lower == '#ffffff' %}box-shadow: inset 0 0 0 1px #d1d5db;{% endif %}"></span>{% endfor %}
+          </div>
+          {% endif %}
         </a>
         {% endfor %}
       </div>

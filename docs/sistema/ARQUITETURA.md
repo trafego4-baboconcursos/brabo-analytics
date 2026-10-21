@@ -2800,6 +2800,13 @@ fechado** e com as 4 verticais juntas, porque o seletor da página é em dias
 corridos (7/30/90) e nunca fecha um mês. Uma seção só, repetida nas 4 páginas de
 propósito: a pergunta "quanto o perpétuo deu em agosto?" é do perpétuo inteiro.
 
+**Classificação (21/10/26):** sem a tag `[perpétuo]`, uma campanha cai num
+`PERPETUO-*` pelo fallback de `etl/launch_resolver.py` — `[compra]` + tag de produto
+e **nenhum** código de lançamento no nome. Até 21/10 o fallback exigia também
+`[frio]`, e as search `[compra][quente]` (R$ 7,5 mil, mai–ago/26) ficavam com
+`lancamento_codigo` NULL; foram reclassificadas no banco. Teste em
+`tests/test_launch_resolver_perpetuo.py`.
+
 ### Histórico de UTM por lançamento (`lead_utm_lancamento`)
 
 A `leads` espelha o Active Campaign — **uma linha por contato** — e

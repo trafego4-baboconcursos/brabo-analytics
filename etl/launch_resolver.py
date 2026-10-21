@@ -55,12 +55,13 @@ PERPETUO_VERTICALS: list[tuple[str, tuple[str, ...]]] = [
 ]
 
 # Fallback: campanhas de tráfego pago always-on que já rodam hoje SEM a tag
-# [perpétuo] — convenção real confirmada em 2026-09-01: "[compra][frio]" +
-# tag curta de produto ([BB]/[INSS]/[TJ]/[TJSP]), sem código de lançamento
-# (PBB-MES-AA etc.) no nome. Só entra aqui se não achar um código de
-# lançamento de verdade — nunca sobrepõe uma campanha de lançamento real.
-COMPRA_FRIO_RE = re.compile(r"\[compra\]", re.IGNORECASE)
-FRIO_RE = re.compile(r"\[frio\]", re.IGNORECASE)
+# [perpétuo] — convenção real confirmada em 2026-09-01: "[compra]" + tag curta
+# de produto ([BB]/[INSS]/[TJ]/[TJSP]), sem código de lançamento (PBB-MES-AA
+# etc.) no nome. Só entra aqui se não achar um código de lançamento de verdade
+# — nunca sobrepõe uma campanha de lançamento real. A temperatura não importa:
+# exigir [frio] deixava de fora R$ 7,5 mil das search [compra][quente] do
+# perpétuo (mai–ago/26, ACOMPANHAMENTO_PERPETUO_MEQ.md item 9).
+COMPRA_RE = re.compile(r"\[compra\]", re.IGNORECASE)
 
 
 def _strip_accents(text_value: str) -> str:
@@ -131,8 +132,7 @@ def resolve_perpetuo_or_distribuicao_code(campaign_name: str | None) -> str | No
         return None
 
     if (
-        COMPRA_FRIO_RE.search(campaign_name)
-        and FRIO_RE.search(campaign_name)
+        COMPRA_RE.search(campaign_name)
         and not extract_code_from_text(campaign_name)
     ):
         for codigo, keywords in PERPETUO_VERTICALS:

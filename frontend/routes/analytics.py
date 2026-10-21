@@ -518,11 +518,12 @@ async def lancamentos_page(request: Request, launch_code: str | None = None):
             receita = v.total_receita if v else 0.0
             return {
                 "leads": leads, "invest": invest, "receita": receita,
+                "vendas": int(v.total_vendas) if v else 0,
                 "roas": receita / invest if invest > 0 else 0.0,
             }
         except Exception:
             logger.exception("Lançamentos: falha ao resumir %s", l.code)
-            return {"leads": 0, "invest": 0.0, "receita": 0.0, "roas": 0.0}
+            return {"leads": 0, "invest": 0.0, "receita": 0.0, "vendas": 0, "roas": 0.0}
 
     ctx = _base_ctx(request, "lancamentos", "Lançamentos", launch, launches)
     summaries = await asyncio.gather(*[
@@ -530,8 +531,68 @@ async def lancamentos_page(request: Request, launch_code: str | None = None):
     ])
     summary_by_code = {l.code: s for l, s in zip(ctx["launches"], summaries)}
     ctx["summary_by_code"] = summary_by_code
+    ctx["resumo_ano"] = _resumo_do_ano(ctx["launches"], summary_by_code)
 
     return templates.TemplateResponse("lancamentos.html", ctx)
+
+
+def _resumo_do_ano(launches, summary_by_code, ano: int | None = None) -> dict | None:
+    """Soma dos lançamentos do ano (só informativo): faturamento, investimento e o que deriva.
+
+    O ano vem do sufixo do código (PBB-ABR-26 → 2026). Só entram lançamentos — campanhas
+    de distribuição e perpétuo não têm código de lançamento. Receita = líquida contratada
+    (Hotmart + TMB); investimento = Meta + Google, os mesmos números dos cartões abaixo.
+    """
+    from datetime import date  # noqa: PLC0415
+
+    ano = ano or date.today().year
+    sufixo = f"-{str(ano)[-2:]}"
+    do_ano = [l for l in launches if str(l.code).upper().endswith(sufixo)]
+    if not do_ano:
+        return None
+
+    def _soma(itens):
+        s = {"leads": 0, "invest": 0.0, "receita": 0.0, "vendas": 0}
+        for l in itens:
+            x = summary_by_code.get(l.code) or {}
+            for k in s:
+                s[k] += x.get(k) or 0
+        s["roas"] = s["receita"] / s["invest"] if s["invest"] > 0 else 0.0
+        s["resultado"] = s["receita"] - s["invest"]
+        s["ticket"] = s["receita"] / s["vendas"] if s["vendas"] > 0 else 0.0
+        s["cac"] = s["invest"] / s["vendas"] if s["vendas"] > 0 else 0.0
+        s["cpl"] = s["invest"] / s["leads"] if s["leads"] > 0 else 0.0
+        return s
+
+    total = _soma(do_ano)
+    por_produto: dict[str, dict] = {}
+    for l in do_ano:
+        nome = getattr(l, "product_name", None) or getattr(l, "product", None) or "Outros"
+        por_produto.setdefault(nome, []).append(l)
+    produtos = []
+    for nome, itens in por_produto.items():
+        s = _soma(itens)
+        s["nome"] = nome
+        s["lancamentos"] = len(itens)
+        s["pct_receita"] = s["receita"] / total["receita"] * 100 if total["receita"] > 0 else 0.0
+        produtos.append(s)
+    produtos.sort(key=lambda x: x["receita"], reverse=True)
+
+    ranking = []
+    for l in do_ano:
+        x = summary_by_code.get(l.code) or {}
+        if (x.get("receita") or 0) > 0:  # lançamento ainda sem venda não entra no ranking
+            ranking.append({"code": l.code, "accent": getattr(l, "accent", None),
+                            "receita": x.get("receita") or 0.0, "invest": x.get("invest") or 0.0,
+                            "roas": x.get("roas") or 0.0, "vendas": x.get("vendas") or 0})
+    ranking.sort(key=lambda x: x["receita"], reverse=True)
+    maximo = ranking[0]["receita"] if ranking else 0.0
+    for r in ranking:
+        r["pct_barra"] = r["receita"] / maximo * 100 if maximo > 0 else 0.0
+        r["pct_ano"] = r["receita"] / total["receita"] * 100 if total["receita"] > 0 else 0.0
+
+    return {"ano": ano, "n_lancamentos": len(do_ano), "total": total,
+            "produtos": produtos, "ranking": ranking}
 
 
 @router.get("/comparativo", response_class=HTMLResponse)

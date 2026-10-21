@@ -32,6 +32,15 @@
   margin-bottom: 28px; transition: filter .12s;
 }
 .ldg-cal-link:hover { filter: brightness(1.08); }
+.ldg-ano-note { font-size: 12px; color: var(--bs-ink-muted); margin: 6px 0 26px; line-height: 1.5; }
+.ldg-ano-row { display: grid; grid-template-columns: 110px 1fr 150px 64px; align-items: center; gap: 12px; padding: 6px 0; font-size: 12px; }
+.ldg-ano-bar { background: var(--bs-accent-bg); border-radius: 999px; height: 10px; overflow: hidden; }
+.ldg-ano-bar > span { display: block; height: 100%; border-radius: 999px; background: var(--bs-accent); }
+.ldg-ano-code { font-weight: 800; color: var(--bs-ink); text-decoration: none; }
+.ldg-ano-val { text-align: right; font-weight: 700; color: var(--bs-ink); }
+.ldg-ano-pct { text-align: right; color: var(--bs-ink-muted); }
+.ldg-ano-grid2 { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 20px; margin-top: 8px; }
+@media (max-width: 900px) { .ldg-ano-grid2 { grid-template-columns: 1fr; } .ldg-ano-row { grid-template-columns: 90px 1fr 110px 52px; } }
 </style>
 {% endblock %}
 
@@ -48,6 +57,122 @@
   </div>
 
   <div class="content">
+    {% if resumo_ano %}
+    {% set ra = resumo_ano %}{% set t = ra.total %}
+    <div class="section">
+      <div class="section-title"><i class="ti ti-chart-bar"></i> Resumo Executivo {{ ra.ano }}</div>
+      <div class="ldg-ano-note">Soma dos {{ ra.n_lancamentos }} lançamentos de {{ ra.ano }}. Só informativo.</div>
+
+      <div class="tp-kpi-grid tp-kpi-grid-4">
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-cash"></i></div></div>
+          <div class="tp-value">{{ t.receita | brl(0) }}</div>
+          <div class="tp-label">Faturamento líquido {{ ra.ano }}</div>
+          <div class="tp-compare">Hotmart + TMB, já sem as taxas</div>
+        </div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon warning"><i class="ti ti-coin"></i></div></div>
+          <div class="tp-value">{{ t.invest | brl(0) }}</div>
+          <div class="tp-label">Investimento em anúncios</div>
+          <div class="tp-compare">Meta + Google dos lançamentos</div>
+        </div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon {{ 'success' if t.resultado >= 0 else 'danger' }}"><i class="ti ti-report-money"></i></div></div>
+          <div class="tp-value">{{ t.resultado | brl(0) }}</div>
+          <div class="tp-label">Resultado (faturamento − anúncios)</div>
+          <div class="tp-compare">Antes de equipe, ferramentas e comissões</div>
+        </div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-chart-arrows-vertical"></i></div></div>
+          <div class="tp-value">{{ "%.2f"|format(t.roas) | replace(".", ",") }}<small>x</small></div>
+          <div class="tp-label">ROAS do ano</div>
+          <div class="tp-compare">Faturamento ÷ investimento</div>
+        </div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-shopping-cart"></i></div></div>
+          <div class="tp-value">{{ t.vendas | num }}</div>
+          <div class="tp-label">Matrículas</div>
+          <div class="tp-compare">Ticket médio {{ t.ticket | brl(0) }}</div>
+        </div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-target-arrow"></i></div></div>
+          <div class="tp-value">{{ t.cac | brl }}</div>
+          <div class="tp-label">Custo por matrícula</div>
+          <div class="tp-compare">Investimento ÷ matrículas</div>
+        </div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon meta"><i class="ti ti-users"></i></div></div>
+          <div class="tp-value">{{ t.leads | num }}</div>
+          <div class="tp-label">Leads captados</div>
+          <div class="tp-compare">CPL médio {{ t.cpl | brl }}</div>
+        </div>
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-percentage"></i></div></div>
+          <div class="tp-value">{{ "%.2f"|format((t.vendas / t.leads * 100) if t.leads > 0 else 0) | replace(".", ",") }}%</div>
+          <div class="tp-label">Leads que viraram matrícula</div>
+          <div class="tp-compare">Matrículas ÷ leads (visão geral)</div>
+        </div>
+      </div>
+
+      <div class="ldg-ano-grid2">
+        <div>
+          <div class="section-title"><i class="ti ti-folder"></i> Por produto</div>
+          <div class="table-wrap">
+            <table class="table-compact" style="font-size:12px;" data-no-filter>
+              <thead><tr>
+                <th class="th-dark">Produto</th>
+                <th class="th-dark" style="text-align:right">Lanç.</th>
+                <th class="th-dark" style="text-align:right">Faturamento</th>
+                <th class="th-dark" style="text-align:right">% do ano</th>
+                <th class="th-dark" style="text-align:right">Investimento</th>
+                <th class="th-dark" style="text-align:right">ROAS</th>
+                <th class="th-dark" style="text-align:right">Matrículas</th>
+              </tr></thead>
+              <tbody>
+                {% for p in ra.produtos %}
+                <tr>
+                  <td class="td-bold">{{ p.nome }}</td>
+                  <td style="text-align:right">{{ p.lancamentos }}</td>
+                  <td style="text-align:right">{{ p.receita | brl(0) }}</td>
+                  <td style="text-align:right">{{ "%.1f"|format(p.pct_receita) | replace(".", ",") }}%</td>
+                  <td style="text-align:right">{{ p.invest | brl(0) }}</td>
+                  <td style="text-align:right">{{ "%.2f"|format(p.roas) | replace(".", ",") }}x</td>
+                  <td style="text-align:right">{{ p.vendas | num }}</td>
+                </tr>
+                {% endfor %}
+                <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
+                  <td>Total</td>
+                  <td style="text-align:right">{{ ra.n_lancamentos }}</td>
+                  <td style="text-align:right">{{ t.receita | brl(0) }}</td>
+                  <td style="text-align:right">100%</td>
+                  <td style="text-align:right">{{ t.invest | brl(0) }}</td>
+                  <td style="text-align:right">{{ "%.2f"|format(t.roas) | replace(".", ",") }}x</td>
+                  <td style="text-align:right">{{ t.vendas | num }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <div class="section-title"><i class="ti ti-trophy"></i> Faturamento por lançamento</div>
+          {% for r in ra.ranking %}
+          <div class="ldg-ano-row">
+            <a class="ldg-ano-code" href="/?launch_code={{ r.code }}">{{ r.code }}</a>
+            <div class="ldg-ano-bar"><span style="width:{{ r.pct_barra | round(1) }}%;{% if r.accent %}background:{{ r.accent }};{% endif %}"></span></div>
+            <div class="ldg-ano-val">{{ r.receita | brl(0) }}</div>
+            <div class="ldg-ano-pct">{{ "%.0f"|format(r.pct_ano) }}%</div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="ldg-ano-note" style="margin-top:14px">
+        O faturamento é o líquido <strong>contratado</strong>: nas vendas parceladas inclui as parcelas que ainda vão ser cobradas, e lançamentos em andamento entram com o que já foi vendido.
+        O investimento é só Meta + Google dos lançamentos — não inclui perpétuo, distribuição nem WhatsApp.
+      </div>
+    </div>
+    {% endif %}
+
     <a class="ldg-cal-link" href="/calendario">
       <i class="ti ti-calendar"></i> Ver calendário operacional completo
     </a>

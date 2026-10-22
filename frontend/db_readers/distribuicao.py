@@ -239,6 +239,7 @@ def _juntar_backups(cartoes: list[dict]) -> list[dict]:
             alvo["invest_backup"] += c["invest"]
             alvo["invest_backup_30d"] += c["invest_30d"]
             alvo["backups"].append(c["nome"])
+            alvo["titulo"] = f"{alvo['nome']} · {' · '.join(alvo['backups'])}"
         else:
             principais.append(c)
     for c in principais:

@@ -243,4 +243,5 @@ def test_perfil_de_backup_soma_no_principal_e_nao_tem_cartao():
     brabo = r[1]
     assert brabo["invest"] == 304.0 and brabo["invest_30d"] == 40.0 and brabo["invest_backup"] == 216.0
     assert brabo["backups"] == ["Ivan Neto"] and brabo["custo_por_seguidor"] == 40.0 / 5
+    assert brabo["titulo"] == "Brabo Concursos · Ivan Neto"                    # o @braboconcursos é o perfil do Ivan
     assert sum(c["invest"] for c in r) == 88.0 + 216.0 + 651.0                  # nenhum real se perde

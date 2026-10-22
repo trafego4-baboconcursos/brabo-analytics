@@ -154,10 +154,29 @@
         <i class="ti ti-headset"></i> Atendimento
       </a>
       {% else %}
-      <a class="bs-mode-btn {% if nav_mode == 'calendario' %}active{% endif %}"
-         href="/calendario">
-        <i class="ti ti-calendar"></i> Calendário
-      </a>
+      <!-- Calendário — duplo papel, como Lançamentos: abre o painel com o link do calendário e o
+           ANO, que vale para o sistema todo (Calendário, Lançamentos e a lista de lançamentos do
+           menu). O ano escolhido aparece ao lado do nome; a troca passa pela rota /ano (cookie). -->
+      {% set _next = request.url.path ~ ('?' ~ request.url.query if request.url.query else '') %}
+      <div class="bs-launch-picker" id="bs-ano-picker">
+        <button type="button" class="bs-mode-btn bs-launch-picker-btn {% if nav_mode == 'calendario' %}active{% endif %} {% if ano_sel %}bs-has-badge{% endif %}" onclick="bsPickerToggle(this)">
+          <span class="bs-launch-picker-label"><i class="ti ti-calendar"></i> Calendário</span>
+          {% if ano_sel %}<span class="bs-live-badge">{{ ano_sel }}</span>{% endif %}
+          <i class="ti ti-chevron-down bs-launch-picker-chevron"></i>
+        </button>
+        <div class="bs-launch-picker-menu">
+          <a class="bs-launch-picker-all" href="/calendario"><i class="ti ti-calendar"></i> Ver calendário</a>
+          {% if anos_disponiveis and anos_disponiveis | length > 1 %}
+          <div class="bs-launch-picker-sep"></div>
+          {% for a in anos_disponiveis %}
+          <a class="bs-launch-picker-item {% if a == ano_sel %}active{% endif %}" href="/ano?ano={{ a }}&next={{ _next | urlencode }}">{{ a }}</a>
+          {% endfor %}
+          {% endif %}
+          <button type="button" class="bs-picker-back bs-picker-back-bottom" onclick="bsPickerToggle(this)">
+            <i class="ti ti-arrow-left"></i> Voltar para o menu principal
+          </button>
+        </div>
+      </div>
 
       <div class="bs-nav-sep"></div>
       <div class="bs-nav-group">Análises</div>

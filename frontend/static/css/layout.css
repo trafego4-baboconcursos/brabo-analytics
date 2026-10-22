@@ -110,6 +110,10 @@
    sem badge, o ícone de seta fica alinhado na mesma linha do texto. */
 .bs-launch-picker-btn.bs-has-badge .bs-launch-picker-label { flex:0 0 100%; }
 .bs-launch-picker-btn .bs-live-badge { margin-right:2px; }
+/* Calendário/Ano: o ano fica ao lado do nome (os outros seletores põem o selo na linha de baixo) */
+#bs-ano-picker .bs-launch-picker-btn { flex-wrap:nowrap; }
+#bs-ano-picker .bs-launch-picker-btn.bs-has-badge .bs-launch-picker-label { flex:0 0 auto; }
+#bs-ano-picker .bs-live-badge { margin-left:8px; }
 .bs-launch-picker-chevron { margin-left:auto; font-size:12px; opacity:.6; transition:transform .15s; flex-shrink:0; }
 .bs-launch-picker.open .bs-launch-picker-chevron { transform:rotate(180deg); }
 .bs-launch-picker-menu {

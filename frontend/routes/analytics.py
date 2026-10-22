@@ -506,6 +506,11 @@ async def calendario_page(request: Request, launch_code: str | None = None):
 async def trocar_ano(ano: int, next: str = "/calendario"):
     """Grava o ano global (cookie) e volta para a página de origem. `next` só aceita caminho local."""
     destino = next if next.startswith("/") and not next.startswith("//") else "/calendario"
+    # o ?ano= da página de origem venceria o cookie recém-gravado: sai do destino
+    from urllib.parse import parse_qsl, urlencode, urlsplit  # noqa: PLC0415
+    partes = urlsplit(destino)
+    consulta = [(k, v) for k, v in parse_qsl(partes.query, keep_blank_values=True) if k != "ano"]
+    destino = partes.path + (f"?{urlencode(consulta)}" if consulta else "")
     resp = RedirectResponse(url=destino, status_code=303)
     if 2000 <= ano <= 2100:
         resp.set_cookie(ANO_COOKIE, str(ano), max_age=60 * 60 * 24 * 400, samesite="lax", httponly=True)

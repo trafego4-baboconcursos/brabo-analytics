@@ -45,6 +45,9 @@ TEMPLATES_DIR = Path(__file__).resolve().parents[1] / "frontend" / "templates"
 PAGINAS = [
     "/",
     "/calendario",
+    "/lancamentos",  # resumo do ano; um nome local escondendo uma função importada já deu 500 aqui (22/10/26)
+    "/calendario?ano=2025",
+    "/lancamentos?ano=2025",
     "/funil",
     "/insights",
     "/debriefing",

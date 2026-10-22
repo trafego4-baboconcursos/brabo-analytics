@@ -3,6 +3,9 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/vis-timeline@7.7.3/styles/vis-timeline-graph2d.min.css">
 <script src="https://cdn.jsdelivr.net/npm/vis-timeline@7.7.3/standalone/umd/vis-timeline-graph2d.min.js"></script>
 <style>
+.cal-anos { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 11px; font-weight: 700; color: var(--bs-ink-muted); text-transform: uppercase; letter-spacing: .04em; }
+.cal-anos a { padding: 3px 12px; border-radius: 999px; background: var(--bs-accent-bg); color: var(--bs-ink-muted); text-decoration: none; letter-spacing: 0; }
+.cal-anos a.on { background: var(--bs-accent); color: #fff; }
 /* ── Calendário — vars locais não cobertas pelo base (cores de etapa,
    reaproveitadas da legenda de chips até as barras do timeline/grade). */
 :root { --pre: #e0f2fe; --cap: #dcfce7; --dep: #fef3c7; --aul: #ffe4e6; --car: #ddd6fe; }
@@ -171,6 +174,11 @@
     <div>
       <h1><i class="ti ti-calendar-event"></i> Calendário Operacional</h1>
       <p>Datas geradas a partir das Configurações de cada lançamento — mude lá (ou arraste na Linha do Tempo abaixo) e o calendário acompanha.</p>
+      {% if anos_disponiveis | length > 1 %}
+      <div class="cal-anos" title="O ano vale para todo o sistema: Calendário, Lançamentos e a lista de lançamentos do menu.">
+        <span>Ano</span>{% for a in anos_disponiveis %}<a href="/ano?ano={{ a }}&next=/calendario" class="{{ 'on' if a == ano_sel else '' }}">{{ a }}</a>{% endfor %}
+      </div>
+      {% endif %}
     </div>
   </div>
 

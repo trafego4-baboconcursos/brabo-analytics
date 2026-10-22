@@ -151,22 +151,45 @@ def ac_keywords(launch_code: str) -> list[str]:
     return AC_KEYWORDS_BY_PREFIX.get(prefixo, AC_KEYWORDS_TODAS)
 
 
-# Meta de faturamento líquido do ano (R$), somando todos os lançamentos do ano. Aparece
-# no Resumo Executivo de /lancamentos. Para mudar sem editar código: variável de ambiente
-# META_FATURAMENTO_ANUAL_2026=38000000 no serviço do site.
-META_FATURAMENTO_ANUAL: dict[int, float] = {2026: 38_000_000.0}
+# Metas de faturamento líquido do ano (R$), somando todos os lançamentos do ano, em degraus
+# crescentes: Meta, Super meta e Meta desafio. Aparecem no Resumo Executivo de /lancamentos.
+# Para mudar sem editar código: variável de ambiente no serviço do site
+# (META_FATURAMENTO_ANUAL_2026, META_SUPER_ANUAL_2026, META_DESAFIO_ANUAL_2026).
+METAS_FATURAMENTO_ANUAL: dict[int, tuple[tuple[str, float], ...]] = {
+    2026: (("Meta", 38_000_000.0), ("Super meta", 40_000_000.0), ("Meta desafio", 44_000_000.0)),
+}
+_METAS_ENV = ("META_FATURAMENTO_ANUAL", "META_SUPER_ANUAL", "META_DESAFIO_ANUAL")
+
+
+def _numero_env(bruto: str | None) -> float | None:
+    if not bruto:
+        return None
+    try:
+        return float(bruto.replace(".", "").replace(",", ".")) if "," in bruto else float(bruto)
+    except ValueError:
+        return None
+
+
+def metas_faturamento_anual(ano: int) -> list[tuple[str, float]]:
+    """Degraus de meta do ano (Meta, Super meta, Meta desafio); vazio se o ano não tem meta."""
+    import os  # noqa: PLC0415
+
+    base = list(METAS_FATURAMENTO_ANUAL.get(ano, ()))
+    for i, var in enumerate(_METAS_ENV):
+        v = _numero_env(os.environ.get(f"{var}_{ano}"))
+        if v is None:
+            continue
+        if i < len(base):
+            base[i] = (base[i][0], v)
+        elif i == len(base):
+            base.append((("Meta", "Super meta", "Meta desafio")[i], v))
+    return base
 
 
 def meta_faturamento_anual(ano: int) -> float | None:
-    import os  # noqa: PLC0415
-
-    bruto = os.environ.get(f"META_FATURAMENTO_ANUAL_{ano}")
-    if bruto:
-        try:
-            return float(bruto.replace(".", "").replace(",", ".")) if "," in bruto else float(bruto)
-        except ValueError:
-            pass
-    return META_FATURAMENTO_ANUAL.get(ano)
+    """A meta base (primeiro degrau)."""
+    metas = metas_faturamento_anual(ano)
+    return metas[0][1] if metas else None
 
 
 # Cores de cada produto (identidade dos concursos), usadas na faixa dos cartões de /lancamentos.

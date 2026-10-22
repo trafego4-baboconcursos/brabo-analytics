@@ -2,7 +2,7 @@
 titulo: "Arquitetura do Brabo Analytics — 2026-10-15"
 area: sistema
 status: vigente
-atualizado: 2026-10-21
+atualizado: 2026-10-22
 responde:
   - "como o sistema funciona por dentro"
   - "por que o aviso do etl recomputa so parte do cache"
@@ -43,6 +43,9 @@ relacionados:
 <!-- SUMARIO:INICIO -->
 
 > [!abstract]- Sumario - 96 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+>
+>
+> **Ano global do sistema (2026-10-22)**
 >
 >
 > **Estrutura de Arquivos**
@@ -348,6 +351,10 @@ Estado atual da arquitetura após as sessões de refatoração de 2026-06-23 e 2
 (S1–S9, 2026-07-02) e a remoção do shim `database_reader.py` (S10, 2026-09-15).
 
 ---
+
+## Ano global do sistema (2026-10-22)
+
+O ano de um lançamento é o sufixo do código (`src/anos.py`): PI-JAN-26 é de 2026 mesmo começando em nov/2025. O ano escolhido vale para todas as páginas: `?ano=` → cookie `brabo_ano` → ano corrente, resolvido em `_base_ctx` (`ano_sel`, `anos_disponiveis`). A rota `/ano?ano=AAAA&next=/caminho` grava o cookie. Calendário, /lancamentos e a lista de lançamentos do menu filtram por ele; o lançamento aberto aparece sempre. As metas anuais (Meta 38 mi, Super meta 40 mi, Meta desafio 44 mi em 2026) vêm de `src/constants.py::metas_faturamento_anual`. Plano de continuação (config por ano, cobertura de dados, 2027): item 315 do diário do BV-26.
 
 ## Estrutura de Arquivos
 

@@ -44,6 +44,14 @@
 .ldg-meta-pct { font-size: 30px; font-weight: 800; color: var(--bs-success); line-height: 1; }
 .ldg-meta-track { position: relative; background: var(--bs-accent-bg); border-radius: 999px; height: 16px; margin: 14px 0 6px; }
 .ldg-meta-fill { height: 100%; border-radius: 999px; background: var(--bs-success); }
+.ldg-meta-marca { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--bs-ink-subtle); opacity: .6; }
+.ldg-meta-marca.on { background: var(--bs-success); opacity: 1; }
+.ldg-meta-niveis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 10px 0 8px; }
+.ldg-meta-nivel { font-size: 11px; line-height: 1.35; color: var(--bs-ink-muted); padding: 6px 10px; border-left: 3px solid var(--bs-ink-subtle); background: var(--bs-accent-bg); border-radius: 0 6px 6px 0; }
+.ldg-meta-nivel strong { display: block; color: var(--bs-ink); }
+.ldg-meta-nivel.on { border-left-color: var(--bs-success); }
+.ldg-meta-nivel.on span { color: var(--bs-success); font-weight: 700; }
+@media (max-width: 760px) { .ldg-meta-niveis { grid-template-columns: 1fr; } }
 .ldg-meta-ritmo { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--bs-ink); opacity: .55; }
 .ldg-meta-legenda { font-size: 11px; color: var(--bs-ink-muted); display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .ldg-meta-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--bs-border); }
@@ -182,13 +190,22 @@
           </div>
         </div>
         {% if ra.meta %}{% set m = ra.meta %}
-        <div class="ldg-meta-track" title="A linha escura marca quanto do ano já passou">
-          <div class="ldg-meta-fill" style="width:{{ m.pct_barra | round(1) }}%"></div>
-          <div class="ldg-meta-ritmo" style="left:{{ m.pct_ano | round(1) }}%"></div>
+        <div class="ldg-meta-track" title="A linha escura marca onde a meta deveria estar hoje, pelo ritmo do ano">
+          <div class="ldg-meta-fill" style="width:{{ m.pct_fill | round(1) }}%"></div>
+          {% for n in m.niveis %}<div class="ldg-meta-marca{{ ' on' if n.batida else '' }}" style="left:{{ n.pos | round(1) }}%"></div>{% endfor %}
+          <div class="ldg-meta-ritmo" style="left:{{ m.pos_ritmo | round(1) }}%"></div>
+        </div>
+        <div class="ldg-meta-niveis">
+          {% for n in m.niveis %}
+          <div class="ldg-meta-nivel{{ ' on' if n.batida else '' }}">
+            <strong>{{ n.nome }} · {{ n.valor | brl(0) }}</strong>
+            <span>{% if n.batida %}<i class="ti ti-circle-check"></i> batida{% else %}{{ "%.1f"|format(n.pct) | replace(".", ",") }}% · faltam {{ n.falta | brl(0) }}{% endif %}</span>
+          </div>
+          {% endfor %}
         </div>
         <div class="ldg-meta-legenda">
           <span>Faltam <strong>{{ m.falta | brl(0) }}</strong> para a meta{% if m.restantes %} · os {{ m.restantes }} lançamentos ainda sem venda precisariam de {{ m.necessario_por_restante | brl(0) }} cada (média até aqui: {{ m.media_lancamento | brl(0) }} por lançamento){% endif %}</span>
-          <span>Linha escura: {{ "%.0f"|format(m.pct_ano) }}% do ano já passou</span>
+          <span>Linha escura: onde a meta deveria estar hoje ({{ "%.0f"|format(m.pct_ano) }}% do ano)</span>
         </div>
         {% endif %}
         <div class="table-wrap" style="margin-top:14px">
@@ -384,7 +401,7 @@
     </div>
     {% else %}
     <div class="ldg-sec-head"><i class="ti ti-layout-grid"></i> Lançamentos de {{ ano_sel }}
-      {% if anos_disponiveis | length > 1 %}<span class="ldg-anos">{% for a in anos_disponiveis %}<a href="/lancamentos?ano={{ a }}" class="{{ 'on' if a == ano_sel else '' }}">{{ a }}</a>{% endfor %}</span>{% endif %}
+      {% if anos_disponiveis | length > 1 %}<span class="ldg-anos">{% for a in anos_disponiveis %}<a href="/ano?ano={{ a }}&next=/lancamentos" class="{{ 'on' if a == ano_sel else '' }}">{{ a }}</a>{% endfor %}</span>{% endif %}
     </div>
 
     {% for group in launch_groups %}

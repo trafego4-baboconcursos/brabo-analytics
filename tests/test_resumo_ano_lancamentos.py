@@ -245,3 +245,23 @@ def test_perfil_de_backup_soma_no_principal_e_nao_tem_cartao():
     assert brabo["backups"] == ["Ivan Neto"] and brabo["custo_por_seguidor"] == 40.0 / 5
     assert brabo["titulo"] == "Brabo Concursos · Ivan Neto"                    # o @braboconcursos é o perfil do Ivan
     assert sum(c["invest"] for c in r) == 88.0 + 216.0 + 651.0                  # nenhum real se perde
+
+
+def test_metas_em_tres_degraus_38_40_44(monkeypatch):
+    for v in ("META_FATURAMENTO_ANUAL_2026", "META_SUPER_ANUAL_2026", "META_DESAFIO_ANUAL_2026"):
+        monkeypatch.delenv(v, raising=False)
+    from src.constants import metas_faturamento_anual
+    assert metas_faturamento_anual(2026) == [("Meta", 38e6), ("Super meta", 40e6), ("Meta desafio", 44e6)]
+    assert metas_faturamento_anual(2025) == []
+    m = _meta_do_ano(2026, {"receita": 39_000_000.0}, [{}], 1, atingido=39_000_000.0)
+    n = {x["nome"]: x for x in m["niveis"]}
+    assert n["Meta"]["batida"] and not n["Super meta"]["batida"] and not n["Meta desafio"]["batida"]
+    assert n["Super meta"]["falta"] == 1_000_000.0 and n["Meta desafio"]["falta"] == 5_000_000.0
+    assert round(n["Meta"]["pos"], 1) == 86.4 and n["Meta desafio"]["pos"] == 100.0   # barra vai até o desafio
+    assert round(m["pct_fill"], 1) == 88.6 and m["valor"] == 38e6
+
+
+def test_degrau_pode_ser_trocado_por_ambiente(monkeypatch):
+    monkeypatch.setenv("META_SUPER_ANUAL_2026", "41.000.000,00")
+    from src.constants import metas_faturamento_anual
+    assert dict(metas_faturamento_anual(2026))["Super meta"] == 41e6

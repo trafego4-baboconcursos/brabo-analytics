@@ -24,6 +24,7 @@ SRC_DIR        = WORKSPACE_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
+from src.anos import ANO_COOKIE, ano_do_codigo, anos_disponiveis, resolver_ano
 from frontend.db_readers import (
     discover_launches, get_launch, Launch,
     read_comparativo, AcCampaignSummary,
@@ -549,12 +550,18 @@ def _base_ctx(
     visible_launches = _filter_launches_for_user(launches, current_user)
 
     month_order = {"JAN": 1, "FEV": 2, "MAR": 3, "ABR": 4, "MAI": 5, "JUN": 6, "JUL": 7, "AGO": 8, "SET": 9, "OUT": 10, "NOV": 11, "DEZ": 12}
+    # Ano global (seletor do Calendário): ?ano= → cookie → ano corrente. O seletor de lançamentos
+    # lista só os do ano escolhido (mais o lançamento aberto, de qualquer ano).
+    _anos = anos_disponiveis(visible_launches)
+    ano_sel = resolver_ano(_anos, request.query_params.get("ano"), request.cookies.get(ANO_COOKIE))
     launch_groups: list[dict] = []
     grouped_launches = sorted(
         visible_launches,
         key=lambda item: (item.product_order, month_order.get(item.short, 99), item.code),
     )
     for item in grouped_launches:
+        if ano_do_codigo(item.code) != ano_sel and not (launch and item.code == launch.code):
+            continue
         if not launch_groups or launch_groups[-1]["product"] != item.product:
             launch_groups.append({
                 "product": item.product,
@@ -616,6 +623,8 @@ def _base_ctx(
         "launch":          launch,
         "launches":        visible_launches,
         "launch_groups":   launch_groups,
+        "ano_sel":         ano_sel,
+        "anos_disponiveis": _anos,
         "v1_launch_url":   v1_launch_url,
         "active_code":     active_code,
         "accent":          launch.accent if launch else "#2f5ee3",

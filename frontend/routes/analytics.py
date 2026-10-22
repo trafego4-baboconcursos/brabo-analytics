@@ -1,9 +1,10 @@
 from __future__ import annotations
 import asyncio
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, Response
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.concurrency import run_in_threadpool
 
+from src.anos import ANO_COOKIE, do_ano
 from src.constants import climas_ordem, etapa_prequali
 from frontend.cache import force_refresh_end, force_refresh_start
 from frontend.core import (
@@ -495,14 +496,24 @@ async def insights_page(request: Request, launch_code: str | None = None):
 async def calendario_page(request: Request, launch_code: str | None = None):
     launches = await run_in_threadpool(get_launches)
     launch   = resolve_launch(launch_code, launches)
-    cal = await run_in_threadpool(build_calendario_ctx, launches, _launch_cfg)
-
-    ctx = _base_ctx(request, "calendario", "Calendário", launch, launches, cal=cal)
+    ctx = _base_ctx(request, "calendario", "Calendário", launch, launches)
+    cal = await run_in_threadpool(build_calendario_ctx, do_ano(ctx["launches"], ctx["ano_sel"]), _launch_cfg)
+    ctx["cal"] = cal
     return templates.TemplateResponse("calendario.html", ctx)
 
 
+@router.get("/ano")
+async def trocar_ano(ano: int, next: str = "/calendario"):
+    """Grava o ano global (cookie) e volta para a página de origem. `next` só aceita caminho local."""
+    destino = next if next.startswith("/") and not next.startswith("//") else "/calendario"
+    resp = RedirectResponse(url=destino, status_code=303)
+    if 2000 <= ano <= 2100:
+        resp.set_cookie(ANO_COOKIE, str(ano), max_age=60 * 60 * 24 * 400, samesite="lax", httponly=True)
+    return resp
+
+
 @router.get("/lancamentos", response_class=HTMLResponse)
-async def lancamentos_page(request: Request, launch_code: str | None = None, ano: int | None = None):
+async def lancamentos_page(request: Request, launch_code: str | None = None):
     from frontend.services.fetch import _meta, _google, _vendas  # noqa: PLC0415
 
     launches = await run_in_threadpool(get_launches)
@@ -530,17 +541,8 @@ async def lancamentos_page(request: Request, launch_code: str | None = None, ano
 
     # Esta página é do ANO: lista e soma só os lançamentos cujo código termina no ano escolhido
     # (PI-JAN-26 é de 2026 mesmo começando em nov/2025; BV-25 é de 2025 e fica de fora de 2026).
-    anos_disponiveis = sorted({2000 + int(str(l.code)[-2:]) for l in ctx["launches"] if str(l.code)[-2:].isdigit()}, reverse=True)
-    _hoje_ano = _date.today().year
-    ano_sel = ano if ano in anos_disponiveis else (_hoje_ano if _hoje_ano in anos_disponiveis else (anos_disponiveis[0] if anos_disponiveis else _hoje_ano))
-    _suf_ano = f"-{str(ano_sel)[-2:]}"
-    lancs_ano = [l for l in ctx["launches"] if str(l.code).upper().endswith(_suf_ano)]
-    ctx["ano_sel"], ctx["anos_disponiveis"] = ano_sel, anos_disponiveis
-    ctx["launch_groups"] = [
-        dict(g, launches=[l for l in g["launches"] if str(l.code).upper().endswith(_suf_ano)])
-        for g in ctx["launch_groups"]
-    ]
-    ctx["launch_groups"] = [g for g in ctx["launch_groups"] if g["launches"]]
+    ano_sel = ctx["ano_sel"]   # ano global (seletor do Calendário), resolvido em _base_ctx
+    lancs_ano = do_ano(ctx["launches"], ano_sel)
 
     summaries = await asyncio.gather(*[
         run_in_threadpool(_summary, l) for l in lancs_ano
@@ -842,11 +844,13 @@ def _meta_do_ano(ano: int, total: dict, ranking: list, n_lancamentos: int, ating
     """
     from datetime import date  # noqa: PLC0415
 
-    from src.constants import meta_faturamento_anual  # noqa: PLC0415
+    from src.constants import metas_faturamento_anual  # noqa: PLC0415
 
-    meta = meta_faturamento_anual(ano)
-    if not meta:
+    degraus = metas_faturamento_anual(ano)
+    if not degraus:
         return None
+    meta = degraus[0][1]
+    teto = max(v for _, v in degraus)   # a barra vai até a meta desafio
     hoje = date.today()
     dias_ano = (date(ano, 12, 31) - date(ano, 1, 1)).days + 1
     decorridos = min(max((hoje - date(ano, 1, 1)).days + 1, 0), dias_ano) if hoje.year == ano else (dias_ano if hoje.year > ano else 0)
@@ -856,7 +860,15 @@ def _meta_do_ano(ano: int, total: dict, ranking: list, n_lancamentos: int, ating
     falta = max(meta - atingido, 0.0)
     restantes = max(n_lancamentos - len(ranking), 0)
     com_venda = len(ranking)
+    niveis = [
+        {"nome": nome, "valor": v, "pct": atingido / v * 100, "falta": max(v - atingido, 0.0),
+         "batida": atingido >= v, "pos": v / teto * 100}
+        for nome, v in degraus
+    ]
     return {
+        "niveis": niveis,
+        "pct_fill": min(atingido / teto * 100, 100.0),
+        "pos_ritmo": meta * (decorridos / dias_ano) / teto * 100,   # onde a meta base deveria estar hoje
         "valor": meta, "atingido": atingido, "falta": falta,
         "pct": atingido / meta * 100, "pct_barra": min(atingido / meta * 100, 100.0),
         "pct_ano": decorridos / dias_ano * 100,

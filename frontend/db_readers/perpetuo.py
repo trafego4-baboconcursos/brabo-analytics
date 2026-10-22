@@ -418,3 +418,42 @@ def read_perpetuo_ano(ano: int) -> dict:
         "verticais": verticais,
     }
 
+
+def read_perpetuo_cards(ano: int) -> list[dict]:
+    """Resumo do ano de cada vertical do perpétuo, para os cartões de /lancamentos.
+
+    Venda e faturamento são do PRODUTO (líquido, venda aprovada), não venda atribuída ao anúncio;
+    por isso o ROAS é teto (ver `_vendas`). Investimento = Meta + Google do código PERPETUO-*.
+    """
+    hoje = date.today()
+    ini30 = hoje - timedelta(days=29)
+    por_codigo: dict[str, dict] = {}
+    try:
+        with _get_engine().connect() as conn:
+            rows = conn.execute(text("""
+                SELECT lancamento_codigo, SUM(v), SUM(v) FILTER (WHERE d >= :ini30)
+                FROM (SELECT lancamento_codigo, date AS d, spend AS v FROM meta_ads_daily
+                      WHERE lancamento_codigo ILIKE 'PERPETUO%' AND date BETWEEN :ini AND :fim
+                      UNION ALL
+                      SELECT lancamento_codigo, date, cost FROM google_ads_daily
+                      WHERE lancamento_codigo ILIKE 'PERPETUO%' AND date BETWEEN :ini AND :fim) t
+                GROUP BY 1
+            """), {"ini": date(ano, 1, 1), "fim": date(ano, 12, 31), "ini30": ini30}).fetchall()
+        por_codigo = {str(c): {"ano": float(a or 0), "d30": float(b or 0)} for c, a, b in rows}
+    except Exception:
+        logger.exception("read_perpetuo_cards: falha ao somar o investimento")
+
+    cartoes = []
+    for slug, info in VERTICALS.items():
+        ids = info.get("hotmart") or []
+        v_ano = _vendas(ids, date(ano, 1, 1), date(ano, 12, 31))
+        v_30 = _vendas(ids, ini30, hoje)
+        inv = por_codigo.get(info["codigo"], {"ano": 0.0, "d30": 0.0})
+        cartoes.append({
+            "slug": slug, "nome": info["nome"], "codigo": info["codigo"],
+            "vendas": v_ano["vendas"], "receita": v_ano["receita"],
+            "vendas_30d": v_30["vendas"], "receita_30d": v_30["receita"],
+            "invest": inv["ano"], "invest_30d": inv["d30"],
+            "roas": v_ano["receita"] / inv["ano"] if inv["ano"] > 0 else 0.0,
+        })
+    return cartoes

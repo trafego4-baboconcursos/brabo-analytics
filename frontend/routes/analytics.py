@@ -538,7 +538,32 @@ async def lancamentos_page(request: Request, launch_code: str | None = None):
     ctx["hoje"] = _date.today()
     # Janela do carrinho de cada lançamento (cartões: situação e "carrinho abre em dd/mm")
     ctx["carrinhos"] = await run_in_threadpool(_carrinhos_do_ano, [l.code for l in ctx["launches"]])
+
+    # Seções abaixo dos lançamentos: perpétuo (um cartão por vertical) e distribuição (um por perfil)
+    from frontend.cache import _get_or_compute as _cache  # noqa: PLC0415
+    from frontend.db_readers.distribuicao import read_distribuicao_cards  # noqa: PLC0415
+    from frontend.db_readers.perpetuo import read_perpetuo_cards  # noqa: PLC0415
+
+    _ano_cartoes = _date.today().year
+    ctx["ano_cartoes"] = _ano_cartoes
+    try:
+        ctx["perpetuo_cards"], ctx["distribuicao_cards"] = await asyncio.gather(
+            run_in_threadpool(_cache, "EMPRESA", f"perpetuo_cards::{_ano_cartoes}", lambda: read_perpetuo_cards(_ano_cartoes), 600),
+            run_in_threadpool(_cache, "EMPRESA", f"distribuicao_cards::{_ano_cartoes}", lambda: read_distribuicao_cards(_ano_cartoes), 600),
+        )
+    except Exception:
+        logger.exception("Lançamentos: falha ao montar os cartões de perpétuo e distribuição")
+        ctx["perpetuo_cards"], ctx["distribuicao_cards"] = [], []
+    ctx["perpetuo_tot"], ctx["distribuicao_tot"] = _totais_secoes(ctx["perpetuo_cards"], ctx["distribuicao_cards"])
     ctx["resumo_ano"] = _resumo_do_ano(ctx["launches"], summary_by_code)
+    # faturamento do ano por produto (prefixo do código), para o "% dos lançamentos do ano" da faixa de cada produto
+    ctx["prod_ano_rec"] = {}
+    if ctx["resumo_ano"]:
+        _suf = f"-{str(ctx['resumo_ano']['ano'])[-2:]}"
+        for _l in ctx["launches"]:
+            if str(_l.code).upper().endswith(_suf):
+                _pref = str(_l.code).split("-")[0].upper()
+                ctx["prod_ano_rec"][_pref] = ctx["prod_ano_rec"].get(_pref, 0.0) + float((summary_by_code.get(_l.code) or {}).get("receita") or 0)
     if ctx["resumo_ano"]:
         ano = ctx["resumo_ano"]["ano"]
         do_ano = [l for l in ctx["launches"] if str(l.code).upper().endswith(f"-{str(ano)[-2:]}")]
@@ -559,6 +584,9 @@ async def lancamentos_page(request: Request, launch_code: str | None = None):
             )
             emp = _empresa_do_ano(ctx["resumo_ano"], empresa_raw, perp)
             ctx["resumo_ano"]["empresa"] = emp
+            # gasto de distribuição sem perfil definido (campanha sem código): fecha o quadro com os cartões
+            soma_perfis = sum(c.get("invest") or 0 for c in ctx.get("distribuicao_cards") or [])
+            ctx["distribuicao_sem_perfil"] = max(emp["linhas"][3]["invest"] - soma_perfis, 0.0)
             ctx["resumo_ano"]["meta"] = _meta_do_ano(
                 ano, ctx["resumo_ano"]["total"], ctx["resumo_ano"]["ranking"],
                 ctx["resumo_ano"]["n_lancamentos"], atingido=emp["receita"])
@@ -731,6 +759,15 @@ def _invest_mensal_do_ano(codes: list[str]) -> dict:
     except Exception:
         logger.exception("Lançamentos: falha ao somar o investimento por mês")
         return {}
+
+
+def _totais_secoes(perpetuo: list[dict], distribuicao: list[dict]) -> tuple[dict, dict]:
+    """Totais das faixas de resumo do perpétuo e da distribuição."""
+    p = {k: sum(c.get(k) or 0 for c in perpetuo) for k in ("receita", "vendas", "invest", "receita_30d")}
+    p["roas"] = p["receita"] / p["invest"] if p["invest"] > 0 else 0.0
+    d = {k: sum(c.get(k) or 0 for c in distribuicao) for k in ("invest", "invest_30d", "seguidores", "novos_30d")}
+    d["custo_por_seguidor"] = d["invest_30d"] / d["novos_30d"] if d["novos_30d"] > 0 else 0.0
+    return p, d
 
 
 def _empresa_do_ano(resumo: dict, empresa: dict, perpetuo: dict) -> dict:

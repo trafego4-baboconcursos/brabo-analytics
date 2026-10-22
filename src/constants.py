@@ -180,6 +180,7 @@ PALETA_PRODUTO: dict[str, dict] = {
     "PES": {"nome": "TJ-SP", "destaque": "#C8102E", "pesos": [1, 2, 2], "cores": ["#FFFFFF", "#C8102E", "#00A859"]},
     "PBB": {"nome": "Banco do Brasil", "destaque": "#465EFF", "pesos": [3, 2], "cores": ["#FCFC30", "#465EFF"]},
     "BV": {"nome": "Black Vitalícia", "destaque": "#C9A227", "pesos": [3, 2], "cores": ["#111827", "#C9A227"]},
+    "DISTRIBUICAO": {"nome": "Distribuição", "destaque": "#F59E0B", "pesos": [3, 2, 1], "cores": ["#F59E0B", "#FCD34D", "#111827"]},
     "PERPETUO": {"nome": "Perpétuo", "destaque": "#6C4FD3", "pesos": [3, 2, 1], "cores": ["#6C4FD3", "#14B8A6", "#C4B5FD"]},
 }
 

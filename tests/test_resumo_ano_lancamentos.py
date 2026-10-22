@@ -195,3 +195,33 @@ def test_paleta_tem_cor_de_destaque_e_pesos_do_tamanho_das_cores():
         assert re.fullmatch(r"#[0-9A-Fa-f]{6}", p["destaque"]), chave
         assert len(p["pesos"]) == len(p["cores"]), chave
         assert p["destaque"] in p["cores"], chave
+
+
+# ── Faixa de resumo por produto, perpétuo e distribuição ───────────────────
+def test_sparkline_normaliza_para_a_caixa_do_svg():
+    from frontend.db_readers.distribuicao import _sparkline
+
+    pts = [tuple(map(float, p.split(","))) for p in _sparkline([100.0, 150.0, 200.0]).split()]
+    assert pts[0][0] == 0.0 and pts[-1][0] == 120.0
+    assert pts[0][1] > pts[-1][1]                       # a série sobe -> y diminui (SVG)
+    assert all(0 <= y <= 34 for _, y in pts)
+    assert _sparkline([5.0]) == "" and _sparkline([]) == ""
+
+
+def test_totais_das_secoes_perpetuo_e_distribuicao():
+    from frontend.routes.analytics import _totais_secoes
+
+    perp = [{"receita": 100.0, "vendas": 10, "invest": 50.0, "receita_30d": 20.0},
+            {"receita": 50.0, "vendas": 5, "invest": 0.0, "receita_30d": 5.0}]
+    dist = [{"invest": 200.0, "invest_30d": 60.0, "seguidores": 1000, "novos_30d": 30},
+            {"invest": 100.0, "invest_30d": 0.0, "seguidores": None, "novos_30d": None}]
+    p, d = _totais_secoes(perp, dist)
+    assert p["receita"] == 150.0 and p["vendas"] == 15 and p["invest"] == 50.0 and p["roas"] == 3.0
+    assert d["invest"] == 300.0 and d["seguidores"] == 1000 and d["novos_30d"] == 30 and d["custo_por_seguidor"] == 2.0
+    assert _totais_secoes([], [])[0]["roas"] == 0.0
+
+
+def test_paleta_da_distribuicao_existe():
+    from src.constants import PALETA_PRODUTO
+
+    assert len(PALETA_PRODUTO["DISTRIBUICAO"]["cores"]) == len(PALETA_PRODUTO["DISTRIBUICAO"]["pesos"])

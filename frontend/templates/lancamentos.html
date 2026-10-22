@@ -120,6 +120,18 @@
 .ldg-stat-val.roas-bad  { color: var(--bs-danger); }
 .ldg-stat-val.vazio { color: var(--bs-ink-subtle); }
 .ldg-stat-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--bs-ink-subtle); margin-top: 2px; }
+/* faixa de resumo sob o título de cada produto */
+.ldg-prod-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: var(--bs-card); border: 1px solid var(--bs-border); border-radius: 12px; margin-bottom: 14px; overflow: hidden; box-shadow: var(--bs-sh-sm); }
+.ldg-prod-strip > div { padding: 11px 16px; border-left: 1px solid var(--bs-border); min-width: 0; }
+.ldg-prod-strip > div:first-child { border-left: 0; }
+.ldg-strip-val { font-size: clamp(16px, 1.4vw, 21px); font-weight: 800; color: var(--bs-ink); letter-spacing: -.02em; line-height: 1.15; white-space: nowrap; }
+.ldg-strip-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--bs-ink-subtle); margin-top: 3px; }
+.ldg-strip-sub { font-size: 10px; color: var(--bs-ink-muted); margin-top: 2px; }
+@media (max-width: 760px) { .ldg-prod-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ldg-prod-strip > div:nth-child(3) { border-left: 0; } .ldg-prod-strip > div:nth-child(n+3) { border-top: 1px solid var(--bs-border); } }
+.ldg-delta { font-size: 11px; font-weight: 700; color: var(--bs-success); margin-top: 3px; }
+.ldg-spark { display: block; width: 100%; height: 34px; margin-top: 8px; }
+.ldg-spark polyline { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ldg-secao-nota { font-size: 11px; color: var(--bs-ink-muted); margin-top: 10px; line-height: 1.5; }
 .ldg-faixa { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; display: flex; }
 .ldg-faixa > span { display: block; }
 </style>
@@ -371,10 +383,10 @@
 
     {% for group in launch_groups %}
     {% set pal0 = paleta_produto.get(group.launches[0].code.split('-')[0].upper()) or {} %}
-    {% set tot = namespace(rec=0, mat=0, n_ano=0) %}
+    {% set tot = namespace(rec=0, mat=0, lead=0, inv=0, n_ano=0) %}
     {% for l in group.launches %}
       {% set s0 = summary_by_code.get(l.code, {}) %}
-      {% set tot.rec = tot.rec + (s0.receita | default(0)) %}{% set tot.mat = tot.mat + (s0.vendas | default(0)) %}
+      {% set tot.rec = tot.rec + (s0.receita | default(0)) %}{% set tot.mat = tot.mat + (s0.vendas | default(0)) %}{% set tot.lead = tot.lead + (s0.leads | default(0)) %}{% set tot.inv = tot.inv + (s0.invest | default(0)) %}
       {% if resumo_ano and l.code.upper().endswith('-' ~ (resumo_ano.ano | string)[-2:]) %}{% set tot.n_ano = tot.n_ano + 1 %}{% endif %}
     {% endfor %}
     <div class="ldg-product">
@@ -382,7 +394,14 @@
         <span class="ldg-product-dot" style="background:{{ pal0.destaque or 'var(--bs-accent)' }}"></span>
         <span class="ldg-product-name">{% if group.product and group.product_name and group.product != group.product_name %}{{ group.product }} — {{ group.product_name }}{% else %}{{ group.product_name or group.product }}{% endif %}</span>
         <span class="ldg-product-count">{{ group.launches | length }} lançamento{{ 's' if group.launches | length != 1 else '' }}{% if resumo_ano and tot.n_ano != group.launches | length %} · {{ tot.n_ano }} em {{ resumo_ano.ano }}{% endif %}</span>
-        <span class="ldg-product-tot"><strong>{{ tot.rec | brl(0) }}</strong> · {{ tot.mat | num }} matrículas</span>
+      </div>
+      <div class="ldg-prod-strip" style="border-left: 4px solid {{ pal0.destaque or 'var(--bs-accent)' }}">
+        <div><div class="ldg-strip-val">{{ tot.mat | num }}</div><div class="ldg-strip-lbl">Matrículas</div></div>
+        <div><div class="ldg-strip-val">{{ tot.rec | brl(0) }}</div><div class="ldg-strip-lbl">Faturamento líquido</div>
+          {% if resumo_ano and resumo_ano.total.receita > 0 and tot.n_ano %}<div class="ldg-strip-sub">dos lançamentos de {{ resumo_ano.ano }}: {{ "%.1f"|format(prod_ano_rec.get(group.launches[0].code.split('-')[0].upper(), 0) / resumo_ano.total.receita * 100) | replace(".", ",") }}%</div>{% endif %}</div>
+        <div><div class="ldg-strip-val">{{ tot.lead | num }}</div><div class="ldg-strip-lbl">Leads</div></div>
+        <div><div class="ldg-strip-val">{{ ("%.2f"|format(tot.rec / tot.inv) | replace(".", ",") ~ "x") if tot.inv > 0 else '—' }}</div><div class="ldg-strip-lbl">ROAS</div>
+          {% if tot.inv > 0 %}<div class="ldg-strip-sub">investimento {{ tot.inv | brl(0) }}</div>{% endif %}</div>
       </div>
       <div class="ldg-grid">
         {% for l in group.launches %}
@@ -443,6 +462,96 @@
     </div>
     {% endfor %}
 
+    {% endif %}
+
+    <!-- ═══ 5. Perpétuo ═══════════════════════════════════════════════════ -->
+    {% if perpetuo_cards %}
+    {% set palp = paleta_produto['PERPETUO'] %}{% set pt = perpetuo_tot %}
+    <div class="ldg-product">
+      <div class="ldg-product-title">
+        <span class="ldg-product-dot" style="background:{{ palp.destaque }}"></span>
+        <span class="ldg-product-name">Perpétuo</span>
+        <span class="ldg-product-count">{{ perpetuo_cards | length }} produtos · venda direta, sem carrinho · {{ ano_cartoes }}</span>
+      </div>
+      <div class="ldg-prod-strip" style="border-left: 4px solid {{ palp.destaque }}">
+        <div><div class="ldg-strip-val">{{ pt.vendas | num }}</div><div class="ldg-strip-lbl">Vendas</div></div>
+        <div><div class="ldg-strip-val">{{ pt.receita | brl(0) }}</div><div class="ldg-strip-lbl">Faturamento líquido</div><div class="ldg-strip-sub">últimos 30 dias: {{ pt.receita_30d | brl(0) }}</div></div>
+        <div><div class="ldg-strip-val">{{ pt.invest | brl(0) }}</div><div class="ldg-strip-lbl">Investimento</div></div>
+        <div><div class="ldg-strip-val">{{ ("%.2f"|format(pt.roas) | replace(".", ",") ~ "x") if pt.roas > 0 else '—' }}</div><div class="ldg-strip-lbl">ROAS (teto)</div></div>
+      </div>
+      <div class="ldg-grid">
+        {% for c in perpetuo_cards %}
+        {% set partes = c.nome.split(' — ') %}
+        <a class="ldg-card" href="/perpetuo/{{ c.slug }}">
+          <div class="ldg-card-top">
+            <div class="ldg-card-code" style="white-space:normal;line-height:1.2">{{ partes[0] }}</div>
+            <span class="ldg-badge andamento">No ar</span>
+          </div>
+          <div class="ldg-card-dates">{{ partes[1] if partes | length > 1 else 'Produto avulso' }}</div>
+          <div class="ldg-card-cart"><i class="ti ti-clock"></i> 30 dias: {{ c.receita_30d | brl(0) }} · {{ c.vendas_30d | num }} vendas</div>
+          <div class="ldg-card-hero">
+            <div class="ldg-hero-val{% if not c.receita %} vazio{% endif %}">{{ c.receita | brl(0) if c.receita else '—' }}</div>
+            <div class="ldg-hero-lbl">Faturamento líquido em {{ ano_cartoes }}</div>
+            {% if c.receita and pt.receita > 0 %}
+            <div class="ldg-share"><span style="width:{{ (c.receita / pt.receita * 100) | round(1) }}%;background:{{ palp.destaque }}"></span></div>
+            <div class="ldg-share-lbl">{{ "%.0f"|format(c.receita / pt.receita * 100) }}% do perpétuo</div>
+            {% endif %}
+          </div>
+          <div class="ldg-card-stats">
+            <div><div class="ldg-stat-val">{{ c.vendas | num }}</div><div class="ldg-stat-lbl">Vendas</div></div>
+            <div><div class="ldg-stat-val{% if not c.invest %} vazio{% endif %}">{{ c.invest | brl(0) if c.invest else '—' }}</div><div class="ldg-stat-lbl">Invest.</div></div>
+            <div><div class="ldg-stat-val {{ 'roas-good' if c.roas >= 2 else ('' if c.roas > 0 else 'vazio') }}">{{ ("%.2f"|format(c.roas) | replace(".", ",") ~ "x") if c.roas > 0 else '—' }}</div><div class="ldg-stat-lbl">ROAS teto</div></div>
+          </div>
+          <div class="ldg-faixa">{% for cor in palp.cores %}<span style="flex:{{ palp.pesos[loop.index0] }};background:{{ cor }}"></span>{% endfor %}</div>
+        </a>
+        {% endfor %}
+      </div>
+      <div class="ldg-secao-nota">Venda e faturamento são do <strong>produto</strong> (líquido, venda aprovada), não venda atribuída ao anúncio; por isso o ROAS é um teto: inclui o que veio de orgânico, e-mail e régua. O Planner não tem anúncio próprio.</div>
+    </div>
+    {% endif %}
+
+    <!-- ═══ 6. Distribuição ═══════════════════════════════════════════════ -->
+    {% if distribuicao_cards %}
+    {% set pald = paleta_produto['DISTRIBUICAO'] %}{% set dt = distribuicao_tot %}
+    <div class="ldg-product">
+      <div class="ldg-product-title">
+        <span class="ldg-product-dot" style="background:{{ pald.destaque }}"></span>
+        <span class="ldg-product-name">Distribuição</span>
+        <span class="ldg-product-count">{{ distribuicao_cards | length }} perfis · anúncio para crescer audiência · {{ ano_cartoes }}</span>
+      </div>
+      <div class="ldg-prod-strip" style="border-left: 4px solid {{ pald.destaque }}">
+        <div><div class="ldg-strip-val">{{ dt.invest | brl(0) }}</div><div class="ldg-strip-lbl">Investimento no ano</div><div class="ldg-strip-sub">últimos 30 dias: {{ dt.invest_30d | brl(0) }}</div></div>
+        <div><div class="ldg-strip-val">{{ dt.seguidores | num }}</div><div class="ldg-strip-lbl">Seguidores somados</div><div class="ldg-strip-sub">perfis com Instagram próprio</div></div>
+        <div><div class="ldg-strip-val">{{ dt.novos_30d | num }}</div><div class="ldg-strip-lbl">Novos seguidores (30 dias)</div></div>
+        <div><div class="ldg-strip-val">{{ dt.custo_por_seguidor | brl if dt.custo_por_seguidor else '—' }}</div><div class="ldg-strip-lbl">Custo por novo seguidor</div></div>
+      </div>
+      <div class="ldg-grid">
+        {% for c in distribuicao_cards %}
+        <a class="ldg-card" href="/distribuicao/{{ c.username }}">
+          <div class="ldg-card-top">
+            <div class="ldg-card-code" style="white-space:normal;line-height:1.2">{{ c.nome }}</div>
+            {% if c.sem_instagram %}<span class="ldg-badge breve">Sem Instagram</span>{% endif %}
+          </div>
+          <div class="ldg-card-dates">{% if c.sem_instagram %}Posta pelo @braboconcursos{% else %}@{{ c.username }}{% endif %}</div>
+          <div class="ldg-card-cart"><i class="ti ti-coin"></i> 30 dias: {{ c.invest_30d | brl(0) }}</div>
+          <div class="ldg-card-hero">
+            <div class="ldg-hero-val{% if c.seguidores is none %} vazio{% endif %}">{{ c.seguidores | num if c.seguidores is not none else '—' }}</div>
+            <div class="ldg-hero-lbl">Seguidores</div>
+            {% if c.delta_30d is not none %}<div class="ldg-delta">{{ '+' if c.delta_30d >= 0 else '' }}{{ c.delta_30d | num }} em 30 dias</div>{% endif %}
+            {% if c.spark %}<svg class="ldg-spark" viewBox="0 0 120 34" preserveAspectRatio="none"><polyline points="{{ c.spark }}" stroke="{{ pald.destaque }}"/></svg>{% endif %}
+          </div>
+          <div class="ldg-card-stats">
+            <div><div class="ldg-stat-val">{{ c.invest | brl(0) }}</div><div class="ldg-stat-lbl">Invest. {{ ano_cartoes }}</div></div>
+            <div><div class="ldg-stat-val{% if not c.novos_30d %} vazio{% endif %}">{{ c.novos_30d | num if c.novos_30d else '—' }}</div><div class="ldg-stat-lbl">Novos 30d</div></div>
+            <div><div class="ldg-stat-val{% if not c.custo_por_seguidor %} vazio{% endif %}">{{ c.custo_por_seguidor | brl if c.custo_por_seguidor else '—' }}</div><div class="ldg-stat-lbl">R$/seguidor</div></div>
+          </div>
+          <div class="ldg-faixa">{% for cor in pald.cores %}<span style="flex:{{ pald.pesos[loop.index0] }};background:{{ cor }}"></span>{% endfor %}</div>
+        </a>
+        {% endfor %}
+      </div>
+      <div class="ldg-secao-nota">Novos seguidores são as entradas brutas informadas pelo Instagram; a variação de 30 dias já desconta quem deixou de seguir. O custo por seguidor divide o gasto dos últimos 30 dias pelas entradas brutas do mesmo período e inclui o crescimento orgânico, então é um teto.
+        {% if distribuicao_sem_perfil and distribuicao_sem_perfil > 1000 %}Mais {{ distribuicao_sem_perfil | brl(0) }} gastos em campanhas de distribuição sem perfil definido entram no total da empresa, mas não nos cartões.{% endif %}</div>
+    </div>
     {% endif %}
   </div>
 </div>

@@ -213,3 +213,71 @@ def read_distribuicao(username: str, days: int = 30, compare: bool = False) -> d
         }
 
     return result
+
+
+def _sparkline(valores: list[float], largura: int = 120, altura: int = 34) -> str:
+    """Pontos de um <polyline> SVG (já normalizados) para uma linha de evolução."""
+    if len(valores) < 2:
+        return ""
+    lo, hi = min(valores), max(valores)
+    faixa = (hi - lo) or 1.0
+    passo = largura / (len(valores) - 1)
+    return " ".join(f"{i * passo:.1f},{altura - 3 - (v - lo) / faixa * (altura - 6):.1f}" for i, v in enumerate(valores))
+
+
+def read_distribuicao_cards(ano: int) -> list[dict]:
+    """Resumo de cada perfil da distribuição para /lancamentos: gasto (ano e 30 dias), seguidores,
+    novos seguidores e custo por novo seguidor. Ivan Neto não tem Instagram próprio (posta pelo
+    @braboconcursos): entra só com o gasto."""
+    hoje = date.today()
+    ini30 = hoje - timedelta(days=29)
+    gasto: dict[str, dict] = {}
+    try:
+        with _get_engine().connect() as conn:
+            rows = conn.execute(text("""
+                SELECT lancamento_codigo, SUM(v), SUM(v) FILTER (WHERE d >= :ini30), SUM(imp) FILTER (WHERE d >= :ini30)
+                FROM (SELECT lancamento_codigo, date AS d, spend AS v, impressions AS imp FROM meta_ads_daily
+                      WHERE lancamento_codigo ILIKE 'DISTRIBUICAO%' AND date BETWEEN :ini AND :fim
+                      UNION ALL
+                      SELECT lancamento_codigo, date, cost, impressions FROM google_ads_daily
+                      WHERE lancamento_codigo ILIKE 'DISTRIBUICAO%' AND date BETWEEN :ini AND :fim) t
+                GROUP BY 1
+            """), {"ini": date(ano, 1, 1), "fim": date(ano, 12, 31), "ini30": ini30}).fetchall()
+        gasto = {str(c): {"ano": float(a or 0), "d30": float(b or 0), "imp30": float(i or 0)} for c, a, b, i in rows}
+    except Exception:
+        logger.exception("read_distribuicao_cards: falha ao somar o gasto")
+
+    cartoes = []
+    for conta in list(_load_experts()) + _load_distribuicao_extra():
+        codigo = _codigo_from_name(conta["name"])
+        g = gasto.get(codigo, {"ano": 0.0, "d30": 0.0, "imp30": 0.0})
+        cartao = {
+            "nome": conta["name"], "username": conta["username"], "codigo": codigo,
+            "sem_instagram": bool(conta.get("sem_instagram")),
+            "invest": g["ano"], "invest_30d": g["d30"], "impressoes_30d": g["imp30"],
+            "seguidores": None, "delta_30d": None, "novos_30d": None, "custo_por_seguidor": None, "spark": "",
+        }
+        ig_id = conta.get("ig_id")
+        if ig_id:
+            try:
+                with _get_engine().connect() as conn:
+                    perfil = conn.execute(text(
+                        "SELECT date, followers_count FROM instagram_profile_daily "
+                        "WHERE ig_id = :i AND date >= :d ORDER BY date"), {"i": ig_id, "d": hoje - timedelta(days=89)}).fetchall()
+                    novos = conn.execute(text(
+                        "SELECT COALESCE(SUM(new_followers), 0) FROM instagram_follower_growth_daily "
+                        "WHERE ig_id = :i AND date >= :d"), {"i": ig_id, "d": ini30}).scalar()
+                if perfil:
+                    serie = [float(r[1] or 0) for r in perfil]
+                    cartao["seguidores"] = int(serie[-1])
+                    antes = [float(r[1] or 0) for r in perfil if r[0] <= ini30]
+                    cartao["delta_30d"] = int(serie[-1] - (antes[-1] if antes else serie[0]))
+                    cartao["spark"] = _sparkline(serie[-60:])
+                cartao["novos_30d"] = int(novos or 0)
+                if cartao["novos_30d"] > 0 and g["d30"] > 0:
+                    cartao["custo_por_seguidor"] = g["d30"] / cartao["novos_30d"]
+            except Exception:
+                logger.exception("read_distribuicao_cards: falha ao ler os seguidores de %s", conta["name"])
+        cartoes.append(cartao)
+    cartoes.sort(key=lambda c: c["invest"], reverse=True)
+    return cartoes

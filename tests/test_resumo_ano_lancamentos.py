@@ -225,3 +225,22 @@ def test_paleta_da_distribuicao_existe():
     from src.constants import PALETA_PRODUTO
 
     assert len(PALETA_PRODUTO["DISTRIBUICAO"]["cores"]) == len(PALETA_PRODUTO["DISTRIBUICAO"]["pesos"])
+
+
+def test_perfil_de_backup_soma_no_principal_e_nao_tem_cartao():
+    from frontend.db_readers.distribuicao import _juntar_backups
+
+    def card(nome, user, inv, inv30, novos=None, backup_de=None):
+        return {"nome": nome, "username": user, "backup_de": backup_de, "invest": inv, "invest_30d": inv30,
+                "impressoes_30d": 0.0, "invest_backup": 0.0, "invest_backup_30d": 0.0, "backups": [],
+                "novos_30d": novos, "custo_por_seguidor": None}
+
+    cartoes = [card("Brabo Concursos", "braboconcursos", 88.0, 10.0, novos=5),
+               card("Ivan Neto", "ivan-neto", 216.0, 30.0, backup_de="braboconcursos"),
+               card("Mateus", "mateus", 651.0, 78.0, novos=31)]
+    r = _juntar_backups(cartoes)
+    assert [c["nome"] for c in r] == ["Mateus", "Brabo Concursos"]            # Ivan sumiu, ordenado por gasto
+    brabo = r[1]
+    assert brabo["invest"] == 304.0 and brabo["invest_30d"] == 40.0 and brabo["invest_backup"] == 216.0
+    assert brabo["backups"] == ["Ivan Neto"] and brabo["custo_por_seguidor"] == 40.0 / 5
+    assert sum(c["invest"] for c in r) == 88.0 + 216.0 + 651.0                  # nenhum real se perde

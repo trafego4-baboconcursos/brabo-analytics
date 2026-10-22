@@ -539,6 +539,8 @@
           </div>
           <div class="ldg-card-dates">{% if c.sem_instagram %}Posta pelo @braboconcursos{% else %}@{{ c.username }}{% endif %}</div>
           <div class="ldg-card-cart"><i class="ti ti-coin"></i> 30 dias: {{ c.invest_30d | brl(0) }}</div>
+          {% if c.backups %}<div class="ldg-card-cart" title="Perfil de backup dos anúncios; o gasto dele está somado neste cartão"><i class="ti ti-shield-check"></i> + backup {{ c.backups | join(', ') }}: {{ c.invest_backup | brl(0) }}</div>
+          {% else %}<div class="ldg-card-cart" style="visibility:hidden">&nbsp;</div>{% endif %}
           <div class="ldg-card-hero">
             <div class="ldg-hero-val{% if c.seguidores is none %} vazio{% endif %}">{{ c.seguidores | num if c.seguidores is not none else '—' }}</div>
             <div class="ldg-hero-lbl">Seguidores</div>
@@ -554,7 +556,7 @@
         </a>
         {% endfor %}
       </div>
-      <div class="ldg-secao-nota">Novos seguidores são as entradas brutas informadas pelo Instagram; a variação de 30 dias já desconta quem deixou de seguir. O custo por seguidor divide o gasto dos últimos 30 dias pelas entradas brutas do mesmo período e inclui o crescimento orgânico, então é um teto.
+      <div class="ldg-secao-nota">Novos seguidores são as entradas brutas informadas pelo Instagram; a variação de 30 dias já desconta quem deixou de seguir. O custo por seguidor divide o gasto dos últimos 30 dias pelas entradas brutas do mesmo período e inclui o crescimento orgânico, então é um teto. O perfil de backup de anúncios (Ivan Neto) não tem cartão: o gasto dele está somado ao da Brabo Concursos.
         {% if distribuicao_sem_perfil and distribuicao_sem_perfil > 1000 %}Mais {{ distribuicao_sem_perfil | brl(0) }} gastos em campanhas de distribuição sem perfil definido entram no total da empresa, mas não nos cartões.{% endif %}</div>
     </div>
     {% endif %}

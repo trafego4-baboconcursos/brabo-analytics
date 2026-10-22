@@ -20,3 +20,6 @@ accounts:
 distribuicao_extra:
   - name: "Ivan Neto"
     username: "ivan-neto"   # chave interna de rota, nao e um @ do Instagram
+    # Perfil de BACKUP para anúncios da Brabo Concursos (confirmado em 22/10/26): em /lancamentos
+    # o gasto dele soma no cartão do @braboconcursos, sem cartão próprio.
+    backup_de: "braboconcursos"

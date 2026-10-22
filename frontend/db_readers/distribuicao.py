@@ -225,6 +225,29 @@ def _sparkline(valores: list[float], largura: int = 120, altura: int = 34) -> st
     return " ".join(f"{i * passo:.1f},{altura - 3 - (v - lo) / faixa * (altura - 6):.1f}" for i, v in enumerate(valores))
 
 
+def _juntar_backups(cartoes: list[dict]) -> list[dict]:
+    """Perfil de backup de anúncios (`backup_de`) não tem cartão próprio: o gasto soma no perfil principal
+    e o custo por seguidor passa a considerar o gasto total (principal + backup)."""
+    por_usuario = {c["username"]: c for c in cartoes}
+    principais = []
+    for c in cartoes:
+        alvo = por_usuario.get(c.get("backup_de"))
+        if alvo is not None and alvo is not c:
+            alvo["invest"] += c["invest"]
+            alvo["invest_30d"] += c["invest_30d"]
+            alvo["impressoes_30d"] += c["impressoes_30d"]
+            alvo["invest_backup"] += c["invest"]
+            alvo["invest_backup_30d"] += c["invest_30d"]
+            alvo["backups"].append(c["nome"])
+        else:
+            principais.append(c)
+    for c in principais:
+        if c["novos_30d"] and c["invest_30d"] > 0:
+            c["custo_por_seguidor"] = c["invest_30d"] / c["novos_30d"]
+    principais.sort(key=lambda c: c["invest"], reverse=True)
+    return principais
+
+
 def read_distribuicao_cards(ano: int) -> list[dict]:
     """Resumo de cada perfil da distribuição para /lancamentos: gasto (ano e 30 dias), seguidores,
     novos seguidores e custo por novo seguidor. Ivan Neto não tem Instagram próprio (posta pelo
@@ -254,6 +277,8 @@ def read_distribuicao_cards(ano: int) -> list[dict]:
         cartao = {
             "nome": conta["name"], "username": conta["username"], "codigo": codigo,
             "sem_instagram": bool(conta.get("sem_instagram")),
+            "backup_de": conta.get("backup_de"),
+            "invest_backup": 0.0, "invest_backup_30d": 0.0, "backups": [],
             "invest": g["ano"], "invest_30d": g["d30"], "impressoes_30d": g["imp30"],
             "seguidores": None, "delta_30d": None, "novos_30d": None, "custo_por_seguidor": None, "spark": "",
         }
@@ -279,5 +304,5 @@ def read_distribuicao_cards(ano: int) -> list[dict]:
             except Exception:
                 logger.exception("read_distribuicao_cards: falha ao ler os seguidores de %s", conta["name"])
         cartoes.append(cartao)
-    cartoes.sort(key=lambda c: c["invest"], reverse=True)
-    return cartoes
+
+    return _juntar_backups(cartoes)

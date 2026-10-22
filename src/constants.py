@@ -175,11 +175,12 @@ def meta_faturamento_anual(ano: int) -> float | None:
 # Pantone convertido para o hex mais próximo na tela: 347 C ~ #009A44, 136 C ~ #F2B83A,
 # 300 C ~ #005EB8, 538 C ~ #C9D5E6; BB: amarelo RGB 252 252 48 e azul RGB 70 94 255.
 PALETA_PRODUTO: dict[str, dict] = {
-    "PI": {"nome": "INSS", "cores": ["#009A44", "#F2B83A", "#005EB8", "#C9D5E6", "#6B7280", "#111827"]},
-    "PES": {"nome": "TJ-SP", "cores": ["#FFFFFF", "#C8102E", "#00A859"]},
-    "PBB": {"nome": "Banco do Brasil", "cores": ["#FCFC30", "#465EFF"]},
-    "BV": {"nome": "Black Vitalícia", "cores": ["#111827", "#C9A227"]},
-    "PERPETUO": {"nome": "Perpétuo", "cores": ["#6C4FD3", "#14B8A6", "#C4B5FD"]},
+    "PI": {"nome": "INSS", "destaque": "#009A44", "pesos": [5, 3, 3, 1.4, 1, 1],
+           "cores": ["#009A44", "#F2B83A", "#005EB8", "#C9D5E6", "#6B7280", "#111827"]},
+    "PES": {"nome": "TJ-SP", "destaque": "#C8102E", "pesos": [1, 2, 2], "cores": ["#FFFFFF", "#C8102E", "#00A859"]},
+    "PBB": {"nome": "Banco do Brasil", "destaque": "#465EFF", "pesos": [3, 2], "cores": ["#FCFC30", "#465EFF"]},
+    "BV": {"nome": "Black Vitalícia", "destaque": "#C9A227", "pesos": [3, 2], "cores": ["#111827", "#C9A227"]},
+    "PERPETUO": {"nome": "Perpétuo", "destaque": "#6C4FD3", "pesos": [3, 2, 1], "cores": ["#6C4FD3", "#14B8A6", "#C4B5FD"]},
 }
 
 

@@ -531,16 +531,20 @@ async def lancamentos_page(request: Request, launch_code: str | None = None):
     ])
     summary_by_code = {l.code: s for l, s in zip(ctx["launches"], summaries)}
     ctx["summary_by_code"] = summary_by_code
+    from datetime import date as _date  # noqa: PLC0415
+
     from src.constants import PALETA_PRODUTO  # noqa: PLC0415
     ctx["paleta_produto"] = PALETA_PRODUTO
+    ctx["hoje"] = _date.today()
+    # Janela do carrinho de cada lançamento (cartões: situação e "carrinho abre em dd/mm")
+    ctx["carrinhos"] = await run_in_threadpool(_carrinhos_do_ano, [l.code for l in ctx["launches"]])
     ctx["resumo_ano"] = _resumo_do_ano(ctx["launches"], summary_by_code)
     if ctx["resumo_ano"]:
         ano = ctx["resumo_ano"]["ano"]
         do_ano = [l for l in ctx["launches"] if str(l.code).upper().endswith(f"-{str(ano)[-2:]}")]
         codes = [l.code for l in do_ano]
-        carrinhos, invest_mensal = await asyncio.gather(
-            run_in_threadpool(_carrinhos_do_ano, codes), run_in_threadpool(_invest_mensal_do_ano, codes))
-        ctx["resumo_ano"]["mensal"] = _faturamento_mensal(do_ano, summary_by_code, ano, carrinhos, invest_mensal)
+        invest_mensal = await run_in_threadpool(_invest_mensal_do_ano, codes)
+        ctx["resumo_ano"]["mensal"] = _faturamento_mensal(do_ano, summary_by_code, ano, ctx["carrinhos"], invest_mensal)
 
         # Empresa inteira: perpétuo, setor de vendas (fora do carrinho) e investimento fora de lançamento.
         # A meta anual passa a medir o faturamento TOTAL da empresa, não só o dos lançamentos.

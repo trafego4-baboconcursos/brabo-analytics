@@ -74,25 +74,47 @@
 
 /* ── Cartões dos lançamentos ───────────────────────────────────────────── */
 .ldg-sec-head { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 800; color: var(--bs-ink); margin: 0 0 6px; }
-.ldg-product { margin: 22px 0 8px; }
-.ldg-product-title { font-size: 14px; font-weight: 800; color: var(--bs-ink); margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
+.ldg-product { margin: 26px 0 8px; }
+.ldg-product-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+.ldg-product-dot { width: 12px; height: 12px; border-radius: 4px; flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+.ldg-product-name { font-size: 15px; font-weight: 800; color: var(--bs-ink); }
 .ldg-product-count { font-size: 11px; font-weight: 700; color: var(--bs-ink-muted); background: var(--bs-accent-bg); padding: 2px 10px; border-radius: 999px; }
-.ldg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 14px; }
+.ldg-product-tot { margin-left: auto; font-size: 12px; color: var(--bs-ink-muted); }
+.ldg-product-tot strong { color: var(--bs-ink); font-weight: 800; }
+.ldg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(212px, 1fr)); gap: 14px; }
+
 .ldg-card {
-  display: block; position: relative; overflow: hidden; background: var(--bs-card); border-radius: var(--bs-r-lg);
-  padding: 16px 16px 26px; box-shadow: var(--bs-sh-sm); text-decoration: none; color: inherit;
-  border-top: 3px solid var(--bs-accent); transition: box-shadow .15s, transform .15s;
+  display: flex; flex-direction: column; position: relative; overflow: hidden;
+  background: var(--bs-card); border: 1px solid var(--bs-border); border-radius: 14px;
+  padding: 15px 16px 20px; text-decoration: none; color: inherit;
+  box-shadow: var(--bs-sh-sm); transition: box-shadow .15s, transform .15s, border-color .15s;
 }
 .ldg-card:hover { box-shadow: var(--bs-sh-md); transform: translateY(-2px); }
-.ldg-faixa { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; display: flex; border-top: 1px solid rgba(0,0,0,.07); }
-.ldg-faixa > span { flex: 1; display: block; }
-.ldg-card-code { font-size: 15px; font-weight: 800; color: var(--bs-ink); }
-.ldg-card-dates { font-size: 11px; color: var(--bs-ink-muted); margin-top: 2px; }
-.ldg-card-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--bs-border); }
-.ldg-stat-val { font-size: 14px; font-weight: 800; color: var(--bs-ink); }
+.ldg-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ldg-card-code { font-size: 15px; font-weight: 800; color: var(--bs-ink); letter-spacing: -.01em; white-space: nowrap; }
+.ldg-badge { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; padding: 3px 7px; border-radius: 999px; white-space: nowrap; flex: none; }
+.ldg-badge.encerrado { color: var(--bs-ink-muted); background: var(--bs-accent-bg); }
+.ldg-badge.andamento { color: var(--bs-success); background: var(--bs-success-bg); }
+.ldg-badge.breve { color: var(--bs-warning); background: var(--bs-warning-bg); }
+.ldg-card-dates { font-size: 11px; color: var(--bs-ink-muted); margin-top: 3px; }
+.ldg-card-cart { font-size: 11px; color: var(--bs-ink-muted); margin-top: 1px; display: flex; align-items: center; gap: 4px; }
+.ldg-card-hero { margin-top: 14px; }
+.ldg-hero-val { font-size: 22px; font-weight: 800; color: var(--bs-ink); line-height: 1.1; letter-spacing: -.02em; }
+.ldg-hero-val.vazio { color: var(--bs-ink-subtle); }
+.ldg-hero-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--bs-ink-subtle); margin-top: 3px; }
+.ldg-share { height: 5px; background: var(--bs-accent-bg); border-radius: 999px; margin-top: 9px; overflow: hidden; }
+.ldg-share > span { display: block; height: 100%; border-radius: 999px; }
+.ldg-share-lbl { font-size: 10px; color: var(--bs-ink-muted); margin-top: 4px; }
+.ldg-card-stats { display: flex; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 14px; }
+.ldg-card-stats > div { border-top: 1px solid var(--bs-border); padding-top: 9px; flex: 1 1 auto; min-width: 0; }
+.ldg-card-stats > div:last-child { text-align: right; }
+.ldg-stat-val { font-size: 13px; font-weight: 800; color: var(--bs-ink); }
 .ldg-stat-val.roas-good { color: var(--bs-success); }
 .ldg-stat-val.roas-bad  { color: var(--bs-danger); }
+.ldg-stat-val.vazio { color: var(--bs-ink-subtle); }
 .ldg-stat-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--bs-ink-subtle); margin-top: 2px; }
+.ldg-faixa { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; display: flex; }
+.ldg-faixa > span { display: block; }
 </style>
 {% endblock %}
 
@@ -373,46 +395,71 @@
     <div class="ldg-sec-head"><i class="ti ti-layout-grid"></i> Todos os lançamentos</div>
 
     {% for group in launch_groups %}
+    {% set pal0 = paleta_produto.get(group.launches[0].code.split('-')[0].upper()) or {} %}
+    {% set tot = namespace(rec=0, mat=0, n_ano=0) %}
+    {% for l in group.launches %}
+      {% set s0 = summary_by_code.get(l.code, {}) %}
+      {% set tot.rec = tot.rec + (s0.receita | default(0)) %}{% set tot.mat = tot.mat + (s0.vendas | default(0)) %}
+      {% if resumo_ano and l.code.upper().endswith('-' ~ (resumo_ano.ano | string)[-2:]) %}{% set tot.n_ano = tot.n_ano + 1 %}{% endif %}
+    {% endfor %}
     <div class="ldg-product">
       <div class="ldg-product-title">
-        <i class="ti ti-folder"></i>
-        {% if group.product and group.product_name and group.product != group.product_name %}{{ group.product }} — {{ group.product_name }}
-        {% else %}{{ group.product_name or group.product }}{% endif %}
-        {% set n_ano = namespace(v=0) %}
-        {% if resumo_ano %}{% for l in group.launches %}{% if l.code.upper().endswith('-' ~ (resumo_ano.ano | string)[-2:]) %}{% set n_ano.v = n_ano.v + 1 %}{% endif %}{% endfor %}{% endif %}
-        <span class="ldg-product-count">{{ group.launches | length }} lançamento{{ 's' if group.launches | length != 1 else '' }}{% if resumo_ano and n_ano.v != group.launches | length %} · {{ n_ano.v }} em {{ resumo_ano.ano }}{% endif %}</span>
+        <span class="ldg-product-dot" style="background:{{ pal0.destaque or 'var(--bs-accent)' }}"></span>
+        <span class="ldg-product-name">{% if group.product and group.product_name and group.product != group.product_name %}{{ group.product }} — {{ group.product_name }}{% else %}{{ group.product_name or group.product }}{% endif %}</span>
+        <span class="ldg-product-count">{{ group.launches | length }} lançamento{{ 's' if group.launches | length != 1 else '' }}{% if resumo_ano and tot.n_ano != group.launches | length %} · {{ tot.n_ano }} em {{ resumo_ano.ano }}{% endif %}</span>
+        <span class="ldg-product-tot"><strong>{{ tot.rec | brl(0) }}</strong> · {{ tot.mat | num }} matrículas</span>
       </div>
       <div class="ldg-grid">
         {% for l in group.launches %}
         {% set s = summary_by_code.get(l.code, {}) %}
-        <a class="ldg-card" href="/?launch_code={{ l.code }}" style="border-top-color:{{ l.accent }}">
-          <div class="ldg-card-code">{{ l.code }}</div>
-          <div class="ldg-card-dates">
-            {{ l.data_inicio | br_date if l.data_inicio else '—' }}
-            {% if l.data_fim %} — {{ l.data_fim | br_date }}{% endif %}
+        {% set pal = paleta_produto.get(l.code.split('-')[0].upper()) or {} %}
+        {% set cart = carrinhos.get(l.code) %}
+        {% set sit = 'encerrado' if (l.data_fim and l.data_fim < hoje) else ('breve' if (l.data_inicio and l.data_inicio > hoje) else 'andamento') %}
+        {% set tem_venda = (s.receita | default(0)) > 0 %}
+        {% set do_ano = resumo_ano and l.code.upper().endswith('-' ~ (resumo_ano.ano | string)[-2:]) %}
+        <a class="ldg-card" href="/?launch_code={{ l.code }}">
+          <div class="ldg-card-top">
+            <div class="ldg-card-code">{{ l.code }}</div>
+            <span class="ldg-badge {{ sit }}">{{ {'encerrado': 'Encerrado', 'andamento': 'Em curso', 'breve': 'Em breve'}[sit] }}</span>
           </div>
+          <div class="ldg-card-dates">{{ l.data_inicio | br_date if l.data_inicio else '—' }}{% if l.data_fim %} — {{ l.data_fim | br_date }}{% endif %}</div>
+          {% if cart and cart[0] and cart[1] %}
+          <div class="ldg-card-cart"><i class="ti ti-shopping-cart"></i>
+            {% if cart[0] > hoje %}Carrinho abre em {{ cart[0].strftime('%d/%m') }}
+            {% elif cart[1] >= hoje %}Carrinho aberto até {{ cart[1].strftime('%d/%m') }}
+            {% else %}Carrinho {{ cart[0].strftime('%d/%m') }} a {{ cart[1].strftime('%d/%m') }}{% endif %}
+          </div>
+          {% endif %}
+
+          <div class="ldg-card-hero">
+            <div class="ldg-hero-val{% if not tem_venda %} vazio{% endif %}">{{ s.receita | default(0) | brl(0) if tem_venda else '—' }}</div>
+            <div class="ldg-hero-lbl">Faturamento líquido</div>
+            {% if tem_venda and do_ano and resumo_ano.total.receita > 0 and resumo_ano.ranking %}
+            {% set pct = s.receita / resumo_ano.total.receita * 100 %}
+            <div class="ldg-share"><span style="width:{{ (s.receita / resumo_ano.ranking[0].receita * 100) | round(1) }}%;background:{{ pal.destaque or 'var(--bs-accent)' }}"></span></div>
+            <div class="ldg-share-lbl">{{ "%.1f"|format(pct) | replace(".", ",") }}% dos lançamentos de {{ resumo_ano.ano }}</div>
+            {% endif %}
+          </div>
+
           <div class="ldg-card-stats">
-            <div class="ldg-stat">
-              <div class="ldg-stat-val">{{ s.vendas | default(0) | num }}</div>
+            <div>
+              <div class="ldg-stat-val{% if not tem_venda %} vazio{% endif %}">{{ s.vendas | default(0) | num if tem_venda else '—' }}</div>
               <div class="ldg-stat-lbl">Matrículas</div>
             </div>
-            <div class="ldg-stat">
-              <div class="ldg-stat-val">{{ s.receita | default(0) | brl(0) }}</div>
-              <div class="ldg-stat-lbl">Faturamento líquido</div>
-            </div>
-            <div class="ldg-stat">
+            <div>
               <div class="ldg-stat-val">{{ s.leads | default(0) | num }}</div>
               <div class="ldg-stat-lbl">Leads</div>
             </div>
-            <div class="ldg-stat">
-              <div class="ldg-stat-val {{ 'roas-good' if (s.roas | default(0)) >= 2 else ('roas-bad' if (s.roas | default(0)) > 0 else '') }}">{{ "%.2f"|format(s.roas | default(0)) | replace(".", ",") }}x</div>
+            <div>
+              {% set roas = s.roas | default(0) %}
+              <div class="ldg-stat-val {{ 'roas-good' if roas >= 2 else ('roas-bad' if roas > 0 else 'vazio') }}">{{ ("%.2f"|format(roas) | replace(".", ",") ~ "x") if roas > 0 else '—' }}</div>
               <div class="ldg-stat-lbl">ROAS</div>
             </div>
           </div>
-          {% set cores = (paleta_produto.get(l.code.split('-')[0].upper()) or {}).get('cores') or [] %}
-          {% if cores %}
+
+          {% if pal.cores %}
           <div class="ldg-faixa" title="Cores do produto">
-            {% for c in cores %}<span style="background:{{ c }};{% if c | lower == '#ffffff' %}box-shadow: inset 0 0 0 1px #d1d5db;{% endif %}"></span>{% endfor %}
+            {% for c in pal.cores %}<span style="flex:{{ pal.pesos[loop.index0] if pal.pesos else 1 }};background:{{ c }};{% if c | lower == '#ffffff' %}box-shadow: inset 0 0 0 1px #d1d5db;{% endif %}"></span>{% endfor %}
           </div>
           {% endif %}
         </a>

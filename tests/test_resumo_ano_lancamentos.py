@@ -184,3 +184,14 @@ def test_paleta_dos_produtos_e_do_perpetuo():
     assert len(paleta_do_produto("PERPETUO")) == 3 and paleta_do_produto("XX") == []
     for chave, p in PALETA_PRODUTO.items():
         assert all(re.fullmatch(r"#[0-9A-Fa-f]{6}", c) for c in p["cores"]), chave
+
+
+def test_paleta_tem_cor_de_destaque_e_pesos_do_tamanho_das_cores():
+    import re
+
+    from src.constants import PALETA_PRODUTO
+
+    for chave, p in PALETA_PRODUTO.items():
+        assert re.fullmatch(r"#[0-9A-Fa-f]{6}", p["destaque"]), chave
+        assert len(p["pesos"]) == len(p["cores"]), chave
+        assert p["destaque"] in p["cores"], chave

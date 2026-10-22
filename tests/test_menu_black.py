@@ -21,3 +21,13 @@ def test_lancamento_normal_nao_muda():
     assert m["pre_qualificacao"]["label"] == "Pré-Qualificação"
     assert m["captacao"]["label"] == "Captação"
     assert "captacao_base_forte" not in m
+
+
+def test_perpetuo_selo_do_menu_usa_nome_curto():
+    from frontend.core import _build_perpetuo_nav_items
+
+    itens = {i["slug"]: i for i in _build_perpetuo_nav_items("/perpetuo/pmq-tjsp", None)}
+    assert itens["pmq-tjsp"]["curto"] == "PMQ - TJ-SP"
+    assert itens["pmq-pbb"]["curto"] == "PMQ - BB"
+    assert itens["pmq-tjsp"]["label"] == "Mestre em Questões — TJ-SP"   # a lista mantém o nome completo
+    assert all(i["curto"] for i in itens.values())                       # sem nome curto, cai no completo

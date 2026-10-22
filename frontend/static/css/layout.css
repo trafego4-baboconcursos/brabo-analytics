@@ -112,13 +112,17 @@
 .bs-launch-picker-btn .bs-live-badge { margin-right:2px; }
 /* Calendário/Ano: o ano fica ao lado do nome (os outros seletores põem o selo na linha de baixo) */
 #bs-ano-picker .bs-launch-picker-btn,
-#bs-launch-picker .bs-launch-picker-btn { flex-wrap:nowrap; }
+#bs-launch-picker .bs-launch-picker-btn,
+#bs-perpetuo-picker .bs-launch-picker-btn { flex-wrap:nowrap; }
 #bs-ano-picker .bs-launch-picker-btn.bs-has-badge .bs-launch-picker-label,
-#bs-launch-picker .bs-launch-picker-btn.bs-has-badge .bs-launch-picker-label { flex:0 0 auto; }
+#bs-launch-picker .bs-launch-picker-btn.bs-has-badge .bs-launch-picker-label,
+#bs-perpetuo-picker .bs-launch-picker-btn.bs-has-badge .bs-launch-picker-label { flex:0 0 auto; }
 #bs-ano-picker .bs-live-badge { margin-left:var(--s2); }
 /* Lançamento: o código do lançamento ativo fica ao lado do nome (menu com 272px de largura) */
-#bs-launch-picker .bs-live-badge { margin-left:var(--s1); padding:var(--s1) var(--s2); gap:var(--s1); letter-spacing:0; white-space:nowrap; min-width:0; overflow:hidden; text-overflow:ellipsis; }
-#bs-launch-picker .bs-launch-picker-btn.bs-has-badge .bs-launch-picker-label { gap:var(--s2); }
+#bs-launch-picker .bs-live-badge,
+#bs-perpetuo-picker .bs-live-badge { margin-left:var(--s1); padding:var(--s1) var(--s2); gap:var(--s1); letter-spacing:0; white-space:nowrap; min-width:0; overflow:hidden; text-overflow:ellipsis; }
+#bs-launch-picker .bs-launch-picker-btn.bs-has-badge .bs-launch-picker-label,
+#bs-perpetuo-picker .bs-launch-picker-btn.bs-has-badge .bs-launch-picker-label { gap:var(--s2); }
 .bs-launch-picker-chevron { margin-left:auto; font-size:12px; opacity:.6; transition:transform .15s; flex-shrink:0; }
 .bs-launch-picker.open .bs-launch-picker-chevron { transform:rotate(180deg); }
 .bs-launch-picker-menu {

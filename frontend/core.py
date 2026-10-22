@@ -496,6 +496,10 @@ def _build_funis_nav_groups(launch, active_code, page, current_user, previous_la
     return groups
 
 
+# Nome curto da vertical para o selo ao lado de "Perpétuo" no menu (a lista usa o nome completo)
+_PERPETUO_NOME_CURTO = {"pmq-tjsp": "PMQ - TJ-SP", "pmq-inss": "PMQ - INSS", "pmq-pbb": "PMQ - BB"}
+
+
 def _build_perpetuo_nav_items(current_path: str, active_code: str | None) -> list[dict]:
     """Submenu fixo do modo Perpétuo — as 4 verticais (Mestre em Questões
     TJ-SP/INSS/BB + Planner), pedido explicitamente pelo usuário (diferente
@@ -505,8 +509,8 @@ def _build_perpetuo_nav_items(current_path: str, active_code: str | None) -> lis
         href = f"/perpetuo/{slug}"
         if active_code:
             href += f"?launch_code={active_code}"
-        items.append({"slug": slug, "label": info["nome"], "href": href,
-                      "active": current_path == f"/perpetuo/{slug}"})
+        items.append({"slug": slug, "label": info["nome"], "curto": _PERPETUO_NOME_CURTO.get(slug, info["nome"]),
+                      "href": href, "active": current_path == f"/perpetuo/{slug}"})
     return items
 
 

@@ -46,7 +46,8 @@
   --bs-sh-lg:  0 12px 30px rgba(20,26,52,.12);
   --bs-sh-xl:  0 20px 60px rgba(20,26,52,.18);
   --bs-r-sm: 6px; --bs-r-md: 8px; --bs-r-lg: 12px; --bs-r-xl: 16px; --bs-r-2xl: 20px;
-  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s8:32px; --s10:40px;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:20px; --s6:24px; --s8:32px; --s10:40px; --s12:48px; --s16:64px;
+  --bs-sidebar-w:280px;   /* menu lateral: 35 × 8 */
   --fs-2xs:10px; --fs-xs:11px; --fs-sm:12px; --fs-md:13px; --fs-lg:14px;
   --fs-xl:16px; --fs-2xl:18px; --fs-3xl:22px; --fs-4xl:26px;
 }

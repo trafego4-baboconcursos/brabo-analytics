@@ -10,7 +10,7 @@
 #bs-drawer {
   background: linear-gradient(180deg, var(--bs-sidebar) 0%, var(--bs-sidebar-dark) 100%);
   color: #fff; padding: 20px 14px;
-  position: fixed; top:0; left:0; width:272px; height:100vh;
+  position: fixed; top:0; left:0; width:var(--bs-sidebar-w); height:100vh;
   overflow-y: auto; display: flex; flex-direction: column; gap: 14px;
   scrollbar-width: none; z-index: 100;
 }
@@ -115,10 +115,10 @@
 #bs-launch-picker .bs-launch-picker-btn { flex-wrap:nowrap; }
 #bs-ano-picker .bs-launch-picker-btn.bs-has-badge .bs-launch-picker-label,
 #bs-launch-picker .bs-launch-picker-btn.bs-has-badge .bs-launch-picker-label { flex:0 0 auto; }
-#bs-ano-picker .bs-live-badge { margin-left:8px; }
+#bs-ano-picker .bs-live-badge { margin-left:var(--s2); }
 /* Lançamento: o código do lançamento ativo fica ao lado do nome (menu com 272px de largura) */
-#bs-launch-picker .bs-live-badge { margin-left:4px; padding:3px 6px; gap:4px; letter-spacing:0; white-space:nowrap; min-width:0; overflow:hidden; text-overflow:ellipsis; }
-#bs-launch-picker .bs-launch-picker-btn.bs-has-badge .bs-launch-picker-label { gap:7px; }
+#bs-launch-picker .bs-live-badge { margin-left:var(--s1); padding:var(--s1) var(--s2); gap:var(--s1); letter-spacing:0; white-space:nowrap; min-width:0; overflow:hidden; text-overflow:ellipsis; }
+#bs-launch-picker .bs-launch-picker-btn.bs-has-badge .bs-launch-picker-label { gap:var(--s2); }
 .bs-launch-picker-chevron { margin-left:auto; font-size:12px; opacity:.6; transition:transform .15s; flex-shrink:0; }
 .bs-launch-picker.open .bs-launch-picker-chevron { transform:rotate(180deg); }
 .bs-launch-picker-menu {
@@ -271,7 +271,7 @@
 
 /* ── Barra de progresso no topo da área de conteúdo ── */
 #bs-topbar {
-  position:fixed; top:0; left:272px; right:0; height:3px; z-index:9999;
+  position:fixed; top:0; left:var(--bs-sidebar-w); right:0; height:3px; z-index:9999;
   background:transparent; pointer-events:none;
 }
 #bs-topbar-fill {
@@ -389,7 +389,7 @@ html[data-bs-theme="aranhaverso"] .bs-web-spokes {
 }
 
 /* ── Main ───────────────────────────────────────────────────────────── */
-#bs-main { background:var(--bs-surface); min-width:0; overflow-x:hidden; overflow-y:auto; height:100vh; margin-left:272px; }
+#bs-main { background:var(--bs-surface); min-width:0; overflow-x:hidden; overflow-y:auto; height:100vh; margin-left:var(--bs-sidebar-w); }
 
 /* ── Wrap / hdr / content / section — PADRÃO MANUAL ────────────────── */
 .wrap  { animation:fadeInUp .4s ease-out forwards; }

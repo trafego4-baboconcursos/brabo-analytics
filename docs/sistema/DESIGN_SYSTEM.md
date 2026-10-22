@@ -2,7 +2,7 @@
 titulo: "Design System — Brabo Analytics"
 area: sistema
 status: vigente
-atualizado: 2026-09-21
+atualizado: 2026-10-22
 responde:
   - "tokens, componentes e temas do dashboard"
   - "onde mexer no CSS"
@@ -45,9 +45,20 @@ Custom properties CSS, prefixo `--bs-`:
 | Sidebar | `--bs-sidebar`, `--bs-sidebar-dark` (gradiente do menu lateral) |
 | Sombra | `--bs-sh-sm/md/lg/xl` |
 | Raio | `--bs-r-sm/md/lg/xl/2xl` |
-| Espaço/fonte | `--s1..--s10`, `--fs-2xs..--fs-4xl` |
+| Espaço/fonte | `--s1..--s16` (grade de 8px, abaixo), `--fs-2xs..--fs-4xl` |
+| Layout | `--bs-sidebar-w` (largura do menu lateral, 280px) |
 | Plataforma (fixos, não tematizáveis) | `--meta-color`, `--google-color`, `--yt-color`, `--search-color`, `--pmax-color`, `--display-color` |
 | Temperatura de lead (fixos) | `--temp-quente/morno/frio/especifico/outros` |
+
+**Grade de 8px** (regra do projeto, 22/10/26): larguras, alturas, gaps, paddings e margens são
+múltiplos de 8; 4px é o meio-passo para ajuste fino. Escala (`--s*`): `--s1` 4 · `--s2` 8 · `--s3` 12 ·
+`--s4` 16 · `--s5` 20 · `--s6` 24 · `--s8` 32 · `--s10` 40 · `--s12` 48 · `--s16` 64. O 12 e o 20 são
+meios-passos (múltiplos de 4), não de 8 — use só quando 8 ou 16 não couberem. Código **novo** usa
+`var(--s*)` (ex.: o selo do seletor de ano/lançamento em `layout.css`); o CSS anterior a esta regra
+ainda tem valores soltos (3px, 6px, 7px, 10px...) e só é ajustado quando for tocado — não há
+reescrita em massa planejada. Largura do menu lateral: `--bs-sidebar-w` (usada em `#bs-drawer`,
+`#bs-main` e na barra de carregamento); em 22/10/26 foi de 240 para 280px para caber o código do
+lançamento ativo ao lado do nome.
 
 **Regra de uso**: qualquer cor de texto/fundo/borda em um template deve referenciar um
 `var(--bs-*)`, nunca um hex literal — só assim a cor acompanha o tema ativo (incluindo temas

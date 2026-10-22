@@ -67,6 +67,7 @@
 .ldg-mes.melhor .ldg-mes-nome { color: var(--bs-success); }
 
 /* ── Ranking de lançamentos (colunas lado a lado) ─────────────────────── */
+/* as barras usam no máximo 84% da altura: o rótulo fica ACIMA da barra e seria cortado na mais alta */
 .ldg-rank-wrap { overflow-x: auto; }
 .ldg-rank { display: grid; grid-template-columns: repeat(auto-fit, minmax(78px, 1fr)); gap: 10px; min-width: 640px; }
 .ldg-rank-item { display: flex; flex-direction: column; align-items: center; text-align: center; }
@@ -291,8 +292,8 @@
             {% for x in mm.meses %}
             <div class="ldg-mes{% if x.receita <= 0 and x.invest <= 0 %} vazio{% endif %}{% if x.nome == mm.melhor_mes %} melhor{% endif %}">
               <div class="ldg-mes-area">
-                <div class="ldg-bar fat" style="height:{{ x.h_receita | round(1) }}%">{% if x.receita_rot %}<em>{{ x.receita_rot }}</em>{% endif %}</div>
-                <div class="ldg-bar inv" style="height:{{ x.h_invest | round(1) }}%">{% if x.invest_rot %}<em>{{ x.invest_rot }}</em>{% endif %}</div>
+                <div class="ldg-bar fat" style="height:{{ (x.h_receita * 0.84) | round(1) }}%">{% if x.receita_rot %}<em>{{ x.receita_rot }}</em>{% endif %}</div>
+                <div class="ldg-bar inv" style="height:{{ (x.h_invest * 0.84) | round(1) }}%">{% if x.invest_rot %}<em>{{ x.invest_rot }}</em>{% endif %}</div>
               </div>
               <div class="ldg-mes-nome">{{ x.nome }}</div>
               <div class="ldg-mes-mat">{{ x.vendas | num if x.vendas else '—' }}</div>
@@ -359,7 +360,7 @@
               {% for r in ra.ranking %}
               <div class="ldg-rank-item">
                 <div class="ldg-rank-area">
-                  <div class="ldg-rank-bar" style="height:{{ r.pct_barra | round(1) }}%;{% if r.accent %}background:{{ r.accent }};{% endif %}"><em>{{ r.rot }}</em></div>
+                  <div class="ldg-rank-bar" style="height:{{ (r.pct_barra * 0.84) | round(1) }}%;{% if r.accent %}background:{{ r.accent }};{% endif %}"><em>{{ r.rot }}</em></div>
                 </div>
                 <a class="ldg-rank-code" href="/?launch_code={{ r.code }}">{{ r.code }}</a>
                 <span class="ldg-rank-sub">{{ r.vendas | num }} matr.<br>{{ "%.0f"|format(r.pct_ano) }}% do ano</span>

@@ -50,6 +50,10 @@
   animation:pulseGlow 1.6s ease-in-out infinite;
 }
 
+/* Seletor de ano: verde = ano vigente, vermelho = anterior, amarelo = posterior (sem pulsar) */
+.bs-live-dot.bs-dot-passado { background:#ef4444; animation:none; }
+.bs-live-dot.bs-dot-futuro  { background:#facc15; animation:none; }
+
 /* ── Account menu (sidebar footer) ─────────────────────────────────── */
 .bs-acct-wrap { position:relative; flex-shrink:0; }
 .bs-acct-btn {

@@ -24,6 +24,7 @@ SRC_DIR        = WORKSPACE_ROOT / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
+from datetime import date
 from src.anos import ANO_COOKIE, ano_do_codigo, anos_disponiveis, resolver_ano
 from frontend.db_readers import (
     discover_launches, get_launch, Launch,
@@ -624,6 +625,7 @@ def _base_ctx(
         "launches":        visible_launches,
         "launch_groups":   launch_groups,
         "ano_sel":         ano_sel,
+        "ano_atual":       date.today().year,
         "anos_disponiveis": _anos,
         "v1_launch_url":   v1_launch_url,
         "active_code":     active_code,

@@ -161,7 +161,7 @@
       <div class="bs-launch-picker" id="bs-ano-picker">
         <button type="button" class="bs-mode-btn bs-launch-picker-btn {% if nav_mode == 'calendario' %}active{% endif %} {% if ano_sel %}bs-has-badge{% endif %}" onclick="bsPickerToggle(this)">
           <span class="bs-launch-picker-label"><i class="ti ti-calendar"></i> Calendário</span>
-          {% if ano_sel %}<span class="bs-live-badge">{{ ano_sel }}</span>{% endif %}
+          {% if ano_sel %}<span class="bs-live-badge"><span class="bs-live-dot {{ 'bs-dot-passado' if ano_sel < ano_atual else ('bs-dot-futuro' if ano_sel > ano_atual else '') }}" title="{{ 'Ano anterior' if ano_sel < ano_atual else ('Ano posterior' if ano_sel > ano_atual else 'Ano vigente') }}"></span> {{ ano_sel }}</span>{% endif %}
           <i class="ti ti-chevron-down bs-launch-picker-chevron"></i>
         </button>
         <div class="bs-launch-picker-menu">

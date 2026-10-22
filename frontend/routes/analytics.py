@@ -502,7 +502,7 @@ async def calendario_page(request: Request, launch_code: str | None = None):
 
 
 @router.get("/lancamentos", response_class=HTMLResponse)
-async def lancamentos_page(request: Request, launch_code: str | None = None):
+async def lancamentos_page(request: Request, launch_code: str | None = None, ano: int | None = None):
     from frontend.services.fetch import _meta, _google, _vendas  # noqa: PLC0415
 
     launches = await run_in_threadpool(get_launches)
@@ -526,25 +526,40 @@ async def lancamentos_page(request: Request, launch_code: str | None = None):
             return {"leads": 0, "invest": 0.0, "receita": 0.0, "vendas": 0, "roas": 0.0}
 
     ctx = _base_ctx(request, "lancamentos", "Lançamentos", launch, launches)
-    summaries = await asyncio.gather(*[
-        run_in_threadpool(_summary, l) for l in ctx["launches"]
-    ])
-    summary_by_code = {l.code: s for l, s in zip(ctx["launches"], summaries)}
-    ctx["summary_by_code"] = summary_by_code
     from datetime import date as _date  # noqa: PLC0415
+
+    # Esta página é do ANO: lista e soma só os lançamentos cujo código termina no ano escolhido
+    # (PI-JAN-26 é de 2026 mesmo começando em nov/2025; BV-25 é de 2025 e fica de fora de 2026).
+    anos_disponiveis = sorted({2000 + int(str(l.code)[-2:]) for l in ctx["launches"] if str(l.code)[-2:].isdigit()}, reverse=True)
+    _hoje_ano = _date.today().year
+    ano_sel = ano if ano in anos_disponiveis else (_hoje_ano if _hoje_ano in anos_disponiveis else (anos_disponiveis[0] if anos_disponiveis else _hoje_ano))
+    _suf_ano = f"-{str(ano_sel)[-2:]}"
+    lancs_ano = [l for l in ctx["launches"] if str(l.code).upper().endswith(_suf_ano)]
+    ctx["ano_sel"], ctx["anos_disponiveis"] = ano_sel, anos_disponiveis
+    ctx["launch_groups"] = [
+        dict(g, launches=[l for l in g["launches"] if str(l.code).upper().endswith(_suf_ano)])
+        for g in ctx["launch_groups"]
+    ]
+    ctx["launch_groups"] = [g for g in ctx["launch_groups"] if g["launches"]]
+
+    summaries = await asyncio.gather(*[
+        run_in_threadpool(_summary, l) for l in lancs_ano
+    ])
+    summary_by_code = {l.code: s for l, s in zip(lancs_ano, summaries)}
+    ctx["summary_by_code"] = summary_by_code
 
     from src.constants import PALETA_PRODUTO  # noqa: PLC0415
     ctx["paleta_produto"] = PALETA_PRODUTO
     ctx["hoje"] = _date.today()
     # Janela do carrinho de cada lançamento (cartões: situação e "carrinho abre em dd/mm")
-    ctx["carrinhos"] = await run_in_threadpool(_carrinhos_do_ano, [l.code for l in ctx["launches"]])
+    ctx["carrinhos"] = await run_in_threadpool(_carrinhos_do_ano, [l.code for l in lancs_ano])
 
     # Seções abaixo dos lançamentos: perpétuo (um cartão por vertical) e distribuição (um por perfil)
     from frontend.cache import _get_or_compute as _cache  # noqa: PLC0415
     from frontend.db_readers.distribuicao import read_distribuicao_cards  # noqa: PLC0415
     from frontend.db_readers.perpetuo import read_perpetuo_cards  # noqa: PLC0415
 
-    _ano_cartoes = _date.today().year
+    _ano_cartoes = ano_sel
     ctx["ano_cartoes"] = _ano_cartoes
     try:
         ctx["perpetuo_cards"], ctx["distribuicao_cards"] = await asyncio.gather(
@@ -555,18 +570,18 @@ async def lancamentos_page(request: Request, launch_code: str | None = None):
         logger.exception("Lançamentos: falha ao montar os cartões de perpétuo e distribuição")
         ctx["perpetuo_cards"], ctx["distribuicao_cards"] = [], []
     ctx["perpetuo_tot"], ctx["distribuicao_tot"] = _totais_secoes(ctx["perpetuo_cards"], ctx["distribuicao_cards"])
-    ctx["resumo_ano"] = _resumo_do_ano(ctx["launches"], summary_by_code)
+    ctx["resumo_ano"] = _resumo_do_ano(lancs_ano, summary_by_code, ano_sel)
     # faturamento do ano por produto (prefixo do código), para o "% dos lançamentos do ano" da faixa de cada produto
     ctx["prod_ano_rec"] = {}
     if ctx["resumo_ano"]:
         _suf = f"-{str(ctx['resumo_ano']['ano'])[-2:]}"
-        for _l in ctx["launches"]:
+        for _l in lancs_ano:
             if str(_l.code).upper().endswith(_suf):
                 _pref = str(_l.code).split("-")[0].upper()
                 ctx["prod_ano_rec"][_pref] = ctx["prod_ano_rec"].get(_pref, 0.0) + float((summary_by_code.get(_l.code) or {}).get("receita") or 0)
     if ctx["resumo_ano"]:
         ano = ctx["resumo_ano"]["ano"]
-        do_ano = [l for l in ctx["launches"] if str(l.code).upper().endswith(f"-{str(ano)[-2:]}")]
+        do_ano = lancs_ano
         codes = [l.code for l in do_ano]
         invest_mensal = await run_in_threadpool(_invest_mensal_do_ano, codes)
         ctx["resumo_ano"]["mensal"] = _faturamento_mensal(do_ano, summary_by_code, ano, ctx["carrinhos"], invest_mensal)

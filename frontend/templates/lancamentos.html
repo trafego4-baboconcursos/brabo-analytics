@@ -120,6 +120,9 @@
 .ldg-stat-val.roas-bad  { color: var(--bs-danger); }
 .ldg-stat-val.vazio { color: var(--bs-ink-subtle); }
 .ldg-stat-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--bs-ink-subtle); margin-top: 2px; }
+.ldg-anos { display: inline-flex; gap: 6px; margin-left: 10px; }
+.ldg-anos a { font-size: 11px; font-weight: 700; padding: 3px 11px; border-radius: 999px; background: var(--bs-accent-bg); color: var(--bs-ink-muted); text-decoration: none; }
+.ldg-anos a.on { background: var(--bs-accent); color: #fff; }
 /* faixa de resumo sob o título de cada produto */
 .ldg-prod-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); background: var(--bs-card); border: 1px solid var(--bs-border); border-radius: 12px; margin-bottom: 14px; overflow: hidden; box-shadow: var(--bs-sh-sm); }
 .ldg-prod-strip > div { padding: 11px 16px; border-left: 1px solid var(--bs-border); min-width: 0; }
@@ -379,7 +382,9 @@
       <p>Adicione uma pasta no padrão <code>[PBB-ABR-26]</code> dentro de <code>analises/</code></p>
     </div>
     {% else %}
-    <div class="ldg-sec-head"><i class="ti ti-layout-grid"></i> Todos os lançamentos</div>
+    <div class="ldg-sec-head"><i class="ti ti-layout-grid"></i> Lançamentos de {{ ano_sel }}
+      {% if anos_disponiveis | length > 1 %}<span class="ldg-anos">{% for a in anos_disponiveis %}<a href="/lancamentos?ano={{ a }}" class="{{ 'on' if a == ano_sel else '' }}">{{ a }}</a>{% endfor %}</span>{% endif %}
+    </div>
 
     {% for group in launch_groups %}
     {% set pal0 = paleta_produto.get(group.launches[0].code.split('-')[0].upper()) or {} %}

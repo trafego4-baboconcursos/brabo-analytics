@@ -81,12 +81,15 @@
 .ldg-product-count { font-size: 11px; font-weight: 700; color: var(--bs-ink-muted); background: var(--bs-accent-bg); padding: 2px 10px; border-radius: 999px; }
 .ldg-product-tot { margin-left: auto; font-size: 12px; color: var(--bs-ink-muted); }
 .ldg-product-tot strong { color: var(--bs-ink); font-weight: 800; }
-.ldg-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(212px, 1fr)); gap: 14px; }
+.ldg-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 1180px) { .ldg-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 760px)  { .ldg-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px)  { .ldg-grid { grid-template-columns: 1fr; } }
 
 .ldg-card {
   display: flex; flex-direction: column; position: relative; overflow: hidden;
   background: var(--bs-card); border: 1px solid var(--bs-border); border-radius: 14px;
-  padding: 15px 16px 20px; text-decoration: none; color: inherit;
+  padding: 16px 18px 22px; text-decoration: none; color: inherit;
   box-shadow: var(--bs-sh-sm); transition: box-shadow .15s, transform .15s, border-color .15s;
 }
 .ldg-card:hover { box-shadow: var(--bs-sh-md); transform: translateY(-2px); }
@@ -99,7 +102,7 @@
 .ldg-card-dates { font-size: 11px; color: var(--bs-ink-muted); margin-top: 3px; }
 .ldg-card-cart { font-size: 11px; color: var(--bs-ink-muted); margin-top: 1px; display: flex; align-items: center; gap: 4px; }
 .ldg-card-hero { margin-top: 14px; }
-.ldg-hero-val { font-size: 22px; font-weight: 800; color: var(--bs-ink); line-height: 1.1; letter-spacing: -.02em; }
+.ldg-hero-val { font-size: clamp(20px, 1.7vw, 26px); font-weight: 800; color: var(--bs-ink); line-height: 1.1; letter-spacing: -.02em; }
 .ldg-hero-val.vazio { color: var(--bs-ink-subtle); }
 .ldg-hero-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--bs-ink-subtle); margin-top: 3px; }
 .ldg-share { height: 5px; background: var(--bs-accent-bg); border-radius: 999px; margin-top: 9px; overflow: hidden; }

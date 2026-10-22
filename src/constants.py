@@ -152,13 +152,25 @@ def ac_keywords(launch_code: str) -> list[str]:
 
 
 # Metas de faturamento líquido do ano (R$), somando todos os lançamentos do ano, em degraus
-# crescentes: Meta, Super meta e Meta desafio. Aparecem no Resumo Executivo de /lancamentos.
-# Para mudar sem editar código: variável de ambiente no serviço do site
-# (META_FATURAMENTO_ANUAL_2026, META_SUPER_ANUAL_2026, META_DESAFIO_ANUAL_2026).
-METAS_FATURAMENTO_ANUAL: dict[int, tuple[tuple[str, float], ...]] = {
-    2026: (("Meta", 38_000_000.0), ("Super meta", 40_000_000.0), ("Meta desafio", 44_000_000.0)),
-}
+# crescentes (Meta, Super meta, Meta desafio). Vêm de config/anos/<ano>.yaml — preparar um ano
+# novo é criar o arquivo dele. Aparecem no Resumo Executivo de /lancamentos. Variável de
+# ambiente no serviço do site sobrescreve cada degrau: META_FATURAMENTO_ANUAL_<ano>,
+# META_SUPER_ANUAL_<ano>, META_DESAFIO_ANUAL_<ano>.
 _METAS_ENV = ("META_FATURAMENTO_ANUAL", "META_SUPER_ANUAL", "META_DESAFIO_ANUAL")
+_NOMES_DEGRAU = ("Meta", "Super meta", "Meta desafio")
+
+
+def _metas_do_arquivo(ano: int) -> list[tuple[str, float]]:
+    from pathlib import Path  # noqa: PLC0415
+
+    import yaml  # noqa: PLC0415
+
+    arq = Path(__file__).resolve().parent.parent / "config" / "anos" / f"{ano}.yaml"
+    try:
+        dados = yaml.safe_load(arq.read_text(encoding="utf-8")) or {}
+        return [(str(m["nome"]), float(m["valor"])) for m in (dados.get("metas") or [])]
+    except (OSError, KeyError, TypeError, ValueError, yaml.YAMLError):
+        return []   # ano sem arquivo (ou arquivo inválido): sem meta, a página só esconde a barra
 
 
 def _numero_env(bruto: str | None) -> float | None:
@@ -174,7 +186,7 @@ def metas_faturamento_anual(ano: int) -> list[tuple[str, float]]:
     """Degraus de meta do ano (Meta, Super meta, Meta desafio); vazio se o ano não tem meta."""
     import os  # noqa: PLC0415
 
-    base = list(METAS_FATURAMENTO_ANUAL.get(ano, ()))
+    base = _metas_do_arquivo(ano)
     for i, var in enumerate(_METAS_ENV):
         v = _numero_env(os.environ.get(f"{var}_{ano}"))
         if v is None:
@@ -182,7 +194,7 @@ def metas_faturamento_anual(ano: int) -> list[tuple[str, float]]:
         if i < len(base):
             base[i] = (base[i][0], v)
         elif i == len(base):
-            base.append((("Meta", "Super meta", "Meta desafio")[i], v))
+            base.append((_NOMES_DEGRAU[i], v))
     return base
 
 

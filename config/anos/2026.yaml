@@ -1,0 +1,8 @@
+# Configuração do ano 2026 (ver src/anos.py e docs/sistema/ARQUITETURA.md § "Ano global").
+# Metas de faturamento líquido do ano, do menor ao maior degrau. Aparecem no Resumo Executivo
+# de /lancamentos. Uma variável de ambiente (META_FATURAMENTO_ANUAL_2026, META_SUPER_ANUAL_2026,
+# META_DESAFIO_ANUAL_2026) sobrescreve cada degrau sem mexer neste arquivo.
+metas:
+  - { nome: "Meta",         valor: 38000000 }
+  - { nome: "Super meta",   valor: 40000000 }
+  - { nome: "Meta desafio", valor: 44000000 }

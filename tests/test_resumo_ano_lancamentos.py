@@ -265,3 +265,26 @@ def test_degrau_pode_ser_trocado_por_ambiente(monkeypatch):
     monkeypatch.setenv("META_SUPER_ANUAL_2026", "41.000.000,00")
     from src.constants import metas_faturamento_anual
     assert dict(metas_faturamento_anual(2026))["Super meta"] == 41e6
+
+
+def test_metas_vem_do_arquivo_do_ano_e_ano_novo_nao_tem_meta(monkeypatch):
+    for v in ("META_FATURAMENTO_ANUAL_2027", "META_SUPER_ANUAL_2027", "META_DESAFIO_ANUAL_2027"):
+        monkeypatch.delenv(v, raising=False)
+    from src.constants import metas_faturamento_anual, meta_faturamento_anual
+    assert metas_faturamento_anual(2027) == [] and meta_faturamento_anual(2027) is None   # config/anos/2027.yaml sem metas
+    assert metas_faturamento_anual(2031) == []                                              # sem arquivo: não quebra
+    monkeypatch.setenv("META_FATURAMENTO_ANUAL_2027", "50000000")                           # só a env já cria a Meta
+    assert metas_faturamento_anual(2027) == [("Meta", 50e6)]
+
+
+def test_ano_de_2027_funciona_sem_nada_de_2026_no_codigo(monkeypatch):
+    """Simula a virada: lançamentos -27, sem meta cadastrada, convivendo com 2026 sem se misturar."""
+    for v in ("META_FATURAMENTO_ANUAL_2027", "META_SUPER_ANUAL_2027", "META_DESAFIO_ANUAL_2027"):
+        monkeypatch.delenv(v, raising=False)
+    lancs = [_l("PI-JAN-26"), _l("PI-JAN-27"), _l("PES-MAI-27", "TJ-SP")]
+    resumo = {"PI-JAN-26": {"receita": 9.0, "invest": 1.0}, "PI-JAN-27": {"receita": 4.0, "invest": 2.0},
+              "PES-MAI-27": {"receita": 6.0, "invest": 3.0}}
+    r = _resumo_do_ano(lancs, resumo, ano=2027)
+    assert r["ano"] == 2027 and r["n_lancamentos"] == 2
+    assert [x["code"] for x in r["ranking"]] == ["PES-MAI-27", "PI-JAN-27"]
+    assert r["total"]["receita"] == 10.0 and r["meta"] is None   # 2026 não vaza; sem meta, sem barra

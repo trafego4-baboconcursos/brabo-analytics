@@ -1,61 +1,98 @@
 {
   "creative_overview": {
-    "bytes": 34347,
+    "bytes": 41929,
     "resumo": {
+      "cobertura": {
+        "compradores": 545,
+        "compradores_com_utm": 441,
+        "compradores_pct": 80.9174,
+        "receita": 873031.86,
+        "receita_ads": 701292.17,
+        "receita_sem_criativo": 171739.69,
+        "vendas": 546,
+        "vendas_ads": 435,
+        "vendas_pct": 79.6703,
+        "vendas_sem_criativo": 111
+      },
+      "etapa_pq": "Pré-Qualificação",
       "google_campaign_rows": {
         "__n__": 1,
         "__sha__": "078c0a15a1246651"
       },
+      "google_prequali_rows": {
+        "__n__": 4,
+        "__sha__": "cbb609c43cf67b5d"
+      },
       "google_rows": {
         "__n__": 25,
-        "__sha__": "fd8b6ff9a04d1c46"
+        "__sha__": "357f61e3a749680f"
+      },
+      "google_trilha_blocos": {
+        "__n__": 0,
+        "__sha__": "4f53cda18c2baa0c"
       },
       "insights": {
         "__n__": 5,
-        "__sha__": "d6bf872cd5ba71f5"
+        "__sha__": "02d9e3a6073e82bb"
+      },
+      "meta_prequali_rows": {
+        "__n__": 10,
+        "__sha__": "d9fa8333ea46b8dd"
       },
       "meta_rows": {
         "__n__": 22,
-        "__sha__": "c4bcea23930ab380"
+        "__sha__": "7334b7e0fa8cf971"
+      },
+      "meta_trilha_blocos": {
+        "__n__": 0,
+        "__sha__": "4f53cda18c2baa0c"
       },
       "novos_all": {
-        "__n__": 26,
-        "__sha__": "eab8c18080980221"
+        "__n__": 27,
+        "__sha__": "a654ae951042c3c3"
+      },
+      "prequali_rows": {
+        "__n__": 13,
+        "__sha__": "07c52652ecab224d"
       },
       "resumo": {
-        "compradores_com_utm": 426,
-        "compradores_sem_utm": 119,
+        "compradores_com_utm": 441,
+        "compradores_sem_utm": 104,
         "google_sem_ad_detail": {
           "__n__": 0,
           "__sha__": "4f53cda18c2baa0c"
         },
         "google_sem_ad_faturamento": 0,
         "google_sem_ad_vendas": 0,
-        "roas_ads": 2.2153,
+        "roas_ads": 2.2934,
         "total_ads": 34,
         "total_compradores": 545,
-        "total_faturamento_ads": 677423.68,
+        "total_faturamento_ads": 701292.17,
         "total_gasto": 305791.17,
         "total_leads": 87735,
-        "total_vendas_ads": 420
+        "total_vendas_ads": 435
       },
       "rows": {
         "__n__": 34,
-        "__sha__": "0e525e846b54cfc1"
+        "__sha__": "dab5a000781d2ba6"
       },
       "sales_only_rows": {
         "__n__": 0,
         "__sha__": "4f53cda18c2baa0c"
       },
+      "trilha_blocos": {
+        "__n__": 0,
+        "__sha__": "4f53cda18c2baa0c"
+      },
       "validados_all": {
-        "__n__": 8,
-        "__sha__": "00ee367cd43a03df"
+        "__n__": 7,
+        "__sha__": "9a451aeeca1468e9"
       }
     },
-    "sha256": "9fda010acaff132cdd8b8df9320d217e11b69488eba94cdefa1f52715834b12f"
+    "sha256": "4eaf0886946a140aaec7b8fb3dfeed9f045e0c20a0867385e0f558c346281b20"
   },
   "debriefing_ctx": {
-    "bytes": 53229,
+    "bytes": 55995,
     "resumo": {
       "creative_data_error": false,
       "data_errors": {
@@ -63,8 +100,8 @@
         "__sha__": "4f53cda18c2baa0c"
       },
       "dbf": {
-        "__n__": 109,
-        "__sha__": "a0eadb5aa8c227ea"
+        "__n__": 137,
+        "__sha__": "d9e173a17f090e6f"
       },
       "drive_thumbnails": {
         "__n__": 40,
@@ -75,86 +112,86 @@
         "__sha__": "4f53cda18c2baa0c"
       }
     },
-    "sha256": "efe12ecc03960a7e3c764cf49be7263afa46ad650e88a3e39912c01131f7f557"
+    "sha256": "d940bad85f34ec8a235fa6cb9da9500bd9f9d81bf426bac6beacb875880452c4"
   },
   "sales_attribution": {
-    "bytes": 24512,
+    "bytes": 24939,
     "resumo": {
       "emails_rastreados": {
-        "__n__": 426,
-        "__sha__": "e811728c9f98cd2f"
+        "__n__": 441,
+        "__sha__": "e6b59c3f1e44fd51"
       },
       "google_campanha_sales": {
         "pbb-abr-26": {
-          "faturamento": 363638.05,
-          "vendas": 225
+          "faturamento": 377911.26,
+          "vendas": 234
         }
       },
       "google_etapa_sales": {
         "Captação": {
-          "faturamento": 363638.05,
-          "vendas": 225
+          "faturamento": 377911.26,
+          "vendas": 234
         }
       },
       "google_por_campanha": {
         "pbb-abr-26": {
-          "faturamento": 363638.05,
-          "vendas": 225
+          "faturamento": 377911.26,
+          "vendas": 234
         }
       },
       "google_por_etapa": {
         "Captação": {
-          "faturamento": 363638.05,
-          "vendas": 225
+          "faturamento": 377911.26,
+          "vendas": 234
         }
       },
       "google_por_temperatura": {
         "Específico": {
-          "faturamento": 54585.13,
-          "vendas": 34
+          "faturamento": 56227.93,
+          "vendas": 35
         },
         "Frio": {
           "faturamento": 40335.3,
           "vendas": 25
         },
         "Quente": {
-          "faturamento": 268717.62,
-          "vendas": 166
+          "faturamento": 281348.03,
+          "vendas": 174
         }
       },
       "google_por_tipo_campanha": {
         "YouTube": {
-          "faturamento": 363638.05,
-          "vendas": 225
+          "faturamento": 377911.26,
+          "vendas": 234
         }
       },
       "google_segmento_sales": {
         "Outros": {
-          "faturamento": 363638.05,
-          "vendas": 225
+          "faturamento": 377911.26,
+          "vendas": 234
         }
       },
       "google_sem_ad_por_campanha": {},
       "google_sem_ad_por_tipo": {},
       "google_temperatura_sales": {
         "Específico": {
-          "faturamento": 54585.13,
-          "vendas": 34
+          "faturamento": 56227.93,
+          "vendas": 35
         },
         "Frio": {
           "faturamento": 40335.3,
           "vendas": 25
         },
         "Quente": {
-          "faturamento": 268717.62,
-          "vendas": 166
+          "faturamento": 281348.03,
+          "vendas": 174
         }
       },
       "google_temperatura_sales_por_etapa": {
         "Captação": {
           "Específico": {
             "__n__": 2,
-            "__sha__": "596e55a3b08b5c83"
+            "__sha__": "9032607d38ee35df"
           },
           "Frio": {
             "__n__": 2,
@@ -162,100 +199,100 @@
           },
           "Quente": {
             "__n__": 2,
-            "__sha__": "1d478fb214139fbc"
+            "__sha__": "6f5365218de44dab"
           }
         }
       },
       "meta_bucket_sales": {
         "Outros": {
-          "faturamento": 324928.95,
-          "vendas": 202
+          "faturamento": 334524.23,
+          "vendas": 208
         }
       },
       "meta_etapa_sales": {
         "Captação": {
-          "faturamento": 324928.95,
-          "vendas": 202
+          "faturamento": 334524.23,
+          "vendas": 208
         }
       },
       "meta_por_bucket": {
         "Potencial": {
-          "faturamento": 56237.96,
-          "vendas": 35
+          "faturamento": 57714.0,
+          "vendas": 36
         },
         "Principal": {
-          "faturamento": 173065.42,
-          "vendas": 107
+          "faturamento": 178065.82,
+          "vendas": 110
         },
         "Reels": {
-          "faturamento": 95625.57,
-          "vendas": 60
+          "faturamento": 98744.41,
+          "vendas": 62
         }
       },
       "meta_por_etapa": {
         "Captação": {
-          "faturamento": 324928.95,
-          "vendas": 202
+          "faturamento": 334524.23,
+          "vendas": 208
         }
       },
       "meta_por_temperatura": {
         "Específico": {
-          "faturamento": 51177.63,
-          "vendas": 32
+          "faturamento": 52653.67,
+          "vendas": 33
         },
         "Frio": {
-          "faturamento": 64831.74,
-          "vendas": 40
+          "faturamento": 66546.54,
+          "vendas": 41
         },
         "Quente": {
-          "faturamento": 208919.58,
-          "vendas": 130
+          "faturamento": 215324.02,
+          "vendas": 134
         }
       },
       "meta_segmento_sales": {
         "Outros": {
-          "faturamento": 324928.95,
-          "vendas": 202
+          "faturamento": 334524.23,
+          "vendas": 208
         }
       },
       "meta_temperatura_sales": {
         "Específico": {
-          "faturamento": 51177.63,
-          "vendas": 32
+          "faturamento": 52653.67,
+          "vendas": 33
         },
         "Frio": {
-          "faturamento": 64831.74,
-          "vendas": 40
+          "faturamento": 66546.54,
+          "vendas": 41
         },
         "Quente": {
-          "faturamento": 208919.58,
-          "vendas": 130
+          "faturamento": 215324.02,
+          "vendas": 134
         }
       },
       "meta_temperatura_sales_por_etapa": {
         "Captação": {
           "Específico": {
             "__n__": 2,
-            "__sha__": "16cf4654bd2fa52e"
+            "__sha__": "7d9bf5d98821915e"
           },
           "Frio": {
             "__n__": 2,
-            "__sha__": "ce04f41efcbee695"
+            "__sha__": "200237870253ba01"
           },
           "Quente": {
             "__n__": 2,
-            "__sha__": "269ebdf5bcf5ea63"
+            "__sha__": "455f6a21e9116219"
           }
         }
       },
       "por_canal": {
         "Google Ads": {
-          "faturamento": 363638.05,
-          "vendas": 225
+          "faturamento": 377911.26,
+          "vendas": 234
         },
         "Meta Ads": {
-          "faturamento": 324928.95,
-          "vendas": 202
+          "faturamento": 334524.23,
+          "vendas": 208
         }
       },
       "por_criativo": {
@@ -272,16 +309,16 @@
           "vendas": 4
         },
         "AD050": {
-          "faturamento": 91822.64,
-          "vendas": 57
+          "faturamento": 96823.04,
+          "vendas": 60
         },
         "AD054": {
-          "faturamento": 62781.24,
-          "vendas": 40
+          "faturamento": 65900.08,
+          "vendas": 42
         },
         "AD058": {
-          "faturamento": 22453.4,
-          "vendas": 14
+          "faturamento": 25822.05,
+          "vendas": 16
         },
         "AD059": {
           "faturamento": 10083.85,
@@ -292,28 +329,28 @@
           "vendas": 4
         },
         "AD084": {
-          "faturamento": 46679.45,
-          "vendas": 29
+          "faturamento": 48155.49,
+          "vendas": 30
         },
         "AD090": {
-          "faturamento": 1476.04,
-          "vendas": 1
+          "faturamento": 3118.84,
+          "vendas": 2
         },
         "AD092": {
-          "faturamento": 95796.26,
-          "vendas": 59
+          "faturamento": 97439.06,
+          "vendas": 60
         },
         "AD093": {
-          "faturamento": 41848.11,
-          "vendas": 26
+          "faturamento": 43324.15,
+          "vendas": 27
         },
         "AD097": {
           "faturamento": 1476.04,
           "vendas": 1
         },
         "AD098": {
-          "faturamento": 6476.44,
-          "vendas": 4
+          "faturamento": 9667.28,
+          "vendas": 6
         },
         "AD100": {
           "faturamento": 6471.64,
@@ -328,8 +365,8 @@
           "vendas": 20
         },
         "AD110": {
-          "faturamento": 78798.45,
-          "vendas": 49
+          "faturamento": 81750.53,
+          "vendas": 51
         },
         "AD112": {
           "faturamento": 13928.64,
@@ -368,7 +405,7 @@
           },
           "AD058": {
             "__n__": 2,
-            "__sha__": "7e0676d62642d6e1"
+            "__sha__": "121e1d83f93900d1"
           },
           "AD059": {
             "__n__": 2,
@@ -376,19 +413,19 @@
           },
           "AD084": {
             "__n__": 2,
-            "__sha__": "5d432dbbdb9a7e51"
+            "__sha__": "7310f8741cef9d6d"
           },
           "AD090": {
             "__n__": 2,
-            "__sha__": "6dbebec9b72d666e"
+            "__sha__": "4ba4361a8906f970"
           },
           "AD092": {
             "__n__": 2,
-            "__sha__": "09432fb666ea6462"
+            "__sha__": "4b4c6be2c4fddc25"
           },
           "AD093": {
             "__n__": 2,
-            "__sha__": "79a0a3959a6364b3"
+            "__sha__": "47246ab57627b330"
           },
           "AD097": {
             "__n__": 2,
@@ -396,7 +433,7 @@
           },
           "AD098": {
             "__n__": 2,
-            "__sha__": "94e04071043542c9"
+            "__sha__": "492b80b876cbe4db"
           },
           "AD109": {
             "__n__": 2,
@@ -404,7 +441,7 @@
           },
           "AD110": {
             "__n__": 2,
-            "__sha__": "a1e5c9c232bb6ad1"
+            "__sha__": "2a5afb86105a7d04"
           },
           "AD112": {
             "__n__": 2,
@@ -422,11 +459,11 @@
         "Meta Ads": {
           "AD050": {
             "__n__": 2,
-            "__sha__": "f83f25c73be7e0a5"
+            "__sha__": "6da2b531596b98d8"
           },
           "AD054": {
             "__n__": 2,
-            "__sha__": "54d826d611faec56"
+            "__sha__": "a325ddd9c99930cb"
           },
           "AD058": {
             "__n__": 2,
@@ -458,7 +495,7 @@
           },
           "AD110": {
             "__n__": 2,
-            "__sha__": "219497be67f3940d"
+            "__sha__": "9233fc6675df128a"
           },
           "AD112": {
             "__n__": 2,
@@ -478,13 +515,13 @@
         "Google Ads": {
           "Captação": {
             "__n__": 17,
-            "__sha__": "d3eb63111d9f9621"
+            "__sha__": "ca2480f9fe719368"
           }
         },
         "Meta Ads": {
           "Captação": {
             "__n__": 13,
-            "__sha__": "56e187d174cb3be7"
+            "__sha__": "fced8992e9d07e53"
           }
         }
       },
@@ -508,15 +545,15 @@
           },
           "AD050": {
             "__n__": 2,
-            "__sha__": "f603524cd22ae689"
+            "__sha__": "09794b32aad7002f"
           },
           "AD054": {
             "__n__": 2,
-            "__sha__": "54d826d611faec56"
+            "__sha__": "a325ddd9c99930cb"
           },
           "AD058": {
             "__n__": 2,
-            "__sha__": "ab0a19f4758a1e2c"
+            "__sha__": "467a4662fea81a88"
           },
           "AD059": {
             "__n__": 2,
@@ -528,19 +565,19 @@
           },
           "AD084": {
             "__n__": 2,
-            "__sha__": "5d432dbbdb9a7e51"
+            "__sha__": "7310f8741cef9d6d"
           },
           "AD090": {
             "__n__": 2,
-            "__sha__": "6dbebec9b72d666e"
+            "__sha__": "4ba4361a8906f970"
           },
           "AD092": {
             "__n__": 2,
-            "__sha__": "bdc1284a046f7f31"
+            "__sha__": "f1b3364f33fd12b7"
           },
           "AD093": {
             "__n__": 2,
-            "__sha__": "79a0a3959a6364b3"
+            "__sha__": "47246ab57627b330"
           },
           "AD097": {
             "__n__": 2,
@@ -548,7 +585,7 @@
           },
           "AD098": {
             "__n__": 2,
-            "__sha__": "94e04071043542c9"
+            "__sha__": "492b80b876cbe4db"
           },
           "AD100": {
             "__n__": 2,
@@ -564,7 +601,7 @@
           },
           "AD110": {
             "__n__": 2,
-            "__sha__": "c38841e85f8c7d2e"
+            "__sha__": "bcd6f791117d35ae"
           },
           "AD112": {
             "__n__": 2,
@@ -916,8 +953,8 @@
           "term": ""
         }
       },
-      "total_rastreado": 427
+      "total_rastreado": 442
     },
-    "sha256": "59d9a216a2507605e2727c940d79a446d4d87a759b324fd22d357944cc95a7c6"
+    "sha256": "98a10a27f67facb0580ad8dd2de7aa8057e1f10b56099c9127c8b66f3e474532"
   }
 }

@@ -18,6 +18,11 @@ from typing import Any
 # precisam de mais que isso; o resto é ruído de reordenação de soma.
 PRECISAO = 4
 
+# Campos que, mesmo num lançamento FECHADO, dependem de outro lançamento que ainda está ABERTO e por isso mudam todo
+# dia sem nenhuma refatoração: `real_launch`/`real_launch_gasto` dizem em qual lançamento o anúncio de fato gastou
+# (o AD019 do PI-AGO-26 gasta hoje no PI-NOV-26 — em andamento). Ficam fora do digest (23/10/26).
+CAMPOS_VOLATEIS = frozenset({"real_launch", "real_launch_gasto"})
+
 
 def normalizar(valor: Any, _profundidade: int = 0) -> Any:
     """Converte ``valor`` em algo serializável em JSON, de forma determinística."""
@@ -52,6 +57,7 @@ def normalizar(valor: Any, _profundidade: int = 0) -> Any:
         return {
             str(k): normalizar(v, _profundidade + 1)
             for k, v in sorted(valor.items(), key=lambda kv: str(kv[0]))
+            if str(k) not in CAMPOS_VOLATEIS
         }
 
     if isinstance(valor, (set, frozenset)):

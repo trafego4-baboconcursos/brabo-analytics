@@ -562,6 +562,8 @@
 
     {# ── Ranking de Anúncios — YouTube (Google Ads) ─────────────────────── #}
     {% if youtube_ads_preq %}
+    {# Criativo: miniatura do Drive; sem ela (anúncio reaproveitado de outro lançamento), a do próprio vídeo do YouTube #}
+    {% set mostra_thumb = drive_thumbnails or (youtube_ads_preq | selectattr("video_id") | list) %}
     <div class="section">
       <div class="section-title"><i class="ti ti-trophy"></i> Ranking de Anúncios {{ plat_badge("YouTube") }}</div>
       <div class="table-wrap">
@@ -569,7 +571,7 @@
           <thead>
             <tr>
               <th class="th-youtube">#</th>
-              {% if drive_thumbnails %}<th class="th-youtube">Criativo</th>{% endif %}
+              {% if mostra_thumb %}<th class="th-youtube">Criativo</th>{% endif %}
               <th class="th-youtube">AD Code</th>
               <th class="th-youtube">Nome do Anúncio</th>
               <th class="th-youtube">Leads</th>
@@ -589,7 +591,7 @@
             {% set td = drive_thumbnails.get(a.ad_code) if drive_thumbnails else None %}
             <tr class="{{ 'top3' if loop.index <= 3 else '' }}">
               <td class="numero">{{ loop.index }}</td>
-              {% if drive_thumbnails %}
+              {% if mostra_thumb %}
               <td style="padding:4px 6px;">
                 {% if td %}
                 <img src="{{ td.thumb }}" alt="{{ a.ad_code }}"
@@ -603,6 +605,12 @@
                      style="width:64px;height:42px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);cursor:pointer;display:block"
                      onclick="openVideoModalFromEl(this)"
                      onerror="this.style.display='none'">
+                {% elif a.video_id %}
+                <a href="https://www.youtube.com/watch?v={{ a.video_id }}" target="_blank" rel="noopener" title="Abrir no YouTube">
+                  <img src="https://i.ytimg.com/vi/{{ a.video_id }}/mqdefault.jpg" alt="{{ a.ad_code }}" loading="lazy"
+                       style="width:64px;height:42px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);display:block"
+                       onerror="this.style.display='none'">
+                </a>
                 {% else %}
                 <div style="width:64px;height:42px;border-radius:5px;border:1px dashed var(--bs-border-s);background:var(--bs-accent-bg);display:flex;align-items:center;justify-content:center">
                   <i class="ti ti-photo-off" style="color:var(--bs-ink-subtle);font-size:16px"></i>
@@ -640,7 +648,7 @@
               {% set tot.v50 = tot.v50 + (a.viram_50 or 0) %}
             {% endfor %}
             <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
-              <td colspan="{{ 3 if drive_thumbnails else 2 }}">TOTAL</td>
+              <td colspan="{{ 3 if mostra_thumb else 2 }}">TOTAL</td>
               <td class="numero">{{ tot.leads | num }}</td>
               <td class="numero">{{ (tot.gasto / tot.leads) | brl if tot.leads > 0 else "–" }}</td>
               <td class="numero">{{ tot.gasto | brl }}</td>

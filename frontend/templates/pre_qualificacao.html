@@ -543,7 +543,7 @@
               {% set tot.v50c = tot.v50c + (a.views_50_c_alcance or 0) %}
             {% endfor %}
             <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
-              <td colspan="{{ 3 if drive_thumbnails else 2 }}">TOTAL</td>
+              <td colspan="{{ 4 if drive_thumbnails else 3 }}">TOTAL</td>
               <td class="numero">{{ tot.leads | num }}</td>
               <td class="numero">{{ (tot.gasto / tot.leads) | brl if tot.leads > 0 else "–" }}</td>
               <td class="numero">{{ tot.gasto | brl }}</td>
@@ -648,7 +648,7 @@
               {% set tot.v50 = tot.v50 + (a.viram_50 or 0) %}
             {% endfor %}
             <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
-              <td colspan="{{ 3 if mostra_thumb else 2 }}">TOTAL</td>
+              <td colspan="{{ 4 if mostra_thumb else 3 }}">TOTAL</td>
               <td class="numero">{{ tot.leads | num }}</td>
               <td class="numero">{{ (tot.gasto / tot.leads) | brl if tot.leads > 0 else "–" }}</td>
               <td class="numero">{{ tot.gasto | brl }}</td>

@@ -2,7 +2,7 @@
 titulo: "Metodologia de Extração e Atribuição de Dados por Lançamento"
 area: sistema
 status: vigente
-atualizado: 2026-10-10
+atualizado: 2026-10-23
 responde:
   - "como e medido o carregamento da pagina dos anuncios"
   - "o que e landing page view"
@@ -93,6 +93,9 @@ relacionados:
 >
 >
 > **17. Alcance, retenção e engajamento do Meta; "% Viram 50%" (23/10/26)**
+>
+>
+> **18. Topo do funil da pesquisa: aberturas e inícios, não "quem recebeu" (23/10/26)**
 >
 
 <!-- SUMARIO:FIM -->
@@ -561,3 +564,15 @@ A regra geral de `_parcela_unica_info` (webhook com `quantidade_de_cobrancas` pr
 - **% Viram 50% (Google)** = (visualizações TrueView × taxa de 50%) ÷ visualizações. O `video_views_50` gravado do Google é impressões × taxa; a taxa de cada linha volta de `video_views_50 ÷ impressões`.
 - **Tempo médio assistido** é média do dia: para agregar, ponderar pelas visualizações de 3s (`video_views_3s`), nunca média simples.
 - **Quando a coleta vale:** o scheduler (janela móvel de 3 dias) passa a preencher sozinho; o histórico anterior só ganha os campos com recarga (`etl/etl_meta_ads.py --since --until --launch-code`; a CA2 exige janelas de 7 dias).
+
+## 18. Topo do funil da pesquisa: aberturas e inícios, não "quem recebeu" (23/10/26)
+
+**Quem recebeu a pesquisa não existe no banco.** O disparo é template de WhatsApp (`pesquisa_24x`, `pesquisa_alunos_black`…, planejados em `bflow_disparos`, que não tem contagem), e `whatsapp_messages_daily` só guarda enviados/entregues **por dia e por número**, misturando todos os templates. O AC também não tem. Ter o número real exige um ETL das estatísticas por template da Meta (WhatsApp Business) — não feito.
+
+O topo do funil do /pesquisas usa o contador do próprio formulário (`_contar_aberturas`):
+
+- **Abriram a pesquisa** = `formularios.visualizacoes` (sistema novo, soma dos formulários do lançamento) + `typeform_insights(_2).total_visits` (backup do Typeform). Conta **abertura**, não pessoa: quem reabriu conta de novo.
+- **Começaram a responder** = `formularios.inicios`. O Typeform não guardou inícios; no sistema novo só ~1/4 dos formulários tem o campo preenchido. Zero vira "sem dado".
+- **Abriu → Respondeu** = respondentes únicos ÷ aberturas.
+
+Exemplo PES-NOV-26 (form 487): 215 aberturas → 190 inícios → 148 envios → 147 respondentes únicos.

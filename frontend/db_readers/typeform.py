@@ -658,6 +658,32 @@ def read_typeform_count(launch_folder_or_code: Any) -> int:
     return total
 
 
+def _contar_aberturas(code: str, proj_id: str) -> tuple[int | None, int | None]:
+    """Topo do funil da pesquisa: (aberturas do link, inícios de preenchimento).
+
+    Quem *recebeu* a pesquisa não existe no banco — o disparo é template de
+    WhatsApp e whatsapp_messages_daily só tem o total do dia por número. O
+    mais perto disso é o contador do próprio formulário: `visualizacoes` e
+    `inicios` no sistema novo, `total_visits` no backup do Typeform (que não
+    guardou inícios). Aberturas contam reabertura, não pessoa. Zero vira None:
+    formulário que não registra (inícios só vem preenchido em ~1/4 deles)."""
+    fids = _resolve_novo_sistema_formulario_ids(code)
+    with _get_engine().connect() as conn:
+        vis, ini = conn.execute(
+            text("SELECT sum(visualizacoes), sum(inicios) FROM formularios WHERE id = ANY(:fids)"),
+            {"fids": fids},
+        ).fetchone() if fids else (None, None)
+        visitas_tf = conn.execute(
+            text("SELECT sum(total_visits) FROM "
+                 "(SELECT form_id, total_visits FROM typeform_insights "
+                 " UNION ALL SELECT form_id, total_visits FROM typeform_insights_2) ti "
+                 "WHERE upper(ti.form_id) = :fid"),
+            {"fid": proj_id.upper()},
+        ).scalar()
+    vis_total = int(vis or 0) + int(visitas_tf or 0)
+    return (vis_total or None), (int(ini or 0) or None)
+
+
 def read_typeform(launch_folder_or_code: Any, start_date=None, end_date=None) -> TypeformSummary:
     # Import dentro da função: sales → launches → typeform → sales é um ciclo.
     from frontend.db_readers.sales import read_vendas  # noqa: PLC0415
@@ -705,6 +731,7 @@ def read_typeform(launch_folder_or_code: Any, start_date=None, end_date=None) ->
     summary.has_data = True
     summary.total_tf_raw = tf_raw_count + len(novo_df)
     summary.total_tf = len(tf_df)
+    summary.tf_visualizacoes, summary.tf_inicios = _contar_aberturas(code, proj_id)
 
     # Confrontar pesquisas
     registros_alunos: list[dict[str, Any]] = []

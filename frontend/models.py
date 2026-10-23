@@ -352,6 +352,10 @@ class ConsolidadoVendasSummary:
 @dataclass
 class TypeformSummary:
     has_data: bool = False
+    # Topo do funil: aberturas do link e inícios de preenchimento, contados pelo
+    # próprio formulário (None = o formulário não registra; 0 vira None).
+    tf_visualizacoes: int | None = None
+    tf_inicios: int | None = None
     total_tf_raw: int = 0
     total_tf: int = 0
     tf_leads_crm: int = 0

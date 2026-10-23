@@ -492,43 +492,48 @@
       {% set crm_buyers = tf.tf_compras_crm | default(0) %}
       {% set buyers_total = tf.tf_compras | default(0) %}
       {% set sem_vendas = (tf.vendas_hotmart_total + tf.vendas_tmb_total) == 0 %}
-      {# Quem recebeu a pesquisa ainda não tem fonte no banco: a etapa aparece
-         com "—" e a etiqueta, e as taxas que dependem dela ficam em branco. #}
-      {% set recebidos = tf.tf_recebidos | default(None) %}
+      {# Quem *recebeu* não existe no banco (disparo por template de WhatsApp,
+         sem contagem por template) — o topo é o contador do próprio formulário:
+         aberturas do link e inícios. Etapa sem número mostra "—" + etiqueta, e
+         a conversão da seguinte compara com a última etapa que tem número. #}
+      {% set aberturas = tf.tf_visualizacoes | default(None) %}
+      {% set inicios = tf.tf_inicios | default(None) %}
       {% set etapas = [] %}
-      {% set _ = etapas.append({"titulo": "Receberam a pesquisa", "nota": "Contatos que receberam o link (e-mail / WhatsApp)", "valor": recebidos, "unidade": "receberam", "conv_sub": "base do funil", "sem_fonte": recebidos is none, "cor": "color-mix(in srgb, var(--bs-accent) 88%, #fff)"}) %}
-      {% if raw_total > unique_total %}
-        {% set _ = etapas.append({"titulo": "Respostas enviadas", "nota": "Todos os envios do formulário, inclusive repetidos", "valor": raw_total, "unidade": "respostas", "conv_sub": "taxa de resposta"}) %}
-      {% endif %}
-      {% set _ = etapas.append({"titulo": "Respondentes únicos", "nota": "Um por e-mail" ~ ("" if raw_total > unique_total else ", sem repetidos"), "valor": unique_total, "unidade": "respondentes", "conv_sub": ("da etapa anterior" if raw_total > unique_total else "taxa de resposta")}) %}
+      {% set _ = etapas.append({"titulo": "Abriram a pesquisa", "nota": "Vezes que o link foi aberto (conta reaberturas)", "valor": aberturas, "unidade": "aberturas", "conv_sub": "taxa de início", "cor": "color-mix(in srgb, var(--bs-accent) 76%, #fff)"}) %}
+      {% set _ = etapas.append({"titulo": "Começaram a responder", "nota": "Iniciaram o preenchimento do formulário", "valor": inicios, "unidade": "começaram", "conv_sub": "taxa de início", "cor": "color-mix(in srgb, var(--bs-accent) 88%, #fff)"}) %}
+      {% set _ = etapas.append({"titulo": "Respostas enviadas", "nota": "Todos os envios do formulário, inclusive repetidos", "valor": raw_total, "unidade": "respostas", "conv_sub": "concluíram"}) %}
+      {% set _ = etapas.append({"titulo": "Respondentes únicos", "nota": "Um por e-mail, sem repetidos", "valor": unique_total, "unidade": "respondentes", "conv_sub": "da etapa anterior"}) %}
       {% set _ = etapas.append({"titulo": "Leads no CRM", "nota": "Lead deste lançamento no Active Campaign (cruzado por e-mail)", "valor": crm_total, "unidade": "leads", "conv_sub": "da etapa anterior"}) %}
       {% set _ = etapas.append({"titulo": "Compradores", "nota": ("Sem vendas no lançamento ainda" if sem_vendas else "Respondentes que compraram (Hotmart + TMB)"), "valor": (None if sem_vendas else buyers_total), "unidade": "compras", "conv_sub": "da etapa anterior", "final": true, "cor": "var(--bs-success)"}) %}
       {% set n = etapas | length %}
       {% set passo = 56 / n %}
+      {% set ref = namespace(valor=None, titulo=None) %}
       <div class="pf-head"><span>ETAPA</span><span>CONVERSÃO</span><span>VOLUME</span></div>
       <div class="pf-funil">
         {% for e in etapas %}
         {% set topo = 100 - loop.index0 * passo %}
         {% set base = 100 - loop.index * passo %}
-        {% set ant = etapas[loop.index0 - 1].valor if not loop.first else None %}
+        {% set ant = ref.valor %}
+        {% set pulou = not loop.first and ref.titulo != etapas[loop.index0 - 1].titulo %}
         {# Etapas do meio escurecem 12% a cada degrau a partir da cor do lançamento #}
-        {% set cor = e.cor or "color-mix(in srgb, var(--bs-accent) " ~ (100 - (loop.index0 - 1) * 12) ~ "%, var(--bs-ink))" %}
+        {% set cor = e.cor or "color-mix(in srgb, var(--bs-accent) " ~ (100 - (loop.index0 - 2) * 12) ~ "%, var(--bs-ink))" %}
         <div class="pf-row{% if e.final %} final{% endif %}" style="--cor:{{ cor }};">
           <div class="pf-card">
-            <span class="pf-kicker">Etapa {{ loop.index }}{% if e.sem_fonte %} <span class="pf-tag">nova etapa · sem fonte ainda</span>{% endif %}</span>
+            <span class="pf-kicker">Etapa {{ loop.index }}{% if e.valor is none and not e.final %} <span class="pf-tag">sem dado neste formulário</span>{% endif %}</span>
             <strong>{{ e.titulo }}</strong>
             <span class="pf-nota">{{ e.nota }}</span>
           </div>
           <div class="pf-conv">
-            {% if loop.first %}
-              <span class="pf-conv-base">100%</span><small>{{ e.conv_sub }}</small>
+            {% if loop.first and e.valor is not none %}
+              <span class="pf-conv-base">100%</span><small>base do funil</small>
             {% elif e.valor is none or not ant %}
-              <span class="pf-conv-vazio">&mdash;</span><small>{{ e.conv_sub if not e.final else "sem dado ainda" }}</small>
+              <span class="pf-conv-vazio">&mdash;</span><small>{{ "sem dado ainda" if e.final or e.valor is none else e.conv_sub }}</small>
             {% else %}
-              <span class="pf-conv-pct">{{ ((100 * e.valor / ant) | pct).replace('.', ',') }}</span><small>{{ e.conv_sub }}</small>
+              <span class="pf-conv-pct">{{ ((100 * e.valor / ant) | pct).replace('.', ',') }}</span><small>{% if pulou %}vs {{ ref.titulo | lower }}{% else %}{{ e.conv_sub }}{% endif %}</small>
               {% if ant > e.valor %}<span class="pf-perda">&minus;{{ (ant - e.valor) | num }} no caminho</span>{% endif %}
             {% endif %}
           </div>
+          {% if e.valor is not none %}{% set ref.valor = e.valor %}{% set ref.titulo = e.titulo %}{% endif %}
           <div class="pf-stage">
             <div class="pf-shape" style="--topo:{{ topo }}%; --base:{{ base }}%;">
               <span class="pf-valor">{% if e.valor is none %}&mdash;{% else %}{{ e.valor | num }}{% endif %}</span>
@@ -539,11 +544,11 @@
         {% endfor %}
       </div>
       {% set taxa = namespace(rec_resp=None, resp_compra=None, crm_compra=None) %}
-      {% if recebidos and unique_total %}{% set taxa.rec_resp = 100 * unique_total / recebidos %}{% endif %}
+      {% if aberturas and unique_total %}{% set taxa.rec_resp = 100 * unique_total / aberturas %}{% endif %}
       {% if not sem_vendas and unique_total %}{% set taxa.resp_compra = 100 * buyers_total / unique_total %}{% endif %}
       {% if not sem_vendas and crm_total %}{% set taxa.crm_compra = 100 * crm_buyers / crm_total %}{% endif %}
       <div class="funil-rates">
-        {% for rotulo, v in [("Recebeu &rarr; Respondeu", taxa.rec_resp), ("Respondente &rarr; Compra", taxa.resp_compra), ("Lead CRM &rarr; Compra", taxa.crm_compra)] %}
+        {% for rotulo, v in [("Abriu &rarr; Respondeu", taxa.rec_resp), ("Respondente &rarr; Compra", taxa.resp_compra), ("Lead CRM &rarr; Compra", taxa.crm_compra)] %}
         <span class="funil-rate">{{ rotulo | safe }} <strong>{% if v is none %}&mdash;{% else %}{{ (v | pct).replace('.', ',') }}{% endif %}</strong></span>
         {% endfor %}
       </div>

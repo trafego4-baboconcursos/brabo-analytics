@@ -57,6 +57,9 @@ relacionados:
 > **Alerta de orçamento: lançamento em andamento sem etapas (2026-10-23)**
 >
 >
+> **Funil de respondentes do /pesquisas: 6 etapas, desenhado no Figma (2026-10-23)**
+>
+>
 > **Estrutura de Arquivos**
 >
 >
@@ -377,6 +380,10 @@ O aquecimento mantém o snapshot anterior quando um bloco falha (para a seção 
 ## Alerta de orçamento: lançamento em andamento sem etapas (2026-10-23)
 
 `etl/budget_alert.py` só acompanha lançamento com `launch_config.etapas`. Sem etapas ele pulava o lançamento em silêncio (PI-NOV-26 ficou de fora do Slack). Agora todo lançamento em andamento (janela do `dim_lancamentos` inclui hoje) sem etapas aparece na seção "Atenção" do relatório. Lançamento novo precisa de etapas provisionadas (ver `scripts/provisionar_etapas_pi_nov_26.py` como exemplo).
+
+## Funil de respondentes do /pesquisas: 6 etapas, desenhado no Figma (2026-10-23)
+
+O funil foi redesenhado pelo usuário no Figma (arquivo `nPp9UQvSncaBuVf0YQi9pl`, frame "proposta v2") e aplicado em `frontend/templates/pesquisas.html`: cartão da etapa | conversão | trapézio, linhas de altura fixa, cor por etapa (faixa do cartão = trapézio), "−N no caminho" e as taxas em pílulas. Etapas: **Abriram a pesquisa → Começaram a responder → Respostas enviadas → Respondentes únicos → Leads no CRM → Compradores**. As duas primeiras vêm de `TypeformSummary.tf_visualizacoes`/`tf_inicios`, preenchidos por `db_readers/typeform.py::_contar_aberturas` (regra em [[METODOLOGIA_EXTRACAO_DADOS]], seção 18). Etapa sem número mostra "—" com a etiqueta "sem dado neste formulário", e a conversão da seguinte compara com a última etapa que tem número ("vs abriram a pesquisa").
 
 ## Estrutura de Arquivos
 

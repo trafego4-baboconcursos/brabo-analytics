@@ -1,6 +1,21 @@
 {% extends "base.html" %}
 {% block content %}
 <style>
+  /* Obstáculos — grade de 8px (var(--s*)); colunas fixas pra barras alinharem */
+  .obst-table { table-layout: fixed; min-width: 720px; }
+  .obst-table .col-label    { width: 40%; }
+  .obst-table .col-bar      { width: 24%; }
+  .obst-table .col-diff     { width: 12%; }
+  .obst-table .col-bar-solo { width: 60%; }
+  .obst-table .pbar-wrap    { gap: var(--s3); }
+  .obst-table .pbar-track   { height: var(--s2); }
+  .obst-table .pbar-fill.neutro { background: var(--bs-border-s); }
+  .obst-table .pbar-val     { min-width: var(--s12); text-align: right; font-variant-numeric: tabular-nums; }
+  .obst-diff     { font-weight: 700; color: var(--bs-ink-muted); }
+  .obst-diff.pos { color: var(--bs-success); }
+  .obst-diff.neg { color: var(--bs-danger); }
+  .obst-nota { color: var(--bs-ink-muted); margin: 0 0 var(--s2); }
+
   .tf-funnel-proportional {
     display: grid;
     gap: 14px;
@@ -868,37 +883,62 @@
     </div>
     {% endif %}
 
-    <!-- Obstáculos Declarados -->
-    {% if tf.obstaculos_comp_pct %}
+    <!-- Obstáculos Declarados — .pbar-wrap como nas outras páginas: barra
+         flexível + valor de largura fixa, pra as barras alinharem entre linhas.
+         Sem venda não há comprador: a tabela vira uma coluna só (respondentes). -->
+    {% if tf.obstaculos_ncomp_pct %}
+    {% set tem_comp = tf.tf_compras > 0 %}
     <div class="section">
       <div class="section-title"><i class="ti ti-alert-triangle"></i> Obst&aacute;culos Declarados (Dificuldades nos Estudos)</div>
+      {% if not tem_comp %}
+      <p class="obst-nota">Ainda sem vendas: mostra a % de todos os respondentes que marcaram cada dificuldade. A compara&ccedil;&atilde;o com compradores aparece quando o carrinho abrir.</p>
+      {% endif %}
       <div class="table-wrap">
-        <table>
+        <table class="obst-table">
+          <colgroup>
+            <col class="col-label">
+            {% if tem_comp %}<col class="col-bar"><col class="col-bar"><col class="col-diff">{% else %}<col class="col-bar-solo">{% endif %}
+          </colgroup>
           <thead>
             <tr>
               <th>Dificuldade declarada</th>
-              <th style="text-align:right">Compradores</th>
-              <th style="text-align:right">N&atilde;o compradores</th>
-              <th style="text-align:right">Diferen&ccedil;a (pp)</th>
+              {% if tem_comp %}
+              <th>Compradores</th>
+              <th>N&atilde;o compradores</th>
+              <th>Diferen&ccedil;a</th>
+              {% else %}
+              <th>% dos respondentes</th>
+              {% endif %}
             </tr>
           </thead>
           <tbody>
-            {% for k, v in tf.obstaculos_comp_pct.items() %}
+            {% for k, nc_val in tf.obstaculos_ncomp_pct.items() %}
             <tr>
               <td><strong>{{ k }}</strong></td>
-              <td class="numero">
-                <strong>{{ v | pct }}</strong>
-                <div class="pbar-track" style="height:6px; width:150px; display:inline-block; margin-left:10px; vertical-align:middle;"><div class="pbar-fill" style="width:{{ v }}%;"></div></div>
-              </td>
-              {% set nc_val = tf.obstaculos_ncomp_pct.get(k, 0.0) %}
-              <td class="numero">
-                {{ nc_val | pct }}
-                <div class="pbar-track" style="height:6px; width:150px; display:inline-block; margin-left:10px; vertical-align:middle;"><div class="pbar-fill" style="background:var(--bs-border-s); width:{{ nc_val }}%;"></div></div>
-              </td>
+              {% if tem_comp %}
+              {% set v = tf.obstaculos_comp_pct.get(k, 0.0) %}
               {% set diff = tf.obstaculos_diff.get(k, 0.0) %}
-              <td class="numero" style="font-weight:700; color: {% if diff > 0 %}var(--bs-success){% elif diff < 0 %}var(--bs-danger){% else %}var(--bs-ink-muted){% endif %};">
-                {{ "%+d" | format(diff | round(0) | int) }} pp
+              <td>
+                <div class="pbar-wrap">
+                  <div class="pbar-track"><div class="pbar-fill" style="width:{{ v | round(1) }}%"></div></div>
+                  <strong class="pbar-val">{{ v | pct }}</strong>
+                </div>
               </td>
+              <td>
+                <div class="pbar-wrap">
+                  <div class="pbar-track"><div class="pbar-fill neutro" style="width:{{ nc_val | round(1) }}%"></div></div>
+                  <span class="pbar-val">{{ nc_val | pct }}</span>
+                </div>
+              </td>
+              <td class="numero obst-diff {% if diff > 0 %}pos{% elif diff < 0 %}neg{% endif %}">{{ "%+d" | format(diff | round(0) | int) }} pp</td>
+              {% else %}
+              <td>
+                <div class="pbar-wrap">
+                  <div class="pbar-track"><div class="pbar-fill" style="width:{{ nc_val | round(1) }}%"></div></div>
+                  <strong class="pbar-val">{{ nc_val | pct }}</strong>
+                </div>
+              </td>
+              {% endif %}
             </tr>
             {% endfor %}
           </tbody>

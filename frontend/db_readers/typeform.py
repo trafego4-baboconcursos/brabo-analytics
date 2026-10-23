@@ -807,9 +807,13 @@ def read_typeform(launch_folder_or_code: Any, start_date=None, end_date=None) ->
     summary.idade_comp_pct, summary.idade_ncomp_pct, summary.idade_diff = comp_ncomp_distribution("idade")
     summary.graton_comp_pct, summary.graton_ncomp_pct, summary.graton_diff = comp_ncomp_distribution("felipe graton")
 
-    if not novo_df.empty:
-        perguntas = _read_novo_sistema_perguntas_escolha(_resolve_novo_sistema_formulario_ids(code))
-        summary.respostas_gerais = _distribuicao_perguntas(perguntas, tf_df, tf_comp)
+    perguntas = (_read_novo_sistema_perguntas_escolha(_resolve_novo_sistema_formulario_ids(code))
+                 if not novo_df.empty else [])
+    # A pergunta de preocupações vira a tabela de Obstáculos (abaixo) — não
+    # repete no grid geral.
+    p_obst = next((p for p in perguntas if "preocupa" in _norm_text(p["titulo"])), None)
+    summary.respostas_gerais = _distribuicao_perguntas(
+        [p for p in perguntas if p is not p_obst], tf_df, tf_comp)
 
     # Obstáculos
     obstaculos = [
@@ -860,7 +864,25 @@ def read_typeform(launch_folder_or_code: Any, start_date=None, end_date=None) ->
         obst_ncomp[label] = val_ncomp
         obst_diff[label] = val_comp - val_ncomp
 
-    sorted_obst = sorted(obst_comp.keys(), key=lambda x: obst_comp[x], reverse=True)
+    # Pesquisa interna: as opções vêm do formulário, não da lista fixa acima
+    # (herdada do Typeform). A lista fixa mostrava 0% pra opção que o
+    # formulário não tem ("Sem dinheiro" no PES-NOV-26) e ignorava a que ele
+    # tem e ela não conhece ("Estou velho..."). Opção que casa com um rótulo
+    # da lista fica com o rótulo curto — os insights e os ganchos de copy
+    # leem por ele.
+    if p_obst:
+        bloco = _distribuicao_perguntas([p_obst], tf_ncomp if not tf_ncomp.empty else tf_df, tf_comp)
+        if bloco:
+            obst_comp, obst_ncomp, obst_diff = {}, {}, {}
+            for o in bloco[0]["opcoes"]:
+                op_norm = _norm_text(o["opcao"])
+                label = next((lbl for lbl, pats in obstaculos
+                              if any(_norm_text(pat) in op_norm for pat in pats)), o["opcao"])
+                obst_comp[label] = o["pct_comp"] or 0.0
+                obst_ncomp[label] = o["pct"]
+                obst_diff[label] = obst_comp[label] - o["pct"]
+
+    sorted_obst = sorted(obst_comp.keys(), key=lambda x: (obst_comp[x], obst_ncomp[x]), reverse=True)
     summary.obstaculos_comp_pct = {k: obst_comp[k] for k in sorted_obst}
     summary.obstaculos_ncomp_pct = {k: obst_ncomp[k] for k in sorted_obst}
     summary.obstaculos_diff = {k: obst_diff[k] for k in sorted_obst}

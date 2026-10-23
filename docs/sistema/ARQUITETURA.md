@@ -1534,6 +1534,14 @@ número de preenchimentos, embora as 20 perguntas estivessem no banco.
   também. Só sistema novo: lançamento do Typeform legado não ganha o bloco.
 - `pesquisas.html` — novo bloco "Respostas da Pesquisa — Todos os Respondentes"; o bloco
   "Perfil Demográfico — Compradores vs Não Compradores" só aparece com `tf_compras > 0`.
+- **Obstáculos (mesmo dia):** a tabela usava uma lista fixa de 9 dificuldades herdada do
+  Typeform. Na pesquisa interna ela mostrava 0% para opção que o formulário não tem ("Sem
+  dinheiro" no PES-NOV-26) e ignorava a que ele tem ("Estou velho para começar..."). Agora,
+  quando há pergunta de preocupações no formulário, as linhas vêm das opções dele; a opção que
+  casa com um padrão da lista fixa mantém o rótulo curto (os insights de IA e os ganchos de
+  copy leem por ele). Essa pergunta sai do grid geral para não repetir. Layout: `.pbar-wrap`
+  com valor de largura fixa (barras alinhadas), colunas fixas, espaçamento em `var(--s*)`;
+  sem venda vira uma coluna só, "% dos respondentes".
 
 
 ## Calendário de lançamentos — fonte das datas-padrão (2026-09-14)

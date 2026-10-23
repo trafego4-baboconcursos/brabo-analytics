@@ -10,6 +10,7 @@ Extraído da rota pra ser usado em dois lugares:
 from __future__ import annotations
 
 import asyncio
+import sys
 import time
 from datetime import datetime, timezone
 from typing import Any
@@ -62,7 +63,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
     # Blocos que falharam nesta montagem (além dos _errors do _fetch_all_data).
     # O snapshot usa isso pra não gravar por cima de um snapshot completo com
     # um degradado por falha transitória (pooler caiu, consulta estourou).
-    falhas: list[str] = list(data_errors)
+    falhas: list[str] = _Falhas(data_errors)
 
     # Blocos independentes entre si (só dependem do que já foi buscado acima):
     # rodam em paralelo.
@@ -433,6 +434,22 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
 ULTIMA_FALHA: dict[str, dict] = {}
 
 
+class _Falhas(list):
+    """Lista dos blocos que falharam. Como cada bloco chama `falhas.append("nome")` DENTRO do `except`, o append
+    aproveita a exceção ativa (`sys.exc_info`) e guarda o texto do erro em `detalhes` — sem mexer nos ~22 blocos.
+    O texto vai para o aviso do vigia (antes só aparecia o nome do bloco e o motivo ficava no log do servidor)."""
+
+    def __init__(self, *a):
+        super().__init__(*a)
+        self.detalhes: dict[str, str] = {}
+
+    def append(self, nome):
+        super().append(nome)
+        exc = sys.exc_info()[1]
+        if exc is not None:
+            self.detalhes[nome] = f"{type(exc).__name__}: {str(exc)[:240]}"
+
+
 async def refresh_debriefing_snapshot(launch: Any, launches: list) -> None:
     """Calcula o contexto completo (tudo inline) e grava em debriefing_snapshot.
     Chamado pelo aquecimento, com os caches já quentes — custa só a montagem.
@@ -452,7 +469,8 @@ async def refresh_debriefing_snapshot(launch: Any, launches: list) -> None:
     duration_ms = int((time.perf_counter() - t0) * 1000)
     falhas = built.get("falhas") or []
     if falhas:
-        ULTIMA_FALHA[launch.code] = {"quando": datetime.now(timezone.utc), "blocos": list(falhas), "erro": None}
+        ULTIMA_FALHA[launch.code] = {"quando": datetime.now(timezone.utc), "blocos": list(falhas), "erro": None,
+                                     "detalhes": dict(getattr(falhas, "detalhes", {}) or {})}
         existente = await run_in_threadpool(read_snapshot, launch.code)
         if existente:
             logger.warning("Snapshot do debriefing de %s NÃO regravado: falhas em %s (mantido o de %s).",

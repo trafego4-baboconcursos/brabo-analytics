@@ -129,7 +129,9 @@ def avaliar(ultimas_ok: dict[str, datetime | None],
         if agora - calculado > timedelta(hours=SNAPSHOT_LIMITE_H):
             f = (falhas or {}).get(codigo)
             if f and f.get("blocos"):
-                motivo = f"o aquecimento falhou nos blocos {', '.join(f['blocos'])} (última tentativa {_local(f['quando'])})"
+                det = f.get("detalhes") or {}
+                blocos = ", ".join(f"{b} [{det[b]}]" if b in det else b for b in f["blocos"])
+                motivo = f"o aquecimento falhou nos blocos {blocos} (última tentativa {_local(f['quando'])})"
             elif f and f.get("erro"):
                 motivo = f"o aquecimento deu erro: {f['erro']} (última tentativa {_local(f['quando'])})"
             else:

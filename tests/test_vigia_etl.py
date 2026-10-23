@@ -129,3 +129,22 @@ def test_mensagem_de_snapshot_nao_diz_que_o_etl_parou():
     assert "Debriefing desatualizado" in msg and "ETL parado" not in msg and "ao_vivo=1" in msg
     msg = v._mensagem_problema([{"tipo": "etl_parado", "fonte": "meta_ads", "texto": "x"}], lembrete=False)
     assert "ETL parado" in msg and "ao_vivo" not in msg
+
+
+def test_aviso_traz_o_texto_do_erro_do_bloco():
+    falhas = {"BV-26": {"quando": AGORA, "blocos": ["caminho_comprador", "leads"], "erro": None,
+                        "detalhes": {"caminho_comprador": "KeyError: 'phone_por_email'"}}}
+    p = v.avaliar(_frescas(), AGORA - timedelta(minutes=10), AGORA, snapshots={"BV-26": AGORA - timedelta(hours=5)}, falhas=falhas)
+    assert "caminho_comprador [KeyError: 'phone_por_email']" in p[0]["texto"] and ", leads (" in p[0]["texto"]
+
+
+def test_lista_de_falhas_guarda_o_erro_ativo():
+    from frontend.services.debriefing_build import _Falhas
+
+    f = _Falhas()
+    try:
+        raise ValueError("boom")
+    except Exception:
+        f.append("bloco_x")
+    f.append("sem_excecao")          # fora de um except: só o nome
+    assert list(f) == ["bloco_x", "sem_excecao"] and f.detalhes == {"bloco_x": "ValueError: boom"}

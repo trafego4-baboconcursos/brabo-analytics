@@ -233,8 +233,10 @@
               <th class="th-google">Etapa</th>
               <th class="th-google">Investimento</th>
               <th class="th-google">% Verba</th>
-              <th class="th-google">Conversões</th>
-              <th class="th-google">Custo/Conv</th>
+              <th class="th-google">Leads</th>
+              <th class="th-google">CPL</th>
+              <th class="th-google" title="Visualizações do vídeo (TrueView)">Visualizações</th>
+              <th class="th-google" title="Investimento ÷ visualizações">Custo/View</th>
               <th class="th-google" title="Visualizações do vídeo × taxa de 50% do vídeo (como na planilha de controle)">Viram 50%</th>
               <th class="th-google" title="Viram 50% ÷ visualizações do vídeo">% Viram 50%</th>
             </tr>
@@ -255,6 +257,8 @@
               </td>
               <td class="numero">{{ "%.0f"|format(d.conversoes) }}</td>
               <td class="numero">{{ d.custo_conv | brl if d.conversoes > 0 else "–" }}</td>
+              <td class="numero">{{ d.visualizacoes | num if d.visualizacoes > 0 else "–" }}</td>
+              <td class="numero">{{ (d.custo / d.visualizacoes) | brl(3) if d.visualizacoes > 0 else "–" }}</td>
               <td class="numero">{{ d.views_50 | num if d.views_50 > 0 else "–" }}</td>
               <td class="numero">{{ d.pct_views_50 | pct if d.views_50 > 0 else "–" }}</td>
             </tr>
@@ -482,6 +486,10 @@
               <th class="th-meta">Investimento</th>
               <th class="th-meta">CTR</th>
               <th class="th-meta">CPM</th>
+              <th class="th-meta">ThruPlays</th>
+              <th class="th-meta">Custo/ThruPlay</th>
+              <th class="th-meta" title="Pessoas que assistiram 50% do vídeo">Viram 50%</th>
+              <th class="th-meta" title="Viram 50% ÷ alcance (só dias com alcance coletado)">% Viram 50%</th>
             </tr>
           </thead>
           <tbody>
@@ -517,14 +525,22 @@
               <td class="numero">{{ a.gasto | brl }}</td>
               <td class="numero">{{ a.ctr | pct(2) }}</td>
               <td class="numero">{{ a.cpm | brl }}</td>
+              <td class="numero">{{ a.thruplays | num if a.thruplays > 0 else "–" }}</td>
+              <td class="numero">{{ a.custo_thruplay | brl(3) if a.thruplays > 0 else "–" }}</td>
+              <td class="numero">{{ a.views_50 | num if a.views_50 > 0 else "–" }}</td>
+              <td class="numero">{{ a.pct_views_50 | pct(2) if a.alcance > 0 and a.pct_views_50 > 0 else "–" }}</td>
             </tr>
             {% endfor %}
-            {% set tot = namespace(leads=0, gasto=0, cliques=0, impressoes=0) %}
+            {% set tot = namespace(leads=0, gasto=0, cliques=0, impressoes=0, thru=0, v50=0, alcance=0, v50c=0) %}
             {% for a in meta_ads_preq %}
               {% set tot.leads = tot.leads + a.leads %}
               {% set tot.gasto = tot.gasto + a.gasto %}
               {% set tot.cliques = tot.cliques + (a.cliques or 0) %}
               {% set tot.impressoes = tot.impressoes + (a.impressoes or 0) %}
+              {% set tot.thru = tot.thru + (a.thruplays or 0) %}
+              {% set tot.v50 = tot.v50 + (a.views_50 or 0) %}
+              {% set tot.alcance = tot.alcance + (a.alcance or 0) %}
+              {% set tot.v50c = tot.v50c + (a.views_50_c_alcance or 0) %}
             {% endfor %}
             <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
               <td colspan="{{ 3 if drive_thumbnails else 2 }}">TOTAL</td>
@@ -533,6 +549,10 @@
               <td class="numero">{{ tot.gasto | brl }}</td>
               <td class="numero">{{ (tot.cliques / tot.impressoes * 100) | pct(2) if tot.impressoes > 0 else "–" }}</td>
               <td class="numero">{{ (tot.gasto / tot.impressoes * 1000) | brl if tot.impressoes > 0 else "–" }}</td>
+              <td class="numero">{{ tot.thru | num if tot.thru > 0 else "–" }}</td>
+              <td class="numero">{{ (tot.gasto / tot.thru) | brl(3) if tot.thru > 0 else "–" }}</td>
+              <td class="numero">{{ tot.v50 | num if tot.v50 > 0 else "–" }}</td>
+              <td class="numero">{{ (tot.v50c / tot.alcance * 100) | pct(2) if tot.alcance > 0 and tot.v50c > 0 else "–" }}</td>
             </tr>
           </tbody>
         </table>
@@ -552,11 +572,15 @@
               {% if drive_thumbnails %}<th class="th-youtube">Criativo</th>{% endif %}
               <th class="th-youtube">AD Code</th>
               <th class="th-youtube">Nome do Anúncio</th>
-              <th class="th-youtube">Conv.</th>
-              <th class="th-youtube">CPA</th>
+              <th class="th-youtube">Leads</th>
+              <th class="th-youtube">CPL</th>
               <th class="th-youtube">Investimento</th>
               <th class="th-youtube">CTR</th>
               <th class="th-youtube">CPM</th>
+              <th class="th-youtube" title="Visualizações do vídeo (TrueView)">Visualizações</th>
+              <th class="th-youtube" title="Investimento ÷ visualizações">Custo/View</th>
+              <th class="th-youtube" title="Visualizações × taxa de 50% do vídeo">Viram 50%</th>
+              <th class="th-youtube" title="Viram 50% ÷ visualizações">% Viram 50%</th>
               <th class="th-youtube">Vídeo</th>
             </tr>
           </thead>
@@ -593,6 +617,10 @@
               <td class="numero">{{ a.gasto | brl }}</td>
               <td class="numero">{{ a.ctr | pct(2) }}</td>
               <td class="numero">{{ a.cpm | brl }}</td>
+              <td class="numero">{{ a.video_views | num if a.video_views > 0 else "–" }}</td>
+              <td class="numero">{{ a.custo_view | brl(3) if a.video_views > 0 else "–" }}</td>
+              <td class="numero">{{ a.viram_50 | num if a.viram_50 > 0 else "–" }}</td>
+              <td class="numero">{{ a.pct_viram_50 | pct(2) if a.viram_50 > 0 else "–" }}</td>
               <td>
                 {% if a.video_id %}
                 <a href="https://www.youtube.com/watch?v={{ a.video_id }}" target="_blank" class="td-google" style="font-size:11px;text-decoration:none">
@@ -602,12 +630,14 @@
               </td>
             </tr>
             {% endfor %}
-            {% set tot = namespace(leads=0, gasto=0, cliques=0, impressoes=0) %}
+            {% set tot = namespace(leads=0, gasto=0, cliques=0, impressoes=0, views=0, v50=0) %}
             {% for a in youtube_ads_preq %}
               {% set tot.leads = tot.leads + a.leads %}
               {% set tot.gasto = tot.gasto + a.gasto %}
               {% set tot.cliques = tot.cliques + (a.cliques or 0) %}
               {% set tot.impressoes = tot.impressoes + (a.impressoes or 0) %}
+            {% set tot.views = tot.views + (a.video_views or 0) %}
+              {% set tot.v50 = tot.v50 + (a.viram_50 or 0) %}
             {% endfor %}
             <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
               <td colspan="{{ 3 if drive_thumbnails else 2 }}">TOTAL</td>
@@ -616,6 +646,10 @@
               <td class="numero">{{ tot.gasto | brl }}</td>
               <td class="numero">{{ (tot.cliques / tot.impressoes * 100) | pct(2) if tot.impressoes > 0 else "–" }}</td>
               <td class="numero">{{ (tot.gasto / tot.impressoes * 1000) | brl if tot.impressoes > 0 else "–" }}</td>
+              <td class="numero">{{ tot.views | num if tot.views > 0 else "–" }}</td>
+              <td class="numero">{{ (tot.gasto / tot.views) | brl(3) if tot.views > 0 else "–" }}</td>
+              <td class="numero">{{ tot.v50 | num if tot.v50 > 0 else "–" }}</td>
+              <td class="numero">{{ (tot.v50 / tot.views * 100) | pct(2) if tot.views > 0 and tot.v50 > 0 else "–" }}</td>
               <td></td>
             </tr>
           </tbody>

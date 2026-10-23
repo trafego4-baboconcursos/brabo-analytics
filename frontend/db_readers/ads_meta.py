@@ -557,7 +557,8 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
         temperatura=("temperatura", "first"), bucket=("bucket", "first"),
         gasto=("spend", "sum"), impressoes=("impressions", "sum"),
         cliques=("clicks", "sum"), leads=("leads", "sum"),
-        thruplays=("video_thruplays", "sum"), views_50=("video_views_50", "sum")
+        thruplays=("video_thruplays", "sum"), views_50=("video_views_50", "sum"),
+        alcance=("reach", "sum"), views_50_c_alcance=("views_50_c_alcance", "sum"),
     ).reset_index()
 
     for _, r in ad_grouped.iterrows():
@@ -594,7 +595,11 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
             "ctr": c.ctr,
             "cpm": c.cpm,
             "thruplays": c.thruplays,
+            "custo_thruplay": c.custo_thruplay,
             "views_50": int(r["views_50"]),
+            "alcance": int(r["alcance"]),
+            "views_50_c_alcance": int(r["views_50_c_alcance"]),
+            "pct_views_50": float(r["views_50_c_alcance"] / r["alcance"] * 100) if r["alcance"] > 0 else 0.0,
             "cliques": c.cliques,
             "impressoes": c.impressoes,
             "origem": "Meta Ads",

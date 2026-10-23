@@ -137,6 +137,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
         agg_cols["views_100"] = ("video_views_100", "sum")
     if "video_views_50" in df.columns:
         agg_cols["views_50"] = ("video_views_50", "sum")
+    agg_cols["viram_50"] = ("views_50_tv", "sum")   # visualizações × taxa de 50% (como na planilha de controle)
     # Ver ads_meta.py: a variação autogerada do Google é o MESMO criativo com
     # nome embrulhado — normalizar antes do groupby une ao anúncio principal.
     df["ad_name"] = df["ad_name"].map(limpar_nome_ad)
@@ -165,6 +166,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
         vviews = int(r["video_views"])
         views_100 = int(r["views_100"]) if "views_100" in r else 0
         views_50 = int(r["views_50"]) if "views_50" in r else 0
+        viram_50 = int(round(r["viram_50"]))
         video_id = _video_id_by_ad_name.get(name)
         if not video_id:
             for k, v in _video_id_by_ad_name.items():
@@ -185,6 +187,9 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
             "video_views": vviews,
             "video_views_100": views_100,
             "views_50": views_50,
+            "viram_50": viram_50,
+            "pct_viram_50": viram_50 / vviews * 100 if vviews > 0 else 0.0,
+            "custo_view": gasto / vviews if vviews > 0 else 0.0,
             "hook_rate": vviews / impr * 100 if impr > 0 else 0.0,
             "body_rate": views_100 / vviews * 100 if vviews > 0 else 0.0,
             "origem": "Google Ads",

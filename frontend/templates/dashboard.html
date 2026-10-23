@@ -656,8 +656,10 @@
               <th class="th-google">Etapa</th>
               <th class="th-google">Investimento</th>
               <th class="th-google">% Verba</th>
-              <th class="th-google">Conversões</th>
-              <th class="th-google">Custo/Conv</th>
+              <th class="th-google">Leads</th>
+              <th class="th-google">CPL</th>
+              <th class="th-google" title="Visualizações do vídeo (TrueView)">Visualizações</th>
+              <th class="th-google" title="Investimento ÷ visualizações">Custo/View</th>
               <th class="th-google" title="Visualizações do vídeo × taxa de 50% do vídeo (como na planilha de controle)">Viram 50%</th>
               <th class="th-google" title="Viram 50% ÷ visualizações do vídeo">% Viram 50%</th>
             </tr>
@@ -678,6 +680,8 @@
               </td>
               <td class="numero">{{ "%.0f"|format(d.conversoes) }}</td>
               <td class="numero">{{ d.custo_conv | brl if d.conversoes > 0 else "–" }}</td>
+              <td class="numero">{{ d.visualizacoes | num if d.visualizacoes > 0 else "–" }}</td>
+              <td class="numero">{{ (d.custo / d.visualizacoes) | brl(3) if d.visualizacoes > 0 else "–" }}</td>
               <td class="numero">{{ d.views_50 | num if d.views_50 > 0 else "–" }}</td>
               <td class="numero">{{ d.pct_views_50 | pct if d.views_50 > 0 else "–" }}</td>
             </tr>

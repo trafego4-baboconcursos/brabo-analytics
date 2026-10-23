@@ -295,8 +295,13 @@ async def pre_qualificacao(request: Request, launch_code: str | None = None):
             "pct_leads": r["leads"] / total_leads_camp_preq * 100,
         })
 
+    # Verba PROJETADA da etapa por plataforma (launch_config.etapas) — a linha da etapa mostra "gasto de projetado".
+    from frontend.services.verba_projetada import verba_projetada_da_etapa  # noqa: PLC0415
+    _cfg_pq = await run_in_threadpool(_launch_cfg, launch.code) if launch else {}
+    verba_proj_pq = verba_projetada_da_etapa(_cfg_pq, _etapa_pq)
+
     ctx = _base_ctx(request, "pre_qualificacao", _etapa_pq, launch, launches,
-        meta=meta, google=google,
+        meta=meta, google=google, verba_proj_pq=verba_proj_pq,
         # Rótulo da etapa: "Aquecimento" na Black. O template usa em todo título.
         etapa_pq=_etapa_pq,
         daily_breakdown_preq=daily_breakdown_preq,

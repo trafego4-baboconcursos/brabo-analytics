@@ -160,13 +160,25 @@
             <tr>
               <td><span class="bs-pill meta">{{ etapa_pq }}</span></td>
               <td class="numero">{{ et_m.gasto | brl }}</td>
+              {% set proj = verba_proj_pq.meta if verba_proj_pq else None %}
               <td>
+                {% if proj %}
+                {% set pct_proj = (et_m.gasto / proj * 100) %}
+                <div class="pbar-wrap">
+                  <div class="pbar-track" style="max-width:80px">
+                    <div class="pbar-fill meta" style="width:{{ [pct_proj, 100] | min | round(1) }}%;"></div>
+                  </div>
+                  <span class="td-meta" style="font-weight:700;font-size:12px">{{ pct_proj | pct }}</span>
+                </div>
+                <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:2px;">{{ et_m.gasto | brl }} de {{ proj | brl }} projetados</div>
+                {% else %}
                 <div class="pbar-wrap">
                   <div class="pbar-track" style="max-width:80px">
                     <div class="pbar-fill meta" style="width:{{ (et_m.gasto / total_meta * 100) | round(1) }}%;"></div>
                   </div>
                   <span class="td-meta" style="font-weight:700;font-size:12px">{{ (et_m.gasto / total_meta * 100) | pct }}</span>
                 </div>
+                {% endif %}
               </td>
               <td class="numero">{{ et_m.leads | num }}</td>
               <td class="numero {% if et_m.cpl > 0 and et_m.cpl < 3 %}positivo{% elif et_m.cpl > 5 %}negativo{% endif %}">{{ et_m.cpl | brl if et_m.leads > 0 else "–" }}</td>
@@ -336,13 +348,25 @@
             <tr>
               <td><span class="bs-pill google">{{ etapa_pq }}</span></td>
               <td class="numero">{{ et_g.custo | brl }}</td>
+              {% set proj = verba_proj_pq.google if verba_proj_pq else None %}
               <td>
+                {% if proj %}
+                {% set pct_proj = (et_g.custo / proj * 100) %}
                 <div class="pbar-wrap">
                   <div class="pbar-track" style="max-width:80px">
-                    <div class="pbar-fill google" style="width:{{ (et_g.custo / total_google * 100) | round(1) }}%"></div>
+                    <div class="pbar-fill google" style="width:{{ [pct_proj, 100] | min | round(1) }}%;"></div>
+                  </div>
+                  <span class="td-google" style="font-weight:700;font-size:12px">{{ pct_proj | pct }}</span>
+                </div>
+                <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:2px;">{{ et_g.custo | brl }} de {{ proj | brl }} projetados</div>
+                {% else %}
+                <div class="pbar-wrap">
+                  <div class="pbar-track" style="max-width:80px">
+                    <div class="pbar-fill google" style="width:{{ (et_g.custo / total_google * 100) | round(1) }}%;"></div>
                   </div>
                   <span class="td-google" style="font-weight:700;font-size:12px">{{ (et_g.custo / total_google * 100) | pct }}</span>
                 </div>
+                {% endif %}
               </td>
               <td class="numero">{{ "%.0f"|format(et_g.conversoes) }}</td>
               <td class="numero">{{ et_g.custo_conv | brl if et_g.conversoes > 0 else "–" }}</td>
@@ -360,20 +384,20 @@
         <table>
           <thead>
             <tr>
-              <th class="th-youtube">#</th>
-              {% if mostra_thumb %}<th class="th-youtube">Criativo</th>{% endif %}
-              <th class="th-youtube">AD Code</th>
-              <th class="th-youtube">Nome do Anúncio</th>
-              <th class="th-youtube">Leads</th>
-              <th class="th-youtube">CPL</th>
-              <th class="th-youtube">Investimento</th>
-              <th class="th-youtube">CTR</th>
-              <th class="th-youtube">CPM</th>
-              <th class="th-youtube" title="Visualizações do vídeo (TrueView)">Visualizações</th>
-              <th class="th-youtube" title="Investimento ÷ visualizações">Custo/View</th>
-              <th class="th-youtube" title="Visualizações × taxa de 50% do vídeo">Viram 50%</th>
-              <th class="th-youtube" title="Viram 50% ÷ visualizações">% Viram 50%</th>
-              <th class="th-youtube">Vídeo</th>
+              <th class="th-google">#</th>
+              {% if mostra_thumb %}<th class="th-google">Criativo</th>{% endif %}
+              <th class="th-google">AD Code</th>
+              <th class="th-google">Nome do Anúncio</th>
+              <th class="th-google">Leads</th>
+              <th class="th-google">CPL</th>
+              <th class="th-google">Investimento</th>
+              <th class="th-google">CTR</th>
+              <th class="th-google">CPM</th>
+              <th class="th-google" title="Visualizações do vídeo (TrueView)">Visualizações</th>
+              <th class="th-google" title="Investimento ÷ visualizações">Custo/View</th>
+              <th class="th-google" title="Visualizações × taxa de 50% do vídeo">Viram 50%</th>
+              <th class="th-google" title="Viram 50% ÷ visualizações">% Viram 50%</th>
+              <th class="th-google">Vídeo</th>
             </tr>
           </thead>
           <tbody>
@@ -408,7 +432,7 @@
                 {% endif %}
               </td>
               {% endif %}
-              <td><span class="bs-pill youtube">{{ a.ad_code or "–" }}</span></td>
+              <td><span class="bs-pill google">{{ a.ad_code or "–" }}</span></td>
               <td class="td-muted" style="max-width:280px;font-size:11px;">{{ a.nome[:70] }}</td>
               <td class="numero"><strong>{{ a.leads | num }}</strong></td>
               <td class="numero">{{ a.cpl | brl if a.leads > 0 else "–" }}</td>
@@ -476,7 +500,7 @@
               <th colspan="2" class="th-dark" style="text-align:left;">Data</th>
               <th colspan="3" class="th-dark" style="text-align:left;">Geral</th>
               <th colspan="3" class="th-meta" style="text-align:left;"><i class="ti ti-brand-meta"></i> Facebook Ads</th>
-              <th colspan="3" class="th-youtube" style="text-align:left;"><i class="ti ti-brand-youtube"></i> YouTube</th>
+              <th colspan="3" class="th-google" style="text-align:left;"><i class="ti ti-brand-youtube"></i> YouTube</th>
               <th colspan="3" class="th-search" style="text-align:left;">GA Search</th>
               <th colspan="3" class="th-pmax" style="text-align:left;">GA P-Max</th>
               <th colspan="3" class="th-display" style="text-align:left;">GA Display</th>
@@ -490,9 +514,9 @@
               <th class="th-meta" style="text-align:left">Leads</th>
               <th class="th-meta" style="text-align:left">CPL</th>
               <th class="th-meta" style="text-align:left">Gasto</th>
-              <th class="th-youtube" style="text-align:left">Conv.</th>
-              <th class="th-youtube" style="text-align:left">CPA</th>
-              <th class="th-youtube" style="text-align:left">Gasto</th>
+              <th class="th-google" style="text-align:left">Conv.</th>
+              <th class="th-google" style="text-align:left">CPA</th>
+              <th class="th-google" style="text-align:left">Gasto</th>
               <th class="th-search" style="text-align:left">Conv.</th>
               <th class="th-search" style="text-align:left">CPA</th>
               <th class="th-search" style="text-align:left">Gasto</th>

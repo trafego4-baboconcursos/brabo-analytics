@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
+from src.periodo import resolver_periodo
+
 from sqlalchemy import text
 
 from logger import get_logger
@@ -209,14 +211,13 @@ def _google_publico(rows) -> list[dict]:
     return sorted(by_audience.values(), key=lambda d: -d["spend"])
 
 
-def read_perpetuo(vertical: str, days: int = 30, compare: bool = False) -> dict | None:
+def read_perpetuo(vertical: str, days: int = 30, compare: bool = False, inicio=None, fim=None) -> dict | None:
     info = VERTICALS.get(vertical)
     if not info:
         return None
     codigo = info["codigo"]
 
-    end = date.today()
-    start = end - timedelta(days=days - 1)
+    start, end, days, personalizado = resolver_periodo(days, inicio, fim)
     prev_end = start - timedelta(days=1)
     prev_start = prev_end - timedelta(days=days - 1)
 
@@ -242,6 +243,7 @@ def read_perpetuo(vertical: str, days: int = 30, compare: bool = False) -> dict 
         "nome": info["nome"],
         "no_data": not meta_rows and not google_rows,
         "days": days,
+        "personalizado": personalizado,
         "compare": compare,
         "range_start": start.isoformat(),
         "range_end": end.isoformat(),

@@ -9,6 +9,8 @@ período imediatamente anterior de mesma duração.
 from __future__ import annotations
 
 from datetime import date, timedelta
+
+from src.periodo import resolver_periodo
 from pathlib import Path
 
 import yaml
@@ -78,7 +80,7 @@ def _post_stats(posts: list[dict]) -> dict:
     }
 
 
-def read_instagram_detail(username: str, days: int = 30, compare: bool = False) -> dict | None:
+def read_instagram_detail(username: str, days: int = 30, compare: bool = False, inicio=None, fim=None) -> dict | None:
     account = _find_account(username)
     if not account:
         return None
@@ -132,8 +134,7 @@ def read_instagram_detail(username: str, days: int = 30, compare: bool = False) 
     followers_now = latest.followers_count or 0
 
     # ── Janela de datas ──────────────────────────────────────────────────
-    end = date.today()
-    start = end - timedelta(days=days - 1)
+    start, end, days, personalizado = resolver_periodo(days, inicio, fim)
     prev_end = start - timedelta(days=1)
     prev_start = prev_end - timedelta(days=days - 1)
 
@@ -222,6 +223,7 @@ def read_instagram_detail(username: str, days: int = 30, compare: bool = False) 
         "views_total": views_total,
         "no_data": False,
         "days": days,
+        "personalizado": personalizado,
         "compare": compare,
         "range_start": start.isoformat(),
         "range_end": end.isoformat(),

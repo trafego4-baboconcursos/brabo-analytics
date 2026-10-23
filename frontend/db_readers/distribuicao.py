@@ -20,6 +20,8 @@ from __future__ import annotations
 import unicodedata
 from datetime import date, timedelta
 
+from src.periodo import resolver_periodo
+
 from sqlalchemy import text
 
 from logger import get_logger
@@ -153,14 +155,13 @@ def _google_criativos(rows) -> list[dict]:
     return sorted(out, key=lambda d: -d["cost"])
 
 
-def read_distribuicao(username: str, days: int = 30, compare: bool = False) -> dict | None:
+def read_distribuicao(username: str, days: int = 30, compare: bool = False, inicio=None, fim=None) -> dict | None:
     account = _find_expert(username)
     if not account:
         return None
     codigo = _codigo_from_name(account["name"])
 
-    end = date.today()
-    start = end - timedelta(days=days - 1)
+    start, end, days, personalizado = resolver_periodo(days, inicio, fim)
     prev_end = start - timedelta(days=1)
     prev_start = prev_end - timedelta(days=days - 1)
 
@@ -186,6 +187,7 @@ def read_distribuicao(username: str, days: int = 30, compare: bool = False) -> d
                         else f"https://instagram.com/{username}"),
         "no_data": not meta_rows and not google_rows,
         "days": days,
+        "personalizado": personalizado,
         "compare": compare,
         "range_start": start.isoformat(),
         "range_end": end.isoformat(),

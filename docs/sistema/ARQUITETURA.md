@@ -48,6 +48,9 @@ relacionados:
 > **Ano global do sistema (2026-10-22)**
 >
 >
+> **Período livre nas páginas com filtro de data (2026-10-23)**
+>
+>
 > **Estrutura de Arquivos**
 >
 >
@@ -355,6 +358,10 @@ Estado atual da arquitetura após as sessões de refatoração de 2026-06-23 e 2
 ## Ano global do sistema (2026-10-22)
 
 O ano de um lançamento é o sufixo do código (`src/anos.py`): PI-JAN-26 é de 2026 mesmo começando em nov/2025. O ano escolhido vale para todas as páginas: `?ano=` → cookie `brabo_ano` → ano corrente, resolvido em `_base_ctx` (`ano_sel`, `anos_disponiveis`). A rota `/ano?ano=AAAA&next=/caminho` grava o cookie. Calendário, /lancamentos e a lista de lançamentos do menu filtram por ele; o lançamento aberto aparece sempre. As metas anuais (Meta 38 mi, Super meta 40 mi, Meta desafio 44 mi em 2026) vêm de `src/constants.py::metas_faturamento_anual`. As metas vêm de `config/anos/<ano>.yaml` (ano novo = arquivo novo; `2027.yaml` já existe vazio). Cada cartão de lançamento avisa "Dados parciais" quando falta fonte no banco (Meta, Google/YouTube, Leads, Vendas). Diário: itens 315 a 317 do BV-26.
+
+## Período livre nas páginas com filtro de data (2026-10-23)
+
+Perpétuo, Distribuição e Redes Sociais (detalhe do perfil) aceitam, além dos atalhos `?days=7|30|90`, um intervalo livre `?inicio=AAAA-MM-DD&fim=AAAA-MM-DD`. A regra fica em `src/periodo.py::resolver_periodo` (datas invertidas trocadas, fim limitado a hoje, teto de 366 dias, comparação com o período anterior de mesmo tamanho) e o componente é o macro `frontend/templates/_macros_periodo.html::seletor_periodo`. Atendimento ainda usa só os atalhos (1/7/15/30).
 
 ## Estrutura de Arquivos
 

@@ -98,20 +98,20 @@ async def instagram_page(request: Request, launch_code: str | None = None):
 
 @router.get("/instagram/{username}", response_class=HTMLResponse)
 async def instagram_detail_page(request: Request, username: str, launch_code: str | None = None,
-                                 days: int = 30, compare: int = 0):
+                                 days: int = 30, compare: int = 0, inicio: str | None = None, fim: str | None = None):
     launches = await run_in_threadpool(get_launches)
     launch = resolve_launch(launch_code, launches)
-    detail = await run_in_threadpool(read_instagram_detail, username, days, bool(compare))
+    detail = await run_in_threadpool(read_instagram_detail, username, days, bool(compare), inicio, fim)
     ctx = _base_ctx(request, "instagram", f"@{username}", launch, launches, ig=detail)
     return templates.TemplateResponse("instagram_detail.html", ctx)
 
 
 @router.get("/perpetuo/{vertical}", response_class=HTMLResponse)
 async def perpetuo_page(request: Request, vertical: str, launch_code: str | None = None,
-                         days: int = 30, compare: int = 0):
+                         days: int = 30, compare: int = 0, inicio: str | None = None, fim: str | None = None):
     launches = await run_in_threadpool(get_launches)
     launch = resolve_launch(launch_code, launches)
-    detail = await run_in_threadpool(read_perpetuo, vertical, days, bool(compare))
+    detail = await run_in_threadpool(read_perpetuo, vertical, days, bool(compare), inicio, fim)
     # Mês fechado, em paralelo ao seletor de dias corridos: o seletor nunca
     # responde "quanto o perpétuo deu em agosto?" — ver read_perpetuo_mensal.
     mensal = None
@@ -128,10 +128,10 @@ async def perpetuo_page(request: Request, vertical: str, launch_code: str | None
 
 @router.get("/distribuicao/{username}", response_class=HTMLResponse)
 async def distribuicao_page(request: Request, username: str, launch_code: str | None = None,
-                             days: int = 30, compare: int = 0):
+                             days: int = 30, compare: int = 0, inicio: str | None = None, fim: str | None = None):
     launches = await run_in_threadpool(get_launches)
     launch = resolve_launch(launch_code, launches)
-    detail = await run_in_threadpool(read_distribuicao, username, days, bool(compare))
+    detail = await run_in_threadpool(read_distribuicao, username, days, bool(compare), inicio, fim)
     ctx = _base_ctx(request, "distribuicao", f"@{username}", launch, launches, distrib=detail)
     return templates.TemplateResponse("distribuicao.html", ctx)
 

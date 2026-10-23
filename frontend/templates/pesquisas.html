@@ -16,157 +16,6 @@
   .obst-diff.neg { color: var(--bs-danger); }
   .obst-nota { color: var(--bs-ink-muted); margin: 0 0 var(--s2); }
 
-  .tf-funnel-proportional {
-    display: grid;
-    gap: 14px;
-    margin-top: 18px;
-  }
-  .tf-funnel-row {
-    display: grid;
-    grid-template-columns: minmax(220px, 300px) 1fr;
-    gap: 16px;
-    align-items: center;
-  }
-  .tf-funnel-meta {
-    min-width: 0;
-    background: var(--bs-card);
-    border: 1px solid var(--bs-border);
-    border-radius: 16px;
-    padding: 14px 16px;
-    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
-    position: relative;
-  }
-  .tf-funnel-meta::before {
-    content: "";
-    position: absolute;
-    left: 0;
-    top: 14px;
-    bottom: 14px;
-    width: 4px;
-    border-radius: 999px;
-    background: var(--meta-accent, var(--temp-frio));
-  }
-  .tf-funnel-kicker {
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--meta-accent, var(--temp-frio));
-    margin-bottom: 6px;
-    padding-left: 12px;
-  }
-  .tf-funnel-title {
-    font-size: 15px;
-    font-weight: 800;
-    color: var(--bs-ink);
-    line-height: 1.25;
-    padding-left: 12px;
-  }
-  .tf-funnel-note {
-    font-size: 12px;
-    color: var(--bs-ink-muted);
-    margin-top: 6px;
-    line-height: 1.35;
-    padding-left: 12px;
-  }
-  .tf-funnel-stage {
-    display: flex;
-    justify-content: center;
-    padding: 6px 0;
-  }
-  .tf-funnel-shape {
-    width: min(100%, calc(var(--shape-w, 100) * 1%));
-    min-width: 320px;
-    min-height: 74px;
-    padding: 14px 28px;
-    display: grid;
-    grid-template-columns: 1fr;
-    justify-items: center;
-    align-items: center;
-    text-align: center;
-    color: #fff;
-    background: var(--shape-c, #2563eb);
-    clip-path: polygon(0 0, 100% 0, 94% 100%, 6% 100%);
-    box-shadow: 0 12px 30px rgba(37, 99, 235, 0.18);
-  }
-  .tf-funnel-shape > div:first-child {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-  }
-  .tf-funnel-shape-label {
-    font-size: 15px;
-    font-weight: 800;
-    line-height: 1.2;
-    padding-right: 0;
-  }
-  .tf-funnel-shape-meta {
-    display: block;
-    margin-top: 6px;
-    font-size: 12px;
-    font-weight: 700;
-    color: rgba(255,255,255,0.9);
-    line-height: 1.25;
-  }
-  .tf-funnel-shape-badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-top: 10px;
-    padding: 6px 12px;
-    border-radius: 999px;
-    background: rgba(255, 243, 176, 0.22);
-    border: 1px solid rgba(255, 243, 176, 0.5);
-    color: #fff7cc;
-    font-size: 11px;
-    font-weight: 800;
-    line-height: 1.2;
-    text-align: center;
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
-  }
-  .tf-funnel-shape-value {
-    text-align: center;
-    margin-top: 8px;
-    min-width: 0;
-  }
-  .tf-funnel-shape-value strong {
-    display: block;
-    font-size: 28px;
-    line-height: 1;
-  }
-  .tf-funnel-shape-value span {
-    display: block;
-    margin-top: 4px;
-    font-size: 11px;
-    font-weight: 700;
-    color: rgba(255,255,255,0.9);
-  }
-  @media (max-width: 900px) {
-    .tf-funnel-row {
-      grid-template-columns: 1fr;
-      gap: 10px;
-    }
-    .tf-funnel-meta {
-      padding: 12px 14px;
-    }
-    .tf-funnel-shape {
-      min-width: 0;
-      width: 100%;
-      height: auto;
-      min-height: 72px;
-      padding: 14px 18px;
-    }
-    .tf-funnel-shape-label {
-      font-size: 13px;
-    }
-    .tf-funnel-shape-meta {
-      font-size: 11px;
-    }
-    .tf-funnel-shape-value strong {
-      font-size: 24px;
-    }
-  }
   
   /* Estilos de Insights dos Alunos */
   .tf-alunos-grid {
@@ -565,7 +414,9 @@
     </div>
     {% endif %}
 
-    <!-- Proportional Funnel -->
+    <!-- Funil de respondentes — mesmo componente do /funil (.funil-viz /
+         .funil-step / .funil-rates, componentes.css). Largura das etapas fixa e
+         decrescente, como lá: o número e o % estão escritos em cada etapa. -->
     <div class="section">
       <div class="section-title"><i class="ti ti-filter"></i> Funil de convers&atilde;o de respondentes</div>
       {% set raw_total = tf.total_tf_raw | default(0) %}
@@ -573,108 +424,38 @@
       {% set crm_total = tf.tf_leads_crm | default(0) %}
       {% set crm_buyers = tf.tf_compras_crm | default(0) %}
       {% set buyers_total = tf.tf_compras | default(0) %}
-      {% set unique_share = (100 * unique_total / raw_total) if raw_total > 0 else 0 %}
-      {% set crm_share = (100 * crm_total / unique_total) if unique_total > 0 else 0 %}
-      {% set crm_buyer_share = (100 * crm_buyers / crm_total) if crm_total > 0 else 0 %}
-      {% set buyer_share = (100 * buyers_total / unique_total) if unique_total > 0 else 0 %}
-      {% set unique_visual_raw = (28 + 72 * ((unique_total / raw_total) ** 0.5)) if raw_total > 0 and unique_total > 0 else 0 %}
-      {% set crm_visual_raw = (28 + 72 * ((crm_total / raw_total) ** 0.5)) if raw_total > 0 and crm_total > 0 else 0 %}
-      {% set crm_buyer_visual_raw = (28 + 72 * ((crm_buyers / raw_total) ** 0.5)) if raw_total > 0 and crm_buyers > 0 else 0 %}
-      {% set buyer_visual_raw = (28 + 72 * ((buyers_total / raw_total) ** 0.5)) if raw_total > 0 and buyers_total > 0 else 0 %}
-      {% set unique_visual_cap = 84 %}
-      {% set crm_visual_cap = 66 %}
-      {% set crm_buyer_visual_cap = 48 %}
-      {% set buyer_visual_cap = 34 %}
-      {% set unique_visual = [unique_visual_raw, unique_visual_cap] | min %}
-      {% set crm_visual = [crm_visual_raw, crm_visual_cap] | min %}
-      {% set crm_buyer_visual = [crm_buyer_visual_raw, crm_buyer_visual_cap] | min %}
-      {% set buyer_visual = [buyer_visual_raw, buyer_visual_cap] | min %}
-
-      <div class="tf-funnel-proportional">
-        <!-- Etapa 1: Respostas Brutas -->
-        <div class="tf-funnel-row">
-          <div class="tf-funnel-meta" style="--meta-accent: var(--temp-frio);">
-            <div class="tf-funnel-kicker">Etapa 1</div>
-            <div class="tf-funnel-title">Respostas Brutas</div>
-            <div class="tf-funnel-note">Total de envios brutos &agrave; pesquisa</div>
-          </div>
-          <div class="tf-funnel-stage">
-            <div class="tf-funnel-shape" style="--shape-w: 100; --shape-c: var(--temp-frio);">
-              <div>
-                <span class="tf-funnel-shape-label">Total de Envio</span>
-                <span class="tf-funnel-shape-meta">100% bruto do lan&ccedil;amento</span>
-              </div>
-              <div class="tf-funnel-shape-value">
-                <strong>{{ raw_total | num }}</strong>
-                <span>respostas</span>
-              </div>
-            </div>
-          </div>
+      {% set sem_vendas = (tf.vendas_hotmart_total + tf.vendas_tmb_total) == 0 %}
+      {% set dup = raw_total - unique_total %}
+      <div class="funil-viz">
+        {% if dup > 0 %}
+        <div class="funil-step" style="--w:100%;--c:var(--bs-accent)">
+          <span class="funil-step-label">Respostas enviadas</span>
+          <span class="funil-step-value">{{ raw_total | num }}<small>{{ dup | num }} repetidas</small></span>
         </div>
-
-        <!-- Etapa 2: Respondentes Únicos -->
-        <div class="tf-funnel-row">
-          <div class="tf-funnel-meta" style="--meta-accent: #6366f1;">
-            <div class="tf-funnel-kicker">Etapa 2</div>
-            <div class="tf-funnel-title">Respondentes &Uacute;nicos</div>
-            <div class="tf-funnel-note">E-mails &uacute;nicos respondentes</div>
-          </div>
-          <div class="tf-funnel-stage">
-            <div class="tf-funnel-shape" style="--shape-w: {{ unique_visual }}; --shape-c: #6366f1;">
-              <div>
-                <span class="tf-funnel-shape-label">E-mails &Uacute;nicos</span>
-                <span class="tf-funnel-shape-meta">{{ unique_share | pct }} de aproveitamento</span>
-              </div>
-              <div class="tf-funnel-shape-value">
-                <strong>{{ unique_total | num }}</strong>
-                <span>respondentes</span>
-              </div>
-            </div>
-          </div>
+        {% endif %}
+        <div class="funil-step" style="--w:{{ '88%' if dup > 0 else '100%' }};--c:var(--bs-accent)">
+          <span class="funil-step-label">Respondentes &uacute;nicos (e-mail)</span>
+          <span class="funil-step-value">{{ unique_total | num }}<small>{% if dup > 0 %}{{ (100 * unique_total / raw_total) | pct }} das respostas{% else %}sem respostas repetidas{% endif %}</small></span>
         </div>
-
-        <!-- Etapa 3: Identificados no CRM -->
-        <div class="tf-funnel-row">
-          <div class="tf-funnel-meta" style="--meta-accent: #ec4899;">
-            <div class="tf-funnel-kicker">Etapa 3</div>
-            <div class="tf-funnel-title">Identificados no CRM</div>
-            <div class="tf-funnel-note">Respondentes cruzados com o Active Campaign</div>
-          </div>
-          <div class="tf-funnel-stage">
-            <div class="tf-funnel-shape" style="--shape-w: {{ crm_visual }}; --shape-c: #ec4899;">
-              <div>
-                <span class="tf-funnel-shape-label">Casados no CRM</span>
-                <span class="tf-funnel-shape-meta">{{ crm_share | pct }} dos e-mails &uacute;nicos</span>
-              </div>
-              <div class="tf-funnel-shape-value">
-                <strong>{{ crm_total | num }}</strong>
-                <span>leads</span>
-              </div>
-            </div>
-          </div>
+        <div class="funil-step" style="--w:{{ '72%' if dup > 0 else '80%' }};--c:color-mix(in srgb, var(--bs-accent) 75%, var(--bs-ink))">
+          <span class="funil-step-label">Leads do lan&ccedil;amento no CRM</span>
+          <span class="funil-step-value">{{ crm_total | num }}<small>{{ ((100 * crm_total / unique_total) if unique_total > 0 else 0) | pct }} dos respondentes</small></span>
         </div>
-
-        <!-- Etapa 4: Vendas Convertidas -->
-        <div class="tf-funnel-row">
-          <div class="tf-funnel-meta" style="--meta-accent: #10b981;">
-            <div class="tf-funnel-kicker">Etapa 4</div>
-            <div class="tf-funnel-title">Vendas Convertidas</div>
-            <div class="tf-funnel-note">Compradores que responderam &agrave; pesquisa</div>
-          </div>
-          <div class="tf-funnel-stage">
-            <div class="tf-funnel-shape" style="--shape-w: {{ buyer_visual }}; --shape-c: #10b981;">
-              <div>
-                <span class="tf-funnel-shape-label">Compradores &uacute;nicos</span>
-                <span class="tf-funnel-shape-meta">{{ buyer_share | pct }} convers&atilde;o total</span>
-                <span class="tf-funnel-shape-badge">{{ crm_buyer_share | pct }} convers&atilde;o dos leads CRM</span>
-              </div>
-              <div class="tf-funnel-shape-value">
-                <strong>{{ buyers_total | num }}</strong>
-                <span>compras</span>
-              </div>
-            </div>
-          </div>
+        <div class="funil-step" style="--w:{{ '56%' if dup > 0 else '60%' }};--c:var(--bs-success)">
+          <span class="funil-step-label">Compradores</span>
+          {% if sem_vendas %}
+          <span class="funil-step-value">&mdash;<small>sem vendas no lan&ccedil;amento ainda</small></span>
+          {% else %}
+          <span class="funil-step-value">{{ buyers_total | num }}<small>{{ ((100 * buyers_total / unique_total) if unique_total > 0 else 0) | pct }} dos respondentes</small></span>
+          {% endif %}
         </div>
+      </div>
+      <div class="funil-rates">
+        <span class="funil-rate"><strong>Respondente &rarr; Lead CRM:</strong> {{ ((100 * crm_total / unique_total) if unique_total > 0 else 0) | pct }}</span>
+        {% if not sem_vendas %}
+        <span class="funil-rate"><strong>Respondente &rarr; Compra:</strong> {{ ((100 * buyers_total / unique_total) if unique_total > 0 else 0) | pct }}</span>
+        <span class="funil-rate"><strong>Lead CRM &rarr; Compra:</strong> {{ ((100 * crm_buyers / crm_total) if crm_total > 0 else 0) | pct }}</span>
+        {% endif %}
       </div>
     </div>
 

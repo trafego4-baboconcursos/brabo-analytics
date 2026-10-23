@@ -1542,6 +1542,14 @@ número de preenchimentos, embora as 20 perguntas estivessem no banco.
   copy leem por ele). Essa pergunta sai do grid geral para não repetir. Layout: `.pbar-wrap`
   com valor de largura fixa (barras alinhadas), colunas fixas, espaçamento em `var(--s*)`;
   sem venda vira uma coluna só, "% dos respondentes".
+- **Funil de respondentes (mesmo dia):** o funil próprio da página (`.tf-funnel-*`, ~150
+  linhas de CSS, blocos de 110px + cartões laterais, ~560px de altura) foi trocado pelo
+  componente do /funil (`.funil-viz` / `.funil-step` / `.funil-rates`, ~280px). Cores do
+  tema: etapas em `--bs-accent` (cor do lançamento) e compradores em `--bs-success`. A etapa
+  "respostas enviadas" só aparece quando há resposta repetida; sem venda, compradores mostra
+  "—" em vez de 0%. O cruzamento com o CRM continua só por e-mail: em 23/10 o telefone
+  casaria mais 12 respondentes no PES-NOV-26 (91 → 103 de 144) e 26 no PI-NOV-26 (205 → 231
+  de 388). Não foi implementado.
 
 
 ## Calendário de lançamentos — fonte das datas-padrão (2026-09-14)

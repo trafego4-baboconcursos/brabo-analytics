@@ -117,7 +117,7 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
               AND CASE
                   WHEN produto ILIKE '%black vital%' THEN 'BLACK'
                   WHEN produto ILIKE '%inss%' THEN 'INSS'
-                  WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%') THEN 'TJ'
+                  WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%' OR produto ILIKE '%escrevente%') THEN 'TJ'
                   WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'
                   ELSE 'OUTRO'
               END = :project
@@ -172,7 +172,7 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
                   AND CASE
                       WHEN c.produto ILIKE '%black vital%' THEN 'BLACK'
                       WHEN c.produto ILIKE '%inss%' THEN 'INSS'
-                      WHEN (c.produto ILIKE '%tj%' OR c.produto ILIKE '%tjsp%') THEN 'TJ'
+                      WHEN (c.produto ILIKE '%tj%' OR c.produto ILIKE '%tjsp%' OR c.produto ILIKE '%escrevente%') THEN 'TJ'
                       WHEN (c.produto ILIKE '%bb%' OR c.produto ILIKE '%banco do brasil%' OR c.produto ILIKE '%bbsa%') THEN 'BB'
                       ELSE 'OUTRO'
                   END = :project
@@ -579,7 +579,7 @@ def read_dia1_sales(launch: Any) -> dict:
     project_case = """CASE
               WHEN produto ILIKE '%black vital%' THEN 'BLACK'
               WHEN produto ILIKE '%inss%' THEN 'INSS'
-              WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%') THEN 'TJ'
+              WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%' OR produto ILIKE '%escrevente%') THEN 'TJ'
               WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'
               ELSE 'OUTRO'
           END"""

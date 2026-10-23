@@ -610,13 +610,13 @@ def discover_launches(analises_dir: Any = None) -> list[Launch]:
         with _get_users_engine().connect() as ops_conn:
             hm_projects = {r[0] for r in ops_conn.execute(text(
                 "SELECT DISTINCT CASE WHEN produto ILIKE '%black vital%' THEN 'BLACK' WHEN produto ILIKE '%inss%' THEN 'INSS'"
-                " WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%') THEN 'TJ'"
+                " WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%' OR produto ILIKE '%escrevente%') THEN 'TJ'"
                 " WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'"
                 " ELSE 'OUTRO' END FROM hotmart_clean_oficial"
             )).fetchall()}
             tmb_projects = {r[0] for r in ops_conn.execute(text(
                 "SELECT DISTINCT CASE WHEN produto ILIKE '%black vital%' THEN 'BLACK' WHEN produto ILIKE '%inss%' THEN 'INSS'"
-                " WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%') THEN 'TJ'"
+                " WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%' OR produto ILIKE '%escrevente%') THEN 'TJ'"
                 " WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'"
                 " ELSE 'OUTRO' END FROM tmb_clean_oficial"
             )).fetchall()}

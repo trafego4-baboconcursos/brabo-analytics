@@ -29,3 +29,19 @@ def test_outro_produto_segue_a_regra_geral():
     por_parcela, _r, _c, parcelas = _parcela_unica_info(
         _row(codigo_do_produto="8643509", codigo_do_preco="abcDRP", quantidade_total_de_parcelas="12"))
     assert por_parcela is True and parcelas == 12
+
+
+def test_todo_classificador_de_produto_reconhece_escrevente_como_tj():
+    """Em 2025 o produto do TJ-SP se chamava "Escrevente 360" (sem "TJ" no nome). Um classificador sem esse ramo
+    zerava as vendas de PES-JAN/MAR/JUN/AGO-25 sem erro nenhum (23/10/26)."""
+    import re
+    from pathlib import Path
+
+    base = Path(__file__).resolve().parent.parent / "frontend" / "db_readers"
+    achados = 0
+    for arq in ("afiliados.py", "hotmart.py", "launches.py", "sales.py", "tmb.py"):
+        for linha in (base / arq).read_text(encoding="utf-8").splitlines():
+            if re.search(r"produto ILIKE '%tj%'", linha):
+                achados += 1
+                assert "escrevente" in linha, f"{arq}: {linha.strip()}"
+    assert achados >= 10

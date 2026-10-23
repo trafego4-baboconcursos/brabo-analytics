@@ -81,6 +81,12 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
     summary.total_conversoes = float(df["conversions"].sum())
     summary.total_visualizacoes = int(df["video_views"].sum())
 
+    # "Viram 50%" como na planilha de controle da pré-quali: visualizações (TrueView) × taxa de 50% do vídeo.
+    # O `video_views_50` gravado é impressões × taxa; a taxa de cada linha volta de video_views_50 ÷ impressões.
+    df["views_50_tv"] = (
+        df["video_views"] * df["video_views_50"] / df["impressions"].where(df["impressions"] > 0)
+    ).fillna(0.0)
+
     summary.custo_conv_medio = summary.total_custo / summary.total_conversoes if summary.total_conversoes > 0 else 0.0
     summary.ctr_medio = summary.total_cliques / summary.total_impressoes * 100 if summary.total_impressoes > 0 else 0.0
 
@@ -194,7 +200,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
     etapa_grouped = df.groupby("etapa").agg(
         custo=("cost", "sum"), conversoes=("conversions", "sum"),
         cliques=("clicks", "sum"), impressoes=("impressions", "sum"),
-        views=("video_views", "sum"),
+        views=("video_views", "sum"), views_50=("views_50_tv", "sum"),
         num_campanhas=("campaign_name", "nunique"),
     ).reset_index()
 
@@ -210,6 +216,8 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
             "cliques": int(r["cliques"]),
             "impressoes": int(r["impressoes"]),
             "visualizacoes": int(r["views"]),
+            "views_50": int(round(r["views_50"])),
+            "pct_views_50": float(r["views_50"] / r["views"] * 100) if r["views"] > 0 else 0.0,
             "custo_conv": float(r["custo"] / conv) if conv > 0 else 0.0,
             "pct": float(r["custo"] / total_custo_etapas * 100),
             "num_campanhas": int(r["num_campanhas"]),
@@ -219,7 +227,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
                 else ""
             ),
         }
-    zero_google = {"custo": 0.0, "conversoes": 0.0, "cliques": 0, "impressoes": 0, "visualizacoes": 0, "custo_conv": 0.0, "pct": 0.0, "num_campanhas": 0}
+    zero_google = {"custo": 0.0, "conversoes": 0.0, "cliques": 0, "impressoes": 0, "visualizacoes": 0, "views_50": 0, "pct_views_50": 0.0, "custo_conv": 0.0, "pct": 0.0, "num_campanhas": 0}
     for etapa in etapas_ordem(code):
         summary.por_etapa[etapa] = etapa_google_raw.get(etapa, {"etapa": etapa, **zero_google})
     for etapa, data in etapa_google_raw.items():

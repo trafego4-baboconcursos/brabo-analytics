@@ -571,6 +571,7 @@
               <th class="th-meta">CPL</th>
               <th class="th-meta">ThruPlays</th>
               <th class="th-meta">Custo/ThruPlay</th>
+              <th class="th-meta" title="Pessoas que assistiram 50% do vídeo (Video 50 Percent Watched Actions)">Viram 50%</th>
             </tr>
           </thead>
           <tbody>
@@ -593,6 +594,7 @@
               </td>
               <td class="numero">{{ d.thruplays | num }}</td>
               <td class="numero">{{ d.custo_thruplay | brl(3) if d.thruplays > 0 else "–" }}</td>
+              <td class="numero">{{ d.views_50 | num if d.views_50 > 0 else "–" }}</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -614,6 +616,8 @@
               <th class="th-google">% Verba</th>
               <th class="th-google">Conversões</th>
               <th class="th-google">Custo/Conv</th>
+              <th class="th-google" title="Visualizações do vídeo × taxa de 50% do vídeo (como na planilha de controle)">Viram 50%</th>
+              <th class="th-google" title="Viram 50% ÷ visualizações do vídeo">% Viram 50%</th>
             </tr>
           </thead>
           <tbody>
@@ -632,6 +636,8 @@
               </td>
               <td class="numero">{{ "%.0f"|format(d.conversoes) }}</td>
               <td class="numero">{{ d.custo_conv | brl if d.conversoes > 0 else "–" }}</td>
+              <td class="numero">{{ d.views_50 | num if d.views_50 > 0 else "–" }}</td>
+              <td class="numero">{{ d.pct_views_50 | pct if d.views_50 > 0 else "–" }}</td>
             </tr>
             {% endfor %}
           </tbody>

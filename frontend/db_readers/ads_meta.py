@@ -223,6 +223,7 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
         custo=("spend", "sum"),
         leads=("leads", "sum"),
         thruplays=("video_thruplays", "sum"),
+        views_50=("video_views_50", "sum"),
         num_campanhas=("campaign_name", "nunique"),
     ).reset_index()
     etapa_data_inicio = df[df["spend"] > 0].groupby("etapa")["date"].min()
@@ -235,6 +236,7 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
             "gasto": float(r["custo"]),
             "leads": int(r["leads"]),
             "thruplays": int(r["thruplays"]),
+            "views_50": int(r["views_50"]),
             "cpl": float(r["custo"] / r["leads"]) if r["leads"] > 0 else 0.0,
             "custo_thruplay": float(r["custo"] / r["thruplays"]) if r["thruplays"] > 0 else 0.0,
             "pct": float(r["custo"] / total_spend_etapas * 100),
@@ -245,7 +247,7 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
                 else ""
             ),
         }
-    zero_meta = {"custo": 0.0, "gasto": 0.0, "leads": 0, "thruplays": 0, "cpl": 0.0, "custo_thruplay": 0.0, "pct": 0.0, "num_campanhas": 0}
+    zero_meta = {"custo": 0.0, "gasto": 0.0, "leads": 0, "thruplays": 0, "views_50": 0, "cpl": 0.0, "custo_thruplay": 0.0, "pct": 0.0, "num_campanhas": 0}
     for etapa in etapas_ordem(code):
         summary.por_etapa[etapa] = etapa_data_raw.get(etapa, {"etapa": etapa, **zero_meta})
     for etapa, data in etapa_data_raw.items():

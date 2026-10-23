@@ -28,6 +28,7 @@ from sqlalchemy import bindparam, text
 
 from logger import get_logger
 from frontend.db import _get_users_engine
+from src.periodo import resolver_periodo
 from frontend.models import AtendimentoSummary
 
 logger = get_logger("db")
@@ -150,14 +151,15 @@ def agregar(
     resumo.contas.sort(key=lambda c: (c["total"], c["abertas"]), reverse=True)
 
 
-def read_atendimento(dias: int, conexao: str | None = None, hoje: date | None = None) -> AtendimentoSummary:
-    """`conexao` = chave da conta escolhida no filtro; chave desconhecida é ignorada."""
+def read_atendimento(dias: int, conexao: str | None = None, hoje: date | None = None,
+                     inicio_livre=None, fim_livre=None) -> AtendimentoSummary:
+    """`conexao` = chave da conta escolhida no filtro; chave desconhecida é ignorada.
+    `inicio_livre`/`fim_livre` (AAAA-MM-DD) escolhem um intervalo livre (regra em src/periodo.py)."""
     dias = dias if dias in PERIODOS else 7
     agora = datetime.now(_TZ)
-    hoje = hoje or agora.date()
-    inicio = hoje - timedelta(days=dias - 1)
+    inicio, hoje, dias, personalizado = resolver_periodo(dias, inicio_livre, fim_livre, hoje or agora.date())
     inicio_ant = inicio - timedelta(days=dias)
-    resumo = AtendimentoSummary(dias=dias, inicio=inicio, fim=hoje)
+    resumo = AtendimentoSummary(dias=dias, inicio=inicio, fim=hoje, personalizado=personalizado)
 
     with _get_users_engine().connect() as conn:
         if not _tabelas_existem(conn):
@@ -186,7 +188,7 @@ def read_atendimento(dias: int, conexao: str | None = None, hoje: date | None = 
         }
 
         pontos = None
-        if dias == 1:
+        if dias == 1 and not personalizado:
             # "Hoje": por hora, direto de unnichat_mensagens (só 2 dias, agregados
             # no SQL). Ontem conta só até o mesmo horário de agora.
             ini_hoje = datetime.combine(hoje, datetime.min.time(), _TZ)

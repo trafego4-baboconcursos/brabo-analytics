@@ -13,7 +13,8 @@ router = APIRouter()
 
 
 @router.get("/atendimento", response_class=HTMLResponse)
-async def atendimento_page(request: Request, dias: int = 7, conexao: str | None = None):
+async def atendimento_page(request: Request, dias: int = 7, conexao: str | None = None,
+                           inicio: str | None = None, fim: str | None = None):
     """Mensagens, templates e conversas abertas por atendente do Unnichat.
 
     Não é página de lançamento: o atendimento comercial é contínuo. O filtro é
@@ -21,10 +22,10 @@ async def atendimento_page(request: Request, dias: int = 7, conexao: str | None 
     por produto: o que importa é em qual conta o atendimento aconteceu.
     """
     launches = await run_in_threadpool(get_launches)
-    atendimento = await run_in_threadpool(read_atendimento, dias, conexao)
+    atendimento = await run_in_threadpool(read_atendimento, dias, conexao, None, inicio, fim)
     ctx = _base_ctx(
         request, "atendimento", "Atendimento", None, launches,
-        atendimento=atendimento, dias=atendimento.dias, periodos=PERIODOS, recarregar_horas=RECARREGAR_HORAS,
+        atendimento=atendimento, dias=atendimento.dias, personalizado=atendimento.personalizado, periodos=PERIODOS, recarregar_horas=RECARREGAR_HORAS,
         conexao=atendimento.conexao, conexoes=atendimento.conexoes, situacoes=SITUACOES,
         coleta_ligada=_coletor().ESTADO["ligado"],
     )

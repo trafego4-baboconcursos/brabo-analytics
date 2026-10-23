@@ -617,6 +617,7 @@ class AtendimentoSummary:
     dias: int = 7
     inicio: date | None = None
     fim: date | None = None
+    personalizado: bool = False   # intervalo livre (?inicio=&fim=); "Hoje" por hora só vale para o atalho
     enviadas: int = 0
     recebidas: int = 0
     templates: int = 0

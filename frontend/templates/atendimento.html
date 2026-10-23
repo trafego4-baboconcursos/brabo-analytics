@@ -4,7 +4,7 @@
 {% macro delta(atual, anterior) -%}
   {%- if anterior -%}
     {%- set d = ((atual - anterior) / anterior * 100) | round(1) -%}
-    <div class="tp-delta {{ 'up' if d >= 0 else 'down' }}" title="{{ 'vs ontem até este horário' if a.dias == 1 else 'vs ' ~ a.dias ~ ' dias anteriores' }}">{{ '+' if d >= 0 }}{{ d }}%</div>
+    <div class="tp-delta {{ 'up' if d >= 0 else 'down' }}" title="{{ 'vs ontem até este horário' if (a.dias == 1 and not a.personalizado) else 'vs ' ~ a.dias ~ ' dias anteriores' }}">{{ '+' if d >= 0 }}{{ d }}%</div>
   {%- endif -%}
 {%- endmacro %}
 {% macro espera(min) -%}
@@ -83,11 +83,14 @@
     <div class="section" style="margin-bottom:20px;">
       <div class="at-filtros">
         <div style="display:flex;gap:6px;">
+          {% from "_macros_periodo.html" import estilo_periodo, form_periodo_livre %}
+          {{ estilo_periodo() }}
           {% for d in periodos %}
           <a href="/atendimento?dias={{ d }}{% if conexao %}&conexao={{ conexao }}{% endif %}"
-             class="bs-pill {% if dias == d %}accent{% else %}neutral{% endif %}"
+             class="bs-pill {% if not personalizado and dias == d %}accent{% else %}neutral{% endif %}"
              style="text-decoration:none;">{{ 'Hoje' if d == 1 else d ~ ' dias' }}</a>
           {% endfor %}
+          {{ form_periodo_livre("/atendimento", a.inicio, a.fim, personalizado, [("conexao", conexao)]) }}
         </div>
         {% if coleta_ligada %}
         <div class="at-atualizar">
@@ -100,8 +103,8 @@
         {% endif %}
       </div>
       <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:8px;">
-        {% if dias == 1 %}Hoje, <strong>{{ a.fim | br_date }}</strong>, comparado com ontem até o mesmo horário
-        {% else %}Período: <strong>{{ a.inicio | br_date }}</strong> a <strong>{{ a.fim | br_date }}</strong>{% endif %}
+        {% if dias == 1 and not personalizado %}Hoje, <strong>{{ a.fim | br_date }}</strong>, comparado com ontem até o mesmo horário
+        {% else %}Período{% if personalizado %} livre ({{ dias }} dias){% endif %}: <strong>{{ a.inicio | br_date }}</strong> a <strong>{{ a.fim | br_date }}</strong>{% endif %}
         {% if a.ultima_coleta %} · última coleta {{ a.ultima_coleta.strftime('%d/%m %H:%M') }}{% endif %}
         · a página se atualiza sozinha a cada {{ recarregar_horas }}h
       </div>
@@ -133,7 +136,7 @@
 
     {# ── 1. Por conta: escolher a conta muda a página inteira ── #}
     {% set nome_sel = (conexoes | selectattr(0, 'equalto', conexao) | map(attribute=1) | first) if conexao else none %}
-    {% set url_conta = '/atendimento?dias=' ~ dias %}
+    {% set url_conta = '/atendimento?' ~ (('inicio=' ~ a.inicio ~ '&fim=' ~ a.fim) if personalizado else ('dias=' ~ dias)) %}
     <div class="section">
       <div class="section-title" data-sec-key="por-conta"><i class="ti ti-user-circle"></i> Por conta</div>
       <div class="at-contas" role="group" aria-label="Escolher conta">
@@ -225,7 +228,7 @@
 
     {# ── 2. Mensagens por dia ── #}
     <div class="section">
-      <div class="section-title" data-sec-key="mensagens-por-periodo"><i class="ti ti-calendar-stats"></i> Mensagens por {{ 'hora' if dias == 1 else 'dia' }}{% if nome_sel %} — {{ nome_sel }}{% endif %}</div>
+      <div class="section-title" data-sec-key="mensagens-por-periodo"><i class="ti ti-calendar-stats"></i> Mensagens por {{ 'hora' if (dias == 1 and not personalizado) else 'dia' }}{% if nome_sel %} — {{ nome_sel }}{% endif %}</div>
       <div class="at-legenda">
         <span><i style="background:#2a78d6"></i>Enviadas</span>
         <span><i style="background:#eb6834"></i>Recebidas</span>

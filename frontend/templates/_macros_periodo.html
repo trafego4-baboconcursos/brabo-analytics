@@ -1,12 +1,10 @@
-{# Seletor de período das páginas que filtram por data (Perpétuo, Distribuição, Redes Sociais):
-   atalhos de 7/30/90 dias, comparação com o período anterior e um intervalo livre (data de início
-   e de fim). `d` é o dicionário do leitor (days, personalizado, compare, range_start/end,
-   prev_range_start/end). A regra do período está em src/periodo.py.
+{# Seletor de período das páginas que filtram por data (Perpétuo, Distribuição, Redes Sociais, Atendimento).
+   `seletor_periodo` desenha a barra completa (atalhos 7/30/90, comparação com o período anterior e o intervalo
+   livre); `form_periodo_livre` é só o pedaço "De … até … Aplicar", para páginas com atalhos próprios (Atendimento).
+   A regra do período está em src/periodo.py. A grade de espaçamento é a de 8px (--s*).
    Arquivo próprio SEM {% extends %} — mesmo motivo de _macros_verba.html. #}
-{% macro seletor_periodo(d, path, launch_code=None, nota=None) %}
-{% set lc = ('&launch_code=' ~ launch_code) if launch_code else '' %}
-{% set periodo = ('inicio=' ~ d.range_start ~ '&fim=' ~ d.range_end) if d.personalizado else ('days=' ~ d.days) %}
-{% set cmp = '&compare=1' if d.compare else '' %}
+
+{% macro estilo_periodo() %}
 <style>
 .bs-periodo { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:var(--s2) var(--s4); }
 .bs-periodo-atalhos { display:flex; align-items:center; flex-wrap:wrap; gap:var(--s2); }
@@ -15,6 +13,24 @@
 .bs-periodo-form button { border:0; cursor:pointer; font:inherit; font-size:var(--fs-xs); }
 @media (max-width:760px) { .bs-periodo-form { margin-left:0; padding-left:0; border-left:0; } }
 </style>
+{% endmacro %}
+
+{# `extras`: lista de pares (nome, valor) que viram campos escondidos (launch_code, compare, conexao...). #}
+{% macro form_periodo_livre(path, inicio, fim, ativo, extras=[]) %}
+<form method="get" action="{{ path }}" class="bs-periodo-form" title="Escolha a data de início e a de fim que quer analisar">
+  {% for nome, valor in extras %}{% if valor %}<input type="hidden" name="{{ nome }}" value="{{ valor }}">{% endif %}{% endfor %}
+  <span class="{{ 'bs-pill accent' if ativo else '' }}"><i class="ti ti-calendar-event"></i> Período livre</span>
+  <label>De <input type="date" name="inicio" value="{{ inicio }}" required></label>
+  <label>até <input type="date" name="fim" value="{{ fim }}" required></label>
+  <button type="submit" class="bs-pill accent">Aplicar</button>
+</form>
+{% endmacro %}
+
+{% macro seletor_periodo(d, path, launch_code=None, nota=None) %}
+{% set lc = ('&launch_code=' ~ launch_code) if launch_code else '' %}
+{% set periodo = ('inicio=' ~ d.range_start ~ '&fim=' ~ d.range_end) if d.personalizado else ('days=' ~ d.days) %}
+{% set cmp = '&compare=1' if d.compare else '' %}
+{{ estilo_periodo() }}
 <div class="section" style="margin-bottom:var(--s5);">
   <div class="bs-periodo">
     <div class="bs-periodo-atalhos">
@@ -23,14 +39,7 @@
          class="bs-pill {% if not d.personalizado and d.days == n %}accent{% else %}neutral{% endif %}"
          style="text-decoration:none;">{{ label }}</a>
       {% endfor %}
-      <form method="get" action="{{ path }}" class="bs-periodo-form" title="Escolha a data de início e a de fim que quer analisar">
-        {% if launch_code %}<input type="hidden" name="launch_code" value="{{ launch_code }}">{% endif %}
-        {% if d.compare %}<input type="hidden" name="compare" value="1">{% endif %}
-        <span class="{{ 'bs-pill accent' if d.personalizado else '' }}"><i class="ti ti-calendar-event"></i> Período livre</span>
-        <label>De <input type="date" name="inicio" value="{{ d.range_start }}" required></label>
-        <label>até <input type="date" name="fim" value="{{ d.range_end }}" required></label>
-        <button type="submit" class="bs-pill accent">Aplicar</button>
-      </form>
+      {{ form_periodo_livre(path, d.range_start, d.range_end, d.personalizado, [("launch_code", launch_code), ("compare", "1" if d.compare else "")]) }}
     </div>
     <a href="{{ path }}?{{ periodo }}{{ lc }}&compare={{ 0 if d.compare else 1 }}"
        class="bs-pill {% if d.compare %}accent{% else %}neutral{% endif %}"

@@ -12,6 +12,7 @@ Usado em dois momentos:
 from __future__ import annotations
 
 import asyncio
+import time as _time
 from datetime import date, timedelta
 from typing import Any, Iterable
 
@@ -23,7 +24,7 @@ from frontend.core import (
     reset_launches_cache,
 )
 from frontend.cache import force_refresh_start, force_refresh_end
-from frontend.services.fetch import _warm_debriefing
+from frontend.services.fetch import _warm_debriefing, carrinho_aberto
 
 # Um aquecimento por vez: cada warm_launch já dispara ~15 leituras paralelas;
 # dois aquecimentos simultâneos (boot + ETL, ou dois ETLs seguidos) saturam
@@ -128,7 +129,18 @@ def select_launches_to_warm(launches: list, codes: Iterable[str] | None = None) 
         prev = find_previous_launch(l, launches)
         if prev and prev.code not in to_warm and (prev.data_fim is None or prev.data_fim >= cutoff):
             to_warm[prev.code] = prev
-    return list(to_warm.values())
+    # Quem está VENDENDO agora (carrinho aberto) é aquecido primeiro. O aquecimento é sequencial e o servidor reinicia
+    # a cada deploy, recomeçando a fila do início: a BV-26 (carrinho aberto, última da fila) nunca chegava a ser
+    # aquecida e ficou dias com número velho (23/10/26). `sorted` é estável: os demais mantêm a ordem de antes.
+    return sorted(to_warm.values(), key=_prioridade_aquecimento)
+
+
+def _prioridade_aquecimento(launch: Any) -> int:
+    try:
+        return 0 if carrinho_aberto(launch.code) else 1
+    except Exception:
+        logger.exception("Aquecimento: não deu pra ver se o carrinho de %s está aberto", launch.code)
+        return 1
 
 
 async def warm_launch(launch: Any, previous: Any, launches: list | None = None) -> None:
@@ -218,7 +230,9 @@ async def warm_active(codes: Iterable[str] | None = None, invalidate: bool = Fal
         token = force_refresh_start(readers=escopo, codes={l.code for l in to_warm}) if invalidate else None
         try:
             for l in to_warm:
+                _t0 = _time.monotonic()
                 await warm_launch(l, find_previous_launch(l, launches), launches)
+                logger.info("Aquecimento (%s): %s levou %.0f s.", origem, l.code, _time.monotonic() - _t0)
         finally:
             if token is not None:
                 force_refresh_end(token)

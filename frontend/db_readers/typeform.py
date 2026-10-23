@@ -345,6 +345,76 @@ def _novo_sistema_emails_cached(code: str) -> set[str]:
     )
 
 
+def _read_novo_sistema_perguntas_escolha(formulario_ids: list[int]) -> list[dict[str, Any]]:
+    """Perguntas de múltipla escolha do sistema novo, na ordem do formulário,
+    com as opções cadastradas — base da distribuição geral das respostas."""
+    if not formulario_ids:
+        return []
+    engine = _get_engine()
+    with engine.connect() as conn:
+        rows = conn.execute(text("""
+            SELECT titulo, configuracao
+            FROM perguntas
+            WHERE formulario_id = ANY(:fids) AND tipo = 'multipla_escolha'
+            ORDER BY formulario_id, ordem
+        """), {"fids": formulario_ids}).fetchall()
+    perguntas = []
+    for titulo, cfg in rows:
+        cfg = cfg or {}
+        opcoes = [str(o) for o in (cfg.get("opcoes") or []) if o]
+        if opcoes:
+            perguntas.append({
+                "titulo": titulo,
+                "opcoes": opcoes,
+                "multipla": int(cfg.get("max_selecoes") or 1) > 1,
+            })
+    return perguntas
+
+
+def _distribuicao_perguntas(
+    perguntas: list[dict[str, Any]], tf_df: pd.DataFrame, tf_comp: pd.DataFrame,
+) -> list[dict[str, Any]]:
+    """Distribuição de cada pergunta de múltipla escolha entre todos os
+    respondentes (e entre os compradores, quando há venda). Antes do carrinho
+    abrir não existe comprador, e os blocos comprador × não comprador ficam
+    vazios — sem isto a página só mostrava o total de respostas.
+
+    Seleção múltipla vem como "op1, op2" (etl/materializar_pesquisa.sql): casa
+    a opção inteira entre separadores, pra "INSS" não casar dentro de outra.
+    Estado fica de fora: já tem o bloco Top Estados."""
+    blocos = []
+    for p in perguntas:
+        col = p["titulo"]
+        if col not in tf_df.columns or "estado" in _norm_text(col):
+            continue
+
+        def _contar(df: pd.DataFrame) -> tuple[int, dict[str, int]]:
+            vals = df[col].dropna().astype(str).str.strip()
+            vals = vals[vals != ""]
+            embrulhado = ", " + vals + ", "
+            return len(vals), {
+                op: int(embrulhado.str.contains(", " + op + ", ", regex=False).sum()
+                        + (0 if p["multipla"] else vals.str.startswith(op + " (").sum()))
+                for op in p["opcoes"]
+            }
+
+        n, cont = _contar(tf_df)
+        if not n:
+            continue
+        n_comp, cont_comp = _contar(tf_comp) if not tf_comp.empty else (0, {})
+        opcoes = sorted(
+            ({"opcao": op, "qtd": q, "pct": q / n * 100,
+              "pct_comp": (cont_comp.get(op, 0) / n_comp * 100) if n_comp else None}
+             for op, q in cont.items()),
+            key=lambda o: -o["qtd"],
+        )
+        blocos.append({
+            "pergunta": col.replace("Falta pouco para terminar a pesquisa!", "").strip(" \n😀"),
+            "multipla": p["multipla"], "respondentes": n, "opcoes": opcoes,
+        })
+    return blocos
+
+
 def _reconstruct_tabular_df(tf_df_raw: pd.DataFrame) -> list[dict[str, Any]]:
     records = []
     if tf_df_raw.empty:
@@ -736,6 +806,10 @@ def read_typeform(launch_folder_or_code: Any, start_date=None, end_date=None) ->
     summary.nivel_comp_pct, summary.nivel_ncomp_pct, summary.nivel_diff = comp_ncomp_distribution("voce se considera")
     summary.idade_comp_pct, summary.idade_ncomp_pct, summary.idade_diff = comp_ncomp_distribution("idade")
     summary.graton_comp_pct, summary.graton_ncomp_pct, summary.graton_diff = comp_ncomp_distribution("felipe graton")
+
+    if not novo_df.empty:
+        perguntas = _read_novo_sistema_perguntas_escolha(_resolve_novo_sistema_formulario_ids(code))
+        summary.respostas_gerais = _distribuicao_perguntas(perguntas, tf_df, tf_comp)
 
     # Obstáculos
     obstaculos = [

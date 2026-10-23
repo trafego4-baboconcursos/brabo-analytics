@@ -389,6 +389,9 @@ class TypeformSummary:
     alunos_depoimentos_convenceu: list[str] = field(default_factory=list)
     alunos_depoimentos_atencao: list[str] = field(default_factory=list)
     ia_insights: list[dict] = field(default_factory=list)
+    # Distribuição de cada pergunta de múltipla escolha (sistema de pesquisa
+    # novo) entre todos os respondentes — existe mesmo sem venda.
+    respostas_gerais: list[dict] = field(default_factory=list)
     leads_crm_total: int = 0
     vendas_hotmart_total: int = 0
     vendas_tmb_total: int = 0

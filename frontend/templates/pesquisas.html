@@ -663,7 +663,52 @@
       </div>
     </div>
 
-    <!-- Demografia Section -->
+    <!-- Respostas gerais (sistema de pesquisa novo) — todos os respondentes;
+         existe antes do carrinho, quando ainda não há comprador pra comparar. -->
+    {% if tf.respostas_gerais %}
+    {% set tem_comp = tf.tf_compras > 0 %}
+    <div class="section">
+      <div class="section-title"><i class="ti ti-list-check"></i> Respostas da Pesquisa &mdash; Todos os Respondentes</div>
+      {% if not tem_comp %}
+      <p style="color:var(--bs-ink-muted); margin:0 0 16px;">Ainda sem vendas no lan&ccedil;amento: a compara&ccedil;&atilde;o compradores &times; n&atilde;o compradores aparece quando o carrinho abrir.</p>
+      {% endif %}
+      <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; align-items: start;">
+        {% for bloco in tf.respostas_gerais %}
+        <div class="card">
+          <h3>{{ bloco.pergunta }}</h3>
+          <div style="color:var(--bs-ink-muted); font-size:12px; margin:-4px 0 8px;">{{ bloco.respondentes | num }} respostas{% if bloco.multipla %} &middot; m&uacute;ltipla escolha (soma passa de 100%){% endif %}</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Op&ccedil;&atilde;o</th>
+                <th style="text-align:right">Qtd</th>
+                <th style="text-align:right">% Geral</th>
+                {% if tem_comp %}<th style="text-align:right">% Compradores</th>{% endif %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for op in bloco.opcoes %}
+              <tr>
+                <td>{{ op.opcao }}</td>
+                <td style="text-align:right">{{ op.qtd | num }}</td>
+                <td style="text-align:right">
+                  <strong>{{ op.pct | pct }}</strong>
+                  <div class="pbar-track" style="height:6px; margin-top:4px;"><div class="pbar-fill" style="width:{{ op.pct }}%;"></div></div>
+                </td>
+                {% if tem_comp %}<td style="text-align:right">{{ (op.pct_comp or 0) | pct }}</td>{% endif %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Demografia Section — só faz sentido com comprador; antes do carrinho
+         os quatro cards ficavam vazios. -->
+    {% if tf.tf_compras > 0 %}
     <div class="section">
       <div class="section-title"><i class="ti ti-users"></i> Perfil Demogr&aacute;fico &mdash; Compradores vs N&atilde;o Compradores</div>
       
@@ -821,6 +866,7 @@
         {% endif %}
       </div>
     </div>
+    {% endif %}
 
     <!-- Obstáculos Declarados -->
     {% if tf.obstaculos_comp_pct %}

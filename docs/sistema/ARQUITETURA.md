@@ -1532,7 +1532,10 @@ número de preenchimentos, embora as 20 perguntas estivessem no banco.
   na ordem do formulário; seleção múltipla (`max_selecoes > 1`) casa a opção inteira entre os
   separadores `", "` da materialização. Estado fica de fora (já tem Top Estados); texto livre
   também. Só sistema novo: lançamento do Typeform legado não ganha o bloco.
-- `pesquisas.html` — novo bloco "Respostas da Pesquisa — Todos os Respondentes"; o bloco
+- `pesquisas.html` — novo bloco "Respostas da Pesquisa — Todos os Respondentes" (mesmo dia,
+  2ª versão: cartões `.rg-*` com barras horizontais em colunas CSS, não `<table>`. Tabela com
+  mais de 5 linhas ganha filtro e download do `tabelas.js`, que aqui não fazem sentido. Com
+  venda, cada opção ganha uma 2ª barra verde, a dos compradores); o bloco
   "Perfil Demográfico — Compradores vs Não Compradores" só aparece com `tf_compras > 0`.
 - **Obstáculos (mesmo dia):** a tabela usava uma lista fixa de 9 dificuldades herdada do
   Typeform. Na pesquisa interna ela mostrava 0% para opção que o formulário não tem ("Sem
@@ -1546,8 +1549,8 @@ número de preenchimentos, embora as 20 perguntas estivessem no banco.
   110px que não se encaixavam, ~560px) foi refeito em `.pf-*`, no padrão de funnel chart do
   AntV/MUI. As faixas formam um funil contínuo e centralizado (a base de cada uma é o topo da
   seguinte, via `clip-path` com `--topo/--base`), com o valor dentro e centralizado para a borda
-  inclinada não cortar o texto. À esquerda, cartão com etapa e explicação; à direita, % da etapa
-  anterior. Cores: `--bs-accent` escurecendo por etapa (`color-mix` com `--bs-ink`) e
+  inclinada não cortar o texto. Layout (pedido do usuário): 70% à esquerda com o cartão da etapa
+  e o % da etapa anterior; funil nos 30% da direita. Cores: `--bs-accent` escurecendo por etapa (`color-mix` com `--bs-ink`) e
   compradores em `--bs-success`. A etapa "respostas enviadas" só aparece quando há repetidas;
   sem venda, compradores mostra "—". Uma tentativa intermediária com o `.funil-step` do /funil
   foi descartada: o texto encostava na borda e os cartões sumiam. O cruzamento com o CRM

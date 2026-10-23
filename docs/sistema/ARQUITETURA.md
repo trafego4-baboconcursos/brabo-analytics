@@ -2,7 +2,7 @@
 titulo: "Arquitetura do Brabo Analytics — 2026-10-15"
 area: sistema
 status: vigente
-atualizado: 2026-10-22
+atualizado: 2026-10-23
 responde:
   - "como o sistema funciona por dentro"
   - "por que o aviso do etl recomputa so parte do cache"
@@ -42,7 +42,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 96 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 97 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Ano global do sistema (2026-10-22)**
@@ -154,6 +154,7 @@ relacionados:
 >
 > **Desligamento do Typeform e sistema de pesquisa interno (2026-08-31)**
 >
+> - [[ARQUITETURA#/pesquisas sem venda mostrava só o total (2026-10-23)|/pesquisas sem venda mostrava só o total (2026-10-23)]]
 >
 > **Calendário de lançamentos — fonte das datas-padrão (2026-09-14)**
 >
@@ -1503,6 +1504,22 @@ A conta do Typeform foi cancelada; `frontend/db_readers/typeform.py` não chama 
 - **`etl/run_all.py`** — `typeform` removido do dict `scripts` de `run_api_mode`; `scheduler.py` não roda mais `etl_typeform.py` a cada 30 min.
 
 **Renomeação da UI (2026-08-31):** como a página agora cobre Typeform (legado) + sistema de pesquisa interno, a nomenclatura visível trocou de "Typeform" para "Pesquisas" em todo o sistema — menu lateral, título da página, KPIs e textos em `index.html`, `criativos.html`, `vendas.html`, `comparativo-v1-v2`. A rota mudou de `/typeform` para `/pesquisas`; `/typeform` continua existindo como redirect 307 pra `/pesquisas` (link legado). O template foi renomeado de `typeform.html` para `pesquisas.html`. Nomes internos de código (arquivo `frontend/db_readers/typeform.py`, funções `read_typeform*`, tabelas `typeform_*`) **não** foram renomeados — são detalhes de implementação, não nomenclatura visível ao usuário.
+
+### /pesquisas sem venda mostrava só o total (2026-10-23)
+
+Todos os blocos de perfil da página (`read_typeform`) eram **compradores × não compradores**:
+`comp_ncomp_distribution` devolve `{}` quando não há comprador. Antes do carrinho abrir
+(caso do PI-NOV-26 em 23/10: 373 respondentes, 0 vendas, carrinho 19/11) a página só exibia o
+número de preenchimentos, embora as 20 perguntas estivessem no banco.
+
+- `TypeformSummary.respostas_gerais` — distribuição de **cada pergunta de múltipla escolha** do
+  sistema novo entre todos os respondentes (e `pct_comp` entre compradores, quando há venda).
+  As opções vêm de `perguntas.configuracao->'opcoes'` (`_read_novo_sistema_perguntas_escolha`),
+  na ordem do formulário; seleção múltipla (`max_selecoes > 1`) casa a opção inteira entre os
+  separadores `", "` da materialização. Estado fica de fora (já tem Top Estados); texto livre
+  também. Só sistema novo: lançamento do Typeform legado não ganha o bloco.
+- `pesquisas.html` — novo bloco "Respostas da Pesquisa — Todos os Respondentes"; o bloco
+  "Perfil Demográfico — Compradores vs Não Compradores" só aparece com `tf_compras > 0`.
 
 
 ## Calendário de lançamentos — fonte das datas-padrão (2026-09-14)

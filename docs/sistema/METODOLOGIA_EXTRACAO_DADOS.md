@@ -91,6 +91,9 @@ relacionados:
 >
 > **16. Faturamento total da empresa no ano (2026-10-21)**
 >
+>
+> **17. Alcance, retenção e engajamento do Meta; "% Viram 50%" (23/10/26)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -550,3 +553,11 @@ A regra geral de `_parcela_unica_info` (webhook com `quantidade_de_cobrancas` pr
 - **Perpétuo corrigido:** a página `/perpetuo` e o "Mês a mês" somavam `valor_de_compra_com_impostos` (o que o cliente pagou) de **qualquer status**, inclusive reembolso e cancelamento. Agora somam o líquido de venda aprovada, como o resto do sistema; os números do perpétuo ficam menores.
 - A meta anual (R$ 38 mi) passou a medir o **total da empresa**.
 
+## 17. Alcance, retenção e engajamento do Meta; "% Viram 50%" (23/10/26)
+
+`meta_ads_daily` ganhou, por anúncio e dia: `reach` (alcance), `video_avg_time_watched` (segundos, média do dia), `video_views_30s`, `post_engagement`, `post_reactions`, `post_comments`, `post_shares`, `post_saves` (do campo `actions` já baixado). **Sem DEFAULT**: linha anterior à coleta (antes de 22/10/26) é NULL, não zero. Os leitores calculam percentuais só sobre as linhas com alcance.
+
+- **% Viram 50% (Meta)** = viu 50% (`video_views_50`) ÷ alcance, só nos dias com alcance. Igual à planilha de controle da pré-quali. O alcance é "pessoas únicas do dia"; somar dias e anúncios conta a mesma pessoa mais de uma vez (a planilha também soma) — vale como indicador comparativo, não como número exato de pessoas.
+- **% Viram 50% (Google)** = (visualizações TrueView × taxa de 50%) ÷ visualizações. O `video_views_50` gravado do Google é impressões × taxa; a taxa de cada linha volta de `video_views_50 ÷ impressões`.
+- **Tempo médio assistido** é média do dia: para agregar, ponderar pelas visualizações de 3s (`video_views_3s`), nunca média simples.
+- **Quando a coleta vale:** o scheduler (janela móvel de 3 dias) passa a preencher sozinho; o histórico anterior só ganha os campos com recarga (`etl/etl_meta_ads.py --since --until --launch-code`; a CA2 exige janelas de 7 dias).

@@ -642,6 +642,19 @@ CREATE TABLE IF NOT EXISTS dim_lancamentos (
 ALTER TABLE meta_ads_daily ADD COLUMN IF NOT EXISTS lancamento_codigo TEXT;
 -- landing_page_view do Meta: cliques no link que chegaram a disparar o PageView do pixel na LP.
 ALTER TABLE meta_ads_daily ADD COLUMN IF NOT EXISTS landing_page_views INTEGER DEFAULT 0;
+
+-- 23/10/26 — alcance, retenção e engajamento por anúncio/dia (pedido: "% que viu 50%" = viu 50% ÷ alcance).
+-- SEM DEFAULT de propósito: linha antiga fica NULL (= não coletado), diferente de 0 (= coletado e zero).
+-- Os leitores calculam % só sobre as linhas com alcance. `reach` é "pessoas únicas" do dia; somar dias/anúncios
+-- conta a mesma pessoa mais de uma vez (a planilha de controle da pré-quali soma igual).
+ALTER TABLE meta_ads_daily ADD COLUMN IF NOT EXISTS reach INTEGER;
+ALTER TABLE meta_ads_daily ADD COLUMN IF NOT EXISTS video_avg_time_watched NUMERIC(8,2);  -- segundos, média do dia
+ALTER TABLE meta_ads_daily ADD COLUMN IF NOT EXISTS video_views_30s INTEGER;
+ALTER TABLE meta_ads_daily ADD COLUMN IF NOT EXISTS post_engagement INTEGER;
+ALTER TABLE meta_ads_daily ADD COLUMN IF NOT EXISTS post_reactions INTEGER;
+ALTER TABLE meta_ads_daily ADD COLUMN IF NOT EXISTS post_comments INTEGER;
+ALTER TABLE meta_ads_daily ADD COLUMN IF NOT EXISTS post_shares INTEGER;
+ALTER TABLE meta_ads_daily ADD COLUMN IF NOT EXISTS post_saves INTEGER;
 -- LP de cada anúncio (link do criativo, normalizado sem query). Gravada pelo etl_meta_ads a cada
 -- rodada; junta com meta_ads_daily.landing_page_views na seção "Carregamento da página" de /meta.
 -- Último resultado da auditoria de cada LP (scripts/ads/auditar_lps.py --gravar). `dados` guarda o que

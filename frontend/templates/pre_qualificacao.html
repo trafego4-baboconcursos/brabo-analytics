@@ -149,6 +149,7 @@
               <th class="th-meta">ThruPlays</th>
               <th class="th-meta">Custo/ThruPlay</th>
               <th class="th-meta" title="Pessoas que assistiram 50% do vídeo (Video 50 Percent Watched Actions)">Viram 50%</th>
+              <th class="th-meta" title="Viram 50% ÷ alcance. Só conta os dias com alcance coletado (a coleta começou em 22/10/26).">% Viram 50%</th>
             </tr>
           </thead>
           <tbody>
@@ -172,6 +173,7 @@
               <td class="numero">{{ d.thruplays | num }}</td>
               <td class="numero">{{ d.custo_thruplay | brl(3) if d.thruplays > 0 else "–" }}</td>
               <td class="numero">{{ d.views_50 | num if d.views_50 > 0 else "–" }}</td>
+              <td class="numero">{{ d.pct_views_50 | pct if d.alcance > 0 and d.pct_views_50 > 0 else "–" }}</td>
             </tr>
             {% endfor %}
           </tbody>

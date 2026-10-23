@@ -182,7 +182,7 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
     engine = _get_engine()
 
     _COLS = ("date, ad_id, ad_name, adset_name, campaign_name, account_id, impressions, "
-             "clicks, spend, leads, video_thruplays, video_views_50")
+             "clicks, spend, leads, video_thruplays, video_views_50, reach")
     _COLS = _com_classificacao(_COLS, "meta_ads_daily", _CLASSIFICACAO_META)
     if start_date and end_date:
         df = pd.read_sql(
@@ -219,11 +219,16 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
     )
 
     # Agrupamentos
+    # Alcance: coluna NULL nos dias anteriores à coleta (23/10/26). O % de "viu 50%" usa só as linhas COM alcance
+    # (viu 50% ÷ alcance, como na planilha de controle) — senão o percentual despencaria nos dias sem coleta.
+    df["views_50_c_alcance"] = df["video_views_50"].where(df["reach"].notna(), 0)
     etapa_grouped = df.groupby("etapa").agg(
         custo=("spend", "sum"),
         leads=("leads", "sum"),
         thruplays=("video_thruplays", "sum"),
         views_50=("video_views_50", "sum"),
+        views_50_c_alcance=("views_50_c_alcance", "sum"),
+        alcance=("reach", "sum"),
         num_campanhas=("campaign_name", "nunique"),
     ).reset_index()
     etapa_data_inicio = df[df["spend"] > 0].groupby("etapa")["date"].min()
@@ -237,6 +242,8 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
             "leads": int(r["leads"]),
             "thruplays": int(r["thruplays"]),
             "views_50": int(r["views_50"]),
+            "alcance": int(r["alcance"]),
+            "pct_views_50": float(r["views_50_c_alcance"] / r["alcance"] * 100) if r["alcance"] > 0 else 0.0,
             "cpl": float(r["custo"] / r["leads"]) if r["leads"] > 0 else 0.0,
             "custo_thruplay": float(r["custo"] / r["thruplays"]) if r["thruplays"] > 0 else 0.0,
             "pct": float(r["custo"] / total_spend_etapas * 100),
@@ -247,7 +254,7 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
                 else ""
             ),
         }
-    zero_meta = {"custo": 0.0, "gasto": 0.0, "leads": 0, "thruplays": 0, "views_50": 0, "cpl": 0.0, "custo_thruplay": 0.0, "pct": 0.0, "num_campanhas": 0}
+    zero_meta = {"custo": 0.0, "gasto": 0.0, "leads": 0, "thruplays": 0, "views_50": 0, "alcance": 0, "pct_views_50": 0.0, "cpl": 0.0, "custo_thruplay": 0.0, "pct": 0.0, "num_campanhas": 0}
     for etapa in etapas_ordem(code):
         summary.por_etapa[etapa] = etapa_data_raw.get(etapa, {"etapa": etapa, **zero_meta})
     for etapa, data in etapa_data_raw.items():

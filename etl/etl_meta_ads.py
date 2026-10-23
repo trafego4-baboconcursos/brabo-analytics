@@ -108,7 +108,8 @@ def fetch_insights(since: str, until: str, account_ids: list[str] | None = None)
                              "impressions,clicks,spend,actions,outbound_clicks,"
                              "video_p25_watched_actions,video_p50_watched_actions,"
                              "video_p75_watched_actions,video_p100_watched_actions,"
-                             "video_thruplay_watched_actions",
+                             "video_thruplay_watched_actions,"
+                             "reach,video_avg_time_watched_actions,video_30_sec_watched_actions",
             "level":         "ad",
             "time_range":    f'{{"since":"{since}","until":"{until}"}}',
             "time_increment": 1,       # breakdown diário
@@ -159,6 +160,12 @@ def _action_value(actions: list, action_type: str) -> int:
     return 0
 
 
+def _action_list_float(action_list: list) -> float:
+    if not action_list or not isinstance(action_list, list):
+        return 0.0
+    return float(action_list[0].get("value", 0) or 0)
+
+
 def _action_list_value(action_list: list) -> int:
     if not action_list or not isinstance(action_list, list):
         return 0
@@ -195,6 +202,16 @@ def build_df_from_api(rows: list[dict]) -> pd.DataFrame:
             "video_views_75":   _action_list_value(r.get("video_p75_watched_actions")),
             "video_views_100":  _action_list_value(r.get("video_p100_watched_actions")),
             "video_thruplays":  _action_list_value(r.get("video_thruplay_watched_actions")),
+            # 23/10/26: alcance (pessoas únicas do dia), retenção e engajamento. A API devolve `reach` só quando
+            # há entrega; ausente vira 0 (coletado, sem alcance) — linha ANTIGA, sem coleta, fica NULL no banco.
+            "reach":            int(float(r.get("reach", 0) or 0)),
+            "video_avg_time_watched": _action_list_float(r.get("video_avg_time_watched_actions")),
+            "video_views_30s":  _action_list_value(r.get("video_30_sec_watched_actions")),
+            "post_engagement":  _action_value(r.get("actions"), "post_engagement"),
+            "post_reactions":   _action_value(r.get("actions"), "post_reaction"),
+            "post_comments":    _action_value(r.get("actions"), "comment"),
+            "post_shares":      _action_value(r.get("actions"), "post"),
+            "post_saves":       _action_value(r.get("actions"), "onsite_conversion.post_save"),
         })
     return pd.DataFrame(records)
 

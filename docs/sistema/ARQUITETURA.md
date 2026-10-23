@@ -51,6 +51,9 @@ relacionados:
 > **Período livre nas páginas com filtro de data (2026-10-23)**
 >
 >
+> **Vigia do debriefing: snapshot de lançamento ativo velho (2026-10-23)**
+>
+>
 > **Estrutura de Arquivos**
 >
 >
@@ -363,6 +366,10 @@ O ano de um lançamento é o sufixo do código (`src/anos.py`): PI-JAN-26 é de 
 ## Período livre nas páginas com filtro de data (2026-10-23)
 
 Perpétuo, Distribuição e Redes Sociais (detalhe do perfil) aceitam, além dos atalhos `?days=7|30|90`, um intervalo livre `?inicio=AAAA-MM-DD&fim=AAAA-MM-DD`. A regra fica em `src/periodo.py::resolver_periodo` (datas invertidas trocadas, fim limitado a hoje, teto de 366 dias, comparação com o período anterior de mesmo tamanho) e o componente é o macro `frontend/templates/_macros_periodo.html::seletor_periodo`. Atendimento ainda usa só os atalhos (1/7/15/30).
+
+## Vigia do debriefing: snapshot de lançamento ativo velho (2026-10-23)
+
+O aquecimento mantém o snapshot anterior quando um bloco falha (para a seção não sumir), mas isso escondia o problema: a BV-26 ficou 3 dias com número velho sem ninguém saber. Agora `refresh_debriefing_snapshot` registra o motivo em `debriefing_build.ULTIMA_FALHA` e o vigia (`vigia_etl.py`) avisa no Slack quando o snapshot de um lançamento que o aquecimento deveria manter quente passa de `SNAPSHOT_LIMITE_H` (3 h) sem renovar. A mensagem diz os blocos que falharam; `?ao_vivo=1` na URL do debriefing força o cálculo ao vivo.
 
 ## Estrutura de Arquivos
 

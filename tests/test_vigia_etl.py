@@ -102,3 +102,30 @@ def test_estado_alimenta_a_faixa_da_tela(vigia):
     estado["ultimas"] = _frescas(google_ads=3)
     v.checar_e_avisar(AGORA)
     assert [p["fonte"] for p in v.ESTADO["problemas"]] == ["google_ads"]
+
+
+# ── Debriefing desatualizado (snapshot velho de lançamento ativo) ───────────
+def test_snapshot_velho_gera_aviso_com_o_motivo():
+    velho = AGORA - timedelta(hours=v.SNAPSHOT_LIMITE_H + 1)
+    falhas = {"BV-26": {"quando": AGORA - timedelta(minutes=20), "blocos": ["Leads", "Vendas por dia"], "erro": None}}
+    problemas = v.avaliar(_frescas(), AGORA - timedelta(minutes=10), AGORA,
+                          snapshots={"BV-26": velho, "PI-NOV-26": AGORA - timedelta(minutes=30)}, falhas=falhas)
+    assert [p["tipo"] for p in problemas] == ["snapshot_velho"]          # só o velho; o de 30 min está em dia
+    assert "BV-26" in problemas[0]["texto"] and "Leads, Vendas por dia" in problemas[0]["texto"]
+
+
+def test_snapshot_velho_sem_falha_registrada_e_snapshot_inexistente():
+    velho = AGORA - timedelta(hours=5)
+    p = v.avaliar(_frescas(), AGORA - timedelta(minutes=10), AGORA, snapshots={"BV-26": velho}, falhas={})
+    assert "não registrou falha" in p[0]["texto"]
+    erro = {"BV-26": {"quando": AGORA, "blocos": [], "erro": "TimeoutError: statement timeout"}}
+    p = v.avaliar(_frescas(), AGORA - timedelta(minutes=10), AGORA, snapshots={"BV-26": velho}, falhas=erro)
+    assert "TimeoutError" in p[0]["texto"]
+    assert v.avaliar(_frescas(), AGORA - timedelta(minutes=10), AGORA, snapshots={"BV-26": None}) == []   # sem snapshot: página ao vivo
+
+
+def test_mensagem_de_snapshot_nao_diz_que_o_etl_parou():
+    msg = v._mensagem_problema([{"tipo": "snapshot_velho", "fonte": "BV-26", "texto": "o debriefing de BV-26 ..."}], lembrete=False)
+    assert "Debriefing desatualizado" in msg and "ETL parado" not in msg and "ao_vivo=1" in msg
+    msg = v._mensagem_problema([{"tipo": "etl_parado", "fonte": "meta_ads", "texto": "x"}], lembrete=False)
+    assert "ETL parado" in msg and "ao_vivo" not in msg

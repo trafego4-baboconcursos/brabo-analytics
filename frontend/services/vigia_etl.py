@@ -58,6 +58,10 @@ NOMES: dict[str, str] = {
 }
 HISTORICO = "historico_utm"
 
+# Debriefing: o aquecimento regrava o snapshot a cada ~30 min e o ETL avisa a cada hora. Mais que isso sem
+# renovar um lançamento ATIVO = o servidor não está conseguindo gravar (ver ULTIMA_FALHA em debriefing_build).
+SNAPSHOT_LIMITE_H = 3.0
+
 _TZ = ZoneInfo("America/Sao_Paulo")
 
 # Estado em memória, lido pelo _base_ctx para a faixa da tela.
@@ -79,12 +83,16 @@ def _ha(agora: datetime, dt: datetime) -> str:
 
 def avaliar(ultimas_ok: dict[str, datetime | None],
             historico_ultimo: datetime | None,
-            agora: datetime) -> list[dict]:
+            agora: datetime,
+            snapshots: dict[str, datetime | None] | None = None,
+            falhas: dict[str, dict] | None = None) -> list[dict]:
     """Regra pura: o que está errado agora. Sem banco, para dar pra testar.
 
     `ultimas_ok`: fonte → horário da última carga OK (UTC), ou None.
     `historico_ultimo`: última escrita do ETL no histórico de UTM, ou None
     quando a tabela não existe (aí a checagem do histórico não se aplica).
+    `snapshots`: lançamento ativo → quando o snapshot do debriefing foi calculado pela última vez;
+    `falhas`: lançamento → último motivo registrado pelo aquecimento (debriefing_build.ULTIMA_FALHA).
     """
     problemas: list[dict] = []
     for fonte, limite in LIMITES_H.items():
@@ -112,7 +120,42 @@ def avaliar(ultimas_ok: dict[str, datetime | None],
                           f"não é gravado desde {_local(historico_ultimo)} — o serviço do ETL "
                           f"está com a versão atual?"),
             })
+
+    for codigo, calculado in (snapshots or {}).items():
+        if calculado is None:
+            continue   # sem snapshot ainda: a página calcula ao vivo, não há número velho a denunciar
+        if calculado.tzinfo is None:
+            calculado = calculado.replace(tzinfo=timezone.utc)
+        if agora - calculado > timedelta(hours=SNAPSHOT_LIMITE_H):
+            f = (falhas or {}).get(codigo)
+            if f and f.get("blocos"):
+                motivo = f"o aquecimento falhou nos blocos {', '.join(f['blocos'])} (última tentativa {_local(f['quando'])})"
+            elif f and f.get("erro"):
+                motivo = f"o aquecimento deu erro: {f['erro']} (última tentativa {_local(f['quando'])})"
+            else:
+                motivo = "o aquecimento não registrou falha — o lançamento pode não estar sendo aquecido"
+            problemas.append({
+                "tipo": "snapshot_velho",
+                "fonte": codigo,
+                "texto": f"o debriefing de {codigo} mostra dados de {_local(calculado)} (há {_ha(agora, calculado)}); {motivo}",
+            })
     return problemas
+
+
+def _snapshots_ativos() -> dict[str, datetime | None]:
+    """Quando o snapshot de cada lançamento que o aquecimento deveria manter quente foi calculado."""
+    from frontend.core import get_launches  # noqa: PLC0415
+    from frontend.db import _get_engine  # noqa: PLC0415
+    from frontend.services.prewarm import select_launches_to_warm  # noqa: PLC0415
+
+    codigos = [l.code for l in select_launches_to_warm(get_launches())]
+    if not codigos:
+        return {}
+    with _get_engine().connect() as conn:
+        achados = dict(conn.execute(text(
+            "SELECT lancamento_codigo, computed_at FROM debriefing_snapshot WHERE lancamento_codigo = ANY(:c)"
+        ), {"c": codigos}).fetchall())
+    return {c: achados.get(c) for c in codigos}
 
 
 def _ler_estado_banco() -> tuple[dict[str, datetime | None], datetime | None]:
@@ -171,19 +214,31 @@ def _enviar_slack(mensagem: str) -> bool:
 
 
 def _mensagem_problema(problemas: list[dict], lembrete: bool) -> str:
-    cab = ":rotating_light: *ETL parado — Brabo Analytics*" if not lembrete \
-        else ":rotating_light: *Lembrete: o ETL continua parado — Brabo Analytics*"
+    so_snapshot = all(p["tipo"] == "snapshot_velho" for p in problemas)
+    if so_snapshot:
+        cab = ":warning: *Debriefing desatualizado — Brabo Analytics*" if not lembrete             else ":warning: *Lembrete: debriefing continua desatualizado — Brabo Analytics*"
+    else:
+        cab = ":rotating_light: *ETL parado — Brabo Analytics*" if not lembrete             else ":rotating_light: *Lembrete: o ETL continua parado — Brabo Analytics*"
     linhas = [cab] + [f"• {p['texto']}" for p in problemas]
-    linhas.append("Enquanto isso, as páginas não atualizam e o histórico de UTM não registra "
-                  "os cadastros novos — quem trocar de lançamento nesse intervalo perde a linha.")
-    return "\n".join(linhas)
+    if any(p["tipo"] != "snapshot_velho" for p in problemas):
+        linhas.append("Enquanto isso, as páginas não atualizam e o histórico de UTM não registra "
+                      "os cadastros novos — quem trocar de lançamento nesse intervalo perde a linha.")
+    if any(p["tipo"] == "snapshot_velho" for p in problemas):
+        linhas.append("O número na tela é o do último snapshot bom; o cálculo ao vivo costuma estar certo "
+                      "(`?ao_vivo=1` na URL do debriefing força o cálculo ao vivo).")
+    return chr(10).join(linhas)
 
 
 def checar_e_avisar(agora: datetime | None = None) -> list[dict]:
     """Uma rodada do vigia. Devolve os problemas encontrados."""
     agora = agora or datetime.now(timezone.utc)
     ultimas, historico = _ler_estado_banco()
-    problemas = avaliar(ultimas, historico, agora)
+    try:
+        from frontend.services.debriefing_build import ULTIMA_FALHA  # noqa: PLC0415
+        problemas = avaliar(ultimas, historico, agora, _snapshots_ativos(), ULTIMA_FALHA)
+    except Exception:
+        logger.exception("Vigia: checagem do snapshot do debriefing falhou; seguindo só com o ETL")
+        problemas = avaliar(ultimas, historico, agora)
     tinha = bool(ESTADO["problemas"])
 
     if problemas and not tinha:

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi.concurrency import run_in_threadpool
@@ -426,6 +427,12 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
     }
 
 
+# Por que o snapshot de cada lançamento não foi regravado na última tentativa (memória do processo).
+# Lido pelo vigia (vigia_etl.py), que avisa no Slack quando um snapshot ativo fica velho — antes isso só
+# aparecia num warning de log que ninguém lê (BV-26 ficou 3 dias com número velho em 23/10/26).
+ULTIMA_FALHA: dict[str, dict] = {}
+
+
 async def refresh_debriefing_snapshot(launch: Any, launches: list) -> None:
     """Calcula o contexto completo (tudo inline) e grava em debriefing_snapshot.
     Chamado pelo aquecimento, com os caches já quentes — custa só a montagem.
@@ -437,10 +444,15 @@ async def refresh_debriefing_snapshot(launch: Any, launches: list) -> None:
     from frontend.db_readers.debriefing_snapshot import read_snapshot, write_snapshot  # noqa: PLC0415
 
     t0 = time.perf_counter()
-    built = await build_debriefing_context(launch, launches, lazy=False)
+    try:
+        built = await build_debriefing_context(launch, launches, lazy=False)
+    except Exception as e:
+        ULTIMA_FALHA[launch.code] = {"quando": datetime.now(timezone.utc), "blocos": [], "erro": f"{type(e).__name__}: {str(e)[:160]}"}
+        raise
     duration_ms = int((time.perf_counter() - t0) * 1000)
     falhas = built.get("falhas") or []
     if falhas:
+        ULTIMA_FALHA[launch.code] = {"quando": datetime.now(timezone.utc), "blocos": list(falhas), "erro": None}
         existente = await run_in_threadpool(read_snapshot, launch.code)
         if existente:
             logger.warning("Snapshot do debriefing de %s NÃO regravado: falhas em %s (mantido o de %s).",
@@ -449,6 +461,8 @@ async def refresh_debriefing_snapshot(launch: Any, launches: list) -> None:
         logger.warning("Snapshot do debriefing de %s gravado com falhas em %s (não havia snapshot anterior).",
                        launch.code, ", ".join(falhas))
     size = await run_in_threadpool(write_snapshot, launch.code, built, duration_ms)
+    if size:
+        ULTIMA_FALHA.pop(launch.code, None)
     if not size:  # recusado: já existe snapshot de versão mais nova (write_snapshot já logou o porquê)
         return
     logger.info("Snapshot do debriefing de %s gravado (%d KB, montado em %d ms).", launch.code, size // 1024, duration_ms)

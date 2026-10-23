@@ -471,6 +471,12 @@ async def refresh_debriefing_snapshot(launch: Any, launches: list) -> None:
     if falhas:
         ULTIMA_FALHA[launch.code] = {"quando": datetime.now(timezone.utc), "blocos": list(falhas), "erro": None,
                                      "detalhes": dict(getattr(falhas, "detalhes", {}) or {})}
+        try:   # aviso na hora, com o erro (não espera o vigia de 3 h)
+            from frontend.services.vigia_etl import avisar_falha_aquecimento  # noqa: PLC0415
+            await run_in_threadpool(avisar_falha_aquecimento, launch.code, list(falhas),
+                                    ULTIMA_FALHA[launch.code]["detalhes"])
+        except Exception:
+            logger.exception("Não deu pra avisar a falha do aquecimento de %s no Slack", launch.code)
         existente = await run_in_threadpool(read_snapshot, launch.code)
         if existente:
             logger.warning("Snapshot do debriefing de %s NÃO regravado: falhas em %s (mantido o de %s).",

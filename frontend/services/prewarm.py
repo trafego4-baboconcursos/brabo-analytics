@@ -231,7 +231,18 @@ async def warm_active(codes: Iterable[str] | None = None, invalidate: bool = Fal
         try:
             for l in to_warm:
                 _t0 = _time.monotonic()
-                await warm_launch(l, find_previous_launch(l, launches), launches)
+                try:
+                    await warm_launch(l, find_previous_launch(l, launches), launches)
+                except Exception as exc:
+                    # Uma exceção fora dos blocos (que já se protegem sozinhos) abortava o aquecimento de TODOS os
+                    # seguintes e só aparecia num log. Agora avisa no Slack e segue para o próximo.
+                    logger.exception("Aquecimento (%s): %s falhou", origem, l.code)
+                    try:
+                        from frontend.services.vigia_etl import avisar_falha_aquecimento  # noqa: PLC0415
+                        await run_in_threadpool(avisar_falha_aquecimento, l.code, ["warm_launch"],
+                                                {"warm_launch": f"{type(exc).__name__}: {str(exc)[:200]}"})
+                    except Exception:
+                        logger.exception("Não deu pra avisar a falha do aquecimento de %s", l.code)
                 logger.info("Aquecimento (%s): %s levou %.0f s.", origem, l.code, _time.monotonic() - _t0)
         finally:
             if token is not None:

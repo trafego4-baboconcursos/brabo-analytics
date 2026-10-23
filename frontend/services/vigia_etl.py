@@ -215,6 +215,27 @@ def _enviar_slack(mensagem: str) -> bool:
         return False
 
 
+# Aviso IMEDIATO de falha do aquecimento do debriefing (não espera as 3 h do vigia): no máximo um por lançamento a cada
+# AVISO_FALHA_INTERVALO_H. Foi o que faltou em 23/10/26: a BV-26 ficou dias sem renovar e ninguém sabia o motivo.
+AVISO_FALHA_INTERVALO_H = 2.0
+_ULTIMO_AVISO_FALHA: dict[str, datetime] = {}
+
+
+def avisar_falha_aquecimento(codigo: str, blocos: list[str], detalhes: dict[str, str] | None = None,
+                             agora: datetime | None = None) -> bool:
+    """Manda ao Slack os blocos que falharam no aquecimento de `codigo` e o texto do erro. True se enviou."""
+    agora = agora or datetime.now(timezone.utc)
+    ultimo = _ULTIMO_AVISO_FALHA.get(codigo)
+    if ultimo is not None and agora - ultimo < timedelta(hours=AVISO_FALHA_INTERVALO_H):
+        return False
+    det = detalhes or {}
+    linhas = [f":warning: *Aquecimento do debriefing falhou — {codigo}*"]
+    linhas += [f"• {b}" + (f" — {det[b]}" if b in det else "") for b in blocos]
+    linhas.append("O snapshot anterior foi mantido (a página mostra o último número bom). `?ao_vivo=1` na URL do debriefing calcula ao vivo.")
+    _ULTIMO_AVISO_FALHA[codigo] = agora   # marca mesmo se o Slack recusar: evita martelar a API a cada ciclo
+    return _enviar_slack(chr(10).join(linhas))
+
+
 def _mensagem_problema(problemas: list[dict], lembrete: bool) -> str:
     so_snapshot = all(p["tipo"] == "snapshot_velho" for p in problemas)
     if so_snapshot:

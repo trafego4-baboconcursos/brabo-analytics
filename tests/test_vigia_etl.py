@@ -148,3 +148,15 @@ def test_lista_de_falhas_guarda_o_erro_ativo():
         f.append("bloco_x")
     f.append("sem_excecao")          # fora de um except: só o nome
     assert list(f) == ["bloco_x", "sem_excecao"] and f.detalhes == {"bloco_x": "ValueError: boom"}
+
+
+def test_aviso_imediato_de_falha_do_aquecimento_traz_o_erro_e_nao_repete_em_2h(monkeypatch):
+    enviadas = []
+    monkeypatch.setattr(v, "_enviar_slack", lambda msg: enviadas.append(msg) or True)
+    monkeypatch.setattr(v, "_ULTIMO_AVISO_FALHA", {})
+    det = {"caminho_comprador": "KeyError: 'phone_por_email'"}
+    assert v.avisar_falha_aquecimento("BV-26", ["caminho_comprador", "leads"], det, AGORA) is True
+    assert "BV-26" in enviadas[0] and "caminho_comprador — KeyError: 'phone_por_email'" in enviadas[0] and "• leads" in enviadas[0]
+    assert v.avisar_falha_aquecimento("BV-26", ["leads"], None, AGORA + timedelta(minutes=30)) is False   # não repete
+    assert v.avisar_falha_aquecimento("PI-NOV-26", ["x"], None, AGORA + timedelta(minutes=30)) is True    # outro lançamento
+    assert v.avisar_falha_aquecimento("BV-26", ["leads"], None, AGORA + timedelta(hours=v.AVISO_FALHA_INTERVALO_H + 0.1)) is True

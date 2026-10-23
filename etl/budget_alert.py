@@ -227,6 +227,25 @@ def _listar_codigos_lancamentos() -> list[str] | None:
         return None
 
 
+def _codigos_em_andamento(hoje: date) -> set[str]:
+    """Lançamentos cuja janela (dim_lancamentos) inclui hoje. Serve para o relatório denunciar quem está
+    rodando sem `etapas` provisionadas — sem isso o alerta pula o lançamento em silêncio (PI-NOV-26, 23/10/26)."""
+    try:
+        with get_engine().connect() as conn:
+            rows = conn.execute(
+                text("SELECT codigo FROM dim_lancamentos WHERE data_inicio <= :h AND data_fim >= :h"), {"h": hoje}
+            ).fetchall()
+        return {r[0] for r in rows}
+    except Exception:
+        logger.exception("Falha ao listar lançamentos em andamento")
+        return set()
+
+
+def aviso_sem_etapas(codigo: str) -> str:
+    return (f"• *{codigo}*: está em andamento mas não tem etapas de verba provisionadas em `launch_config.etapas` — "
+            f"sem elas este relatório não acompanha o orçamento dele")
+
+
 def _ler_launch_config(codigo: str) -> dict:
     try:
         with get_users_engine().connect() as conn:
@@ -620,8 +639,12 @@ def rodar_alerta_orcamento() -> None:
         if codigos is None:
             falhas.append("• Falha ao listar lançamentos (dim_lancamentos indisponível) — relatório incompleto")
             codigos = []
+        em_andamento = _codigos_em_andamento(hoje)
         for codigo in codigos:
             cfg = _ler_launch_config(codigo)
+            if codigo in em_andamento and not cfg.get("_erro_leitura") and not (cfg.get("etapas") or []):
+                falhas.append(aviso_sem_etapas(codigo))
+                continue
             bloco, erros = _processar_lancamento(codigo, cfg, hoje, state)
             if bloco:
                 blocos.append(bloco)
@@ -629,7 +652,7 @@ def rodar_alerta_orcamento() -> None:
 
         partes = [f"*Relatório de Orçamento — {hoje.strftime('%d/%m/%Y')}*"]
         if falhas:
-            partes.append("\n*⚠️ Falhas na consulta (sem números pra esses lançamentos):*\n" + "\n".join(falhas))
+            partes.append("\n*⚠️ Atenção (sem números pra esses lançamentos):*\n" + "\n".join(falhas))
         if blocos:
             partes.append("\n".join(blocos))
         else:

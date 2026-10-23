@@ -90,3 +90,27 @@ def test_etapa_que_gastou_e_parou_continua_sendo_anunciada(sem_rede, monkeypatch
     msg, _ = ba._processar_lancamento("BV-26", _cfg(), HOJE, {})
     assert "*Aquecimento* — 🔴 campanhas pausadas/encerradas" in msg
     assert "R$ 5.000,00" in msg
+
+
+# ── lançamento em andamento sem etapas não pode ser pulado em silêncio ──────
+def test_relatorio_denuncia_lancamento_em_andamento_sem_etapas(monkeypatch):
+    """PI-NOV-26 rodou dias sem `etapas` no launch_config e o relatório simplesmente não o citava."""
+    enviadas: list[str] = []
+    cfgs = {"PI-NOV-26": {"etapas": []}, "PES-NOV-26": {"etapas": [{"nome": "Captação"}]}, "PI-AGO-26": {"etapas": []}}
+    processados: list[str] = []
+    monkeypatch.setattr(ba, "_listar_codigos_lancamentos", lambda: list(cfgs))
+    monkeypatch.setattr(ba, "_codigos_em_andamento", lambda hoje: {"PI-NOV-26", "PES-NOV-26"})   # PI-AGO-26 já acabou
+    monkeypatch.setattr(ba, "_ler_launch_config", lambda c: cfgs[c])
+    monkeypatch.setattr(ba, "_processar_lancamento",
+                        lambda c, cfg, h, st: (processados.append(c) or (f"bloco {c}" if cfg.get("etapas") else None), []))   # como o real: sem etapas, sem bloco
+    monkeypatch.setattr(ba, "_load_state", lambda: {})
+    monkeypatch.setattr(ba, "_save_state", lambda *a, **k: None)
+    monkeypatch.setattr(ba, "enviar_slack", lambda m: enviadas.append(m) or True)
+
+    ba.rodar_alerta_orcamento()
+
+    msg = enviadas[0]
+    assert "PI-NOV-26" in msg and "não tem etapas" in msg           # denunciado
+    assert "PI-AGO-26" not in msg                                    # encerrado sem etapas: sem ruído
+    assert processados == ["PES-NOV-26", "PI-AGO-26"]                # quem tem etapas segue o fluxo normal
+    assert "bloco PES-NOV-26" in msg

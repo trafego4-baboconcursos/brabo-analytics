@@ -54,6 +54,9 @@ relacionados:
 > **Vigia do debriefing: snapshot de lançamento ativo velho (2026-10-23)**
 >
 >
+> **Alerta de orçamento: lançamento em andamento sem etapas (2026-10-23)**
+>
+>
 > **Estrutura de Arquivos**
 >
 >
@@ -370,6 +373,10 @@ Perpétuo, Distribuição e Redes Sociais (detalhe do perfil) aceitam, além dos
 ## Vigia do debriefing: snapshot de lançamento ativo velho (2026-10-23)
 
 O aquecimento mantém o snapshot anterior quando um bloco falha (para a seção não sumir), mas isso escondia o problema: a BV-26 ficou 3 dias com número velho sem ninguém saber. Agora `refresh_debriefing_snapshot` registra o motivo em `debriefing_build.ULTIMA_FALHA` e o vigia (`vigia_etl.py`) avisa no Slack quando o snapshot de um lançamento que o aquecimento deveria manter quente passa de `SNAPSHOT_LIMITE_H` (3 h) sem renovar. A mensagem diz os blocos que falharam; `?ao_vivo=1` na URL do debriefing força o cálculo ao vivo.
+
+## Alerta de orçamento: lançamento em andamento sem etapas (2026-10-23)
+
+`etl/budget_alert.py` só acompanha lançamento com `launch_config.etapas`. Sem etapas ele pulava o lançamento em silêncio (PI-NOV-26 ficou de fora do Slack). Agora todo lançamento em andamento (janela do `dim_lancamentos` inclui hoje) sem etapas aparece na seção "Atenção" do relatório. Lançamento novo precisa de etapas provisionadas (ver `scripts/provisionar_etapas_pi_nov_26.py` como exemplo).
 
 ## Estrutura de Arquivos
 

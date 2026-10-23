@@ -605,6 +605,46 @@
     </div>
     {% endif %}
 
+    {# ── Retenção e engajamento (Meta) — coleta de alcance/tempo/engajamento começou em 22/10/26 ── #}
+    {% if meta and meta.por_etapa and (meta.por_etapa.values() | selectattr("alcance", "gt", 0) | list) %}
+    <div class="section">
+      <div class="section-title"><i class="ti ti-heart-handshake" style="color:var(--meta-color)"></i> Retenção e engajamento por Etapa {{ plat_badge("Meta") }}</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-meta">Etapa</th>
+              <th class="th-meta" title="Soma do alcance diário (a mesma pessoa em dias diferentes conta mais de uma vez)">Alcance</th>
+              <th class="th-meta" title="Impressões ÷ alcance, só nos dias com alcance coletado">Frequência</th>
+              <th class="th-meta" title="Pessoas que assistiram 30 segundos do vídeo">Viram 30s</th>
+              <th class="th-meta" title="Tempo médio assistido, ponderado pelas visualizações de 3s">Tempo médio</th>
+              <th class="th-meta">Reações</th>
+              <th class="th-meta">Comentários</th>
+              <th class="th-meta">Compart.</th>
+              <th class="th-meta">Salvamentos</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for etapa, d in meta.por_etapa.items() if d.alcance > 0 %}
+            <tr>
+              <td><span class="bs-pill meta">{{ etapa }}</span></td>
+              <td class="numero">{{ d.alcance | num }}</td>
+              <td class="numero">{{ ("%.2f" | format(d.frequencia)) | replace(".", ",") }}x</td>
+              <td class="numero">{{ d.views_30s | num if d.views_30s > 0 else "–" }}</td>
+              <td class="numero">{{ (("%.1f" | format(d.tempo_medio)) | replace(".", ",")) ~ " s" if d.tempo_medio > 0 else "–" }}</td>
+              <td class="numero">{{ d.reacoes | num if d.reacoes > 0 else "–" }}</td>
+              <td class="numero">{{ d.comentarios | num if d.comentarios > 0 else "–" }}</td>
+              <td class="numero">{{ d.compartilhamentos | num if d.compartilhamentos > 0 else "–" }}</td>
+              <td class="numero">{{ d.salvamentos | num if d.salvamentos > 0 else "–" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:var(--s2);">Só os dias com coleta (a partir de 22/10/26 para os lançamentos em andamento; lançamentos antigos só se foram recarregados).</div>
+    </div>
+    {% endif %}
+
     {# ── Google por etapa ───────────────────────────────────────────────── #}
     {% if google and google.por_etapa %}
     <div class="section">

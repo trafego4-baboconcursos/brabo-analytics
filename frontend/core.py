@@ -514,6 +514,14 @@ def _build_perpetuo_nav_items(current_path: str, active_code: str | None) -> lis
     return items
 
 
+def _identidade_expert(account: dict) -> dict:
+    """Dados do selo de expert no menu: foto (servida por /avatar), primeiro nome e o resto, iniciais."""
+    partes = str(account.get("name") or account["username"]).split()
+    primeiro, resto = partes[0], " ".join(partes[1:])
+    return {"foto": f"/avatar/{account['username']}", "primeiro": primeiro, "resto": resto,
+            "iniciais": (primeiro[:1] + (resto[:1] if resto else "")).upper()}
+
+
 def _build_distribuicao_nav_items(current_path: str, active_code: str | None) -> list[dict]:
     """Submenu do modo Distribuição de Conteúdo — um item por expert já
     cadastrado em config/instagram_accounts.yaml (mesma fonte da aba
@@ -525,7 +533,7 @@ def _build_distribuicao_nav_items(current_path: str, active_code: str | None) ->
         if active_code:
             href += f"?launch_code={active_code}"
         items.append({"username": username, "label": account["name"], "href": href,
-                      "active": current_path == f"/distribuicao/{username}"})
+                      "active": current_path == f"/distribuicao/{username}", **_identidade_expert(account)})
     return items
 
 
@@ -539,7 +547,7 @@ def _build_redes_sociais_nav_items(current_path: str, active_code: str | None) -
         if active_code:
             href += f"?launch_code={active_code}"
         items.append({"username": username, "label": account["name"], "href": href,
-                      "active": current_path == f"/instagram/{username}"})
+                      "active": current_path == f"/instagram/{username}", **_identidade_expert(account)})
     return items
 
 

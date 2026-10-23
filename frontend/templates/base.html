@@ -288,13 +288,21 @@
       </div>
 
       {% if distribuicao_nav_items %}
+      {# Selo de expert: círculo com a foto (iniciais se a foto faltar) + primeiro nome em cima e o resto embaixo.
+         Círculo de 32px e duas linhas de 16px = mesma altura (grade de 8px). #}
+      {% macro chip_expert(item) %}
+      <span class="bs-expert-chip" title="{{ item.label }}">
+        <span class="bs-expert-avatar"><span class="bs-expert-ini">{{ item.iniciais }}</span><img src="{{ item.foto }}" alt="" loading="lazy" onerror="this.remove()"></span>
+        <span class="bs-expert-nome"><span>{{ item.primeiro }}</span><span>{{ item.resto }}</span></span>
+      </span>
+      {% endmacro %}
       <div class="bs-launch-picker" id="bs-distribuicao-picker">
         <button type="button"
                 class="bs-mode-btn bs-launch-picker-btn {% if nav_mode == 'distribuicao' %}active{% endif %} {% if nav_mode == 'distribuicao' and distribuicao_current %}bs-has-badge{% endif %}"
                 onclick="bsPickerToggle(this)">
           <span class="bs-launch-picker-label"><i class="ti ti-speakerphone"></i> Distribuição</span>
           {% if nav_mode == 'distribuicao' and distribuicao_current %}
-          <span class="bs-live-badge"><span class="bs-live-dot"></span> {{ distribuicao_current.label }}</span>
+          {{ chip_expert(distribuicao_current) }}
           {% endif %}
           <i class="ti ti-chevron-down bs-launch-picker-chevron"></i>
         </button>
@@ -315,7 +323,7 @@
                 onclick="bsPickerToggle(this)">
           <span class="bs-launch-picker-label"><i class="ti ti-share"></i> Redes Sociais</span>
           {% if nav_mode == 'redes_sociais' and redes_sociais_current %}
-          <span class="bs-live-badge"><span class="bs-live-dot"></span> {{ redes_sociais_current.label }}</span>
+          {{ chip_expert(redes_sociais_current) }}
           {% endif %}
           <i class="ti ti-chevron-down bs-launch-picker-chevron"></i>
         </button>

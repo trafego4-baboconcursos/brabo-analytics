@@ -96,6 +96,56 @@ async def instagram_page(request: Request, launch_code: str | None = None):
     return templates.TemplateResponse("instagram.html", ctx)
 
 
+_AVATAR_CACHE: dict[str, tuple[float, bytes | None, str]] = {}   # username -> (quando, bytes|None, content-type)
+_AVATAR_TTL = 12 * 3600
+_AVATAR_TTL_FALHA = 600
+_AVATAR_HOSTS = (".fbcdn.net", ".cdninstagram.com", ".facebook.com", ".instagram.com")
+
+
+def _baixar_avatar(username: str) -> tuple[bytes | None, str]:
+    """Foto de perfil do expert, baixada UMA vez e guardada: o link do CDN do Instagram expira em dias e a
+    chamada à API é lenta, então o menu não pode depender dela a cada página."""
+    import time as _t
+    from urllib.parse import urlparse
+
+    import requests
+
+    from frontend.services.instagram import get_instagram_profiles
+
+    agora = _t.time()
+    hit = _AVATAR_CACHE.get(username)
+    if hit and agora - hit[0] < (_AVATAR_TTL if hit[1] else _AVATAR_TTL_FALHA):
+        return hit[1], hit[2]
+    dados, tipo = None, "image/jpeg"
+    try:
+        perfil = next((p for p in get_instagram_profiles()["profiles"] if p["username"] == username), None)
+        url = (perfil or {}).get("profile_picture_url")
+        host = urlparse(url or "").hostname or ""
+        if url and url.startswith("https://") and host.endswith(_AVATAR_HOSTS):
+            r = requests.get(url, timeout=15)
+            if r.ok and len(r.content) < 3_000_000 and r.headers.get("content-type", "").startswith("image/"):
+                dados, tipo = r.content, r.headers["content-type"]
+    except Exception:
+        logger.warning("avatar: falha ao baixar a foto de %s", username, exc_info=True)
+    _AVATAR_CACHE[username] = (agora, dados, tipo)
+    return dados, tipo
+
+
+@router.get("/avatar/{username}")
+async def avatar_expert(username: str):
+    """Foto de perfil de um expert cadastrado (config/instagram_accounts.yaml) para o seletor do menu."""
+    from fastapi.responses import Response
+
+    from frontend.core import _load_experts
+
+    if username not in {a["username"] for a in _load_experts()}:
+        return Response(status_code=404)
+    dados, tipo = await run_in_threadpool(_baixar_avatar, username)
+    if not dados:
+        return Response(status_code=404, headers={"Cache-Control": "private, max-age=300"})
+    return Response(dados, media_type=tipo, headers={"Cache-Control": "private, max-age=43200"})
+
+
 @router.get("/instagram/{username}", response_class=HTMLResponse)
 async def instagram_detail_page(request: Request, username: str, launch_code: str | None = None,
                                  days: int = 30, compare: int = 0, inicio: str | None = None, fim: str | None = None):

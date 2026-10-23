@@ -35,6 +35,17 @@ def _plataforma_lead(utm_source: Any) -> str | None:
     return "Outro"
 
 
+def _codigo_anuncio(utm_term: pd.Series, utm_content: pd.Series) -> pd.Series:
+    """ADxxx do utm_term (fallback utm_content), em maiúsculas; NA quando nenhum casa.
+
+    astype("string"): no pandas 2.x uma coluna toda NaN (nenhum comprador com ADxxx) fica object/float e o `.str`
+    estoura "Can only use .str accessor with string values" — foi o que travou o debriefing da BV-26 no servidor.
+    """
+    ad_term = utm_term.astype(str).str.extract(r"^(AD\d+)", flags=re.IGNORECASE)[0]
+    ad_content = utm_content.astype(str).str.extract(r"^(AD\d+)", flags=re.IGNORECASE)[0]
+    return ad_term.fillna(ad_content).astype("string").str.upper()
+
+
 def read_caminho_comprador(launch_folder_or_code: Any, vendas: Any = None) -> dict | None:
     from frontend.db_readers.sales import read_vendas  # noqa: PLC0415 — evita import circular
     from frontend.db_readers.typeform import _resolve_typeform_ids  # noqa: PLC0415
@@ -61,9 +72,7 @@ def read_caminho_comprador(launch_folder_or_code: Any, vendas: Any = None) -> di
     )
     lead_info: dict[str, dict] = {}
     if not leads_df.empty:
-        ad_term = leads_df["utm_term"].astype(str).str.extract(r"^(AD\d+)", flags=re.IGNORECASE)[0]
-        ad_content = leads_df["utm_content"].astype(str).str.extract(r"^(AD\d+)", flags=re.IGNORECASE)[0]
-        leads_df["ad_code"] = ad_term.fillna(ad_content).str.upper()
+        leads_df["ad_code"] = _codigo_anuncio(leads_df["utm_term"], leads_df["utm_content"])
         for _, r in leads_df.iterrows():
             lead_info[r["email"]] = {
                 "ad_code": r["ad_code"] if pd.notna(r["ad_code"]) else None,

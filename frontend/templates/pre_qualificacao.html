@@ -133,11 +133,15 @@
     </div>
     {% endif %}
 
-    {# ── Meta por etapa ──────────────────────────────────────────────────── #}
-    {% if meta and meta.por_etapa %}
+    {# ── Ranking de Anúncios — Meta Ads ─────────────────────────────────── #}
+    {% if meta_ads_preq %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-chart-donut" style="color:var(--meta-color)"></i> Distribuição por Etapa {{ plat_badge("Meta") }}</div>
-      <div class="table-wrap">
+      <div class="section-title"><i class="ti ti-trophy"></i> Ranking de Anúncios {{ plat_badge("Meta") }}</div>
+      {# Linha da etapa (era a "Distribuição por Etapa" Meta): resumo da etapa em cima dos anúncios #}
+      {% set et_m = meta.por_etapa.get(etapa_pq) if meta else None %}
+      {% if et_m %}
+      {% set total_meta = meta.total_gasto or 1 %}
+      <div class="table-wrap" style="margin-bottom:var(--s3);">
         <table>
           <thead>
             <tr>
@@ -153,29 +157,110 @@
             </tr>
           </thead>
           <tbody>
-            {% set total_meta = meta.total_gasto or 1 %}
-            {% for etapa, d in meta.por_etapa.items() %}
-            <tr {% if etapa != etapa_pq %}style="opacity:0.45;"{% endif %}>
-              <td><span class="bs-pill meta">{{ etapa }}</span></td>
-              <td class="numero">{{ d.gasto | brl }}</td>
+            <tr>
+              <td><span class="bs-pill meta">{{ etapa_pq }}</span></td>
+              <td class="numero">{{ et_m.gasto | brl }}</td>
               <td>
                 <div class="pbar-wrap">
                   <div class="pbar-track" style="max-width:80px">
-                    <div class="pbar-fill meta" style="width:{{ (d.gasto / total_meta * 100) | round(1) }}%;"></div>
+                    <div class="pbar-fill meta" style="width:{{ (et_m.gasto / total_meta * 100) | round(1) }}%;"></div>
                   </div>
-                  <span class="td-meta" style="font-weight:700;font-size:12px">{{ (d.gasto / total_meta * 100) | pct }}</span>
+                  <span class="td-meta" style="font-weight:700;font-size:12px">{{ (et_m.gasto / total_meta * 100) | pct }}</span>
                 </div>
               </td>
-              <td class="numero">{{ d.leads | num }}</td>
-              <td class="numero {% if d.cpl > 0 and d.cpl < 3 %}positivo{% elif d.cpl > 5 %}negativo{% endif %}">
-                {{ d.cpl | brl if d.leads > 0 else "–" }}
+              <td class="numero">{{ et_m.leads | num }}</td>
+              <td class="numero {% if et_m.cpl > 0 and et_m.cpl < 3 %}positivo{% elif et_m.cpl > 5 %}negativo{% endif %}">{{ et_m.cpl | brl if et_m.leads > 0 else "–" }}</td>
+              <td class="numero">{{ et_m.thruplays | num }}</td>
+              <td class="numero">{{ et_m.custo_thruplay | brl(3) if et_m.thruplays > 0 else "–" }}</td>
+              <td class="numero">{{ et_m.views_50 | num if et_m.views_50 > 0 else "–" }}</td>
+              <td class="numero">{{ et_m.pct_views_50 | pct if et_m.alcance > 0 and et_m.pct_views_50 > 0 else "–" }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-meta">#</th>
+              {% if drive_thumbnails %}<th class="th-meta">Criativo</th>{% endif %}
+              <th class="th-meta">AD Code</th>
+              <th class="th-meta">Nome do Anúncio</th>
+              <th class="th-meta">Leads</th>
+              <th class="th-meta">CPL</th>
+              <th class="th-meta">Investimento</th>
+              <th class="th-meta">CTR</th>
+              <th class="th-meta">CPM</th>
+              <th class="th-meta">ThruPlays</th>
+              <th class="th-meta">Custo/ThruPlay</th>
+              <th class="th-meta" title="Pessoas que assistiram 50% do vídeo">Viram 50%</th>
+              <th class="th-meta" title="Viram 50% ÷ alcance (só dias com alcance coletado)">% Viram 50%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in meta_ads_preq %}
+            {% set td = drive_thumbnails.get(a.ad_code) if drive_thumbnails else None %}
+            <tr class="{{ 'top3' if loop.index <= 3 else '' }}">
+              <td class="numero">{{ loop.index }}</td>
+              {% if drive_thumbnails %}
+              <td style="padding:4px 6px;">
+                {% if td %}
+                <img src="{{ td.thumb }}" alt="{{ a.ad_code }}"
+                     data-preview="{{ td.preview }}" data-title="{{ a.ad_code }}"
+                     data-gasto="{{ a.gasto | brl }}" data-leads="{{ a.leads | num }}"
+                     data-cpl="{{ a.cpl | brl if a.leads > 0 else '' }}" data-cpm="{{ a.cpm | brl }}"
+                     data-ctr="{{ '%.2f'|format(a.ctr) | replace('.', ',') if a.ctr is defined }}"
+                     data-hook="{{ '%.2f'|format(a.hook_rate) | replace('.', ',') if a.hook_rate is defined and a.hook_rate }}"
+                     data-hold="{{ '%.2f'|format(a.hold_rate) | replace('.', ',') if a.hold_rate is defined and a.hold_rate }}"
+                     data-body="{{ '%.2f'|format(a.body_rate) | replace('.', ',') if a.body_rate is defined and a.body_rate }}"
+                     style="width:64px;height:42px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);cursor:pointer;display:block"
+                     onclick="openVideoModalFromEl(this)"
+                     onerror="this.style.display='none'">
+                {% else %}
+                <div style="width:64px;height:42px;border-radius:5px;border:1px dashed var(--bs-border-s);background:var(--bs-accent-bg);display:flex;align-items:center;justify-content:center">
+                  <i class="ti ti-photo-off" style="color:var(--bs-ink-subtle);font-size:16px"></i>
+                </div>
+                {% endif %}
               </td>
-              <td class="numero">{{ d.thruplays | num }}</td>
-              <td class="numero">{{ d.custo_thruplay | brl(3) if d.thruplays > 0 else "–" }}</td>
-              <td class="numero">{{ d.views_50 | num if d.views_50 > 0 else "–" }}</td>
-              <td class="numero">{{ d.pct_views_50 | pct if d.alcance > 0 and d.pct_views_50 > 0 else "–" }}</td>
+              {% endif %}
+              <td><span class="bs-pill meta">{{ a.ad_code or "–" }}</span></td>
+              <td class="td-muted" style="max-width:280px;font-size:11px;">{{ a.nome[:70] }}</td>
+              <td class="numero"><strong>{{ a.leads | num }}</strong></td>
+              <td class="numero">{{ a.cpl | brl if a.leads > 0 else "–" }}</td>
+              <td class="numero">{{ a.gasto | brl }}</td>
+              <td class="numero">{{ a.ctr | pct(2) }}</td>
+              <td class="numero">{{ a.cpm | brl }}</td>
+              <td class="numero">{{ a.thruplays | num if a.thruplays > 0 else "–" }}</td>
+              <td class="numero">{{ a.custo_thruplay | brl(3) if a.thruplays > 0 else "–" }}</td>
+              <td class="numero">{{ a.views_50 | num if a.views_50 > 0 else "–" }}</td>
+              <td class="numero">{{ a.pct_views_50 | pct(2) if a.alcance > 0 and a.pct_views_50 > 0 else "–" }}</td>
             </tr>
             {% endfor %}
+            {% set tot = namespace(leads=0, gasto=0, cliques=0, impressoes=0, thru=0, v50=0, alcance=0, v50c=0) %}
+            {% for a in meta_ads_preq %}
+              {% set tot.leads = tot.leads + a.leads %}
+              {% set tot.gasto = tot.gasto + a.gasto %}
+              {% set tot.cliques = tot.cliques + (a.cliques or 0) %}
+              {% set tot.impressoes = tot.impressoes + (a.impressoes or 0) %}
+              {% set tot.thru = tot.thru + (a.thruplays or 0) %}
+              {% set tot.v50 = tot.v50 + (a.views_50 or 0) %}
+              {% set tot.alcance = tot.alcance + (a.alcance or 0) %}
+              {% set tot.v50c = tot.v50c + (a.views_50_c_alcance or 0) %}
+            {% endfor %}
+            <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
+              <td colspan="{{ 4 if drive_thumbnails else 3 }}">TOTAL</td>
+              <td class="numero">{{ tot.leads | num }}</td>
+              <td class="numero">{{ (tot.gasto / tot.leads) | brl if tot.leads > 0 else "–" }}</td>
+              <td class="numero">{{ tot.gasto | brl }}</td>
+              <td class="numero">{{ (tot.cliques / tot.impressoes * 100) | pct(2) if tot.impressoes > 0 else "–" }}</td>
+              <td class="numero">{{ (tot.gasto / tot.impressoes * 1000) | brl if tot.impressoes > 0 else "–" }}</td>
+              <td class="numero">{{ tot.thru | num if tot.thru > 0 else "–" }}</td>
+              <td class="numero">{{ (tot.gasto / tot.thru) | brl(3) if tot.thru > 0 else "–" }}</td>
+              <td class="numero">{{ tot.v50 | num if tot.v50 > 0 else "–" }}</td>
+              <td class="numero">{{ (tot.v50c / tot.alcance * 100) | pct(2) if tot.alcance > 0 and tot.v50c > 0 else "–" }}</td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -222,11 +307,17 @@
     </div>
     {% endif %}
 
-    {# ── Google por etapa ───────────────────────────────────────────────── #}
-    {% if google and google.por_etapa %}
+    {# ── Ranking de Anúncios — YouTube (Google Ads) ─────────────────────── #}
+    {% if youtube_ads_preq %}
+    {# Criativo: miniatura do Drive; sem ela (anúncio reaproveitado de outro lançamento), a do próprio vídeo do YouTube #}
+    {% set mostra_thumb = drive_thumbnails or (youtube_ads_preq | selectattr("video_id") | list) %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-chart-donut" style="color:var(--google-color)"></i> Distribuição por Etapa {{ plat_badge("Google") }}</div>
-      <div class="table-wrap">
+      <div class="section-title"><i class="ti ti-trophy"></i> Ranking de Anúncios {{ plat_badge("Google") }}</div>
+      {# Linha da etapa (era a "Distribuição por Etapa" Google): resumo da etapa em cima dos anúncios #}
+      {% set et_g = google.por_etapa.get(etapa_pq) if google else None %}
+      {% if et_g %}
+      {% set total_google = google.total_custo or 1 %}
+      <div class="table-wrap" style="margin-bottom:var(--s3);">
         <table>
           <thead>
             <tr>
@@ -242,27 +333,123 @@
             </tr>
           </thead>
           <tbody>
-            {% set total_google = google.total_custo or 1 %}
-            {% for etapa, d in google.por_etapa.items() %}
-            <tr {% if etapa != etapa_pq %}style="opacity:0.45;"{% endif %}>
-              <td><span class="bs-pill google">{{ etapa }}</span></td>
-              <td class="numero">{{ d.custo | brl }}</td>
+            <tr>
+              <td><span class="bs-pill google">{{ etapa_pq }}</span></td>
+              <td class="numero">{{ et_g.custo | brl }}</td>
               <td>
                 <div class="pbar-wrap">
                   <div class="pbar-track" style="max-width:80px">
-                    <div class="pbar-fill google" style="width:{{ (d.custo / total_google * 100) | round(1) }}%"></div>
+                    <div class="pbar-fill google" style="width:{{ (et_g.custo / total_google * 100) | round(1) }}%"></div>
                   </div>
-                  <span class="td-google" style="font-weight:700;font-size:12px">{{ (d.custo / total_google * 100) | pct }}</span>
+                  <span class="td-google" style="font-weight:700;font-size:12px">{{ (et_g.custo / total_google * 100) | pct }}</span>
                 </div>
               </td>
-              <td class="numero">{{ "%.0f"|format(d.conversoes) }}</td>
-              <td class="numero">{{ d.custo_conv | brl if d.conversoes > 0 else "–" }}</td>
-              <td class="numero">{{ d.visualizacoes | num if d.visualizacoes > 0 else "–" }}</td>
-              <td class="numero">{{ (d.custo / d.visualizacoes) | brl(3) if d.visualizacoes > 0 else "–" }}</td>
-              <td class="numero">{{ d.views_50 | num if d.views_50 > 0 else "–" }}</td>
-              <td class="numero">{{ d.pct_views_50 | pct if d.views_50 > 0 else "–" }}</td>
+              <td class="numero">{{ "%.0f"|format(et_g.conversoes) }}</td>
+              <td class="numero">{{ et_g.custo_conv | brl if et_g.conversoes > 0 else "–" }}</td>
+              <td class="numero">{{ et_g.visualizacoes | num if et_g.visualizacoes > 0 else "–" }}</td>
+              <td class="numero">{{ (et_g.custo / et_g.visualizacoes) | brl(3) if et_g.visualizacoes > 0 else "–" }}</td>
+              <td class="numero">{{ et_g.views_50 | num if et_g.views_50 > 0 else "–" }}</td>
+              <td class="numero">{{ et_g.pct_views_50 | pct if et_g.views_50 > 0 else "–" }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="th-youtube">#</th>
+              {% if mostra_thumb %}<th class="th-youtube">Criativo</th>{% endif %}
+              <th class="th-youtube">AD Code</th>
+              <th class="th-youtube">Nome do Anúncio</th>
+              <th class="th-youtube">Leads</th>
+              <th class="th-youtube">CPL</th>
+              <th class="th-youtube">Investimento</th>
+              <th class="th-youtube">CTR</th>
+              <th class="th-youtube">CPM</th>
+              <th class="th-youtube" title="Visualizações do vídeo (TrueView)">Visualizações</th>
+              <th class="th-youtube" title="Investimento ÷ visualizações">Custo/View</th>
+              <th class="th-youtube" title="Visualizações × taxa de 50% do vídeo">Viram 50%</th>
+              <th class="th-youtube" title="Viram 50% ÷ visualizações">% Viram 50%</th>
+              <th class="th-youtube">Vídeo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in youtube_ads_preq %}
+            {% set td = drive_thumbnails.get(a.ad_code) if drive_thumbnails else None %}
+            <tr class="{{ 'top3' if loop.index <= 3 else '' }}">
+              <td class="numero">{{ loop.index }}</td>
+              {% if mostra_thumb %}
+              <td style="padding:4px 6px;">
+                {% if td %}
+                <img src="{{ td.thumb }}" alt="{{ a.ad_code }}"
+                     data-preview="{{ td.preview }}" data-title="{{ a.ad_code }}"
+                     data-gasto="{{ a.gasto | brl }}" data-leads="{{ a.leads | num }}"
+                     data-cpl="{{ a.cpl | brl if a.leads > 0 else '' }}" data-cpm="{{ a.cpm | brl }}"
+                     data-ctr="{{ '%.2f'|format(a.ctr) | replace('.', ',') if a.ctr is defined }}"
+                     data-hook="{{ '%.2f'|format(a.hook_rate) | replace('.', ',') if a.hook_rate is defined and a.hook_rate }}"
+                     data-hold="{{ '%.2f'|format(a.hold_rate) | replace('.', ',') if a.hold_rate is defined and a.hold_rate }}"
+                     data-body="{{ '%.2f'|format(a.body_rate) | replace('.', ',') if a.body_rate is defined and a.body_rate }}"
+                     style="width:64px;height:42px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);cursor:pointer;display:block"
+                     onclick="openVideoModalFromEl(this)"
+                     onerror="this.style.display='none'">
+                {% elif a.video_id %}
+                <a href="https://www.youtube.com/watch?v={{ a.video_id }}" target="_blank" rel="noopener" title="Abrir no YouTube">
+                  <img src="https://i.ytimg.com/vi/{{ a.video_id }}/mqdefault.jpg" alt="{{ a.ad_code }}" loading="lazy"
+                       style="width:64px;height:42px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);display:block"
+                       onerror="this.style.display='none'">
+                </a>
+                {% else %}
+                <div style="width:64px;height:42px;border-radius:5px;border:1px dashed var(--bs-border-s);background:var(--bs-accent-bg);display:flex;align-items:center;justify-content:center">
+                  <i class="ti ti-photo-off" style="color:var(--bs-ink-subtle);font-size:16px"></i>
+                </div>
+                {% endif %}
+              </td>
+              {% endif %}
+              <td><span class="bs-pill youtube">{{ a.ad_code or "–" }}</span></td>
+              <td class="td-muted" style="max-width:280px;font-size:11px;">{{ a.nome[:70] }}</td>
+              <td class="numero"><strong>{{ a.leads | num }}</strong></td>
+              <td class="numero">{{ a.cpl | brl if a.leads > 0 else "–" }}</td>
+              <td class="numero">{{ a.gasto | brl }}</td>
+              <td class="numero">{{ a.ctr | pct(2) }}</td>
+              <td class="numero">{{ a.cpm | brl }}</td>
+              <td class="numero">{{ a.video_views | num if a.video_views > 0 else "–" }}</td>
+              <td class="numero">{{ a.custo_view | brl(3) if a.video_views > 0 else "–" }}</td>
+              <td class="numero">{{ a.viram_50 | num if a.viram_50 > 0 else "–" }}</td>
+              <td class="numero">{{ a.pct_viram_50 | pct(2) if a.viram_50 > 0 else "–" }}</td>
+              <td>
+                {% if a.video_id %}
+                <a href="https://www.youtube.com/watch?v={{ a.video_id }}" target="_blank" class="td-google" style="font-size:11px;text-decoration:none">
+                  <i class="ti ti-brand-youtube"></i> ver
+                </a>
+                {% else %}–{% endif %}
+              </td>
             </tr>
             {% endfor %}
+            {% set tot = namespace(leads=0, gasto=0, cliques=0, impressoes=0, views=0, v50=0) %}
+            {% for a in youtube_ads_preq %}
+              {% set tot.leads = tot.leads + a.leads %}
+              {% set tot.gasto = tot.gasto + a.gasto %}
+              {% set tot.cliques = tot.cliques + (a.cliques or 0) %}
+              {% set tot.impressoes = tot.impressoes + (a.impressoes or 0) %}
+            {% set tot.views = tot.views + (a.video_views or 0) %}
+              {% set tot.v50 = tot.v50 + (a.viram_50 or 0) %}
+            {% endfor %}
+            <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
+              <td colspan="{{ 4 if mostra_thumb else 3 }}">TOTAL</td>
+              <td class="numero">{{ tot.leads | num }}</td>
+              <td class="numero">{{ (tot.gasto / tot.leads) | brl if tot.leads > 0 else "–" }}</td>
+              <td class="numero">{{ tot.gasto | brl }}</td>
+              <td class="numero">{{ (tot.cliques / tot.impressoes * 100) | pct(2) if tot.impressoes > 0 else "–" }}</td>
+              <td class="numero">{{ (tot.gasto / tot.impressoes * 1000) | brl if tot.impressoes > 0 else "–" }}</td>
+              <td class="numero">{{ tot.views | num if tot.views > 0 else "–" }}</td>
+              <td class="numero">{{ (tot.gasto / tot.views) | brl(3) if tot.views > 0 else "–" }}</td>
+              <td class="numero">{{ tot.v50 | num if tot.v50 > 0 else "–" }}</td>
+              <td class="numero">{{ (tot.v50 / tot.views * 100) | pct(2) if tot.views > 0 and tot.v50 > 0 else "–" }}</td>
+              <td></td>
+            </tr>
           </tbody>
         </table>
       </div>
@@ -272,7 +459,7 @@
     {% macro daily_table(rows, title) %}
     {% if rows %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-calendar-stats"></i> {{ title }}</div>
+      <div class="section-title" data-tag="{{ etapa_pq }}"><i class="ti ti-calendar-stats"></i> {{ title }}</div>
       <div class="table-wrap" style="overflow-x:auto;">
         <table class="table-compact" style="min-width:900px;font-size:12px;">
           <colgroup>
@@ -467,203 +654,6 @@
       }
     })();
     </script>
-    {% endif %}
-
-    {# ── Ranking de Anúncios — Meta Ads ─────────────────────────────────── #}
-    {% if meta_ads_preq %}
-    <div class="section">
-      <div class="section-title"><i class="ti ti-trophy"></i> Ranking de Anúncios {{ plat_badge("Meta") }}</div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th class="th-meta">#</th>
-              {% if drive_thumbnails %}<th class="th-meta">Criativo</th>{% endif %}
-              <th class="th-meta">AD Code</th>
-              <th class="th-meta">Nome do Anúncio</th>
-              <th class="th-meta">Leads</th>
-              <th class="th-meta">CPL</th>
-              <th class="th-meta">Investimento</th>
-              <th class="th-meta">CTR</th>
-              <th class="th-meta">CPM</th>
-              <th class="th-meta">ThruPlays</th>
-              <th class="th-meta">Custo/ThruPlay</th>
-              <th class="th-meta" title="Pessoas que assistiram 50% do vídeo">Viram 50%</th>
-              <th class="th-meta" title="Viram 50% ÷ alcance (só dias com alcance coletado)">% Viram 50%</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for a in meta_ads_preq %}
-            {% set td = drive_thumbnails.get(a.ad_code) if drive_thumbnails else None %}
-            <tr class="{{ 'top3' if loop.index <= 3 else '' }}">
-              <td class="numero">{{ loop.index }}</td>
-              {% if drive_thumbnails %}
-              <td style="padding:4px 6px;">
-                {% if td %}
-                <img src="{{ td.thumb }}" alt="{{ a.ad_code }}"
-                     data-preview="{{ td.preview }}" data-title="{{ a.ad_code }}"
-                     data-gasto="{{ a.gasto | brl }}" data-leads="{{ a.leads | num }}"
-                     data-cpl="{{ a.cpl | brl if a.leads > 0 else '' }}" data-cpm="{{ a.cpm | brl }}"
-                     data-ctr="{{ '%.2f'|format(a.ctr) | replace('.', ',') if a.ctr is defined }}"
-                     data-hook="{{ '%.2f'|format(a.hook_rate) | replace('.', ',') if a.hook_rate is defined and a.hook_rate }}"
-                     data-hold="{{ '%.2f'|format(a.hold_rate) | replace('.', ',') if a.hold_rate is defined and a.hold_rate }}"
-                     data-body="{{ '%.2f'|format(a.body_rate) | replace('.', ',') if a.body_rate is defined and a.body_rate }}"
-                     style="width:64px;height:42px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);cursor:pointer;display:block"
-                     onclick="openVideoModalFromEl(this)"
-                     onerror="this.style.display='none'">
-                {% else %}
-                <div style="width:64px;height:42px;border-radius:5px;border:1px dashed var(--bs-border-s);background:var(--bs-accent-bg);display:flex;align-items:center;justify-content:center">
-                  <i class="ti ti-photo-off" style="color:var(--bs-ink-subtle);font-size:16px"></i>
-                </div>
-                {% endif %}
-              </td>
-              {% endif %}
-              <td><span class="bs-pill meta">{{ a.ad_code or "–" }}</span></td>
-              <td class="td-muted" style="max-width:280px;font-size:11px;">{{ a.nome[:70] }}</td>
-              <td class="numero"><strong>{{ a.leads | num }}</strong></td>
-              <td class="numero">{{ a.cpl | brl if a.leads > 0 else "–" }}</td>
-              <td class="numero">{{ a.gasto | brl }}</td>
-              <td class="numero">{{ a.ctr | pct(2) }}</td>
-              <td class="numero">{{ a.cpm | brl }}</td>
-              <td class="numero">{{ a.thruplays | num if a.thruplays > 0 else "–" }}</td>
-              <td class="numero">{{ a.custo_thruplay | brl(3) if a.thruplays > 0 else "–" }}</td>
-              <td class="numero">{{ a.views_50 | num if a.views_50 > 0 else "–" }}</td>
-              <td class="numero">{{ a.pct_views_50 | pct(2) if a.alcance > 0 and a.pct_views_50 > 0 else "–" }}</td>
-            </tr>
-            {% endfor %}
-            {% set tot = namespace(leads=0, gasto=0, cliques=0, impressoes=0, thru=0, v50=0, alcance=0, v50c=0) %}
-            {% for a in meta_ads_preq %}
-              {% set tot.leads = tot.leads + a.leads %}
-              {% set tot.gasto = tot.gasto + a.gasto %}
-              {% set tot.cliques = tot.cliques + (a.cliques or 0) %}
-              {% set tot.impressoes = tot.impressoes + (a.impressoes or 0) %}
-              {% set tot.thru = tot.thru + (a.thruplays or 0) %}
-              {% set tot.v50 = tot.v50 + (a.views_50 or 0) %}
-              {% set tot.alcance = tot.alcance + (a.alcance or 0) %}
-              {% set tot.v50c = tot.v50c + (a.views_50_c_alcance or 0) %}
-            {% endfor %}
-            <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
-              <td colspan="{{ 4 if drive_thumbnails else 3 }}">TOTAL</td>
-              <td class="numero">{{ tot.leads | num }}</td>
-              <td class="numero">{{ (tot.gasto / tot.leads) | brl if tot.leads > 0 else "–" }}</td>
-              <td class="numero">{{ tot.gasto | brl }}</td>
-              <td class="numero">{{ (tot.cliques / tot.impressoes * 100) | pct(2) if tot.impressoes > 0 else "–" }}</td>
-              <td class="numero">{{ (tot.gasto / tot.impressoes * 1000) | brl if tot.impressoes > 0 else "–" }}</td>
-              <td class="numero">{{ tot.thru | num if tot.thru > 0 else "–" }}</td>
-              <td class="numero">{{ (tot.gasto / tot.thru) | brl(3) if tot.thru > 0 else "–" }}</td>
-              <td class="numero">{{ tot.v50 | num if tot.v50 > 0 else "–" }}</td>
-              <td class="numero">{{ (tot.v50c / tot.alcance * 100) | pct(2) if tot.alcance > 0 and tot.v50c > 0 else "–" }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-    {% endif %}
-
-    {# ── Ranking de Anúncios — YouTube (Google Ads) ─────────────────────── #}
-    {% if youtube_ads_preq %}
-    {# Criativo: miniatura do Drive; sem ela (anúncio reaproveitado de outro lançamento), a do próprio vídeo do YouTube #}
-    {% set mostra_thumb = drive_thumbnails or (youtube_ads_preq | selectattr("video_id") | list) %}
-    <div class="section">
-      <div class="section-title"><i class="ti ti-trophy"></i> Ranking de Anúncios {{ plat_badge("YouTube") }}</div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th class="th-youtube">#</th>
-              {% if mostra_thumb %}<th class="th-youtube">Criativo</th>{% endif %}
-              <th class="th-youtube">AD Code</th>
-              <th class="th-youtube">Nome do Anúncio</th>
-              <th class="th-youtube">Leads</th>
-              <th class="th-youtube">CPL</th>
-              <th class="th-youtube">Investimento</th>
-              <th class="th-youtube">CTR</th>
-              <th class="th-youtube">CPM</th>
-              <th class="th-youtube" title="Visualizações do vídeo (TrueView)">Visualizações</th>
-              <th class="th-youtube" title="Investimento ÷ visualizações">Custo/View</th>
-              <th class="th-youtube" title="Visualizações × taxa de 50% do vídeo">Viram 50%</th>
-              <th class="th-youtube" title="Viram 50% ÷ visualizações">% Viram 50%</th>
-              <th class="th-youtube">Vídeo</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for a in youtube_ads_preq %}
-            {% set td = drive_thumbnails.get(a.ad_code) if drive_thumbnails else None %}
-            <tr class="{{ 'top3' if loop.index <= 3 else '' }}">
-              <td class="numero">{{ loop.index }}</td>
-              {% if mostra_thumb %}
-              <td style="padding:4px 6px;">
-                {% if td %}
-                <img src="{{ td.thumb }}" alt="{{ a.ad_code }}"
-                     data-preview="{{ td.preview }}" data-title="{{ a.ad_code }}"
-                     data-gasto="{{ a.gasto | brl }}" data-leads="{{ a.leads | num }}"
-                     data-cpl="{{ a.cpl | brl if a.leads > 0 else '' }}" data-cpm="{{ a.cpm | brl }}"
-                     data-ctr="{{ '%.2f'|format(a.ctr) | replace('.', ',') if a.ctr is defined }}"
-                     data-hook="{{ '%.2f'|format(a.hook_rate) | replace('.', ',') if a.hook_rate is defined and a.hook_rate }}"
-                     data-hold="{{ '%.2f'|format(a.hold_rate) | replace('.', ',') if a.hold_rate is defined and a.hold_rate }}"
-                     data-body="{{ '%.2f'|format(a.body_rate) | replace('.', ',') if a.body_rate is defined and a.body_rate }}"
-                     style="width:64px;height:42px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);cursor:pointer;display:block"
-                     onclick="openVideoModalFromEl(this)"
-                     onerror="this.style.display='none'">
-                {% elif a.video_id %}
-                <a href="https://www.youtube.com/watch?v={{ a.video_id }}" target="_blank" rel="noopener" title="Abrir no YouTube">
-                  <img src="https://i.ytimg.com/vi/{{ a.video_id }}/mqdefault.jpg" alt="{{ a.ad_code }}" loading="lazy"
-                       style="width:64px;height:42px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);display:block"
-                       onerror="this.style.display='none'">
-                </a>
-                {% else %}
-                <div style="width:64px;height:42px;border-radius:5px;border:1px dashed var(--bs-border-s);background:var(--bs-accent-bg);display:flex;align-items:center;justify-content:center">
-                  <i class="ti ti-photo-off" style="color:var(--bs-ink-subtle);font-size:16px"></i>
-                </div>
-                {% endif %}
-              </td>
-              {% endif %}
-              <td><span class="bs-pill youtube">{{ a.ad_code or "–" }}</span></td>
-              <td class="td-muted" style="max-width:280px;font-size:11px;">{{ a.nome[:70] }}</td>
-              <td class="numero"><strong>{{ a.leads | num }}</strong></td>
-              <td class="numero">{{ a.cpl | brl if a.leads > 0 else "–" }}</td>
-              <td class="numero">{{ a.gasto | brl }}</td>
-              <td class="numero">{{ a.ctr | pct(2) }}</td>
-              <td class="numero">{{ a.cpm | brl }}</td>
-              <td class="numero">{{ a.video_views | num if a.video_views > 0 else "–" }}</td>
-              <td class="numero">{{ a.custo_view | brl(3) if a.video_views > 0 else "–" }}</td>
-              <td class="numero">{{ a.viram_50 | num if a.viram_50 > 0 else "–" }}</td>
-              <td class="numero">{{ a.pct_viram_50 | pct(2) if a.viram_50 > 0 else "–" }}</td>
-              <td>
-                {% if a.video_id %}
-                <a href="https://www.youtube.com/watch?v={{ a.video_id }}" target="_blank" class="td-google" style="font-size:11px;text-decoration:none">
-                  <i class="ti ti-brand-youtube"></i> ver
-                </a>
-                {% else %}–{% endif %}
-              </td>
-            </tr>
-            {% endfor %}
-            {% set tot = namespace(leads=0, gasto=0, cliques=0, impressoes=0, views=0, v50=0) %}
-            {% for a in youtube_ads_preq %}
-              {% set tot.leads = tot.leads + a.leads %}
-              {% set tot.gasto = tot.gasto + a.gasto %}
-              {% set tot.cliques = tot.cliques + (a.cliques or 0) %}
-              {% set tot.impressoes = tot.impressoes + (a.impressoes or 0) %}
-            {% set tot.views = tot.views + (a.video_views or 0) %}
-              {% set tot.v50 = tot.v50 + (a.viram_50 or 0) %}
-            {% endfor %}
-            <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
-              <td colspan="{{ 4 if mostra_thumb else 3 }}">TOTAL</td>
-              <td class="numero">{{ tot.leads | num }}</td>
-              <td class="numero">{{ (tot.gasto / tot.leads) | brl if tot.leads > 0 else "–" }}</td>
-              <td class="numero">{{ tot.gasto | brl }}</td>
-              <td class="numero">{{ (tot.cliques / tot.impressoes * 100) | pct(2) if tot.impressoes > 0 else "–" }}</td>
-              <td class="numero">{{ (tot.gasto / tot.impressoes * 1000) | brl if tot.impressoes > 0 else "–" }}</td>
-              <td class="numero">{{ tot.views | num if tot.views > 0 else "–" }}</td>
-              <td class="numero">{{ (tot.gasto / tot.views) | brl(3) if tot.views > 0 else "–" }}</td>
-              <td class="numero">{{ tot.v50 | num if tot.v50 > 0 else "–" }}</td>
-              <td class="numero">{{ (tot.v50 / tot.views * 100) | pct(2) if tot.views > 0 and tot.v50 > 0 else "–" }}</td>
-              <td></td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
     {% endif %}
 
     {% endif %}{# end if launch #}

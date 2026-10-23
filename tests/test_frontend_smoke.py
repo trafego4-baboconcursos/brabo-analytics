@@ -66,6 +66,8 @@ PAGINAS = [
     "/hotmart",
     "/tmb",
     "/comparativo-v1-v2",
+    "/instagram/mateusandrade.me?launch_code=PES-NOV-26",  # análise por perfil: taxas por alcance e tabela por formato
+    "/instagram/mateusandrade.me?days=90&compare=1",
     "/atendimento",  # lê o banco comercial; sem as tabelas do Unnichat mostra o aviso
 ]
 

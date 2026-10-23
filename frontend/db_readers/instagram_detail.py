@@ -62,6 +62,47 @@ def _avg_of(posts: list[dict], key: str) -> int | None:
     return round(sum(vals) / len(vals)) if vals else None
 
 
+_FORMATOS = {"VIDEO": "Reels / Vídeo", "REELS": "Reels / Vídeo", "CAROUSEL_ALBUM": "Carrossel", "IMAGE": "Imagem"}
+
+
+def _pct_alcance(valor: float, alcance: float) -> float | None:
+    return round(valor / alcance * 100, 2) if alcance else None
+
+
+def _taxas_por_alcance(posts: list[dict]) -> dict:
+    """Taxas sobre o ALCANCE (a base que o mercado usa para comparar conteúdos): engajamento
+    (curtidas+comentários+salvos+compartilhamentos), salvamento e envio. Somam-se os numeradores e os
+    alcances dos posts COM alcance coletado — média ponderada, em vez de média de percentuais."""
+    com_alcance = [p for p in posts if p.get("reach")]
+    alcance = sum(p["reach"] for p in com_alcance)
+    saved = sum(p.get("saved") or 0 for p in com_alcance)
+    shares = sum(p.get("shares") or 0 for p in com_alcance)
+    return {
+        "er_alcance": _pct_alcance(sum(p["engagement_alcance"] for p in com_alcance), alcance),
+        "taxa_salvamento": _pct_alcance(saved, alcance),
+        "taxa_envio": _pct_alcance(shares, alcance),
+    }
+
+
+def _por_formato(posts: list[dict]) -> list[dict]:
+    """Desempenho por formato (Reels/Vídeo, Carrossel, Imagem), do que mais alcança ao que menos."""
+    grupos: dict[str, list[dict]] = {}
+    for p in posts:
+        grupos.setdefault(_FORMATOS.get(p.get("media_type") or "", "Outros"), []).append(p)
+    linhas = []
+    for nome, ps in grupos.items():
+        linhas.append({
+            "formato": nome,
+            "posts": len(ps),
+            "avg_reach": _avg_of(ps, "reach"),
+            "avg_views": _avg_of(ps, "views"),
+            "avg_saved": _avg_of(ps, "saved"),
+            "avg_shares": _avg_of(ps, "shares"),
+            **_taxas_por_alcance(ps),
+        })
+    return sorted(linhas, key=lambda l: -(l["avg_reach"] or 0))
+
+
 def _post_stats(posts: list[dict]) -> dict:
     total = len(posts)
     avg_likes = round(sum(p["like_count"] for p in posts) / total) if total else 0
@@ -77,6 +118,7 @@ def _post_stats(posts: list[dict]) -> dict:
         "avg_views": _avg_of(posts, "views"),
         "avg_interactions": _avg_of(posts, "total_interactions"),
         "new_followers_from_posts": new_followers_from_posts,
+        **_taxas_por_alcance(posts),
     }
 
 
@@ -182,6 +224,9 @@ def read_instagram_detail(username: str, days: int = 30, compare: bool = False, 
                 "new_followers_from_post": r.new_followers_from_post,
                 "engagement": engagement,
                 "engagement_rate": rate,
+                # interações completas ÷ alcance (só existe quando o alcance do post foi coletado)
+                "engagement_alcance": engagement + (r.saved or 0) + (r.shares or 0),
+                "er_alcance": _pct_alcance(engagement + (r.saved or 0) + (r.shares or 0), r.reach or 0),
             })
         return out
 
@@ -214,6 +259,10 @@ def read_instagram_detail(username: str, days: int = 30, compare: bool = False, 
         "avg_views": stats["avg_views"],
         "avg_interactions": stats["avg_interactions"],
         "new_followers_from_posts": stats["new_followers_from_posts"],
+        "er_alcance": stats["er_alcance"],
+        "taxa_salvamento": stats["taxa_salvamento"],
+        "taxa_envio": stats["taxa_envio"],
+        "por_formato": _por_formato(posts),
         "posts_this_month": posts_this_month,
         "followers_gained": followers_gained,
         "reach_period_days": reach_period_days,
@@ -243,6 +292,7 @@ def read_instagram_detail(username: str, days: int = 30, compare: bool = False, 
             "avg_comments": _pct_delta(stats["avg_comments"], prev_stats["avg_comments"]),
             "avg_engagement_rate": _pct_delta(stats["avg_engagement_rate"], prev_stats["avg_engagement_rate"]),
             "reach_period_total": _pct_delta(reach_period_total, prev_reach_total),
+            "er_alcance": _pct_delta(stats["er_alcance"] or 0, prev_stats["er_alcance"] or 0),
             "avg_views": _pct_delta(stats["avg_views"] or 0, prev_stats["avg_views"] or 0),
             "avg_interactions": _pct_delta(stats["avg_interactions"] or 0, prev_stats["avg_interactions"] or 0),
         }

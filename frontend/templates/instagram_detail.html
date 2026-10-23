@@ -117,6 +117,37 @@
           <div class="tp-label">Engajamento médio</div>
           <div class="tp-compare">(curtidas+comentários) / seguidores</div>
         </div>
+        {% if ig.er_alcance is not none %}
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon warning"><i class="ti ti-bolt"></i></div>
+            {% if ig.compare and ig.deltas.er_alcance is not none %}
+            <div class="tp-delta {{ 'up' if ig.deltas.er_alcance >= 0 else 'down' }}">
+              {{ '+' if ig.deltas.er_alcance >= 0 }}{{ ig.deltas.er_alcance }}%
+            </div>
+            {% endif %}
+          </div>
+          <div class="tp-value">{{ ig.er_alcance }}%</div>
+          <div class="tp-label">Engajamento por alcance</div>
+          <div class="tp-compare">(curtidas+comentários+salvos+compart.) ÷ alcance</div>
+        </div>
+        {% endif %}
+        {% if ig.taxa_salvamento is not none %}
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-bookmark"></i></div></div>
+          <div class="tp-value">{{ ig.taxa_salvamento }}%</div>
+          <div class="tp-label">Taxa de salvamento</div>
+          <div class="tp-compare">salvos ÷ alcance · conteúdo de referência</div>
+        </div>
+        {% endif %}
+        {% if ig.taxa_envio is not none %}
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-share"></i></div></div>
+          <div class="tp-value">{{ ig.taxa_envio }}%</div>
+          <div class="tp-label">Taxa de envio</div>
+          <div class="tp-compare">compartilhamentos ÷ alcance · potencial de alcance novo</div>
+        </div>
+        {% endif %}
         {% if ig.reach_period_total %}
         <div class="tp-kpi">
           <div class="tp-kpi-top">
@@ -220,10 +251,48 @@
     <div class="note warning">Nenhum post publicado no período selecionado (o ETL sincroniza os {{ ig.media_count if ig.media_count else "últimos" }} posts mais recentes — se o período for muito curto ou antigo, pode não ter nenhum aqui).</div>
     {% endif %}
 
+    {% if ig.por_formato | length > 0 and ig.posts | selectattr('reach') | list | length %}
+    <div class="section">
+      <div class="section-title"><i class="ti ti-layout-grid"></i> Desempenho por Formato</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Formato</th>
+              <th class="th-num">Posts</th>
+              <th class="th-num">Alcance médio</th>
+              <th class="th-num">Views médias</th>
+              <th class="th-num">Salvos médios</th>
+              <th class="th-num">Compart. médios</th>
+              <th class="th-num" title="(curtidas+comentários+salvos+compartilhamentos) ÷ alcance">Eng. / alcance</th>
+              <th class="th-num">Salvamento</th>
+              <th class="th-num">Envio</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for f in ig.por_formato %}
+            <tr>
+              <td><span class="bs-pill accent">{{ f.formato }}</span></td>
+              <td class="numero">{{ f.posts | num }}</td>
+              <td class="numero">{{ f.avg_reach | num if f.avg_reach else "—" }}</td>
+              <td class="numero">{{ f.avg_views | num if f.avg_views else "—" }}</td>
+              <td class="numero">{{ f.avg_saved | num if f.avg_saved else "—" }}</td>
+              <td class="numero">{{ f.avg_shares | num if f.avg_shares else "—" }}</td>
+              <td class="numero">{{ f.er_alcance ~ '%' if f.er_alcance is not none else "—" }}</td>
+              <td class="numero">{{ f.taxa_salvamento ~ '%' if f.taxa_salvamento is not none else "—" }}</td>
+              <td class="numero">{{ f.taxa_envio ~ '%' if f.taxa_envio is not none else "—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
     {% if ig.top_posts %}
     <div class="section">
       <div class="section-title"><i class="ti ti-trophy"></i> Top 3 Posts por Engajamento</div>
-      <div class="highlights">
+      <div class="highlights highlights-posts">
         {% for p in ig.top_posts %}
         <div class="highlight-box">
           {% if p.thumbnail_url %}
@@ -273,6 +342,7 @@
               <th class="th-num">Compart.</th>
               <th class="th-num">+Seguidores</th>
               <th class="th-num">Engajamento</th>
+              <th class="th-num" title="(curtidas+comentários+salvos+compartilhamentos) ÷ alcance do post">Eng. / alcance</th>
             </tr>
           </thead>
           <tbody>
@@ -293,6 +363,7 @@
               <td class="numero">{{ p.shares | num if p.shares else "—" }}</td>
               <td class="numero">{{ p.new_followers_from_post | num if p.new_followers_from_post else "—" }}</td>
               <td class="numero"><a href="{{ p.permalink }}" target="_blank" rel="noopener">{{ p.engagement_rate }}%</a></td>
+              <td class="numero">{{ p.er_alcance ~ '%' if p.er_alcance is not none else "—" }}</td>
             </tr>
             {% endfor %}
           </tbody>

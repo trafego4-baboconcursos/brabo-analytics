@@ -154,7 +154,9 @@ def read_retencao_video(launch_code: str) -> dict:
     simultâneo que a live teve. Por isso vive numa seção separada da curva
     ao vivo, nunca somado a ela.
     """
-    vazio = {"aulas": [], "segmentos": [], "tem_pago": False}
+    # Mesmas chaves do retorno cheio: o template serializa `curvas_js`, e a chave ausente virava Undefined → 500
+    # em todo lançamento sem retenção importada (PES-SET-26, 25/10/26).
+    vazio = {"aulas": [], "totais": {}, "segmentos": [], "curvas_js": [], "tem_pago": False}
     if not launch_code:
         return vazio
 

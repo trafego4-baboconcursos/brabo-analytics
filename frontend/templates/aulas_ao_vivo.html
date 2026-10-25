@@ -520,8 +520,8 @@
       });
 
       // 7. Retenção do vídeo: média das aulas por corte de público.
-      const ret = {{ (ret.curvas_js if ret else []) | tojson }};
-      const segs = {{ (ret.segmentos if ret else []) | tojson }};
+      const ret = {{ ((ret.curvas_js if ret else None) or []) | tojson }};
+      const segs = {{ ((ret.segmentos if ret else None) or []) | tojson }};
       if (ret.length && document.getElementById('cv-ret')) {
         const pos = Array.from({ length: 101 }, (_, i) => i);
         const mediaSeg = seg => pos.map(p => {

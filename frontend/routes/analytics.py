@@ -456,7 +456,7 @@ async def aulas_ao_vivo_page(request: Request, launch_code: str | None = None):
     launches = await run_in_threadpool(get_launches)
     launch = resolve_launch(launch_code, launches)
     dados = await run_in_threadpool(read_aulas_ao_vivo, launch.code) if launch else {"aulas": [], "totais": {}}
-    ret = await run_in_threadpool(read_retencao_video, launch.code) if launch else {"aulas": [], "segmentos": []}
+    ret = await run_in_threadpool(read_retencao_video, launch.code) if launch else {"aulas": [], "totais": {}, "segmentos": [], "curvas_js": [], "tem_pago": False}
     ctx = _base_ctx(request, "aulas_ao_vivo", "Aulas Ao Vivo", launch, launches,
                     aulas=dados["aulas"], totais=dados["totais"], ret=ret, data_errors=[])
     return templates.TemplateResponse("aulas_ao_vivo.html", ctx)

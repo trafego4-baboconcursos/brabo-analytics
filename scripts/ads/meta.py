@@ -54,6 +54,8 @@ ERROS_META = {
     1885650: f"verba abaixo do mínimo do CBO (~R$ {P.META_CBO_MINIMO:.0f}/dia)",
     1885154: "ad set de engajamento sem destination_type=ON_VIDEO / promoted_object",
     1487664: "vídeo feed+story: use call_to_action_types (plural) + ad_formats AUTOMATIC_FORMAT",
+    2446386: "Imagem não encontrada (miniatura): subir a imagem em adimages e usar thumbnail_hash, não o picture temporário do vídeo",
+    1885873: "campanha de engajamento/ThruPlay: feed+story exige ad_formats SINGLE_VIDEO (asset_feed_por_posicionamento(formato=...))",
     1487390: "criativo por posicionamento: falta optimization_type PLACEMENT ou labels em bodies/link_urls",
     1487057: "start_time de ad set que já começou não muda — recriar o ad set",
     1634011: "chave do pixel no tracking_specs é fb_pixel (com underscore)",
@@ -290,9 +292,12 @@ def linha_hash(p: dict) -> list[str]:
 
 
 def asset_feed_por_posicionamento(tipo: str, feed_id: str, story_id: str, texto: str, link: str,
-                                  titulo: str = "", descricao: str = "", cta: str = "LEARN_MORE") -> dict:
+                                  titulo: str = "", descricao: str = "", cta: str = "LEARN_MORE",
+                                  formato: str = "AUTOMATIC_FORMAT") -> dict:
     """Um anúncio com mídia diferente no feed e no story/reels — a estrutura que funciona (itens 79 e
-    memória de feed+story). `tipo`: 'video' (ids de vídeo) ou 'image' (image_hash)."""
+    memória de feed+story). `tipo`: 'video' (ids de vídeo) ou 'image' (image_hash).
+    `formato`: campanha de engajamento/ThruPlay exige "SINGLE_VIDEO" — com AUTOMATIC_FORMAT o anúncio é
+    recusado (subcode 1885873; BV-26 item 144, PES-NOV-26 item 31)."""
     assert tipo in ("video", "image")
     midia, rotulo = ("videos", "video_label") if tipo == "video" else ("images", "image_label")
     chave = "video_id" if tipo == "video" else "hash"
@@ -302,7 +307,7 @@ def asset_feed_por_posicionamento(tipo: str, feed_id: str, story_id: str, texto:
         "bodies": [{"text": texto, "adlabels": [{"name": "texto_story"}, {"name": "texto_feed"}]}],
         "link_urls": [{"website_url": link, "adlabels": [{"name": "link_story"}, {"name": "link_feed"}]}],
         "call_to_action_types": [cta],
-        "ad_formats": ["AUTOMATIC_FORMAT"],
+        "ad_formats": [formato],
         "optimization_type": "PLACEMENT",
         "asset_customization_rules": [
             {"customization_spec": {"age_min": 13, "age_max": 65, "publisher_platforms": ["facebook", "instagram"],

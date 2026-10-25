@@ -223,3 +223,10 @@ def test_chave_do_print_e_o_caminho_sem_barra():
     from scripts.capturar_lps import chave_da_url
     assert chave_da_url("https://lp.braboconcursos.com.br/black-vitalicia-26-v1a/") == "/black-vitalicia-26-v1a"
     assert chave_da_url("https://lp.braboconcursos.com.br/x?utm_source=y") == "/x"
+
+
+def test_asset_feed_formato_engajamento():
+    padrao = asset_feed_por_posicionamento("video", "1", "2", "t", "https://x/")
+    assert padrao["ad_formats"] == ["AUTOMATIC_FORMAT"]
+    eng = asset_feed_por_posicionamento("video", "1", "2", "t", "https://x/", formato="SINGLE_VIDEO")
+    assert eng["ad_formats"] == ["SINGLE_VIDEO"]

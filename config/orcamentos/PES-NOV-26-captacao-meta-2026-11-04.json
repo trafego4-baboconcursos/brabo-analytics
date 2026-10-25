@@ -1,0 +1,133 @@
+{
+  "lancamento": "PES-NOV-26",
+  "descricao": "Captação Meta + Google — verba do dia 04/11 pela curva do plano de mídia do Murilo (aba Diário Captação).",
+  "aplicar_em": "2026-11-04",
+  "campanhas": [
+    {
+      "plataforma": "meta",
+      "id": "120248542937340014",
+      "nome": "[MA][cadastro][captação][quente][pós-edital][PES-NOV-26][26.10.26]",
+      "valor": 4914.44,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248542934030014",
+      "nome": "[MA][cadastro][captação][quente][principal][PES-NOV-26][26.10.26]",
+      "valor": 3116.48,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248542947040014",
+      "nome": "[MA][cadastro][captação][quente][reels][PES-NOV-26][26.10.26]",
+      "valor": 2397.29,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248542951360014",
+      "nome": "[MA][cadastro][captação][quente][imagem][PES-NOV-26][26.10.26]",
+      "valor": 1558.24,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248542956380014",
+      "nome": "[MA][cadastro][captação][frio][pós-edital][PES-NOV-26][26.10.26]",
+      "valor": 3510.32,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248542959750014",
+      "nome": "[MA][cadastro][captação][frio][principal][PES-NOV-26][26.10.26]",
+      "valor": 2226.05,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248542963720014",
+      "nome": "[MA][cadastro][captação][frio][reels][PES-NOV-26][26.10.26]",
+      "valor": 1712.35,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248542968150014",
+      "nome": "[MA][cadastro][captação][frio][imagem][PES-NOV-26][26.10.26]",
+      "valor": 1113.03,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120257128220460012",
+      "nome": "[MA][cadastro][captação][específico][pós-edital][PES-NOV-26][26.10.26]",
+      "valor": 719.19,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120257128221880012",
+      "nome": "[MA][cadastro][captação][específico][principal][PES-NOV-26][26.10.26]",
+      "valor": 479.46,
+      "conta": ""
+    },
+    {
+      "plataforma": "google",
+      "id": "24395760404",
+      "nome": "[GA][cadastro][captação][quente][pós-edital][PES-NOV-26][26.10.26]",
+      "valor": 5561.71,
+      "conta": "6482320788"
+    },
+    {
+      "plataforma": "google",
+      "id": "24401397559",
+      "nome": "[GA][cadastro][captação][quente][principal][PES-NOV-26][26.10.26]",
+      "valor": 2876.75,
+      "conta": "6482320788"
+    },
+    {
+      "plataforma": "google",
+      "id": "24401397316",
+      "nome": "[GA][cadastro][captação][quente][shorts][PES-NOV-26][26.10.26]",
+      "valor": 671.24,
+      "conta": "6482320788"
+    },
+    {
+      "plataforma": "google",
+      "id": "24395758937",
+      "nome": "[GA][cadastro][captação][quente][imagem][PES-NOV-26][26.10.26]",
+      "valor": 479.46,
+      "conta": "6482320788"
+    },
+    {
+      "plataforma": "google",
+      "id": "24401397982",
+      "nome": "[GA][cadastro][captação][frio][pós-edital][PES-NOV-26][26.10.26]",
+      "valor": 667.82,
+      "conta": "6482320788"
+    },
+    {
+      "plataforma": "google",
+      "id": "24401397586",
+      "nome": "[GA][cadastro][captação][frio][principal][PES-NOV-26][26.10.26]",
+      "valor": 359.59,
+      "conta": "6482320788"
+    },
+    {
+      "plataforma": "google",
+      "id": "24401397994",
+      "nome": "[GA][cadastro][captação][específico][pós-edital][PES-NOV-26][26.10.26]",
+      "valor": 1224.33,
+      "conta": "6482320788"
+    },
+    {
+      "plataforma": "google",
+      "id": "24390201993",
+      "nome": "[GA][cadastro][captação][específico][principal][PES-NOV-26][26.10.26]",
+      "valor": 659.25,
+      "conta": "6482320788"
+    }
+  ]
+}

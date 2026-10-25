@@ -16,7 +16,7 @@ from scripts.ads import padroes as P
 from scripts.ads.google import Google
 from scripts.ads.meta import Meta, expert_do_nome, problemas_adset, problemas_anuncios
 
-CONTAS_META = [P.META_CONTAS["ca2_anunciante"], P.META_CONTAS["felipe_nova"]]
+CONTAS_META = [P.META_CONTAS["ca2_anunciante"], P.META_CONTAS["felipe_nova"], P.META_CONTAS["ivan_pes"]]
 
 
 def main() -> int:

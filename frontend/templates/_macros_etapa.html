@@ -153,3 +153,65 @@
   <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:var(--s2);">Percentuais sobre as visualizações. O Google não informa alcance, tempo médio nem engajamento do vídeo.</div>
 </div>
 {% endmacro %}
+
+{# Grupos de WhatsApp de um bloco (normal ou VIP): resumo + contagem diária. Dados de whatsapp_sheets_* (cópia da planilha
+   "LEAD TOTAL"); a mesma fonte da página /whatsapp. `linhas` vem em ordem cronológica, aqui a mais recente fica em cima. #}
+{% macro grupos_whatsapp(rotulo, resumo, linhas) %}
+<div class="section">
+  <div class="section-title"><i class="ti ti-brand-whatsapp" style="color:var(--bs-success)"></i> Grupos de WhatsApp — {{ rotulo }}</div>
+  {% if resumo %}
+  {% set ent = resumo.entradas_hoje or 0 %}
+  {% set sai = resumo.saidas_hoje or 0 %}
+  <div class="table-wrap" style="overflow-x:auto;margin-bottom:var(--s3);">
+    <table class="table-compact" style="font-size:12px;" data-no-filter>
+      <thead>
+        <tr>
+          <th class="th-dark" title="Pessoas que já entraram nos grupos desde o início">Total</th>
+          <th class="th-dark" title="Pessoas ativas nos grupos agora">Total limpo</th>
+          <th class="th-dark">Grupos cheios</th>
+          <th class="th-dark" title="Entradas no dia mais recente com dado">Entradas (dia)</th>
+          <th class="th-dark" title="Saídas no dia mais recente com dado">Saídas (dia)</th>
+          <th class="th-dark" title="Entradas − saídas do dia">Relação E/S (dia)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="numero">{{ resumo.total | num if resumo.total is not none else "–" }}</td>
+          <td class="numero td-bold">{{ resumo.total_limpo | num if resumo.total_limpo is not none else "–" }}</td>
+          <td class="numero">{{ resumo.grupos | num if resumo.grupos is not none else "–" }}</td>
+          <td class="numero">{{ ent | num }}</td>
+          <td class="numero {% if sai %}negativo{% endif %}">{{ sai | num }}</td>
+          <td class="numero{% if ent - sai < 0 %} negativo{% endif %}">{{ "%+d"|format(ent - sai) }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+  {% if linhas %}
+  <div class="table-wrap" style="overflow:auto;max-height:360px;">
+    <table class="table-compact" style="font-size:12px;" data-no-filter>
+      <thead>
+        <tr>
+          <th class="th-dark">Data</th>
+          <th class="th-dark">Entradas</th>
+          <th class="th-dark">Saídas</th>
+          <th class="th-dark">Relação (E/S)</th>
+          <th class="th-dark" title="Total limpo acumulado até aquele dia">Leads totais</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in linhas | reverse %}
+        <tr>
+          <td>{{ l.data_str }}</td>
+          <td class="numero">{{ l.entradas | num }}</td>
+          <td class="numero {% if l.saidas %}negativo{% endif %}">{{ l.saidas | num }}</td>
+          <td class="numero{% if l.relacao < 0 %} negativo{% endif %}">{{ "%+d"|format(l.relacao) }}</td>
+          <td class="numero">{{ l.leads_no_dia | num if l.leads_no_dia is not none else "–" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endmacro %}

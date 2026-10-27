@@ -72,6 +72,7 @@ PAGINAS = [
     "/instagram/mateusandrade.me?days=90&compare=1",
     "/captacao?launch_code=PES-NOV-26",  # distribuição/retenção só da etapa, Meta e Google lado a lado
     "/pre-qualificacao?launch_code=PES-NOV-26",
+    "/captacao?launch_code=PES-SET-26",  # lançamento com grupos de WhatsApp: seção de entradas/saídas
     "/atendimento",  # lê o banco comercial; sem as tabelas do Unnichat mostra o aviso
 ]
 

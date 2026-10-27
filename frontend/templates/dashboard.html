@@ -25,7 +25,7 @@
 
     {% from "_macros_verba.html" import tabela_dia_publico, tabela_dia_publico_combinada, kpi_delta %}
     {% from "_macros_platform.html" import plat_badge %}
-    {% from "_macros_etapa.html" import distribuicao_meta, distribuicao_google, retencao_meta, retencao_google %}
+    {% from "_macros_etapa.html" import distribuicao_meta, distribuicao_google, retencao_meta, retencao_google, grupos_whatsapp %}
 
     {# ── KPIs Principais (design system: tp-kpi) ─────────────────────────── #}
     <div class="section">
@@ -361,6 +361,20 @@
       <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
         Taxa de Comparecimento WPP = pessoas ativas nos grupos de WhatsApp ÷ total de leads (Active Campaign). "Promessa" é texto livre, ainda sem campo no wizard.
       </div>
+    </div>
+    {% endif %}
+
+    {# ── Grupos de WhatsApp: entradas e saídas (abaixo da captação das LPs) ── #}
+    {% if wa_resumo or wa_hist %}
+    <div class="par-plataformas">
+      {% for chave in ["normal", "vip"] %}
+      {% if wa_resumo.get(chave) or wa_hist.get(chave) %}
+      {{ grupos_whatsapp(rotulos_blocos.get(chave, chave), wa_resumo.get(chave), wa_hist.get(chave)) }}
+      {% endif %}
+      {% endfor %}
+    </div>
+    <div style="font-size:11px;color:var(--bs-ink-muted);margin:-8px 0 var(--s3)">
+      Fonte: contagem dos grupos (a mesma da página Grupos de WhatsApp). "Leads totais" é o total limpo acumulado até o dia.
     </div>
     {% endif %}
 

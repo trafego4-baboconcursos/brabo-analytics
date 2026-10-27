@@ -185,6 +185,20 @@ async def captacao(request: Request, launch_code: str | None = None, trilha: str
         except Exception:
             logger.exception("Captação: falha ao montar cobertura de UTM")
 
+    # Entradas/saídas dos grupos de WhatsApp (planilha "LEAD TOTAL"): resumo + contagem diária por bloco,
+    # a mesma fonte da página /whatsapp. Só leitura de tabela pequena, sem agregação pesada.
+    wa_resumo, wa_hist, rotulos_blocos = {}, {}, {}
+    if launch and not trilha_nome:
+        try:
+            from frontend.db_readers.whatsapp_groups import historico_diario as _wa_historico  # noqa: PLC0415
+            from frontend.db_readers.whatsapp_sheets import contar_lancamento as _wa_contar  # noqa: PLC0415
+            from src.constants import rotulos_blocos_whatsapp  # noqa: PLC0415
+            wa_resumo = await run_in_threadpool(_wa_contar, launch.code) or {}
+            wa_hist = await run_in_threadpool(_wa_historico, launch.code) or {}
+            rotulos_blocos = rotulos_blocos_whatsapp(launch.code)
+        except Exception:
+            logger.exception("Captação: falha ao ler entradas/saídas dos grupos de WhatsApp")
+
     # Divisão de Verba por Público em Cada Dia (Previsto x Realizado) —
     # pauta debriefing 08/09/26, mesmo cruzamento já usado em /verba.
     dia_publico_previsto = com_percentuais(previsto_publico_por_dia(cfg, "Captação"))
@@ -214,6 +228,7 @@ async def captacao(request: Request, launch_code: str | None = None, trilha: str
         leads_por_campanha=leads_por_campanha,
         total_leads_camp=total_leads_camp, total_gasto_camp=total_gasto_camp,
         leads_x_whatsapp=leads_x_whatsapp,
+        wa_resumo=wa_resumo, wa_hist=wa_hist, rotulos_blocos=rotulos_blocos,
         utm_cobertura=utm_cobertura,
         prev_kpis=prev_kpis,
         drive_thumbnails=d.get("drive_thumbnails") or {},

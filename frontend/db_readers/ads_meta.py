@@ -4,6 +4,7 @@ frontend/db_readers/ads_meta.py — Leitor de dados do Meta Ads (banco analytics
 from __future__ import annotations
 
 import re
+import time
 from typing import Any
 
 import numpy as np
@@ -28,8 +29,28 @@ from src.constants import etapa_prequali, etapas_ordem
 logger = get_logger("db")
 
 
+# O histórico de códigos/nomes só muda quando um lançamento anterior ganha anúncio novo (ETL), mas era relido do banco
+# (DISTINCT ad_name nas duas tabelas de anúncios, ~300 ms cada) a CADA leitura de Meta, Google e criativos: 42.543 chamadas
+# no pg_stat_statements em 27/10/26. Cache curto por processo; só guarda leitura que deu certo.
+_HISTORICO_TTL = 1800
+_historico_codes_cache: dict[str, tuple[float, frozenset]] = {}
+_historico_nomes_cache: dict[str, tuple[float, dict]] = {}
+
+
 def get_historico_ad_codes(code: str) -> set[str]:
-    """Retorna todos os AD\\d+ já usados em lançamentos ANTERIORES do mesmo produto."""
+    """Retorna todos os AD\\d+ já usados em lançamentos ANTERIORES do mesmo produto (cache de 30 min)."""
+    c = _historico_codes_cache.get(code)
+    if c and time.time() - c[0] < _HISTORICO_TTL:
+        return set(c[1])
+    vistos = _ler_historico_ad_codes(code)
+    if vistos is not None:
+        _historico_codes_cache[code] = (time.time(), frozenset(vistos))
+        return vistos
+    return set(c[1]) if c else set()      # falha de banco: serve o último bom, se houver
+
+
+def _ler_historico_ad_codes(code: str) -> set[str] | None:
+    """None = a leitura falhou (não confundir com "nenhum anúncio anterior")."""
     produto_prefix = code.split("-")[0].upper() if code else ""
     if not produto_prefix:
         return set()
@@ -53,7 +74,8 @@ def get_historico_ad_codes(code: str) -> set[str]:
                     if m:
                         vistos.add(_normalize_ad_code(m.group(0)))
     except Exception:
-        logger.exception("Falha ao buscar histórico de ad codes; retornando vazio")
+        logger.exception("Falha ao buscar histórico de ad codes")
+        return None
     return vistos
 
 

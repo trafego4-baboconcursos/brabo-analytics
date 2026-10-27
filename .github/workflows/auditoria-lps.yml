@@ -36,6 +36,25 @@ jobs:
           pip install -r requirements.txt playwright
           python -m playwright install --with-deps chromium
 
+      - name: Conferir segredos
+        # Sem estes segredos o script cai num erro de Postgres local, que não diz o que falta (visto em 27/10/26:
+        # os cinco abaixo nunca tinham sido cadastrados e a auditoria agendada não gravava nada).
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_USERS_URL: ${{ secrets.SUPABASE_USERS_URL }}
+          AC_API_URL: ${{ secrets.AC_API_URL }}
+          AC_API_KEY: ${{ secrets.AC_API_KEY }}
+          GTM_REFRESH_TOKEN: ${{ secrets.GTM_REFRESH_TOKEN }}
+        run: |
+          faltam=""
+          for v in SUPABASE_DB_URL SUPABASE_USERS_URL AC_API_URL AC_API_KEY GTM_REFRESH_TOKEN; do
+            [ -z "${!v}" ] && faltam="$faltam $v"
+          done
+          if [ -n "$faltam" ]; then
+            echo "::error::Segredos vazios no repositório (Settings > Secrets and variables > Actions):$faltam"
+            exit 1
+          fi
+
       - name: Auditar LPs
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}

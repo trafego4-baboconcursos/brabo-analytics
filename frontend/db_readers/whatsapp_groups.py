@@ -373,7 +373,9 @@ def _read_whatsapp_uncached(code: str, start_date=None, end_date=None) -> dict |
         tem_normal = t_normal is not None
         tem_vip = t_vip is not None
         if not tem_normal and not tem_vip:
-            return None
+            # Sem tabela `<COD>_API`: lançamentos de 22/10/26 em diante vêm de leads_grupos_eventos.
+            from frontend.db_readers.whatsapp_eventos import resumo_wa  # noqa: PLC0415
+            return resumo_wa(code)
 
         # Sem janela configurada, usa o range real dos dados
         if start is None or end is None:

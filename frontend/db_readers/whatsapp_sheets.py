@@ -120,6 +120,9 @@ def pico_por_bloco(code: str) -> dict[str, dict]:
             atual = bucket["saidas"]
             if atual is None or saidas > atual["valor"]:
                 bucket["saidas"] = {"valor": int(saidas), "data": data}
+    if not out:
+        from frontend.db_readers import whatsapp_eventos  # noqa: PLC0415
+        out = {bloco: d["pico"] for bloco, d in whatsapp_eventos.ler(code).items()}
     return out
 
 
@@ -143,6 +146,13 @@ def contar_lancamento(launch_folder_or_code: Any) -> dict[str, dict]:
             "entradas_hoje": ultimo["entradas"] if ultimo else 0,
             "saidas_hoje": ultimo["saidas"] if ultimo else 0,
         }
+    if not out:
+        # Lançamento sem linha na planilha (a partir de 22/10/26 a automação grava em leads_grupos_eventos).
+        from frontend.db_readers import whatsapp_eventos  # noqa: PLC0415
+        for bloco, d in whatsapp_eventos.ler(code).items():
+            r = d["resumo"]
+            out[bloco] = {"total": r["total"], "total_limpo": r["total_limpo"], "grupos": r["grupos"],
+                          "entradas_hoje": r["entradas_hoje"], "saidas_hoje": r["saidas_hoje"]}
     return out
 
 
@@ -150,5 +160,8 @@ def historico_diario(launch_folder_or_code: Any) -> dict[str, list[dict]]:
     """Tabela diária (Data/Entradas/Saídas/Relação/Leads no dia) por bloco,
     idêntica à aba do Sheets — cópia direta de whatsapp_sheets_diario."""
     code = _extract_launch_code(launch_folder_or_code)
-    diario = _diario_por_bloco(code)
-    return {bloco: linhas for bloco, linhas in diario.items() if linhas}
+    diario = {bloco: linhas for bloco, linhas in _diario_por_bloco(code).items() if linhas}
+    if not diario:
+        from frontend.db_readers import whatsapp_eventos  # noqa: PLC0415
+        diario = {bloco: d["diario"] for bloco, d in whatsapp_eventos.ler(code).items() if d["diario"]}
+    return diario

@@ -600,6 +600,23 @@ def get_etl_status() -> dict[str, dict]:
     return result
 
 
+def _codigos_distintos_sql(tabela: str):
+    """Códigos de lançamento distintos de uma tabela grande pulando de valor em valor pelo índice em `lancamento_codigo`
+    (loose index scan), em vez de ler a tabela inteira como o SELECT DISTINCT: no `google_ads_daily` isso passou de 30 s
+    com o disco saturado. `tabela` é sempre um literal do código, nunca entrada de usuário."""
+    return text(f"""
+        WITH RECURSIVE t AS (
+          (SELECT lancamento_codigo FROM {tabela} ORDER BY lancamento_codigo LIMIT 1)
+          UNION ALL
+          SELECT (SELECT x.lancamento_codigo FROM {tabela} x
+                  WHERE x.lancamento_codigo > t.lancamento_codigo
+                  ORDER BY x.lancamento_codigo LIMIT 1)
+          FROM t WHERE t.lancamento_codigo IS NOT NULL
+        )
+        SELECT lancamento_codigo FROM t WHERE lancamento_codigo IS NOT NULL
+    """)
+
+
 def discover_launches(analises_dir: Any = None) -> list[Launch]:
     """Busca os lançamentos cadastrados na dim_lancamentos e retorna com as flags de dados."""
     from frontend.db_readers.typeform import _resolve_typeform_ids  # noqa: PLC0415
@@ -647,9 +664,13 @@ def discover_launches(analises_dir: Any = None) -> list[Launch]:
 
     try:
         with _get_engine().connect() as conn:
+            # A lista é montada raramente (cache de 5 min, refresh em background), mas quando falha o sistema inteiro fica
+            # sem lançamento nenhum: com o banco saturado por outra coisa (CREATE INDEX em `leads`, 27/10/26) o teto de 30 s
+            # estourava e todas as telas ficavam vazias. Teto maior só para esta função (SET LOCAL volta no fim da transação).
+            conn.execute(text("SET LOCAL statement_timeout = 120000"))
             result = conn.execute(query).fetchall()
-            meta_codes = {r[0] for r in conn.execute(text("SELECT DISTINCT lancamento_codigo FROM meta_ads_daily")).fetchall()}
-            google_codes = {r[0] for r in conn.execute(text("SELECT DISTINCT lancamento_codigo FROM google_ads_daily")).fetchall()}
+            meta_codes = {r[0] for r in conn.execute(_codigos_distintos_sql("meta_ads_daily")).fetchall()}
+            google_codes = {r[0] for r in conn.execute(_codigos_distintos_sql("google_ads_daily")).fetchall()}
             ac_codes = {r[0] for r in conn.execute(leads_codes_sql).fetchall()}
             # Une a tabela viva com os 2 backups (conta Typeform cancelada em
             # ago/2026) — senão lançamentos cujo form_id só existe no backup

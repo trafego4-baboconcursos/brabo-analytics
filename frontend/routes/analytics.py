@@ -19,7 +19,7 @@ from frontend.services.fetch import (
     _launch_cfg, _perfil_por_anuncio, _pesquisa_engajamento,
     _leads_antigos_compradores, _qualidade_regiao, _caminho_comprador,
     _landing_pages_por_etapa, _leads_x_whatsapp, _vendas_grupos_whatsapp,
-    _disparo_resumo, _conversao_pagina_captura, _utm_cobertura, _sorteio,
+    _disparo_resumo, _conversao_pagina_captura, _utm_cobertura, _total_leads_active, _sorteio,
     _cadastrados_lancamentos_anteriores, comparativo_cached,
 )
 from frontend.db_readers.eventos import read_eventos, eventos_por_dia, CORES_TIPO
@@ -174,12 +174,17 @@ async def captacao(request: Request, launch_code: str | None = None, trilha: str
     # "Leads X Grupos de WhatsApp" no debriefing (leads da AC × pessoas
     # ativas nos grupos, deduplicado normal+VIP).
     leads_x_whatsapp = None
+    leads_active_total = None
     utm_cobertura = None
     if launch:
         try:
             leads_x_whatsapp = await run_in_threadpool(_leads_x_whatsapp, launch)
         except Exception:
             logger.exception("Captação: falha ao montar leads x WhatsApp")
+        try:
+            leads_active_total = await run_in_threadpool(_total_leads_active, launch)
+        except Exception:
+            logger.exception("Captação: falha ao contar leads do Active")
         try:
             utm_cobertura = await run_in_threadpool(_utm_cobertura, launch)
         except Exception:
@@ -227,7 +232,7 @@ async def captacao(request: Request, launch_code: str | None = None, trilha: str
         conversao_paginas=(conversao_pagina_captura or {}).get("Captação") or [],
         leads_por_campanha=leads_por_campanha,
         total_leads_camp=total_leads_camp, total_gasto_camp=total_gasto_camp,
-        leads_x_whatsapp=leads_x_whatsapp,
+        leads_x_whatsapp=leads_x_whatsapp, leads_active_total=leads_active_total,
         wa_resumo=wa_resumo, wa_hist=wa_hist, rotulos_blocos=rotulos_blocos,
         utm_cobertura=utm_cobertura,
         prev_kpis=prev_kpis,

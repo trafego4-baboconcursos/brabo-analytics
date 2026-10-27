@@ -231,6 +231,22 @@ def _vendas_grupos_whatsapp(launch: Any, previous: Any = None):
     return out
 
 
+def _total_leads_active(launch: Any) -> int | None:
+    """Leads do lançamento no Active (estado `lead_utm_lancamento`), SEM depender dos grupos de WhatsApp.
+    O card da Captação lia isto de `_leads_x_whatsapp`, que devolve None quando ainda não há contagem de
+    grupos — e o lançamento novo (PES-NOV-26, 27/10/26) ficava com "–" mesmo com 15 mil leads no banco."""
+    from sqlalchemy import text as _t  # noqa: PLC0415
+    from frontend.db import _get_engine  # noqa: PLC0415
+
+    def _conta():
+        with _get_engine().connect() as conn:
+            return int(conn.execute(
+                _t("SELECT COUNT(DISTINCT contact_id) FROM lead_utm_lancamento WHERE lancamento_codigo = :code"),
+                {"code": launch.code},
+            ).fetchone()[0] or 0)
+    return _get_or_compute(launch.code, "total_leads_active", _conta)
+
+
 def _utm_cobertura(launch: Any):
     from frontend.db_readers.leads import read_utm_cobertura
     return _get_or_compute(launch.code, "utm_cobertura",

@@ -94,7 +94,7 @@
         <div class="tp-kpi-top">
           <div class="tp-icon"><i class="ti ti-database-export"></i></div>
         </div>
-        <div class="tp-value">{% if trilha_nome %}{{ leads_active_trilha | num if leads_active_trilha is not none else "–" }}{% else %}{{ leads_x_whatsapp.total_leads | num if leads_x_whatsapp else "–" }}{% endif %}</div>
+        <div class="tp-value">{% if trilha_nome %}{{ leads_active_trilha | num if leads_active_trilha is not none else "–" }}{% else %}{{ leads_active_total | num if leads_active_total is not none else "–" }}{% endif %}</div>
         <div class="tp-label">Leads que Caíram no Active</div>
         <div class="tp-compare">{% if trilha_nome %}Contatos da trilha {{ trilha_nome }} (Active Campaign){% else %}Tabela de leads (Active Campaign){% endif %}</div>
       </div>

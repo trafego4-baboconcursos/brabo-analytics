@@ -324,6 +324,57 @@ def api_drive_thumb(file_id: str):
         return _Response(status_code=502, content="Falha ao buscar thumbnail.")
 
 
+# ── Mídia do criativo (modal de preview) ───────────────────────────────────────
+
+_CODIGO_AD_OK = _re.compile(r"^[A-Za-z0-9-]{3,20}$")
+_FILE_ID_OK = _re.compile(r"^[\w-]{10,100}$")
+_drive_image_cache: dict[tuple[str, int], tuple[float, str]] = {}
+
+
+@router.get("/api/creative-media/{launch_code}/{ad_code}")
+def api_creative_media(launch_code: str, ad_code: str):
+    """Manifesto de mídia do anúncio para o modal: imagem, quadros do carrossel ou vídeo (ver services/criativo_midia.py)."""
+    from fastapi.responses import JSONResponse as _Json
+    from frontend.services.criativo_midia import resolver
+
+    if launch_code == "_":      # a página não tem lançamento ativo: o resolver procura o anúncio nos mais recentes
+        launch_code = ""
+    if not _CODIGO_AD_OK.match(ad_code) or (launch_code and not _CODIGO_AD_OK.match(launch_code)):
+        return _Json({"ok": False, "error": "código inválido"}, status_code=400)
+    try:
+        res = resolver(launch_code, ad_code)
+    except Exception:
+        logger.exception("Erro ao montar a mídia do criativo %s/%s", launch_code, ad_code)
+        return _Json({"ok": False, "error": "falha ao montar a mídia"}, status_code=502)
+    if not res:
+        return {"ok": False, "error": "sem mídia para este anúncio"}
+    return {"ok": True, **res}
+
+
+@router.get("/api/drive-image/{file_id}")
+def api_drive_image(file_id: str, w: int = 1400):
+    """Imagem do Drive em tamanho de visualização. Só serve arquivos que o índice de criativos já listou — não é um proxy
+    de qualquer arquivo visível para a conta de serviço."""
+    from fastapi.responses import RedirectResponse as _Redirect, Response as _Response
+    from frontend.services.criativo_midia import ARQUIVOS_PERMITIDOS, url_imagem_drive
+
+    if not _FILE_ID_OK.match(file_id) or file_id not in ARQUIVOS_PERMITIDOS:
+        return _Response(status_code=404, content="arquivo não encontrado")
+    w = max(200, min(int(w), 2400))
+    cached = _drive_image_cache.get((file_id, w))
+    if cached and (_time.time() - cached[0]) < _THUMB_URL_TTL:
+        return _Redirect(url=cached[1], status_code=302)
+    try:
+        url = url_imagem_drive(file_id, w)
+    except Exception:
+        logger.exception("Erro ao buscar imagem do Drive file_id=%s", file_id)
+        return _Response(status_code=502, content="falha ao buscar a imagem")
+    if not url:
+        return _Response(status_code=404, content="sem imagem")
+    _drive_image_cache[(file_id, w)] = (_time.time(), url)
+    return _Redirect(url=url, status_code=302)
+
+
 # ── Campaign Count ─────────────────────────────────────────────────────────────
 
 @router.get("/api/campaign-count")

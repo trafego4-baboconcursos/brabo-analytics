@@ -575,15 +575,21 @@
 {% block scripts %}{% endblock %}
 
 <!-- ── Modal de Vídeo Drive (global) ─────────────────────────────────────── -->
-<div id="video-modal-overlay" onclick="closeVideoModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:9000;align-items:center;justify-content:center;padding:16px;">
+<div id="video-modal-overlay" data-launch="{{ active_code or '' }}" onclick="closeVideoModal()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:9000;align-items:center;justify-content:center;padding:16px;">
   <div class="vm-shell" onclick="event.stopPropagation()">
     <div class="vm-header">
       <span id="video-modal-title" class="vm-title"></span>
       <button onclick="closeVideoModal()" class="vm-close"><i class="ti ti-x"></i></button>
     </div>
     <div class="vm-body">
-      <div class="vm-video">
-        <iframe id="video-modal-frame" src="" allowfullscreen></iframe>
+      <div class="vm-video" id="video-modal-viewer">
+        <iframe id="video-modal-frame" src="" allow="autoplay; fullscreen" allowfullscreen></iframe>
+        <img id="video-modal-img" alt="" style="display:none" onerror="this.style.display='none';bsAvisoModal('Não foi possível carregar a imagem.')">
+        <div id="video-modal-aviso" class="vm-aviso" style="display:none"></div>
+        <button type="button" id="video-modal-prev" class="vm-nav vm-prev" style="display:none" onclick="bsMostrarItem(BS_MODAL.idx-1)" aria-label="Anterior"><i class="ti ti-chevron-left"></i></button>
+        <button type="button" id="video-modal-next" class="vm-nav vm-next" style="display:none" onclick="bsMostrarItem(BS_MODAL.idx+1)" aria-label="Próximo"><i class="ti ti-chevron-right"></i></button>
+        <div id="video-modal-count" class="vm-count" style="display:none"></div>
+        <div id="video-modal-chips" class="vm-chips" style="display:none"></div>
       </div>
       <div id="video-modal-metrics"></div>
     </div>

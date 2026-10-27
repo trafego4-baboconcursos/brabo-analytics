@@ -122,7 +122,7 @@ def pico_por_bloco(code: str) -> dict[str, dict]:
                 bucket["saidas"] = {"valor": int(saidas), "data": data}
     if not out:
         from frontend.db_readers import whatsapp_eventos  # noqa: PLC0415
-        out = {bloco: d["pico"] for bloco, d in whatsapp_eventos.ler(code).items()}
+        out = {bloco: d["pico"] for bloco, d in whatsapp_eventos.ler(code, propagar=True).items()}
     return out
 
 
@@ -149,7 +149,7 @@ def contar_lancamento(launch_folder_or_code: Any) -> dict[str, dict]:
     if not out:
         # Lançamento sem linha na planilha (a partir de 22/10/26 a automação grava em leads_grupos_eventos).
         from frontend.db_readers import whatsapp_eventos  # noqa: PLC0415
-        for bloco, d in whatsapp_eventos.ler(code).items():
+        for bloco, d in whatsapp_eventos.ler(code, propagar=True).items():
             r = d["resumo"]
             out[bloco] = {"total": r["total"], "total_limpo": r["total_limpo"], "grupos": r["grupos"],
                           "entradas_hoje": r["entradas_hoje"], "saidas_hoje": r["saidas_hoje"]}
@@ -163,5 +163,5 @@ def historico_diario(launch_folder_or_code: Any) -> dict[str, list[dict]]:
     diario = {bloco: linhas for bloco, linhas in _diario_por_bloco(code).items() if linhas}
     if not diario:
         from frontend.db_readers import whatsapp_eventos  # noqa: PLC0415
-        diario = {bloco: d["diario"] for bloco, d in whatsapp_eventos.ler(code).items() if d["diario"]}
+        diario = {bloco: d["diario"] for bloco, d in whatsapp_eventos.ler(code, propagar=True).items() if d["diario"]}
     return diario

@@ -54,3 +54,21 @@ def test_picos():
     ])
     assert p["leads_no_dia"] == {"valor": 9, "data": "2026-10-23"}
     assert p["saidas"] == {"valor": 4, "data": "2026-10-23"}
+
+
+def test_erro_de_banco_nao_vira_sem_grupos(monkeypatch):
+    """Um estouro de tempo no banco não pode virar "lançamento sem grupos" (o card guardava isso por 1h)."""
+    import pytest
+    from frontend import cache
+    from frontend.db_readers import whatsapp_eventos as we
+
+    def _estoura(code):
+        raise RuntimeError("canceling statement due to statement timeout")
+
+    monkeypatch.setattr(we, "_calcular", _estoura)
+    monkeypatch.setattr(cache, "_get_or_compute", lambda code, chave, compute, ttl=None: compute())
+    assert we.ler("PES-NOV-26") == {}                    # leitores de tela seguem sem quebrar
+    with pytest.raises(RuntimeError):
+        we.ler("PES-NOV-26", propagar=True)              # quem guarda em cache precisa saber que falhou
+    with pytest.raises(RuntimeError):
+        we.resumo_wa("PES-NOV-26")

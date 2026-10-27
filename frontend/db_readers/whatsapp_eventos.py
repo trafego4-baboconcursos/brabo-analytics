@@ -133,9 +133,13 @@ def _calcular(code: str) -> dict[str, dict]:
     return out
 
 
-def ler(launch_folder_or_code: Any) -> dict[str, dict]:
+def ler(launch_folder_or_code: Any, propagar: bool = False) -> dict[str, dict]:
     """{"normal": {"resumo", "diario", "pico"}, "vip": {...}} — vazio se o lançamento não tem eventos
-    (ou é a Black). Cacheado 5 min, como o resto da contagem de grupos."""
+    (ou é a Black). Cacheado 5 min, como o resto da contagem de grupos.
+
+    `propagar=True`: erro de banco sobe em vez de virar `{}`. Quem decide "este lançamento não tem grupos" e guarda
+    isso em cache precisa distinguir de "o banco estourou o tempo agora" — senão um soluço de 30 s vira card em branco
+    por 1 hora (27/10/26, "Leads que Entraram nos Grupos" com traço)."""
     from frontend.cache import _get_or_compute  # noqa: PLC0415 — evita import circular
 
     code = _extract_launch_code(launch_folder_or_code)
@@ -145,12 +149,14 @@ def ler(launch_folder_or_code: Any) -> dict[str, dict]:
         return _get_or_compute(code, "whatsapp_eventos", lambda: _calcular(code), ttl=300) or {}
     except Exception:
         logger.exception("whatsapp_eventos: falha para %s", code)
+        if propagar:
+            raise
         return {}
 
 
 def resumo_wa(launch_folder_or_code: Any) -> dict | None:
     """Dict no formato de `read_whatsapp_groups` (start/end/normal/vip), para a página /whatsapp."""
-    dados = ler(launch_folder_or_code)
+    dados = ler(launch_folder_or_code, propagar=True)
     if not dados:
         return None
     datas = [l["data"] for b in dados.values() for l in b["diario"]]

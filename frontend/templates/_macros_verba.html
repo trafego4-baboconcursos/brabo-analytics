@@ -21,7 +21,7 @@
     <table class="table-compact" style="font-size:11px;white-space:nowrap">
       <thead>
         <tr>
-          <th class="th-dark" style="position:sticky;left:0;background:inherit">Público</th>
+          <th class="th-dark" style="position:sticky;left:0">Público</th>
           <th class="th-dark" style="text-align:left">%</th>
           {% for d in dados.dias %}<th class="th-dark" style="text-align:left">{{ d.data_str }}</th>{% endfor %}
           <th class="th-dark" style="text-align:left">{{ rotulo_total }}</th>
@@ -39,7 +39,7 @@
         </tr>
         {% endfor %}
         <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
-          <td style="position:sticky;left:0;background:inherit">Investimento por Dia</td>
+          <td style="position:sticky;left:0">Investimento por Dia</td>
           <td style="text-align:left">100%</td>
           {% for d in dados.dias %}<td style="text-align:left">{{ d.pct_dia | round(1) }}%</td>{% endfor %}
           <td style="text-align:left">{{ dados.grand_total | brl(0) }}</td>
@@ -64,7 +64,7 @@
     <table class="table-compact" style="font-size:11px;white-space:nowrap">
       <thead>
         <tr>
-          <th class="th-dark" style="position:sticky;left:0;background:inherit">Público</th>
+          <th class="th-dark" style="position:sticky;left:0">Público</th>
           <th class="th-dark" style="text-align:left">% Prev.</th>
           <th class="th-dark" style="text-align:left">% Real.</th>
           {% for d in dados.dias %}<th class="th-dark" style="text-align:left">{{ d.data_str }}<br><span style="font-weight:400;font-size:9px">Prev. / Real.</span></th>{% endfor %}
@@ -90,7 +90,7 @@
         </tr>
         {% endfor %}
         <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
-          <td style="position:sticky;left:0;background:inherit">Investimento por Dia</td>
+          <td style="position:sticky;left:0">Investimento por Dia</td>
           <td style="text-align:left">100%</td>
           <td style="text-align:left">100%</td>
           {% for d in dados.dias %}

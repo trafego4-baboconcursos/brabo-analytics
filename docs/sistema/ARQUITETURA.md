@@ -2,7 +2,7 @@
 titulo: "Arquitetura do Brabo Analytics — 2026-10-15"
 area: sistema
 status: vigente
-atualizado: 2026-10-23
+atualizado: 2026-10-27
 responde:
   - "como o sistema funciona por dentro"
   - "por que o aviso do etl recomputa so parte do cache"
@@ -3994,3 +3994,14 @@ Até aqui o deploy era manual: push no GitHub e alguém clicava **Deploy** no Ea
 - O botão "Auto Deploy" do EasyPanel (`enableAppGithubDeploy`) falha com 404 em `/repos/.../hooks`: o token do GitHub ligado ao painel não gerencia webhooks. Por isso os webhooks foram criados à mão no GitHub e o campo `autoDeploy` do serviço continua `false` — o deploy vem do webhook, não do painel.
 - O content type **tem** que ser `application/json`: com `x-www-form-urlencoded` o endpoint responde **415**. O "Redeliver" do GitHub reenvia com os headers originais, então uma entrega que falhou como formulário continua 415 mesmo depois de corrigir o webhook.
 - A URL de deploy carrega o token do serviço; se vazar, `refreshAppDeployToken` no EasyPanel gera outro (e o webhook precisa ser atualizado).
+
+### Vendas por anúncio na Black (27/10/26)
+
+`frontend/services/attribution.py::_sales_attribution` extraía o código do anúncio das UTMs com `_extract_ad_code`
+(`\bAD\d+\b`), que não reconhece a convenção da Black (`AD-TR35`, `ADC-MA38`). Resultado: **0 vendas atribuídas a anúncio
+na BV-26** (1.163 vendas), e a coluna de vendas/ROAS do `/criativos` vazia. Agora, quando `uses_legacy_ad_codes(launch.code)`
+(todo `BV-*`), usa `src/ad_codes.extract_ad_code(texto_utm, launch.code)`, a mesma regra que o `/criativos` já usava para o
+gasto, e as chaves casam. Demais lançamentos seguem com `_extract_ad_code`, sem mudança (PI-AGO-26 idêntico antes/depois:
+1.984 vendas em 57 anúncios). BV-26 depois: 452 vendas em 80 anúncios; na captação, 397 vendas / R$ 687.885 em 60 anúncios,
+todos com gasto casado. Ainda com a regex clássica (não afetam o `/criativos`): `db_readers/caminho_comprador.py`,
+`db_readers/typeform.py` (pesquisa por anúncio) e `services/copys.py`.

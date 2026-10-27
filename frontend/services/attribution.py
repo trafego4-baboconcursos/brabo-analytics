@@ -16,6 +16,7 @@ from typing import Any
 
 from logger import get_logger
 from frontend.utils import _norm_text
+from src.ad_codes import extract_ad_code, uses_legacy_ad_codes
 
 logger = get_logger("db")
 
@@ -288,7 +289,12 @@ def _sales_attribution(launch: Any, vendas_data: Any, devolver_utms: bool = Fals
             _inc_sales(result["google_temperatura_sales_por_etapa"][g_etapa], g_temp, receita_email, vendas_email)
             if campaign:
                 _inc_sales(result["google_campanha_sales"], campaign, receita_email, vendas_email)
-        ad_code = _extract_ad_code(f"{source} {medium} {campaign} {content} {term}")
+        # A Black nomeia os anúncios fora da convenção ADxxx (AD-TR35, ADC-MA38) — mesma regra
+        # do /criativos (src/ad_codes.py), senão nenhuma venda da Black chega a um criativo.
+        # Os outros lançamentos seguem com _extract_ad_code, sem mudança.
+        _utm_txt = f"{source} {medium} {campaign} {content} {term}"
+        ad_code = (extract_ad_code(_utm_txt, launch.code) if uses_legacy_ad_codes(launch.code)
+                   else _extract_ad_code(_utm_txt))
         if ad_code:
             _inc_sales(result["por_criativo"], ad_code, receita_email, vendas_email)
             result["por_criativo_por_etapa"].setdefault(cls["etapa"], {})

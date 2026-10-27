@@ -2,7 +2,7 @@
 titulo: "Metodologia de Extração e Atribuição de Dados por Lançamento"
 area: sistema
 status: vigente
-atualizado: 2026-10-23
+atualizado: 2026-10-27
 responde:
   - "como e medido o carregamento da pagina dos anuncios"
   - "o que e landing page view"
@@ -576,3 +576,10 @@ O topo do funil do /pesquisas usa o contador do próprio formulário (`_contar_a
 - **Abriu → Respondeu** = respondentes únicos ÷ aberturas.
 
 Exemplo PES-NOV-26 (form 487): 215 aberturas → 190 inícios → 148 envios → 147 respondentes únicos.
+
+## Código do anúncio na atribuição de vendas da Black (27/10/26)
+
+A venda é ligada ao anúncio pelo código encontrado nas UTMs do lead (`utm_term`/`utm_content` e demais). Para lançamentos
+`BV-*` o código segue a convenção da Black (`AD-TR35`, `ADC-MA38`, `ADL…`, `UGC…`) e é extraído com
+`src/ad_codes.extract_ad_code(…, launch_code)`, normalizado como `ADC-MA38`. Nos outros lançamentos continua `ADxxx`. Antes de
+27/10/26 a Black não tinha nenhuma venda atribuída a anúncio por causa disso ([[ARQUITETURA]]).

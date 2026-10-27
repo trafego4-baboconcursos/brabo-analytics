@@ -1,91 +1,77 @@
-{# Tabelas de UMA etapa (uma linha por plataforma), pensadas para ficarem lado a lado
-   (.par-plataformas): Meta à esquerda, Google/YouTube à direita. Usadas em /captacao e /pre-qualificacao.
+{# Tabelas de UMA etapa, com Meta em cima e Google/YouTube embaixo. Usadas em /captacao e /pre-qualificacao.
    Arquivo próprio SEM {% extends %} — ver o motivo em _macros_verba.html. #}
 {% from "_macros_platform.html" import plat_badge %}
 
-{% macro distribuicao_meta(d, etapa, total_gasto) %}
-{% set total = total_gasto or 1 %}
+{# Uma tabela só, uma linha por plataforma. "Views" = ThruPlays (Meta) / visualizações TrueView (Google). #}
+{% macro distribuicao_etapa(m, g, etapa, total_gasto_meta, total_custo_google) %}
+{% set tm = total_gasto_meta or 1 %}
+{% set tg = total_custo_google or 1 %}
 <div class="section">
-  <div class="section-title"><i class="ti ti-chart-donut" style="color:var(--meta-color)"></i> Distribuição — {{ etapa }} {{ plat_badge("Meta") }}</div>
+  <div class="section-title"><i class="ti ti-chart-donut"></i> Distribuição — {{ etapa }}</div>
   <div class="table-wrap" style="overflow-x:auto">
     <table>
       <thead>
         <tr>
-          <th class="th-meta">Investimento</th>
-          <th class="th-meta">% Verba</th>
-          <th class="th-meta">Leads</th>
-          <th class="th-meta">CPL</th>
-          <th class="th-meta">ThruPlays</th>
-          <th class="th-meta">Custo/ThruPlay</th>
-          <th class="th-meta" title="Pessoas que assistiram 50% do vídeo (Video 50 Percent Watched Actions)">Viram 50%</th>
-          <th class="th-meta" title="Viram 50% ÷ alcance. Só conta os dias com alcance coletado (a coleta começou em 22/10/26).">% Viram 50%</th>
+          <th class="th-dark">Plataforma</th>
+          <th class="th-dark">Investimento</th>
+          <th class="th-dark">% Verba</th>
+          <th class="th-dark">Leads</th>
+          <th class="th-dark">CPL</th>
+          <th class="th-dark" title="ThruPlays (Meta) / visualizações do vídeo, TrueView (Google)">Views</th>
+          <th class="th-dark" title="Investimento ÷ views">Custo/View</th>
+          <th class="th-dark" title="Pessoas que assistiram 50% do vídeo. Meta: Video 50 Percent Watched Actions. Google: visualizações × taxa de 50% (como na planilha de controle)">Viram 50%</th>
+          <th class="th-dark" title="Meta: viram 50% ÷ alcance (só dias com alcance coletado, desde 22/10/26). Google: viram 50% ÷ visualizações">% Viram 50%</th>
         </tr>
       </thead>
       <tbody>
+        {% if m %}
         <tr>
-          <td class="numero">{{ d.gasto | brl }}</td>
+          <td>{{ plat_badge("Meta") }}</td>
+          <td class="numero">{{ m.gasto | brl }}</td>
           <td>
             <div class="pbar-wrap">
-              <div class="pbar-track" style="max-width:80px"><div class="pbar-fill meta" style="width:{{ (d.gasto / total * 100) | round(1) }}%;"></div></div>
-              <span class="td-meta" style="font-weight:700;font-size:12px">{{ (d.gasto / total * 100) | pct }}</span>
+              <div class="pbar-track" style="max-width:80px"><div class="pbar-fill meta" style="width:{{ (m.gasto / tm * 100) | round(1) }}%;"></div></div>
+              <span class="td-meta" style="font-weight:700;font-size:12px">{{ (m.gasto / tm * 100) | pct }}</span>
             </div>
           </td>
-          <td class="numero">{{ d.leads | num }}</td>
-          <td class="numero {% if d.cpl > 0 and d.cpl < 3 %}positivo{% elif d.cpl > 5 %}negativo{% endif %}">{{ d.cpl | brl if d.leads > 0 else "–" }}</td>
-          <td class="numero">{{ d.thruplays | num }}</td>
-          <td class="numero">{{ d.custo_thruplay | brl(3) if d.thruplays > 0 else "–" }}</td>
-          <td class="numero">{{ d.views_50 | num if d.views_50 > 0 else "–" }}</td>
-          <td class="numero">{{ d.pct_views_50 | pct if d.alcance > 0 and d.pct_views_50 > 0 else "–" }}</td>
+          <td class="numero">{{ m.leads | num }}</td>
+          <td class="numero {% if m.cpl > 0 and m.cpl < 3 %}positivo{% elif m.cpl > 5 %}negativo{% endif %}">{{ m.cpl | brl if m.leads > 0 else "–" }}</td>
+          <td class="numero">{{ m.thruplays | num }}</td>
+          <td class="numero">{{ m.custo_thruplay | brl(3) if m.thruplays > 0 else "–" }}</td>
+          <td class="numero">{{ m.views_50 | num if m.views_50 > 0 else "–" }}</td>
+          <td class="numero">{{ m.pct_views_50 | pct if m.alcance > 0 and m.pct_views_50 > 0 else "–" }}</td>
         </tr>
+        {% endif %}
+        {% if g %}
+        <tr>
+          <td>{{ plat_badge("Google") }}</td>
+          <td class="numero">{{ g.custo | brl }}</td>
+          <td>
+            <div class="pbar-wrap">
+              <div class="pbar-track" style="max-width:80px"><div class="pbar-fill google" style="width:{{ (g.custo / tg * 100) | round(1) }}%"></div></div>
+              <span class="td-google" style="font-weight:700;font-size:12px">{{ (g.custo / tg * 100) | pct }}</span>
+            </div>
+          </td>
+          <td class="numero">{{ "%.0f"|format(g.conversoes) }}</td>
+          <td class="numero">{{ g.custo_conv | brl if g.conversoes > 0 else "–" }}</td>
+          <td class="numero">{{ g.visualizacoes | num if g.visualizacoes > 0 else "–" }}</td>
+          <td class="numero">{{ (g.custo / g.visualizacoes) | brl(3) if g.visualizacoes > 0 else "–" }}</td>
+          <td class="numero">{{ g.views_50 | num if g.views_50 > 0 else "–" }}</td>
+          <td class="numero">{{ g.pct_views_50 | pct if g.views_50 > 0 else "–" }}</td>
+        </tr>
+        {% endif %}
       </tbody>
     </table>
   </div>
 </div>
 {% endmacro %}
 
-{% macro distribuicao_google(d, etapa, total_custo) %}
-{% set total = total_custo or 1 %}
+{# Uma seção, duas tabelas empilhadas (as colunas de Meta e Google não são as mesmas). `m`/`g` None = plataforma sem dado. #}
+{% macro retencao_etapa(m, g, etapa) %}
 <div class="section">
-  <div class="section-title"><i class="ti ti-chart-donut" style="color:var(--google-color)"></i> Distribuição — {{ etapa }} {{ plat_badge("Google") }}</div>
-  <div class="table-wrap" style="overflow-x:auto">
-    <table>
-      <thead>
-        <tr>
-          <th class="th-google">Investimento</th>
-          <th class="th-google">% Verba</th>
-          <th class="th-google">Leads</th>
-          <th class="th-google">CPL</th>
-          <th class="th-google" title="Visualizações do vídeo (TrueView)">Visualizações</th>
-          <th class="th-google" title="Investimento ÷ visualizações">Custo/View</th>
-          <th class="th-google" title="Visualizações do vídeo × taxa de 50% do vídeo (como na planilha de controle)">Viram 50%</th>
-          <th class="th-google" title="Viram 50% ÷ visualizações do vídeo">% Viram 50%</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td class="numero">{{ d.custo | brl }}</td>
-          <td>
-            <div class="pbar-wrap">
-              <div class="pbar-track" style="max-width:80px"><div class="pbar-fill google" style="width:{{ (d.custo / total * 100) | round(1) }}%"></div></div>
-              <span class="td-google" style="font-weight:700;font-size:12px">{{ (d.custo / total * 100) | pct }}</span>
-            </div>
-          </td>
-          <td class="numero">{{ "%.0f"|format(d.conversoes) }}</td>
-          <td class="numero">{{ d.custo_conv | brl if d.conversoes > 0 else "–" }}</td>
-          <td class="numero">{{ d.visualizacoes | num if d.visualizacoes > 0 else "–" }}</td>
-          <td class="numero">{{ (d.custo / d.visualizacoes) | brl(3) if d.visualizacoes > 0 else "–" }}</td>
-          <td class="numero">{{ d.views_50 | num if d.views_50 > 0 else "–" }}</td>
-          <td class="numero">{{ d.pct_views_50 | pct if d.views_50 > 0 else "–" }}</td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-</div>
-{% endmacro %}
-
-{% macro retencao_meta(d, etapa) %}
-<div class="section">
-  <div class="section-title"><i class="ti ti-heart-handshake" style="color:var(--meta-color)"></i> Retenção e engajamento — {{ etapa }} {{ plat_badge("Meta") }}</div>
+  <div class="section-title"><i class="ti ti-heart-handshake"></i> Retenção e engajamento — {{ etapa }}</div>
+  {% if m %}
+  <div style="margin:0 0 var(--s2)">{{ plat_badge("Meta") }}</div>
   <div class="table-wrap" style="overflow-x:auto">
     <table>
       <thead>
@@ -102,26 +88,24 @@
       </thead>
       <tbody>
         <tr>
-          <td class="numero">{{ d.alcance | num }}</td>
-          <td class="numero">{{ ("%.2f" | format(d.frequencia)) | replace(".", ",") }}x</td>
-          <td class="numero">{{ d.views_30s | num if d.views_30s > 0 else "–" }}</td>
-          <td class="numero">{{ (("%.1f" | format(d.tempo_medio)) | replace(".", ",")) ~ " s" if d.tempo_medio > 0 else "–" }}</td>
-          <td class="numero">{{ d.reacoes | num if d.reacoes > 0 else "–" }}</td>
-          <td class="numero">{{ d.comentarios | num if d.comentarios > 0 else "–" }}</td>
-          <td class="numero">{{ d.compartilhamentos | num if d.compartilhamentos > 0 else "–" }}</td>
-          <td class="numero">{{ d.salvamentos | num if d.salvamentos > 0 else "–" }}</td>
+          <td class="numero">{{ m.alcance | num }}</td>
+          <td class="numero">{{ ("%.2f" | format(m.frequencia)) | replace(".", ",") }}x</td>
+          <td class="numero">{{ m.views_30s | num if m.views_30s > 0 else "–" }}</td>
+          <td class="numero">{{ (("%.1f" | format(m.tempo_medio)) | replace(".", ",")) ~ " s" if m.tempo_medio > 0 else "–" }}</td>
+          <td class="numero">{{ m.reacoes | num if m.reacoes > 0 else "–" }}</td>
+          <td class="numero">{{ m.comentarios | num if m.comentarios > 0 else "–" }}</td>
+          <td class="numero">{{ m.compartilhamentos | num if m.compartilhamentos > 0 else "–" }}</td>
+          <td class="numero">{{ m.salvamentos | num if m.salvamentos > 0 else "–" }}</td>
         </tr>
       </tbody>
     </table>
   </div>
   <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:var(--s2);">Só os dias com coleta (a partir de 22/10/26 para os lançamentos em andamento; lançamentos antigos só se foram recarregados).</div>
-</div>
-{% endmacro %}
+  {% endif %}
 
-{# O Google não entrega alcance nem engajamento do vídeo: a retenção do YouTube é a curva de visualização (25/50/75/100%). #}
-{% macro retencao_google(d, etapa) %}
-<div class="section">
-  <div class="section-title"><i class="ti ti-heart-handshake" style="color:var(--google-color)"></i> Retenção — {{ etapa }} {{ plat_badge("Google") }}</div>
+  {# O Google não entrega alcance nem engajamento do vídeo: a retenção do YouTube é a curva de visualização (25/50/75/100%). #}
+  {% if g %}
+  <div style="margin:var(--s3) 0 var(--s2)">{{ plat_badge("Google") }}</div>
   <div class="table-wrap" style="overflow-x:auto">
     <table>
       <thead>
@@ -138,19 +122,20 @@
       </thead>
       <tbody>
         <tr>
-          <td class="numero">{{ d.impressoes | num }}</td>
-          <td class="numero">{{ d.visualizacoes | num if d.visualizacoes > 0 else "–" }}</td>
-          <td class="numero">{{ d.taxa_view | pct(2) if d.visualizacoes > 0 else "–" }}</td>
-          <td class="numero">{{ d.ctr | pct(2) if d.impressoes > 0 else "–" }}</td>
-          <td class="numero">{{ d.pct_views_25 | pct if d.pct_views_25 > 0 else "–" }}</td>
-          <td class="numero">{{ d.pct_views_50 | pct if d.pct_views_50 > 0 else "–" }}</td>
-          <td class="numero">{{ d.pct_views_75 | pct if d.pct_views_75 > 0 else "–" }}</td>
-          <td class="numero">{{ d.pct_views_100 | pct if d.pct_views_100 > 0 else "–" }}</td>
+          <td class="numero">{{ g.impressoes | num }}</td>
+          <td class="numero">{{ g.visualizacoes | num if g.visualizacoes > 0 else "–" }}</td>
+          <td class="numero">{{ g.taxa_view | pct(2) if g.visualizacoes > 0 else "–" }}</td>
+          <td class="numero">{{ g.ctr | pct(2) if g.impressoes > 0 else "–" }}</td>
+          <td class="numero">{{ g.pct_views_25 | pct if g.pct_views_25 > 0 else "–" }}</td>
+          <td class="numero">{{ g.pct_views_50 | pct if g.pct_views_50 > 0 else "–" }}</td>
+          <td class="numero">{{ g.pct_views_75 | pct if g.pct_views_75 > 0 else "–" }}</td>
+          <td class="numero">{{ g.pct_views_100 | pct if g.pct_views_100 > 0 else "–" }}</td>
         </tr>
       </tbody>
     </table>
   </div>
   <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:var(--s2);">Percentuais sobre as visualizações. O Google não informa alcance, tempo médio nem engajamento do vídeo.</div>
+  {% endif %}
 </div>
 {% endmacro %}
 

@@ -25,7 +25,7 @@
 
     {% from "_macros_verba.html" import tabela_dia_publico, tabela_dia_publico_combinada, kpi_delta %}
     {% from "_macros_platform.html" import plat_badge %}
-    {% from "_macros_etapa.html" import distribuicao_meta, distribuicao_google, retencao_meta, retencao_google, grupos_whatsapp %}
+    {% from "_macros_etapa.html" import distribuicao_etapa, retencao_etapa, grupos_whatsapp %}
 
     {# ── KPIs Principais (design system: tp-kpi) ─────────────────────────── #}
     <div class="section">
@@ -575,19 +575,11 @@
     {% set cap_m = meta.por_etapa.get("Captação") if meta and meta.por_etapa else None %}
     {% set cap_g = google.por_etapa.get("Captação") if google and google.por_etapa else None %}
     {% if cap_m or cap_g %}
-    <div class="par-plataformas">
-      {% if cap_m %}{{ distribuicao_meta(cap_m, "Captação", meta.total_gasto) }}{% endif %}
-      {% if cap_g %}{{ distribuicao_google(cap_g, "Captação", google.total_custo) }}{% endif %}
-    </div>
+    {{ distribuicao_etapa(cap_m, cap_g, "Captação", meta.total_gasto if meta else 0, google.total_custo if google else 0) }}
     {# Retenção e engajamento (Meta): coleta de alcance/tempo/engajamento começou em 22/10/26. YouTube: curva de visualização. #}
     {% set ret_m = cap_m if cap_m and cap_m.alcance > 0 else None %}
     {% set ret_g = cap_g if cap_g and cap_g.visualizacoes > 0 else None %}
-    {% if ret_m or ret_g %}
-    <div class="par-plataformas">
-      {% if ret_m %}{{ retencao_meta(ret_m, "Captação") }}{% endif %}
-      {% if ret_g %}{{ retencao_google(ret_g, "Captação") }}{% endif %}
-    </div>
-    {% endif %}
+    {% if ret_m or ret_g %}{{ retencao_etapa(ret_m, ret_g, "Captação") }}{% endif %}
     {% endif %}
 
     {# ── Vendas detalhado ────────────────────────────────────────────────── #}

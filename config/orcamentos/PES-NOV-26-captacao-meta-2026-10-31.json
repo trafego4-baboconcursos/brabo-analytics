@@ -1,6 +1,6 @@
 {
   "lancamento": "PES-NOV-26",
-  "descricao": "Captação Meta + Google — verba do dia 31/10 pela curva do plano de mídia do Murilo (aba Diário Captação). Google: imagem/frio pós-edital/frio principal +5% (verba esgotando com bom CPA), compensado no quente pós-edital (27/10).",
+  "descricao": "Captação Meta + Google — verba do dia 31/10 pela curva do plano de mídia do Murilo (aba Diário Captação).",
   "aplicar_em": "2026-10-31",
   "campanhas": [
     {
@@ -77,7 +77,7 @@
       "plataforma": "google",
       "id": "24395760404",
       "nome": "[GA][cadastro][captação][quente][pós-edital][PES-NOV-26][26.10.26]",
-      "valor": 6553.8,
+      "valor": 6643.81,
       "conta": "6482320788"
     },
     {
@@ -98,21 +98,21 @@
       "plataforma": "google",
       "id": "24395758937",
       "nome": "[GA][cadastro][captação][quente][imagem][PES-NOV-26][26.10.26]",
-      "valor": 601.38,
+      "valor": 572.74,
       "conta": "6482320788"
     },
     {
       "plataforma": "google",
       "id": "24401397982",
       "nome": "[GA][cadastro][captação][frio][pós-edital][PES-NOV-26][26.10.26]",
-      "valor": 837.64,
+      "valor": 797.75,
       "conta": "6482320788"
     },
     {
       "plataforma": "google",
       "id": "24401397586",
       "nome": "[GA][cadastro][captação][frio][principal][PES-NOV-26][26.10.26]",
-      "valor": 451.04,
+      "valor": 429.56,
       "conta": "6482320788"
     },
     {

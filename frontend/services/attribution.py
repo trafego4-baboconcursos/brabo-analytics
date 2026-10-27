@@ -12,6 +12,8 @@ porque `core.py` e outros módulos importam por este caminho há muito tempo.
 from __future__ import annotations
 
 import re
+import threading
+from datetime import date, timedelta
 from typing import Any
 
 from logger import get_logger
@@ -36,7 +38,44 @@ from frontend.services.criativos import (  # noqa: F401 — reexport
 )
 
 
+# Lançamento encerrado há mais de 3 dias: a atribuição dele quase não muda (só boleto tardio), mas custa 1–2 min de leitura
+# da `leads` (a etapa de telefone não tem índice). Com o TTL de 1 h ela era refeita a cada hora — pelo aquecimento do
+# lançamento ativo que o tem como "anterior" e por quem abrisse o debriefing/comparativo — e saturou o banco (27/10/26).
+_TTL_ATRIBUICAO_ENCERRADO = 6 * 3600
+_DIAS_ENCERRADO = 3
+_TRAVAS_ATRIBUICAO: dict[str, "threading.Lock"] = {}
+_TRAVAS_ATRIBUICAO_LOCK = threading.Lock()
+
+
+def _ttl_atribuicao(launch: Any) -> int | None:
+    fim = getattr(launch, "data_fim", None)
+    if fim and fim < date.today() - timedelta(days=_DIAS_ENCERRADO):
+        return _TTL_ATRIBUICAO_ENCERRADO
+    return None
+
+
 def _sales_attribution(launch: Any, vendas_data: Any, devolver_utms: bool = False) -> dict:
+    """Atribui a venda ao anúncio que trouxe o comprador (ver `_sales_attribution_calc`).
+
+    Cache (TTL maior se o lançamento já fechou) e uma execução por vez por lançamento: o aquecimento do ativo e o
+    do debriefing pediam a atribuição do anterior ao mesmo tempo e cada chamada fazia a leitura pesada por conta própria."""
+    if devolver_utms:   # caminho de script (congelar atribuição): nunca lê nem grava cache
+        return _sales_attribution_calc(launch, vendas_data, devolver_utms=True)
+    from frontend.cache import _get_cached  # noqa: PLC0415
+
+    cached = _get_cached(launch.code, "sales_attribution")
+    if cached is not None:
+        return cached
+    with _TRAVAS_ATRIBUICAO_LOCK:
+        trava = _TRAVAS_ATRIBUICAO.setdefault(launch.code, threading.Lock())
+    with trava:
+        cached = _get_cached(launch.code, "sales_attribution")   # outra chamada pode ter acabado enquanto esperávamos
+        if cached is not None:
+            return cached
+        return _sales_attribution_calc(launch, vendas_data)
+
+
+def _sales_attribution_calc(launch: Any, vendas_data: Any, devolver_utms: bool = False) -> dict:
     """Atribui a venda ao anúncio que trouxe o comprador.
 
     `devolver_utms=True` acrescenta `_buyer_utms` ao resultado: o mapa
@@ -106,7 +145,7 @@ def _sales_attribution(launch: Any, vendas_data: Any, devolver_utms: bool = Fals
     }
     if not vendas_data:
         if not devolver_utms:
-            _set_cached(launch.code, "sales_attribution", result)
+            _set_cached(launch.code, "sales_attribution", result, ttl=_ttl_atribuicao(launch))
         return result
     buyers = vendas_data.emails_hotmart | vendas_data.emails_tmb
     buyer_utms: dict[str, dict] = {}
@@ -150,7 +189,7 @@ def _sales_attribution(launch: Any, vendas_data: Any, devolver_utms: bool = Fals
     )
     if leads_df.empty and not buyer_utms:
         if not devolver_utms:
-            _set_cached(launch.code, "sales_attribution", result)
+            _set_cached(launch.code, "sales_attribution", result, ttl=_ttl_atribuicao(launch))
         return result
     leads_df_email = (
         leads_df[leads_df["email_norm"].isin(buyers)] if not leads_df.empty else leads_df
@@ -342,5 +381,5 @@ def _sales_attribution(launch: Any, vendas_data: Any, devolver_utms: bool = Fals
     if devolver_utms:
         result["_buyer_utms"] = buyer_utms
         return result
-    _set_cached(launch.code, "sales_attribution", result)
+    _set_cached(launch.code, "sales_attribution", result, ttl=_ttl_atribuicao(launch))
     return result

@@ -592,3 +592,8 @@ table th.sortable-header:hover { background-color:rgba(0,0,0,.15) !important; }
 }
 .bs-table-export-btn:hover { background:var(--bs-accent-bg); color:var(--bs-accent); }
 .sort-indicator { margin-left:6px; display:inline-block; vertical-align:middle; font-size:9px; opacity:.8; }
+
+/* Duas tabelas de plataformas diferentes (Meta | Google) lado a lado; empilha em tela estreita */
+.par-plataformas { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:var(--s3, 16px); align-items:start; }
+.par-plataformas > .section { margin-bottom:0; min-width:0; }
+@media (max-width: 1100px) { .par-plataformas { grid-template-columns:minmax(0, 1fr); } }

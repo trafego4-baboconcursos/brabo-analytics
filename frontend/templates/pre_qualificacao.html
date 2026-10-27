@@ -31,6 +31,7 @@
     {% else %}
 
     {% from "_macros_platform.html" import plat_badge %}
+    {% from "_macros_etapa.html" import retencao_meta, retencao_google %}
 
     {# ── Resumo de Investimento — etapa ───────────────────────── #}
     <div class="section">
@@ -279,46 +280,6 @@
     </div>
     {% endif %}
 
-    {# ── Retenção e engajamento (Meta) — coleta de alcance/tempo/engajamento começou em 22/10/26 ── #}
-    {% if meta and meta.por_etapa and (meta.por_etapa.values() | selectattr("alcance", "gt", 0) | list) %}
-    <div class="section">
-      <div class="section-title"><i class="ti ti-heart-handshake" style="color:var(--meta-color)"></i> Retenção e engajamento por Etapa {{ plat_badge("Meta") }}</div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th class="th-meta">Etapa</th>
-              <th class="th-meta" title="Soma do alcance diário (a mesma pessoa em dias diferentes conta mais de uma vez)">Alcance</th>
-              <th class="th-meta" title="Impressões ÷ alcance, só nos dias com alcance coletado">Frequência</th>
-              <th class="th-meta" title="Pessoas que assistiram 30 segundos do vídeo">Viram 30s</th>
-              <th class="th-meta" title="Tempo médio assistido, ponderado pelas visualizações de 3s">Tempo médio</th>
-              <th class="th-meta">Reações</th>
-              <th class="th-meta">Comentários</th>
-              <th class="th-meta">Compart.</th>
-              <th class="th-meta">Salvamentos</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for etapa, d in meta.por_etapa.items() if d.alcance > 0 %}
-            <tr>
-              <td><span class="bs-pill meta">{{ etapa }}</span></td>
-              <td class="numero">{{ d.alcance | num }}</td>
-              <td class="numero">{{ ("%.2f" | format(d.frequencia)) | replace(".", ",") }}x</td>
-              <td class="numero">{{ d.views_30s | num if d.views_30s > 0 else "–" }}</td>
-              <td class="numero">{{ (("%.1f" | format(d.tempo_medio)) | replace(".", ",")) ~ " s" if d.tempo_medio > 0 else "–" }}</td>
-              <td class="numero">{{ d.reacoes | num if d.reacoes > 0 else "–" }}</td>
-              <td class="numero">{{ d.comentarios | num if d.comentarios > 0 else "–" }}</td>
-              <td class="numero">{{ d.compartilhamentos | num if d.compartilhamentos > 0 else "–" }}</td>
-              <td class="numero">{{ d.salvamentos | num if d.salvamentos > 0 else "–" }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:var(--s2);">Só os dias com coleta (a partir de 22/10/26 para os lançamentos em andamento; lançamentos antigos só se foram recarregados).</div>
-    </div>
-    {% endif %}
-
     {# ── Ranking de Anúncios — YouTube (Google Ads) ─────────────────────── #}
     {% if youtube_ads_preq %}
     {# Criativo: miniatura do Drive; sem ela (anúncio reaproveitado de outro lançamento), a do próprio vídeo do YouTube #}
@@ -477,6 +438,18 @@
           </tbody>
         </table>
       </div>
+    </div>
+    {% endif %}
+
+    {# ── Retenção da etapa: Meta e YouTube lado a lado (só a linha da pré-quali) ── #}
+    {% set ret_m = meta.por_etapa.get(etapa_pq) if meta and meta.por_etapa else None %}
+    {% set ret_g = google.por_etapa.get(etapa_pq) if google and google.por_etapa else None %}
+    {% set ret_m = ret_m if ret_m and ret_m.alcance > 0 else None %}
+    {% set ret_g = ret_g if ret_g and ret_g.visualizacoes > 0 else None %}
+    {% if ret_m or ret_g %}
+    <div class="par-plataformas">
+      {% if ret_m %}{{ retencao_meta(ret_m, etapa_pq) }}{% endif %}
+      {% if ret_g %}{{ retencao_google(ret_g, etapa_pq) }}{% endif %}
     </div>
     {% endif %}
 

@@ -70,6 +70,8 @@ PAGINAS = [
     "/aulas-ao-vivo",
     "/instagram/mateusandrade.me?launch_code=PES-NOV-26",  # análise por perfil: taxas por alcance e tabela por formato
     "/instagram/mateusandrade.me?days=90&compare=1",
+    "/captacao?launch_code=PES-NOV-26",  # distribuição/retenção só da etapa, Meta e Google lado a lado
+    "/pre-qualificacao?launch_code=PES-NOV-26",
     "/atendimento",  # lê o banco comercial; sem as tabelas do Unnichat mostra o aviso
 ]
 

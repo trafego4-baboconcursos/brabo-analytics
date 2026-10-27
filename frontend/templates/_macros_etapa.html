@@ -7,7 +7,7 @@
 {% set tm = total_gasto_meta or 1 %}
 {% set tg = total_custo_google or 1 %}
 <div class="section">
-  <div class="section-title"><i class="ti ti-chart-donut"></i> Distribuição — {{ etapa }}</div>
+  <div class="section-title"><i class="ti ti-chart-donut"></i> Distribuição — {{ etapa }} {% if m %}{{ plat_badge("Meta") }}{% endif %} {% if g %}{{ plat_badge("Google") }}{% endif %}</div>
   <div class="table-wrap" style="overflow-x:auto">
     <table>
       <thead>
@@ -69,7 +69,7 @@
 {# Uma seção, duas tabelas empilhadas (as colunas de Meta e Google não são as mesmas). `m`/`g` None = plataforma sem dado. #}
 {% macro retencao_etapa(m, g, etapa) %}
 <div class="section">
-  <div class="section-title"><i class="ti ti-heart-handshake"></i> Retenção e engajamento — {{ etapa }}</div>
+  <div class="section-title"><i class="ti ti-heart-handshake"></i> Retenção e engajamento — {{ etapa }} {% if m %}{{ plat_badge("Meta") }}{% endif %} {% if g %}{{ plat_badge("Google") }}{% endif %}</div>
   {% if m %}
   <div style="margin:0 0 var(--s2)">{{ plat_badge("Meta") }}</div>
   <div class="table-wrap" style="overflow-x:auto">

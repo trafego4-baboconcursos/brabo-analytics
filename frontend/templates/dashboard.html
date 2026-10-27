@@ -366,13 +366,11 @@
 
     {# ── Grupos de WhatsApp: entradas e saídas (abaixo da captação das LPs) ── #}
     {% if wa_resumo or wa_hist %}
-    <div class="par-plataformas">
-      {% for chave in ["normal", "vip"] %}
-      {% if wa_resumo.get(chave) or wa_hist.get(chave) %}
-      {{ grupos_whatsapp(rotulos_blocos.get(chave, chave), wa_resumo.get(chave), wa_hist.get(chave)) }}
-      {% endif %}
-      {% endfor %}
-    </div>
+    {% for chave in ["normal", "vip"] %}
+    {% if wa_resumo.get(chave) or wa_hist.get(chave) %}
+    {{ grupos_whatsapp(rotulos_blocos.get(chave, chave), wa_resumo.get(chave), wa_hist.get(chave)) }}
+    {% endif %}
+    {% endfor %}
     <div style="font-size:11px;color:var(--bs-ink-muted);margin:-8px 0 var(--s3)">
       Fonte: contagem dos grupos (a mesma da página Grupos de WhatsApp). "Leads totais" é o total limpo acumulado até o dia.
     </div>

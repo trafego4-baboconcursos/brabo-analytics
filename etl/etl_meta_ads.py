@@ -455,7 +455,9 @@ def upsert(df: pd.DataFrame, since: str, until: str, launch_code: str | None = N
                 text(f"DELETE FROM {TABLE} WHERE date BETWEEN :s AND :u"),
                 {"s": since, "u": until},
             )
-    df.to_sql(TABLE, engine, if_exists="append", index=False, method="multi", chunksize=500)
+        # Na MESMA transação do DELETE: fora dela, quem lia o banco entre o commit do DELETE e o fim do INSERT via a
+        # janela sem linhas (a Meta do PES-NOV-26 apareceu zerada na Captação por isso, 27/10/26) e a página guardava o zero no cache.
+        df.to_sql(TABLE, conn, if_exists="append", index=False, method="multi", chunksize=500)
     logger.info("Upsert concluído: %d linhas gravadas em '%s'", len(df), TABLE)
 
 

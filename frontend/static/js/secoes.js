@@ -136,8 +136,14 @@
         Object.keys(o || {}).forEach(function (x) { out[k(x)] = o[x]; });
         return out;
       }
+      // A ordem salva pode citar seção que não existe mais nesta página (título renomeado, seção removida, view de outra
+      // tela). Chave fantasma na frente da ordem derrubava o script em `byKey[...].el` ANTES de criar a barra
+      // Recolher/Expandir — a página ficava sem os botões (captação, 28/10/26). Fantasmas saem; seção nova entra no fim.
+      var ordem = (est.order && est.order.length ? est.order : defaultOrder).map(k)
+        .filter(function (x, i, a) { return byKey[x] && a.indexOf(x) === i; });
+      meta.forEach(function (m) { if (ordem.indexOf(m.key) === -1) ordem.push(m.key); });
       return {
-        order:     (est.order && est.order.length ? est.order : defaultOrder).map(k),
+        order:     ordem,
         hidden:    obj(est.hidden),
         collapsed: obj(est.collapsed),
         customs:   obj(est.customs),
@@ -347,7 +353,7 @@
     if (ownControls) {
       ownControls.insertBefore(controls, ownControls.firstChild);
     } else {
-      var firstEl = sameParent ? byKey[working.order[0]].el : meta[0].el;
+      var firstEl = (sameParent && byKey[working.order[0]]) ? byKey[working.order[0]].el : meta[0].el;
       firstEl.parentNode.insertBefore(controls, firstEl);
     }
 

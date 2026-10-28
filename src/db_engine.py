@@ -20,6 +20,16 @@ _POOL_CONFIG = {
 }
 
 
+def _limite_statement_timeout_ms() -> int:
+    """30 s por padrão. `DB_STATEMENT_TIMEOUT_MS` sobe o teto SÓ no processo que a define — para scripts locais que refazem o
+    debriefing de um lançamento grande com cache frio (blocos que levam 30–90 s). Produção não define e segue em 30 s."""
+    try:
+        v = int(os.environ.get("DB_STATEMENT_TIMEOUT_MS", "30000"))
+    except ValueError:
+        return 30000
+    return v if 1000 <= v <= 600000 else 30000
+
+
 def make_engine(env_var: str, readonly_guard: bool = False):
     """Cria uma engine SQLAlchemy configurada a partir da URL em `env_var`.
 
@@ -48,6 +58,8 @@ def make_engine(env_var: str, readonly_guard: bool = False):
         pool_timeout=60, pool_recycle=1800, pool_pre_ping=True,
     )
 
+    _LIMITE_MS = _limite_statement_timeout_ms()
+
     @event.listens_for(eng, "checkout")
     def _set_statement_timeout(dbapi_conn, connection_record, connection_proxy):
         # SET via SQL (não connect_args={"options": ...}) porque em pooler de
@@ -56,7 +68,7 @@ def make_engine(env_var: str, readonly_guard: bool = False):
         # aquela conexão física foi aberta, não a cada checkout. Rodar o SET
         # aqui garante o limite de 30s em qualquer modo do pooler.
         cursor = dbapi_conn.cursor()
-        cursor.execute("SET statement_timeout = 30000")
+        cursor.execute(f"SET statement_timeout = {_LIMITE_MS}")
         cursor.close()
 
     if readonly_guard:

@@ -102,3 +102,6 @@ etl/budget_alert_state.json
 docs/*
 !docs/sistema/
 !docs/.gitkeep
+
+# Arquivo morto local (backups de código, scratch, prints) — fora do git
+_arquivo/

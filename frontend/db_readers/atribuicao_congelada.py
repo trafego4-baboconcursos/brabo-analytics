@@ -145,3 +145,46 @@ def gravar_congelada(launch_code: str, buyer_utms: dict[str, Any],
             conn.execute(sql, linhas[i:i + 1000])
     logger.info("atribuicao_congelada: %d linhas enviadas para %s", len(linhas), launch_code)
     return len(linhas)
+
+
+def corrigir_congelada(launch_code: str, buyer_utms: dict[str, Any], origem: str) -> int:
+    """CORRIGE a UTM congelada de compradores já identificados — sobrescreve sem olhar o score.
+
+    `gravar_congelada` é monotônica de propósito (nunca piora o que já foi congelado), mas isso a impede de
+    corrigir uma UTM que estava ERRADA — o que entrou com o nome de campanha digitado errado fica congelado como
+    "o melhor já visto". Esta função é o caminho explícito para a correção: quem chama precisa dizer a `origem`
+    (ex.: 'gclid_google_ads') e é responsável pelo backup do que havia (scripts/corrigir_utm_gclid.py grava um CSV).
+    Não cria compradores novos: só atualiza (ou insere) os e-mails que recebe.
+    """
+    if not launch_code or not buyer_utms or not origem:
+        return 0
+    criar_tabela()
+    linhas = [
+        {
+            "c": launch_code, "email": email, "score": int(utm.get("score") or 0), "origem": origem,
+            **{f"utm_{k}": str(utm.get(k) or "") for k in _CAMPOS},
+        }
+        for email, utm in buyer_utms.items()
+        if email
+    ]
+    sql = text("""
+        INSERT INTO atribuicao_congelada
+            (lancamento_codigo, email, score, utm_source, utm_medium,
+             utm_campaign, utm_content, utm_term, origem)
+        VALUES (:c, :email, :score, :utm_source, :utm_medium,
+                :utm_campaign, :utm_content, :utm_term, :origem)
+        ON CONFLICT (lancamento_codigo, email) DO UPDATE SET
+            score         = EXCLUDED.score,
+            utm_source    = EXCLUDED.utm_source,
+            utm_medium    = EXCLUDED.utm_medium,
+            utm_campaign  = EXCLUDED.utm_campaign,
+            utm_content   = EXCLUDED.utm_content,
+            utm_term      = EXCLUDED.utm_term,
+            origem        = EXCLUDED.origem,
+            atualizado_em = now()
+    """)
+    with _get_engine().begin() as conn:
+        for i in range(0, len(linhas), 1000):
+            conn.execute(sql, linhas[i:i + 1000])
+    logger.info("atribuicao_congelada: %d linhas CORRIGIDAS (%s) para %s", len(linhas), origem, launch_code)
+    return len(linhas)

@@ -192,6 +192,40 @@ def read_whatsapp_messages(launch: Launch | None) -> dict | None:
     return _read_uncached(launch.code, launch.data_inicio, end)
 
 
+# Ordem de precedência quando duas etapas correm no mesmo dia: a mais adiantada
+# leva o dia. Decisão do usuário em 29/10/26 (PI-NOV-26): na sobreposição
+# Pré-Qualificação × Captação (02–13/11) o custo conta como Captação — o banco só
+# tem custo por dia × número × categoria, não por template/disparo.
+_ETAPAS_WA = (
+    ("Carrinho", "carrinho_start_date", "carrinho_end_date"),
+    ("Aulas", "evento_start_date", "evento_end_date"),
+    ("Captação", "captacao_start_date", "captacao_end_date"),
+    ("Pré-Qualificação", "pre_quali_start_date", "pre_quali_end_date"),
+)
+
+
+def custo_por_etapa(wa: dict | None, cfg: dict | None) -> dict[str, float]:
+    """Custo do WhatsApp (com IOF) de cada etapa, pelas datas do launch_config.
+    Dia fora de toda etapa vai para "Outros"."""
+    out = {nome: 0.0 for nome, _, _ in _ETAPAS_WA} | {"Outros": 0.0}
+    if not wa:
+        return out
+    cfg = cfg or {}
+    janelas = []
+    for nome, k_ini, k_fim in _ETAPAS_WA:
+        try:
+            ini, fim = date.fromisoformat(str(cfg.get(k_ini))[:10]), date.fromisoformat(str(cfg.get(k_fim))[:10])
+        except ValueError:
+            continue
+        janelas.append((nome, ini, fim))
+    for acc in wa.get("accounts", []):
+        for p in acc.get("series", []):
+            dia = date.fromisoformat(p["date"])
+            etapa = next((n for n, ini, fim in janelas if ini <= dia <= fim), "Outros")
+            out[etapa] += p.get("cost_brl") or 0.0
+    return out
+
+
 def read_disparo_resumo(launch: Launch | None) -> dict | None:
     """Resumo do disparo via API do WhatsApp Business pra pauta do
     debriefing: volume de janela aberta (SERVICE, grátis) × Marketing ×

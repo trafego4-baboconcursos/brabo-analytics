@@ -43,7 +43,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 99 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 100 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Ano global do sistema (2026-10-22)**
@@ -372,6 +372,7 @@ relacionados:
 > **Distribuição: vence o expert que aparece primeiro no nome (2026-10-28)**
 >
 > - [[ARQUITETURA#Card "% com anúncio identificado" da Captação e o cache que deixava o número velho (2026-10-29)|Card "% com anúncio identificado" da Captação e o cache que deixava o número velho (2026-10-29)]]
+> - [[ARQUITETURA#WhatsApp por etapa na Captação + comparativo antes da captação (2026-10-29)|WhatsApp por etapa na Captação + comparativo antes da captação (2026-10-29)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -4081,3 +4082,19 @@ stale-while-revalidate e sem nenhum aquecimento que as chamasse, a Captação mo
 × 30.055 no banco). Regra geral: leitor barato e sem aquecimento não deve ficar atrás do cache com SWR — ou entra no
 `warm_launch`, ou lê direto.
 - **`img/` → `assets/` (2026-10-29).** A pasta de logos e favicon e a URL mudaram juntas: `ASSETS_DIR` em `frontend/app.py`/`core.py`, `app.mount("/assets", ...)` e a liberação sem login (`path.startswith("/assets")`, senão o logo some da tela de login). Os 37 templates passaram a usar `/assets/...`, e `/img/...` deixou de existir (redireciona para o login). Pendência anterior à troca: `meta.html`/`google.html` apontam para `/assets/placeholder-ad.png`, que nunca existiu na pasta, então o fallback de thumbnail dá 404.
+
+### WhatsApp por etapa na Captação + comparativo antes da captação (2026-10-29)
+
+- **Problema:** `/captacao` do PI-NOV-26 mostrava "Investimento total R$ 26.658" antes de existir captação — era o custo de
+  WhatsApp da janela inteira do lançamento (começa na pré-quali); e o comparativo com o anterior usava "1 dia equivalente"
+  e dava −100% em tudo.
+- **Agora:** `frontend/db_readers/whatsapp_messages.py::custo_por_etapa(wa, cfg)` reparte a série diária por número entre
+  Pré-Qualificação / Captação / Aulas / Carrinho / Outros pelas datas do `launch_config`; dia em duas etapas vai para a
+  mais adiantada (Carrinho > Aulas > Captação > Pré-Qualificação — decisão do usuário 29/10: sobreposição pré-quali ×
+  captação conta como Captação). `/captacao` soma só a fatia "Captação". `kpis_captacao_periodo_comparavel`
+  (`frontend/services/orcamento.py`) devolve `None` antes de `captacao_start_date`.
+- **Limite:** o banco só tem custo por dia × número × categoria. O custo por template existe na API
+  (`/{waba}/template_analytics`, `metric_types` com `COST`), mas em 12–28/10 cobriu só US$ 562 de ~R$ 26,6 mil no INSS —
+  os templates usados pelo Unichat (sufixo `_copy_N`) somem da lista. Os números também são compartilhados entre
+  lançamentos: em 15/10 o WABA `1067144278825913` (99402-6712) disparou a Matrícula da Black (BV-26) e entrou no PI-NOV-26.
+  Mapa dos templates: `outputs/templates_whatsapp_20261029.csv`.

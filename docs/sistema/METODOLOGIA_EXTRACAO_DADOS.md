@@ -2,7 +2,7 @@
 titulo: "Metodologia de Extração e Atribuição de Dados por Lançamento"
 area: sistema
 status: vigente
-atualizado: 2026-10-27
+atualizado: 2026-10-29
 responde:
   - "como e medido o carregamento da pagina dos anuncios"
   - "o que e landing page view"
@@ -102,6 +102,9 @@ relacionados:
 >
 >
 > **Correção de UTM do Google pelo `gclid` (28/10/26)**
+>
+>
+> **Custo de WhatsApp por etapa (29/10/26)**
 >
 
 <!-- SUMARIO:FIM -->
@@ -594,3 +597,11 @@ A venda é ligada ao anúncio pelo código encontrado nas UTMs do lead (`utm_ter
 Quando a campanha escrita no UTM não é a do clique (erro manual de nomenclatura), `scripts/corrigir_utm_gclid.py` consulta o `click_view` do Google Ads (campanha real por `gclid`; Search, Demand Gen, Vídeo e P-Max; **só 90 dias de histórico**,
 um dia por consulta, filtro por `gclid IN (...)` funciona) e grava o nome real em `atribuicao_congelada` com `origem='gclid_google_ads'` — só para compradores, só `utm_campaign`. Simula por padrão (`--aplicar` grava e guarda CSV de backup em `outputs/`).
 `corrigir_congelada` sobrescreve de propósito; `gravar_congelada` continua monotônica. Aplicado em PI-AGO-26 (320 compradores) e PBB-AGO-26 (134). A correção muda a divisão por campanha (principal × potencial × variantes), não os totais por público.
+
+## Custo de WhatsApp por etapa (29/10/26)
+
+Custo das mensagens (`whatsapp_messages_daily`, com IOF) é repartido por **data**: cada dia vai para a etapa do
+`launch_config` que o contém; dia em duas etapas vai para a mais adiantada (Carrinho > Aulas > Captação >
+Pré-Qualificação). A página Captação usa só a fatia Captação. Não há atribuição por template nem por lançamento: o filtro
+é o produto do número (`config/whatsapp_accounts.yaml`), então disparo de outro lançamento no mesmo número e período
+(ex.: Black BV-26 nos números do Mateus em 15/10/26) entra junto. Detalhes: [[ARQUITETURA]].

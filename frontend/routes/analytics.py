@@ -62,7 +62,10 @@ async def captacao(request: Request, launch_code: str | None = None, trilha: str
     daily_breakdown      = d["daily_breakdown"]
     daily_breakdown_preq = d.get("daily_breakdown_preq") or []
     wa_cost = d.get("wa_cost")
-    wa_gasto = (wa_cost.get("total_cost_brl") or 0.0) if wa_cost else 0.0
+    # Só o WhatsApp dos dias da Captação (sobreposição com a pré-quali conta como
+    # Captação); o lançamento inteiro somava a pré-quali aqui antes de existir captação.
+    from frontend.db_readers.whatsapp_messages import custo_por_etapa  # noqa: PLC0415
+    wa_gasto = custo_por_etapa(wa_cost, await run_in_threadpool(_launch_cfg, launch.code) if launch else {})["Captação"]
 
     # Esta página é só Captação — investimento/leads têm que vir escopados
     # pela etapa (por_etapa["Captação"]), não pelo total do lançamento

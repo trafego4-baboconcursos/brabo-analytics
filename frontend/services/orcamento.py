@@ -477,6 +477,8 @@ def kpis_captacao_periodo_comparavel(launch, previous, cfg: dict | None, prev_cf
         return None
 
     hoje = date.today()
+    if hoje < cs:
+        return None  # captação não começou: comparar com "1 dia" do anterior dava −100% em tudo
     elapsed = (min(hoje, ce) - cs).days + 1
     elapsed = max(1, elapsed)
     p_window_end = min(p_cs + timedelta(days=elapsed - 1), p_ce)

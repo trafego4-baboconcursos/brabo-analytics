@@ -18,8 +18,11 @@ import re
 import unicodedata
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-# Endereço público dos links curtos (o app Brabo Links), sem barra no fim.
-BASE_CURTA = os.getenv("BRABO_LINKS_URL", "").strip().rstrip("/")
+# Endereço público dos links curtos (o app Brabo Links), sem barra no fim. O padrão
+# é o endereço provisório do EasyPanel novo; quando o domínio próprio sair,
+# preencha BRABO_LINKS_URL no Environment.
+BASE_CURTA = (os.getenv("BRABO_LINKS_URL", "").strip()
+              or "https://automacoes-brabo-links.qacfzn.easypanel.host").rstrip("/")
 HOST_CURTO = BASE_CURTA.split("://", 1)[-1]
 
 CATEGORIAS = {

@@ -92,21 +92,13 @@ def _load_distribuicao_experts() -> list[tuple[str, str]]:
     # Experts sem Instagram próprio, mas com distribuição paga própria: ganham
     # código separado em vez de cair no perfil por onde postam (ex: Ivan Neto
     # postava por @braboconcursos e seus R$ 141 mil sumiam dentro da marca).
-    extras = set()
     for extra in cfg.get("distribuicao_extra", []):
         name = extra.get("name") or ""
         if not name:
             continue
         slug = _strip_accents(name).upper().replace(" ", "-")
         codigo = f"DISTRIBUICAO-{slug}"
-        extras.add(codigo)
         experts.append((codigo, _strip_accents(name).lower()))
-
-    # Experts sem Instagram proprio vem PRIMEIRO na busca. No Google as
-    # campanhas trazem expert + perfil juntos ("[ivan neto][brabo concursos]"):
-    # quem manda e o expert, o perfil e so o canal onde ele posta. Sem essa
-    # ordem, R$ 82 mil do Ivan cairiam na conta institucional.
-    experts.sort(key=lambda t: 0 if t[0] in extras else 1)
     return experts
 
 
@@ -126,10 +118,13 @@ def resolve_perpetuo_or_distribuicao_code(campaign_name: str | None) -> str | No
         return None
 
     if DISTRIBUICAO_TAG_RE.search(campaign_name):
-        for codigo, keyword in _load_distribuicao_experts():
-            if keyword in name_sem_acento:
-                return codigo
-        return None
+        # Vence o nome que aparece PRIMEIRO. As campanhas trazem expert + perfil
+        # juntos ("[ivan neto][brabo concursos]", "[felipe graton][brabo concursos]"):
+        # quem manda e o expert, o perfil e so o canal. Antes valia a ordem do
+        # YAML, e o YouTube do Felipe (R$ 12 mil/mes) caia na marca (28/10/26).
+        achados = [(name_sem_acento.find(kw), codigo)
+                   for codigo, kw in _load_distribuicao_experts() if kw in name_sem_acento]
+        return min(achados)[1] if achados else None
 
     if (
         COMPRA_RE.search(campaign_name)

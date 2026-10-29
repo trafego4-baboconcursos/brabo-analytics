@@ -17,6 +17,7 @@ beautifulsoup4>=4.12  # parser do calendário (frontend/calendar_parser.py)
 # bcrypt >= 4.1, que qualquer build novo instala. Ver frontend/auth.py.
 bcrypt>=4.0
 pyyaml>=6.0
+segno>=1.6  # QR Code dos links curtos (frontend/routes/links.py)
 
 # Retry HTTP com backoff exponencial (ETL scripts)
 tenacity>=8.2

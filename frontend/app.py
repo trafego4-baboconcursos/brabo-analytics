@@ -30,7 +30,7 @@ from frontend.core import (
 )
 import os
 
-from frontend.routes import auth, media, analytics, leads, vendas, comercial, unnichat, settings_router, api
+from frontend.routes import auth, media, analytics, leads, vendas, comercial, unnichat, settings_router, api, links
 
 # ── App ────────────────────────────────────────────────────────────────────────
 _SHOW_DOCS = os.environ.get("SHOW_API_DOCS", "false").lower() == "true"
@@ -204,5 +204,6 @@ app.include_router(leads.router)
 app.include_router(vendas.router)
 app.include_router(comercial.router)
 app.include_router(unnichat.router)
+app.include_router(links.router)
 app.include_router(settings_router.router)
 app.include_router(api.router)

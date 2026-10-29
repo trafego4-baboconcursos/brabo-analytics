@@ -3,9 +3,9 @@
 Sem `etapas`, o alerta diário de orçamento (etl/budget_alert.py) PULA o lançamento em silêncio — foi por isso
 que o PI-NOV-26 nunca apareceu no Slack enquanto PES-NOV-26 e BV-26 apareciam.
 
-Fonte dos números: docs/performance/lancamentos/PI-NOV-26/ORCAMENTO_PI-NOV-26.md (fonte única, revisão de
-19/10/26: total R$ 1.000.000, mesmos % por etapa do PI-AGO-26). A estrutura (buckets, curva da captação) é a do
-`launch_config.etapas` do PI-AGO-26; as datas das etapas depois da captação andam +98 dias (aulas 10/08 → 16/11).
+Fonte dos números: docs/performance/lancamentos/PI-NOV-26/ORCAMENTO_PI-NOV-26.md (fonte única). Revisão de
+23/10/26: "Estratégia de Verba" do Murilo (22/10) — etapas, buckets, curva da captação e datas do remarketing. Do `launch_config.etapas` do PI-AGO-26 vem só o molde (ordem das etapas e
+buckets das etapas menores).
 
 Uso:
     python scripts/provisionar_etapas_pi_nov_26.py            # simulação: monta, confere a soma e mostra
@@ -18,7 +18,7 @@ import copy
 import json
 import logging
 import sys
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -36,25 +36,29 @@ from frontend.db_readers.launches import save_launch_config  # noqa: E402
 
 CODIGO = "PI-NOV-26"
 MOLDE = "PI-AGO-26"
-DESLOCAMENTO = timedelta(days=98)   # aulas do PI-AGO-26 (10/08) → PI-NOV-26 (16/11)
 
-# total por etapa — ORCAMENTO_PI-NOV-26.md, seção 1, coluna "PI-NOV-26 (19/10)"
+# total por etapa — Estratégia de Verba do Murilo (22/10/26), passos 2 e 3
 TOTAIS = {
-    "Pré-Qualificação": 160_000.0, "Captação": 745_000.0, "Lembrete": 3_500.0, "Depoimento": 3_500.0,
-    "Aulas no Ar": 5_800.0, "Replay": 3_400.0, "Matrículas Abertas": 6_000.0, "WhatsApp": 72_800.0,
+    "Pré-Qualificação": 160_000.0, "Captação": 740_000.0, "Lembrete": 5_244.0, "Depoimento": 1_348.0,
+    "Aulas no Ar": 8_620.0, "Replay": 3_546.0, "Matrículas Abertas": 1_242.0, "WhatsApp": 80_000.0,
 }
-# Pré-qualificação: buckets do ORCAMENTO (seção 2, mix 63/37 do PI-AGO-26 após a revisão da diretoria), sem TikTok
+# Pré-qualificação: 55% Meta (72 frio / 18 quente / 10 específico) · 45% Google (80 frio / 20 quente) — passos 6 e 7
 PREQUALI_BUCKETS = [
-    ("FB Frio", "meta", 93_010.18), ("FB Quente", "meta", 22_934.02), ("FB Específico", "meta", 11_467.01),
-    ("YT Frio", "google", 59_863.04), ("YT Quente", "google", 14_965.76),
+    ("FB Frio", "meta", 63_360.0), ("FB Quente", "meta", 15_840.0), ("FB Específico", "meta", 8_800.0),
+    ("YT Frio", "google", 57_600.0), ("YT Quente", "google", 14_400.0),
 ]
-# datas fixas pelo calendário revisto em 19/10/26
+# Captação: % por público (passo 4, TikTok 0%) e curva = média PI-JUL-25 + PI-JAN-26, último dia 4,5% (passo 11)
+CAPTACAO_BUCKETS = [
+    ("FB Quente", "meta", 33.0), ("FB Frio", "meta", 7.5), ("FB Específico", "meta", 13.0),
+    ("YT Quente", "google", 25.0), ("YT Frio", "google", 3.5), ("YT Específico", "google", 18.0),
+]
+CAPTACAO_CURVA = [10.99, 9.71, 7.13, 6.59, 7.27, 5.70, 6.02, 8.61, 8.39, 7.24, 5.81, 4.58, 3.78, 3.68, 4.50]
+# datas fixas pelo calendário revisto em 19/10/26 e pelas janelas do remarketing do passo 3
 PREQUALI = ("2026-10-12", "2026-11-13")
 CAPTACAO = ("2026-11-02", "2026-11-16")
-
-
-def _d(txt: str) -> str:
-    return (date.fromisoformat(txt) + DESLOCAMENTO).isoformat()
+DATAS = {"Lembrete": ("2026-11-13", "2026-11-16"), "Depoimento": ("2026-11-16", "2026-11-19"),
+         "Aulas no Ar": ("2026-11-16", "2026-11-19"), "Replay": ("2026-11-16", "2026-11-19"),
+         "Matrículas Abertas": ("2026-11-16", "2026-11-19"), "WhatsApp": ("2026-11-02", "2026-11-19")}
 
 
 def montar(molde: list[dict]) -> list[dict]:
@@ -70,9 +74,11 @@ def montar(molde: list[dict]) -> list[dict]:
                             for b, p, v in PREQUALI_BUCKETS]
             n["curva_pct"], n["distribuicao"] = [], "uniforme"
         elif nome == "Captação":
-            n["start_date"], n["end_date"] = CAPTACAO   # curva por dia da semana e % por público = os do PI-AGO-26
+            n["start_date"], n["end_date"] = CAPTACAO
+            n["buckets"] = [{"pct": pct, "nome": b, "tipo": "campanha", "plataforma": p} for b, p, pct in CAPTACAO_BUCKETS]
+            n["curva_pct"], n["distribuicao"] = list(CAPTACAO_CURVA), "personalizada"
         else:
-            n["start_date"], n["end_date"] = _d(n["start_date"]), _d(n["end_date"])
+            n["start_date"], n["end_date"] = DATAS[nome]
         saida.append(n)
     return saida
 
@@ -106,7 +112,8 @@ def main() -> int:
         print("\nSimulação: nada foi gravado. Rode com --gravar.")
         return 0
 
-    bak = ROOT / "outputs" / f"backup_launch_config_etapas_{CODIGO}_{date.today():%Y%m%d}.json"
+    bak = ROOT / "outputs" / "backups" / f"backup_launch_config_etapas_{CODIGO}_{date.today():%Y%m%d}.json"
+    bak.parent.mkdir(parents=True, exist_ok=True)
     bak.write_text(json.dumps({"lancamento_codigo": CODIGO, "etapas_anteriores": atual}, ensure_ascii=False, indent=1), encoding="utf-8")
     save_launch_config(CODIGO, {"etapas": etapas})   # grava só `etapas`
     print(f"\nGravado. Backup das etapas anteriores em {bak.name}")

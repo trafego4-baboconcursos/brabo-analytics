@@ -8,6 +8,8 @@ ser autorizada:
 
     python etl/get_gtm_token.py                      # grava GTM_REFRESH_TOKEN
     python etl/get_gtm_token.py --env-var GTM_REFRESH_TOKEN_OUTRA
+    python etl/get_gtm_token.py --editar             # grava GTM_EDIT_REFRESH_TOKEN (edita o rascunho
+                                                     # do GTM; NAO publica)
     python etl/get_gtm_token.py --sheets             # grava GOOGLE_SHEETS_REFRESH_TOKEN
                                                      # (leitura e escrita nas planilhas do Drive)
 
@@ -33,6 +35,9 @@ PORT = 8080
 REDIRECT_URI = f"http://localhost:{PORT}"
 # openid: a PageSpeed Insights API aceita OAuth com esse escopo (dispensa API key)
 SCOPE = "https://www.googleapis.com/auth/tagmanager.readonly openid"
+# Edicao de tags/gatilhos/variaveis no WORKSPACE (rascunho). Nao inclui criar versao nem publicar:
+# quem publica e o usuario, no proprio GTM.
+SCOPE_EDITAR = "https://www.googleapis.com/auth/tagmanager.edit.containers openid"
 SCOPE_SHEETS = "https://www.googleapis.com/auth/spreadsheets openid"
 # Leitura do Drive (baixar backups para analises/): scripts/baixar_drive_para_analises.py
 SCOPE_DRIVE = "https://www.googleapis.com/auth/drive.readonly openid"
@@ -95,9 +100,13 @@ def main():
                         help="Escopo do Google Sheets (escrita) em vez do GTM")
     parser.add_argument("--drive", action="store_true",
                         help="Escopo de LEITURA do Google Drive (grava GOOGLE_DRIVE_REFRESH_TOKEN)")
+    parser.add_argument("--editar", action="store_true",
+                        help="Escopo de EDICAO do GTM no workspace, sem publicar (grava GTM_EDIT_REFRESH_TOKEN)")
     args = parser.parse_args()
-    scope = SCOPE_DRIVE if args.drive else (SCOPE_SHEETS if args.sheets else SCOPE)
-    args.env_var = args.env_var or ("GOOGLE_DRIVE_REFRESH_TOKEN" if args.drive else
+    scope = (SCOPE_EDITAR if args.editar else SCOPE_DRIVE if args.drive else
+             SCOPE_SHEETS if args.sheets else SCOPE)
+    args.env_var = args.env_var or ("GTM_EDIT_REFRESH_TOKEN" if args.editar else
+                                    "GOOGLE_DRIVE_REFRESH_TOKEN" if args.drive else
                                     "GOOGLE_SHEETS_REFRESH_TOKEN" if args.sheets else "GTM_REFRESH_TOKEN")
 
     client_id = os.environ.get("GOOGLE_ADS_CLIENT_ID")

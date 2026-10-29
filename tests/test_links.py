@@ -28,6 +28,7 @@ def test_destino_precisa_de_dominio():
     assert lk.valida_destino("https://nada") is not None
     assert lk.valida_destino("https://youtu.be/abc") is None
     assert "voltas" in lk.valida_destino("https://links.qacfzn.easypanel.host/outro")
+    assert "voltas" in lk.valida_destino("https://links.braboconcursos.com.br/outro")
     assert "voltas" in lk.valida_destino("https://automacoes-brabo-links.qacfzn.easypanel.host/x")
 
 

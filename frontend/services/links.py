@@ -18,11 +18,10 @@ import re
 import unicodedata
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
-# Endereço público dos links curtos (o app Brabo Links), sem barra no fim. O padrão
-# é o endereço provisório do EasyPanel novo; quando o domínio próprio sair,
-# preencha BRABO_LINKS_URL no Environment.
+# Endereço público dos links curtos (o app Brabo Links), sem barra no fim. Padrão:
+# links.braboconcursos.com.br (registro A no Cloudflare, nuvem cinza, 29/10/2026).
 BASE_CURTA = (os.getenv("BRABO_LINKS_URL", "").strip()
-              or "https://links.qacfzn.easypanel.host").rstrip("/")
+              or "https://links.braboconcursos.com.br").rstrip("/")
 HOST_CURTO = BASE_CURTA.split("://", 1)[-1]
 # O que aparece antes do nome no campo "Nome do link". O endereço provisório do
 # EasyPanel é comprido demais pra isso; com domínio próprio, mostra o domínio.
@@ -30,7 +29,7 @@ ROTULO_CURTO = os.getenv("BRABO_LINKS_ROTULO", "").strip() or (
     "brabo-links" if HOST_CURTO.endswith(".easypanel.host") else HOST_CURTO)
 
 # Todos os endereços que caem no Brabo Links (destino não pode ser um deles).
-_HOSTS_DO_ENCURTADOR = {HOST_CURTO.lower(), "links.qacfzn.easypanel.host",
+_HOSTS_DO_ENCURTADOR = {HOST_CURTO.lower(), "links.braboconcursos.com.br", "links.qacfzn.easypanel.host",
                         "automacoes-brabo-links.qacfzn.easypanel.host"}
 
 CATEGORIAS = {

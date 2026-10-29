@@ -139,6 +139,10 @@ templates.env.globals["TEMP_COLORS"] = {
     "Outros": "#9ca3af",
 }
 
+# Atalho do menu "Links" para o Brabo Links (encurtador próprio, app separado, mesmo
+# visual). Sem BRABO_LINKS_URL o grupo não aparece no menu.
+templates.env.globals["LINKS_URL"] = os.getenv("BRABO_LINKS_URL", "").strip().rstrip("/")
+
 # ── Cache de lançamentos ───────────────────────────────────────────────────────
 _LAUNCHES_CACHE: list[Launch] = []
 _LAUNCHES_CACHE_AT: float = 0.0

@@ -45,7 +45,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 100 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 101 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Ano global do sistema (2026-10-22)**
@@ -378,6 +378,7 @@ relacionados:
 >
 > - [[ARQUITETURA#Card "% com anúncio identificado" da Captação e o cache que deixava o número velho (2026-10-29)|Card "% com anúncio identificado" da Captação e o cache que deixava o número velho (2026-10-29)]]
 > - [[ARQUITETURA#WhatsApp por etapa na Captação + comparativo antes da captação (2026-10-29)|WhatsApp por etapa na Captação + comparativo antes da captação (2026-10-29)]]
+> - [[ARQUITETURA#Criativo "rastreado por UTM" não herda mais o gasto de campanha com anúncios próprios (2026-10-29)|Criativo "rastreado por UTM" não herda mais o gasto de campanha com anúncios próprios (2026-10-29)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -4083,8 +4084,9 @@ Agora, entre os nomes encontrados na campanha, vence **o que aparece primeiro**.
 então `[ivan neto][brabo concursos]` continua no Ivan. Testes em `tests/test_launch_resolver_perpetuo.py::test_distribuicao_por_expert`.
 A simulação sobre todos os nomes do banco mudou só essas 2 campanhas (de 25).
 
-**Pendente:** deploy e depois o backfill das linhas antigas (`scripts/backfill_lancamento_codigo.py`), nessa
-ordem. Sem o deploy, o scheduler regrava os últimos 3 dias com o código errado.
+**Deploy feito em 29/10/26** (commit `a901237`; o ETL das 15:05 já gravou os últimos 3 dias certo). **Histórico corrigido em 29/10/26:**
+9.333 linhas / R$ 131,9 mil das campanhas `21779366345` e `22671102707` (set/25–out/26), por UPDATE dirigido com backup (não usar
+`--reavaliar`, que reavalia o banco inteiro) — ver [[MUDANCAS_DISTRIBUICAO-FELIPE-GRATON]], item 5.
 
 
 ### Card "% com anúncio identificado" da Captação e o cache que deixava o número velho (2026-10-29)

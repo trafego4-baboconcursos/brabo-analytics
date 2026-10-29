@@ -127,6 +127,10 @@ def run_api_mode(since: str, until: str, only: str | None):
         "sheets_contagem": [sys.executable, str(BASE / "etl_sheets_contagem.py")],
         "ga4":             [sys.executable, str(BASE / "etl_ga4.py"),
                             "--since", since, "--until", until],
+        # Aulas ao vivo: totais e curva de simultâneos de cada live, do início
+        # do evento ao fim do carrinho. Fora disso não chama a API. O período
+        # vem do wizard, não do --since/--until.
+        "youtube":         [sys.executable, str(BASE / "etl_youtube_analytics.py"), "--ativos"],
         # DESATIVADO 01/09/26: a mv_atribuicao_publicos depende das cópias de
         # hotmart/tmb do banco analytics, que estão desatualizadas (43 vendas
         # vs 2502 reais no PI-AGO-26). Reativar só depois de existir sync de
@@ -218,7 +222,7 @@ def main():
     mode.add_argument("--csv-mode",        action="store_true",  help="Importa via CSVs exportados manualmente")
 
     parser.add_argument("--until",          metavar="YYYY-MM-DD", default=datetime.now().strftime("%Y-%m-%d"))
-    parser.add_argument("--only",           metavar="SCRIPT",    help="Roda somente estas fontes (separadas por vírgula): active_campaign | meta_ads | google_ads | ac_campaigns | ac_ebook | ac_engajamento | whatsapp | instagram | sheets_contagem | ga4")
+    parser.add_argument("--only",           metavar="SCRIPT",    help="Roda somente estas fontes (separadas por vírgula): active_campaign | meta_ads | google_ads | ac_campaigns | ac_ebook | ac_engajamento | whatsapp | instagram | sheets_contagem | ga4 | youtube")
     parser.add_argument("--campaign-folder", metavar="PATH",      help="Pasta da campanha (modo --csv-mode), ex: analises/[PBB-ABR-26]")
     parser.add_argument("--period",          metavar="YYYY-MM",   help="Período da campanha (modo --csv-mode), ex: 2026-04")
     args = parser.parse_args()

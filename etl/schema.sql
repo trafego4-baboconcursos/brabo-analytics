@@ -1148,8 +1148,10 @@ ALTER TABLE youtube_aulas_stats ADD COLUMN IF NOT EXISTS fonte        TEXT    DE
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- Curva minuto a minuto da transmissao ao vivo. Uma linha por (lancamento,
--- aula, posicao em segundos). Vem do export "liveViewership_*.csv" do Studio;
--- a API do YouTube nao entrega essa serie. Populada por etl_youtube_csv.py.
+-- aula, posicao em segundos). simultaneos/media_simult: etl_youtube_analytics.py
+-- (Analytics API, livestreamPosition) ou o "liveViewership_*.csv" do Studio
+-- (etl_youtube_csv.py). chat_msgs: youtube_live_chat.py, capturado durante a
+-- live, ou o CSV. reacoes: so o CSV.
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS youtube_live_curva (
     launch_code   TEXT    NOT NULL,

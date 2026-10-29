@@ -71,6 +71,16 @@ A API **não libera `source`** de vídeo em criativo dinâmico (`asset_feed_spec
 sem o campo. Para esses, use `--pasta`: casa por `ADxxx` no nome do arquivo e, no que sobrar,
 por duração. Não rode com `| grep`: mascara o exit code.
 
+### ETL — aulas ao vivo no YouTube
+Fonte `youtube` do `run_all.py` (ciclo lento do scheduler): do início do evento ao fim do
+carrinho, acha as lives do canal do expert (PI→Mateus, PES→Ivan, PBB→Felipe) e grava totais +
+curva de simultâneos minuto a minuto. O chat só existe com a live no ar: `etl/youtube_live_chat.py`
+roda a cada minuto dentro do scheduler e conta as mensagens. Reações só pelo CSV do Studio.
+```bash
+python etl/etl_youtube_analytics.py --ativos                        # o que o scheduler roda
+python etl/etl_youtube_analytics.py --launch-code PES-SET-26 --start-date 2026-09-14 --end-date 2026-10-22
+```
+
 ### One-time setup
 ```bash
 # Apply DB schema (run in Supabase > SQL Editor)

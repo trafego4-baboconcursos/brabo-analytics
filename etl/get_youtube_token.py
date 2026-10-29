@@ -30,6 +30,7 @@ PORT = 8081
 REDIRECT_URI = f"http://localhost:{PORT}"
 
 SCOPES = " ".join([
+    "https://www.googleapis.com/auth/youtube.force-ssl",
     "https://www.googleapis.com/auth/youtube.readonly",
     "https://www.googleapis.com/auth/yt-analytics.readonly",
 ])

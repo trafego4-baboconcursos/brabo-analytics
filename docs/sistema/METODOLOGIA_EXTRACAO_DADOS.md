@@ -97,6 +97,12 @@ relacionados:
 >
 > **18. Topo do funil da pesquisa: aberturas e inícios, não "quem recebeu" (23/10/26)**
 >
+>
+> **Código do anúncio na atribuição de vendas da Black (27/10/26)**
+>
+>
+> **Correção de UTM do Google pelo `gclid` (28/10/26)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -583,3 +589,8 @@ A venda é ligada ao anúncio pelo código encontrado nas UTMs do lead (`utm_ter
 `BV-*` o código segue a convenção da Black (`AD-TR35`, `ADC-MA38`, `ADL…`, `UGC…`) e é extraído com
 `src/ad_codes.extract_ad_code(…, launch_code)`, normalizado como `ADC-MA38`. Nos outros lançamentos continua `ADxxx`. Antes de
 27/10/26 a Black não tinha nenhuma venda atribuída a anúncio por causa disso ([[ARQUITETURA]]).
+
+## Correção de UTM do Google pelo `gclid` (28/10/26)
+Quando a campanha escrita no UTM não é a do clique (erro manual de nomenclatura), `scripts/corrigir_utm_gclid.py` consulta o `click_view` do Google Ads (campanha real por `gclid`; Search, Demand Gen, Vídeo e P-Max; **só 90 dias de histórico**,
+um dia por consulta, filtro por `gclid IN (...)` funciona) e grava o nome real em `atribuicao_congelada` com `origem='gclid_google_ads'` — só para compradores, só `utm_campaign`. Simula por padrão (`--aplicar` grava e guarda CSV de backup em `outputs/`).
+`corrigir_congelada` sobrescreve de propósito; `gravar_congelada` continua monotônica. Aplicado em PI-AGO-26 (320 compradores) e PBB-AGO-26 (134). A correção muda a divisão por campanha (principal × potencial × variantes), não os totais por público.

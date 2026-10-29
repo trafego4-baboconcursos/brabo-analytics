@@ -52,7 +52,9 @@ INTERVALO_MINUTOS = 30
 # não mudam decisão nenhuma. De hora em hora, `active_campaign` (o gargalo, 45%
 # do tempo e 63% das falhas) roda 24x/dia em vez de 48.
 FONTES_RAPIDAS = "meta_ads,google_ads,ga4,sheets_contagem"
-FONTES_LENTAS = "active_campaign,instagram,ac_ebook,ac_engajamento,whatsapp,ac_campaigns"
+# `youtube` só chama a API do início do evento ao fim do carrinho; fora disso
+# é uma consulta ao launch_config e sai.
+FONTES_LENTAS = "active_campaign,instagram,ac_ebook,ac_engajamento,whatsapp,ac_campaigns,youtube"
 INTERVALO_LENTAS_MINUTOS = 60
 
 load_dotenv(dotenv_path=BASE_DIR.parent / ".env")
@@ -234,6 +236,32 @@ def rodar_congelamento_atribuicao() -> None:
     logger.info("Trava da atribuição concluída.\n%s", (r.stdout or "").strip()[-2000:])
 
 
+_ALERTAS_CHAT: dict[str, float] = {}
+
+
+def rodar_chat_ao_vivo() -> None:
+    """Tique de 1 min da captura do chat das aulas (etl/youtube_live_chat.py).
+
+    Em processo, não em subprocesso: o estado da live (página do chat,
+    contagem por minuto) precisa sobreviver de um minuto para o outro. Import
+    tardio para que um erro nele não derrube o scheduler no boot (ver o
+    apagão de 17/09 em tests/test_imports.py). Cada falha alerta no máximo
+    1x/hora — com tique por minuto, alertar sempre seria 60 mensagens.
+    """
+    import time as _time
+    try:
+        from youtube_live_chat import tick
+        erros = tick()
+    except Exception as exc:
+        erros = [f"captura do chat: {exc}"]
+    for erro in erros:
+        logger.warning("YouTube ao vivo: %s", erro)
+        chave = erro[:80]
+        if _time.time() - _ALERTAS_CHAT.get(chave, 0.0) > 3600:
+            _ALERTAS_CHAT[chave] = _time.time()
+            enviar_alerta_webhook("Captura do chat da aula ao vivo falhou", erro)
+
+
 def _on_job_event(event) -> None:
     """Callback do APScheduler para erros e jobs perdidos (misfire)."""
     if event.code == EVENT_JOB_MISSED:
@@ -325,6 +353,20 @@ def main() -> None:
         misfire_grace_time=3600,
         id="congelar_atribuicao",
         name="Trava da atribuição (diária, 4h10)",
+    )
+
+    # Chat das aulas ao vivo, a cada minuto. Fora da janela do evento não faz
+    # chamada nenhuma; dentro dela procura live a cada 5 min e, com uma no ar,
+    # lê o chat a cada minuto. coalesce + max_instances=1 (padrão): um minuto
+    # lento não empilha tiques.
+    scheduler.add_job(
+        rodar_chat_ao_vivo,
+        trigger="interval",
+        minutes=1,
+        coalesce=True,
+        misfire_grace_time=30,
+        id="youtube_chat_ao_vivo",
+        name="Chat das aulas ao vivo (1 min)",
     )
 
     # Alerta de orçamento (planejado x real), 3x/dia — minute=15 propositalmente

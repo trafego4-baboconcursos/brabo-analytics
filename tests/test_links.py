@@ -27,6 +27,8 @@ def test_destino_precisa_de_dominio():
     assert lk.normaliza_destino("braboconcursos.com.br/x") == "https://braboconcursos.com.br/x"
     assert lk.valida_destino("https://nada") is not None
     assert lk.valida_destino("https://youtu.be/abc") is None
+    assert "voltas" in lk.valida_destino("https://links.qacfzn.easypanel.host/outro")
+    assert "voltas" in lk.valida_destino("https://automacoes-brabo-links.qacfzn.easypanel.host/x")
 
 
 def test_categoria_detectada_pelo_destino():

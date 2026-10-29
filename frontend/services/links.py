@@ -22,12 +22,16 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 # é o endereço provisório do EasyPanel novo; quando o domínio próprio sair,
 # preencha BRABO_LINKS_URL no Environment.
 BASE_CURTA = (os.getenv("BRABO_LINKS_URL", "").strip()
-              or "https://automacoes-brabo-links.qacfzn.easypanel.host").rstrip("/")
+              or "https://links.qacfzn.easypanel.host").rstrip("/")
 HOST_CURTO = BASE_CURTA.split("://", 1)[-1]
 # O que aparece antes do nome no campo "Nome do link". O endereço provisório do
 # EasyPanel é comprido demais pra isso; com domínio próprio, mostra o domínio.
 ROTULO_CURTO = os.getenv("BRABO_LINKS_ROTULO", "").strip() or (
     "brabo-links" if HOST_CURTO.endswith(".easypanel.host") else HOST_CURTO)
+
+# Todos os endereços que caem no Brabo Links (destino não pode ser um deles).
+_HOSTS_DO_ENCURTADOR = {HOST_CURTO.lower(), "links.qacfzn.easypanel.host",
+                        "automacoes-brabo-links.qacfzn.easypanel.host"}
 
 CATEGORIAS = {
     "youtube": ("YouTube", "ti-brand-youtube"),
@@ -91,7 +95,7 @@ def valida_destino(url: str) -> str | None:
         return "Cole o link de destino."
     if not re.match(r"^https?://[^\s/$.?#][^\s/?#]*\.[a-z]{2,}(?::\d+)?([/?#]\S*)?$", url, re.I):
         return "Esse não parece um link válido. Confira se copiou o endereço inteiro (ex.: https://site.com/pagina)."
-    if HOST_CURTO and url.split("://", 1)[1].lower().startswith(HOST_CURTO.lower() + "/"):
+    if url.split("://", 1)[1].lower().split("/", 1)[0].split(":", 1)[0] in _HOSTS_DO_ENCURTADOR:
         return "O destino não pode ser outro link curto daqui (daria voltas infinitas)."
     return None
 

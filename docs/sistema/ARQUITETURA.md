@@ -5,7 +5,8 @@ status: vigente
 atualizado: 2026-10-29
 responde:
   - "como o sistema funciona por dentro"
-  - "onde fica o atalho do encurtador de links no menu"
+  - "onde fica o encurtador de links (substituto do bitly)"
+  - "como o encurtador de links grava cliques e redireciona"
   - "por que o aviso do etl recomputa so parte do cache"
   - "onde fica a materializacao da pesquisa nova"
   - "por que o egress do banco operacional (comercial_project) era alto"
@@ -43,7 +44,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 97 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 98 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Ano global do sistema (2026-10-22)**
@@ -59,6 +60,9 @@ relacionados:
 >
 >
 > **Funil de respondentes do /pesquisas: 6 etapas, desenhado no Figma (2026-10-23)**
+>
+>
+> **Encurtador de links (menu "Links", 2026-10-29)**
 >
 >
 > **Estrutura de Arquivos**
@@ -358,6 +362,7 @@ relacionados:
 > - [[ARQUITETURA#Páginas de venda com carrinho aberto: cache de 5 min (15/10/26)|Páginas de venda com carrinho aberto: cache de 5 min (15/10/26)]]
 > - [[ARQUITETURA#Google Ads API v22 → v23 (20/10/26)|Google Ads API v22 → v23 (20/10/26)]]
 > - [[ARQUITETURA#Deploy automático no push do `main` (21/10/26)|Deploy automático no push do `main` (21/10/26)]]
+> - [[ARQUITETURA#Vendas por anúncio na Black (27/10/26)|Vendas por anúncio na Black (27/10/26)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -386,9 +391,18 @@ O aquecimento mantém o snapshot anterior quando um bloco falha (para a seção 
 
 O funil foi redesenhado pelo usuário no Figma (arquivo `nPp9UQvSncaBuVf0YQi9pl`, frame "proposta v2") e aplicado em `frontend/templates/pesquisas.html`: cartão da etapa | conversão | trapézio, linhas de altura fixa, cor por etapa (faixa do cartão = trapézio), "−N no caminho" e as taxas em pílulas. Etapas: **Abriram a pesquisa → Começaram a responder → Respostas enviadas → Respondentes únicos → Leads no CRM → Compradores**. As duas primeiras vêm de `TypeformSummary.tf_visualizacoes`/`tf_inicios`, preenchidos por `db_readers/typeform.py::_contar_aberturas` (regra em [[METODOLOGIA_EXTRACAO_DADOS]], seção 18). Etapa sem número mostra "—" com a etiqueta "sem dado neste formulário", e a conversão da seguinte compara com a última etapa que tem número ("vs abriram a pesquisa").
 
-## Menu "Links": atalho para o Brabo Links (2026-10-29)
+## Encurtador de links (menu "Links", 2026-10-29)
 
-Grupo **Links → Encurtador** no menu lateral (`frontend/templates/base.html`), abaixo de Comercial, para os mesmos papéis do menu de marketing (não aparece para o papel `comercial`). Abre em nova aba o **Brabo Links**, o encurtador próprio que substitui o Bitly: é outro app (repositório `brabo-links`, login próprio, tabelas no schema `encurtador` do banco comercial) com o mesmo visual deste painel. O endereço vem de `BRABO_LINKS_URL` (global `LINKS_URL` em `frontend/core.py`); sem a variável o grupo some, então o deploy deste painel não depende do Brabo Links estar no ar.
+Substitui o Bitly. Página **Links → Encurtador** (`/links`) e estatísticas por link (`/links/{id}`), dentro do painel, com o login e os papéis daqui: `admin`, `analista` e `trafego` criam/editam; `leitura` só vê; `comercial` não entra.
+
+São duas partes, com as mesmas tabelas (schema `encurtador` do banco comercial, `SUPABASE_USERS_URL`: `links`, `cliques`):
+
+- **Aqui no Analytics**: criar, editar, arquivar, QR Code, CSV de cliques e estatísticas. Código: `frontend/routes/links.py` (páginas + `/api/links`), `frontend/db_readers/links.py` (SQL), `frontend/services/links.py` (validação, UTMs, categorias), templates `links.html`, `link_detalhe.html`, `_macros_links.html`, `static/css/links.css` e `static/js/links.js` (tudo debaixo de `.bl`).
+- **App Brabo Links** (repo `trafego2-create/brabo-links`, EasyPanel novo, projeto `automacoes`): só o redirecionamento público `<domínio curto>/<nome>` e o registro do clique. É ele que cria as tabelas na subida. Mantém os links em cache e puxa a cada 10 s os que mudaram (`atualizado_em`), então editar ou arquivar aqui vale lá em até 10 s; link novo vale na hora (cache vazio pro nome → busca no banco). O redirecionamento ficou num app à parte de propósito: um link mandado pra milhares de alunos não pode cair junto com o deploy ou um pico deste painel.
+
+`BRABO_LINKS_URL` = endereço público dos links curtos (sem barra no fim), usado pra montar o link copiado, o QR e a checagem de "destino não pode ser outro link curto". Sem ela a página mostra um aviso.
+
+Cliques de robô (pré-visualização de WhatsApp, Instagram, Facebook…) são gravados com `bot=true` e ficam fora de todas as contas. UTMs fixas do link (padrão do Active Campaign) vão grudadas no destino; UTM que vier no clique vence a fixa. `?ref=` ou `?lead=` no link curto identificam a pessoa.
 
 ## Estrutura de Arquivos
 

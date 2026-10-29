@@ -352,16 +352,12 @@
       </a>
       {% endif %}
 
-      {# Links: encurtador próprio que substitui o Bitly. É outro app (login próprio),
-         por isso abre em nova aba. Some sem BRABO_LINKS_URL. #}
-      {% if LINKS_URL %}
+      {# Links: encurtador próprio que substitui o Bitly (frontend/routes/links.py). #}
       <div class="bs-nav-sep"></div>
       <div class="bs-nav-group">Links</div>
-      <a class="bs-mode-btn" href="{{ LINKS_URL }}/app" target="_blank" rel="noopener" title="Abre o Brabo Links em nova aba">
+      <a class="bs-mode-btn {% if nav_mode == 'links' %}active{% endif %}" href="/links">
         <i class="ti ti-scissors"></i> Encurtador
-        <i class="ti ti-external-link" style="margin-left:auto;font-size:13px;opacity:.6"></i>
       </a>
-      {% endif %}
       {% endif %}{# fim do menu de marketing #}
     </nav>
 

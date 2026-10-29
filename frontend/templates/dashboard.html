@@ -105,9 +105,9 @@
           <div class="tp-icon"><i class="ti ti-tag"></i></div>
         </div>
         <div class="tp-value">{{ utm_cobertura.pct | round(1) if utm_cobertura else "–" }}{% if utm_cobertura %}%{% endif %}</div>
-        <div class="tp-label">% de UTM Cobertas</div>
+        <div class="tp-label">% com anúncio identificado</div>
         <div class="tp-compare">
-          {% if utm_cobertura %}{{ utm_cobertura.com_utm | num }} de {{ utm_cobertura.total | num }} leads com UTM{% else %}Sem dados{% endif %}
+          {% if utm_cobertura %}{{ utm_cobertura.com_utm | num }} de {{ utm_cobertura.total | num }} leads com UTM do lançamento têm o ADxxx{% else %}Sem dados{% endif %}
         </div>
       </div>
       {% endif %}

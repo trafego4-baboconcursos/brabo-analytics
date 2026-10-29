@@ -415,16 +415,24 @@ def read_vendas_por_dia_cadastro(launch_folder_or_code: Any, vendas: VendasSumma
 
 
 def read_utm_cobertura(launch_folder_or_code: Any) -> dict | None:
-    """% de leads (tabela `leads`, Active Campaign) com utm_content preenchido
-    — é a UTM que carrega o código do anúncio (ADxxx), chave de atribuição do
-    sistema inteiro. Sem ela o lead não casa com nenhum criativo/campanha."""
+    """% de leads do lançamento (`lead_utm_lancamento`) com o código do anúncio (ADxxx) em
+    `utm_term` OU `utm_content` — a chave de atribuição do sistema inteiro: sem ela o lead não
+    casa com nenhum criativo/campanha. A convenção mudou entre lançamentos: nos recentes
+    (PES-NOV-26, PI-AGO-26) o ADxxx vem no `utm_term` e o `utm_content` é o nome do público;
+    nos antigos (PBB-ABR-26) é o contrário. Contar só "utm_content preenchido" dava ~100% sempre,
+    porque qualquer texto servia (corrigido em 29/10/26).
+
+    Limite do denominador: a tabela só recebe contatos cuja UTM já NOMEIA o lançamento
+    (etl/historico_utm.py), então lead que chegou sem UTM nunca entra na conta. O que se mede
+    aqui é "dos leads com UTM do lançamento, quantos têm o anúncio identificável"."""
     code = _extract_launch_code(launch_folder_or_code)
     engine = _get_engine()
     with engine.connect() as conn:
         row = conn.execute(
-            text("""
+            text(r"""
                 SELECT COUNT(DISTINCT contact_id) AS total,
-                       COUNT(DISTINCT contact_id) FILTER (WHERE COALESCE(NULLIF(TRIM(utm_content), ''), '') != '') AS com_utm
+                       COUNT(DISTINCT contact_id) FILTER (
+                           WHERE utm_term ~* '^\s*AD[0-9]+' OR utm_content ~* '^\s*AD[0-9]+') AS com_utm
                 FROM lead_utm_lancamento WHERE lancamento_codigo = :code
             """),
             {"code": code},

@@ -238,19 +238,21 @@ def _total_leads_active(launch: Any) -> int | None:
     from sqlalchemy import text as _t  # noqa: PLC0415
     from frontend.db import _get_engine  # noqa: PLC0415
 
-    def _conta():
-        with _get_engine().connect() as conn:
-            return int(conn.execute(
-                _t("SELECT COUNT(DISTINCT contact_id) FROM lead_utm_lancamento WHERE lancamento_codigo = :code"),
-                {"code": launch.code},
-            ).fetchone()[0] or 0)
-    return _get_or_compute(launch.code, "total_leads_active", _conta)
+    # SEM cache de propósito (29/10/26): é uma contagem barata numa tabela pequena e indexada, e o
+    # cache com stale-while-revalidate devolvia o valor da visita anterior — quem abria o card
+    # uma vez por dia via sempre o número de ontem (24.500 na tela, 30.055 no banco). Nenhum
+    # aquecimento recomputava esta chave, então o re-aquecimento pós-ETL não a alcançava.
+    with _get_engine().connect() as conn:
+        return int(conn.execute(
+            _t("SELECT COUNT(DISTINCT contact_id) FROM lead_utm_lancamento WHERE lancamento_codigo = :code"),
+            {"code": launch.code},
+        ).fetchone()[0] or 0)
 
 
 def _utm_cobertura(launch: Any):
+    """Cobertura de UTM (ADxxx no utm_term). Sem cache, pelo mesmo motivo de `_total_leads_active`."""
     from frontend.db_readers.leads import read_utm_cobertura
-    return _get_or_compute(launch.code, "utm_cobertura",
-                           lambda: read_utm_cobertura(launch.code))
+    return read_utm_cobertura(launch.code)
 
 
 def _whatsapp_groups_resumo(launch: Any):

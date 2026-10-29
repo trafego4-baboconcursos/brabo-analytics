@@ -77,6 +77,7 @@ PAGINAS = [
     "/whatsapp?launch_code=PES-SET-26",
     "/captacao?launch_code=PES-SET-26",  # lançamento com grupos de WhatsApp: seção de entradas/saídas
     "/atendimento",  # lê o banco comercial; sem as tabelas do Unnichat mostra o aviso
+    "/links",  # encurtador: schema encurtador do banco comercial; sem ele mostra o aviso
 ]
 
 

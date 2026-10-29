@@ -5,6 +5,8 @@ status: vigente
 atualizado: 2026-10-29
 responde:
   - "como o sistema funciona por dentro"
+  - "onde fica o encurtador de links (substituto do bitly)"
+  - "como o encurtador de links grava cliques e redireciona"
   - "por que o aviso do etl recomputa so parte do cache"
   - "onde fica a materializacao da pesquisa nova"
   - "por que o egress do banco operacional (comercial_project) era alto"
@@ -62,6 +64,9 @@ relacionados:
 >
 >
 > **Aulas ao vivo do YouTube entram sozinhas no ETL (2026-10-23)**
+>
+>
+> **Encurtador de links (menu "Links", 2026-10-29)**
 >
 >
 > **Estrutura de Arquivos**
@@ -412,6 +417,19 @@ A curva de simultâneos de uma live **sai da API depois que ela termina**: Analy
 - **Carga dos lançamentos passados (23/10):** 14 lançamentos PI/PES, de PI-JAN-25 a PES-SET-26, todos com curva. São 5 aulas cada, exceto o PI-JUL-25, que tem 4 (são as lives que existem no canal). Pico da Aula 1: PI 15,9–33,0 mil (máximo no PI-JAN-26), PES 4,7–7,3 mil. O PI-AGO-26 manteve chat e reações do CSV. Os outros ficam sem chat, porque as lives já tinham acabado. **PBB ficou de fora** (token do Felipe revogado), e o `youtube_aulas_stats` do PBB-JUN/AGO-26 continua sem curva.
 
 Testes: `tests/test_youtube_aulas_ao_vivo.py` (janela, numeração das aulas, chat por minuto e retomada).
+
+## Encurtador de links (menu "Links", 2026-10-29)
+
+Substitui o Bitly. Página **Links → Encurtador** (`/links`) e estatísticas por link (`/links/{id}`), dentro do painel, com o login e os papéis daqui: `admin`, `analista` e `trafego` criam/editam; `leitura` só vê; `comercial` não entra.
+
+São duas partes, com as mesmas tabelas (schema `encurtador` do banco comercial, `SUPABASE_USERS_URL`: `links`, `cliques`):
+
+- **Aqui no Analytics**: criar, editar, arquivar, QR Code, CSV de cliques e estatísticas. Código: `frontend/routes/links.py` (páginas + `/api/links`), `frontend/db_readers/links.py` (SQL), `frontend/services/links.py` (validação, UTMs, categorias), templates `links.html`, `link_detalhe.html`, `_macros_links.html`, `static/css/links.css` e `static/js/links.js` (tudo debaixo de `.bl`).
+- **App Brabo Links** (repo `trafego2-create/brabo-links`, EasyPanel novo, projeto `automacoes`): só o redirecionamento público `<domínio curto>/<nome>` e o registro do clique. É ele que cria as tabelas na subida. Mantém os links em cache e puxa a cada 10 s os que mudaram (`atualizado_em`), então editar ou arquivar aqui vale lá em até 10 s; link novo vale na hora (cache vazio pro nome → busca no banco). O redirecionamento ficou num app à parte de propósito: um link mandado pra milhares de alunos não pode cair junto com o deploy ou um pico deste painel.
+
+`BRABO_LINKS_URL` = endereço público dos links curtos (sem barra no fim), usado pra montar o link copiado, o QR e a checagem de "destino não pode ser outro link curto". Sem ela, usa `https://links.qacfzn.easypanel.host` (subdomínio curto no EasyPanel novo; o endereço automático `automacoes-brabo-links.qacfzn.easypanel.host` continua respondendo); preencher quando o domínio próprio sair.
+
+Cliques de robô (pré-visualização de WhatsApp, Instagram, Facebook…) são gravados com `bot=true` e ficam fora de todas as contas. UTMs fixas do link (padrão do Active Campaign) vão grudadas no destino; UTM que vier no clique vence a fixa. `?ref=` ou `?lead=` no link curto identificam a pessoa.
 
 ## Estrutura de Arquivos
 

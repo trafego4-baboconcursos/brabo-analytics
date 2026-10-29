@@ -351,6 +351,13 @@
         <i class="ti ti-headset"></i> Atendimento
       </a>
       {% endif %}
+
+      {# Links: encurtador próprio que substitui o Bitly (frontend/routes/links.py). #}
+      <div class="bs-nav-sep"></div>
+      <div class="bs-nav-group">Links</div>
+      <a class="bs-mode-btn {% if nav_mode == 'links' %}active{% endif %}" href="/links">
+        <i class="ti ti-scissors"></i> Encurtador
+      </a>
       {% endif %}{# fim do menu de marketing #}
     </nav>
 

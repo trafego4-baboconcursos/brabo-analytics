@@ -1,0 +1,141 @@
+{# Peças do encurtador (/links e /links/{id}). Estilo em static/css/links.css,
+   comportamento em static/js/links.js — tudo debaixo de .bl. #}
+
+{% macro spark(serie) -%}
+{%- set mx = (serie | max) or 1 -%}
+<svg viewBox="0 0 150 34" role="img" aria-label="Cliques por dia nos últimos 14 dias">
+  {%- for n in serie %}
+  {%- set h = (n / mx * 30) if n else 0 %}
+  {%- set x = loop.index0 * 10.7 %}
+  <rect x="{{ '%.1f' % x }}" y="{{ '%.1f' % (34 - [h, 1.5] | max) }}" width="8.7" height="{{ '%.1f' % ([h, 1.5] | max) }}" rx="2"
+        fill="{{ 'var(--bl-bar)' if n else 'var(--bs-border)' }}"><title>{{ n | num }} clique{{ '' if n == 1 else 's' }} · {{ 14 - loop.index }} dia{{ '' if 14 - loop.index == 1 else 's' }} atrás</title></rect>
+  {%- endfor %}
+</svg>
+{%- endmacro %}
+
+{% macro row(l) -%}
+<div class="lrow{% if not l.ativo %} off{% endif %}" data-id="{{ l.id }}" data-cat="{{ l.categoria }}" data-camp="{{ l.campanha }}"
+     data-ativo="{{ 1 if l.ativo else 0 }}" data-c7="{{ l.cliques_7d }}" data-ct="{{ l.cliques_total }}"
+     data-criado="{{ l.criado_em.isoformat() }}"
+     data-q="{{ (l.titulo ~ ' ' ~ l.slug ~ ' ' ~ l.destino ~ ' ' ~ l.campanha) | lower }}"
+     data-link='{{ link_json(l) | tojson | forceescape }}'>
+  <div class="cat-ico cat-{{ l.categoria }}" title="{{ CATEGORIAS[l.categoria][0] }}"><i class="ti {{ CATEGORIAS[l.categoria][1] }}"></i></div>
+  <div class="lmain">
+    <a class="ltitle" href="/links/{{ l.id }}">{{ l.titulo }}
+      {% if l.campanha %}<span class="tag camp">{{ l.campanha }}</span>{% endif %}
+      {% if not l.ativo %}<span class="tag off">arquivado</span>{% endif %}
+    </a>
+    <div class="lshort">
+      <a href="{{ BASE_CURTA }}/{{ l.slug }}" target="_blank" rel="noopener">{{ HOST_CURTO }}/{{ l.slug }}</a>
+      <button type="button" class="icon-btn sm" title="Copiar link" onclick="blCopiar('{{ BASE_CURTA }}/{{ l.slug }}')"><i class="ti ti-copy"></i></button>
+    </div>
+    <div class="ldest" title="{{ l.destino }}"><i class="ti ti-corner-down-right"></i> {{ l.destino }}</div>
+  </div>
+  <div class="lspark">{{ spark(l.serie14) }}<small>últimos 14 dias</small></div>
+  <div class="lnum" title="{{ l.cliques_total | num }} cliques desde a criação"><b>{{ l.cliques_7d | num }}</b><small>7 dias</small></div>
+  <div class="lacts">
+    <button type="button" class="icon-btn opt" title="QR Code" onclick="blQR(this)"><i class="ti ti-qrcode"></i></button>
+    <a class="icon-btn opt" title="Estatísticas" href="/links/{{ l.id }}"><i class="ti ti-chart-bar"></i></a>
+    {% if pode_editar %}<button type="button" class="icon-btn opt" title="Editar" onclick="blEditar(this)"><i class="ti ti-pencil"></i></button>{% endif %}
+  </div>
+</div>
+{%- endmacro %}
+
+{% macro utm_campos(pref) %}
+<details class="utm-box" id="{{ pref }}-utm">
+  <summary><i class="ti ti-tag"></i> UTMs <span class="bl-note">padrão do Active Campaign · opcional</span><span class="tag camp utm-count" style="display:none"></span><i class="ti ti-chevron-down chev"></i></summary>
+  <div class="utm-body">
+    <div class="bl-note">Vão grudadas no destino toda vez que alguém clicar, e é assim que o lead chega no Active com origem certa. Se alguém abrir o link curto com outra UTM no fim (ex.: <span class="code">?utm_source=whatsapp</span>), a do clique vale.</div>
+    <div class="row2">
+      <label class="field"><span>utm_source <em>canal</em></span><input class="input" name="utm_source" list="dl-utm_source" placeholder="ig, facebook, google…" autocomplete="off"></label>
+      <label class="field"><span>utm_medium <em>tipo de tráfego</em></span><input class="input" name="utm_medium" list="dl-utm_medium" placeholder="social, paid_social, cpc…" autocomplete="off"></label>
+    </div>
+    <div class="field"><span>utm_campaign <em>campanha</em></span>
+      <div class="utm-camp"><input class="input" name="utm_campaign" placeholder="[MA][cadastro][captação][quente][principal][PES-NOV-26][26.10.26]" autocomplete="off" list="dl-utm_campaign">
+        <button type="button" class="btn btn-sm" data-montar><i class="ti ti-brackets"></i> Montar</button></div>
+      <div class="utm-builder">
+        {% for nome, ph, dl in [("plataforma","MA","dl-b-plat"),("objetivo","cadastro","dl-b-obj"),("etapa","captação","dl-b-etapa"),("temperatura","quente","dl-b-temp"),("tipo","principal","dl-b-tipo"),("lancamento","PES-NOV-26","dl-campanhas"),("data","26.10.26","")] %}
+        <label class="field"><span>{{ "lançamento" if nome == "lancamento" else nome }}</span><input class="input" data-b="{{ nome }}" placeholder="{{ ph }}" {% if dl %}list="{{ dl }}"{% endif %} autocomplete="off"></label>
+        {% endfor %}
+        <small class="bl-note" style="grid-column:1/-1">Cada pedaço vira um <b>[colchete]</b>, na ordem do Active. Deixe vazio o que não se aplica.</small>
+      </div>
+    </div>
+    <div class="row2">
+      <label class="field"><span>utm_content <em>público / posição</em></span><input class="input" name="utm_content" list="dl-utm_content" placeholder="link_in_bio" autocomplete="off"></label>
+      <label class="field"><span>utm_term <em>criativo (ADxxx)</em></span><input class="input" name="utm_term" list="dl-utm_term" placeholder="AD393 - Carrossel Edital aberto - PES-NOV-26" autocomplete="off"></label>
+    </div>
+    <div class="utm-final"><span>Destino final</span><code></code></div>
+  </div>
+</details>
+{% endmacro %}
+
+{% macro utm_datalists(usadas) %}
+{% set base = {
+  "utm_source": ["ig", "instagram", "facebook", "google", "tiktok"],
+  "utm_medium": ["social", "organic_chat", "paid_social", "paid_social_dm", "cpc", "paid"],
+  "utm_content": ["link_in_bio", "unichat_comentario"],
+  "utm_campaign": [], "utm_term": []} %}
+{% for k, vals in base.items() %}
+<datalist id="dl-{{ k }}">{% for v in (vals + ((usadas or {}).get(k) or [])) | unique %}<option value="{{ v }}">{% endfor %}</datalist>
+{% endfor %}
+<datalist id="dl-b-plat"><option value="MA">Meta Ads</option><option value="GA">Google Ads</option><option value="TK">TikTok</option></datalist>
+<datalist id="dl-b-obj"><option value="cadastro"><option value="compra"><option value="pré-qualificação"></datalist>
+<datalist id="dl-b-etapa"><option value="captação"><option value="ebook"><option value="vendas"><option value="carrinho"></datalist>
+<datalist id="dl-b-temp"><option value="quente"><option value="frio"><option value="específico"><option value="super quente"></datalist>
+<datalist id="dl-b-tipo"><option value="principal"><option value="pós-edital"><option value="reels"><option value="imagem"><option value="carrossel"><option value="potencial"></datalist>
+{% endmacro %}
+
+{% macro modais(campanhas, usadas=None) %}
+{{ utm_datalists(usadas) }}
+<datalist id="dl-campanhas">{% for c in campanhas %}<option value="{{ c }}">{% endfor %}</datalist>
+
+{% if pode_editar %}
+<div class="modal-bg" id="m-editar" onclick="if(event.target===this)blFechar(this)">
+  <form class="modal" onsubmit="blSalvarEdicao(event)">
+    <div class="modal-h"><h2>Editar link</h2><button type="button" class="icon-btn" onclick="blFechar(this)" aria-label="Fechar"><i class="ti ti-x"></i></button></div>
+    <div class="modal-b">
+      <input type="hidden" name="id">
+      <label class="field"><span>Para onde o link leva</span><input class="input" name="destino" required>
+        <small>Pode trocar à vontade: o link curto continua o mesmo e quem já tem ele cai no destino novo.</small></label>
+      <div class="field"><span>Link curto</span>
+        <div class="slug-input"><span class="pre" title="{{ HOST_CURTO }}/">{{ ROTULO_CURTO }}/</span><input name="slug" required autocomplete="off" spellcheck="false"></div>
+        <small class="err" data-err="slug"></small>
+      </div>
+      <div class="warn" id="warn-slug"><i class="ti ti-alert-triangle"></i><div><b>Atenção:</b> ao mudar o nome, o link antigo para de funcionar. Quem já copiou ou postou o antigo vai cair na página de “link não encontrado”.</div></div>
+      <label class="field"><span>Título (só aparece aqui no painel)</span><input class="input" name="titulo"></label>
+      <div class="row2">
+        <label class="field"><span>Tipo</span><select class="input" name="categoria">{% for k, v in CATEGORIAS.items() %}<option value="{{ k }}">{{ v[0] }}</option>{% endfor %}</select></label>
+        <label class="field"><span>Campanha / lançamento</span><input class="input" name="campanha" list="dl-campanhas" placeholder="Ex.: PES-SET-26"></label>
+      </div>
+      {{ utm_campos("e") }}
+    </div>
+    <div class="modal-f">
+      <button type="button" class="btn btn-ghost btn-danger" id="btn-arquivar" onclick="blArquivar()" style="margin-right:auto"></button>
+      <button type="button" class="btn" onclick="blFechar(this)">Cancelar</button>
+      <button class="btn btn-primary"><i class="ti ti-device-floppy"></i> Salvar</button>
+    </div>
+  </form>
+</div>
+{% endif %}
+
+<div class="modal-bg" id="m-qr" onclick="if(event.target===this)blFechar(this)">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-h"><h2>QR Code</h2><button type="button" class="icon-btn" onclick="blFechar(this)" aria-label="Fechar"><i class="ti ti-x"></i></button></div>
+    <div class="modal-b qr-box">
+      <img id="qr-img" alt="QR Code do link">
+      <div class="url" id="qr-url"></div>
+      <div class="bl-note" style="text-align:center">Quem escanear passa pelo link curto, então o clique entra nas estatísticas.</div>
+    </div>
+    <div class="modal-f" style="justify-content:center">
+      <a class="btn" id="qr-png"><i class="ti ti-download"></i> PNG</a>
+      <a class="btn" id="qr-svg"><i class="ti ti-vector"></i> SVG (gráfica)</a>
+    </div>
+  </div>
+</div>
+<div id="bl-toasts" aria-live="polite"></div>
+{% endmacro %}
+
+{% macro script_init() %}
+<script>window.BL = {{ {"base": BASE_CURTA, "rotulo": ROTULO_CURTO} | tojson }};</script>
+<script src="{{ static_url('js/links.js') }}"></script>
+{% endmacro %}

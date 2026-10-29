@@ -24,6 +24,10 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 BASE_CURTA = (os.getenv("BRABO_LINKS_URL", "").strip()
               or "https://automacoes-brabo-links.qacfzn.easypanel.host").rstrip("/")
 HOST_CURTO = BASE_CURTA.split("://", 1)[-1]
+# O que aparece antes do nome no campo "Nome do link". O endereço provisório do
+# EasyPanel é comprido demais pra isso; com domínio próprio, mostra o domínio.
+ROTULO_CURTO = os.getenv("BRABO_LINKS_ROTULO", "").strip() or (
+    "brabo-links" if HOST_CURTO.endswith(".easypanel.host") else HOST_CURTO)
 
 CATEGORIAS = {
     "youtube": ("YouTube", "ti-brand-youtube"),

@@ -289,7 +289,7 @@
         } else if (slug.value) {
           box.classList.toggle('bad', !!r.slug_erro);
           msg.className = r.slug_erro ? 'err' : '';
-          msg.innerHTML = r.slug_erro ? esc(r.slug_erro) : `<span style="color:var(--bs-success);font-weight:700"><i class="ti ti-check"></i> ${esc(host)}/${esc(slug.value)} está livre</span>`;
+          msg.innerHTML = r.slug_erro ? esc(r.slug_erro) : `<span style="color:var(--bs-success);font-weight:700"><i class="ti ti-check"></i> ${esc(BL.rotulo || host)}/${esc(slug.value)} está livre</span>`;
         } else {
           box.classList.remove('bad'); msg.className = ''; msg.innerHTML = msgPadrao;
         }

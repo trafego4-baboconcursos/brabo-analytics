@@ -19,7 +19,7 @@ from sqlalchemy.exc import DBAPIError
 from frontend.core import _base_ctx, _get_current_user, get_launches, logger, templates
 from frontend.db_readers import links as db
 from frontend.services.links import (
-    BASE_CURTA, CATEGORIAS, HOST_CURTO, PAPEIS_EDICAO, PERIODOS,
+    BASE_CURTA, CATEGORIAS, HOST_CURTO, PAPEIS_EDICAO, PERIODOS, ROTULO_CURTO,
     LinkInvalido, campos_do_formulario, destino_final, detecta_categoria, link_json,
     normaliza_destino, normaliza_slug, slugify, valida_slug,
 )
@@ -31,7 +31,7 @@ def _ctx(request: Request, page: str, title: str, **extra) -> dict:
     user = _get_current_user(request)
     return _base_ctx(
         request, page, title, None, get_launches(),
-        CATEGORIAS=CATEGORIAS, BASE_CURTA=BASE_CURTA, HOST_CURTO=HOST_CURTO,
+        CATEGORIAS=CATEGORIAS, BASE_CURTA=BASE_CURTA, HOST_CURTO=HOST_CURTO, ROTULO_CURTO=ROTULO_CURTO,
         pode_editar=user["role"] in PAPEIS_EDICAO, link_json=link_json,
         **extra,
     )

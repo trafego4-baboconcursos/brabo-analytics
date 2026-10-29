@@ -98,7 +98,7 @@
       <label class="field"><span>Para onde o link leva</span><input class="input" name="destino" required>
         <small>Pode trocar à vontade: o link curto continua o mesmo e quem já tem ele cai no destino novo.</small></label>
       <div class="field"><span>Link curto</span>
-        <div class="slug-input"><span class="pre">{{ HOST_CURTO }}/</span><input name="slug" required autocomplete="off" spellcheck="false"></div>
+        <div class="slug-input"><span class="pre" title="{{ HOST_CURTO }}/">{{ ROTULO_CURTO }}/</span><input name="slug" required autocomplete="off" spellcheck="false"></div>
         <small class="err" data-err="slug"></small>
       </div>
       <div class="warn" id="warn-slug"><i class="ti ti-alert-triangle"></i><div><b>Atenção:</b> ao mudar o nome, o link antigo para de funcionar. Quem já copiou ou postou o antigo vai cair na página de “link não encontrado”.</div></div>
@@ -136,6 +136,6 @@
 {% endmacro %}
 
 {% macro script_init() %}
-<script>window.BL = {{ {"base": BASE_CURTA} | tojson }};</script>
+<script>window.BL = {{ {"base": BASE_CURTA, "rotulo": ROTULO_CURTO} | tojson }};</script>
 <script src="{{ static_url('js/links.js') }}"></script>
 {% endmacro %}

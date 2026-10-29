@@ -11,7 +11,7 @@ from pathlib import Path
 BASE_DIR       = Path(__file__).resolve().parent
 WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 ANALISES_DIR   = WORKSPACE_ROOT / "analises"
-IMG_DIR        = WORKSPACE_ROOT / "img"
+ASSETS_DIR     = WORKSPACE_ROOT / "assets"
 SRC_DIR        = WORKSPACE_ROOT / "src"
 # O sys.path de src/ é montado em frontend/__init__.py, que roda antes daqui.
 
@@ -45,7 +45,7 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 if ANALISES_DIR.exists():
     app.mount("/analises", StaticFiles(directory=str(ANALISES_DIR)), name="analises")
-app.mount("/img", StaticFiles(directory=str(IMG_DIR)), name="img")
+app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
 # CSS/JS do design system, extraídos de base.html em 21/09/2026. As URLs saem do
 # helper static_url() (frontend/core.py), que anexa ?v=<mtime> pro navegador não
 # servir versão velha depois de um deploy. O middleware de auth abaixo já liberava
@@ -82,7 +82,7 @@ async def auth_middleware(request: Request, call_next):
         or path == "/api/etl/refresh"  # autenticado por token no próprio handler (chamado pelo ETL, não por pessoa)
         or path.startswith("/api/unnichat/webhook/")  # chamado pela automação do Unnichat; autenticado por X-Webhook-Secret
         or path.startswith("/invite/")
-        or path.startswith("/img")
+        or path.startswith("/assets")
         or path.startswith("/static")
     ):
         return await call_next(request)

@@ -19,7 +19,7 @@
 {% block content %}
 <div class="wrap">
   <div class="hdr">
-    <a href="/?launch_code={{ active_code }}"><img src="/img/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <a href="/?launch_code={{ active_code }}"><img src="/assets/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
     <div>
       <h1>Criativos{% if launch %} - {{ launch.code }}{% endif %}</h1>
       <p>Overview por AD de captação, vendas rastreadas e leitura de escala</p>
@@ -246,12 +246,12 @@
                        {% if c.hold_rate is not none %}data-hold="{{ '%.2f'|format(c.hold_rate) | replace('.', ',') }}"{% endif %}
                        data-body="{{ '%.2f'|format(c.body_rate) | replace('.', ',') }}"
                        onclick="openVideoModalFromEl(this)"
-                       onerror="this.src='/img/placeholder-ad.png';this.onerror=null;">
+                       onerror="this.src='/assets/placeholder-ad.png';this.onerror=null;">
                   {% elif c.video_id %}
                   <a href="https://youtu.be/{{ c.video_id }}" target="_blank" rel="noopener" style="flex-shrink:0;">
                     <img src="https://img.youtube.com/vi/{{ c.video_id }}/mqdefault.jpg" alt="{{ c.ad_code }}"
                          style="width:72px;height:48px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);"
-                         onerror="this.src='/img/placeholder-ad.png';this.onerror=null;">
+                         onerror="this.src='/assets/placeholder-ad.png';this.onerror=null;">
                   </a>
                   {% else %}
                   <div style="width:72px;height:48px;border-radius:5px;border:1px dashed var(--bs-border-s);background:var(--bs-accent-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0;">

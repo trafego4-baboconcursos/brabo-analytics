@@ -2,7 +2,7 @@
 titulo: "Arquitetura do Brabo Analytics — 2026-10-15"
 area: sistema
 status: vigente
-atualizado: 2026-10-27
+atualizado: 2026-10-29
 responde:
   - "como o sistema funciona por dentro"
   - "por que o aviso do etl recomputa so parte do cache"
@@ -12,6 +12,7 @@ responde:
   - "como pegar regressao visual no frontend"
   - "por que o navegador serve css velho depois do deploy"
   - "fluxo de dados"
+  - "onde ficam os backups feitos antes de alterar o banco"
   - "responsabilidade de cada arquivo"
   - "onde fica o calendario e por que"
   - "cache, scheduler, seguranca"
@@ -42,7 +43,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 97 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 99 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Ano global do sistema (2026-10-22)**
@@ -58,6 +59,9 @@ relacionados:
 >
 >
 > **Funil de respondentes do /pesquisas: 6 etapas, desenhado no Figma (2026-10-23)**
+>
+>
+> **Aulas ao vivo do YouTube entram sozinhas no ETL (2026-10-23)**
 >
 >
 > **Estrutura de Arquivos**
@@ -357,6 +361,17 @@ relacionados:
 > - [[ARQUITETURA#Páginas de venda com carrinho aberto: cache de 5 min (15/10/26)|Páginas de venda com carrinho aberto: cache de 5 min (15/10/26)]]
 > - [[ARQUITETURA#Google Ads API v22 → v23 (20/10/26)|Google Ads API v22 → v23 (20/10/26)]]
 > - [[ARQUITETURA#Deploy automático no push do `main` (21/10/26)|Deploy automático no push do `main` (21/10/26)]]
+> - [[ARQUITETURA#Vendas por anúncio na Black (27/10/26)|Vendas por anúncio na Black (27/10/26)]]
+>
+> **Grupos de WhatsApp — modelo novo por eventos (27/10/26)**
+>
+>
+> **Faxina da raiz do repositório e `outputs/` separado (2026-10-28)**
+>
+>
+> **Distribuição: vence o expert que aparece primeiro no nome (2026-10-28)**
+>
+> - [[ARQUITETURA#Card "% com anúncio identificado" da Captação e o cache que deixava o número velho (2026-10-29)|Card "% com anúncio identificado" da Captação e o cache que deixava o número velho (2026-10-29)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -384,6 +399,18 @@ O aquecimento mantém o snapshot anterior quando um bloco falha (para a seção 
 ## Funil de respondentes do /pesquisas: 6 etapas, desenhado no Figma (2026-10-23)
 
 O funil foi redesenhado pelo usuário no Figma (arquivo `nPp9UQvSncaBuVf0YQi9pl`, frame "proposta v2") e aplicado em `frontend/templates/pesquisas.html`: cartão da etapa | conversão | trapézio, linhas de altura fixa, cor por etapa (faixa do cartão = trapézio), "−N no caminho" e as taxas em pílulas. Etapas: **Abriram a pesquisa → Começaram a responder → Respostas enviadas → Respondentes únicos → Leads no CRM → Compradores**. As duas primeiras vêm de `TypeformSummary.tf_visualizacoes`/`tf_inicios`, preenchidos por `db_readers/typeform.py::_contar_aberturas` (regra em [[METODOLOGIA_EXTRACAO_DADOS]], seção 18). Etapa sem número mostra "—" com a etiqueta "sem dado neste formulário", e a conversão da seguinte compara com a última etapa que tem número ("vs abriram a pesquisa").
+
+## Aulas ao vivo do YouTube entram sozinhas no ETL (2026-10-23)
+
+A curva de simultâneos de uma live **sai da API depois que ela termina**: Analytics API com `dimensions=livestreamPosition`, `metrics=averageConcurrentViewers,peakConcurrentViewers`, um ponto por minuto. A seção de 15/09 abaixo dizia o contrário, e por isso a página dependia do CSV do Studio (o PES-SET-26 ficou vazio porque ninguém subiu o export). O que de fato não sai depois da live são o **chat** e as **reações**.
+
+- **`etl_youtube_analytics.py --ativos`** é a fonte `youtube` do `run_all.py`, no ciclo lento (de hora em hora). Ela vale para lançamentos com prefixo de canal próprio (`TOKEN_VAR_MAP`: PI→Mateus, PES→Ivan, PBB→Felipe), do início das aulas até `carrinho_end_date`, e fora dessa janela não chama a API. As aulas são as lives do canal com início real (em horário de Brasília) dentro da janela das aulas, em ordem, menos as que têm "Dominando a Plataforma" ou "Mentoria" no título (lives para alunos). A janela vai de `evento_start_date` até **4 dias depois** de `evento_end_date`. Isso porque o padrão de 2025–26 é Aulas 1–4 de segunda a quinta, a 4ª no dia da abertura do carrinho, mais uma Aula 5 ("Como revisar…") na segunda seguinte, e a 5ª do PI-ABR-26 caiu fora do evento cadastrado no wizard. Sem evento no wizard, a janela vai de 6 dias antes até 4 dias depois de `abertura_oficial_carrinho` (ou `carrinho_start_date`). A lista de vídeos do wizard (`youtube_aulas`) ou do YAML, quando preenchida, tem prioridade. Antes do upsert, a linha `manual-aula-N` do CSV recebe o `video_id` real (`adotar_linhas_manuais`), e assim a aula não vira dois cartões e o chat e as reações do Studio ficam. Grava os totais em `youtube_aulas_stats` e a curva em `youtube_live_curva` (`simultaneos` = pico do minuto, `media_simult` = média), **sem tocar em `chat_msgs`/`reacoes`/`envolvimentos`**. O `peak_concurrent` vem do máximo da curva; um 0 da Data API, depois que a live acaba, não sobrescreve mais o pico gravado.
+- **`etl/youtube_live_chat.py`** conta o chat enquanto a aula está no ar. Roda dentro do processo do `scheduler.py`, a cada minuto (job `youtube_chat_ao_vivo`), porque o estado (página do chat, contagem por minuto) precisa passar de um minuto para o outro. Na janela do evento, procura live no ar a cada 5 min. Achou uma, cria a linha da aula e lê `liveChat/messages` a cada minuto, contando mensagem de texto, Super Chat e Super Sticker por minuto da transmissão. Também grava a leitura instantânea de simultâneos, para a página acompanhar a live; a curva oficial do ETL a sobrescreve depois. Se o processo reinicia no meio da live, a contagem é retomada do banco e os minutos já gravados não são contados de novo. Cada falha alerta no webhook no máximo 1x/hora.
+- **Credenciais no servidor:** `client_secrets.json` é gitignored. `_load_client_credentials` lê primeiro `YOUTUBE_CLIENT_ID`/`YOUTUBE_CLIENT_SECRET`, que são o app OAuth do YouTube, não o do Google Ads (com o do Ads o token devolve `unauthorized_client`). O serviço `brabo-analytics-scheduler` precisa dessas duas variáveis mais `YOUTUBE_REFRESH_TOKEN_PI`/`_PES`.
+- **Estado dos tokens (23/10):** `_PI` (Mateus Andrade - O Brabo dos Concursos) e `_PES` (Ivan Neto - Brabo Concursos) funcionam. `YOUTUBE_REFRESH_TOKEN` (PBB, Felipe) está revogado (`invalid_grant`), e o PBB falha alto até alguém refazer `get_youtube_token.py`. Lançamento sem `evento_start_date` no wizard é avisado no log e fica de fora; era o caso do PI-NOV-26 em 23/10.
+- **Carga dos lançamentos passados (23/10):** 14 lançamentos PI/PES, de PI-JAN-25 a PES-SET-26, todos com curva. São 5 aulas cada, exceto o PI-JUL-25, que tem 4 (são as lives que existem no canal). Pico da Aula 1: PI 15,9–33,0 mil (máximo no PI-JAN-26), PES 4,7–7,3 mil. O PI-AGO-26 manteve chat e reações do CSV. Os outros ficam sem chat, porque as lives já tinham acabado. **PBB ficou de fora** (token do Felipe revogado), e o `youtube_aulas_stats` do PBB-JUN/AGO-26 continua sem curva.
+
+Testes: `tests/test_youtube_aulas_ao_vivo.py` (janela, numeração das aulas, chat por minuto e retomada).
 
 ## Estrutura de Arquivos
 
@@ -2063,7 +2090,8 @@ há `video_id` real, o CSV usa a chave estável `manual-aula-N`, que satisfaz o
 - `youtube_aulas_stats` — 1 linha por vídeo. Ganhou `viewers_fim`, `chat_msgs`, `reacoes` e
   `fonte` ('api' | 'manual').
 - `youtube_live_curva` — 1 linha por (lançamento, aula, segundo). A série minuto a minuto não
-  cabe numa tabela de 1 linha por vídeo, e a API não entrega essa curva de jeito nenhum.
+  cabe numa tabela de 1 linha por vídeo. ~~a API não entrega essa curva~~ — **errado**: entrega
+  via `livestreamPosition` (ver "Aulas ao vivo do YouTube entram sozinhas no ETL", 23/10/26).
 
 `read_youtube_aulas` (`frontend/database_reader.py`) monta as duas coisas: os agregados mais
 a curva já convertida para minutos, e calcula `retencao_live_pct` (fim/pico). Isso é **campo,
@@ -4005,3 +4033,51 @@ gasto, e as chaves casam. Demais lançamentos seguem com `_extract_ad_code`, sem
 1.984 vendas em 57 anúncios). BV-26 depois: 452 vendas em 80 anúncios; na captação, 397 vendas / R$ 687.885 em 60 anúncios,
 todos com gasto casado. Ainda com a regex clássica (não afetam o `/criativos`): `db_readers/caminho_comprador.py`,
 `db_readers/typeform.py` (pesquisa por anúncio) e `services/copys.py`.
+
+## Grupos de WhatsApp — modelo novo por eventos (27/10/26)
+Desde 22/10/26 a automação grava um **evento por entrada/saída** em `leads_grupos_eventos` (analytics DB: `timestamp` com hora real, `nome_grupo`, `ent_sai` Entrou/Saiu, `numero_lead`,
+`nome_campanha` = "Projeto INSS [PI-NOV-26]" no normal, "Grupo VIP [PI-NOV-26]" no VIP) e um resumo por pessoa em `leads_grupos` (só o último status — **defasada, não usar como base**).
+Não existe mais tabela `<COD>_API` por lançamento nem linha na planilha para os lançamentos novos. Leitor: `frontend/db_readers/whatsapp_eventos.py`, usado **só como alternativa**
+(`whatsapp_sheets.contar_lancamento`/`historico_diario`/`pico_por_bloco` e `whatsapp_groups._read_whatsapp_uncached`) quando o lançamento não tem dado no modelo antigo; a Black fica de fora.
+Contas: pessoa ativa = último evento Entrou em ≥1 grupo; entradas do dia = primeira entrada no bloco; saídas do dia = pessoas com evento Saiu; "leads totais" = total limpo ao fim do dia (dia em
+Brasília). Validado: PI-AGO-26 bate exato com a tabela antiga (409.919/380.537); PBB-AGO-26 a 17 pessoas; view `vw_leads_ativos_grupos` a ~0,2%. O dia 22/10/26 é a carga inicial da automação.
+**Premissa a confirmar:** os grupos do PES-NOV-26 saem como `[PES-PPE-26]` (Pós-Edital); o mapa fica em `CODIGOS_EVENTOS`.
+
+## Faxina da raiz do repositório e `outputs/` separado (2026-10-28)
+
+- **`outputs/backups/`** recebe todo backup de banco ou planilha feito antes de uma alteração (`backup_*`, `backfill_reversao_*`). Os 8 scripts que gravavam na raiz de `outputs/` passaram a gravar aqui e criam a pasta se ela não existir: `backfill_lancamento_codigo`, `backup_ads_periodo`, `cadastrar_lancamentos_2025`, `corrigir_janelas_e_atribuicao_20260921`, `definir_inicio_leitura_2025`, `migrar_classificacao_campanhas`, `planilha_anuncios_ordenacao` e `provisionar_etapas_pi_nov_26`.
+- **`outputs/exports/`** guarda extrações pontuais (listas do AC, inventários de público, PDFs de criativos, `pg_stat_statements`).
+- As duas pastas estão no `.gitignore` porque têm e-mail e telefone de lead. Antes, `outputs/` inteiro estava fora do `.gitignore`. Na raiz de `outputs/` ficam só `analysis.db`, `reports/`, `snapshots/` e `customer_match_requests.jsonl`, que os scripts leem por caminho fixo.
+- Os caminhos citados nos `MUDANCAS_*` foram reescritos para o novo lugar, e as 54 referências foram conferidas.
+- **`_arquivo/`** (raiz, também ignorado) é o arquivo morto local. Recebeu os 10 `_backup_*` de código de setembro, os `scratch_*.py` de jul–ago, prints, `form.html` e logs do uvicorn/ngrok. Esses arquivos continuam no histórico do git.
+
+## Distribuição: vence o expert que aparece primeiro no nome (2026-10-28)
+
+`etl/launch_resolver.py::resolve_perpetuo_or_distribuicao_code` escolhia o código da distribuição pela
+**ordem do `config/instagram_accounts.yaml`** (experts sem Instagram primeiro, depois as contas na ordem do
+arquivo). Como "Brabo Concursos" vem antes de "Felipe Graton" no YAML, as duas campanhas de YouTube do Felipe
+(`[felipe graton][brabo concursos]`, customer `1450466453`) caíam em `DISTRIBUICAO-BRABO-CONCURSOS`.
+Foram **R$ 133,9 mil** desde set/25, cerca de R$ 12 mil/mês. Em `/lancamentos`, o cartão "Brabo Concursos ·
+Ivan Neto" somava esse gasto ao do Ivan (`backup_de`), e o cartão do Felipe mostrava só o Meta.
+
+Agora, entre os nomes encontrados na campanha, vence **o que aparece primeiro**. A convenção é `[expert][perfil]`,
+então `[ivan neto][brabo concursos]` continua no Ivan. Testes em `tests/test_launch_resolver_perpetuo.py::test_distribuicao_por_expert`.
+A simulação sobre todos os nomes do banco mudou só essas 2 campanhas (de 25).
+
+**Pendente:** deploy e depois o backfill das linhas antigas (`scripts/backfill_lancamento_codigo.py`), nessa
+ordem. Sem o deploy, o scheduler regrava os últimos 3 dias com o código errado.
+
+
+### Card "% com anúncio identificado" da Captação e o cache que deixava o número velho (2026-10-29)
+
+`read_utm_cobertura` (`frontend/db_readers/leads.py`) mede, em `lead_utm_lancamento`, a parcela de contatos com o código do
+anúncio (`ADxxx`) em `utm_term` **ou** `utm_content` — a convenção mudou entre lançamentos (PBB-ABR-26 no `utm_content`;
+PI-AGO-26 e PES-NOV-26 no `utm_term`, com o nome do público no `utm_content`). Antes contava `utm_content` preenchido e dava
+~100% sempre. Limite conhecido: a tabela só recebe contatos cuja UTM nomeia o lançamento, então lead sem UTM não entra no
+denominador.
+
+`_utm_cobertura` e `_total_leads_active` (`frontend/services/fetch.py`) **não usam mais `_get_or_compute`**: com
+stale-while-revalidate e sem nenhum aquecimento que as chamasse, a Captação mostrava o valor da visita anterior (24.500 na tela
+× 30.055 no banco). Regra geral: leitor barato e sem aquecimento não deve ficar atrás do cache com SWR — ou entra no
+`warm_launch`, ou lê direto.
+- **`img/` → `assets/` (2026-10-29).** A pasta de logos e favicon e a URL mudaram juntas: `ASSETS_DIR` em `frontend/app.py`/`core.py`, `app.mount("/assets", ...)` e a liberação sem login (`path.startswith("/assets")`, senão o logo some da tela de login). Os 37 templates passaram a usar `/assets/...`, e `/img/...` deixou de existir (redireciona para o login). Pendência anterior à troca: `meta.html`/`google.html` apontam para `/assets/placeholder-ad.png`, que nunca existiu na pasta, então o fallback de thumbnail dá 404.

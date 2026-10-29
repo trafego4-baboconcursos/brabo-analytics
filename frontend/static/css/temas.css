@@ -5,7 +5,7 @@
 
 /* "Brabo (marca)" — tema escuro seguindo o deck de debriefing oficial
    (fundo navy quase preto + laranja da marca). Laranja #EF3B24 é o valor
-   exato do SVG do logo (img/logo-brabo-concursos-*.svg); os tons de navy
+   exato do SVG do logo (assets/logo-brabo-concursos-*.svg); os tons de navy
    foram estimados a partir do PDF do deck — ajustar se destoar do
    original quando comparado lado a lado. */
 html[data-bs-theme="brabo"] {

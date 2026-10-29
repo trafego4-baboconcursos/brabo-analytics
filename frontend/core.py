@@ -18,7 +18,7 @@ from fastapi.templating import Jinja2Templates
 BASE_DIR       = Path(__file__).resolve().parent
 WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
 ANALISES_DIR   = WORKSPACE_ROOT / "analises"
-IMG_DIR        = WORKSPACE_ROOT / "img"
+ASSETS_DIR     = WORKSPACE_ROOT / "assets"
 SRC_DIR        = WORKSPACE_ROOT / "src"
 
 if str(SRC_DIR) not in sys.path:

@@ -648,7 +648,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
 
 <div class="wrap">
   <div class="hdr">
-    <img src="/img/logo-b-brabo-concursos.png" alt="Brabo">
+    <img src="/assets/logo-b-brabo-concursos.png" alt="Brabo">
     <div>
       <h1>Debriefing{% if launch %} — {{ launch.code }}{% endif %}</h1>
       <div class="dbf-hdr-meta">
@@ -700,7 +700,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
 
   <div id="dbf-slides">
     <div class="dbf-slide cover">
-      <img src="/img/logo-brabo-concursos-white.svg" alt="Brabo">
+      <img src="/assets/logo-brabo-concursos-white.svg" alt="Brabo">
       <div class="cv-kicker">Debriefing de lançamento</div>
       <h1>{{ launch.code if launch else 'Debriefing' }}</h1>
       <div class="cv-sub">{{ launch.name if launch else '' }}{% if dbf.periodo_atual %} · {{ dbf.periodo_atual }}{% endif %}{% if dbf.has_prev %} · comparativo vs {{ dbf.prev_code }}{% endif %}</div>

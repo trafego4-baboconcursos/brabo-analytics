@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ title }} — Brabo Analytics{% if launch %} | {{ launch.code }}{% endif %}</title>
   <meta name="description" content="Brabo Analytics — Painel de análise de performance por lançamento">
-  <link rel="icon" type="image/png" href="/img/favicon-brabo-concursos.png">
+  <link rel="icon" type="image/png" href="/assets/favicon-brabo-concursos.png">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css">
 
   <!-- ── Basis Design System ──────────────────────────────────────────────
@@ -118,7 +118,7 @@
     <i class="ti ti-menu-2"></i>
   </button>
   <a href="{{ '/atendimento' if current_user and current_user.role == 'comercial' else '/calendario' }}">
-    <img src="/img/logo-brabo-concursos-white.svg" alt="Brabo Analytics">
+    <img src="/assets/logo-brabo-concursos-white.svg" alt="Brabo Analytics">
   </a>
   <span style="width:44px"></span>
 </div>
@@ -129,7 +129,7 @@
   <aside id="bs-drawer">
     <div class="bs-brand">
       <a href="{{ '/atendimento' if current_user and current_user.role == 'comercial' else '/calendario' }}">
-        <img src="/img/logo-brabo-concursos-white.svg" alt="Brabo Analytics">
+        <img src="/assets/logo-brabo-concursos-white.svg" alt="Brabo Analytics">
         <span class="bs-brand-name">Brabo Analytics - V3.0</span>
       </a>
     </div>

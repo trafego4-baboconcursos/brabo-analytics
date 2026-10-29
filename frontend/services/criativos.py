@@ -118,8 +118,15 @@ def _creative_overview(meta: Any, google: Any, vendas_data: Any, sales_attr: dic
         utm_campaigns = utm_info.get("campaigns") or ([utm_campaign] if utm_campaign else [])
         if utm_campaigns and google_campanhas:
             norm_camps = {_norm_text(c) for c in utm_campaigns if c}
+            # Campanha cujos anúncios já têm ADxxx no nome tem o gasto contado neles:
+            # dar o total dela a um código que só existe na UTM duplicava a verba
+            # (AD333 no PI-AGO-26 = a campanha quente principal inteira, R$ 143 mil,
+            # com 6 anúncios reais — 29/10/26). Aí o código fica só com as vendas,
+            # na seção "vendas sem veiculação".
+            ja_contadas = {_norm_text(c) for c in (getattr(google, "campanhas_com_ad_code", None) or set())}
             for camp in google_campanhas:
-                if _norm_text(getattr(camp, "nome", "")) in norm_camps:
+                nome_norm = _norm_text(getattr(camp, "nome", ""))
+                if nome_norm in norm_camps and nome_norm not in ja_contadas:
                     gasto += float(getattr(camp, "custo", 0.0) or 0.0)
                     leads += int(round(float(getattr(camp, "conversoes", 0.0) or 0.0)))
                     cliques += int(getattr(camp, "cliques", 0) or 0)

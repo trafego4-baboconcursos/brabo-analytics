@@ -163,6 +163,9 @@ class GoogleSummary:
     demografia_genero: list = field(default_factory=list)
     anuncios_por_ad: list = field(default_factory=list)
     preq_por_ad: list = field(default_factory=list)
+    # Campanhas com ao menos um anúncio com ADxxx no nome: o gasto delas já está
+    # nos anúncios e não pode ir para um código que só aparece na UTM.
+    campanhas_com_ad_code: set = field(default_factory=set)
     data_inicio: str = ""
     data_fim: str = ""
 

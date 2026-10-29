@@ -4098,3 +4098,12 @@ stale-while-revalidate e sem nenhum aquecimento que as chamasse, a Captação mo
   os templates usados pelo Unichat (sufixo `_copy_N`) somem da lista. Os números também são compartilhados entre
   lançamentos: em 15/10 o WABA `1067144278825913` (99402-6712) disparou a Matrícula da Black (BV-26) e entrou no PI-NOV-26.
   Mapa dos templates: `outputs/templates_whatsapp_20261029.csv`.
+
+### Criativo "rastreado por UTM" não herda mais o gasto de campanha com anúncios próprios (2026-10-29)
+
+`frontend/services/criativos.py`: código ADxxx que só existe na UTM de comprador recebia gasto/conversões da **campanha
+inteira** do Google citada no `utm_campaign`. No PI-AGO-26 o `AD333` (UTM colada à mão) virou uma linha de R$ 143.253,96 =
+`[GA][captação][quente][principal][PI-AGO-26][27.07.26]`, cujo gasto já estava nos 6 anúncios reais (verba contada duas
+vezes). Agora `GoogleSummary.campanhas_com_ad_code` (`frontend/db_readers/ads_google.py`) lista as campanhas com algum
+anúncio com ADxxx no nome, e essas não emprestam gasto; o código fica só com as vendas, na seção "vendas sem veiculação".
+Campanha sem nenhum ADxxx nos anúncios continua sendo casada pela UTM como antes. Diário: [[MUDANCAS_PI-AGO-26]] item 60.

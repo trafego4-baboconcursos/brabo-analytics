@@ -147,6 +147,10 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
     # nome embrulhado — normalizar antes do groupby une ao anúncio principal.
     df["ad_name"] = df["ad_name"].map(limpar_nome_ad)
     ad_grouped = df.groupby("ad_name").agg(**agg_cols).reset_index()
+    summary.campanhas_com_ad_code = {
+        str(camp) for nome, camp in df[["ad_name", "campaign_name"]].drop_duplicates().values
+        if extract_ad_code(nome, code)
+    }
 
     _ad_codes_vistos_antes = get_historico_ad_codes(code)
 

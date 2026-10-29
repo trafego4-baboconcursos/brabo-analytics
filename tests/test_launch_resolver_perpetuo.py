@@ -29,3 +29,16 @@ def test_compra_sem_codigo_e_perpetuo(nome, esperado):
 ])
 def test_nao_e_perpetuo(nome):
     assert resolve_perpetuo_or_distribuicao_code(nome) is None
+
+
+@pytest.mark.parametrize("nome, esperado", [
+    # expert + perfil no mesmo nome: vence o expert, que vem primeiro
+    ("[GA][video-view][distribuição][frio][felipe graton][brabo concursos][18.05.26]", "DISTRIBUICAO-FELIPE-GRATON"),
+    ("[GA][video-view][distribuição][quente][ivan neto][brabo concursos][23.10.2026]", "DISTRIBUICAO-IVAN-NETO"),
+    ("[MA][engajamento][distribuição][quente][felipe graton][25.08.26]", "DISTRIBUICAO-FELIPE-GRATON"),
+    ("[ma][tráfego][distribuição][frio][mateus andrade][15.05.26]", "DISTRIBUICAO-MATEUS-ANDRADE"),
+    ("[MA][engajamento][distribuição][frio][brabo concursos]", "DISTRIBUICAO-BRABO-CONCURSOS"),
+    ("[MA][engajamento][distribuição][frio][brabo editora][15.07.2026]", None),
+])
+def test_distribuicao_por_expert(nome, esperado):
+    assert resolve_perpetuo_or_distribuicao_code(nome) == esperado

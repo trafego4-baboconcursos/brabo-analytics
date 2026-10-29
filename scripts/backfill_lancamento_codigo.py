@@ -121,9 +121,9 @@ def main():
         return 0
 
     if reversao:
-        os.makedirs(os.path.join(RAIZ, "outputs"), exist_ok=True)
+        os.makedirs(os.path.join(RAIZ, "outputs", "backups"), exist_ok=True)
         carimbo = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        p = os.path.join(RAIZ, "outputs", "backfill_reversao_%s.csv" % carimbo)
+        p = os.path.join(RAIZ, "outputs", "backups", "backfill_reversao_%s.csv" % carimbo)
         with open(p, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
             w.writerow(["tabela", "campaign_name", "date", "codigo_antigo", "codigo_novo", "linhas"])

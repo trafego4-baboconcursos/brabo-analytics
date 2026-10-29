@@ -8,7 +8,7 @@ script tira a foto antes, pra dar pra restaurar.
 
     python scripts/backup_ads_periodo.py --since 2026-05-01 --until 2026-09-18
 
-Gera em outputs/: um CSV por tabela + um resumo por lançamento, que é o que se
+Gera em outputs/backups/: um CSV por tabela + um resumo por lançamento, que é o que se
 compara depois do backfill pra saber se algum lançamento perdeu gasto.
 """
 from __future__ import annotations
@@ -38,8 +38,8 @@ def main() -> int:
     args = ap.parse_args()
 
     carimbo = datetime.now().strftime("%Y%m%d_%H%M%S")
-    destino = Path("outputs")
-    destino.mkdir(exist_ok=True)
+    destino = Path("outputs/backups")
+    destino.mkdir(parents=True, exist_ok=True)
     engine = _get_engine()
 
     resumos = []

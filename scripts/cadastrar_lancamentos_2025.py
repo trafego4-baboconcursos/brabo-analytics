@@ -11,7 +11,7 @@ Uso:
     python scripts/cadastrar_lancamentos_2025.py --gravar   # grava (ignora os que já existem)
 
 Reversão: apagar as linhas de dim_lancamentos e launch_config desses códigos (o script grava a lista
-em outputs/backup_cadastro_lancamentos_2025_<data>.json).
+em outputs/backups/backup_cadastro_lancamentos_2025_<data>.json).
 """
 from __future__ import annotations
 
@@ -114,7 +114,8 @@ def main() -> int:
         criados.append(cod)
 
     if args.gravar:
-        out = ROOT / "outputs" / f"backup_cadastro_lancamentos_2025_{date.today():%Y%m%d}.json"
+        out = ROOT / "outputs" / "backups" / f"backup_cadastro_lancamentos_2025_{date.today():%Y%m%d}.json"
+        out.parent.mkdir(parents=True, exist_ok=True)
         out.write_text(json.dumps({"criados": criados}, indent=1), encoding="utf-8")
         print(f"\nGravados: {len(criados)}  (lista em {out.name})")
     else:

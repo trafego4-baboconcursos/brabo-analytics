@@ -105,3 +105,6 @@ docs/*
 
 # Arquivo morto local (backups de código, scratch, prints) — fora do git
 _arquivo/
+# Backups de banco e exports pontuais: têm e-mail/telefone de lead — nunca versionar
+outputs/backups/
+outputs/exports/

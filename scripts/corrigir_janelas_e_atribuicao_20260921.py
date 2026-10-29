@@ -78,8 +78,8 @@ TABELAS_ATRIBUICAO = [
 
 
 def _backup(df: pd.DataFrame, nome: str) -> Path:
-    destino = ROOT / "outputs" / f"backup_{nome}_{datetime.now():%Y%m%d_%H%M%S}.csv"
-    destino.parent.mkdir(exist_ok=True)
+    destino = ROOT / "outputs" / "backups" / f"backup_{nome}_{datetime.now():%Y%m%d_%H%M%S}.csv"
+    destino.parent.mkdir(parents=True, exist_ok=True)
     df.to_csv(destino, index=False, encoding="utf-8-sig")
     return destino
 

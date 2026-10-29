@@ -33,7 +33,7 @@ Uso:
     python scripts/migrar_classificacao_campanhas.py --dry-run   # mostra, não grava
     python scripts/migrar_classificacao_campanhas.py             # aplica
 
-O passo 2 grava um CSV de backup em `outputs/` antes de alterar qualquer nome.
+O passo 2 grava um CSV de backup em `outputs/backups/` antes de alterar qualquer nome.
 """
 from __future__ import annotations
 
@@ -173,8 +173,8 @@ def restaurar_nomes(conn, dry_run: bool) -> None:
             continue
 
         carimbo = datetime.now().strftime("%Y%m%d_%H%M%S")
-        destino = ROOT / "outputs" / f"backup_nomes_{tabela}_{carimbo}.csv"
-        destino.parent.mkdir(exist_ok=True)
+        destino = ROOT / "outputs" / "backups" / f"backup_nomes_{tabela}_{carimbo}.csv"
+        destino.parent.mkdir(parents=True, exist_ok=True)
         resumo.to_csv(destino, index=False, encoding="utf-8-sig")
         print(f"    backup: {destino}")
 

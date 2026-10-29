@@ -38,7 +38,8 @@ with _get_users_engine().connect() as u:
     for cod in CODIGOS:
         print(f"{cod:11s} pre_quali_start_date: {antes.get(cod)} -> {ini[cod]}")
     if args.gravar:
-        bak = ROOT / "outputs" / f"backup_pre_quali_start_2025_{date.today():%Y%m%d}.json"
+        bak = ROOT / "outputs" / "backups" / f"backup_pre_quali_start_2025_{date.today():%Y%m%d}.json"
+        bak.parent.mkdir(parents=True, exist_ok=True)
         bak.write_text(json.dumps({k: (str(v) if v else None) for k, v in antes.items()}, indent=1), encoding="utf-8")
         for cod in CODIGOS:
             u.execute(text("UPDATE launch_config SET pre_quali_start_date = :d, updated_at = NOW() WHERE lancamento_codigo = :c"), {"d": ini[cod], "c": cod})

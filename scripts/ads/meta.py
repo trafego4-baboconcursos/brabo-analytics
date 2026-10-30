@@ -227,6 +227,19 @@ class Meta:
             recebidos = r.get("num_received", recebidos)  # vem acumulado, não somar entre lotes
         return recebidos
 
+    def adicionar_membros(self, audience_id: str, pessoas: list[dict]) -> int:
+        """Acrescenta membros sem tirar ninguém (POST /users) — para lista que só cresce, como a de
+        cadastrados do lançamento. Mesmo formato e hash de `substituir_membros`. Retorna recebidos."""
+        linhas = [linha_hash(p) for p in pessoas]
+        recebidos = 0
+        for i in range(0, len(linhas), 10000):
+            r = self.post(f"{audience_id}/users",
+                          payload={"schema": ["EMAIL", "PHONE", "FN", "LN", "COUNTRY"], "data": linhas[i:i + 10000]})
+            if r.get("num_invalid_entries"):
+                raise RuntimeError(f"{audience_id}: {r['num_invalid_entries']} inválidos — {r.get('invalid_entry_samples')}")
+            recebidos += int(r.get("num_received", 0))
+        return recebidos
+
     # ------------------------------------------------------------------ criação
     def criar_criativo(self, conta: str, nome: str, expert: str, *, asset_feed_spec: dict | None = None,
                        object_story_spec: dict | None = None) -> str:

@@ -236,6 +236,29 @@ def rodar_congelamento_atribuicao() -> None:
     logger.info("Trava da atribuição concluída.\n%s", (r.stdout or "").strip()[-2000:])
 
 
+def rodar_listas_cadastrados() -> None:
+    """Atualiza no Meta e no Google a lista de cadastrados de cada lançamento em captação
+    (padroes.LISTAS_CADASTRADOS), a exclusão da regra SEG-4. Subprocesso pelo mesmo motivo da trava."""
+    logger.info("Listas de cadastrados: iniciando.")
+    try:
+        r = subprocess.run(
+            [sys.executable, "-m", "scripts.ads.listas_cadastrados", "--ativos"],
+            capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=1800,
+            cwd=str(BASE_DIR.parent),
+        )
+    except subprocess.TimeoutExpired:
+        logger.error("Listas de cadastrados: estourou 30 min e foi abortada.")
+        enviar_alerta_webhook("Listas de cadastrados (Meta/Google) estouraram o tempo (30 min).")
+        return
+    if r.returncode != 0:
+        logger.error("Listas de cadastrados falharam (exit %s): %s\n%s", r.returncode,
+                     (r.stdout or "")[-1500:], (r.stderr or "")[-1500:])
+        enviar_alerta_webhook("Listas de cadastrados (Meta/Google) falharam — a exclusão da SEG-4 parou de atualizar.",
+                              ((r.stdout or "") + (r.stderr or ""))[-1500:])
+        return
+    logger.info("Listas de cadastrados atualizadas.\n%s", (r.stdout or "").strip()[-2000:])
+
+
 _ALERTAS_CHAT: dict[str, float] = {}
 
 
@@ -353,6 +376,21 @@ def main() -> None:
         misfire_grace_time=3600,
         id="congelar_atribuicao",
         name="Trava da atribuição (diária, 4h10)",
+    )
+
+    # Lista de cadastrados do lançamento em captação (Meta + Google), 4h40 — a
+    # exclusão da regra SEG-4. O público de site sozinho pegava 5–11 mil de 37,7
+    # mil leads no PES-NOV-26 (MUDANCAS itens 107–108). Lançamentos e IDs em
+    # scripts/ads/padroes.py::LISTAS_CADASTRADOS, cada um até a data 'ate'.
+    scheduler.add_job(
+        rodar_listas_cadastrados,
+        trigger="cron",
+        hour=4,
+        minute=40,
+        coalesce=True,
+        misfire_grace_time=3600,
+        id="listas_cadastrados",
+        name="Listas de cadastrados Meta/Google (diária, 4h40)",
     )
 
     # Chat das aulas ao vivo, a cada minuto. Fora da janela do evento não faz

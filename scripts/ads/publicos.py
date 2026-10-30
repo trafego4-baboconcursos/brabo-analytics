@@ -138,40 +138,70 @@ def _listas_google(g, conta: str) -> dict[str, tuple[str, int]]:
     return cache[conta]
 
 
-def publicos_grupos_google(g, conta: str, campanha_id: str) -> list[dict]:
-    """Por grupo ativo: {nome, incluidos {id: nome}, excluidos {id: nome}, tamanhos {id: n}, tem_publico}.
-    Público agrupado: inclusão/exclusão dentro do Audience. Sem ele: user_list do grupo + negativos da campanha."""
+def _segmentos_google(g, conta: str) -> dict[str, str]:
+    """{resource_name: nome} dos segmentos personalizados e das categorias de interesse (afinidade/no mercado)."""
+    cache = g.__dict__.setdefault("_segmentos_cache", {})
+    if conta not in cache:
+        nomes = {r["customAudience"]["resourceName"]: f"Segmento personalizado: {r['customAudience']['name']}"
+                 for r in g.buscar(conta, "SELECT custom_audience.name FROM custom_audience")}
+        nomes |= {r["userInterest"]["resourceName"]: f"Interesse: {r['userInterest']['name']}"
+                  for r in g.buscar(conta, "SELECT user_interest.name FROM user_interest")}
+        cache[conta] = nomes
+    return cache[conta]
+
+
+def publicos_grupos_google(g, conta: str, campanha_id: str, *, todos: bool = False) -> list[dict]:
+    """Por grupo ativo (`todos=True`: também os pausados): {nome, status, incluidos {id: nome}, excluidos {id: nome},
+    tamanhos {id: n}, segmentos [nomes], tem_publico}. `segmentos` = segmentos personalizados e interesses incluídos,
+    que não entram na conferência da SEG-4 (só nas listas). Público agrupado: inclusão/exclusão dentro do Audience.
+    Sem ele: critérios do grupo + listas negativas da campanha."""
     listas = _listas_google(g, conta)
+    segs = _segmentos_google(g, conta)
     uid = lambda rn: rn.split("/")[-1]
-    grupos = {r["adGroup"]["id"]: {"nome": r["adGroup"]["name"], "incluidos": {}, "excluidos": {}, "tem_publico": False}
-              for r in g.buscar(conta, f"""SELECT ad_group.id, ad_group.name FROM ad_group
-                  WHERE campaign.id = {campanha_id} AND ad_group.status = 'ENABLED'""")}
+    filtro = "AND ad_group.status != 'REMOVED'" if todos else "AND ad_group.status = 'ENABLED'"
+    grupos = {r["adGroup"]["id"]: {"id": r["adGroup"]["id"], "nome": r["adGroup"]["name"],
+                                   "status": r["adGroup"]["status"], "incluidos": {},
+                                   "excluidos": {}, "segmentos": [], "tem_publico": False}
+              for r in g.buscar(conta, f"""SELECT ad_group.id, ad_group.name, ad_group.status FROM ad_group
+                  WHERE campaign.id = {campanha_id} {filtro}""")}
     neg_camp = {uid(r["campaignCriterion"]["userList"]["userList"]) for r in g.buscar(conta, f"""SELECT
         campaign_criterion.user_list.user_list FROM campaign_criterion WHERE campaign.id = {campanha_id}
         AND campaign_criterion.type = 'USER_LIST' AND campaign_criterion.negative = TRUE""")}
     auds = {}
     for r in g.buscar(conta, f"""SELECT ad_group.id, ad_group_criterion.type, ad_group_criterion.negative,
-            ad_group_criterion.audience.audience, ad_group_criterion.user_list.user_list FROM ad_group_criterion
-            WHERE campaign.id = {campanha_id} AND ad_group_criterion.type IN ('AUDIENCE', 'USER_LIST')"""):
+            ad_group_criterion.audience.audience, ad_group_criterion.user_list.user_list,
+            ad_group_criterion.custom_audience.custom_audience, ad_group_criterion.user_interest.user_interest_category
+            FROM ad_group_criterion WHERE campaign.id = {campanha_id}
+            AND ad_group_criterion.type IN ('AUDIENCE', 'USER_LIST', 'CUSTOM_AUDIENCE', 'USER_INTEREST')"""):
         gr = grupos.get(r["adGroup"]["id"])
         if not gr:
             continue
         c = r["adGroupCriterion"]
         if c["type"] == "AUDIENCE":
             auds[r["adGroup"]["id"]] = c["audience"]["audience"]
+        elif c["type"] in ("CUSTOM_AUDIENCE", "USER_INTEREST"):
+            if not c.get("negative"):
+                rn = (c.get("customAudience") or {}).get("customAudience") or \
+                     (c.get("userInterest") or {}).get("userInterestCategory")
+                gr["segmentos"].append(segs.get(rn, rn))
+                gr["tem_publico"] = True
         elif not auds.get(r["adGroup"]["id"]):   # user_list solto só vale sem público agrupado
             alvo = gr["excluidos"] if c.get("negative") else gr["incluidos"]
             alvo[uid(c["userList"]["userList"])] = None
             gr["tem_publico"] |= not c.get("negative")
     for gid, gr in grupos.items():
         if gid in auds:
-            gr["incluidos"], gr["excluidos"], gr["tem_publico"] = {}, {}, True
+            gr["incluidos"], gr["excluidos"], gr["segmentos"], gr["tem_publico"] = {}, {}, [], True
             a = g.buscar(conta, f"""SELECT audience.dimensions, audience.exclusion_dimension FROM audience
                 WHERE audience.resource_name = '{auds[gid]}'""")[0]["audience"]
             for d in a.get("dimensions", []):
                 for s in (d.get("audienceSegments") or {}).get("segments", []):
                     if "userList" in s:
                         gr["incluidos"][uid(s["userList"]["userList"])] = None
+                    elif "customAudience" in s or "userInterest" in s:
+                        rn = (s.get("customAudience") or {}).get("customAudience") or \
+                             (s.get("userInterest") or {}).get("userInterestCategory")
+                        gr["segmentos"].append(segs.get(rn, rn))
             for e in (a.get("exclusionDimension") or {}).get("exclusions", []):
                 if "userList" in e:
                     gr["excluidos"][uid(e["userList"]["userList"])] = None

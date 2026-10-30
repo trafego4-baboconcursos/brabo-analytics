@@ -91,8 +91,7 @@ GOOGLE_PARAMETROS = {"campanha": "campaignname", "grupo": "adgroupname", "anunci
 
 # --------------------------------------------------------------------------- Públicos (regra SEG-4)
 # Lista de TODOS os alunos de cada produto: todo conjunto (Meta) e todo grupo (Google) exclui, nenhum inclui.
-# Confirmadas e renomeadas pelo usuário em 30/10/26 ("[Lista] Alunos <produto> [<PREFIXO>-26]"). PES no Meta ainda
-# com o nome antigo "[M] Lista de Alunos Escrevente 26".
+# Confirmadas e renomeadas pelo usuário em 30/10/26 ("[Lista] Alunos <produto> [<PREFIXO>-26]"), Meta e Google.
 ALUNOS_POR_PRODUTO = {
     "PES": {"meta": "120216438983140754", "google": {"6482320788": "8954769606"}},   # [Lista] Alunos Escrevente [PES-26]
     "PI": {"meta": "120217644164250754", "google": {"6482320788": "8126156550"}},    # [Lista] Alunos INSS [PI-26] (Meta e Google)
@@ -102,6 +101,16 @@ ALUNOS_POR_PRODUTO = {
 MARCAS_PRODUTO = {"PES": ("TJ", "ESCREVENTE", "PES-"), "PI": ("INSS", "PI-"), "PBB": ("BB", "PBB-", "BANCO DO BRASIL")}
 # Abaixo disto a lista não entrega (Google recusa/ignora; no Meta o público "pequeno demais").
 PUBLICO_MINIMO = 500
+
+# Lista de cadastrados do lançamento atual, tirada da tabela `leads` (SEG-4: o público de site sozinho pega só uma fração).
+# `scripts/ads/listas_cadastrados.py` cria e atualiza; o scheduler roda `--ativos` todo dia até `ate`.
+# `google_criada`: o Google descarta a ingestão feita no mesmo dia da criação (VER-5), então o job pula esse dia.
+LISTAS_CADASTRADOS = {
+    "PES-NOV-26": {"meta": "120254358690640754", "google": ("6482320788", "9496550999"),
+                   "google_criada": "2026-10-30", "ate": "2026-11-09"},
+    "PI-NOV-26": {"meta": "120254358786580754", "google": ("6482320788", "9497751048"),
+                  "google_criada": "2026-10-30", "ate": "2026-11-16"},
+}
 
 # --------------------------------------------------------------------------- Nomes
 EXPERTS = ("mateus", "ivan", "felipe")

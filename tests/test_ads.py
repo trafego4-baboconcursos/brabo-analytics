@@ -300,3 +300,60 @@ def test_publico_regra_so_vale_para_captacao_e_pre_quali():
     assert not sujeito_a_regra("[ENGAJAMENTO] Lembrete [PI-JAN-26] - 05.01.26")
     lembrete = {"name": "00 - Cadastrados", "targeting": {"custom_audiences": [{"id": "C1", "name": CAD["C1"]}]}}
     assert conferir_adset_meta(lembrete, "[ENGAJAMENTO] Lembrete [PES-NOV-26]", {}) == []
+
+
+from scripts.ads.documento_publicos import documento_md, interesses_meta, linha_adset_meta, nomes_unicos  # noqa: E402
+
+
+def test_documento_publicos_nome_repetido_leva_id():
+    assert nomes_unicos({"1": "B", "2": "A", "3": "A"}) == ["A (2)", "A (3)", "B"]
+
+
+def test_documento_publicos_linha_meta_com_interesses():
+    adset = {"name": "00 - Interesses", "effective_status": "ACTIVE", "targeting": {
+        "custom_audiences": [],
+        "excluded_custom_audiences": [{"id": "9", "name": "[SITE] Cadastrados [PES-NOV-26] - 180D"}, {"id": "8"}],
+        "flexible_spec": [{"interests": [{"id": "1", "name": "Direito"}, {"id": "2", "name": "Tribunal"}]}],
+        "exclusions": {"interests": [{"id": "3", "name": "Medicina"}]}}}
+    ln = linha_adset_meta(adset, {"8": ("[Lista] Alunos Escrevente [PES-26]", 17900)})
+    assert ln["inclui"] == ["Interesse: Direito", "Interesse: Tribunal"]
+    assert ln["exclui"] == ["[Lista] Alunos Escrevente [PES-26]", "[SITE] Cadastrados [PES-NOV-26] - 180D",
+                            "Interesse: Medicina"]
+    assert interesses_meta({}) == ([], [])
+
+
+def test_documento_publicos_markdown():
+    import datetime as dt
+    camp = {"nome": "[MA][cadastro][captação][frio][principal][PES-NOV-26][26.10.26]", "id": "123", "status": "ACTIVE",
+            "linhas": [{"nome": "00 - A|B", "status": "ACTIVE", "inclui": [], "exclui": ["X", "Y"]}],
+            "problemas": ["00 - A|B: não exclui alunos do produto"], "sujeita": True}
+    md = documento_md("PES-NOV-26", [("Facebook (Meta)", [camp]), ("Google (YouTube)", [])],
+                      dt.datetime(2026, 10, 30, 13, 40), todas=False)
+    assert md.startswith("---\ntitulo: \"Públicos por campanha — PES-NOV-26\"")
+    assert "[[MUDANCAS_PES-NOV-26]]" in md
+    assert "| 00 - A\|B | — | X<br>Y |" in md
+    assert "**1 problema(s)**" in md and "- 00 - A|B: não exclui alunos do produto" in md
+    assert "## Google (YouTube)\n\nNenhuma campanha." in md
+
+
+import datetime as _dt  # noqa: E402
+
+from scripts.ads.listas_cadastrados import google_pode_ingerir, lancamentos_ativos, pessoas_unicas  # noqa: E402
+
+
+def test_listas_cadastrados_pessoas_unicas():
+    linhas = [("A@x.com ", "11999990000", "Ana", "Silva"), ("a@x.com", "11888880000", "Ana", "S"),
+              ("", "11777770000", "Sem", "Email"), ("b@x.com", None, None, None)]
+    p = pessoas_unicas(linhas)
+    assert [x["email"] for x in p] == ["a@x.com", "b@x.com"]
+    assert p[0]["phone"] == "11999990000" and p[1]["first_name"] == ""
+
+
+def test_listas_cadastrados_ativos_e_ver5():
+    mapa = {"PES-NOV-26": {"ate": "2026-11-09", "google_criada": "2026-10-30"},
+            "PI-NOV-26": {"ate": "2026-11-16", "google_criada": "2026-10-30"}}
+    assert lancamentos_ativos(mapa, _dt.date(2026, 11, 10)) == ["PI-NOV-26"]
+    assert lancamentos_ativos(mapa, _dt.date(2026, 11, 9)) == ["PES-NOV-26", "PI-NOV-26"]
+    assert not google_pode_ingerir(mapa["PES-NOV-26"], _dt.date(2026, 10, 30))
+    assert google_pode_ingerir(mapa["PES-NOV-26"], _dt.date(2026, 10, 31))
+    assert google_pode_ingerir({}, _dt.date(2026, 10, 30))

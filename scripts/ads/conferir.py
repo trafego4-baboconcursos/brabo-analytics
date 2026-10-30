@@ -5,7 +5,8 @@
 
 Confere, por campanha: no Meta, idade 25–55, advantage declarado, data de fim, Reels sem Feed, pixel no
 tracking_specs, UTM padrão em url_tags e link limpo; no Google, orçamento próprio, data de fim, tracking
-template, parâmetros personalizados nos 3 níveis e região no grupo (público agrupado). Não altera nada.
+template, parâmetros personalizados nos 3 níveis e região no grupo (público agrupado). Nos dois, o público de cada
+conjunto/grupo pela regra SEG-4 (scripts/ads/publicos.py). Não altera nada.
 """
 from __future__ import annotations
 
@@ -15,6 +16,7 @@ import sys
 from scripts.ads import padroes as P
 from scripts.ads.google import Google
 from scripts.ads.meta import Meta, expert_do_nome, problemas_adset, problemas_anuncios
+from scripts.ads.publicos import conferir_adset_meta, conferir_campanha_google, publicos_meta
 
 CONTAS_META = [P.META_CONTAS["ca2_anunciante"], P.META_CONTAS["felipe_nova"], P.META_CONTAS["ivan_pes"]]
 
@@ -28,13 +30,17 @@ def main() -> int:
 
     m = Meta()
     for conta in CONTAS_META:
+        pubs = None
         for c in m.campanhas(conta, a.lancamento):
             if a.so_ativas and c["effective_status"] != "ACTIVE":
                 continue
             expert = expert_do_nome(c["name"])
             probs = []
+            pubs = pubs if pubs is not None else publicos_meta(m, conta)
             for s in m.adsets(c["id"]):
                 probs += problemas_adset(s, c["name"])
+                if s.get("effective_status") == "ACTIVE" or not a.so_ativas:
+                    probs += conferir_adset_meta(s, c["name"], pubs)
             if expert:
                 probs += problemas_anuncios(m.anuncios(c["id"]), P.META_EXPERTS[expert]["pixel_id"])
             else:
@@ -49,7 +55,7 @@ def main() -> int:
         for c in g.campanhas(conta, a.lancamento):
             if a.so_ativas and c["status"] != "ENABLED":
                 continue
-            probs = g.conferir_campanha(conta, c["id"])
+            probs = g.conferir_campanha(conta, c["id"]) + conferir_campanha_google(g, conta, c)
             total += len(probs)
             aviso = " (VIDEO: ajuste só manual)" if c.get("advertisingChannelType") == "VIDEO" else ""
             print(f"[{'OK' if not probs else '!!'}] Google {c['name']}{aviso}")

@@ -89,6 +89,20 @@ LISTA_SITE_DURACAO = 540
 # Parâmetros personalizados que o tracking_url_template usa — precisam existir nos 3 níveis.
 GOOGLE_PARAMETROS = {"campanha": "campaignname", "grupo": "adgroupname", "anuncio": "adname"}
 
+# --------------------------------------------------------------------------- Públicos (regra SEG-4)
+# Lista de TODOS os alunos de cada produto: todo conjunto (Meta) e todo grupo (Google) exclui, nenhum inclui.
+# Confirmadas e renomeadas pelo usuário em 30/10/26 ("[Lista] Alunos <produto> [<PREFIXO>-26]"). PES no Meta ainda
+# com o nome antigo "[M] Lista de Alunos Escrevente 26".
+ALUNOS_POR_PRODUTO = {
+    "PES": {"meta": "120216438983140754", "google": {"6482320788": "8954769606"}},   # [Lista] Alunos Escrevente [PES-26]
+    "PI": {"meta": "120217644164250754", "google": {"6482320788": "8126156550"}},    # [Lista] Alunos INSS [PI-26] (Meta e Google)
+    "PBB": {"meta": "120245088195310549", "google": {"1450466453": "8938333218"}},   # [Lista] Alunos BB [PBB-26] (Meta e Google)
+}
+# Marcas no nome de um público que dizem de qual produto ele é (público de outro produto na inclusão = erro).
+MARCAS_PRODUTO = {"PES": ("TJ", "ESCREVENTE", "PES-"), "PI": ("INSS", "PI-"), "PBB": ("BB", "PBB-", "BANCO DO BRASIL")}
+# Abaixo disto a lista não entrega (Google recusa/ignora; no Meta o público "pequeno demais").
+PUBLICO_MINIMO = 500
+
 # --------------------------------------------------------------------------- Nomes
 EXPERTS = ("mateus", "ivan", "felipe")
 # Lançamento normal não leva tag de expert no nome (só as Blacks): o expert sai do prefixo do código.

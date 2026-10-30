@@ -230,3 +230,73 @@ def test_asset_feed_formato_engajamento():
     assert padrao["ad_formats"] == ["AUTOMATIC_FORMAT"]
     eng = asset_feed_por_posicionamento("video", "1", "2", "t", "https://x/", formato="SINGLE_VIDEO")
     assert eng["ad_formats"] == ["SINGLE_VIDEO"]
+
+
+# ---------------------------------------------------------------------------- públicos (SEG-4)
+from scripts.ads.publicos import de_outro_produto, lancamento_do_nome, problemas_publico, produto_do_nome  # noqa: E402
+
+ALUNO = "A1"
+CAD = {"C1": "[SITE] Cadastrados [PES-NOV-26] - 180D"}
+
+
+def _pp(inc=None, exc=None, frio=False, tam=None, aluno=ALUNO):
+    inc = inc or {}
+    return problemas_publico("g", frio=frio, incluidos=inc, excluidos=exc if exc is not None else {ALUNO: "alunos", **CAD},
+                             aluno_id=aluno, lancamento="PES-NOV-26", produto="PES",
+                             tamanhos=tam if tam is not None else {i: 10_000 for i in inc})
+
+
+def test_publico_produto_e_lancamento_do_nome():
+    assert produto_do_nome("[MA][cadastro][captação][frio][pós-edital][PES-NOV-26][26.10.26]") == "PES"
+    assert produto_do_nome("[GA][captação][PI-NOV-26]") == "PI"
+    assert lancamento_do_nome("[MA][cadastro][captação][frio][PES-NOV-26][26.10.26]") == "PES-NOV-26"
+    assert lancamento_do_nome("[MA][ivan][aquecimento][BV-26]") == "BV-26"
+
+
+def test_publico_grupo_certo_passa():
+    assert _pp(inc={"X": "[Lista] Cadastrados [PES-SET-26]"}) == []
+
+
+def test_publico_sem_exclusao_de_aluno_e_cadastrado():
+    p = _pp(exc={})
+    assert any("não exclui alunos" in x for x in p) and any("não exclui cadastrados do PES-NOV-26" in x for x in p)
+
+
+def test_publico_frio_com_quente_na_inclusao_caso_pes_nov_26():
+    # o 00 - Interesses do frio do PES-NOV-26: aluno e cadastrado do lançamento na INCLUSÃO, sem exclusão
+    p = _pp(inc={ALUNO: "[M] Lista de Alunos Escrevente 26", **CAD, "E": "[FB] - Envolvimento Todos - 60D"},
+            exc={}, frio=True)
+    assert any("INCLUI a lista de alunos" in x for x in p)
+    assert any("INCLUI cadastrados do próprio lançamento" in x for x in p)
+    assert any("frio com 3 público(s) próprio(s)" in x for x in p)
+
+
+def test_publico_frio_aceita_semelhante():
+    assert _pp(inc={"S": "Semelhante (1%) - [M] Lista de Alunos Escrevente 26"}, frio=True) == []
+
+
+def test_publico_lista_pequena_e_outro_produto():
+    p = _pp(inc={"L": "[M] Lista Leads Escrevente", "I": "Lista Todos Alunos INSS"}, tam={"L": 0, "I": 30_000})
+    assert any("< 500 dentro do público" in x and "Lista Leads Escrevente" in x for x in p)
+    assert any("NÃO ENTREGA" in x for x in _pp(inc={"L": "[M] Lista Leads Escrevente"}, tam={"L": 0}))
+    assert any("outro produto" in x and "INSS" in x for x in p)
+    assert de_outro_produto("[Lista] Grupo VIP TJSP PES-MAI-26 [BV-26]", "PES") is None
+    assert de_outro_produto("[YT] Envolvimento [TODOS] - 60D", "PES") is None   # "TODOS" não é "TJ"
+
+
+def test_publico_sem_lista_de_aluno_definida_avisa():
+    assert any("não definida" in x for x in _pp(aluno=None))
+
+
+def test_publico_excluir_semelhante_e_erro():
+    p = _pp(exc={ALUNO: "alunos", **CAD, "S": "Semelhante (BR, 1%) - [Lista] Alunos BB - 2026"})
+    assert any("semelhante não é exclusão" in x for x in p)
+
+
+def test_publico_regra_so_vale_para_captacao_e_pre_quali():
+    from scripts.ads.publicos import conferir_adset_meta, sujeito_a_regra
+    assert sujeito_a_regra("[MA][cadastro][captação][frio][PES-NOV-26]")
+    assert sujeito_a_regra("[GA][pré-qualificação][quente][PI-NOV-26]")
+    assert not sujeito_a_regra("[ENGAJAMENTO] Lembrete [PI-JAN-26] - 05.01.26")
+    lembrete = {"name": "00 - Cadastrados", "targeting": {"custom_audiences": [{"id": "C1", "name": CAD["C1"]}]}}
+    assert conferir_adset_meta(lembrete, "[ENGAJAMENTO] Lembrete [PES-NOV-26]", {}) == []

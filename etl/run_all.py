@@ -47,7 +47,7 @@ _TIMEOUT_PADRAO_SEGUNDOS = 900  # 15 min — folgado pra janela normal de 3 dias
 # todas as campanhas (24 min só no PI-AGO-26). Depois disso a coleta é
 # incremental e cai pra poucos minutos, mas os 900s padrão matariam a
 # primeira — e a fonte nunca terminaria uma vez sequer.
-_TIMEOUTS_POR_FONTE = {"active_campaign": 1800, "ac_engajamento": 3600}
+_TIMEOUTS_POR_FONTE = {"active_campaign": 1800, "ac_engajamento": 3600, "publicos": 1800}
 
 # Um traceback de erro HTTP carrega a URL COMPLETA da chamada que falhou — e
 # no Meta/Google o segredo vai na query string. Sem isso, o token vaza em
@@ -131,6 +131,9 @@ def run_api_mode(since: str, until: str, only: str | None):
         # do evento ao fim do carrinho. Fora disso não chama a API. O período
         # vem do wizard, não do --since/--until.
         "youtube":         [sys.executable, str(BASE / "etl_youtube_analytics.py"), "--ativos"],
+        # Públicos em uso (tamanho, status, quem inclui/exclui) dos lançamentos ativos, para /publicos.
+        # Não usa --since/--until; pula o lançamento coletado há menos de 6 h.
+        "publicos":        [sys.executable, str(BASE / "etl_publicos.py"), "--ativos"],
         # DESATIVADO 01/09/26: a mv_atribuicao_publicos depende das cópias de
         # hotmart/tmb do banco analytics, que estão desatualizadas (43 vendas
         # vs 2502 reais no PI-AGO-26). Reativar só depois de existir sync de

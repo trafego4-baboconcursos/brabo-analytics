@@ -5,6 +5,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.concurrency import run_in_threadpool
 
 from frontend.db_readers.lp_pagina import read_landing_pages, remover_oficial, salvar_oficial
+from frontend.db_readers.publicos import read_publicos
 from frontend.core import (
     templates, logger, get_launches, resolve_launch, _base_ctx,
     _fetch_all_data, _creative_overview, get_instagram_profiles,
@@ -206,6 +207,17 @@ async def google_audiences(request: Request, launch_code: str | None = None):
     ctx = _base_ctx(request, "google-audiences", "Google Audiências", launch, launches, google=google,
                     data_errors=d.get("_errors", []))
     return templates.TemplateResponse("google_audiences.html", ctx)
+
+@router.get("/publicos", response_class=HTMLResponse)
+async def publicos_page(request: Request, launch_code: str | None = None):
+    """Públicos em uso do lançamento (Meta + Google): tamanho, status, quem inclui/exclui e alertas (SEG-4).
+    Lê só o banco (`etl/etl_publicos.py` coleta das plataformas); sem coleta a página explica como gerar."""
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    view = await run_in_threadpool(read_publicos, launch.code) if launch else None
+    ctx = _base_ctx(request, "publicos", "Públicos", launch, launches, publicos=view)
+    return templates.TemplateResponse("publicos.html", ctx)
+
 
 @router.get("/analise-copys", response_class=HTMLResponse)
 async def analise_copys_page(request: Request, launch_code: str | None = None):

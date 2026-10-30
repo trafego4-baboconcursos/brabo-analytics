@@ -1423,3 +1423,60 @@ CREATE TABLE IF NOT EXISTS lead_utm_historico (
 CREATE INDEX IF NOT EXISTS idx_lead_utm_historico_lanc  ON lead_utm_historico (lancamento_codigo);
 
 CREATE INDEX IF NOT EXISTS idx_lead_utm_historico_email ON lead_utm_historico (email);
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Públicos rodando (etl/etl_publicos.py → página /publicos)
+--   publicos_snapshot       o público como a plataforma o vê agora (substituído a cada coleta)
+--   publicos_uso            quem usa o quê: lançamento → campanha → conjunto/grupo → público (inclui/exclui)
+--   publicos_tamanho_diario um tamanho por público por dia (a lista cresce ou está parada?)
+-- O ETL cria as três sozinho (CREATE IF NOT EXISTS), este bloco é a referência.
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS publicos_snapshot (
+    plataforma        TEXT        NOT NULL,            -- 'meta' | 'google'
+    conta             TEXT        NOT NULL DEFAULT '', -- Google: customer id; Meta: '' (o ID do público é único no Facebook)
+    publico_id        TEXT        NOT NULL,
+    nome              TEXT,
+    tipo              TEXT,                            -- Meta: subtype (CUSTOM/WEBSITE/ENGAGEMENT/LOOKALIKE/...); Google: type (CRM_BASED/RULE_BASED/...)
+    conta_dona        TEXT,                            -- Meta: account_id que é dona do público (pode ser outra, compartilhado)
+    tamanho_inferior  BIGINT,                          -- Meta: approximate_count_lower_bound (NULL = desconhecido)
+    tamanho_superior  BIGINT,                          -- Meta: approximate_count_upper_bound
+    tamanho_display   BIGINT,                          -- Google: size_for_display
+    tamanho_busca     BIGINT,                          -- Google: size_for_search
+    tamanho_efetivo   BIGINT,                          -- número único p/ alerta (Meta: inferior; Google: maior dos dois)
+    status            TEXT,                            -- Meta: delivery_status.code; Google: membership_status
+    status_detalhe    TEXT,                            -- Meta: operation_status; Google: elegibilidade display/search
+    elegivel          BOOLEAN,                         -- Google: eligible_for_display OU search
+    retencao_dias     INTEGER,                         -- Meta: retention_days; Google: membership_life_span
+    match_rate        NUMERIC(6,2),                    -- Google: match_rate_percentage de lista de cliente
+    atualizado_em     TIMESTAMPTZ,                     -- Meta: time_content_updated
+    coletado_em       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (plataforma, conta, publico_id)
+);
+
+CREATE TABLE IF NOT EXISTS publicos_uso (
+    lancamento_codigo TEXT        NOT NULL,
+    plataforma        TEXT        NOT NULL,
+    conta             TEXT        NOT NULL,            -- conta da campanha
+    campanha_id       TEXT        NOT NULL,
+    campanha_nome     TEXT,
+    campanha_status   TEXT,
+    grupo_id          TEXT        NOT NULL,            -- Meta: adset_id; Google: ad_group_id
+    grupo_nome        TEXT,
+    grupo_status      TEXT,
+    publico_id        TEXT        NOT NULL,
+    publico_nome      TEXT,
+    publico_tipo      TEXT,                            -- LISTA/SITE/ENGAJAMENTO/SEMELHANTE/INTERESSE/SEGMENTO/OUTRO
+    papel             TEXT        NOT NULL,            -- 'inclui' | 'exclui'
+    coletado_em       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (lancamento_codigo, plataforma, grupo_id, publico_id, papel)
+);
+CREATE INDEX IF NOT EXISTS idx_publicos_uso_publico ON publicos_uso (plataforma, publico_id);
+
+CREATE TABLE IF NOT EXISTS publicos_tamanho_diario (
+    plataforma  TEXT   NOT NULL,
+    conta       TEXT   NOT NULL DEFAULT '',
+    publico_id  TEXT   NOT NULL,
+    data        DATE   NOT NULL,
+    tamanho     BIGINT,
+    PRIMARY KEY (plataforma, conta, publico_id, data)
+);

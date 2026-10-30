@@ -2,7 +2,7 @@
 titulo: "Arquitetura do Brabo Analytics — 2026-10-15"
 area: sistema
 status: vigente
-atualizado: 2026-10-29
+atualizado: 2026-10-30
 responde:
   - "como o sistema funciona por dentro"
   - "onde fica o encurtador de links (substituto do bitly)"
@@ -45,7 +45,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 101 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 103 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Ano global do sistema (2026-10-22)**
@@ -289,6 +289,7 @@ relacionados:
 > - [[ARQUITETURA#As páginas passaram a ler o ESTADO, não a `leads` (08/10/26)|As páginas passaram a ler o ESTADO, não a `leads` (08/10/26)]]
 > - [[ARQUITETURA#Trigger do histórico de UTM (`etl/historico_utm_trigger.py`) — INSTALADO em 08/10/26|Trigger do histórico de UTM (`etl/historico_utm_trigger.py`) — INSTALADO em 08/10/26]]
 > - [[ARQUITETURA#Trava da atribuição (`atribuicao_congelada`)|Trava da atribuição (`atribuicao_congelada`)]]
+> - [[ARQUITETURA#Lista de cadastrados do lançamento (Meta + Google, job diário)|Lista de cadastrados do lançamento (Meta + Google, job diário)]]
 > - [[ARQUITETURA#Apelidos de armazenamento (`APELIDOS_ARMAZENAMENTO`)|Apelidos de armazenamento (`APELIDOS_ARMAZENAMENTO`)]]
 >
 > **"Conversões" da landing page contavam disparo de evento, não pessoa (2026-09-18)**
@@ -379,6 +380,7 @@ relacionados:
 > - [[ARQUITETURA#Card "% com anúncio identificado" da Captação e o cache que deixava o número velho (2026-10-29)|Card "% com anúncio identificado" da Captação e o cache que deixava o número velho (2026-10-29)]]
 > - [[ARQUITETURA#WhatsApp por etapa na Captação + comparativo antes da captação (2026-10-29)|WhatsApp por etapa na Captação + comparativo antes da captação (2026-10-29)]]
 > - [[ARQUITETURA#Criativo "rastreado por UTM" não herda mais o gasto de campanha com anúncios próprios (2026-10-29)|Criativo "rastreado por UTM" não herda mais o gasto de campanha com anúncios próprios (2026-10-29)]]
+> - [[ARQUITETURA#Página `/publicos`: públicos em uso por lançamento (2026-10-30)|Página `/publicos`: públicos em uso por lançamento (2026-10-30)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -3148,6 +3150,25 @@ O que já tinha sido perdido antes da trava foi remontado por
 qualquer "does not exist" fez a trava devolver vazio quando uma coluna nova ainda não existia
 (pego no mesmo dia em que foi escrito).
 
+### Lista de cadastrados do lançamento (Meta + Google, job diário)
+
+A regra SEG-4 manda excluir o cadastrado do lançamento atual em todo grupo de captação e pré-quali. O público de site
+`[SITE] Cadastrados [<LANC>]` sozinho não serve: só entra quem o pixel/tag registrou na página de obrigado e a
+plataforma identificou. No PES-NOV-26 eram 5–11 mil de 37,7 mil leads (MUDANCAS itens 107–108). Desde 30/10/26 cada
+lançamento em captação tem também uma lista de clientes tirada da tabela `leads`:
+Meta `[Lista] Cadastrados [<LANC>]`, na conta de públicos da CA2, compartilhada com as contas de campanha; Google
+`[LISTA] Cadastrados [<LANC>] - 540 dias`, pela Data Manager.
+
+`scripts/ads/listas_cadastrados.py` cria (`--criar`) e atualiza. `etl/scheduler.py` roda `--ativos` **todo dia às
+4h40** (job `listas_cadastrados`, subprocesso, timeout 30 min, alerta no webhook se falhar). Os lançamentos e IDs ficam em
+`scripts/ads/padroes.py::LISTAS_CADASTRADOS`, cada um até a data `ate`.
+**As duas listas só crescem** (Meta `POST /users`; a Data Manager só acrescenta). A `leads` tem uma linha por contato, então
+quem se cadastra no lançamento seguinte some da consulta; substituir tiraria essa pessoa da exclusão.
+O Google descarta a ingestão feita no mesmo dia da criação (VER-5), por isso o job pula o Google no dia
+`google_criada`. O Meta recusa atualização enquanto a carga anterior ainda processa (erro 2650/1870145): nesse caso o job
+falha e alerta. Depende de `google-ads-datamanager` (no `requirements.txt` desde 30/10/26) e de o
+`GOOGLE_ADS_REFRESH_TOKEN` do servidor ter o escopo `datamanager`.
+
 ### Apelidos de armazenamento (`APELIDOS_ARMAZENAMENTO`)
 
 Quando o dado de um lançamento foi gravado sob um nome que **não** é o código do
@@ -4127,3 +4148,38 @@ inteira** do Google citada no `utm_campaign`. No PI-AGO-26 o `AD333` (UTM colada
 vezes). Agora `GoogleSummary.campanhas_com_ad_code` (`frontend/db_readers/ads_google.py`) lista as campanhas com algum
 anúncio com ADxxx no nome, e essas não emprestam gasto; o código fica só com as vendas, na seção "vendas sem veiculação".
 Campanha sem nenhum ADxxx nos anúncios continua sendo casada pela UTM como antes. Diário: [[MUDANCAS_PI-AGO-26]] item 60.
+### Página `/publicos`: públicos em uso por lançamento (2026-10-30)
+
+Mostra, por lançamento, **quais públicos cada conjunto (Facebook/Meta) e cada grupo (Google) inclui e exclui**, o tamanho
+e a saúde de cada um, e os alertas da regra SEG-4. Fica no grupo "Leads & Audiências" (e em "Audiências" para o perfil
+tráfego), ao lado de Meta/Google Audiências, com a mesma permissão (`_MEDIA`). Plano de origem:
+[[PLANO_ABA_PUBLICOS_RODANDO]].
+
+**Fluxo:** `scripts/ads` (leitura das APIs, a mesma da conferência SEG-4) → `etl/etl_publicos.py` → 3 tabelas no banco
+analytics → `frontend/db_readers/publicos.py` → `frontend/routes/media.py::publicos_page` → `publicos.html`. A rota não
+chama Meta nem Google.
+
+- **Tabelas** (criadas pelo próprio ETL com `CREATE IF NOT EXISTS`; referência em `etl/schema.sql`):
+  `publicos_snapshot` (o público como a plataforma o vê: tipo, tamanhos, status, retenção, atualização),
+  `publicos_uso` (lançamento → campanha → conjunto/grupo → público, papel `inclui`/`exclui`; o papel `nenhum` marca o
+  conjunto/grupo sem nenhum público, que senão sumiria da tela) e `publicos_tamanho_diario` (um tamanho por público por dia).
+  O uso de um lançamento é **trocado inteiro** a cada coleta, numa transação, e só depois de a plataforma ter respondido
+  por inteiro: falha de API não apaga o que já estava gravado. Meta e Google falham de forma independente.
+- **ETL:** fonte `publicos` do `run_all.py`, no ciclo lento do scheduler. Lançamentos ativos = `dim_lancamentos` de 14 dias
+  antes do início a 3 dias depois do fim (a pré-quali e a captação são criadas antes de o lançamento começar). Pula o
+  lançamento coletado há menos de 6 h (`--forcar` ignora). `--launch X --dry-run` lê e relata sem gravar. Dura ~2,5 min por
+  lançamento, quase tudo na leitura dos grupos do Google.
+- **Alertas calculados no reader, não no ETL:** uma mudança de regra vale sem recoletar. Violações da SEG-4 vêm de
+  `scripts.ads.publicos.problemas_publico` (o frontend importa as funções puras de `scripts/`, que vão na imagem do
+  Docker); tamanho, lista vazia/inelegível/fechada, lista velha (> 30 dias, só o Meta informa a data), público de outro
+  lançamento e nome repetido saem do snapshot.
+- **Limites que a tela explica:** (1) o Meta **nunca informa tamanho abaixo de 1.000** (o menor valor devolvido é 1000, mostrado
+  "≤ 1.000"); por isso o alerta "< 500 pessoas" só é confiável no Google, e no Meta o sinal é o `delivery_status`. (2)
+  Segmento personalizado e interesse não têm tamanho na API. (3) O gasto de um conjunto não se divide por público: a coluna do
+  público é o gasto **dos conjuntos que o incluem**, e não soma.
+- **Primeira coleta (PES-NOV-26):** 92 públicos, 118 conjuntos/grupos; reproduz os achados já conhecidos (2 grupos do
+  Google que não entregam por lista vazia, 3 listas < 500 dentro de público combinado, pré-quali do Google sem exclusão de
+  aluno; Facebook limpo).
+- **Não feito ainda:** CPA por conjunto/grupo (hoje gasto, leads e CPL; o CPA exige a atribuição de vendas por conjunto).
+- Testes: `tests/test_etl_publicos.py` (normalização e usos), `tests/test_publicos_reader.py` (alertas e visão),
+  `/publicos` no `tests/test_frontend_smoke.py`.

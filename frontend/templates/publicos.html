@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block content %}
+{% set TEMPS = [('quente','Quente'),('frio','Frio'),('especifico','Específico'),('outra','Outra')] %}
+{% set ETAPAS = [('captacao','Captação'),('pre_quali','Pré-quali'),('outra','Outra')] %}
+{% macro pill(nivel, texto) -%}
+<span class="bs-pill {{ {'critico':'danger','atencao':'warning','info':'info'}.get(nivel,'success') }}" title="{{ texto }}">{{ texto }}</span>
+{%- endmacro %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}"><img src="/assets/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1><i class="ti ti-target-arrow"></i> Públicos{% if launch %} &mdash; {{ launch.code }}{% endif %}</h1>
+      <p>Quem cada conjunto/grupo inclui e exclui, tamanho e saúde das listas | Facebook (Meta) e Google (YouTube)</p>
+    </div>
+  </div>
+  <div class="content">
+    {% if not publicos %}
+    <div class="no-data">
+      <i class="ti ti-target-arrow"></i>
+      <h3>Sem coleta de públicos para este lançamento</h3>
+      <p>O ETL roda sozinho no ciclo lento (a cada ~6 h) para lançamentos ativos. Para gerar agora:
+         <code>python etl/etl_publicos.py --launch {{ active_code or 'CÓDIGO' }}</code></p>
+    </div>
+    {% else %}
+
+    {% set n_crit = publicos.atencao | selectattr('nivel','equalto','critico') | list | length %}
+    {% set n_aten = publicos.atencao | selectattr('nivel','equalto','atencao') | list | length %}
+    <div class="section">
+      <div class="section-title"><i class="ti ti-chart-bar"></i> Visão Geral</div>
+      <div class="tp-kpi-grid">
+        <div class="tp-kpi"><div class="tp-value">{{ publicos.publicos | length }}</div><div class="tp-label">Públicos em uso</div>
+          <div class="tp-compare">{{ publicos.publicos | selectattr('plataforma','equalto','meta') | list | length }} Facebook · {{ publicos.publicos | selectattr('plataforma','equalto','google') | list | length }} Google</div></div>
+        <div class="tp-kpi"><div class="tp-value">{{ publicos.grupos | length }}</div><div class="tp-label">Conjuntos / grupos</div>
+          <div class="tp-compare">{{ publicos.grupos | selectattr('rodando') | list | length }} rodando</div></div>
+        <div class="tp-kpi"><div class="tp-value">{{ n_crit }}</div><div class="tp-label">Alertas críticos</div><div class="tp-compare">não entrega / lista vazia</div></div>
+        <div class="tp-kpi"><div class="tp-value">{{ n_aten }}</div><div class="tp-label">Atenção</div><div class="tp-compare">dados de {{ publicos.coletado_br }}</div></div>
+      </div>
+    </div>
+
+    {% if publicos.atencao %}
+    <div class="section" id="atencao">
+      <div class="section-title"><i class="ti ti-alert-triangle"></i> Precisa de atenção</div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Nível</th><th>Onde</th><th>O que</th></tr></thead>
+        <tbody>
+        {% for a in publicos.atencao %}
+          <tr><td>{{ pill(a.nivel, 'Crítico' if a.nivel == 'critico' else 'Atenção') }}</td><td>{{ a.onde }}</td><td>{{ a.texto }}</td></tr>
+        {% endfor %}
+        </tbody></table></div>
+    </div>
+    {% endif %}
+
+    <div class="section">
+      <div class="section-title"><i class="ti ti-filter"></i> Filtros</div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+        <label>Plataforma
+          <select id="f-plat"><option value="">Todas</option><option value="meta">Facebook (Meta)</option><option value="google">Google</option></select></label>
+        <label>Temperatura
+          <select id="f-temp"><option value="">Todas</option>{% for k, l in TEMPS %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select></label>
+        <label>Etapa
+          <select id="f-etapa"><option value="">Todas</option>{% for k, l in ETAPAS %}<option value="{{ k }}">{{ l }}</option>{% endfor %}</select></label>
+        <label><input type="checkbox" id="f-alerta"> Só com alerta</label>
+        <label><input type="checkbox" id="f-pausados"> Incluir pausados</label>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title"><i class="ti ti-users"></i> Públicos em uso</div>
+      <p class="tp-compare">Gasto e leads são dos conjuntos que <strong>incluem</strong> o público; um conjunto com vários públicos aparece em cada um, então esta coluna não soma. No Facebook (Meta) o tamanho nunca aparece abaixo de 1.000.</p>
+      <div class="table-wrap"><table id="t-publicos">
+        <thead><tr><th>Público</th><th>Plataforma</th><th>Tipo</th><th>Tamanho</th><th>Status</th><th>Retenção</th><th>Atualizado</th>
+          <th>Inclui</th><th>Exclui</th><th>Gasto 3d</th><th>CPL 3d</th><th>Gasto total</th><th>CPL</th><th>Alertas</th></tr></thead>
+        <tbody>
+        {% for p in publicos.publicos %}
+          <tr data-plat="{{ p.plataforma }}" data-temp="{{ p.temperaturas | join(' ') }}" data-etapa="{{ p.etapas | join(' ') }}" data-alerta="{{ 1 if p.alertas else 0 }}">
+            <td><strong>{{ p.nome }}</strong><br><small>{{ p.id }}</small></td>
+            <td>{{ 'Facebook' if p.plataforma == 'meta' else 'Google' }}</td>
+            <td>{{ p.tipo }}{% if p.tipo_origem %}<br><small>{{ p.tipo_origem }}</small>{% endif %}</td>
+            <td>{{ p.tamanho_label }}{% if p.delta_7d is not none %}<br><small>{{ '%+d' % p.delta_7d }} em 7d</small>{% endif %}</td>
+            <td>{{ p.status or '—' }}{% if p.status_detalhe %}<br><small>{{ p.status_detalhe }}</small>{% endif %}</td>
+            <td>{{ (p.retencao_dias ~ ' d') if p.retencao_dias else '—' }}</td>
+            <td>{{ p.atualizado_em.strftime('%d/%m/%Y') if p.atualizado_em else '—' }}</td>
+            <td>{{ p.n_inclui }}</td><td>{{ p.n_exclui }}</td>
+            <td>{{ p.desempenho.gasto_3d | brl }}</td><td>{{ p.desempenho.cpl_3d | brl if p.desempenho.cpl_3d else '—' }}</td>
+            <td>{{ p.desempenho.gasto | brl }}</td><td>{{ p.desempenho.cpl | brl if p.desempenho.cpl else '—' }}</td>
+            <td>{% for a in p.alertas %}{{ pill(a.nivel, a.texto) }} {% endfor %}</td>
+          </tr>
+        {% endfor %}
+        </tbody></table></div>
+    </div>
+
+    <div class="section">
+      <div class="section-title"><i class="ti ti-sitemap"></i> Por campanha e conjunto/grupo</div>
+      {% for camp_nome, itens in publicos.grupos | groupby('campanha_nome') %}
+      {% set g0 = itens[0] %}
+      {% set com_problema = itens | selectattr('problemas') | list %}
+      <details class="grp" data-plat="{{ g0.plataforma }}" data-temp="{{ g0.temperatura }}" data-etapa="{{ g0.etapa }}" data-rodando="{{ 1 if g0.campanha_status in ('ACTIVE','ENABLED') else 0 }}" data-alerta="{{ 1 if com_problema else 0 }}">
+        <summary><strong>{{ camp_nome }}</strong> <small>({{ 'Facebook' if g0.plataforma == 'meta' else 'Google' }} · ID {{ g0.campanha_id }} · {{ g0.campanha_status }})</small>
+          {% if com_problema %}{{ pill('atencao', (com_problema | length) ~ ' com problema') }}{% endif %}</summary>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Conjunto / grupo</th><th>Inclui</th><th>Exclui</th><th>Gasto 3d</th><th>Gasto total</th><th>Problemas</th></tr></thead>
+          <tbody>
+          {% for g in itens %}
+            <tr>
+              <td>{{ g.grupo_nome }}<br><small>{{ g.grupo_id }} · {{ g.grupo_status }}</small></td>
+              <td>{% for r in g.inclui %}{{ r.nome }} <small>({{ r.tamanho_label }})</small><br>{% else %}—{% endfor %}</td>
+              <td>{% for r in g.exclui %}{{ r.nome }} <small>({{ r.tamanho_label }})</small><br>{% else %}—{% endfor %}</td>
+              <td>{{ g.desempenho.gasto_3d | brl }}</td><td>{{ g.desempenho.gasto | brl }}</td>
+              <td>{% for t in g.problemas %}{{ pill('atencao', t.split(': ', 1)[-1]) }}<br>{% endfor %}</td>
+            </tr>
+          {% endfor %}
+          </tbody></table></div>
+      </details>
+      {% endfor %}
+    </div>
+
+    <script>
+    (function () {
+      var $ = function (id) { return document.getElementById(id); };
+      function aplicar() {
+        var plat = $('f-plat').value, temp = $('f-temp').value, etapa = $('f-etapa').value;
+        var soAlerta = $('f-alerta').checked, pausados = $('f-pausados').checked;
+        document.querySelectorAll('#t-publicos tbody tr, details.grp').forEach(function (el) {
+          var ok = (!plat || el.dataset.plat === plat)
+            && (!temp || (' ' + el.dataset.temp + ' ').indexOf(' ' + temp + ' ') > -1)
+            && (!etapa || (' ' + el.dataset.etapa + ' ').indexOf(' ' + etapa + ' ') > -1)
+            && (!soAlerta || el.dataset.alerta === '1')
+            && (pausados || el.dataset.rodando !== '0');
+          el.style.display = ok ? '' : 'none';
+        });
+      }
+      ['f-plat', 'f-temp', 'f-etapa', 'f-alerta', 'f-pausados'].forEach(function (id) { $(id).addEventListener('change', aplicar); });
+      aplicar();
+    })();
+    </script>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

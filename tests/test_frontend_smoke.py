@@ -60,6 +60,7 @@ PAGINAS = [
     "/crm-campanhas",
     "/meta-audiences",
     "/google-audiences",
+    "/publicos?launch_code=PES-NOV-26",  # lê publicos_*; sem coleta mostra o aviso, não quebra
     "/pesquisas",
     "/typeform",  # link legado — redireciona pra /pesquisas
     "/vendas",

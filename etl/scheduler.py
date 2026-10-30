@@ -54,7 +54,7 @@ INTERVALO_MINUTOS = 30
 FONTES_RAPIDAS = "meta_ads,google_ads,ga4,sheets_contagem"
 # `youtube` só chama a API do início do evento ao fim do carrinho; fora disso
 # é uma consulta ao launch_config e sai.
-FONTES_LENTAS = "active_campaign,instagram,ac_ebook,ac_engajamento,whatsapp,ac_campaigns,youtube"
+FONTES_LENTAS = "active_campaign,instagram,ac_ebook,ac_engajamento,whatsapp,ac_campaigns,youtube,publicos"
 INTERVALO_LENTAS_MINUTOS = 60
 
 load_dotenv(dotenv_path=BASE_DIR.parent / ".env")

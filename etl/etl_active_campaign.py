@@ -15,6 +15,7 @@ import sys
 import argparse
 import re
 import pandas as pd
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 import logging
@@ -93,6 +94,8 @@ UTM_FIELD_IDS = {
 }
 
 TABLE = "leads"
+_PAGINA = 100     # máximo que a API do AC devolve por chamada em /contacts
+_PARALELO = 5     # páginas em voo ao mesmo tempo (ver load_from_api)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -277,11 +280,12 @@ def load_from_api(since: str, until: str) -> pd.DataFrame:
     # igual pro histórico.
     tags_por_id: dict[str, str] = {}
     lanc_por_contato: dict[tuple[str, str], str] = {}
-    contacts, offset = [], 0
-    while True:
-        data = _ac_get(
+    contacts: list = []
+
+    def _pagina(offset: int) -> dict:
+        return _ac_get(
             "contacts",
-            limit=100,
+            limit=_PAGINA,
             offset=offset,
             # contactTags.tag vem de carona na mesma paginação: pedir as tags
             # por /contacts?tagid=N seria uma varredura separada de centenas de
@@ -292,10 +296,11 @@ def load_from_api(since: str, until: str) -> pd.DataFrame:
                 "filters[updated_before]": f"{until}T23:59:59",
             },
         )
-        batch = data.get("contacts", [])
-        if not batch:
-            break
-        contacts.extend(batch)
+
+    def _absorver(data: dict) -> None:
+        # Sempre no thread principal, na ordem das páginas: os dicts não são
+        # protegidos por lock e a ordem decide quem ganha em chave repetida.
+        contacts.extend(data.get("contacts", []))
         for fv in data.get("fieldValues", []):
             cid  = fv.get("contact")
             fid  = str(fv.get("field"))
@@ -312,10 +317,26 @@ def load_from_api(since: str, until: str) -> pd.DataFrame:
             cid = ct.get("contact")
             if code and cid:
                 lanc_por_contato[(str(cid), code)] = ct.get("cdate")
-        total = int(data.get("meta", {}).get("total", 0))
-        offset += len(batch)
-        if offset >= total:
-            break
+
+    # Paginação em paralelo. Numa captação a janela de 3 dias passa de 150 mil
+    # contatos (03/11/26: 159 mil "updated" num dia só, porque toda campanha
+    # enviada atualiza o contato), e a API responde cada página em 1-2 s:
+    # sequencial dava 50 min, acima do timeout do ciclo. O total vem no `meta`
+    # da primeira página; as demais são pedidas por offset em _PARALELO threads,
+    # bem abaixo do rate limit da conta (500 req/min). Offset sobre uma lista
+    # que muda durante a leitura pode repetir ou pular contato nas bordas das
+    # páginas — repetição o upsert resolve (drop_duplicates + ON CONFLICT), e o
+    # que escapar entra na rodada seguinte, igual já era na leitura sequencial.
+    primeira = _pagina(0)
+    _absorver(primeira)
+    total = int(primeira.get("meta", {}).get("total", 0))
+    offsets = list(range(_PAGINA, total, _PAGINA))
+    if offsets:
+        with ThreadPoolExecutor(max_workers=_PARALELO) as pool:
+            for data in pool.map(_pagina, offsets):
+                _absorver(data)
+    logger.info("Paginação concluída: %d contatos em %d páginas (total informado pela API: %d).",
+                len(contacts), 1 + len(offsets), total)
 
     _upsert_lead_lancamentos(lanc_por_contato)
 

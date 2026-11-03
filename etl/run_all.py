@@ -47,7 +47,11 @@ _TIMEOUT_PADRAO_SEGUNDOS = 900  # 15 min — folgado pra janela normal de 3 dias
 # todas as campanhas (24 min só no PI-AGO-26). Depois disso a coleta é
 # incremental e cai pra poucos minutos, mas os 900s padrão matariam a
 # primeira — e a fonte nunca terminaria uma vez sequer.
-_TIMEOUTS_POR_FONTE = {"active_campaign": 1800, "ac_engajamento": 3600, "publicos": 1800}
+# 03/11/26: numa captação a janela chega a 150 mil+ contatos (toda campanha
+# enviada "atualiza" o contato). Com paginação em paralelo e escrita em lote
+# cabe em ~15 min; os 2700 s são folga pra API lenta sem travar o ciclo lento
+# (de hora em hora) por muito tempo.
+_TIMEOUTS_POR_FONTE = {"active_campaign": 2700, "ac_engajamento": 3600, "publicos": 1800}
 
 # Um traceback de erro HTTP carrega a URL COMPLETA da chamada que falhou — e
 # no Meta/Google o segredo vai na query string. Sem isso, o token vaza em

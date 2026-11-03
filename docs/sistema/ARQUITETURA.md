@@ -4230,6 +4230,23 @@ gravados). Antes, só a escrita passava de 1 h. As duas linhas `running` de 14:0
 `etl_runs` são processos interrompidos pelo próprio redeploy e ficam assim para sempre (o
 `finish_run` nunca roda); não indicam problema.
 
+**Segunda rodada do mesmo dia, 15h: o volume dobrou e a paginação virou o gargalo.** Às 15:40 a
+janela de 3 dias tinha **167 mil** contatos (159 mil só de 03/11, contra 25 mil às 14h). Rastreando
+150 contatos atualizados nas últimas 3 h: 124 receberam e-mail das automações `Fluxo Email PI-NOV-26`
+(campanha 4726, 59 mil envios) e `Fluxo Email PES-NOV-26` (4710, 62 mil), e a campanha 4313 "Do zero
+à sua aprovação no concurso do INSS" (automação 345) acumula 283 mil envios. **Todo e-mail enviado por
+automação atualiza o `udate` do contato**, então durante uma captação a janela é do tamanho da base
+que recebe e-mail por dia, não dos leads novos. A API respondia cada página em 1,7 a 1,9 s: 1.675
+páginas em sequência dariam ~50 min; a rodada das 14:33 estourou de novo e a das 15:20 ia estourar.
+
+Mudança: `load_from_api` lê a primeira página, pega o `total` do `meta` e pede as demais por offset em
+**5 threads** (`_PARALELO`), absorvendo os resultados no thread principal na ordem das páginas (os
+dicts não têm lock e a ordem decide quem ganha em chave repetida). Medido em 60 páginas reais:
+**4,6 páginas/s contra 0,55 sequencial**, ou ~6 min pra 1.675 páginas, com ~170 req/min dos 500 que a
+conta permite. Offset sobre lista que muda durante a leitura pode repetir ou pular contato na borda da
+página: repetição o upsert absorve; o que escapar entra na rodada seguinte, como já era. O timeout do
+`active_campaign` em `run_all.py` subiu de 1800 para 2700 s como folga pra API lenta.
+
 **Pendências vistas no caminho:** `etl_runs.rows_upserted` nunca é preenchido pro `active_campaign`
 (0 em 191 rodadas); `queryServiceLogs` do EasyPanel antigo responde HTTP 400 (Loki desligado), então
 o log do scheduler só pela tela do painel. Enquanto a janela de 3 dias contiver 02/11 (até 05/11) o

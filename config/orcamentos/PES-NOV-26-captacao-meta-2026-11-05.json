@@ -1,6 +1,6 @@
 {
   "lancamento": "PES-NOV-26",
-  "descricao": "Captação Meta + Google — verba do dia 05/11 pela curva do plano de mídia do Murilo (aba Diário Captação). Quente principal e pos-edital do YouTube (originais e copias #2 do Murilo) fixadas nos valores que o Murilo deixou em 02/11 23h.",
+  "descricao": "Captação Meta + Google — verba do dia 05/11 pela curva do plano de mídia do Murilo (aba Diário Captação). Quente principal e pos-edital do YouTube (originais e copias #2 do Murilo) fixadas nos valores que o Murilo deixou em 02/11 23h. Plano do Murilo de 03/11 (PDF 'Ajustes no YouTube'): originais do quente principal e pos-edital pausadas e fora do plano; Google fixo em R$ 13.900/dia.",
   "aplicar_em": "2026-11-05",
   "campanhas": [
     {
@@ -75,72 +75,58 @@
     },
     {
       "plataforma": "google",
-      "id": "24395760404",
-      "nome": "[GA][cadastro][captação][quente][pós-edital][PES-NOV-26][26.10.26]",
-      "valor": 2874.67,
-      "conta": "6482320788"
-    },
-    {
-      "plataforma": "google",
-      "id": "24401397559",
-      "nome": "[GA][cadastro][captação][quente][principal][PES-NOV-26][26.10.26]",
-      "valor": 2691.03,
-      "conta": "6482320788"
-    },
-    {
-      "plataforma": "google",
       "id": "24401397316",
       "nome": "[GA][cadastro][captação][quente][shorts][PES-NOV-26][26.10.26]",
-      "valor": 637.38,
+      "valor": 1600.0,
       "conta": "6482320788"
     },
     {
       "plataforma": "google",
       "id": "24395758937",
       "nome": "[GA][cadastro][captação][quente][imagem][PES-NOV-26][26.10.26]",
-      "valor": 455.27,
+      "valor": 500.0,
       "conta": "6482320788"
     },
     {
       "plataforma": "google",
       "id": "24401397982",
       "nome": "[GA][cadastro][captação][frio][pós-edital][PES-NOV-26][26.10.26]",
-      "valor": 341.46,
+      "valor": 300.0,
       "conta": "6482320788"
     },
     {
       "plataforma": "google",
       "id": "24401397586",
       "nome": "[GA][cadastro][captação][frio][principal][PES-NOV-26][26.10.26]",
-      "valor": 634.13,
+      "valor": 900.0,
       "conta": "6482320788"
     },
     {
       "plataforma": "google",
       "id": "24401397994",
       "nome": "[GA][cadastro][captação][específico][pós-edital][PES-NOV-26][26.10.26]",
-      "valor": 626.0,
+      "valor": 700.0,
       "conta": "6482320788"
     },
     {
       "plataforma": "google",
       "id": "24390201993",
       "nome": "[GA][cadastro][captação][específico][principal][PES-NOV-26][26.10.26]",
-      "valor": 1162.58,
+      "valor": 1100.0,
       "conta": "6482320788"
     },
     {
       "plataforma": "google",
       "id": "24420709433",
       "nome": "[GA][cadastro][captação][quente][principal][PES-NOV-26][02.11.26] #2",
-      "valor": 4400.0,
+      "valor": 5200.0,
       "conta": "6482320788"
     },
     {
       "plataforma": "google",
       "id": "24427699081",
       "nome": "[GA][cadastro][captação][quente][pós-edital][PES-NOV-26][26.10.26] #2",
-      "valor": 2500.0,
+      "valor": 3600.0,
       "conta": "6482320788"
     }
   ]

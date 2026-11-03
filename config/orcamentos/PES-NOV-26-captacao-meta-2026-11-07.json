@@ -1,6 +1,6 @@
 {
   "lancamento": "PES-NOV-26",
-  "descricao": "Captação Meta + Google — verba do dia 07/11 pela curva do plano de mídia do Murilo (aba Diário Captação).",
+  "descricao": "Captação Meta + Google — verba do dia 07/11 pela curva do plano de mídia do Murilo (aba Diário Captação). Quente principal e pos-edital do YouTube (originais e copias #2 do Murilo) fixadas nos valores que o Murilo deixou em 02/11 23h.",
   "aplicar_em": "2026-11-07",
   "campanhas": [
     {
@@ -77,14 +77,14 @@
       "plataforma": "google",
       "id": "24395760404",
       "nome": "[GA][cadastro][captação][quente][pós-edital][PES-NOV-26][26.10.26]",
-      "valor": 1798.66,
+      "valor": 2874.67,
       "conta": "6482320788"
     },
     {
       "plataforma": "google",
       "id": "24401397559",
       "nome": "[GA][cadastro][captação][quente][principal][PES-NOV-26][26.10.26]",
-      "valor": 3477.42,
+      "valor": 2691.03,
       "conta": "6482320788"
     },
     {
@@ -127,6 +127,20 @@
       "id": "24390201993",
       "nome": "[GA][cadastro][captação][específico][principal][PES-NOV-26][26.10.26]",
       "valor": 765.5,
+      "conta": "6482320788"
+    },
+    {
+      "plataforma": "google",
+      "id": "24420709433",
+      "nome": "[GA][cadastro][captação][quente][principal][PES-NOV-26][02.11.26] #2",
+      "valor": 4400.0,
+      "conta": "6482320788"
+    },
+    {
+      "plataforma": "google",
+      "id": "24427699081",
+      "nome": "[GA][cadastro][captação][quente][pós-edital][PES-NOV-26][26.10.26] #2",
+      "valor": 2500.0,
       "conta": "6482320788"
     }
   ]

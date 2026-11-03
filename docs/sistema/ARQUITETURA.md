@@ -4223,6 +4223,13 @@ Teste em tabelas temporárias (`LIKE leads` / `LIKE lead_lancamentos`): 2.501 pa
 leads em 0,25 s, com `ON CONFLICT` atualizando e `COALESCE` preservando `tagged_at` nulo. Suíte
 unitária do ETL: 53 passed.
 
+**Resultado medido (deploy do scheduler às 14:13 de 03/11, commit `920fa52`):** primeira rodada
+terminou `ok` em **1.082 s** (18 min) com a mesma janela de 84 mil contatos: ~16 min de paginação
+e ~2 min de escrita (82.399 leads atualizados, 55.559 pares do PI-NOV-26 e 13.192 do PES-NOV-26
+gravados). Antes, só a escrita passava de 1 h. As duas linhas `running` de 14:07 e 14:10 em
+`etl_runs` são processos interrompidos pelo próprio redeploy e ficam assim para sempre (o
+`finish_run` nunca roda); não indicam problema.
+
 **Pendências vistas no caminho:** `etl_runs.rows_upserted` nunca é preenchido pro `active_campaign`
 (0 em 191 rodadas); `queryServiceLogs` do EasyPanel antigo responde HTTP 400 (Loki desligado), então
 o log do scheduler só pela tela do painel. Enquanto a janela de 3 dias contiver 02/11 (até 05/11) o

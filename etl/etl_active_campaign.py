@@ -221,7 +221,8 @@ def _exec_chunk(engine, sql: str, chunk: list[tuple]) -> None:
     """Um INSERT multi-linha por bloco (`sql` tem um único %s no lugar do VALUES).
 
     Antes era conn.execute(text, lista) = executemany = uma ida ao banco POR
-    LINHA. Em 03/11/26 uma limpeza em massa no AC fez a janela de 3 dias virar
+    LINHA. Em 03/11/26 a captação do PI-NOV-26/PES-NOV-26 (formulário + fluxo
+    de e-mail entrando 50 mil contatos num domingo) fez a janela de 3 dias virar
     84 mil contatos (~235 mil pares contato×lançamento): ~15 ms por ida deu
     mais de 1 h só de escrita e o ciclo passou a estourar o timeout de 30 min.
     Com um statement por bloco de 1000 linhas o mesmo volume grava em segundos.

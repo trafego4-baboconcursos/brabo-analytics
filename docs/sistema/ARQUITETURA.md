@@ -4196,11 +4196,19 @@ rodada do `active_campaign` do ciclo lento a partir das 06:20 terminou em `timeo
 (limite de `_TIMEOUTS_POR_FONTE` no `run_all.py`). As durações já vinham subindo ao longo de 02/11
 (1.105 s → 1.577 s) até cruzar os 30 min.
 
-**Causa:** a janela de 3 dias inflou. Em 02/11 (domingo) houve uma limpeza em massa no AC (tags
-`[LIMPEZA TOTAL]`, `[LIMPEZA]`, `Disengaged` em ~35% da amostra de contatos "updated" do dia), somada
-à captação do PI-NOV-26 e PES-NOV-26: 50.088 contatos atualizados em 02/11 e 25.166 até as 14h de
-03/11, contra 4 a 9 mil por dia nas semanas anteriores. A janela do scheduler ficou com 84.060
-contatos (841 páginas). A API do AC não é o gargalo: ~1 s por página de 100, mesmo em offset 80.000
+**Causa:** a janela de 3 dias inflou, e não por limpeza nenhuma: é a captação do PI-NOV-26 e do
+PES-NOV-26 em velocidade de cruzeiro. Rastreando pela API as atividades dos contatos "updated" de
+02/11 (domingo): 163 de 200 entraram em automação naquele dia, sendo `Entrada [PI-NOV-26]` (131),
+`Fluxo Email PI-NOV-26` (126), `Entrada [PES-NOV-26] - UnniChat` (34) e `Fluxo Email PES-NOV-26` (33);
+as inscrições vieram do formulário 702 `FORMULÁRIO INSS 2026 [PI-NOV-26] - V9` (13.721 entradas
+desde 08/10) nas listas 22 `INSS` e 124 `Escrevente 360`; e a campanha 4726 "Seu acesso para o
+Curso Gratuito do INSS" (disparada pela automação 367) chegou a 55.863 envios. 78% dos contatos da
+amostra foram criados em 2026. As tags `[LIMPEZA]`/`[LIMPEZA TOTAL]` que apareceram na primeira
+amostra eram de 2023 a 08/2026, em contatos antigos que se recadastraram; não houve ação manual.
+Tudo foi criado pelo usuário compartilhado "Aprovasim Cursos" (`marketing@aprovasim.com`), então a
+API não diz qual pessoa. Números: 50.088 contatos atualizados em 02/11 e 25.166 até as 14h de 03/11,
+contra 4 a 9 mil por dia nas semanas anteriores; a janela do scheduler ficou com 84.060 contatos
+(841 páginas). Vai se repetir em toda captação grande. A API do AC não é o gargalo: ~1 s por página de 100, mesmo em offset 80.000
 (~14 min de paginação). O gargalo era a gravação: `_upsert_batch` e `_exec_chunk` usavam
 `conn.execute(text, lista)`, que o SQLAlchemy executa como `executemany`, ou seja, **uma ida ao banco
 por linha**. 84 mil leads + ~235 mil pares contato×lançamento = ~320 mil round trips; medido em

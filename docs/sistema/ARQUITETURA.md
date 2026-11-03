@@ -1,8 +1,8 @@
 ---
-titulo: "Arquitetura do Brabo Analytics — 2026-10-15"
+titulo: "Arquitetura do Brabo Analytics — 2026-11-03"
 area: sistema
 status: vigente
-atualizado: 2026-10-30
+atualizado: 2026-11-03
 responde:
   - "como o sistema funciona por dentro"
   - "onde fica o encurtador de links (substituto do bitly)"
@@ -381,6 +381,9 @@ relacionados:
 > - [[ARQUITETURA#WhatsApp por etapa na Captação + comparativo antes da captação (2026-10-29)|WhatsApp por etapa na Captação + comparativo antes da captação (2026-10-29)]]
 > - [[ARQUITETURA#Criativo "rastreado por UTM" não herda mais o gasto de campanha com anúncios próprios (2026-10-29)|Criativo "rastreado por UTM" não herda mais o gasto de campanha com anúncios próprios (2026-10-29)]]
 > - [[ARQUITETURA#Página `/publicos`: públicos em uso por lançamento (2026-10-30)|Página `/publicos`: públicos em uso por lançamento (2026-10-30)]]
+>
+> **ETL do Active Campaign estourando o timeout: escrita em lote (2026-11-03)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -4183,3 +4186,36 @@ chama Meta nem Google.
 - **Não feito ainda:** CPA por conjunto/grupo (hoje gasto, leads e CPL; o CPA exige a atribuição de vendas por conjunto).
 - Testes: `tests/test_etl_publicos.py` (normalização e usos), `tests/test_publicos_reader.py` (alertas e visão),
   `/publicos` no `tests/test_frontend_smoke.py`.
+
+---
+
+## ETL do Active Campaign estourando o timeout: escrita em lote (2026-11-03)
+
+**Sintoma:** banner "ETL parado: Active Campaign sem carga desde 03/11 05:45". Em `etl_runs`, toda
+rodada do `active_campaign` do ciclo lento a partir das 06:20 terminou em `timeout apos 1800s`
+(limite de `_TIMEOUTS_POR_FONTE` no `run_all.py`). As durações já vinham subindo ao longo de 02/11
+(1.105 s → 1.577 s) até cruzar os 30 min.
+
+**Causa:** a janela de 3 dias inflou. Em 02/11 (domingo) houve uma limpeza em massa no AC (tags
+`[LIMPEZA TOTAL]`, `[LIMPEZA]`, `Disengaged` em ~35% da amostra de contatos "updated" do dia), somada
+à captação do PI-NOV-26 e PES-NOV-26: 50.088 contatos atualizados em 02/11 e 25.166 até as 14h de
+03/11, contra 4 a 9 mil por dia nas semanas anteriores. A janela do scheduler ficou com 84.060
+contatos (841 páginas). A API do AC não é o gargalo: ~1 s por página de 100, mesmo em offset 80.000
+(~14 min de paginação). O gargalo era a gravação: `_upsert_batch` e `_exec_chunk` usavam
+`conn.execute(text, lista)`, que o SQLAlchemy executa como `executemany`, ou seja, **uma ida ao banco
+por linha**. 84 mil leads + ~235 mil pares contato×lançamento = ~320 mil round trips; medido em
+~15 ms cada, mais de 1 h só de escrita.
+
+**O que mudou (`etl/etl_active_campaign.py`):** `_exec_chunk` passou a montar um único
+`INSERT ... VALUES (...),(...)` por bloco com `psycopg2.extras.execute_values` (via
+`conn.connection.cursor()` dentro do `engine.begin()`, então o retry por bloco e a atomicidade
+continuam iguais). `_upsert_batch` usa o mesmo caminho e o lote de leads subiu de 200 para 1000 linhas.
+Os triggers de `leads` são `FOR EACH STATEMENT` com tabela de transição, então veem as mesmas linhas.
+Teste em tabelas temporárias (`LIKE leads` / `LIKE lead_lancamentos`): 2.501 pares em 0,20 s e 1.500
+leads em 0,25 s, com `ON CONFLICT` atualizando e `COALESCE` preservando `tagged_at` nulo. Suíte
+unitária do ETL: 53 passed.
+
+**Pendências vistas no caminho:** `etl_runs.rows_upserted` nunca é preenchido pro `active_campaign`
+(0 em 191 rodadas); `queryServiceLogs` do EasyPanel antigo responde HTTP 400 (Loki desligado), então
+o log do scheduler só pela tela do painel. Enquanto a janela de 3 dias contiver 02/11 (até 05/11) o
+volume segue alto, mas com a escrita em lote cabe com folga no timeout.

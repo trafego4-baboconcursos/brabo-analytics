@@ -18,6 +18,7 @@ import pandas as pd
 from datetime import datetime, timezone
 from pathlib import Path
 import logging
+from psycopg2.extras import execute_values
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, before_sleep_log
@@ -216,9 +217,18 @@ def _launch_code_from_tag(tag_name: str) -> str | None:
     before_sleep=before_sleep_log(logger, logging.WARNING),
     reraise=True,
 )
-def _exec_chunk(engine, sql, chunk: list) -> None:
+def _exec_chunk(engine, sql: str, chunk: list[tuple]) -> None:
+    """Um INSERT multi-linha por bloco (`sql` tem um único %s no lugar do VALUES).
+
+    Antes era conn.execute(text, lista) = executemany = uma ida ao banco POR
+    LINHA. Em 03/11/26 uma limpeza em massa no AC fez a janela de 3 dias virar
+    84 mil contatos (~235 mil pares contato×lançamento): ~15 ms por ida deu
+    mais de 1 h só de escrita e o ciclo passou a estourar o timeout de 30 min.
+    Com um statement por bloco de 1000 linhas o mesmo volume grava em segundos.
+    Os triggers de leads são FOR EACH STATEMENT com tabela de transição, então
+    veem as mesmas linhas de qualquer jeito."""
     with engine.begin() as conn:
-        conn.execute(sql, chunk)
+        execute_values(conn.connection.cursor(), sql, chunk, page_size=len(chunk) or 1)
 
 
 def _upsert_lead_lancamentos(lanc_por_contato: dict[tuple[str, str], str]) -> None:
@@ -226,16 +236,13 @@ def _upsert_lead_lancamentos(lanc_por_contato: dict[tuple[str, str], str]) -> No
     if not lanc_por_contato:
         return
     engine = get_engine()
-    linhas = [
-        {"contact_id": cid, "lancamento_codigo": code, "tagged_at": cdate}
-        for (cid, code), cdate in lanc_por_contato.items()
-    ]
-    sql = text("""
+    linhas = [(cid, code, cdate) for (cid, code), cdate in lanc_por_contato.items()]
+    sql = """
         INSERT INTO lead_lancamentos (contact_id, lancamento_codigo, tagged_at)
-        VALUES (:contact_id, :lancamento_codigo, :tagged_at)
+        VALUES %s
         ON CONFLICT (contact_id, lancamento_codigo) DO UPDATE
             SET tagged_at = COALESCE(EXCLUDED.tagged_at, lead_lancamentos.tagged_at)
-    """)
+    """
     # Mesmo problema de conexão derrubada em cargas grandes documentado em
     # _upsert_batch (achado 02/09/26); cada bloco de 1000 é atômico, então
     # re-tentar só o bloco que falhou é seguro.
@@ -375,14 +382,14 @@ _AC_REQUIRED_COLS = ["id", "email", "created_at", "lancamento_codigo"]
     before_sleep=before_sleep_log(logger, logging.WARNING),
     reraise=True,
 )
-def _upsert_batch(engine, chunk: list, col_list: str, placeholders: str,
-                  update_set: str) -> None:
-    with engine.begin() as conn:
-        conn.execute(
-            text(f"INSERT INTO {TABLE} ({col_list}) VALUES ({placeholders})"
-                 f" ON CONFLICT (id) DO UPDATE SET {update_set}"),
-            chunk,
-        )
+def _upsert_batch(engine, chunk: list[tuple], col_list: str, update_set: str) -> None:
+    # Um statement multi-linha por bloco (ver _exec_chunk): era uma ida ao
+    # banco por lead, e 84 mil leads não cabiam no timeout do ciclo (03/11/26).
+    _exec_chunk(
+        engine,
+        f"INSERT INTO {TABLE} ({col_list}) VALUES %s ON CONFLICT (id) DO UPDATE SET {update_set}",
+        chunk,
+    )
 
 
 def upsert(df: pd.DataFrame, label: str = ""):
@@ -407,16 +414,14 @@ def upsert(df: pd.DataFrame, label: str = ""):
     engine = get_engine()
     cols = list(df.columns)
     col_list = ", ".join(cols)
-    placeholders = ", ".join(f":{c}" for c in cols)
     # `id` é a chave do conflito, não se auto-atribui.
     update_set = ", ".join(f"{c} = EXCLUDED.{c}" for c in cols if c != "id")
     if "updated_at" not in cols:
         update_set += ", updated_at = NOW()"
-    records = df.to_dict("records")
-    batch_size = 200
+    records = [tuple(r) for r in df[cols].itertuples(index=False, name=None)]
+    batch_size = 1000
     for i in range(0, len(records), batch_size):
-        chunk = records[i:i + batch_size]
-        _upsert_batch(engine, chunk, col_list, placeholders, update_set)
+        _upsert_batch(engine, records[i:i + batch_size], col_list, update_set)
     logger.info("Upsert concluído: %d leads gravados em '%s'%s", len(df), TABLE, label)
 
 

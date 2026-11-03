@@ -4247,6 +4247,13 @@ conta permite. Offset sobre lista que muda durante a leitura pode repetir ou pul
 página: repetição o upsert absorve; o que escapar entra na rodada seguinte, como já era. O timeout do
 `active_campaign` em `run_all.py` subiu de 1800 para 2700 s como folga pra API lenta.
 
+**Resultado da segunda mudança (scheduler em `e0d15b9`, 15:47):** rodada `ok` em **16 min 35 s** com
+160.267 leads gravados sobre uma janela de ~167 mil contatos. Mais lento que os ~6 min projetados a
+partir de 60 páginas (a API degrada com 5 páginas em voo e a janela seguiu crescendo), mas cabe com
+folga nos 45 min de timeout e no ciclo de 1 h. Se voltar a apertar, o próximo passo é a decisão de
+produto: ler `created_after` + tags de lançamento em vez de `updated_after` reduz o volume em ~10x,
+ao custo de não capturar UTM alterada em contato antigo.
+
 **Pendências vistas no caminho:** `etl_runs.rows_upserted` nunca é preenchido pro `active_campaign`
 (0 em 191 rodadas); `queryServiceLogs` do EasyPanel antigo responde HTTP 400 (Loki desligado), então
 o log do scheduler só pela tela do painel. Enquanto a janela de 3 dias contiver 02/11 (até 05/11) o

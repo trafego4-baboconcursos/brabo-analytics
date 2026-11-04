@@ -1,6 +1,6 @@
 {
   "lancamento": "PES-NOV-26",
-  "descricao": "Captação Meta + Google — verba do dia 09/11 pela curva do plano de mídia do Murilo (aba Diário Captação). Quente principal e pos-edital do YouTube (originais e copias #2 do Murilo) fixadas nos valores que o Murilo deixou em 02/11 23h. Plano do Murilo de 03/11 (PDF 'Ajustes no YouTube'): originais do quente principal e pos-edital pausadas e fora do plano; Google fixo em R$ 13.900/dia.",
+  "descricao": "Captação Meta + Google — verba do dia 09/11 pela curva do plano de mídia do Murilo (aba Diário Captação). Quente principal e pos-edital do YouTube (originais e copias #2 do Murilo) fixadas nos valores que o Murilo deixou em 02/11 23h. Plano do Murilo de 03/11 (PDF 'Ajustes no YouTube'): originais do quente principal e pos-edital pausadas e fora do plano; Google fixo em R$ 13.900/dia. 04/11: Google realocado dentro dos R$ 13.900 - shorts 800, frio principal 600, especifico principal 1.800, especifico pos 1.100 (MUDANCAS item 159).",
   "aplicar_em": "2026-11-09",
   "campanhas": [
     {
@@ -77,7 +77,7 @@
       "plataforma": "google",
       "id": "24401397316",
       "nome": "[GA][cadastro][captação][quente][shorts][PES-NOV-26][26.10.26]",
-      "valor": 1600.0,
+      "valor": 800.0,
       "conta": "6482320788"
     },
     {
@@ -98,21 +98,21 @@
       "plataforma": "google",
       "id": "24401397586",
       "nome": "[GA][cadastro][captação][frio][principal][PES-NOV-26][26.10.26]",
-      "valor": 900.0,
+      "valor": 600.0,
       "conta": "6482320788"
     },
     {
       "plataforma": "google",
       "id": "24401397994",
       "nome": "[GA][cadastro][captação][específico][pós-edital][PES-NOV-26][26.10.26]",
-      "valor": 700.0,
+      "valor": 1100.0,
       "conta": "6482320788"
     },
     {
       "plataforma": "google",
       "id": "24390201993",
       "nome": "[GA][cadastro][captação][específico][principal][PES-NOV-26][26.10.26]",
-      "valor": 1100.0,
+      "valor": 1800.0,
       "conta": "6482320788"
     },
     {

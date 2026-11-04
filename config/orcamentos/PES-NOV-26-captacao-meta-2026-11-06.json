@@ -1,83 +1,83 @@
 {
   "lancamento": "PES-NOV-26",
-  "descricao": "Captação Meta + Google — verba do dia 06/11 pela curva do plano de mídia do Murilo (aba Diário Captação). Quente principal e pos-edital do YouTube (originais e copias #2 do Murilo) fixadas nos valores que o Murilo deixou em 02/11 23h. Plano do Murilo de 03/11 (PDF 'Ajustes no YouTube'): originais do quente principal e pos-edital pausadas e fora do plano; Google fixo em R$ 13.900/dia.",
+  "descricao": "Captação Meta + Google — verba do dia 06/11 pela curva do plano de mídia do Murilo (aba Diário Captação). Quente principal e pos-edital do YouTube (originais e copias #2 do Murilo) fixadas nos valores que o Murilo deixou em 02/11 23h. Plano do Murilo de 03/11 (PDF 'Ajustes no YouTube'): originais do quente principal e pos-edital pausadas e fora do plano; Google fixo em R$ 13.900/dia. 04/11: gate de 03/11 passou (CPL 22,52) - Google R$ 15.600 (+1.700 vindos da Meta, corte proporcional nas 10 campanhas); shorts 800, frio principal 600, especifico principal 1.800, especifico pos 1.500, quente principal #2 6.500 (MUDANCAS item 159).",
   "aplicar_em": "2026-11-06",
   "campanhas": [
     {
       "plataforma": "meta",
       "id": "120248542937340014",
       "nome": "[MA][cadastro][captação][quente][pós-edital][PES-NOV-26][26.10.26]",
-      "valor": 3940.13,
+      "valor": 3555.96,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248542934030014",
       "nome": "[MA][cadastro][captação][quente][principal][PES-NOV-26][26.10.26]",
-      "valor": 2498.62,
+      "valor": 2255.0,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248542947040014",
       "nome": "[MA][cadastro][captação][quente][reels][PES-NOV-26][26.10.26]",
-      "valor": 1922.01,
+      "valor": 1734.61,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248542951360014",
       "nome": "[MA][cadastro][captação][quente][imagem][PES-NOV-26][26.10.26]",
-      "valor": 1249.31,
+      "valor": 1127.5,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248542956380014",
       "nome": "[MA][cadastro][captação][frio][pós-edital][PES-NOV-26][26.10.26]",
-      "valor": 2814.38,
+      "valor": 2539.97,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248542959750014",
       "nome": "[MA][cadastro][captação][frio][principal][PES-NOV-26][26.10.26]",
-      "valor": 1784.73,
+      "valor": 1610.71,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248542963720014",
       "nome": "[MA][cadastro][captação][frio][reels][PES-NOV-26][26.10.26]",
-      "valor": 1372.87,
+      "valor": 1239.01,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248542968150014",
       "nome": "[MA][cadastro][captação][frio][imagem][PES-NOV-26][26.10.26]",
-      "valor": 892.36,
+      "valor": 805.35,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120257128220460012",
       "nome": "[MA][cadastro][captação][específico][pós-edital][PES-NOV-26][26.10.26]",
-      "valor": 576.6,
+      "valor": 520.38,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120257128221880012",
       "nome": "[MA][cadastro][captação][específico][principal][PES-NOV-26][26.10.26]",
-      "valor": 384.4,
+      "valor": 346.92,
       "conta": ""
     },
     {
       "plataforma": "google",
       "id": "24401397316",
       "nome": "[GA][cadastro][captação][quente][shorts][PES-NOV-26][26.10.26]",
-      "valor": 1600.0,
+      "valor": 800.0,
       "conta": "6482320788"
     },
     {
@@ -98,28 +98,28 @@
       "plataforma": "google",
       "id": "24401397586",
       "nome": "[GA][cadastro][captação][frio][principal][PES-NOV-26][26.10.26]",
-      "valor": 900.0,
+      "valor": 600.0,
       "conta": "6482320788"
     },
     {
       "plataforma": "google",
       "id": "24401397994",
       "nome": "[GA][cadastro][captação][específico][pós-edital][PES-NOV-26][26.10.26]",
-      "valor": 700.0,
+      "valor": 1500.0,
       "conta": "6482320788"
     },
     {
       "plataforma": "google",
       "id": "24390201993",
       "nome": "[GA][cadastro][captação][específico][principal][PES-NOV-26][26.10.26]",
-      "valor": 1100.0,
+      "valor": 1800.0,
       "conta": "6482320788"
     },
     {
       "plataforma": "google",
       "id": "24420709433",
       "nome": "[GA][cadastro][captação][quente][principal][PES-NOV-26][02.11.26] #2",
-      "valor": 5200.0,
+      "valor": 6500.0,
       "conta": "6482320788"
     },
     {

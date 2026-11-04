@@ -451,6 +451,20 @@ def investimento_diario_etapa(code: str, etapa_nome: str, start: str | None, end
     return [{"date": k, "total_gasto": v} for k, v in out.items()]
 
 
+def _leads_active_janela(code: str, start: str, end: str) -> int:
+    """Leads do lançamento no Active cadastrados entre `start` e `end` (inclusive)."""
+    from datetime import date
+    from sqlalchemy import text
+    from frontend.db import _get_engine
+
+    with _get_engine().connect() as conn:
+        return int(conn.execute(
+            text("SELECT COUNT(*) FROM leads WHERE lancamento_codigo = :c "
+                 "AND (created_at AT TIME ZONE 'UTC')::date BETWEEN :s AND :e"),
+            {"c": code, "s": date.fromisoformat(start), "e": date.fromisoformat(end)},
+        ).scalar() or 0)
+
+
 def kpis_captacao_periodo_comparavel(launch, previous, cfg: dict | None, prev_cfg: dict | None) -> dict | None:
     """KPIs de Captação do lançamento anterior, na MESMA janela relativa
     (mesma quantidade de dias corridos desde o início da Captação) que o
@@ -498,10 +512,22 @@ def kpis_captacao_periodo_comparavel(launch, previous, cfg: dict | None, prev_cf
     p_receita = _f(getattr(p_vendas, "total_receita", 0)) if p_vendas else 0.0
     p_vendas_n = _i(getattr(p_vendas, "total_vendas", 0)) if p_vendas else 0
 
+    # Active na MESMA janela relativa nos dois lançamentos, pela mesma tabela (`leads`,
+    # dia do cadastro): o card mostra o total do estado de UTM, que não tem data.
+    c_window_end = cs + timedelta(days=elapsed - 1)
+    try:
+        leads_active_atual = _leads_active_janela(launch.code, cs.isoformat(), c_window_end.isoformat())
+        p_leads_active = _leads_active_janela(previous.code, p_start_str, p_end_str)
+    except Exception:
+        leads_active_atual = p_leads_active = None
+
     return {
         "invest": p_invest, "receita": p_receita,
         "roas": (p_receita / p_invest) if p_invest > 0 else 0.0,
         "vendas": p_vendas_n, "leads": p_leads,
+        "leads_meta": _i(p_meta_capt.get("leads")),
+        "leads_google": int(round(_f(p_google_capt.get("conversoes")))),
+        "leads_active": p_leads_active, "leads_active_atual": leads_active_atual,
         "cpl": (p_invest / p_leads) if p_leads > 0 else 0.0,
         "periodo": f"{p_cs.strftime('%d/%m')} a {p_window_end.strftime('%d/%m')}",
         "dias": elapsed,

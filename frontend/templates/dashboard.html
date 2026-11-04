@@ -75,6 +75,8 @@
         </div>
         {% if prev_kpis %}
         <div class="tp-compare">{{ kpi_delta(leads_meta, prev_kpis.leads) }} vs {{ prev_kpis.leads | num }}</div>
+        {% if meta %}<div class="tp-compare">Meta: {{ kpi_delta(meta_capt_leads, prev_kpis.leads_meta) }} vs {{ prev_kpis.leads_meta | num }}</div>{% endif %}
+        {% if google %}<div class="tp-compare">Google: {{ kpi_delta(google_capt_conv | round | int, prev_kpis.leads_google) }} vs {{ prev_kpis.leads_google | num }}</div>{% endif %}
         {% endif %}
       </div>
 
@@ -97,6 +99,9 @@
         <div class="tp-value">{% if trilha_nome %}{{ leads_active_trilha | num if leads_active_trilha is not none else "–" }}{% else %}{{ leads_active_total | num if leads_active_total is not none else "–" }}{% endif %}</div>
         <div class="tp-label">Leads que Caíram no Active</div>
         <div class="tp-compare">{% if trilha_nome %}Contatos da trilha {{ trilha_nome }} (Active Campaign){% else %}Tabela de leads (Active Campaign){% endif %}</div>
+        {% if prev_kpis and not trilha_nome and prev_kpis.leads_active is not none and prev_kpis.leads_active_atual is not none %}
+        <div class="tp-compare">{{ kpi_delta(prev_kpis.leads_active_atual, prev_kpis.leads_active) }} vs {{ prev_kpis.leads_active | num }} <span title="Cadastros no Active nos mesmos {{ prev_kpis.dias }} dia(s) de cada lançamento (tabela leads, por data de cadastro)">({{ prev_kpis.leads_active_atual | num }} no período)</span></div>
+        {% endif %}
       </div>
 
       {% if not trilha_nome %}

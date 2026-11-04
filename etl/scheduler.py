@@ -259,6 +259,37 @@ def rodar_listas_cadastrados() -> None:
     logger.info("Listas de cadastrados atualizadas.\n%s", (r.stdout or "").strip()[-2000:])
 
 
+def rodar_verba_diaria() -> None:
+    """Verba diária das campanhas (00h05): aplica os planos config/orcamentos/*.json de hoje.
+
+    Import tardio (um erro no módulo não derruba o scheduler no boot). Não usa o lock nem o circuit
+    breaker do ETL: a verba não pode esperar uma carga de Active nem ficar pausada por falhas dela."""
+    logger.info("Verba diária: iniciando.")
+    try:
+        from verba_diaria import aplicar_verba_do_dia
+        res = aplicar_verba_do_dia()
+    except Exception as exc:
+        import traceback
+        logger.error("Verba diária: falha inesperada: %s", exc)
+        enviar_alerta_webhook("Verba diária (00h05) falhou antes de aplicar.", traceback.format_exc())
+        return
+    logger.info("Verba diária: planos=%s fonte=%s\n%s", res["planos"] or "nenhum para hoje", res["fonte"],
+                res["saida"][-3000:])
+    if res["falhas"]:
+        logger.error("Verba diária com falhas: %s", res["falhas"])
+        enviar_alerta_webhook("Verba diária (00h05): campanha sem aplicar. Conferir e aplicar à mão.",
+                              "\n".join(res["falhas"]))
+
+
+def _catch_up_verba() -> None:
+    """Se o scheduler estava fora às 00h05 (deploy), aplica ao subir — só até 02h, para um restart no meio do
+    dia não desfazer ajuste manual de verba."""
+    agora = datetime.now(timezone(timedelta(hours=-3)))
+    if (agora.hour, agora.minute) >= (0, 5) and agora.hour < 2:
+        logger.info("Verba diária: subida entre 00h05 e 02h — aplicando o plano do dia.")
+        rodar_verba_diaria()
+
+
 _ALERTAS_CHAT: dict[str, float] = {}
 
 
@@ -391,6 +422,26 @@ def main() -> None:
         misfire_grace_time=3600,
         id="listas_cadastrados",
         name="Listas de cadastrados Meta/Google (diária, 4h40)",
+    )
+
+    # Verba diária (Meta + Google), 00h05: planos config/orcamentos/*.json com aplicar_em = hoje.
+    # Substitui o cron do GitHub Actions, que atrasava. Ver etl/verba_diaria.py.
+    scheduler.add_job(
+        rodar_verba_diaria,
+        trigger="cron",
+        hour=0,
+        minute=5,
+        coalesce=True,
+        misfire_grace_time=3600,
+        id="verba_diaria",
+        name="Verba diária das campanhas (00h05)",
+    )
+    scheduler.add_job(
+        _catch_up_verba,
+        trigger="date",
+        run_date=datetime.now(timezone.utc) + timedelta(minutes=1),
+        id="verba_diaria_catchup",
+        name="Catch-up da verba diária (boot)",
     )
 
     # Chat das aulas ao vivo, a cada minuto. Fora da janela do evento não faz

@@ -69,14 +69,18 @@
           <div class="kpi-prog-lbl">{{ leads_meta | num }} / {{ goal_leads | num }} meta</div>
         </div>
         {% endif %}
+        {% if prev_kpis %}
+        <div class="tp-cmp">
+          <div class="tp-cmp-row tp-cmp-head"><span></span><span>Agora</span><span>Anterior</span><span>Var.</span></div>
+          <div class="tp-cmp-row tp-cmp-total"><span>Total</span><span>{{ leads_meta | num }}</span><span>{{ prev_kpis.leads | num }}</span><span>{{ kpi_delta(leads_meta, prev_kpis.leads) }}</span></div>
+          {% if meta %}<div class="tp-cmp-row"><span>Meta</span><span>{{ meta_capt_leads | num }}</span><span>{{ prev_kpis.leads_meta | num }}</span><span>{{ kpi_delta(meta_capt_leads, prev_kpis.leads_meta) }}</span></div>{% endif %}
+          {% if google %}<div class="tp-cmp-row"><span>Google</span><span>{{ google_capt_conv | round | int | num }}</span><span>{{ prev_kpis.leads_google | num }}</span><span>{{ kpi_delta(google_capt_conv | round | int, prev_kpis.leads_google) }}</span></div>{% endif %}
+        </div>
+        {% else %}
         <div class="tp-compare">
           {% if meta %}Meta: {{ meta_capt_leads | num }}{% endif %}
-          {% if google %}{% if meta %} · {% endif %}Google: {{ "%.0f"|format(google_capt_conv) }}{% endif %}
+          {% if google %}{% if meta %} · {% endif %}Google: {{ google_capt_conv | round | int | num }}{% endif %}
         </div>
-        {% if prev_kpis %}
-        <div class="tp-compare">{{ kpi_delta(leads_meta, prev_kpis.leads) }} vs {{ prev_kpis.leads | num }}</div>
-        {% if meta %}<div class="tp-compare">Meta: {{ kpi_delta(meta_capt_leads, prev_kpis.leads_meta) }} vs {{ prev_kpis.leads_meta | num }}</div>{% endif %}
-        {% if google %}<div class="tp-compare">Google: {{ kpi_delta(google_capt_conv | round | int, prev_kpis.leads_google) }} vs {{ prev_kpis.leads_google | num }}</div>{% endif %}
         {% endif %}
       </div>
 
@@ -100,7 +104,10 @@
         <div class="tp-label">Leads que Caíram no Active</div>
         <div class="tp-compare">{% if trilha_nome %}Contatos da trilha {{ trilha_nome }} (Active Campaign){% else %}Tabela de leads (Active Campaign){% endif %}</div>
         {% if prev_kpis and not trilha_nome and prev_kpis.leads_active is not none and prev_kpis.leads_active_atual is not none %}
-        <div class="tp-compare">{{ kpi_delta(prev_kpis.leads_active_atual, prev_kpis.leads_active) }} vs {{ prev_kpis.leads_active | num }} <span title="Cadastros no Active nos mesmos {{ prev_kpis.dias }} dia(s) de cada lançamento (tabela leads, por data de cadastro)">({{ prev_kpis.leads_active_atual | num }} no período)</span></div>
+        <div class="tp-cmp" title="Cadastros no Active nos mesmos {{ prev_kpis.dias }} dia(s) de cada lançamento (tabela leads, por data de cadastro)">
+          <div class="tp-cmp-row tp-cmp-head"><span></span><span>Agora</span><span>Anterior</span><span>Var.</span></div>
+          <div class="tp-cmp-row"><span>{{ prev_kpis.dias }} dia(s)</span><span>{{ prev_kpis.leads_active_atual | num }}</span><span>{{ prev_kpis.leads_active | num }}</span><span>{{ kpi_delta(prev_kpis.leads_active_atual, prev_kpis.leads_active) }}</span></div>
+        </div>
         {% endif %}
       </div>
 

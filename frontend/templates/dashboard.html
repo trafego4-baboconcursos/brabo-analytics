@@ -446,11 +446,14 @@
       const el = document.getElementById('leadsPorCampanhaChart');
       const ink = getComputedStyle(document.documentElement).getPropertyValue('--bs-ink').trim() || '#1f2330';
       const accent = getComputedStyle(document.documentElement).getPropertyValue('--bs-accent').trim() || '#93d8c8';
+      const danger = getComputedStyle(document.documentElement).getPropertyValue('--bs-danger').trim() || '#e5484d';
+      // YouTube em vermelho, o resto na cor padrão (as barras do YouTube são as de rótulo "YouTube ...").
+      const cores = labels.map(l => l.indexOf('YouTube') === 0 ? danger : accent);
       if (el && window.Chart) {
         new Chart(el, {
           type: 'bar',
           plugins: [ChartDataLabels],
-          data: { labels, datasets: [{ label: 'Quantidade de Leads por Público (%)', data: values, backgroundColor: accent }] },
+          data: { labels, datasets: [{ label: 'Quantidade de Leads por Público (%)', data: values, backgroundColor: cores }] },
           options: {
             responsive: true, maintainAspectRatio: false,
             plugins: {
@@ -469,6 +472,55 @@
       }
     })();
     </script>
+    {% endif %}
+
+    {# ── Métricas por plataforma e tipo de campanha ─────────────────────────── #}
+    {% if tipos_campanha %}
+    <div class="section">
+      <div class="section-title" data-tag="Captação"><i class="ti ti-layout-grid"></i> Campanhas por Plataforma e Tipo</div>
+      <div style="font-size:11px;color:var(--bs-ink-muted);margin-bottom:8px">Tipo pela tag do nome da campanha. Percentuais dentro de cada plataforma. Pós-edital e Outros aparecem só quando têm gasto.</div>
+      <div class="table-wrap" style="overflow-x:auto;">
+        <table class="table-compact" style="font-size:12px;" data-no-filter>
+          <thead>
+            <tr>
+              <th class="th-dark">Plataforma</th>
+              <th class="th-dark">Tipo</th>
+              <th class="th-dark" style="text-align:right">Campanhas</th>
+              <th class="th-dark" style="text-align:right">Investimento</th>
+              <th class="th-dark" style="text-align:right">% Invest.</th>
+              <th class="th-dark" style="text-align:right">Leads</th>
+              <th class="th-dark" style="text-align:right">% Leads</th>
+              <th class="th-dark" style="text-align:right">CPL</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for b in tipos_campanha %}
+            {% for r in b.linhas %}
+            <tr{% if r.gasto == 0 %} style="color:var(--bs-ink-muted)"{% endif %}>
+              {% if loop.first %}<td class="td-bold" rowspan="{{ b.linhas | length + 1 }}" style="vertical-align:top">{{ plat_badge("Meta" if b.plataforma == "Facebook" else "Google") }} {{ b.plataforma }}</td>{% endif %}
+              <td class="td-bold">{{ r.tipo }}</td>
+              <td style="text-align:right">{{ r.campanhas | num if r.campanhas else "–" }}</td>
+              <td style="text-align:right">{{ r.gasto | brl if r.gasto else "–" }}</td>
+              <td style="text-align:right">{{ r.pct_gasto | pct if r.gasto else "–" }}</td>
+              <td style="text-align:right">{{ r.leads | num if r.leads else "–" }}</td>
+              <td style="text-align:right">{{ r.pct_leads | pct if r.leads else "–" }}</td>
+              <td style="text-align:right">{{ r.cpl | brl if r.leads > 0 else "–" }}</td>
+            </tr>
+            {% endfor %}
+            <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
+              <td>Total</td>
+              <td style="text-align:right">{{ b.total.campanhas | num }}</td>
+              <td style="text-align:right">{{ b.total.gasto | brl }}</td>
+              <td style="text-align:right">100%</td>
+              <td style="text-align:right">{{ b.total.leads | num }}</td>
+              <td style="text-align:right">100%</td>
+              <td style="text-align:right">{{ b.total.cpl | brl if b.total.leads > 0 else "–" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
     {% endif %}
 
     {% if not trilha_nome %}

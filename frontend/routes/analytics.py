@@ -173,6 +173,15 @@ async def captacao(request: Request, launch_code: str | None = None, trilha: str
             "pct_leads": r["leads"] / total_leads_camp * 100,
         })
 
+    # Captação por plataforma e tipo de campanha (Principal, Potencial, Imagem, Carrossel, Reels/Shorts).
+    tipos_campanha = []
+    if launch and not trilha_nome:
+        try:
+            from frontend.db_readers.captacao_tipos import read_captacao_por_tipo  # noqa: PLC0415
+            tipos_campanha = await run_in_threadpool(read_captacao_por_tipo, launch.code)
+        except Exception:
+            logger.exception("Captação: falha ao montar métricas por tipo de campanha")
+
     # Taxa de Comparecimento WPP — reaproveita o mesmo cruzamento usado em
     # "Leads X Grupos de WhatsApp" no debriefing (leads da AC × pessoas
     # ativas nos grupos, deduplicado normal+VIP).
@@ -239,6 +248,7 @@ async def captacao(request: Request, launch_code: str | None = None, trilha: str
         wa_resumo=wa_resumo, wa_hist=wa_hist, rotulos_blocos=rotulos_blocos,
         utm_cobertura=utm_cobertura,
         prev_kpis=prev_kpis,
+        tipos_campanha=tipos_campanha,
         drive_thumbnails=d.get("drive_thumbnails") or {},
         verba_diaria_combinada=verba_diaria_combinada,
         data_errors=d.get("_errors", []),

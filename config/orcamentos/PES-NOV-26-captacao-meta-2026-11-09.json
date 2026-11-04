@@ -1,6 +1,6 @@
 {
   "lancamento": "PES-NOV-26",
-  "descricao": "Captação Meta + Google — verba do dia 09/11 pela curva do plano de mídia do Murilo (aba Diário Captação). Quente principal e pos-edital do YouTube (originais e copias #2 do Murilo) fixadas nos valores que o Murilo deixou em 02/11 23h. Plano do Murilo de 03/11 (PDF 'Ajustes no YouTube'): originais do quente principal e pos-edital pausadas e fora do plano; Google fixo em R$ 13.900/dia. 04/11: Google realocado dentro dos R$ 13.900 - shorts 800, frio principal 600, especifico principal 1.800, especifico pos 1.100 (MUDANCAS item 159). 04/11 ~09h40: quente imagem 500 -> 300, +200 na quente principal #2 (pedido do usuario, MUDANCAS item 161).",
+  "descricao": "Captação Meta + Google — verba do dia 09/11 pela curva do plano de mídia do Murilo (aba Diário Captação). Quente principal e pos-edital do YouTube (originais e copias #2 do Murilo) fixadas nos valores que o Murilo deixou em 02/11 23h. Plano do Murilo de 03/11 (PDF 'Ajustes no YouTube'): originais do quente principal e pos-edital pausadas e fora do plano; Google fixo em R$ 13.900/dia. 04/11: Google realocado dentro dos R$ 13.900 - shorts 800, frio principal 600, especifico principal 1.800, especifico pos 1.100 (MUDANCAS item 159). 04/11 ~09h40: quente imagem 500 -> 300, +200 na quente principal #2 (pedido do usuario, MUDANCAS item 161). 04/11 ~14h: AD381 isolado em campanhas próprias de quente e frio (R$ 500/dia cada), tirados da quente principal e da frio principal (MUDANCAS item 177).",
   "aplicar_em": "2026-11-09",
   "campanhas": [
     {
@@ -14,7 +14,7 @@
       "plataforma": "meta",
       "id": "120248542934030014",
       "nome": "[MA][cadastro][captação][quente][principal][PES-NOV-26][26.10.26]",
-      "valor": 2146.8,
+      "valor": 1646.8,
       "conta": ""
     },
     {
@@ -42,7 +42,7 @@
       "plataforma": "meta",
       "id": "120248542959750014",
       "nome": "[MA][cadastro][captação][frio][principal][PES-NOV-26][26.10.26]",
-      "valor": 1533.43,
+      "valor": 1033.43,
       "conta": ""
     },
     {
@@ -128,6 +128,20 @@
       "nome": "[GA][cadastro][captação][quente][pós-edital][PES-NOV-26][26.10.26] #2",
       "valor": 3600.0,
       "conta": "6482320788"
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248736566650014",
+      "nome": "[MA][cadastro][captação][quente][AD381][PES-NOV-26][04.11.26]",
+      "valor": 500.0,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248736569680014",
+      "nome": "[MA][cadastro][captação][frio][AD381][PES-NOV-26][04.11.26]",
+      "valor": 500.0,
+      "conta": ""
     }
   ]
 }

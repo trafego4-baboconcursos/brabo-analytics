@@ -281,6 +281,24 @@ def rodar_verba_diaria() -> None:
                               "\n".join(res["falhas"]))
 
 
+def rodar_acoes_agendadas() -> None:
+    """Tique de 5 min das ações agendadas (config/acoes/*.json): pausa/ativa anúncio do Facebook (Meta) na hora
+    marcada. Import tardio, sem lock nem circuit breaker do ETL, como a verba diária. Ver etl/acoes_agendadas.py."""
+    try:
+        from acoes_agendadas import rodar_acoes
+        res = rodar_acoes()
+    except Exception as exc:
+        import traceback
+        logger.error("Ações agendadas: falha inesperada: %s", exc)
+        enviar_alerta_webhook("Ações agendadas falharam antes de executar.", traceback.format_exc())
+        return
+    if res["executados"]:
+        logger.info("Ações agendadas: %s (fonte %s)", res["executados"], res["fonte"])
+    if res["falhas"]:
+        logger.error("Ações agendadas com falhas: %s", res["falhas"])
+        enviar_alerta_webhook("Ação agendada não aplicou. Conferir e aplicar à mão.", "\n".join(res["falhas"]))
+
+
 def _catch_up_verba() -> None:
     """Se o scheduler estava fora às 00h05 (deploy), aplica ao subir — só até 02h, para um restart no meio do
     dia não desfazer ajuste manual de verba."""
@@ -435,6 +453,16 @@ def main() -> None:
         misfire_grace_time=3600,
         id="verba_diaria",
         name="Verba diária das campanhas (00h05)",
+    )
+    # Ações agendadas (pausar/ativar anúncio do Facebook numa hora certa): config/acoes/*.json.
+    scheduler.add_job(
+        rodar_acoes_agendadas,
+        trigger="cron",
+        minute="*/5",
+        coalesce=True,
+        misfire_grace_time=600,
+        id="acoes_agendadas",
+        name="Ações agendadas nos anúncios (5 min)",
     )
     scheduler.add_job(
         _catch_up_verba,

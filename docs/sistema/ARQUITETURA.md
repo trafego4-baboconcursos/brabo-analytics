@@ -2,8 +2,9 @@
 titulo: "Arquitetura do Brabo Analytics — 2026-11-03"
 area: sistema
 status: vigente
-atualizado: 2026-11-03
+atualizado: 2026-11-05
 responde:
+  - "como agendar pausa de anuncio no etl"
   - "como o sistema funciona por dentro"
   - "onde fica o encurtador de links (substituto do bitly)"
   - "como o encurtador de links grava cliques e redireciona"
@@ -383,6 +384,12 @@ relacionados:
 > - [[ARQUITETURA#Página `/publicos`: públicos em uso por lançamento (2026-10-30)|Página `/publicos`: públicos em uso por lançamento (2026-10-30)]]
 >
 > **ETL do Active Campaign estourando o timeout: escrita em lote (2026-11-03)**
+>
+>
+> **Verba diária das campanhas no scheduler (2026-11-04)**
+>
+>
+> **Ações agendadas nos anúncios do Facebook (2026-11-05)**
 >
 
 <!-- SUMARIO:FIM -->
@@ -4258,3 +4265,24 @@ ao custo de não capturar UTM alterada em contato antigo.
 (0 em 191 rodadas); `queryServiceLogs` do EasyPanel antigo responde HTTP 400 (Loki desligado), então
 o log do scheduler só pela tela do painel. Enquanto a janela de 3 dias contiver 02/11 (até 05/11) o
 volume segue alto, mas com a escrita em lote cabe com folga no timeout.
+
+## Verba diária das campanhas no scheduler (2026-11-04)
+
+Job `verba_diaria` do `etl/scheduler.py` (00h05, Brasília) → `etl/verba_diaria.py`: baixa `config/orcamentos/*.json` da `main`
+(só `.json` do próprio repositório; cai para a imagem se o GitHub falhar), valida com `ler_plano` e aplica cada plano com
+`aplicar_em` = hoje via `scripts/ajustar_verba_lista.py` (valores absolutos, então reaplicar é seguro). Tetos: `VERBA_MAX_CAMPANHA` (R$ 15.000) e `VERBA_MAX_DIA` (R$ 150.000, soma dos planos do dia); acima disso o plano não é aplicado e vai alerta. Falha → webhook de erro.
+Fora do `run_all.py`: não usa o lock nem o circuit breaker do ETL. Na subida do scheduler entre 00h05 e 02h aplica o plano do
+dia (catch-up). Substitui os workflows de verba do GitHub Actions (que atrasavam). Plano: [[PLANO_CRON_VERBA_EASYPANEL]].
+
+## Ações agendadas nos anúncios do Facebook (2026-11-05)
+
+Job `acoes_agendadas` do `etl/scheduler.py` (a cada 5 min) → `etl/acoes_agendadas.py`: troca o status (PAUSED/ACTIVE) de
+anúncio, conjunto ou campanha do Facebook (Meta) numa hora marcada. Cada pedido é um `config/acoes/*.json` com `executar_em`
+(hora de Brasília) e a lista `acoes` (`plataforma: meta`, `id`, `nome`, `status`). Vem da `main` como os planos de verba
+(`verba_diaria.baixar_planos(pasta_repo="config/acoes")`), então pedido novo vale sem redeploy, só com push.
+- Executa quando `executar_em` passou há no máximo 30 min (`JANELA_MIN`), uma vez por processo. Arquivo velho nunca reexecuta
+  e não desfaz mexida manual posterior. Restart dentro da janela executa de novo, o que é seguro: o status é absoluto.
+- Depois de aplicar, relê o status de cada id. Diferença ou erro → webhook "Ação agendada não aplicou".
+- Valida antes de chamar a plataforma: id numérico, status PAUSED/ACTIVE, até 300 ações. Google fica fora de propósito
+  ("nada automático no Google"; campanha VIDEO nem aceita mutação por API). Status não cascateia: listar o nível que se quer.
+- 1º uso: `PI-NOV-26-pausar-AD304-2026-11-05-22h.json` (13 anúncios do AD304, 05/11 22h).

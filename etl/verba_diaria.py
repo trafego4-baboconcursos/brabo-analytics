@@ -35,10 +35,12 @@ def _http_get(url: str) -> bytes:
         return r.read()
 
 
-def baixar_planos(destino: Path, get=_http_get) -> list[Path]:
-    """Baixa os `.json` de config/orcamentos da `main`. Ignora o que não for arquivo do próprio repositório."""
+def baixar_planos(destino: Path, get=_http_get, pasta_repo: str = "config/orcamentos") -> list[Path]:
+    """Baixa os `.json` de `pasta_repo` da `main`. Ignora o que não for arquivo do próprio repositório.
+    Também usado por acoes_agendadas.py (config/acoes)."""
+    url_lista = URL_LISTA.replace("config/orcamentos", pasta_repo)
     baixados = []
-    for item in json.loads(get(URL_LISTA)):
+    for item in json.loads(get(url_lista)):
         nome, url = item.get("name", ""), item.get("download_url") or ""
         if item.get("type") != "file" or not NOME_VALIDO.match(nome) or not url.startswith(PREFIXO_RAW):
             continue

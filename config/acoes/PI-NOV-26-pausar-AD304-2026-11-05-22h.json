@@ -1,0 +1,85 @@
+{
+  "lancamento": "PI-NOV-26",
+  "descricao": "Pausar o AD304 (carrossel 'O maior concurso da história') nos 13 conjuntos em que roda no Facebook (Meta), 05/11 às 22h. Pedido do usuário.",
+  "executar_em": "2026-11-05T22:00",
+  "acoes": [
+    {
+      "plataforma": "meta",
+      "id": "120248677678120014",
+      "nome": "AD304 - O maior concurso da história - PI-NOV-26 | específico principal / 01 Viu 50% Pré-Quali",
+      "status": "PAUSED"
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248677671920014",
+      "nome": "AD304 - O maior concurso da história - PI-NOV-26 | específico principal / 00 Viu 25% Pré-Quali",
+      "status": "PAUSED"
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248677558620014",
+      "nome": "AD304 - O maior concurso da história - PI-NOV-26 | frio principal / 08 Advantage+",
+      "status": "PAUSED"
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248677561470014",
+      "nome": "AD304 - O maior concurso da história - PI-NOV-26 | frio principal / 08 Ensino superior",
+      "status": "PAUSED"
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248677566370014",
+      "nome": "AD304 - O maior concurso da história - PI-NOV-26 | frio principal / 08 Semelhante 1%",
+      "status": "PAUSED"
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248677575110014",
+      "nome": "AD304 - O maior concurso da história - PI-NOV-26 | frio principal / 08 Semelhante 3%",
+      "status": "PAUSED"
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248677420310014",
+      "nome": "AD304 - O maior concurso da história - PI-NOV-26 | quente principal / 02 Lista Completa de E-mails",
+      "status": "PAUSED"
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248677425530014",
+      "nome": "AD304 - O maior concurso da história - PI-NOV-26 | quente principal / 03 Viu Captação 50%",
+      "status": "PAUSED"
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248677431400014",
+      "nome": "AD304 - O maior concurso da história - PI-NOV-26 | quente principal / 04 Viu Captação 25%",
+      "status": "PAUSED"
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248677436790014",
+      "nome": "AD304 - O maior concurso da história - PI-NOV-26 | quente principal / 05 Envolvimento",
+      "status": "PAUSED"
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248676951190014",
+      "nome": "AD304 - O maior concurso da história - PI-NOV-26 | quente principal / 00 Caiu na Pág. de Captura",
+      "status": "PAUSED"
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248677417520014",
+      "nome": "AD304 - O maior concurso da história - PI-NOV-26 | quente principal / 01 Cadastrados INSS Anteriores",
+      "status": "PAUSED"
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248677443390014",
+      "nome": "AD304 - O maior concurso da história - PI-NOV-26 | quente principal / 06 Envolvimento",
+      "status": "PAUSED"
+    }
+  ]
+}

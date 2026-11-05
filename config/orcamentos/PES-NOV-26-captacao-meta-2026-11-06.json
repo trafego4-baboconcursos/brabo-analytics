@@ -1,147 +1,119 @@
 {
   "lancamento": "PES-NOV-26",
-  "descricao": "Captação Meta + Google — verba do dia 06/11 pela curva do plano de mídia do Murilo (aba Diário Captação). Quente principal e pos-edital do YouTube (originais e copias #2 do Murilo) fixadas nos valores que o Murilo deixou em 02/11 23h. Plano do Murilo de 03/11 (PDF 'Ajustes no YouTube'): originais do quente principal e pos-edital pausadas e fora do plano; Google fixo em R$ 13.900/dia. 04/11: gate de 03/11 passou (CPL 22,52) - Google R$ 15.600 (+1.700 vindos da Meta, corte proporcional nas 10 campanhas); shorts 800, frio principal 600, especifico principal 1.800, especifico pos 1.500, quente principal #2 6.500 (MUDANCAS item 159). 04/11 ~09h40: quente imagem 500 -> 300, +200 na quente principal #2 (pedido do usuario, MUDANCAS item 161). 04/11 ~14h: AD381 isolado em campanhas próprias de quente e frio (R$ 500/dia cada), tirados da quente principal e da frio principal (MUDANCAS item 177).",
+  "descricao": "05/11 ~10h: plano 'Movimentos 05/11' (PDF do usuario, MUDANCAS item 185): verba travada em R$ 12.405/dia por plataforma ate 09/11. Meta: frio imagem pausada; AD381+AD382 quente 2.000 e frio 1.500; carrosseis seguem pausados. Google: quente imagem, quente shorts e frio pos-edital pausadas; frio principal original fica 05/11 (R$ 600) e sai a partir de 06/11, substituida pela frio principal #2 24440036863 (R$ 2.400, criada por API 05/11). Pre-qualificacao pausada. Correcao: o AD381 isolado (item 177) entrou as 15h49 de 04/11, nao ~14h. | Anterior: Captação Meta + Google — verba do dia 06/11 pela curva do plano de mídia do Murilo (aba Diário Captação). Quente principal e pos-edital do YouTube (originais e copias #2 do Murilo) fixadas nos valores que o Murilo deixou em 02/11 23h. Plano do Murilo de 03/11 (PDF 'Ajustes no YouTube'): originais do quente principal e pos-edital pausadas e fora do plano; Google fixo em R$ 13.900/dia. 04/11: gate de 03/11 passou (CPL 22,52) - Google R$ 15.600 (+1.700 vindos da Meta, corte proporcional nas 10 campanhas); shorts 800, frio principal 600, especifico principal 1.800, especifico pos 1.500, quente principal #2 6.500 (MUDANCAS item 159). 04/11 ~09h40: quente imagem 500 -> 300, +200 na quente principal #2 (pedido do usuario, MUDANCAS item 161). 04/11 15h49: AD381 isolado em campanhas próprias de quente e frio (R$ 500/dia cada), tirados da quente principal e da frio principal (MUDANCAS item 177).",
   "aplicar_em": "2026-11-06",
   "campanhas": [
     {
       "plataforma": "meta",
-      "id": "120248542937340014",
-      "nome": "[MA][cadastro][captação][quente][pós-edital][PES-NOV-26][26.10.26]",
-      "valor": 3555.96,
-      "conta": ""
-    },
-    {
-      "plataforma": "meta",
-      "id": "120248542934030014",
-      "nome": "[MA][cadastro][captação][quente][principal][PES-NOV-26][26.10.26]",
-      "valor": 1755.0,
-      "conta": ""
-    },
-    {
-      "plataforma": "meta",
-      "id": "120248542947040014",
-      "nome": "[MA][cadastro][captação][quente][reels][PES-NOV-26][26.10.26]",
-      "valor": 1734.61,
-      "conta": ""
-    },
-    {
-      "plataforma": "meta",
-      "id": "120248542951360014",
-      "nome": "[MA][cadastro][captação][quente][imagem][PES-NOV-26][26.10.26]",
-      "valor": 1127.5,
-      "conta": ""
-    },
-    {
-      "plataforma": "meta",
-      "id": "120248542956380014",
-      "nome": "[MA][cadastro][captação][frio][pós-edital][PES-NOV-26][26.10.26]",
-      "valor": 2539.97,
-      "conta": ""
-    },
-    {
-      "plataforma": "meta",
-      "id": "120248542959750014",
-      "nome": "[MA][cadastro][captação][frio][principal][PES-NOV-26][26.10.26]",
-      "valor": 1110.71,
-      "conta": ""
-    },
-    {
-      "plataforma": "meta",
-      "id": "120248542963720014",
-      "nome": "[MA][cadastro][captação][frio][reels][PES-NOV-26][26.10.26]",
-      "valor": 1239.01,
-      "conta": ""
-    },
-    {
-      "plataforma": "meta",
-      "id": "120248542968150014",
-      "nome": "[MA][cadastro][captação][frio][imagem][PES-NOV-26][26.10.26]",
-      "valor": 805.35,
-      "conta": ""
-    },
-    {
-      "plataforma": "meta",
-      "id": "120257128220460012",
-      "nome": "[MA][cadastro][captação][específico][pós-edital][PES-NOV-26][26.10.26]",
-      "valor": 520.38,
-      "conta": ""
-    },
-    {
-      "plataforma": "meta",
-      "id": "120257128221880012",
-      "nome": "[MA][cadastro][captação][específico][principal][PES-NOV-26][26.10.26]",
-      "valor": 346.92,
-      "conta": ""
-    },
-    {
-      "plataforma": "google",
-      "id": "24401397316",
-      "nome": "[GA][cadastro][captação][quente][shorts][PES-NOV-26][26.10.26]",
-      "valor": 800.0,
-      "conta": "6482320788"
-    },
-    {
-      "plataforma": "google",
-      "id": "24395758937",
-      "nome": "[GA][cadastro][captação][quente][imagem][PES-NOV-26][26.10.26]",
-      "valor": 300.0,
-      "conta": "6482320788"
-    },
-    {
-      "plataforma": "google",
-      "id": "24401397982",
-      "nome": "[GA][cadastro][captação][frio][pós-edital][PES-NOV-26][26.10.26]",
-      "valor": 300.0,
-      "conta": "6482320788"
-    },
-    {
-      "plataforma": "google",
-      "id": "24401397586",
-      "nome": "[GA][cadastro][captação][frio][principal][PES-NOV-26][26.10.26]",
-      "valor": 600.0,
-      "conta": "6482320788"
-    },
-    {
-      "plataforma": "google",
-      "id": "24401397994",
-      "nome": "[GA][cadastro][captação][específico][pós-edital][PES-NOV-26][26.10.26]",
-      "valor": 1500.0,
-      "conta": "6482320788"
-    },
-    {
-      "plataforma": "google",
-      "id": "24390201993",
-      "nome": "[GA][cadastro][captação][específico][principal][PES-NOV-26][26.10.26]",
-      "valor": 1800.0,
-      "conta": "6482320788"
-    },
-    {
-      "plataforma": "google",
-      "id": "24420709433",
-      "nome": "[GA][cadastro][captação][quente][principal][PES-NOV-26][02.11.26] #2",
-      "valor": 6700.0,
-      "conta": "6482320788"
-    },
-    {
-      "plataforma": "google",
-      "id": "24427699081",
-      "nome": "[GA][cadastro][captação][quente][pós-edital][PES-NOV-26][26.10.26] #2",
-      "valor": 3600.0,
-      "conta": "6482320788"
-    },
-    {
-      "plataforma": "meta",
       "id": "120248736566650014",
       "nome": "[MA][cadastro][captação][quente][AD381][PES-NOV-26][04.11.26]",
-      "valor": 500.0,
+      "valor": 2000.0,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248736569680014",
       "nome": "[MA][cadastro][captação][frio][AD381][PES-NOV-26][04.11.26]",
-      "valor": 500.0,
+      "valor": 1500.0,
       "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248542937340014",
+      "nome": "[MA][cadastro][captação][quente][pós-edital][PES-NOV-26][26.10.26]",
+      "valor": 2500.0,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248542956380014",
+      "nome": "[MA][cadastro][captação][frio][pós-edital][PES-NOV-26][26.10.26]",
+      "valor": 2400.0,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120257128220460012",
+      "nome": "[MA][cadastro][captação][específico][pós-edital][PES-NOV-26][26.10.26]",
+      "valor": 1000.0,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248542963720014",
+      "nome": "[MA][cadastro][captação][frio][reels][PES-NOV-26][26.10.26]",
+      "valor": 800.0,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120257128221880012",
+      "nome": "[MA][cadastro][captação][específico][principal][PES-NOV-26][26.10.26]",
+      "valor": 705.0,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248542934030014",
+      "nome": "[MA][cadastro][captação][quente][principal][PES-NOV-26][26.10.26]",
+      "valor": 650.0,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248542951360014",
+      "nome": "[MA][cadastro][captação][quente][imagem][PES-NOV-26][26.10.26]",
+      "valor": 400.0,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248542947040014",
+      "nome": "[MA][cadastro][captação][quente][reels][PES-NOV-26][26.10.26]",
+      "valor": 250.0,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248542959750014",
+      "nome": "[MA][cadastro][captação][frio][principal][PES-NOV-26][26.10.26]",
+      "valor": 200.0,
+      "conta": ""
+    },
+    {
+      "plataforma": "google",
+      "id": "24427699081",
+      "nome": "[GA][cadastro][captação][quente][pós-edital][PES-NOV-26][26.10.26] #2",
+      "valor": 4300.0,
+      "conta": "6482320788"
+    },
+    {
+      "plataforma": "google",
+      "id": "24420709433",
+      "nome": "[GA][cadastro][captação][quente][principal][PES-NOV-26][02.11.26] #2",
+      "valor": 3000.0,
+      "conta": "6482320788"
+    },
+    {
+      "plataforma": "google",
+      "id": "24390201993",
+      "nome": "[GA][cadastro][captação][específico][principal][PES-NOV-26][26.10.26]",
+      "valor": 2000.0,
+      "conta": "6482320788"
+    },
+    {
+      "plataforma": "google",
+      "id": "24401397994",
+      "nome": "[GA][cadastro][captação][específico][pós-edital][PES-NOV-26][26.10.26]",
+      "valor": 705.0,
+      "conta": "6482320788"
+    },
+    {
+      "plataforma": "google",
+      "id": "24440036863",
+      "nome": "[GA][cadastro][captação][frio][principal][PES-NOV-26][05.11.26] #2",
+      "valor": 2400.0,
+      "conta": "6482320788"
     }
   ]
 }

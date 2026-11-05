@@ -235,7 +235,7 @@
                 {% endif %}
               </td>
               {% endif %}
-              <td class="td-muted" style="font-size:11px;">{{ a.nome[:70] }}</td>
+              <td class="td-muted" style="font-size:11px;min-width:240px;">{{ a.nome[:70] }}</td>
               <td class="numero"><strong>{{ a.leads | num }}</strong></td>
               <td class="numero">{{ a.cpl | brl if a.leads > 0 else "–" }}</td>
               <td class="numero">{{ a.gasto | brl }}</td>
@@ -385,7 +385,7 @@
                 {% endif %}
               </td>
               {% endif %}
-              <td class="td-muted" style="font-size:11px;">{{ a.nome[:70] }}</td>
+              <td class="td-muted" style="font-size:11px;min-width:240px;">{{ a.nome[:70] }}</td>
               <td class="numero"><strong>{{ a.leads | num }}</strong></td>
               <td class="numero">{{ a.cpl | brl if a.leads > 0 else "–" }}</td>
               <td class="numero">{{ a.gasto | brl }}</td>

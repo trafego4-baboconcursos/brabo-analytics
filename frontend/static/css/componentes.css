@@ -577,6 +577,7 @@ tr.linha-atual > td { background:var(--bs-accent-bg); }
 table th.sortable-header { position:relative; cursor:pointer; user-select:none; transition:background-color .2s; }
 table th.sortable-header:hover { background-color:rgba(0,0,0,.15) !important; }
 table th .sort-hint { margin-left:4px; opacity:.6; font-size:11px; font-weight:400; }
+table td.numero { white-space:nowrap; }
 
 /* ── Table filter input ─────────────────────────────────────────────── */
 .bs-table-filter-wrap { position:relative; display:inline-flex; align-items:center; margin:10px 0 6px; }

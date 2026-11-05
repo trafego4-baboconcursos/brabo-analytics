@@ -1,111 +1,111 @@
 {
   "lancamento": "PI-NOV-26",
-  "descricao": "Captação Facebook (Meta) + YouTube (Google): verba de 07/11 pela curva de ORCAMENTO_PI-NOV-26, Facebook (Meta) = curva do dia (R$ 22.566,30), YouTube (Google) = curva × 0,9647 (R$ 18.920,89). diluindo até 16/11 o excedente do Google de 02–05/11, Cada campanha mantém a proporção do plano de 05/11,",
+  "descricao": "Captação Facebook (Meta) + YouTube (Google): verba de 07/11 pela curva de ORCAMENTO_PI-NOV-26 (seção 5), diluindo até 16/11 o excedente de 02–04/11. Facebook (Meta) = curva × 0,8862 (R$ 19.997,90); YouTube (Google) = curva × 0,9647 (R$ 18.920,89). Cada campanha mantém a proporção do plano de 05/11.",
   "aplicar_em": "2026-11-07",
   "campanhas": [
     {
       "plataforma": "meta",
       "id": "120248674158940014",
       "nome": "[MA][cadastro][captação][quente][principal][PI-NOV-26][02.11.26]",
-      "valor": 5985.35,
+      "valor": 5304.12,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248674170010014",
       "nome": "[MA][cadastro][captação][quente][potencial][PI-NOV-26][02.11.26]",
-      "valor": 3758.25,
+      "valor": 3330.5,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248674172640014",
       "nome": "[MA][cadastro][captação][quente][imagem][PI-NOV-26][02.11.26]",
-      "valor": 1809.52,
+      "valor": 1603.57,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248674174980014",
       "nome": "[MA][cadastro][captação][quente][carrossel][PI-NOV-26][02.11.26]",
-      "valor": 1391.94,
+      "valor": 1233.52,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248674178080014",
       "nome": "[MA][cadastro][captação][quente][reels][PI-NOV-26][02.11.26]",
-      "valor": 974.35,
+      "valor": 863.45,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248674180810014",
       "nome": "[MA][cadastro][captação][frio][principal][PI-NOV-26][02.11.26]",
-      "valor": 1360.3,
+      "valor": 1205.48,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248674183310014",
       "nome": "[MA][cadastro][captação][frio][potencial][PI-NOV-26][02.11.26]",
-      "valor": 854.14,
+      "valor": 756.93,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248674185420014",
       "nome": "[MA][cadastro][captação][frio][imagem][PI-NOV-26][02.11.26]",
-      "valor": 411.26,
+      "valor": 364.45,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248674187880014",
       "nome": "[MA][cadastro][captação][frio][carrossel][PI-NOV-26][02.11.26]",
-      "valor": 316.35,
+      "valor": 280.34,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248674190160014",
       "nome": "[MA][cadastro][captação][frio][reels][PI-NOV-26][02.11.26]",
-      "valor": 221.44,
+      "valor": 196.24,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248674191610014",
       "nome": "[MA][cadastro][captação][específico][principal][PI-NOV-26][02.11.26]",
-      "valor": 2357.85,
+      "valor": 2089.49,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248674192600014",
       "nome": "[MA][cadastro][captação][específico][potencial][PI-NOV-26][02.11.26]",
-      "valor": 1480.51,
+      "valor": 1312.0,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248674193480014",
       "nome": "[MA][cadastro][captação][específico][imagem][PI-NOV-26][02.11.26]",
-      "valor": 712.85,
+      "valor": 631.72,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248674194770014",
       "nome": "[MA][cadastro][captação][específico][carrossel][PI-NOV-26][02.11.26]",
-      "valor": 548.34,
+      "valor": 485.93,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248674196240014",
       "nome": "[MA][cadastro][captação][específico][reels][PI-NOV-26][02.11.26]",
-      "valor": 383.85,
+      "valor": 340.16,
       "conta": ""
     },
     {

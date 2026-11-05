@@ -34,6 +34,7 @@
   --pmax-color:      #fbbc05;
   --display-color:   #ff6d00;
   --whatsapp-color:  #25D366;
+  --whatsapp-text:   #31C16C;   /* verde do WhatsApp para texto (o #25D366 tem pouco contraste no branco) */
   --ac-color:        #144BC2;
   --temp-quente:     #f05454;
   --temp-morno:      #f4b740;

@@ -48,12 +48,12 @@
         </div>
         {% endif %}
         <div class="tp-compare">
-          {% if meta %}Meta: {{ meta_capt_gasto | brl }}{% endif %}
-          {% if google %}{% if meta %} · {% endif %}Google: {{ google_capt_gasto | brl }}{% endif %}
-          {% if wa_gasto %}{% if meta or google %} · {% endif %}WhatsApp: {{ wa_gasto | brl }}{% endif %}
+          {% if meta %}<span class="plat-meta">Meta</span>: {{ meta_capt_gasto | brl }}{% endif %}
+          {% if google %}{% if meta %} · {% endif %}<span class="plat-google">Google</span>: {{ google_capt_gasto | brl }}{% endif %}
+          {% if wa_gasto %}{% if meta or google %} · {% endif %}<span class="plat-wa">WhatsApp</span>: {{ wa_gasto | brl }}{% endif %}
         </div>
         {% if prev_kpis %}
-        <div class="tp-compare">{{ kpi_delta(invest, prev_kpis.invest, polarity="down") }} vs {{ prev_kpis.invest | brl }}</div>
+        <div class="tp-compare">{{ kpi_delta(invest, prev_kpis.invest, polarity="down") }} vs <strong>{{ prev_kpis.invest | brl }}</strong></div>
         {% endif %}
       </div>
 
@@ -73,8 +73,8 @@
         <div class="tp-cmp">
           <div class="tp-cmp-row tp-cmp-head"><span></span><span>Agora</span><span>Anterior</span><span>Var.</span></div>
           <div class="tp-cmp-row tp-cmp-total"><span>Total</span><span>{{ leads_meta | num }}</span><span>{{ prev_kpis.leads | num }}</span><span>{{ kpi_delta(leads_meta, prev_kpis.leads) }}</span></div>
-          {% if meta %}<div class="tp-cmp-row"><span>Meta</span><span>{{ meta_capt_leads | num }}</span><span>{{ prev_kpis.leads_meta | num }}</span><span>{{ kpi_delta(meta_capt_leads, prev_kpis.leads_meta) }}</span></div>{% endif %}
-          {% if google %}<div class="tp-cmp-row"><span>Google</span><span>{{ google_capt_conv | round | int | num }}</span><span>{{ prev_kpis.leads_google | num }}</span><span>{{ kpi_delta(google_capt_conv | round | int, prev_kpis.leads_google) }}</span></div>{% endif %}
+          {% if meta %}<div class="tp-cmp-row"><span class="plat-meta">Meta</span><span>{{ meta_capt_leads | num }}</span><span>{{ prev_kpis.leads_meta | num }}</span><span>{{ kpi_delta(meta_capt_leads, prev_kpis.leads_meta) }}</span></div>{% endif %}
+          {% if google %}<div class="tp-cmp-row"><span class="plat-google">Google</span><span>{{ google_capt_conv | round | int | num }}</span><span>{{ prev_kpis.leads_google | num }}</span><span>{{ kpi_delta(google_capt_conv | round | int, prev_kpis.leads_google) }}</span></div>{% endif %}
         </div>
         {% else %}
         <div class="tp-compare">
@@ -90,7 +90,7 @@
         </div>
         <div class="tp-value">{{ valor_medio_lead | brl }}</div>
         <div class="tp-label">CPL</div>
-        <div class="tp-compare">Investimento total / leads (Meta + Google)</div>
+        <div class="tp-compare">Investimento <strong>total</strong> / <strong>leads</strong> (<span class="plat-meta">Meta</span> + <span class="plat-google">Google</span>)</div>
         {% if prev_kpis %}
         <div class="tp-compare">{{ kpi_delta(valor_medio_lead, prev_kpis.cpl, polarity="down") }} vs {{ prev_kpis.cpl | brl }}</div>
         {% endif %}
@@ -119,7 +119,7 @@
         <div class="tp-value">{{ utm_cobertura.pct | round(1) if utm_cobertura else "–" }}{% if utm_cobertura %}%{% endif %}</div>
         <div class="tp-label">% com anúncio identificado</div>
         <div class="tp-compare">
-          {% if utm_cobertura %}{{ utm_cobertura.com_utm | num }} de {{ utm_cobertura.total | num }} leads com UTM do lançamento têm o ADxxx{% else %}Sem dados{% endif %}
+          {% if utm_cobertura %}<strong>{{ utm_cobertura.com_utm | num }}</strong> de <strong>{{ utm_cobertura.total | num }} leads</strong> com <strong>UTM</strong> do lançamento têm o ADxxx{% else %}Sem dados{% endif %}
         </div>
       </div>
       {% endif %}
@@ -132,7 +132,7 @@
         <div class="tp-value">{{ leads_x_whatsapp.total_whatsapp | num if leads_x_whatsapp else "–" }}</div>
         <div class="tp-label">Leads que Entraram nos Grupos</div>
         <div class="tp-compare">
-          {% if leads_x_whatsapp %}Taxa de entrada: {{ leads_x_whatsapp.taxa_entrada | round(1) }}%{% else %}Sem dados{% endif %}
+          {% if leads_x_whatsapp %}Taxa de entrada nos grupos de <span class="plat-wa">WhatsApp</span>: <strong>{{ leads_x_whatsapp.taxa_entrada | round(1) }}%</strong>{% else %}Sem dados{% endif %}
         </div>
       </div>
       {% endif %}

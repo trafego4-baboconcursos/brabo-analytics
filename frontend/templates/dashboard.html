@@ -534,7 +534,7 @@
         <h3>Top 5 Criativos por Leads</h3>
         {% for c in meta.top_por_leads[:5] %}
         {% set td = drive_thumbnails.get(c.ad_code) if drive_thumbnails else None %}
-        <div class="highlight-item" style="display:flex;gap:10px;align-items:flex-start">
+        <div class="highlight-item hl-criativo">
           {% if td %}
           <img src="{{ td.thumb }}" alt="{{ c.ad_code }}"
                data-preview="{{ td.preview }}" data-title="{{ c.ad_code }}"
@@ -544,20 +544,19 @@
                data-hook="{{ '%.2f'|format(c.hook_rate) | replace('.', ',') if c.hook_rate is defined and c.hook_rate }}"
                data-hold="{{ '%.2f'|format(c.hold_rate) | replace('.', ',') if c.hold_rate is defined and c.hold_rate }}"
                data-body="{{ '%.2f'|format(c.body_rate) | replace('.', ',') if c.body_rate is defined and c.body_rate }}"
-               style="width:56px;height:36px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);cursor:pointer;flex-shrink:0"
+               class="hl-thumb"
                onclick="openVideoModalFromEl(this)"
                onerror="this.style.display='none'">
           {% else %}
-          <div style="width:56px;height:36px;border-radius:5px;border:1px dashed var(--bs-border-s);background:var(--bs-accent-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <div class="hl-thumb hl-thumb-vazia">
             <i class="ti ti-photo-off" style="color:var(--bs-ink-subtle);font-size:14px"></i>
           </div>
           {% endif %}
           <div style="flex:1;min-width:0">
             <div class="highlight-row">
               <span class="criativo">{{ c.nome[:40] }}</span>
-              <span class="value">{{ c.leads | num }} leads</span>
             </div>
-            <small>{{ c.etapa }} | CPL {{ c.cpl | brl }} | Gasto {{ c.gasto | brl }}</small>
+            <small><b>Leads</b> {{ c.leads | num }} | <b>CPL</b> {{ c.cpl | brl }} | <b>Gasto</b> {{ c.gasto | brl }}</small>
           </div>
         </div>
         {% endfor %}
@@ -567,7 +566,7 @@
         <h3>Melhores CPL (Captação)</h3>
         {% for c in meta.top_por_cpl[:5] %}
         {% set td = drive_thumbnails.get(c.ad_code) if drive_thumbnails else None %}
-        <div class="highlight-item" style="display:flex;gap:10px;align-items:flex-start">
+        <div class="highlight-item hl-criativo">
           {% if td %}
           <img src="{{ td.thumb }}" alt="{{ c.ad_code }}"
                data-preview="{{ td.preview }}" data-title="{{ c.ad_code }}"
@@ -577,20 +576,19 @@
                data-hook="{{ '%.2f'|format(c.hook_rate) | replace('.', ',') if c.hook_rate is defined and c.hook_rate }}"
                data-hold="{{ '%.2f'|format(c.hold_rate) | replace('.', ',') if c.hold_rate is defined and c.hold_rate }}"
                data-body="{{ '%.2f'|format(c.body_rate) | replace('.', ',') if c.body_rate is defined and c.body_rate }}"
-               style="width:56px;height:36px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);cursor:pointer;flex-shrink:0"
+               class="hl-thumb"
                onclick="openVideoModalFromEl(this)"
                onerror="this.style.display='none'">
           {% else %}
-          <div style="width:56px;height:36px;border-radius:5px;border:1px dashed var(--bs-border-s);background:var(--bs-accent-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <div class="hl-thumb hl-thumb-vazia">
             <i class="ti ti-photo-off" style="color:var(--bs-ink-subtle);font-size:14px"></i>
           </div>
           {% endif %}
           <div style="flex:1;min-width:0">
             <div class="highlight-row">
               <span class="criativo">{{ c.nome[:40] }}</span>
-              <span class="value positivo">{{ c.cpl | brl }}</span>
             </div>
-            <small>{{ c.leads | num }} leads | CTR {{ c.ctr | pct(2) }}</small>
+            <small><b>Leads</b> {{ c.leads | num }} | <b>CPL</b> {{ c.cpl | brl }} | <b>CTR</b> {{ c.ctr | pct(2) }}</small>
           </div>
         </div>
         {% endfor %}
@@ -600,7 +598,7 @@
         <h3>Piores CPL (atenção)</h3>
         {% for c in meta.piores_cpl[:5] %}
         {% set td = drive_thumbnails.get(c.ad_code) if drive_thumbnails else None %}
-        <div class="highlight-item" style="display:flex;gap:10px;align-items:flex-start">
+        <div class="highlight-item hl-criativo">
           {% if td %}
           <img src="{{ td.thumb }}" alt="{{ c.ad_code }}"
                data-preview="{{ td.preview }}" data-title="{{ c.ad_code }}"
@@ -610,20 +608,19 @@
                data-hook="{{ '%.2f'|format(c.hook_rate) | replace('.', ',') if c.hook_rate is defined and c.hook_rate }}"
                data-hold="{{ '%.2f'|format(c.hold_rate) | replace('.', ',') if c.hold_rate is defined and c.hold_rate }}"
                data-body="{{ '%.2f'|format(c.body_rate) | replace('.', ',') if c.body_rate is defined and c.body_rate }}"
-               style="width:56px;height:36px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);cursor:pointer;flex-shrink:0"
+               class="hl-thumb"
                onclick="openVideoModalFromEl(this)"
                onerror="this.style.display='none'">
           {% else %}
-          <div style="width:56px;height:36px;border-radius:5px;border:1px dashed var(--bs-border-s);background:var(--bs-accent-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <div class="hl-thumb hl-thumb-vazia">
             <i class="ti ti-photo-off" style="color:var(--bs-ink-subtle);font-size:14px"></i>
           </div>
           {% endif %}
           <div style="flex:1;min-width:0">
             <div class="highlight-row">
               <span class="criativo">{{ c.nome[:40] }}</span>
-              <span class="value negativo">{{ c.cpl | brl }}</span>
             </div>
-            <small>{{ c.leads | num }} leads | Gasto {{ c.gasto | brl }}</small>
+            <small><b>Leads</b> {{ c.leads | num }} | <b>CPL</b> {{ c.cpl | brl }} | <b>Gasto</b> {{ c.gasto | brl }}</small>
           </div>
         </div>
         {% endfor %}

@@ -197,9 +197,7 @@
         <table>
           <thead>
             <tr>
-              <th class="th-meta">#</th>
-              {% if drive_thumbnails %}<th class="th-meta">Criativo</th>{% endif %}
-              <th class="th-meta">AD Code</th>
+              {% if drive_thumbnails %}<th class="th-meta" data-nosort>Criativo</th>{% endif %}
               <th class="th-meta">Nome do Anúncio</th>
               <th class="th-meta">Leads</th>
               <th class="th-meta">CPL</th>
@@ -216,7 +214,6 @@
             {% for a in meta_ads_preq %}
             {% set td = drive_thumbnails.get(a.ad_code) if drive_thumbnails else None %}
             <tr class="{{ 'top3' if loop.index <= 3 else '' }}">
-              <td class="numero">{{ loop.index }}</td>
               {% if drive_thumbnails %}
               <td style="padding:4px 6px;">
                 {% if td %}
@@ -228,18 +225,17 @@
                      data-hook="{{ '%.2f'|format(a.hook_rate) | replace('.', ',') if a.hook_rate is defined and a.hook_rate }}"
                      data-hold="{{ '%.2f'|format(a.hold_rate) | replace('.', ',') if a.hold_rate is defined and a.hold_rate }}"
                      data-body="{{ '%.2f'|format(a.body_rate) | replace('.', ',') if a.body_rate is defined and a.body_rate }}"
-                     style="width:64px;height:42px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);cursor:pointer;display:block"
+                     class="thumb-criativo"
                      onclick="openVideoModalFromEl(this)"
                      onerror="this.style.display='none'">
                 {% else %}
-                <div style="width:64px;height:42px;border-radius:5px;border:1px dashed var(--bs-border-s);background:var(--bs-accent-bg);display:flex;align-items:center;justify-content:center">
+                <div class="thumb-criativo thumb-criativo-vazia">
                   <i class="ti ti-photo-off" style="color:var(--bs-ink-subtle);font-size:16px"></i>
                 </div>
                 {% endif %}
               </td>
               {% endif %}
-              <td><span class="bs-pill meta">{{ a.ad_code or "–" }}</span></td>
-              <td class="td-muted" style="max-width:280px;font-size:11px;">{{ a.nome[:70] }}</td>
+              <td class="td-muted" style="font-size:11px;">{{ a.nome[:70] }}</td>
               <td class="numero"><strong>{{ a.leads | num }}</strong></td>
               <td class="numero">{{ a.cpl | brl if a.leads > 0 else "–" }}</td>
               <td class="numero">{{ a.gasto | brl }}</td>
@@ -263,7 +259,7 @@
               {% set tot.v50c = tot.v50c + (a.views_50_c_alcance or 0) %}
             {% endfor %}
             <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
-              <td colspan="{{ 4 if drive_thumbnails else 3 }}">TOTAL</td>
+              <td colspan="{{ 2 if drive_thumbnails else 1 }}">TOTAL</td>
               <td class="numero">{{ tot.leads | num }}</td>
               <td class="numero">{{ (tot.gasto / tot.leads) | brl if tot.leads > 0 else "–" }}</td>
               <td class="numero">{{ tot.gasto | brl }}</td>
@@ -345,9 +341,7 @@
         <table>
           <thead>
             <tr>
-              <th class="th-google">#</th>
-              {% if mostra_thumb %}<th class="th-google">Criativo</th>{% endif %}
-              <th class="th-google">AD Code</th>
+              {% if mostra_thumb %}<th class="th-google" data-nosort>Criativo</th>{% endif %}
               <th class="th-google">Nome do Anúncio</th>
               <th class="th-google">Leads</th>
               <th class="th-google">CPL</th>
@@ -358,14 +352,12 @@
               <th class="th-google" title="Investimento ÷ visualizações">Custo/View</th>
               <th class="th-google" title="Visualizações × taxa de 50% do vídeo">Viram 50%</th>
               <th class="th-google" title="Viram 50% ÷ visualizações">% Viram 50%</th>
-              <th class="th-google">Vídeo</th>
             </tr>
           </thead>
           <tbody>
             {% for a in youtube_ads_preq %}
             {% set td = drive_thumbnails.get(a.ad_code) if drive_thumbnails else None %}
             <tr class="{{ 'top3' if loop.index <= 3 else '' }}">
-              <td class="numero">{{ loop.index }}</td>
               {% if mostra_thumb %}
               <td style="padding:4px 6px;">
                 {% if td %}
@@ -377,24 +369,23 @@
                      data-hook="{{ '%.2f'|format(a.hook_rate) | replace('.', ',') if a.hook_rate is defined and a.hook_rate }}"
                      data-hold="{{ '%.2f'|format(a.hold_rate) | replace('.', ',') if a.hold_rate is defined and a.hold_rate }}"
                      data-body="{{ '%.2f'|format(a.body_rate) | replace('.', ',') if a.body_rate is defined and a.body_rate }}"
-                     style="width:64px;height:42px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);cursor:pointer;display:block"
+                     class="thumb-criativo"
                      onclick="openVideoModalFromEl(this)"
                      onerror="this.style.display='none'">
                 {% elif a.video_id %}
                 <a href="https://www.youtube.com/watch?v={{ a.video_id }}" target="_blank" rel="noopener" title="Abrir no YouTube">
                   <img src="https://i.ytimg.com/vi/{{ a.video_id }}/mqdefault.jpg" alt="{{ a.ad_code }}" loading="lazy"
-                       style="width:64px;height:42px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);display:block"
+                       class="thumb-criativo"
                        onerror="this.style.display='none'">
                 </a>
                 {% else %}
-                <div style="width:64px;height:42px;border-radius:5px;border:1px dashed var(--bs-border-s);background:var(--bs-accent-bg);display:flex;align-items:center;justify-content:center">
+                <div class="thumb-criativo thumb-criativo-vazia">
                   <i class="ti ti-photo-off" style="color:var(--bs-ink-subtle);font-size:16px"></i>
                 </div>
                 {% endif %}
               </td>
               {% endif %}
-              <td><span class="bs-pill google">{{ a.ad_code or "–" }}</span></td>
-              <td class="td-muted" style="max-width:280px;font-size:11px;">{{ a.nome[:70] }}</td>
+              <td class="td-muted" style="font-size:11px;">{{ a.nome[:70] }}</td>
               <td class="numero"><strong>{{ a.leads | num }}</strong></td>
               <td class="numero">{{ a.cpl | brl if a.leads > 0 else "–" }}</td>
               <td class="numero">{{ a.gasto | brl }}</td>
@@ -404,13 +395,6 @@
               <td class="numero">{{ a.custo_view | brl(3) if a.video_views > 0 else "–" }}</td>
               <td class="numero">{{ a.viram_50 | num if a.viram_50 > 0 else "–" }}</td>
               <td class="numero">{{ a.pct_viram_50 | pct(2) if a.viram_50 > 0 else "–" }}</td>
-              <td>
-                {% if a.video_id %}
-                <a href="https://www.youtube.com/watch?v={{ a.video_id }}" target="_blank" class="td-google" style="font-size:11px;text-decoration:none">
-                  <i class="ti ti-brand-youtube"></i> ver
-                </a>
-                {% else %}–{% endif %}
-              </td>
             </tr>
             {% endfor %}
             {% set tot = namespace(leads=0, gasto=0, cliques=0, impressoes=0, views=0, v50=0) %}
@@ -423,7 +407,7 @@
               {% set tot.v50 = tot.v50 + (a.viram_50 or 0) %}
             {% endfor %}
             <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
-              <td colspan="{{ 4 if mostra_thumb else 3 }}">TOTAL</td>
+              <td colspan="{{ 2 if mostra_thumb else 1 }}">TOTAL</td>
               <td class="numero">{{ tot.leads | num }}</td>
               <td class="numero">{{ (tot.gasto / tot.leads) | brl if tot.leads > 0 else "–" }}</td>
               <td class="numero">{{ tot.gasto | brl }}</td>
@@ -433,7 +417,6 @@
               <td class="numero">{{ (tot.gasto / tot.views) | brl(3) if tot.views > 0 else "–" }}</td>
               <td class="numero">{{ tot.v50 | num if tot.v50 > 0 else "–" }}</td>
               <td class="numero">{{ (tot.v50 / tot.views * 100) | pct(2) if tot.views > 0 and tot.v50 > 0 else "–" }}</td>
-              <td></td>
             </tr>
           </tbody>
         </table>
@@ -466,12 +449,12 @@
           <thead>
             <tr>
               <th colspan="2" class="th-dark" style="text-align:left;">Data</th>
-              <th colspan="3" class="th-dark" style="text-align:left;">Geral</th>
-              <th colspan="3" class="th-meta" style="text-align:left;"><i class="ti ti-brand-meta"></i> Facebook Ads</th>
-              <th colspan="3" class="th-google" style="text-align:left;"><i class="ti ti-brand-youtube"></i> YouTube</th>
-              <th colspan="3" class="th-search" style="text-align:left;">GA Search</th>
-              <th colspan="3" class="th-pmax" style="text-align:left;">GA P-Max</th>
-              <th colspan="3" class="th-display" style="text-align:left;">GA Display</th>
+              <th colspan="3" class="th-dark" style="text-align:center;">Geral</th>
+              <th colspan="3" class="th-meta" style="text-align:center;"><i class="ti ti-brand-meta"></i> Facebook Ads</th>
+              <th colspan="3" class="th-google" style="text-align:center;"><i class="ti ti-brand-youtube"></i> YouTube</th>
+              <th colspan="3" class="th-search" style="text-align:center;">GA Search</th>
+              <th colspan="3" class="th-pmax" style="text-align:center;">GA P-Max</th>
+              <th colspan="3" class="th-display" style="text-align:center;">GA Display</th>
             </tr>
             <tr>
               <th class="th-dark">Dia</th>

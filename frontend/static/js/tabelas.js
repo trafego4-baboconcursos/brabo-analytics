@@ -22,8 +22,16 @@ document.addEventListener("DOMContentLoaded", function() {
     if (!headers.length || table.closest("#bs-drawer")) return;
     var sortIdx = -1, sortDir = 1;
     headers.forEach(function(th, i) {
+      if (th.hasAttribute("data-nosort")) return;
       th.classList.add("sortable-header");
-      th.title = "Clique para ordenar";
+      th.title = th.title || "Clique para ordenar";
+      // ↕ fixo para mostrar que a coluna ordena; some na coluna ativa (lá entra a seta da direção)
+      if ((th.colSpan || 1) === 1) {
+        var hint = document.createElement("span");
+        hint.className = "sort-hint";
+        hint.innerHTML = '<i class="ti ti-arrows-sort"></i>';
+        th.appendChild(hint);
+      }
       th.addEventListener("click", function() {
         var tbody = table.querySelector("tbody");
         if (!tbody) return;
@@ -32,7 +40,11 @@ document.addEventListener("DOMContentLoaded", function() {
         var data   = rows.filter(r => !r.classList.contains("total-row"));
         sortDir = (sortIdx === i) ? -sortDir : -1;
         sortIdx = i;
-        headers.forEach(h => { var s = h.querySelector(".sort-indicator"); if(s) s.remove(); });
+        headers.forEach(h => {
+          var s = h.querySelector(".sort-indicator"); if(s) s.remove();
+          var hh = h.querySelector(".sort-hint"); if(hh) hh.style.display = "";
+        });
+        var hAtivo = th.querySelector(".sort-hint"); if (hAtivo) hAtivo.style.display = "none";
         var ind = document.createElement("span");
         ind.className = "sort-indicator";
         ind.innerHTML = sortDir === 1 ? '<i class="ti ti-chevron-up"></i>' : '<i class="ti ti-chevron-down"></i>';

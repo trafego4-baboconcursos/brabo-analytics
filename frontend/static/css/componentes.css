@@ -255,9 +255,10 @@
 .highlight-item small     { color:var(--bs-ink-muted); font-size:11px; }
 /* Destaques de Criativos: miniatura ao lado, rótulo da métrica em destaque (Figma 31:2) */
 .hl-criativo              { flex-direction:row; align-items:center; gap:10px; }
-.hl-criativo .hl-thumb    { width:72px; height:46px; object-fit:cover; border-radius:6px; border:1px solid var(--bs-border); cursor:pointer; flex-shrink:0; }
-.hl-criativo .hl-thumb-vazia { border-style:dashed; border-color:var(--bs-border-s); background:var(--bs-accent-bg); display:flex; align-items:center; justify-content:center; cursor:default; }
 .hl-criativo small b      { color:var(--bs-accent); font-weight:700; }
+/* Miniatura de criativo (72×46) — Destaques de Criativos e Rankings de Anúncios */
+.thumb-criativo           { width:72px; height:46px; object-fit:cover; border-radius:6px; border:1px solid var(--bs-border); cursor:pointer; display:block; flex-shrink:0; }
+.thumb-criativo-vazia     { border-style:dashed; border-color:var(--bs-border-s); background:var(--bs-accent-bg); display:flex; align-items:center; justify-content:center; cursor:default; }
 
 /* ── Info box (tabela detalhada) ────────────────────────────────────── */
 .info-box   { background:var(--bs-card); padding:20px; border-radius:var(--bs-r-lg); margin-bottom:20px; box-shadow:var(--bs-sh-sm); }
@@ -575,6 +576,7 @@ tr.linha-atual > td { background:var(--bs-accent-bg); }
 /* ── Sortable tables ────────────────────────────────────────────────── */
 table th.sortable-header { position:relative; cursor:pointer; user-select:none; transition:background-color .2s; }
 table th.sortable-header:hover { background-color:rgba(0,0,0,.15) !important; }
+table th .sort-hint { margin-left:4px; opacity:.6; font-size:11px; font-weight:400; }
 
 /* ── Table filter input ─────────────────────────────────────────────── */
 .bs-table-filter-wrap { position:relative; display:inline-flex; align-items:center; margin:10px 0 6px; }

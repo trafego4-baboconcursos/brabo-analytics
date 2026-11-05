@@ -231,6 +231,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
             "cliques": int(r["cliques"]),
             "impressoes": int(r["impressoes"]),
             "visualizacoes": int(r["views"]),
+            "views_25": int(round(r["views_25"])),
             "views_50": int(round(r["views_50"])),
             "pct_views_50": float(r["views_50"] / r["views"] * 100) if r["views"] > 0 else 0.0,
             "taxa_view": float(r["views"] / r["impressoes"] * 100) if r["impressoes"] > 0 else 0.0,
@@ -247,7 +248,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
                 else ""
             ),
         }
-    zero_google = {"custo": 0.0, "conversoes": 0.0, "cliques": 0, "impressoes": 0, "visualizacoes": 0, "views_50": 0, "pct_views_50": 0.0, "taxa_view": 0.0, "ctr": 0.0,
+    zero_google = {"custo": 0.0, "conversoes": 0.0, "cliques": 0, "impressoes": 0, "visualizacoes": 0, "views_25": 0, "views_50": 0, "pct_views_50": 0.0, "taxa_view": 0.0, "ctr": 0.0,
                    "pct_views_25": 0.0, "pct_views_75": 0.0, "pct_views_100": 0.0, "custo_conv": 0.0, "pct": 0.0, "num_campanhas": 0}
     for etapa in etapas_ordem(code):
         summary.por_etapa[etapa] = etapa_google_raw.get(etapa, {"etapa": etapa, **zero_google})

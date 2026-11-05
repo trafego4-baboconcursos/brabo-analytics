@@ -204,7 +204,7 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
     engine = _get_engine()
 
     _COLS = ("date, ad_id, ad_name, adset_name, campaign_name, account_id, impressions, "
-             "clicks, spend, leads, video_thruplays, video_views_50, reach, video_views_3s, video_views_30s, "
+             "clicks, spend, leads, video_thruplays, video_views_25, video_views_50, reach, video_views_3s, video_views_30s, "
              "video_avg_time_watched, post_reactions, post_comments, post_shares, post_saves")
     _COLS = _com_classificacao(_COLS, "meta_ads_daily", _CLASSIFICACAO_META)
     if start_date and end_date:
@@ -255,6 +255,8 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
         custo=("spend", "sum"),
         leads=("leads", "sum"),
         thruplays=("video_thruplays", "sum"),
+        impressoes=("impressions", "sum"),
+        views_25=("video_views_25", "sum"),
         views_50=("video_views_50", "sum"),
         views_50_c_alcance=("views_50_c_alcance", "sum"),
         alcance=("reach", "sum"),
@@ -275,6 +277,8 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
             "gasto": float(r["custo"]),
             "leads": int(r["leads"]),
             "thruplays": int(r["thruplays"]),
+            "impressoes": int(r["impressoes"]),
+            "views_25": int(r["views_25"]),
             "views_50": int(r["views_50"]),
             "alcance": int(r["alcance"]),
             "frequencia": float(r["imp_c_alcance"] / r["alcance"]) if r["alcance"] > 0 else 0.0,
@@ -293,7 +297,7 @@ def read_meta(launch_folder_or_code: Any, start_date=None, end_date=None) -> Met
                 else ""
             ),
         }
-    zero_meta = {"custo": 0.0, "gasto": 0.0, "leads": 0, "thruplays": 0, "views_50": 0, "alcance": 0, "frequencia": 0.0, "views_30s": 0, "tempo_medio": 0.0,
+    zero_meta = {"custo": 0.0, "gasto": 0.0, "leads": 0, "thruplays": 0, "impressoes": 0, "views_25": 0, "views_50": 0, "alcance": 0, "frequencia": 0.0, "views_30s": 0, "tempo_medio": 0.0,
                  "reacoes": 0, "comentarios": 0, "compartilhamentos": 0, "salvamentos": 0, "pct_views_50": 0.0, "cpl": 0.0, "custo_thruplay": 0.0, "pct": 0.0, "num_campanhas": 0}
     for etapa in etapas_ordem(code):
         summary.por_etapa[etapa] = etapa_data_raw.get(etapa, {"etapa": etapa, **zero_meta})

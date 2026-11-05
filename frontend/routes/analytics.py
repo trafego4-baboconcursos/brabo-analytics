@@ -288,6 +288,21 @@ async def pre_qualificacao(request: Request, launch_code: str | None = None):
     google_preq_views = int(google_preq.get("visualizacoes") or 0)
     thruviews_preq = meta_preq_thruviews + google_preq_views
 
+    # KPIs Principais da etapa: CPM, quem viu 25%/50% do vídeo e o custo por "viu 50%" (regra PQ-1:
+    # pré-qualificação se julga por custo por view, não por CPL).
+    meta_preq_imp = int(meta_preq.get("impressoes") or 0)
+    google_preq_imp = int(google_preq.get("impressoes") or 0)
+    meta_preq_cpm = meta_preq_gasto / meta_preq_imp * 1000 if meta_preq_imp > 0 else 0.0
+    google_preq_cpm = google_preq_gasto / google_preq_imp * 1000 if google_preq_imp > 0 else 0.0
+    cpm_preq = invest_preq / (meta_preq_imp + google_preq_imp) * 1000 if (meta_preq_imp + google_preq_imp) > 0 else 0.0
+    meta_preq_v25 = int(meta_preq.get("views_25") or 0)
+    google_preq_v25 = int(google_preq.get("views_25") or 0)
+    meta_preq_v50 = int(meta_preq.get("views_50") or 0)
+    google_preq_v50 = int(google_preq.get("views_50") or 0)
+    v25_preq = meta_preq_v25 + google_preq_v25
+    v50_preq = meta_preq_v50 + google_preq_v50
+    custo_v50_preq = invest_preq / v50_preq if v50_preq > 0 else 0.0
+
     conversao_pagina_captura = None
     if launch:
         try:
@@ -348,6 +363,10 @@ async def pre_qualificacao(request: Request, launch_code: str | None = None):
         meta_preq_leads=meta_preq_leads, google_preq_conv=google_preq_conv,
         thruviews_preq=thruviews_preq, meta_preq_thruviews=meta_preq_thruviews,
         google_preq_views=google_preq_views,
+        cpm_preq=cpm_preq, meta_preq_cpm=meta_preq_cpm, google_preq_cpm=google_preq_cpm,
+        v25_preq=v25_preq, meta_preq_v25=meta_preq_v25, google_preq_v25=google_preq_v25,
+        v50_preq=v50_preq, meta_preq_v50=meta_preq_v50, google_preq_v50=google_preq_v50,
+        custo_v50_preq=custo_v50_preq,
         leads_por_campanha=leads_por_campanha_preq,
         total_leads_camp=total_leads_camp_preq, total_gasto_camp=total_gasto_camp_preq,
     )

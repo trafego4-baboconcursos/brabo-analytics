@@ -33,16 +33,23 @@
     {% from "_macros_platform.html" import plat_badge %}
     {% from "_macros_etapa.html" import retencao_etapa %}
 
-    {# ── Resumo de Investimento — etapa ───────────────────────── #}
+    {# ── KPIs Principais — etapa (mesmo card da Captação: tp-kpi) ─────────── #}
+    {% set proj_pq = ((verba_proj_pq.meta or 0) + (verba_proj_pq.google or 0)) if verba_proj_pq else 0 %}
     <div class="section">
-    <div class="section-title"><i class="ti ti-coin"></i> Resumo de Investimento</div>
-    <div class="tp-kpi-grid">
+    <div class="section-title"><i class="ti ti-gauge"></i> KPIs Principais</div>
+    <div class="tp-kpi-grid tp-kpi-grid-4">
+
       <div class="tp-kpi">
-        <div class="tp-kpi-top">
-          <div class="tp-icon warning"><i class="ti ti-coin"></i></div>
-        </div>
+        <div class="tp-kpi-top"><div class="tp-icon warning"><i class="ti ti-coin"></i></div></div>
         <div class="tp-value">{{ invest_preq | brl }}</div>
-        <div class="tp-label">Investimento — {{ etapa_pq }}</div>
+        <div class="tp-label">Investimento Total — {{ etapa_pq }}</div>
+        {% if proj_pq > 0 %}
+        {% set prog_pq = invest_preq / proj_pq * 100 %}
+        <div class="kpi-prog">
+          <div class="kpi-prog-track"><div class="kpi-prog-fill warning" style="width:{{ [prog_pq, 100] | min | round(1) }}%"></div></div>
+          <div class="kpi-prog-lbl">{{ prog_pq | round(0) | int }}% da verba projetada de {{ proj_pq | brl }}</div>
+        </div>
+        {% endif %}
         <div class="tp-compare">
           {% if meta %}Meta: {{ meta_preq_gasto | brl }}{% endif %}
           {% if google %}{% if meta %} · {% endif %}Google: {{ google_preq_gasto | brl }}{% endif %}
@@ -50,11 +57,9 @@
       </div>
 
       <div class="tp-kpi">
-        <div class="tp-kpi-top">
-          <div class="tp-icon meta"><i class="ti ti-users"></i></div>
-        </div>
+        <div class="tp-kpi-top"><div class="tp-icon meta"><i class="ti ti-users"></i></div></div>
         <div class="tp-value">{{ leads_preq | num }}</div>
-        <div class="tp-label">Leads — {{ etapa_pq }}</div>
+        <div class="tp-label">Leads Gerados</div>
         <div class="tp-compare">
           {% if meta %}Meta: {{ meta_preq_leads | num }}{% endif %}
           {% if google %}{% if meta %} · {% endif %}Google: {{ "%.0f"|format(google_preq_conv) }}{% endif %}
@@ -62,25 +67,59 @@
       </div>
 
       <div class="tp-kpi">
-        <div class="tp-kpi-top">
-          <div class="tp-icon success"><i class="ti ti-report-money"></i></div>
+        <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-eye"></i></div></div>
+        <div class="tp-value">{{ cpm_preq | brl }}</div>
+        <div class="tp-label">CPM</div>
+        <div class="tp-compare">
+          {% if meta %}Meta: {{ meta_preq_cpm | brl }}{% endif %}
+          {% if google %}{% if meta %} · {% endif %}Google: {{ google_preq_cpm | brl }}{% endif %}
         </div>
+      </div>
+
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-player-play"></i></div></div>
+        <div class="tp-value">{{ thruviews_preq | num }}</div>
+        <div class="tp-label">Videoview</div>
+        <div class="tp-compare">
+          {% if meta %}Meta (ThruPlay): {{ meta_preq_thruviews | num }}{% endif %}
+          {% if google %}{% if meta %} · {% endif %}Google (TrueView): {{ google_preq_views | num }}{% endif %}
+        </div>
+      </div>
+
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-target-arrow"></i></div></div>
+        <div class="tp-value">{{ custo_v50_preq | brl(3) if v50_preq > 0 else "–" }}</div>
+        <div class="tp-label">Custo por Viu 50%</div>
+        <div class="tp-compare">Investimento / pessoas que viram 50% do vídeo (Meta + Google)</div>
+      </div>
+
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-report-money"></i></div></div>
         <div class="tp-value">{{ cpl_preq | brl }}</div>
-        <div class="tp-label">CPL — {{ etapa_pq }}</div>
+        <div class="tp-label">CPL</div>
         <div class="tp-compare">Investimento / leads (Meta + Google)</div>
       </div>
 
       <div class="tp-kpi">
-        <div class="tp-kpi-top">
-          <div class="tp-icon"><i class="ti ti-player-play"></i></div>
-        </div>
-        <div class="tp-value">{{ thruviews_preq | num }}</div>
-        <div class="tp-label">ThruViews/Views — {{ etapa_pq }}</div>
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-player-track-next"></i></div></div>
+        <div class="tp-value">{{ v25_preq | num if v25_preq > 0 else "–" }}</div>
+        <div class="tp-label">Viu 25%</div>
         <div class="tp-compare">
-          {% if meta %}Meta (ThruView): {{ meta_preq_thruviews | num }}{% endif %}
-          {% if google %}{% if meta %} · {% endif %}Google (TrueView): {{ google_preq_views | num }}{% endif %}
+          {% if meta %}Meta: {{ meta_preq_v25 | num }}{% endif %}
+          {% if google %}{% if meta %} · {% endif %}Google: {{ google_preq_v25 | num }}{% endif %}
         </div>
       </div>
+
+      <div class="tp-kpi">
+        <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-player-track-next-filled"></i></div></div>
+        <div class="tp-value">{{ v50_preq | num if v50_preq > 0 else "–" }}</div>
+        <div class="tp-label">Viu 50%</div>
+        <div class="tp-compare">
+          {% if meta %}Meta: {{ meta_preq_v50 | num }}{% endif %}
+          {% if google %}{% if meta %} · {% endif %}Google: {{ google_preq_v50 | num }}{% endif %}
+        </div>
+      </div>
+
     </div>
     </div>
 

@@ -42,6 +42,10 @@ MENSAGENS_ERRO = {
     "nao_encontrada": "Pedido não encontrado.",
     "ja_e_sua": "Essa venda já está no seu código.",
     "nao_invalidou": "Gravado, mas o cálculo guardado do mês não foi marcado: use Recalcular.",
+    "venda_nao_encontrada": "Venda não encontrada no mês. Confira o código e o mês da venda.",
+    "de_outro": "Essa venda já está no código de outro vendedor.",
+    "conflito_gestor": "Essa venda tem conflito de código que só o gestor resolve.",
+    "ajuste_concorrente": "Outro ajuste desta venda foi gravado ao mesmo tempo. Confira o histórico e tente de novo.",
 }
 
 
@@ -84,6 +88,8 @@ def _numero(txt: str | None) -> Decimal | None:
         return None
     if "," in t:  # formato brasileiro: 1.477,50
         t = t.replace(".", "").replace(",", ".")
+    elif re.fullmatch(r"\d{1,3}(\.\d{3})+", t):  # "1.477" / "12.345.678": ponto é milhar
+        t = t.replace(".", "")
     try:
         d = Decimal(t)
     except InvalidOperation:
@@ -116,16 +122,49 @@ def codigo_do_pedido(acesso: AcessoComercial, codigo_form: str | None) -> str:
     return acesso.vendedor_codigo
 
 
-def conferir_reivindicacao(linha: LinhaComissao | None, codigo: str) -> None:
-    """Recusa o que não faz sentido pedir: venda já atribuída à mão ou já no código de quem
-    pede. Venda fora do mês guardado (linha None) segue: o gestor decide."""
+def mes_obrigatorio(mes_txt: str | None, hoje: date) -> date:
+    """Ruling 14: a reivindicação precisa do mês da venda (válido, na janela da Task 5)."""
+    from frontend.services.comercial import telas  # noqa: PLC0415
+    if not (mes_txt or "").strip():
+        raise EntradaInvalida("Informe o mês da venda.")
+    try:
+        return telas.resolver_periodo(mes_txt, None, None, hoje).mes
+    except telas.PeriodoInvalido as exc:
+        raise EntradaInvalida(str(exc)) from None
+
+
+def conferir_reivindicacao(linha: LinhaComissao | None, codigo: str,
+                           codigos_conflito: tuple | None = None) -> None:
+    """Ruling 14 — só se reivindica venda ACHADA no mês e reivindicável: sem código; ou
+    conflito TMB em que quem pede é um dos dois códigos (sem os dois códigos à mão, só o
+    gestor resolve). Venda no código de outro -> `de_outro`; no próprio -> `ja_e_sua`."""
     from frontend.db_readers.comercial import EscritaRecusada  # noqa: PLC0415
     if linha is None:
-        return
+        raise EscritaRecusada("venda_nao_encontrada")
     if linha.atribuicao_manual:
         raise EscritaRecusada("ja_atribuida")
-    if linha.vendedor_codigo == codigo and linha.motivo != "conflito_codigo":
+    if linha.motivo == "sem_codigo":
+        return
+    if linha.motivo == "conflito_codigo":
+        cods = {c for c in (codigos_conflito or ()) if c}
+        if len(cods) < 2:
+            raise EscritaRecusada("conflito_gestor")
+        if codigo not in cods:
+            raise EscritaRecusada("de_outro")
+        return
+    if linha.vendedor_codigo == codigo:
         raise EscritaRecusada("ja_e_sua")
+    raise EscritaRecusada("de_outro")
+
+
+def linha_da_venda(mes: date, transacao: str) -> LinhaComissao | None:
+    """Linha da venda no mês: snapshot guardado (sem recalcular); se não está lá, o cálculo
+    do mês (obter_mes — pode recalcular). Roda em threadpool."""
+    from frontend.services.comercial import snapshot as snap  # noqa: PLC0415
+    linha = localizar(linhas_guardadas(mes), transacao)
+    if linha is None:
+        linha = localizar(snap.obter_mes(mes).linhas, transacao)
+    return linha
 
 
 def localizar(linhas: list[LinhaComissao] | None, transacao: str) -> LinhaComissao | None:
@@ -161,6 +200,16 @@ def codigos_novos(linhas: list[LinhaComissao]) -> list[tuple[str, str]]:
     return sorted(vistos.items(), key=lambda kv: int(kv[0][2:]) if kv[0][2:].isdigit() else 0)
 
 
+def _com_dono(pedido: dict, vendas: list[LinhaComissao]) -> dict:
+    """Ruling 14c: ao lado do pedido, o dono atual da venda e o motivo (do cálculo do mês)."""
+    linha = localizar(vendas, pedido["transacao"])
+    if linha is None:
+        return {**pedido, "dono": None, "dono_motivo": "fora deste mês", "de_outro": False}
+    dono = f"{linha.beneficiario} ({linha.vendedor_codigo})" if linha.vendedor_codigo else "sem código"
+    return {**pedido, "dono": dono, "dono_motivo": linha.motivo,
+            "de_outro": bool(linha.vendedor_codigo) and linha.vendedor_codigo != pedido.get("vendedor_codigo")}
+
+
 def view_inconsistencias(res: ResultadoMes, periodo, acesso: AcessoComercial, fila: dict,
                          conflitos: dict[str, tuple] | None = None, q: str | None = None) -> dict:
     gestor = pode(acesso.nivel, "aprovar")
@@ -190,7 +239,7 @@ def view_inconsistencias(res: ResultadoMes, periodo, acesso: AcessoComercial, fi
     return {
         **base,
         "minhas": [],
-        "pendentes": list(fila.get("pendentes", [])),
+        "pendentes": [_com_dono(p, vendas) for p in fila.get("pendentes", [])],
         "reembolso": ordem(l for l in vendas if l.situacao == "reembolso_a_verificar"),
         "conflitos": [Conflito(l, tuple(c for c in dict.fromkeys(conflitos.get(l.transacao, ())) if c))
                       for l in ordem(l for l in vendas

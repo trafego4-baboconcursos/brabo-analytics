@@ -789,16 +789,22 @@ def _txt_ajuste(pct, base) -> str:
 def gravar_ajuste(transacao: str, plataforma: str, pct: Decimal | None, valor_base: Decimal | None,
                   justificativa: str, por: str, *, conn=None) -> None:
     """Desativa o ajuste ativo da venda (fica no banco, como rastro) e grava o novo."""
+    from sqlalchemy.exc import IntegrityError  # noqa: PLC0415
     if pct is None and valor_base is None:
         raise ValueError("ajuste sem pct nem valor_base")
-    with _transacao(conn) as c:
-        antes = c.execute(text(SQL_AJUSTE_LER_ATIVO), _chave(plataforma, transacao)).fetchone()
-        _gravar(c, SQL_AJUSTE_DESATIVAR, _chave(plataforma, transacao))
-        _gravar(c, SQL_AJUSTE_INSERIR, {**_chave(plataforma, transacao), "pct": pct,
-                                         "valor_base": valor_base, "justificativa": justificativa, "por": por})
-        _historico(c, "comercial_ajustes", f"{plataforma}:{transacao}", "ajuste",
-                   None if antes is None else _txt_ajuste(*antes),
-                   f"{_txt_ajuste(pct, valor_base)}: {justificativa}", por)
+    try:
+        with _transacao(conn) as c:
+            antes = c.execute(text(SQL_AJUSTE_LER_ATIVO), _chave(plataforma, transacao)).fetchone()
+            _gravar(c, SQL_AJUSTE_DESATIVAR, _chave(plataforma, transacao))
+            _gravar(c, SQL_AJUSTE_INSERIR, {**_chave(plataforma, transacao), "pct": pct,
+                                             "valor_base": valor_base, "justificativa": justificativa, "por": por})
+            _historico(c, "comercial_ajustes", f"{plataforma}:{transacao}", "ajuste",
+                       None if antes is None else _txt_ajuste(*antes),
+                       f"{_txt_ajuste(pct, valor_base)}: {justificativa}", por)
+    except IntegrityError:
+        # outro ajuste ativo entrou ao mesmo tempo (ux_comercial_ajustes_ativo); a transação
+        # voltou atrás inteira: nada gravado, nem histórico
+        raise EscritaRecusada("ajuste_concorrente") from None
 
 
 # ---------------------------------------------------------------- Task 6: leituras da fila

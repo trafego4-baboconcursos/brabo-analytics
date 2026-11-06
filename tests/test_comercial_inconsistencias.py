@@ -436,7 +436,8 @@ def test_entrada():
 
 
 # ---------------------------------------------------------------- rotas
-_USUARIOS = {"master@teste.local": MASTER, "coord@teste.local": COORD, "edileia@teste.local": AT4}
+_USUARIOS = {"master@teste.local": MASTER, "coord@teste.local": COORD, "edileia@teste.local": AT4,
+             "pri@teste.local": AcessoComercial("vendedor", "AT11")}
 
 
 @pytest.fixture(scope="module")
@@ -653,3 +654,146 @@ def test_pagina_sem_nivel_403(cli):
 def test_menu_tem_inconsistencias(cli):
     html = _como(cli, "edileia@teste.local").get("/comercial/ranking").text
     assert 'href="/comercial/inconsistencias"' in html
+
+
+# ---------------------------------------------------------------- fix round 1
+# Ruling 14 — reivindicação só de venda achada no mês e reivindicável
+def _recusa(fn, *a):
+    with pytest.raises(com.EscritaRecusada) as e:
+        fn(*a)
+    return e.value.codigo
+
+
+def test_conferir_reivindicacao_ramos():
+    f = inc.conferir_reivindicacao
+    sem = _l("HP-S", None, "inconsistente", "sem_codigo")
+    conf = _l("T-C", None, "inconsistente", "conflito_codigo", plat="tmb")
+    f(sem, "AT4")  # sem código: pode
+    assert _recusa(f, None, "AT4") == "venda_nao_encontrada"
+    assert _recusa(f, _l("HP-M", "AT9", manual=True), "AT4") == "ja_atribuida"
+    assert _recusa(f, _l("HP-O", "AT9"), "AT4") == "de_outro"
+    assert _recusa(f, _l("HP-O", "AT9", "inconsistente", "sem_valor_base", base=None), "AT4") == "de_outro"
+    assert _recusa(f, _l("HP-E", "AT4"), "AT4") == "ja_e_sua"
+    f(conf, "AT4", ("AT4", "AT9"))  # conflito: quem pede é um dos dois
+    assert _recusa(f, conf, "AT11", ("AT4", "AT9")) == "de_outro"
+    assert _recusa(f, conf, "AT4", None) == "conflito_gestor"
+    assert _recusa(f, conf, "AT4", ("AT4", None)) == "conflito_gestor"
+
+
+@pytest.mark.parametrize("mes", ["", "   ", "lixo", "2025-12", "2026-12"])
+def test_reivindicar_sem_mes_valido_400(cli, mes):
+    r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar", data={"transacao": "HP-SEM-007", "mes": mes})
+    assert r.status_code == 400
+    assert cli.banco.atrib == {} and cli.banco.historico == []
+
+
+def test_reivindicar_sem_mes_mensagem(cli):
+    r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar", data={"transacao": "HP-SEM-007"})
+    assert r.status_code == 400 and "Informe o mês da venda" in r.text
+
+
+def test_reivindicar_venda_fora_do_mes_recusa(cli):
+    r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar",
+                                               data={"transacao": "HP-NAO-EXISTE", "mes": "2026-10"})
+    assert "erro=venda_nao_encontrada" in r.headers["location"]
+    assert cli.banco.atrib == {}
+
+
+def test_reivindicar_sem_snapshot_guardado_usa_calculo_do_mes(cli, monkeypatch):
+    chamadas = []
+    monkeypatch.setattr(inc, "linhas_guardadas", lambda mes: None)
+    monkeypatch.setattr(snap, "obter_mes", lambda mes, **kw: (chamadas.append(mes), _res())[1])
+    r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar",
+                                               data={"transacao": "HP-SEM-003", "mes": "2026-10"})
+    assert "ok=reivindicada" in r.headers["location"]
+    assert chamadas == [date(2026, 10, 1)]
+
+
+@pytest.mark.parametrize("tx", ["HP-JHE-REEMB", "HP-SEMBASE", "HP-NOVO"])
+def test_reivindicar_venda_de_outro_vendedor(cli, tx):
+    r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar", data={"transacao": tx, "mes": "2026-10"})
+    assert "erro=de_outro" in r.headers["location"]
+    assert cli.banco.atrib == {}
+
+
+def test_reivindicar_conflito_com_o_proprio_codigo(cli):
+    r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar", data={"transacao": "T-CONF", "mes": "2026-10"})
+    assert "ok=reivindicada" in r.headers["location"]
+    assert cli.banco.atrib[("tmb", "T-CONF")]["vendedor_codigo"] == "AT4"
+
+
+def test_reivindicar_conflito_sem_o_proprio_codigo(cli):
+    r = _como(cli, "pri@teste.local").post("/comercial/reivindicar", data={"transacao": "T-CONF", "mes": "2026-10"})
+    assert "erro=de_outro" in r.headers["location"]
+    assert cli.banco.atrib == {}
+
+
+def test_reivindicar_conflito_sem_os_dois_codigos(cli, monkeypatch):
+    monkeypatch.setattr(com, "ler_codigos_conflito", lambda pedidos: {})
+    r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar", data={"transacao": "T-CONF", "mes": "2026-10"})
+    assert "erro=conflito_gestor" in r.headers["location"]
+    assert cli.banco.atrib == {}
+
+
+def test_reivindicar_venda_atribuida_a_mao(cli, monkeypatch):
+    ls = _linhas() + [_l("HP-MANUAL", "AT9", manual=True)]
+    monkeypatch.setattr(inc, "linhas_guardadas", lambda mes: ls)
+    r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar", data={"transacao": "HP-MANUAL", "mes": "2026-10"})
+    assert "erro=ja_atribuida" in r.headers["location"]
+
+
+def test_pendentes_mostram_dono_atual(cli):
+    cli.banco.atrib[("hotmart", "HP-JHE-REEMB")] = {"vendedor_codigo": "AT4", "origem": "reivindicacao",
+                                                    "status": "pendente", "pedido_por": "edi@x"}
+    cli.banco.atrib[("hotmart", "HP-SEM-004")] = {"vendedor_codigo": "AT4", "origem": "reivindicacao",
+                                                  "status": "pendente", "pedido_por": "edi@x"}
+    cli.banco.atrib[("hotmart", "HP-OUTRO-MES")] = {"vendedor_codigo": "AT4", "origem": "reivindicacao",
+                                                    "status": "pendente", "pedido_por": "edi@x"}
+    html = _como(cli, "master@teste.local").get("/comercial/inconsistencias?mes=2026-10").text
+    tabela = html[html.index("Reivindicações pendentes"):html.index("Vendas sem código (")]
+    assert "Dono atual da venda" in tabela
+    assert "Jheniffer (AT9)" in tabela and "venda de outro vendedor" in tabela
+    assert "sem código" in tabela and "fora deste mês" in tabela
+
+
+def test_view_pendente_com_dono():
+    p = telas.resolver_periodo("2026-10", None, None, date(2026, 11, 6))
+    fila = {"pendentes": [{"transacao": "HP-JHE-REEMB", "vendedor_codigo": "AT4", "status": "pendente"},
+                          {"transacao": "HP-SEM-001", "vendedor_codigo": "AT4", "status": "pendente"}]}
+    [a, b] = inc.view_inconsistencias(_res(), p, MASTER, fila)["pendentes"]
+    assert (a["dono"], a["dono_motivo"], a["de_outro"]) == ("Jheniffer (AT9)", None, True)
+    assert (b["dono"], b["dono_motivo"], b["de_outro"]) == ("sem código", "sem_codigo", False)
+
+
+# Important 2 — ajuste concorrente
+def test_ajuste_concorrente_vira_recusa(banco):
+    from sqlalchemy.exc import IntegrityError
+
+    def estoura(p):
+        raise IntegrityError("INSERT", {}, Exception('duplicate key value violates "ux_comercial_ajustes_ativo"'))
+    banco.h[_n(com.SQL_AJUSTE_INSERIR)] = estoura
+    assert _recusa(com.gravar_ajuste, "HP4", "hotmart", D("0.1"), None, "x", "g@x") == "ajuste_concorrente"
+    assert banco.historico == []
+
+
+def test_ajuste_concorrente_rota_303(cli):
+    from sqlalchemy.exc import IntegrityError
+
+    def estoura(p):
+        raise IntegrityError("INSERT", {}, Exception("duplicate key"))
+    cli.banco.h[_n(com.SQL_AJUSTE_INSERIR)] = estoura
+    r = _como(cli, "master@teste.local").post("/comercial/ajuste", data={"transacao": "HP-SEMBASE", "pct": "10",
+                                                                          "justificativa": "x", "mes": "2026-10"})
+    assert r.status_code == 303 and "erro=ajuste_concorrente" in r.headers["location"]
+    assert cli.desat == []
+    assert "ajuste_concorrente" in inc.MENSAGENS_ERRO
+
+
+# Important 3 — ponto de milhar
+@pytest.mark.parametrize("pct,base,esperado", [
+    ("", "1.477", (None, D("1477"))), ("", "12.345", (None, D("12345"))), ("", "123.456", (None, D("123456"))),
+    ("", "1477", (None, D("1477"))), ("", "1.477,50", (None, D("1477.50"))), ("", "1.5", (None, D("1.5"))),
+    ("", "89.90", (None, D("89.90"))), ("4,5", "", (D("0.045"), None)), ("4.5", "", (D("0.045"), None)),
+])
+def test_numero_ponto_de_milhar(pct, base, esperado):
+    assert inc.ler_ajuste(pct, base) == esperado

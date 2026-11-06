@@ -187,13 +187,16 @@
       <div class="table-wrap">
         <table class="cm-tabela">
           <thead><tr>
-            <th class="th-dark">Transação</th><th class="th-dark">Vendedor</th><th class="th-dark">Pedido por</th><th class="th-dark">Em</th><th class="th-dark">Decisão</th>
+            <th class="th-dark">Transação</th><th class="th-dark">Pedido para</th><th class="th-dark">Dono atual da venda</th><th class="th-dark">Pedido por</th><th class="th-dark">Em</th><th class="th-dark">Decisão</th>
           </tr></thead>
           <tbody>
             {% for p in v.pendentes %}
             <tr>
               <td style="white-space:nowrap;">{{ p.transacao }}</td>
               <td class="nome">{{ p.vendedor_codigo }}</td>
+              <td>{{ p.dono or '—' }}
+                {% if p.dono_motivo %}<div class="cm-sub">{{ motivo_rotulo.get(p.dono_motivo, p.dono_motivo) }}</div>{% endif %}
+                {% if p.de_outro %}<span class="cm-chip inconsistente">venda de outro vendedor</span>{% endif %}</td>
               <td class="cm-sub">{{ p.pedido_por or '—' }}</td>
               <td style="white-space:nowrap;">{{ p.criado_em.strftime('%d/%m %H:%M') if p.criado_em else '—' }}</td>
               <td>
@@ -255,6 +258,7 @@
         {{ mes_hidden() }}
         <input type="text" name="transacao" placeholder="código da transação" required maxlength="64" aria-label="Transação para reivindicar">
         <button type="submit" class="cm-btn">Reivindicar pelo código</button>
+        <span class="cm-sub">a venda precisa ser do mês selecionado</span>
       </form>
       {% endif %}
       {% if v.sem_codigo %}

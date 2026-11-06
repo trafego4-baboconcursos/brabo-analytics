@@ -334,7 +334,12 @@ async def comercial_reivindicar(request: Request, transacao: str = Form(""), ven
         inc, com = _inc(), _com()
         t = inc.limpar_transacao(transacao)
         codigo = inc.codigo_do_pedido(acesso, vendedor_codigo)
-        inc.conferir_reivindicacao(inc.localizar(inc.linhas_guardadas(mes_d), t), codigo)
+        mes_venda = inc.mes_obrigatorio(mes, _hoje())  # Ruling 14: sem mês válido -> 400
+        linha = inc.linha_da_venda(mes_venda, t)
+        conflito = None
+        if linha is not None and linha.motivo == "conflito_codigo":
+            conflito = com.ler_codigos_conflito([t]).get(t)
+        inc.conferir_reivindicacao(linha, codigo, conflito)
         com.reivindicar(t, inc.plataforma_de(t), codigo, email)
         return "reivindicada", t, False  # pendente não muda o cálculo: não invalida o mês
     return await _acao(request, "reivindicar", mes, executar)

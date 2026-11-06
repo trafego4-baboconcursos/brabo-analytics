@@ -2,11 +2,17 @@
 
     python scripts/comercial_carga_inicial.py --pasta analises/comercial/extraido --dry-run
     python scripts/comercial_carga_inicial.py --pasta analises/comercial/extraido --gravar
+    python scripts/comercial_carga_inicial.py --migrar
 
 As planilhas têm dados pessoais e não vão para o git; o caminho vem por argumento.
 `--dry-run` conta e não grava; `--gravar` cria as tabelas comercial_* e carrega os cadastros
-numa transação só (idempotente; só toca comercial_*). `cadastros_da_planilha(pasta)` monta
-tudo em memória, sem banco.
+numa transação só (idempotente; só toca comercial_*); `--migrar` só cria as tabelas que faltam
+e roda as migrações registradas (MIGRACOES) — nenhum dado, nem planilha (dispensa `--pasta`).
+
+Ruling 23: `comercial_acessos` só é semeada se estiver VAZIA. Depois da 1ª carga os acessos são
+geridos pela tela (Regras e vendedores): rodar `--gravar` de novo não devolve um acesso que o
+gestor removeu. As demais tabelas seguem ON CONFLICT DO NOTHING sobre a chave natural.
+`cadastros_da_planilha(pasta)` monta tudo em memória, sem banco.
 """
 from __future__ import annotations
 
@@ -357,6 +363,9 @@ def gravar(cad: Cadastros, pedidos_tmb: frozenset[str] | set[str] = frozenset(),
     `acesso.limpar_cache()` no fim só limpa o cache deste processo (o CLI); o painel, que é
     outro processo, enxerga os acessos novos quando o cache dele expira (TTL de 60 s).
 
+    `comercial_acessos` só é semeada com a tabela vazia (Ruling 23): com qualquer linha, nada
+    entra e a contagem sai (0, len(ACESSOS)).
+
     Devolve {tabela: (inseridas, já existiam)}."""
     from sqlalchemy import text
     from frontend.db_readers.comercial import criar_tabelas, exigir_so_comercial
@@ -380,6 +389,9 @@ def gravar(cad: Cadastros, pedidos_tmb: frozenset[str] | set[str] = frozenset(),
                 contagem[tabela] = (0, 0)
                 continue
             antes = run(conn, f"SELECT count(*) FROM {tabela}").scalar_one()
+            if tabela == "comercial_acessos" and antes:  # Ruling 23: só semeia tabela vazia
+                contagem[tabela] = (0, len(linhas))
+                continue
             run(conn, *_insert_multiplo(tabela, colunas, linhas))
             depois = run(conn, f"SELECT count(*) FROM {tabela}").scalar_one()
             contagem[tabela] = (depois - antes, len(linhas) - (depois - antes))
@@ -387,17 +399,39 @@ def gravar(cad: Cadastros, pedidos_tmb: frozenset[str] | set[str] = frozenset(),
     return contagem
 
 
+def migrar(engine=None) -> None:
+    """Só o esquema: confere as colunas, roda as MIGRACOES e cria as comercial_* que faltam
+    (`criar_tabelas`), numa transação. Nenhum dado é gravado."""
+    from frontend.db_readers.comercial import criar_tabelas
+
+    if engine is None:
+        from frontend.db import _get_users_engine
+        engine = _get_users_engine()
+    with engine.begin() as conn:
+        criar_tabelas(conn)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--pasta", required=True)
+    ap.add_argument("--pasta", help="pasta das planilhas extraídas (--dry-run / --gravar)")
     modo = ap.add_mutually_exclusive_group()
     modo.add_argument("--dry-run", action="store_true", help="conta, não grava")
     modo.add_argument("--gravar", action="store_true",
-                      help="cria as comercial_* e grava os cadastros (idempotente)")
+                      help="cria as comercial_* e grava os cadastros (idempotente; acessos só com a tabela vazia)")
+    modo.add_argument("--migrar", action="store_true",
+                      help="só cria as tabelas que faltam e roda as migrações (sem dados)")
     a = ap.parse_args()
+    if a.migrar:
+        migrar()
+        print("comercial_*: tabelas e migrações em dia")
+        return 0
     if not (a.dry_run or a.gravar):
         ap.print_usage(sys.stderr)
-        print("escolha --dry-run ou --gravar", file=sys.stderr)
+        print("escolha --dry-run, --gravar ou --migrar", file=sys.stderr)
+        return 2
+    if not a.pasta:
+        ap.print_usage(sys.stderr)
+        print("--dry-run e --gravar precisam de --pasta", file=sys.stderr)
         return 2
     cad, vendas, pedidos_tmb = _montar(Path(a.pasta))
     if a.gravar:

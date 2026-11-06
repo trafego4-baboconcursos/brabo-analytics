@@ -347,3 +347,58 @@ def test_main_dry_run_nao_grava(monkeypatch):
     monkeypatch.setattr(carga, "gravar", lambda *a, **k: pytest.fail("dry-run gravou"))
     monkeypatch.setattr("sys.argv", ["x", "--pasta", "p", "--dry-run"])
     assert carga.main() == 0
+
+
+# ---------------------------------------------------------------- Ruling 23
+def test_gravar_nao_semeia_acessos_se_a_tabela_tem_linhas():
+    """Ruling 23: acesso removido na tela não volta ao rodar --gravar de novo."""
+    conn = FakeConn(colunas=_colunas_iguais_ao_ddl(), ja_existem={"comercial_acessos": 1})
+    r = carga.gravar(_cad(), {"9001"}, engine=FakeEngine(conn))
+    assert not [s for s in conn.sql if s.startswith("INSERT INTO comercial_acessos")]
+    assert r["comercial_acessos"] == (0, 2)  # não semeado: conta como já existentes
+    assert r["comercial_vendedores"] == (2, 0)  # as demais seguem ON CONFLICT DO NOTHING
+
+
+def test_gravar_semeia_acessos_com_tabela_vazia():
+    conn = FakeConn(colunas=_colunas_iguais_ao_ddl())
+    r = carga.gravar(_cad(), {"9001"}, engine=FakeEngine(conn))
+    assert len([s for s in conn.sql if s.startswith("INSERT INTO comercial_acessos")]) == 1
+    assert r["comercial_acessos"] == (2, 0)
+
+
+def test_migrar_so_ddl_e_migracoes():
+    conn = FakeConn(colunas=_colunas_iguais_ao_ddl())
+    eng = FakeEngine(conn)
+    carga.migrar(engine=eng)
+    assert eng.begins == 1
+    for s in conn.sql:
+        com.exigir_so_comercial(s) if not s.lstrip().upper().startswith("SELECT") else None
+        assert not s.lstrip().upper().startswith(("INSERT", "UPDATE", "DELETE")), s
+        assert not s.startswith("SELECT count")
+    feitos = {" ".join(s.split()) for s in conn.sql}
+    for _t, sql in com.MIGRACOES:
+        assert " ".join(sql.split()) in feitos
+    for ddl in com.DDL:
+        assert " ".join(ddl.split()) in feitos
+
+
+def test_main_migrar_nao_le_planilha(monkeypatch, capsys):
+    chamadas = []
+    monkeypatch.setattr(carga, "_montar", lambda p: pytest.fail("--migrar leu a planilha"))
+    monkeypatch.setattr(carga, "gravar", lambda *a, **k: pytest.fail("--migrar gravou dados"))
+    monkeypatch.setattr(carga, "migrar", lambda engine=None: chamadas.append(1))
+    monkeypatch.setattr("sys.argv", ["x", "--migrar"])
+    assert carga.main() == 0
+    assert chamadas == [1]
+
+
+def test_main_migrar_e_gravar_juntos_erro(monkeypatch):
+    monkeypatch.setattr("sys.argv", ["x", "--pasta", "p", "--migrar", "--gravar"])
+    with pytest.raises(SystemExit) as e:
+        carga.main()
+    assert e.value.code == 2
+
+
+def test_main_gravar_sem_pasta_sai_2(monkeypatch, capsys):
+    monkeypatch.setattr("sys.argv", ["x", "--gravar"])
+    assert carga.main() == 2

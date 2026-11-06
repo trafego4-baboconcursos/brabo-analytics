@@ -464,19 +464,6 @@ def _ler_decisoes_e_ajustes() -> tuple[dict[str, str], dict[str, tuple]]:
              for r in aj})
 
 
-def garantir_vendedor(codigo: str) -> str:
-    """Devolve o nome do vendedor; se não existir, cria 'Vendedor N' (criado_auto=True)."""
-    codigo = codigo.upper()
-    numero = codigo.removeprefix("AT")
-    with _get_users_engine().begin() as conn:
-        conn.execute(text(
-            "INSERT INTO comercial_vendedores (codigo, nome, ativo, criado_auto) "
-            "VALUES (:c, :n, true, true) ON CONFLICT (codigo) DO NOTHING"),
-            {"c": codigo, "n": f"Vendedor {numero}"})
-        return conn.execute(text("SELECT nome FROM comercial_vendedores WHERE codigo = :c"),
-                            {"c": codigo}).scalar_one()
-
-
 # ---------------------------------------------------------------- vendas
 _SP = ZoneInfo("America/Sao_Paulo")
 _HM_PAGO = {"COMPLETO", "COMPLETED", "APROVADO", "APPROVED"}

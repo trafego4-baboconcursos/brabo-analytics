@@ -85,3 +85,14 @@ def test_linha_em_branco_e_pulada():
         "Categoria": ["LEAD", "LEAD", "LEAD"],
     })
     assert [x["valor_cobrado"] for x in ler_valores_a_preencher(df)] == [Decimal("10")]
+
+
+def test_codigo_tmb_conflito_vira_none_para_gerar_atribuicao():
+    from scripts.comercial_carga_inicial import codigo_tmb
+    assert codigo_tmb("AT13", "AT4") is None          # conflito: o motor marca inconsistente
+    assert codigo_tmb("AT13", "AT13") == "AT13"
+    assert codigo_tmb(None, "at 9") == "AT9"
+    assert codigo_tmb(float("nan"), None) is None
+    vendas = pd.DataFrame({"transacao": ["2281968"], "nome": ["Izabela"]})
+    assert montar_atribuicoes(vendas, {"2281968": codigo_tmb("AT13", "AT4")},
+                              {"Izabela": "AT13"}) == {"2281968": "AT13"}

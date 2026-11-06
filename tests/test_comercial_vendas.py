@@ -84,3 +84,21 @@ def test_data_calendario_invalido_e_descartada_sem_excecao():
     l = dict(BASE, codigo_da_transacao="X", status_da_transacao="Completo", quantidade_de_cobrancas=1,
              data_da_transacao="31/02/2026")
     assert normalizar_hotmart([l]) == []
+
+
+def test_hotmart_valor_api_soma_taxa_de_processamento():
+    """Linha do webhook/API (sem faturamento_liquido): o `sem_impostos` do banco já é líquido
+    da taxa de processamento; o "Valor de compra sem impostos" do export (= VLR ENTRADA da
+    planilha, chave da tabela de valores-base) é sem_impostos + taxa_de_processamento."""
+    l = dict(BASE, codigo_da_transacao="HP9", status_da_transacao="COMPLETED", quantidade_de_cobrancas=1,
+             valor_de_compra_sem_impostos=1558.01, taxa_de_processamento=65.96, faturamento_liquido=None)
+    assert normalizar_hotmart([l])[0].valor_cobrado == Decimal("1623.97")
+    texto = dict(l, valor_de_compra_sem_impostos="190.04", taxa_de_processamento="8.96")
+    assert normalizar_hotmart([texto])[0].valor_cobrado == Decimal("199.00")
+
+
+def test_hotmart_valor_linha_de_export_fica_como_esta():
+    """Linha antiga (export CSV, com faturamento_liquido): sem_impostos já é o do export."""
+    l = dict(BASE, codigo_da_transacao="HP8", status_da_transacao="Completo", quantidade_de_cobrancas=1,
+             valor_de_compra_sem_impostos=497.0, taxa_de_processamento="24.86", faturamento_liquido=472.14)
+    assert normalizar_hotmart([l])[0].valor_cobrado == Decimal("497.0")

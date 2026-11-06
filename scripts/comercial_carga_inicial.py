@@ -105,6 +105,16 @@ def ler_valores_a_preencher(df: pd.DataFrame) -> list[dict]:
     return out
 
 
+def codigo_tmb(utm_content, utm_last_content) -> str | None:
+    """Código AT do pedido TMB como o motor vê: utm_content, senão utm_last_content; os dois
+    com vendedores diferentes = conflito (None), para a planilha virar atribuição manual."""
+    a = extrair_codigo_at(utm_content if isinstance(utm_content, str) else None)
+    b = extrair_codigo_at(utm_last_content if isinstance(utm_last_content, str) else None)
+    if a and b and a != b:
+        return None
+    return a or b
+
+
 def montar_atribuicoes(vendas: pd.DataFrame, codigo_por_transacao: dict[str, str | None],
                        codigo_por_nome: dict[str, str]) -> dict[str, str]:
     """transação -> código do vendedor, só onde a planilha difere do código da venda ou a venda não tem código.
@@ -185,9 +195,7 @@ def _codigos_das_vendas(pasta: Path) -> tuple[dict[str, str | None], set[str]]:
     cp, c1, c2 = _col(t, "Pedido"), _col(t, "utm_content"), _col(t, "utm_last_content")
     for pedido, a, b in zip(t[cp], t[c1], t[c2]):
         if isinstance(pedido, str) and pedido.strip():
-            cod = extrair_codigo_at(a if isinstance(a, str) else None) \
-                or extrair_codigo_at(b if isinstance(b, str) else None)
-            out.setdefault(pedido.strip(), cod)
+            out.setdefault(pedido.strip(), codigo_tmb(a, b))
             pedidos_tmb.add(pedido.strip())
     return out, pedidos_tmb
 

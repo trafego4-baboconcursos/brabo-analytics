@@ -17,7 +17,9 @@ from sqlalchemy import text
 from logger import get_logger
 from frontend.db import _get_users_engine
 from frontend.services.comercial.modelos import Cadastros, Venda  # noqa: F401  (reexportados)
-from frontend.services.comercial.regras import categoria_tmb, extrair_codigo_at, modalidade_hotmart
+from frontend.services.comercial.regras import (
+    Janela, categoria_tmb, extrair_codigo_at, janela_reativa, modalidade_hotmart,
+)
 from frontend.services.comercial.tabelas import Participacao, RegraPercentual, ValorBase
 
 logger = get_logger("db")
@@ -155,6 +157,21 @@ def _dec(valor) -> Decimal | None:
     return d if d.is_finite() else None
 
 
+def _valor_export(l: dict) -> Decimal | None:
+    """"Valor de compra sem impostos" do export da Hotmart (= VLR ENTRADA da planilha, chave
+    da tabela de valores-base). Linha antiga (export CSV, com `faturamento_liquido`): é o próprio
+    `valor_de_compra_sem_impostos`. Linha do webhook/API (sem `faturamento_liquido`): o banco
+    grava o líquido da taxa de processamento, então soma `taxa_de_processamento` de volta
+    (METODOLOGIA_EXTRACAO_DADOS §15)."""
+    sem = _dec(l.get("valor_de_compra_sem_impostos"))
+    if sem is None:
+        return None
+    if l.get("faturamento_liquido") not in (None, ""):
+        return sem
+    taxa = _dec(l.get("taxa_de_processamento")) if l.get("taxa_de_processamento") not in (None, "") else None
+    return sem + taxa if taxa is not None else sem
+
+
 def normalizar_hotmart(linhas: list[dict], ofertas: dict[str, str] | None = None) -> list[Venda]:
     """Agrupa por transação; só 1ª cobrança; nome nulo -> `ofertas[codigo_do_preco]`."""
     ofertas = ofertas or {}
@@ -170,7 +187,7 @@ def normalizar_hotmart(linhas: list[dict], ofertas: dict[str, str] | None = None
         pago = any(s in _HM_PAGO for s in status)
         rep = next((l for l, s in zip(g, status) if s in _HM_PAGO), g[0])
         data = _data_local(rep.get("data_da_transacao"))
-        valor = _dec(rep.get("valor_de_compra_sem_impostos"))
+        valor = _valor_export(rep)
         if data is None or valor is None:
             ignoradas += 1
             continue
@@ -226,7 +243,7 @@ def normalizar_tmb(linhas: list[dict]) -> list[Venda]:
 _COLS_HM = ("h.codigo_da_transacao, h.status_da_transacao, h.data_da_transacao, h.codigo_do_produto, "
             "h.produto, h.codigo_do_preco, h.nome_deste_preco, h.tipo_de_cobranca, "
             "h.metodo_de_pagamento, h.quantidade_de_cobrancas, h.valor_de_compra_sem_impostos, "
-            "e.ultimo_evento_em")
+            "h.taxa_de_processamento, h.faturamento_liquido, e.ultimo_evento_em")
 _CHAVES_HM = [c.strip().split(".")[-1] for c in _COLS_HM.split(",")]
 _SQL_HOTMART_PERIODO = r"""
     SELECT """ + _COLS_HM + r"""
@@ -308,3 +325,52 @@ def ler_vendas(inicio: date, fim: date, transacoes_extra: frozenset[str] = froze
     vendas = normalizar_hotmart(hm, ofertas) + normalizar_tmb([dict(r) for r in tm_rows])
     ex = set(extra)
     return [v for v in vendas if v.transacao in ex or inicio <= v.data.date() <= fim]
+
+
+# ---------------------------------------------------------------- janelas Reativa
+_SQL_JANELAS = ("SELECT lancamento_codigo, aulas_start_date, hotmart_produto_ids, tmb_produto_ids "
+                "FROM launch_config")
+
+
+def _como_data(valor) -> date | None:
+    if valor is None or valor == "":
+        return None
+    if isinstance(valor, datetime):
+        return valor.date()
+    if isinstance(valor, date):
+        return valor
+    try:
+        return date.fromisoformat(str(valor).strip()[:10])
+    except ValueError:
+        return None
+
+
+def janelas_do_periodo(linhas, inicio: date, fim: date,
+                       aulas: dict[str, date] | None = None) -> list[Janela]:
+    """Linhas (lancamento, aulas_start, produtos_hotmart, produtos_tmb) -> janelas que
+    cruzam [inicio, fim]. Lançamento sem aulas_start_date é pulado (log). `aulas` troca a
+    data de um lançamento (exceção por lançamento, §5.3; usado na conciliação)."""
+    aulas = aulas or {}
+    out: list[Janela] = []
+    sem_data: list[str] = []
+    ini_dt = datetime(inicio.year, inicio.month, inicio.day)
+    fim_dt = datetime(fim.year, fim.month, fim.day, 23, 59, 59)
+    for lanc, dia_cfg, hm, tm in linhas:
+        dia = aulas.get(str(lanc)) or _como_data(dia_cfg)
+        if dia is None:
+            sem_data.append(str(lanc))
+            continue
+        j = janela_reativa(str(lanc), dia, hm or [], tm or [])
+        if j.inicio <= fim_dt and j.fim >= ini_dt:
+            out.append(j)
+    if sem_data:
+        logger.info("janelas_do_periodo: %d lançamentos sem aulas_start_date ignorados: %s",
+                    len(sem_data), ", ".join(sorted(sem_data)))
+    return out
+
+
+def ler_janelas(inicio: date, fim: date, aulas: dict[str, date] | None = None) -> list[Janela]:
+    """Janelas Reativa (launch_config) que cruzam o período. Só SELECT."""
+    with _get_users_engine().connect() as conn:
+        linhas = [tuple(r) for r in conn.execute(text(_SQL_JANELAS)).fetchall()]
+    return janelas_do_periodo(linhas, inicio, fim, aulas)

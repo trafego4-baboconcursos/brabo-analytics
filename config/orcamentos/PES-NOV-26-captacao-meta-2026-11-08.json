@@ -1,6 +1,6 @@
 {
   "lancamento": "PES-NOV-26",
-  "descricao": "06/11 ~09h15: AD381 e AD382 +50% (quente 1.500 e frio 1.125 cada), tirados da quente pos-edital (2.500->1.700) e frio pos-edital (2.400->1.450), pedido do Murilo aprovado pelo usuario (MUDANCAS item 193). 05/11 ~11h30: AD382 em campanhas proprias de quente (R$ 1.000) e frio (R$ 750), dividindo ao meio a verba do AD381 (MUDANCAS item 186). 05/11 ~10h: plano 'Movimentos 05/11' (PDF do usuario, MUDANCAS item 185): verba travada em R$ 12.405/dia por plataforma ate 09/11. Meta: frio imagem pausada; AD381+AD382 quente 2.000 e frio 1.500; carrosseis seguem pausados. Google: quente imagem, quente shorts e frio pos-edital pausadas; frio principal original fica 05/11 (R$ 600) e sai a partir de 06/11, substituida pela frio principal #2 24440036863 (R$ 2.400, criada por API 05/11). Pre-qualificacao pausada. Correcao: o AD381 isolado (item 177) entrou as 15h49 de 04/11, nao ~14h. | Anterior: Captação Meta + Google — verba do dia 08/11 pela curva do plano de mídia do Murilo (aba Diário Captação). Quente principal e pos-edital do YouTube (originais e copias #2 do Murilo) fixadas nos valores que o Murilo deixou em 02/11 23h. Plano do Murilo de 03/11 (PDF 'Ajustes no YouTube'): originais do quente principal e pos-edital pausadas e fora do plano; Google fixo em R$ 13.900/dia. 04/11: Google realocado dentro dos R$ 13.900 - shorts 800, frio principal 600, especifico principal 1.800, especifico pos 1.100 (MUDANCAS item 159). 04/11 ~09h40: quente imagem 500 -> 300, +200 na quente principal #2 (pedido do usuario, MUDANCAS item 161). 04/11 15h49: AD381 isolado em campanhas próprias de quente e frio (R$ 500/dia cada), tirados da quente principal e da frio principal (MUDANCAS item 177).",
+  "descricao": "06/11 ~10h: quente #3 (24437657225, R$ 1.000) com AD408, AD424, AD374, AD375 e AD397, tirados 500 da quente principal #2 e 500 da quente pos-edital #2 (MUDANCAS item 196). 06/11 ~09h15: AD381 e AD382 +50% (quente 1.500 e frio 1.125 cada), tirados da quente pos-edital (2.500->1.700) e frio pos-edital (2.400->1.450), pedido do Murilo aprovado pelo usuario (MUDANCAS item 193). 05/11 ~11h30: AD382 em campanhas proprias de quente (R$ 1.000) e frio (R$ 750), dividindo ao meio a verba do AD381 (MUDANCAS item 186). 05/11 ~10h: plano 'Movimentos 05/11' (PDF do usuario, MUDANCAS item 185): verba travada em R$ 12.405/dia por plataforma ate 09/11. Meta: frio imagem pausada; AD381+AD382 quente 2.000 e frio 1.500; carrosseis seguem pausados. Google: quente imagem, quente shorts e frio pos-edital pausadas; frio principal original fica 05/11 (R$ 600) e sai a partir de 06/11, substituida pela frio principal #2 24440036863 (R$ 2.400, criada por API 05/11). Pre-qualificacao pausada. Correcao: o AD381 isolado (item 177) entrou as 15h49 de 04/11, nao ~14h. | Anterior: Captação Meta + Google — verba do dia 08/11 pela curva do plano de mídia do Murilo (aba Diário Captação). Quente principal e pos-edital do YouTube (originais e copias #2 do Murilo) fixadas nos valores que o Murilo deixou em 02/11 23h. Plano do Murilo de 03/11 (PDF 'Ajustes no YouTube'): originais do quente principal e pos-edital pausadas e fora do plano; Google fixo em R$ 13.900/dia. 04/11: Google realocado dentro dos R$ 13.900 - shorts 800, frio principal 600, especifico principal 1.800, especifico pos 1.100 (MUDANCAS item 159). 04/11 ~09h40: quente imagem 500 -> 300, +200 na quente principal #2 (pedido do usuario, MUDANCAS item 161). 04/11 15h49: AD381 isolado em campanhas próprias de quente e frio (R$ 500/dia cada), tirados da quente principal e da frio principal (MUDANCAS item 177).",
   "aplicar_em": "2026-11-08",
   "campanhas": [
     {
@@ -98,14 +98,14 @@
       "plataforma": "google",
       "id": "24427699081",
       "nome": "[GA][cadastro][captação][quente][pós-edital][PES-NOV-26][26.10.26] #2",
-      "valor": 4300.0,
+      "valor": 3800.0,
       "conta": "6482320788"
     },
     {
       "plataforma": "google",
       "id": "24420709433",
       "nome": "[GA][cadastro][captação][quente][principal][PES-NOV-26][02.11.26] #2",
-      "valor": 3000.0,
+      "valor": 2500.0,
       "conta": "6482320788"
     },
     {
@@ -127,6 +127,13 @@
       "id": "24440036863",
       "nome": "[GA][cadastro][captação][frio][principal][PES-NOV-26][05.11.26] #2",
       "valor": 2400.0,
+      "conta": "6482320788"
+    },
+    {
+      "plataforma": "google",
+      "id": "24437657225",
+      "nome": "[GA][cadastro][captação][quente][PES-NOV-26][06.11.26] #3",
+      "valor": 1000.0,
       "conta": "6482320788"
     }
   ]

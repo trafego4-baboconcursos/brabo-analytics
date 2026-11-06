@@ -54,3 +54,51 @@ def test_participacoes_vigentes():
              Participacao(2, "Antigo", D("0.01"), D("0.01"), date(2025, 1, 1), date(2025, 12, 31))]
     r = participacoes_vigentes(lista, date(2026, 10, 1))
     assert [p.id for p in r] == [1]
+
+
+def test_hotmart_parcelado_por_data():
+    regras = [rp(1, "hotmart", "parcelado", "Ativa", "0.04", ate=date(2026, 9, 30)),
+              rp(2, "hotmart", "parcelado", "Ativa", "0.02", de=date(2026, 10, 1))]
+    assert escolher_percentual(regras, "hotmart", "parcelado", "Ativa", "AT4", date(2026, 9, 15)).pct == D("0.04")
+    assert escolher_percentual(regras, "hotmart", "parcelado", "Ativa", "AT4", date(2026, 10, 1)).pct == D("0.02")
+
+
+CS = frozenset({"CROSS SELL", "UP SELL"})
+
+
+def rc(i, pl, mod, pct, cats, vend="AT13", forca="Ativa", ate=date(2026, 10, 31)):
+    return RegraPercentual(i, pl, mod, "Ativa", D(pct), vend, date(2026, 1, 1), ate, cats, forca)
+
+
+def test_regra_por_categoria_vence_e_so_casa_na_categoria():
+    regras = [rp(1, "tmb", "parcelado", "Ativa", "0.02"), rc(2, "tmb", "parcelado", "0.04", CS)]
+    assert escolher_percentual(regras, "tmb", "parcelado", "Ativa", "AT13", date(2026, 9, 1), "CROSS SELL").id == 2
+    assert escolher_percentual(regras, "tmb", "parcelado", "Ativa", "AT13", date(2026, 9, 1), "LEAD").id == 1
+    assert escolher_percentual(regras, "tmb", "parcelado", "Ativa", "AT13", date(2026, 9, 1)).id == 1
+    assert escolher_percentual(regras, "tmb", "parcelado", "Ativa", "AT4", date(2026, 9, 1), "CROSS SELL").id == 1
+    # encerrada em 31/10
+    assert escolher_percentual(regras, "tmb", "parcelado", "Ativa", "AT13", date(2026, 11, 1), "CROSS SELL").id == 1
+
+
+def test_categoria_vence_vendedor():
+    geral_cat = rc(1, "hotmart", "cartao_pix", "0.05", CS, vend=None, forca=None)
+    vend = rp(2, "hotmart", "cartao_pix", "Ativa", "0.02", vend="AT13")
+    assert escolher_percentual([geral_cat, vend], "hotmart", "cartao_pix", "Ativa", "AT13",
+                               date(2026, 9, 1), "UP SELL").id == 1
+
+
+def test_tipo_forcado():
+    from frontend.services.comercial.tabelas import tipo_forcado
+    regras = [rp(1, "tmb", "parcelado", "Ativa", "0.02"), rc(2, "tmb", "parcelado", "0.04", CS)]
+    assert tipo_forcado(regras, "tmb", "parcelado", "AT13", date(2026, 9, 1), "UP SELL") == "Ativa"
+    assert tipo_forcado(regras, "tmb", "parcelado", "AT13", date(2026, 9, 1), "LEAD") is None
+    assert tipo_forcado(regras, "tmb", "parcelado", "AT4", date(2026, 9, 1), "UP SELL") is None
+    assert tipo_forcado(regras, "tmb", "parcelado", "AT13", date(2026, 11, 1), "UP SELL") is None
+
+
+def test_regra_da_linha_converte_array_em_frozenset():
+    from frontend.db_readers.comercial import _regra_da_linha
+    base = (7, "tmb", "parcelado", "Ativa", D("0.04"), "AT13", date(2026, 1, 1), date(2026, 10, 31))
+    r = _regra_da_linha(base + (["UP SELL", "CROSS SELL"], "Ativa"))
+    assert r.categorias == CS and r.forca_tipo == "Ativa" and r.id == 7
+    assert _regra_da_linha(base + (None, None)).categorias is None

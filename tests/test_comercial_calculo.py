@@ -128,3 +128,98 @@ def test_resumo_separa_elegivel_de_prevista():
     r = resumo_por_beneficiario(ls)["Ediléia"]
     assert r["total"] == r["elegivel"] + r["prevista"]
     assert r["elegivel"] + r["prevista"] == D("138.08") and r["prevista"] > 0
+
+
+# ---------------------------------------------------------------- Fase 2: regras históricas
+
+CS = frozenset({"CROSS SELL", "UP SELL"})
+JANELA_SET = Janela("PI-SET-26", "INSS", datetime(2026, 9, 7), datetime(2026, 9, 14, 23, 59, 59),
+                    frozenset({"6856971"}), frozenset())
+
+
+def _com_part(c):
+    c.participacoes.append(RAFA_AT12)
+    return c
+
+
+def cad_izabela():
+    c = cad()
+    c.vendedores["AT13"] = "Izabela"
+    c.valores_base.append(ValorBase(3, "hotmart", D("863"), D("863"), "CROSS SELL", date(2026, 1, 1), None))
+    c.regras.append(RegraPercentual(9, "hotmart", "cartao_pix", "Ativa", D("0.04"), "AT13",
+                                    date(2026, 1, 1), date(2026, 10, 31), CS, "Ativa"))
+    return c
+
+
+def test_parcelado_hotmart_por_data_da_venda():
+    c = cad()
+    c.regras += [RegraPercentual(3, "hotmart", "parcelado", "Ativa", D("0.04"), None, date(2026, 1, 1), date(2026, 9, 30)),
+                 RegraPercentual(4, "hotmart", "parcelado", "Ativa", D("0.02"), None, date(2026, 10, 1), None)]
+    [a] = calcular([venda(mod="parcelado", data=datetime(2026, 9, 15, 10))], c, [], HOJE)
+    [b] = calcular([venda(mod="parcelado", data=datetime(2026, 10, 1, 10))], c, [], HOJE)
+    assert (a.pct, b.pct) == (D("0.04"), D("0.02"))
+
+
+def test_izabela_cross_sell_na_janela_vira_ativa():
+    v = venda(cod="AT13", valor="863", data=datetime(2026, 9, 9, 10))
+    [l] = calcular([v], cad_izabela(), [JANELA_SET], HOJE)
+    assert (l.tipo, l.pct, l.regra_id, l.valor, l.categoria) == ("Ativa", D("0.04"), 9, D("34.52"), "CROSS SELL")
+
+
+def test_izabela_lead_na_janela_continua_reativa():
+    v = venda(cod="AT13", valor="1726", data=datetime(2026, 9, 9, 10))
+    [l] = calcular([v], cad_izabela(), [JANELA_SET], HOJE)
+    assert (l.tipo, l.pct, l.regra_id) == ("Reativa", D("0.015"), 2)
+
+
+def test_outra_vendedora_cross_sell_na_janela_e_reativa():
+    v = venda(cod="AT4", valor="863", data=datetime(2026, 9, 9, 10))
+    [l] = calcular([v], cad_izabela(), [JANELA_SET], HOJE)
+    assert (l.tipo, l.pct) == ("Reativa", D("0.015"))
+
+
+def test_izabela_cross_sell_depois_do_fim_da_condicao_e_reativa():
+    j = Janela("PI-NOV-26", "INSS", datetime(2026, 11, 2), datetime(2026, 11, 9, 23, 59, 59),
+               frozenset({"6856971"}), frozenset())
+    v = venda(cod="AT13", valor="863", data=datetime(2026, 11, 3, 10))
+    [l] = calcular([v], cad_izabela(), [j], HOJE)
+    assert (l.tipo, l.pct) == ("Reativa", D("0.015"))
+
+
+def test_participacao_segue_tipo_forcado():
+    v = venda(cod="AT13", valor="863", data=datetime(2026, 9, 9, 10))
+    ls = calcular([v], _com_part(cad_izabela()), [JANELA_SET], HOJE)
+    p = [l for l in ls if l.papel == "participacao"][0]
+    assert (p.tipo, p.pct) == ("Ativa", D("0.003"))
+
+
+def test_cancelada_10_dias_depois_fica_a_verificar_e_conta_como_prevista():
+    v = venda(data=datetime(2026, 10, 5, 10), cancelada_em=datetime(2026, 10, 15, 10))
+    ls = calcular([v], _com_part(cad()), [], HOJE)
+    assert [(l.papel, l.situacao) for l in ls] == [("venda", "reembolso_a_verificar"),
+                                                    ("participacao", "reembolso_a_verificar")]
+    assert ls[0].valor == D("69.04")
+    r = resumo_por_beneficiario(ls)["Ediléia"]
+    assert (r["prevista"], r["elegivel"], r["total"], r["Ativa"]) == (D("69.04"), D("0"), D("69.04"), D("69.04"))
+
+
+def test_decisao_de_reembolso():
+    v = venda(data=datetime(2026, 10, 5, 10), cancelada_em=datetime(2026, 10, 15, 10))
+    c = _com_part(cad())
+    c.decisoes_reembolso["HP1"] = "tira"
+    assert [(l.situacao, l.valor) for l in calcular([v], c, [], HOJE)] == [("cancelada", D("0"))]
+    c.decisoes_reembolso["HP1"] = "mantem"
+    ls = calcular([v], c, [], HOJE)
+    assert [(l.papel, l.situacao) for l in ls] == [("venda", "elegivel"), ("participacao", "elegivel")]
+    assert ls[0].valor == D("69.04")
+
+
+def test_cancelada_ate_7_dias_continua_cancelada_mesmo_com_decisao():
+    v = venda(data=datetime(2026, 10, 5, 10), cancelada_em=datetime(2026, 10, 9, 10))
+    c = cad()
+    c.decisoes_reembolso["HP1"] = "mantem"
+    assert [(l.situacao, l.valor) for l in calcular([v], c, [], HOJE)] == [("cancelada", D("0"))]
+
+
+def test_cadastros_decisoes_reembolso_padrao_vazio():
+    assert Cadastros().decisoes_reembolso == {}

@@ -113,11 +113,20 @@ def tipo_venda(
     return "Ativa"
 
 
-def situacao(pago: bool, data_venda: datetime, cancelada_em: datetime | None, hoje: datetime) -> str:
-    """elegivel | prevista | cancelada | nao_paga (garantia de 7 dias)."""
+def situacao(pago: bool, data_venda: datetime, cancelada_em: datetime | None, hoje: datetime,
+             decisao: str | None = None) -> str:
+    """elegivel | prevista | cancelada | nao_paga | reembolso_a_verificar (garantia de 7 dias).
+
+    Cancelada em até 7 dias -> cancelada. Cancelada depois: o banco só tem a data de conclusão
+    do reembolso, não a do pedido -> `reembolso_a_verificar` até o gestor decidir
+    (`decisao` "tira" -> cancelada; "mantem" -> elegível/prevista pela data).
+    """
     if not pago:
         return "nao_paga"
     limite = data_venda + timedelta(days=_DIAS_GARANTIA)
-    if cancelada_em is not None and cancelada_em <= limite:
-        return "cancelada"
+    if cancelada_em is not None:
+        if cancelada_em <= limite or decisao == "tira":
+            return "cancelada"
+        if decisao != "mantem":
+            return "reembolso_a_verificar"
     return "elegivel" if hoje > limite else "prevista"

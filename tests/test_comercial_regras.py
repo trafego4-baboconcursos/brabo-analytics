@@ -75,5 +75,10 @@ def test_situacao():
     assert situacao(True, d, None, datetime(2026, 11, 4, 10, 1)) == "elegivel"
     assert situacao(True, d, None, datetime(2026, 11, 3, 10, 0)) == "prevista"
     assert situacao(True, d, datetime(2026, 11, 2), datetime(2026, 11, 20)) == "cancelada"
-    assert situacao(True, d, datetime(2026, 11, 10), datetime(2026, 11, 20)) == "elegivel"
+    # cancelada depois dos 7 dias: o banco só tem a conclusão do reembolso -> gestor decide
+    assert situacao(True, d, datetime(2026, 11, 10), datetime(2026, 11, 20)) == "reembolso_a_verificar"
+    assert situacao(True, d, datetime(2026, 11, 10), datetime(2026, 11, 20), "tira") == "cancelada"
+    assert situacao(True, d, datetime(2026, 11, 10), datetime(2026, 11, 20), "mantem") == "elegivel"
+    assert situacao(True, d, datetime(2026, 11, 10), datetime(2026, 11, 12), "mantem") == "elegivel"
+    assert situacao(True, d, datetime(2026, 11, 4, 10, 0), datetime(2026, 11, 20)) == "cancelada"
     assert situacao(False, d, None, datetime(2026, 11, 20)) == "nao_paga"

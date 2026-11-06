@@ -96,3 +96,42 @@ def test_codigo_tmb_conflito_vira_none_para_gerar_atribuicao():
     vendas = pd.DataFrame({"transacao": ["2281968"], "nome": ["Izabela"]})
     assert montar_atribuicoes(vendas, {"2281968": codigo_tmb("AT13", "AT4")},
                               {"Izabela": "AT13"}) == {"2281968": "AT13"}
+
+
+def test_regras_historicas_da_carga():
+    from datetime import date
+
+    from scripts.comercial_carga_inicial import _regras, categorias_apostila
+    from frontend.services.comercial.tabelas import ValorBase, escolher_percentual, tipo_forcado
+
+    D = Decimal
+    vb = [ValorBase(1, "hotmart", D("397"), D("397"), "APOSTILA MEQ|ESQ", date(2026, 1, 1), None),
+          ValorBase(2, "hotmart", D("97"), D("97"), "APOSTILA MEQ B.E.", date(2026, 1, 1), None),
+          ValorBase(3, "hotmart", D("863"), D("863"), "CROSS SELL", date(2026, 1, 1), None),
+          ValorBase(4, "tmb", D("97"), D("97"), "APOSTILA X", date(2026, 1, 1), None)]
+    apost = categorias_apostila(vb)
+    assert apost == frozenset({"APOSTILA MEQ|ESQ", "APOSTILA MEQ B.E."})
+    regras = _regras(apost)
+    assert len({r.id for r in regras}) == len(regras)
+
+    def pct(pl, mod, tipo, cod, dia, cat=None):
+        return escolher_percentual(regras, pl, mod, tipo, cod, dia, cat).pct
+
+    # time: parcelado Hotmart muda em 01/10/26
+    assert pct("hotmart", "parcelado", "Ativa", "AT4", date(2026, 9, 30)) == D("0.04")
+    assert pct("hotmart", "parcelado", "Reativa", "AT4", date(2026, 9, 30)) == D("0.015")
+    assert pct("hotmart", "parcelado", "Ativa", "AT4", date(2026, 10, 1)) == D("0.02")
+    assert pct("hotmart", "parcelado", "Reativa", "AT4", date(2026, 10, 1)) == D("0.0075")
+    # Izabela CS até 31/10/26
+    set_ = date(2026, 9, 10)
+    assert pct("hotmart", "cartao_pix", "Ativa", "AT13", set_, "APOSTILA MEQ B.E.") == D("0.05")
+    assert pct("tmb", "parcelado", "Ativa", "AT13", set_, "UP SELL") == D("0.04")
+    assert pct("hotmart", "cartao_pix", "Ativa", "AT13", set_, "CROSS SELL") == D("0.04")
+    assert pct("hotmart", "parcelado", "Ativa", "AT13", set_, "CROSS SELL") == D("0.04")
+    assert pct("hotmart", "parcelado", "Ativa", "AT13", date(2026, 10, 5), "CROSS SELL") == D("0.02")
+    assert pct("tmb", "parcelado", "Ativa", "AT13", date(2026, 11, 2), "UP SELL") == D("0.02")
+    assert pct("tmb", "parcelado", "Ativa", "AT13", set_, "LEAD") == D("0.02")
+    assert tipo_forcado(regras, "hotmart", "cartao_pix", "AT13", set_, "UP SELL") == "Ativa"
+    assert tipo_forcado(regras, "hotmart", "cartao_pix", "AT13", set_, "LEAD") is None
+    assert tipo_forcado(regras, "hotmart", "cartao_pix", "AT13", date(2026, 11, 1), "UP SELL") is None
+    assert tipo_forcado(regras, "hotmart", "cartao_pix", "AT9", set_, "UP SELL") is None

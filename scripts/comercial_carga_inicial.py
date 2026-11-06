@@ -219,24 +219,54 @@ def _vendas_consolidadas(pasta: Path) -> pd.DataFrame:
     return df.drop_duplicates("transacao", keep="first").reset_index(drop=True)
 
 
-def _regras() -> list[RegraPercentual]:
+FIM_PARCELADO_4 = date(2026, 9, 30)    # parcelado Hotmart pagava como cartão até set/26
+INICIO_PARCELADO_2 = date(2026, 10, 1)
+FIM_CS_IZABELA = date(2026, 10, 31)    # condição de CS da Izabela (encerrada)
+CS = frozenset({"CROSS SELL", "UP SELL"})
+
+
+def categorias_apostila(valores: list[ValorBase]) -> frozenset[str]:
+    """Categorias de apostila da Hotmart na tabela de valores-base ("APOSTILA ...")."""
+    return frozenset(v.categoria for v in valores
+                     if v.plataforma == "hotmart" and _norm(v.categoria).startswith("apostila"))
+
+
+def _regras(apostilas: frozenset[str] = frozenset()) -> list[RegraPercentual]:
+    """Regras do time + históricas (decisões de 06/11/26, §9 do plano).
+
+    Tupla: plataforma, modalidade, tipo, pct, vendedor, vigente_de, vigente_ate, categorias, forca_tipo.
+    """
     D = Decimal
+    ini = VIGENTE_DE
     base = [
-        ("hotmart", "cartao_pix", "Ativa", D("0.04"), None),
-        ("hotmart", "cartao_pix", "Reativa", D("0.015"), None),
-        ("hotmart", "parcelado", "Ativa", D("0.02"), None),
-        ("hotmart", "parcelado", "Reativa", D("0.0075"), None),
-        ("tmb", "parcelado", "Ativa", D("0.02"), None),
-        ("tmb", "parcelado", "Reativa", D("0.0075"), None),
-        ("hotmart", "cartao_pix", "Ativa", D("0.02"), "AT12"),
-        ("hotmart", "cartao_pix", "Reativa", D("0.008"), "AT12"),
-        ("hotmart", "parcelado", "Ativa", D("0.01"), "AT12"),
-        ("hotmart", "parcelado", "Reativa", D("0.004"), "AT12"),
-        ("tmb", "parcelado", "Ativa", D("0.01"), "AT12"),
-        ("tmb", "parcelado", "Reativa", D("0.004"), "AT12"),
+        ("hotmart", "cartao_pix", "Ativa", D("0.04"), None, ini, None, None, None),
+        ("hotmart", "cartao_pix", "Reativa", D("0.015"), None, ini, None, None, None),
+        # Recorrência Garantida / boleto parcelado Hotmart: 4% / 1,5% até 30/09/26, 2% / 0,75% depois
+        ("hotmart", "parcelado", "Ativa", D("0.04"), None, ini, FIM_PARCELADO_4, None, None),
+        ("hotmart", "parcelado", "Reativa", D("0.015"), None, ini, FIM_PARCELADO_4, None, None),
+        ("hotmart", "parcelado", "Ativa", D("0.02"), None, INICIO_PARCELADO_2, None, None, None),
+        ("hotmart", "parcelado", "Reativa", D("0.0075"), None, INICIO_PARCELADO_2, None, None, None),
+        ("tmb", "parcelado", "Ativa", D("0.02"), None, ini, None, None, None),
+        ("tmb", "parcelado", "Reativa", D("0.0075"), None, ini, None, None, None),
+        ("hotmart", "cartao_pix", "Ativa", D("0.02"), "AT12", ini, None, None, None),
+        ("hotmart", "cartao_pix", "Reativa", D("0.008"), "AT12", ini, None, None, None),
+        ("hotmart", "parcelado", "Ativa", D("0.01"), "AT12", ini, None, None, None),
+        ("hotmart", "parcelado", "Reativa", D("0.004"), "AT12", ini, None, None, None),
+        ("tmb", "parcelado", "Ativa", D("0.01"), "AT12", ini, None, None, None),
+        ("tmb", "parcelado", "Reativa", D("0.004"), "AT12", ini, None, None, None),
+        # condição de CS da Izabela (AT13), encerrada em 31/10/26: sempre Ativa
+        ("tmb", "parcelado", "Ativa", D("0.04"), "AT13", ini, FIM_CS_IZABELA, CS, "Ativa"),
+        ("hotmart", "cartao_pix", "Ativa", D("0.04"), "AT13", ini, FIM_CS_IZABELA, CS, "Ativa"),
+        ("hotmart", "parcelado", "Ativa", D("0.04"), "AT13", ini, FIM_PARCELADO_4, CS, "Ativa"),
+        ("hotmart", "parcelado", "Ativa", D("0.02"), "AT13", INICIO_PARCELADO_2, FIM_CS_IZABELA, CS, "Ativa"),
     ]
-    return [RegraPercentual(i, p, m, t, pct, v, VIGENTE_DE, None)
-            for i, (p, m, t, pct, v) in enumerate(base, 1)]
+    if apostilas:
+        base += [
+            ("hotmart", "cartao_pix", "Ativa", D("0.05"), "AT13", ini, FIM_CS_IZABELA, apostilas, "Ativa"),
+            ("hotmart", "parcelado", "Ativa", D("0.05"), "AT13", ini, FIM_CS_IZABELA, apostilas, "Ativa"),
+        ]
+    return [RegraPercentual(i, p, m, t, pct, v, de, ate, cats, forca)
+            for i, (p, m, t, pct, v, de, ate, cats, forca) in enumerate(base, 1)]
 
 
 def _montar(pasta: Path) -> tuple[Cadastros, pd.DataFrame, set[str]]:
@@ -248,7 +278,7 @@ def _montar(pasta: Path) -> tuple[Cadastros, pd.DataFrame, set[str]]:
     atrib = montar_atribuicoes(vendas, codigos, CODIGO_POR_NOME)
     cad = Cadastros(
         vendedores={c: n for c, n, _ in VENDEDORES},
-        regras=_regras(),
+        regras=_regras(categorias_apostila(valores)),
         valores_base=valores,
         participacoes=[Participacao(1, "Rafael Batista", Decimal("0.003"), Decimal("0.001"),
                                     VIGENTE_DE, None, "AT12")],
@@ -280,9 +310,14 @@ def gravar(cad: Cadastros, pedidos_tmb: frozenset[str] | set[str] = frozenset())
                               "ON CONFLICT DO NOTHING"), {"c": c, "n": n, "a": ativo.get(c, True)})
         for r in cad.regras:
             conn.execute(text("INSERT INTO comercial_regras_percentual "
-                              "(plataforma, modalidade, tipo, pct, vendedor_codigo, vigente_de, vigente_ate) "
-                              "VALUES (:plataforma,:modalidade,:tipo,:pct,:vendedor_codigo,:vigente_de,:vigente_ate) "
-                              "ON CONFLICT DO NOTHING"), {k: v for k, v in r.__dict__.items() if k != "id"})
+                              "(plataforma, modalidade, tipo, pct, vendedor_codigo, vigente_de, vigente_ate, "
+                              "categorias, forca_tipo) "
+                              "VALUES (:plataforma,:modalidade,:tipo,:pct,:vendedor_codigo,:vigente_de,:vigente_ate,"
+                              ":categorias,:forca_tipo) "
+                              "ON CONFLICT DO NOTHING"),
+                         {**{k: v for k, v in r.__dict__.items() if k != "id"},
+                          # ordenado: a chave natural compara o array elemento a elemento
+                          "categorias": sorted(r.categorias) if r.categorias is not None else None})
         for v in cad.valores_base:
             conn.execute(text("INSERT INTO comercial_valores_base "
                               "(plataforma, valor_cobrado, valor_base, categoria, vigente_de, vigente_ate) "

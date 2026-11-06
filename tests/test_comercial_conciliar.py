@@ -63,3 +63,16 @@ def test_atribuicao_completada_marca_detalhe():
     df = conciliar(sis, pla, completadas=frozenset({"T2"})).set_index("transacao")
     assert df.loc["T1", "detalhe"] == "elegivel"
     assert df.loc["T2", "detalhe"] == "elegivel atribuicao_completada" and df.loc["T2", "causa"] == "ok"
+
+
+def test_reembolso_a_verificar_sai_do_total_e_vale_zero_na_comparacao():
+    from scripts.comercial_conciliar import separar_a_verificar
+    v = linha("OK1")
+    r = LinhaComissao("R1", "hotmart", "venda", "Ediléia", "AT4", datetime(2026, 10, 5), "Ativa",
+                      "cartao_pix", "LEAD", D("1477"), D("0.04"), D("59.08"),
+                      "reembolso_a_verificar", None, 1, False)
+    p = linha("R1", papel="participacao", quem="Rafael Batista", pct="0.003")
+    comparaveis, n, total = separar_a_verificar([v, r, p])
+    assert [l.transacao for l in comparaveis] == ["OK1"] and (n, total) == (1, D("59.08"))
+    df = conciliar([r], planilha(("R1", "Ediléia", "Ativa", "0.04", "1477")))
+    assert df.iloc[0]["valor_sistema"] == D("0") and df.iloc[0]["detalhe"] == "reembolso_a_verificar"

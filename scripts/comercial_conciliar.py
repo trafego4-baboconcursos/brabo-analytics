@@ -29,7 +29,8 @@ MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "A
          "Setembro", "Outubro", "Novembro", "Dezembro"]
 _TOL = Decimal("0.01")       # dinheiro
 _TOL_PCT = Decimal("0.00001")  # percentual (0,02 x 0,015 difere em 0,005 < 0,01)
-_PAGAS = ("elegivel", "prevista")
+_PAGAS = ("elegivel", "prevista")  # reembolso_a_verificar fica de fora: a planilha tira todo reembolso
+_A_VERIFICAR = "reembolso_a_verificar"
 
 
 def _norm(txt) -> str:
@@ -137,6 +138,18 @@ def conciliar(linhas_sistema, df_planilha: pd.DataFrame,
     return pd.DataFrame(linhas, columns=COLUNAS)
 
 
+def separar_a_verificar(linhas) -> tuple[list, int, Decimal]:
+    """(linhas de venda comparáveis com a planilha, nº e R$ de reembolso a verificar).
+
+    O sistema conta `reembolso_a_verificar` como prevista até o gestor decidir; a planilha
+    tira todo reembolso. Para comparar, essas vendas saem do total e aparecem à parte.
+    """
+    vendas = [l for l in linhas if l.papel == "venda"]
+    verificar = [l for l in vendas if l.situacao == _A_VERIFICAR]
+    return ([l for l in vendas if l.situacao != _A_VERIFICAR], len(verificar),
+            sum((l.valor for l in verificar), Decimal("0")))
+
+
 # ---------------------------------------------------------------- execução
 
 def _fmt(v) -> str:
@@ -218,7 +231,8 @@ def main() -> int:
     arq = saida / f"conciliacao_{a.mes}.csv"
     df.to_csv(arq, index=False, encoding="utf-8-sig")
 
-    resumo = resumo_por_beneficiario([l for l in linhas if l.papel == "venda"])
+    comparaveis, n_verif, v_verif = separar_a_verificar(linhas)
+    resumo = resumo_por_beneficiario(comparaveis)
     part = resumo_por_beneficiario([l for l in linhas if l.papel == "participacao"])
     plan = df_p.groupby("vendedor")["valor"].apply(lambda s: sum(s, Decimal("0")))
     nomes = sorted(set(resumo) | set(plan.index), key=_norm)
@@ -232,6 +246,8 @@ def main() -> int:
         ts, tp = ts + s, tp + p
         print(f"{n:<18}{_fmt(s):>14}{_fmt(p):>14}{_fmt(s - p):>14}")
     print(f"{'TOTAL':<18}{_fmt(ts):>14}{_fmt(tp):>14}{_fmt(ts - tp):>14}")
+    print(f"reembolso a verificar (fora do total acima; no sistema conta como prevista até o "
+          f"gestor decidir): {n_verif} vendas, {_fmt(v_verif)}")
     for n, r in part.items():
         print(f"participação {n}: {_fmt(r['total'])} (Ativa {_fmt(r['Ativa'])}, "
               f"Reativa {_fmt(r['Reativa'])}) — não está na planilha")

@@ -17,6 +17,8 @@ class Cadastros:
     participacoes: list[Participacao] = field(default_factory=list)
     atribuicoes: dict[str, str] = field(default_factory=dict)
     ofertas: dict[str, str] = field(default_factory=dict)  # codigo_do_preco -> nome_deste_preco
+    # transação -> "mantem" | "tira": decisão do gestor sobre reembolso concluído depois de 7 dias
+    decisoes_reembolso: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

@@ -2,7 +2,7 @@
 titulo: "Arquitetura do Brabo Analytics — 2026-11-03"
 area: sistema
 status: vigente
-atualizado: 2026-11-05
+atualizado: 2026-11-06
 responde:
   - "como agendar pausa de anuncio no etl"
   - "como o sistema funciona por dentro"
@@ -390,6 +390,12 @@ relacionados:
 >
 >
 > **Ações agendadas nos anúncios do Facebook (2026-11-05)**
+>
+>
+> **Comercial — motor de comissão, fase 1 (2026-11-06)**
+>
+>
+> **Comercial — fase 2 (2026-11-06)**
 >
 
 <!-- SUMARIO:FIM -->
@@ -4286,3 +4292,88 @@ anúncio, conjunto ou campanha do Facebook (Meta) numa hora marcada. Cada pedido
 - Valida antes de chamar a plataforma: id numérico, status PAUSED/ACTIVE, até 300 ações. Google fica fora de propósito
   ("nada automático no Google"; campanha VIDEO nem aceita mutação por API). Status não cascateia: listar o nível que se quer.
 - 1º uso: `PI-NOV-26-pausar-AD304-2026-11-05-22h.json` (13 anúncios do AD304, 05/11 22h).
+
+## Comercial — motor de comissão, fase 1 (2026-11-06)
+
+Primeira parte da área Comercial ([[PLANO_AREA_COMERCIAL_COMISSOES]], plano
+[[PLANO_IMPLEMENTACAO_COMERCIAL_FASE1]]). **Sem tela e sem gravar no banco ainda** — só o cálculo
+e a conciliação com a planilha do comercial.
+
+- `frontend/services/comercial/` (puro, sem banco): `regras.py` (código AT, modalidade, categoria
+  TMB, janela Reativa, Ativa/Reativa, prevista/elegível/cancelada), `tabelas.py` (percentual com
+  vigência e regra por vendedor, valor-base, participação), `modelos.py` (`Venda`, `Cadastros`),
+  `calculo.py` (`calcular`, `resumo_por_beneficiario`).
+- `frontend/db_readers/comercial.py`: `ler_vendas` lê **só** `hotmart_oficial` /
+  `hotmart_estado_transacao` / `tmb_oficial` (SELECT), 1ª cobrança, dedupe por transação, datas em
+  horário de Brasília, recorte de data por chave texto `YYYYMMDD` (data inválida não derruba a
+  query). `ler_janelas` lê `launch_config`. DDL das tabelas `comercial_*` existe mas **não foi
+  executada** (Fase 2).
+- Achados de dado: nas linhas da API da Hotmart o valor de busca do valor-base é
+  `valor_de_compra_sem_impostos + taxa_de_processamento`; ~100 vendas/mês vêm sem
+  `nome_deste_preco` (código AT recuperado pelo `codigo_do_preco`); a janela Reativa sai de
+  `evento_start_date` (a live), não de `aulas_start_date`.
+- Scripts: `scripts/comercial_carga_inicial.py --dry-run` (cadastros a partir das planilhas, em
+  memória) e `scripts/comercial_conciliar.py --mes AAAA-MM` (sistema × planilha venda a venda).
+  Out/26: R$ 23.031,91 × 23.713,99 (−2,9%), toda diferença classificada.
+
+## Comercial — fase 2 (2026-11-06)
+
+Telas, gravação e fechamento da área Comercial ([[PLANO_AREA_COMERCIAL_COMISSOES]],
+[[PLANO_IMPLEMENTACAO_COMERCIAL_FASE2]]). Código na branch `comercial-fase2` (aguardando revisão
+final e merge); **em validação — o pagamento ainda sai pela planilha**.
+
+**Tabelas** (banco operacional, `SUPABASE_USERS_URL`; DDL em `frontend/db_readers/comercial.py`):
+`comercial_vendedores` (código AT → pessoa), `comercial_acessos` (e-mail → nível),
+`comercial_regras_percentual` (% por plataforma/modalidade/tipo/categoria/vendedor, com vigência),
+`comercial_valores_base` (valor-base por oferta, com vigência), `comercial_participacoes`
+(Rafael Batista/Lago no time), `comercial_ofertas` (codigo_do_preco → código AT),
+`comercial_atribuicoes` (reivindicação/atribuição manual de venda, com aprovação),
+`comercial_janela_reativa` (janela manual por lançamento), `comercial_metas`, `comercial_bonus`,
+`comercial_decisoes_reembolso` (mantém/tira), `comercial_ajustes` (com justificativa),
+`comercial_historico` (quem/quando/antes → depois de toda alteração), `comercial_snapshot`
+(resultado do mês pré-calculado) e `comercial_fechamentos` (mês congelado). Editar percentual,
+valor-base ou participação **versiona** (fecha a vigência anterior, insere a nova), nunca dá UPDATE
+no valor.
+
+**Acesso.** `comercial_acessos` guarda o nível: `master`, `coordenador` ou `vendedor` (+ código
+AT). Master = coordenador = tudo; vendedor só o próprio; `admin` do painel = master. O isolamento
+do vendedor é na **camada de serviço** (a consulta já filtra), não no template. Toda rota está em
+`ROUTE_PERMISSIONS` (`_CMRC_AREA`); o nível fino é checado no handler. Não pode remover o próprio
+acesso nem rebaixar o último master.
+
+**Snapshot.** `obter_mes` devolve `comercial_snapshot` e só recalcula se faltar, se tiver
+`invalidado_em` ou se `gerado_em` for de dia anterior (SP). O refresh do ETL
+(`/api/etl/refresh`) chama `marcar_desatualizado()`; o warm-up recalcula o mês corrente e **não
+recalcula mês fechado**. Período livre: só gestor, até 92 dias; `?mes=` de 2026-01 ao mês corrente.
+
+**Guarda de escrita.** `exigir_so_comercial` só deixa passar: INSERT em tabela da allowlist
+`comercial_*`, os textos exatos registrados (constantes do módulo, comparados após normalizar
+espaços — UPDATE/upsert/DELETE só assim, nunca por padrão genérico) e as migrações registradas
+(`ALTER TABLE comercial_snapshot ADD COLUMN IF NOT EXISTS invalidado_em`). Qualquer outro SQL
+estoura; `hotmart_*`/`tmb_*` continuam só-leitura.
+
+**Telas.** `/comercial` (visão geral), `/comercial/comissoes` (+ `.xlsx`, com prefixo anti-fórmula),
+`/comercial/ranking`, `/comercial/inconsistencias` (reembolso a verificar, conflito de código,
+sem valor-base, sem regra; venda sem código AT é orgânica e vira lista pesquisável para
+reivindicar), `/comercial/regras` (vendedores, acessos, percentuais, participações, bases, ofertas,
+janelas, metas). POSTs: `recalcular`, `reivindicar`, `atribuicoes/aprovar|recusar`, `atribuir`,
+`reembolso`, `ajuste`, `bonus`, `fechar-mes`, `reabrir-mes`, `regras/*`. Os templates não levam
+dado em JS inline (`data-*`).
+
+**Fechamento e estorno.** Fechar congela as linhas, bônus e totais em `comercial_fechamentos`;
+`obter_mes` passa a devolver o congelado. Total pago = elegível + prevista + bônus (**opção A, confirmada pelo usuário
+em 06/11/26**: a prevista é paga no fechamento e um cancelamento dentro do prazo vira estorno no
+mês seguinte). Exige 0 "reembolso a verificar". Estorno = linha congelada cuja
+venda hoje está cancelada (≤7 dias) ou com decisão "tira" → linha negativa no **1º mês aberto**
+seguinte; venda tardia de mês fechado também cai no 1º mês aberto, sem duplicar. Horizonte
+determinístico: `HORIZONTE_MESES = 2` meses fechados contíguos antes do mês, mais qualquer linha
+com decisão "tira" (qualquer idade). Só o **último** mês fechado reabre (`reabrir_ordem`). Escritas
+são recusadas pelo **mês de efeito** (`mes_fechado`, `fora_do_horizonte`,
+`mudou_durante_o_fechamento`). Venda congelada que hoje está "reembolso a verificar" sem decisão
+aparece no 1º mês aberto com valor 0 ("venda de AAAA-MM (fechado)"), entra na fila de
+Inconsistências e trava o fechamento desse mês até o gestor decidir ("tira" vira estorno).
+
+**CLI.** `scripts/comercial_carga_inicial.py --dry-run|--gravar|--migrar` (`--gravar` cria só o
+que falta, em lote numa transação, idempotente; semeia `comercial_acessos` só se a tabela estiver
+vazia, para não devolver acesso removido; `--migrar` = só tabelas e migrações, sem dados) e `scripts/comercial_conciliar.py --cadastros banco|planilha` (sistema ×
+planilha usando os cadastros do banco ou da planilha).

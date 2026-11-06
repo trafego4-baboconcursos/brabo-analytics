@@ -14,8 +14,10 @@
   linhas congeladas de C (paga/ingerida depois do fechamento), entra em M calculada pela própria
   data, com motivo "venda de AAAA-MM após o fechamento". Não se repete depois que M fecha (a
   transação passa a estar num congelado).
-- **Horizonte** (Finding 4): estorno e venda tardia só olham os meses fechados C cujo último dia
-  + HORIZONTE_DIAS ≥ hoje (SP); de C mais antigos, só as linhas de venda com decisão "tira".
+- **Horizonte** (Ruling 21): ancorado no mês CALCULADO, não em hoje — o mesmo M dá os mesmos
+  candidatos em qualquer data (o congelado de M, feito depois de M acabar, traz os estornos e as
+  vendas tardias de M-1). Candidatos = os HORIZONTE_MESES meses fechados mais recentes da
+  sequência de fechados logo antes de M; de meses mais antigos, só linhas com decisão "tira".
 """
 from __future__ import annotations
 
@@ -23,7 +25,7 @@ import json
 import re
 import calendar
 from dataclasses import dataclass, field, replace
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal
 
 from frontend.services.comercial.calculo import LinhaComissao, resumo_por_beneficiario
@@ -36,7 +38,9 @@ _ZERO = Decimal("0")
 _CENTAVO = Decimal("0.01")
 _RE_MOTIVO = re.compile(r"^estorno de (\d{4})-(\d{2})$")
 PRIMEIRO_MES = date(2026, 1, 1)
-HORIZONTE_DIAS = 30  # Ruling 20: estorno/venda tardia só de mês fechado terminado há ≤ 30 dias (+ "tira")
+# Ruling 21: estorno/venda tardia de M só dos 2 meses fechados logo antes de M (M-1, M-2, se
+# ambos na sequência de fechados) + linhas de qualquer idade com decisão "tira"
+HORIZONTE_MESES = 2
 
 
 # ---------------------------------------------------------------- meses
@@ -69,8 +73,27 @@ def ultimo_dia(m: date) -> date:
     return date(m.year, m.month, calendar.monthrange(m.year, m.month)[1])
 
 
-def no_horizonte(mes: date, hoje: date) -> bool:
-    return ultimo_dia(mes) + timedelta(days=HORIZONTE_DIAS) >= hoje
+def meses_candidatos(mes: date, fechados) -> tuple[list[date], list[date]]:
+    """(no horizonte, mais antigos) da sequência de fechados logo antes de `mes`."""
+    run = meses_do_estorno(mes, fechados)
+    return run[:HORIZONTE_MESES], run[HORIZONTE_MESES:]
+
+
+def primeiro_aberto_depois(mes: date, fechados) -> date:
+    m = soma_meses(mes.replace(day=1), 1)
+    while m in fechados:
+        m = soma_meses(m, 1)
+    return m
+
+
+def tem_mes_de_efeito(mes_venda: date, fechados) -> bool:
+    """Venda que NÃO está em congelado nenhum: mês aberto -> efeito nele; mês fechado -> venda
+    tardia, só se esse mês é candidato do primeiro mês aberto depois dele (Ruling 21)."""
+    mes_venda = mes_venda.replace(day=1)
+    if mes_venda not in fechados:
+        return True
+    rec, _ = meses_candidatos(primeiro_aberto_depois(mes_venda, fechados), fechados)
+    return mes_venda in rec
 
 
 def pode_fechar_mes(mes: date, hoje: date) -> bool:
@@ -155,11 +178,9 @@ def ler_pendentes(mes: date, hoje: datetime, tira: set[str]) -> Pendentes | None
         ler_linhas_das_transacoes, ler_linhas_fechadas, meses_fechados,
     )
     from frontend.services.comercial.snapshot import linhas_de_json  # noqa: PLC0415
-    run = meses_do_estorno(mes, meses_fechados())
-    if not run:
+    rec, antigos = meses_candidatos(mes, meses_fechados())  # Ruling 21: não depende de `hoje`
+    if not rec:
         return None
-    rec = [c for c in run if no_horizonte(c, hoje.date())]
-    antigos = [c for c in run if c not in rec]
     cong = {m: linhas_de_json(j) for m, j in ler_linhas_fechadas(rec).items()}
     ja = {l.transacao for ls in cong.values() for l in ls}
     for m, js in ler_linhas_das_transacoes(antigos, tira).items():

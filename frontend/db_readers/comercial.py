@@ -1526,6 +1526,20 @@ def ler_linhas_das_transacoes(meses: list[date], transacoes) -> dict[date, list]
     return _tolerante(ler, {})
 
 
+SQL_DATA_DA_VENDA_HOTMART = ("SELECT data_da_transacao FROM hotmart_oficial "
+                             "WHERE codigo_da_transacao = :t AND data_da_transacao IS NOT NULL LIMIT 1")
+SQL_DATA_DA_VENDA_TMB = ("SELECT data_efetivado FROM tmb_oficial "
+                         "WHERE pedido = :t AND data_efetivado IS NOT NULL LIMIT 1")
+
+
+def data_da_venda(transacao: str, plataforma: str) -> datetime | None:
+    """Data da venda (SP, naive) lida da plataforma pela transação. Só SELECT."""
+    sql = SQL_DATA_DA_VENDA_HOTMART if plataforma == "hotmart" else SQL_DATA_DA_VENDA_TMB
+    with _get_users_engine().connect() as conn:
+        r = conn.execute(text(sql), {"t": transacao}).fetchone()
+    return None if r is None else _data_local(r[0])
+
+
 def mes_fechado_da_transacao(transacao: str) -> date | None:
     """Mês fechado cujas linhas congeladas têm essa venda (ou None). Toda venda paga do mês
     entra no congelado (inclusive sem código/inconsistente), então isto = venda de mês fechado."""

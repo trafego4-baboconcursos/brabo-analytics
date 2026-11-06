@@ -150,6 +150,8 @@ class FakeBanco:
             com.SQL_FECH_LINHAS_DOS_MESES: lambda p: _Res([(m, f["linhas"]) for m, f in sorted(self.fechamentos.items())
                                                            if f["ativo"] and m in p["meses"]]),
             com.SQL_FECH_DA_TRANSACAO: self._fech_da_transacao,
+            com.SQL_DATA_DA_VENDA_HOTMART: lambda p: _Res([]),  # só leitura; os testes trocam quando precisam
+            com.SQL_DATA_DA_VENDA_TMB: lambda p: _Res([]),
             com.SQL_FECH_GRAVAR: self._fech_gravar,
             com.SQL_FECH_POSTERIOR: lambda p: _Res([(sum(1 for m, f in self.fechamentos.items()
                                                          if f["ativo"] and m > p["mes"]),)]),

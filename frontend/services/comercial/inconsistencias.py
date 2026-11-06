@@ -47,6 +47,7 @@ MENSAGENS_ERRO = {
     "conflito_gestor": "Essa venda tem conflito de código que só o gestor resolve.",
     "ajuste_concorrente": "Outro ajuste desta venda foi gravado ao mesmo tempo. Confira o histórico e tente de novo.",
     "mes_fechado": "Mês fechado — reabra para alterar.",
+    "fora_do_horizonte": "Venda de mês fechado fora do horizonte: reabra o mês ou lance um ajuste no mês aberto.",
 }
 
 
@@ -181,11 +182,21 @@ def exigir_venda_de_mes_aberto(transacao: str, *, reembolso: bool = False) -> da
     passa (o "tira" vira estorno no primeiro mês aberto depois) e devolve esse mês fechado, para
     a rota invalidar os seguintes. Venda fora de qualquer congelado (mês aberto, ou paga/ingerida
     depois do fechamento -> venda tardia no primeiro mês aberto): passa, devolve None."""
-    from frontend.db_readers.comercial import EscritaRecusada, mes_fechado_da_transacao  # noqa: PLC0415
-    mes = mes_fechado_da_transacao(transacao)
-    if mes is not None and not reembolso:
-        raise EscritaRecusada("mes_fechado")
-    return mes
+    from frontend.db_readers import comercial as com  # noqa: PLC0415
+    from frontend.services.comercial import fechamento as fech  # noqa: PLC0415
+    mes = com.mes_fechado_da_transacao(transacao)
+    if mes is not None:
+        if not reembolso:
+            raise com.EscritaRecusada("mes_fechado")
+        return mes
+    # fora de congelado: se o mês dela está fechado e não é candidato do primeiro mês aberto
+    # depois (Ruling 21), a ação não teria efeito em lugar nenhum -> recusa em vez de "gravado"
+    fechados = com.meses_fechados()
+    if fechados:
+        data = com.data_da_venda(transacao, plataforma_de(transacao))
+        if data is not None and not fech.tem_mes_de_efeito(data.date(), fechados):
+            raise com.EscritaRecusada("fora_do_horizonte")
+    return None
 
 
 # ---------------------------------------------------------------- view-model

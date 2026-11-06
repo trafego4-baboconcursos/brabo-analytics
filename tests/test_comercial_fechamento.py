@@ -241,19 +241,42 @@ def test_lacuna_fechado_aberto_fechado(banco, motor):
     assert [l.motivo for l in snap.calcular_mes(OUT, hoje).linhas if l.situacao == "estorno"] == ["estorno de 2026-09"]
 
 
-def test_horizonte_de_30_dias_e_decisao_tira(banco, motor):
-    _congelar(banco, SET, [_l("HP-SET", dia=10, mes=9, sit="elegivel"), _l("HP-SET2", dia=11, mes=9)])
-    motor["vendas"] = [_venda("HP-SET", 10, cancelada=datetime(2026, 9, 12), mes=9),
-                       _venda("HP-SET2", 11, cancelada=datetime(2026, 10, 1), mes=9),
-                       _venda("HP-SET-TARDE", 15, mes=9)]
-    hoje = datetime(2026, 11, 6)  # 30/09 + 30 dias < 06/11: setembro fora do horizonte
-    r = snap.calcular_mes(OUT, hoje)
-    assert not [l for l in r.linhas if l.situacao == "estorno" or l.transacao == "HP-SET-TARDE"]
-    assert motor["chamadas"][-1][0] == OUT  # nem lê vendas de setembro
-    motor["decisoes"]["HP-SET2"] = "tira"  # decisão "tira": qualquer idade
-    est = [l for l in snap.calcular_mes(OUT, hoje).linhas if l.situacao == "estorno"]
-    assert [(l.transacao, l.motivo) for l in est] == [("HP-SET2", "estorno de 2026-09")]
-    assert motor["chamadas"][-1][2] >= {"HP-SET2"} and "HP-SET" not in motor["chamadas"][-1][2]
+AGO = date(2026, 8, 1)
+
+
+def test_horizonte_de_2_meses_e_decisao_tira(banco, motor):
+    """Ruling 21: candidatos de novembro = outubro e setembro (2 mais recentes da sequência de
+    fechados); agosto só com decisão "tira". Não depende de `hoje`."""
+    _congelar(banco, AGO, [_l("HP-AGO", dia=10, mes=8), _l("HP-AGO2", dia=11, mes=8)])
+    _congelar(banco, SET, [])
+    _congelar(banco, OUT, [])
+    motor["vendas"] = [_venda("HP-AGO", 10, cancelada=datetime(2026, 8, 12), mes=8),
+                       _venda("HP-AGO2", 11, cancelada=datetime(2026, 9, 1), mes=8),
+                       _venda("HP-AGO-TARDE", 15, mes=8)]
+    for hoje in (datetime(2026, 11, 6), datetime(2027, 3, 1)):
+        r = snap.calcular_mes(NOV, hoje)
+        assert not [l for l in r.linhas if l.situacao == "estorno" or l.transacao == "HP-AGO-TARDE"]
+        assert motor["chamadas"][-1][0] == SET  # lê vendas só de setembro em diante
+    motor["decisoes"]["HP-AGO2"] = "tira"  # decisão "tira": qualquer idade
+    est = [l for l in snap.calcular_mes(NOV, HOJE).linhas if l.situacao == "estorno"]
+    assert [(l.transacao, l.motivo) for l in est] == [("HP-AGO2", "estorno de 2026-08")]
+    assert motor["chamadas"][-1][2] >= {"HP-AGO2"} and "HP-AGO" not in motor["chamadas"][-1][2]
+    assert fech.meses_candidatos(NOV, {AGO, SET, OUT}) == ([OUT, SET], [AGO])
+
+
+def test_novembro_calculado_em_dezembro_traz_estorno_e_tardia(banco, motor):
+    """Cenário do revisor: o congelado de novembro (feito em 02/12) precisa dos estornos e das
+    vendas tardias de outubro — o horizonte é do mês calculado, não do dia de hoje."""
+    _congelar(banco, OUT, _linhas_out())
+    import frontend.services.comercial.tabelas as tab
+    motor["regras"] = [tab.RegraPercentual(1, "hotmart", "cartao_pix", "Ativa", D("0.04"), None, date(2026, 1, 1),
+                                           None, None, None)]
+    motor["bases"] = [tab.ValorBase(1, "hotmart", D("89.90"), D("1477"), "LEAD", date(2026, 1, 1), None)]
+    motor["vendas"] = [_venda("HP-TARDE", 20), _venda("HP-EDI-PREV", 29, cancelada=datetime(2026, 11, 2, 9))]
+    for hoje in (datetime(2026, 11, 6), datetime(2026, 12, 2)):
+        nov = snap.calcular_mes(NOV, hoje)
+        assert [l.motivo for l in nov.linhas if l.transacao == "HP-TARDE"] == ["venda de 2026-10 após o fechamento"]
+        assert len([l for l in nov.linhas if l.situacao == "estorno"]) == 2, hoje
 
 
 def test_venda_tardia_entra_no_primeiro_mes_aberto_uma_vez(banco, motor):
@@ -619,3 +642,24 @@ def test_aquecimento_pula_mes_fechado(banco, monkeypatch):
     monkeypatch.setattr(snap, "recalcular_mes", lambda mes, **kw: tentados.append(mes))
     asyncio.run(pw.warm_comercial("teste"))
     assert tentados == [NOV]
+
+
+def test_acao_em_venda_tardia_fora_do_horizonte_recusada(cli):
+    """Venda de agosto (fechado) fora de qualquer congelado: novembro só herda de out/set ->
+    ninguém calcularia o efeito -> fora_do_horizonte. De setembro: venda tardia, aceita."""
+    for m in (AGO, SET, OUT):
+        _congelar(cli.banco, m, [])
+    datas = {"HP-AGO-TARDE": "15/08/2026 10:00:00", "HP-SET-TARDE": "15/09/2026 10:00:00"}
+    cli.banco.h[" ".join(com.SQL_DATA_DA_VENDA_HOTMART.split())] =         lambda p: _Res([(datas[p["t"]],)] if p["t"] in datas else [])
+    from frontend.services.comercial import inconsistencias as inc
+    with pytest.raises(com.EscritaRecusada, match="fora_do_horizonte"):
+        inc.exigir_venda_de_mes_aberto("HP-AGO-TARDE")
+    with pytest.raises(com.EscritaRecusada, match="fora_do_horizonte"):
+        inc.exigir_venda_de_mes_aberto("HP-AGO-TARDE", reembolso=True)
+    assert inc.exigir_venda_de_mes_aberto("HP-SET-TARDE") is None
+    assert inc.exigir_venda_de_mes_aberto("HP-SEM-DATA") is None  # sem data na plataforma: segue
+    r = _como(cli, "master@teste.local").post("/comercial/atribuir", data={
+        "transacao": "HP-AGO-TARDE", "vendedor_codigo": "AT4", "mes": "2026-11"})
+    assert r.headers["location"] == "/comercial/inconsistencias?mes=2026-11&erro=fora_do_horizonte"
+    assert cli.banco.escritas() == [] and cli.desat == []
+    assert fech.tem_mes_de_efeito(date(2026, 11, 3), {AGO, SET, OUT})

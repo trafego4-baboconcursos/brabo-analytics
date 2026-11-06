@@ -45,7 +45,7 @@ from frontend.ad_accounts import (
 )
 from frontend.calendar_parser import parse_calendar
 from frontend.utils import _norm_text
-from frontend.formatters import fmt_brl, fmt_num, fmt_pct, fmt_br_date
+from frontend.formatters import fmt_brl, fmt_num, fmt_pct, fmt_br_date, fmt_brl_exato, fmt_pct_taxa
 from frontend.cache import _get_cached, _set_cached, _invalidate, _CACHE  # noqa: E402
 from frontend.auth import (  # noqa: E402
     BRABO_USER, BRABO_PASS, COOKIE_SECURE, ROUTE_PERMISSIONS,
@@ -104,6 +104,8 @@ templates.env.filters["brl"] = fmt_brl
 templates.env.filters["num"] = fmt_num
 templates.env.filters["pct"] = fmt_pct
 templates.env.filters["br_date"] = fmt_br_date
+templates.env.filters["brl_exato"] = fmt_brl_exato   # Decimal do comercial, ROUND_HALF_UP
+templates.env.filters["pct_taxa"] = fmt_pct_taxa     # 0.0075 -> "0,75%"
 from src.landing_pages import faixa as _faixa_cwv  # noqa: E402
 templates.env.filters["faixa"] = lambda valor, metrica: _faixa_cwv(metrica, valor)
 
@@ -555,6 +557,32 @@ def _build_redes_sociais_nav_items(current_path: str, active_code: str | None) -
     return items
 
 
+_NIVEL_FALHA_TTL = 60.0
+_nivel_falhou: dict[str, float] = {}
+
+
+def _nivel_comercial_ctx(user: dict) -> str | None:
+    """Nível na área Comercial para o menu (Ruling 3). O menu não é a trava — cada rota
+    checa de novo. Banco fora do ar não derruba a página: some só o item, e a falha fica
+    em cache curto para não repetir a tentativa a cada página."""
+    import time as _t  # noqa: PLC0415
+    from frontend.auth import _CMRC_AREA  # noqa: PLC0415
+    from frontend.services.comercial import acesso as _ac  # noqa: PLC0415
+    if (user or {}).get("role") not in _CMRC_AREA:
+        return None
+    email = ((user or {}).get("email") or "").strip().lower()
+    falhou = _nivel_falhou.get(email)
+    if falhou and _t.monotonic() - falhou < _NIVEL_FALHA_TTL:
+        return None
+    try:
+        a = _ac.acesso_comercial(user)
+    except Exception:
+        logger.warning("nível comercial indisponível para o menu (banco operacional?)", exc_info=True)
+        _nivel_falhou[email] = _t.monotonic()
+        return None
+    return a.nivel if a else None
+
+
 def _base_ctx(
     request: Request,
     page: str,
@@ -601,7 +629,7 @@ def _base_ctx(
         nav_mode = "lancamentos"
     elif page == "calendario":
         nav_mode = "calendario"
-    elif page == "atendimento":
+    elif page == "atendimento" or page.startswith("comercial"):
         nav_mode = "comercial"
     elif page == "links":
         nav_mode = "links"
@@ -650,6 +678,7 @@ def _base_ctx(
         "accent":          launch.accent if launch else "#2f5ee3",
         "previous_launch": previous_launch,
         "current_user":    current_user,
+        "nivel_comercial": _nivel_comercial_ctx(current_user),
         "db_ok":           _LAUNCHES_DB_OK,
         "etl_status":      get_etl_status(),
         "etl_stale_hours": ETL_STALE_HOURS,

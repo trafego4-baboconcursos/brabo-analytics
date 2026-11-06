@@ -83,9 +83,29 @@ ROUTE_PERMISSIONS: dict[str, list[str]] = {
     "/atendimento/conversas.csv": _CMRC,
     "/atendimento/atualizar": _CMRC,          # botão "Atualizar agora": só pede releitura, não edita dado
     "/atendimento/atualizar/status": _CMRC,
+    # Área Comercial (comissões). Uma linha por rota (o dict é por caminho exato); quem passa
+    # aqui ainda precisa de nível em comercial_acessos — a rota devolve 403 sem ele.
+    "/comercial":                 _CMRC_AREA,
+    "/comercial/comissoes":       _CMRC_AREA,
+    "/comercial/comissoes.xlsx":  _CMRC_AREA,
+    "/comercial/ranking":         _CMRC_AREA,
+    "/comercial/recalcular":      _CMRC_AREA,   # POST; só master/coordenador (checado na rota)
     "/api/unnichat/status": _ADM,
     "/settings":          _ADM,
 }
+
+_PAGINA_403 = """<html><body style="font-family:Inter,sans-serif;display:flex;align-items:center;
+            justify-content:center;height:100vh;background:#eef0f8">
+            <div style="text-align:center"><h1 style="font-size:48px;color:#2f5ee3">403</h1>
+            <p style="color:#6b7280">Você não tem permissão para acessar esta página.</p>
+            <a href="/" style="color:#2f5ee3">← Voltar ao início</a></div></body></html>"""
+
+
+def resposta_403():
+    """A mesma página de 403 do middleware — usada também pela checagem fina das rotas."""
+    from fastapi.responses import HTMLResponse  # noqa: PLC0415
+    return HTMLResponse(content=_PAGINA_403, status_code=403)
+
 
 # ── Hashing de senha ───────────────────────────────────────────────────────────
 

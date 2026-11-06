@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% from "_macros_comercial.html" import estilo, barra, kpi, situacao with context %}
+{% block content %}
+{{ estilo() }}
+<style>
+.cm-linha { cursor:pointer; }
+.cm-linha td.nome i { transition:transform .15s; display:inline-block; margin-right:var(--s1); color:var(--bs-ink-muted); }
+.cm-linha.aberta td.nome i { transform:rotate(90deg); }
+.cm-detalhe > td { padding:0 0 var(--s4) var(--s6) !important; background:var(--bs-surface); }
+.cm-detalhe table { font-size:var(--fs-xs); }
+@media (prefers-reduced-motion: reduce) { .cm-linha td.nome i { transition:none; } }
+</style>
+{% set k = v.kpis %}
+{% macro detalhe(linhas, colspan) %}
+<tr class="cm-detalhe" hidden><td colspan="{{ colspan }}">
+  <div class="table-wrap" style="margin-top:var(--s2);">
+    <table class="cm-tabela">
+      <thead><tr>
+        <th>Transação</th><th>Data</th><th>Plataforma</th><th>Categoria</th><th>Modalidade</th><th>Tipo</th>
+        <th class="n">Base</th><th class="n">%</th><th class="n">Comissão</th><th>Situação</th><th>Motivo</th>
+      </tr></thead>
+      <tbody>
+        {% for l in linhas %}
+        <tr>
+          <td style="white-space:nowrap;">{{ l.transacao }}{% if l.atribuicao_manual %} <span class="cm-chip manual" title="Vendedor atribuído manualmente pelo gestor">manual</span>{% endif %}</td>
+          <td style="white-space:nowrap;">{{ l.data.strftime('%d/%m %H:%M') }}</td>
+          <td>{{ 'Hotmart' if l.plataforma == 'hotmart' else ('TMB' if l.plataforma == 'tmb' else l.plataforma) }}</td>
+          <td>{{ l.categoria or '—' }}</td>
+          <td>{{ l.modalidade }}</td>
+          <td>{{ l.tipo or '—' }}</td>
+          <td class="n">{{ l.valor_base | brl_exato }}</td>
+          <td class="n">{{ l.pct | pct_taxa }}</td>
+          <td class="n">{{ l.valor | brl_exato }}</td>
+          <td>{{ situacao(l, situacao_rotulo) }}</td>
+          <td class="cm-sub">{{ motivo_rotulo.get(l.motivo, l.motivo) if l.motivo else '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</td></tr>
+{% endmacro %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/comercial"><img src="/assets/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1><i class="ti ti-cash"></i> Comercial · Comissões</h1>
+      <p>{{ 'Fechamento do período por vendedor' if v.gestor else 'Suas vendas e sua comissão no período' }} | clique numa linha para ver venda a venda</p>
+    </div>
+  </div>
+
+  <div class="content">
+    {% set _xlsx = '/comercial/comissoes.xlsx?' ~ v.periodo.query ~ (('&vendedor=' ~ v.vendedor) if v.vendedor else '') %}
+    {{ barra(v, meses, '/comercial/comissoes', [], v.opcoes_vendedores if v.gestor else none, _xlsx) }}
+
+    <div class="tp-kpi-grid tp-kpi-grid-4">
+      {{ kpi('ti-circle-check', k.elegivel | brl_exato, 'Comissão elegível', 'passou do prazo de reembolso', 'success') }}
+      {{ kpi('ti-hourglass', k.prevista | brl_exato, 'Prevista', 'dentro dos 7 dias ou reembolso a verificar', 'warning') }}
+      {{ kpi('ti-gift', k.bonus | brl_exato, 'Bônus do mês', 'lançamento do bônus chega em breve') }}
+      {{ kpi('ti-wallet', k.total | brl_exato, 'Total a pagar', 'elegível + bônus · ' ~ (k.vendido | brl_exato) ~ ' vendidos') }}
+    </div>
+
+    <div class="section">
+      <div class="section-title" data-sec-key="comercial-por-vendedor"><i class="ti ti-users"></i> {{ 'Por vendedor' if v.gestor else 'Sua comissão' }}</div>
+      {% if v.vendedores %}
+      <div class="table-wrap">
+        <table class="cm-tabela">
+          <thead><tr>
+            <th class="th-dark">Vendedor</th>
+            <th class="th-dark n">Qtd</th>
+            <th class="th-dark n">Vendido Ativa</th>
+            <th class="th-dark n">Com. Ativa</th>
+            <th class="th-dark n">Vendido Reativa</th>
+            <th class="th-dark n">Com. Reativa</th>
+            <th class="th-dark n">Elegível</th>
+            <th class="th-dark n">Prevista</th>
+            <th class="th-dark n">Bônus</th>
+            <th class="th-dark n">Total a pagar</th>
+          </tr></thead>
+          <tbody>
+            {% for r in v.vendedores %}
+            <tr class="cm-linha" tabindex="0" aria-expanded="false">
+              <td class="nome"><i class="ti ti-chevron-right"></i>{{ r.nome }} <span class="cm-sub">({{ r.codigo }})</span></td>
+              <td class="n">{{ r.qtd | num }}</td>
+              <td class="n">{{ r.vendido_ativa | brl_exato }}</td>
+              <td class="n">{{ r.com_ativa | brl_exato }}</td>
+              <td class="n">{{ r.vendido_reativa | brl_exato }}</td>
+              <td class="n">{{ r.com_reativa | brl_exato }}</td>
+              <td class="n">{{ r.elegivel | brl_exato }}</td>
+              <td class="n">{{ r.prevista | brl_exato }}</td>
+              <td class="n">{{ r.bonus | brl_exato }}</td>
+              <td class="n td-bold">{{ r.a_pagar | brl_exato }}</td>
+            </tr>
+            {{ detalhe(r.detalhe, 10) }}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="cm-vazio">Nenhuma venda no período.</div>
+      {% endif %}
+    </div>
+
+    {% if v.gestor and v.participacoes %}
+    <div class="section">
+      <div class="section-title" data-sec-key="comercial-participacoes"><i class="ti ti-users-group"></i> Participações no time</div>
+      <div class="cm-sub" style="margin-bottom:var(--s2);">Percentual sobre as vendas dos vendedores (supervisão). Não entra no total a pagar dos vendedores acima.</div>
+      <div class="table-wrap">
+        <table class="cm-tabela">
+          <thead><tr>
+            <th class="th-dark">Beneficiário</th>
+            <th class="th-dark n">Vendas</th>
+            <th class="th-dark n">Sobre Ativa</th>
+            <th class="th-dark n">Sobre Reativa</th>
+            <th class="th-dark n">Elegível</th>
+            <th class="th-dark n">Prevista</th>
+            <th class="th-dark n">Total</th>
+          </tr></thead>
+          <tbody>
+            {% for p in v.participacoes %}
+            <tr class="cm-linha" tabindex="0" aria-expanded="false">
+              <td class="nome"><i class="ti ti-chevron-right"></i>{{ p.nome }}</td>
+              <td class="n">{{ p.qtd | num }}</td>
+              <td class="n">{{ p.ativa | brl_exato }}</td>
+              <td class="n">{{ p.reativa | brl_exato }}</td>
+              <td class="n">{{ p.elegivel | brl_exato }}</td>
+              <td class="n">{{ p.prevista | brl_exato }}</td>
+              <td class="n td-bold">{{ p.total | brl_exato }}</td>
+            </tr>
+            {{ detalhe(p.detalhe, 7) }}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+<script>
+(function () {
+  function alternar(tr) {
+    var det = tr.nextElementSibling;
+    if (!det || !det.classList.contains('cm-detalhe')) return;
+    det.hidden = !det.hidden;
+    tr.classList.toggle('aberta', !det.hidden);
+    tr.setAttribute('aria-expanded', String(!det.hidden));
+  }
+  document.querySelectorAll('.cm-linha').forEach(function (tr) {
+    tr.addEventListener('click', function () { alternar(tr); });
+    tr.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); alternar(tr); } });
+  });
+})();
+</script>
+{% endblock %}

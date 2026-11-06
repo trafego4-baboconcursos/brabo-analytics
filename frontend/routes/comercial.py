@@ -1,9 +1,9 @@
 from __future__ import annotations
-from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, JSONResponse, Response
+from fastapi import APIRouter, Form, Request
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.concurrency import run_in_threadpool
 
-from frontend.auth import _get_current_user
+from frontend.auth import _get_current_user, resposta_403
 from frontend.core import templates, get_launches, _base_ctx
 from frontend.db_readers import (
     PERIODOS, RECARREGAR_HORAS, SITUACOES, read_atendimento, read_conversas_abertas, espera_texto,
@@ -97,3 +97,111 @@ async def atendimento_atualizar_status(conexao: str | None = None):
     from frontend.services.unnichat import banco  # noqa: PLC0415
 
     return {"na_fila": await run_in_threadpool(banco.atualizacao_pendente, _contas(conexao))}
+
+
+# ── Área Comercial: Visão geral, Comissões, Ranking (Task 5) ───────────────────
+# ROUTE_PERMISSIONS deixa passar o grupo _CMRC_AREA; a trava de verdade é o nível em
+# comercial_acessos (acesso_comercial). O recorte por vendedor é feito em
+# services/comercial/telas.py, antes de qualquer agregação — nunca no template.
+# "Em validação": o sistema calcula como se valesse, mas o pagamento segue a planilha
+# até o gestor aprovar (decisão do usuário, 06/11/26).
+
+def _telas():
+    from frontend.services.comercial import telas  # noqa: PLC0415
+    return telas
+
+
+async def _acesso(request: Request):
+    from frontend.services.comercial import acesso as ac  # noqa: PLC0415
+    return await run_in_threadpool(ac.acesso_comercial, _get_current_user(request))
+
+
+def _hoje():
+    from frontend.services.comercial.snapshot import agora_sp  # noqa: PLC0415
+    return agora_sp().date()
+
+
+async def _carregar(mes, inicio, fim):
+    t = _telas()
+    hoje = _hoje()
+    periodo = t.resolver_periodo(mes, inicio, fim, hoje)
+    res = await run_in_threadpool(t.carregar, periodo)
+    return t, periodo, res, hoje
+
+
+async def _pagina(request: Request, page: str, title: str, template: str, view: dict, hoje):
+    launches = await run_in_threadpool(get_launches)
+    ctx = _base_ctx(request, page, title, None, launches, v=view,
+                    meses=_telas().meses_recentes(hoje),
+                    situacao_rotulo=_telas().SITUACAO_ROTULO, motivo_rotulo=_telas().MOTIVO_ROTULO)
+    return templates.TemplateResponse(template, ctx)
+
+
+@router.get("/comercial", response_class=HTMLResponse)
+async def comercial_visao(request: Request, mes: str | None = None,
+                          inicio: str | None = None, fim: str | None = None):
+    acesso = await _acesso(request)
+    if acesso is None:
+        return resposta_403()
+    t, periodo, res, hoje = await _carregar(mes, inicio, fim)
+    return await _pagina(request, "comercial_visao", "Comercial · Visão geral", "comercial_visao.html",
+                         t.view_visao(res, periodo, acesso), hoje)
+
+
+@router.get("/comercial/comissoes", response_class=HTMLResponse)
+async def comercial_comissoes(request: Request, mes: str | None = None, inicio: str | None = None,
+                              fim: str | None = None, vendedor: str | None = None):
+    acesso = await _acesso(request)
+    if acesso is None:
+        return resposta_403()
+    t, periodo, res, hoje = await _carregar(mes, inicio, fim)
+    return await _pagina(request, "comercial_comissoes", "Comercial · Comissões", "comercial_comissoes.html",
+                         t.view_comissoes(res, periodo, acesso, (vendedor or "").strip().upper() or None), hoje)
+
+
+@router.get("/comercial/comissoes.xlsx")
+async def comercial_comissoes_xlsx(request: Request, mes: str | None = None, inicio: str | None = None,
+                                   fim: str | None = None, vendedor: str | None = None):
+    acesso = await _acesso(request)
+    if acesso is None:
+        return resposta_403()
+    t, periodo, res, _ = await _carregar(mes, inicio, fim)
+    view = t.view_comissoes(res, periodo, acesso, (vendedor or "").strip().upper() or None)
+    corpo = await run_in_threadpool(t.planilha_xlsx, view)
+    sufixo = f"{periodo.mes:%Y-%m}" if not periodo.livre else f"{periodo.inicio}_{periodo.fim}"
+    if view["vendedor"]:
+        sufixo += "_" + view["vendedor"]
+    elif not view["gestor"]:
+        sufixo += "_" + (acesso.vendedor_codigo or "")
+    return Response(
+        corpo,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="comissoes_{sufixo}.xlsx"'},
+    )
+
+
+@router.get("/comercial/ranking", response_class=HTMLResponse)
+async def comercial_ranking(request: Request, mes: str | None = None, inicio: str | None = None,
+                            fim: str | None = None, ordem: str = "vendido"):
+    acesso = await _acesso(request)
+    if acesso is None:
+        return resposta_403()
+    t, periodo, res, hoje = await _carregar(mes, inicio, fim)
+    return await _pagina(request, "comercial_ranking", "Comercial · Ranking", "comercial_ranking.html",
+                         t.view_ranking(res, periodo, acesso, ordem), hoje)
+
+
+@router.post("/comercial/recalcular")
+async def comercial_recalcular(request: Request, mes: str | None = None, voltar: str = Form("")):
+    """Marca o snapshot do mês como desatualizado; a próxima leitura recalcula (~20 s)."""
+    from frontend.services.comercial import acesso as ac  # noqa: PLC0415
+    from frontend.services.comercial import snapshot as snap  # noqa: PLC0415
+    acesso = await _acesso(request)
+    if acesso is None or not ac.pode(acesso.nivel, "ver_time"):
+        return resposta_403()
+    periodo = _telas().resolver_periodo(mes, None, None, _hoje())
+    await run_in_threadpool(snap.marcar_desatualizado, periodo.mes)
+    # só volta para dentro da área (nada de redirecionar para outro site)
+    seguro = voltar.startswith("/comercial") and "//" not in voltar and "\\" not in voltar
+    destino = voltar if seguro else f"/comercial?{periodo.query}"
+    return RedirectResponse(destino, status_code=303)

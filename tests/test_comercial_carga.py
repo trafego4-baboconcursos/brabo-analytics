@@ -1,0 +1,51 @@
+"""Partes puras da carga inicial do comercial (sem banco, sem planilhas)."""
+from decimal import Decimal
+
+import pandas as pd
+import pytest
+
+from scripts.comercial_carga_inicial import ler_valores_a_preencher, montar_atribuicoes
+
+
+def test_ler_valores_a_preencher_mapeia_plataformas():
+    df = pd.DataFrame({
+        "Plataforma": ["Hotmart Aprovasim", "Hotmart Brabo Editora", "TMB"],
+        "Valor_Plataforma": ["89.90", "89,90", "1879.34"],
+        "Valor_Base_Comissao": ["1477", "1477", "1879.34"],
+        "Categoria": ["LEAD", "UP SELL", "LEAD"],
+    })
+    r = ler_valores_a_preencher(df)
+    assert [x["plataforma"] for x in r] == ["hotmart", "hotmart", "tmb"]
+    assert r[0]["valor_cobrado"] == Decimal("89.90")
+    assert r[1]["valor_cobrado"] == Decimal("89.90")
+    assert r[0]["valor_base"] == Decimal("1477")
+    assert r[1]["categoria"] == "UP SELL"
+
+
+def test_ler_valores_a_preencher_plataforma_desconhecida():
+    df = pd.DataFrame({"Plataforma": ["Kiwify"], "Valor_Plataforma": ["1"],
+                       "Valor_Base_Comissao": ["1"], "Categoria": ["LEAD"]})
+    with pytest.raises(ValueError):
+        ler_valores_a_preencher(df)
+
+
+def test_montar_atribuicoes():
+    vendas = pd.DataFrame({
+        "transacao": ["T1", "T2", "T3"],
+        "nome": ["Priscila", "Ediléia", "Izabela"],
+    })
+    codigo_da_venda = {"T1": "AT11", "T2": None, "T3": "AT4"}
+    nomes = {"Priscila": "AT11", "Ediléia": "AT4", "Izabela": "AT13"}
+    r = montar_atribuicoes(vendas, codigo_da_venda, nomes)
+    assert r == {"T2": "AT4", "T3": "AT13"}
+
+
+def test_ler_valores_a_preencher_celulas_sujas():
+    df = pd.DataFrame({
+        "Plataforma": ["Hotmart Aprovasim"] * 3,
+        "Valor_Plataforma": ["116.57", "372.28", "2998.8"],
+        "Valor_Base_Comissao": ["(ATENÇÃO) 1197", "NÃO TEM", "(ATENÇÃO) 2.998,80"],
+        "Categoria": ["LEAD", "BLACK VITALÍCIA", "LEAD"],
+    })
+    r = ler_valores_a_preencher(df)
+    assert [x["valor_base"] for x in r] == [Decimal("1197"), Decimal("2998.80")]

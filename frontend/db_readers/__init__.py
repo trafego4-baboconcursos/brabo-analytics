@@ -26,6 +26,7 @@ from frontend.db_readers.ads_meta import (  # noqa: F401
     find_ad_code_real_launches, get_historico_ad_codes, read_meta,
 )
 from frontend.db_readers.afiliados import read_afiliados  # noqa: F401
+from frontend.db_readers.comercial import Cadastros, ler_cadastros  # noqa: F401
 from frontend.db_readers.atendimento import (  # noqa: F401
     PERIODOS, RECARREGAR_HORAS, SITUACOES, read_atendimento, read_conversas_abertas, espera_texto,
 )

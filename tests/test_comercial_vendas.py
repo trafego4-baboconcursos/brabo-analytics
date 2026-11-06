@@ -74,3 +74,13 @@ def test_tmb_data_dd_mm_yyyy_e_nao_legivel_ignorada():
     v = normalizar_tmb([dict(b, pedido="1", data_efetivado="15/04/2026 10:20:00"),
                         dict(b, pedido="2", data_efetivado="lixo")])
     assert [x.transacao for x in v] == ["1"] and v[0].data == datetime(2026, 4, 15, 10, 20)
+
+
+def test_data_calendario_invalido_e_descartada_sem_excecao():
+    b = dict(status="Efetivado", data_cancelamento=None, produto="M", oferta="O", utm_campaign="",
+             utm_content="AT1", utm_last_content=None, ticket="10", lancamento_id=1)
+    assert normalizar_tmb([dict(b, pedido="1", data_efetivado="31/02/2026 10:00:00")]) == []
+    assert normalizar_tmb([dict(b, pedido="2", data_efetivado="2026-02-31T10:00:00")]) == []
+    l = dict(BASE, codigo_da_transacao="X", status_da_transacao="Completo", quantidade_de_cobrancas=1,
+             data_da_transacao="31/02/2026")
+    assert normalizar_hotmart([l]) == []

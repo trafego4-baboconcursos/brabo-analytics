@@ -232,19 +232,21 @@ _SQL_HOTMART_PERIODO = r"""
     SELECT """ + _COLS_HM + r"""
     FROM (
         SELECT *, CASE WHEN NULLIF(data_da_transacao,'') ~ '^\d{2}/\d{2}/\d{4}'
-                           THEN to_date(substr(data_da_transacao, 1, 10), 'DD/MM/YYYY')
+                           THEN substr(data_da_transacao,7,4)||substr(data_da_transacao,4,2)||substr(data_da_transacao,1,2)
                        WHEN NULLIF(data_da_transacao,'') ~ '^\d{10,13}$'
-                           THEN (to_timestamp(CASE WHEN length(data_da_transacao) = 13
-                                                   THEN data_da_transacao::bigint / 1000
-                                                   ELSE data_da_transacao::bigint END)
-                                 AT TIME ZONE 'America/Sao_Paulo')::date
+                           THEN to_char(to_timestamp(CASE WHEN length(data_da_transacao) = 13
+                                                          THEN data_da_transacao::bigint / 1000
+                                                          ELSE data_da_transacao::bigint END)
+                                        AT TIME ZONE 'America/Sao_Paulo', 'YYYYMMDD')
                        WHEN data_da_transacao ~ '^\d{4}-\d{2}-\d{2}'
-                           THEN substr(data_da_transacao, 1, 10)::date
+                           THEN replace(substr(data_da_transacao,1,10),'-','')
                        ELSE NULL END AS _data_aprox
         FROM hotmart_oficial
     ) h
     LEFT JOIN hotmart_estado_transacao e ON e.codigo_da_transacao = h.codigo_da_transacao
     WHERE h._data_aprox BETWEEN :d_ini AND :d_fim
+       -- formato desconhecido sobe para o Python contar no warning
+       OR (h._data_aprox IS NULL AND NULLIF(TRIM(h.data_da_transacao), '') IS NOT NULL)
 """
 _SQL_HOTMART_EXTRA = ("SELECT " + _COLS_HM + " FROM hotmart_oficial h "
                       "LEFT JOIN hotmart_estado_transacao e ON e.codigo_da_transacao = h.codigo_da_transacao "
@@ -259,14 +261,14 @@ _SQL_TMB = r"""
            oferta, utm_campaign, utm_content, utm_last_content, lancamento_id
     FROM (
         SELECT *, CASE WHEN TRIM(data_efetivado) ~ '^\d{2}/\d{2}/\d{4}'
-                           THEN to_date(substr(TRIM(data_efetivado), 1, 10), 'DD/MM/YYYY')
+                           THEN substr(TRIM(data_efetivado),7,4)||substr(TRIM(data_efetivado),4,2)||substr(TRIM(data_efetivado),1,2)
                        WHEN TRIM(data_efetivado) ~ '^\d{10,13}$'
-                           THEN (to_timestamp(CASE WHEN length(TRIM(data_efetivado)) = 13
-                                                   THEN TRIM(data_efetivado)::bigint / 1000
-                                                   ELSE TRIM(data_efetivado)::bigint END)
-                                 AT TIME ZONE 'America/Sao_Paulo')::date
+                           THEN to_char(to_timestamp(CASE WHEN length(TRIM(data_efetivado)) = 13
+                                                          THEN TRIM(data_efetivado)::bigint / 1000
+                                                          ELSE TRIM(data_efetivado)::bigint END)
+                                        AT TIME ZONE 'America/Sao_Paulo', 'YYYYMMDD')
                        WHEN TRIM(data_efetivado) ~ '^\d{4}-\d{2}-\d{2}'
-                           THEN substr(TRIM(data_efetivado), 1, 10)::date
+                           THEN replace(substr(TRIM(data_efetivado),1,10),'-','')
                        ELSE NULL END AS _data_aprox
         FROM tmb_oficial
     ) t
@@ -282,7 +284,8 @@ def ler_vendas(inicio: date, fim: date, transacoes_extra: frozenset[str] = froze
     """Vendas Hotmart+TMB do período [inicio, fim] (todas, com ou sem código AT) mais as
     `transacoes_extra` (atribuídas à mão), qualquer data. Só SELECT."""
     extra = sorted(transacoes_extra)
-    params = {"d_ini": inicio - timedelta(days=1), "d_fim": fim + timedelta(days=1), "extra": extra}
+    params = {"d_ini": (inicio - timedelta(days=1)).strftime("%Y%m%d"),
+              "d_fim": (fim + timedelta(days=1)).strftime("%Y%m%d"), "extra": extra}
     with _get_users_engine().begin() as conn:
         conn.execute(text("SET LOCAL statement_timeout = '120s'"))
         hm = [dict(zip(_CHAVES_HM, r)) for r in conn.execute(text(_SQL_HOTMART_PERIODO), params).fetchall()]

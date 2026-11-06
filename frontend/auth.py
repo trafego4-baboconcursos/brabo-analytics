@@ -50,6 +50,8 @@ _ADM   = ["admin"]
 # Time comercial: só enxerga /atendimento (qualquer rota fora da lista cai no
 # default _ALL, que não inclui "comercial" — o marketing fica fechado pra ele).
 _CMRC  = ["admin", "analista", "leitura", "comercial"]
+# Área Comercial (comissões): mesmo grupo; a checagem fina é nivel_comercial() na rota.
+_CMRC_AREA = ["admin", "analista", "leitura", "comercial"]
 
 ROUTE_PERMISSIONS: dict[str, list[str]] = {
     "/":                  _ALL,
@@ -81,9 +83,50 @@ ROUTE_PERMISSIONS: dict[str, list[str]] = {
     "/atendimento/conversas.csv": _CMRC,
     "/atendimento/atualizar": _CMRC,          # botão "Atualizar agora": só pede releitura, não edita dado
     "/atendimento/atualizar/status": _CMRC,
+    # Área Comercial (comissões). Uma linha por rota (o dict é por caminho exato); quem passa
+    # aqui ainda precisa de nível em comercial_acessos — a rota devolve 403 sem ele.
+    "/comercial":                 _CMRC_AREA,
+    "/comercial/comissoes":       _CMRC_AREA,
+    "/comercial/comissoes.xlsx":  _CMRC_AREA,
+    "/comercial/ranking":         _CMRC_AREA,
+    "/comercial/recalcular":      _CMRC_AREA,   # POST; só master/coordenador (checado na rota)
+    # Inconsistências (Task 6). POSTs: reivindicar = qualquer nível; o resto = pode("aprovar")
+    "/comercial/inconsistencias":       _CMRC_AREA,
+    "/comercial/reivindicar":           _CMRC_AREA,
+    "/comercial/atribuicoes/aprovar":   _CMRC_AREA,
+    "/comercial/atribuicoes/recusar":   _CMRC_AREA,
+    "/comercial/atribuir":              _CMRC_AREA,
+    "/comercial/reembolso":             _CMRC_AREA,
+    "/comercial/ajuste":                _CMRC_AREA,
+    # Regras e vendedores (Task 7a): só master/coordenador (pode("editar_regras"...) na rota)
+    "/comercial/regras":                _CMRC_AREA,
+    "/comercial/regras/vendedores":     _CMRC_AREA,
+    "/comercial/regras/acessos":        _CMRC_AREA,
+    "/comercial/regras/percentuais":    _CMRC_AREA,
+    "/comercial/regras/participacoes":  _CMRC_AREA,
+    "/comercial/regras/bases":          _CMRC_AREA,
+    "/comercial/regras/ofertas":        _CMRC_AREA,
+    "/comercial/regras/janelas":        _CMRC_AREA,
+    "/comercial/regras/metas":          _CMRC_AREA,
+    "/comercial/bonus":                 _CMRC_AREA,     # POST; pode("lancar_bonus")
+    "/comercial/fechar-mes":            _CMRC_AREA,     # POST; pode("fechar_mes") — Task 7b
+    "/comercial/reabrir-mes":           _CMRC_AREA,     # POST; pode("fechar_mes"), motivo obrigatório
     "/api/unnichat/status": _ADM,
     "/settings":          _ADM,
 }
+
+_PAGINA_403 = """<html><body style="font-family:Inter,sans-serif;display:flex;align-items:center;
+            justify-content:center;height:100vh;background:#eef0f8">
+            <div style="text-align:center"><h1 style="font-size:48px;color:#2f5ee3">403</h1>
+            <p style="color:#6b7280">Você não tem permissão para acessar esta página.</p>
+            <a href="/" style="color:#2f5ee3">← Voltar ao início</a></div></body></html>"""
+
+
+def resposta_403():
+    """A mesma página de 403 do middleware — usada também pela checagem fina das rotas."""
+    from fastapi.responses import HTMLResponse  # noqa: PLC0415
+    return HTMLResponse(content=_PAGINA_403, status_code=403)
+
 
 # ── Hashing de senha ───────────────────────────────────────────────────────────
 

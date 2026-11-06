@@ -28,6 +28,7 @@ from frontend.core import (
     _decode_session,
     _hash_password, bootstrap_admin_if_needed,
 )
+from frontend.auth import resposta_403
 import os
 
 from frontend.routes import auth, media, analytics, leads, vendas, comercial, unnichat, settings_router, api, links
@@ -105,14 +106,7 @@ async def auth_middleware(request: Request, call_next):
 
     allowed_roles = ROUTE_PERMISSIONS.get(path, _ALL)
     if user["role"] not in allowed_roles:
-        return HTMLResponse(
-            content="""<html><body style="font-family:Inter,sans-serif;display:flex;align-items:center;
-            justify-content:center;height:100vh;background:#eef0f8">
-            <div style="text-align:center"><h1 style="font-size:48px;color:#2f5ee3">403</h1>
-            <p style="color:#6b7280">Você não tem permissão para acessar esta página.</p>
-            <a href="/" style="color:#2f5ee3">← Voltar ao início</a></div></body></html>""",
-            status_code=403,
-        )
+        return resposta_403()
 
     request.state.user = user
     return await call_next(request)

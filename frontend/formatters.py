@@ -41,3 +41,32 @@ def fmt_br_date(value) -> str:
         y, m, d = parts
         return f"{d}/{m}/{y}"
     return s
+
+
+def fmt_brl_exato(value) -> str:
+    """Decimal -> 'R$ 1.234,57' arredondando ROUND_HALF_UP (regra do comercial: só na exibição).
+    None -> '—' (dado que ainda não existe, ex.: bônus antes da Task 7)."""
+    from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+    if value is None:
+        return "—"
+    try:
+        v = Decimal(str(value)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    except (InvalidOperation, ValueError):
+        return "—"
+    txt = f"{abs(v):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    return f"{'-' if v < 0 else ''}R$ {txt}"
+
+
+def fmt_pct_taxa(value) -> str:
+    """Taxa em fração (Decimal 0.0075) -> '0,75%'; 0.04 -> '4%'. None -> '—'."""
+    from decimal import Decimal, InvalidOperation
+    if value is None:
+        return "—"
+    try:
+        v = (Decimal(str(value)) * 100).normalize()
+    except (InvalidOperation, ValueError):
+        return "—"
+    txt = format(v, "f")
+    if "." in txt:
+        txt = txt.rstrip("0").rstrip(".")
+    return txt.replace(".", ",") + "%"

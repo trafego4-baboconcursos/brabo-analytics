@@ -1,0 +1,114 @@
+{# Peças comuns das telas da área Comercial (Visão geral, Comissões, Ranking).
+   Arquivo próprio SEM {% extends %} — mesmo motivo de _macros_periodo.html.
+   Grade de 8px: só var(--s*). Cores só por var(--bs-*). #}
+
+{% macro estilo() %}
+<style>
+.cm-barra { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:var(--s2) var(--s4); }
+.cm-filtros { display:flex; align-items:center; flex-wrap:wrap; gap:var(--s2); font-size:var(--fs-sm); color:var(--bs-ink-muted); }
+.cm-filtros select, .cm-filtros input[type=date] { font:inherit; font-size:var(--fs-sm); color:var(--bs-ink); background:var(--bs-card);
+  border:1px solid var(--bs-border-s); border-radius:var(--bs-r-sm); padding:var(--s1) var(--s2); }
+.cm-btn { display:inline-flex; align-items:center; gap:var(--s2); border:1px solid var(--bs-border-s); background:var(--bs-card); color:var(--bs-ink);
+  border-radius:var(--bs-r-sm); padding:var(--s2) var(--s3); font:inherit; font-size:var(--fs-sm); font-weight:600; cursor:pointer; text-decoration:none; }
+.cm-btn:hover { background:var(--bs-surface); }
+.cm-status { display:flex; align-items:center; flex-wrap:wrap; gap:var(--s2) var(--s4); margin-top:var(--s2); font-size:var(--fs-xs); color:var(--bs-ink-muted); }
+.cm-validacao { display:flex; align-items:flex-start; gap:var(--s2); padding:var(--s2) var(--s4); margin-bottom:var(--s4);
+  border-radius:var(--bs-r-md); background:var(--bs-warning-bg); color:var(--bs-ink); font-size:var(--fs-sm); }
+.cm-validacao i { color:var(--bs-warning); font-size:var(--fs-lg); }
+.cm-alerta { padding:var(--s3) var(--s4); border-radius:var(--bs-r-md); background:var(--bs-danger-bg); color:var(--bs-ink); font-size:var(--fs-sm); margin-bottom:var(--s4); }
+.cm-alerta strong { color:var(--bs-danger); }
+.cm-alerta ul { margin:var(--s2) 0 0; padding-left:var(--s6); }
+.cm-tabela th.n, .cm-tabela td.n { text-align:right; white-space:nowrap; }
+.cm-tabela td.nome { font-weight:600; white-space:nowrap; }
+.cm-chip { display:inline-flex; align-items:center; gap:var(--s1); font-size:var(--fs-2xs); font-weight:600; padding:2px var(--s2); border-radius:999px; white-space:nowrap; }
+.cm-chip.elegivel { background:var(--bs-success-bg); color:var(--bs-success); }
+.cm-chip.prevista { background:var(--bs-info-bg); color:var(--bs-info); }
+.cm-chip.reembolso_a_verificar { background:var(--bs-warning-bg); color:var(--bs-ink); }
+.cm-chip.cancelada { background:var(--bs-surface); color:var(--bs-ink-muted); }
+.cm-chip.inconsistente { background:var(--bs-danger-bg); color:var(--bs-danger); }
+.cm-chip.estorno { background:var(--bs-danger-bg); color:var(--bs-danger); }
+.cm-chip.manual { background:var(--bs-surface); color:var(--bs-ink-muted); border:1px dashed var(--bs-border-s); }
+.cm-sub { font-size:var(--fs-xs); color:var(--bs-ink-muted); }
+.cm-vazio { padding:var(--s6) 0; text-align:center; color:var(--bs-ink-muted); font-size:var(--fs-sm); }
+</style>
+{% endmacro %}
+
+{# Barra do topo: mês (ou período livre), vendedor (gestor), exportar, recalcular, "dados de". #}
+{% macro barra(v, meses, path, extras=[], vendedor_opcoes=none, exportar=none) %}
+{% set p = v.periodo %}
+<div class="section" style="margin-bottom:var(--s4);">
+  <div class="cm-barra">
+    <form method="get" action="{{ path }}" class="cm-filtros">
+      {% for nome, valor in extras %}{% if valor %}<input type="hidden" name="{{ nome }}" value="{{ valor }}">{% endif %}{% endfor %}
+      <label><i class="ti ti-calendar-month"></i>
+        <select name="mes" onchange="this.form.querySelectorAll('input[type=date]').forEach(i=>i.value='');this.form.submit()" aria-label="Mês">
+          {% if p.livre %}<option value="" selected>Período livre</option>{% endif %}
+          {% for valor, rotulo in meses %}
+          <option value="{{ valor }}" {% if not p.livre and p.mes.strftime('%Y-%m') == valor %}selected{% endif %}>{{ rotulo }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      {% if v.gestor and not v.sem_livre %}{# período livre: só gestor, até 92 dias (calcula na hora) #}
+      <span title="Até 92 dias; calculado na hora">ou de <input type="date" name="inicio" value="{{ p.inicio if p.livre else '' }}" aria-label="Início"></span>
+      <span>até <input type="date" name="fim" value="{{ p.fim if p.livre else '' }}" aria-label="Fim"></span>
+      {% endif %}
+      {% if vendedor_opcoes is not none %}
+      <select name="vendedor" onchange="this.form.submit()" aria-label="Vendedor">
+        <option value="">Todos os vendedores</option>
+        {% for cod, nome in vendedor_opcoes %}
+        <option value="{{ cod }}" {% if v.vendedor == cod %}selected{% endif %}>{{ nome }} ({{ cod }})</option>
+        {% endfor %}
+      </select>
+      {% endif %}
+      <button type="submit" class="bs-pill accent" style="border:0;cursor:pointer;">Aplicar</button>
+    </form>
+    <div class="cm-filtros">
+      {% if exportar %}
+      <a class="cm-btn" href="{{ exportar }}"><i class="ti ti-file-spreadsheet"></i> Exportar Excel</a>
+      {% endif %}
+      {% if v.gestor and not p.livre and not v.fechado %}{# mês fechado é congelado: não se recalcula #}
+      <form method="post" action="/comercial/recalcular?mes={{ p.mes.strftime('%Y-%m') }}" style="margin:0;"
+            onsubmit="this.querySelector('button').disabled=true">
+        <input type="hidden" name="voltar" value="{{ request.url.path }}{{ ('?' ~ request.url.query) if request.url.query else '' }}">
+        <button type="submit" class="cm-btn" title="Descarta o cálculo guardado deste mês; a próxima abertura recalcula (~20 s)">
+          <i class="ti ti-refresh"></i> Recalcular
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+  <div class="cm-status">
+    <span><strong>{{ p.rotulo }}</strong>{% if p.livre %} · período livre, calculado na hora{% endif %}</span>
+    {% if not p.livre %}
+    {% if v.fechado %}
+    <span class="cm-chip cancelada"><i class="ti ti-lock"></i> mês fechado em {{ v.fechado_em.strftime('%d/%m') }} por {{ v.fechado_por }}</span>
+    {% else %}
+    <span class="cm-chip prevista"><i class="ti ti-lock-open"></i> mês aberto</span>
+    {% endif %}
+    {% endif %}
+    <span><i class="ti ti-clock"></i> {{ 'congelado em' if v.fechado else 'dados de' }} {{ v.gerado_em.strftime('%d/%m %H:%M') }}</span>
+    {% if not v.gestor %}<span><i class="ti ti-user"></i> só as suas vendas</span>{% endif %}
+  </div>
+  {% if v.livre_fechados %}
+  <div class="cm-sub" style="margin-top:var(--s1);"><i class="ti ti-lock"></i> O período inclui mês fechado ({{ v.livre_fechados | join(', ') }}): meses fechados aparecem recalculados, não o valor pago.</div>
+  {% endif %}
+</div>
+<div class="cm-validacao" role="note">
+  <i class="ti ti-flask"></i>
+  <div><strong>Em validação — o pagamento ainda segue a planilha.</strong>
+    Os valores abaixo são calculados pelo sistema como se já valessem, para conferir com a planilha antes de liberar.</div>
+</div>
+{% endmacro %}
+
+{% macro kpi(icone, valor, rotulo, nota='', classe='') %}
+<div class="tp-kpi">
+  <div class="tp-kpi-top"><div class="tp-icon {{ classe }}"><i class="ti {{ icone }}"></i></div></div>
+  <div class="tp-value">{{ valor }}</div>
+  <div class="tp-label">{{ rotulo }}</div>
+  {% if nota %}<div class="tp-compare">{{ nota }}</div>{% endif %}
+</div>
+{% endmacro %}
+
+{% macro situacao(l, rotulos) -%}
+<span class="cm-chip {{ l.situacao }}">{{ rotulos.get(l.situacao, l.situacao) }}</span>
+{%- endmacro %}

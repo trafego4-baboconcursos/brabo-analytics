@@ -3,7 +3,8 @@
     python scripts/comercial_conciliar.py --mes 2026-10 \
         --planilha ".../Análise Comercial 2026/Vendas - Por Vendedor 2026.xlsx" --saida <pasta>
 
-Só leitura no banco. Cadastros vêm das planilhas em memória (`cadastros_da_planilha`, R5).
+Só leitura no banco. Cadastros vêm das planilhas em memória (`cadastros_da_planilha`, R5)
+ou, com `--cadastros banco`, das tabelas comercial_* (`ler_cadastros`).
 A saída é venda a venda, só com código da transação (nada de nome/e-mail/telefone/CPF) e fica
 fora do git.
 """
@@ -29,7 +30,8 @@ MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "A
          "Setembro", "Outubro", "Novembro", "Dezembro"]
 _TOL = Decimal("0.01")       # dinheiro
 _TOL_PCT = Decimal("0.00001")  # percentual (0,02 x 0,015 difere em 0,005 < 0,01)
-_PAGAS = ("elegivel", "prevista")
+_PAGAS = ("elegivel", "prevista")  # reembolso_a_verificar fica de fora: a planilha tira todo reembolso
+_A_VERIFICAR = "reembolso_a_verificar"
 
 
 def _norm(txt) -> str:
@@ -137,6 +139,18 @@ def conciliar(linhas_sistema, df_planilha: pd.DataFrame,
     return pd.DataFrame(linhas, columns=COLUNAS)
 
 
+def separar_a_verificar(linhas) -> tuple[list, int, Decimal]:
+    """(linhas de venda comparáveis com a planilha, nº e R$ de reembolso a verificar).
+
+    O sistema conta `reembolso_a_verificar` como prevista até o gestor decidir; a planilha
+    tira todo reembolso. Para comparar, essas vendas saem do total e aparecem à parte.
+    """
+    vendas = [l for l in linhas if l.papel == "venda"]
+    verificar = [l for l in vendas if l.situacao == _A_VERIFICAR]
+    return ([l for l in vendas if l.situacao != _A_VERIFICAR], len(verificar),
+            sum((l.valor for l in verificar), Decimal("0")))
+
+
 # ---------------------------------------------------------------- execução
 
 def _fmt(v) -> str:
@@ -155,6 +169,9 @@ def main() -> int:
     ap.add_argument("--saida", required=True)
     ap.add_argument("--pasta-cadastros", default=None,
                     help="pasta das planilhas (padrão: subindo a partir da --planilha)")
+    ap.add_argument("--cadastros", choices=("planilha", "banco"), default="planilha",
+                    help="de onde vêm os cadastros: planilhas em memória (padrão) ou as "
+                         "tabelas comercial_* do banco (ler_cadastros)")
     ap.add_argument("--live", "--aulas", dest="live", action="append", default=[],
                     metavar="LANC=AAAA-MM-DD",
                     help="simula outra data da live para um lançamento (exceção editável, "
@@ -175,7 +192,14 @@ def main() -> int:
 
     planilha = Path(a.planilha)
     pasta = Path(a.pasta_cadastros) if a.pasta_cadastros else planilha.parent.parent
-    cad = cadastros_da_planilha(pasta)
+    if a.cadastros == "banco":
+        from frontend.db_readers.comercial import ler_cadastros
+        cad = ler_cadastros()
+        if not cad.vendedores:
+            print("cadastros do banco vazios (tabelas comercial_* sem carga?)", file=sys.stderr)
+            return 2
+    else:
+        cad = cadastros_da_planilha(pasta)
     df_p = ler_planilha(planilha, ano, mes)
     # a planilha escreve "Rafael" para o AT12: nome canônico = o do cadastro
     canon = {_norm(n): cad.vendedores.get(c, n) for n, c in CODIGO_POR_NOME.items()}
@@ -218,7 +242,8 @@ def main() -> int:
     arq = saida / f"conciliacao_{a.mes}.csv"
     df.to_csv(arq, index=False, encoding="utf-8-sig")
 
-    resumo = resumo_por_beneficiario([l for l in linhas if l.papel == "venda"])
+    comparaveis, n_verif, v_verif = separar_a_verificar(linhas)
+    resumo = resumo_por_beneficiario(comparaveis)
     part = resumo_por_beneficiario([l for l in linhas if l.papel == "participacao"])
     plan = df_p.groupby("vendedor")["valor"].apply(lambda s: sum(s, Decimal("0")))
     nomes = sorted(set(resumo) | set(plan.index), key=_norm)
@@ -232,6 +257,8 @@ def main() -> int:
         ts, tp = ts + s, tp + p
         print(f"{n:<18}{_fmt(s):>14}{_fmt(p):>14}{_fmt(s - p):>14}")
     print(f"{'TOTAL':<18}{_fmt(ts):>14}{_fmt(tp):>14}{_fmt(ts - tp):>14}")
+    print(f"reembolso a verificar (fora do total acima; no sistema conta como prevista até o "
+          f"gestor decidir): {n_verif} vendas, {_fmt(v_verif)}")
     for n, r in part.items():
         print(f"participação {n}: {_fmt(r['total'])} (Ativa {_fmt(r['Ativa'])}, "
               f"Reativa {_fmt(r['Reativa'])}) — não está na planilha")

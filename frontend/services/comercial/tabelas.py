@@ -24,6 +24,8 @@ class RegraPercentual:
     vendedor_codigo: str | None
     vigente_de: date
     vigente_ate: date | None
+    categorias: frozenset[str] | None = None  # só vale para vendas dessas categorias
+    forca_tipo: str | None = None  # "Ativa": a venda que casa ignora a janela Reativa
 
 
 @dataclass(frozen=True)
@@ -48,23 +50,52 @@ class Participacao:
     beneficiario_codigo: str | None = None  # código AT do beneficiário, quando é vendedor
 
 
+def categorias_ordenadas(categorias) -> list[str] | None:
+    """Categorias de uma regra como o banco guarda: lista ORDENADA e sem repetição (a chave
+    natural compara o text[] elemento a elemento). None continua None (regra vale para todas);
+    quem lê um formulário converte "nada marcado" em None antes de chamar."""
+    if categorias is None:
+        return None
+    return sorted(set(categorias))
+
+
 def _vigente(item, dia: date) -> bool:
     return item.vigente_de <= dia and (item.vigente_ate is None or dia <= item.vigente_ate)
 
 
+def _casa(r: RegraPercentual, plataforma: str, modalidade: str, vendedor_codigo: str | None,
+          dia: date, categoria: str | None) -> bool:
+    return (r.plataforma == plataforma and r.modalidade == modalidade and _vigente(r, dia)
+            and (r.vendedor_codigo is None
+                 or (vendedor_codigo is not None and r.vendedor_codigo == vendedor_codigo))
+            and (r.categorias is None or (categoria is not None and categoria in r.categorias)))
+
+
+def _especificidade(r: RegraPercentual):
+    """Categoria vence geral, depois vendedor vence geral, depois vigente_de mais recente."""
+    return (r.categorias is not None, r.vendedor_codigo is not None, r.vigente_de)
+
+
 def escolher_percentual(regras: list[RegraPercentual], plataforma: str, modalidade: str,
-                        tipo: str, vendedor_codigo: str | None, dia: date) -> RegraPercentual | None:
-    """Regra do vendedor vence a geral; empate -> vigente_de mais recente."""
-    candidatas = [
-        r for r in regras
-        if r.plataforma == plataforma and r.modalidade == modalidade and r.tipo == tipo
-        and _vigente(r, dia)
-        and (r.vendedor_codigo is None
-             or (vendedor_codigo is not None and r.vendedor_codigo == vendedor_codigo))
-    ]
+                        tipo: str, vendedor_codigo: str | None, dia: date,
+                        categoria: str | None = None) -> RegraPercentual | None:
+    """Regra de categoria vence; depois regra do vendedor vence a geral; empate -> vigente_de
+    mais recente. Regra com `categorias` só casa se `categoria` estiver nelas."""
+    candidatas = [r for r in regras if r.tipo == tipo
+                  and _casa(r, plataforma, modalidade, vendedor_codigo, dia, categoria)]
     if not candidatas:
         return None
-    return max(candidatas, key=lambda r: (r.vendedor_codigo is not None, r.vigente_de))
+    return max(candidatas, key=_especificidade)
+
+
+def tipo_forcado(regras: list[RegraPercentual], plataforma: str, modalidade: str,
+                 vendedor_codigo: str | None, dia: date, categoria: str | None) -> str | None:
+    """`forca_tipo` da regra mais específica que casa com a venda (qualquer tipo), ou None."""
+    candidatas = [r for r in regras if r.forca_tipo
+                  and _casa(r, plataforma, modalidade, vendedor_codigo, dia, categoria)]
+    if not candidatas:
+        return None
+    return max(candidatas, key=_especificidade).forca_tipo
 
 
 def buscar_valor_base(tabela: list[ValorBase], plataforma: str, valor_cobrado: Decimal,

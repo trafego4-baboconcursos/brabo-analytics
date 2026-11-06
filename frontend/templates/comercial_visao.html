@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% from "_macros_comercial.html" import estilo, barra, kpi with context %}
+{% block content %}
+{{ estilo() }}
+{% set k = v.kpis %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/comercial"><img src="/assets/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1><i class="ti ti-layout-dashboard"></i> Comercial · Visão geral</h1>
+      <p>{{ 'Resumo do time no período' if v.gestor else 'Seus números no período' }} | vendas, comissão e ranking</p>
+    </div>
+  </div>
+
+  <div class="content">
+    {{ barra(v, meses, '/comercial') }}
+
+    {% if v.sem_data %}
+    <div class="cm-alerta" role="alert">
+      <strong><i class="ti ti-alert-triangle"></i> Lançamentos sem data da live</strong> — sem
+      <em>evento_start_date</em> nem <em>aulas_start_date</em> não há janela Reativa, e as vendas dos produtos
+      destes lançamentos ficam como <strong>Ativa</strong> até a data ser cadastrada.
+      <ul>
+        {% for lanc, hot, tmb in v.sem_data %}
+        <li><strong>{{ lanc }}</strong>{% if hot %} · Hotmart: {{ hot | sort | join(', ') }}{% endif %}{% if tmb %} · TMB: {{ tmb | sort | join(', ') }}{% endif %}</li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+    {% if v.sem_data_antigos %}
+    <details class="cm-sub" style="margin-bottom:var(--s4);">
+      <summary style="cursor:pointer;">{{ v.sem_data_antigos | length }} lançamentos antigos sem data — ver lista</summary>
+      <ul style="margin:var(--s2) 0 0;padding-left:var(--s6);">
+        {% for lanc, hot, tmb in v.sem_data_antigos %}
+        <li><strong>{{ lanc }}</strong>{% if hot %} · Hotmart: {{ hot | sort | join(', ') }}{% endif %}{% if tmb %} · TMB: {{ tmb | sort | join(', ') }}{% endif %}</li>
+        {% endfor %}
+      </ul>
+    </details>
+    {% endif %}
+
+    <div class="section">
+      <div class="section-title" data-sec-key="comercial-resumo"><i class="ti ti-report-money"></i> Resumo do período</div>
+      <div class="tp-kpi-grid">
+        {{ kpi('ti-shopping-cart', k.vendido | brl_exato, 'Total vendido', (k.qtd | num) ~ ' vendas com comissão · soma do valor-base') }}
+        {{ kpi('ti-circle-check', k.elegivel | brl_exato, 'Comissão elegível', 'passou do prazo de reembolso', 'success') }}
+        {{ kpi('ti-hourglass', k.prevista | brl_exato, 'Comissão prevista', 'dentro do prazo de 7 dias ou reembolso a verificar', 'warning') }}
+        {{ kpi('ti-gift', k.bonus | brl_exato, 'Bônus', 'lançado pelo gestor em Comissões' if k.bonus is not none else 'bônus é mensal: escolha um mês') }}
+        {{ kpi('ti-wallet', k.total | brl_exato, 'Total pago' if v.fechado else 'Total a pagar', 'elegível + prevista + bônus (mês fechado)' if v.fechado else 'elegível + bônus') }}
+        {% if v.meta is not none %}
+        {{ kpi('ti-target', v.pct_meta | pct_taxa, '% da meta' ~ (' do time' if v.gestor else ''), (k.vendido | brl_exato) ~ ' de ' ~ (v.meta | brl_exato), 'success' if v.pct_meta and v.pct_meta >= 1 else '') }}
+        {% endif %}
+        {% if v.gestor %}
+        {{ kpi('ti-alert-circle', k.inconsistencias | num, 'Inconsistências', 'conflito de código, sem valor-base, sem regra ou reembolso a decidir · ' ~ (k.sem_codigo | num) ~ ' vendas sem código (orgânicas) à parte', 'danger' if k.inconsistencias else 'success') }}
+        {% endif %}
+      </div>
+      <div class="cm-sub">
+        <a href="/comercial/comissoes?{{ v.periodo.query }}">Ver comissões por {{ 'vendedor' if v.gestor else 'venda' }} →</a>
+        {% if v.gestor and (k.participacao or k.participacao_prevista) %}
+        · participações no time: {{ k.participacao | brl_exato }} elegível, {{ k.participacao_prevista | brl_exato }} prevista (fora do total acima)
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title" data-sec-key="comercial-top3"><i class="ti ti-trophy"></i> Top 3 do ranking</div>
+      {% if v.top3 %}
+      <div class="table-wrap">
+        <ol style="margin:0;padding:var(--s4) var(--s4) var(--s4) var(--s10);font-size:var(--fs-sm);line-height:2;">
+          {% for r in v.top3 %}
+          <li><strong>{{ r.nome }}</strong> — {{ r.vendido | brl_exato }} vendidos em {{ r.qtd | num }} vendas{% if v.mostra_comissao %} · comissão {{ r.comissao | brl_exato }}{% endif %}</li>
+          {% endfor %}
+        </ol>
+      </div>
+      {% else %}
+      <div class="cm-vazio">Nenhuma venda com comissão no período.</div>
+      {% endif %}
+      <div class="cm-sub" style="margin-top:var(--s2);">
+        {% if v.minha_pos %}Você está em <strong>{{ v.minha_pos }}º</strong> de {{ v.total_vendedores }}. {% endif %}
+        <a href="/comercial/ranking?{{ v.periodo.query }}">Ver ranking completo →</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

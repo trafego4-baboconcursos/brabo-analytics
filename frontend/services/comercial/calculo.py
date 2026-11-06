@@ -16,10 +16,15 @@ from frontend.services.comercial.tabelas import (
     buscar_valor_base,
     escolher_percentual,
     participacoes_vigentes,
+    tipo_forcado,
 )
 
 _ZERO = Decimal("0")
 _SEM_VENDEDOR = "(sem vendedor)"
+_COM_VALOR = ("elegivel", "prevista", "reembolso_a_verificar")
+# reembolso a verificar conta como prevista no resumo até o gestor decidir
+_BALDE = {"elegivel": "elegivel", "prevista": "prevista", "reembolso_a_verificar": "prevista",
+          "estorno": "elegivel"}  # estorno (Task 7b): linha negativa que reduz o pagamento
 
 
 @dataclass(frozen=True)
@@ -36,10 +41,15 @@ class LinhaComissao:
     valor_base: Decimal | None
     pct: Decimal | None
     valor: Decimal
-    situacao: str  # elegivel | prevista | cancelada | inconsistente
+    situacao: str  # elegivel | prevista | reembolso_a_verificar | cancelada | inconsistente | estorno
     motivo: str | None
     regra_id: int | None
     atribuicao_manual: bool
+    # Task 6 — com default: snapshot gravado antes destes campos continua carregando.
+    # Campo NOVO precisa de default sempre: as linhas congeladas de mês fechado (Task 7b) são
+    # lidas para sempre e nunca regravadas.
+    ajuste_manual: bool = False
+    valor_cobrado: Decimal | None = None
 
 
 def _nome_vendedor(codigo: str | None, cad: Cadastros) -> str:
@@ -77,16 +87,29 @@ def _base(venda: Venda, cad: Cadastros, dia) -> tuple[Decimal | None, str | None
 def _linha_venda(venda: Venda, cad: Cadastros, tipo: str, sit: str, dia) -> LinhaComissao:
     codigo, manual, motivo = _vendedor(venda, cad)
     base, categoria = _base(venda, cad, dia)
+    # ajuste manual do gestor (Outbound, base digitada à mão): troca % e/ou base desta venda.
+    # Não resolve vendedor (sem código/conflito) nem tira a venda da situação dela.
+    aj_pct, aj_base = cad.ajustes.get(venda.transacao, (None, None))
+    ajustado = aj_pct is not None or aj_base is not None
+    if aj_base is not None:
+        base = aj_base
+    # condição especial (ex.: CS da Izabela) pode forçar o tipo antes de escolher o %
+    tipo = tipo_forcado(cad.regras, venda.plataforma, venda.modalidade, codigo, dia,
+                        categoria) or tipo
     regra = None
+    pct = None
     if motivo is None:
         if base is None:
             motivo = "sem_valor_base"
+        elif aj_pct is not None:
+            pct = aj_pct  # % do ajuste vale sobre qualquer regra (ou falta dela)
         else:
             regra = escolher_percentual(cad.regras, venda.plataforma, venda.modalidade,
-                                        tipo, codigo, dia)
+                                        tipo, codigo, dia, categoria)
             if regra is None:
                 motivo = "sem_regra"
-    pct = regra.pct if regra else None
+            else:
+                pct = regra.pct
     if motivo is not None:
         situacao_final, valor = "inconsistente", _ZERO
     elif sit == "cancelada":
@@ -99,6 +122,7 @@ def _linha_venda(venda: Venda, cad: Cadastros, tipo: str, sit: str, dia) -> Linh
         tipo=tipo, modalidade=venda.modalidade, categoria=categoria, valor_base=base,
         pct=pct, valor=valor, situacao=situacao_final, motivo=motivo,
         regra_id=regra.id if regra else None, atribuicao_manual=manual,
+        ajuste_manual=ajustado, valor_cobrado=venda.valor_cobrado,
     )
 
 
@@ -119,6 +143,7 @@ def _linhas_participacao(venda: Venda, cad: Cadastros, linha: LinhaComissao,
             categoria=linha.categoria, valor_base=linha.valor_base, pct=pct,
             valor=linha.valor_base * pct, situacao=linha.situacao, motivo=None,
             regra_id=p.id, atribuicao_manual=linha.atribuicao_manual,
+            ajuste_manual=linha.ajuste_manual, valor_cobrado=linha.valor_cobrado,
         ))
     return saida
 
@@ -127,14 +152,15 @@ def calcular(vendas: list[Venda], cad: Cadastros, janelas: list[Janela],
              hoje: datetime) -> list[LinhaComissao]:
     linhas: list[LinhaComissao] = []
     for venda in vendas:
-        sit = situacao(venda.pago, venda.data, venda.cancelada_em, hoje)
+        sit = situacao(venda.pago, venda.data, venda.cancelada_em, hoje,
+                       cad.decisoes_reembolso.get(venda.transacao))
         if sit == "nao_paga":
             continue
         tipo = tipo_venda(venda.plataforma, venda.produto_id, venda.produto, venda.data, janelas)
         dia = venda.data.date()
         linha = _linha_venda(venda, cad, tipo, sit, dia)
         linhas.append(linha)
-        if linha.situacao in ("elegivel", "prevista"):
+        if linha.situacao in _COM_VALOR:
             linhas.extend(_linhas_participacao(venda, cad, linha, dia))
     return linhas
 
@@ -142,11 +168,11 @@ def calcular(vendas: list[Venda], cad: Cadastros, janelas: list[Janela],
 def resumo_por_beneficiario(linhas: list[LinhaComissao]) -> dict[str, dict[str, Decimal]]:
     resumo: dict[str, dict[str, Decimal]] = {}
     for l in linhas:
-        if l.situacao not in ("elegivel", "prevista"):
+        if l.situacao not in _BALDE:
             continue
         r = resumo.setdefault(l.beneficiario, {"Ativa": _ZERO, "Reativa": _ZERO, "total": _ZERO,
                                                "elegivel": _ZERO, "prevista": _ZERO})
         r[l.tipo] += l.valor
         r["total"] += l.valor
-        r[l.situacao] += l.valor
+        r[_BALDE[l.situacao]] += l.valor
     return resumo

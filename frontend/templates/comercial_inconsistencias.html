@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+{% from "_macros_comercial.html" import estilo, barra, kpi with context %}
+{% block content %}
+{{ estilo() }}
+<style>
+.cm-msg { padding:var(--s2) var(--s4); border-radius:var(--bs-r-md); font-size:var(--fs-sm); margin-bottom:var(--s4); }
+.cm-msg.ok { background:var(--bs-success-bg); color:var(--bs-ink); }
+.cm-msg.erro { background:var(--bs-danger-bg); color:var(--bs-ink); }
+.cm-acao { display:flex; align-items:center; flex-wrap:wrap; gap:var(--s2); margin:0; }
+.cm-acao input[type=text], .cm-acao select, .cm-busca input[type=search] { font:inherit; font-size:var(--fs-xs); color:var(--bs-ink); background:var(--bs-card);
+  border:1px solid var(--bs-border-s); border-radius:var(--bs-r-sm); padding:var(--s1) var(--s2); }
+.cm-acao input[type=text] { width:192px; }
+.cm-acao input.curto { width:80px; }
+.cm-acao .cm-btn { padding:var(--s1) var(--s2); font-size:var(--fs-xs); }
+.cm-btn.ok { border-color:var(--bs-success); color:var(--bs-success); }
+.cm-btn.nao { border-color:var(--bs-danger); color:var(--bs-danger); }
+.cm-tabela details summary { cursor:pointer; font-size:var(--fs-xs); color:var(--bs-accent); font-weight:600; }
+.cm-tabela details[open] summary { margin-bottom:var(--s2); }
+.cm-busca { display:flex; align-items:center; flex-wrap:wrap; gap:var(--s2); margin-bottom:var(--s3); font-size:var(--fs-sm); }
+.cm-busca input[type=search] { width:256px; font-size:var(--fs-sm); }
+.cm-subtitulo { font-size:var(--fs-sm); font-weight:700; margin:var(--s4) 0 var(--s2); }
+.cm-hist td { font-size:var(--fs-xs); }
+</style>
+{% set mes_txt = v.periodo.mes.strftime('%Y-%m') %}
+{% macro mes_hidden() %}<input type="hidden" name="mes" value="{{ mes_txt }}">{% endmacro %}
+{% macro plat(l) %}{{ 'Hotmart' if l.plataforma == 'hotmart' else ('TMB' if l.plataforma == 'tmb' else l.plataforma) }}{% endmacro %}
+{% macro form_ajuste(transacao) %}
+{% if not v.fechado %}
+<details><summary>Ajuste manual</summary>
+  <form method="post" action="/comercial/ajuste" class="cm-acao">
+    {{ mes_hidden() }}<input type="hidden" name="transacao" value="{{ transacao }}">
+    <input type="text" class="curto" name="pct" placeholder="% (ex. 10)" inputmode="decimal" aria-label="Percentual">
+    <input type="text" class="curto" name="valor_base" placeholder="base R$" inputmode="decimal" aria-label="Valor-base">
+    <input type="text" name="justificativa" placeholder="justificativa (obrigatória)" required maxlength="1000" aria-label="Justificativa">
+    <button type="submit" class="cm-btn">Gravar ajuste</button>
+  </form>
+</details>
+{% endif %}
+{% endmacro %}
+{% macro tabela_ajuste(linhas) %}
+<div class="table-wrap">
+  <table class="cm-tabela">
+    <thead><tr>
+      <th class="th-dark">Transação</th><th class="th-dark">Data</th><th class="th-dark">Vendedor</th><th class="th-dark">Plataforma</th>
+      <th class="th-dark">Modalidade</th><th class="th-dark">Categoria</th><th class="th-dark n">Valor cobrado</th><th class="th-dark n">Base</th><th class="th-dark">Ação</th>
+    </tr></thead>
+    <tbody>
+      {% for l in linhas %}
+      <tr>
+        <td style="white-space:nowrap;">{{ l.transacao }}</td>
+        <td style="white-space:nowrap;">{{ l.data.strftime('%d/%m %H:%M') }}</td>
+        <td class="nome">{{ l.beneficiario }}</td>
+        <td>{{ plat(l) }}</td>
+        <td>{{ l.modalidade }}</td>
+        <td>{{ l.categoria or '—' }}</td>
+        <td class="n">{{ l.valor_cobrado | brl_exato }}</td>
+        <td class="n">{{ l.valor_base | brl_exato }}</td>
+        <td>{{ form_ajuste(l.transacao) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endmacro %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/comercial"><img src="/assets/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1><i class="ti ti-alert-triangle"></i> Comercial · Inconsistências</h1>
+      <p>{{ 'Pendências do mês, pedidos de atribuição e vendas sem código' if v.gestor else 'Reivindique uma venda sem código e acompanhe seus pedidos' }}</p>
+    </div>
+  </div>
+
+  <div class="content">
+    {{ barra(v, meses, '/comercial/inconsistencias', [('q', v.q)]) }}
+
+    {% if v.msg_ok %}<div class="cm-msg ok" role="status"><i class="ti ti-circle-check"></i> {{ v.msg_ok }}</div>{% endif %}
+    {% if v.msg_erro %}<div class="cm-msg erro" role="alert"><i class="ti ti-alert-circle"></i> {{ v.msg_erro }}</div>{% endif %}
+    {% if v.fechado %}
+    <div class="cm-msg" role="status" style="background:var(--bs-surface);"><i class="ti ti-lock"></i>
+      Mês fechado em {{ v.fechado_em.strftime('%d/%m') }} por {{ v.fechado_por }}: só a decisão de reembolso continua valendo
+      (o “tira” vira estorno no primeiro mês aberto). Para atribuir ou ajustar, reabra o mês.</div>
+    {% endif %}
+
+    {% if v.gestor %}
+    <div class="tp-kpi-grid tp-kpi-grid-4">
+      {{ kpi('ti-receipt-refund', v.reembolso | length, 'Reembolso a verificar', 'concluído depois de 7 dias: mantém ou tira', 'warning') }}
+      {{ kpi('ti-arrows-split', v.conflitos | length, 'Conflito de código (TMB)', 'utm_content × utm_last_content', 'danger') }}
+      {{ kpi('ti-calculator', (v.sem_base | length) + (v.sem_regra | length), 'Sem valor-base ou regra', (v.sem_base | length) ~ ' sem base · ' ~ (v.sem_regra | length) ~ ' sem regra') }}
+      {{ kpi('ti-hand-finger', v.pendentes | length, 'Pedidos pendentes', (v.sem_codigo_total | num) ~ ' vendas sem código no mês') }}
+    </div>
+
+    <div class="section">
+      <div class="section-title" data-sec-key="comercial-inc-pendencias"><i class="ti ti-list-check"></i> Pendências do mês</div>
+
+      <div class="cm-subtitulo">Reembolso a verificar ({{ v.reembolso | length }})</div>
+      {% if v.reembolso %}
+      <div class="cm-sub" style="margin-bottom:var(--s2);">O banco só tem a data de conclusão do reembolso; o prazo de 7 dias conta do pedido do lead. Investigue e decida.</div>
+      <div class="table-wrap">
+        <table class="cm-tabela">
+          <thead><tr>
+            <th class="th-dark">Transação</th><th class="th-dark">Data</th><th class="th-dark">Vendedor</th><th class="th-dark">Plataforma</th>
+            <th class="th-dark n">Base</th><th class="th-dark n">Comissão</th><th class="th-dark">Decisão</th>
+          </tr></thead>
+          <tbody>
+            {% for l in v.reembolso %}
+            <tr>
+              <td style="white-space:nowrap;">{{ l.transacao }}</td>
+              <td style="white-space:nowrap;">{{ l.data.strftime('%d/%m %H:%M') }}{% if l.motivo %}<div class="cm-sub">{{ l.motivo }}</div>{% endif %}</td>
+              <td class="nome">{{ l.beneficiario }}</td>
+              <td>{{ plat(l) }}</td>
+              <td class="n">{{ l.valor_base | brl_exato }}</td>
+              <td class="n">{{ l.valor | brl_exato }}</td>
+              <td>
+                <form method="post" action="/comercial/reembolso" class="cm-acao">
+                  {{ mes_hidden() }}<input type="hidden" name="transacao" value="{{ l.transacao }}">
+                  <input type="text" name="justificativa" placeholder="justificativa (obrigatória)" required maxlength="1000" aria-label="Justificativa">
+                  <button type="submit" name="decisao" value="mantem" class="cm-btn ok">Mantém</button>
+                  <button type="submit" name="decisao" value="tira" class="cm-btn nao">Tira</button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}<div class="cm-sub">Nenhum reembolso a decidir.</div>{% endif %}
+
+      <div class="cm-subtitulo">Conflito de código TMB ({{ v.conflitos | length }})</div>
+      {% if v.conflitos %}
+      <div class="table-wrap">
+        <table class="cm-tabela">
+          <thead><tr>
+            <th class="th-dark">Pedido</th><th class="th-dark">Data</th><th class="th-dark">Categoria</th><th class="th-dark n">Base</th><th class="th-dark">Escolher o vendedor</th>
+          </tr></thead>
+          <tbody>
+            {% for c in v.conflitos %}
+            <tr>
+              <td style="white-space:nowrap;">{{ c.linha.transacao }}</td>
+              <td style="white-space:nowrap;">{{ c.linha.data.strftime('%d/%m %H:%M') }}</td>
+              <td>{{ c.linha.categoria or '—' }}</td>
+              <td class="n">{{ c.linha.valor_base | brl_exato }}</td>
+              <td>
+                <div class="cm-acao">
+                  {% for cod in c.codigos if not v.fechado %}
+                  <form method="post" action="/comercial/atribuir" class="cm-acao">
+                    {{ mes_hidden() }}<input type="hidden" name="transacao" value="{{ c.linha.transacao }}">
+                    <input type="hidden" name="vendedor_codigo" value="{{ cod }}">
+                    <input type="hidden" name="motivo" value="conflito utm_content × utm_last_content">
+                    <button type="submit" class="cm-btn">Escolher {{ cod }}</button>
+                  </form>
+                  {% endfor %}
+                  {% if not c.codigos %}<span class="cm-sub">códigos não encontrados no pedido</span>{% endif %}
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}<div class="cm-sub">Nenhum conflito.</div>{% endif %}
+
+      <div class="cm-subtitulo">Sem valor-base cadastrado ({{ v.sem_base | length }})</div>
+      {% if v.sem_base %}
+      <div class="cm-sub" style="margin-bottom:var(--s2);">Cadastre a base na tabela de valores (Regras) ou faça um ajuste manual desta venda.</div>
+      {{ tabela_ajuste(v.sem_base) }}
+      {% else %}<div class="cm-sub">Nenhuma venda sem valor-base.</div>{% endif %}
+
+      <div class="cm-subtitulo">Sem regra de percentual ({{ v.sem_regra | length }})</div>
+      {% if v.sem_regra %}{{ tabela_ajuste(v.sem_regra) }}{% else %}<div class="cm-sub">Nenhuma venda sem regra.</div>{% endif %}
+
+      {% if v.codigos_novos %}
+      <div class="cm-subtitulo">Códigos novos (aviso)</div>
+      <div class="cm-sub">Códigos AT sem vendedor cadastrado, calculados como
+        {% for cod, nome in v.codigos_novos %}<strong>{{ nome }}</strong> ({{ cod }}){{ ', ' if not loop.last }}{% endfor %}.
+        Não bloqueia: renomeie ou vincule no cadastro de vendedores.</div>
+      {% endif %}
+
+      {% if not v.fechado %}
+      <div class="cm-subtitulo">Ajuste manual em qualquer venda</div>
+      <form method="post" action="/comercial/ajuste" class="cm-acao">
+        {{ mes_hidden() }}
+        <input type="text" name="transacao" placeholder="transação (HP… ou pedido TMB)" required maxlength="64" aria-label="Transação">
+        <input type="text" class="curto" name="pct" placeholder="% (ex. 10)" inputmode="decimal" aria-label="Percentual">
+        <input type="text" class="curto" name="valor_base" placeholder="base R$" inputmode="decimal" aria-label="Valor-base">
+        <input type="text" name="justificativa" placeholder="justificativa (obrigatória)" required maxlength="1000" aria-label="Justificativa">
+        <button type="submit" class="cm-btn">Gravar ajuste</button>
+      </form>
+      <div class="cm-sub" style="margin-top:var(--s1);">Ex.: Outbound 10% ou base digitada à mão. Substitui o ajuste anterior da venda (o antigo fica no histórico).</div>
+      {% endif %}
+    </div>
+
+    <div class="section">
+      <div class="section-title" data-sec-key="comercial-inc-pedidos"><i class="ti ti-hand-finger"></i> Reivindicações pendentes ({{ v.pendentes | length }})</div>
+      {% if v.pendentes %}
+      <div class="table-wrap">
+        <table class="cm-tabela">
+          <thead><tr>
+            <th class="th-dark">Transação</th><th class="th-dark">Pedido para</th><th class="th-dark">Dono atual da venda</th><th class="th-dark">Pedido por</th><th class="th-dark">Em</th><th class="th-dark">Decisão</th>
+          </tr></thead>
+          <tbody>
+            {% for p in v.pendentes %}
+            <tr>
+              <td style="white-space:nowrap;">{{ p.transacao }}</td>
+              <td class="nome">{{ p.vendedor_codigo }}</td>
+              <td>{{ p.dono or '—' }}
+                {% if p.dono_motivo %}<div class="cm-sub">{{ motivo_rotulo.get(p.dono_motivo, p.dono_motivo) }}</div>{% endif %}
+                {% if p.de_outro %}<span class="cm-chip inconsistente">venda de outro vendedor</span>{% endif %}</td>
+              <td class="cm-sub">{{ p.pedido_por or '—' }}</td>
+              <td style="white-space:nowrap;">{{ p.criado_em.strftime('%d/%m %H:%M') if p.criado_em else '—' }}</td>
+              <td>
+                <div class="cm-acao">
+                  {% if not v.fechado %}
+                  <form method="post" action="/comercial/atribuicoes/aprovar" class="cm-acao">
+                    {{ mes_hidden() }}<input type="hidden" name="transacao" value="{{ p.transacao }}">
+                    <button type="submit" class="cm-btn ok">Aprovar</button>
+                  </form>
+                  {% endif %}
+                  <details><summary>Recusar</summary>
+                    <form method="post" action="/comercial/atribuicoes/recusar" class="cm-acao">
+                      {{ mes_hidden() }}<input type="hidden" name="transacao" value="{{ p.transacao }}">
+                      <input type="text" name="motivo" placeholder="motivo (obrigatório)" required maxlength="1000" aria-label="Motivo">
+                      <button type="submit" class="cm-btn nao">Recusar</button>
+                    </form>
+                  </details>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}<div class="cm-vazio">Nenhum pedido aguardando.</div>{% endif %}
+    </div>
+    {% else %}
+    <div class="section">
+      <div class="section-title" data-sec-key="comercial-inc-meus"><i class="ti ti-hand-finger"></i> Seus pedidos</div>
+      {% if v.minhas %}
+      <div class="table-wrap">
+        <table class="cm-tabela">
+          <thead><tr><th class="th-dark">Transação</th><th class="th-dark">Pedido em</th><th class="th-dark">Situação</th><th class="th-dark">Motivo</th></tr></thead>
+          <tbody>
+            {% for p in v.minhas %}
+            <tr>
+              <td style="white-space:nowrap;">{{ p.transacao }}</td>
+              <td style="white-space:nowrap;">{{ p.criado_em.strftime('%d/%m %H:%M') if p.criado_em else '—' }}</td>
+              <td><span class="cm-chip {{ {'aprovada': 'elegivel', 'pendente': 'prevista', 'recusada': 'inconsistente'}.get(p.status, '') }}">{{ p.status }}</span></td>
+              <td class="cm-sub">{{ p.motivo or '' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}<div class="cm-vazio">Você ainda não reivindicou nenhuma venda.</div>{% endif %}
+    </div>
+    {% endif %}
+
+    <div class="section">
+      <div class="section-title" data-sec-key="comercial-inc-semcodigo"><i class="ti ti-search"></i> Vendas sem código ({{ v.sem_codigo_total | num }})</div>
+      <form method="get" action="/comercial/inconsistencias" class="cm-busca" role="search">
+        {{ mes_hidden() }}
+        <input type="search" name="q" value="{{ v.q }}" placeholder="buscar pela transação" maxlength="64" aria-label="Buscar transação">
+        <button type="submit" class="bs-pill accent" style="border:0;cursor:pointer;">Buscar</button>
+        {% if v.q %}<span class="cm-sub">{{ v.sem_codigo_achadas | num }} com “{{ v.q }}”</span>
+        <a href="/comercial/inconsistencias?mes={{ mes_txt }}" class="cm-sub">limpar</a>{% endif %}
+      </form>
+      {% if not v.gestor and not v.fechado %}
+      <form method="post" action="/comercial/reivindicar" class="cm-acao" style="margin-bottom:var(--s3);">
+        {{ mes_hidden() }}
+        <input type="text" name="transacao" placeholder="código da transação" required maxlength="64" aria-label="Transação para reivindicar">
+        <button type="submit" class="cm-btn">Reivindicar pelo código</button>
+        <span class="cm-sub">a venda precisa ser do mês selecionado</span>
+      </form>
+      {% endif %}
+      {% if v.sem_codigo %}
+      <div class="table-wrap">
+        <table class="cm-tabela">
+          <thead><tr>
+            <th class="th-dark">Transação</th><th class="th-dark">Data</th><th class="th-dark">Plataforma</th><th class="th-dark">Categoria</th><th class="th-dark n">Base</th><th class="th-dark">Ação</th>
+          </tr></thead>
+          <tbody>
+            {% for l in v.sem_codigo %}
+            <tr>
+              <td style="white-space:nowrap;">{{ l.transacao }}</td>
+              <td style="white-space:nowrap;">{{ l.data.strftime('%d/%m %H:%M') }}</td>
+              <td>{{ plat(l) }}</td>
+              <td>{{ l.categoria or '—' }}</td>
+              <td class="n">{{ l.valor_base | brl_exato }}</td>
+              <td>
+                {% if l.transacao in v.com_pedido %}
+                <span class="cm-chip prevista">em análise</span>
+                {% elif v.fechado %}
+                <span class="cm-sub">mês fechado</span>
+                {% elif v.gestor %}
+                <form method="post" action="/comercial/atribuir" class="cm-acao">
+                  {{ mes_hidden() }}<input type="hidden" name="transacao" value="{{ l.transacao }}">
+                  <select name="vendedor_codigo" required aria-label="Vendedor">
+                    <option value="">vendedor…</option>
+                    {% for cod, nome in v.vendedores %}<option value="{{ cod }}">{{ nome }} ({{ cod }})</option>{% endfor %}
+                  </select>
+                  <button type="submit" class="cm-btn">Atribuir</button>
+                </form>
+                {% else %}
+                <form method="post" action="/comercial/reivindicar" class="cm-acao">
+                  {{ mes_hidden() }}<input type="hidden" name="transacao" value="{{ l.transacao }}">
+                  <button type="submit" class="cm-btn">Reivindicar</button>
+                </form>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if v.sem_codigo_cortado %}<div class="cm-sub" style="margin-top:var(--s2);">Mostrando {{ v.sem_codigo | length }} de {{ v.sem_codigo_achadas | num }}. Use a busca para achar uma transação.</div>{% endif %}
+      {% elif not v.gestor and v.q | length < v.busca_min %}
+      <div class="cm-vazio">Digite ao menos {{ v.busca_min }} caracteres do código da transação para buscar.</div>
+      {% else %}
+      <div class="cm-vazio">Nenhuma venda sem código{{ ' com essa busca' if v.q else '' }}.</div>
+      {% endif %}
+    </div>
+
+    {% if v.gestor %}
+    <div class="section">
+      <div class="section-title" data-sec-key="comercial-inc-historico"><i class="ti ti-history"></i> Histórico recente</div>
+      {% if v.historico %}
+      <div class="table-wrap">
+        <table class="cm-tabela cm-hist">
+          <thead><tr><th class="th-dark">Em</th><th class="th-dark">Por</th><th class="th-dark">Tabela</th><th class="th-dark">Registro</th><th class="th-dark">Campo</th><th class="th-dark">Antes</th><th class="th-dark">Depois</th></tr></thead>
+          <tbody>
+            {% for h in v.historico %}
+            <tr>
+              <td style="white-space:nowrap;">{{ h.em.strftime('%d/%m %H:%M') if h.em else '—' }}</td>
+              <td>{{ h.por or '—' }}</td>
+              <td>{{ h.tabela | replace('comercial_', '') }}</td>
+              <td style="white-space:nowrap;">{{ h.registro_id }}</td>
+              <td>{{ h.campo }}</td>
+              <td>{{ h.antes if h.antes is not none else '—' }}</td>
+              <td>{{ h.depois if h.depois is not none else '—' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}<div class="cm-vazio">Nada registrado ainda.</div>{% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

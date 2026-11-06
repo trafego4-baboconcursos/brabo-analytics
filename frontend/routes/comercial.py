@@ -121,10 +121,31 @@ def _hoje():
     return agora_sp().date()
 
 
-async def _carregar(mes, inicio, fim):
+class _Recusa(Exception):
+    def __init__(self, resposta):
+        self.resposta = resposta
+
+
+def resposta_400(msg: str) -> HTMLResponse:
+    """Período fora do permitido: mesma cara do 403, com o motivo e um caminho de volta."""
+    from html import escape  # noqa: PLC0415
+    return HTMLResponse(
+        content=f"""<html><body style="font-family:Inter,sans-serif;display:flex;align-items:center;
+            justify-content:center;height:100vh;background:#eef0f8">
+            <div style="text-align:center"><h1 style="font-size:48px;color:#2f5ee3">Período indisponível</h1>
+            <p style="color:#6b7280">{escape(msg)}</p>
+            <a href="/comercial" style="color:#2f5ee3">← Voltar para o mês atual</a></div></body></html>""",
+        status_code=400,
+    )
+
+
+async def _carregar(mes, inicio, fim, acesso):
     t = _telas()
     hoje = _hoje()
-    periodo = t.resolver_periodo(mes, inicio, fim, hoje)
+    try:
+        periodo = t.resolver_periodo(mes, inicio, fim, hoje, gestor=t.e_gestor(acesso))
+    except t.PeriodoInvalido as exc:
+        raise _Recusa(resposta_400(str(exc))) from None
     res = await run_in_threadpool(t.carregar, periodo)
     return t, periodo, res, hoje
 
@@ -143,7 +164,10 @@ async def comercial_visao(request: Request, mes: str | None = None,
     acesso = await _acesso(request)
     if acesso is None:
         return resposta_403()
-    t, periodo, res, hoje = await _carregar(mes, inicio, fim)
+    try:
+        t, periodo, res, hoje = await _carregar(mes, inicio, fim, acesso)
+    except _Recusa as r:
+        return r.resposta
     return await _pagina(request, "comercial_visao", "Comercial · Visão geral", "comercial_visao.html",
                          t.view_visao(res, periodo, acesso), hoje)
 
@@ -154,7 +178,10 @@ async def comercial_comissoes(request: Request, mes: str | None = None, inicio: 
     acesso = await _acesso(request)
     if acesso is None:
         return resposta_403()
-    t, periodo, res, hoje = await _carregar(mes, inicio, fim)
+    try:
+        t, periodo, res, hoje = await _carregar(mes, inicio, fim, acesso)
+    except _Recusa as r:
+        return r.resposta
     return await _pagina(request, "comercial_comissoes", "Comercial · Comissões", "comercial_comissoes.html",
                          t.view_comissoes(res, periodo, acesso, (vendedor or "").strip().upper() or None), hoje)
 
@@ -165,7 +192,10 @@ async def comercial_comissoes_xlsx(request: Request, mes: str | None = None, ini
     acesso = await _acesso(request)
     if acesso is None:
         return resposta_403()
-    t, periodo, res, _ = await _carregar(mes, inicio, fim)
+    try:
+        t, periodo, res, _ = await _carregar(mes, inicio, fim, acesso)
+    except _Recusa as r:
+        return r.resposta
     view = t.view_comissoes(res, periodo, acesso, (vendedor or "").strip().upper() or None)
     corpo = await run_in_threadpool(t.planilha_xlsx, view)
     sufixo = f"{periodo.mes:%Y-%m}" if not periodo.livre else f"{periodo.inicio}_{periodo.fim}"
@@ -186,7 +216,10 @@ async def comercial_ranking(request: Request, mes: str | None = None, inicio: st
     acesso = await _acesso(request)
     if acesso is None:
         return resposta_403()
-    t, periodo, res, hoje = await _carregar(mes, inicio, fim)
+    try:
+        t, periodo, res, hoje = await _carregar(mes, inicio, fim, acesso)
+    except _Recusa as r:
+        return r.resposta
     return await _pagina(request, "comercial_ranking", "Comercial · Ranking", "comercial_ranking.html",
                          t.view_ranking(res, periodo, acesso, ordem), hoje)
 
@@ -199,7 +232,10 @@ async def comercial_recalcular(request: Request, mes: str | None = None, voltar:
     acesso = await _acesso(request)
     if acesso is None or not ac.pode(acesso.nivel, "ver_time"):
         return resposta_403()
-    periodo = _telas().resolver_periodo(mes, None, None, _hoje())
+    try:
+        periodo = _telas().resolver_periodo(mes, None, None, _hoje(), gestor=True)
+    except _telas().PeriodoInvalido as exc:
+        return resposta_400(str(exc))
     await run_in_threadpool(snap.marcar_desatualizado, periodo.mes)
     # só volta para dentro da área (nada de redirecionar para outro site)
     seguro = voltar.startswith("/comercial") and "//" not in voltar and "\\" not in voltar

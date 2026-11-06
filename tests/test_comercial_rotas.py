@@ -97,7 +97,8 @@ def test_kpis_somam_so_vendas_com_valor():
     assert k["vendido"] == D("2000") + D("1000") + D("1477") * 2 + D("3000") + D("500") + D("1500")
     assert k["total"] == k["elegivel"]
     assert k["bonus"] is None
-    assert k["inconsistencias"] == 2  # 1 inconsistente + 1 reembolso a verificar
+    assert k["inconsistencias"] == 1  # só o reembolso a verificar; sem_codigo não é pendência (Ruling 10)
+    assert k["sem_codigo"] == 1
     assert k["participacao"] == (D("1477") + D("3000")) * D("0.005")
 
 
@@ -141,12 +142,60 @@ def test_resolver_periodo():
     assert (p.inicio, p.fim, p.mes) == (date(2026, 11, 1), date(2026, 11, 30), date(2026, 11, 1))
     p = telas.resolver_periodo("2026-10", None, None, hoje)
     assert (p.inicio, p.fim, p.livre) == (date(2026, 10, 1), date(2026, 10, 31), False)
-    p = telas.resolver_periodo(None, "2026-10-01", "2026-10-15", hoje)
+    p = telas.resolver_periodo(None, "2026-10-01", "2026-10-15", hoje, gestor=True)
     assert (p.inicio, p.fim, p.livre, p.mes) == (date(2026, 10, 1), date(2026, 10, 15), True, None)
     assert p.query == "inicio=2026-10-01&fim=2026-10-15"
-    assert telas.resolver_periodo("lixo", None, None, hoje).mes == date(2026, 11, 1)
-    assert telas.resolver_periodo(None, "2026-10-15", "2026-10-01", hoje).livre is False  # invertido
-    assert telas.resolver_periodo(None, "2025-01-01", "2026-10-01", hoje).livre is False  # > 1 ano
+    p = telas.resolver_periodo(None, "2026-08-01", "2026-10-31", hoje, gestor=True)  # 92 dias: ok
+    assert p.livre
+
+
+@pytest.mark.parametrize("mes,inicio,fim,gestor", [
+    ("lixo", None, None, True),
+    ("2025-12", None, None, True),               # antes de 2026-01
+    ("2026-12", None, None, True),               # depois do mês corrente
+    (None, "2026-10-15", "2026-10-01", True),    # invertido
+    (None, "2026-07-01", "2026-10-31", True),    # > 92 dias
+    (None, "2026-10-01", None, True),            # incompleto
+    (None, "2026-10-01", "lixo", True),
+    (None, "2026-10-01", "2026-10-15", False),   # período livre só para gestor
+])
+def test_resolver_periodo_invalido(mes, inicio, fim, gestor):
+    with pytest.raises(telas.PeriodoInvalido):
+        telas.resolver_periodo(mes, inicio, fim, date(2026, 11, 6), gestor=gestor)
+
+
+def test_mes_do_codigo_e_alertas_proximos():
+    assert telas.mes_do_codigo("PES-NOV-26") == date(2026, 11, 1)
+    assert telas.mes_do_codigo("BV-26") is None
+    sem = [("PES-OUT-26", frozenset(), frozenset()), ("PI-SET-26", frozenset(), frozenset()),
+           ("PBB-JAN-25", frozenset(), frozenset()), ("BV-26", frozenset(), frozenset()),
+           ("PI-AGO-26", frozenset(), frozenset())]
+    p = telas.resolver_periodo("2026-10", None, None, date(2026, 11, 6))
+    perto, antigos = telas.separar_sem_data(sem, p)
+    assert [a[0] for a in perto] == ["BV-26", "PES-OUT-26", "PI-SET-26"]
+    assert [a[0] for a in antigos] == ["PBB-JAN-25", "PI-AGO-26"]
+
+
+def test_sem_codigo_em_massa_nao_vira_inconsistencia():
+    organicas = [_l(f"HP-ORG-{i}", None, base=None, pct=None, sit="inconsistente", motivo="sem_codigo")
+                 for i in range(823)]
+    outras = [_l("HP-C-1", "AT4", base=None, pct=None, sit="inconsistente", motivo="conflito_codigo"),
+              _l("HP-C-2", "AT4", base=None, pct=None, sit="inconsistente", motivo="sem_valor_base"),
+              _l("HP-C-3", "AT4", base=None, pct=None, sit="inconsistente", motivo="sem_regra")]
+    k = telas.kpis(organicas + outras)
+    assert (k["inconsistencias"], k["sem_codigo"]) == (3, 823)
+
+
+def test_xlsx_neutraliza_formula():
+    from openpyxl import load_workbook
+    l = _l("=HYPERLINK(\"x\")", "AT4", beneficiario="+cmd")
+    view = {"vendedores": telas.tabela_vendedores([l]), "participacoes": [], "linhas": [l]}
+    wb = load_workbook(io.BytesIO(telas.planilha_xlsx(view)))
+    linha = next(wb["Vendas"].iter_rows(min_row=2, values_only=True))
+    assert linha[0] == "'=HYPERLINK(\"x\")" and linha[3] == "'+cmd"
+    assert next(wb["Resumo"].iter_rows(min_row=2, values_only=True))[0] == "'+cmd"
+    assert telas.celula_segura("-1") == "'-1" and telas.celula_segura("@x") == "'@x"
+    assert telas.celula_segura("ok") == "ok" and telas.celula_segura(D("-1")) == D("-1")
 
 
 def test_formatadores_decimais():
@@ -192,6 +241,7 @@ def cli(_app_client, monkeypatch):
     monkeypatch.setattr(snap, "obter_mes", fake_obter)
     monkeypatch.setattr(telas, "calcular_periodo", fake_livre)
     monkeypatch.setattr(snap, "marcar_desatualizado", lambda mes=None, **kw: chamadas["desat"].append(mes))
+    monkeypatch.setattr(rotas, "_hoje", lambda: date(2026, 11, 6))  # janela de meses estável
     monkeypatch.setattr(rotas, "get_launches", lambda: [])  # sem banco: evita a espera do connect
     monkeypatch.setattr(acesso_mod, "acesso_comercial",
                         lambda user, **kw: _USUARIOS.get((user or {}).get("email")))
@@ -249,6 +299,28 @@ def test_vendedor_comissoes_so_ediléia(cli):
     assert "R$ 59,08" in html
 
 
+@pytest.mark.parametrize("url", ["/comercial?mes=2025-12", "/comercial/comissoes?mes=2027-01",
+                                 "/comercial/ranking?mes=lixo",
+                                 "/comercial/comissoes.xlsx?inicio=2026-01-01&fim=2026-10-31"])
+def test_periodo_fora_da_janela_400(cli, url):
+    resp = _como(cli, "master@teste.local").get(url)
+    assert resp.status_code == 400
+    assert "Período" in resp.text or "período" in resp.text
+    assert cli.chamadas["obter"] == [] and cli.chamadas["livre"] == []
+
+
+def test_periodo_livre_vendedor_400(cli):
+    resp = _como(cli, "edileia@teste.local").get("/comercial/comissoes?inicio=2026-10-01&fim=2026-10-15")
+    assert resp.status_code == 400
+    assert cli.chamadas["livre"] == []
+
+
+def test_recalcular_mes_fora_da_janela_400(cli):
+    resp = _como(cli, "master@teste.local").post("/comercial/recalcular?mes=2024-01")
+    assert resp.status_code == 400
+    assert cli.chamadas["desat"] == []
+
+
 def test_comissoes_periodo_livre_calcula_ao_vivo(cli):
     resp = _como(cli, "master@teste.local").get("/comercial/comissoes?inicio=2026-10-01&fim=2026-10-15")
     assert resp.status_code == 200
@@ -261,13 +333,23 @@ def test_visao_geral_kpis_top3_alerta(cli):
     assert resp.status_code == 200
     html = resp.text
     assert "dados de 06/11 09:42" in html
-    assert "PES-OUT-26" in html  # alerta de lançamento sem data
+    assert "PES-OUT-26" in html  # alerta de lançamento sem data (mês do período)
+    assert "cm-alerta" in html
     assert "Recalcular" in html
     assert "Em validação" in html
     assert "Total vendido" in html and "Inconsistências" in html
     top = html[html.index("Top 3"):]
     assert top.index("Jheniffer") < top.index("Izabela") < top.index("Ediléia")
     assert "Priscila" not in top[:top.index("</ol>")]
+
+
+def test_visao_geral_sem_data_antigo_so_recolhido(cli, monkeypatch):
+    antigos = [("PBB-JAN-25", frozenset({"1"}), frozenset()), ("PI-FEV-26", frozenset(), frozenset({"2"}))]
+    monkeypatch.setattr(snap, "obter_mes", lambda mes, **kw: ResultadoMes(date(2026, 10, 1), _linhas(), antigos, GERADO))
+    html = _como(cli, "master@teste.local").get("/comercial?mes=2026-10").text
+    assert 'class="cm-alerta"' not in html  # nada perto do período: sem bloco vermelho
+    assert "<details" in html and "2 lançamentos antigos sem data" in html
+    assert "PBB-JAN-25" in html[html.index("<details"):]
 
 
 def test_visao_geral_vendedor_sem_recalcular_nem_alerta(cli):

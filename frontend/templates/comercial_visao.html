@@ -27,6 +27,16 @@
       </ul>
     </div>
     {% endif %}
+    {% if v.sem_data_antigos %}
+    <details class="cm-sub" style="margin-bottom:var(--s4);">
+      <summary style="cursor:pointer;">{{ v.sem_data_antigos | length }} lançamentos antigos sem data — ver lista</summary>
+      <ul style="margin:var(--s2) 0 0;padding-left:var(--s6);">
+        {% for lanc, hot, tmb in v.sem_data_antigos %}
+        <li><strong>{{ lanc }}</strong>{% if hot %} · Hotmart: {{ hot | sort | join(', ') }}{% endif %}{% if tmb %} · TMB: {{ tmb | sort | join(', ') }}{% endif %}</li>
+        {% endfor %}
+      </ul>
+    </details>
+    {% endif %}
 
     <div class="section">
       <div class="section-title" data-sec-key="comercial-resumo"><i class="ti ti-report-money"></i> Resumo do período</div>
@@ -37,7 +47,7 @@
         {{ kpi('ti-gift', k.bonus | brl_exato, 'Bônus', 'lançado pelo gestor (em breve)') }}
         {{ kpi('ti-wallet', k.total | brl_exato, 'Total a pagar', 'elegível + bônus') }}
         {% if v.gestor %}
-        {{ kpi('ti-alert-circle', k.inconsistencias | num, 'Inconsistências', 'sem código, conflito, sem base ou reembolso a decidir', 'danger' if k.inconsistencias else 'success') }}
+        {{ kpi('ti-alert-circle', k.inconsistencias | num, 'Inconsistências', 'conflito de código, sem valor-base, sem regra ou reembolso a decidir · ' ~ (k.sem_codigo | num) ~ ' vendas sem código (orgânicas) à parte', 'danger' if k.inconsistencias else 'success') }}
         {% endif %}
       </div>
       <div class="cm-sub">

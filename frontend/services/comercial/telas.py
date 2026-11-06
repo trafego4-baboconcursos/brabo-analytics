@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import calendar
 import io
+import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -19,9 +20,13 @@ from frontend.services.comercial.snapshot import ResultadoMes
 _ZERO = Decimal("0")
 COM_VALOR = ("elegivel", "prevista", "reembolso_a_verificar")
 _PREVISTA = ("prevista", "reembolso_a_verificar")  # a verificar conta como prevista (decisão Task 3)
-_PENDENTE = ("inconsistente", "reembolso_a_verificar")
+# Ruling 10: sem_codigo (venda orgânica, ~800/mês) NÃO é pendência — vira lista reivindicável (Task 6)
+_MOTIVOS_PENDENTES = ("conflito_codigo", "sem_valor_base", "sem_regra")
 ORDENS = ("vendido", "qtd", "comissao", "meta")
-LIMITE_PERIODO_DIAS = 366
+LIMITE_PERIODO_DIAS = 92           # período livre: só gestor, até 92 dias (custo ~20 s/mês de dado)
+PRIMEIRO_MES = date(2026, 1, 1)    # janela de meses aceitos: 2026-01 .. mês corrente (SP)
+_MES_ABREV = {"JAN": 1, "FEV": 2, "MAR": 3, "ABR": 4, "MAI": 5, "JUN": 6, "JUL": 7, "AGO": 8,
+              "SET": 9, "OUT": 10, "NOV": 11, "DEZ": 12}
 _MESES = ("Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto",
           "Setembro", "Outubro", "Novembro", "Dezembro")
 SITUACAO_ROTULO = {
@@ -76,19 +81,66 @@ def _periodo_mes(mes: date) -> Periodo:
     return Periodo(mes, date(mes.year, mes.month, calendar.monthrange(mes.year, mes.month)[1]), mes)
 
 
-def resolver_periodo(mes: str | None, inicio: str | None, fim: str | None, hoje: date) -> Periodo:
-    """inicio+fim válidos (fim >= inicio, até 1 ano) -> período livre; senão o mês pedido;
-    senão o mês corrente. Parâmetro inválido cai no padrão em vez de virar erro."""
-    ini, fi = _dia_de(inicio), _dia_de(fim)
-    if ini and fi and ini <= fi and (fi - ini).days < LIMITE_PERIODO_DIAS:
+class PeriodoInvalido(ValueError):
+    """Parâmetro de período fora do permitido; a mensagem vai para a tela (400)."""
+
+
+def resolver_periodo(mes: str | None, inicio: str | None, fim: str | None, hoje: date,
+                     *, gestor: bool = False) -> Periodo:
+    """Sem parâmetro -> mês corrente. `mes` só de 2026-01 ao mês corrente. `inicio`/`fim`
+    (período livre, calculado ao vivo) só para gestor e até LIMITE_PERIODO_DIAS dias.
+    Fora disso -> PeriodoInvalido: todo pedido custa cálculo, nada de trabalho sem limite."""
+    if (inicio or "").strip() or (fim or "").strip():
+        if not gestor:
+            raise PeriodoInvalido("Período livre é só para gestores. Escolha um mês.")
+        ini, fi = _dia_de(inicio), _dia_de(fim)
+        if not ini or not fi:
+            raise PeriodoInvalido("Período livre precisa de data de início e de fim válidas.")
+        if fi < ini:
+            raise PeriodoInvalido("No período livre, a data final vem antes da inicial.")
+        if (fi - ini).days + 1 > LIMITE_PERIODO_DIAS:
+            raise PeriodoInvalido(f"Período livre de no máximo {LIMITE_PERIODO_DIAS} dias.")
         return Periodo(ini, fi, None)
-    return _periodo_mes(_mes_de(mes) or hoje.replace(day=1))
+    if not (mes or "").strip():
+        return _periodo_mes(hoje.replace(day=1))
+    m = _mes_de(mes)
+    if m is None:
+        raise PeriodoInvalido("Mês inválido: use o formato AAAA-MM.")
+    if not (PRIMEIRO_MES <= m <= hoje.replace(day=1)):
+        raise PeriodoInvalido(f"Mês fora do intervalo disponível ({PRIMEIRO_MES:%m/%Y} até o mês atual).")
+    return _periodo_mes(m)
+
+
+def mes_do_codigo(codigo: str) -> date | None:
+    """'PES-NOV-26' -> 2026-11-01; código sem mês (ex.: 'BV-26') -> None."""
+    m = re.search(r"-([A-Z]{3})-(\d{2})$", (codigo or "").strip().upper())
+    if not m or m.group(1) not in _MES_ABREV:
+        return None
+    return date(2000 + int(m.group(2)), _MES_ABREV[m.group(1)], 1)
+
+
+def _soma_meses(d: date, n: int) -> date:
+    t = d.year * 12 + d.month - 1 + n
+    return date(t // 12, t % 12 + 1, 1)
+
+
+def separar_sem_data(sem_data: list, periodo: Periodo) -> tuple[list, list]:
+    """(perto, antigos): perto = mês do código a ±1 mês do período, ou código sem mês
+    (sempre mostrado). Ruling 11: os antigos não ocupam o topo da Visão geral."""
+    de, ate = _soma_meses(periodo.inicio.replace(day=1), -1), _soma_meses(periodo.fim.replace(day=1), 1)
+    perto, antigos = [], []
+    for a in sorted(sem_data, key=lambda a: a[0]):
+        m = mes_do_codigo(a[0])
+        (perto if m is None or de <= m <= ate else antigos).append(a)
+    return perto, antigos
 
 
 def meses_recentes(hoje: date, n: int = 12) -> list[tuple[str, str]]:
     """[(AAAA-MM, 'Novembro/26'), ...] do mês corrente para trás."""
     saida, m = [], hoje.replace(day=1)
     for _ in range(n):
+        if m < PRIMEIRO_MES:
+            break  # fora da janela aceita por resolver_periodo
         saida.append((f"{m:%Y-%m}", _periodo_mes(m).rotulo))
         m = (m - timedelta(days=1)).replace(day=1)
     return saida
@@ -155,7 +207,9 @@ def kpis(linhas: list[LinhaComissao]) -> dict:
         "prevista": prevista,
         "bonus": None,
         "total": elegivel,
-        "inconsistencias": sum(1 for l in vendas if l.situacao in _PENDENTE),
+        "inconsistencias": sum(1 for l in vendas if l.situacao == "reembolso_a_verificar"
+                               or (l.situacao == "inconsistente" and l.motivo in _MOTIVOS_PENDENTES)),
+        "sem_codigo": sum(1 for l in vendas if l.situacao == "inconsistente" and l.motivo == "sem_codigo"),
         "participacao": sum((l.valor for l in part if l.situacao == "elegivel"), _ZERO),
         "participacao_prevista": sum((l.valor for l in part if l.situacao in _PREVISTA), _ZERO),
     }
@@ -252,6 +306,7 @@ def _cabecalho(res: ResultadoMes, periodo: Periodo, acesso: AcessoComercial) -> 
 def view_visao(res: ResultadoMes, periodo: Periodo, acesso: AcessoComercial) -> dict:
     gestor = e_gestor(acesso)
     proprias = linhas_visiveis(res.linhas, acesso)
+    perto, antigos = separar_sem_data(res.sem_data, periodo)
     rk = ranking(res.linhas, acesso, "vendido")
     minha_pos = None
     if not gestor:
@@ -263,7 +318,8 @@ def view_visao(res: ResultadoMes, periodo: Periodo, acesso: AcessoComercial) -> 
         "mostra_comissao": rk["mostra_comissao"],
         "minha_pos": minha_pos,
         "total_vendedores": len(rk["linhas"]),
-        "sem_data": sorted(res.sem_data, key=lambda a: a[0]) if gestor else [],
+        "sem_data": perto if gestor else [],
+        "sem_data_antigos": antigos if gestor else [],
     }
 
 
@@ -302,6 +358,13 @@ CABECALHO_VENDAS = ["Transação", "Plataforma", "Papel", "Beneficiário", "Cód
 _FMT_BRL = '"R$" #,##0.00'
 
 
+def celula_segura(v):
+    """Texto que o Excel leria como fórmula (= + - @) ganha um apóstrofo na frente."""
+    if isinstance(v, str) and v[:1] in ("=", "+", "-", "@"):
+        return "'" + v
+    return v
+
+
 def planilha_xlsx(view: dict) -> bytes:
     """Resumo por beneficiário + todas as linhas visíveis. Números como número (Decimal)."""
     from openpyxl import Workbook  # noqa: PLC0415
@@ -312,12 +375,12 @@ def planilha_xlsx(view: dict) -> bytes:
     ws.title = "Resumo"
     ws.append(CABECALHO_RESUMO)
     for v in view["vendedores"]:
-        ws.append([v["nome"], v["codigo"], v["qtd"], v["vendido_ativa"], v["com_ativa"],
+        ws.append([celula_segura(x) for x in [v["nome"], v["codigo"], v["qtd"], v["vendido_ativa"], v["com_ativa"],
                    v["vendido_reativa"], v["com_reativa"], v["elegivel"], v["prevista"],
-                   None, v["a_pagar"]])
+                   None, v["a_pagar"]]])
     for p in view["participacoes"]:
-        ws.append([f"{p['nome']} (participação)", None, p["qtd"], None, p["ativa"], None,
-                   p["reativa"], p["elegivel"], p["prevista"], None, p["elegivel"]])
+        ws.append([celula_segura(x) for x in [f"{p['nome']} (participação)", None, p["qtd"], None, p["ativa"], None,
+                   p["reativa"], p["elegivel"], p["prevista"], None, p["elegivel"]]])
     for row in ws.iter_rows(min_row=2, min_col=4, max_col=11):
         for c in row:
             c.number_format = _FMT_BRL
@@ -325,10 +388,10 @@ def planilha_xlsx(view: dict) -> bytes:
     wv = wb.create_sheet("Vendas")
     wv.append(CABECALHO_VENDAS)
     for l in sorted(view["linhas"], key=lambda l: (l.papel != "venda", l.beneficiario, l.data, l.transacao)):
-        wv.append([l.transacao, l.plataforma, l.papel, l.beneficiario, l.vendedor_codigo, l.data,
+        wv.append([celula_segura(x) for x in [l.transacao, l.plataforma, l.papel, l.beneficiario, l.vendedor_codigo, l.data,
                    l.categoria, l.modalidade, l.tipo, l.valor_base, l.pct, l.valor,
                    SITUACAO_ROTULO.get(l.situacao, l.situacao), MOTIVO_ROTULO.get(l.motivo, l.motivo),
-                   "sim" if l.atribuicao_manual else "não"])
+                   "sim" if l.atribuicao_manual else "não"]])
     for row in wv.iter_rows(min_row=2):
         row[5].number_format = "dd/mm/yyyy hh:mm"
         row[9].number_format = _FMT_BRL

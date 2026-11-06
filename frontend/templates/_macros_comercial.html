@@ -47,8 +47,10 @@
           {% endfor %}
         </select>
       </label>
-      <span>ou de <input type="date" name="inicio" value="{{ p.inicio if p.livre else '' }}" aria-label="Início"></span>
+      {% if v.gestor %}{# período livre: só gestor, até 92 dias (calcula na hora) #}
+      <span title="Até 92 dias; calculado na hora">ou de <input type="date" name="inicio" value="{{ p.inicio if p.livre else '' }}" aria-label="Início"></span>
       <span>até <input type="date" name="fim" value="{{ p.fim if p.livre else '' }}" aria-label="Fim"></span>
+      {% endif %}
       {% if vendedor_opcoes is not none %}
       <select name="vendedor" onchange="this.form.submit()" aria-label="Vendedor">
         <option value="">Todos os vendedores</option>

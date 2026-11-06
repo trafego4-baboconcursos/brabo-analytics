@@ -102,6 +102,23 @@ def montar_atribuicoes(vendas: pd.DataFrame, codigo_por_transacao: dict[str, str
     return out
 
 
+def montar_ofertas(df: pd.DataFrame) -> dict[str, str]:
+    """codigo_do_preco -> nome_deste_preco, só nomes com código AT; código com 2+ nomes distintos é descartado."""
+    cc, cn = _col(df, "Código do preço"), _col(df, "Nome deste preço")
+    nomes: dict[str, set[str]] = {}
+    for cod, nome in zip(df[cc], df[cn]):
+        if not isinstance(cod, str) or not cod.strip() or not isinstance(nome, str):
+            continue
+        if extrair_codigo_at(nome) is None:
+            continue
+        nomes.setdefault(cod.strip(), set()).add(nome.strip())
+    for cod, ns in nomes.items():
+        if len(ns) > 1:
+            print(f"AVISO: código do preço {cod} com nomes conflitantes {sorted(ns)}; ignorado",
+                  file=sys.stderr)
+    return {c: next(iter(ns)) for c, ns in nomes.items() if len(ns) == 1}
+
+
 # ---------------------------------------------------------------- leitura das planilhas
 
 def _um(pasta: Path, padrao: str) -> Path:
@@ -143,6 +160,13 @@ def _codigos_das_vendas(pasta: Path) -> dict[str, str | None]:
     return out
 
 
+def _ofertas_da_pasta(pasta: Path) -> dict[str, str]:
+    f = _um(pasta, "**/An*lise Comercial 2026/Base de Vendas Geral 2026.xlsx")
+    head = pd.read_excel(f, sheet_name="BASE DE DADOS", dtype=str, nrows=0)
+    cols = [_col(head, "Código do preço"), _col(head, "Nome deste preço")]
+    return montar_ofertas(pd.read_excel(f, sheet_name="BASE DE DADOS", dtype=str, usecols=cols))
+
+
 def _vendas_consolidadas(pasta: Path) -> pd.DataFrame:
     f = _um(pasta, "**/An*lise Comercial 2026/Vendas - Por Vendedor 2026.xlsx")
     head = pd.read_excel(f, sheet_name="VENDAS", dtype=str, nrows=0)
@@ -168,6 +192,8 @@ def _regras() -> list[RegraPercentual]:
         ("hotmart", "cartao_pix", "Reativa", D("0.008"), "AT12"),
         ("hotmart", "parcelado", "Ativa", D("0.01"), "AT12"),
         ("hotmart", "parcelado", "Reativa", D("0.004"), "AT12"),
+        ("tmb", "parcelado", "Ativa", D("0.01"), "AT12"),
+        ("tmb", "parcelado", "Reativa", D("0.004"), "AT12"),
     ]
     return [RegraPercentual(i, p, m, t, pct, v, VIGENTE_DE, None)
             for i, (p, m, t, pct, v) in enumerate(base, 1)]
@@ -186,6 +212,7 @@ def _montar(pasta: Path) -> tuple[Cadastros, pd.DataFrame]:
         participacoes=[Participacao(1, "Rafael Batista", Decimal("0.003"), Decimal("0.001"),
                                     VIGENTE_DE, None)],
         atribuicoes=atrib,
+        ofertas=_ofertas_da_pasta(pasta),
     )
     return cad, vendas
 
@@ -224,6 +251,10 @@ def gravar(cad: Cadastros) -> None:
                               "(id, beneficiario, pct_ativa, pct_reativa, vigente_de, vigente_ate) "
                               "VALUES (:id,:beneficiario,:pct_ativa,:pct_reativa,:vigente_de,:vigente_ate) "
                               "ON CONFLICT DO NOTHING"), p.__dict__)
+        for cp, nome in cad.ofertas.items():
+            conn.execute(text("INSERT INTO comercial_ofertas (codigo_do_preco, nome_deste_preco, codigo_at, origem) "
+                              "VALUES (:c,:n,:at,'planilha') ON CONFLICT DO NOTHING"),
+                         {"c": cp, "n": nome, "at": extrair_codigo_at(nome)})
         for tr, cod in cad.atribuicoes.items():
             conn.execute(text("INSERT INTO comercial_atribuicoes (transacao, vendedor_codigo, origem, status) "
                               "VALUES (:t,:c,'planilha','aprovada') ON CONFLICT DO NOTHING"),
@@ -245,7 +276,7 @@ def main() -> int:
     sem_mapa = sorted({n for n in vendas["nome"].dropna().unique() if _norm(n) not in mapa})
     print(f"vendedores={len(cad.vendedores)} regras={len(cad.regras)} "
           f"participacoes={len(cad.participacoes)} valores_base={len(cad.valores_base)} "
-          f"atribuicoes={len(cad.atribuicoes)} (outubro={n_out})")
+          f"atribuicoes={len(cad.atribuicoes)} (outubro={n_out}) ofertas={len(cad.ofertas)}")
     print(f"vendas na aba VENDAS (únicas): {len(vendas)}; nomes fora do mapa: {sem_mapa or 'nenhum'}")
     return 0
 

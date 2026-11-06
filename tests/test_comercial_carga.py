@@ -4,7 +4,9 @@ from decimal import Decimal
 import pandas as pd
 import pytest
 
-from scripts.comercial_carga_inicial import ler_valores_a_preencher, montar_atribuicoes
+from scripts.comercial_carga_inicial import (
+    ler_valores_a_preencher, montar_atribuicoes, montar_ofertas,
+)
 
 
 def test_ler_valores_a_preencher_mapeia_plataformas():
@@ -49,3 +51,11 @@ def test_ler_valores_a_preencher_celulas_sujas():
     })
     r = ler_valores_a_preencher(df)
     assert [x["valor_base"] for x in r] == [Decimal("1197"), Decimal("2998.80")]
+
+
+def test_montar_ofertas():
+    df = pd.DataFrame({
+        "Código do preço": ["P1", "P2", "P3", "P3", None],
+        "Nome deste preço": ["COM. LEAD - AT9", "Sem codigo", "X AT4", "X AT11", "Y AT4"],
+    })
+    assert montar_ofertas(df) == {"P1": "COM. LEAD - AT9"}

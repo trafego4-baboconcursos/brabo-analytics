@@ -39,6 +39,9 @@ DDL = [
         status text NOT NULL,   -- 'aprovada' | 'pendente' | 'recusada'
         pedido_por text NULL, aprovado_por text NULL,
         criado_em timestamptz NOT NULL DEFAULT now(), motivo text NULL)""",
+    """CREATE TABLE IF NOT EXISTS comercial_ofertas (
+        codigo_do_preco text PRIMARY KEY, nome_deste_preco text NOT NULL, codigo_at text NULL,
+        origem text NOT NULL, criado_em timestamptz NOT NULL DEFAULT now())""",
     """CREATE TABLE IF NOT EXISTS comercial_historico (
         id bigserial PRIMARY KEY, tabela text NOT NULL, registro_id text NOT NULL,
         campo text NOT NULL, antes text NULL, depois text NULL, por text NULL,
@@ -70,6 +73,8 @@ def ler_cadastros() -> Cadastros:
             atrib = conn.execute(text(
                 "SELECT transacao, vendedor_codigo FROM comercial_atribuicoes "
                 "WHERE status = 'aprovada'")).fetchall()
+            ofertas = conn.execute(text(
+                "SELECT codigo_do_preco, nome_deste_preco FROM comercial_ofertas")).fetchall()
     except Exception as e:
         if "does not exist" in str(e) and "comercial_" in str(e):
             logger.warning("ler_cadastros: tabelas comercial_* ainda não existem; devolvendo vazio")
@@ -82,6 +87,7 @@ def ler_cadastros() -> Cadastros:
         valores_base=[ValorBase(*r) for r in bases],
         participacoes=[Participacao(*r) for r in parts],
         atribuicoes={r[0]: r[1] for r in atrib},
+        ofertas={r[0]: r[1] for r in ofertas},
     )
 
 

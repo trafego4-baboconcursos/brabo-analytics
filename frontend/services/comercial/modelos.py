@@ -14,3 +14,4 @@ class Cadastros:
     valores_base: list[ValorBase] = field(default_factory=list)
     participacoes: list[Participacao] = field(default_factory=list)
     atribuicoes: dict[str, str] = field(default_factory=dict)
+    ofertas: dict[str, str] = field(default_factory=dict)  # codigo_do_preco -> nome_deste_preco

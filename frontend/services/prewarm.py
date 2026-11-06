@@ -248,6 +248,7 @@ async def warm_active(codes: Iterable[str] | None = None, invalidate: bool = Fal
             if token is not None:
                 force_refresh_end(token)
         logger.info("Aquecimento (%s) concluído.", origem)
+        schedule_comercial(origem)
         return [l.code for l in to_warm]
 
 
@@ -259,6 +260,46 @@ _TASKS: set = set()
 def schedule_warm(codes: Iterable[str] | None = None, invalidate: bool = False, origem: str = "boot",
                   fontes: Iterable[str] | None = None) -> asyncio.Task:
     task = asyncio.create_task(warm_active(codes, invalidate=invalidate, origem=origem, fontes=fontes))
+    _TASKS.add(task)
+    task.add_done_callback(_TASKS.discard)
+    return task
+
+
+_COMERCIAL_EM_CURSO = False
+
+
+def meses_comercial(hoje) -> list:
+    """Mês corrente e o anterior (primeiro dia de cada), pela data local de SP."""
+    atual = hoje.date().replace(day=1) if hasattr(hoje, "date") else hoje.replace(day=1)
+    anterior = (atual - timedelta(days=1)).replace(day=1)
+    return [atual, anterior]
+
+
+async def warm_comercial(origem: str = "boot") -> None:
+    """Recalcula o snapshot da comissão do mês corrente e do anterior (~13 s cada). Melhor
+    esforço: erro vira log e segue; roda fora do _WARM_LOCK para não atrasar o aquecimento."""
+    global _COMERCIAL_EM_CURSO
+    if _COMERCIAL_EM_CURSO:
+        return
+    _COMERCIAL_EM_CURSO = True
+    try:
+        from frontend.services.comercial.snapshot import agora_sp, recalcular_mes  # noqa: PLC0415
+        hoje = agora_sp()
+        for mes in meses_comercial(hoje):
+            try:
+                _t0 = _time.monotonic()
+                await run_in_threadpool(recalcular_mes, mes, hoje=hoje)
+                logger.info("Comercial (%s): snapshot de %s em %.0f s.", origem, mes, _time.monotonic() - _t0)
+            except Exception:
+                logger.exception("Comercial (%s): snapshot de %s falhou", origem, mes)
+    except Exception:
+        logger.exception("Comercial (%s): aquecimento falhou", origem)
+    finally:
+        _COMERCIAL_EM_CURSO = False
+
+
+def schedule_comercial(origem: str = "boot") -> asyncio.Task:
+    task = asyncio.create_task(warm_comercial(origem))
     _TASKS.add(task)
     task.add_done_callback(_TASKS.discard)
     return task

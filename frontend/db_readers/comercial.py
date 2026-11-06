@@ -74,13 +74,17 @@ DDL = [
         id bigserial PRIMARY KEY, tabela text NOT NULL, registro_id text NOT NULL,
         campo text NOT NULL, antes text NULL, depois text NULL, por text NULL,
         em timestamptz NOT NULL DEFAULT now())""",
+    # cache do cálculo do mês (Task 4): linhas e alertas serializados em JSON
+    """CREATE TABLE IF NOT EXISTS comercial_snapshot (
+        mes date PRIMARY KEY, gerado_em timestamptz NOT NULL, linhas jsonb NOT NULL,
+        alertas jsonb NOT NULL DEFAULT '[]', desatualizado boolean NOT NULL DEFAULT false)""",
 ]
 
 
 # tipo do DDL -> data_type do information_schema
 _TIPOS = {"text": "text", "integer": "integer", "boolean": "boolean", "numeric": "numeric",
           "date": "date", "timestamptz": "timestamp with time zone", "text[]": "ARRAY",
-          "bigserial": "bigint"}
+          "bigserial": "bigint", "jsonb": "jsonb"}
 _NAO_COLUNA = {"PRIMARY", "CHECK", "UNIQUE", "CONSTRAINT", "FOREIGN"}
 _RE_CREATE = re.compile(r"\s*CREATE TABLE IF NOT EXISTS (\w+)\s*\(")
 
@@ -159,6 +163,19 @@ _FORMAS = [
                re.IGNORECASE),
     re.compile(r"\s*INSERT\s+INTO\s+comercial_\w+\s*\(", re.IGNORECASE),
 ]
+# Escritas com UPDATE/ON CONFLICT entram como declaração EXATA (comparada após normalizar
+# espaços); qualquer variação é recusada pela lista de permissão normal.
+SQL_SNAPSHOT_UPSERT = (
+    "INSERT INTO comercial_snapshot (mes, gerado_em, linhas, alertas, desatualizado) "
+    "VALUES (:mes, :gerado_em, CAST(:linhas AS jsonb), CAST(:alertas AS jsonb), false) "
+    "ON CONFLICT (mes) DO UPDATE SET gerado_em = EXCLUDED.gerado_em, linhas = EXCLUDED.linhas, "
+    "alertas = EXCLUDED.alertas, desatualizado = false")
+SQL_SNAPSHOT_DESATUALIZAR_MES = (
+    "UPDATE comercial_snapshot SET desatualizado = true WHERE mes = :mes")
+SQL_SNAPSHOT_DESATUALIZAR_TODOS = (
+    "UPDATE comercial_snapshot SET desatualizado = true WHERE desatualizado = false")
+_EXATAS = {" ".join(q.split()) for q in
+           (SQL_SNAPSHOT_UPSERT, SQL_SNAPSHOT_DESATUALIZAR_MES, SQL_SNAPSHOT_DESATUALIZAR_TODOS)}
 _SELECT_COUNT = re.compile(r"\s*SELECT\s+count\(\*\)\s+FROM\s+comercial_\w+\s*", re.IGNORECASE)
 _INSERT_COM_LEITURA = re.compile(r"\b(?:SELECT|FROM|JOIN|TABLE)\b", re.IGNORECASE)
 
@@ -172,6 +189,8 @@ def exigir_so_comercial(sql: str) -> None:
     s = sql.strip()
     if s.endswith(";"):
         s = s[:-1]
+    if " ".join(s.split()) in _EXATAS:
+        return
 
     def recusa(motivo: str):
         raise RuntimeError(f"gravação do comercial recusou ({motivo}): {sql[:80]!r}")

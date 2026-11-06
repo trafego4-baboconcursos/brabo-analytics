@@ -80,7 +80,7 @@ def test_colunas_do_ddl_cobre_todas_as_tabelas():
     cols = com.colunas_do_ddl()
     assert set(cols) == {"comercial_vendedores", "comercial_regras_percentual", "comercial_valores_base",
                          "comercial_participacoes", "comercial_atribuicoes", "comercial_ofertas",
-                         "comercial_acessos", "comercial_historico"}
+                         "comercial_acessos", "comercial_historico", "comercial_snapshot"}
     assert cols["comercial_atribuicoes"] == {
         "transacao": "text", "plataforma": "text", "vendedor_codigo": "text", "origem": "text",
         "status": "text", "pedido_por": "text", "aprovado_por": "text",

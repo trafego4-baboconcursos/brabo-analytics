@@ -82,3 +82,23 @@ def test_cache_60s(monkeypatch):
     u = {"role": "comercial", "email": "a@x.com"}
     acesso_comercial(u); acesso_comercial(u)
     assert len(n) == 1
+
+
+@pytest.mark.parametrize("codigo", [None, "", "  "])
+def test_vendedor_sem_codigo_fail_closed(codigo):
+    r = acesso_comercial({"role": "comercial", "email": "v@x.com"},
+                         ler=lambda e: {"nivel": "vendedor", "vendedor_codigo": codigo})
+    assert r is None
+
+
+def test_master_sem_codigo_ok():
+    r = acesso_comercial({"role": "comercial", "email": "m@x.com"},
+                         ler=lambda e: {"nivel": "master", "vendedor_codigo": None})
+    assert r == AcessoComercial("master", None)
+
+
+def test_ddl_check_e_indice():
+    from frontend.db_readers.comercial import DDL
+    j = "\n".join(DDL)
+    assert "nivel <> 'vendedor' OR vendedor_codigo IS NOT NULL" in j
+    assert "ux_comercial_acessos_email_lower" in j

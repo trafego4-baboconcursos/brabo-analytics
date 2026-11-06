@@ -1,6 +1,10 @@
-"""Acesso à área Comercial: nível por e-mail (`comercial_acessos`) e matriz de permissões."""
+"""Acesso à área Comercial: nível por e-mail (`comercial_acessos`) e matriz de permissões.
+
+Quem grava em `comercial_acessos` deve armazenar o e-mail em minúsculas e stripado.
+"""
 from __future__ import annotations
 
+import logging
 import time
 from dataclasses import dataclass
 from typing import Callable
@@ -10,6 +14,7 @@ from sqlalchemy.exc import ProgrammingError
 
 from frontend.db import _get_users_engine
 
+logger = logging.getLogger("comercial.acesso")
 _CACHE_TTL = 60.0
 _cache: dict[str, tuple[float, dict | None]] = {}
 
@@ -66,7 +71,11 @@ def acesso_comercial(user: dict, *, ler: Callable[[str], dict | None] | None = N
     linha = (ler or _ler_padrao)(email)
     if not linha:
         return None
-    return AcessoComercial(linha["nivel"], linha.get("vendedor_codigo"))
+    codigo = (linha.get("vendedor_codigo") or "").strip() or None
+    if linha["nivel"] == "vendedor" and codigo is None:
+        logger.warning("comercial_acessos: vendedor sem vendedor_codigo (%s) -> sem acesso", email)
+        return None  # fail closed: sem identidade, a rota não tem o que filtrar
+    return AcessoComercial(linha["nivel"], codigo)
 
 
 def nivel_comercial(user: dict, *, ler: Callable[[str], dict | None] | None = None) -> str | None:

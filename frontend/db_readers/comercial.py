@@ -65,7 +65,11 @@ DDL = [
     """CREATE TABLE IF NOT EXISTS comercial_acessos (
         email text PRIMARY KEY,
         nivel text NOT NULL CHECK (nivel IN ('master','coordenador','vendedor')),
-        vendedor_codigo text NULL, criado_por text NULL, criado_em timestamptz NOT NULL DEFAULT now())""",
+        vendedor_codigo text NULL, criado_por text NULL, criado_em timestamptz NOT NULL DEFAULT now(),
+        CHECK (nivel <> 'vendedor' OR vendedor_codigo IS NOT NULL))""",
+    # escritores devem gravar o e-mail em minusculas; o indice barra duplicata por caixa
+    """CREATE UNIQUE INDEX IF NOT EXISTS ux_comercial_acessos_email_lower
+        ON comercial_acessos (lower(email))""",
     """CREATE TABLE IF NOT EXISTS comercial_historico (
         id bigserial PRIMARY KEY, tabela text NOT NULL, registro_id text NOT NULL,
         campo text NOT NULL, antes text NULL, depois text NULL, por text NULL,

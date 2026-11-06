@@ -106,7 +106,10 @@ def _linhas_participacao(venda: Venda, cad: Cadastros, linha: LinhaComissao,
                          dia) -> list[LinhaComissao]:
     saida = []
     for p in participacoes_vigentes(cad.participacoes, dia):
-        if p.beneficiario == linha.beneficiario:
+        if p.beneficiario_codigo is not None:
+            if p.beneficiario_codigo == linha.vendedor_codigo:
+                continue
+        elif p.beneficiario == linha.beneficiario:
             continue
         pct = p.pct_ativa if linha.tipo == "Ativa" else p.pct_reativa
         saida.append(LinhaComissao(
@@ -141,7 +144,9 @@ def resumo_por_beneficiario(linhas: list[LinhaComissao]) -> dict[str, dict[str, 
     for l in linhas:
         if l.situacao not in ("elegivel", "prevista"):
             continue
-        r = resumo.setdefault(l.beneficiario, {"Ativa": _ZERO, "Reativa": _ZERO, "total": _ZERO})
+        r = resumo.setdefault(l.beneficiario, {"Ativa": _ZERO, "Reativa": _ZERO, "total": _ZERO,
+                                               "elegivel": _ZERO, "prevista": _ZERO})
         r[l.tipo] += l.valor
         r["total"] += l.valor
+        r[l.situacao] += l.valor
     return resumo

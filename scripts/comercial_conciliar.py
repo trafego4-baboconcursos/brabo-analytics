@@ -184,7 +184,7 @@ def main() -> int:
 
     t0 = time.perf_counter()
     vendas = ler_vendas(inicio, fim, transacoes_extra=frozenset(cad.atribuicoes) | trans_planilha,
-                        ofertas=cad.ofertas)
+                        ofertas=cad.ofertas, incluir_extra_fora_do_periodo=True)
     t_vendas = time.perf_counter() - t0
     live = {lanc: date.fromisoformat(dia) for lanc, dia in (x.split("=") for x in a.live)}
     janelas, sem_data = ler_janelas(inicio, fim, live)

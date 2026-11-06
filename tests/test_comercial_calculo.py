@@ -103,3 +103,28 @@ def test_tmb_usa_base_por_categoria_quando_tabela_nao_acha():
     v = Venda("tmb", "T1", datetime(2026, 10, 5), "x", "INSS", "o", "AT4", False, "parcelado", "LEAD", D("99"), True, None)
     [l] = calcular([v], c, [], HOJE)
     assert (l.valor_base, l.valor) == (D("1879.34"), D("37.5868"))
+
+
+RAFA_AT12 = Participacao(1, "Rafael Batista", D("0.003"), D("0.001"), date(2026, 1, 1), None, "AT12")
+
+
+def test_participacao_casa_por_codigo_mesmo_com_vendedor_renomeado():
+    c = cad(part=[RAFA_AT12])
+    c.vendedores["AT12"] = "Rafael B."
+    ls = calcular([venda(cod="AT12")], c, [], HOJE)
+    assert [l.papel for l in ls] == ["venda"]
+
+
+def test_participacao_sem_codigo_gera_linha_em_venda_de_outro():
+    rl = Participacao(2, "Rafael Lago", D("0.003"), D("0.001"), date(2026, 1, 1), None)
+    ls = calcular([venda(cod="AT4")], cad(part=[rl]), [], HOJE)
+    assert [l.papel for l in ls] == ["venda", "participacao"]
+
+
+def test_resumo_separa_elegivel_de_prevista():
+    ant = venda("HP1", data=datetime(2026, 10, 5, 10))
+    rec = venda("HP2", data=datetime(2026, 11, 28, 10))
+    ls = calcular([ant, rec], cad(), [], HOJE)
+    r = resumo_por_beneficiario(ls)["Ediléia"]
+    assert r["total"] == r["elegivel"] + r["prevista"]
+    assert r["elegivel"] + r["prevista"] == D("138.08") and r["prevista"] > 0

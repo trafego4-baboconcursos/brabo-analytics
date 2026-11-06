@@ -65,7 +65,7 @@ def test_montar_ofertas():
 @pytest.mark.parametrize("bruto,esperado", [
     ("1.477", "1477"), ("(ATENÇÃO) 1.477", "1477"), ("2.998,80", "2998.80"),
     ("(ATENÇÃO) 2.998,80", "2998.80"), ("89.9", "89.9"), ("89.90", "89.90"),
-    ("1477", "1477"), ("89,90", "89.90"),
+    ("1477", "1477"), ("89,90", "89.90"), ("0.477", "0.477"),
 ])
 def test_dec_formatos(bruto, esperado):
     assert _dec(bruto) == Decimal(esperado)

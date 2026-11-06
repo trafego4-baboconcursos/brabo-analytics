@@ -45,6 +45,7 @@ class Participacao:
     pct_reativa: Decimal
     vigente_de: date
     vigente_ate: date | None
+    beneficiario_codigo: str | None = None  # código AT do beneficiário, quando é vendedor
 
 
 def _vigente(item, dia: date) -> bool:

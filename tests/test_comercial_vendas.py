@@ -102,3 +102,14 @@ def test_hotmart_valor_linha_de_export_fica_como_esta():
     l = dict(BASE, codigo_da_transacao="HP8", status_da_transacao="Completo", quantidade_de_cobrancas=1,
              valor_de_compra_sem_impostos=497.0, taxa_de_processamento="24.86", faturamento_liquido=472.14)
     assert normalizar_hotmart([l])[0].valor_cobrado == Decimal("497.0")
+
+
+def test_filtro_de_periodo_descarta_extra_fora_por_padrao():
+    from datetime import date
+    from frontend.db_readers.comercial import _filtrar_periodo
+    dentro = Venda("hotmart", "A", datetime(2026, 10, 5), "", "", "", None, False, "cartao_pix", None, Decimal("1"), True, None)
+    fora = Venda("hotmart", "B", datetime(2026, 9, 5), "", "", "", None, False, "cartao_pix", None, Decimal("1"), True, None)
+    ini, fim = date(2026, 10, 1), date(2026, 10, 31)
+    ex = frozenset({"B"})
+    assert [v.transacao for v in _filtrar_periodo([dentro, fora], ini, fim, ex, False)] == ["A"]
+    assert [v.transacao for v in _filtrar_periodo([dentro, fora], ini, fim, ex, True)] == ["A", "B"]

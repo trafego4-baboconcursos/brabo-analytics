@@ -65,7 +65,7 @@ def _dec(v) -> Decimal:
         raise ValueError("valor vazio")
     if "," in t:  # formato brasileiro: ponto = milhar, vírgula = decimal
         t = t.replace(".", "").replace(",", ".")
-    elif re.fullmatch(r"\d{1,3}(\.\d{3})+", t):  # '1.477' = milhar
+    elif re.fullmatch(r"[1-9]\d{0,2}(\.\d{3})+", t):  # '1.477' = milhar
         t = t.replace(".", "")
     try:
         d = Decimal(t)
@@ -251,7 +251,7 @@ def _montar(pasta: Path) -> tuple[Cadastros, pd.DataFrame, set[str]]:
         regras=_regras(),
         valores_base=valores,
         participacoes=[Participacao(1, "Rafael Batista", Decimal("0.003"), Decimal("0.001"),
-                                    VIGENTE_DE, None)],
+                                    VIGENTE_DE, None, "AT12")],
         atribuicoes=atrib,
         ofertas=_ofertas_da_pasta(pasta),
     )
@@ -265,8 +265,9 @@ def cadastros_da_planilha(pasta: str | Path) -> Cadastros:
 
 # ---------------------------------------------------------------- gravação (NÃO usada na Fase 1)
 
-def gravar(cad: Cadastros) -> None:
-    """Grava no banco operacional, idempotente (ON CONFLICT DO NOTHING). Fase 1: não executar."""
+def gravar(cad: Cadastros, pedidos_tmb: frozenset[str] | set[str] = frozenset()) -> None:
+    """Grava no banco operacional, idempotente (ON CONFLICT DO NOTHING). Ids vêm do banco (IDENTITY); a chave natural de cada tabela garante a
+    idempotência. `pedidos_tmb` decide a plataforma das atribuições. Fase 1: não executar."""
     from sqlalchemy import text
     from frontend.db import _get_users_engine
     from frontend.db_readers.comercial import criar_tabelas
@@ -279,27 +280,27 @@ def gravar(cad: Cadastros) -> None:
                               "ON CONFLICT DO NOTHING"), {"c": c, "n": n, "a": ativo.get(c, True)})
         for r in cad.regras:
             conn.execute(text("INSERT INTO comercial_regras_percentual "
-                              "(id, plataforma, modalidade, tipo, pct, vendedor_codigo, vigente_de, vigente_ate) "
-                              "VALUES (:id,:plataforma,:modalidade,:tipo,:pct,:vendedor_codigo,:vigente_de,:vigente_ate) "
-                              "ON CONFLICT DO NOTHING"), r.__dict__)
+                              "(plataforma, modalidade, tipo, pct, vendedor_codigo, vigente_de, vigente_ate) "
+                              "VALUES (:plataforma,:modalidade,:tipo,:pct,:vendedor_codigo,:vigente_de,:vigente_ate) "
+                              "ON CONFLICT DO NOTHING"), {k: v for k, v in r.__dict__.items() if k != "id"})
         for v in cad.valores_base:
             conn.execute(text("INSERT INTO comercial_valores_base "
-                              "(id, plataforma, valor_cobrado, valor_base, categoria, vigente_de, vigente_ate) "
-                              "VALUES (:id,:plataforma,:valor_cobrado,:valor_base,:categoria,:vigente_de,:vigente_ate) "
-                              "ON CONFLICT DO NOTHING"), v.__dict__)
+                              "(plataforma, valor_cobrado, valor_base, categoria, vigente_de, vigente_ate) "
+                              "VALUES (:plataforma,:valor_cobrado,:valor_base,:categoria,:vigente_de,:vigente_ate) "
+                              "ON CONFLICT DO NOTHING"), {k: x for k, x in v.__dict__.items() if k != "id"})
         for p in cad.participacoes:
             conn.execute(text("INSERT INTO comercial_participacoes "
-                              "(id, beneficiario, pct_ativa, pct_reativa, vigente_de, vigente_ate) "
-                              "VALUES (:id,:beneficiario,:pct_ativa,:pct_reativa,:vigente_de,:vigente_ate) "
-                              "ON CONFLICT DO NOTHING"), p.__dict__)
+                              "(beneficiario, pct_ativa, pct_reativa, vigente_de, vigente_ate, beneficiario_codigo) "
+                              "VALUES (:beneficiario,:pct_ativa,:pct_reativa,:vigente_de,:vigente_ate,:beneficiario_codigo) "
+                              "ON CONFLICT DO NOTHING"), {k: x for k, x in p.__dict__.items() if k != "id"})
         for cp, nome in cad.ofertas.items():
             conn.execute(text("INSERT INTO comercial_ofertas (codigo_do_preco, nome_deste_preco, codigo_at, origem) "
                               "VALUES (:c,:n,:at,'planilha') ON CONFLICT DO NOTHING"),
                          {"c": cp, "n": nome, "at": extrair_codigo_at(nome)})
         for tr, cod in cad.atribuicoes.items():
-            conn.execute(text("INSERT INTO comercial_atribuicoes (transacao, vendedor_codigo, origem, status) "
-                              "VALUES (:t,:c,'planilha','aprovada') ON CONFLICT DO NOTHING"),
-                         {"t": tr, "c": cod})
+            conn.execute(text("INSERT INTO comercial_atribuicoes (plataforma, transacao, vendedor_codigo, origem, status) "
+                              "VALUES (:p,:t,:c,'planilha','aprovada') ON CONFLICT DO NOTHING"),
+                         {"p": "tmb" if tr in pedidos_tmb else "hotmart", "t": tr, "c": cod})
 
 
 def main() -> int:

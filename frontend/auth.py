@@ -90,6 +90,14 @@ ROUTE_PERMISSIONS: dict[str, list[str]] = {
     "/comercial/comissoes.xlsx":  _CMRC_AREA,
     "/comercial/ranking":         _CMRC_AREA,
     "/comercial/recalcular":      _CMRC_AREA,   # POST; só master/coordenador (checado na rota)
+    # Inconsistências (Task 6). POSTs: reivindicar = qualquer nível; o resto = pode("aprovar")
+    "/comercial/inconsistencias":       _CMRC_AREA,
+    "/comercial/reivindicar":           _CMRC_AREA,
+    "/comercial/atribuicoes/aprovar":   _CMRC_AREA,
+    "/comercial/atribuicoes/recusar":   _CMRC_AREA,
+    "/comercial/atribuir":              _CMRC_AREA,
+    "/comercial/reembolso":             _CMRC_AREA,
+    "/comercial/ajuste":                _CMRC_AREA,
     "/api/unnichat/status": _ADM,
     "/settings":          _ADM,
 }

@@ -19,6 +19,8 @@ class Cadastros:
     ofertas: dict[str, str] = field(default_factory=dict)  # codigo_do_preco -> nome_deste_preco
     # transação -> "mantem" | "tira": decisão do gestor sobre reembolso concluído depois de 7 dias
     decisoes_reembolso: dict[str, str] = field(default_factory=dict)
+    # transação -> (pct, valor_base) do ajuste manual ATIVO do gestor; None = não mexe naquele campo
+    ajustes: dict[str, tuple[Decimal | None, Decimal | None]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

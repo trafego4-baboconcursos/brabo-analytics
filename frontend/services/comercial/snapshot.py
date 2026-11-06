@@ -52,7 +52,7 @@ def linha_para_json(l: LinhaComissao) -> dict:
 def linha_de_json(d: dict) -> LinhaComissao:
     kw = dict(d)
     for k in _DEC:
-        if kw[k] is not None:
+        if kw.get(k) is not None:  # campo com default ausente em snapshot antigo: fica o default
             kw[k] = Decimal(kw[k])
     kw["data"] = datetime.fromisoformat(kw["data"])
     return LinhaComissao(**kw)

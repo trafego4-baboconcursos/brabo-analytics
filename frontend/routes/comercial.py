@@ -126,15 +126,16 @@ class _Recusa(Exception):
         self.resposta = resposta
 
 
-def resposta_400(msg: str) -> HTMLResponse:
-    """Período fora do permitido: mesma cara do 403, com o motivo e um caminho de volta."""
+def resposta_400(msg: str, titulo: str = "Período indisponível", voltar: str = "/comercial",
+                 rotulo_voltar: str = "← Voltar para o mês atual") -> HTMLResponse:
+    """Pedido fora do permitido: mesma cara do 403, com o motivo e um caminho de volta."""
     from html import escape  # noqa: PLC0415
     return HTMLResponse(
         content=f"""<html><body style="font-family:Inter,sans-serif;display:flex;align-items:center;
             justify-content:center;height:100vh;background:#eef0f8">
-            <div style="text-align:center"><h1 style="font-size:48px;color:#2f5ee3">Período indisponível</h1>
+            <div style="text-align:center"><h1 style="font-size:48px;color:#2f5ee3">{escape(titulo)}</h1>
             <p style="color:#6b7280">{escape(msg)}</p>
-            <a href="/comercial" style="color:#2f5ee3">← Voltar para o mês atual</a></div></body></html>""",
+            <a href="{escape(voltar)}" style="color:#2f5ee3">{escape(rotulo_voltar)}</a></div></body></html>""",
         status_code=400,
     )
 
@@ -241,3 +242,161 @@ async def comercial_recalcular(request: Request, mes: str | None = None, voltar:
     seguro = voltar.startswith("/comercial") and "//" not in voltar and "\\" not in voltar
     destino = voltar if seguro else f"/comercial?{periodo.query}"
     return RedirectResponse(destino, status_code=303)
+
+
+# ── Área Comercial: Inconsistências (Task 6) ──────────────────────────────────
+# Primeira tela que GRAVA por clique. Cada POST: nível checado aqui (ROUTE_PERMISSIONS só
+# deixa o grupo entrar), entrada validada no serviço (400), escrita exata + histórico na
+# mesma transação (db_readers/comercial.py), snapshot do mês da venda marcado desatualizado
+# quando a escrita muda o cálculo, 303 de volta com um CÓDIGO de mensagem (nunca texto livre
+# na URL).
+_URL_INC = "/comercial/inconsistencias"
+
+
+def _inc():
+    from frontend.services.comercial import inconsistencias  # noqa: PLC0415
+    return inconsistencias
+
+
+def _com():
+    from frontend.db_readers import comercial  # noqa: PLC0415
+    return comercial
+
+
+def _voltar_inc(mes, **qs) -> RedirectResponse:
+    from urllib.parse import urlencode  # noqa: PLC0415
+    params = ({"mes": f"{mes:%Y-%m}"} if mes else {}) | {k: v for k, v in qs.items() if v}
+    return RedirectResponse(_URL_INC + ("?" + urlencode(params) if params else ""), status_code=303)
+
+
+async def _acao(request: Request, permissao: str, mes: str | None, executar):
+    """Esqueleto das ações. `executar(acesso, email, mes)` -> (código ok, transação, invalida?)."""
+    from frontend.services.comercial import acesso as ac  # noqa: PLC0415
+    from frontend.services.comercial import snapshot as snap  # noqa: PLC0415
+    acesso = await _acesso(request)
+    if acesso is None or not ac.pode(acesso.nivel, permissao):
+        return resposta_403()
+    email = (_get_current_user(request).get("email") or "").strip().lower()
+    if not email:
+        return resposta_403()  # toda escrita precisa de autor no histórico
+    inc, com = _inc(), _com()
+    mes_d = inc.mes_valido(mes, _hoje())
+    try:
+        ok, transacao, invalida = await run_in_threadpool(executar, acesso, email, mes_d)
+    except inc.EntradaInvalida as exc:
+        return resposta_400(str(exc), "Pedido inválido", _URL_INC + (f"?mes={mes_d:%Y-%m}" if mes_d else ""),
+                            "← Voltar para Inconsistências")
+    except com.EscritaRecusada as exc:
+        return _voltar_inc(mes_d, erro=exc.codigo)
+    if invalida:
+        # mês da venda se ela está no snapshot do mês da tela; senão todos (mês desconhecido)
+        achou = inc.localizar(await run_in_threadpool(inc.linhas_guardadas, mes_d), transacao)
+        try:
+            await run_in_threadpool(snap.marcar_desatualizado, mes_d if achou else None)
+        except Exception:  # noqa: BLE001 — a escrita já foi; avisa para recalcular à mão
+            import logging  # noqa: PLC0415
+            logging.getLogger("comercial.inconsistencias").exception("marcar_desatualizado")
+            return _voltar_inc(mes_d, ok=ok, erro="nao_invalidou")
+    return _voltar_inc(mes_d, ok=ok)
+
+
+@router.get("/comercial/inconsistencias", response_class=HTMLResponse)
+async def comercial_inconsistencias(request: Request, mes: str | None = None, q: str | None = None,
+                                    ok: str | None = None, erro: str | None = None):
+    from frontend.services.comercial import acesso as ac  # noqa: PLC0415
+    acesso = await _acesso(request)
+    if acesso is None:
+        return resposta_403()
+    t, inc, com = _telas(), _inc(), _com()
+    hoje = _hoje()
+    try:
+        periodo = t.resolver_periodo(mes, None, None, hoje)  # só mês: as ações voltam para um mês
+    except t.PeriodoInvalido as exc:
+        return resposta_400(str(exc))
+    res = await run_in_threadpool(t.carregar, periodo)
+    gestor = ac.pode(acesso.nivel, "aprovar")
+    fila = await run_in_threadpool(lambda: com.ler_fila(vendedor_codigo=acesso.vendedor_codigo, gestor=gestor))
+    conflitos = {}
+    if gestor:
+        pedidos = [l.transacao for l in res.linhas if l.papel == "venda" and l.motivo == "conflito_codigo"]
+        conflitos = await run_in_threadpool(com.ler_codigos_conflito, pedidos)
+    view = inc.view_inconsistencias(res, periodo, acesso, fila, conflitos, q)
+    view["msg_ok"] = inc.MENSAGENS_OK.get(ok or "")
+    view["msg_erro"] = inc.MENSAGENS_ERRO.get(erro or "")
+    return await _pagina(request, "comercial_inconsistencias", "Comercial · Inconsistências",
+                         "comercial_inconsistencias.html", view, hoje)
+
+
+@router.post("/comercial/reivindicar")
+async def comercial_reivindicar(request: Request, transacao: str = Form(""), vendedor_codigo: str = Form(""),
+                                mes: str = Form("")):
+    def executar(acesso, email, mes_d):
+        inc, com = _inc(), _com()
+        t = inc.limpar_transacao(transacao)
+        codigo = inc.codigo_do_pedido(acesso, vendedor_codigo)
+        inc.conferir_reivindicacao(inc.localizar(inc.linhas_guardadas(mes_d), t), codigo)
+        com.reivindicar(t, inc.plataforma_de(t), codigo, email)
+        return "reivindicada", t, False  # pendente não muda o cálculo: não invalida o mês
+    return await _acao(request, "reivindicar", mes, executar)
+
+
+@router.post("/comercial/atribuicoes/aprovar")
+async def comercial_aprovar(request: Request, transacao: str = Form(""), mes: str = Form("")):
+    def executar(acesso, email, mes_d):
+        inc, com = _inc(), _com()
+        t = inc.limpar_transacao(transacao)
+        com.decidir_atribuicao(t, inc.plataforma_de(t), True, email)
+        return "aprovada", t, True
+    return await _acao(request, "aprovar", mes, executar)
+
+
+@router.post("/comercial/atribuicoes/recusar")
+async def comercial_recusar(request: Request, transacao: str = Form(""), motivo: str = Form(""),
+                            mes: str = Form("")):
+    def executar(acesso, email, mes_d):
+        inc, com = _inc(), _com()
+        t = inc.limpar_transacao(transacao)
+        m = inc.texto_obrigatorio(motivo, "Motivo da recusa")
+        com.decidir_atribuicao(t, inc.plataforma_de(t), False, email, m)
+        return "recusada", t, False  # pendente -> recusada: a venda segue sem vendedor
+    return await _acao(request, "aprovar", mes, executar)
+
+
+@router.post("/comercial/atribuir")
+async def comercial_atribuir(request: Request, transacao: str = Form(""), vendedor_codigo: str = Form(""),
+                             motivo: str = Form(""), mes: str = Form("")):
+    def executar(acesso, email, mes_d):
+        inc, com = _inc(), _com()
+        t = inc.limpar_transacao(transacao)
+        codigo = inc.limpar_codigo(vendedor_codigo)
+        m = (motivo or "").strip()[:inc.MAX_TEXTO] or None
+        com.atribuir_gestor(t, inc.plataforma_de(t), codigo, email, m)
+        return "atribuida", t, True
+    return await _acao(request, "aprovar", mes, executar)
+
+
+@router.post("/comercial/reembolso")
+async def comercial_reembolso(request: Request, transacao: str = Form(""), decisao: str = Form(""),
+                              justificativa: str = Form(""), mes: str = Form("")):
+    def executar(acesso, email, mes_d):
+        inc, com = _inc(), _com()
+        t = inc.limpar_transacao(transacao)
+        if decisao not in ("mantem", "tira"):
+            raise inc.EntradaInvalida("Escolha Mantém ou Tira.")
+        j = inc.texto_obrigatorio(justificativa, "Justificativa")
+        com.decidir_reembolso(t, inc.plataforma_de(t), decisao, j, email)
+        return "reembolso", t, True
+    return await _acao(request, "aprovar", mes, executar)
+
+
+@router.post("/comercial/ajuste")
+async def comercial_ajuste(request: Request, transacao: str = Form(""), pct: str = Form(""),
+                           valor_base: str = Form(""), justificativa: str = Form(""), mes: str = Form("")):
+    def executar(acesso, email, mes_d):
+        inc, com = _inc(), _com()
+        t = inc.limpar_transacao(transacao)
+        p, b = inc.ler_ajuste(pct, valor_base)
+        j = inc.texto_obrigatorio(justificativa, "Justificativa")
+        com.gravar_ajuste(t, inc.plataforma_de(t), p, b, j, email)
+        return "ajuste", t, True
+    return await _acao(request, "aprovar", mes, executar)

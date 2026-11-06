@@ -108,6 +108,13 @@ DDL = [
         justificativa text NULL, criado_por text NOT NULL,
         criado_em timestamptz NOT NULL DEFAULT now(),
         PRIMARY KEY (vendedor_codigo, mes))""",
+    # Task 7b (Ruling 17) — mês fechado: linhas, bônus e totais congelados. Reabrir = ativo false
+    # (o mês volta a ser calculado ao vivo); fechar de novo reativa com linhas novas.
+    """CREATE TABLE IF NOT EXISTS comercial_fechamentos (
+        mes date PRIMARY KEY, ativo boolean NOT NULL DEFAULT true, fechado_por text NOT NULL,
+        fechado_em timestamptz NOT NULL DEFAULT now(), linhas jsonb NOT NULL, bonus jsonb NOT NULL,
+        totais jsonb NOT NULL, reaberto_por text NULL, reaberto_em timestamptz NULL,
+        motivo_reabertura text NULL)""",
 ]
 
 # Migrações de tabelas que já existem (CREATE IF NOT EXISTS não altera): (tabela, SQL exato).
@@ -297,6 +304,19 @@ SQL_BONUS_UPSERT = (
     "VALUES (:vendedor_codigo, :mes, :valor, :justificativa, :por) ON CONFLICT (vendedor_codigo, mes) "
     "DO UPDATE SET valor = EXCLUDED.valor, justificativa = EXCLUDED.justificativa, "
     "criado_por = EXCLUDED.criado_por, criado_em = now()")
+# Task 7b — fechar/reabrir o mês (Ruling 17). Fechar só reativa linha INATIVA (mês reaberto) e
+# limpa o reaberto_* (a reabertura anterior fica no comercial_historico); reabrir só mexe em
+# linha ativa. 0 linhas = outro gestor fez o mesmo ao mesmo tempo.
+SQL_FECH_GRAVAR = (
+    "INSERT INTO comercial_fechamentos (mes, ativo, fechado_por, linhas, bonus, totais) "
+    "VALUES (:mes, true, :por, CAST(:linhas AS jsonb), CAST(:bonus AS jsonb), CAST(:totais AS jsonb)) "
+    "ON CONFLICT (mes) DO UPDATE SET ativo = true, fechado_por = EXCLUDED.fechado_por, fechado_em = now(), "
+    "linhas = EXCLUDED.linhas, bonus = EXCLUDED.bonus, totais = EXCLUDED.totais, reaberto_por = NULL, "
+    "reaberto_em = NULL, motivo_reabertura = NULL WHERE NOT comercial_fechamentos.ativo")
+SQL_FECH_REABRIR = (
+    "UPDATE comercial_fechamentos SET ativo = false, reaberto_por = :por, reaberto_em = now(), "
+    "motivo_reabertura = :motivo WHERE mes = :mes AND ativo")
+ESCRITAS_FECHAMENTO = (SQL_FECH_GRAVAR, SQL_FECH_REABRIR)
 ESCRITAS_REGRAS = (SQL_VEND_CRIAR, SQL_VEND_RENOMEAR, SQL_VEND_ATIVAR, SQL_VEND_DESATIVAR,
                    SQL_ACESSO_UPSERT, SQL_ACESSO_REMOVER, SQL_REGRA_FECHAR, SQL_REGRA_INSERIR,
                    SQL_PART_FECHAR, SQL_PART_INSERIR, SQL_BASE_FECHAR, SQL_BASE_INSERIR,
@@ -306,7 +326,7 @@ ESCRITAS_TELA = (SQL_ATRIB_REIVINDICAR, SQL_ATRIB_APROVAR, SQL_ATRIB_RECUSAR, SQ
                  SQL_REEMBOLSO_UPSERT, SQL_AJUSTE_DESATIVAR, SQL_AJUSTE_INSERIR, SQL_HISTORICO_INSERIR)
 _EXATAS = {" ".join(q.split()) for q in
            (SQL_SNAPSHOT_UPSERT, SQL_SNAPSHOT_DESATUALIZAR_MES, SQL_SNAPSHOT_DESATUALIZAR_TODOS,
-            SQL_MIGRACAO_SNAPSHOT_INVALIDADO, *ESCRITAS_TELA, *ESCRITAS_REGRAS)}
+            SQL_MIGRACAO_SNAPSHOT_INVALIDADO, *ESCRITAS_TELA, *ESCRITAS_REGRAS, *ESCRITAS_FECHAMENTO)}
 _SELECT_COUNT = re.compile(r"\s*SELECT\s+count\(\*\)\s+FROM\s+comercial_\w+\s*", re.IGNORECASE)
 _INSERT_COM_LEITURA = re.compile(r"\b(?:SELECT|FROM|JOIN|TABLE)\b", re.IGNORECASE)
 
@@ -1412,3 +1432,125 @@ def ler_lancamentos() -> list[str]:
     """Códigos do launch_config (só leitura) — a janela manual só aceita lançamento existente."""
     with _get_users_engine().connect() as conn:
         return sorted({str(r[0]) for r in conn.execute(text(_SQL_JANELAS)).fetchall() if r[0]})
+
+
+# ---------------------------------------------------------------- Task 7b: fechar o mês
+# Ruling 17. Mês fechado (linha ATIVA em comercial_fechamentos) devolve as linhas congeladas e
+# recusa toda escrita cujo mês de efeito é ele. As leituras toleram a tabela ausente (= nenhum
+# mês fechado); as escritas seguem o contrato da Task 6 (exata + guarda + histórico na transação).
+SQL_FECH_ATIVO_UM = "SELECT fechado_por, fechado_em FROM comercial_fechamentos WHERE mes = :mes AND ativo"
+SQL_FECH_LER_UM = ("SELECT ativo, fechado_por, fechado_em, linhas, bonus, totais, reaberto_por, reaberto_em, "
+                   "motivo_reabertura FROM comercial_fechamentos WHERE mes = :mes")
+SQL_FECH_ESTADO_UM = ("SELECT ativo, fechado_por, fechado_em, reaberto_por, reaberto_em, motivo_reabertura "
+                      "FROM comercial_fechamentos WHERE mes = :mes")
+SQL_FECH_ATIVOS = "SELECT mes, fechado_por, fechado_em FROM comercial_fechamentos WHERE ativo ORDER BY mes"
+SQL_FECH_LINHAS_DOS_MESES = ("SELECT mes, linhas FROM comercial_fechamentos "
+                             "WHERE ativo AND mes = ANY(:meses) ORDER BY mes")
+SQL_FECH_DA_TRANSACAO = ("SELECT mes FROM comercial_fechamentos "
+                         "WHERE ativo AND linhas @> CAST(:alvo AS jsonb) ORDER BY mes")
+_COLS_FECH = ("ativo", "fechado_por", "fechado_em", "linhas", "bonus", "totais", "reaberto_por",
+              "reaberto_em", "motivo_reabertura")
+_COLS_FECH_ESTADO = ("ativo", "fechado_por", "fechado_em", "reaberto_por", "reaberto_em", "motivo_reabertura")
+
+
+def _sp_ou_none(v):
+    return _para_sp(v) if isinstance(v, datetime) else v
+
+
+def mes_fechado(mes: date) -> bool:
+    """True se o mês (1º dia) está fechado (linha ativa). Tabela ausente = nenhum fechado."""
+    def ler():
+        with _get_users_engine().connect() as conn:
+            return conn.execute(text(SQL_FECH_ATIVO_UM), {"mes": mes.replace(day=1)}).fetchone() is not None
+    return _tolerante(ler, False)
+
+
+def meses_fechados() -> dict[date, dict]:
+    """{mês: {fechado_por, fechado_em}} dos meses fechados (ativos)."""
+    def ler():
+        with _get_users_engine().connect() as conn:
+            return {r[0]: {"fechado_por": r[1], "fechado_em": _sp_ou_none(r[2])}
+                    for r in conn.execute(text(SQL_FECH_ATIVOS)).fetchall()}
+    return _tolerante(ler, {})
+
+
+def ler_fechamento(mes: date) -> dict | None:
+    """Linha inteira do fechamento do mês (ativa ou reaberta), ou None. jsonb volta já decodificado."""
+    def ler():
+        with _get_users_engine().connect() as conn:
+            r = conn.execute(text(SQL_FECH_LER_UM), {"mes": mes.replace(day=1)}).fetchone()
+        if r is None:
+            return None
+        d = dict(zip(_COLS_FECH, r))
+        for k in ("fechado_em", "reaberto_em"):
+            d[k] = _sp_ou_none(d[k])
+        return d
+    return _tolerante(ler, None)
+
+
+def ler_linhas_fechadas(meses: list[date]) -> dict[date, object]:
+    """{mês: linhas (jsonb)} dos meses pedidos que estão fechados."""
+    if not meses:
+        return {}
+
+    def ler():
+        with _get_users_engine().connect() as conn:
+            return {r[0]: r[1] for r in conn.execute(text(SQL_FECH_LINHAS_DOS_MESES),
+                                                     {"meses": sorted(meses)}).fetchall()}
+    return _tolerante(ler, {})
+
+
+def mes_fechado_da_transacao(transacao: str) -> date | None:
+    """Mês fechado cujas linhas congeladas têm essa venda (ou None). Toda venda paga do mês
+    entra no congelado (inclusive sem código/inconsistente), então isto = venda de mês fechado."""
+    import json  # noqa: PLC0415
+
+    def ler():
+        with _get_users_engine().connect() as conn:
+            r = conn.execute(text(SQL_FECH_DA_TRANSACAO),
+                             {"alvo": json.dumps([{"transacao": transacao}])}).fetchone()
+        return None if r is None else r[0]
+    return _tolerante(ler, None)
+
+
+def _txt_fechamento(estado: dict | None) -> str | None:
+    if estado is None:
+        return None
+    if estado["ativo"]:
+        return f"fechado por {estado['fechado_por']} em {_sp_ou_none(estado['fechado_em']):%Y-%m-%d %H:%M}"
+    em = _sp_ou_none(estado["reaberto_em"])
+    return (f"reaberto por {estado['reaberto_por']} em {em:%Y-%m-%d %H:%M}" if em else "reaberto") + \
+        f": {estado['motivo_reabertura']}"
+
+
+def fechar_mes(mes: date, linhas_json: str, bonus_json: str, totais_json: str, resumo: str, por: str,
+               *, conn=None) -> None:
+    """Congela o mês. Já fechado -> `ja_fechado`. Mês reaberto antes: reativa com as linhas
+    novas; a reabertura anterior fica registrada no histórico (antes)."""
+    mes = mes.replace(day=1)
+    with _transacao(conn) as c:
+        antes = _um(c, SQL_FECH_ESTADO_UM, {"mes": mes}, _COLS_FECH_ESTADO)
+        if antes is not None and antes["ativo"]:
+            raise EscritaRecusada("ja_fechado")
+        r = _gravar(c, SQL_FECH_GRAVAR, {"mes": mes, "por": por, "linhas": linhas_json, "bonus": bonus_json,
+                                          "totais": totais_json})
+        if r.rowcount == 0:  # outro gestor fechou entre a leitura e o INSERT
+            raise EscritaRecusada("ja_fechado")
+        _historico(c, "comercial_fechamentos", f"{mes:%Y-%m}", "ativo", _txt_fechamento(antes),
+                   f"fechado: {resumo}", por)
+
+
+def reabrir_mes(mes: date, motivo: str, por: str, *, conn=None) -> None:
+    """Reabre (ativo = false): o mês volta a ser calculado ao vivo. Exige motivo."""
+    if not (motivo or "").strip():
+        raise ValueError("reabrir exige motivo")
+    mes = mes.replace(day=1)
+    with _transacao(conn) as c:
+        antes = _um(c, SQL_FECH_ESTADO_UM, {"mes": mes}, _COLS_FECH_ESTADO)
+        if antes is None or not antes["ativo"]:
+            raise EscritaRecusada("nao_fechado")
+        r = _gravar(c, SQL_FECH_REABRIR, {"mes": mes, "por": por, "motivo": motivo})
+        if r.rowcount == 0:
+            raise EscritaRecusada("nao_fechado")
+        _historico(c, "comercial_fechamentos", f"{mes:%Y-%m}", "ativo", _txt_fechamento(antes),
+                   f"reaberto: {motivo}", por)

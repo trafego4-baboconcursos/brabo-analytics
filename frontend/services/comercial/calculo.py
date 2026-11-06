@@ -23,7 +23,8 @@ _ZERO = Decimal("0")
 _SEM_VENDEDOR = "(sem vendedor)"
 _COM_VALOR = ("elegivel", "prevista", "reembolso_a_verificar")
 # reembolso a verificar conta como prevista no resumo até o gestor decidir
-_BALDE = {"elegivel": "elegivel", "prevista": "prevista", "reembolso_a_verificar": "prevista"}
+_BALDE = {"elegivel": "elegivel", "prevista": "prevista", "reembolso_a_verificar": "prevista",
+          "estorno": "elegivel"}  # estorno (Task 7b): linha negativa que reduz o pagamento
 
 
 @dataclass(frozen=True)
@@ -40,7 +41,7 @@ class LinhaComissao:
     valor_base: Decimal | None
     pct: Decimal | None
     valor: Decimal
-    situacao: str  # elegivel | prevista | reembolso_a_verificar | cancelada | inconsistente
+    situacao: str  # elegivel | prevista | reembolso_a_verificar | cancelada | inconsistente | estorno
     motivo: str | None
     regra_id: int | None
     atribuicao_manual: bool
@@ -165,7 +166,7 @@ def calcular(vendas: list[Venda], cad: Cadastros, janelas: list[Janela],
 def resumo_por_beneficiario(linhas: list[LinhaComissao]) -> dict[str, dict[str, Decimal]]:
     resumo: dict[str, dict[str, Decimal]] = {}
     for l in linhas:
-        if l.situacao not in _COM_VALOR:
+        if l.situacao not in _BALDE:
             continue
         r = resumo.setdefault(l.beneficiario, {"Ativa": _ZERO, "Reativa": _ZERO, "total": _ZERO,
                                                "elegivel": _ZERO, "prevista": _ZERO})

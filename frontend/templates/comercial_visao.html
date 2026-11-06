@@ -45,7 +45,7 @@
         {{ kpi('ti-circle-check', k.elegivel | brl_exato, 'Comissão elegível', 'passou do prazo de reembolso', 'success') }}
         {{ kpi('ti-hourglass', k.prevista | brl_exato, 'Comissão prevista', 'dentro do prazo de 7 dias ou reembolso a verificar', 'warning') }}
         {{ kpi('ti-gift', k.bonus | brl_exato, 'Bônus', 'lançado pelo gestor em Comissões' if k.bonus is not none else 'bônus é mensal: escolha um mês') }}
-        {{ kpi('ti-wallet', k.total | brl_exato, 'Total a pagar', 'elegível + bônus') }}
+        {{ kpi('ti-wallet', k.total | brl_exato, 'Total pago' if v.fechado else 'Total a pagar', 'elegível + prevista + bônus (mês fechado)' if v.fechado else 'elegível + bônus') }}
         {% if v.meta is not none %}
         {{ kpi('ti-target', v.pct_meta | pct_taxa, '% da meta' ~ (' do time' if v.gestor else ''), (k.vendido | brl_exato) ~ ' de ' ~ (v.meta | brl_exato), 'success' if v.pct_meta and v.pct_meta >= 1 else '') }}
         {% endif %}

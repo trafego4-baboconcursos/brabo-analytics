@@ -26,6 +26,7 @@
 .cm-chip.reembolso_a_verificar { background:var(--bs-warning-bg); color:var(--bs-ink); }
 .cm-chip.cancelada { background:var(--bs-surface); color:var(--bs-ink-muted); }
 .cm-chip.inconsistente { background:var(--bs-danger-bg); color:var(--bs-danger); }
+.cm-chip.estorno { background:var(--bs-danger-bg); color:var(--bs-danger); }
 .cm-chip.manual { background:var(--bs-surface); color:var(--bs-ink-muted); border:1px dashed var(--bs-border-s); }
 .cm-sub { font-size:var(--fs-xs); color:var(--bs-ink-muted); }
 .cm-vazio { padding:var(--s6) 0; text-align:center; color:var(--bs-ink-muted); font-size:var(--fs-sm); }
@@ -65,7 +66,7 @@
       {% if exportar %}
       <a class="cm-btn" href="{{ exportar }}"><i class="ti ti-file-spreadsheet"></i> Exportar Excel</a>
       {% endif %}
-      {% if v.gestor and not p.livre %}
+      {% if v.gestor and not p.livre and not v.fechado %}{# mês fechado é congelado: não se recalcula #}
       <form method="post" action="/comercial/recalcular?mes={{ p.mes.strftime('%Y-%m') }}" style="margin:0;"
             onsubmit="this.querySelector('button').disabled=true">
         <input type="hidden" name="voltar" value="{{ request.url.path }}{{ ('?' ~ request.url.query) if request.url.query else '' }}">
@@ -78,7 +79,14 @@
   </div>
   <div class="cm-status">
     <span><strong>{{ p.rotulo }}</strong>{% if p.livre %} · período livre, calculado na hora{% endif %}</span>
-    <span><i class="ti ti-clock"></i> dados de {{ v.gerado_em.strftime('%d/%m %H:%M') }}</span>
+    {% if not p.livre %}
+    {% if v.fechado %}
+    <span class="cm-chip cancelada"><i class="ti ti-lock"></i> mês fechado em {{ v.fechado_em.strftime('%d/%m') }} por {{ v.fechado_por }}</span>
+    {% else %}
+    <span class="cm-chip prevista"><i class="ti ti-lock-open"></i> mês aberto</span>
+    {% endif %}
+    {% endif %}
+    <span><i class="ti ti-clock"></i> {{ 'congelado em' if v.fechado else 'dados de' }} {{ v.gerado_em.strftime('%d/%m %H:%M') }}</span>
     {% if not v.gestor %}<span><i class="ti ti-user"></i> só as suas vendas</span>{% endif %}
   </div>
 </div>

@@ -109,6 +109,8 @@ ROUTE_PERMISSIONS: dict[str, list[str]] = {
     "/comercial/regras/janelas":        _CMRC_AREA,
     "/comercial/regras/metas":          _CMRC_AREA,
     "/comercial/bonus":                 _CMRC_AREA,     # POST; pode("lancar_bonus")
+    "/comercial/fechar-mes":            _CMRC_AREA,     # POST; pode("fechar_mes") — Task 7b
+    "/comercial/reabrir-mes":           _CMRC_AREA,     # POST; pode("fechar_mes"), motivo obrigatório
     "/api/unnichat/status": _ADM,
     "/settings":          _ADM,
 }

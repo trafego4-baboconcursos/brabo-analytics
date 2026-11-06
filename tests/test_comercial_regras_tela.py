@@ -79,6 +79,7 @@ class FakeBanco:
         self.metas = {}
         self.bonus = {}
         self.historico = []
+        self.fechamentos = {}  # Task 7b: mes -> {ativo, fechado_por, fechado_em, linhas, bonus, totais, reaberto_*}
         self.lancamentos = [("PES-NOV-26", "2026-11-16", None, ["111"], []),
                             ("PI-NOV-26", None, None, ["222"], []),
                             ("PBB-OUT-26", None, "2026-10-05", ["333"], [])]
@@ -132,6 +133,19 @@ class FakeBanco:
             com.SQL_BONUS_DO_MES: lambda p: _Res(self._do_mes(self.bonus, p, bonus=True)),
             com.SQL_BONUS_DO_VENDEDOR: lambda p: _Res(self._do_mes(self.bonus, p, p["codigo"], bonus=True)),
             com.SQL_HISTORICO_INSERIR: self._hist,
+            com.SQL_FECH_ATIVO_UM: lambda p: _Res([(f["fechado_por"], f["fechado_em"])]
+                                                  if (f := self.fechamentos.get(p["mes"])) and f["ativo"] else []),
+            com.SQL_FECH_LER_UM: lambda p: _Res([tuple(f[c] for c in com._COLS_FECH)]
+                                                if (f := self.fechamentos.get(p["mes"])) else []),
+            com.SQL_FECH_ESTADO_UM: lambda p: _Res([tuple(f[c] for c in com._COLS_FECH_ESTADO)]
+                                                   if (f := self.fechamentos.get(p["mes"])) else []),
+            com.SQL_FECH_ATIVOS: lambda p: _Res([(m, f["fechado_por"], f["fechado_em"])
+                                                 for m, f in sorted(self.fechamentos.items()) if f["ativo"]]),
+            com.SQL_FECH_LINHAS_DOS_MESES: lambda p: _Res([(m, f["linhas"]) for m, f in sorted(self.fechamentos.items())
+                                                           if f["ativo"] and m in p["meses"]]),
+            com.SQL_FECH_DA_TRANSACAO: self._fech_da_transacao,
+            com.SQL_FECH_GRAVAR: self._fech_gravar,
+            com.SQL_FECH_REABRIR: self._fech_reabrir,
             com.SQL_HISTORICO_100: lambda p: _Res([(h["tabela"], h["registro_id"], h["campo"], h["antes"], h["depois"],
                                                     h["por"], datetime(2026, 11, 6, 10)) for h in reversed(self.historico)]),
         }
@@ -150,7 +164,8 @@ class FakeBanco:
 
     begin = connect
 
-    _ESTADO = ("vend", "acessos", "regras", "parts", "bases", "ofertas", "janelas", "metas", "bonus", "historico")
+    _ESTADO = ("vend", "acessos", "regras", "parts", "bases", "ofertas", "janelas", "metas", "bonus", "historico",
+               "fechamentos")
 
     def __enter__(self):
         self._pilha.append({k: copy.deepcopy(getattr(self, k)) for k in self._ESTADO})
@@ -252,6 +267,31 @@ class FakeBanco:
 
     def _hist(self, p):
         self.historico.append(dict(p))
+        return _Res(rowcount=1)
+
+    # ---- comercial_fechamentos (Task 7b): jsonb guardado como estrutura decodificada
+    def _fech_da_transacao(self, p):
+        import json
+        alvo = json.loads(p["alvo"])[0]["transacao"]
+        return _Res([(m,) for m, f in sorted(self.fechamentos.items())
+                     if f["ativo"] and any(l["transacao"] == alvo for l in f["linhas"])])
+
+    def _fech_gravar(self, p):
+        import json
+        atual = self.fechamentos.get(p["mes"])
+        if atual is not None and atual["ativo"]:
+            return _Res(rowcount=0)  # ON CONFLICT ... WHERE NOT ativo
+        self.fechamentos[p["mes"]] = {
+            "ativo": True, "fechado_por": p["por"], "fechado_em": datetime(2026, 11, 6, 15, 30),
+            "linhas": json.loads(p["linhas"]), "bonus": json.loads(p["bonus"]), "totais": json.loads(p["totais"]),
+            "reaberto_por": None, "reaberto_em": None, "motivo_reabertura": None}
+        return _Res(rowcount=1)
+
+    def _fech_reabrir(self, p):
+        f = self.fechamentos.get(p["mes"])
+        if f is None or not f["ativo"]:
+            return _Res(rowcount=0)
+        f.update(ativo=False, reaberto_por=p["por"], reaberto_em=datetime(2026, 11, 6, 16), motivo_reabertura=p["motivo"])
         return _Res(rowcount=1)
 
 
@@ -552,10 +592,11 @@ def test_entrada_valida():
 
 def test_mes_fechado_gancho(monkeypatch):
     monkeypatch.setattr(rt, "_mes_fechado", lambda m: m == date(2026, 10, 1))
-    with pytest.raises(rt.EntradaInvalida, match="fechado"):
+    with pytest.raises(com.EscritaRecusada, match="mes_fechado"):  # Task 7b: código, não 400
         rt.data_inicio("2026-10-20", date(2026, 11, 6))
-    with pytest.raises(rt.EntradaInvalida, match="fechado"):
+    with pytest.raises(com.EscritaRecusada, match="mes_fechado"):
         rt.mes("2026-10", date(2026, 11, 6))
+    assert rt.mes("2026-10", date(2026, 11, 6), escrita=False) == date(2026, 10, 1)  # ver, pode
 
 
 def test_grupos_regras_atual_e_historico():

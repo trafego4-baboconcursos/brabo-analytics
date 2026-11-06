@@ -82,7 +82,8 @@ def test_colunas_do_ddl_cobre_todas_as_tabelas():
                          "comercial_participacoes", "comercial_atribuicoes", "comercial_ofertas",
                          "comercial_acessos", "comercial_historico", "comercial_snapshot",
                          "comercial_decisoes_reembolso", "comercial_ajustes",
-                         "comercial_janela_reativa", "comercial_metas", "comercial_bonus"}
+                         "comercial_janela_reativa", "comercial_metas", "comercial_bonus",
+                         "comercial_fechamentos"}
     assert cols["comercial_atribuicoes"] == {
         "transacao": "text", "plataforma": "text", "vendedor_codigo": "text", "origem": "text",
         "status": "text", "pedido_por": "text", "aprovado_por": "text",

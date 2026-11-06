@@ -31,6 +31,12 @@ class ResultadoMes:
     sem_data: list  # [(lançamento, produtos hotmart, produtos tmb)]
     gerado_em: datetime
     desatualizado: bool = False
+    # Task 7b: mês fechado = linhas congeladas (nunca recalculadas) + bônus congelado
+    fechado: bool = False
+    fechado_em: datetime | None = None
+    fechado_por: str | None = None
+    bonus: dict | None = None
+    totais: dict | None = None
 
 
 # ---------------------------------------------------------------- serialização
@@ -85,16 +91,34 @@ def calcular_mes(mes: date, hoje: datetime) -> ResultadoMes:
     """Cadastros do banco + vendas do mês + janelas -> linhas. `hoje`: agora em SP."""
     from frontend.db_readers.comercial import ler_cadastros, ler_janelas, ler_vendas  # noqa: PLC0415
 
+    from frontend.db_readers.comercial import ler_linhas_fechadas, meses_fechados  # noqa: PLC0415
+    from frontend.services.comercial import fechamento as fech  # noqa: PLC0415
+
     ini, fim = mes.replace(day=1), _ultimo_dia(mes)
     cad = ler_cadastros()
-    vendas = ler_vendas(ini, fim, transacoes_extra=frozenset(cad.atribuicoes), ofertas=cad.ofertas)
+    # estorno (Ruling 17): linhas pagas dos meses fechados logo antes deste, se a venda caiu
+    meses_c = fech.meses_do_estorno(ini, meses_fechados())
+    congeladas = {m: linhas_de_json(j) for m, j in ler_linhas_fechadas(meses_c).items()}
+    cands = fech.candidatas(congeladas)
+    extra = frozenset(cad.atribuicoes)
+    if cands:
+        alvo = frozenset(l.transacao for _c, l in cands)
+        todas = ler_vendas(ini, fim, transacoes_extra=extra | alvo, ofertas=cad.ofertas,
+                           incluir_extra_fora_do_periodo=True)
+        vendas = [v for v in todas if ini <= v.data.date() <= fim]
+        atuais = {v.transacao: v for v in todas if v.transacao in alvo}
+    else:
+        vendas = ler_vendas(ini, fim, transacoes_extra=extra, ofertas=cad.ofertas)
     janelas, sem_data = ler_janelas(ini, fim)
     linhas = calcular(vendas, cad, janelas, hoje)
+    if cands:
+        linhas += fech.estornos(cands, atuais, cad.decisoes_reembolso, hoje)
     return ResultadoMes(ini, linhas, sem_data, agora_sp())  # gerado_em = hora real, não `hoje`
 
 
 # ---------------------------------------------------------------- store
 class Store(Protocol):
+    def fechamento(self, mes: date) -> ResultadoMes | None: ...
     def get(self, mes: date) -> ResultadoMes | None: ...
     def put(self, r: ResultadoMes, calculo_inicio: datetime) -> None: ...
     def inicio_calculo(self) -> datetime: ...
@@ -103,6 +127,12 @@ class Store(Protocol):
 
 class StoreBanco:
     """Snapshot em `comercial_snapshot` (banco operacional). Tabela ausente = sem snapshot."""
+
+    def fechamento(self, mes: date) -> ResultadoMes | None:
+        """Mês fechado (ativo) -> linhas congeladas. Congelado ilegível ESTOURA: um mês fechado
+        nunca é recalculado em silêncio."""
+        from frontend.db_readers.comercial import ler_fechamento  # noqa: PLC0415
+        return resultado_fechado(mes, ler_fechamento(mes))
 
     def get(self, mes: date) -> ResultadoMes | None:
         from frontend.db import _get_users_engine  # noqa: PLC0415
@@ -152,17 +182,30 @@ class StoreBanco:
             c.execute(text(sql), {} if mes is None else {"mes": mes.replace(day=1)})
 
 
+def resultado_fechado(mes: date, f: dict | None) -> ResultadoMes | None:
+    """Linha de comercial_fechamentos -> ResultadoMes congelado (None se não há ou foi reaberto)."""
+    from frontend.services.comercial.fechamento import bonus_de_json  # noqa: PLC0415
+    if not f or not f.get("ativo"):
+        return None
+    tot = f.get("totais")
+    tot = json.loads(tot) if isinstance(tot, (str, bytes)) else tot
+    return ResultadoMes(mes.replace(day=1), linhas_de_json(f["linhas"]), [], f["fechado_em"],
+                        fechado=True, fechado_em=f["fechado_em"], fechado_por=f["fechado_por"],
+                        bonus=bonus_de_json(f.get("bonus")), totais=tot)
+
+
 def agora_sp() -> datetime:
     return datetime.now(_SP).replace(tzinfo=None)
 
 
 def obter_mes(mes: date, *, hoje: datetime | None = None, store: Store | None = None) -> ResultadoMes:
-    """Snapshot em dia se houver; senão calcula, grava e devolve.
-
-    GANCHO Task 7: mês fechado devolve as linhas congeladas (comercial_fechamentos) aqui,
-    antes de olhar o snapshot."""
+    """Mês fechado -> as linhas congeladas (comercial_fechamentos), nunca recalculadas. Senão,
+    snapshot em dia se houver; senão calcula, grava e devolve."""
     store = store or StoreBanco()
     mes = mes.replace(day=1)
+    congelado = store.fechamento(mes)
+    if congelado is not None:
+        return congelado
     r = store.get(mes)
     # `situacao` depende da data (prevista -> elegível): snapshot de dia anterior está velho
     if r is not None and not r.desatualizado and r.gerado_em.date() >= (hoje or agora_sp()).date():

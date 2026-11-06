@@ -17,6 +17,13 @@
   border:1px solid var(--bs-border-s); border-radius:var(--bs-r-sm); padding:2px var(--s1); }
 .cm-bonus input.valor { width:88px; text-align:right; }
 .cm-bonus input.just { width:136px; }
+.cm-fech { display:flex; align-items:center; flex-wrap:wrap; gap:var(--s2) var(--s4); padding:var(--s3) var(--s4);
+  border-radius:var(--bs-r-md); font-size:var(--fs-sm); margin-bottom:var(--s4); background:var(--bs-surface);
+  border:1px solid var(--bs-border-s); color:var(--bs-ink); }
+.cm-fech > i { font-size:var(--fs-lg); color:var(--bs-ink-muted); }
+.cm-fech .texto { flex:1 1 320px; }
+.cm-fech form { margin:0; }
+.cm-fech button[disabled] { opacity:.5; cursor:not-allowed; }
 .cm-bonus button { font:inherit; font-size:var(--fs-xs); font-weight:600; border:1px solid var(--bs-border-s); background:var(--bs-card);
   color:var(--bs-ink); border-radius:var(--bs-r-sm); padding:2px var(--s2); cursor:pointer; }
 </style>
@@ -42,7 +49,7 @@
           <td class="n">{{ l.pct | pct_taxa }}</td>
           <td class="n">{{ l.valor | brl_exato }}</td>
           <td>{{ situacao(l, situacao_rotulo) }}</td>
-          <td class="cm-sub">{{ motivo_rotulo.get(l.motivo, l.motivo) if l.motivo else '' }}</td>
+          <td class="cm-sub">{% if l.situacao == 'estorno' %}venda paga no fechamento de {{ l.motivo[-7:] }} e cancelada depois{% else %}{{ motivo_rotulo.get(l.motivo, l.motivo) if l.motivo else '' }}{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
@@ -64,13 +71,43 @@
     {{ barra(v, meses, '/comercial/comissoes', [], v.opcoes_vendedores if v.gestor else none, _xlsx) }}
 
     {% if v.msg_ok %}<div class="cm-msg ok" role="status"><i class="ti ti-circle-check"></i> {{ v.msg_ok }}</div>{% endif %}
-    {% if v.msg_erro %}<div class="cm-msg erro" role="alert"><i class="ti ti-alert-circle"></i> {{ v.msg_erro }}</div>{% endif %}
+    {% if v.msg_erro %}<div class="cm-msg erro" role="alert"><i class="ti ti-alert-circle"></i> {{ v.msg_erro }}{% if v.link_inconsistencias %} <a href="/comercial/inconsistencias?{{ v.periodo.query }}">Ir para Inconsistências →</a>{% endif %}</div>{% endif %}
+
+    {% if v.fechado %}
+    <div class="cm-fech" role="status">
+      <i class="ti ti-lock"></i>
+      <div class="texto"><strong>Mês fechado em {{ v.fechado_em.strftime('%d/%m') }} por {{ v.fechado_por }}.</strong>
+        Linhas, bônus e totais congelados no fechamento: total pago = elegível + prevista + bônus. Nada muda neste mês sem reabrir.</div>
+      {% if v.reabre %}
+      <form method="post" action="/comercial/reabrir-mes" class="cm-bonus" data-confirma="Reabrir {{ v.periodo.rotulo }}? O mês volta a ser calculado ao vivo e os estornos dos meses seguintes são refeitos.">
+        <input type="hidden" name="mes" value="{{ v.periodo.mes.strftime('%Y-%m') }}">
+        <input class="just" type="text" name="motivo" required maxlength="1000" placeholder="motivo (obrigatório)" aria-label="Motivo da reabertura">
+        <button type="submit">Reabrir</button>
+      </form>
+      {% endif %}
+    </div>
+    {% elif v.fechar %}
+    <div class="cm-fech">
+      <i class="ti ti-lock-open"></i>
+      <div class="texto"><strong>{{ v.periodo.rotulo }} já terminou e está aberto.</strong>
+        {{ v.fechar.previstas | num }} venda(s) prevista(s) · {{ v.fechar.a_verificar | num }} reembolso(s) a verificar ·
+        {{ v.fechar.pendentes | num }} inconsistência(s) pendente(s).
+        {% if v.fechar.a_verificar %}<br>Para fechar, decida antes os reembolsos a verificar em
+        <a href="/comercial/inconsistencias?{{ v.periodo.query }}">Inconsistências</a>.{% endif %}</div>
+      <form method="post" action="/comercial/fechar-mes" data-confirma="{{ v.fechar.confirma }}">
+        <input type="hidden" name="mes" value="{{ v.periodo.mes.strftime('%Y-%m') }}">
+        <button type="submit" class="cm-btn" {% if v.fechar.a_verificar %}disabled title="Há reembolso a verificar"{% endif %}>
+          <i class="ti ti-lock"></i> Fechar mês
+        </button>
+      </form>
+    </div>
+    {% endif %}
 
     <div class="tp-kpi-grid tp-kpi-grid-4">
       {{ kpi('ti-circle-check', k.elegivel | brl_exato, 'Comissão elegível', 'passou do prazo de reembolso', 'success') }}
       {{ kpi('ti-hourglass', k.prevista | brl_exato, 'Prevista', 'dentro dos 7 dias ou reembolso a verificar', 'warning') }}
       {{ kpi('ti-gift', k.bonus | brl_exato, 'Bônus do mês', 'lançado pelo gestor nesta tela' if k.bonus is not none else 'bônus é mensal: escolha um mês') }}
-      {{ kpi('ti-wallet', k.total | brl_exato, 'Total a pagar', 'elegível + bônus · ' ~ (k.vendido | brl_exato) ~ ' vendidos') }}
+      {{ kpi('ti-wallet', k.total | brl_exato, 'Total pago' if v.fechado else 'Total a pagar', ('elegível + prevista + bônus · ' if v.fechado else 'elegível + bônus · ') ~ (k.vendido | brl_exato) ~ ' vendidos') }}
     </div>
 
     <div class="section">
@@ -136,7 +173,8 @@
         <button type="submit">Lançar</button>
       </form>
       {% endif %}
-      <div class="cm-sub" style="margin-top:var(--s2);">Total a pagar = comissão elegível + bônus do mês.</div>
+      <div class="cm-sub" style="margin-top:var(--s2);">{% if v.fechado %}Mês fechado: total pago = comissão elegível + prevista + bônus (as previstas são pagas no fechamento).{% else %}Total a pagar = comissão elegível + bônus do mês.{% endif %}
+        {% if k.estorno %} Estornos de meses fechados já descontados do elegível: {{ k.estorno | brl_exato }}.{% endif %}</div>
     </div>
 
     {% if v.gestor and v.participacoes %}
@@ -183,6 +221,10 @@
     tr.classList.toggle('aberta', !det.hidden);
     tr.setAttribute('aria-expanded', String(!det.hidden));
   }
+  /* Confirmação sem dado em JS: o texto vem de data-confirma (atributo escapado), lido como texto. */
+  document.querySelectorAll('form[data-confirma]').forEach(function (f) {
+    f.addEventListener('submit', function (e) { if (!window.confirm(f.dataset.confirma)) e.preventDefault(); });
+  });
   document.querySelectorAll('.cm-linha').forEach(function (tr) {
     tr.addEventListener('click', function () { alternar(tr); });
     tr.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); alternar(tr); } });

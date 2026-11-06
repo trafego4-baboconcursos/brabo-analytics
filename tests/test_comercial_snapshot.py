@@ -39,6 +39,9 @@ class FakeStore:
     def get(self, mes):
         return self.r
 
+    def fechamento(self, mes):  # Task 7b: nenhum mês fechado aqui
+        return None
+
     def inicio_calculo(self):
         return datetime(2026, 11, 6, 9, 59)
 
@@ -143,6 +146,8 @@ def test_gerado_em_e_hora_real_nao_o_hoje_passado(monkeypatch):
                         lambda: __import__("frontend.services.comercial.modelos", fromlist=["x"]).Cadastros())
     monkeypatch.setattr("frontend.db_readers.comercial.ler_vendas", lambda *a, **k: [])
     monkeypatch.setattr("frontend.db_readers.comercial.ler_janelas", lambda *a, **k: ([], []))
+    monkeypatch.setattr("frontend.db_readers.comercial.meses_fechados", lambda: {})
+    monkeypatch.setattr("frontend.db_readers.comercial.ler_linhas_fechadas", lambda meses: {})
     r = snap.calcular_mes(date(2026, 10, 1), datetime(2026, 11, 6))
     assert r.gerado_em == datetime(2030, 1, 1, 12)
 

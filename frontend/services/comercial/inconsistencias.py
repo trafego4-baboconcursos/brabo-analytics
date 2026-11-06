@@ -46,6 +46,7 @@ MENSAGENS_ERRO = {
     "de_outro": "Essa venda já está no código de outro vendedor.",
     "conflito_gestor": "Essa venda tem conflito de código que só o gestor resolve.",
     "ajuste_concorrente": "Outro ajuste desta venda foi gravado ao mesmo tempo. Confira o histórico e tente de novo.",
+    "mes_fechado": "Mês fechado — reabra para alterar.",
 }
 
 
@@ -169,9 +170,18 @@ def linha_da_venda(mes: date, transacao: str) -> LinhaComissao | None:
 
 def localizar(linhas: list[LinhaComissao] | None, transacao: str) -> LinhaComissao | None:
     for l in linhas or ():
-        if l.papel == "venda" and l.transacao == transacao:
+        if l.papel == "venda" and l.transacao == transacao and l.situacao != "estorno":
             return l
     return None
+
+
+def exigir_venda_de_mes_aberto(transacao: str) -> None:
+    """Ruling 17: atribuição, reivindicação, ajuste e decisão de reembolso de venda de mês
+    fechado são recusados (`mes_fechado`). A venda é de mês fechado se está nas linhas
+    congeladas dele (todo o mês pago entra no congelado)."""
+    from frontend.db_readers.comercial import EscritaRecusada, mes_fechado_da_transacao  # noqa: PLC0415
+    if mes_fechado_da_transacao(transacao) is not None:
+        raise EscritaRecusada("mes_fechado")
 
 
 # ---------------------------------------------------------------- view-model
@@ -222,6 +232,7 @@ def view_inconsistencias(res: ResultadoMes, periodo, acesso: AcessoComercial, fi
         lista = todas_sem[:LIMITE_LISTA]
     base = {
         "periodo": periodo, "gerado_em": res.gerado_em, "gestor": gestor, "acesso": acesso,
+        "fechado": res.fechado, "fechado_em": res.fechado_em, "fechado_por": res.fechado_por,
         "sem_livre": True, "q": q,
         "sem_codigo": lista, "sem_codigo_total": total_mes, "sem_codigo_achadas": len(todas_sem),
         "sem_codigo_cortado": len(todas_sem) > len(lista) and bool(lista),

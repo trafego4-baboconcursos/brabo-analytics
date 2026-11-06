@@ -75,6 +75,7 @@ class FakeBanco:
                                                        for h in reversed(self.historico)]),
             com.SQL_VENDEDORES_LISTA: lambda p: _Res([("AT4", "Ediléia"), ("AT9", "Jheniffer")]),
             com.SQL_CODIGOS_CONFLITO: lambda p: _Res([("T-CONF", "lead AT4", "lead AT9")]),
+            com.SQL_FECH_DA_TRANSACAO: lambda p: _Res([]),  # Task 7b: nenhum mês fechado aqui
         }
         self.h = {_n(k): v for k, v in h.items()}
 

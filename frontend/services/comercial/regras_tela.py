@@ -48,6 +48,8 @@ MENSAGENS_OK = {
     "janela_removida": "Janela manual removida: vale de novo a data do launch_config.",
     "meta_gravada": "Meta gravada.",
     "bonus_gravado": "Bônus gravado.",
+    "mes_fechado_ok": "Mês fechado: as linhas, o bônus e os totais ficaram congelados.",
+    "mes_reaberto": "Mês reaberto: volta a ser calculado ao vivo na próxima abertura.",
 }
 MENSAGENS_ERRO = {
     "vendedor_existe": "Esse código já está cadastrado. Para trocar o nome, use Renomear.",
@@ -63,12 +65,26 @@ MENSAGENS_ERRO = {
     "duplicado": "Já existe uma linha com essa chave e essa data de início.",
     "janela_nao_encontrada": "Esse lançamento não tem janela manual.",
     "nao_invalidou": "Gravado, mas o cálculo guardado não foi marcado: use Recalcular no mês afetado.",
+    "mes_fechado": "Mês fechado — reabra para alterar.",
+    "ja_fechado": "Esse mês já está fechado.",
+    "nao_fechado": "Esse mês não está fechado (outro gestor pode ter reaberto).",
+    "mes_nao_terminou": "Só se fecha um mês que já terminou.",
+    "tem_a_verificar": "Ainda há vendas com reembolso a verificar neste mês: decida em Inconsistências antes de fechar.",
 }
 
 
 def _mes_fechado(mes: date) -> bool:
-    """GANCHO Task 7b: mês fechado não aceita mudança de regra nem bônus. Hoje nenhum fecha."""
-    return False
+    """Ruling 17: mês fechado (comercial_fechamentos ativo) não aceita escrita com efeito nele."""
+    from frontend.db_readers.comercial import mes_fechado  # noqa: PLC0415
+    return mes_fechado(mes.replace(day=1))
+
+
+def recusar_se_fechado(*meses: date) -> None:
+    """Algum dos meses fechado -> EscritaRecusada("mes_fechado") (303 com a mensagem)."""
+    from frontend.db_readers.comercial import EscritaRecusada  # noqa: PLC0415
+    for m in sorted({m.replace(day=1) for m in meses if m}):
+        if _mes_fechado(m):
+            raise EscritaRecusada("mes_fechado")
 
 
 # ---------------------------------------------------------------- entrada
@@ -141,8 +157,7 @@ def data_inicio(txt: str | None, hoje: date, padrao: date | None = None) -> date
             raise EntradaInvalida("Data inválida: use AAAA-MM-DD.") from None
     if not (INICIO_MINIMO <= d <= hoje + timedelta(days=366)):
         raise EntradaInvalida(f"Data fora do intervalo ({INICIO_MINIMO:%d/%m/%Y} até um ano à frente).")
-    if _mes_fechado(d.replace(day=1)):
-        raise EntradaInvalida("Esse mês já está fechado: a mudança não pode valer dentro dele.")
+    recusar_se_fechado(d)  # a nova versão não pode começar dentro de mês fechado
     return d
 
 
@@ -151,9 +166,10 @@ def _soma_mes(m: date, n: int) -> date:
     return date(t // 12, t % 12 + 1, 1)
 
 
-def mes(txt: str | None, hoje: date, *, ate_proximo: bool = False) -> date:
+def mes(txt: str | None, hoje: date, *, ate_proximo: bool = False, escrita: bool = True) -> date:
     """AAAA-MM -> 1º dia. Vazio = mês corrente. De 2026-01 até o mês corrente (meta: até o
-    seguinte, para cadastrar com antecedência). Mês fechado recusa (gancho Task 7b)."""
+    seguinte, para cadastrar com antecedência). Escrita em mês fechado -> `mes_fechado`
+    (`escrita=False`: só leitura da tela, mês fechado se vê normalmente)."""
     t = (txt or "").strip()
     atual = hoje.replace(day=1)
     if not t:
@@ -166,8 +182,8 @@ def mes(txt: str | None, hoje: date, *, ate_proximo: bool = False) -> date:
     limite = _soma_mes(atual, 1) if ate_proximo else atual
     if not (INICIO_MINIMO <= m <= limite):
         raise EntradaInvalida("Mês fora do intervalo disponível.")
-    if _mes_fechado(m):
-        raise EntradaInvalida("Esse mês já está fechado.")
+    if escrita:
+        recusar_se_fechado(m)
     return m
 
 

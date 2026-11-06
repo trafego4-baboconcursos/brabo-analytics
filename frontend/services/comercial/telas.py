@@ -31,8 +31,9 @@ _MESES = ("Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "
           "Setembro", "Outubro", "Novembro", "Dezembro")
 SITUACAO_ROTULO = {
     "elegivel": "elegível", "prevista": "prevista", "reembolso_a_verificar": "reembolso a verificar",
-    "cancelada": "cancelada", "inconsistente": "inconsistente",
+    "cancelada": "cancelada", "inconsistente": "inconsistente", "estorno": "estorno",
 }
+ESTORNO = "estorno"  # Task 7b: linha negativa de venda paga em mês fechado e cancelada depois
 MOTIVO_ROTULO = {
     "sem_codigo": "sem código AT", "conflito_codigo": "conflito de código (content × last_content)",
     "sem_valor_base": "sem valor-base cadastrado", "sem_regra": "sem regra de percentual",
@@ -193,25 +194,33 @@ def _com_valor(linhas):
     return [l for l in linhas if l.situacao in COM_VALOR]
 
 
+def _estornos(linhas):
+    return [l for l in linhas if l.situacao == ESTORNO]
+
+
 def kpis(linhas: list[LinhaComissao]) -> dict:
     """KPIs do período sobre as linhas JÁ filtradas. Total a pagar = elegível; o bônus (Task 7a)
-    entra depois, em `com_bonus`, lido na hora da tela (não faz parte do cálculo guardado)."""
+    entra depois, em `com_bonus`, lido na hora da tela (não faz parte do cálculo guardado).
+    Estorno (Task 7b) entra no elegível (reduz o pagamento), não no vendido nem na quantidade."""
     vendas = _vendas(linhas)
     valor = _com_valor(vendas)
-    elegivel = sum((l.valor for l in valor if l.situacao == "elegivel"), _ZERO)
+    estorno = sum((l.valor for l in _estornos(vendas)), _ZERO)
+    elegivel = sum((l.valor for l in valor if l.situacao == "elegivel"), _ZERO) + estorno
     prevista = sum((l.valor for l in valor if l.situacao in _PREVISTA), _ZERO)
-    part = _com_valor([l for l in linhas if l.papel == "participacao"])
+    part_todas = [l for l in linhas if l.papel == "participacao"]
+    part = _com_valor(part_todas) + _estornos(part_todas)
     return {
         "vendido": sum((l.valor_base or _ZERO for l in valor), _ZERO),
         "qtd": len(valor),
         "elegivel": elegivel,
         "prevista": prevista,
+        "estorno": estorno,
         "bonus": None,
         "total": elegivel,
         "inconsistencias": sum(1 for l in vendas if l.situacao == "reembolso_a_verificar"
                                or (l.situacao == "inconsistente" and l.motivo in _MOTIVOS_PENDENTES)),
         "sem_codigo": sum(1 for l in vendas if l.situacao == "inconsistente" and l.motivo == "sem_codigo"),
-        "participacao": sum((l.valor for l in part if l.situacao == "elegivel"), _ZERO),
+        "participacao": sum((l.valor for l in part if l.situacao in ("elegivel", ESTORNO)), _ZERO),
         "participacao_prevista": sum((l.valor for l in part if l.situacao in _PREVISTA), _ZERO),
     }
 
@@ -232,9 +241,14 @@ def tabela_vendedores(linhas: list[LinhaComissao]) -> list[dict]:
             "com_outro": _ZERO, "elegivel": _ZERO, "prevista": _ZERO, "total": _ZERO, "qtd": 0,
             "bonus": None, "detalhe": []})
         v["detalhe"].append(l)
+        chave = {"Ativa": "ativa", "Reativa": "reativa"}.get(l.tipo or "", "outro")
+        if l.situacao == ESTORNO:  # reduz a comissão (elegível); não é venda do período
+            v["com_" + chave] += l.valor
+            v["elegivel"] += l.valor
+            v["total"] += l.valor
+            continue
         if l.situacao not in COM_VALOR:
             continue
-        chave = {"Ativa": "ativa", "Reativa": "reativa"}.get(l.tipo or "", "outro")
         v["vendido_" + chave] += l.valor_base or _ZERO
         v["com_" + chave] += l.valor
         v["qtd"] += 1
@@ -287,17 +301,18 @@ def _so_meu(d: dict | None, acesso: AcessoComercial | None, vendedor: str | None
     return dict(d)
 
 
-def com_bonus(k: dict, bonus: dict | None) -> dict:
-    """KPIs + bônus: total a pagar = elegível + bônus. Sem bônus (período livre) -> '—'."""
+def com_bonus(k: dict, bonus: dict | None, fechado: bool = False) -> dict:
+    """KPIs + bônus: total a pagar = elegível + bônus. Sem bônus (período livre) -> '—'.
+    Mês fechado (Ruling 17): as previstas são pagas no fechamento -> elegível + prevista + bônus."""
     if bonus is None:
         return k
     soma = sum((b["valor"] for b in bonus.values()), _ZERO)
-    return {**k, "bonus": soma, "total": k["elegivel"] + soma}
+    return {**k, "bonus": soma, "total": k["elegivel"] + (k["prevista"] if fechado else _ZERO) + soma}
 
 
-def aplicar_bonus(vendedores: list[dict], bonus: dict | None) -> list[dict]:
-    """Bônus em cada linha (a_pagar = elegível + bônus). Vendedor com bônus e sem venda no mês
-    entra numa linha zerada — senão o total do KPI não fecharia com a tabela."""
+def aplicar_bonus(vendedores: list[dict], bonus: dict | None, fechado: bool = False) -> list[dict]:
+    """Bônus em cada linha (a_pagar = elegível + bônus; mês fechado: + prevista). Vendedor com
+    bônus e sem venda no mês entra numa linha zerada — senão o total do KPI não fecharia."""
     if bonus is None:
         return vendedores
     por = {v["codigo"]: v for v in vendedores}
@@ -311,7 +326,7 @@ def aplicar_bonus(vendedores: list[dict], bonus: dict | None) -> list[dict]:
         b = bonus.get(v["codigo"])
         v["bonus"] = b["valor"] if b else _ZERO
         v["bonus_justificativa"] = (b or {}).get("justificativa")
-        v["a_pagar"] = v["elegivel"] + v["bonus"]
+        v["a_pagar"] = v["elegivel"] + (v["prevista"] if fechado else _ZERO) + v["bonus"]
     return sorted(por.values(), key=lambda v: (-v["total"], -v["bonus"], v["nome"]))
 
 
@@ -325,14 +340,15 @@ def _pct_meta(vendido: Decimal, meta: Decimal | None) -> Decimal | None:
 def tabela_participacoes(linhas: list[LinhaComissao]) -> list[dict]:
     """Participação no time (ex.: Rafael Batista), separada da folha dos vendedores."""
     por: dict[str, dict] = {}
-    for l in _com_valor(l for l in linhas if l.papel == "participacao"):
+    part = [l for l in linhas if l.papel == "participacao"]
+    for l in _com_valor(part) + _estornos(part):
         p = por.setdefault(l.beneficiario, {"nome": l.beneficiario, "ativa": _ZERO, "reativa": _ZERO,
                                             "elegivel": _ZERO, "prevista": _ZERO, "total": _ZERO,
                                             "qtd": 0, "detalhe": []})
         p["ativa" if l.tipo == "Ativa" else "reativa"] += l.valor
-        p["elegivel" if l.situacao == "elegivel" else "prevista"] += l.valor
+        p["elegivel" if l.situacao in ("elegivel", ESTORNO) else "prevista"] += l.valor
         p["total"] += l.valor
-        p["qtd"] += 1
+        p["qtd"] += 0 if l.situacao == ESTORNO else 1
         p["detalhe"].append(l)
     for p in por.values():
         p["detalhe"] = _ordenar_detalhe(p["detalhe"])
@@ -363,6 +379,9 @@ def ranking(linhas: list[LinhaComissao], acesso: AcessoComercial | None, ordem: 
         r["qtd"] += 1
         r["vendido"] += l.valor_base or _ZERO
         r["comissao"] += l.valor
+    for l in _estornos(_vendas(linhas)):  # estorno reduz a comissão, não o vendido
+        if l.vendedor_codigo in por:
+            por[l.vendedor_codigo]["comissao"] += l.valor
     for cod, m in metas.items():  # com meta e sem venda: aparece com 0%
         por.setdefault(cod, {"codigo": cod, "nome": m["nome"], "qtd": 0, "vendido": _ZERO,
                              "comissao": _ZERO, "meta": None, "pct_meta": None})
@@ -384,7 +403,13 @@ def ranking(linhas: list[LinhaComissao], acesso: AcessoComercial | None, ordem: 
 # ---------------------------------------------------------------- telas
 def _cabecalho(res: ResultadoMes, periodo: Periodo, acesso: AcessoComercial) -> dict:
     return {"periodo": periodo, "gerado_em": res.gerado_em, "gestor": e_gestor(acesso),
-            "acesso": acesso}
+            "acesso": acesso, "fechado": res.fechado, "fechado_em": res.fechado_em,
+            "fechado_por": res.fechado_por}
+
+
+def _bonus_do_mes(res: ResultadoMes, bonus: dict | None) -> dict | None:
+    """Mês fechado: o bônus congelado no fechamento (nunca o de comercial_bonus)."""
+    return (res.bonus or {}) if res.fechado else bonus
 
 
 def view_visao(res: ResultadoMes, periodo: Periodo, acesso: AcessoComercial,
@@ -393,7 +418,7 @@ def view_visao(res: ResultadoMes, periodo: Periodo, acesso: AcessoComercial,
     proprias = linhas_visiveis(res.linhas, acesso)
     perto, antigos = separar_sem_data(res.sem_data, periodo)
     rk = ranking(res.linhas, acesso, "vendido", metas)
-    k = com_bonus(kpis(proprias), _so_meu(bonus, acesso))
+    k = com_bonus(kpis(proprias), _so_meu(_bonus_do_mes(res, bonus), acesso), res.fechado)
     metas_vis = _so_meu(metas, acesso)
     meta_total = sum((m["valor"] for m in metas_vis.values()), _ZERO) if metas_vis else None
     minha_pos = None
@@ -415,21 +440,33 @@ def view_visao(res: ResultadoMes, periodo: Periodo, acesso: AcessoComercial,
 
 def view_comissoes(res: ResultadoMes, periodo: Periodo, acesso: AcessoComercial,
                    vendedor: str | None = None, bonus: dict | None = None,
-                   vendedores_ativos: list | None = None) -> dict:
+                   vendedores_ativos: list | None = None, hoje: date | None = None) -> dict:
+    from frontend.services.comercial import fechamento as fech  # noqa: PLC0415
     gestor = e_gestor(acesso)
     filtro = vendedor if gestor else None
     vis = linhas_visiveis(res.linhas, acesso, filtro)
-    b = _so_meu(bonus, acesso, filtro)
+    b = _so_meu(_bonus_do_mes(res, bonus), acesso, filtro)
+    participacoes = tabela_participacoes(vis) if gestor else []
+    for p in participacoes:
+        p["a_pagar"] = p["elegivel"] + (p["prevista"] if res.fechado else _ZERO)
+    # "Fechar mês": só gestor, mês que já terminou e ainda aberto — contagens do mês inteiro
+    fechar = None
+    if gestor and not periodo.livre and not res.fechado and hoje and fech.pode_fechar_mes(periodo.mes, hoje):
+        k_mes = kpis(res.linhas)
+        fechar = fech.info_fechar(res.linhas, k_mes["inconsistencias"] - fech.a_verificar(res.linhas),
+                                  periodo.rotulo)
     return {
         **_cabecalho(res, periodo, acesso),
-        "kpis": com_bonus(kpis(vis), b),
-        "vendedores": aplicar_bonus(tabela_vendedores(vis), b),
-        "edita_bonus": gestor and not periodo.livre and bonus is not None,
-        "vendedores_ativos": list(vendedores_ativos or []) if gestor else [],
-        "participacoes": tabela_participacoes(vis) if gestor else [],
+        "kpis": com_bonus(kpis(vis), b, res.fechado),
+        "vendedores": aplicar_bonus(tabela_vendedores(vis), b, res.fechado),
+        "edita_bonus": gestor and not periodo.livre and bonus is not None and not res.fechado,
+        "vendedores_ativos": list(vendedores_ativos or []) if gestor and not res.fechado else [],
+        "participacoes": participacoes,
         "opcoes_vendedores": opcoes_vendedores(res.linhas) if gestor else [],
         "vendedor": filtro,
         "linhas": vis,
+        "fechar": fechar,
+        "reabre": gestor and res.fechado,
     }
 
 
@@ -475,7 +512,7 @@ def planilha_xlsx(view: dict) -> bytes:
                    v.get("bonus"), v["a_pagar"]]])
     for p in view["participacoes"]:
         ws.append([celula_segura(x) for x in [f"{p['nome']} (participação)", None, p["qtd"], None, p["ativa"], None,
-                   p["reativa"], p["elegivel"], p["prevista"], None, p["elegivel"]]])
+                   p["reativa"], p["elegivel"], p["prevista"], None, p.get("a_pagar", p["elegivel"])]])
     for row in ws.iter_rows(min_row=2, min_col=4, max_col=11):
         for c in row:
             c.number_format = _FMT_BRL

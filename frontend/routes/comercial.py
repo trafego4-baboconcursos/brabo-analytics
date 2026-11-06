@@ -176,14 +176,16 @@ async def comercial_visao(request: Request, mes: str | None = None,
 
 async def _view_comissoes(t, res, periodo, acesso, vendedor):
     bonus, _metas = await run_in_threadpool(t.ler_extras, periodo, acesso)
-    ativos = await run_in_threadpool(t.ler_vendedores_ativos) if t.e_gestor(acesso) and bonus is not None else []
-    return t.view_comissoes(res, periodo, acesso, (vendedor or "").strip().upper() or None, bonus, ativos)
+    ativos = (await run_in_threadpool(t.ler_vendedores_ativos)
+              if t.e_gestor(acesso) and bonus is not None and not res.fechado else [])
+    return t.view_comissoes(res, periodo, acesso, (vendedor or "").strip().upper() or None, bonus, ativos,
+                            hoje=_hoje())
 
 
 @router.get("/comercial/comissoes", response_class=HTMLResponse)
 async def comercial_comissoes(request: Request, mes: str | None = None, inicio: str | None = None,
                               fim: str | None = None, vendedor: str | None = None,
-                              ok: str | None = None, erro: str | None = None):
+                              ok: str | None = None, erro: str | None = None, qtd: str | None = None):
     acesso = await _acesso(request)
     if acesso is None:
         return resposta_403()
@@ -195,6 +197,10 @@ async def comercial_comissoes(request: Request, mes: str | None = None, inicio: 
     rt = _rt()
     view["msg_ok"] = rt.MENSAGENS_OK.get(ok or "") if view["gestor"] else None
     view["msg_erro"] = rt.MENSAGENS_ERRO.get(erro or "") if view["gestor"] else None
+    if view["msg_erro"] and erro == "tem_a_verificar" and (qtd or "").isdigit() and len(qtd) <= 5:
+        view["msg_erro"] = (f"Há {int(qtd)} venda(s) com reembolso a verificar neste mês: decida em "
+                            "Inconsistências antes de fechar.")
+    view["link_inconsistencias"] = erro == "tem_a_verificar"
     return await _pagina(request, "comercial_comissoes", "Comercial · Comissões", "comercial_comissoes.html",
                          view, hoje)
 
@@ -348,6 +354,7 @@ async def comercial_reivindicar(request: Request, transacao: str = Form(""), ven
         t = inc.limpar_transacao(transacao)
         codigo = inc.codigo_do_pedido(acesso, vendedor_codigo)
         mes_venda = inc.mes_obrigatorio(mes, _hoje())  # Ruling 14: sem mês válido -> 400
+        inc.exigir_venda_de_mes_aberto(t)  # Ruling 17
         linha = inc.linha_da_venda(mes_venda, t)
         conflito = None
         if linha is not None and linha.motivo == "conflito_codigo":
@@ -363,6 +370,7 @@ async def comercial_aprovar(request: Request, transacao: str = Form(""), mes: st
     def executar(acesso, email, mes_d):
         inc, com = _inc(), _com()
         t = inc.limpar_transacao(transacao)
+        inc.exigir_venda_de_mes_aberto(t)  # Ruling 17: aprovar = atribuir
         com.decidir_atribuicao(t, inc.plataforma_de(t), True, email)
         return "aprovada", t, True
     return await _acao(request, "aprovar", mes, executar)
@@ -388,6 +396,7 @@ async def comercial_atribuir(request: Request, transacao: str = Form(""), vended
         t = inc.limpar_transacao(transacao)
         codigo = inc.limpar_codigo(vendedor_codigo)
         m = (motivo or "").strip()[:inc.MAX_TEXTO] or None
+        inc.exigir_venda_de_mes_aberto(t)  # Ruling 17
         com.atribuir_gestor(t, inc.plataforma_de(t), codigo, email, m)
         return "atribuida", t, True
     return await _acao(request, "aprovar", mes, executar)
@@ -402,6 +411,7 @@ async def comercial_reembolso(request: Request, transacao: str = Form(""), decis
         if decisao not in ("mantem", "tira"):
             raise inc.EntradaInvalida("Escolha Mantém ou Tira.")
         j = inc.texto_obrigatorio(justificativa, "Justificativa")
+        inc.exigir_venda_de_mes_aberto(t)  # Ruling 17
         com.decidir_reembolso(t, inc.plataforma_de(t), decisao, j, email)
         return "reembolso", t, True
     return await _acao(request, "aprovar", mes, executar)
@@ -415,6 +425,7 @@ async def comercial_ajuste(request: Request, transacao: str = Form(""), pct: str
         t = inc.limpar_transacao(transacao)
         p, b = inc.ler_ajuste(pct, valor_base)
         j = inc.texto_obrigatorio(justificativa, "Justificativa")
+        inc.exigir_venda_de_mes_aberto(t)  # Ruling 17
         com.gravar_ajuste(t, inc.plataforma_de(t), p, b, j, email)
         return "ajuste", t, True
     return await _acao(request, "aprovar", mes, executar)
@@ -480,7 +491,7 @@ async def comercial_regras(request: Request, mes_meta: str | None = None, q_base
     rt, com = _rt(), _com()
     hoje = _hoje()
     try:
-        m = rt.mes(mes_meta, hoje, ate_proximo=True)
+        m = rt.mes(mes_meta, hoje, ate_proximo=True, escrita=False)
     except rt.EntradaInvalida as exc:
         return resposta_400(str(exc), "Pedido inválido", _URL_REGRAS, "← Voltar para Regras")
     dados = await run_in_threadpool(com.ler_tela_regras, m)
@@ -640,15 +651,17 @@ async def comercial_regras_janelas(request: Request, acao: str = Form(""), lanca
     def executar(acesso, email):
         rt, com = _rt(), _com()
         lanc = rt.lancamento(lancamento, com.ler_lancamentos())
+        automatica = com.janela_automatica(lanc)
+        manual = com.ler_janelas_manuais().get(lanc)
         if acao == "gravar":
             ini, fi = rt.janela(inicio, fim)
-            if rt._mes_fechado(ini.date().replace(day=1)) or rt._mes_fechado(fi.date().replace(day=1)):
-                raise rt.EntradaInvalida("A janela cai num mês já fechado.")
+            # Ruling 17: nenhum mês tocado pela janela que sai nem pela que entra pode estar fechado
+            rt.recusar_se_fechado(*rt.meses_da_janela(manual or automatica, (ini, fi)))
             # a janela substituída é a manual anterior; na 1ª manual, a automática do launch_config
-            substituida = com.janela_automatica(lanc)
             antes = com.gravar_janela(lanc, ini, fi, email)
-            return "janela_gravada", rt.meses_da_janela(antes or substituida, (ini, fi))
+            return "janela_gravada", rt.meses_da_janela(antes or automatica, (ini, fi))
         if acao == "remover":
+            rt.recusar_se_fechado(*rt.meses_da_janela(manual, automatica))
             antes = com.remover_janela(lanc, email)
             return "janela_removida", None  # a janela automática pode cair em outro mês
         raise rt.EntradaInvalida("Ação inválida.")
@@ -684,3 +697,77 @@ async def comercial_bonus(request: Request, vendedor_codigo: str = Form(""), mes
         return "bonus_gravado", False  # bônus é lido na hora da tela
     return await _acao_cadastro(request, "lancar_bonus", executar, base="/comercial/comissoes",
                                 qs={"mes": m_txt, "vendedor": filtro})
+
+
+# ── Área Comercial: fechar / reabrir o mês (Task 7b, Ruling 17) ──────────────────
+# Só master/coordenador (pode "fechar_mes"). Fechar recalcula o mês do zero (~20 s, em
+# threadpool) e congela linhas + bônus + totais; reabrir exige motivo. Depois do commit, os meses
+# seguintes são marcados desatualizados (o estorno deles depende do estado deste mês).
+def _url_comissoes(mes_txt: str, **qs) -> str:
+    return _destino("/comercial/comissoes", "", mes=mes_txt, **qs)
+
+
+async def _acao_fechamento(request: Request, mes: str, executar):
+    """`executar(email, mes_date, hoje)` -> (código ok, meses a invalidar: None = todos)."""
+    from frontend.services.comercial import acesso as ac  # noqa: PLC0415
+    from frontend.services.comercial import fechamento as fech  # noqa: PLC0415
+    from frontend.services.comercial import snapshot as snap  # noqa: PLC0415
+    acesso = await _acesso(request)
+    if acesso is None or not ac.pode(acesso.nivel, "fechar_mes"):
+        return resposta_403()
+    email = (_get_current_user(request).get("email") or "").strip().lower()
+    if not email:
+        return resposta_403()
+    t, rt, com = _telas(), _rt(), _com()
+    hoje = _hoje()
+    try:
+        periodo = t.resolver_periodo(mes, None, None, hoje)
+        if not (mes or "").strip():
+            raise t.PeriodoInvalido("Informe o mês.")
+    except t.PeriodoInvalido as exc:
+        return resposta_400(str(exc), "Pedido inválido", "/comercial/comissoes", "← Voltar para Comissões")
+    m_txt = f"{periodo.mes:%Y-%m}"
+    try:
+        ok, invalidar = await run_in_threadpool(executar, email, periodo.mes, hoje)
+    except rt.EntradaInvalida as exc:
+        return resposta_400(str(exc), "Pedido inválido", _url_comissoes(m_txt), "← Voltar para Comissões")
+    except fech.AVerificar as exc:
+        return RedirectResponse(_url_comissoes(m_txt, erro="tem_a_verificar", qtd=str(exc.qtd)), status_code=303)
+    except com.EscritaRecusada as exc:
+        return RedirectResponse(_url_comissoes(m_txt, erro=exc.codigo), status_code=303)
+    try:
+        for m in ([None] if invalidar is None else invalidar):
+            await run_in_threadpool(snap.marcar_desatualizado, m)
+    except Exception:  # noqa: BLE001 — a escrita já foi; avisa para recalcular à mão
+        import logging  # noqa: PLC0415
+        logging.getLogger("comercial.fechamento").exception("marcar_desatualizado")
+        return RedirectResponse(_url_comissoes(m_txt, ok=ok, erro="nao_invalidou"), status_code=303)
+    return RedirectResponse(_url_comissoes(m_txt, ok=ok), status_code=303)
+
+
+@router.post("/comercial/fechar-mes")
+async def comercial_fechar_mes(request: Request, mes: str = Form("")):
+    def executar(email, m, hoje):
+        from frontend.services.comercial import fechamento as fech  # noqa: PLC0415
+        from frontend.services.comercial.snapshot import agora_sp  # noqa: PLC0415
+        agora = agora_sp()
+        fech.fechar(m, email, agora if agora.date() == hoje else _meio_dia(hoje))
+        return "mes_fechado_ok", fech.meses_seguintes(m, hoje)
+    return await _acao_fechamento(request, mes, executar)
+
+
+@router.post("/comercial/reabrir-mes")
+async def comercial_reabrir_mes(request: Request, mes: str = Form(""), motivo: str = Form("")):
+    def executar(email, m, hoje):
+        from frontend.services.comercial import fechamento as fech  # noqa: PLC0415
+        rt, com = _rt(), _com()
+        com.reabrir_mes(m, rt.texto(motivo, "Motivo da reabertura", rt.MAX_TEXTO), email)
+        seguintes = fech.meses_seguintes(m, hoje)
+        return "mes_reaberto", None if seguintes is None else [m, *seguintes]
+    return await _acao_fechamento(request, mes, executar)
+
+
+def _meio_dia(d):
+    """`hoje` (date) simulado nos testes -> meio-dia daquele dia (hora real fora disso)."""
+    from datetime import datetime  # noqa: PLC0415
+    return datetime(d.year, d.month, d.day, 12)

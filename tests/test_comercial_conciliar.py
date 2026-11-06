@@ -55,3 +55,11 @@ def test_pct_pequeno_nao_cai_na_tolerancia_de_dinheiro():
     sis = [linha("E", base="1558.02", pct="0.015", tipo="Reativa")]
     pla = planilha(("E", "Ediléia", "Reativa", "0.02", "1558.02"))
     assert conciliar(sis, pla)["causa"].tolist() == ["pct"]
+
+
+def test_atribuicao_completada_marca_detalhe():
+    sis = [linha("T1"), linha("T2")]
+    pla = planilha(("T1", "Ediléia", "Ativa", "0.04", "1477"), ("T2", "Ediléia", "Ativa", "0.04", "1477"))
+    df = conciliar(sis, pla, completadas=frozenset({"T2"})).set_index("transacao")
+    assert df.loc["T1", "detalhe"] == "elegivel"
+    assert df.loc["T2", "detalhe"] == "elegivel atribuicao_completada" and df.loc["T2", "causa"] == "ok"

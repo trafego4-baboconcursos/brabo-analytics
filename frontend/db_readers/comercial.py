@@ -328,8 +328,10 @@ def ler_vendas(inicio: date, fim: date, transacoes_extra: frozenset[str] = froze
 
 
 # ---------------------------------------------------------------- janelas Reativa
-_SQL_JANELAS = ("SELECT lancamento_codigo, aulas_start_date, hotmart_produto_ids, tmb_produto_ids "
-                "FROM launch_config")
+_SQL_JANELAS = ("SELECT lancamento_codigo, evento_start_date, aulas_start_date, hotmart_produto_ids, "
+                "tmb_produto_ids FROM launch_config")
+
+SemData = tuple[str, frozenset[str], frozenset[str]]  # (lançamento, produtos hotmart, produtos tmb)
 
 
 def _como_data(valor) -> date | None:
@@ -346,31 +348,39 @@ def _como_data(valor) -> date | None:
 
 
 def janelas_do_periodo(linhas, inicio: date, fim: date,
-                       aulas: dict[str, date] | None = None) -> list[Janela]:
-    """Linhas (lancamento, aulas_start, produtos_hotmart, produtos_tmb) -> janelas que
-    cruzam [inicio, fim]. Lançamento sem aulas_start_date é pulado (log). `aulas` troca a
-    data de um lançamento (exceção por lançamento, §5.3; usado na conciliação)."""
-    aulas = aulas or {}
+                       live: dict[str, date] | None = None) -> tuple[list[Janela], list[SemData]]:
+    """Linhas (lancamento, evento_start, aulas_start, produtos_hotmart, produtos_tmb) ->
+    (janelas que cruzam [inicio, fim], lançamentos sem data).
+
+    A data da live é `evento_start_date`; vazia, cai em `aulas_start_date`. `live` troca a
+    data de um lançamento (exceção por lançamento, §5.3). Lançamento sem nenhuma data não
+    tem janela: volta em `sem_data` para o chamador alertar (é alerta do lançamento, não
+    inconsistência de venda)."""
+    from frontend.utils import _normalize_product_ids
+
+    live = live or {}
     out: list[Janela] = []
-    sem_data: list[str] = []
+    sem_data: list[SemData] = []
     ini_dt = datetime(inicio.year, inicio.month, inicio.day)
     fim_dt = datetime(fim.year, fim.month, fim.day, 23, 59, 59)
-    for lanc, dia_cfg, hm, tm in linhas:
-        dia = aulas.get(str(lanc)) or _como_data(dia_cfg)
+    for lanc, evento, aulas, hm, tm in linhas:
+        hm, tm = _normalize_product_ids(hm), _normalize_product_ids(tm)
+        dia = live.get(str(lanc)) or _como_data(evento) or _como_data(aulas)
         if dia is None:
-            sem_data.append(str(lanc))
+            sem_data.append((str(lanc), frozenset(hm), frozenset(tm)))
             continue
-        j = janela_reativa(str(lanc), dia, hm or [], tm or [])
+        j = janela_reativa(str(lanc), dia, hm, tm)
         if j.inicio <= fim_dt and j.fim >= ini_dt:
             out.append(j)
     if sem_data:
-        logger.info("janelas_do_periodo: %d lançamentos sem aulas_start_date ignorados: %s",
-                    len(sem_data), ", ".join(sorted(sem_data)))
-    return out
+        logger.info("janelas_do_periodo: %d lançamentos sem data da live: %s",
+                    len(sem_data), ", ".join(sorted(l for l, _, _ in sem_data)))
+    return out, sorted(sem_data)
 
 
-def ler_janelas(inicio: date, fim: date, aulas: dict[str, date] | None = None) -> list[Janela]:
-    """Janelas Reativa (launch_config) que cruzam o período. Só SELECT."""
+def ler_janelas(inicio: date, fim: date,
+                live: dict[str, date] | None = None) -> tuple[list[Janela], list[SemData]]:
+    """(janelas Reativa que cruzam o período, lançamentos sem data da live). Só SELECT."""
     with _get_users_engine().connect() as conn:
         linhas = [tuple(r) for r in conn.execute(text(_SQL_JANELAS)).fetchall()]
-    return janelas_do_periodo(linhas, inicio, fim, aulas)
+    return janelas_do_periodo(linhas, inicio, fim, live)

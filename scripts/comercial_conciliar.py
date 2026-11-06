@@ -88,7 +88,8 @@ def _iguais_dec(a, b, tol: Decimal = _TOL) -> bool:
     return abs(Decimal(a) - Decimal(b)) < tol
 
 
-def conciliar(linhas_sistema, df_planilha: pd.DataFrame) -> pd.DataFrame:
+def conciliar(linhas_sistema, df_planilha: pd.DataFrame,
+              completadas: frozenset[str] = frozenset()) -> pd.DataFrame:
     """Casa por transação (papel "venda") e classifica a causa da diferença.
 
     `linhas_sistema`: LinhaComissao (só papel venda é usado); valor do sistema = 0 quando a
@@ -96,6 +97,8 @@ def conciliar(linhas_sistema, df_planilha: pd.DataFrame) -> pd.DataFrame:
     valor. Causa: ok | so_planilha | so_sistema | vendedor | tipo | base | pct (a primeira
     dimensão que diverge, nessa ordem); linha do sistema que existe mas não paga, com as
     dimensões iguais, sai como so_planilha (o `detalhe` diz por quê).
+    `completadas`: transações cujo vendedor o sistema só acertou porque a atribuição foi
+    completada a partir da planilha; o `detalhe` leva `atribuicao_completada`.
     """
     sis = {l.transacao: l for l in linhas_sistema if l.papel == "venda"}
     pla = {r.transacao: r for r in df_planilha.itertuples(index=False)}
@@ -111,7 +114,7 @@ def conciliar(linhas_sistema, df_planilha: pd.DataFrame) -> pd.DataFrame:
             "pct_planilha": p.pct if p else None, "pct_sistema": s.pct if s else None,
             "tipo_planilha": p.tipo if p else None, "tipo_sistema": s.tipo if s else None,
             "valor_planilha": p.valor if p else None, "valor_sistema": v_s,
-            "detalhe": _detalhe(s),
+            "detalhe": (_detalhe(s) + (" atribuicao_completada" if tr in completadas else "")).strip(),
         }
         if s is None:
             causa = "so_planilha"
@@ -152,8 +155,9 @@ def main() -> int:
     ap.add_argument("--saida", required=True)
     ap.add_argument("--pasta-cadastros", default=None,
                     help="pasta das planilhas (padrão: subindo a partir da --planilha)")
-    ap.add_argument("--aulas", action="append", default=[], metavar="LANC=AAAA-MM-DD",
-                    help="simula outra aulas_start_date para um lançamento (exceção editável, "
+    ap.add_argument("--live", "--aulas", dest="live", action="append", default=[],
+                    metavar="LANC=AAAA-MM-DD",
+                    help="simula outra data da live para um lançamento (exceção editável, "
                          "§5.3); não grava nada")
     a = ap.parse_args()
 
@@ -182,10 +186,10 @@ def main() -> int:
     vendas = ler_vendas(inicio, fim, transacoes_extra=frozenset(cad.atribuicoes) | trans_planilha,
                         ofertas=cad.ofertas)
     t_vendas = time.perf_counter() - t0
-    aulas = {lanc: date.fromisoformat(dia) for lanc, dia in (x.split("=") for x in a.aulas)}
-    janelas = ler_janelas(inicio, fim, aulas)
+    live = {lanc: date.fromisoformat(dia) for lanc, dia in (x.split("=") for x in a.live)}
+    janelas, sem_data = ler_janelas(inicio, fim, live)
     for j in janelas:
-        if j.lancamento in aulas:
+        if j.lancamento in live:
             print(f"janela {j.lancamento} simulada: {j.inicio:%d/%m %H:%M} -> {j.fim:%d/%m %H:%M}")
     vendas = [v for v in vendas if inicio <= v.data.date() <= fim or v.transacao in trans_planilha]
     # atribuições da carga comparam com o código da base da planilha; aqui completa com o
@@ -204,7 +208,7 @@ def main() -> int:
     linhas = [l for l in linhas if l.transacao not in fora]
     fora_mes = {v.transacao: v.data.date() for v in vendas if not inicio <= v.data.date() <= fim}
 
-    df = conciliar(linhas, df_p)
+    df = conciliar(linhas, df_p, frozenset(novas))
     for tr, d in fora_mes.items():
         m = df["transacao"] == tr
         df.loc[m, "detalhe"] = (df.loc[m, "detalhe"] + f" fora_do_mes:{d.isoformat()}").str.strip()
@@ -237,6 +241,23 @@ def main() -> int:
             sum((Decimal(x or 0) for x in g["valor_planilha"]), Decimal("0"))
         print(f"  {causa:<12}{len(g):>5}  impacto sistema-planilha {_fmt(dif):>12}")
     print(f"vendas sem código fora da planilha (não listadas): {len(fora)}")
+    comp = [l for l in linhas if l.papel == "venda" and l.transacao in novas]
+    print(f"\natribuições completadas a partir da planilha (o sistema sozinho não acharia o "
+          f"vendedor): {len(comp)}")
+    por: dict[str, list] = {}
+    for l in comp:
+        e = por.setdefault(l.beneficiario, [0, Decimal("0")])
+        e[0] += 1
+        e[1] += l.valor if l.situacao in _PAGAS else Decimal("0")
+    for n, (q, v) in sorted(por.items(), key=lambda kv: _norm(kv[0])):
+        print(f"  {n:<16}{q:>4} vendas  {_fmt(v):>10}")
+    print("\nALERTA: lançamentos sem data da live (sem janela Reativa; vendas deles contam como Ativa):")
+    sufixo = f"-{MESES[mes - 1][:3].upper()}-{ano % 100:02d}".replace("Ç", "C")
+    if not sem_data:
+        print("  nenhum")
+    for lanc, hm, tm in sem_data:
+        marca = "  <- do mês" if _norm(lanc).upper().endswith(_norm(sufixo).upper()) else ""
+        print(f"  {lanc:<12} hotmart={','.join(sorted(hm)) or '-'} tmb={','.join(sorted(tm)) or '-'}{marca}")
     print(f"CSV: {arq}")
     return 0
 

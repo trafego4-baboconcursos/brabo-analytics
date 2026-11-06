@@ -1,10 +1,12 @@
 """Carga inicial dos cadastros do comercial a partir das planilhas de 2026.
 
     python scripts/comercial_carga_inicial.py --pasta analises/comercial/extraido --dry-run
+    python scripts/comercial_carga_inicial.py --pasta analises/comercial/extraido --gravar
 
 As planilhas têm dados pessoais e não vão para o git; o caminho vem por argumento.
-Fase 1: só `--dry-run` (conta, não grava). `cadastros_da_planilha(pasta)` monta tudo
-em memória, sem banco, e é o que a conciliação usa.
+`--dry-run` conta e não grava; `--gravar` cria as tabelas comercial_* e carrega os cadastros
+numa transação só (idempotente; só toca comercial_*). `cadastros_da_planilha(pasta)` monta
+tudo em memória, sem banco.
 """
 from __future__ import annotations
 
@@ -293,67 +295,122 @@ def cadastros_da_planilha(pasta: str | Path) -> Cadastros:
     return _montar(Path(pasta))[0]
 
 
-# ---------------------------------------------------------------- gravação (NÃO usada na Fase 1)
+# ---------------------------------------------------------------- gravação
 
-def gravar(cad: Cadastros, pedidos_tmb: frozenset[str] | set[str] = frozenset()) -> None:
-    """Grava no banco operacional, idempotente (ON CONFLICT DO NOTHING). Ids vêm do banco (IDENTITY); a chave natural de cada tabela garante a
-    idempotência. `pedidos_tmb` decide a plataforma das atribuições. Fase 1: não executar."""
-    from sqlalchemy import text
-    from frontend.db import _get_users_engine
-    from frontend.db_readers.comercial import criar_tabelas
+# acessos decididos em 06/11/26 (e-mail sempre em minúsculas)
+ACESSOS = [("comercial_brabo@aprovasim.com", "master"), ("comercial2@aprovasim.com", "coordenador")]
+TABELAS = ["comercial_vendedores", "comercial_regras_percentual", "comercial_valores_base",
+           "comercial_participacoes", "comercial_ofertas", "comercial_atribuicoes", "comercial_acessos"]
 
-    criar_tabelas()
+
+def _insert_multiplo(tabela: str, colunas: list[str], linhas: list[dict]) -> tuple[str, dict]:
+    """Um INSERT ... VALUES (..),(..) ON CONFLICT DO NOTHING com parâmetros nomeados
+    `<coluna>_<i>` (uma ida ao banco por tabela)."""
+    valores = ",".join("(" + ",".join(f":{c}_{i}" for c in colunas) + ")" for i in range(len(linhas)))
+    sql = f"INSERT INTO {tabela} ({', '.join(colunas)}) VALUES {valores} ON CONFLICT DO NOTHING"
+    return sql, {f"{c}_{i}": l[c] for i, l in enumerate(linhas) for c in colunas}
+
+
+def linhas_para_gravar(cad: Cadastros, pedidos_tmb) -> dict[str, tuple[list[str], list[dict]]]:
+    """{tabela: (colunas, linhas)} na ordem de gravação."""
     ativo = {c: a for c, _, a in VENDEDORES}
-    with _get_users_engine().begin() as conn:
-        for c, n in cad.vendedores.items():
-            conn.execute(text("INSERT INTO comercial_vendedores (codigo, nome, ativo) VALUES (:c,:n,:a) "
-                              "ON CONFLICT DO NOTHING"), {"c": c, "n": n, "a": ativo.get(c, True)})
-        for r in cad.regras:
-            conn.execute(text("INSERT INTO comercial_regras_percentual "
-                              "(plataforma, modalidade, tipo, pct, vendedor_codigo, vigente_de, vigente_ate, "
-                              "categorias, forca_tipo) "
-                              "VALUES (:plataforma,:modalidade,:tipo,:pct,:vendedor_codigo,:vigente_de,:vigente_ate,"
-                              ":categorias,:forca_tipo) "
-                              "ON CONFLICT DO NOTHING"),
-                         {**{k: v for k, v in r.__dict__.items() if k != "id"},
-                          # ordenado: a chave natural compara o array elemento a elemento
-                          "categorias": sorted(r.categorias) if r.categorias is not None else None})
-        for v in cad.valores_base:
-            conn.execute(text("INSERT INTO comercial_valores_base "
-                              "(plataforma, valor_cobrado, valor_base, categoria, vigente_de, vigente_ate) "
-                              "VALUES (:plataforma,:valor_cobrado,:valor_base,:categoria,:vigente_de,:vigente_ate) "
-                              "ON CONFLICT DO NOTHING"), {k: x for k, x in v.__dict__.items() if k != "id"})
-        for p in cad.participacoes:
-            conn.execute(text("INSERT INTO comercial_participacoes "
-                              "(beneficiario, pct_ativa, pct_reativa, vigente_de, vigente_ate, beneficiario_codigo) "
-                              "VALUES (:beneficiario,:pct_ativa,:pct_reativa,:vigente_de,:vigente_ate,:beneficiario_codigo) "
-                              "ON CONFLICT DO NOTHING"), {k: x for k, x in p.__dict__.items() if k != "id"})
-        for cp, nome in cad.ofertas.items():
-            conn.execute(text("INSERT INTO comercial_ofertas (codigo_do_preco, nome_deste_preco, codigo_at, origem) "
-                              "VALUES (:c,:n,:at,'planilha') ON CONFLICT DO NOTHING"),
-                         {"c": cp, "n": nome, "at": extrair_codigo_at(nome)})
-        for tr, cod in cad.atribuicoes.items():
-            conn.execute(text("INSERT INTO comercial_atribuicoes (plataforma, transacao, vendedor_codigo, origem, status) "
-                              "VALUES (:p,:t,:c,'planilha','aprovada') ON CONFLICT DO NOTHING"),
-                         {"p": "tmb" if tr in pedidos_tmb else "hotmart", "t": tr, "c": cod})
+    sem_id = lambda o: {k: v for k, v in o.__dict__.items() if k != "id"}  # noqa: E731
+    return {
+        "comercial_vendedores": (["codigo", "nome", "ativo"],
+                                 [{"codigo": c, "nome": n, "ativo": ativo.get(c, True)}
+                                  for c, n in cad.vendedores.items()]),
+        "comercial_regras_percentual": (
+            ["plataforma", "modalidade", "tipo", "pct", "vendedor_codigo", "vigente_de", "vigente_ate",
+             "categorias", "forca_tipo"],
+            # categorias ordenado: a chave natural compara o array elemento a elemento
+            [{**sem_id(r), "categorias": sorted(r.categorias) if r.categorias is not None else None}
+             for r in cad.regras]),
+        "comercial_valores_base": (
+            ["plataforma", "valor_cobrado", "valor_base", "categoria", "vigente_de", "vigente_ate"],
+            [sem_id(v) for v in cad.valores_base]),
+        "comercial_participacoes": (
+            ["beneficiario", "pct_ativa", "pct_reativa", "vigente_de", "vigente_ate", "beneficiario_codigo"],
+            [sem_id(p) for p in cad.participacoes]),
+        "comercial_ofertas": (["codigo_do_preco", "nome_deste_preco", "codigo_at", "origem"],
+                              [{"codigo_do_preco": cp, "nome_deste_preco": n,
+                                "codigo_at": extrair_codigo_at(n), "origem": "planilha"}
+                               for cp, n in cad.ofertas.items()]),
+        "comercial_atribuicoes": (["plataforma", "transacao", "vendedor_codigo", "origem", "status"],
+                                  [{"plataforma": "tmb" if tr in pedidos_tmb else "hotmart",
+                                    "transacao": tr, "vendedor_codigo": cod,
+                                    "origem": "planilha", "status": "aprovada"}
+                                   for tr, cod in cad.atribuicoes.items()]),
+        "comercial_acessos": (["email", "nivel", "criado_por"],
+                              [{"email": e.strip().lower(), "nivel": n, "criado_por": "carga_inicial"}
+                               for e, n in ACESSOS]),
+    }
+
+
+def gravar(cad: Cadastros, pedidos_tmb: frozenset[str] | set[str] = frozenset(),
+           engine=None) -> dict[str, tuple[int, int]]:
+    """Cria as comercial_* e grava os cadastros, tudo numa transação só, idempotente
+    (ON CONFLICT DO NOTHING sobre a chave natural; ids vêm do banco). Antes do DDL confere as
+    colunas das comercial_* existentes (aborta se divergirem). Toda instrução passa pela guarda
+    `exigir_so_comercial`. Um INSERT multi-linha por tabela; a contagem vem do total da
+    tabela antes/depois. `pedidos_tmb` decide a plataforma das atribuições.
+
+    Devolve {tabela: (inseridas, já existiam)}."""
+    from sqlalchemy import text
+    from frontend.db_readers.comercial import criar_tabelas, exigir_so_comercial
+    from frontend.services.comercial import acesso
+
+    if engine is None:
+        from frontend.db import _get_users_engine
+        engine = _get_users_engine()
+
+    def run(conn, sql: str, params: dict | None = None):
+        exigir_so_comercial(sql)
+        return conn.execute(text(sql), params or {})
+
+    contagem: dict[str, tuple[int, int]] = {}
+    with engine.begin() as conn:
+        criar_tabelas(conn)
+        for tabela, (colunas, linhas) in linhas_para_gravar(cad, pedidos_tmb).items():
+            if tabela not in TABELAS:
+                raise RuntimeError(f"tabela inesperada: {tabela}")
+            if not linhas:
+                contagem[tabela] = (0, 0)
+                continue
+            antes = run(conn, f"SELECT count(*) FROM {tabela}").scalar_one()
+            run(conn, *_insert_multiplo(tabela, colunas, linhas))
+            depois = run(conn, f"SELECT count(*) FROM {tabela}").scalar_one()
+            contagem[tabela] = (depois - antes, len(linhas) - (depois - antes))
+    acesso.limpar_cache()
+    return contagem
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--pasta", required=True)
-    ap.add_argument("--dry-run", action="store_true")
+    modo = ap.add_mutually_exclusive_group()
+    modo.add_argument("--dry-run", action="store_true", help="conta, não grava")
+    modo.add_argument("--gravar", action="store_true",
+                      help="cria as comercial_* e grava os cadastros (idempotente)")
     a = ap.parse_args()
-    if not a.dry_run:
-        print("Fase 1: gravação desabilitada; use --dry-run.", file=sys.stderr)
+    if not (a.dry_run or a.gravar):
+        ap.print_usage(sys.stderr)
+        print("escolha --dry-run ou --gravar", file=sys.stderr)
         return 2
     cad, vendas, pedidos_tmb = _montar(Path(a.pasta))
+    if a.gravar:
+        r = gravar(cad, pedidos_tmb)
+        print(f"{'tabela':<30}{'inseridas':>10}{'já existiam':>13}")
+        for t, (novas, ja) in r.items():
+            print(f"{t:<30}{novas:>10}{ja:>13}")
+        return 0
     outubro = vendas[vendas["mes_ano"].fillna("").map(_norm) == _norm("10 - Outubro")]
     n_out = sum(1 for t in outubro["transacao"] if t in cad.atribuicoes)
     mapa = {_norm(k) for k in CODIGO_POR_NOME}
     sem_mapa = sorted({n for n in vendas["nome"].dropna().unique() if _norm(n) not in mapa})
     print(f"vendedores={len(cad.vendedores)} regras={len(cad.regras)} "
           f"participacoes={len(cad.participacoes)} valores_base={len(cad.valores_base)} "
-          f"atribuicoes={len(cad.atribuicoes)} (outubro={n_out}) ofertas={len(cad.ofertas)}")
+          f"atribuicoes={len(cad.atribuicoes)} (outubro={n_out}) ofertas={len(cad.ofertas)} "
+          f"acessos={len(ACESSOS)}")
     n_tmb = int(vendas["transacao"].isin(pedidos_tmb).sum())
     print(f"vendas da aba VENDAS encontradas em BASE TMB por Pedido: {n_tmb} de {len(vendas)} "
           f"(BASE TMB tem {len(pedidos_tmb)} pedidos)")

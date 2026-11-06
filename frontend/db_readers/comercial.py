@@ -77,11 +77,114 @@ DDL = [
 ]
 
 
-def criar_tabelas() -> None:
-    """Cria as tabelas comercial_* (idempotente). Só quem grava chama."""
-    with _get_users_engine().begin() as conn:
-        for ddl in DDL:
-            conn.execute(text(ddl))
+# tipo do DDL -> data_type do information_schema
+_TIPOS = {"text": "text", "integer": "integer", "boolean": "boolean", "numeric": "numeric",
+          "date": "date", "timestamptz": "timestamp with time zone", "text[]": "ARRAY",
+          "bigserial": "bigint"}
+_NAO_COLUNA = {"PRIMARY", "CHECK", "UNIQUE", "CONSTRAINT", "FOREIGN"}
+_RE_CREATE = re.compile(r"\s*CREATE TABLE IF NOT EXISTS (\w+)\s*\(")
+
+
+def colunas_do_ddl() -> dict[str, dict[str, str]]:
+    """{tabela: {coluna: data_type do information_schema}} tirado do próprio DDL."""
+    out: dict[str, dict[str, str]] = {}
+    for ddl in DDL:
+        m = _RE_CREATE.match(ddl)
+        if not m:
+            continue
+        corpo = re.sub(r"--[^\n]*", "", ddl[m.end():ddl.rstrip().rfind(")")])
+        partes, nivel, atual = [], 0, ""
+        for ch in corpo:
+            nivel += (ch == "(") - (ch == ")")
+            if ch == "," and nivel == 0:
+                partes.append(atual)
+                atual = ""
+            else:
+                atual += ch
+        partes.append(atual)
+        cols: dict[str, str] = {}
+        for p in partes:
+            toks = p.split()
+            if not toks or toks[0].upper() in _NAO_COLUNA:
+                continue
+            cols[toks[0]] = _TIPOS[toks[1].lower()]
+        out[m.group(1)] = cols
+    return out
+
+
+def divergencias_de_colunas(existentes: dict[str, dict[str, str]]) -> list[str]:
+    """Diferenças entre as comercial_* que já existem no banco e o DDL (tabela que não
+    existe ainda não é divergência: o CREATE vai criá-la)."""
+    dif: list[str] = []
+    for tabela, esperado in colunas_do_ddl().items():
+        atual = existentes.get(tabela)
+        if not atual:
+            continue
+        for c in sorted(set(esperado) - set(atual)):
+            dif.append(f"{tabela}: falta a coluna {c}")
+        for c in sorted(set(atual) - set(esperado)):
+            dif.append(f"{tabela}: coluna {c} não está no DDL")
+        for c in sorted(set(esperado) & set(atual)):
+            if esperado[c] != atual[c]:
+                dif.append(f"{tabela}: coluna {c} é {atual[c]}, DDL diz {esperado[c]}")
+    return dif
+
+
+_SQL_COLUNAS = ("SELECT table_name, column_name, data_type FROM information_schema.columns "
+                "WHERE table_schema = current_schema() AND table_name = ANY(:t)")
+
+
+def conferir_colunas(conn) -> None:
+    """Aborta (RuntimeError) se alguma comercial_* já existe com colunas diferentes do DDL:
+    `CREATE TABLE IF NOT EXISTS` não migra tabela existente."""
+    existentes: dict[str, dict[str, str]] = {}
+    for t, c, tipo in conn.execute(text(_SQL_COLUNAS), {"t": sorted(colunas_do_ddl())}).fetchall():
+        existentes.setdefault(t, {})[c] = tipo
+    dif = divergencias_de_colunas(existentes)
+    if dif:
+        raise RuntimeError("tabelas comercial_* já existem com colunas diferentes do DDL; "
+                           "nada foi gravado:\n  " + "\n  ".join(dif))
+
+
+_RE_ALVO = re.compile(r"\b(?:INTO|TABLE|UPDATE|FROM|JOIN|ON)\s+(?:IF\s+NOT\s+EXISTS\s+)?([A-Za-z_][\w.]*)",
+                      re.IGNORECASE)
+_RE_DESTRUTIVO = re.compile(r"^\s*(?:DELETE|DROP|TRUNCATE|ALTER)\b", re.IGNORECASE)
+_LIBERADAS = {"information_schema.columns"}
+
+
+def exigir_so_comercial(sql: str) -> None:
+    """Guarda da gravação: toda tabela citada tem de ser comercial_* (ou a consulta ao
+    information_schema); DELETE/DROP/TRUNCATE/ALTER são recusados."""
+    if _RE_DESTRUTIVO.match(sql):
+        raise RuntimeError(f"comando destrutivo recusado na gravação do comercial: {sql[:60]!r}")
+    alvos = [a for a in _RE_ALVO.findall(sql) if a.upper() != "CONFLICT"]
+    fora = [a for a in alvos if not a.lower().startswith("comercial_") and a.lower() not in _LIBERADAS]
+    if not alvos or fora:
+        raise RuntimeError(f"gravação do comercial só toca comercial_*; recusado: {fora or sql[:60]!r}")
+
+
+def criar_tabelas(conn=None) -> None:
+    """Confere as colunas das comercial_* existentes e cria as que faltam (idempotente).
+    Só quem grava chama. Com `conn`, roda dentro da transação de quem chamou."""
+    if conn is None:
+        with _get_users_engine().begin() as c:
+            return criar_tabelas(c)
+    conferir_colunas(conn)
+    for ddl in DDL:
+        exigir_so_comercial(ddl)
+        conn.execute(text(ddl))
+
+
+_RE_SEM_TABELA = re.compile(r'(?<!of )relation "comercial_\w+" does not exist')
+
+
+def tabela_comercial_ausente(exc: BaseException) -> bool:
+    """True só para "relation \"comercial_...\" does not exist" (tabela ainda não criada).
+    Erro de coluna, ou de outra tabela, é falso: tem de estourar."""
+    codigo = getattr(getattr(exc, "orig", None), "pgcode", None)
+    if codigo is not None and codigo != "42P01":
+        return False
+    return bool(_RE_SEM_TABELA.search(str(getattr(exc, "orig", None) or exc)))
 
 
 def _regra_da_linha(r) -> RegraPercentual:
@@ -111,7 +214,7 @@ def ler_cadastros() -> Cadastros:
             ofertas = conn.execute(text(
                 "SELECT codigo_do_preco, nome_deste_preco FROM comercial_ofertas")).fetchall()
     except Exception as e:
-        if "does not exist" in str(e) and "comercial_" in str(e):
+        if tabela_comercial_ausente(e):
             logger.warning("ler_cadastros: tabelas comercial_* ainda não existem; devolvendo vazio")
             return Cadastros()
         logger.exception("ler_cadastros: falha")
@@ -143,6 +246,8 @@ def garantir_vendedor(codigo: str) -> str:
 _SP = ZoneInfo("America/Sao_Paulo")
 _HM_PAGO = {"COMPLETO", "COMPLETED", "APROVADO", "APPROVED"}
 _HM_CANCELA = {"CANCELADO", "CANCELED", "REEMBOLSADO", "REFUNDED", "CHARGEBACK"}
+_TMB_CANCELA = {"cancelado", "cancelamento solicitado"}
+_TMB_EFETIVOU = {"efetivado"} | _TMB_CANCELA  # com data_efetivado válida = foi efetivado
 _RE_BR = re.compile(r"^(\d{2})/(\d{2})/(\d{4})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?")
 
 
@@ -251,7 +356,14 @@ def normalizar_tmb(linhas: list[dict]) -> list[Venda]:
         a = extrair_codigo_at(l.get("utm_content"))
         b = extrair_codigo_at(l.get("utm_last_content"))
         conflito = bool(a and b and a != b)
-        canc = l.get("data_cancelamento")
+        # Ruling 6: efetivado e depois cancelado foi pago (conta a garantia de 7 dias);
+        # cancelamento sem data cai na data da venda (conservador, como a Hotmart)
+        status = str(l.get("status") or "").strip().casefold()
+        pago = status in _TMB_EFETIVOU
+        cancelada = None
+        if status in _TMB_CANCELA:
+            canc = l.get("data_cancelamento")
+            cancelada = (_para_sp(canc) if isinstance(canc, datetime) else _data_local(canc)) or data
         lanc = l.get("lancamento_id")
         out.append(Venda(
             plataforma="tmb", transacao=pedido, data=data,
@@ -259,8 +371,7 @@ def normalizar_tmb(linhas: list[dict]) -> list[Venda]:
             oferta=l.get("oferta") or "", codigo_at=None if conflito else (a or b),
             conflito_codigo=conflito, modalidade="parcelado",
             categoria=categoria_tmb(l.get("utm_campaign"), l.get("oferta")),
-            valor_cobrado=valor, pago=l.get("status") == "Efetivado",
-            cancelada_em=_para_sp(canc) if canc else None))
+            valor_cobrado=valor, pago=pago, cancelada_em=cancelada))
     if ignoradas:
         logger.warning("normalizar_tmb: %d pedidos sem ticket/data legível ignorados", ignoradas)
     return out

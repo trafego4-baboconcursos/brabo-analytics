@@ -3,7 +3,8 @@
     python scripts/comercial_conciliar.py --mes 2026-10 \
         --planilha ".../Análise Comercial 2026/Vendas - Por Vendedor 2026.xlsx" --saida <pasta>
 
-Só leitura no banco. Cadastros vêm das planilhas em memória (`cadastros_da_planilha`, R5).
+Só leitura no banco. Cadastros vêm das planilhas em memória (`cadastros_da_planilha`, R5)
+ou, com `--cadastros banco`, das tabelas comercial_* (`ler_cadastros`).
 A saída é venda a venda, só com código da transação (nada de nome/e-mail/telefone/CPF) e fica
 fora do git.
 """
@@ -168,6 +169,9 @@ def main() -> int:
     ap.add_argument("--saida", required=True)
     ap.add_argument("--pasta-cadastros", default=None,
                     help="pasta das planilhas (padrão: subindo a partir da --planilha)")
+    ap.add_argument("--cadastros", choices=("planilha", "banco"), default="planilha",
+                    help="de onde vêm os cadastros: planilhas em memória (padrão) ou as "
+                         "tabelas comercial_* do banco (ler_cadastros)")
     ap.add_argument("--live", "--aulas", dest="live", action="append", default=[],
                     metavar="LANC=AAAA-MM-DD",
                     help="simula outra data da live para um lançamento (exceção editável, "
@@ -188,7 +192,14 @@ def main() -> int:
 
     planilha = Path(a.planilha)
     pasta = Path(a.pasta_cadastros) if a.pasta_cadastros else planilha.parent.parent
-    cad = cadastros_da_planilha(pasta)
+    if a.cadastros == "banco":
+        from frontend.db_readers.comercial import ler_cadastros
+        cad = ler_cadastros()
+        if not cad.vendedores:
+            print("cadastros do banco vazios (tabelas comercial_* sem carga?)", file=sys.stderr)
+            return 2
+    else:
+        cad = cadastros_da_planilha(pasta)
     df_p = ler_planilha(planilha, ano, mes)
     # a planilha escreve "Rafael" para o AT12: nome canônico = o do cadastro
     canon = {_norm(n): cad.vendedores.get(c, n) for n, c in CODIGO_POR_NOME.items()}

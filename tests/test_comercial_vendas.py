@@ -65,7 +65,8 @@ def test_tmb_codigo_fallback_e_conflito():
     assert v[0].produto_id == "29395" and v[0].categoria == "LEAD" and v[0].modalidade == "parcelado"
     assert v[0].valor_cobrado == Decimal("1879.34")
     assert v[1].codigo_at is None and v[1].conflito_codigo
-    assert v[2].produto_id == "" and not v[2].pago and v[2].cancelada_em == datetime(2026, 10, 7)
+    # Ruling 6: cancelado depois de efetivar conta como paga e cancelada na data_cancelamento
+    assert v[2].produto_id == "" and v[2].pago and v[2].cancelada_em == datetime(2026, 10, 7)
 
 
 def test_tmb_data_dd_mm_yyyy_e_nao_legivel_ignorada():
@@ -113,3 +114,57 @@ def test_filtro_de_periodo_descarta_extra_fora_por_padrao():
     ex = frozenset({"B"})
     assert [v.transacao for v in _filtrar_periodo([dentro, fora], ini, fim, ex, False)] == ["A"]
     assert [v.transacao for v in _filtrar_periodo([dentro, fora], ini, fim, ex, True)] == ["A", "B"]
+
+
+# ---------------------------------------------------------------- Ruling 6: TMB cancelado depois de efetivar
+_TMB = dict(data_efetivado="2026-10-05T08:00:00", data_cancelamento=None, produto="Mentoria",
+            oferta="Oferta", utm_campaign="MENTORIABBLEAD", utm_content="AT11", utm_last_content=None,
+            ticket="1879.34", lancamento_id=29395)
+_HOJE = datetime(2026, 11, 30)
+
+
+def _uma_tmb(**kw):
+    [v] = normalizar_tmb([dict(_TMB, pedido="P", **kw)])
+    return v
+
+
+def _sit(v):
+    from frontend.services.comercial.regras import situacao
+    return situacao(v.pago, v.data, v.cancelada_em, _HOJE)
+
+
+def test_tmb_efetivado_pago_sem_cancelamento():
+    v = _uma_tmb(status="Efetivado")
+    assert v.pago and v.cancelada_em is None and _sit(v) == "elegivel"
+
+
+def test_tmb_efetivado_com_data_cancelamento_solta_nao_cancela():
+    v = _uma_tmb(status="Efetivado", data_cancelamento=datetime(2026, 10, 7))
+    assert v.pago and v.cancelada_em is None
+
+
+def test_tmb_cancelado_em_3_dias_e_cancelada():
+    v = _uma_tmb(status="Cancelado", data_cancelamento=datetime(2026, 10, 8, 8, 0))
+    assert v.pago and v.cancelada_em == datetime(2026, 10, 8, 8, 0) and _sit(v) == "cancelada"
+
+
+def test_tmb_cancelado_em_10_dias_vai_para_reembolso_a_verificar():
+    v = _uma_tmb(status="Cancelado", data_cancelamento=datetime(2026, 10, 15, 8, 0))
+    assert v.pago and _sit(v) == "reembolso_a_verificar"
+
+
+def test_tmb_cancelado_sem_data_cancela_na_data_da_venda():
+    v = _uma_tmb(status="Cancelado", data_cancelamento=None)
+    assert v.pago and v.cancelada_em == v.data == datetime(2026, 10, 5, 8, 0)
+    assert _sit(v) == "cancelada"
+
+
+def test_tmb_cancelamento_solicitado_conta_como_cancelado():
+    v = _uma_tmb(status="Cancelamento Solicitado", data_cancelamento=None)
+    assert v.pago and v.cancelada_em == v.data
+
+
+def test_tmb_boleto_gerado_e_aguardando_nao_pagos():
+    for st in ("Boleto Gerado", "Aguardando Assinatura", "Aguardando Validação"):
+        v = _uma_tmb(status=st)
+        assert not v.pago and v.cancelada_em is None and _sit(v) == "nao_paga"

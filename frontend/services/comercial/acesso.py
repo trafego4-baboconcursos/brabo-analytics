@@ -55,7 +55,8 @@ def _ler_padrao(email: str) -> dict | None:
     try:
         linha = _ler_banco(email)
     except ProgrammingError as exc:
-        if "comercial_acessos" in str(exc) and "does not exist" in str(exc):
+        from frontend.db_readers.comercial import tabela_comercial_ausente
+        if tabela_comercial_ausente(exc):  # só "relation ... does not exist"; erro de coluna estoura
             return None  # tabela ainda não criada (nasce na 1ª escrita)
         raise
     _cache[email] = (agora, linha)

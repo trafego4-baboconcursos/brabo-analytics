@@ -108,3 +108,7 @@ _arquivo/
 # Backups de banco e exports pontuais: têm e-mail/telefone de lead — nunca versionar
 outputs/backups/
 outputs/exports/
+
+# Planilhas do comercial (CPF/telefone de comprador) e mockups do brainstorming
+analises/comercial/
+.superpowers/

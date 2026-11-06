@@ -55,7 +55,8 @@ def test_ler_valores_a_preencher_celulas_sujas():
 
 def test_montar_ofertas():
     df = pd.DataFrame({
-        "Código do preço": ["P1", "P2", "P3", "P3", None],
-        "Nome deste preço": ["COM. LEAD - AT9", "Sem codigo", "X AT4", "X AT11", "Y AT4"],
+        "Código do preço": ["P1", "P2", "P3", "P3", "P4", "P4", "P4", None],
+        "Nome deste preço": ["COM. LEAD - AT9", "Sem codigo", "X AT4", "X AT11",
+                             "CS Mestre AT13", "Mestre AT13", "Mestre AT13", "Y AT4"],
     })
-    assert montar_ofertas(df) == {"P1": "COM. LEAD - AT9"}
+    assert montar_ofertas(df) == {"P1": "COM. LEAD - AT9", "P4": "Mestre AT13"}

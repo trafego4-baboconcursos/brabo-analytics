@@ -103,20 +103,29 @@ def montar_atribuicoes(vendas: pd.DataFrame, codigo_por_transacao: dict[str, str
 
 
 def montar_ofertas(df: pd.DataFrame) -> dict[str, str]:
-    """codigo_do_preco -> nome_deste_preco, só nomes com código AT; código com 2+ nomes distintos é descartado."""
+    """codigo_do_preco -> nome_deste_preco, só nomes com código AT.
+
+    Código com nomes de AT diferentes é descartado (aviso); com o mesmo AT, fica o nome
+    mais frequente (empate: o primeiro visto).
+    """
     cc, cn = _col(df, "Código do preço"), _col(df, "Nome deste preço")
-    nomes: dict[str, set[str]] = {}
+    nomes: dict[str, dict[str, int]] = {}
     for cod, nome in zip(df[cc], df[cn]):
         if not isinstance(cod, str) or not cod.strip() or not isinstance(nome, str):
             continue
         if extrair_codigo_at(nome) is None:
             continue
-        nomes.setdefault(cod.strip(), set()).add(nome.strip())
-    for cod, ns in nomes.items():
-        if len(ns) > 1:
-            print(f"AVISO: código do preço {cod} com nomes conflitantes {sorted(ns)}; ignorado",
+        conta = nomes.setdefault(cod.strip(), {})
+        conta[nome.strip()] = conta.get(nome.strip(), 0) + 1
+    out: dict[str, str] = {}
+    for cod, conta in nomes.items():
+        ats = {extrair_codigo_at(n) for n in conta}
+        if len(ats) > 1:
+            print(f"AVISO: código do preço {cod} com ATs diferentes {sorted(ats)}; ignorado",
                   file=sys.stderr)
-    return {c: next(iter(ns)) for c, ns in nomes.items() if len(ns) == 1}
+            continue
+        out[cod] = max(conta, key=lambda n: conta[n])  # max devolve o primeiro em empate
+    return out
 
 
 # ---------------------------------------------------------------- leitura das planilhas

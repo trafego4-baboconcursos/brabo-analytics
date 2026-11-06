@@ -194,7 +194,10 @@ def test_estorno_no_primeiro_mes_aberto_com_participacao(banco, motor):
         ("HP-EDI-PREV", "venda", "Ediléia", D("-80.00")),
         ("HP-EDI-PREV", "participacao", "Rafael Batista", D("-6.000"))}
     assert all(l.motivo == "estorno de 2026-10" and l.vendedor_codigo == "AT4" for l in est)
-    assert not [l for l in r.linhas if l.situacao != "estorno"]  # venda de outubro não vira linha de novembro
+    # venda de outubro não vira linha de novembro — só a pendência (valor 0) da Ruling 22 para o
+    # reembolso > 7 dias sem decisão
+    assert [(l.transacao, l.situacao, l.valor, l.motivo) for l in r.linhas if l.situacao != "estorno"] == [
+        ("HP-JHE-1", "reembolso_a_verificar", D("0"), "venda de 2026-10 (fechado)")]
     ini, fim, extra, kw = motor["chamadas"][-1]
     # outubro (mês fechado imediatamente anterior, dentro de HORIZONTE_MESES = 2) entra na leitura: vendas tardias + novembro
     assert (ini, fim) == (OUT, date(2026, 11, 30)) and kw == {"incluir_extra_fora_do_periodo": True}
@@ -204,8 +207,9 @@ def test_estorno_no_primeiro_mes_aberto_com_participacao(banco, motor):
     k = telas.kpis(r.linhas)
     assert k["elegivel"] == D("-80.00") and k["estorno"] == D("-80.00") and k["vendido"] == 0 and k["qtd"] == 0
     assert k["participacao"] == D("-6.000")
-    vend = telas.tabela_vendedores(r.linhas)
-    assert vend[0]["codigo"] == "AT4" and vend[0]["elegivel"] == D("-80.00") and vend[0]["qtd"] == 0
+    vend = {v["codigo"]: v for v in telas.tabela_vendedores(r.linhas)}
+    assert vend["AT4"]["elegivel"] == D("-80.00") and vend["AT4"]["qtd"] == 0
+    assert vend["AT9"]["total"] == 0 and vend["AT9"]["qtd"] == 0  # só a pendência (valor 0)
 
 
 def test_estorno_por_decisao_tira(banco, motor):
@@ -663,3 +667,99 @@ def test_acao_em_venda_tardia_fora_do_horizonte_recusada(cli):
     assert r.headers["location"] == "/comercial/inconsistencias?mes=2026-11&erro=fora_do_horizonte"
     assert cli.banco.escritas() == [] and cli.desat == []
     assert fech.tem_mes_de_efeito(date(2026, 11, 3), {AGO, SET, OUT})
+
+
+# ---------------------------------------------------------------- Ruling 22
+def _fechar_nov(banco, monkeypatch):
+    """Fechar novembro em 03/12 com o cálculo real (calcular_mes sobre o motor falso)."""
+    monkeypatch.setattr(snap, "recalcular_mes", lambda mes, **kw: snap.calcular_mes(mes, kw["hoje"]))
+    return fech.fechar(NOV, "coord@teste.local", datetime(2026, 12, 3))
+
+
+def test_reembolso_a_verificar_de_mes_fechado_aparece_no_primeiro_aberto(banco, motor, monkeypatch):
+    """Ruling 22: prevista congelada em outubro, reembolso concluído 10 dias depois da venda e
+    sem decisão -> linha de valor 0 em novembro, na fila de Inconsistências, bloqueando fechar."""
+    _congelar(banco, OUT, [_l("HP-AV-OUT", sit="prevista", dia=20),
+                           _l("HP-AV-OUT", sit="prevista", dia=20, papel="participacao", benef="Rafael Batista",
+                              pct="0.003")])
+    motor["vendas"] = [_venda("HP-AV-OUT", 20, cancelada=datetime(2026, 10, 30, 10))]
+    nov = snap.calcular_mes(NOV, HOJE)
+    av = [l for l in nov.linhas if l.transacao == "HP-AV-OUT"]
+    assert len(av) == 1  # só a linha de venda; a participação segue a decisão (estorno) depois
+    l = av[0]
+    assert (l.papel, l.situacao, l.valor, l.motivo) == ("venda", "reembolso_a_verificar", D("0"),
+                                                        "venda de 2026-10 (fechado)")
+    assert (l.beneficiario, l.vendedor_codigo, l.data.month) == ("Ediléia", "AT4", 10)
+    # sem dinheiro e sem venda nova no mês; conta como pendência
+    k = telas.kpis(nov.linhas)
+    assert k["vendido"] == 0 and k["qtd"] == 0 and k["elegivel"] == 0 and k["prevista"] == 0
+    assert k["inconsistencias"] == 1 and fech.a_verificar(nov.linhas) == 1
+    vend = telas.tabela_vendedores(nov.linhas)
+    assert vend[0]["qtd"] == 0 and vend[0]["total"] == 0 and vend[0]["vendido_ativa"] == 0
+    assert telas.ranking(nov.linhas, MASTER)["linhas"] == []
+    # Inconsistências de novembro: na lista de reembolso a verificar (formulário Mantém/Tira)
+    from frontend.services.comercial import inconsistencias as inc
+    v = inc.view_inconsistencias(nov, telas.resolver_periodo("2026-11", None, None, NOV), MASTER, {})
+    assert [x.transacao for x in v["reembolso"]] == ["HP-AV-OUT"]
+    # bloqueia o fechamento de novembro
+    with pytest.raises(fech.AVerificar) as e:
+        _fechar_nov(banco, monkeypatch)
+    assert e.value.qtd == 1 and NOV not in banco.fechamentos
+
+
+def test_reembolso_de_mes_fechado_decidido_tira_vira_estorno(banco, motor, monkeypatch):
+    _congelar(banco, OUT, [_l("HP-AV-OUT", sit="prevista", dia=20),
+                           _l("HP-AV-OUT", sit="prevista", dia=20, papel="participacao", benef="Rafael Batista",
+                              pct="0.003")])
+    motor["vendas"] = [_venda("HP-AV-OUT", 20, cancelada=datetime(2026, 10, 30, 10))]
+    motor["decisoes"]["HP-AV-OUT"] = "tira"
+    nov = snap.calcular_mes(NOV, HOJE)
+    assert {(l.papel, l.situacao, l.valor) for l in nov.linhas if l.transacao == "HP-AV-OUT"} == {
+        ("venda", "estorno", D("-80.00")), ("participacao", "estorno", D("-6.000"))}
+    assert fech.a_verificar(nov.linhas) == 0
+    t = _fechar_nov(banco, monkeypatch)  # bloqueio sumiu
+    assert banco.fechamentos[NOV]["ativo"] and t["estorno"] == "-80.00"
+
+
+def test_reembolso_de_mes_fechado_decidido_mantem_some(banco, motor, monkeypatch):
+    _congelar(banco, OUT, [_l("HP-AV-OUT", sit="prevista", dia=20)])
+    motor["vendas"] = [_venda("HP-AV-OUT", 20, cancelada=datetime(2026, 10, 30, 10))]
+    motor["decisoes"]["HP-AV-OUT"] = "mantem"
+    nov = snap.calcular_mes(NOV, HOJE)
+    assert not [l for l in nov.linhas if l.transacao == "HP-AV-OUT"]
+    _fechar_nov(banco, monkeypatch)
+    assert banco.fechamentos[NOV]["ativo"]
+
+
+def test_reembolso_de_mes_fechado_na_tela_de_inconsistencias(cli, motor, monkeypatch):
+    """A tela de novembro mostra o formulário Mantém/Tira da venda de outubro (mês fechado)."""
+    _congelar(cli.banco, OUT, [_l("HP-AV-OUT", sit="prevista", dia=20)])
+    motor["vendas"] = [_venda("HP-AV-OUT", 20, cancelada=datetime(2026, 10, 30, 10))]
+    nov = snap.calcular_mes(NOV, HOJE)
+    monkeypatch.setattr(snap, "obter_mes", lambda mes, **kw: nov if mes == NOV else _res(mes=mes))
+    monkeypatch.setattr(com, "ler_fila", lambda **kw: {"pendentes": [], "minhas": [], "historico": [],
+                                                       "vendedores": [], "com_pedido": set()})
+    monkeypatch.setattr(com, "ler_codigos_conflito", lambda pedidos: {})
+    html = _como(cli, "master@teste.local").get("/comercial/inconsistencias?mes=2026-11").text
+    bloco = html.split("Reembolso a verificar (1)")[1].split("</table>")[0]
+    assert "HP-AV-OUT" in bloco and 'action="/comercial/reembolso"' in bloco and 'value="tira"' in bloco
+    assert "venda de 2026-10 (fechado)" in bloco
+    # a decisão é aceita (venda congelada em mês fechado) e invalida novembro
+    r = _como(cli, "master@teste.local").post("/comercial/reembolso", data={
+        "transacao": "HP-AV-OUT", "decisao": "tira", "justificativa": "pedido no 5º dia", "mes": "2026-11"})
+    assert r.headers["location"] == "/comercial/inconsistencias?mes=2026-11&ok=reembolso"
+    assert cli.banco.decisoes["HP-AV-OUT"] == "tira" and cli.desat == [NOV]
+
+
+def test_ranking_inclui_vendedor_so_com_estorno():
+    """Final #5: estorno de vendedor sem venda positiva no mês entra no ranking, igual a Comissões."""
+    orig = _l("HP-EDI-PREV", sit="prevista", dia=29)
+    est = replace(orig, valor=-orig.valor, situacao="estorno", motivo="estorno de 2026-10")
+    linhas = [_l("HP-JHE-NOV", "AT9", "5000", dia=3, mes=11), est]
+    rk = {r["codigo"]: r for r in telas.ranking(linhas, MASTER)["linhas"]}
+    com_ = {v["codigo"]: v for v in telas.tabela_vendedores(linhas)}
+    assert rk["AT4"]["comissao"] == com_["AT4"]["total"] == D("-80.00")
+    assert rk["AT4"]["qtd"] == 0 and rk["AT4"]["vendido"] == 0 and rk["AT4"]["nome"] == "Ediléia"
+    assert rk["AT9"]["comissao"] == com_["AT9"]["total"] == D("200.00")
+    vend = telas.ranking(linhas, AT4)["linhas"]
+    assert all("comissao" not in r for r in vend)

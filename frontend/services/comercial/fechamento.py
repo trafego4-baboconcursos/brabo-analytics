@@ -23,12 +23,12 @@ from __future__ import annotations
 
 import json
 import re
-import calendar
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 from decimal import ROUND_HALF_UP, Decimal
 
 from frontend.services.comercial.calculo import LinhaComissao, resumo_por_beneficiario
+from frontend.services.comercial.meses import PRIMEIRO_MES, soma_meses, ultimo_dia  # noqa: F401
 from frontend.services.comercial.modelos import Venda
 from frontend.services.comercial.regras import situacao
 
@@ -37,18 +37,12 @@ _PAGAS = ("elegivel", "prevista")
 _ZERO = Decimal("0")
 _CENTAVO = Decimal("0.01")
 _RE_MOTIVO = re.compile(r"^estorno de (\d{4})-(\d{2})$")
-PRIMEIRO_MES = date(2026, 1, 1)
 # Ruling 21: estorno/venda tardia de M só dos 2 meses fechados logo antes de M (M-1, M-2, se
 # ambos na sequência de fechados) + linhas de qualquer idade com decisão "tira"
 HORIZONTE_MESES = 2
 
 
 # ---------------------------------------------------------------- meses
-def soma_meses(m: date, n: int) -> date:
-    t = m.year * 12 + m.month - 1 + n
-    return date(t // 12, t % 12 + 1, 1)
-
-
 def meses_do_estorno(mes: date, fechados) -> list[date]:
     """Meses fechados C para os quais `mes` é o primeiro mês aberto depois: a sequência de
     fechados logo antes de `mes` (do mais recente para trás, para no primeiro aberto)."""
@@ -67,10 +61,6 @@ def meses_seguintes(mes: date, hoje: date) -> list[date] | None:
         saida.append(m)
         m = soma_meses(m, 1)
     return None if len(saida) > 3 else saida
-
-
-def ultimo_dia(m: date) -> date:
-    return date(m.year, m.month, calendar.monthrange(m.year, m.month)[1])
 
 
 def meses_candidatos(mes: date, fechados) -> tuple[list[date], list[date]]:
@@ -148,6 +138,36 @@ def estornos(cands: list[tuple[date, LinhaComissao]], vendas_atuais: dict[str, V
             continue
         vistos.add(chave)
         saida.append(replace(l, valor=-l.valor, situacao=ESTORNO, motivo=motivo_estorno(c)))
+    return saida
+
+
+_RE_MOTIVO_FECHADO = re.compile(r"^venda de \d{4}-\d{2} \(fechado\)$")
+
+
+def motivo_fechado(mes_original: date) -> str:
+    return f"venda de {mes_original:%Y-%m} (fechado)"
+
+
+def e_a_verificar_de_fechado(l: LinhaComissao) -> bool:
+    """Linha-aviso da Ruling 22 (valor 0): não é venda nem dinheiro do mês, só pendência."""
+    return l.situacao == "reembolso_a_verificar" and bool(_RE_MOTIVO_FECHADO.match(l.motivo or ""))
+
+
+def a_verificar_de_fechados(cands: list[tuple[date, LinhaComissao]], vendas_atuais: dict[str, Venda],
+                            decisoes: dict[str, str], hoje: datetime) -> list[LinhaComissao]:
+    """Ruling 22: linha de venda congelada (paga) de um mês candidato cuja venda hoje está em
+    reembolso a verificar (concluído depois dos 7 dias) e SEM decisão -> linha de valor 0 no mês
+    aberto, para aparecer na fila de Inconsistências e bloquear o fechamento até decidir. Depois
+    da decisão: "tira" vira estorno (`estornos`), "mantem" some. Participação segue o estorno."""
+    saida, vistos = [], set()
+    for c, l in cands:
+        if l.papel != "venda" or l.transacao in vistos or l.transacao in decisoes:
+            continue
+        v = vendas_atuais.get(l.transacao)
+        if v is None or situacao(True, v.data, v.cancelada_em, hoje, None) != "reembolso_a_verificar":
+            continue
+        vistos.add(l.transacao)
+        saida.append(replace(l, valor=_ZERO, situacao="reembolso_a_verificar", motivo=motivo_fechado(c)))
     return saida
 
 

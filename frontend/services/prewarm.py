@@ -249,7 +249,10 @@ async def warm_active(codes: Iterable[str] | None = None, invalidate: bool = Fal
                 force_refresh_end(token)
         logger.info("Aquecimento (%s) concluído.", origem)
         if origem.startswith("etl"):
-            # vendas/reembolsos mudam por fora dos cadastros: o snapshot do mês fica velho
+            # vendas/reembolsos mudam por fora dos cadastros: o snapshot do mês fica velho.
+            # Não dá para limitar às rodadas com hotmart/tmb: vendas não são fonte do ETL
+            # (sincronizam por fora, ver LEITORES_VENDAS), então `fontes` nunca as cita —
+            # todo aviso do ETL marca e recalcula o comercial (mesma lógica dos LEITORES_VENDAS).
             try:
                 from frontend.services.comercial.snapshot import marcar_desatualizado  # noqa: PLC0415
                 await run_in_threadpool(marcar_desatualizado)

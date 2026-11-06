@@ -6,7 +6,6 @@ Toda escrita em cadastro chama `marcar_desatualizado`. O store é injetável par
 """
 from __future__ import annotations
 
-import calendar
 import decimal
 import json
 from dataclasses import dataclass, fields
@@ -19,6 +18,7 @@ from sqlalchemy import text
 
 from logger import get_logger
 from frontend.services.comercial.calculo import LinhaComissao, calcular
+from frontend.services.comercial.meses import ultimo_dia
 
 logger = get_logger("db")
 _SP = ZoneInfo("America/Sao_Paulo")
@@ -83,17 +83,13 @@ def alertas_de_json(txt: str | list) -> list:
 
 
 # ---------------------------------------------------------------- cálculo
-def _ultimo_dia(mes: date) -> date:
-    return date(mes.year, mes.month, calendar.monthrange(mes.year, mes.month)[1])
-
-
 def calcular_mes(mes: date, hoje: datetime) -> ResultadoMes:
     """Cadastros do banco + vendas do mês + janelas -> linhas. `hoje`: agora em SP."""
     from frontend.db_readers.comercial import ler_cadastros, ler_janelas, ler_vendas  # noqa: PLC0415
 
     from frontend.services.comercial import fechamento as fech  # noqa: PLC0415
 
-    ini, fim = mes.replace(day=1), _ultimo_dia(mes)
+    ini, fim = mes.replace(day=1), ultimo_dia(mes)
     cad = ler_cadastros()
     extra = frozenset(cad.atribuicoes)
     # Ruling 17/20: o que os meses fechados logo antes deste ainda devem a ele (estorno e
@@ -119,6 +115,8 @@ def calcular_mes(mes: date, hoje: datetime) -> ResultadoMes:
         linhas += fech.marcar_tardias(calcular(tardias, cad, janelas_t, hoje))
     atuais = {v.transacao: v for v in todas if v.transacao in alvo}
     linhas += fech.estornos(pend.cands, atuais, cad.decisoes_reembolso, hoje)
+    # Ruling 22: reembolso a verificar de venda congelada -> pendência (valor 0) que bloqueia fechar
+    linhas += fech.a_verificar_de_fechados(pend.cands, atuais, cad.decisoes_reembolso, hoje)
     return ResultadoMes(ini, linhas, sem_data, agora_sp())  # gerado_em = hora real, não `hoje`
 
 

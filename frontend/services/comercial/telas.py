@@ -5,7 +5,6 @@ de qualquer agregação, e o Ranking de vendedor nunca recebe comissão. O templ
 """
 from __future__ import annotations
 
-import calendar
 import io
 import re
 from dataclasses import dataclass
@@ -15,6 +14,8 @@ from decimal import Decimal
 from frontend.services.comercial import snapshot as _snap
 from frontend.services.comercial.acesso import AcessoComercial, pode
 from frontend.services.comercial.calculo import LinhaComissao, calcular
+from frontend.services.comercial.fechamento import e_a_verificar_de_fechado
+from frontend.services.comercial.meses import PRIMEIRO_MES, soma_meses, ultimo_dia
 from frontend.services.comercial.snapshot import ResultadoMes
 
 _ZERO = Decimal("0")
@@ -24,7 +25,6 @@ _PREVISTA = ("prevista", "reembolso_a_verificar")  # a verificar conta como prev
 _MOTIVOS_PENDENTES = ("conflito_codigo", "sem_valor_base", "sem_regra")
 ORDENS = ("vendido", "qtd", "comissao", "meta")
 LIMITE_PERIODO_DIAS = 92           # período livre: só gestor, até 92 dias (custo ~20 s/mês de dado)
-PRIMEIRO_MES = date(2026, 1, 1)    # janela de meses aceitos: 2026-01 .. mês corrente (SP)
 _MES_ABREV = {"JAN": 1, "FEV": 2, "MAR": 3, "ABR": 4, "MAI": 5, "JUN": 6, "JUL": 7, "AGO": 8,
               "SET": 9, "OUT": 10, "NOV": 11, "DEZ": 12}
 _MESES = ("Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto",
@@ -79,7 +79,7 @@ def _dia_de(txt: str | None) -> date | None:
 
 
 def _periodo_mes(mes: date) -> Periodo:
-    return Periodo(mes, date(mes.year, mes.month, calendar.monthrange(mes.year, mes.month)[1]), mes)
+    return Periodo(mes, ultimo_dia(mes), mes)
 
 
 class PeriodoInvalido(ValueError):
@@ -120,15 +120,10 @@ def mes_do_codigo(codigo: str) -> date | None:
     return date(2000 + int(m.group(2)), _MES_ABREV[m.group(1)], 1)
 
 
-def _soma_meses(d: date, n: int) -> date:
-    t = d.year * 12 + d.month - 1 + n
-    return date(t // 12, t % 12 + 1, 1)
-
-
 def separar_sem_data(sem_data: list, periodo: Periodo) -> tuple[list, list]:
     """(perto, antigos): perto = mês do código a ±1 mês do período, ou código sem mês
     (sempre mostrado). Ruling 11: os antigos não ocupam o topo da Visão geral."""
-    de, ate = _soma_meses(periodo.inicio.replace(day=1), -1), _soma_meses(periodo.fim.replace(day=1), 1)
+    de, ate = soma_meses(periodo.inicio.replace(day=1), -1), soma_meses(periodo.fim.replace(day=1), 1)
     perto, antigos = [], []
     for a in sorted(sem_data, key=lambda a: a[0]):
         m = mes_do_codigo(a[0])
@@ -191,7 +186,10 @@ def _vendas(linhas):
 
 
 def _com_valor(linhas):
-    return [l for l in linhas if l.situacao in COM_VALOR]
+    """Linhas que valem como venda do período. A pendência de reembolso de venda de mês fechado
+    (Ruling 22, valor 0) fica de fora: não é venda nem dinheiro deste mês — só conta como
+    inconsistência."""
+    return [l for l in linhas if l.situacao in COM_VALOR and not e_a_verificar_de_fechado(l)]
 
 
 def _estornos(linhas):
@@ -247,7 +245,7 @@ def tabela_vendedores(linhas: list[LinhaComissao]) -> list[dict]:
             v["elegivel"] += l.valor
             v["total"] += l.valor
             continue
-        if l.situacao not in COM_VALOR:
+        if l.situacao not in COM_VALOR or e_a_verificar_de_fechado(l):
             continue
         v["vendido_" + chave] += l.valor_base or _ZERO
         v["com_" + chave] += l.valor
@@ -370,18 +368,22 @@ def ranking(linhas: list[LinhaComissao], acesso: AcessoComercial | None, ordem: 
     if ordem not in ORDENS or (ordem in ("comissao", "meta") and not gestor):
         ordem = "vendido"
     por: dict[str, dict] = {}
+    def linha(l):
+        return por.setdefault(l.vendedor_codigo, {"codigo": l.vendedor_codigo, "nome": l.beneficiario,
+                                                  "qtd": 0, "vendido": _ZERO, "comissao": _ZERO,
+                                                  "meta": None, "pct_meta": None})
     for l in _com_valor(_vendas(linhas)):
         if not l.vendedor_codigo:
             continue
-        r = por.setdefault(l.vendedor_codigo, {"codigo": l.vendedor_codigo, "nome": l.beneficiario,
-                                               "qtd": 0, "vendido": _ZERO, "comissao": _ZERO,
-                                               "meta": None, "pct_meta": None})
+        r = linha(l)
         r["qtd"] += 1
         r["vendido"] += l.valor_base or _ZERO
         r["comissao"] += l.valor
-    for l in _estornos(_vendas(linhas)):  # estorno reduz a comissão, não o vendido
-        if l.vendedor_codigo in por:
-            por[l.vendedor_codigo]["comissao"] += l.valor
+    # estorno reduz a comissão, não o vendido; vendedor só com estorno no mês também entra
+    # (mesma comissão da tela de Comissões)
+    for l in _estornos(_vendas(linhas)):
+        if l.vendedor_codigo:
+            linha(l)["comissao"] += l.valor
     for cod, m in metas.items():  # com meta e sem venda: aparece com 0%
         por.setdefault(cod, {"codigo": cod, "nome": m["nome"], "qtd": 0, "vendido": _ZERO,
                              "comissao": _ZERO, "meta": None, "pct_meta": None})

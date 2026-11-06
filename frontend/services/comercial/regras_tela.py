@@ -12,6 +12,7 @@ import re
 from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
+from frontend.services.comercial.meses import PRIMEIRO_MES, soma_meses
 from frontend.services.comercial.inconsistencias import (  # noqa: F401  (reexportados para a rota)
     EntradaInvalida, _numero, limpar_codigo,
 )
@@ -20,7 +21,7 @@ PLATAFORMAS = {"hotmart": "Hotmart", "tmb": "TMB"}
 MODALIDADES = {"cartao_pix": "Cartão / Pix / à vista", "parcelado": "Parcelado / boleto / recorrência"}
 TIPOS = ("Ativa", "Reativa")
 NIVEIS = {"master": "Master", "coordenador": "Coordenador", "vendedor": "Vendedor"}
-INICIO_MINIMO = date(2026, 1, 1)
+INICIO_MINIMO = PRIMEIRO_MES  # piso único (meses.py)
 LIMITE_LISTA = 200
 MAX_NOME = 80
 MAX_TEXTO = 1000
@@ -142,7 +143,7 @@ def reais(txt: str | None, campo: str, *, zero: bool = False) -> Decimal:
 
 
 def proximo_mes(hoje: date) -> date:
-    return _soma_mes(hoje.replace(day=1), 1)
+    return soma_meses(hoje.replace(day=1), 1)
 
 
 def data_inicio(txt: str | None, hoje: date, padrao: date | None = None) -> date:
@@ -163,11 +164,6 @@ def data_inicio(txt: str | None, hoje: date, padrao: date | None = None) -> date
     return d
 
 
-def _soma_mes(m: date, n: int) -> date:
-    t = m.year * 12 + m.month - 1 + n
-    return date(t // 12, t % 12 + 1, 1)
-
-
 def mes(txt: str | None, hoje: date, *, ate_proximo: bool = False, escrita: bool = True) -> date:
     """AAAA-MM -> 1º dia. Vazio = mês corrente. De 2026-01 até o mês corrente (meta: até o
     seguinte, para cadastrar com antecedência). Escrita em mês fechado -> `mes_fechado`
@@ -181,7 +177,7 @@ def mes(txt: str | None, hoje: date, *, ate_proximo: bool = False, escrita: bool
             m = datetime.strptime(t, "%Y-%m").date()
         except ValueError:
             raise EntradaInvalida("Mês inválido: use AAAA-MM.") from None
-    limite = _soma_mes(atual, 1) if ate_proximo else atual
+    limite = soma_meses(atual, 1) if ate_proximo else atual
     if not (INICIO_MINIMO <= m <= limite):
         raise EntradaInvalida("Mês fora do intervalo disponível.")
     if escrita:
@@ -273,7 +269,7 @@ def meses_desde(desde: date, hoje: date) -> list[date] | None:
     meses = []
     while m <= atual:
         meses.append(m)
-        m = _soma_mes(m, 1)
+        m = soma_meses(m, 1)
     return None if len(meses) > 3 else meses
 
 
@@ -286,7 +282,7 @@ def meses_da_janela(*janelas) -> list[date]:
         m = j[0].date().replace(day=1)
         while m <= j[1].date().replace(day=1):
             out.add(m)
-            m = _soma_mes(m, 1)
+            m = soma_meses(m, 1)
     return sorted(out)
 
 
@@ -405,8 +401,8 @@ def view_regras(dados: dict, hoje: date, mes_meta: date, q_base: str | None = No
 
 def _opcoes_mes_meta(hoje: date) -> list[tuple[str, str]]:
     from frontend.services.comercial.telas import _periodo_mes  # noqa: PLC0415
-    m, saida = _soma_mes(hoje.replace(day=1), 1), []
+    m, saida = soma_meses(hoje.replace(day=1), 1), []
     while m >= INICIO_MINIMO and len(saida) < 13:
         saida.append((f"{m:%Y-%m}", _periodo_mes(m).rotulo))
-        m = _soma_mes(m, -1)
+        m = soma_meses(m, -1)
     return saida

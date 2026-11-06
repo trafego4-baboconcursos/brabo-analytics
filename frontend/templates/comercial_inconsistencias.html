@@ -106,7 +106,7 @@
             {% for l in v.reembolso %}
             <tr>
               <td style="white-space:nowrap;">{{ l.transacao }}</td>
-              <td style="white-space:nowrap;">{{ l.data.strftime('%d/%m %H:%M') }}</td>
+              <td style="white-space:nowrap;">{{ l.data.strftime('%d/%m %H:%M') }}{% if l.motivo %}<div class="cm-sub">{{ l.motivo }}</div>{% endif %}</td>
               <td class="nome">{{ l.beneficiario }}</td>
               <td>{{ plat(l) }}</td>
               <td class="n">{{ l.valor_base | brl_exato }}</td>

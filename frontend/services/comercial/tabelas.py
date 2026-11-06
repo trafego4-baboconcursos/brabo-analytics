@@ -50,6 +50,15 @@ class Participacao:
     beneficiario_codigo: str | None = None  # código AT do beneficiário, quando é vendedor
 
 
+def categorias_ordenadas(categorias) -> list[str] | None:
+    """Categorias de uma regra como o banco guarda: lista ORDENADA e sem repetição (a chave
+    natural compara o text[] elemento a elemento). None continua None (regra vale para todas);
+    quem lê um formulário converte "nada marcado" em None antes de chamar."""
+    if categorias is None:
+        return None
+    return sorted(set(categorias))
+
+
 def _vigente(item, dia: date) -> bool:
     return item.vigente_de <= dia and (item.vigente_ate is None or dia <= item.vigente_ate)
 

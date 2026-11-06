@@ -25,7 +25,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from frontend.services.comercial.modelos import Cadastros  # noqa: E402
 from frontend.services.comercial.regras import extrair_codigo_at  # noqa: E402
 from frontend.services.comercial.tabelas import (  # noqa: E402
-    Participacao, RegraPercentual, ValorBase,
+    Participacao, RegraPercentual, ValorBase, categorias_ordenadas,
 )
 
 VIGENTE_DE = date(2026, 1, 1)
@@ -323,7 +323,7 @@ def linhas_para_gravar(cad: Cadastros, pedidos_tmb) -> dict[str, tuple[list[str]
             ["plataforma", "modalidade", "tipo", "pct", "vendedor_codigo", "vigente_de", "vigente_ate",
              "categorias", "forca_tipo"],
             # categorias ordenado: a chave natural compara o array elemento a elemento
-            [{**sem_id(r), "categorias": sorted(r.categorias) if r.categorias is not None else None}
+            [{**sem_id(r), "categorias": categorias_ordenadas(r.categorias)}
              for r in cad.regras]),
         "comercial_valores_base": (
             ["plataforma", "valor_cobrado", "valor_base", "categoria", "vigente_de", "vigente_ate"],

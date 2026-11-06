@@ -240,6 +240,9 @@ def cli(_app_client, monkeypatch):
 
     monkeypatch.setattr(snap, "obter_mes", fake_obter)
     monkeypatch.setattr(telas, "calcular_periodo", fake_livre)
+    # bônus/meta (Task 7a) são lidos na hora da tela: sem banco aqui
+    monkeypatch.setattr(telas, "ler_extras", lambda periodo, acesso: (None, None) if periodo.livre else ({}, {}))
+    monkeypatch.setattr(telas, "ler_vendedores_ativos", lambda: [])
     monkeypatch.setattr(snap, "marcar_desatualizado", lambda mes=None, **kw: chamadas["desat"].append(mes))
     monkeypatch.setattr(rotas, "_hoje", lambda: date(2026, 11, 6))  # janela de meses estável
     monkeypatch.setattr(rotas, "get_launches", lambda: [])  # sem banco: evita a espera do connect

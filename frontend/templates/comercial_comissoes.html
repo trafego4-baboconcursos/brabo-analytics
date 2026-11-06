@@ -9,6 +9,16 @@
 .cm-detalhe > td { padding:0 0 var(--s4) var(--s6) !important; background:var(--bs-surface); }
 .cm-detalhe table { font-size:var(--fs-xs); }
 @media (prefers-reduced-motion: reduce) { .cm-linha td.nome i { transition:none; } }
+.cm-msg { padding:var(--s2) var(--s4); border-radius:var(--bs-r-md); font-size:var(--fs-sm); margin-bottom:var(--s4); }
+.cm-msg.ok { background:var(--bs-success-bg); color:var(--bs-ink); }
+.cm-msg.erro { background:var(--bs-danger-bg); color:var(--bs-ink); }
+.cm-bonus { display:flex; align-items:center; justify-content:flex-end; gap:var(--s1); margin:0; }
+.cm-bonus input, .cm-bonus select { font:inherit; font-size:var(--fs-xs); color:var(--bs-ink); background:var(--bs-card);
+  border:1px solid var(--bs-border-s); border-radius:var(--bs-r-sm); padding:2px var(--s1); }
+.cm-bonus input.valor { width:88px; text-align:right; }
+.cm-bonus input.just { width:136px; }
+.cm-bonus button { font:inherit; font-size:var(--fs-xs); font-weight:600; border:1px solid var(--bs-border-s); background:var(--bs-card);
+  color:var(--bs-ink); border-radius:var(--bs-r-sm); padding:2px var(--s2); cursor:pointer; }
 </style>
 {% set k = v.kpis %}
 {% macro detalhe(linhas, colspan) %}
@@ -53,10 +63,13 @@
     {% set _xlsx = '/comercial/comissoes.xlsx?' ~ v.periodo.query ~ (('&vendedor=' ~ v.vendedor) if v.vendedor else '') %}
     {{ barra(v, meses, '/comercial/comissoes', [], v.opcoes_vendedores if v.gestor else none, _xlsx) }}
 
+    {% if v.msg_ok %}<div class="cm-msg ok" role="status"><i class="ti ti-circle-check"></i> {{ v.msg_ok }}</div>{% endif %}
+    {% if v.msg_erro %}<div class="cm-msg erro" role="alert"><i class="ti ti-alert-circle"></i> {{ v.msg_erro }}</div>{% endif %}
+
     <div class="tp-kpi-grid tp-kpi-grid-4">
       {{ kpi('ti-circle-check', k.elegivel | brl_exato, 'Comissão elegível', 'passou do prazo de reembolso', 'success') }}
       {{ kpi('ti-hourglass', k.prevista | brl_exato, 'Prevista', 'dentro dos 7 dias ou reembolso a verificar', 'warning') }}
-      {{ kpi('ti-gift', k.bonus | brl_exato, 'Bônus do mês', 'lançamento do bônus chega em breve') }}
+      {{ kpi('ti-gift', k.bonus | brl_exato, 'Bônus do mês', 'lançado pelo gestor nesta tela' if k.bonus is not none else 'bônus é mensal: escolha um mês') }}
       {{ kpi('ti-wallet', k.total | brl_exato, 'Total a pagar', 'elegível + bônus · ' ~ (k.vendido | brl_exato) ~ ' vendidos') }}
     </div>
 
@@ -88,7 +101,18 @@
               <td class="n">{{ r.com_reativa | brl_exato }}</td>
               <td class="n">{{ r.elegivel | brl_exato }}</td>
               <td class="n">{{ r.prevista | brl_exato }}</td>
-              <td class="n">{{ r.bonus | brl_exato }}</td>
+              {% if v.edita_bonus %}
+              <td class="n" onclick="event.stopPropagation()" onkeydown="event.stopPropagation()">
+                <form method="post" action="/comercial/bonus" class="cm-bonus" title="{{ r.bonus_justificativa or '' }}">
+                  <input type="hidden" name="vendedor_codigo" value="{{ r.codigo }}"><input type="hidden" name="mes" value="{{ v.periodo.mes.strftime('%Y-%m') }}">
+                  <input class="valor" type="text" name="valor" inputmode="decimal" required value="{{ ('%.2f' | format(r.bonus)) | replace('.', ',') }}" aria-label="Bônus de {{ r.nome }}">
+                  <input class="just" type="text" name="justificativa" maxlength="1000" placeholder="motivo (opcional)" value="{{ r.bonus_justificativa or '' }}" aria-label="Motivo do bônus">
+                  <button type="submit">OK</button>
+                </form>
+              </td>
+              {% else %}
+              <td class="n" {% if r.bonus_justificativa %}title="{{ r.bonus_justificativa }}"{% endif %}>{{ r.bonus | brl_exato }}</td>
+              {% endif %}
               <td class="n td-bold">{{ r.a_pagar | brl_exato }}</td>
             </tr>
             {{ detalhe(r.detalhe, 10) }}
@@ -99,6 +123,19 @@
       {% else %}
       <div class="cm-vazio">Nenhuma venda no período.</div>
       {% endif %}
+      {% if v.edita_bonus and v.vendedores_ativos %}
+      <form method="post" action="/comercial/bonus" class="cm-bonus" style="justify-content:flex-start;margin-top:var(--s3);">
+        <span class="cm-sub">Lançar bônus para vendedor sem venda no mês:</span>
+        <input type="hidden" name="mes" value="{{ v.periodo.mes.strftime('%Y-%m') }}">
+        <select name="vendedor_codigo" aria-label="Vendedor">
+          {% for cod, nome in v.vendedores_ativos %}<option value="{{ cod }}">{{ nome }} ({{ cod }})</option>{% endfor %}
+        </select>
+        <input class="valor" type="text" name="valor" inputmode="decimal" required placeholder="R$" aria-label="Bônus">
+        <input class="just" type="text" name="justificativa" maxlength="1000" placeholder="motivo (opcional)" aria-label="Motivo do bônus">
+        <button type="submit">Lançar</button>
+      </form>
+      {% endif %}
+      <div class="cm-sub" style="margin-top:var(--s2);">Total a pagar = comissão elegível + bônus do mês.</div>
     </div>
 
     {% if v.gestor and v.participacoes %}

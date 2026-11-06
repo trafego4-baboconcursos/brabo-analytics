@@ -194,7 +194,8 @@ def _com_valor(linhas):
 
 
 def kpis(linhas: list[LinhaComissao]) -> dict:
-    """KPIs do período sobre as linhas JÁ filtradas. Total a pagar = elegível (+ bônus, Task 7)."""
+    """KPIs do período sobre as linhas JÁ filtradas. Total a pagar = elegível; o bônus (Task 7a)
+    entra depois, em `com_bonus`, lido na hora da tela (não faz parte do cálculo guardado)."""
     vendas = _vendas(linhas)
     valor = _com_valor(vendas)
     elegivel = sum((l.valor for l in valor if l.situacao == "elegivel"), _ZERO)
@@ -244,8 +245,81 @@ def tabela_vendedores(linhas: list[LinhaComissao]) -> list[dict]:
         v["total"] += l.valor
     for v in por.values():
         v["detalhe"] = _ordenar_detalhe(v["detalhe"])
-        v["a_pagar"] = v["elegivel"]  # + bônus na Task 7
+        v["a_pagar"] = v["elegivel"]  # + bônus: aplicar_bonus
     return sorted(por.values(), key=lambda v: (-v["total"], v["nome"]))
+
+
+# ---------------------------------------------------------------- bônus e meta (Task 7a)
+# Lidos na hora da tela (comercial_bonus / comercial_metas), fora do snapshot: mudar bônus ou
+# meta não recalcula nada. O recorte do vendedor é feito NA CONSULTA (só a própria linha) e de
+# novo aqui (`_so_meu`), antes de qualquer soma.
+def ler_extras(periodo: "Periodo", acesso: AcessoComercial | None) -> tuple[dict | None, dict | None]:
+    """(bônus, metas) do mês — {código: {...}}. Período livre: (None, None) (bônus e meta são
+    mensais). Vendedor: só a própria linha."""
+    from frontend.db_readers import comercial as com  # noqa: PLC0415
+    if periodo.livre or not acesso:
+        return None, None
+    codigo = None if e_gestor(acesso) else acesso.vendedor_codigo
+    if not e_gestor(acesso) and not codigo:
+        return {}, {}
+    return com.ler_bonus_mes(periodo.mes, codigo), com.ler_metas_mes(periodo.mes, codigo)
+
+
+def ler_vendedores_ativos() -> list[tuple[str, str]]:
+    """[(código, nome)] dos vendedores ativos — o formulário de bônus do gestor."""
+    from sqlalchemy import text  # noqa: PLC0415
+    from frontend.db_readers import comercial as com  # noqa: PLC0415
+
+    def ler():
+        with com._get_users_engine().connect() as conn:
+            return [tuple(r) for r in conn.execute(text(com.SQL_VENDEDORES_LISTA)).fetchall()]
+    return com._tolerante(ler, [])
+
+
+def _so_meu(d: dict | None, acesso: AcessoComercial | None, vendedor: str | None = None) -> dict | None:
+    if d is None:
+        return None
+    if not e_gestor(acesso):
+        cod = acesso.vendedor_codigo if acesso else None
+        return {k: v for k, v in d.items() if cod and k == cod}
+    if vendedor:
+        return {k: v for k, v in d.items() if k == vendedor}
+    return dict(d)
+
+
+def com_bonus(k: dict, bonus: dict | None) -> dict:
+    """KPIs + bônus: total a pagar = elegível + bônus. Sem bônus (período livre) -> '—'."""
+    if bonus is None:
+        return k
+    soma = sum((b["valor"] for b in bonus.values()), _ZERO)
+    return {**k, "bonus": soma, "total": k["elegivel"] + soma}
+
+
+def aplicar_bonus(vendedores: list[dict], bonus: dict | None) -> list[dict]:
+    """Bônus em cada linha (a_pagar = elegível + bônus). Vendedor com bônus e sem venda no mês
+    entra numa linha zerada — senão o total do KPI não fecharia com a tabela."""
+    if bonus is None:
+        return vendedores
+    por = {v["codigo"]: v for v in vendedores}
+    for cod, b in bonus.items():
+        if cod not in por:
+            por[cod] = {"codigo": cod, "nome": b["nome"], "vendido_ativa": _ZERO, "com_ativa": _ZERO,
+                        "vendido_reativa": _ZERO, "com_reativa": _ZERO, "vendido_outro": _ZERO,
+                        "com_outro": _ZERO, "elegivel": _ZERO, "prevista": _ZERO, "total": _ZERO, "qtd": 0,
+                        "detalhe": []}
+    for v in por.values():
+        b = bonus.get(v["codigo"])
+        v["bonus"] = b["valor"] if b else _ZERO
+        v["bonus_justificativa"] = (b or {}).get("justificativa")
+        v["a_pagar"] = v["elegivel"] + v["bonus"]
+    return sorted(por.values(), key=lambda v: (-v["total"], -v["bonus"], v["nome"]))
+
+
+def _pct_meta(vendido: Decimal, meta: Decimal | None) -> Decimal | None:
+    from decimal import ROUND_HALF_UP  # noqa: PLC0415
+    if not meta:
+        return None
+    return (vendido / meta).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)  # 85,3%
 
 
 def tabela_participacoes(linhas: list[LinhaComissao]) -> list[dict]:
@@ -270,13 +344,15 @@ def opcoes_vendedores(linhas: list[LinhaComissao]) -> list[tuple[str, str]]:
     return sorted(vistos.items(), key=lambda kv: kv[1])
 
 
-def ranking(linhas: list[LinhaComissao], acesso: AcessoComercial | None, ordem: str = "vendido") -> dict:
-    """Ranking de TODOS os vendedores (nome, qtd, vendido; meta '—' até a Task 7).
-    Comissão só para gestor — e o vendedor também não pode ORDENAR por comissão,
-    senão a ordem entregaria quem ganhou mais."""
+def ranking(linhas: list[LinhaComissao], acesso: AcessoComercial | None, ordem: str = "vendido",
+            metas: dict | None = None) -> dict:
+    """Ranking de TODOS os vendedores (nome, qtd, vendido, meta e % da meta).
+    Comissão só para gestor — e o vendedor também não pode ORDENAR por comissão nem por % da
+    meta, senão a ordem entregaria o que ele não vê. Vendedor vê a meta só da própria linha."""
     gestor = e_gestor(acesso)
-    if ordem not in ORDENS or (ordem == "comissao" and not gestor) or ordem == "meta":
-        ordem = "vendido"  # meta ainda não existe (Task 7): cai no vendido
+    metas = _so_meu(metas, acesso) or {}
+    if ordem not in ORDENS or (ordem in ("comissao", "meta") and not gestor):
+        ordem = "vendido"
     por: dict[str, dict] = {}
     for l in _com_valor(_vendas(linhas)):
         if not l.vendedor_codigo:
@@ -287,8 +363,16 @@ def ranking(linhas: list[LinhaComissao], acesso: AcessoComercial | None, ordem: 
         r["qtd"] += 1
         r["vendido"] += l.valor_base or _ZERO
         r["comissao"] += l.valor
+    for cod, m in metas.items():  # com meta e sem venda: aparece com 0%
+        por.setdefault(cod, {"codigo": cod, "nome": m["nome"], "qtd": 0, "vendido": _ZERO,
+                             "comissao": _ZERO, "meta": None, "pct_meta": None})
+    for r in por.values():
+        m = metas.get(r["codigo"])
+        r["meta"] = m["valor"] if m else None
+        r["pct_meta"] = _pct_meta(r["vendido"], r["meta"])
     chave = {"vendido": lambda r: r["vendido"], "qtd": lambda r: r["qtd"],
-             "comissao": lambda r: r["comissao"]}[ordem]
+             "comissao": lambda r: r["comissao"],
+             "meta": lambda r: r["pct_meta"] if r["pct_meta"] is not None else Decimal("-1")}[ordem]
     saida = sorted(por.values(), key=lambda r: (-chave(r), r["nome"]))
     for i, r in enumerate(saida, 1):
         r["pos"] = i
@@ -303,17 +387,23 @@ def _cabecalho(res: ResultadoMes, periodo: Periodo, acesso: AcessoComercial) -> 
             "acesso": acesso}
 
 
-def view_visao(res: ResultadoMes, periodo: Periodo, acesso: AcessoComercial) -> dict:
+def view_visao(res: ResultadoMes, periodo: Periodo, acesso: AcessoComercial,
+               bonus: dict | None = None, metas: dict | None = None) -> dict:
     gestor = e_gestor(acesso)
     proprias = linhas_visiveis(res.linhas, acesso)
     perto, antigos = separar_sem_data(res.sem_data, periodo)
-    rk = ranking(res.linhas, acesso, "vendido")
+    rk = ranking(res.linhas, acesso, "vendido", metas)
+    k = com_bonus(kpis(proprias), _so_meu(bonus, acesso))
+    metas_vis = _so_meu(metas, acesso)
+    meta_total = sum((m["valor"] for m in metas_vis.values()), _ZERO) if metas_vis else None
     minha_pos = None
     if not gestor:
         minha_pos = next((r["pos"] for r in rk["linhas"] if r["codigo"] == acesso.vendedor_codigo), None)
     return {
         **_cabecalho(res, periodo, acesso),
-        "kpis": kpis(proprias),
+        "kpis": k,
+        "meta": meta_total,
+        "pct_meta": _pct_meta(k["vendido"], meta_total),
         "top3": rk["linhas"][:3],
         "mostra_comissao": rk["mostra_comissao"],
         "minha_pos": minha_pos,
@@ -324,14 +414,18 @@ def view_visao(res: ResultadoMes, periodo: Periodo, acesso: AcessoComercial) -> 
 
 
 def view_comissoes(res: ResultadoMes, periodo: Periodo, acesso: AcessoComercial,
-                   vendedor: str | None = None) -> dict:
+                   vendedor: str | None = None, bonus: dict | None = None,
+                   vendedores_ativos: list | None = None) -> dict:
     gestor = e_gestor(acesso)
     filtro = vendedor if gestor else None
     vis = linhas_visiveis(res.linhas, acesso, filtro)
+    b = _so_meu(bonus, acesso, filtro)
     return {
         **_cabecalho(res, periodo, acesso),
-        "kpis": kpis(vis),
-        "vendedores": tabela_vendedores(vis),
+        "kpis": com_bonus(kpis(vis), b),
+        "vendedores": aplicar_bonus(tabela_vendedores(vis), b),
+        "edita_bonus": gestor and not periodo.livre and bonus is not None,
+        "vendedores_ativos": list(vendedores_ativos or []) if gestor else [],
         "participacoes": tabela_participacoes(vis) if gestor else [],
         "opcoes_vendedores": opcoes_vendedores(res.linhas) if gestor else [],
         "vendedor": filtro,
@@ -339,12 +433,13 @@ def view_comissoes(res: ResultadoMes, periodo: Periodo, acesso: AcessoComercial,
     }
 
 
-def view_ranking(res: ResultadoMes, periodo: Periodo, acesso: AcessoComercial, ordem: str) -> dict:
-    rk = ranking(res.linhas, acesso, ordem)
+def view_ranking(res: ResultadoMes, periodo: Periodo, acesso: AcessoComercial, ordem: str,
+                 metas: dict | None = None) -> dict:
+    rk = ranking(res.linhas, acesso, ordem, metas)
     maior = max((r["vendido"] for r in rk["linhas"]), default=_ZERO)
     for r in rk["linhas"]:
         r["barra"] = int(r["vendido"] / maior * 100) if maior else 0
-    return {**_cabecalho(res, periodo, acesso), **rk,
+    return {**_cabecalho(res, periodo, acesso), **rk, "tem_meta": metas is not None,
             "meu_codigo": None if e_gestor(acesso) else acesso.vendedor_codigo}
 
 
@@ -377,7 +472,7 @@ def planilha_xlsx(view: dict) -> bytes:
     for v in view["vendedores"]:
         ws.append([celula_segura(x) for x in [v["nome"], v["codigo"], v["qtd"], v["vendido_ativa"], v["com_ativa"],
                    v["vendido_reativa"], v["com_reativa"], v["elegivel"], v["prevista"],
-                   None, v["a_pagar"]]])
+                   v.get("bonus"), v["a_pagar"]]])
     for p in view["participacoes"]:
         ws.append([celula_segura(x) for x in [f"{p['nome']} (participação)", None, p["qtd"], None, p["ativa"], None,
                    p["reativa"], p["elegivel"], p["prevista"], None, p["elegivel"]]])

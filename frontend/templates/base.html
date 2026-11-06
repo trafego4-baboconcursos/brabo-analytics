@@ -166,6 +166,11 @@
       <a class="bs-mode-btn {% if page == 'comercial_inconsistencias' %}active{% endif %}" href="/comercial/inconsistencias">
         <i class="ti ti-alert-triangle"></i> Inconsistências
       </a>
+      {% if nivel_comercial in ('master', 'coordenador') %}
+      <a class="bs-mode-btn {% if page == 'comercial_regras' %}active{% endif %}" href="/comercial/regras">
+        <i class="ti ti-adjustments"></i> Regras e vendedores
+      </a>
+      {% endif %}
       {% endif %}
       <a class="bs-mode-btn {% if page == 'atendimento' %}active{% endif %}" href="/atendimento">
         <i class="ti ti-headset"></i> Atendimento

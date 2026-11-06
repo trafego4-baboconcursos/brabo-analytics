@@ -455,6 +455,7 @@ def cli(_app_client, banco, monkeypatch):
     import frontend.routes.comercial as rotas
 
     desat = []
+    monkeypatch.setattr(telas, "ler_extras", lambda periodo, acesso: ({}, {}))  # bônus/meta: Task 7a
     monkeypatch.setattr(snap, "obter_mes", lambda mes, **kw: _res())
     monkeypatch.setattr(snap, "marcar_desatualizado", lambda mes=None, **kw: desat.append(mes))
     monkeypatch.setattr(inc, "linhas_guardadas", lambda mes: _linhas() if mes == date(2026, 10, 1) else None)

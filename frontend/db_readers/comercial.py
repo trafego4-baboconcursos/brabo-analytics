@@ -20,7 +20,7 @@ from frontend.services.comercial.modelos import Cadastros, Venda  # noqa: F401  
 from frontend.services.comercial.regras import (
     Janela, categoria_tmb, extrair_codigo_at, janela_reativa, modalidade_hotmart,
 )
-from frontend.services.comercial.tabelas import Participacao, RegraPercentual, ValorBase
+from frontend.services.comercial.tabelas import Participacao, RegraPercentual, ValorBase, categorias_ordenadas
 
 logger = get_logger("db")
 
@@ -94,6 +94,20 @@ DDL = [
     # um ajuste ativo por venda (o anterior é desativado, nunca apagado: fica o rastro)
     """CREATE UNIQUE INDEX IF NOT EXISTS ux_comercial_ajustes_ativo ON comercial_ajustes
         (plataforma, transacao) WHERE ativo""",
+    # Task 7a — janela Reativa manual (sobrepõe launch_config), metas e bônus por vendedor/mês
+    """CREATE TABLE IF NOT EXISTS comercial_janela_reativa (
+        lancamento text PRIMARY KEY, inicio timestamp NOT NULL, fim timestamp NOT NULL,
+        criado_por text NOT NULL, criado_em timestamptz NOT NULL DEFAULT now(),
+        CHECK (fim > inicio))""",
+    """CREATE TABLE IF NOT EXISTS comercial_metas (
+        vendedor_codigo text, mes date, valor numeric NOT NULL CHECK (valor >= 0),
+        criado_por text NOT NULL, criado_em timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (vendedor_codigo, mes))""",
+    """CREATE TABLE IF NOT EXISTS comercial_bonus (
+        vendedor_codigo text, mes date, valor numeric NOT NULL CHECK (valor >= 0),
+        justificativa text NULL, criado_por text NOT NULL,
+        criado_em timestamptz NOT NULL DEFAULT now(),
+        PRIMARY KEY (vendedor_codigo, mes))""",
 ]
 
 # Migrações de tabelas que já existem (CREATE IF NOT EXISTS não altera): (tabela, SQL exato).
@@ -106,7 +120,7 @@ MIGRACOES = [("comercial_snapshot", SQL_MIGRACAO_SNAPSHOT_INVALIDADO)]
 # tipo do DDL -> data_type do information_schema
 _TIPOS = {"text": "text", "integer": "integer", "boolean": "boolean", "numeric": "numeric",
           "date": "date", "timestamptz": "timestamp with time zone", "text[]": "ARRAY",
-          "bigserial": "bigint", "jsonb": "jsonb"}
+          "bigserial": "bigint", "jsonb": "jsonb", "timestamp": "timestamp without time zone"}
 _NAO_COLUNA = {"PRIMARY", "CHECK", "UNIQUE", "CONSTRAINT", "FOREIGN"}
 _RE_CREATE = re.compile(r"\s*CREATE TABLE IF NOT EXISTS (\w+)\s*\(")
 
@@ -230,11 +244,69 @@ SQL_AJUSTE_INSERIR = (
 SQL_HISTORICO_INSERIR = (
     "INSERT INTO comercial_historico (tabela, registro_id, campo, antes, depois, por) "
     "VALUES (:tabela, :registro_id, :campo, :antes, :depois, :por)")
+# Task 7a — tela Regras e vendedores (+ bônus). Editar %, valor-base ou participação é
+# VERSIONAR (Ruling 15): fecha a linha vigente (vigente_ate = véspera da nova data, só se ainda
+# aberta e se a nova data é posterior ao início) e insere a nova; o valor de uma linha nunca muda.
+SQL_VEND_CRIAR = (
+    "INSERT INTO comercial_vendedores (codigo, nome, ativo, criado_auto) "
+    "VALUES (:codigo, :nome, true, false) ON CONFLICT (codigo) DO NOTHING")
+SQL_VEND_RENOMEAR = "UPDATE comercial_vendedores SET nome = :nome WHERE codigo = :codigo"
+SQL_VEND_ATIVAR = "UPDATE comercial_vendedores SET ativo = true WHERE codigo = :codigo"
+SQL_VEND_DESATIVAR = "UPDATE comercial_vendedores SET ativo = false WHERE codigo = :codigo"
+SQL_ACESSO_UPSERT = (
+    "INSERT INTO comercial_acessos (email, nivel, vendedor_codigo, criado_por) "
+    "VALUES (:email, :nivel, :vendedor_codigo, :por) ON CONFLICT (email) DO UPDATE SET "
+    "nivel = EXCLUDED.nivel, vendedor_codigo = EXCLUDED.vendedor_codigo")
+SQL_ACESSO_REMOVER = "DELETE FROM comercial_acessos WHERE email = :email"
+SQL_REGRA_FECHAR = (
+    "UPDATE comercial_regras_percentual SET vigente_ate = :vigente_ate "
+    "WHERE id = :id AND vigente_ate IS NULL AND vigente_de <= :vigente_ate")
+SQL_REGRA_INSERIR = (
+    "INSERT INTO comercial_regras_percentual (plataforma, modalidade, tipo, pct, vendedor_codigo, "
+    "vigente_de, categorias, forca_tipo, criado_por) VALUES (:plataforma, :modalidade, :tipo, :pct, "
+    ":vendedor_codigo, :vigente_de, :categorias, :forca_tipo, :por)")
+SQL_PART_FECHAR = (
+    "UPDATE comercial_participacoes SET vigente_ate = :vigente_ate "
+    "WHERE id = :id AND vigente_ate IS NULL AND vigente_de <= :vigente_ate")
+SQL_PART_INSERIR = (
+    "INSERT INTO comercial_participacoes (beneficiario, pct_ativa, pct_reativa, vigente_de, "
+    "beneficiario_codigo, criado_por) VALUES (:beneficiario, :pct_ativa, :pct_reativa, :vigente_de, "
+    ":beneficiario_codigo, :por)")
+SQL_BASE_FECHAR = (
+    "UPDATE comercial_valores_base SET vigente_ate = :vigente_ate "
+    "WHERE id = :id AND vigente_ate IS NULL AND vigente_de <= :vigente_ate")
+SQL_BASE_INSERIR = (
+    "INSERT INTO comercial_valores_base (plataforma, valor_cobrado, valor_base, categoria, vigente_de, "
+    "criado_por) VALUES (:plataforma, :valor_cobrado, :valor_base, :categoria, :vigente_de, :por)")
+SQL_OFERTA_UPSERT = (
+    "INSERT INTO comercial_ofertas (codigo_do_preco, nome_deste_preco, codigo_at, origem) "
+    "VALUES (:codigo_do_preco, :nome_deste_preco, :codigo_at, 'tela') ON CONFLICT (codigo_do_preco) "
+    "DO UPDATE SET nome_deste_preco = EXCLUDED.nome_deste_preco, codigo_at = EXCLUDED.codigo_at, "
+    "origem = 'tela'")
+SQL_JANELA_UPSERT = (
+    "INSERT INTO comercial_janela_reativa (lancamento, inicio, fim, criado_por) "
+    "VALUES (:lancamento, :inicio, :fim, :por) ON CONFLICT (lancamento) DO UPDATE SET "
+    "inicio = EXCLUDED.inicio, fim = EXCLUDED.fim, criado_por = EXCLUDED.criado_por, criado_em = now()")
+SQL_JANELA_REMOVER = "DELETE FROM comercial_janela_reativa WHERE lancamento = :lancamento"
+SQL_META_UPSERT = (
+    "INSERT INTO comercial_metas (vendedor_codigo, mes, valor, criado_por) "
+    "VALUES (:vendedor_codigo, :mes, :valor, :por) ON CONFLICT (vendedor_codigo, mes) DO UPDATE SET "
+    "valor = EXCLUDED.valor, criado_por = EXCLUDED.criado_por, criado_em = now()")
+SQL_BONUS_UPSERT = (
+    "INSERT INTO comercial_bonus (vendedor_codigo, mes, valor, justificativa, criado_por) "
+    "VALUES (:vendedor_codigo, :mes, :valor, :justificativa, :por) ON CONFLICT (vendedor_codigo, mes) "
+    "DO UPDATE SET valor = EXCLUDED.valor, justificativa = EXCLUDED.justificativa, "
+    "criado_por = EXCLUDED.criado_por, criado_em = now()")
+ESCRITAS_REGRAS = (SQL_VEND_CRIAR, SQL_VEND_RENOMEAR, SQL_VEND_ATIVAR, SQL_VEND_DESATIVAR,
+                   SQL_ACESSO_UPSERT, SQL_ACESSO_REMOVER, SQL_REGRA_FECHAR, SQL_REGRA_INSERIR,
+                   SQL_PART_FECHAR, SQL_PART_INSERIR, SQL_BASE_FECHAR, SQL_BASE_INSERIR,
+                   SQL_OFERTA_UPSERT, SQL_JANELA_UPSERT, SQL_JANELA_REMOVER, SQL_META_UPSERT,
+                   SQL_BONUS_UPSERT)
 ESCRITAS_TELA = (SQL_ATRIB_REIVINDICAR, SQL_ATRIB_APROVAR, SQL_ATRIB_RECUSAR, SQL_ATRIB_GESTOR,
                  SQL_REEMBOLSO_UPSERT, SQL_AJUSTE_DESATIVAR, SQL_AJUSTE_INSERIR, SQL_HISTORICO_INSERIR)
 _EXATAS = {" ".join(q.split()) for q in
            (SQL_SNAPSHOT_UPSERT, SQL_SNAPSHOT_DESATUALIZAR_MES, SQL_SNAPSHOT_DESATUALIZAR_TODOS,
-            SQL_MIGRACAO_SNAPSHOT_INVALIDADO, *ESCRITAS_TELA)}
+            SQL_MIGRACAO_SNAPSHOT_INVALIDADO, *ESCRITAS_TELA, *ESCRITAS_REGRAS)}
 _SELECT_COUNT = re.compile(r"\s*SELECT\s+count\(\*\)\s+FROM\s+comercial_\w+\s*", re.IGNORECASE)
 _INSERT_COM_LEITURA = re.compile(r"\b(?:SELECT|FROM|JOIN|TABLE)\b", re.IGNORECASE)
 
@@ -302,6 +374,16 @@ def tabela_comercial_ausente(exc: BaseException) -> bool:
     return bool(_RE_SEM_TABELA.search(str(getattr(exc, "orig", None) or exc)))
 
 
+_COLS_REGRA = ("id", "plataforma", "modalidade", "tipo", "pct", "vendedor_codigo", "vigente_de",
+               "vigente_ate", "categorias", "forca_tipo")
+_COLS_BASE = ("id", "plataforma", "valor_cobrado", "valor_base", "categoria", "vigente_de", "vigente_ate")
+_COLS_PART = ("id", "beneficiario", "pct_ativa", "pct_reativa", "vigente_de", "vigente_ate",
+              "beneficiario_codigo")
+SQL_REGRAS_TODAS = f"SELECT {', '.join(_COLS_REGRA)} FROM comercial_regras_percentual ORDER BY id"
+SQL_BASES_TODAS = f"SELECT {', '.join(_COLS_BASE)} FROM comercial_valores_base ORDER BY id"
+SQL_PARTS_TODAS = f"SELECT {', '.join(_COLS_PART)} FROM comercial_participacoes ORDER BY id"
+
+
 def _regra_da_linha(r) -> RegraPercentual:
     """Linha do SELECT (ordem da dataclass) -> RegraPercentual; `categorias` text[] -> frozenset."""
     *campos, categorias, forca_tipo = r
@@ -314,15 +396,9 @@ def ler_cadastros() -> Cadastros:
     try:
         with _get_users_engine().connect() as conn:
             vend = conn.execute(text("SELECT codigo, nome FROM comercial_vendedores")).fetchall()
-            regras = conn.execute(text(
-                "SELECT id, plataforma, modalidade, tipo, pct, vendedor_codigo, vigente_de, vigente_ate, "
-                "categorias, forca_tipo FROM comercial_regras_percentual ORDER BY id")).fetchall()
-            bases = conn.execute(text(
-                "SELECT id, plataforma, valor_cobrado, valor_base, categoria, vigente_de, vigente_ate "
-                "FROM comercial_valores_base ORDER BY id")).fetchall()
-            parts = conn.execute(text(
-                "SELECT id, beneficiario, pct_ativa, pct_reativa, vigente_de, vigente_ate, beneficiario_codigo "
-                "FROM comercial_participacoes ORDER BY id")).fetchall()
+            regras = conn.execute(text(SQL_REGRAS_TODAS)).fetchall()
+            bases = conn.execute(text(SQL_BASES_TODAS)).fetchall()
+            parts = conn.execute(text(SQL_PARTS_TODAS)).fetchall()
             atrib = conn.execute(text(
                 "SELECT transacao, vendedor_codigo FROM comercial_atribuicoes "
                 "WHERE status = 'aprovada'")).fetchall()
@@ -631,29 +707,40 @@ def _como_data(valor) -> date | None:
         return None
 
 
-def janelas_do_periodo(linhas, inicio: date, fim: date,
-                       live: dict[str, date] | None = None) -> tuple[list[Janela], list[SemData]]:
+def janelas_do_periodo(linhas, inicio: date, fim: date, live: dict[str, date] | None = None,
+                       manuais: dict[str, tuple[datetime, datetime]] | None = None,
+                       ) -> tuple[list[Janela], list[SemData]]:
     """Linhas (lancamento, evento_start, aulas_start, produtos_hotmart, produtos_tmb) ->
     (janelas que cruzam [inicio, fim], lançamentos sem data).
 
     A data da live é `evento_start_date`; vazia, cai em `aulas_start_date`. `live` troca a
     data de um lançamento (exceção por lançamento, §5.3). Lançamento sem nenhuma data não
     tem janela: volta em `sem_data` para o chamador alertar (é alerta do lançamento, não
-    inconsistência de venda)."""
+    inconsistência de venda).
+
+    `manuais` (comercial_janela_reativa, Task 7a): {lançamento: (início, fim)} cadastrado na tela
+    de Regras. Vence a data do launch_config e dá janela a lançamento sem data (sai do alerta)."""
+    from dataclasses import replace  # noqa: PLC0415
     from frontend.utils import _normalize_product_ids
 
     live = live or {}
+    manuais = manuais or {}
     out: list[Janela] = []
     sem_data: list[SemData] = []
     ini_dt = datetime(inicio.year, inicio.month, inicio.day)
     fim_dt = datetime(fim.year, fim.month, fim.day, 23, 59, 59)
     for lanc, evento, aulas, hm, tm in linhas:
         hm, tm = _normalize_product_ids(hm), _normalize_product_ids(tm)
+        manual = manuais.get(str(lanc))
         dia = live.get(str(lanc)) or _como_data(evento) or _como_data(aulas)
-        if dia is None:
+        if manual is not None:
+            ref = dia or manual[0].date()
+            j = replace(janela_reativa(str(lanc), ref, hm, tm), inicio=manual[0], fim=manual[1])
+        elif dia is None:
             sem_data.append((str(lanc), frozenset(hm), frozenset(tm)))
             continue
-        j = janela_reativa(str(lanc), dia, hm, tm)
+        else:
+            j = janela_reativa(str(lanc), dia, hm, tm)
         if j.inicio <= fim_dt and j.fim >= ini_dt:
             out.append(j)
     if sem_data:
@@ -664,10 +751,29 @@ def janelas_do_periodo(linhas, inicio: date, fim: date,
 
 def ler_janelas(inicio: date, fim: date,
                 live: dict[str, date] | None = None) -> tuple[list[Janela], list[SemData]]:
-    """(janelas Reativa que cruzam o período, lançamentos sem data da live). Só SELECT."""
+    """(janelas Reativa que cruzam o período, lançamentos sem data da live). Só SELECT.
+    A janela manual (comercial_janela_reativa) sobrepõe a do launch_config."""
     with _get_users_engine().connect() as conn:
         linhas = [tuple(r) for r in conn.execute(text(_SQL_JANELAS)).fetchall()]
-    return janelas_do_periodo(linhas, inicio, fim, live)
+    return janelas_do_periodo(linhas, inicio, fim, live, ler_janelas_manuais())
+
+
+SQL_JANELAS_MANUAIS = "SELECT lancamento, inicio, fim, criado_por, criado_em FROM comercial_janela_reativa"
+
+
+def ler_janelas_manuais(*, completo: bool = False) -> dict:
+    """{lançamento: (início, fim)} (ou, com `completo`, a linha inteira em dict). Conexão
+    própria: tabela ainda não criada = sem janela manual, o resto do cálculo segue."""
+    try:
+        with _get_users_engine().connect() as conn:
+            rows = conn.execute(text(SQL_JANELAS_MANUAIS)).fetchall()
+    except Exception as e:
+        if tabela_comercial_ausente(e):
+            return {}
+        raise
+    if completo:
+        return {r[0]: _linha_fila(("lancamento", "inicio", "fim", "criado_por", "criado_em"), r) for r in rows}
+    return {r[0]: (r[1], r[2]) for r in rows}
 
 
 # ---------------------------------------------------------------- Task 6: escritas da tela
@@ -867,3 +973,419 @@ def ler_codigos_conflito(pedidos: list[str]) -> dict[str, tuple[str | None, str 
     with _get_users_engine().connect() as conn:
         rows = conn.execute(text(SQL_CODIGOS_CONFLITO), {"pedidos": sorted(set(pedidos))}).fetchall()
     return {str(p): (extrair_codigo_at(a), extrair_codigo_at(b)) for p, a, b in rows}
+
+
+# ---------------------------------------------------------------- Task 7a: Regras e vendedores
+# Mesmo contrato da Task 6: declaração exata + guarda + histórico na MESMA transação; recusa de
+# estado -> EscritaRecusada(código). Validação de formato fica no serviço (regras_tela.py).
+SQL_VEND_LER_UM = "SELECT nome, ativo FROM comercial_vendedores WHERE codigo = :codigo"
+SQL_VEND_TODOS = "SELECT codigo, nome, ativo, criado_auto FROM comercial_vendedores"
+SQL_ACESSO_LER_UM = "SELECT nivel, vendedor_codigo FROM comercial_acessos WHERE lower(email) = :email"
+SQL_ACESSOS_TODOS = ("SELECT email, nivel, vendedor_codigo, criado_por, criado_em FROM comercial_acessos "
+                     "ORDER BY email")
+SQL_REGRA_LER_UM = f"SELECT {', '.join(_COLS_REGRA)} FROM comercial_regras_percentual WHERE id = :id"
+SQL_PART_LER_UM = f"SELECT {', '.join(_COLS_PART)} FROM comercial_participacoes WHERE id = :id"
+SQL_BASE_LER_UM = f"SELECT {', '.join(_COLS_BASE)} FROM comercial_valores_base WHERE id = :id"
+SQL_BASES_DA_CHAVE = (f"SELECT {', '.join(_COLS_BASE)} FROM comercial_valores_base "
+                      "WHERE plataforma = :plataforma AND valor_cobrado = :valor_cobrado")
+SQL_CATEGORIAS_BASE = "SELECT DISTINCT categoria FROM comercial_valores_base"
+SQL_OFERTA_LER_UM = ("SELECT nome_deste_preco, codigo_at FROM comercial_ofertas "
+                     "WHERE codigo_do_preco = :codigo_do_preco")
+SQL_OFERTAS_TODAS = ("SELECT codigo_do_preco, nome_deste_preco, codigo_at, origem FROM comercial_ofertas "
+                     "ORDER BY codigo_do_preco")
+SQL_JANELA_LER_UM = "SELECT inicio, fim FROM comercial_janela_reativa WHERE lancamento = :lancamento"
+SQL_META_LER_UM = "SELECT valor FROM comercial_metas WHERE vendedor_codigo = :vendedor_codigo AND mes = :mes"
+SQL_BONUS_LER_UM = ("SELECT valor, justificativa FROM comercial_bonus "
+                    "WHERE vendedor_codigo = :vendedor_codigo AND mes = :mes")
+# leituras do mês para as telas: vendedor só recebe a PRÓPRIA linha (filtro na consulta)
+SQL_METAS_DO_MES = ("SELECT m.vendedor_codigo, m.valor, v.nome FROM comercial_metas m "
+                    "LEFT JOIN comercial_vendedores v ON v.codigo = m.vendedor_codigo WHERE m.mes = :mes")
+SQL_METAS_DO_VENDEDOR = SQL_METAS_DO_MES + " AND m.vendedor_codigo = :codigo"
+SQL_BONUS_DO_MES = ("SELECT b.vendedor_codigo, b.valor, v.nome, b.justificativa FROM comercial_bonus b "
+                    "LEFT JOIN comercial_vendedores v ON v.codigo = b.vendedor_codigo WHERE b.mes = :mes")
+SQL_BONUS_DO_VENDEDOR = SQL_BONUS_DO_MES + " AND b.vendedor_codigo = :codigo"
+SQL_HISTORICO_100 = ("SELECT tabela, registro_id, campo, antes, depois, por, em "
+                     "FROM comercial_historico ORDER BY em DESC, id DESC LIMIT 100")
+
+_UM_DIA = timedelta(days=1)
+
+
+def _um(c, sql: str, params: dict, cols: tuple):
+    r = c.execute(text(sql), params).fetchone()
+    return None if r is None else dict(zip(cols, r))
+
+
+def _sem_concorrencia(fn):
+    """Chave natural repetida (corrida, ou mesma data de início) -> recusa. A exceção sai do
+    `with engine.begin()`: a transação inteira voltou atrás (nada gravado, nem histórico)."""
+    from functools import wraps  # noqa: PLC0415
+
+    @wraps(fn)
+    def envolto(*a, **kw):
+        from sqlalchemy.exc import IntegrityError  # noqa: PLC0415
+        try:
+            return fn(*a, **kw)
+        except IntegrityError:
+            raise EscritaRecusada("duplicado") from None
+    return envolto
+
+
+# ------------------------------------------------ vendedores
+def _vendedor(c, codigo: str):
+    return c.execute(text(SQL_VEND_LER_UM), {"codigo": codigo}).fetchone()
+
+
+@_sem_concorrencia
+def criar_vendedor(codigo: str, nome: str, por: str, *, conn=None) -> None:
+    with _transacao(conn) as c:
+        if _vendedor(c, codigo) is not None:
+            raise EscritaRecusada("vendedor_existe")
+        r = _gravar(c, SQL_VEND_CRIAR, {"codigo": codigo, "nome": nome})
+        if r.rowcount == 0:
+            raise EscritaRecusada("vendedor_existe")
+        _historico(c, "comercial_vendedores", codigo, "nome", None, nome, por)
+
+
+def renomear_vendedor(codigo: str, nome: str, por: str, *, conn=None) -> None:
+    with _transacao(conn) as c:
+        atual = _vendedor(c, codigo)
+        if atual is None:
+            raise EscritaRecusada("vendedor_nao_encontrado")
+        if atual[0] == nome:
+            raise EscritaRecusada("sem_mudanca")
+        _gravar(c, SQL_VEND_RENOMEAR, {"codigo": codigo, "nome": nome})
+        _historico(c, "comercial_vendedores", codigo, "nome", atual[0], nome, por)
+
+
+def definir_vendedor_ativo(codigo: str, ativo: bool, por: str, *, conn=None) -> None:
+    with _transacao(conn) as c:
+        atual = _vendedor(c, codigo)
+        if atual is None:
+            raise EscritaRecusada("vendedor_nao_encontrado")
+        if bool(atual[1]) == ativo:
+            raise EscritaRecusada("sem_mudanca")
+        _gravar(c, SQL_VEND_ATIVAR if ativo else SQL_VEND_DESATIVAR, {"codigo": codigo})
+        _historico(c, "comercial_vendedores", codigo, "ativo", str(bool(atual[1])).lower(),
+                   str(ativo).lower(), por)
+
+
+# ------------------------------------------------ acessos
+def _txt_acesso(linha) -> str | None:
+    if linha is None:
+        return None
+    return linha[0] + (f" ({linha[1]})" if linha[1] else "")
+
+
+@_sem_concorrencia
+def gravar_acesso(email: str, nivel: str, vendedor_codigo: str | None, por: str, *, conn=None) -> None:
+    """Cria ou troca o nível de um e-mail (já em minúsculas). Vendedor precisa de código
+    cadastrado. Quem chama limpa o cache de acesso depois do commit."""
+    with _transacao(conn) as c:
+        if nivel == "vendedor" and (not vendedor_codigo or _vendedor(c, vendedor_codigo) is None):
+            raise EscritaRecusada("vendedor_nao_encontrado")
+        antes = c.execute(text(SQL_ACESSO_LER_UM), {"email": email}).fetchone()
+        depois = (nivel, vendedor_codigo if nivel == "vendedor" else None)
+        if antes is not None and tuple(antes) == depois:
+            raise EscritaRecusada("sem_mudanca")
+        _gravar(c, SQL_ACESSO_UPSERT, {"email": email, "nivel": nivel, "vendedor_codigo": depois[1], "por": por})
+        _historico(c, "comercial_acessos", email, "nivel", _txt_acesso(antes), _txt_acesso(depois), por)
+
+
+def remover_acesso(email: str, por: str, *, conn=None) -> None:
+    with _transacao(conn) as c:
+        antes = c.execute(text(SQL_ACESSO_LER_UM), {"email": email}).fetchone()
+        if antes is None:
+            raise EscritaRecusada("acesso_nao_encontrado")
+        r = _gravar(c, SQL_ACESSO_REMOVER, {"email": email})
+        if r.rowcount == 0:  # e-mail gravado com outra caixa (fora do padrão): não apaga às cegas
+            raise EscritaRecusada("acesso_nao_encontrado")
+        _historico(c, "comercial_acessos", email, "nivel", _txt_acesso(antes), None, por)
+
+
+# ------------------------------------------------ versionamento (percentual, participação, base)
+def _fechar(c, sql_fechar: str, id_: int, nova_de: date) -> date:
+    ate = nova_de - _UM_DIA
+    r = _gravar(c, sql_fechar, {"id": id_, "vigente_ate": ate})
+    if r.rowcount == 0:  # outra versão entrou entre a leitura e o UPDATE
+        raise EscritaRecusada("versao_concorrente")
+    return ate
+
+
+def _conferir_versionavel(atual: dict | None, nova_de: date) -> None:
+    if atual is None:
+        raise EscritaRecusada("nao_encontrada")
+    if atual["vigente_ate"] is not None:
+        raise EscritaRecusada("versao_encerrada")
+    if nova_de <= atual["vigente_de"]:
+        raise EscritaRecusada("versao_data")
+
+
+def _conferir_chave_livre(linhas: list[dict], nova_de: date) -> None:
+    """Nova linha numa chave: sem outra aberta (essa se versiona) e sem sobrepor vigência
+    encerrada (a nova mudaria o passado)."""
+    if any(l["vigente_ate"] is None for l in linhas):
+        raise EscritaRecusada("ja_existe_aberta")
+    if any(l["vigente_ate"] >= nova_de for l in linhas):
+        raise EscritaRecusada("sobrepoe_vigencia")
+
+
+def chave_regra(r: dict) -> tuple:
+    """(plataforma, modalidade, tipo, vendedor, categorias ordenadas) — a chave natural."""
+    cats = r.get("categorias")
+    return (r["plataforma"], r["modalidade"], r["tipo"], r.get("vendedor_codigo") or "",
+            tuple(sorted(cats)) if cats else ())
+
+
+def _desc_regra(r: dict) -> str:
+    partes = [r["plataforma"], r["modalidade"], r["tipo"], r.get("vendedor_codigo") or "time"]
+    if r.get("categorias"):
+        partes.append("/".join(sorted(r["categorias"])))
+    return " · ".join(partes)
+
+
+@_sem_concorrencia
+def nova_versao_regra(id_: int, pct: Decimal, nova_de: date, por: str, *, conn=None) -> None:
+    with _transacao(conn) as c:
+        atual = _um(c, SQL_REGRA_LER_UM, {"id": id_}, _COLS_REGRA)
+        _conferir_versionavel(atual, nova_de)
+        ate = _fechar(c, SQL_REGRA_FECHAR, id_, nova_de)
+        _gravar(c, SQL_REGRA_INSERIR, {
+            **{k: atual[k] for k in ("plataforma", "modalidade", "tipo", "vendedor_codigo", "forca_tipo")},
+            "categorias": categorias_ordenadas(atual["categorias"]),
+            "pct": pct, "vigente_de": nova_de, "por": por})
+        _historico(c, "comercial_regras_percentual", f"{id_} ({_desc_regra(atual)})", "pct",
+                   f"{atual['pct']} (de {atual['vigente_de']}, agora até {ate})",
+                   f"{pct} (a partir de {nova_de})", por)
+
+
+@_sem_concorrencia
+def nova_regra(plataforma: str, modalidade: str, tipo: str, pct: Decimal, vendedor_codigo: str | None,
+               categorias: list[str] | None, forca_tipo: str | None, nova_de: date, por: str,
+               *, conn=None) -> None:
+    nova = {"plataforma": plataforma, "modalidade": modalidade, "tipo": tipo,
+            "vendedor_codigo": vendedor_codigo, "categorias": categorias_ordenadas(categorias)}
+    with _transacao(conn) as c:
+        if vendedor_codigo and _vendedor(c, vendedor_codigo) is None:
+            raise EscritaRecusada("vendedor_nao_encontrado")
+        todas = [dict(zip(_COLS_REGRA, r)) for r in c.execute(text(SQL_REGRAS_TODAS)).fetchall()]
+        _conferir_chave_livre([r for r in todas if chave_regra(r) == chave_regra(nova)], nova_de)
+        _gravar(c, SQL_REGRA_INSERIR, {**nova, "pct": pct, "forca_tipo": forca_tipo,
+                                       "vigente_de": nova_de, "por": por})
+        _historico(c, "comercial_regras_percentual", _desc_regra(nova), "pct", None,
+                   f"{pct} (a partir de {nova_de})" + (f"; força {forca_tipo}" if forca_tipo else ""), por)
+
+
+def encerrar_regra(id_: int, a_partir_de: date, por: str, *, conn=None) -> None:
+    with _transacao(conn) as c:
+        atual = _um(c, SQL_REGRA_LER_UM, {"id": id_}, _COLS_REGRA)
+        _conferir_versionavel(atual, a_partir_de)
+        ate = _fechar(c, SQL_REGRA_FECHAR, id_, a_partir_de)
+        _historico(c, "comercial_regras_percentual", f"{id_} ({_desc_regra(atual)})", "vigente_ate",
+                   "aberta", ate.isoformat(), por)
+
+
+@_sem_concorrencia
+def nova_versao_participacao(id_: int, pct_ativa: Decimal, pct_reativa: Decimal, nova_de: date, por: str,
+                             *, conn=None) -> None:
+    with _transacao(conn) as c:
+        atual = _um(c, SQL_PART_LER_UM, {"id": id_}, _COLS_PART)
+        _conferir_versionavel(atual, nova_de)
+        ate = _fechar(c, SQL_PART_FECHAR, id_, nova_de)
+        _gravar(c, SQL_PART_INSERIR, {"beneficiario": atual["beneficiario"], "pct_ativa": pct_ativa,
+                                      "pct_reativa": pct_reativa, "vigente_de": nova_de,
+                                      "beneficiario_codigo": atual["beneficiario_codigo"], "por": por})
+        _historico(c, "comercial_participacoes", f"{id_} ({atual['beneficiario']})", "pct_ativa/pct_reativa",
+                   f"{atual['pct_ativa']}/{atual['pct_reativa']} (de {atual['vigente_de']}, agora até {ate})",
+                   f"{pct_ativa}/{pct_reativa} (a partir de {nova_de})", por)
+
+
+@_sem_concorrencia
+def nova_participacao(beneficiario: str, beneficiario_codigo: str | None, pct_ativa: Decimal,
+                      pct_reativa: Decimal, nova_de: date, por: str, *, conn=None) -> None:
+    with _transacao(conn) as c:
+        if beneficiario_codigo and _vendedor(c, beneficiario_codigo) is None:
+            raise EscritaRecusada("vendedor_nao_encontrado")
+        todas = [dict(zip(_COLS_PART, r)) for r in c.execute(text(SQL_PARTS_TODAS)).fetchall()]
+        _conferir_chave_livre([p for p in todas if p["beneficiario"].casefold() == beneficiario.casefold()],
+                              nova_de)
+        _gravar(c, SQL_PART_INSERIR, {"beneficiario": beneficiario, "pct_ativa": pct_ativa,
+                                      "pct_reativa": pct_reativa, "vigente_de": nova_de,
+                                      "beneficiario_codigo": beneficiario_codigo, "por": por})
+        _historico(c, "comercial_participacoes", beneficiario, "pct_ativa/pct_reativa", None,
+                   f"{pct_ativa}/{pct_reativa} (a partir de {nova_de})", por)
+
+
+def encerrar_participacao(id_: int, a_partir_de: date, por: str, *, conn=None) -> None:
+    with _transacao(conn) as c:
+        atual = _um(c, SQL_PART_LER_UM, {"id": id_}, _COLS_PART)
+        _conferir_versionavel(atual, a_partir_de)
+        ate = _fechar(c, SQL_PART_FECHAR, id_, a_partir_de)
+        _historico(c, "comercial_participacoes", f"{id_} ({atual['beneficiario']})", "vigente_ate",
+                   "aberta", ate.isoformat(), por)
+
+
+@_sem_concorrencia
+def nova_versao_base(id_: int, valor_base: Decimal, categoria: str, nova_de: date, por: str,
+                     *, conn=None) -> None:
+    with _transacao(conn) as c:
+        atual = _um(c, SQL_BASE_LER_UM, {"id": id_}, _COLS_BASE)
+        _conferir_versionavel(atual, nova_de)
+        ate = _fechar(c, SQL_BASE_FECHAR, id_, nova_de)
+        _gravar(c, SQL_BASE_INSERIR, {"plataforma": atual["plataforma"], "valor_cobrado": atual["valor_cobrado"],
+                                      "valor_base": valor_base, "categoria": categoria,
+                                      "vigente_de": nova_de, "por": por})
+        _historico(c, "comercial_valores_base", f"{id_} ({atual['plataforma']} {atual['valor_cobrado']})",
+                   "valor_base/categoria",
+                   f"{atual['valor_base']}/{atual['categoria']} (de {atual['vigente_de']}, agora até {ate})",
+                   f"{valor_base}/{categoria} (a partir de {nova_de})", por)
+
+
+@_sem_concorrencia
+def nova_base(plataforma: str, valor_cobrado: Decimal, valor_base: Decimal, categoria: str, nova_de: date,
+              por: str, *, conn=None) -> None:
+    with _transacao(conn) as c:
+        mesmas = [dict(zip(_COLS_BASE, r)) for r in c.execute(
+            text(SQL_BASES_DA_CHAVE), {"plataforma": plataforma, "valor_cobrado": valor_cobrado}).fetchall()]
+        _conferir_chave_livre(mesmas, nova_de)
+        _gravar(c, SQL_BASE_INSERIR, {"plataforma": plataforma, "valor_cobrado": valor_cobrado,
+                                      "valor_base": valor_base, "categoria": categoria,
+                                      "vigente_de": nova_de, "por": por})
+        _historico(c, "comercial_valores_base", f"{plataforma} {valor_cobrado}", "valor_base/categoria", None,
+                   f"{valor_base}/{categoria} (a partir de {nova_de})", por)
+
+
+# ------------------------------------------------ ofertas, janela, metas, bônus
+def gravar_oferta(codigo_do_preco: str, nome: str, por: str, *, conn=None) -> None:
+    with _transacao(conn) as c:
+        antes = c.execute(text(SQL_OFERTA_LER_UM), {"codigo_do_preco": codigo_do_preco}).fetchone()
+        if antes is not None and antes[0] == nome:
+            raise EscritaRecusada("sem_mudanca")
+        _gravar(c, SQL_OFERTA_UPSERT, {"codigo_do_preco": codigo_do_preco, "nome_deste_preco": nome,
+                                       "codigo_at": extrair_codigo_at(nome)})
+        _historico(c, "comercial_ofertas", codigo_do_preco, "nome_deste_preco",
+                   None if antes is None else antes[0], nome, por)
+
+
+def _txt_janela(j) -> str | None:
+    return None if j is None else f"{j[0]:%Y-%m-%d %H:%M:%S} -> {j[1]:%Y-%m-%d %H:%M:%S}"
+
+
+def gravar_janela(lancamento: str, inicio: datetime, fim: datetime, por: str, *, conn=None):
+    """Devolve a janela manual anterior (ou None) — a rota invalida os meses das duas."""
+    if fim <= inicio:
+        raise ValueError("fim deve ser depois do início")
+    with _transacao(conn) as c:
+        antes = c.execute(text(SQL_JANELA_LER_UM), {"lancamento": lancamento}).fetchone()
+        if antes is not None and (antes[0], antes[1]) == (inicio, fim):
+            raise EscritaRecusada("sem_mudanca")
+        _gravar(c, SQL_JANELA_UPSERT, {"lancamento": lancamento, "inicio": inicio, "fim": fim, "por": por})
+        _historico(c, "comercial_janela_reativa", lancamento, "janela", _txt_janela(antes),
+                   _txt_janela((inicio, fim)), por)
+        return None if antes is None else (antes[0], antes[1])
+
+
+def remover_janela(lancamento: str, por: str, *, conn=None):
+    """Apaga a janela manual (volta à data do launch_config). Devolve a que existia."""
+    with _transacao(conn) as c:
+        antes = c.execute(text(SQL_JANELA_LER_UM), {"lancamento": lancamento}).fetchone()
+        if antes is None:
+            raise EscritaRecusada("janela_nao_encontrada")
+        _gravar(c, SQL_JANELA_REMOVER, {"lancamento": lancamento})
+        _historico(c, "comercial_janela_reativa", lancamento, "janela", _txt_janela(antes),
+                   "(volta à data do launch_config)", por)
+        return (antes[0], antes[1])
+
+
+def gravar_meta(vendedor_codigo: str, mes: date, valor: Decimal, por: str, *, conn=None) -> None:
+    with _transacao(conn) as c:
+        if _vendedor(c, vendedor_codigo) is None:
+            raise EscritaRecusada("vendedor_nao_encontrado")
+        p = {"vendedor_codigo": vendedor_codigo, "mes": mes}
+        antes = c.execute(text(SQL_META_LER_UM), p).fetchone()
+        _gravar(c, SQL_META_UPSERT, {**p, "valor": valor, "por": por})
+        _historico(c, "comercial_metas", f"{vendedor_codigo}:{mes:%Y-%m}", "valor",
+                   None if antes is None else antes[0], valor, por)
+
+
+def gravar_bonus(vendedor_codigo: str, mes: date, valor: Decimal, justificativa: str | None, por: str,
+                 *, conn=None) -> None:
+    with _transacao(conn) as c:
+        if _vendedor(c, vendedor_codigo) is None:
+            raise EscritaRecusada("vendedor_nao_encontrado")
+        p = {"vendedor_codigo": vendedor_codigo, "mes": mes}
+        antes = c.execute(text(SQL_BONUS_LER_UM), p).fetchone()
+        _gravar(c, SQL_BONUS_UPSERT, {**p, "valor": valor, "justificativa": justificativa, "por": por})
+        _historico(c, "comercial_bonus", f"{vendedor_codigo}:{mes:%Y-%m}", "valor",
+                   None if antes is None else antes[0],
+                   f"{valor}" + (f": {justificativa}" if justificativa else ""), por)
+
+
+# ------------------------------------------------ leituras das telas
+def _tolerante(fn, vazio):
+    try:
+        return fn()
+    except Exception as e:
+        if tabela_comercial_ausente(e):
+            return vazio
+        raise
+
+
+def ler_metas_mes(mes: date, vendedor_codigo: str | None = None) -> dict[str, dict]:
+    """{código: {valor, nome}} das metas do mês. Com `vendedor_codigo`, só a dele (na consulta)."""
+    def ler():
+        sql, p = ((SQL_METAS_DO_VENDEDOR, {"mes": mes, "codigo": vendedor_codigo}) if vendedor_codigo
+                  else (SQL_METAS_DO_MES, {"mes": mes}))
+        with _get_users_engine().connect() as conn:
+            return {r[0]: {"valor": Decimal(r[1]), "nome": r[2] or r[0]}
+                    for r in conn.execute(text(sql), p).fetchall()}
+    return _tolerante(ler, {})
+
+
+def ler_bonus_mes(mes: date, vendedor_codigo: str | None = None) -> dict[str, dict]:
+    """{código: {valor, nome, justificativa}} dos bônus do mês. Com `vendedor_codigo`, só o dele."""
+    def ler():
+        sql, p = ((SQL_BONUS_DO_VENDEDOR, {"mes": mes, "codigo": vendedor_codigo}) if vendedor_codigo
+                  else (SQL_BONUS_DO_MES, {"mes": mes}))
+        with _get_users_engine().connect() as conn:
+            return {r[0]: {"valor": Decimal(r[1]), "nome": r[2] or r[0], "justificativa": r[3]}
+                    for r in conn.execute(text(sql), p).fetchall()}
+    return _tolerante(ler, {})
+
+
+def ler_tela_regras(mes_meta: date) -> dict:
+    """Tudo que a tela de Regras mostra (só gestor). Só SELECT; tabela ausente = vazio."""
+    out = {"vendedores": [], "acessos": [], "regras": [], "participacoes": [], "bases": [], "ofertas": [],
+           "categorias": [], "lancamentos": [], "janelas": {}, "metas": {}, "historico": []}
+
+    def ler():
+        with _get_users_engine().connect() as conn:
+            out["vendedores"] = [dict(zip(("codigo", "nome", "ativo", "criado_auto"), r))
+                                 for r in conn.execute(text(SQL_VEND_TODOS)).fetchall()]
+            out["acessos"] = [_linha_fila(("email", "nivel", "vendedor_codigo", "criado_por", "criado_em"), r)
+                              for r in conn.execute(text(SQL_ACESSOS_TODOS)).fetchall()]
+            out["regras"] = [dict(zip(_COLS_REGRA, r)) for r in conn.execute(text(SQL_REGRAS_TODAS)).fetchall()]
+            out["participacoes"] = [dict(zip(_COLS_PART, r))
+                                    for r in conn.execute(text(SQL_PARTS_TODAS)).fetchall()]
+            out["bases"] = [dict(zip(_COLS_BASE, r)) for r in conn.execute(text(SQL_BASES_TODAS)).fetchall()]
+            out["ofertas"] = [dict(zip(("codigo_do_preco", "nome_deste_preco", "codigo_at", "origem"), r))
+                              for r in conn.execute(text(SQL_OFERTAS_TODAS)).fetchall()]
+            out["categorias"] = sorted({r[0] for r in conn.execute(text(SQL_CATEGORIAS_BASE)).fetchall() if r[0]})
+            out["lancamentos"] = [tuple(r) for r in conn.execute(text(_SQL_JANELAS)).fetchall()]
+            out["historico"] = [_linha_fila(_COLS_HIST, r)
+                                for r in conn.execute(text(SQL_HISTORICO_100)).fetchall()]
+    _tolerante(ler, None)
+    out["janelas"] = ler_janelas_manuais(completo=True)
+    out["metas"] = ler_metas_mes(mes_meta)
+    return out
+
+
+def ler_categorias() -> list[str]:
+    """Categorias conhecidas (tabela de valores-base) — a regra por categoria só aceita estas."""
+    with _get_users_engine().connect() as conn:
+        return sorted({r[0] for r in conn.execute(text(SQL_CATEGORIAS_BASE)).fetchall() if r[0]})
+
+
+def ler_lancamentos() -> list[str]:
+    """Códigos do launch_config (só leitura) — a janela manual só aceita lançamento existente."""
+    with _get_users_engine().connect() as conn:
+        return sorted({str(r[0]) for r in conn.execute(text(_SQL_JANELAS)).fetchall() if r[0]})

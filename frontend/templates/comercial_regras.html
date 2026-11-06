@@ -1,0 +1,517 @@
+{% extends "base.html" %}
+{% from "_macros_comercial.html" import estilo with context %}
+{% block content %}
+{{ estilo() }}
+<style>
+.cm-msg { padding:var(--s2) var(--s4); border-radius:var(--bs-r-md); font-size:var(--fs-sm); margin-bottom:var(--s4); }
+.cm-msg.ok { background:var(--bs-success-bg); color:var(--bs-ink); }
+.cm-msg.erro { background:var(--bs-danger-bg); color:var(--bs-ink); }
+.cm-acao { display:flex; align-items:center; flex-wrap:wrap; gap:var(--s2); margin:0; }
+.cm-acao input[type=text], .cm-acao input[type=email], .cm-acao input[type=date], .cm-acao input[type=datetime-local],
+.cm-acao select, .cm-busca input[type=search] { font:inherit; font-size:var(--fs-xs); color:var(--bs-ink); background:var(--bs-card);
+  border:1px solid var(--bs-border-s); border-radius:var(--bs-r-sm); padding:var(--s1) var(--s2); }
+.cm-acao input[type=text] { width:192px; }
+.cm-acao input.curto { width:96px; }
+.cm-acao input[type=email] { width:256px; }
+.cm-acao .cm-btn { padding:var(--s1) var(--s2); font-size:var(--fs-xs); }
+.cm-btn.nao { border-color:var(--bs-danger); color:var(--bs-danger); }
+.cm-tabela details summary { cursor:pointer; font-size:var(--fs-xs); color:var(--bs-accent); font-weight:600; }
+.cm-tabela details[open] summary { margin-bottom:var(--s2); }
+.cm-busca { display:flex; align-items:center; flex-wrap:wrap; gap:var(--s2); margin-bottom:var(--s3); font-size:var(--fs-sm); }
+.cm-busca input[type=search] { width:256px; font-size:var(--fs-sm); }
+.cm-novo { margin:var(--s3) 0; padding:var(--s3) var(--s4); border:1px dashed var(--bs-border-s); border-radius:var(--bs-r-md); }
+.cm-novo > summary { cursor:pointer; font-size:var(--fs-sm); font-weight:700; color:var(--bs-accent); }
+.cm-novo[open] > summary { margin-bottom:var(--s3); }
+.cm-cats { display:flex; flex-wrap:wrap; gap:var(--s1) var(--s3); font-size:var(--fs-xs); max-width:768px; }
+.cm-aviso { font-size:var(--fs-xs); color:var(--bs-ink); background:var(--bs-warning-bg); border-radius:var(--bs-r-sm); padding:var(--s2) var(--s3); margin:var(--s2) 0; }
+.cm-hist td { font-size:var(--fs-xs); }
+.cm-antiga td { color:var(--bs-ink-muted); font-size:var(--fs-xs); }
+.cm-indice { display:flex; flex-wrap:wrap; gap:var(--s2); margin-bottom:var(--s4); }
+</style>
+{% set hoje_mes = v.inicio_padrao.isoformat() %}
+{% macro data_de(rotulo='a partir de') %}
+<label class="cm-sub">{{ rotulo }} <input type="date" name="vigente_de" value="{{ hoje_mes }}" min="2026-01-01" aria-label="Início da vigência"></label>
+{% endmacro %}
+{% macro vig(r) %}{{ r.vigente_de.strftime('%d/%m/%Y') }} → {{ r.vigente_ate.strftime('%d/%m/%Y') if r.vigente_ate else 'aberta' }}{% endmacro %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/comercial"><img src="/assets/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1><i class="ti ti-adjustments"></i> Comercial · Regras e vendedores</h1>
+      <p>Cadastro do comissionamento feito pelos gestores | toda alteração fica no histórico (quem, quando, antes → depois)</p>
+    </div>
+  </div>
+
+  <div class="content">
+    {% if v.msg_ok %}<div class="cm-msg ok" role="status"><i class="ti ti-circle-check"></i> {{ v.msg_ok }}</div>{% endif %}
+    {% if v.msg_erro %}<div class="cm-msg erro" role="alert"><i class="ti ti-alert-circle"></i> {{ v.msg_erro }}</div>{% endif %}
+
+    <nav class="cm-indice" aria-label="Seções">
+      {% for ancora, rotulo in [('vendedores','Vendedores'),('acessos','Acessos'),('percentuais','Percentuais'),('participacoes','Participações'),('valores-base','Valores-base'),('ofertas','Ofertas'),('janelas','Janela Reativa'),('metas','Metas do mês'),('historico','Histórico')] %}
+      <a class="bs-pill neutral" href="#{{ ancora }}">{{ rotulo }}</a>
+      {% endfor %}
+    </nav>
+
+    <div class="cm-validacao" role="note">
+      <i class="ti ti-history"></i>
+      <div><strong>Mudar percentual, valor-base ou participação cria uma nova versão.</strong>
+        A versão vigente é encerrada na véspera da data escolhida e a nova vale dali em diante — os meses anteriores continuam com o valor antigo.
+        A data padrão é o 1º dia do mês corrente.</div>
+    </div>
+
+    {# ------------------------------------------------------------ Vendedores #}
+    <div class="section" id="vendedores">
+      <div class="section-title" data-sec-key="comercial-regras-vendedores"><i class="ti ti-users"></i> Vendedores</div>
+      <div class="table-wrap">
+        <table class="cm-tabela">
+          <thead><tr><th class="th-dark">Código</th><th class="th-dark">Nome</th><th class="th-dark">Situação</th><th class="th-dark">Ações</th></tr></thead>
+          <tbody>
+            {% for ven in v.vendedores %}
+            <tr>
+              <td class="nome">{{ ven.codigo }}</td>
+              <td>{{ ven.nome }}{% if ven.criado_auto %} <span class="cm-chip manual" title="Criado automaticamente a partir de um código novo nas vendas">automático</span>{% endif %}</td>
+              <td>{% if ven.ativo %}<span class="cm-chip elegivel">ativo</span>{% else %}<span class="cm-chip cancelada">inativo</span>{% endif %}</td>
+              <td>
+                <div class="cm-acao">
+                  <details><summary>Renomear</summary>
+                    <form method="post" action="/comercial/regras/vendedores" class="cm-acao">
+                      <input type="hidden" name="acao" value="renomear"><input type="hidden" name="codigo" value="{{ ven.codigo }}">
+                      <input type="text" name="nome" value="{{ ven.nome }}" required maxlength="80" aria-label="Novo nome">
+                      <button type="submit" class="cm-btn">Salvar nome</button>
+                    </form>
+                  </details>
+                  <form method="post" action="/comercial/regras/vendedores" class="cm-acao">
+                    <input type="hidden" name="codigo" value="{{ ven.codigo }}">
+                    {% if ven.ativo %}
+                    <button type="submit" name="acao" value="desativar" class="cm-btn nao">Desativar</button>
+                    {% else %}
+                    <button type="submit" name="acao" value="ativar" class="cm-btn">Ativar</button>
+                    {% endif %}
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="cm-vazio">Nenhum vendedor cadastrado.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <details class="cm-novo"><summary>+ Novo vendedor</summary>
+        <form method="post" action="/comercial/regras/vendedores" class="cm-acao">
+          <input type="hidden" name="acao" value="criar">
+          <input type="text" class="curto" name="codigo" placeholder="AT14" required maxlength="8" aria-label="Código AT">
+          <input type="text" name="nome" placeholder="Nome" required maxlength="80" aria-label="Nome">
+          <button type="submit" class="cm-btn">Cadastrar</button>
+        </form>
+        <div class="cm-sub" style="margin-top:var(--s2);">O código é o AT usado na oferta (Hotmart) ou na UTM (TMB). Desativar não muda comissão já calculada; só tira o vendedor das listas.</div>
+      </details>
+    </div>
+
+    {# ------------------------------------------------------------ Acessos #}
+    <div class="section" id="acessos">
+      <div class="section-title" data-sec-key="comercial-regras-acessos"><i class="ti ti-key"></i> Acessos à área Comercial</div>
+      <div class="cm-sub" style="margin-bottom:var(--s2);">Master e coordenador veem e editam tudo; vendedor vê só as próprias vendas. Sem acesso aqui, a área responde 403. Administradores do painel entram como master.</div>
+      <div class="table-wrap">
+        <table class="cm-tabela">
+          <thead><tr><th class="th-dark">E-mail</th><th class="th-dark">Nível</th><th class="th-dark">Código</th><th class="th-dark">Ações</th></tr></thead>
+          <tbody>
+            {% for a in v.acessos %}
+            <tr>
+              <td class="nome">{{ a.email }}{% if a.email == v.meu_email %} <span class="cm-sub">(você)</span>{% endif %}</td>
+              <td>{{ v.niveis.get(a.nivel, a.nivel) }}</td>
+              <td>{{ a.vendedor_codigo or '—' }}</td>
+              <td>
+                {% if a.email != v.meu_email %}
+                <div class="cm-acao">
+                  <details><summary>Trocar nível</summary>
+                    <form method="post" action="/comercial/regras/acessos" class="cm-acao">
+                      <input type="hidden" name="acao" value="gravar"><input type="hidden" name="email" value="{{ a.email }}">
+                      <select name="nivel" aria-label="Nível">
+                        {% for n, rot in v.niveis.items() %}<option value="{{ n }}" {% if n == a.nivel %}selected{% endif %}>{{ rot }}</option>{% endfor %}
+                      </select>
+                      <select name="vendedor_codigo" aria-label="Código (só vendedor)">
+                        <option value="">— código (só vendedor) —</option>
+                        {% for ven in v.vendedores %}<option value="{{ ven.codigo }}" {% if ven.codigo == a.vendedor_codigo %}selected{% endif %}>{{ ven.nome }} ({{ ven.codigo }})</option>{% endfor %}
+                      </select>
+                      <button type="submit" class="cm-btn">Salvar</button>
+                    </form>
+                  </details>
+                  <form method="post" action="/comercial/regras/acessos" class="cm-acao"
+                        onsubmit="return confirm('Remover o acesso de {{ a.email }}?')">
+                    <input type="hidden" name="acao" value="remover"><input type="hidden" name="email" value="{{ a.email }}">
+                    <button type="submit" class="cm-btn nao">Remover</button>
+                  </form>
+                </div>
+                {% else %}<span class="cm-sub">o próprio acesso não se altera por aqui</span>{% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" class="cm-vazio">Nenhum acesso cadastrado.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <details class="cm-novo"><summary>+ Novo acesso</summary>
+        <form method="post" action="/comercial/regras/acessos" class="cm-acao">
+          <input type="hidden" name="acao" value="gravar">
+          <input type="email" name="email" placeholder="e-mail de login no painel" required maxlength="254" aria-label="E-mail">
+          <select name="nivel" aria-label="Nível">{% for n, rot in v.niveis.items() %}<option value="{{ n }}" {% if n == 'vendedor' %}selected{% endif %}>{{ rot }}</option>{% endfor %}</select>
+          <select name="vendedor_codigo" aria-label="Código (só vendedor)">
+            <option value="">— código (só vendedor) —</option>
+            {% for ven in v.vendedores_ativos %}<option value="{{ ven.codigo }}">{{ ven.nome }} ({{ ven.codigo }})</option>{% endfor %}
+          </select>
+          <button type="submit" class="cm-btn">Dar acesso</button>
+        </form>
+      </details>
+    </div>
+
+    {# ------------------------------------------------------------ Percentuais #}
+    <div class="section" id="percentuais">
+      <div class="section-title" data-sec-key="comercial-regras-percentuais"><i class="ti ti-percentage"></i> Percentuais</div>
+      <div class="cm-aviso"><i class="ti ti-info-circle"></i> Ordem de precedência: regra <strong>por categoria</strong> vence regra <strong>do vendedor</strong>, que vence a regra <strong>do time</strong>. Uma regra de categoria de um vendedor cobre só as vendas daquelas categorias.</div>
+      <div class="table-wrap">
+        <table class="cm-tabela">
+          <thead><tr>
+            <th class="th-dark">Plataforma</th><th class="th-dark">Modalidade</th><th class="th-dark">Tipo</th><th class="th-dark">Vale para</th>
+            <th class="th-dark n">%</th><th class="th-dark">Vigência</th><th class="th-dark">Ações</th>
+          </tr></thead>
+          <tbody>
+            {% for g in v.regras %}
+            {% set r = g.atual or g.historico[0] %}
+            <tr>
+              <td>{{ v.plataformas.get(g.plataforma, g.plataforma) }}</td>
+              <td>{{ v.modalidades.get(g.modalidade, g.modalidade) }}</td>
+              <td>{{ g.tipo }}{% if r.forca_tipo %} <span class="cm-chip manual" title="Venda que casa com esta regra ignora a janela Reativa">força {{ r.forca_tipo }}</span>{% endif %}</td>
+              <td>{{ g.vendedor or 'time' }}{% if g.categorias %} · <span class="cm-sub">{{ g.categorias | join(', ') }}</span>{% endif %}</td>
+              <td class="n td-bold">{{ r.pct | pct_taxa }}</td>
+              <td style="white-space:nowrap;">{{ vig(r) }}{% if not g.atual %} <span class="cm-chip cancelada">encerrada</span>{% endif %}</td>
+              <td>
+                {% if g.atual %}
+                <div class="cm-acao">
+                  <details><summary>Nova versão</summary>
+                    <form method="post" action="/comercial/regras/percentuais" class="cm-acao">
+                      <input type="hidden" name="acao" value="versao"><input type="hidden" name="id" value="{{ g.atual.id }}">
+                      <input type="text" class="curto" name="pct" placeholder="% (ex. 4,5)" required inputmode="decimal" aria-label="Novo percentual">
+                      {{ data_de() }}
+                      <button type="submit" class="cm-btn">Gravar versão</button>
+                    </form>
+                  </details>
+                  <details><summary>Encerrar</summary>
+                    <form method="post" action="/comercial/regras/percentuais" class="cm-acao">
+                      <input type="hidden" name="acao" value="encerrar"><input type="hidden" name="id" value="{{ g.atual.id }}">
+                      {{ data_de('deixa de valer em') }}
+                      <button type="submit" class="cm-btn nao">Encerrar regra</button>
+                    </form>
+                  </details>
+                </div>
+                {% endif %}
+              </td>
+            </tr>
+            {% for h in (g.historico if g.atual else g.historico[1:]) %}
+            <tr class="cm-antiga"><td colspan="4" style="padding-left:var(--s6);">versão anterior</td><td class="n">{{ h.pct | pct_taxa }}</td><td>{{ vig(h) }}</td><td></td></tr>
+            {% endfor %}
+            {% else %}
+            <tr><td colspan="7" class="cm-vazio">Nenhuma regra cadastrada.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <details class="cm-novo"><summary>+ Nova regra de percentual</summary>
+        <form method="post" action="/comercial/regras/percentuais" class="cm-acao" style="align-items:flex-start;flex-direction:column;">
+          <input type="hidden" name="acao" value="nova">
+          <div class="cm-acao">
+            <select name="plataforma" aria-label="Plataforma">{% for k, rot in v.plataformas.items() %}<option value="{{ k }}">{{ rot }}</option>{% endfor %}</select>
+            <select name="modalidade" aria-label="Modalidade">{% for k, rot in v.modalidades.items() %}<option value="{{ k }}">{{ rot }}</option>{% endfor %}</select>
+            <select name="tipo" aria-label="Tipo">{% for t in v.tipos %}<option value="{{ t }}">{{ t }}</option>{% endfor %}</select>
+            <select name="vendedor_codigo" aria-label="Vendedor">
+              <option value="">Time inteiro</option>
+              {% for ven in v.vendedores %}<option value="{{ ven.codigo }}">{{ ven.nome }} ({{ ven.codigo }})</option>{% endfor %}
+            </select>
+            <input type="text" class="curto" name="pct" placeholder="% (ex. 4)" required inputmode="decimal" aria-label="Percentual">
+            {{ data_de() }}
+          </div>
+          <div class="cm-sub">Só para as categorias (nenhuma marcada = todas):</div>
+          <div class="cm-cats">
+            {% for c in v.categorias %}<label><input type="checkbox" name="categorias" value="{{ c }}"> {{ c }}</label>{% endfor %}
+          </div>
+          <div class="cm-acao">
+            <label class="cm-sub">Forçar tipo <select name="forca_tipo" aria-label="Forçar tipo"><option value="">não</option>{% for t in v.tipos %}<option value="{{ t }}">{{ t }} (igual ao tipo da regra)</option>{% endfor %}</select></label>
+            <button type="submit" class="cm-btn">Cadastrar regra</button>
+          </div>
+          <div class="cm-aviso"><i class="ti ti-alert-triangle"></i> Uma regra <strong>por categoria</strong> tem precedência sobre as regras específicas do vendedor: marcar categorias aqui muda o % dessas vendas mesmo que o vendedor tenha regra própria.</div>
+        </form>
+      </details>
+    </div>
+
+    {# ------------------------------------------------------------ Participações #}
+    <div class="section" id="participacoes">
+      <div class="section-title" data-sec-key="comercial-regras-participacoes"><i class="ti ti-users-group"></i> Participações no time</div>
+      <div class="cm-sub" style="margin-bottom:var(--s2);">Percentual sobre as vendas de todos os vendedores (ex.: supervisão). Fica fora do total a pagar dos vendedores.</div>
+      <div class="table-wrap">
+        <table class="cm-tabela">
+          <thead><tr><th class="th-dark">Beneficiário</th><th class="th-dark n">Sobre Ativa</th><th class="th-dark n">Sobre Reativa</th><th class="th-dark">Vigência</th><th class="th-dark">Ações</th></tr></thead>
+          <tbody>
+            {% for g in v.participacoes %}
+            {% set p = g.atual or g.historico[0] %}
+            <tr>
+              <td class="nome">{{ g.beneficiario }}{% if g.codigo %} <span class="cm-sub">({{ g.codigo }})</span>{% endif %}</td>
+              <td class="n td-bold">{{ p.pct_ativa | pct_taxa }}</td>
+              <td class="n td-bold">{{ p.pct_reativa | pct_taxa }}</td>
+              <td style="white-space:nowrap;">{{ vig(p) }}{% if not g.atual %} <span class="cm-chip cancelada">encerrada</span>{% endif %}</td>
+              <td>
+                {% if g.atual %}
+                <div class="cm-acao">
+                  <details><summary>Nova versão</summary>
+                    <form method="post" action="/comercial/regras/participacoes" class="cm-acao">
+                      <input type="hidden" name="acao" value="versao"><input type="hidden" name="id" value="{{ g.atual.id }}">
+                      <input type="text" class="curto" name="pct_ativa" placeholder="% Ativa" required inputmode="decimal" aria-label="% sobre Ativa">
+                      <input type="text" class="curto" name="pct_reativa" placeholder="% Reativa" required inputmode="decimal" aria-label="% sobre Reativa">
+                      {{ data_de() }}
+                      <button type="submit" class="cm-btn">Gravar versão</button>
+                    </form>
+                  </details>
+                  <details><summary>Encerrar</summary>
+                    <form method="post" action="/comercial/regras/participacoes" class="cm-acao">
+                      <input type="hidden" name="acao" value="encerrar"><input type="hidden" name="id" value="{{ g.atual.id }}">
+                      {{ data_de('deixa de valer em') }}
+                      <button type="submit" class="cm-btn nao">Encerrar</button>
+                    </form>
+                  </details>
+                </div>
+                {% endif %}
+              </td>
+            </tr>
+            {% for h in (g.historico if g.atual else g.historico[1:]) %}
+            <tr class="cm-antiga"><td style="padding-left:var(--s6);">versão anterior</td><td class="n">{{ h.pct_ativa | pct_taxa }}</td><td class="n">{{ h.pct_reativa | pct_taxa }}</td><td>{{ vig(h) }}</td><td></td></tr>
+            {% endfor %}
+            {% else %}
+            <tr><td colspan="5" class="cm-vazio">Nenhuma participação cadastrada.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <details class="cm-novo"><summary>+ Nova participação</summary>
+        <form method="post" action="/comercial/regras/participacoes" class="cm-acao">
+          <input type="hidden" name="acao" value="nova">
+          <input type="text" name="beneficiario" placeholder="Beneficiário (nome)" required maxlength="80" aria-label="Beneficiário">
+          <select name="beneficiario_codigo" aria-label="Código do beneficiário">
+            <option value="">sem código de vendedor</option>
+            {% for ven in v.vendedores %}<option value="{{ ven.codigo }}">{{ ven.nome }} ({{ ven.codigo }})</option>{% endfor %}
+          </select>
+          <input type="text" class="curto" name="pct_ativa" placeholder="% Ativa" required inputmode="decimal" aria-label="% sobre Ativa">
+          <input type="text" class="curto" name="pct_reativa" placeholder="% Reativa" required inputmode="decimal" aria-label="% sobre Reativa">
+          {{ data_de() }}
+          <button type="submit" class="cm-btn">Cadastrar</button>
+        </form>
+        <div class="cm-sub" style="margin-top:var(--s2);">Com código de vendedor, o beneficiário não recebe participação sobre as próprias vendas.</div>
+      </details>
+    </div>
+
+    {# ------------------------------------------------------------ Valores-base #}
+    <div class="section" id="valores-base">
+      <div class="section-title" data-sec-key="comercial-regras-bases"><i class="ti ti-calculator"></i> Valores-base</div>
+      <form method="get" action="/comercial/regras#valores-base" class="cm-busca">
+        {% if v.q_oferta %}<input type="hidden" name="q_oferta" value="{{ v.q_oferta }}">{% endif %}
+        <input type="hidden" name="mes_meta" value="{{ v.mes_meta_txt }}">
+        <input type="search" name="q_base" value="{{ v.q_base }}" placeholder="valor (1.477 ou 89,90) ou categoria" aria-label="Buscar valor-base">
+        <button type="submit" class="cm-btn">Buscar</button>
+        <span class="cm-sub">{{ v.bases_total | num }} de {{ v.bases_cadastradas | num }} linhas{% if v.bases_total > v.limite %} · mostrando as {{ v.limite }} primeiras: refine a busca{% endif %}</span>
+      </form>
+      <div class="table-wrap">
+        <table class="cm-tabela">
+          <thead><tr><th class="th-dark">Plataforma</th><th class="th-dark n">Valor cobrado</th><th class="th-dark n">Valor-base</th><th class="th-dark">Categoria</th><th class="th-dark">Vigência</th><th class="th-dark">Ações</th></tr></thead>
+          <tbody>
+            {% for b in v.bases %}
+            <tr class="{{ 'cm-antiga' if b.vigente_ate }}">
+              <td>{{ v.plataformas.get(b.plataforma, b.plataforma) }}</td>
+              <td class="n">{{ b.valor_cobrado | brl_exato }}</td>
+              <td class="n td-bold">{{ b.valor_base | brl_exato }}</td>
+              <td>{{ b.categoria or '—' }}</td>
+              <td style="white-space:nowrap;">{{ vig(b) }}</td>
+              <td>
+                {% if not b.vigente_ate %}
+                <details><summary>Nova versão</summary>
+                  <form method="post" action="/comercial/regras/bases" class="cm-acao">
+                    <input type="hidden" name="acao" value="versao"><input type="hidden" name="id" value="{{ b.id }}">
+                    <input type="hidden" name="q_base" value="{{ v.q_base }}">
+                    <input type="text" class="curto" name="valor_base" placeholder="base R$" required inputmode="decimal" aria-label="Novo valor-base">
+                    <input type="text" class="curto" name="categoria" value="{{ b.categoria }}" required maxlength="80" aria-label="Categoria">
+                    {{ data_de() }}
+                    <button type="submit" class="cm-btn">Gravar versão</button>
+                  </form>
+                </details>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="6" class="cm-vazio">Nenhum valor-base encontrado.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <details class="cm-novo"><summary>+ Novo valor-base</summary>
+        <form method="post" action="/comercial/regras/bases" class="cm-acao">
+          <input type="hidden" name="acao" value="nova"><input type="hidden" name="q_base" value="{{ v.q_base }}">
+          <select name="plataforma" aria-label="Plataforma">{% for k, rot in v.plataformas.items() %}<option value="{{ k }}">{{ rot }}</option>{% endfor %}</select>
+          <input type="text" class="curto" name="valor_cobrado" placeholder="cobrado R$" required inputmode="decimal" aria-label="Valor cobrado">
+          <input type="text" class="curto" name="valor_base" placeholder="base R$" required inputmode="decimal" aria-label="Valor-base">
+          <input type="text" class="curto" name="categoria" placeholder="LEAD" required maxlength="80" list="cm-categorias" aria-label="Categoria">
+          {{ data_de() }}
+          <button type="submit" class="cm-btn">Cadastrar</button>
+        </form>
+        <datalist id="cm-categorias">{% for c in v.categorias %}<option value="{{ c }}">{% endfor %}</datalist>
+        <div class="cm-sub" style="margin-top:var(--s2);">Valor cobrado = o "VLR ENTRADA" da venda (Hotmart: valor de compra sem impostos + taxa de processamento).</div>
+      </details>
+    </div>
+
+    {# ------------------------------------------------------------ Ofertas #}
+    <div class="section" id="ofertas">
+      <div class="section-title" data-sec-key="comercial-regras-ofertas"><i class="ti ti-tag"></i> Ofertas (código do preço → nome)</div>
+      <div class="cm-sub" style="margin-bottom:var(--s2);">Usado quando a venda da Hotmart chega sem o nome da oferta: o nome traz o código AT do vendedor.</div>
+      <form method="get" action="/comercial/regras#ofertas" class="cm-busca">
+        {% if v.q_base %}<input type="hidden" name="q_base" value="{{ v.q_base }}">{% endif %}
+        <input type="hidden" name="mes_meta" value="{{ v.mes_meta_txt }}">
+        <input type="search" name="q_oferta" value="{{ v.q_oferta }}" placeholder="código do preço ou nome" aria-label="Buscar oferta">
+        <button type="submit" class="cm-btn">Buscar</button>
+        <span class="cm-sub">{{ v.ofertas_total | num }} ofertas{% if v.ofertas_total > v.limite %} · mostrando as {{ v.limite }} primeiras{% endif %}</span>
+      </form>
+      <div class="table-wrap">
+        <table class="cm-tabela">
+          <thead><tr><th class="th-dark">Código do preço</th><th class="th-dark">Nome da oferta</th><th class="th-dark">Código AT</th><th class="th-dark">Origem</th><th class="th-dark">Corrigir</th></tr></thead>
+          <tbody>
+            {% for o in v.ofertas %}
+            <tr>
+              <td style="white-space:nowrap;">{{ o.codigo_do_preco }}</td>
+              <td>{{ o.nome_deste_preco }}</td>
+              <td>{{ o.codigo_at or '—' }}</td>
+              <td class="cm-sub">{{ o.origem }}</td>
+              <td>
+                <details><summary>Corrigir nome</summary>
+                  <form method="post" action="/comercial/regras/ofertas" class="cm-acao">
+                    <input type="hidden" name="codigo_do_preco" value="{{ o.codigo_do_preco }}"><input type="hidden" name="q_oferta" value="{{ v.q_oferta }}">
+                    <input type="text" name="nome" value="{{ o.nome_deste_preco }}" required maxlength="200" aria-label="Nome da oferta">
+                    <button type="submit" class="cm-btn">Salvar</button>
+                  </form>
+                </details>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="cm-vazio">Nenhuma oferta encontrada.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <details class="cm-novo"><summary>+ Nova oferta</summary>
+        <form method="post" action="/comercial/regras/ofertas" class="cm-acao">
+          <input type="hidden" name="q_oferta" value="{{ v.q_oferta }}">
+          <input type="text" class="curto" name="codigo_do_preco" placeholder="código do preço" required maxlength="64" aria-label="Código do preço">
+          <input type="text" name="nome" placeholder="COM. LEAD - AT9" required maxlength="200" aria-label="Nome da oferta">
+          <button type="submit" class="cm-btn">Cadastrar</button>
+        </form>
+      </details>
+    </div>
+
+    {# ------------------------------------------------------------ Janela Reativa #}
+    <div class="section" id="janelas">
+      <div class="section-title" data-sec-key="comercial-regras-janelas"><i class="ti ti-calendar-time"></i> Janela Reativa por lançamento</div>
+      <div class="cm-sub" style="margin-bottom:var(--s2);">Automática: segunda da semana da live 00:00 → segunda seguinte 23:59:59 (data do lançamento nas Configurações). A janela manual vence a automática e também cobre lançamento sem data.</div>
+      <div class="table-wrap">
+        <table class="cm-tabela">
+          <thead><tr><th class="th-dark">Lançamento</th><th class="th-dark">Live</th><th class="th-dark">Janela automática</th><th class="th-dark">Janela manual</th><th class="th-dark">Ações</th></tr></thead>
+          <tbody>
+            {% for j in v.janelas %}
+            {% set base_j = (j.manual.inicio, j.manual.fim) if j.manual else j.auto %}
+            <tr>
+              <td class="nome">{{ j.lancamento }}</td>
+              <td>{{ j.live.strftime('%d/%m/%Y') if j.live else '' }}{% if not j.live %}<span class="cm-chip inconsistente">sem data</span>{% endif %}</td>
+              <td class="cm-sub" style="white-space:nowrap;">{% if j.auto %}{{ j.auto[0].strftime('%d/%m %H:%M') }} → {{ j.auto[1].strftime('%d/%m/%Y %H:%M') }}{% else %}—{% endif %}</td>
+              <td style="white-space:nowrap;">{% if j.manual %}<strong>{{ j.manual.inicio.strftime('%d/%m %H:%M') }} → {{ j.manual.fim.strftime('%d/%m/%Y %H:%M') }}</strong> <span class="cm-sub">por {{ j.manual.criado_por }}</span>{% else %}—{% endif %}</td>
+              <td>
+                <div class="cm-acao">
+                  <details><summary>{{ 'Alterar' if j.manual else 'Definir manual' }}</summary>
+                    <form method="post" action="/comercial/regras/janelas" class="cm-acao">
+                      <input type="hidden" name="acao" value="gravar"><input type="hidden" name="lancamento" value="{{ j.lancamento }}">
+                      <input type="datetime-local" name="inicio" step="1" required value="{{ base_j[0].strftime('%Y-%m-%dT%H:%M:%S') if base_j else '' }}" aria-label="Início">
+                      <input type="datetime-local" name="fim" step="1" required value="{{ base_j[1].strftime('%Y-%m-%dT%H:%M:%S') if base_j else '' }}" aria-label="Fim">
+                      <button type="submit" class="cm-btn">Gravar</button>
+                    </form>
+                  </details>
+                  {% if j.manual %}
+                  <form method="post" action="/comercial/regras/janelas" class="cm-acao">
+                    <input type="hidden" name="acao" value="remover"><input type="hidden" name="lancamento" value="{{ j.lancamento }}">
+                    <button type="submit" class="cm-btn nao">Voltar à automática</button>
+                  </form>
+                  {% endif %}
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="cm-vazio">Nenhum lançamento nas Configurações.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {# ------------------------------------------------------------ Metas #}
+    <div class="section" id="metas">
+      <div class="section-title" data-sec-key="comercial-regras-metas"><i class="ti ti-target"></i> Metas do mês</div>
+      <form method="get" action="/comercial/regras#metas" class="cm-busca">
+        <label class="cm-sub">Mês <select name="mes_meta" onchange="this.form.submit()" aria-label="Mês da meta">
+          {% for valor, rotulo in v.meses_meta %}<option value="{{ valor }}" {% if valor == v.mes_meta_txt %}selected{% endif %}>{{ rotulo }}</option>{% endfor %}
+        </select></label>
+        <noscript><button type="submit" class="cm-btn">Ver</button></noscript>
+        <span class="cm-sub">Meta = valor vendido (soma do valor-base) no mês. Aparece no Ranking como "% da meta"; cada vendedor vê só a própria.</span>
+      </form>
+      <div class="table-wrap">
+        <table class="cm-tabela">
+          <thead><tr><th class="th-dark">Vendedor</th><th class="th-dark n">Meta atual</th><th class="th-dark">Definir</th></tr></thead>
+          <tbody>
+            {% for m in v.metas %}
+            <tr>
+              <td class="nome">{{ m.nome }} <span class="cm-sub">({{ m.codigo }})</span></td>
+              <td class="n">{{ m.meta | brl_exato }}</td>
+              <td>
+                <form method="post" action="/comercial/regras/metas" class="cm-acao">
+                  <input type="hidden" name="vendedor_codigo" value="{{ m.codigo }}"><input type="hidden" name="mes" value="{{ v.mes_meta_txt }}">
+                  <input type="text" class="curto" name="valor" placeholder="R$" required inputmode="decimal" aria-label="Meta de {{ m.nome }}">
+                  <button type="submit" class="cm-btn">Salvar</button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3" class="cm-vazio">Nenhum vendedor ativo.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {# ------------------------------------------------------------ Histórico #}
+    <div class="section" id="historico">
+      <div class="section-title" data-sec-key="comercial-regras-historico"><i class="ti ti-history"></i> Histórico (últimas 100 alterações da área)</div>
+      {% if v.historico %}
+      <div class="table-wrap">
+        <table class="cm-tabela cm-hist">
+          <thead><tr><th class="th-dark">Quando</th><th class="th-dark">Quem</th><th class="th-dark">Tabela</th><th class="th-dark">Registro</th><th class="th-dark">Campo</th><th class="th-dark">Antes</th><th class="th-dark">Depois</th></tr></thead>
+          <tbody>
+            {% for h in v.historico %}
+            <tr>
+              <td style="white-space:nowrap;">{{ h.em.strftime('%d/%m/%Y %H:%M') if h.em else '' }}</td>
+              <td>{{ h.por or '' }}</td>
+              <td>{{ (h.tabela or '') | replace('comercial_', '') }}</td>
+              <td>{{ h.registro_id }}</td>
+              <td>{{ h.campo }}</td>
+              <td>{{ h.antes if h.antes is not none else '—' }}</td>
+              <td>{{ h.depois if h.depois is not none else '—' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}<div class="cm-vazio">Nenhuma alteração registrada ainda.</div>{% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

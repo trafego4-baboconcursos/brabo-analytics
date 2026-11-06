@@ -169,13 +169,21 @@ async def comercial_visao(request: Request, mes: str | None = None,
         t, periodo, res, hoje = await _carregar(mes, inicio, fim, acesso)
     except _Recusa as r:
         return r.resposta
+    bonus, metas = await run_in_threadpool(t.ler_extras, periodo, acesso)
     return await _pagina(request, "comercial_visao", "Comercial · Visão geral", "comercial_visao.html",
-                         t.view_visao(res, periodo, acesso), hoje)
+                         t.view_visao(res, periodo, acesso, bonus, metas), hoje)
+
+
+async def _view_comissoes(t, res, periodo, acesso, vendedor):
+    bonus, _metas = await run_in_threadpool(t.ler_extras, periodo, acesso)
+    ativos = await run_in_threadpool(t.ler_vendedores_ativos) if t.e_gestor(acesso) and bonus is not None else []
+    return t.view_comissoes(res, periodo, acesso, (vendedor or "").strip().upper() or None, bonus, ativos)
 
 
 @router.get("/comercial/comissoes", response_class=HTMLResponse)
 async def comercial_comissoes(request: Request, mes: str | None = None, inicio: str | None = None,
-                              fim: str | None = None, vendedor: str | None = None):
+                              fim: str | None = None, vendedor: str | None = None,
+                              ok: str | None = None, erro: str | None = None):
     acesso = await _acesso(request)
     if acesso is None:
         return resposta_403()
@@ -183,8 +191,12 @@ async def comercial_comissoes(request: Request, mes: str | None = None, inicio: 
         t, periodo, res, hoje = await _carregar(mes, inicio, fim, acesso)
     except _Recusa as r:
         return r.resposta
+    view = await _view_comissoes(t, res, periodo, acesso, vendedor)
+    rt = _rt()
+    view["msg_ok"] = rt.MENSAGENS_OK.get(ok or "") if view["gestor"] else None
+    view["msg_erro"] = rt.MENSAGENS_ERRO.get(erro or "") if view["gestor"] else None
     return await _pagina(request, "comercial_comissoes", "Comercial · Comissões", "comercial_comissoes.html",
-                         t.view_comissoes(res, periodo, acesso, (vendedor or "").strip().upper() or None), hoje)
+                         view, hoje)
 
 
 @router.get("/comercial/comissoes.xlsx")
@@ -197,7 +209,7 @@ async def comercial_comissoes_xlsx(request: Request, mes: str | None = None, ini
         t, periodo, res, _ = await _carregar(mes, inicio, fim, acesso)
     except _Recusa as r:
         return r.resposta
-    view = t.view_comissoes(res, periodo, acesso, (vendedor or "").strip().upper() or None)
+    view = await _view_comissoes(t, res, periodo, acesso, vendedor)
     corpo = await run_in_threadpool(t.planilha_xlsx, view)
     sufixo = f"{periodo.mes:%Y-%m}" if not periodo.livre else f"{periodo.inicio}_{periodo.fim}"
     if view["vendedor"]:
@@ -221,8 +233,9 @@ async def comercial_ranking(request: Request, mes: str | None = None, inicio: st
         t, periodo, res, hoje = await _carregar(mes, inicio, fim, acesso)
     except _Recusa as r:
         return r.resposta
+    _bonus, metas = await run_in_threadpool(t.ler_extras, periodo, acesso)
     return await _pagina(request, "comercial_ranking", "Comercial · Ranking", "comercial_ranking.html",
-                         t.view_ranking(res, periodo, acesso, ordem), hoje)
+                         t.view_ranking(res, periodo, acesso, ordem, metas), hoje)
 
 
 @router.post("/comercial/recalcular")
@@ -405,3 +418,264 @@ async def comercial_ajuste(request: Request, transacao: str = Form(""), pct: str
         com.gravar_ajuste(t, inc.plataforma_de(t), p, b, j, email)
         return "ajuste", t, True
     return await _acao(request, "aprovar", mes, executar)
+
+
+# ── Área Comercial: Regras e vendedores + bônus (Task 7a) ─────────────────────
+# Só gestor. Cada POST: nível checado aqui, entrada validada no serviço (400), escrita exata +
+# histórico na mesma transação, 303 de volta com código de mensagem. O que muda o cálculo marca
+# o snapshot dos meses afetados como desatualizado DEPOIS do commit; meta e bônus não mudam
+# linha nenhuma (são lidos na hora da tela) e não invalidam nada.
+_URL_REGRAS = "/comercial/regras"
+
+
+def _rt():
+    from frontend.services.comercial import regras_tela  # noqa: PLC0415
+    return regras_tela
+
+
+def _destino(base: str, ancora: str = "", **qs) -> str:
+    from urllib.parse import urlencode  # noqa: PLC0415
+    params = {k: v for k, v in qs.items() if v}
+    return base + ("?" + urlencode(params) if params else "") + (f"#{ancora}" if ancora else "")
+
+
+async def _acao_cadastro(request: Request, permissao: str, executar, *, base: str = _URL_REGRAS,
+                         ancora: str = "", qs: dict | None = None):
+    """`executar(acesso, email)` -> (código ok, meses a invalidar). Meses: False = nada,
+    None = todos, lista = esses."""
+    from frontend.services.comercial import acesso as ac  # noqa: PLC0415
+    from frontend.services.comercial import snapshot as snap  # noqa: PLC0415
+    acesso = await _acesso(request)
+    if acesso is None or not ac.pode(acesso.nivel, permissao):
+        return resposta_403()
+    email = (_get_current_user(request).get("email") or "").strip().lower()
+    if not email:
+        return resposta_403()  # toda escrita precisa de autor no histórico
+    rt, com = _rt(), _com()
+    qs = qs or {}
+    try:
+        ok, invalidar = await run_in_threadpool(executar, acesso, email)
+    except rt.EntradaInvalida as exc:
+        return resposta_400(str(exc), "Pedido inválido", _destino(base, ancora, **qs), "← Voltar")
+    except com.EscritaRecusada as exc:
+        return RedirectResponse(_destino(base, ancora, **qs, erro=exc.codigo), status_code=303)
+    if invalidar is not False:
+        try:
+            for m in ([None] if invalidar is None else invalidar):
+                await run_in_threadpool(snap.marcar_desatualizado, m)
+        except Exception:  # noqa: BLE001 — a escrita já foi; avisa para recalcular à mão
+            import logging  # noqa: PLC0415
+            logging.getLogger("comercial.regras").exception("marcar_desatualizado")
+            return RedirectResponse(_destino(base, ancora, **qs, ok=ok, erro="nao_invalidou"), status_code=303)
+    return RedirectResponse(_destino(base, ancora, **qs, ok=ok), status_code=303)
+
+
+@router.get("/comercial/regras", response_class=HTMLResponse)
+async def comercial_regras(request: Request, mes_meta: str | None = None, q_base: str | None = None,
+                           q_oferta: str | None = None, ok: str | None = None, erro: str | None = None):
+    from frontend.services.comercial import acesso as ac  # noqa: PLC0415
+    acesso = await _acesso(request)
+    if acesso is None or not ac.pode(acesso.nivel, "editar_regras"):
+        return resposta_403()
+    rt, com = _rt(), _com()
+    hoje = _hoje()
+    try:
+        m = rt.mes(mes_meta, hoje, ate_proximo=True)
+    except rt.EntradaInvalida as exc:
+        return resposta_400(str(exc), "Pedido inválido", _URL_REGRAS, "← Voltar para Regras")
+    dados = await run_in_threadpool(com.ler_tela_regras, m)
+    view = rt.view_regras(dados, hoje, m, q_base, q_oferta)
+    view["msg_ok"] = rt.MENSAGENS_OK.get(ok or "")
+    view["msg_erro"] = rt.MENSAGENS_ERRO.get(erro or "")
+    view["meu_email"] = (_get_current_user(request).get("email") or "").strip().lower()
+    launches = await run_in_threadpool(get_launches)
+    ctx = _base_ctx(request, "comercial_regras", "Comercial · Regras e vendedores", None, launches, v=view)
+    return templates.TemplateResponse("comercial_regras.html", ctx)
+
+
+@router.post("/comercial/regras/vendedores")
+async def comercial_regras_vendedores(request: Request, acao: str = Form(""), codigo: str = Form(""),
+                                      nome: str = Form("")):
+    def executar(acesso, email):
+        rt, com = _rt(), _com()
+        c = rt.limpar_codigo(codigo)
+        if acao == "criar":
+            com.criar_vendedor(c, rt.texto(nome, "Nome"), email)
+            return "vendedor_criado", None  # código já visto nas vendas troca "Vendedor N" pelo nome
+        if acao == "renomear":
+            com.renomear_vendedor(c, rt.texto(nome, "Nome"), email)
+            return "vendedor_renomeado", None  # o nome vai gravado nas linhas do snapshot
+        if acao in ("ativar", "desativar"):
+            com.definir_vendedor_ativo(c, acao == "ativar", email)
+            return "vendedor_ativo", False  # "ativo" não entra no cálculo
+        raise rt.EntradaInvalida("Ação inválida.")
+    return await _acao_cadastro(request, "editar_regras", executar, ancora="vendedores")
+
+
+@router.post("/comercial/regras/acessos")
+async def comercial_regras_acessos(request: Request, acao: str = Form(""), email: str = Form(""),
+                                   nivel: str = Form(""), vendedor_codigo: str = Form("")):
+    def executar(acesso, autor):
+        from frontend.services.comercial import acesso as ac  # noqa: PLC0415
+        rt, com = _rt(), _com()
+        alvo = rt.email(email)
+        if acao == "remover":
+            rt.conferir_acesso_proprio(alvo, autor, None)
+            com.remover_acesso(alvo, autor)
+            ac.limpar_cache()
+            return "acesso_removido", False
+        if acao == "gravar":
+            n = rt.escolha(nivel, rt.NIVEIS, "Nível")
+            rt.conferir_acesso_proprio(alvo, autor, n)
+            cod = rt.limpar_codigo(vendedor_codigo) if n == "vendedor" else None
+            com.gravar_acesso(alvo, n, cod, autor)
+            ac.limpar_cache()
+            return "acesso_gravado", False
+        raise rt.EntradaInvalida("Ação inválida.")
+    return await _acao_cadastro(request, "editar_regras", executar, ancora="acessos")
+
+
+@router.post("/comercial/regras/percentuais")
+async def comercial_regras_percentuais(request: Request, acao: str = Form(""), id: str = Form(""),
+                                       pct: str = Form(""), vigente_de: str = Form(""),
+                                       plataforma: str = Form(""), modalidade: str = Form(""),
+                                       tipo: str = Form(""), vendedor_codigo: str = Form(""),
+                                       categorias: list[str] = Form([]), forca_tipo: str = Form("")):
+    def executar(acesso, email):
+        rt, com = _rt(), _com()
+        hoje = _hoje()
+        de = rt.data_inicio(vigente_de, hoje)
+        if acao == "versao":
+            com.nova_versao_regra(_id(id), rt.pct(pct), de, email)
+            return "regra_versionada", rt.meses_desde(de, hoje)
+        if acao == "encerrar":
+            com.encerrar_regra(_id(id), de, email)
+            return "regra_encerrada", rt.meses_desde(de, hoje)
+        if acao == "nova":
+            t = rt.escolha(tipo, rt.TIPOS, "Tipo")
+            com.nova_regra(rt.escolha(plataforma, rt.PLATAFORMAS, "Plataforma"),
+                           rt.escolha(modalidade, rt.MODALIDADES, "Modalidade"), t, rt.pct(pct),
+                           rt.codigo_opcional(vendedor_codigo),
+                           rt.categorias(categorias, _categorias_conhecidas()) if categorias else None,
+                           rt.forca_tipo(forca_tipo, t), de, email)
+            return "regra_criada", rt.meses_desde(de, hoje)
+        raise rt.EntradaInvalida("Ação inválida.")
+    return await _acao_cadastro(request, "editar_regras", executar, ancora="percentuais")
+
+
+def _id(txt: str) -> int:
+    t = (txt or "").strip()
+    if not t.isdigit() or len(t) > 9:
+        raise _rt().EntradaInvalida("Registro inválido.")
+    return int(t)
+
+
+def _categorias_conhecidas() -> set[str]:
+    from frontend.services.comercial.tabelas import BASE_TMB_POR_CATEGORIA  # noqa: PLC0415
+    return set(_com().ler_categorias()) | set(BASE_TMB_POR_CATEGORIA)
+
+
+@router.post("/comercial/regras/participacoes")
+async def comercial_regras_participacoes(request: Request, acao: str = Form(""), id: str = Form(""),
+                                         pct_ativa: str = Form(""), pct_reativa: str = Form(""),
+                                         vigente_de: str = Form(""), beneficiario: str = Form(""),
+                                         beneficiario_codigo: str = Form("")):
+    def executar(acesso, email):
+        rt, com = _rt(), _com()
+        hoje = _hoje()
+        de = rt.data_inicio(vigente_de, hoje)
+        if acao == "versao":
+            com.nova_versao_participacao(_id(id), rt.pct(pct_ativa, "% sobre Ativa"),
+                                         rt.pct(pct_reativa, "% sobre Reativa"), de, email)
+            return "part_versionada", rt.meses_desde(de, hoje)
+        if acao == "encerrar":
+            com.encerrar_participacao(_id(id), de, email)
+            return "part_encerrada", rt.meses_desde(de, hoje)
+        if acao == "nova":
+            com.nova_participacao(rt.texto(beneficiario, "Beneficiário"), rt.codigo_opcional(beneficiario_codigo),
+                                  rt.pct(pct_ativa, "% sobre Ativa"), rt.pct(pct_reativa, "% sobre Reativa"),
+                                  de, email)
+            return "part_criada", rt.meses_desde(de, hoje)
+        raise rt.EntradaInvalida("Ação inválida.")
+    return await _acao_cadastro(request, "editar_participacoes", executar, ancora="participacoes")
+
+
+@router.post("/comercial/regras/bases")
+async def comercial_regras_bases(request: Request, acao: str = Form(""), id: str = Form(""),
+                                 valor_base: str = Form(""), categoria: str = Form(""),
+                                 vigente_de: str = Form(""), plataforma: str = Form(""),
+                                 valor_cobrado: str = Form(""), q_base: str = Form("")):
+    def executar(acesso, email):
+        rt, com = _rt(), _com()
+        hoje = _hoje()
+        de = rt.data_inicio(vigente_de, hoje)
+        cat = rt.texto(categoria, "Categoria")
+        if acao == "versao":
+            com.nova_versao_base(_id(id), rt.reais(valor_base, "Valor-base"), cat, de, email)
+            return "base_versionada", rt.meses_desde(de, hoje)
+        if acao == "nova":
+            com.nova_base(rt.escolha(plataforma, rt.PLATAFORMAS, "Plataforma"),
+                          rt.reais(valor_cobrado, "Valor cobrado"), rt.reais(valor_base, "Valor-base"),
+                          cat, de, email)
+            return "base_criada", rt.meses_desde(de, hoje)
+        raise rt.EntradaInvalida("Ação inválida.")
+    return await _acao_cadastro(request, "editar_regras", executar, ancora="valores-base",
+                                qs={"q_base": (q_base or "").strip()[:64]})
+
+
+@router.post("/comercial/regras/ofertas")
+async def comercial_regras_ofertas(request: Request, codigo_do_preco: str = Form(""), nome: str = Form(""),
+                                   q_oferta: str = Form("")):
+    def executar(acesso, email):
+        rt, com = _rt(), _com()
+        com.gravar_oferta(rt.preco(codigo_do_preco), rt.texto(nome, "Nome da oferta", 200), email)
+        return "oferta_gravada", None  # o nome traz o código AT: vendas de qualquer mês
+    return await _acao_cadastro(request, "editar_regras", executar, ancora="ofertas",
+                                qs={"q_oferta": (q_oferta or "").strip()[:64]})
+
+
+@router.post("/comercial/regras/janelas")
+async def comercial_regras_janelas(request: Request, acao: str = Form(""), lancamento: str = Form(""),
+                                   inicio: str = Form(""), fim: str = Form("")):
+    def executar(acesso, email):
+        rt, com = _rt(), _com()
+        lanc = rt.lancamento(lancamento, com.ler_lancamentos())
+        if acao == "gravar":
+            ini, fi = rt.janela(inicio, fim)
+            if rt._mes_fechado(ini.date().replace(day=1)) or rt._mes_fechado(fi.date().replace(day=1)):
+                raise rt.EntradaInvalida("A janela cai num mês já fechado.")
+            antes = com.gravar_janela(lanc, ini, fi, email)
+            return "janela_gravada", rt.meses_da_janela(antes, (ini, fi))
+        if acao == "remover":
+            antes = com.remover_janela(lanc, email)
+            return "janela_removida", None  # a janela automática pode cair em outro mês
+        raise rt.EntradaInvalida("Ação inválida.")
+    return await _acao_cadastro(request, "editar_regras", executar, ancora="janelas")
+
+
+@router.post("/comercial/regras/metas")
+async def comercial_regras_metas(request: Request, vendedor_codigo: str = Form(""), mes: str = Form(""),
+                                 valor: str = Form("")):
+    m_txt = (mes or "").strip()[:7]
+
+    def executar(acesso, email):
+        rt, com = _rt(), _com()
+        m = rt.mes(mes, _hoje(), ate_proximo=True)
+        com.gravar_meta(rt.limpar_codigo(vendedor_codigo), m, rt.reais(valor, "Meta", zero=True), email)
+        return "meta_gravada", False  # meta é lida na hora da tela
+    return await _acao_cadastro(request, "editar_regras", executar, ancora="metas", qs={"mes_meta": m_txt})
+
+
+@router.post("/comercial/bonus")
+async def comercial_bonus(request: Request, vendedor_codigo: str = Form(""), mes: str = Form(""),
+                          valor: str = Form(""), justificativa: str = Form("")):
+    m_txt = (mes or "").strip()[:7]
+
+    def executar(acesso, email):
+        rt, com = _rt(), _com()
+        m = rt.mes(mes, _hoje())
+        com.gravar_bonus(rt.limpar_codigo(vendedor_codigo), m, rt.reais(valor, "Bônus", zero=True),
+                         rt.texto_opcional(justificativa, "Justificativa"), email)
+        return "bonus_gravado", False  # bônus é lido na hora da tela
+    return await _acao_cadastro(request, "lancar_bonus", executar, base="/comercial/comissoes",
+                                qs={"mes": m_txt})

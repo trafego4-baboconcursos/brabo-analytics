@@ -1,7 +1,7 @@
 from datetime import datetime
 from decimal import Decimal
 
-from frontend.db_readers.comercial import Venda, normalizar_hotmart, normalizar_tmb, _data_hotmart
+from frontend.db_readers.comercial import Venda, normalizar_hotmart, normalizar_tmb, _data_local
 
 BASE = dict(nome_deste_preco="COM. LEAD - AT9", tipo_de_cobranca="Recuperador Inteligente",
             metodo_de_pagamento="Cartão de Crédito", codigo_do_produto="6857003", produto="Mentoria",
@@ -41,14 +41,14 @@ def test_hotmart_cancelamento_e_pago():
     assert not c.pago and c.cancelada_em is None
 
 
-def test_data_hotmart_tres_formatos():
-    assert _data_hotmart("05/10/2026 10:30:15") == datetime(2026, 10, 5, 10, 30, 15)
-    assert _data_hotmart("1790125220000") == datetime(2026, 9, 22, 22, 0, 20)
-    assert _data_hotmart("1790125220") == datetime(2026, 9, 22, 22, 0, 20)
-    assert _data_hotmart("2026-10-05T13:00:00Z") == datetime(2026, 10, 5, 10, 0)
-    assert _data_hotmart("2026-10-05T13:00:00-03:00") == datetime(2026, 10, 5, 13, 0)
-    assert _data_hotmart("2026-10-05T10:00:00") == datetime(2026, 10, 5, 10, 0)
-    assert _data_hotmart("lixo") is None and _data_hotmart(None) is None
+def test_data_local_tres_formatos():
+    assert _data_local("05/10/2026 10:30:15") == datetime(2026, 10, 5, 10, 30, 15)
+    assert _data_local("1790125220000") == datetime(2026, 9, 22, 22, 0, 20)
+    assert _data_local("1790125220") == datetime(2026, 9, 22, 22, 0, 20)
+    assert _data_local("2026-10-05T13:00:00Z") == datetime(2026, 10, 5, 10, 0)
+    assert _data_local("2026-10-05T13:00:00-03:00") == datetime(2026, 10, 5, 13, 0)
+    assert _data_local("2026-10-05T10:00:00") == datetime(2026, 10, 5, 10, 0)
+    assert _data_local("lixo") is None and _data_local(None) is None
 
 
 def test_tmb_codigo_fallback_e_conflito():
@@ -66,3 +66,11 @@ def test_tmb_codigo_fallback_e_conflito():
     assert v[0].valor_cobrado == Decimal("1879.34")
     assert v[1].codigo_at is None and v[1].conflito_codigo
     assert v[2].produto_id == "" and not v[2].pago and v[2].cancelada_em == datetime(2026, 10, 7)
+
+
+def test_tmb_data_dd_mm_yyyy_e_nao_legivel_ignorada():
+    b = dict(status="Efetivado", data_cancelamento=None, produto="M", oferta="O", utm_campaign="",
+             utm_content="AT1", utm_last_content=None, ticket="10", lancamento_id=1)
+    v = normalizar_tmb([dict(b, pedido="1", data_efetivado="15/04/2026 10:20:00"),
+                        dict(b, pedido="2", data_efetivado="lixo")])
+    assert [x.transacao for x in v] == ["1"] and v[0].data == datetime(2026, 4, 15, 10, 20)

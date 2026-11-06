@@ -125,7 +125,7 @@ def _para_sp(dt: datetime) -> datetime:
     return dt.astimezone(_SP).replace(tzinfo=None)
 
 
-def _data_hotmart(valor) -> datetime | None:
+def _data_local(valor) -> datetime | None:
     """`data_da_transacao` (texto, 3 formatos) -> datetime naive em São Paulo."""
     if valor is None:
         return None
@@ -169,7 +169,7 @@ def normalizar_hotmart(linhas: list[dict], ofertas: dict[str, str] | None = None
         status = [str(l.get("status_da_transacao") or "").strip().upper() for l in g]
         pago = any(s in _HM_PAGO for s in status)
         rep = next((l for l, s in zip(g, status) if s in _HM_PAGO), g[0])
-        data = _data_hotmart(rep.get("data_da_transacao"))
+        data = _data_local(rep.get("data_da_transacao"))
         valor = _dec(rep.get("valor_de_compra_sem_impostos"))
         if data is None or valor is None:
             ignoradas += 1
@@ -201,10 +201,7 @@ def normalizar_tmb(linhas: list[dict]) -> list[Venda]:
         if pedido.upper() == "TESTE":
             continue
         valor = _dec(l.get("ticket"))
-        try:
-            data = _para_sp(datetime.fromisoformat(str(l.get("data_efetivado")).strip()))
-        except ValueError:
-            data = None
+        data = _data_local(l.get("data_efetivado"))
         if valor is None or data is None or not pedido:
             ignoradas += 1
             continue
@@ -260,10 +257,23 @@ _SQL_NOMES = """
 _SQL_TMB = r"""
     SELECT pedido, status, status_cancelamento, data_efetivado, data_cancelamento, ticket, produto,
            oferta, utm_campaign, utm_content, utm_last_content, lancamento_id
-    FROM tmb_oficial
+    FROM (
+        SELECT *, CASE WHEN TRIM(data_efetivado) ~ '^\d{2}/\d{2}/\d{4}'
+                           THEN to_date(substr(TRIM(data_efetivado), 1, 10), 'DD/MM/YYYY')
+                       WHEN TRIM(data_efetivado) ~ '^\d{10,13}$'
+                           THEN (to_timestamp(CASE WHEN length(TRIM(data_efetivado)) = 13
+                                                   THEN TRIM(data_efetivado)::bigint / 1000
+                                                   ELSE TRIM(data_efetivado)::bigint END)
+                                 AT TIME ZONE 'America/Sao_Paulo')::date
+                       WHEN TRIM(data_efetivado) ~ '^\d{4}-\d{2}-\d{2}'
+                           THEN substr(TRIM(data_efetivado), 1, 10)::date
+                       ELSE NULL END AS _data_aprox
+        FROM tmb_oficial
+    ) t
     WHERE pedido = ANY(:extra)
-       OR (data_efetivado ~ '^\d{4}-\d{2}-\d{2}'
-           AND substr(data_efetivado, 1, 10)::date BETWEEN :d_ini AND :d_fim)
+       OR _data_aprox BETWEEN :d_ini AND :d_fim
+       -- formato desconhecido: sobe para o Python contar no warning (nada some em silêncio)
+       OR (_data_aprox IS NULL AND NULLIF(TRIM(data_efetivado), '') IS NOT NULL)
 """
 
 

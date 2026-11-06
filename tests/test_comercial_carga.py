@@ -5,7 +5,7 @@ import pandas as pd
 import pytest
 
 from scripts.comercial_carga_inicial import (
-    ler_valores_a_preencher, montar_atribuicoes, montar_ofertas,
+    _dec, ler_valores_a_preencher, montar_atribuicoes, montar_ofertas,
 )
 
 
@@ -60,3 +60,28 @@ def test_montar_ofertas():
                              "CS Mestre AT13", "Mestre AT13", "Mestre AT13", "Y AT4"],
     })
     assert montar_ofertas(df) == {"P1": "COM. LEAD - AT9", "P4": "Mestre AT13"}
+
+
+@pytest.mark.parametrize("bruto,esperado", [
+    ("1.477", "1477"), ("(ATENÇÃO) 1.477", "1477"), ("2.998,80", "2998.80"),
+    ("(ATENÇÃO) 2.998,80", "2998.80"), ("89.9", "89.9"), ("89.90", "89.90"),
+    ("1477", "1477"), ("89,90", "89.90"),
+])
+def test_dec_formatos(bruto, esperado):
+    assert _dec(bruto) == Decimal(esperado)
+
+
+@pytest.mark.parametrize("bruto", ["nan", "", None, float("nan"), "  "])
+def test_dec_vazio_rejeitado(bruto):
+    with pytest.raises(ValueError):
+        _dec(bruto)
+
+
+def test_linha_em_branco_e_pulada():
+    df = pd.DataFrame({
+        "Plataforma": ["TMB", "TMB", "TMB"],
+        "Valor_Plataforma": ["10", None, "30"],
+        "Valor_Base_Comissao": ["100", "200", None],
+        "Categoria": ["LEAD", "LEAD", "LEAD"],
+    })
+    assert [x["valor_cobrado"] for x in ler_valores_a_preencher(df)] == [Decimal("10")]

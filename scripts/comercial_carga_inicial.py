@@ -54,14 +54,26 @@ def _col(df: pd.DataFrame, nome: str) -> str:
 
 
 def _dec(v) -> Decimal:
-    """'89.90', '89,90', '2.998,80' e '(ATENÇÃO) 1477' (aviso na célula) -> Decimal."""
-    t = re.sub(r"^\(.*?\)\s*", "", str(v).strip())
+    """'89.90', '89,90', '2.998,80', '1.477' (milhar) e '(ATENÇÃO) 1477' -> Decimal finito.
+
+    Vazio/NaN/None levantam ValueError (quem chama decide se pula a linha).
+    """
+    if v is None or (not isinstance(v, str) and pd.isna(v)):
+        raise ValueError("valor vazio")
+    t = re.sub(r"^\(.*?\)\s*", "", str(v).strip()).replace(" ", "")
+    if not t or t.lower() == "nan":
+        raise ValueError("valor vazio")
     if "," in t:  # formato brasileiro: ponto = milhar, vírgula = decimal
         t = t.replace(".", "").replace(",", ".")
+    elif re.fullmatch(r"\d{1,3}(\.\d{3})+", t):  # '1.477' = milhar
+        t = t.replace(".", "")
     try:
-        return Decimal(t)
+        d = Decimal(t)
     except InvalidOperation as e:
         raise ValueError(f"valor numérico inválido: {v!r}") from e
+    if not d.is_finite():
+        raise ValueError(f"valor não finito: {v!r}")
+    return d
 
 
 def ler_valores_a_preencher(df: pd.DataFrame) -> list[dict]:
@@ -69,17 +81,25 @@ def ler_valores_a_preencher(df: pd.DataFrame) -> list[dict]:
     cp, cv, cb, cc = (_col(df, n) for n in ("Plataforma", "Valor_Plataforma",
                                             "Valor_Base_Comissao", "Categoria"))
     out = []
-    for _, r in df.iterrows():
+    for idx, r in df.iterrows():
         nome = str(r[cp]).strip()
         if nome not in _PLATAFORMA:
             raise ValueError(f"plataforma desconhecida na planilha: {nome!r}")
         if _norm(r[cb]) == "nao tem":  # sem base definida na planilha: fica de fora (busca devolve None)
             continue
+        try:
+            cobrado, base = _dec(r[cv]), _dec(r[cb])
+        except ValueError as e:
+            if "vazio" not in str(e):
+                raise
+            print(f"AVISO: linha {idx + 2} (Excel) de VALORES A PREENCHER com valor em branco; ignorada",
+                  file=sys.stderr)
+            continue
         cat = r[cc]
         out.append({
             "plataforma": _PLATAFORMA[nome],
-            "valor_cobrado": _dec(r[cv]),
-            "valor_base": _dec(r[cb]),
+            "valor_cobrado": cobrado,
+            "valor_base": base,
             "categoria": "" if pd.isna(cat) else str(cat).strip(),
         })
     return out
@@ -151,7 +171,8 @@ def _valores_base_da_pasta(pasta: Path) -> list[dict]:
     return tabelas[0]
 
 
-def _codigos_das_vendas(pasta: Path) -> dict[str, str | None]:
+def _codigos_das_vendas(pasta: Path) -> tuple[dict[str, str | None], set[str]]:
+    """(transação -> código AT, pedidos da BASE TMB)."""
     f = _um(pasta, "**/An*lise Comercial 2026/Base de Vendas Geral 2026.xlsx")
     out: dict[str, str | None] = {}
     h = pd.read_excel(f, sheet_name="BASE DE DADOS", dtype=str)
@@ -159,6 +180,7 @@ def _codigos_das_vendas(pasta: Path) -> dict[str, str | None]:
     for tr, nome in zip(h[ct], h[cn]):
         if isinstance(tr, str) and tr.strip():
             out.setdefault(tr.strip(), extrair_codigo_at(nome if isinstance(nome, str) else None))
+    pedidos_tmb: set[str] = set()
     t = pd.read_excel(f, sheet_name="BASE TMB", dtype=str)
     cp, c1, c2 = _col(t, "Pedido"), _col(t, "utm_content"), _col(t, "utm_last_content")
     for pedido, a, b in zip(t[cp], t[c1], t[c2]):
@@ -166,7 +188,8 @@ def _codigos_das_vendas(pasta: Path) -> dict[str, str | None]:
             cod = extrair_codigo_at(a if isinstance(a, str) else None) \
                 or extrair_codigo_at(b if isinstance(b, str) else None)
             out.setdefault(pedido.strip(), cod)
-    return out
+            pedidos_tmb.add(pedido.strip())
+    return out, pedidos_tmb
 
 
 def _ofertas_da_pasta(pasta: Path) -> dict[str, str]:
@@ -208,12 +231,13 @@ def _regras() -> list[RegraPercentual]:
             for i, (p, m, t, pct, v) in enumerate(base, 1)]
 
 
-def _montar(pasta: Path) -> tuple[Cadastros, pd.DataFrame]:
+def _montar(pasta: Path) -> tuple[Cadastros, pd.DataFrame, set[str]]:
     valores = [ValorBase(i, v["plataforma"], v["valor_cobrado"], v["valor_base"],
                          v["categoria"], VIGENTE_DE, None)
                for i, v in enumerate(_valores_base_da_pasta(pasta), 1)]
     vendas = _vendas_consolidadas(pasta)
-    atrib = montar_atribuicoes(vendas, _codigos_das_vendas(pasta), CODIGO_POR_NOME)
+    codigos, pedidos_tmb = _codigos_das_vendas(pasta)
+    atrib = montar_atribuicoes(vendas, codigos, CODIGO_POR_NOME)
     cad = Cadastros(
         vendedores={c: n for c, n, _ in VENDEDORES},
         regras=_regras(),
@@ -223,7 +247,7 @@ def _montar(pasta: Path) -> tuple[Cadastros, pd.DataFrame]:
         atribuicoes=atrib,
         ofertas=_ofertas_da_pasta(pasta),
     )
-    return cad, vendas
+    return cad, vendas, pedidos_tmb
 
 
 def cadastros_da_planilha(pasta: str | Path) -> Cadastros:
@@ -278,7 +302,7 @@ def main() -> int:
     if not a.dry_run:
         print("Fase 1: gravação desabilitada; use --dry-run.", file=sys.stderr)
         return 2
-    cad, vendas = _montar(Path(a.pasta))
+    cad, vendas, pedidos_tmb = _montar(Path(a.pasta))
     outubro = vendas[vendas["mes_ano"].fillna("").map(_norm) == _norm("10 - Outubro")]
     n_out = sum(1 for t in outubro["transacao"] if t in cad.atribuicoes)
     mapa = {_norm(k) for k in CODIGO_POR_NOME}
@@ -286,6 +310,9 @@ def main() -> int:
     print(f"vendedores={len(cad.vendedores)} regras={len(cad.regras)} "
           f"participacoes={len(cad.participacoes)} valores_base={len(cad.valores_base)} "
           f"atribuicoes={len(cad.atribuicoes)} (outubro={n_out}) ofertas={len(cad.ofertas)}")
+    n_tmb = int(vendas["transacao"].isin(pedidos_tmb).sum())
+    print(f"vendas da aba VENDAS encontradas em BASE TMB por Pedido: {n_tmb} de {len(vendas)} "
+          f"(BASE TMB tem {len(pedidos_tmb)} pedidos)")
     print(f"vendas na aba VENDAS (únicas): {len(vendas)}; nomes fora do mapa: {sem_mapa or 'nenhum'}")
     return 0
 

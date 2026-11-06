@@ -62,6 +62,10 @@ DDL = [
     """CREATE TABLE IF NOT EXISTS comercial_ofertas (
         codigo_do_preco text PRIMARY KEY, nome_deste_preco text NOT NULL, codigo_at text NULL,
         origem text NOT NULL, criado_em timestamptz NOT NULL DEFAULT now())""",
+    """CREATE TABLE IF NOT EXISTS comercial_acessos (
+        email text PRIMARY KEY,
+        nivel text NOT NULL CHECK (nivel IN ('master','coordenador','vendedor')),
+        vendedor_codigo text NULL, criado_por text NULL, criado_em timestamptz NOT NULL DEFAULT now())""",
     """CREATE TABLE IF NOT EXISTS comercial_historico (
         id bigserial PRIMARY KEY, tabela text NOT NULL, registro_id text NOT NULL,
         campo text NOT NULL, antes text NULL, depois text NULL, por text NULL,

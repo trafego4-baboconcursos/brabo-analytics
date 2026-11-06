@@ -50,6 +50,8 @@ _ADM   = ["admin"]
 # Time comercial: só enxerga /atendimento (qualquer rota fora da lista cai no
 # default _ALL, que não inclui "comercial" — o marketing fica fechado pra ele).
 _CMRC  = ["admin", "analista", "leitura", "comercial"]
+# Área Comercial (comissões): mesmo grupo; a checagem fina é nivel_comercial() na rota.
+_CMRC_AREA = ["admin", "analista", "leitura", "comercial"]
 
 ROUTE_PERMISSIONS: dict[str, list[str]] = {
     "/":                  _ALL,

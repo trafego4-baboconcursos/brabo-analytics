@@ -327,9 +327,13 @@ def test_main_gravar_chama_gravar(monkeypatch, capsys):
     monkeypatch.setattr(carga, "_montar", lambda p: (_cad(), vendas, {"9001"}))
     monkeypatch.setattr(carga, "gravar", lambda cad, ped, engine=None: chamadas.append(ped)
                         or {"comercial_vendedores": (2, 0)})
+    import frontend.services.comercial.snapshot as snap
+    marcou = []
+    monkeypatch.setattr(snap, "marcar_desatualizado", lambda *a, **k: marcou.append(a))
     monkeypatch.setattr("sys.argv", ["x", "--pasta", "p", "--gravar"])
     assert carga.main() == 0
     assert chamadas == [{"9001"}]
+    assert marcou == [()]
     assert "comercial_vendedores" in capsys.readouterr().out
 
 

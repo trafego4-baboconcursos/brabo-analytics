@@ -77,8 +77,15 @@ DDL = [
     # cache do cálculo do mês (Task 4): linhas e alertas serializados em JSON
     """CREATE TABLE IF NOT EXISTS comercial_snapshot (
         mes date PRIMARY KEY, gerado_em timestamptz NOT NULL, linhas jsonb NOT NULL,
-        alertas jsonb NOT NULL DEFAULT '[]', desatualizado boolean NOT NULL DEFAULT false)""",
+        alertas jsonb NOT NULL DEFAULT '[]', desatualizado boolean NOT NULL DEFAULT false,
+        invalidado_em timestamptz NULL)""",
 ]
+
+# Migrações de tabelas que já existem (CREATE IF NOT EXISTS não altera): (tabela, SQL exato).
+# Rodam na transação de criar_tabelas, só se a tabela existe, ANTES da conferência de colunas.
+SQL_MIGRACAO_SNAPSHOT_INVALIDADO = (
+    "ALTER TABLE comercial_snapshot ADD COLUMN IF NOT EXISTS invalidado_em timestamptz")
+MIGRACOES = [("comercial_snapshot", SQL_MIGRACAO_SNAPSHOT_INVALIDADO)]
 
 
 # tipo do DDL -> data_type do information_schema
@@ -169,13 +176,15 @@ SQL_SNAPSHOT_UPSERT = (
     "INSERT INTO comercial_snapshot (mes, gerado_em, linhas, alertas, desatualizado) "
     "VALUES (:mes, :gerado_em, CAST(:linhas AS jsonb), CAST(:alertas AS jsonb), false) "
     "ON CONFLICT (mes) DO UPDATE SET gerado_em = EXCLUDED.gerado_em, linhas = EXCLUDED.linhas, "
-    "alertas = EXCLUDED.alertas, desatualizado = false")
+    "alertas = EXCLUDED.alertas, desatualizado = (comercial_snapshot.invalidado_em IS NOT NULL "
+    "AND comercial_snapshot.invalidado_em > :calculo_inicio)")
 SQL_SNAPSHOT_DESATUALIZAR_MES = (
-    "UPDATE comercial_snapshot SET desatualizado = true WHERE mes = :mes")
+    "UPDATE comercial_snapshot SET desatualizado = true, invalidado_em = now() WHERE mes = :mes")
 SQL_SNAPSHOT_DESATUALIZAR_TODOS = (
-    "UPDATE comercial_snapshot SET desatualizado = true WHERE desatualizado = false")
+    "UPDATE comercial_snapshot SET desatualizado = true, invalidado_em = now()")
 _EXATAS = {" ".join(q.split()) for q in
-           (SQL_SNAPSHOT_UPSERT, SQL_SNAPSHOT_DESATUALIZAR_MES, SQL_SNAPSHOT_DESATUALIZAR_TODOS)}
+           (SQL_SNAPSHOT_UPSERT, SQL_SNAPSHOT_DESATUALIZAR_MES, SQL_SNAPSHOT_DESATUALIZAR_TODOS,
+            SQL_MIGRACAO_SNAPSHOT_INVALIDADO)}
 _SELECT_COUNT = re.compile(r"\s*SELECT\s+count\(\*\)\s+FROM\s+comercial_\w+\s*", re.IGNORECASE)
 _INSERT_COM_LEITURA = re.compile(r"\b(?:SELECT|FROM|JOIN|TABLE)\b", re.IGNORECASE)
 
@@ -220,6 +229,11 @@ def criar_tabelas(conn=None) -> None:
     if conn is None:
         with _get_users_engine().begin() as c:
             return criar_tabelas(c)
+    existentes = {t for t, _c, _ty in conn.execute(text(_SQL_COLUNAS), {"t": sorted(colunas_do_ddl())}).fetchall()}
+    for tabela, sql in MIGRACOES:
+        if tabela in existentes:
+            exigir_so_comercial(sql)
+            conn.execute(text(sql))
     conferir_colunas(conn)
     for ddl in DDL:
         exigir_so_comercial(ddl)

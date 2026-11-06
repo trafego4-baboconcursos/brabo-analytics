@@ -7,6 +7,7 @@ Toda escrita em cadastro chama `marcar_desatualizado`. O store é injetável par
 from __future__ import annotations
 
 import calendar
+import decimal
 import json
 from dataclasses import dataclass, fields
 from datetime import date, datetime
@@ -89,13 +90,14 @@ def calcular_mes(mes: date, hoje: datetime) -> ResultadoMes:
     vendas = ler_vendas(ini, fim, transacoes_extra=frozenset(cad.atribuicoes), ofertas=cad.ofertas)
     janelas, sem_data = ler_janelas(ini, fim)
     linhas = calcular(vendas, cad, janelas, hoje)
-    return ResultadoMes(ini, linhas, sem_data, hoje)
+    return ResultadoMes(ini, linhas, sem_data, agora_sp())  # gerado_em = hora real, não `hoje`
 
 
 # ---------------------------------------------------------------- store
 class Store(Protocol):
     def get(self, mes: date) -> ResultadoMes | None: ...
-    def put(self, r: ResultadoMes) -> None: ...
+    def put(self, r: ResultadoMes, calculo_inicio: datetime) -> None: ...
+    def inicio_calculo(self) -> datetime: ...
     def marcar_desatualizado(self, mes: date | None) -> None: ...
 
 
@@ -117,19 +119,29 @@ class StoreBanco:
         if row is None:
             return None
         gerado, linhas, alertas, desat = row
+        try:
+            ls, al = linhas_de_json(linhas), alertas_de_json(alertas)
+        except (TypeError, KeyError, ValueError, decimal.InvalidOperation):
+            logger.warning("comercial: snapshot de %s ilegível (formato mudou?); recalculando", mes)
+            return None
         if gerado.tzinfo is not None:  # timestamptz volta com fuso; o resto do módulo usa SP naive
             gerado = gerado.astimezone(_SP).replace(tzinfo=None)
-        return ResultadoMes(mes.replace(day=1), linhas_de_json(linhas), alertas_de_json(alertas),
-                            gerado, bool(desat))
+        return ResultadoMes(mes.replace(day=1), ls, al, gerado, bool(desat))
 
-    def put(self, r: ResultadoMes) -> None:
+    def inicio_calculo(self) -> datetime:
+        """Relógio do BANCO (o mesmo que carimba invalidado_em), sem depender do desvio local."""
+        from frontend.db import _get_users_engine  # noqa: PLC0415
+        with _get_users_engine().connect() as c:
+            return c.execute(text("SELECT now()")).scalar_one()
+
+    def put(self, r: ResultadoMes, calculo_inicio: datetime) -> None:
         from frontend.db import _get_users_engine  # noqa: PLC0415
         from frontend.db_readers.comercial import SQL_SNAPSHOT_UPSERT, exigir_so_comercial  # noqa: PLC0415
         exigir_so_comercial(SQL_SNAPSHOT_UPSERT)
         with _get_users_engine().begin() as c:
             c.execute(text(SQL_SNAPSHOT_UPSERT),
                       {"mes": r.mes, "gerado_em": r.gerado_em.replace(tzinfo=_SP) if r.gerado_em.tzinfo is None else r.gerado_em, "linhas": linhas_para_json(r.linhas),
-                       "alertas": alertas_para_json(r.sem_data)})
+                       "alertas": alertas_para_json(r.sem_data), "calculo_inicio": calculo_inicio})
 
     def marcar_desatualizado(self, mes: date | None) -> None:
         from frontend.db import _get_users_engine  # noqa: PLC0415
@@ -152,7 +164,8 @@ def obter_mes(mes: date, *, hoje: datetime | None = None, store: Store | None = 
     store = store or StoreBanco()
     mes = mes.replace(day=1)
     r = store.get(mes)
-    if r is not None and not r.desatualizado:
+    # `situacao` depende da data (prevista -> elegível): snapshot de dia anterior está velho
+    if r is not None and not r.desatualizado and r.gerado_em.date() >= (hoje or agora_sp()).date():
         return r
     return recalcular_mes(mes, hoje=hoje, store=store)
 
@@ -160,9 +173,14 @@ def obter_mes(mes: date, *, hoje: datetime | None = None, store: Store | None = 
 def recalcular_mes(mes: date, *, hoje: datetime | None = None, store: Store | None = None) -> ResultadoMes:
     """Calcula e grava o snapshot (ignora o existente). Falha ao gravar não derruba o cálculo."""
     store = store or StoreBanco()
+    try:
+        inicio = store.inicio_calculo()  # antes de ler qualquer cadastro
+    except Exception:
+        logger.exception("comercial: sem relógio do banco para %s; não grava snapshot", mes)
+        return calcular_mes(mes.replace(day=1), hoje or agora_sp())
     r = calcular_mes(mes.replace(day=1), hoje or agora_sp())
     try:
-        store.put(r)
+        store.put(r, inicio)
     except Exception:
         logger.exception("comercial: não gravou o snapshot de %s", mes)
     return r

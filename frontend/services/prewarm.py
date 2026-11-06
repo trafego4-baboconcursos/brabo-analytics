@@ -248,7 +248,15 @@ async def warm_active(codes: Iterable[str] | None = None, invalidate: bool = Fal
             if token is not None:
                 force_refresh_end(token)
         logger.info("Aquecimento (%s) concluído.", origem)
-        schedule_comercial(origem)
+        if origem.startswith("etl"):
+            # vendas/reembolsos mudam por fora dos cadastros: o snapshot do mês fica velho
+            try:
+                from frontend.services.comercial.snapshot import marcar_desatualizado  # noqa: PLC0415
+                await run_in_threadpool(marcar_desatualizado)
+            except Exception:
+                logger.exception("Comercial (%s): não marcou os snapshots como desatualizados", origem)
+        if not codes:  # aquecimento de um código só (carrinho aberto) não recalcula o comercial
+            schedule_comercial(origem)
         return [l.code for l in to_warm]
 
 

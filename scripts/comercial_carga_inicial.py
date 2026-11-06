@@ -402,6 +402,11 @@ def main() -> int:
     cad, vendas, pedidos_tmb = _montar(Path(a.pasta))
     if a.gravar:
         r = gravar(cad, pedidos_tmb)
+        from frontend.services.comercial.snapshot import marcar_desatualizado
+        try:
+            marcar_desatualizado()
+        except Exception as exc:  # cadastro já gravado; o snapshot some pelo dia/ETL
+            print(f"aviso: não marcou os snapshots como desatualizados: {exc}", file=sys.stderr)
         print(f"{'tabela':<30}{'inseridas':>10}{'já existiam':>13}")
         for t, (novas, ja) in r.items():
             print(f"{t:<30}{novas:>10}{ja:>13}")

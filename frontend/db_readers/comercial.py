@@ -148,19 +148,51 @@ def conferir_colunas(conn) -> None:
 
 _RE_ALVO = re.compile(r"\b(?:INTO|TABLE|UPDATE|FROM|JOIN|ON)\s+(?:IF\s+NOT\s+EXISTS\s+)?([A-Za-z_][\w.]*)",
                       re.IGNORECASE)
-_RE_DESTRUTIVO = re.compile(r"^\s*(?:DELETE|DROP|TRUNCATE|ALTER)\b", re.IGNORECASE)
 _LIBERADAS = {"information_schema.columns"}
+# lista de permissão: só estas formas de comando passam (UPDATE/DELETE das telas, quando
+# vierem, entram como forma explícita aqui — não por exceção na lista de proibidas)
+_PROIBIDAS = re.compile(r"\b(?:DELETE|DROP|TRUNCATE|ALTER|GRANT|REVOKE|UPDATE|WITH|COPY|"
+                        r"REFERENCES|RETURNING)\b|\bpg_", re.IGNORECASE)
+_FORMAS = [
+    re.compile(r"\s*CREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+comercial_\w+\s*\(", re.IGNORECASE),
+    re.compile(r"\s*CREATE\s+(?:UNIQUE\s+)?INDEX\s+IF\s+NOT\s+EXISTS\s+\w+\s+ON\s+comercial_\w+\s*\(",
+               re.IGNORECASE),
+    re.compile(r"\s*INSERT\s+INTO\s+comercial_\w+\s*\(", re.IGNORECASE),
+]
+_SELECT_COUNT = re.compile(r"\s*SELECT\s+count\(\*\)\s+FROM\s+comercial_\w+\s*", re.IGNORECASE)
+_INSERT_COM_LEITURA = re.compile(r"\b(?:SELECT|FROM|JOIN|TABLE)\b", re.IGNORECASE)
 
 
 def exigir_so_comercial(sql: str) -> None:
-    """Guarda da gravação: toda tabela citada tem de ser comercial_* (ou a consulta ao
-    information_schema); DELETE/DROP/TRUNCATE/ALTER são recusados."""
-    if _RE_DESTRUTIVO.match(sql):
-        raise RuntimeError(f"comando destrutivo recusado na gravação do comercial: {sql[:60]!r}")
-    alvos = [a for a in _RE_ALVO.findall(sql) if a.upper() != "CONFLICT"]
+    """Guarda da gravação (lista de permissão). Passa só: CREATE TABLE/INDEX IF NOT EXISTS
+    em comercial_*, INSERT INTO comercial_* (sem SELECT/FROM), SELECT count(*) FROM
+    comercial_* e a consulta de colunas do information_schema. Recusa `;` (um final é
+    tolerado), aspas duplas e DELETE/DROP/TRUNCATE/ALTER/GRANT/REVOKE/UPDATE/WITH/COPY/pg_
+    em qualquer ponto."""
+    s = sql.strip()
+    if s.endswith(";"):
+        s = s[:-1]
+
+    def recusa(motivo: str):
+        raise RuntimeError(f"gravação do comercial recusou ({motivo}): {sql[:80]!r}")
+
+    if ";" in s:
+        recusa("mais de um comando")
+    if '"' in s:
+        recusa("identificador entre aspas")
+    if _PROIBIDAS.search(s):
+        recusa("palavra proibida")
+    if s == _SQL_COLUNAS.strip() or _SELECT_COUNT.fullmatch(s):
+        return
+    if not any(f.match(s) for f in _FORMAS):
+        recusa("forma de comando fora da lista")
+    if _FORMAS[2].match(s) and _INSERT_COM_LEITURA.search(s):
+        recusa("INSERT lendo de tabela")
+    # segunda camada: toda tabela citada é comercial_*
+    alvos = [a for a in _RE_ALVO.findall(s) if a.upper() != "CONFLICT"]
     fora = [a for a in alvos if not a.lower().startswith("comercial_") and a.lower() not in _LIBERADAS]
     if not alvos or fora:
-        raise RuntimeError(f"gravação do comercial só toca comercial_*; recusado: {fora or sql[:60]!r}")
+        recusa(f"tabela fora de comercial_*: {fora}")
 
 
 def criar_tabelas(conn=None) -> None:

@@ -126,21 +126,51 @@ def test_criar_tabelas_roda_ddl_quando_colunas_batem():
 # ---------------------------------------------------------------- guarda: só comercial_*
 @pytest.mark.parametrize("sql", com.DDL + [
     "INSERT INTO comercial_vendedores (codigo) VALUES (:c) ON CONFLICT DO NOTHING",
-    "SELECT table_name FROM information_schema.columns WHERE table_name = ANY(:t)",
+    "INSERT INTO comercial_vendedores (codigo) VALUES (:c) ON CONFLICT DO NOTHING;",
+    com._SQL_COLUNAS,
+    "SELECT count(*) FROM comercial_vendedores",
 ])
 def test_guarda_aceita_comercial(sql):
     com.exigir_so_comercial(sql)
+
+
+def test_guarda_aceita_tudo_que_o_writer_emite():
+    """Toda instrução real: DDL, consulta de colunas e, por tabela, count + INSERT multi-linha."""
+    emitidas = list(com.DDL) + [com._SQL_COLUNAS]
+    for tabela, (colunas, linhas) in carga.linhas_para_gravar(_cad(), {"9001"}).items():
+        emitidas.append(f"SELECT count(*) FROM {tabela}")
+        emitidas.append(carga._insert_multiplo(tabela, colunas, linhas)[0])
+    assert len(emitidas) == len(com.DDL) + 1 + 2 * len(carga.TABELAS)
+    for sql in emitidas:
+        com.exigir_so_comercial(sql)
 
 
 @pytest.mark.parametrize("sql", [
     "INSERT INTO users (email) VALUES (:e)",
     "UPDATE launch_config SET x = 1",
     "CREATE INDEX ix ON hotmart_oficial (x)",
+    "CREATE INDEX IF NOT EXISTS ix ON hotmart_oficial (x)",
     "CREATE TABLE IF NOT EXISTS outra (a text)",
     "DELETE FROM comercial_vendedores",
     "DROP TABLE comercial_vendedores",
     "TRUNCATE comercial_vendedores",
     "INSERT INTO comercial_vendedores SELECT * FROM users",
+    "INSERT INTO comercial_vendedores (codigo) SELECT email FROM users",
+    "SELECT count(*) FROM users",
+    "SELECT * FROM comercial_vendedores",
+    # sondas da revisão (bypass da guarda antiga)
+    "INSERT INTO comercial_x VALUES (1); TRUNCATE users",
+    "INSERT INTO comercial_x (a) VALUES (1); INSERT INTO \"users\" VALUES (1)",
+    "WITH d AS (DELETE FROM comercial_vendedores RETURNING *) INSERT INTO comercial_x (a) VALUES (1)",
+    "INSERT INTO comercial_x (a) VALUES (1); SELECT pg_terminate_backend(1)",
+    "INSERT INTO comercial_x (a) VALUES (1); GRANT ALL ON comercial_x TO public",
+    "INSERT INTO comercial_x (a) VALUES (pg_terminate_backend(1))",
+    "GRANT ALL ON comercial_x TO public",
+    "REVOKE ALL ON comercial_x FROM public",
+    "COPY comercial_x FROM '/tmp/x'",
+    "ALTER TABLE comercial_x ADD COLUMN y text",
+    "INSERT INTO \"comercial_x\" (a) VALUES (1)",
+    "CREATE TABLE IF NOT EXISTS comercial_x (a integer REFERENCES users(id))",
 ])
 def test_guarda_recusa_outras_tabelas_e_destrutivos(sql):
     with pytest.raises(RuntimeError):

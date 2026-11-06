@@ -354,6 +354,9 @@ def gravar(cad: Cadastros, pedidos_tmb: frozenset[str] | set[str] = frozenset(),
     `exigir_so_comercial`. Um INSERT multi-linha por tabela; a contagem vem do total da
     tabela antes/depois. `pedidos_tmb` decide a plataforma das atribuições.
 
+    `acesso.limpar_cache()` no fim só limpa o cache deste processo (o CLI); o painel, que é
+    outro processo, enxerga os acessos novos quando o cache dele expira (TTL de 60 s).
+
     Devolve {tabela: (inseridas, já existiam)}."""
     from sqlalchemy import text
     from frontend.db_readers.comercial import criar_tabelas, exigir_so_comercial

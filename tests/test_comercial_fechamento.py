@@ -196,7 +196,7 @@ def test_estorno_no_primeiro_mes_aberto_com_participacao(banco, motor):
     assert all(l.motivo == "estorno de 2026-10" and l.vendedor_codigo == "AT4" for l in est)
     assert not [l for l in r.linhas if l.situacao != "estorno"]  # venda de outubro não vira linha de novembro
     ini, fim, extra, kw = motor["chamadas"][-1]
-    # outubro está no horizonte (31/10 + 30 dias ≥ 06/11): a leitura cobre outubro (vendas tardias) + novembro
+    # outubro (mês fechado imediatamente anterior, dentro de HORIZONTE_MESES = 2) entra na leitura: vendas tardias + novembro
     assert (ini, fim) == (OUT, date(2026, 11, 30)) and kw == {"incluir_extra_fora_do_periodo": True}
     assert {"HP-EDI-PREV", "HP-EDI-1", "HP-JHE-1"} <= extra and "HP-CANC" not in extra
     # estorno reduz o elegível (resumo, KPIs, tabela, ranking)
@@ -218,7 +218,7 @@ def test_estorno_por_decisao_tira(banco, motor):
 
 
 def test_estorno_so_no_primeiro_mes_aberto(banco, motor):
-    hoje = datetime(2026, 10, 25)  # setembro ainda no horizonte (30/09 + 30 dias)
+    hoje = datetime(2026, 10, 25)  # setembro ainda dentro do horizonte de 2 meses fechados (Ruling 21)
     _congelar(banco, SET, [_l("HP-SET", dia=28, mes=9, sit="prevista")])
     motor["vendas"] = [_venda("HP-SET", 28, cancelada=datetime(2026, 10, 1), mes=9)]
     # outubro aberto: o estorno de setembro é de outubro, não de novembro

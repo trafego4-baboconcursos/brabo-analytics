@@ -590,7 +590,8 @@ def test_entrada_invalida(fn):
         fn()
 
 
-def test_entrada_valida():
+def test_entrada_valida(monkeypatch):
+    monkeypatch.setattr(rt, "_mes_fechado", lambda m: False)  # hermético: sem consultar o banco real
     hoje = date(2026, 11, 6)
     assert rt.data_inicio("", hoje) == date(2026, 11, 1)  # padrão: 1º dia do mês corrente
     assert rt.data_inicio("2026-10-15", hoje) == date(2026, 10, 15)

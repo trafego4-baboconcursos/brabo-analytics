@@ -544,7 +544,7 @@ async def comercial_regras_percentuais(request: Request, acao: str = Form(""), i
     def executar(acesso, email):
         rt, com = _rt(), _com()
         hoje = _hoje()
-        de = rt.data_inicio(vigente_de, hoje)
+        de = rt.data_inicio(vigente_de, hoje, rt.proximo_mes(hoje) if acao == "encerrar" else None)
         if acao == "versao":
             com.nova_versao_regra(_id(id), rt.pct(pct), de, email)
             return "regra_versionada", rt.meses_desde(de, hoje)
@@ -583,7 +583,7 @@ async def comercial_regras_participacoes(request: Request, acao: str = Form(""),
     def executar(acesso, email):
         rt, com = _rt(), _com()
         hoje = _hoje()
-        de = rt.data_inicio(vigente_de, hoje)
+        de = rt.data_inicio(vigente_de, hoje, rt.proximo_mes(hoje) if acao == "encerrar" else None)
         if acao == "versao":
             com.nova_versao_participacao(_id(id), rt.pct(pct_ativa, "% sobre Ativa"),
                                          rt.pct(pct_reativa, "% sobre Reativa"), de, email)
@@ -644,8 +644,10 @@ async def comercial_regras_janelas(request: Request, acao: str = Form(""), lanca
             ini, fi = rt.janela(inicio, fim)
             if rt._mes_fechado(ini.date().replace(day=1)) or rt._mes_fechado(fi.date().replace(day=1)):
                 raise rt.EntradaInvalida("A janela cai num mês já fechado.")
+            # a janela substituída é a manual anterior; na 1ª manual, a automática do launch_config
+            substituida = com.janela_automatica(lanc)
             antes = com.gravar_janela(lanc, ini, fi, email)
-            return "janela_gravada", rt.meses_da_janela(antes, (ini, fi))
+            return "janela_gravada", rt.meses_da_janela(antes or substituida, (ini, fi))
         if acao == "remover":
             antes = com.remover_janela(lanc, email)
             return "janela_removida", None  # a janela automática pode cair em outro mês
@@ -668,8 +670,11 @@ async def comercial_regras_metas(request: Request, vendedor_codigo: str = Form("
 
 @router.post("/comercial/bonus")
 async def comercial_bonus(request: Request, vendedor_codigo: str = Form(""), mes: str = Form(""),
-                          valor: str = Form(""), justificativa: str = Form("")):
+                          valor: str = Form(""), justificativa: str = Form(""), vendedor: str = Form("")):
+    import re  # noqa: PLC0415
     m_txt = (mes or "").strip()[:7]
+    filtro = (vendedor or "").strip().upper()
+    filtro = filtro if re.fullmatch(r"AT\d{1,4}", filtro) else ""  # volta para o mesmo filtro da tela
 
     def executar(acesso, email):
         rt, com = _rt(), _com()
@@ -678,4 +683,4 @@ async def comercial_bonus(request: Request, vendedor_codigo: str = Form(""), mes
                          rt.texto_opcional(justificativa, "Justificativa"), email)
         return "bonus_gravado", False  # bônus é lido na hora da tela
     return await _acao_cadastro(request, "lancar_bonus", executar, base="/comercial/comissoes",
-                                qs={"mes": m_txt})
+                                qs={"mes": m_txt, "vendedor": filtro})

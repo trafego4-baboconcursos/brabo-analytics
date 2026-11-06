@@ -707,6 +707,25 @@ def _como_data(valor) -> date | None:
         return None
 
 
+def dia_da_live(evento, aulas) -> date | None:
+    """Data da live do lançamento: `evento_start_date`; vazia, `aulas_start_date` (a mesma
+    regra em `janelas_do_periodo`, na tela de Regras e na invalidação da janela manual)."""
+    return _como_data(evento) or _como_data(aulas)
+
+
+def janela_automatica(lancamento: str) -> tuple[datetime, datetime] | None:
+    """Janela Reativa que o launch_config dá ao lançamento (sem a manual). Só SELECT."""
+    with _get_users_engine().connect() as conn:
+        for lanc, evento, aulas, _hm, _tm in conn.execute(text(_SQL_JANELAS)).fetchall():
+            if str(lanc) == lancamento:
+                dia = dia_da_live(evento, aulas)
+                if dia is None:
+                    return None
+                j = janela_reativa(lancamento, dia, (), ())
+                return (j.inicio, j.fim)
+    return None
+
+
 def janelas_do_periodo(linhas, inicio: date, fim: date, live: dict[str, date] | None = None,
                        manuais: dict[str, tuple[datetime, datetime]] | None = None,
                        ) -> tuple[list[Janela], list[SemData]]:
@@ -732,7 +751,7 @@ def janelas_do_periodo(linhas, inicio: date, fim: date, live: dict[str, date] | 
     for lanc, evento, aulas, hm, tm in linhas:
         hm, tm = _normalize_product_ids(hm), _normalize_product_ids(tm)
         manual = manuais.get(str(lanc))
-        dia = live.get(str(lanc)) or _como_data(evento) or _como_data(aulas)
+        dia = live.get(str(lanc)) or dia_da_live(evento, aulas)
         if manual is not None:
             ref = dia or manual[0].date()
             j = replace(janela_reativa(str(lanc), ref, hm, tm), inicio=manual[0], fim=manual[1])
@@ -1302,6 +1321,8 @@ def gravar_meta(vendedor_codigo: str, mes: date, valor: Decimal, por: str, *, co
             raise EscritaRecusada("vendedor_nao_encontrado")
         p = {"vendedor_codigo": vendedor_codigo, "mes": mes}
         antes = c.execute(text(SQL_META_LER_UM), p).fetchone()
+        if antes is not None and Decimal(antes[0]) == valor:
+            raise EscritaRecusada("sem_mudanca")
         _gravar(c, SQL_META_UPSERT, {**p, "valor": valor, "por": por})
         _historico(c, "comercial_metas", f"{vendedor_codigo}:{mes:%Y-%m}", "valor",
                    None if antes is None else antes[0], valor, por)
@@ -1314,6 +1335,8 @@ def gravar_bonus(vendedor_codigo: str, mes: date, valor: Decimal, justificativa:
             raise EscritaRecusada("vendedor_nao_encontrado")
         p = {"vendedor_codigo": vendedor_codigo, "mes": mes}
         antes = c.execute(text(SQL_BONUS_LER_UM), p).fetchone()
+        if antes is not None and Decimal(antes[0]) == valor and (antes[1] or None) == (justificativa or None):
+            raise EscritaRecusada("sem_mudanca")
         _gravar(c, SQL_BONUS_UPSERT, {**p, "valor": valor, "justificativa": justificativa, "por": por})
         _historico(c, "comercial_bonus", f"{vendedor_codigo}:{mes:%Y-%m}", "valor",
                    None if antes is None else antes[0],

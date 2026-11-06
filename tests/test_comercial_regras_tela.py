@@ -894,3 +894,99 @@ def test_ranking_meta_vendedor_e_gestor(cli):
     assert "R$ 7.777,00" not in html
     html = _como(cli, "master@teste.local").get("/comercial/ranking?mes=2026-10&ordem=meta").text
     assert "R$ 7.777,00" in html and "% da meta" in html
+
+
+# ---------------------------------------------------------------- fix round 1
+_XSS = "x');alert(document.domain);('@a.bc"
+
+
+@pytest.mark.parametrize("ruim", [_XSS, 'a"b@x.com', "a<b@x.com", "a(b)@x.com", "a b@x.com", "a\b@x.com",
+                                  "a@x.c'om", "a@x"])
+def test_email_conservador_recusa_payload(ruim):
+    with pytest.raises(rt.EntradaInvalida):
+        rt.email(ruim)
+
+
+def test_rota_recusa_email_com_payload(cli):
+    r = _como(cli, "master@teste.local").post("/comercial/regras/acessos",
+                                               data={"acao": "gravar", "email": _XSS, "nivel": "master"})
+    assert r.status_code == 400 and cli.banco.escritas() == []
+
+
+def test_pagina_nao_interpola_dado_em_js(cli):
+    import re
+    cli.banco.acessos[_XSS] = ("master", None)  # linha antiga/forjada direto no banco
+    html = _como(cli, "master@teste.local").get("/comercial/regras").text
+    for attr in re.findall(r'\son[a-z]+="([^"]*)"', html):
+        assert "alert" not in attr and "document.domain" not in attr, attr
+    assert "x&#39;);alert(document.domain);(&#39;@a.bc" in html  # só como texto escapado
+    assert "x');alert" not in html
+    scripts = re.findall(r"<script[^>]*>(.*?)</script>", html, re.S)
+    assert all("alert(document" not in s for s in scripts)
+    assert 'data-confirma="Remover o acesso de' in html
+
+
+def test_primeira_janela_manual_invalida_meses_da_automatica(cli):
+    # PBB-OUT-26: aulas 05/10 -> automática 05/10..13/10; manual em novembro tem de invalidar outubro
+    r = _como(cli, "master@teste.local").post("/comercial/regras/janelas", data={
+        "acao": "gravar", "lancamento": "PBB-OUT-26", "inicio": "2026-11-02", "fim": "2026-11-05"})
+    assert r.status_code == 303
+    assert cli.desat == [date(2026, 10, 1), date(2026, 11, 1)]
+
+
+def test_janela_automatica(banco):
+    assert com.janela_automatica("PBB-OUT-26") == (datetime(2026, 10, 5), datetime(2026, 10, 12, 23, 59, 59))
+    assert com.janela_automatica("PI-NOV-26") is None
+
+
+def test_linhas_janelas_mostra_a_em_vigor():
+    b = FakeBanco()
+    manual = {"PBB-OUT-26": {"inicio": datetime(2026, 10, 1), "fim": datetime(2026, 10, 3), "criado_por": "g"}}
+    por = {j["lancamento"]: j for j in rt.linhas_janelas(b.lancamentos, manual)}
+    assert por["PBB-OUT-26"]["vigor"] == (datetime(2026, 10, 1), datetime(2026, 10, 3))
+    assert por["PES-NOV-26"]["vigor"] == por["PES-NOV-26"]["auto"]
+    assert por["PI-NOV-26"]["vigor"] is None
+
+
+def test_encerrar_padrao_e_o_mes_seguinte(cli):
+    r = _como(cli, "master@teste.local").post("/comercial/regras/percentuais", data={"acao": "encerrar", "id": "1"})
+    assert r.status_code == 303
+    assert cli.banco.regras[0]["vigente_ate"] == date(2026, 11, 30)  # novembro continua com regra
+    assert cli.desat == []  # dezembro ainda não existe
+    _como(cli, "master@teste.local").post("/comercial/regras/participacoes", data={"acao": "encerrar", "id": "1"})
+    assert cli.banco.parts[0]["vigente_ate"] == date(2026, 11, 30)
+
+
+def test_form_encerrar_vem_com_mes_seguinte_e_confirmacao(cli):
+    html = _como(cli, "master@teste.local").get("/comercial/regras").text
+    bloco = html.split('name="acao" value="encerrar"')[1].split("</form>")[0]
+    assert 'value="2026-12-01"' in bloco
+    antes = html.split('name="acao" value="encerrar"')[0].rsplit("<form", 1)[1]
+    assert "data-confirma=" in antes and "inconsistências" in antes
+
+
+def test_reais_arredonda_meio_para_cima():
+    assert rt.reais("10,005", "V") == D("10.01") and rt.reais("10,015", "V") == D("10.02")
+
+
+def test_meta_e_bonus_sem_mudanca(banco):
+    com.gravar_meta("AT4", date(2026, 11, 1), D("100.00"), "g@x")
+    com.gravar_bonus("AT4", date(2026, 11, 1), D("50.00"), "x", "g@x")
+    n = len(banco.historico)
+    for fn in (lambda: com.gravar_meta("AT4", date(2026, 11, 1), D("100"), "g@x"),
+               lambda: com.gravar_bonus("AT4", date(2026, 11, 1), D("50"), "x", "g@x")):
+        with pytest.raises(com.EscritaRecusada) as e:
+            fn()
+        assert e.value.codigo == "sem_mudanca"
+    assert len(banco.historico) == n
+    com.gravar_bonus("AT4", date(2026, 11, 1), D("50"), "outro motivo", "g@x")  # justificativa mudou: grava
+    assert len(banco.historico) == n + 1
+
+
+def test_bonus_volta_com_o_filtro_de_vendedor(cli):
+    r = _como(cli, "master@teste.local").post("/comercial/bonus", data={
+        "vendedor_codigo": "AT9", "mes": "2026-10", "valor": "10", "vendedor": "at9"})
+    assert r.headers["location"] == "/comercial/comissoes?mes=2026-10&vendedor=AT9&ok=bonus_gravado"
+    r = _como(cli, "master@teste.local").post("/comercial/bonus", data={
+        "vendedor_codigo": "AT9", "mes": "2026-10", "valor": "11", "vendedor": "x&ok=1"})
+    assert r.headers["location"] == "/comercial/comissoes?mes=2026-10&ok=bonus_gravado"

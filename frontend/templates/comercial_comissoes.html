@@ -105,6 +105,7 @@
               <td class="n" onclick="event.stopPropagation()" onkeydown="event.stopPropagation()">
                 <form method="post" action="/comercial/bonus" class="cm-bonus" title="{{ r.bonus_justificativa or '' }}">
                   <input type="hidden" name="vendedor_codigo" value="{{ r.codigo }}"><input type="hidden" name="mes" value="{{ v.periodo.mes.strftime('%Y-%m') }}">
+                  {% if v.vendedor %}<input type="hidden" name="vendedor" value="{{ v.vendedor }}">{% endif %}
                   <input class="valor" type="text" name="valor" inputmode="decimal" required value="{{ ('%.2f' | format(r.bonus)) | replace('.', ',') }}" aria-label="Bônus de {{ r.nome }}">
                   <input class="just" type="text" name="justificativa" maxlength="1000" placeholder="motivo (opcional)" value="{{ r.bonus_justificativa or '' }}" aria-label="Motivo do bônus">
                   <button type="submit">OK</button>

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import re
 from datetime import date, datetime, timedelta
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 
 from frontend.services.comercial.inconsistencias import (  # noqa: F401  (reexportados para a rota)
     EntradaInvalida, _numero, limpar_codigo,
@@ -24,7 +24,8 @@ INICIO_MINIMO = date(2026, 1, 1)
 LIMITE_LISTA = 200
 MAX_NOME = 80
 MAX_TEXTO = 1000
-_RE_EMAIL = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,190}\.[^@\s]{2,}$")
+# conservador de propósito: sem aspas, <, >, parênteses, espaço nem barra invertida
+_RE_EMAIL = re.compile(r"^[a-z0-9._%+-]{1,64}@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,24}$")
 _RE_PRECO = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _RE_LANC = re.compile(r"^[A-Za-z0-9-]{2,32}$")
 
@@ -119,15 +120,20 @@ def reais(txt: str | None, campo: str, *, zero: bool = False) -> Decimal:
         raise EntradaInvalida(f"{campo} é obrigatório.")
     if not ((Decimal("0") <= v if zero else Decimal("0") < v) and v < Decimal("100000000")):
         raise EntradaInvalida(f"{campo}: valor fora do intervalo.")
-    return v.quantize(Decimal("0.01"))
+    return v.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
-def data_inicio(txt: str | None, hoje: date) -> date:
-    """Início da nova versão. Vazio = 1º dia do mês corrente (SP). De 2026-01-01 a um ano à
-    frente; nunca dentro de mês fechado (gancho da Task 7b)."""
+def proximo_mes(hoje: date) -> date:
+    return _soma_mes(hoje.replace(day=1), 1)
+
+
+def data_inicio(txt: str | None, hoje: date, padrao: date | None = None) -> date:
+    """Início da nova versão. Vazio = `padrao` (nova versão: 1º dia do mês corrente, SP;
+    encerrar: 1º do mês seguinte). De 2026-01-01 a um ano à frente; nunca dentro de mês
+    fechado (gancho da Task 7b)."""
     t = (txt or "").strip()
     if not t:
-        d = hoje.replace(day=1)
+        d = padrao or hoje.replace(day=1)
     else:
         try:
             d = date.fromisoformat(t)
@@ -331,17 +337,20 @@ def filtrar_ofertas(ofertas: list[dict], q: str | None) -> tuple[list[dict], int
 
 
 def linhas_janelas(lancamentos: list[tuple], manuais: dict) -> list[dict]:
-    """Por lançamento do launch_config: data da live, janela automática, janela manual."""
-    from frontend.db_readers.comercial import _como_data  # noqa: PLC0415
+    """Por lançamento do launch_config: data da live, janela automática, janela manual e a que
+    está EM VIGOR (manual vence a automática — mesma fonte de `ler_janelas`)."""
+    from frontend.db_readers.comercial import dia_da_live  # noqa: PLC0415
     from frontend.services.comercial.regras import janela_reativa  # noqa: PLC0415
     from frontend.services.comercial.telas import mes_do_codigo  # noqa: PLC0415
     saida = []
     for lanc, evento, aulas, _hm, _tm in lancamentos:
-        dia = _como_data(evento) or _como_data(aulas)
+        dia = dia_da_live(evento, aulas)
         auto = janela_reativa(str(lanc), dia, (), ()) if dia else None
+        auto = (auto.inicio, auto.fim) if auto else None
         manual = manuais.get(str(lanc))
-        saida.append({"lancamento": str(lanc), "live": dia, "auto": (auto.inicio, auto.fim) if auto else None,
-                      "manual": manual, "mes": mes_do_codigo(str(lanc))})
+        saida.append({"lancamento": str(lanc), "live": dia, "auto": auto, "manual": manual,
+                      "vigor": (manual["inicio"], manual["fim"]) if manual else auto,
+                      "mes": mes_do_codigo(str(lanc))})
     return sorted(saida, key=lambda j: (j["mes"] is None, -(j["mes"].toordinal() if j["mes"] else 0),
                                         j["lancamento"]))
 
@@ -354,7 +363,8 @@ def view_regras(dados: dict, hoje: date, mes_meta: date, q_base: str | None = No
     ofertas, ofertas_total = filtrar_ofertas(dados["ofertas"], q_oferta)
     metas = dados.get("metas") or {}
     return {
-        "hoje": hoje, "inicio_padrao": hoje.replace(day=1), "mes_meta": mes_meta,
+        "hoje": hoje, "inicio_padrao": hoje.replace(day=1), "encerrar_padrao": proximo_mes(hoje),
+        "mes_meta": mes_meta,
         "mes_meta_txt": f"{mes_meta:%Y-%m}",
         "meses_meta": _opcoes_mes_meta(hoje),
         "vendedores": vendedores,

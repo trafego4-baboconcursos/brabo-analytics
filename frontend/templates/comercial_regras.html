@@ -29,8 +29,9 @@
 .cm-indice { display:flex; flex-wrap:wrap; gap:var(--s2); margin-bottom:var(--s4); }
 </style>
 {% set hoje_mes = v.inicio_padrao.isoformat() %}
-{% macro data_de(rotulo='a partir de') %}
-<label class="cm-sub">{{ rotulo }} <input type="date" name="vigente_de" value="{{ hoje_mes }}" min="2026-01-01" aria-label="Início da vigência"></label>
+{% set aviso_encerrar = 'Encerrar? A partir da data escolhida, as vendas sem outra regra viram inconsistências (sem regra).' %}
+{% macro data_de(rotulo='a partir de', valor=none) %}
+<label class="cm-sub">{{ rotulo }} <input type="date" name="vigente_de" value="{{ valor or hoje_mes }}" min="2026-01-01" aria-label="Início da vigência"></label>
 {% endmacro %}
 {% macro vig(r) %}{{ r.vigente_de.strftime('%d/%m/%Y') }} → {{ r.vigente_ate.strftime('%d/%m/%Y') if r.vigente_ate else 'aberta' }}{% endmacro %}
 <div class="wrap">
@@ -138,7 +139,7 @@
                     </form>
                   </details>
                   <form method="post" action="/comercial/regras/acessos" class="cm-acao"
-                        onsubmit="return confirm('Remover o acesso de {{ a.email }}?')">
+                        data-confirma="Remover o acesso de {{ a.email }}?">
                     <input type="hidden" name="acao" value="remover"><input type="hidden" name="email" value="{{ a.email }}">
                     <button type="submit" class="cm-btn nao">Remover</button>
                   </form>
@@ -198,9 +199,9 @@
                     </form>
                   </details>
                   <details><summary>Encerrar</summary>
-                    <form method="post" action="/comercial/regras/percentuais" class="cm-acao">
+                    <form method="post" action="/comercial/regras/percentuais" class="cm-acao" data-confirma="{{ aviso_encerrar }}">
                       <input type="hidden" name="acao" value="encerrar"><input type="hidden" name="id" value="{{ g.atual.id }}">
-                      {{ data_de('deixa de valer em') }}
+                      {{ data_de('deixa de valer em', v.encerrar_padrao.isoformat()) }}
                       <button type="submit" class="cm-btn nao">Encerrar regra</button>
                     </form>
                   </details>
@@ -272,9 +273,9 @@
                     </form>
                   </details>
                   <details><summary>Encerrar</summary>
-                    <form method="post" action="/comercial/regras/participacoes" class="cm-acao">
+                    <form method="post" action="/comercial/regras/participacoes" class="cm-acao" data-confirma="Encerrar a participação a partir da data escolhida?">
                       <input type="hidden" name="acao" value="encerrar"><input type="hidden" name="id" value="{{ g.atual.id }}">
-                      {{ data_de('deixa de valer em') }}
+                      {{ data_de('deixa de valer em', v.encerrar_padrao.isoformat()) }}
                       <button type="submit" class="cm-btn nao">Encerrar</button>
                     </form>
                   </details>
@@ -418,15 +419,16 @@
       <div class="cm-sub" style="margin-bottom:var(--s2);">Automática: segunda da semana da live 00:00 → segunda seguinte 23:59:59 (data do lançamento nas Configurações). A janela manual vence a automática e também cobre lançamento sem data.</div>
       <div class="table-wrap">
         <table class="cm-tabela">
-          <thead><tr><th class="th-dark">Lançamento</th><th class="th-dark">Live</th><th class="th-dark">Janela automática</th><th class="th-dark">Janela manual</th><th class="th-dark">Ações</th></tr></thead>
+          <thead><tr><th class="th-dark">Lançamento</th><th class="th-dark">Live</th><th class="th-dark">Janela automática</th><th class="th-dark">Janela manual</th><th class="th-dark">Em vigor</th><th class="th-dark">Ações</th></tr></thead>
           <tbody>
             {% for j in v.janelas %}
-            {% set base_j = (j.manual.inicio, j.manual.fim) if j.manual else j.auto %}
+            {% set base_j = j.vigor %}
             <tr>
               <td class="nome">{{ j.lancamento }}</td>
               <td>{{ j.live.strftime('%d/%m/%Y') if j.live else '' }}{% if not j.live %}<span class="cm-chip inconsistente">sem data</span>{% endif %}</td>
               <td class="cm-sub" style="white-space:nowrap;">{% if j.auto %}{{ j.auto[0].strftime('%d/%m %H:%M') }} → {{ j.auto[1].strftime('%d/%m/%Y %H:%M') }}{% else %}—{% endif %}</td>
               <td style="white-space:nowrap;">{% if j.manual %}<strong>{{ j.manual.inicio.strftime('%d/%m %H:%M') }} → {{ j.manual.fim.strftime('%d/%m/%Y %H:%M') }}</strong> <span class="cm-sub">por {{ j.manual.criado_por }}</span>{% else %}—{% endif %}</td>
+              <td style="white-space:nowrap;">{% if j.vigor %}{{ j.vigor[0].strftime('%d/%m %H:%M') }} → {{ j.vigor[1].strftime('%d/%m/%Y %H:%M') }} <span class="cm-sub">({{ 'manual' if j.manual else 'automática' }})</span>{% else %}<span class="cm-sub">nenhuma: vendas ficam Ativa</span>{% endif %}</td>
               <td>
                 <div class="cm-acao">
                   <details><summary>{{ 'Alterar' if j.manual else 'Definir manual' }}</summary>
@@ -447,7 +449,7 @@
               </td>
             </tr>
             {% else %}
-            <tr><td colspan="5" class="cm-vazio">Nenhum lançamento nas Configurações.</td></tr>
+            <tr><td colspan="6" class="cm-vazio">Nenhum lançamento nas Configurações.</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -514,4 +516,11 @@
     </div>
   </div>
 </div>
+<script>
+/* Confirmação sem interpolar dado em JS: o texto vem de data-confirma (escapado pelo Jinja como
+   atributo e lido como texto puro), nunca de código montado no template. */
+document.querySelectorAll('form[data-confirma]').forEach(function (f) {
+  f.addEventListener('submit', function (e) { if (!window.confirm(f.dataset.confirma)) e.preventDefault(); });
+});
+</script>
 {% endblock %}

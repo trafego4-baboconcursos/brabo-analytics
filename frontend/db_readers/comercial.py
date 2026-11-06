@@ -6,11 +6,18 @@ Banco operacional (`_get_users_engine`). Leitura nunca faz DDL: `criar_tabelas()
 """
 from __future__ import annotations
 
+import re
+from collections import Counter
+from datetime import date, datetime, timedelta, timezone
+from decimal import Decimal, InvalidOperation
+from zoneinfo import ZoneInfo
+
 from sqlalchemy import text
 
 from logger import get_logger
 from frontend.db import _get_users_engine
-from frontend.services.comercial.modelos import Cadastros  # noqa: F401  (reexportado)
+from frontend.services.comercial.modelos import Cadastros, Venda  # noqa: F401  (reexportados)
+from frontend.services.comercial.regras import categoria_tmb, extrair_codigo_at, modalidade_hotmart
 from frontend.services.comercial.tabelas import Participacao, RegraPercentual, ValorBase
 
 logger = get_logger("db")
@@ -102,3 +109,189 @@ def garantir_vendedor(codigo: str) -> str:
             {"c": codigo, "n": f"Vendedor {numero}"})
         return conn.execute(text("SELECT nome FROM comercial_vendedores WHERE codigo = :c"),
                             {"c": codigo}).scalar_one()
+
+
+# ---------------------------------------------------------------- vendas
+_SP = ZoneInfo("America/Sao_Paulo")
+_HM_PAGO = {"COMPLETO", "COMPLETED", "APROVADO", "APPROVED"}
+_HM_CANCELA = {"CANCELADO", "CANCELED", "REEMBOLSADO", "REFUNDED", "CHARGEBACK"}
+_RE_BR = re.compile(r"^(\d{2})/(\d{2})/(\d{4})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?")
+
+
+def _para_sp(dt: datetime) -> datetime:
+    """Aware -> naive em São Paulo; naive fica como está (já local)."""
+    if dt.tzinfo is None:
+        return dt
+    return dt.astimezone(_SP).replace(tzinfo=None)
+
+
+def _data_hotmart(valor) -> datetime | None:
+    """`data_da_transacao` (texto, 3 formatos) -> datetime naive em São Paulo."""
+    if valor is None:
+        return None
+    s = str(valor).strip()
+    if not s:
+        return None
+    try:
+        if s.isdigit() and len(s) in (10, 13):
+            seg = int(s) / 1000 if len(s) == 13 else int(s)
+            return _para_sp(datetime.fromtimestamp(seg, tz=timezone.utc))
+        m = _RE_BR.match(s)
+        if m:
+            d, mo, a, h, mi, se = m.groups()
+            return datetime(int(a), int(mo), int(d), int(h or 0), int(mi or 0), int(se or 0))
+        if re.match(r"^\d{4}-\d{2}-\d{2}", s):
+            return _para_sp(datetime.fromisoformat(s.replace("Z", "+00:00")))
+    except (ValueError, OverflowError):
+        return None
+    return None
+
+
+def _dec(valor) -> Decimal | None:
+    try:
+        d = Decimal(str(valor).strip())
+    except (InvalidOperation, ValueError):
+        return None
+    return d if d.is_finite() else None
+
+
+def normalizar_hotmart(linhas: list[dict], ofertas: dict[str, str] | None = None) -> list[Venda]:
+    """Agrupa por transação; só 1ª cobrança; nome nulo -> `ofertas[codigo_do_preco]`."""
+    ofertas = ofertas or {}
+    grupos: dict[str, list[dict]] = {}
+    for l in linhas:
+        grupos.setdefault(l["codigo_da_transacao"], []).append(l)
+    out: list[Venda] = []
+    ignoradas = 0
+    for tid, g in grupos.items():
+        if any((l.get("quantidade_de_cobrancas") or 1) > 1 for l in g):
+            continue
+        status = [str(l.get("status_da_transacao") or "").strip().upper() for l in g]
+        pago = any(s in _HM_PAGO for s in status)
+        rep = next((l for l, s in zip(g, status) if s in _HM_PAGO), g[0])
+        data = _data_hotmart(rep.get("data_da_transacao"))
+        valor = _dec(rep.get("valor_de_compra_sem_impostos"))
+        if data is None or valor is None:
+            ignoradas += 1
+            continue
+        oferta = next((l["nome_deste_preco"] for l in g if l.get("nome_deste_preco")), None)
+        if not oferta:
+            oferta = next((ofertas[l["codigo_do_preco"]] for l in g
+                           if l.get("codigo_do_preco") in ofertas), "")
+        cancelada = None
+        if any(s in _HM_CANCELA for s in status):
+            ev = next((l["ultimo_evento_em"] for l in g if l.get("ultimo_evento_em")), None)
+            cancelada = _para_sp(ev) if ev else data
+        out.append(Venda(
+            plataforma="hotmart", transacao=tid, data=data,
+            produto_id=str(rep.get("codigo_do_produto") or ""), produto=rep.get("produto") or "",
+            oferta=oferta, codigo_at=extrair_codigo_at(oferta), conflito_codigo=False,
+            modalidade=modalidade_hotmart(rep.get("tipo_de_cobranca"), rep.get("metodo_de_pagamento")),
+            categoria=None, valor_cobrado=valor, pago=pago, cancelada_em=cancelada))
+    if ignoradas:
+        logger.warning("normalizar_hotmart: %d transações sem data/valor legível ignoradas", ignoradas)
+    return out
+
+
+def normalizar_tmb(linhas: list[dict]) -> list[Venda]:
+    out: list[Venda] = []
+    ignoradas = 0
+    for l in linhas:
+        pedido = str(l.get("pedido") or "")
+        if pedido.upper() == "TESTE":
+            continue
+        valor = _dec(l.get("ticket"))
+        try:
+            data = _para_sp(datetime.fromisoformat(str(l.get("data_efetivado")).strip()))
+        except ValueError:
+            data = None
+        if valor is None or data is None or not pedido:
+            ignoradas += 1
+            continue
+        a = extrair_codigo_at(l.get("utm_content"))
+        b = extrair_codigo_at(l.get("utm_last_content"))
+        conflito = bool(a and b and a != b)
+        canc = l.get("data_cancelamento")
+        lanc = l.get("lancamento_id")
+        out.append(Venda(
+            plataforma="tmb", transacao=pedido, data=data,
+            produto_id="" if lanc is None else str(lanc), produto=l.get("produto") or "",
+            oferta=l.get("oferta") or "", codigo_at=None if conflito else (a or b),
+            conflito_codigo=conflito, modalidade="parcelado",
+            categoria=categoria_tmb(l.get("utm_campaign"), l.get("oferta")),
+            valor_cobrado=valor, pago=l.get("status") == "Efetivado",
+            cancelada_em=_para_sp(canc) if canc else None))
+    if ignoradas:
+        logger.warning("normalizar_tmb: %d pedidos sem ticket/data legível ignorados", ignoradas)
+    return out
+
+
+_COLS_HM = ("h.codigo_da_transacao, h.status_da_transacao, h.data_da_transacao, h.codigo_do_produto, "
+            "h.produto, h.codigo_do_preco, h.nome_deste_preco, h.tipo_de_cobranca, "
+            "h.metodo_de_pagamento, h.quantidade_de_cobrancas, h.valor_de_compra_sem_impostos, "
+            "e.ultimo_evento_em")
+_CHAVES_HM = [c.strip().split(".")[-1] for c in _COLS_HM.split(",")]
+_SQL_HOTMART_PERIODO = r"""
+    SELECT """ + _COLS_HM + r"""
+    FROM (
+        SELECT *, CASE WHEN NULLIF(data_da_transacao,'') ~ '^\d{2}/\d{2}/\d{4}'
+                           THEN to_date(substr(data_da_transacao, 1, 10), 'DD/MM/YYYY')
+                       WHEN NULLIF(data_da_transacao,'') ~ '^\d{10,13}$'
+                           THEN (to_timestamp(CASE WHEN length(data_da_transacao) = 13
+                                                   THEN data_da_transacao::bigint / 1000
+                                                   ELSE data_da_transacao::bigint END)
+                                 AT TIME ZONE 'America/Sao_Paulo')::date
+                       WHEN data_da_transacao ~ '^\d{4}-\d{2}-\d{2}'
+                           THEN substr(data_da_transacao, 1, 10)::date
+                       ELSE NULL END AS _data_aprox
+        FROM hotmart_oficial
+    ) h
+    LEFT JOIN hotmart_estado_transacao e ON e.codigo_da_transacao = h.codigo_da_transacao
+    WHERE h._data_aprox BETWEEN :d_ini AND :d_fim
+"""
+_SQL_HOTMART_EXTRA = ("SELECT " + _COLS_HM + " FROM hotmart_oficial h "
+                      "LEFT JOIN hotmart_estado_transacao e ON e.codigo_da_transacao = h.codigo_da_transacao "
+                      "WHERE h.codigo_da_transacao = ANY(:extra)")
+_SQL_NOMES = """
+    SELECT codigo_do_preco, nome_deste_preco, count(*) FROM hotmart_oficial
+    WHERE codigo_do_preco = ANY(:codigos) AND nome_deste_preco IS NOT NULL AND nome_deste_preco <> ''
+    GROUP BY 1, 2
+"""
+_SQL_TMB = r"""
+    SELECT pedido, status, status_cancelamento, data_efetivado, data_cancelamento, ticket, produto,
+           oferta, utm_campaign, utm_content, utm_last_content, lancamento_id
+    FROM tmb_oficial
+    WHERE pedido = ANY(:extra)
+       OR (data_efetivado ~ '^\d{4}-\d{2}-\d{2}'
+           AND substr(data_efetivado, 1, 10)::date BETWEEN :d_ini AND :d_fim)
+"""
+
+
+def ler_vendas(inicio: date, fim: date, transacoes_extra: frozenset[str] = frozenset(),
+               ofertas: dict[str, str] | None = None) -> list[Venda]:
+    """Vendas Hotmart+TMB do período [inicio, fim] (todas, com ou sem código AT) mais as
+    `transacoes_extra` (atribuídas à mão), qualquer data. Só SELECT."""
+    extra = sorted(transacoes_extra)
+    params = {"d_ini": inicio - timedelta(days=1), "d_fim": fim + timedelta(days=1), "extra": extra}
+    with _get_users_engine().begin() as conn:
+        conn.execute(text("SET LOCAL statement_timeout = '120s'"))
+        hm = [dict(zip(_CHAVES_HM, r)) for r in conn.execute(text(_SQL_HOTMART_PERIODO), params).fetchall()]
+        if extra:
+            ja = {l["codigo_da_transacao"] for l in hm}
+            hm += [dict(zip(_CHAVES_HM, r))
+                   for r in conn.execute(text(_SQL_HOTMART_EXTRA), {"extra": extra}).fetchall()
+                   if r[0] not in ja]
+        sem_nome = sorted({l["codigo_do_preco"] for l in hm
+                           if not l["nome_deste_preco"] and l["codigo_do_preco"]})
+        if sem_nome:
+            freq: dict[str, Counter] = {}
+            for cod, nome, n in conn.execute(text(_SQL_NOMES), {"codigos": sem_nome}).fetchall():
+                freq.setdefault(cod, Counter())[nome] += n
+            nomes = {c: ct.most_common(1)[0][0] for c, ct in freq.items()}
+            for l in hm:
+                if not l["nome_deste_preco"] and l["codigo_do_preco"] in nomes:
+                    l["nome_deste_preco"] = nomes[l["codigo_do_preco"]]
+        tm_rows = conn.execute(text(_SQL_TMB), params).mappings().fetchall()
+    vendas = normalizar_hotmart(hm, ofertas) + normalizar_tmb([dict(r) for r in tm_rows])
+    ex = set(extra)
+    return [v for v in vendas if v.transacao in ex or inicio <= v.data.date() <= fim]

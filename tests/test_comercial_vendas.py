@@ -1,0 +1,68 @@
+from datetime import datetime
+from decimal import Decimal
+
+from frontend.db_readers.comercial import Venda, normalizar_hotmart, normalizar_tmb, _data_hotmart
+
+BASE = dict(nome_deste_preco="COM. LEAD - AT9", tipo_de_cobranca="Recuperador Inteligente",
+            metodo_de_pagamento="Cartão de Crédito", codigo_do_produto="6857003", produto="Mentoria",
+            codigo_do_preco="P1", valor_de_compra_sem_impostos=89.9,
+            data_da_transacao="2026-10-05T10:00:00", ultimo_evento_em=None)
+
+
+def test_hotmart_dedupe_e_primeira_cobranca():
+    linhas = [dict(BASE, codigo_da_transacao="HP1", status_da_transacao="APPROVED", quantidade_de_cobrancas=1),
+              dict(BASE, codigo_da_transacao="HP1", status_da_transacao="COMPLETED", quantidade_de_cobrancas=1),
+              dict(BASE, codigo_da_transacao="HP2", status_da_transacao="Completo", quantidade_de_cobrancas=2)]
+    v = normalizar_hotmart(linhas)
+    assert [x.transacao for x in v] == ["HP1"]
+    assert v[0].codigo_at == "AT9" and v[0].pago and v[0].modalidade == "cartao_pix"
+    assert v[0].valor_cobrado == Decimal("89.9") and v[0].plataforma == "hotmart"
+    assert isinstance(v[0], Venda)
+
+
+def test_hotmart_nome_nulo_usa_ofertas():
+    l = dict(BASE, nome_deste_preco=None, codigo_da_transacao="HP3", status_da_transacao="Completo",
+             quantidade_de_cobrancas=None)
+    v = normalizar_hotmart([l], ofertas={"P1": "R$ 997 preço base - at12."})
+    assert v[0].codigo_at == "AT12" and v[0].oferta == "R$ 997 preço base - at12."
+    assert normalizar_hotmart([l])[0].codigo_at is None
+
+
+def test_hotmart_cancelamento_e_pago():
+    ev = datetime(2026, 10, 9, 12, 0)
+    l1 = dict(BASE, codigo_da_transacao="A", status_da_transacao="Completo", quantidade_de_cobrancas=1)
+    l2 = dict(BASE, codigo_da_transacao="A", status_da_transacao="Reembolsado", quantidade_de_cobrancas=1,
+              ultimo_evento_em=ev)
+    l3 = dict(BASE, codigo_da_transacao="B", status_da_transacao="CANCELED", quantidade_de_cobrancas=1)
+    l4 = dict(BASE, codigo_da_transacao="C", status_da_transacao="Aguardando pagamento", quantidade_de_cobrancas=1)
+    a, b, c = normalizar_hotmart([l1, l2, l3, l4])
+    assert a.pago and a.cancelada_em == ev
+    assert not b.pago and b.cancelada_em == b.data == datetime(2026, 10, 5, 10, 0)
+    assert not c.pago and c.cancelada_em is None
+
+
+def test_data_hotmart_tres_formatos():
+    assert _data_hotmart("05/10/2026 10:30:15") == datetime(2026, 10, 5, 10, 30, 15)
+    assert _data_hotmart("1790125220000") == datetime(2026, 9, 22, 22, 0, 20)
+    assert _data_hotmart("1790125220") == datetime(2026, 9, 22, 22, 0, 20)
+    assert _data_hotmart("2026-10-05T13:00:00Z") == datetime(2026, 10, 5, 10, 0)
+    assert _data_hotmart("2026-10-05T13:00:00-03:00") == datetime(2026, 10, 5, 13, 0)
+    assert _data_hotmart("2026-10-05T10:00:00") == datetime(2026, 10, 5, 10, 0)
+    assert _data_hotmart("lixo") is None and _data_hotmart(None) is None
+
+
+def test_tmb_codigo_fallback_e_conflito():
+    b = dict(status="Efetivado", data_efetivado="2026-10-05T08:00:00", data_cancelamento=None,
+             produto="Mentoria", oferta="Oferta", utm_campaign="MENTORIABBLEAD", ticket="1879.34", lancamento_id=29395)
+    v = normalizar_tmb([dict(b, pedido="1", utm_content="", utm_last_content="AT11"),
+                        dict(b, pedido="2", utm_content="AT4", utm_last_content="AT9"),
+                        dict(b, pedido="TESTE", utm_content="AT4", utm_last_content=None),
+                        dict(b, pedido="3", utm_content=None, utm_last_content=None, ticket="abc"),
+                        dict(b, pedido="4", utm_content=None, utm_last_content=None, lancamento_id=None,
+                             status="Cancelado", data_cancelamento=datetime(2026, 10, 7))])
+    assert [x.transacao for x in v] == ["1", "2", "4"]
+    assert v[0].codigo_at == "AT11" and not v[0].conflito_codigo and v[0].pago
+    assert v[0].produto_id == "29395" and v[0].categoria == "LEAD" and v[0].modalidade == "parcelado"
+    assert v[0].valor_cobrado == Decimal("1879.34")
+    assert v[1].codigo_at is None and v[1].conflito_codigo
+    assert v[2].produto_id == "" and not v[2].pago and v[2].cancelada_em == datetime(2026, 10, 7)

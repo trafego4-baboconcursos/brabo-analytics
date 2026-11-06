@@ -10,7 +10,7 @@ import calendar
 import decimal
 import json
 from dataclasses import dataclass, fields
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Protocol
 from zoneinfo import ZoneInfo
@@ -91,28 +91,34 @@ def calcular_mes(mes: date, hoje: datetime) -> ResultadoMes:
     """Cadastros do banco + vendas do mês + janelas -> linhas. `hoje`: agora em SP."""
     from frontend.db_readers.comercial import ler_cadastros, ler_janelas, ler_vendas  # noqa: PLC0415
 
-    from frontend.db_readers.comercial import ler_linhas_fechadas, meses_fechados  # noqa: PLC0415
     from frontend.services.comercial import fechamento as fech  # noqa: PLC0415
 
     ini, fim = mes.replace(day=1), _ultimo_dia(mes)
     cad = ler_cadastros()
-    # estorno (Ruling 17): linhas pagas dos meses fechados logo antes deste, se a venda caiu
-    meses_c = fech.meses_do_estorno(ini, meses_fechados())
-    congeladas = {m: linhas_de_json(j) for m, j in ler_linhas_fechadas(meses_c).items()}
-    cands = fech.candidatas(congeladas)
     extra = frozenset(cad.atribuicoes)
-    if cands:
-        alvo = frozenset(l.transacao for _c, l in cands)
-        todas = ler_vendas(ini, fim, transacoes_extra=extra | alvo, ofertas=cad.ofertas,
-                           incluir_extra_fora_do_periodo=True)
-        vendas = [v for v in todas if ini <= v.data.date() <= fim]
-        atuais = {v.transacao: v for v in todas if v.transacao in alvo}
-    else:
+    # Ruling 17/20: o que os meses fechados logo antes deste ainda devem a ele (estorno e
+    # venda tardia), só dentro do horizonte (+ decisões "tira")
+    tira = {t for t, d in cad.decisoes_reembolso.items() if d == "tira"}
+    pend = fech.ler_pendentes(ini, hoje, tira)
+    if pend is None:
         vendas = ler_vendas(ini, fim, transacoes_extra=extra, ofertas=cad.ofertas)
+        janelas, sem_data = ler_janelas(ini, fim)
+        return ResultadoMes(ini, calcular(vendas, cad, janelas, hoje), sem_data, agora_sp())
+    desde = pend.recentes[0] if pend.recentes else ini
+    alvo = frozenset(l.transacao for _c, l in pend.cands)
+    todas = ler_vendas(desde, fim, transacoes_extra=extra | alvo, ofertas=cad.ofertas,
+                       incluir_extra_fora_do_periodo=True)
+    vendas = [v for v in todas if ini <= v.data.date() <= fim]
+    recentes = set(pend.recentes)
+    tardias = [v for v in todas if v.data.date().replace(day=1) in recentes
+               and v.transacao not in pend.ja_congeladas]
     janelas, sem_data = ler_janelas(ini, fim)
     linhas = calcular(vendas, cad, janelas, hoje)
-    if cands:
-        linhas += fech.estornos(cands, atuais, cad.decisoes_reembolso, hoje)
+    if tardias:
+        janelas_t, _ = ler_janelas(desde, ini - timedelta(days=1))
+        linhas += fech.marcar_tardias(calcular(tardias, cad, janelas_t, hoje))
+    atuais = {v.transacao: v for v in todas if v.transacao in alvo}
+    linhas += fech.estornos(pend.cands, atuais, cad.decisoes_reembolso, hoje)
     return ResultadoMes(ini, linhas, sem_data, agora_sp())  # gerado_em = hora real, não `hoje`
 
 

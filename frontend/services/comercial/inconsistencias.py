@@ -175,13 +175,17 @@ def localizar(linhas: list[LinhaComissao] | None, transacao: str) -> LinhaComiss
     return None
 
 
-def exigir_venda_de_mes_aberto(transacao: str) -> None:
-    """Ruling 17: atribuição, reivindicação, ajuste e decisão de reembolso de venda de mês
-    fechado são recusados (`mes_fechado`). A venda é de mês fechado se está nas linhas
-    congeladas dele (todo o mês pago entra no congelado)."""
+def exigir_venda_de_mes_aberto(transacao: str, *, reembolso: bool = False) -> date | None:
+    """Ruling 17/19/20 — "mês de efeito": recusa (`mes_fechado`) só se o efeito seria calculado
+    num mês fechado. Venda nas linhas congeladas de um mês fechado: só a decisão de reembolso
+    passa (o "tira" vira estorno no primeiro mês aberto depois) e devolve esse mês fechado, para
+    a rota invalidar os seguintes. Venda fora de qualquer congelado (mês aberto, ou paga/ingerida
+    depois do fechamento -> venda tardia no primeiro mês aberto): passa, devolve None."""
     from frontend.db_readers.comercial import EscritaRecusada, mes_fechado_da_transacao  # noqa: PLC0415
-    if mes_fechado_da_transacao(transacao) is not None:
+    mes = mes_fechado_da_transacao(transacao)
+    if mes is not None and not reembolso:
         raise EscritaRecusada("mes_fechado")
+    return mes
 
 
 # ---------------------------------------------------------------- view-model
@@ -281,7 +285,8 @@ def linhas_guardadas(mes: date | None) -> list[LinhaComissao] | None:
     if mes is None:
         return None
     try:
-        r = snap.StoreBanco().get(mes)
+        st = snap.StoreBanco()
+        r = st.fechamento(mes) or st.get(mes)  # mês fechado: a cópia congelada
     except Exception:  # noqa: BLE001 — sem snapshot, a ação segue e invalida todos os meses
         import logging  # noqa: PLC0415
         logging.getLogger("comercial.inconsistencias").exception("linhas_guardadas(%s)", mes)

@@ -24,7 +24,7 @@ from frontend.services.comercial.acesso import AcessoComercial  # noqa: E402
 from frontend.services.comercial.calculo import LinhaComissao, resumo_por_beneficiario  # noqa: E402
 from frontend.services.comercial.modelos import Cadastros, Venda  # noqa: E402
 from frontend.services.comercial.snapshot import ResultadoMes  # noqa: E402
-from tests.test_comercial_regras_tela import FakeBanco  # noqa: E402
+from tests.test_comercial_regras_tela import FakeBanco, _Res  # noqa: E402
 
 OUT, NOV, SET, DEZ = date(2026, 10, 1), date(2026, 11, 1), date(2026, 9, 1), date(2026, 12, 1)
 HOJE = datetime(2026, 11, 6, 15)
@@ -56,6 +56,7 @@ def _res(linhas=None, mes=OUT):
 def banco(monkeypatch):
     b = FakeBanco()
     monkeypatch.setattr(com, "_get_users_engine", lambda: b)
+    monkeypatch.setattr(fech, "_relogio_banco", lambda: datetime(2026, 11, 6, 15))  # início do cálculo
     return b
 
 
@@ -173,7 +174,9 @@ def motor(banco, monkeypatch):
         estado["chamadas"].append((ini, fim, set(transacoes_extra), kw))
         fora = kw.get("incluir_extra_fora_do_periodo", False)
         return [v for v in estado["vendas"] if ini <= v.data.date() <= fim or (fora and v.transacao in transacoes_extra)]
-    monkeypatch.setattr(com, "ler_cadastros", lambda: Cadastros(decisoes_reembolso=estado["decisoes"]))
+    monkeypatch.setattr(com, "ler_cadastros", lambda: Cadastros(decisoes_reembolso=estado["decisoes"],
+                                                                regras=estado.get("regras", []),
+                                                                valores_base=estado.get("bases", [])))
     monkeypatch.setattr(com, "ler_vendas", ler_vendas)
     monkeypatch.setattr(com, "ler_janelas", lambda *a, **k: ([], []))
     return estado
@@ -193,7 +196,8 @@ def test_estorno_no_primeiro_mes_aberto_com_participacao(banco, motor):
     assert all(l.motivo == "estorno de 2026-10" and l.vendedor_codigo == "AT4" for l in est)
     assert not [l for l in r.linhas if l.situacao != "estorno"]  # venda de outubro não vira linha de novembro
     ini, fim, extra, kw = motor["chamadas"][-1]
-    assert (ini, fim) == (NOV, date(2026, 11, 30)) and kw == {"incluir_extra_fora_do_periodo": True}
+    # outubro está no horizonte (31/10 + 30 dias ≥ 06/11): a leitura cobre outubro (vendas tardias) + novembro
+    assert (ini, fim) == (OUT, date(2026, 11, 30)) and kw == {"incluir_extra_fora_do_periodo": True}
     assert {"HP-EDI-PREV", "HP-EDI-1", "HP-JHE-1"} <= extra and "HP-CANC" not in extra
     # estorno reduz o elegível (resumo, KPIs, tabela, ranking)
     assert resumo_por_beneficiario(est)["Ediléia"]["elegivel"] == D("-80.00")
@@ -214,14 +218,61 @@ def test_estorno_por_decisao_tira(banco, motor):
 
 
 def test_estorno_so_no_primeiro_mes_aberto(banco, motor):
+    hoje = datetime(2026, 10, 25)  # setembro ainda no horizonte (30/09 + 30 dias)
     _congelar(banco, SET, [_l("HP-SET", dia=28, mes=9, sit="prevista")])
     motor["vendas"] = [_venda("HP-SET", 28, cancelada=datetime(2026, 10, 1), mes=9)]
     # outubro aberto: o estorno de setembro é de outubro, não de novembro
-    assert not [l for l in snap.calcular_mes(NOV, HOJE).linhas if l.situacao == "estorno"]
-    assert [l.motivo for l in snap.calcular_mes(OUT, HOJE).linhas if l.situacao == "estorno"] == ["estorno de 2026-09"]
+    assert not [l for l in snap.calcular_mes(NOV, hoje).linhas if l.situacao == "estorno"]
+    assert [l.motivo for l in snap.calcular_mes(OUT, hoje).linhas if l.situacao == "estorno"] == ["estorno de 2026-09"]
     # outubro fechado também (sem o estorno): novembro é o primeiro aberto depois dos dois
     _congelar(banco, OUT, [])
-    assert [l.motivo for l in snap.calcular_mes(NOV, HOJE).linhas if l.situacao == "estorno"] == ["estorno de 2026-09"]
+    assert [l.motivo for l in snap.calcular_mes(NOV, hoje).linhas if l.situacao == "estorno"] == ["estorno de 2026-09"]
+
+
+def test_lacuna_fechado_aberto_fechado(banco, motor):
+    """Set fechado, Out aberto, Nov fechado: Dez só herda de Nov; Set é de Out."""
+    hoje = datetime(2026, 10, 25)
+    _congelar(banco, SET, [_l("HP-SET", dia=28, mes=9, sit="prevista")])
+    _congelar(banco, NOV, [_l("HP-NOV", dia=20, mes=11, sit="prevista")])
+    motor["vendas"] = [_venda("HP-SET", 28, cancelada=datetime(2026, 10, 1), mes=9),
+                       _venda("HP-NOV", 20, cancelada=datetime(2026, 11, 22), mes=11)]
+    dez = [l.motivo for l in snap.calcular_mes(DEZ, datetime(2026, 12, 2)).linhas if l.situacao == "estorno"]
+    assert dez == ["estorno de 2026-11"]
+    assert [l.motivo for l in snap.calcular_mes(OUT, hoje).linhas if l.situacao == "estorno"] == ["estorno de 2026-09"]
+
+
+def test_horizonte_de_30_dias_e_decisao_tira(banco, motor):
+    _congelar(banco, SET, [_l("HP-SET", dia=10, mes=9, sit="elegivel"), _l("HP-SET2", dia=11, mes=9)])
+    motor["vendas"] = [_venda("HP-SET", 10, cancelada=datetime(2026, 9, 12), mes=9),
+                       _venda("HP-SET2", 11, cancelada=datetime(2026, 10, 1), mes=9),
+                       _venda("HP-SET-TARDE", 15, mes=9)]
+    hoje = datetime(2026, 11, 6)  # 30/09 + 30 dias < 06/11: setembro fora do horizonte
+    r = snap.calcular_mes(OUT, hoje)
+    assert not [l for l in r.linhas if l.situacao == "estorno" or l.transacao == "HP-SET-TARDE"]
+    assert motor["chamadas"][-1][0] == OUT  # nem lê vendas de setembro
+    motor["decisoes"]["HP-SET2"] = "tira"  # decisão "tira": qualquer idade
+    est = [l for l in snap.calcular_mes(OUT, hoje).linhas if l.situacao == "estorno"]
+    assert [(l.transacao, l.motivo) for l in est] == [("HP-SET2", "estorno de 2026-09")]
+    assert motor["chamadas"][-1][2] >= {"HP-SET2"} and "HP-SET" not in motor["chamadas"][-1][2]
+
+
+def test_venda_tardia_entra_no_primeiro_mes_aberto_uma_vez(banco, motor):
+    _congelar(banco, OUT, _linhas_out())
+    tardia = _venda("HP-TARDE", 20)  # de outubro, paga depois do fechamento: fora do congelado
+    motor["vendas"] = [tardia, _venda("HP-EDI-1", 5)]
+    import frontend.services.comercial.tabelas as tab
+    motor["regras"] = [tab.RegraPercentual(1, "hotmart", "cartao_pix", "Ativa", D("0.04"), None, date(2026, 1, 1),
+                                           None, None, None)]
+    motor["bases"] = [tab.ValorBase(1, "hotmart", D("89.90"), D("1477"), "LEAD", date(2026, 1, 1), None)]
+    nov = snap.calcular_mes(NOV, HOJE)
+    t = [l for l in nov.linhas if l.transacao == "HP-TARDE"]
+    assert len(t) == 1 and t[0].situacao == "elegivel" and t[0].valor == D("1477") * D("0.04")
+    assert t[0].motivo == "venda de 2026-10 após o fechamento" and t[0].data.month == 10
+    assert not [l for l in nov.linhas if l.transacao == "HP-EDI-1"]  # essa já está no congelado
+    assert telas.kpis(nov.linhas)["elegivel"] == D("59.08")
+    _congelar(banco, NOV, nov.linhas)  # novembro fecha com a tardia dentro
+    dez = snap.calcular_mes(DEZ, datetime(2026, 12, 3))
+    assert not [l for l in dez.linhas if l.transacao == "HP-TARDE"]
 
 
 def test_estorno_nao_duplica_depois_que_o_mes_fecha(banco, motor):
@@ -396,7 +447,6 @@ def test_escrita_em_mes_aberto_segue(cli):
     ("/comercial/reivindicar", {"transacao": "HP-EDI-1", "vendedor_codigo": "AT4", "mes": "2026-10"}),
     ("/comercial/atribuicoes/aprovar", {"transacao": "HP-EDI-1", "mes": "2026-10"}),
     ("/comercial/atribuir", {"transacao": "HP-EDI-1", "vendedor_codigo": "AT9", "mes": "2026-10"}),
-    ("/comercial/reembolso", {"transacao": "HP-EDI-1", "decisao": "tira", "justificativa": "x", "mes": "2026-10"}),
     ("/comercial/ajuste", {"transacao": "HP-EDI-1", "pct": "10", "justificativa": "x", "mes": "2026-10"}),
 ])
 @pytest.mark.parametrize("email", ["master@teste.local", "edileia@teste.local"])
@@ -451,3 +501,121 @@ def test_tela_mostra_estorno(cli, monkeypatch):
     html = _como(cli, "master@teste.local").get("/comercial/comissoes?mes=2026-11").text
     assert 'class="cm-chip estorno"' in html and "venda paga no fechamento de 2026-10 e cancelada depois" in html
     assert "-R$" in html or "R$ -" in html or "−" in html
+
+
+# ---------------------------------------------------------------- fix round 1
+def test_fechar_recusa_se_algo_foi_gravado_durante_o_calculo(banco, monkeypatch):
+    def calcula_e_alguem_grava(mes, **kw):
+        banco.agora = datetime(2026, 11, 6, 15, 0, 10)  # depois do relógio do início (15:00)
+        com.gravar_bonus("AT4", OUT, D("50"), None, "master@teste.local")
+        return _res()
+    monkeypatch.setattr(snap, "recalcular_mes", calcula_e_alguem_grava)
+    with pytest.raises(com.EscritaRecusada, match="mudou_durante_o_fechamento"):
+        fech.fechar(OUT, "coord@teste.local", HOJE)
+    assert banco.fechamentos == {}
+    # snapshot do mês invalidado durante o cálculo também recusa
+    banco.historico.clear()
+    banco.invalidado[OUT] = datetime(2026, 11, 6, 15, 0, 5)
+    monkeypatch.setattr(snap, "recalcular_mes", lambda mes, **kw: _res())
+    with pytest.raises(com.EscritaRecusada, match="mudou_durante_o_fechamento"):
+        fech.fechar(OUT, "coord@teste.local", HOJE)
+    banco.invalidado[OUT] = datetime(2026, 11, 6, 14)  # antes do início: segue
+    fech.fechar(OUT, "coord@teste.local", HOJE)
+    assert banco.fechamentos[OUT]["ativo"]
+
+
+def test_fechamento_concorrente_rowcount_zero(banco, monkeypatch):
+    """Dois fechamentos ao mesmo tempo: os dois leem "aberto"; o segundo INSERT não pega linha."""
+    monkeypatch.setattr(snap, "recalcular_mes", lambda mes, **kw: _res())
+    fech.fechar(OUT, "coord@teste.local", HOJE)
+    banco.h[" ".join(com.SQL_FECH_ESTADO_UM.split())] = lambda p: _Res([])  # a leitura "não vê" o do outro
+    n = len(banco.historico)
+    with pytest.raises(com.EscritaRecusada, match="ja_fechado"):
+        com.fechar_mes(OUT, "[]", "{}", "{}", "x", "master@teste.local", desde=datetime(2026, 11, 6, 15))
+    assert len(banco.historico) == n and banco.fechamentos[OUT]["fechado_por"] == "coord@teste.local"
+
+
+def test_so_o_ultimo_mes_fechado_reabre(banco):
+    _congelar(banco, SET, [])
+    _congelar(banco, OUT, [])
+    with pytest.raises(com.EscritaRecusada, match="reabrir_ordem"):
+        com.reabrir_mes(SET, "motivo", "master@teste.local")
+    assert banco.fechamentos[SET]["ativo"] and banco.historico == []
+    com.reabrir_mes(OUT, "motivo", "master@teste.local")
+    com.reabrir_mes(SET, "motivo", "master@teste.local")
+    assert not banco.fechamentos[SET]["ativo"]
+
+
+def test_reabrir_fora_de_ordem_pela_rota_e_tela(cli, monkeypatch):
+    _congelar(cli.banco, SET, [])
+    _congelar(cli.banco, OUT, [])
+    r = _como(cli, "master@teste.local").post("/comercial/reabrir-mes", data={"mes": "2026-09", "motivo": "x"})
+    assert r.headers["location"] == "/comercial/comissoes?mes=2026-09&erro=reabrir_ordem"
+    monkeypatch.setattr(snap, "obter_mes", lambda mes, **kw: replace(_fechado(), mes=mes))
+    html = _como(cli, "master@teste.local").get("/comercial/comissoes?mes=2026-09").text
+    assert "reabrir-mes" not in html and "Só o último mês fechado reabre" in html
+    assert 'action="/comercial/reabrir-mes"' in _como(cli, "master@teste.local").get("/comercial/comissoes?mes=2026-10").text
+
+
+def test_reembolso_de_venda_de_mes_fechado_vira_estorno(cli):
+    """Ruling 19a: a decisão é aceita e invalida os meses seguintes (onde vive o estorno)."""
+    _congelar(cli.banco, OUT, _linhas_out())
+    r = _como(cli, "master@teste.local").post("/comercial/reembolso", data={
+        "transacao": "HP-EDI-1", "decisao": "tira", "justificativa": "pedido no 6º dia", "mes": "2026-10"})
+    assert r.headers["location"] == "/comercial/inconsistencias?mes=2026-10&ok=reembolso"
+    assert cli.banco.decisoes["HP-EDI-1"] == "tira" and cli.desat == [NOV]
+    assert cli.banco.fechamentos[OUT]["ativo"]  # o mês fechado não muda
+
+
+def test_venda_fora_do_congelado_aceita_acao(cli):
+    """Venda que não está no congelado (tardia/mês aberto) não é recusada por mes_fechado."""
+    _congelar(cli.banco, OUT, _linhas_out())
+    assert com.mes_fechado_da_transacao("HP-TARDE") is None
+    from frontend.services.comercial import inconsistencias as inc
+    assert inc.exigir_venda_de_mes_aberto("HP-TARDE") is None
+    assert inc.exigir_venda_de_mes_aberto("HP-EDI-1", reembolso=True) == OUT
+    with pytest.raises(com.EscritaRecusada, match="mes_fechado"):
+        inc.exigir_venda_de_mes_aberto("HP-EDI-1")
+
+
+def test_linhas_guardadas_de_mes_fechado_le_o_congelado(banco):
+    from frontend.services.comercial import inconsistencias as inc
+    _congelar(banco, OUT, _linhas_out())
+    assert [l.transacao for l in inc.linhas_guardadas(OUT)] == [l.transacao for l in _linhas_out()]
+
+
+def test_inconsistencias_de_mes_fechado_sem_botoes(cli, monkeypatch):
+    monkeypatch.setattr(telas, "ler_extras", lambda periodo, acesso: ({}, {}))
+    sem = replace(_l("HP-SEM", sit="inconsistente"), motivo="sem_codigo", vendedor_codigo=None, beneficiario="(sem vendedor)")
+    av = _l("HP-AV", sit="reembolso_a_verificar")
+    monkeypatch.setattr(snap, "obter_mes", lambda mes, **kw: _fechado(_linhas_out() + [sem, av]))
+    monkeypatch.setattr(com, "ler_fila", lambda **kw: {"pendentes": [], "minhas": [], "historico": [],
+                                                       "vendedores": [("AT4", "Ediléia")], "com_pedido": set()})
+    monkeypatch.setattr(com, "ler_codigos_conflito", lambda pedidos: {})
+    html = _como(cli, "master@teste.local").get("/comercial/inconsistencias?mes=2026-10").text
+    assert "Mês fechado em 02/11" in html and 'action="/comercial/reembolso"' in html
+    for acao in ("/comercial/atribuir", "/comercial/ajuste", "/comercial/atribuicoes/aprovar", "/comercial/reivindicar"):
+        assert f'action="{acao}"' not in html, acao
+    vend = _como(cli, "edileia@teste.local").get("/comercial/inconsistencias?mes=2026-10&q=HP-SEM").text
+    assert 'action="/comercial/reivindicar"' not in vend
+
+
+def test_periodo_livre_avisa_mes_fechado(cli, monkeypatch):
+    _congelar(cli.banco, OUT, [])
+    monkeypatch.setattr(telas, "calcular_periodo", lambda ini, fim, hoje=None: ResultadoMes(ini, _linhas_out(), [], HOJE))
+    monkeypatch.setattr(telas, "ler_extras", lambda periodo, acesso: (None, None))
+    html = _como(cli, "master@teste.local").get("/comercial/comissoes?inicio=2026-10-15&fim=2026-11-05").text
+    assert "meses fechados aparecem recalculados, não o valor pago" in html and "10/2026" in html
+    html = _como(cli, "master@teste.local").get("/comercial/comissoes?inicio=2026-11-01&fim=2026-11-05").text
+    assert "meses fechados aparecem recalculados" not in html
+
+
+def test_aquecimento_pula_mes_fechado(banco, monkeypatch):
+    import asyncio
+    import frontend.services.prewarm as pw
+    _congelar(banco, OUT, [])
+    tentados = []
+    monkeypatch.setattr(snap, "agora_sp", lambda: datetime(2026, 11, 6, 9))
+    monkeypatch.setattr(snap, "recalcular_mes", lambda mes, **kw: tentados.append(mes))
+    asyncio.run(pw.warm_comercial("teste"))
+    assert tentados == [NOV]

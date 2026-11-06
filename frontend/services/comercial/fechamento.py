@@ -10,13 +10,20 @@
   cancelada (≤ 7 dias) ou com decisão "tira", vira uma linha negativa em M — mesmo papel e
   beneficiário da original. Uma por (mês original, transação, papel, beneficiário): o estorno já
   congelado num mês fechado posterior não se repete.
+- **Venda tardia** (Ruling 20): venda de um desses meses fechados C, paga hoje mas ausente das
+  linhas congeladas de C (paga/ingerida depois do fechamento), entra em M calculada pela própria
+  data, com motivo "venda de AAAA-MM após o fechamento". Não se repete depois que M fecha (a
+  transação passa a estar num congelado).
+- **Horizonte** (Finding 4): estorno e venda tardia só olham os meses fechados C cujo último dia
+  + HORIZONTE_DIAS ≥ hoje (SP); de C mais antigos, só as linhas de venda com decisão "tira".
 """
 from __future__ import annotations
 
 import json
 import re
-from dataclasses import replace
-from datetime import date, datetime
+import calendar
+from dataclasses import dataclass, field, replace
+from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
 from frontend.services.comercial.calculo import LinhaComissao, resumo_por_beneficiario
@@ -29,6 +36,7 @@ _ZERO = Decimal("0")
 _CENTAVO = Decimal("0.01")
 _RE_MOTIVO = re.compile(r"^estorno de (\d{4})-(\d{2})$")
 PRIMEIRO_MES = date(2026, 1, 1)
+HORIZONTE_DIAS = 30  # Ruling 20: estorno/venda tardia só de mês fechado terminado há ≤ 30 dias (+ "tira")
 
 
 # ---------------------------------------------------------------- meses
@@ -55,6 +63,14 @@ def meses_seguintes(mes: date, hoje: date) -> list[date] | None:
         saida.append(m)
         m = soma_meses(m, 1)
     return None if len(saida) > 3 else saida
+
+
+def ultimo_dia(m: date) -> date:
+    return date(m.year, m.month, calendar.monthrange(m.year, m.month)[1])
+
+
+def no_horizonte(mes: date, hoje: date) -> bool:
+    return ultimo_dia(mes) + timedelta(days=HORIZONTE_DIAS) >= hoje
 
 
 def pode_fechar_mes(mes: date, hoje: date) -> bool:
@@ -112,6 +128,45 @@ def estornos(cands: list[tuple[date, LinhaComissao]], vendas_atuais: dict[str, V
     return saida
 
 
+def motivo_tardia(mes_original: date) -> str:
+    return f"venda de {mes_original:%Y-%m} após o fechamento"
+
+
+def marcar_tardias(linhas: list[LinhaComissao]) -> list[LinhaComissao]:
+    """Linhas de venda tardia: motivo explica de onde vem. Linha inconsistente mantém o motivo
+    dela (sem código, sem regra...) — é ele que a tela de Inconsistências usa."""
+    return [l if l.motivo is not None else replace(l, motivo=motivo_tardia(l.data.date().replace(day=1)))
+            for l in linhas]
+
+
+@dataclass
+class Pendentes:
+    """O que os meses fechados logo antes de M ainda devem a M (estorno e venda tardia)."""
+    recentes: list[date] = field(default_factory=list)       # fechados dentro do horizonte
+    congeladas: dict = field(default_factory=dict)            # {mês: [LinhaComissao]}
+    ja_congeladas: set = field(default_factory=set)           # transações nos congelados lidos inteiros
+    cands: list = field(default_factory=list)                 # [(mês original, linha)] de estorno
+
+
+def ler_pendentes(mes: date, hoje: datetime, tira: set[str]) -> Pendentes | None:
+    """Lê do banco só o necessário: congelados inteiros dos meses no horizonte; dos mais
+    antigos, só as linhas das transações com decisão "tira". None = nenhum mês fechado antes."""
+    from frontend.db_readers.comercial import (  # noqa: PLC0415
+        ler_linhas_das_transacoes, ler_linhas_fechadas, meses_fechados,
+    )
+    from frontend.services.comercial.snapshot import linhas_de_json  # noqa: PLC0415
+    run = meses_do_estorno(mes, meses_fechados())
+    if not run:
+        return None
+    rec = [c for c in run if no_horizonte(c, hoje.date())]
+    antigos = [c for c in run if c not in rec]
+    cong = {m: linhas_de_json(j) for m, j in ler_linhas_fechadas(rec).items()}
+    ja = {l.transacao for ls in cong.values() for l in ls}
+    for m, js in ler_linhas_das_transacoes(antigos, tira).items():
+        cong.setdefault(m, []).extend(linhas_de_json(js))
+    return Pendentes(sorted(rec), cong, ja, candidatas(cong))
+
+
 # ---------------------------------------------------------------- fechar
 def a_verificar(linhas: list[LinhaComissao]) -> int:
     return sum(1 for l in linhas if l.papel == "venda" and l.situacao == "reembolso_a_verificar")
@@ -164,9 +219,14 @@ class AVerificar(Exception):
         self.qtd = qtd
 
 
+def _relogio_banco() -> datetime:
+    from frontend.services.comercial import snapshot as snap  # noqa: PLC0415
+    return snap.StoreBanco().inicio_calculo()
+
+
 def fechar(mes: date, por: str, hoje: datetime) -> dict:
     """Recalcula o mês do zero e congela. Devolve os totais. Recusas: `mes_nao_terminou`,
-    `ja_fechado` (EscritaRecusada) e AVerificar(qtd)."""
+    `ja_fechado`, `mudou_durante_o_fechamento` (EscritaRecusada) e AVerificar(qtd)."""
     from frontend.db_readers import comercial as com  # noqa: PLC0415
     from frontend.services.comercial import snapshot as snap  # noqa: PLC0415
     mes = mes.replace(day=1)
@@ -174,6 +234,7 @@ def fechar(mes: date, por: str, hoje: datetime) -> dict:
         raise com.EscritaRecusada("mes_nao_terminou")
     if com.mes_fechado(mes):
         raise com.EscritaRecusada("ja_fechado")
+    desde = _relogio_banco()  # Finding 1: escrita gravada depois disto não está no cálculo
     res = snap.recalcular_mes(mes, hoje=hoje)  # cálculo novo, nunca o snapshot guardado
     n = a_verificar(res.linhas)
     if n:
@@ -181,7 +242,7 @@ def fechar(mes: date, por: str, hoje: datetime) -> dict:
     bonus = com.ler_bonus_mes(mes)
     t = totais(res.linhas, bonus)
     com.fechar_mes(mes, snap.linhas_para_json(res.linhas), bonus_para_json(bonus), json.dumps(t, ensure_ascii=False),
-                   resumo_txt(t), por)
+                   resumo_txt(t), por, desde=desde)
     return t
 
 

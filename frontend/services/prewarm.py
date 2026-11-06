@@ -283,6 +283,14 @@ def meses_comercial(hoje) -> list:
     return [atual, anterior]
 
 
+def _mes_fechado(mes) -> bool:
+    try:
+        from frontend.db_readers.comercial import mes_fechado  # noqa: PLC0415
+        return mes_fechado(mes)
+    except Exception:  # noqa: BLE001 — na dúvida, aquece (custa só o cálculo)
+        return False
+
+
 async def warm_comercial(origem: str = "boot") -> None:
     """Recalcula o snapshot da comissão do mês corrente e do anterior (~13 s cada). Melhor
     esforço: erro vira log e segue; roda fora do _WARM_LOCK para não atrasar o aquecimento."""
@@ -294,6 +302,8 @@ async def warm_comercial(origem: str = "boot") -> None:
         from frontend.services.comercial.snapshot import agora_sp, recalcular_mes  # noqa: PLC0415
         hoje = agora_sp()
         for mes in meses_comercial(hoje):
+            if _mes_fechado(mes):
+                continue  # Ruling 19c: mês fechado é congelado, não se recalcula
             try:
                 _t0 = _time.monotonic()
                 await run_in_threadpool(recalcular_mes, mes, hoje=hoje)

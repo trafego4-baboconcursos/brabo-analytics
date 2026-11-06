@@ -440,7 +440,8 @@ def view_visao(res: ResultadoMes, periodo: Periodo, acesso: AcessoComercial,
 
 def view_comissoes(res: ResultadoMes, periodo: Periodo, acesso: AcessoComercial,
                    vendedor: str | None = None, bonus: dict | None = None,
-                   vendedores_ativos: list | None = None, hoje: date | None = None) -> dict:
+                   vendedores_ativos: list | None = None, hoje: date | None = None,
+                   ultimo_fechado: bool = True) -> dict:
     from frontend.services.comercial import fechamento as fech  # noqa: PLC0415
     gestor = e_gestor(acesso)
     filtro = vendedor if gestor else None
@@ -466,7 +467,8 @@ def view_comissoes(res: ResultadoMes, periodo: Periodo, acesso: AcessoComercial,
         "vendedor": filtro,
         "linhas": vis,
         "fechar": fechar,
-        "reabre": gestor and res.fechado,
+        "reabre": gestor and res.fechado and ultimo_fechado,
+        "reabre_bloqueado": gestor and res.fechado and not ultimo_fechado,  # Ruling 19b
     }
 
 

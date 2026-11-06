@@ -152,6 +152,14 @@ async def _carregar(mes, inicio, fim, acesso):
 
 
 async def _pagina(request: Request, page: str, title: str, template: str, view: dict, hoje):
+    periodo = view.get("periodo")
+    if periodo is not None and periodo.livre:  # período livre recalcula até mês fechado
+        try:
+            fechados = await run_in_threadpool(_com().meses_fechados)
+        except Exception:  # noqa: BLE001 — só um aviso; a tela segue sem ele
+            fechados = {}
+        view["livre_fechados"] = sorted(f"{m:%m/%Y}" for m in fechados
+                                        if m <= periodo.fim and m >= periodo.inicio.replace(day=1))
     launches = await run_in_threadpool(get_launches)
     ctx = _base_ctx(request, page, title, None, launches, v=view,
                     meses=_telas().meses_recentes(hoje),
@@ -178,8 +186,12 @@ async def _view_comissoes(t, res, periodo, acesso, vendedor):
     bonus, _metas = await run_in_threadpool(t.ler_extras, periodo, acesso)
     ativos = (await run_in_threadpool(t.ler_vendedores_ativos)
               if t.e_gestor(acesso) and bonus is not None and not res.fechado else [])
+    ultimo = True
+    if res.fechado:  # Ruling 19b: só o último mês fechado reabre
+        fechados = await run_in_threadpool(_com().meses_fechados)
+        ultimo = not any(m > periodo.mes for m in fechados)
     return t.view_comissoes(res, periodo, acesso, (vendedor or "").strip().upper() or None, bonus, ativos,
-                            hoje=_hoje())
+                            hoje=_hoje(), ultimo_fechado=ultimo)
 
 
 @router.get("/comercial/comissoes", response_class=HTMLResponse)
@@ -289,7 +301,10 @@ def _voltar_inc(mes, **qs) -> RedirectResponse:
 
 
 async def _acao(request: Request, permissao: str, mes: str | None, executar):
-    """Esqueleto das ações. `executar(acesso, email, mes)` -> (código ok, transação, invalida?)."""
+    """Esqueleto das ações. `executar(acesso, email, mes)` -> (código ok, transação, invalida).
+    `invalida`: False = nada; True = o mês da venda (se achada no mês da tela) ou todos;
+    ("meses", lista | None) = esses meses (None = todos) — ex.: o estorno vive nos meses
+    depois do mês fechado da venda (Ruling 19a)."""
     from frontend.services.comercial import acesso as ac  # noqa: PLC0415
     from frontend.services.comercial import snapshot as snap  # noqa: PLC0415
     acesso = await _acesso(request)
@@ -308,10 +323,15 @@ async def _acao(request: Request, permissao: str, mes: str | None, executar):
     except com.EscritaRecusada as exc:
         return _voltar_inc(mes_d, erro=exc.codigo)
     if invalida:
-        # mês da venda se ela está no snapshot do mês da tela; senão todos (mês desconhecido)
-        achou = inc.localizar(await run_in_threadpool(inc.linhas_guardadas, mes_d), transacao)
+        if isinstance(invalida, tuple):
+            meses = [None] if invalida[1] is None else list(invalida[1])
+        else:
+            # mês da venda se ela está no snapshot do mês da tela; senão todos (mês desconhecido)
+            achou = inc.localizar(await run_in_threadpool(inc.linhas_guardadas, mes_d), transacao)
+            meses = [mes_d if achou else None]
         try:
-            await run_in_threadpool(snap.marcar_desatualizado, mes_d if achou else None)
+            for m in meses:
+                await run_in_threadpool(snap.marcar_desatualizado, m)
         except Exception:  # noqa: BLE001 — a escrita já foi; avisa para recalcular à mão
             import logging  # noqa: PLC0415
             logging.getLogger("comercial.inconsistencias").exception("marcar_desatualizado")
@@ -411,8 +431,13 @@ async def comercial_reembolso(request: Request, transacao: str = Form(""), decis
         if decisao not in ("mantem", "tira"):
             raise inc.EntradaInvalida("Escolha Mantém ou Tira.")
         j = inc.texto_obrigatorio(justificativa, "Justificativa")
-        inc.exigir_venda_de_mes_aberto(t)  # Ruling 17
+        # Ruling 19a: venda de mês fechado aceita a decisão; o "tira" vira estorno no primeiro
+        # mês aberto depois -> invalida os meses seguintes ao fechado
+        fechado = inc.exigir_venda_de_mes_aberto(t, reembolso=True)
         com.decidir_reembolso(t, inc.plataforma_de(t), decisao, j, email)
+        if fechado is not None:
+            from frontend.services.comercial import fechamento as fech  # noqa: PLC0415
+            return "reembolso", t, ("meses", fech.meses_seguintes(fechado, _hoje()))
         return "reembolso", t, True
     return await _acao(request, "aprovar", mes, executar)
 

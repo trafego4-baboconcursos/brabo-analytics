@@ -70,6 +70,8 @@ MENSAGENS_ERRO = {
     "nao_fechado": "Esse mês não está fechado (outro gestor pode ter reaberto).",
     "mes_nao_terminou": "Só se fecha um mês que já terminou.",
     "tem_a_verificar": "Ainda há vendas com reembolso a verificar neste mês: decida em Inconsistências antes de fechar.",
+    "mudou_durante_o_fechamento": "Algo foi gravado enquanto o mês era calculado para o fechamento. Nada foi fechado: tente de novo.",
+    "reabrir_ordem": "Só o último mês fechado pode ser reaberto: reabra antes os meses seguintes.",
 }
 
 

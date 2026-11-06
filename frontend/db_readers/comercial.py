@@ -1448,6 +1448,17 @@ SQL_FECH_LINHAS_DOS_MESES = ("SELECT mes, linhas FROM comercial_fechamentos "
                              "WHERE ativo AND mes = ANY(:meses) ORDER BY mes")
 SQL_FECH_DA_TRANSACAO = ("SELECT mes FROM comercial_fechamentos "
                          "WHERE ativo AND linhas @> CAST(:alvo AS jsonb) ORDER BY mes")
+# fix 1 — só as linhas congeladas destas transações (meses fora do horizonte: decisão "tira")
+SQL_FECH_LINHAS_DAS_TRANSACOES = (
+    "SELECT f.mes, e.linha FROM comercial_fechamentos f CROSS JOIN LATERAL "
+    "jsonb_array_elements(f.linhas) AS e(linha) WHERE f.ativo AND f.mes = ANY(:meses) "
+    "AND e.linha->>'transacao' = ANY(:transacoes) ORDER BY f.mes")
+# Ruling 19b: só o ÚLTIMO mês fechado reabre
+SQL_FECH_POSTERIOR = "SELECT count(*) FROM comercial_fechamentos WHERE ativo AND mes > :mes"
+# Finding 1: escrita gravada durante o cálculo do fechamento (relógio do banco)
+SQL_FECH_INVALIDADO_DESDE = ("SELECT count(*) FROM comercial_snapshot "
+                             "WHERE mes = :mes AND invalidado_em > :desde")
+SQL_FECH_HISTORICO_DESDE = "SELECT count(*) FROM comercial_historico WHERE em > :desde"
 _COLS_FECH = ("ativo", "fechado_por", "fechado_em", "linhas", "bonus", "totais", "reaberto_por",
               "reaberto_em", "motivo_reabertura")
 _COLS_FECH_ESTADO = ("ativo", "fechado_por", "fechado_em", "reaberto_por", "reaberto_em", "motivo_reabertura")
@@ -1500,6 +1511,21 @@ def ler_linhas_fechadas(meses: list[date]) -> dict[date, object]:
     return _tolerante(ler, {})
 
 
+def ler_linhas_das_transacoes(meses: list[date], transacoes) -> dict[date, list]:
+    """{mês: [linha (jsonb)]} só das linhas congeladas dessas transações nesses meses."""
+    if not meses or not transacoes:
+        return {}
+
+    def ler():
+        out: dict[date, list] = {}
+        with _get_users_engine().connect() as conn:
+            for m, linha in conn.execute(text(SQL_FECH_LINHAS_DAS_TRANSACOES),
+                                         {"meses": sorted(meses), "transacoes": sorted(transacoes)}).fetchall():
+                out.setdefault(m, []).append(linha)
+        return out
+    return _tolerante(ler, {})
+
+
 def mes_fechado_da_transacao(transacao: str) -> date | None:
     """Mês fechado cujas linhas congeladas têm essa venda (ou None). Toda venda paga do mês
     entra no congelado (inclusive sem código/inconsistente), então isto = venda de mês fechado."""
@@ -1524,14 +1550,19 @@ def _txt_fechamento(estado: dict | None) -> str | None:
 
 
 def fechar_mes(mes: date, linhas_json: str, bonus_json: str, totais_json: str, resumo: str, por: str,
-               *, conn=None) -> None:
+               *, desde: datetime, conn=None) -> None:
     """Congela o mês. Já fechado -> `ja_fechado`. Mês reaberto antes: reativa com as linhas
-    novas; a reabertura anterior fica registrada no histórico (antes)."""
+    novas; a reabertura anterior fica registrada no histórico (antes). `desde` = relógio do
+    banco antes do cálculo: qualquer escrita depois dele (histórico, ou snapshot do mês
+    invalidado) -> `mudou_durante_o_fechamento` (as linhas calculadas não a incluem)."""
     mes = mes.replace(day=1)
     with _transacao(conn) as c:
         antes = _um(c, SQL_FECH_ESTADO_UM, {"mes": mes}, _COLS_FECH_ESTADO)
         if antes is not None and antes["ativo"]:
             raise EscritaRecusada("ja_fechado")
+        if (c.execute(text(SQL_FECH_HISTORICO_DESDE), {"desde": desde}).scalar_one()
+                or c.execute(text(SQL_FECH_INVALIDADO_DESDE), {"mes": mes, "desde": desde}).scalar_one()):
+            raise EscritaRecusada("mudou_durante_o_fechamento")
         r = _gravar(c, SQL_FECH_GRAVAR, {"mes": mes, "por": por, "linhas": linhas_json, "bonus": bonus_json,
                                           "totais": totais_json})
         if r.rowcount == 0:  # outro gestor fechou entre a leitura e o INSERT
@@ -1549,6 +1580,8 @@ def reabrir_mes(mes: date, motivo: str, por: str, *, conn=None) -> None:
         antes = _um(c, SQL_FECH_ESTADO_UM, {"mes": mes}, _COLS_FECH_ESTADO)
         if antes is None or not antes["ativo"]:
             raise EscritaRecusada("nao_fechado")
+        if c.execute(text(SQL_FECH_POSTERIOR), {"mes": mes}).scalar_one():
+            raise EscritaRecusada("reabrir_ordem")  # Ruling 19b: reabra antes os meses seguintes
         r = _gravar(c, SQL_FECH_REABRIR, {"mes": mes, "por": por, "motivo": motivo})
         if r.rowcount == 0:
             raise EscritaRecusada("nao_fechado")

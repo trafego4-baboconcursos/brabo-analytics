@@ -45,7 +45,9 @@ class LinhaComissao:
     motivo: str | None
     regra_id: int | None
     atribuicao_manual: bool
-    # Task 6 — com default: snapshot gravado antes destes campos continua carregando
+    # Task 6 — com default: snapshot gravado antes destes campos continua carregando.
+    # Campo NOVO precisa de default sempre: as linhas congeladas de mês fechado (Task 7b) são
+    # lidas para sempre e nunca regravadas.
     ajuste_manual: bool = False
     valor_cobrado: Decimal | None = None
 

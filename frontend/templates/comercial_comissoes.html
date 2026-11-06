@@ -84,6 +84,8 @@
         <input class="just" type="text" name="motivo" required maxlength="1000" placeholder="motivo (obrigatório)" aria-label="Motivo da reabertura">
         <button type="submit">Reabrir</button>
       </form>
+      {% elif v.reabre_bloqueado %}
+      <span class="cm-sub">Só o último mês fechado reabre: reabra antes os meses seguintes.</span>
       {% endif %}
     </div>
     {% elif v.fechar %}

@@ -40,6 +40,9 @@ class _Res:
     def fetchall(self):
         return self._rows
 
+    def scalar_one(self):
+        return self._rows[0][0]
+
 
 # ---------------------------------------------------------------- FakeBanco
 class FakeBanco:
@@ -80,6 +83,9 @@ class FakeBanco:
         self.bonus = {}
         self.historico = []
         self.fechamentos = {}  # Task 7b: mes -> {ativo, fechado_por, fechado_em, linhas, bonus, totais, reaberto_*}
+        self.decisoes = {}     # transacao -> decisao (comercial_decisoes_reembolso)
+        self.invalidado = {}   # mes -> invalidado_em (comercial_snapshot)
+        self.agora = datetime(2026, 11, 6, 10)  # carimbo do "now()" das escritas (historico.em)
         self.lancamentos = [("PES-NOV-26", "2026-11-16", None, ["111"], []),
                             ("PI-NOV-26", None, None, ["222"], []),
                             ("PBB-OUT-26", None, "2026-10-05", ["333"], [])]
@@ -145,6 +151,15 @@ class FakeBanco:
                                                            if f["ativo"] and m in p["meses"]]),
             com.SQL_FECH_DA_TRANSACAO: self._fech_da_transacao,
             com.SQL_FECH_GRAVAR: self._fech_gravar,
+            com.SQL_FECH_POSTERIOR: lambda p: _Res([(sum(1 for m, f in self.fechamentos.items()
+                                                         if f["ativo"] and m > p["mes"]),)]),
+            com.SQL_FECH_HISTORICO_DESDE: lambda p: _Res([(sum(1 for h in self.historico if h["em"] > p["desde"]),)]),
+            com.SQL_FECH_INVALIDADO_DESDE: lambda p: _Res([(int(self.invalidado.get(p["mes"], datetime.min) > p["desde"]),)]),
+            com.SQL_FECH_LINHAS_DAS_TRANSACOES: lambda p: _Res([
+                (m, l) for m, f in sorted(self.fechamentos.items()) if f["ativo"] and m in p["meses"]
+                for l in f["linhas"] if l["transacao"] in p["transacoes"]]),
+            com.SQL_REEMBOLSO_LER_UM: lambda p: _Res([(self.decisoes[p["transacao"]],)] if p["transacao"] in self.decisoes else []),
+            com.SQL_REEMBOLSO_UPSERT: lambda p: (self.decisoes.__setitem__(p["transacao"], p["decisao"]), _Res(rowcount=1))[1],
             com.SQL_FECH_REABRIR: self._fech_reabrir,
             com.SQL_HISTORICO_100: lambda p: _Res([(h["tabela"], h["registro_id"], h["campo"], h["antes"], h["depois"],
                                                     h["por"], datetime(2026, 11, 6, 10)) for h in reversed(self.historico)]),
@@ -165,7 +180,7 @@ class FakeBanco:
     begin = connect
 
     _ESTADO = ("vend", "acessos", "regras", "parts", "bases", "ofertas", "janelas", "metas", "bonus", "historico",
-               "fechamentos")
+               "fechamentos", "decisoes")
 
     def __enter__(self):
         self._pilha.append({k: copy.deepcopy(getattr(self, k)) for k in self._ESTADO})
@@ -266,7 +281,7 @@ class FakeBanco:
         return out
 
     def _hist(self, p):
-        self.historico.append(dict(p))
+        self.historico.append({**p, "em": self.agora})
         return _Res(rowcount=1)
 
     # ---- comercial_fechamentos (Task 7b): jsonb guardado como estrutura decodificada

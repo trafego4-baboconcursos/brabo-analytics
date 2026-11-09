@@ -81,6 +81,16 @@ python etl/etl_youtube_analytics.py --ativos                        # o que o sc
 python etl/etl_youtube_analytics.py --launch-code PES-SET-26 --start-date 2026-09-14 --end-date 2026-10-22
 ```
 
+### Comercial — comissões dos vendedores
+Área Comercial do painel (`/comercial`). Spec: `docs/projetos/PLANO_AREA_COMERCIAL_COMISSOES.md`;
+arquitetura em `docs/sistema/ARQUITETURA.md` (seções "Comercial"). Escrita só em tabelas
+`comercial_*`, por comandos exatos registrados na guarda de `frontend/db_readers/comercial.py`.
+```bash
+python scripts/comercial_carga_inicial.py --migrar                    # cria tabelas novas/migrações, sem dados
+python scripts/comercial_carga_inicial.py --dry-run --pasta analises/comercial/extraido
+python scripts/comercial_conciliar.py --mes 2026-10 --cadastros banco --planilha "<Vendas - Por Vendedor 2026.xlsx>" --saida <pasta>
+```
+
 ### One-time setup
 ```bash
 # Apply DB schema (run in Supabase > SQL Editor)

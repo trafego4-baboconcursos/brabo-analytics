@@ -223,3 +223,15 @@ def test_cancelada_ate_7_dias_continua_cancelada_mesmo_com_decisao():
 
 def test_cadastros_decisoes_reembolso_padrao_vazio():
     assert Cadastros().decisoes_reembolso == {}
+
+
+def test_base_cai_no_valor_alternativo_so_quando_o_principal_nao_acha():
+    from dataclasses import replace
+    c = cad()
+    c.valores_base.append(ValorBase(3, "hotmart", D("899.40"), D("863"), "CROSS SELL", date(2026, 1, 1), None))
+    [l] = calcular([replace(venda(valor="674.31"), valores_alternativos=(D("899.40"),))], c, [], HOJE)
+    assert (l.valor_base, l.situacao) == (D("863"), "elegivel")
+    [l2] = calcular([replace(venda(valor="1726"), valores_alternativos=(D("899.40"),))], c, [], HOJE)
+    assert l2.valor_base == D("1726")  # principal achou: alternativo não é usado
+    [l3] = calcular([replace(venda(valor="12.34"), valores_alternativos=(D("55.55"),))], c, [], HOJE)
+    assert (l3.situacao, l3.motivo) == ("inconsistente", "sem_valor_base")

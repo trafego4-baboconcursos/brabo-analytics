@@ -525,6 +525,30 @@ def _valor_export(l: dict) -> Decimal | None:
     return sem + taxa if taxa is not None else sem
 
 
+def _valores_alternativos(l: dict) -> tuple[Decimal, ...]:
+    """Valores para achar o valor-base quando o de `_valor_export` não acha (09/11/26).
+
+    O Rafael Batista classifica pelo "Valor de compra com impostos" (coluna L do relatório).
+    Ex.: HP1930038622, Cross 10x: sem impostos + taxa = 674,31; com impostos = 899,40.
+    Parcelamento Inteligente (1ª de N cobranças): a Hotmart grava só a parcela (149,90 de 12x),
+    e a parcela sozinha casaria com a base de recorrência (149,90 -> 1.477). Por isso aqui vai
+    parcela × N (1.798,80 = Não Aluno) ANTES do valor com impostos."""
+    com = _dec(l.get("valor_de_compra_com_impostos")) if l.get("valor_de_compra_com_impostos") not in (None, "") else None
+    if com is None:
+        return ()
+    try:
+        parcelas = int(l.get("quantidade_total_de_parcelas") or 1)
+    except (TypeError, ValueError):
+        parcelas = 1
+    try:
+        cobrancas = int(l.get("quantidade_de_cobrancas") or 0)
+    except (TypeError, ValueError):
+        cobrancas = 0
+    if cobrancas == 1 and parcelas > 1:  # parcela × N antes; 4 em ~1.000 (set–nov/26) gravam o cheio
+        return ((com * parcelas).quantize(Decimal("0.01")), com.quantize(Decimal("0.01")))
+    return (com.quantize(Decimal("0.01")),)
+
+
 def normalizar_hotmart(linhas: list[dict], ofertas: dict[str, str] | None = None) -> list[Venda]:
     """Agrupa por transação; só 1ª cobrança; nome nulo -> `ofertas[codigo_do_preco]`."""
     ofertas = ofertas or {}
@@ -557,7 +581,8 @@ def normalizar_hotmart(linhas: list[dict], ofertas: dict[str, str] | None = None
             produto_id=str(rep.get("codigo_do_produto") or ""), produto=rep.get("produto") or "",
             oferta=oferta, codigo_at=extrair_codigo_at(oferta), conflito_codigo=False,
             modalidade=modalidade_hotmart(rep.get("tipo_de_cobranca"), rep.get("metodo_de_pagamento")),
-            categoria=None, valor_cobrado=valor, pago=pago, cancelada_em=cancelada))
+            categoria=None, valor_cobrado=valor, pago=pago, cancelada_em=cancelada,
+            valores_alternativos=_valores_alternativos(rep)))
     if ignoradas:
         logger.warning("normalizar_hotmart: %d transações sem data/valor legível ignoradas", ignoradas)
     return out
@@ -602,7 +627,8 @@ def normalizar_tmb(linhas: list[dict]) -> list[Venda]:
 _COLS_HM = ("h.codigo_da_transacao, h.status_da_transacao, h.data_da_transacao, h.codigo_do_produto, "
             "h.produto, h.codigo_do_preco, h.nome_deste_preco, h.tipo_de_cobranca, "
             "h.metodo_de_pagamento, h.quantidade_de_cobrancas, h.valor_de_compra_sem_impostos, "
-            "h.taxa_de_processamento, h.faturamento_liquido, e.ultimo_evento_em")
+            "h.taxa_de_processamento, h.faturamento_liquido, h.valor_de_compra_com_impostos, "
+            "h.quantidade_total_de_parcelas, e.ultimo_evento_em")
 _CHAVES_HM = [c.strip().split(".")[-1] for c in _COLS_HM.split(",")]
 _SQL_HOTMART_PERIODO = r"""
     SELECT """ + _COLS_HM + r"""

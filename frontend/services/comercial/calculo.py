@@ -75,10 +75,12 @@ def _vendedor(venda: Venda, cad: Cadastros) -> tuple[str | None, bool, str | Non
 
 
 def _base(venda: Venda, cad: Cadastros, dia) -> tuple[Decimal | None, str | None]:
-    """Valor-base e categoria: tabela primeiro; TMB cai na base fixa por categoria."""
-    achado = buscar_valor_base(cad.valores_base, venda.plataforma, venda.valor_cobrado, dia)
-    if achado:
-        return achado.valor_base, achado.categoria
+    """Valor-base e categoria: tabela primeiro (valor cobrado, depois os alternativos, nessa
+    ordem); TMB cai na base fixa por categoria."""
+    for valor in (venda.valor_cobrado, *venda.valores_alternativos):
+        achado = buscar_valor_base(cad.valores_base, venda.plataforma, valor, dia)
+        if achado:
+            return achado.valor_base, achado.categoria
     if venda.plataforma == "tmb" and venda.categoria in BASE_TMB_POR_CATEGORIA:
         return BASE_TMB_POR_CATEGORIA[venda.categoria], venda.categoria
     return None, venda.categoria

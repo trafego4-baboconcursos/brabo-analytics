@@ -39,3 +39,6 @@ class Venda:
     valor_cobrado: Decimal
     pago: bool
     cancelada_em: datetime | None
+    # Outros valores para achar o valor-base quando `valor_cobrado` não acha (só Hotmart):
+    # o valor COM impostos ou, no Parcelamento Inteligente, parcela × N. Ver _valores_alternativos.
+    valores_alternativos: tuple[Decimal, ...] = ()

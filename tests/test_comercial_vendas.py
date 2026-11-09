@@ -168,3 +168,20 @@ def test_tmb_boleto_gerado_e_aguardando_nao_pagos():
     for st in ("Boleto Gerado", "Aguardando Assinatura", "Aguardando Validação"):
         v = _uma_tmb(status=st)
         assert not v.pago and v.cancelada_em is None and _sit(v) == "nao_paga"
+
+
+def test_hotmart_valores_alternativos_para_buscar_a_base():
+    """Fallback da busca do valor-base (09/11/26, HP1930038622 e HP1190909150): quando o valor de
+    hoje não acha base, tenta o valor COM impostos; no Parcelamento Inteligente (1ª de N cobranças),
+    a parcela × N — a parcela sozinha casaria com a base de recorrência, errada."""
+    api = dict(BASE, status_da_transacao="APPROVED", faturamento_liquido=None, taxa_de_processamento=32.5)
+    cartao10x = dict(api, codigo_da_transacao="HPA", valor_de_compra_sem_impostos=641.81,
+                     valor_de_compra_com_impostos=899.4, quantidade_total_de_parcelas=10,
+                     quantidade_de_cobrancas=None)
+    assert normalizar_hotmart([cartao10x])[0].valores_alternativos == (Decimal("899.40"),)
+    inteligente = dict(api, codigo_da_transacao="HPB", valor_de_compra_sem_impostos=121.46,
+                       taxa_de_processamento=7.0, valor_de_compra_com_impostos=149.9,
+                       quantidade_total_de_parcelas=12, quantidade_de_cobrancas=1)
+    assert normalizar_hotmart([inteligente])[0].valores_alternativos == (Decimal("1798.80"), Decimal("149.90"))
+    sem_com_impostos = dict(api, codigo_da_transacao="HPC", quantidade_de_cobrancas=1)
+    assert normalizar_hotmart([sem_com_impostos])[0].valores_alternativos == ()

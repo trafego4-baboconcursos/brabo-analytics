@@ -175,6 +175,10 @@ def aplicar_sumarios(docs):
     for rel, d in sorted(docs.items()):
         if len(d["texto"].encode("utf-8")) < LIMIAR_SUMARIO:
             continue
+        # Diario por etapa (brabo-brain) so cresce no fim e usa merge=union: o topo nao pode mudar,
+        # senao o union junta dois sumarios sem conflito. A navegacao e o indice MUDANCAS_<LANC>.
+        if d["nome"].startswith("DIARIO_"):
+            continue
         novo = gerar_sumario(d)
         if not novo:
             continue

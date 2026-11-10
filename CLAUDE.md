@@ -214,6 +214,16 @@ changed something and was not written here did not happen.**
    sed -n '1688,1710p'  docs/performance/lancamentos/PES-SET-26/MUDANCAS_PES-SET-26.md
    ```
    To append a new item, read the last section for the numbering — not the whole file.
+5. **Launches with a `diario/` folder (from PI-NOV-26 on, since 2026-11-10): one diary per stage.**
+   - `MUDANCAS_<LAUNCH>.md` becomes an **index** and gets no entries.
+   - Entries go at the **end** of `diario/DIARIO_<LAUNCH>_<0-PLANEJAMENTO|1-PRE-QUALI|2-CAPTACAO|3-REMARKETING|4-CARRINHO|9-GERAL>.md`.
+   - Which stage: the one in the name of the campaign you touched. With no campaign, the stage on air that day.
+     CPA/tCPA/lead while pre-quali and captação overlap counts as captação (`PQ-1`). Daily budget or anything
+     cross-stage goes to `9-GERAL`.
+   - Header: `### (DD/MM/AA HHhMM) <title> — autor: <Name>`, with no number. The author is the **person who
+     acted**: Murilo pausing by hand is `autor: Murilo`.
+   - Never edit the top or old entries. Several people append at once, and `merge=union` only works for appends.
+   - Full rules: `C:/dev/brabo-brain/AGENTS.md`. Closed launches keep the old single `MUDANCAS_` format.
 
 Reading three whole docs to answer one question means the routing failed — fix the
 `responde:` keys of the doc that should have matched.
@@ -283,7 +293,7 @@ Do this **in the same turn** as the change, not "later". Each row is a trigger:
 
 | what happened in the conversation | write it to |
 |---|---|
-| ad-ops action or analysis for a launch (via API **or** done by hand in the platform) | `performance/lancamentos/[LAUNCH]/MUDANCAS_[LAUNCH].md` — new dated item |
+| ad-ops action or analysis for a launch (via API **or** done by hand in the platform) | `performance/lancamentos/[LAUNCH]/diario/DIARIO_[LAUNCH]_<ETAPA>.md` (new entry at the end, with author) when the launch has `diario/`; otherwise `MUDANCAS_[LAUNCH].md` — new dated item. Then commit in brabo-brain |
 | a method that will repeat on other launches | `performance/playbooks/` (new doc or update existing) |
 | a decision covered by a rule | cite the rule ID (`ORC-2`, `META-3`…) from `REGRAS_DECISAO.md` in the item |
 | a rule proved wrong, or a new rule emerged | fix/add it in `performance/playbooks/REGRAS_DECISAO.md` with the incident that taught it |

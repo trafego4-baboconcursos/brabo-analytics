@@ -1162,13 +1162,17 @@ def read_pesquisa_engajamento(launch_folder_or_code: Any) -> dict | None:
         + _tf_source(fid_where, "response_id, updated_at, email")
         + " t WHERE email IS NOT NULL AND email <> ''), "
         "resp AS (SELECT DISTINCT lower(btrim(email)) AS email_norm FROM tf "
-        "UNION " + novo + ") "
+        "UNION " + novo + "), "
+        # A base é lida UMA vez. Antes eram duas leituras de lead_utm_lancamento
+        # (COUNT DISTINCT cada), cada uma com sort de ~150 mil linhas: no PI-NOV-26
+        # (10/11/26) a consulta passou de 53 s e estourava o statement_timeout de 30 s
+        # no aquecimento do debriefing. Assim leva ~4 s.
+        "base AS (SELECT DISTINCT email FROM lead_utm_lancamento "
+        " WHERE lancamento_codigo = :code AND email <> '') "
         "SELECT (SELECT count(*) FROM resp), "
-        "(SELECT COUNT(DISTINCT l.email) FROM lead_utm_lancamento l "
-        " WHERE l.lancamento_codigo = :code AND l.email <> ''), "
-        "(SELECT COUNT(DISTINCT l.email) FROM lead_utm_lancamento l "
-        " WHERE l.lancamento_codigo = :code "
-        "   AND l.email IN (SELECT email_norm FROM resp))"
+        "(SELECT count(*) FROM base), "
+        "(SELECT count(*) FROM base b "
+        " WHERE EXISTS (SELECT 1 FROM resp r WHERE r.email_norm = b.email))"
     )
     insights_sql = (
         "SELECT total_visits, responses_count, completion_rate, average_time FROM "

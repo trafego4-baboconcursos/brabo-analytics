@@ -513,10 +513,21 @@ def test_serie_do_grafico_vai_em_json_nao_em_js_inline(cli):
     assert "chart.js@4.4.0" in html
 
 
-
 def test_rota_ranking_e_visao_vendedora_sem_valores_de_outra(cli):
+    # outras: Jheniffer 3.500 (meta 3.000), Izabela 3.000, Priscila 1.500; Ediléia (AT4) 2.954
     for url in ("/comercial/ranking?mes=2026-10", "/comercial?mes=2026-10"):
         html = _como(cli, "edileia@teste.local").get(url).text
-        assert "Jheniffer" in html                       # nome aparece
-        assert "3.500,00" not in html and "3000" not in html  # valor dela não
-        assert "Jheniffer" in html and "vendidos em" not in html.split("Jheniffer")[1][:80]
+        nomes = ("Jheniffer", "Izabela", "Priscila") if "ranking" in url else ("Jheniffer", "Izabela")  # Top 3
+        for nome in nomes:
+            assert nome in html, (url, nome)                  # nome aparece
+        for valor in ("3.500,00", "3.000,00", "1.500,00"):
+            assert valor not in html, (url, valor)            # valor de outra não
+        assert "2.954,00" in html, url                        # o dela sim
+        assert html.count("vendidos em") <= 1, url            # Top 3 da Visão: só a própria linha
+
+
+@pytest.mark.parametrize("ordem", ["qtd", "meta", "comissao"])
+def test_rota_ranking_vendedora_ordem_pedida_vira_vendido(cli, ordem):
+    html = _como(cli, "edileia@teste.local").get(f"/comercial/ranking?mes=2026-10&ordem={ordem}").text
+    assert html.index("Jheniffer") < html.index("Izabela") < html.index("Ediléia") < html.index("Priscila")
+    assert 'aria-current="true">Vendido' in html

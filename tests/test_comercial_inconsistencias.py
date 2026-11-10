@@ -800,3 +800,18 @@ def test_ajuste_concorrente_rota_303(cli):
 ])
 def test_numero_ponto_de_milhar(pct, base, esperado):
     assert inc.ler_ajuste(pct, base) == esperado
+
+
+def test_venda_da_camila_aparece_em_sem_codigo_e_pode_ser_reivindicada():
+    from dataclasses import replace  # noqa: PLC0415
+    v = Venda("hotmart", "HP1", datetime(2026, 10, 5, 10), "6856971", "Mentoria",
+              "COM. LEAD - Camila", None, False, "cartao_pix", None, D("1726"), True, None)
+    cad = Cadastros({"AT4": "Edileia"}, [RegraPercentual(1, "hotmart", "cartao_pix", "Ativa", D("0.04"), None,
+                                                          date(2026, 1, 1), None)],
+                    [ValorBase(1, "hotmart", D("1726"), D("1726"), "LEAD", date(2026, 1, 1), None)], [], {})
+    l = calcular([v], cad, [], datetime(2026, 11, 30))[0]
+    assert l.papel == "ia"
+    assert inc.sem_codigo([l], None) == [l]
+    inc.conferir_reivindicacao(l, "AT4")
+    assert inc.localizar([l], "HP1") == l
+    assert inc.sem_codigo([replace(l, situacao="cancelada")], None) == []

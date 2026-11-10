@@ -217,7 +217,8 @@ def kpis(linhas: list[LinhaComissao]) -> dict:
         "total": elegivel,
         "inconsistencias": sum(1 for l in vendas if l.situacao == "reembolso_a_verificar"
                                or (l.situacao == "inconsistente" and l.motivo in _MOTIVOS_PENDENTES)),
-        "sem_codigo": sum(1 for l in vendas if l.situacao == "inconsistente" and l.motivo == "sem_codigo"),
+        "sem_codigo": sum(1 for l in vendas if l.situacao == "inconsistente" and l.motivo == "sem_codigo")
+                      + sum(1 for l in linhas if l.papel == "ia" and l.situacao != "cancelada"),
         "participacao": sum((l.valor for l in part if l.situacao in ("elegivel", ESTORNO)), _ZERO),
         "participacao_prevista": sum((l.valor for l in part if l.situacao in _PREVISTA), _ZERO),
     }

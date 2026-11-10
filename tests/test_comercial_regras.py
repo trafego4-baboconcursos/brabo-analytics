@@ -2,6 +2,7 @@ from datetime import date, datetime
 
 from frontend.services.comercial.regras import (
     categoria_tmb,
+    extrair_atendente_ia,
     extrair_codigo_at,
     janela_reativa,
     modalidade_hotmart,
@@ -82,3 +83,10 @@ def test_situacao():
     assert situacao(True, d, datetime(2026, 11, 10), datetime(2026, 11, 12), "mantem") == "elegivel"
     assert situacao(True, d, datetime(2026, 11, 4, 10, 0), datetime(2026, 11, 20)) == "cancelada"
     assert situacao(False, d, None, datetime(2026, 11, 20)) == "nao_paga"
+
+
+def test_extrair_atendente_ia():
+    assert extrair_atendente_ia("Mentoria Vitalícia TJSP Cartão 12x - COM. LEAD - Camila") == "Camila"
+    assert extrair_atendente_ia("COM. LEAD - camila") == "Camila"
+    assert extrair_atendente_ia("COM. LEAD - AT12") is None
+    assert extrair_atendente_ia("Camilastore") is None and extrair_atendente_ia(None) is None

@@ -10,7 +10,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from frontend.services.comercial.modelos import Cadastros, Venda
-from frontend.services.comercial.regras import Janela, situacao, tipo_venda
+from frontend.services.comercial.regras import Janela, extrair_atendente_ia, situacao, tipo_venda
 from frontend.services.comercial.tabelas import (
     BASE_TMB_POR_CATEGORIA,
     buscar_valor_base,
@@ -19,6 +19,7 @@ from frontend.services.comercial.tabelas import (
     tipo_forcado,
 )
 
+PAPEL_IA = "ia"  # venda da atendente IA (Camila): não conta para o comercial nem comissiona
 _ZERO = Decimal("0")
 _SEM_VENDEDOR = "(sem vendedor)"
 _COM_VALOR = ("elegivel", "prevista", "reembolso_a_verificar")
@@ -31,7 +32,7 @@ _BALDE = {"elegivel": "elegivel", "prevista": "prevista", "reembolso_a_verificar
 class LinhaComissao:
     transacao: str
     plataforma: str
-    papel: str  # "venda" | "participacao"
+    papel: str  # "venda" | "participacao" | "ia"
     beneficiario: str
     vendedor_codigo: str | None
     data: datetime
@@ -50,6 +51,7 @@ class LinhaComissao:
     # lidas para sempre e nunca regravadas.
     ajuste_manual: bool = False
     valor_cobrado: Decimal | None = None
+    produto: str = ""
 
 
 def _nome_vendedor(codigo: str | None, cad: Cadastros) -> str:
@@ -112,6 +114,17 @@ def _linha_venda(venda: Venda, cad: Cadastros, tipo: str, sit: str, dia) -> Linh
                 motivo = "sem_regra"
             else:
                 pct = regra.pct
+    if (motivo == "sem_codigo" and not manual and not ajustado
+            and (atendente := extrair_atendente_ia(venda.oferta))):
+        # Camila: vendida pela IA, sem AT. Não comissiona nem conta no comercial; segue
+        # reivindicável (inconsistencias.sem_codigo). Situação pela regra normal.
+        return LinhaComissao(
+            transacao=venda.transacao, plataforma=venda.plataforma, papel=PAPEL_IA,
+            beneficiario=atendente, vendedor_codigo=None, data=venda.data, tipo=tipo,
+            modalidade=venda.modalidade, categoria=categoria, valor_base=base, pct=None,
+            valor=_ZERO, situacao=sit, motivo=None, regra_id=None, atribuicao_manual=False,
+            ajuste_manual=False, valor_cobrado=venda.valor_cobrado, produto=venda.produto,
+        )
     if motivo is not None:
         situacao_final, valor = "inconsistente", _ZERO
     elif sit == "cancelada":
@@ -124,7 +137,7 @@ def _linha_venda(venda: Venda, cad: Cadastros, tipo: str, sit: str, dia) -> Linh
         tipo=tipo, modalidade=venda.modalidade, categoria=categoria, valor_base=base,
         pct=pct, valor=valor, situacao=situacao_final, motivo=motivo,
         regra_id=regra.id if regra else None, atribuicao_manual=manual,
-        ajuste_manual=ajustado, valor_cobrado=venda.valor_cobrado,
+        ajuste_manual=ajustado, valor_cobrado=venda.valor_cobrado, produto=venda.produto,
     )
 
 
@@ -146,6 +159,7 @@ def _linhas_participacao(venda: Venda, cad: Cadastros, linha: LinhaComissao,
             valor=linha.valor_base * pct, situacao=linha.situacao, motivo=None,
             regra_id=p.id, atribuicao_manual=linha.atribuicao_manual,
             ajuste_manual=linha.ajuste_manual, valor_cobrado=linha.valor_cobrado,
+            produto=venda.produto,
         ))
     return saida
 
@@ -162,7 +176,7 @@ def calcular(vendas: list[Venda], cad: Cadastros, janelas: list[Janela],
         dia = venda.data.date()
         linha = _linha_venda(venda, cad, tipo, sit, dia)
         linhas.append(linha)
-        if linha.situacao in _COM_VALOR:
+        if linha.papel == "venda" and linha.situacao in _COM_VALOR:
             linhas.extend(_linhas_participacao(venda, cad, linha, dia))
     return linhas
 

@@ -281,7 +281,7 @@
           <tbody>
             {% for l in v.sem_codigo %}
             <tr>
-              <td style="white-space:nowrap;">{{ l.transacao }}</td>
+              <td style="white-space:nowrap;">{{ l.transacao }}{% if l.papel == 'ia' %} <span class="cm-chip">Camila (IA)</span>{% endif %}</td>
               <td style="white-space:nowrap;">{{ l.data.strftime('%d/%m %H:%M') }}</td>
               <td>{{ plat(l) }}</td>
               <td>{{ l.categoria or '—' }}</td>

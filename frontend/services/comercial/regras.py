@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
 _RE_AT = re.compile(r"\bat\s?(\d+)", re.IGNORECASE)
+_RE_CAMILA = re.compile(r"(?:^|[\s-])camila\s*$", re.IGNORECASE)
 _PROJETO_POR_PREFIXO = {"PI": "INSS", "PES": "TJ", "PBB": "BB"}
 _DIAS_GARANTIA = 7
 
@@ -28,6 +29,13 @@ def extrair_codigo_at(texto: str | None) -> str | None:
         return None
     m = _RE_AT.search(texto)
     return f"AT{int(m.group(1))}" if m else None
+
+
+def extrair_atendente_ia(texto: str | None) -> str | None:
+    """'... - COM. LEAD - Camila' -> 'Camila' (atendente IA, sem código AT); senão None."""
+    if not texto:
+        return None
+    return "Camila" if _RE_CAMILA.search(texto.strip()) else None
 
 
 def modalidade_hotmart(tipo_de_cobranca: str | None, metodo_de_pagamento: str | None) -> str:

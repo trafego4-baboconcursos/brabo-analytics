@@ -15,7 +15,7 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from frontend.services.comercial.acesso import AcessoComercial, pode
-from frontend.services.comercial.calculo import LinhaComissao
+from frontend.services.comercial.calculo import PAPEL_IA, LinhaComissao
 from frontend.services.comercial.snapshot import ResultadoMes
 
 LIMITE_LISTA = 200          # nunca despejar as ~800 vendas sem código do mês
@@ -145,7 +145,7 @@ def conferir_reivindicacao(linha: LinhaComissao | None, codigo: str,
         raise EscritaRecusada("venda_nao_encontrada")
     if linha.atribuicao_manual:
         raise EscritaRecusada("ja_atribuida")
-    if linha.motivo == "sem_codigo":
+    if linha.motivo == "sem_codigo" or linha.papel == PAPEL_IA:
         return
     if linha.motivo == "conflito_codigo":
         cods = {c for c in (codigos_conflito or ()) if c}
@@ -171,7 +171,7 @@ def linha_da_venda(mes: date, transacao: str) -> LinhaComissao | None:
 
 def localizar(linhas: list[LinhaComissao] | None, transacao: str) -> LinhaComissao | None:
     for l in linhas or ():
-        if l.papel == "venda" and l.transacao == transacao and l.situacao != "estorno":
+        if l.papel in ("venda", PAPEL_IA) and l.transacao == transacao and l.situacao != "estorno":
             return l
     return None
 
@@ -213,6 +213,7 @@ def _vendas(linhas):
 def sem_codigo(linhas: list[LinhaComissao], q: str | None) -> list[LinhaComissao]:
     q = (q or "").strip().upper()
     ls = [l for l in _vendas(linhas) if l.situacao == "inconsistente" and l.motivo == "sem_codigo"]
+    ls += [l for l in linhas if l.papel == PAPEL_IA and l.situacao != "cancelada"]
     if q:
         ls = [l for l in ls if q in l.transacao.upper()]
     return sorted(ls, key=lambda l: (l.data, l.transacao))

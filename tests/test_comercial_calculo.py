@@ -1,3 +1,4 @@
+from dataclasses import replace
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -235,3 +236,27 @@ def test_base_cai_no_valor_alternativo_so_quando_o_principal_nao_acha():
     assert l2.valor_base == D("1726")  # principal achou: alternativo não é usado
     [l3] = calcular([replace(venda(valor="12.34"), valores_alternativos=(D("55.55"),))], c, [], HOJE)
     assert (l3.situacao, l3.motivo) == ("inconsistente", "sem_valor_base")
+
+
+def test_linha_guarda_produto():
+    [l] = calcular([venda()], cad(), [], HOJE)
+    assert l.produto == "Mentoria"
+
+
+def test_venda_da_camila_vira_papel_ia_sem_comissao():
+    v = replace(venda(cod=None), oferta="COM. LEAD - Camila")
+    ls = calcular([v], cad(part=[RAFA]), [], HOJE)
+    assert [(l.papel, l.beneficiario, l.vendedor_codigo, l.valor, l.motivo, l.situacao) for l in ls] ==         [("ia", "Camila", None, D("0"), None, "elegivel")]
+    assert ls[0].valor_base == D("1726")
+
+
+def test_camila_cancelada_segue_regra_dos_7_dias():
+    v = replace(venda(cod=None), oferta="COM. LEAD - Camila", cancelada_em=datetime(2026, 10, 7))
+    [l] = calcular([v], cad(), [], HOJE)
+    assert (l.papel, l.situacao) == ("ia", "cancelada")
+
+
+def test_camila_com_atribuicao_manual_vira_venda():
+    v = replace(venda(cod=None), oferta="COM. LEAD - Camila")
+    [l] = calcular([v], cad(atrib={"HP1": "AT4"}), [], HOJE)
+    assert (l.papel, l.vendedor_codigo) == ("venda", "AT4")

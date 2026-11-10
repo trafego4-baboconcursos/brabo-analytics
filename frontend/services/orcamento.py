@@ -51,9 +51,15 @@ def previsto_por_etapa(cfg: dict | None) -> dict:
         _f(et.get("total")) for et in (cfg.get("etapas") or [])
         if et.get("nome") in REMARKETING_SUBETAPAS
     )
+    # Campo do wizard primeiro; se estiver vazio (PI-NOV-26 estava, 10/11/26),
+    # cai no total da etapa — o mesmo que os blocos por público já usavam, e que
+    # deixava o card "Previsão" em 0 enquanto "Captação por público" mostrava 740 mil.
+    def _total(campo: str, nome: str) -> float:
+        return _f(cfg.get(campo)) or _f(etapa_cfg(cfg, nome).get("total"))
+
     return {
-        "Pré-Qualificação": _f(cfg.get("meta_investimento_pre_quali")),
-        "Captação": _f(cfg.get("meta_investimento_captacao")),
+        "Pré-Qualificação": _total("meta_investimento_pre_quali", "Pré-Qualificação"),
+        "Captação": _total("meta_investimento_captacao", "Captação"),
         "Remarketing": remarketing_previsto,
     }
 
@@ -531,4 +537,111 @@ def kpis_captacao_periodo_comparavel(launch, previous, cfg: dict | None, prev_cf
         "cpl": (p_invest / p_leads) if p_leads > 0 else 0.0,
         "periodo": f"{p_cs.strftime('%d/%m')} a {p_window_end.strftime('%d/%m')}",
         "dias": elapsed,
+    }
+
+
+# ── Layout da planilha "Verba Diária [LANC]" (/verba) ──────────────────────────
+_DIAS_SEMANA = ["seg.", "ter.", "qua.", "qui.", "sex.", "sáb.", "dom."]
+
+
+def hoje_brasil():
+    """Data de hoje em Brasília (o servidor roda em UTC)."""
+    from datetime import date, datetime  # noqa: PLC0415
+    try:
+        from zoneinfo import ZoneInfo  # noqa: PLC0415
+        return datetime.now(ZoneInfo("America/Sao_Paulo")).date()
+    except Exception:
+        return date.today()
+
+
+def rotulo_dia(iso: str) -> str:
+    """'2026-11-02' -> 'seg., 02/11' (cabeçalho de dia da planilha)."""
+    from datetime import date  # noqa: PLC0415
+    d = date.fromisoformat(str(iso))
+    return f"{_DIAS_SEMANA[d.weekday()]}, {d.strftime('%d/%m')}"
+
+
+def resumo_por_plataforma(bloco: dict) -> dict:
+    """Cards 'Investimento em Captação Previsto/Realizado': agrupa as linhas
+    consecutivas da mesma plataforma (a planilha mescla 'Total gasto por
+    plataforma' nas linhas FB e nas YT) e calcula o % Google/Meta/TikTok."""
+    linhas = [dict(l) for l in (bloco.get("linhas") or [])]
+    i = 0
+    while i < len(linhas):
+        j = i
+        while j + 1 < len(linhas) and linhas[j + 1].get("plataforma") == linhas[i].get("plataforma"):
+            j += 1
+        grupo = linhas[i:j + 1]
+        linhas[i]["grupo_n"] = len(grupo)
+        linhas[i]["grupo_previsto"] = sum(g["previsto"] for g in grupo)
+        linhas[i]["grupo_realizado"] = sum(g["realizado"] for g in grupo)
+        for g in grupo[1:]:
+            g["grupo_n"] = 0
+        i = j + 1
+    tp, tr = bloco.get("total_previsto") or 0.0, bloco.get("total_realizado") or 0.0
+    pp, pr = bloco.get("por_plataforma_previsto") or {}, bloco.get("por_plataforma_realizado") or {}
+    plataformas = [
+        {"nome": nome,
+         "pct_previsto": (pp.get(chave, 0.0) / tp * 100) if tp > 0 else 0.0,
+         "pct_realizado": (pr.get(chave, 0.0) / tr * 100) if tr > 0 else 0.0}
+        for nome, chave in (("Google", "google"), ("Meta", "meta"), ("Tik Tok", "tiktok"))
+    ]
+    return {"linhas": linhas, "total_previsto": tp, "total_realizado": tr, "plataformas": plataformas}
+
+
+def blocos_pre_quali(cfg: dict | None, bloco: dict, hoje) -> dict:
+    """Blocos 'PRÉ-QUALIFICAÇÃO — Previsão / Verba investida / Restante' da
+    planilha: TOTAL e POR DIA de cada público. Por dia: previsão ÷ dias da
+    etapa; investida ÷ dias decorridos; restante ÷ dias que faltam."""
+    from datetime import date  # noqa: PLC0415
+    et = etapa_cfg(cfg, "Pré-Qualificação")
+    linhas = bloco.get("linhas") or []
+    try:
+        d0, d1 = date.fromisoformat(str(et.get("start_date"))), date.fromisoformat(str(et.get("end_date")))
+    except Exception:
+        return {}
+    if not linhas or d1 < d0:
+        return {}
+    n_dias = (d1 - d0).days + 1
+    decorridos = max(1, min((hoje - d0).days + 1, n_dias))
+    restantes = max(1, (d1 - hoje).days)
+
+    def montar(titulo, total, itens, divisor):
+        return {
+            "titulo": titulo, "total": total, "por_dia": total / divisor,
+            "itens": [{"nome": nome, "total": v, "por_dia": v / divisor} for nome, v in itens],
+        }
+
+    prev = [(l["nome"], l["previsto"]) for l in linhas]
+    real = [(l["nome"], l["realizado"]) for l in linhas]
+    rest = [(l["nome"], l["previsto"] - l["realizado"]) for l in linhas]
+    tp, tr = bloco.get("total_previsto") or 0.0, bloco.get("total_realizado") or 0.0
+    return {
+        "inicio": d0, "fim": d1,
+        "blocos": [
+            montar("PRÉ-QUALIFICAÇÃO — Previsão", tp, prev, n_dias),
+            montar("PRÉ-QUALIFICAÇÃO — Verba investida", tr, real, decorridos),
+            montar("PRÉ-QUALIFICAÇÃO — Restante", tp - tr, rest, restantes),
+        ],
+    }
+
+
+def tabela_dias_semana(curva: dict, hoje) -> dict:
+    """Tabela 'Dias da Semana' da planilha: verba investida × previsão diária
+    por dia da captação, mais 'Gasto até hoje' × 'Previsto até hoje' e a
+    diferença (R$ e %)."""
+    dias = []
+    prev_ate = real_ate = 0.0
+    for d in curva.get("dias") or []:
+        passou = d["data"] <= hoje.isoformat()
+        if passou:
+            prev_ate += d["previsto"]
+            real_ate += d.get("realizado", 0.0)
+        dias.append({"rotulo": rotulo_dia(d["data"]), "previsto": d["previsto"],
+                     "realizado": d.get("realizado", 0.0), "passou": passou})
+    dif = real_ate - prev_ate
+    return {
+        "dias": dias, "hoje_str": hoje.strftime("%d/%m"),
+        "gasto_ate_hoje": real_ate, "previsto_ate_hoje": prev_ate,
+        "diferenca": dif, "diferenca_pct": (dif / prev_ate * 100) if prev_ate > 0 else 0.0,
     }

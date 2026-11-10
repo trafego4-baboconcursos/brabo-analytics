@@ -30,6 +30,7 @@ from frontend.services.orcamento import (
     buckets_previsto_x_realizado, curva_diaria, com_realizado_diario,
     publico_por_dia, previsto_publico_por_dia, investimento_diario_etapa, etapa_cfg,
     com_percentuais, kpis_captacao_periodo_comparavel, combinar_previsto_realizado,
+    hoje_brasil, resumo_por_plataforma, blocos_pre_quali, tabela_dias_semana,
 )
 
 router = APIRouter()
@@ -455,7 +456,16 @@ async def verba_page(request: Request, launch_code: str | None = None):
     eventos = await run_in_threadpool(read_eventos, launch.code) if launch else []
     eventos_dia = eventos_por_dia(eventos)
 
+    # Layout da planilha "Verba Diária": cards de captação com total por
+    # plataforma, blocos da pré-quali, tabela "Dias da Semana".
+    hoje = hoje_brasil()
+    capt_resumo = resumo_por_plataforma(bloco_capt_publico)
+    preq_blocos = blocos_pre_quali(cfg, bloco_preq_publico, hoje)
+    dias_semana = tabela_dias_semana(curva_capt, hoje)
+
     ctx = _base_ctx(request, "verba", "Verba do Lançamento", launch, launches,
+        capt_resumo=capt_resumo, preq_blocos=preq_blocos, dias_semana=dias_semana,
+        dia_publico_realizado=dia_publico_realizado,
         eventos=eventos, eventos_dia=eventos_dia, cores_tipo=CORES_TIPO,
         verba_linhas=linhas, verba_total_previsto=total_previsto, verba_total_realizado=total_realizado,
         verba_pct_remarketing_previsto=pct_remarketing_previsto,

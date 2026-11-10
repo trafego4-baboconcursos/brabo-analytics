@@ -101,7 +101,7 @@ def _linha_venda(venda: Venda, cad: Cadastros, tipo: str, sit: str, dia) -> Linh
     # condição especial (ex.: CS da Izabela) pode forçar o tipo antes de escolher o %
     tipo = tipo_forcado(cad.regras, venda.plataforma, venda.modalidade, codigo, dia,
                         categoria) or tipo
-    if e_up_ou_cross_sell(categoria, venda.oferta):
+    if e_up_ou_cross_sell(categoria, venda.oferta, venda.produto):
         tipo = "Ativa"  # Up/Cross Sell não tem Reativa (Rafael Batista, 10/11/26)
     regra = None
     pct = None

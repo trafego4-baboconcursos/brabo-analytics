@@ -141,13 +141,21 @@ def situacao(pago: bool, data_venda: datetime, cancelada_em: datetime | None, ho
     return "elegivel" if hoje > limite else "prevista"
 
 
-# Rafael Batista, 10/11/26: Ativa × Reativa só se aplica a aluno novo; Up Sell e Cross Sell são
-# sempre Ativa. Reconhecido pela categoria do valor-base (sem as mistas "LEAD/CROSS SELL", que o
-# valor não separa) ou pelo prefixo do nome do preço padronizado ("UpSell …", "CrossSell …").
+# Rafael Batista, 10/11/26: Ativa × Reativa só se aplica a aluno novo; venda para aluno (Up Sell,
+# Cross Sell, upgrade) é sempre Ativa. Primeiro o nome do preço ("COM. CROSS", "COM. UPSELL",
+# "CS. CROSS", "Upsell - Alunos", "Upgrade", "CrossSell …" em qualquer lugar); sem nada no nome, a
+# categoria do valor-base (CROSS SELL / UP SELL — as mistas "LEAD/CROSS SELL" o valor não separa).
+# Exceção: a Black segue Ativa/Reativa mesmo para aluno, por ser outra ação.
 CATEGORIAS_SEMPRE_ATIVA = frozenset({"CROSS SELL", "UP SELL"})
-_RE_PREFIXO_UP_CROSS = re.compile(r"^\s*(up\s*-?\s*sell|cross\s*-?\s*sell)\b", re.IGNORECASE)
+_RE_ALUNO_NO_NOME = re.compile(r"\b(cross(\s*-?\s*sell)?|up\s*-?\s*sell|upgrade)\b", re.IGNORECASE)
 
 
-def e_up_ou_cross_sell(categoria: str | None, oferta: str | None) -> bool:
-    return (categoria or "").strip().upper() in CATEGORIAS_SEMPRE_ATIVA or bool(
-        _RE_PREFIXO_UP_CROSS.match(oferta or ""))
+def _e_black(categoria: str | None, produto: str | None) -> bool:
+    return (categoria or "").strip().upper().startswith("BLACK") or "black" in (produto or "").lower()
+
+
+def e_up_ou_cross_sell(categoria: str | None, oferta: str | None, produto: str | None = None) -> bool:
+    if _e_black(categoria, produto):
+        return False
+    return bool(_RE_ALUNO_NO_NOME.search(oferta or "")) or (
+        (categoria or "").strip().upper() in CATEGORIAS_SEMPRE_ATIVA)

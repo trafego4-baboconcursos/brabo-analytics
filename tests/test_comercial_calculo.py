@@ -291,3 +291,21 @@ def test_up_e_cross_sell_sao_sempre_ativa_mesmo_na_janela_reativa():
     assert pelo_nome.tipo == "Ativa"
     v2 = replace(venda(tx="HP5"), oferta="UpSell Mentoria Vitalícia TJSP Cartão 12x - COM. LEAD - AT4")
     assert calcular([v2], c, [j], HOJE)[0].tipo == "Ativa"
+
+
+def test_nome_do_preco_com_cross_up_em_qualquer_lugar_e_ativa_e_black_segue_ativa_reativa():
+    """Rafael Batista, 10/11/26: "Cross Sell", "Up Sell" ou algo do tipo no nome do preço = venda para
+    aluno (Ativa). Sem nada no nome, vale o valor (categoria). A Black segue Ativa/Reativa mesmo
+    para aluno, por ser outra ação."""
+    from dataclasses import replace
+    from frontend.services.comercial.regras import e_up_ou_cross_sell
+    j = Janela("PI-OUT-26", "INSS", datetime(2026, 10, 5), datetime(2026, 10, 12, 23, 59, 59), frozenset({"6856971"}), frozenset())
+    for nome in ("COM. CROSS - AT4", "COM. UPSELL - AT4", "CS. CROSS - AT4", "Upsell - Alunos Mentoria TJSP",
+                 "Upgrade 12x", "LINK UPSELL ALUNOS - IVAN", "Mentoria TJSP Cross-Sell - AT4"):
+        assert e_up_ou_cross_sell(None, nome, "Mentoria Vitalícia - TJSP"), nome
+    for nome in ("COM. LEAD - AT4", "Crossfit", "Setup 12x", ""):
+        assert not e_up_ou_cross_sell(None, nome, "Mentoria Vitalícia - TJSP"), nome
+    assert not e_up_ou_cross_sell("CROSS SELL", "COM. CROSS - AT4", "Black Vitalícia 2026")
+    assert not e_up_ou_cross_sell("BLACK VITALÍCIA", "COM. CROSS - AT4", "Mentoria")
+    v = replace(venda(), oferta="COM. CROSS - AT4")
+    assert calcular([v], cad(), [j], HOJE)[0].tipo == "Ativa"

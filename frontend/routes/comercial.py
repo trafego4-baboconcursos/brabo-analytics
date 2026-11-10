@@ -276,14 +276,14 @@ async def comercial_desempenho(request: Request, mes: str | None = None, inicio:
         return resposta_400(str(exc), "Comparação indisponível", "/comercial/desempenho",
                             "← Voltar ao Desempenho")
     comp = await run_in_threadpool(d.carregar_linhas, comparacao.periodo) if comparacao else None
-    acumulado, desde = await run_in_threadpool(d.carregar_acumulado, periodo)
+    acumulado, desde, faltantes = await run_in_threadpool(d.carregar_acumulado, periodo)
     _bonus, metas = await run_in_threadpool(t.ler_extras, periodo, acesso)
     meta_time = None  # soma de TODAS as metas do mês (sem recorte): é número geral do time
     if not periodo.livre:
         todas = await run_in_threadpool(com.ler_metas_mes, periodo.mes, None)
         meta_time = sum((m["valor"] for m in todas.values()), Decimal("0")) if todas else None
     view = d.view_desempenho(res.linhas, comp, comparacao, acumulado, periodo, acesso, metas,
-                             meta_time=meta_time, hoje=hoje)
+                             meta_time=meta_time, hoje=hoje, acumulado_incompleto=bool(faltantes))
     view.update(gerado_em=res.gerado_em, fechado=res.fechado, fechado_em=res.fechado_em,
                 fechado_por=res.fechado_por, acumulado_desde=desde,
                 comparar_mes=(f"{comparacao.periodo.mes:%Y-%m}" if comparacao and not comparacao.periodo.livre

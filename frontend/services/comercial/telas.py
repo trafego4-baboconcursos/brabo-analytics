@@ -13,7 +13,7 @@ from decimal import Decimal
 
 from frontend.services.comercial import snapshot as _snap
 from frontend.services.comercial.acesso import AcessoComercial, pode
-from frontend.services.comercial.calculo import LinhaComissao, calcular
+from frontend.services.comercial.calculo import PAPEL_IA, LinhaComissao, calcular
 from frontend.services.comercial.fechamento import e_a_verificar_de_fechado
 from frontend.services.comercial.meses import PRIMEIRO_MES, soma_meses, ultimo_dia
 from frontend.services.comercial.snapshot import ResultadoMes
@@ -531,7 +531,8 @@ def planilha_xlsx(view: dict) -> bytes:
     wv = wb.create_sheet("Vendas")
     wv.append(CABECALHO_VENDAS)
     for l in sorted(view["linhas"], key=lambda l: (l.papel != "venda", l.beneficiario, l.data, l.transacao)):
-        wv.append([celula_segura(x) for x in [l.transacao, l.plataforma, l.papel, l.beneficiario, l.vendedor_codigo, l.data,
+        wv.append([celula_segura(x) for x in [l.transacao, l.plataforma,
+                   "IA (sem comissão)" if l.papel == PAPEL_IA else l.papel, l.beneficiario, l.vendedor_codigo, l.data,
                    l.categoria, l.modalidade, l.tipo, l.valor_base, l.pct, l.valor,
                    SITUACAO_ROTULO.get(l.situacao, l.situacao), MOTIVO_ROTULO.get(l.motivo, l.motivo),
                    "sim" if l.atribuicao_manual else "não"]])

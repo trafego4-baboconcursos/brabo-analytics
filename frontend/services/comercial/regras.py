@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
 _RE_AT = re.compile(r"\bat\s?(\d+)", re.IGNORECASE)
+# Casa também "… - Maria Camila" (termina em Camila); só vale para venda SEM código AT.
 _RE_CAMILA = re.compile(r"(?:^|[\s-])camila\s*$", re.IGNORECASE)
 _PROJETO_POR_PREFIXO = {"PI": "INSS", "PES": "TJ", "PBB": "BB"}
 _DIAS_GARANTIA = 7

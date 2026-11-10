@@ -95,6 +95,7 @@
             <th class="th-dark n">Ticket</th>
             <th class="th-dark n">% meta</th>
             <th class="th-dark n">Contribuição (período)</th>
+            <th class="th-dark n">Contribuição na meta</th>
             <th class="th-dark n">Contribuição (ano)</th>
             <th class="th-dark n">Variação</th>
             <th class="th-dark">Produto que mais vende</th>
@@ -108,6 +109,7 @@
               <td class="n">{{ x.ticket | brl_exato }}</td>
               <td class="n">{{ '—' if v.meta_so_mensal else (x.pct_meta | pct_taxa) }}</td>
               <td class="n">{{ x.contribuicao | pct_taxa }}</td>
+              <td class="n">{{ '—' if v.meta_so_mensal else (x.contribuicao_meta | pct_taxa) }}</td>
               <td class="n">{{ x.contribuicao_ano | pct_taxa }}</td>
               <td class="n">{{ variacao(x.var_vendido, none) }}</td>
               <td>{{ x.produto_top or '—' }}</td>
@@ -121,6 +123,7 @@
       {% endif %}
       <div class="cm-sub dp-nota">
         {% if v.meta_so_mensal %}meta é mensal: escolha um mês para ver % da meta{% else %}Contribuição = vendido do vendedor ÷ vendido do time{% endif %}
+        {% if v.acumulado_incompleto %} · acumulado incompleto: meses ainda não calculados{% endif %}
         {% if v.acumulado_desde %} · acumulado do ano com dados de {{ v.acumulado_desde.strftime('%d/%m %H:%M') }}{% endif %}
       </div>
     </div>

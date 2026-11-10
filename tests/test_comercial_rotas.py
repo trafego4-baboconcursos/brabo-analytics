@@ -11,6 +11,7 @@ os.environ.setdefault("SECRET_KEY", "smoke-secret-key-para-testes")
 os.environ.setdefault("SUPABASE_DB_URL", "postgresql://smoke:smoke@127.0.0.1:1/smoke")
 os.environ.setdefault("SUPABASE_USERS_URL", "postgresql://smoke:smoke@127.0.0.1:1/smoke")
 
+import dataclasses
 import io  # noqa: E402
 from datetime import date, datetime  # noqa: E402
 from decimal import Decimal as D  # noqa: E402
@@ -215,6 +216,14 @@ def test_xlsx_neutraliza_formula():
     assert next(wb["Resumo"].iter_rows(min_row=2, values_only=True))[0] == "'+cmd"
     assert telas.celula_segura("-1") == "'-1" and telas.celula_segura("@x") == "'@x"
     assert telas.celula_segura("ok") == "ok" and telas.celula_segura(D("-1")) == D("-1")
+
+
+def test_xlsx_rotula_linha_ia_sem_comissao():
+    from openpyxl import load_workbook
+    l = dataclasses.replace(_l("T-IA", None, beneficiario="Camila"), papel="ia")
+    view = {"vendedores": [], "participacoes": [], "linhas": [l]}
+    wb = load_workbook(io.BytesIO(telas.planilha_xlsx(view)))
+    assert next(wb["Vendas"].iter_rows(min_row=2, values_only=True))[2] == "IA (sem comissão)"
 
 
 def test_formatadores_decimais():

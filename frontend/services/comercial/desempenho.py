@@ -32,19 +32,23 @@ def carregar_linhas(periodo: Periodo) -> list[LinhaComissao]:
     return telas.carregar(periodo).linhas
 
 
-def carregar_acumulado(periodo: Periodo, *, store=None) -> tuple[list[LinhaComissao], datetime | None]:
-    """Linhas de 01/01 do ano de `periodo.fim` até `periodo.fim` + o `gerado_em` mais antigo usado.
-    Meses anteriores ao do fim: o que estiver guardado (mesmo velho); só calcula o que não existe
-    (~20 s/mês). O mês do fim sempre por `obter_mes`: é o que a tela mostra."""
+def carregar_acumulado(periodo: Periodo, *, store=None) -> tuple[list[LinhaComissao], datetime | None, list[date]]:
+    """Linhas de 01/01 do ano de `periodo.fim` até `periodo.fim` + o `gerado_em` mais antigo usado
+    + os meses passados sem nada guardado. Meses anteriores ao do fim: só o que estiver guardado
+    (mesmo velho); NUNCA calcula no request (~20 s/mês, estouraria o proxy) — o que falta é
+    devolvido em `faltantes` e o acumulado é incompleto. O mês do fim sempre por `obter_mes`."""
     fim = periodo.fim
     mes_fim = fim.replace(day=1)
     mes = max(date(fim.year, 1, 1), PRIMEIRO_MES)
     linhas: list[LinhaComissao] = []
+    faltantes: list[date] = []
     desde: datetime | None = None
     while mes <= mes_fim:
-        r = None if mes == mes_fim else _snap.ler_guardado(mes, store=store)
+        r = _snap.obter_mes(mes, store=store) if mes == mes_fim else _snap.ler_guardado(mes, store=store)
         if r is None:
-            r = _snap.obter_mes(mes, store=store)
+            faltantes.append(mes)
+            mes = soma_meses(mes, 1)
+            continue
         linhas.extend(l for l in r.linhas if l.data.date() <= fim)
         g = r.gerado_em
         if g is not None and g.tzinfo is not None:  # congelado vem timestamptz; o resto é SP naive
@@ -52,7 +56,7 @@ def carregar_acumulado(periodo: Periodo, *, store=None) -> tuple[list[LinhaComis
         if g is not None and (desde is None or g < desde):
             desde = g
         mes = soma_meses(mes, 1)
-    return linhas, desde
+    return linhas, desde, faltantes
 
 
 # ---------------------------------------------------------------- comparação
@@ -195,10 +199,11 @@ def _isoladas(linhas: list[LinhaComissao], acesso: AcessoComercial) -> list[Linh
 def view_desempenho(atual: list[LinhaComissao], comp: list[LinhaComissao] | None,
                     comparacao: Comparacao | None, acumulado: list[LinhaComissao], periodo: Periodo,
                     acesso: AcessoComercial, metas: dict | None, *,
-                    meta_time: Decimal | None = None, hoje: date | None = None) -> dict:
+                    meta_time: Decimal | None = None, hoje: date | None = None,
+                    acumulado_incompleto: bool = False) -> dict:
     """`metas`: por vendedora, já recortada para quem vê (`_so_meu`). `meta_time`: soma das metas de
     TODAS (lida sem recorte; vai inteira à vendedora porque é número geral do time). Período livre:
-    ambas None. `hoje`: a série atual é completada com zeros até hoje (ou o fim do período)."""
+    ambas None. `acumulado_incompleto`: faltam meses guardados -> contribuição do ano None ("—"). `hoje`: a série atual é completada com zeros até hoje (ou o fim do período)."""
     gestor = e_gestor(acesso)
     corte = comparacao.corte if comparacao else None
     tem_comp = comparacao is not None and comp is not None
@@ -238,7 +243,8 @@ def view_desempenho(atual: list[LinhaComissao], comp: list[LinhaComissao] | None
             "ticket": _ticket(v["vendido"], v["qtd"]), "por_produto": v["por_produto"], "produto_top": top,
             "meta": meta, "pct_meta": _pct_meta(v["vendido"], meta),
             "contribuicao": _razao(v["vendido"], vendido_a),
-            "contribuicao_ano": _razao(ano["vendido"] if ano else _ZERO, time_ano["vendido"]),
+            "contribuicao_ano": (None if acumulado_incompleto else
+                                 _razao(ano["vendido"] if ano else _ZERO, time_ano["vendido"])),
             "contribuicao_meta": _razao(v["vendido"], meta_time),
             "var_vendido": variacao(v["vendido"], c["vendido"]) if c else None,
             "var_qtd": variacao(v["qtd"], c["qtd"]) if c else None,
@@ -252,7 +258,8 @@ def view_desempenho(atual: list[LinhaComissao], comp: list[LinhaComissao] | None
             "codigo": cod_eu, "nome": (metas_vis.get(cod_eu) or {}).get("nome") or cod_eu, "qtd": 0,
             "vendido": _ZERO, "ticket": None, "por_produto": {}, "produto_top": None, "meta": meta,
             "pct_meta": _pct_meta(_ZERO, meta), "contribuicao": _razao(_ZERO, vendido_a),
-            "contribuicao_ano": _razao(ano["vendido"] if ano else _ZERO, time_ano["vendido"]),
+            "contribuicao_ano": (None if acumulado_incompleto else
+                                 _razao(ano["vendido"] if ano else _ZERO, time_ano["vendido"])),
             "contribuicao_meta": _razao(_ZERO, meta_time), "var_vendido": None, "var_qtd": None})
     vendedores.sort(key=lambda r: (-r["vendido"], r["nome"]))
 
@@ -283,4 +290,4 @@ def view_desempenho(atual: list[LinhaComissao], comp: list[LinhaComissao] | None
                "rotulo_atual": periodo.rotulo, "rotulo_comparacao": comparacao.rotulo if comparacao else None}
     return {"periodo": periodo, "comparacao": comparacao, "gestor": gestor, "resumo": resumo,
             "vendedores": vendedores, "produtos": produtos, "ia": ia, "evolucao": evolucao,
-            "grafico": grafico, "meta_so_mensal": periodo.livre}
+            "grafico": grafico, "meta_so_mensal": periodo.livre, "acumulado_incompleto": acumulado_incompleto}

@@ -165,12 +165,19 @@ def store_memoria(monkeypatch):
     return st
 
 
-def test_acumulado_usa_guardado_e_so_calcula_o_que_falta(store_memoria):
+def test_acumulado_nunca_calcula_mes_passado_e_sinaliza_faltantes(store_memoria):
     from frontend.services.comercial.desempenho import carregar_acumulado
-    linhas, desde = carregar_acumulado(P_OUT, store=store_memoria)
-    assert store_memoria.calculos == 1 and store_memoria.puts == [date(2026, 10, 1)]
-    assert min(l.data for l in linhas).month == 1 and len(linhas) == 10
+    del store_memoria.guardados[date(2026, 3, 1)]  # mês passado sem nada guardado
+    linhas, desde, faltantes = carregar_acumulado(P_OUT, store=store_memoria)
+    assert store_memoria.calculos == 1 and store_memoria.puts == [date(2026, 10, 1)]  # só o mês do fim
+    assert faltantes == [date(2026, 3, 1)] and len(linhas) == 9
     assert desde == datetime(2026, 10, 1)  # o mais antigo usado
+
+
+def test_acumulado_completo_sem_faltantes(store_memoria):
+    from frontend.services.comercial.desempenho import carregar_acumulado
+    linhas, _, faltantes = carregar_acumulado(P_OUT, store=store_memoria)
+    assert faltantes == [] and len(linhas) == 10 and store_memoria.calculos == 1
 
 
 def test_acumulado_mes_do_fim_sempre_por_obter_mes_e_corta_depois_do_fim(store_memoria):
@@ -180,7 +187,7 @@ def test_acumulado_mes_do_fim_sempre_por_obter_mes_e_corta_depois_do_fim(store_m
     store_memoria.guardados[date(2026, 10, 1)] = ResultadoMes(
         date(2026, 10, 1), [], [], datetime(2026, 10, 1), desatualizado=True)
     livre = Periodo(date(2026, 9, 20), date(2026, 10, 2), None)
-    linhas, _ = carregar_acumulado(livre, store=store_memoria)
+    linhas, _, _f = carregar_acumulado(livre, store=store_memoria)
     assert store_memoria.calculos == 1
     assert all(l.data.date() <= date(2026, 10, 2) for l in linhas) and len(linhas) == 9
 
@@ -201,7 +208,7 @@ def test_acumulado_mistura_congelado_tz_aware_com_guardado_naive(store_memoria):
                              datetime(2026, 2, 1, 2, tzinfo=timezone.utc), fechado=True,
                              fechado_em=datetime(2026, 2, 1, 2, tzinfo=timezone.utc))
     store_memoria.fechamento = lambda mes: congelado if mes == date(2026, 1, 1) else None
-    linhas, desde = carregar_acumulado(P_OUT, store=store_memoria)
+    linhas, desde, _f = carregar_acumulado(P_OUT, store=store_memoria)
     assert desde == datetime(2026, 1, 31, 23) and desde.tzinfo is None
     assert len(linhas) == 10
 
@@ -238,3 +245,18 @@ def test_evolucao_atual_alinha_com_a_comparacao():
     assert len(v2["evolucao"]["comparacao"]) == 30
     g = v2["grafico"]
     assert len(g["atual"]) == 31 and g["atual"][-1] == 4000.0 and len(g["rotulos"]) == 31
+
+
+def test_acumulado_incompleto_zera_contribuicao_ano():
+    v = view_desempenho(ATUAL, COMP, COMPARACAO, ACUM, P_OUT, ACESSO_EDILEIA, METAS_SO_DELA,
+                        meta_time=METAS_TOTAL, acumulado_incompleto=True)
+    assert v["acumulado_incompleto"] is True and v["vendedores"][0]["contribuicao_ano"] is None
+
+
+def test_ia_nao_muda_posicao_nem_contribuicao():
+    sem_ia = [l for l in ATUAL if l.papel != "ia"]
+    a = view_desempenho(ATUAL, COMP, COMPARACAO, ACUM, P_OUT, ACESSO_EDILEIA, METAS_SO_DELA, meta_time=METAS_TOTAL)
+    b = view_desempenho(sem_ia, COMP, COMPARACAO, ACUM, P_OUT, ACESSO_EDILEIA, METAS_SO_DELA, meta_time=METAS_TOTAL)
+    assert a["resumo"]["posicao"] == b["resumo"]["posicao"] == 2
+    assert a["vendedores"][0]["contribuicao"] == b["vendedores"][0]["contribuicao"] == D("0.250")
+    assert a["vendedores"][0]["contribuicao_meta"] == D("0.200")  # 1000 de meta do time 5000

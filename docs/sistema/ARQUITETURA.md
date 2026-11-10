@@ -2,7 +2,7 @@
 titulo: "Arquitetura do Brabo Analytics — 2026-11-03"
 area: sistema
 status: vigente
-atualizado: 2026-11-06
+atualizado: 2026-11-10
 responde:
   - "como agendar pausa de anuncio no etl"
   - "como o sistema funciona por dentro"
@@ -395,7 +395,22 @@ relacionados:
 > **Comercial — motor de comissão, fase 1 (2026-11-06)**
 >
 >
+> **Comercial — leitura da Hotmart pelo índice de data (2026-11-10)**
+>
+>
+> **Comercial — tela Desempenho, atendente IA e ranking sem números alheios (2026-11-10)**
+>
+>
+> **Comercial — busca alternativa do valor-base (2026-11-09)**
+>
+>
 > **Comercial — fase 2 (2026-11-06)**
+>
+>
+> **Tabelas de anúncios — consulta de histórico, transação das cargas e schema (2026-11-09)**
+>
+>
+> **`/verba` no layout da planilha "Verba Diária" (2026-11-10)**
 >
 
 <!-- SUMARIO:FIM -->
@@ -1733,6 +1748,18 @@ python scripts/check_docs.py --atualizar-mapa
 por nome, não por caminho) e sem `[`/`]` no nome — colchete quebra a sintaxe do wikilink; foi
 por isso que `VERIFICACAO_GOOGLE_ADS_[PES-JAN-26].md` precisou ser renomeado.
 
+**`docs/performance` e `docs/marketing` moram no `brabo-brain` (10/11/26).**
+
+- **O que são:** as duas pastas são **junções do Windows** (`mklink /J`) para `C:\dev\brabo-brain\performance` e `\marketing`. O `brabo-brain` é o repositório **privado** `trafego4-baboconcursos/brabo-brain`, compartilhado com o marketing e o operacional.
+- **Por quê:** o Brabo Analytics é público, e `docs/performance` não tinha backup (existia só nesta máquina).
+- **O que muda e o que não muda:**
+  - Os caminhos continuam os mesmos para `scripts/eventos.py`, `scripts/ads/documento_*.py`, `etl/*` e para o vault.
+  - O `os.walk` do `check_docs.py` atravessa a junção: conferido em 10/11/26, contagem igual antes e depois.
+  - O git daqui nunca vê o conteúdo, porque `docs/*` é ignorado.
+- **Área nova no validador:** `marketing` foi adicionada às `AREAS` do `check_docs.py`.
+- **Pegadinha:** a junção mostra o branch que estiver checado no clone do `brabo-brain`, que deve ficar sempre na `main`.
+- **Onde estão o desenho e o plano:** `IDEIA_PROJETO_INTERNO_EQUIPE` e `PLANO_IMPLEMENTACAO_BRABO_BRAIN`.
+
 As regras de onde escrever cada tipo de registro estão em `CLAUDE.md`, seção
 *Documentation (`docs/`)* — fonte única; `AGENTS.md` só aponta pra lá, depois de as duas
 cópias terem divergido.
@@ -2225,6 +2252,13 @@ fallback por data olhava a contagem **crua** do Typeform, não a dos e-mails vá
 consulta devolve duas contagens (`bruto` e o total unido) em vez de só o total.
 
 Validado com o harness de snapshot contra PI-AGO-26, PBB-AGO-26 e PES-MAI-26: zero diferença.
+
+**Atualização 10/11/26 — `read_pesquisa_engajamento` estourava o timeout no aquecimento.** Com a
+base do PI-NOV-26 em 149 mil leads, a consulta lia `lead_utm_lancamento` duas vezes
+(`COUNT(DISTINCT)` + `IN (SELECT ...)`) e levava 25–53 s contra o `statement_timeout` de 30 s;
+o bloco `perfil_pesquisa` do snapshot do debriefing falhava e o snapshot anterior era mantido
+(alerta "Aquecimento do debriefing falhou"). Agora a base é um CTE lido **uma vez** e o cruzamento
+é um `EXISTS`: PI-NOV-26 em 2,9 s, PES-NOV-26 em 1,6 s, mesmos números.
 
 ### Pendência: `read_typeform` do PI-AGO-26 falha ~50% das vezes
 
@@ -4316,6 +4350,53 @@ e a conciliação com a planilha do comercial.
   memória) e `scripts/comercial_conciliar.py --mes AAAA-MM` (sistema × planilha venda a venda).
   Out/26: R$ 23.031,91 × 23.713,99 (−2,9%), toda diferença classificada.
 
+## Comercial — leitura da Hotmart pelo índice de data (2026-11-10)
+
+O Mateus criou `idx_hotmart_oficial_data_da_transacao` (btree no texto cru) e revogou a escrita de `anon`/`authenticated`
+nas `comercial_*`, na `hotmart_oficial` e na `tmb_oficial`. `_SQL_HOTMART_PERIODO` (`db_readers/comercial.py`) agora
+filtra antes do CASE, num `UNION ALL` de três partes excludentes:
+1. **ISO** `AAAA-MM-DD`, por faixa no índice;
+2. **epoch em ms**, 13 dígitos, por faixa no índice;
+3. **outros formatos** (231 linhas em DD/MM/AAAA de jul–set/26 e qualquer formato desconhecido), pelo predicado
+   `PREDICADO_OUTROS_FORMATOS`.
+
+As faixas (`_limites_prefiltro_hotmart`) vão de 2 dias antes a 3 dias depois do período, por causa do fuso. O filtro
+exato continua sendo o CASE de fora. Conferido no banco: o resultado é **idêntico** ao da consulta antiga, linha a linha,
+de jan a nov/26. Medido em out/26: as partes 1 e 2 levam **16 ms** (antes, 3,2 s em Seq Scan). O índice parcial
+`idx_hotmart_oficial_data_outros_formatos` (231 linhas, 32 kB, **mesmo predicado**) foi criado pelo Mateus em 10/11/26.
+Na medição de ponta a ponta, com a transferência das ~15 mil linhas, a leitura de um mês caiu de **4–5 s para 0,3–1,2 s**,
+com resultado idêntico ao da consulta antiga de jan a nov.
+Se o predicado mudar no código, o índice precisa ser recriado (há um teste que trava o texto).
+
+## Comercial — tela Desempenho, atendente IA e ranking sem números alheios (2026-11-10)
+
+V2 etapa 1 (plano [[PLANO_IMPLEMENTACAO_COMERCIAL_V2_DESEMPENHO]], spec [[PLANO_AREA_COMERCIAL_COMISSOES]] §11.1):
+- **Motor.** `LinhaComissao.produto` (default `""`) e `papel="ia"` para a atendente IA **Camila**: venda sem AT
+  cujo nome do preço termina em "- Camila" (`regras.extrair_atendente_ia`). A linha IA tem base, valor 0 e não
+  gera participação. Fica fora de `resumo_por_beneficiario`, dos totais congelados do fechamento, do ranking e de
+  qualquer total do time. Continua **reivindicável** como a venda `sem_codigo`, aparece em "Vendas sem código" com
+  o chip "Camila (IA)", e a atribuição aprovada a transforma em venda normal. No xlsx aparece como "IA (sem comissão)".
+- **`/comercial/desempenho`** (`services/comercial/desempenho.py`, `comercial_desempenho.html`, menu logo depois de
+  Ranking). Mostra resumo do time, por vendedora, por produto, o bloco IA (só gestor) e a evolução em Chart.js, com
+  os dados via `application/json`. Comparação padrão com o período anterior; mês corrente compara os mesmos dias.
+  Vendedora só compara com mês. Meta do time = soma das metas (`ler_metas_mes(mes, None)`), visível para todos;
+  as metas individuais seguem recortadas.
+- **Isolamento.** A vendedora vê os números gerais do time e os próprios, a posição e a contribuição (período, ano e
+  meta), e nunca um número individual de outra vendedora. O mesmo vale para o **Ranking** e o **Top 3** da Visão
+  geral: das outras, só posição e nome, e a vendedora ordena só por vendido.
+- **Acumulado do ano.** Lê os snapshots **guardados** (`snapshot.ler_guardado`, sem recalcular). Mês passado sem
+  snapshot **não é calculado na requisição**: o acumulado vira "—" com a nota "acumulado incompleto". Os meses de
+  2026 precisam estar guardados (aquecimento feito após o deploy).
+
+## Comercial — busca alternativa do valor-base (2026-11-09)
+
+O gestor viu duas vendas em "Sem valor-base" (HP1930038622, Cross 10x; HP1190909150, Parcelamento
+Inteligente 12x). A busca por `sem_impostos + taxa` não achava a base. Agora `Venda.valores_alternativos`
+(montado em `db_readers/comercial.py::_valores_alternativos`) e `calculo._base` tentam, **só se o valor de
+hoje falhar**, parcela × N no Parcelamento Inteligente e depois o `valor_de_compra_com_impostos`. A venda que já achava
+base não muda. Detalhe e números em [[METODOLOGIA_EXTRACAO_DADOS]] §14. Os snapshots dos meses abertos
+precisam ser recalculados (o próximo ETL invalida).
+
 ## Comercial — fase 2 (2026-11-06)
 
 Telas, gravação e fechamento da área Comercial ([[PLANO_AREA_COMERCIAL_COMISSOES]],
@@ -4377,3 +4458,43 @@ Inconsistências e trava o fechamento desse mês até o gestor decidir ("tira" v
 que falta, em lote numa transação, idempotente; semeia `comercial_acessos` só se a tabela estiver
 vazia, para não devolver acesso removido; `--migrar` = só tabelas e migrações, sem dados) e `scripts/comercial_conciliar.py --cadastros banco|planilha` (sistema ×
 planilha usando os cadastros do banco ou da planilha).
+
+## Tabelas de anúncios — consulta de histórico, transação das cargas e schema (2026-11-09)
+
+Saiu da revisão [[REVISAO_TABELAS_ADS_2026-11-09]].
+
+- **Histórico de criativos de lançamentos anteriores** (`frontend/db_readers/ads_meta.py`,
+  `_ler_nomes_anteriores`, usado por `get_historico_ad_codes` e `get_historico_ad_nomes`). Era a
+  query mais cara do banco: ~12,5 h de CPU entre 21/09 e 09/11/26. O filtro `lancamento_codigo
+  ILIKE 'PI-%'` forçava seq scan. Agora é faixa de texto, `>= 'PI-' AND < 'PI.'`, que vale
+  porque o código é sempre maiúsculo e `.` vem logo depois de `-` em ASCII. O resultado é
+  idêntico ao do `ILIKE` (conferido em 6 lançamentos nas duas tabelas) e cai de 150–2.300 ms
+  para 17–54 ms. As duas funções leem os nomes uma vez só e têm cache por processo de 6 h
+  (antes: 30 min numa e nenhum na outra). Teste: `tests/test_historico_ad_codes_cache.py`.
+- **Públicos/demografia do Google e região/demografia do Facebook (Meta)**
+  (`upsert_audiences`/`upsert_demographics` em `etl_google_ads.py`,
+  `upsert_region`/`upsert_demographics` em `etl_meta_ads.py`). O `to_sql` agora roda na mesma
+  transação do DELETE, como já acontecia na diária desde 27/10. Antes, a janela ficava vazia
+  entre os dois passos. Validado com a rodada de 09/11, as quatro tabelas gravadas.
+- **`etl/schema.sql` alinhado ao banco:** `google_ads_daily.customer_id`,
+  `idx_meta_lancamento_date`/`idx_google_lancamento_date` e `idx_meta_conta`/`idx_google_conta`,
+  que existiam só em produção. Os quatro índices também estão em `etl/indexes_performance.sql`
+  (CONCURRENTLY).
+
+## `/verba` no layout da planilha "Verba Diária" (2026-11-10)
+
+A página espelha a planilha do Drive, de cima para baixo: 4 cards (Previsão, Investido, Captação
+Previsto, Captação Realizado — estes com total por plataforma e % Google/Meta/TikTok), blocos da
+Pré-Qualificação (Previsão / Verba investida / Restante: total, por dia e % por público), tabela
+"Dias da Semana" (investida × previsão diária, gasto × previsto até hoje) e divisão por público em
+cada dia. As curvas com o diário de ações, o previsto × realizado por dia e as sub-etapas de
+remarketing ficam abaixo, como extras.
+
+- Dados: `resumo_por_plataforma`, `blocos_pre_quali`, `tabela_dias_semana`, `hoje_brasil` em
+  `frontend/services/orcamento.py`; a rota só monta o contexto (`verba_page`).
+- "Por dia" da pré-quali: previsão ÷ dias da etapa, investida ÷ dias decorridos, restante ÷ dias que
+  faltam (a planilha misturava divisores).
+- `previsto_por_etapa` agora cai no `total` da etapa quando `meta_investimento_pre_quali/captacao`
+  do `launch_config` está vazio (PI-NOV-26 estava; o card de previsão saía zerado).
+- Fora do layout: "Orçamento Diário das Campanhas – Pré Quali" (divisão manual por sub-campanha) e
+  a linha "PQ / Impulsionar" (sem categorização no sistema, aparece como "–").

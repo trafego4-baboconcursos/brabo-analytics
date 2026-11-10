@@ -10,7 +10,8 @@ from datetime import datetime
 from decimal import Decimal
 
 from frontend.services.comercial.modelos import Cadastros, Venda
-from frontend.services.comercial.regras import Janela, extrair_atendente_ia, situacao, tipo_venda
+from frontend.services.comercial.regras import (Janela, e_up_ou_cross_sell, extrair_atendente_ia, situacao,
+                                               tipo_venda)
 from frontend.services.comercial.tabelas import (
     BASE_TMB_POR_CATEGORIA,
     buscar_valor_base,
@@ -100,6 +101,8 @@ def _linha_venda(venda: Venda, cad: Cadastros, tipo: str, sit: str, dia) -> Linh
     # condição especial (ex.: CS da Izabela) pode forçar o tipo antes de escolher o %
     tipo = tipo_forcado(cad.regras, venda.plataforma, venda.modalidade, codigo, dia,
                         categoria) or tipo
+    if e_up_ou_cross_sell(categoria, venda.oferta):
+        tipo = "Ativa"  # Up/Cross Sell não tem Reativa (Rafael Batista, 10/11/26)
     regra = None
     pct = None
     if motivo is None:

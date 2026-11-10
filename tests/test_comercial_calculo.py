@@ -173,18 +173,20 @@ def test_izabela_lead_na_janela_continua_reativa():
     assert (l.tipo, l.pct, l.regra_id) == ("Reativa", D("0.015"), 2)
 
 
-def test_outra_vendedora_cross_sell_na_janela_e_reativa():
+def test_outra_vendedora_cross_sell_na_janela_e_ativa():
+    # regra do Rafael Batista (10/11/26): Up/Cross Sell não tem Reativa, para qualquer vendedora
     v = venda(cod="AT4", valor="863", data=datetime(2026, 9, 9, 10))
     [l] = calcular([v], cad_izabela(), [JANELA_SET], HOJE)
-    assert (l.tipo, l.pct) == ("Reativa", D("0.015"))
+    assert (l.tipo, l.pct) == ("Ativa", D("0.04"))
 
 
-def test_izabela_cross_sell_depois_do_fim_da_condicao_e_reativa():
+def test_izabela_cross_sell_depois_do_fim_da_condicao_e_ativa_com_pct_do_time():
+    # fim da condição da Izabela (31/10) volta o % do time, mas Cross Sell segue Ativa (10/11/26)
     j = Janela("PI-NOV-26", "INSS", datetime(2026, 11, 2), datetime(2026, 11, 9, 23, 59, 59),
                frozenset({"6856971"}), frozenset())
     v = venda(cod="AT13", valor="863", data=datetime(2026, 11, 3, 10))
     [l] = calcular([v], cad_izabela(), [j], HOJE)
-    assert (l.tipo, l.pct) == ("Reativa", D("0.015"))
+    assert (l.tipo, l.pct) == ("Ativa", D("0.04"))
 
 
 def test_participacao_segue_tipo_forcado():
@@ -269,3 +271,23 @@ def test_camila_fora_do_resumo_e_dos_totais_congelados():
     assert "Camila" not in resumo_por_beneficiario(ls)
     t = totais(ls, {})
     assert "Camila" not in t["por_beneficiario"] and t["linhas"] == 1
+
+
+def test_up_e_cross_sell_sao_sempre_ativa_mesmo_na_janela_reativa():
+    """Rafael Batista, 10/11/26: Ativa × Reativa só vale para aluno novo; Up Sell e Cross Sell são
+    sempre Ativa — pela categoria do valor-base ou pelo prefixo do nome do preço padronizado."""
+    from dataclasses import replace
+    j = Janela("PI-OUT-26", "INSS", datetime(2026, 10, 5), datetime(2026, 10, 12, 23, 59, 59), frozenset({"6856971"}), frozenset())
+    c = cad()
+    c.valores_base.append(ValorBase(3, "hotmart", D("899.40"), D("863"), "CROSS SELL", date(2026, 1, 1), None))
+    c.valores_base.append(ValorBase(4, "hotmart", D("499.90"), D("479"), "UP SELL", date(2026, 1, 1), None))
+    [cross] = calcular([venda(valor="899.40")], c, [j], HOJE)
+    [up] = calcular([venda(tx="HP2", valor="499.90")], c, [j], HOJE)
+    [lead] = calcular([venda(tx="HP3")], c, [j], HOJE)
+    assert (cross.tipo, up.tipo, lead.tipo) == ("Ativa", "Ativa", "Reativa")
+    assert cross.valor == D("863") * D("0.04")
+    v = replace(venda(tx="HP4"), oferta="CrossSell Mentoria Vitalícia TJSP Cartão 12x - COM. LEAD - AT4")
+    [pelo_nome] = calcular([v], c, [j], HOJE)
+    assert pelo_nome.tipo == "Ativa"
+    v2 = replace(venda(tx="HP5"), oferta="UpSell Mentoria Vitalícia TJSP Cartão 12x - COM. LEAD - AT4")
+    assert calcular([v2], c, [j], HOJE)[0].tipo == "Ativa"

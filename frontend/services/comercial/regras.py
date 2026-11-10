@@ -139,3 +139,15 @@ def situacao(pago: bool, data_venda: datetime, cancelada_em: datetime | None, ho
         if decisao != "mantem":
             return "reembolso_a_verificar"
     return "elegivel" if hoje > limite else "prevista"
+
+
+# Rafael Batista, 10/11/26: Ativa × Reativa só se aplica a aluno novo; Up Sell e Cross Sell são
+# sempre Ativa. Reconhecido pela categoria do valor-base (sem as mistas "LEAD/CROSS SELL", que o
+# valor não separa) ou pelo prefixo do nome do preço padronizado ("UpSell …", "CrossSell …").
+CATEGORIAS_SEMPRE_ATIVA = frozenset({"CROSS SELL", "UP SELL"})
+_RE_PREFIXO_UP_CROSS = re.compile(r"^\s*(up\s*-?\s*sell|cross\s*-?\s*sell)\b", re.IGNORECASE)
+
+
+def e_up_ou_cross_sell(categoria: str | None, oferta: str | None) -> bool:
+    return (categoria or "").strip().upper() in CATEGORIAS_SEMPRE_ATIVA or bool(
+        _RE_PREFIXO_UP_CROSS.match(oferta or ""))

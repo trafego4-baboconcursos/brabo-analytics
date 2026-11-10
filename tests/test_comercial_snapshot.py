@@ -240,3 +240,23 @@ def test_warm_comercial_nao_reentra(monkeypatch):
     monkeypatch.setattr(snap, "recalcular_mes", lambda *a, **k: pytest.fail("reentrou"))
     asyncio.run(pw.warm_comercial("teste"))
     assert pw._COMERCIAL_EM_CURSO is True
+
+
+def test_ler_guardado_devolve_snapshot_velho_sem_recalcular(calc):
+    velho = ResultadoMes(date(2026, 9, 1), [_linha()], [], datetime(2026, 10, 1), desatualizado=True)
+    st = FakeStore(velho)
+    r = snap.ler_guardado(date(2026, 9, 15), store=st)
+    assert r is velho and calc == [] and st.puts == []
+
+
+def test_ler_guardado_none_sem_snapshot(calc):
+    assert snap.ler_guardado(date(2026, 9, 1), store=FakeStore()) is None and calc == []
+
+
+def test_ler_guardado_prefere_o_congelado(calc):
+    congelado = ResultadoMes(date(2026, 9, 1), [], [], datetime(2026, 10, 2), fechado=True)
+
+    class Fechado(FakeStore):
+        def fechamento(self, mes):
+            return congelado
+    assert snap.ler_guardado(date(2026, 9, 1), store=Fechado(ResultadoMes(date(2026, 9, 1), [], [], HOJE))) is congelado

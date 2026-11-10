@@ -124,3 +124,69 @@ def test_gestor_ve_time_meta_e_ia():
     assert v["resumo"]["qtd"] == 4 and v["resumo"]["ticket"] == D("1000")
     assert len(v["vendedores"]) == 4
     assert v["resumo"]["var_vendido"] == D("1.222")  # 4000 vs 1800
+
+
+# ---------------------------------------------------------------- carga (Task 3)
+class StoreMemoria:
+    def __init__(self, guardados):
+        self.guardados, self.calculos, self.puts = dict(guardados), 0, []
+
+    def fechamento(self, mes):
+        return None
+
+    def get(self, mes):
+        return self.guardados.get(mes)
+
+    def inicio_calculo(self):
+        return datetime(2026, 11, 10, 9)
+
+    def put(self, r, calculo_inicio):
+        self.puts.append(r.mes)
+        self.guardados[r.mes] = r
+
+    def marcar_desatualizado(self, mes):
+        pass
+
+
+@pytest.fixture
+def store_memoria(monkeypatch):
+    import frontend.services.comercial.snapshot as snap
+    from frontend.services.comercial.snapshot import ResultadoMes
+    guardados = {}
+    for m in range(1, 10):  # jan–set guardados, velhos (de outro dia)
+        mes = date(2026, m, 1)
+        guardados[mes] = ResultadoMes(mes, [linha("AT4", "Black", "100", mes)], [], datetime(2026, 10, 1))
+    st = StoreMemoria(guardados)
+
+    def fake(mes, hoje):
+        st.calculos += 1
+        return ResultadoMes(mes, [linha("AT4", "Black", "50", date(2026, 10, 3))], [], hoje)
+    monkeypatch.setattr(snap, "calcular_mes", fake)
+    return st
+
+
+def test_acumulado_usa_guardado_e_so_calcula_o_que_falta(store_memoria):
+    from frontend.services.comercial.desempenho import carregar_acumulado
+    linhas, desde = carregar_acumulado(P_OUT, store=store_memoria)
+    assert store_memoria.calculos == 1 and store_memoria.puts == [date(2026, 10, 1)]
+    assert min(l.data for l in linhas).month == 1 and len(linhas) == 10
+    assert desde == datetime(2026, 10, 1)  # o mais antigo usado
+
+
+def test_acumulado_mes_do_fim_sempre_por_obter_mes_e_corta_depois_do_fim(store_memoria):
+    from frontend.services.comercial.desempenho import carregar_acumulado
+    from frontend.services.comercial.snapshot import ResultadoMes
+    # outubro guardado mas desatualizado -> recalcula (é o que a tela mostra); linha de 03/10 passa do fim 02/10
+    store_memoria.guardados[date(2026, 10, 1)] = ResultadoMes(
+        date(2026, 10, 1), [], [], datetime(2026, 10, 1), desatualizado=True)
+    livre = Periodo(date(2026, 9, 20), date(2026, 10, 2), None)
+    linhas, _ = carregar_acumulado(livre, store=store_memoria)
+    assert store_memoria.calculos == 1
+    assert all(l.data.date() <= date(2026, 10, 2) for l in linhas) and len(linhas) == 9
+
+
+def test_carregar_linhas_e_telas_carregar(monkeypatch):
+    from frontend.services.comercial import desempenho
+    from frontend.services.comercial.snapshot import ResultadoMes
+    monkeypatch.setattr(desempenho.telas, "carregar", lambda p: ResultadoMes(p.mes, ATUAL, [], datetime(2026, 11, 1)))
+    assert desempenho.carregar_linhas(P_OUT) == ATUAL

@@ -217,6 +217,15 @@ def obter_mes(mes: date, *, hoje: datetime | None = None, store: Store | None = 
     return recalcular_mes(mes, hoje=hoje, store=store)
 
 
+def ler_guardado(mes: date, *, store: Store | None = None) -> ResultadoMes | None:
+    """O que estiver gravado para o mês, sem teste de frescor e sem gravar: snapshot velho ou
+    desatualizado vale; mês fechado devolve o congelado; `None` se não há nada."""
+    store = store or StoreBanco()
+    mes = mes.replace(day=1)
+    congelado = store.fechamento(mes)
+    return congelado if congelado is not None else store.get(mes)
+
+
 def recalcular_mes(mes: date, *, hoje: datetime | None = None, store: Store | None = None) -> ResultadoMes:
     """Calcula e grava o snapshot (ignora o existente). Falha ao gravar não derruba o cálculo."""
     store = store or StoreBanco()

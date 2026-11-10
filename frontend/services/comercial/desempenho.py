@@ -9,9 +9,11 @@ só para gestor.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
+from frontend.services.comercial import snapshot as _snap
+from frontend.services.comercial import telas
 from frontend.services.comercial.acesso import AcessoComercial
 from frontend.services.comercial.calculo import PAPEL_IA, LinhaComissao
 from frontend.services.comercial.fechamento import e_a_verificar_de_fechado
@@ -23,6 +25,31 @@ from frontend.services.comercial.telas import (
 _ZERO = Decimal("0")
 SEM_PRODUTO = "—"
 _Q = Decimal("0.001")
+
+
+# ---------------------------------------------------------------- carga
+def carregar_linhas(periodo: Periodo) -> list[LinhaComissao]:
+    return telas.carregar(periodo).linhas
+
+
+def carregar_acumulado(periodo: Periodo, *, store=None) -> tuple[list[LinhaComissao], datetime | None]:
+    """Linhas de 01/01 do ano de `periodo.fim` até `periodo.fim` + o `gerado_em` mais antigo usado.
+    Meses anteriores ao do fim: o que estiver guardado (mesmo velho); só calcula o que não existe
+    (~20 s/mês). O mês do fim sempre por `obter_mes`: é o que a tela mostra."""
+    fim = periodo.fim
+    mes_fim = fim.replace(day=1)
+    mes = max(date(fim.year, 1, 1), PRIMEIRO_MES)
+    linhas: list[LinhaComissao] = []
+    desde: datetime | None = None
+    while mes <= mes_fim:
+        r = None if mes == mes_fim else _snap.ler_guardado(mes, store=store)
+        if r is None:
+            r = _snap.obter_mes(mes, store=store)
+        linhas.extend(l for l in r.linhas if l.data.date() <= fim)
+        if r.gerado_em is not None and (desde is None or r.gerado_em < desde):
+            desde = r.gerado_em
+        mes = soma_meses(mes, 1)
+    return linhas, desde
 
 
 # ---------------------------------------------------------------- comparação

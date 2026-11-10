@@ -630,6 +630,20 @@ _COLS_HM = ("h.codigo_da_transacao, h.status_da_transacao, h.data_da_transacao, 
             "h.taxa_de_processamento, h.faturamento_liquido, h.valor_de_compra_com_impostos, "
             "h.quantidade_total_de_parcelas, e.ultimo_evento_em")
 _CHAVES_HM = [c.strip().split(".")[-1] for c in _COLS_HM.split(",")]
+# Predicado do índice parcial idx_hotmart_oficial_data_outros_formatos (DD/MM/AAAA e formato
+# desconhecido). O planner só usa o índice se a consulta repetir o predicado igual.
+PREDICADO_OUTROS_FORMATOS = r"data_da_transacao !~ '^(\d{13}$|\d{4}-\d{2}-\d{2})'"
+
+
+def _limites_prefiltro_hotmart(inicio: date, fim: date) -> dict:
+    """Faixas do pré-filtro: ISO (`AAAA-MM-DD`) e epoch em ms (13 dígitos), de 2 dias antes a
+    3 depois do período — folga para o fuso de SP e para o d_ini/d_fim já alargados."""
+    de, ate = inicio - timedelta(days=2), fim + timedelta(days=3)
+    def ms(d: date) -> str:
+        return str(int(datetime(d.year, d.month, d.day, tzinfo=timezone.utc).timestamp() * 1000))
+    return {"iso_ini": de.isoformat(), "iso_sup": ate.isoformat(), "ep_ini": ms(de), "ep_sup": ms(ate)}
+
+
 _SQL_HOTMART_PERIODO = r"""
     SELECT """ + _COLS_HM + r"""
     FROM (
@@ -643,13 +657,26 @@ _SQL_HOTMART_PERIODO = r"""
                        WHEN data_da_transacao ~ '^\d{4}-\d{2}-\d{2}'
                            THEN replace(substr(data_da_transacao,1,10),'-','')
                        ELSE NULL END AS _data_aprox
-        FROM hotmart_oficial
+        FROM (
+            -- Pré-filtro (10/11/26): as duas primeiras partes usam idx_hotmart_oficial_data_da_transacao
+            -- (ISO e epoch em ms, ~99,96% das linhas); a terceira pega DD/MM/AAAA e formato
+            -- desconhecido pelo índice parcial idx_hotmart_oficial_data_outros_formatos, de mesmo
+            -- predicado. Superconjunto com folga: o filtro exato é o WHERE de fora.
+            SELECT * FROM hotmart_oficial WHERE data_da_transacao >= :iso_ini AND data_da_transacao < :iso_sup
+                                             AND data_da_transacao ~ '^\d{4}-\d{2}-\d{2}'
+            UNION ALL
+            SELECT * FROM hotmart_oficial WHERE data_da_transacao >= :ep_ini AND data_da_transacao < :ep_sup
+                                             AND data_da_transacao ~ '^\d{13}$'
+            UNION ALL
+            SELECT * FROM hotmart_oficial WHERE {OUTROS}
+        ) b
     ) h
     LEFT JOIN hotmart_estado_transacao e ON e.codigo_da_transacao = h.codigo_da_transacao
     WHERE h._data_aprox BETWEEN :d_ini AND :d_fim
        -- formato desconhecido sobe para o Python contar no warning
        OR (h._data_aprox IS NULL AND NULLIF(TRIM(h.data_da_transacao), '') IS NOT NULL)
 """
+_SQL_HOTMART_PERIODO = _SQL_HOTMART_PERIODO.replace("{OUTROS}", PREDICADO_OUTROS_FORMATOS)
 _SQL_HOTMART_EXTRA = ("SELECT " + _COLS_HM + " FROM hotmart_oficial h "
                       "LEFT JOIN hotmart_estado_transacao e ON e.codigo_da_transacao = h.codigo_da_transacao "
                       "WHERE h.codigo_da_transacao = ANY(:extra)")
@@ -697,9 +724,10 @@ def ler_vendas(inicio: date, fim: date, transacoes_extra: frozenset[str] = froze
     extra = sorted(transacoes_extra)
     params = {"d_ini": (inicio - timedelta(days=1)).strftime("%Y%m%d"),
               "d_fim": (fim + timedelta(days=1)).strftime("%Y%m%d"), "extra": extra}
+    params_hm = {**params, **_limites_prefiltro_hotmart(inicio, fim)}
     with _get_users_engine().begin() as conn:
         conn.execute(text("SET LOCAL statement_timeout = '120s'"))
-        hm = [dict(zip(_CHAVES_HM, r)) for r in conn.execute(text(_SQL_HOTMART_PERIODO), params).fetchall()]
+        hm = [dict(zip(_CHAVES_HM, r)) for r in conn.execute(text(_SQL_HOTMART_PERIODO), params_hm).fetchall()]
         if extra:
             ja = {l["codigo_da_transacao"] for l in hm}
             hm += [dict(zip(_CHAVES_HM, r))

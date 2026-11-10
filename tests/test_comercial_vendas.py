@@ -185,3 +185,16 @@ def test_hotmart_valores_alternativos_para_buscar_a_base():
     assert normalizar_hotmart([inteligente])[0].valores_alternativos == (Decimal("1798.80"), Decimal("149.90"))
     sem_com_impostos = dict(api, codigo_da_transacao="HPC", quantidade_de_cobrancas=1)
     assert normalizar_hotmart([sem_com_impostos])[0].valores_alternativos == ()
+
+
+def test_limites_do_prefiltro_hotmart_cobrem_o_periodo_com_folga():
+    """Pré-filtro pelo índice idx_hotmart_oficial_data_da_transacao (10/11/26): ISO e epoch em ms
+    com folga de dias (fuso de SP); o filtro exato continua sendo o CASE de sempre."""
+    from datetime import date
+    from frontend.db_readers.comercial import _limites_prefiltro_hotmart, PREDICADO_OUTROS_FORMATOS
+    p = _limites_prefiltro_hotmart(date(2026, 10, 1), date(2026, 10, 31))
+    assert (p["iso_ini"], p["iso_sup"]) == ("2026-09-29", "2026-11-03")
+    assert (p["ep_ini"], p["ep_sup"]) == ("1790640000000", "1793664000000")  # 29/09 e 03/11 00:00 UTC
+    assert len(p["ep_ini"]) == len(p["ep_sup"]) == 13
+    # o índice parcial do banco usa EXATAMENTE este predicado; mudar aqui exige recriar o índice
+    assert PREDICADO_OUTROS_FORMATOS == r"data_da_transacao !~ '^(\d{13}$|\d{4}-\d{2}-\d{2})'"

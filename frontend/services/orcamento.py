@@ -638,7 +638,8 @@ def tabela_dias_semana(curva: dict, hoje) -> dict:
             prev_ate += d["previsto"]
             real_ate += d.get("realizado", 0.0)
         dias.append({"rotulo": rotulo_dia(d["data"]), "previsto": d["previsto"],
-                     "realizado": d.get("realizado", 0.0), "passou": passou})
+                     "realizado": d.get("realizado", 0.0), "passou": passou,
+                     "hoje": d["data"] == hoje.isoformat()})
     dif = real_ate - prev_ate
     return {
         "dias": dias, "hoje_str": hoje.strftime("%d/%m"),

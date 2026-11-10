@@ -29,31 +29,91 @@
     {% from "_macros_verba.html" import tabela_dia_publico, tabela_dia_publico_combinada %}
 
     {# Layout espelhado da planilha "Verba Diária [LANC]" (Drive): 4 cards no topo,
-       blocos da pré-quali, tabela "Dias da Semana" e divisão por público em cada dia. #}
+       blocos da pré-quali, tabela "Dias da Semana" e divisão por público em cada dia.
+       Espaçamentos em múltiplos de 8px; cores só por token --bs-*. #}
+
+    <style>
+      :root { --verba-prev:#2563eb; --verba-prev-bg:color-mix(in srgb, #2563eb 9%, var(--bs-card)); }
+      .verba-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; align-items:stretch; }
+      @media (max-width:1000px) { .verba-grid { grid-template-columns:minmax(0,1fr); } }
+      .verba-card { background:var(--bs-card); border:1px solid var(--bs-border); border-radius:var(--bs-r-lg,12px); overflow:hidden; display:flex; flex-direction:column; }
+      .verba-card-title { display:flex; align-items:center; gap:8px; padding:16px 24px; font-size:12px; font-weight:800; letter-spacing:.6px; text-transform:uppercase; color:var(--bs-ink); border-bottom:1px solid var(--bs-border); }
+      .verba-card-title i { color:var(--bs-accent); font-size:16px; }
+      .verba-card table { width:100%; border-collapse:collapse; font-size:12px; }
+      .verba-card th, .verba-card td { padding:8px 16px; white-space:nowrap; border-bottom:1px solid var(--bs-border); }
+      .verba-card th:first-child, .verba-card td:first-child { padding-left:24px; }
+      .verba-card th:last-child, .verba-card td:last-child { padding-right:24px; }
+      .verba-card tbody tr:last-child td { border-bottom:0; }
+      .verba-card thead th { font-size:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--bs-ink-muted); text-align:right; background:transparent; }
+      .verba-card thead th:first-child { text-align:left; }
+      .verba-card td.num { text-align:right; font-variant-numeric:tabular-nums; }
+      .verba-card td.mut, .verba-card td .mut { color:var(--bs-ink-subtle); }
+      .verba-card tr.destaque td { background:var(--bs-accent-bg); font-weight:800; color:var(--bs-ink); }
+      .verba-card tr.divisor td { padding-top:16px; font-size:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--bs-ink-muted); border-bottom:0; }
+      .verba-card td.plataforma { text-align:right; vertical-align:middle; font-weight:700; border-left:1px solid var(--bs-border); background:var(--bs-surface); }
+      .verba-card.prev { border-top:3px solid var(--verba-prev); }
+      .verba-card.real { border-top:3px solid var(--bs-accent); }
+      .verba-card.prev .verba-card-title i, .verba-card.prev thead th.col-v { color:var(--verba-prev); }
+      .verba-card.real .verba-card-title i, .verba-card.real thead th.col-v { color:var(--bs-accent); }
+      .verba-card.prev tr.destaque td { background:var(--verba-prev-bg); }
+      .verba-card.prev tr.destaque td.num { color:var(--verba-prev); }
+      .verba-card.real tr.destaque td.num { color:var(--bs-accent); }
+      .verba-card.prev td.num.v { color:var(--verba-prev); }
+      .verba-card.real td.num.v { color:var(--bs-accent); }
+      .verba-kpi.prev { border-left:4px solid var(--verba-prev); }
+      .verba-kpi.real { border-left:4px solid var(--bs-accent); }
+      .verba-kpi.prev .val { color:var(--verba-prev); }
+      .verba-kpi.real .val { color:var(--bs-accent); }
+      .verba-dias tr.l-real td:not(:first-child) { color:var(--bs-accent); font-weight:600; }
+      .verba-dias tr.l-prev td:not(:first-child) { color:var(--verba-prev); }
+      .verba-dias tr.l-real td:first-child { color:var(--bs-accent); }
+      .verba-dias tr.l-prev td:first-child { color:var(--verba-prev); }
+      .verba-dias td.futuro { opacity:.45; }
+      .verba-preq tr.destaque.b-prev td.num, .verba-preq tr.destaque.b-prev td:not(:first-child) { color:var(--verba-prev); }
+      .verba-preq tr.destaque.b-real td:not(:first-child) { color:var(--bs-accent); }
+      .verba-preq tr.destaque.b-rest td:not(:first-child) { color:var(--bs-warning); }
+      .verba-preq thead th.b-prev { color:var(--verba-prev); }
+      .verba-preq thead th.b-real { color:var(--bs-accent); }
+      .verba-preq thead th.b-rest { color:var(--bs-warning); }
+      .verba-kpis { display:flex; flex-wrap:wrap; gap:16px; margin-bottom:16px; }
+      .verba-kpi { flex:1 1 200px; background:var(--bs-card); border:1px solid var(--bs-border); border-radius:var(--bs-r-lg,12px); padding:16px 24px; }
+      .verba-kpi .rot { font-size:10px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--bs-ink-muted); }
+      .verba-kpi .val { font-size:24px; font-weight:800; margin-top:8px; font-variant-numeric:tabular-nums; }
+      .verba-kpi .val.neg { color:var(--bs-danger); }
+      .verba-kpi .val.pos { color:var(--bs-success); }
+      .verba-kpi .sub { font-size:12px; color:var(--bs-ink-muted); margin-top:8px; }
+      .verba-dias th, .verba-dias td { text-align:right; }
+      .verba-dias th:first-child, .verba-dias td:first-child { text-align:left; }
+      .verba-dias .hoje { background:var(--bs-accent-bg); }
+      .verba-dias .futuro { color:var(--bs-ink-subtle); }
+      .verba-preq { max-width:1040px; }
+      .verba-preq thead th { text-align:right; }
+      .verba-preq thead th:first-child { text-align:left; }
+      .verba-preq td { text-align:right; font-variant-numeric:tabular-nums; }
+      .verba-preq td:first-child { text-align:left; }
+    </style>
 
     {% macro card_etapas(titulo, linhas, total, usar_realizado) %}
-    <div class="verba-card">
-      <div class="verba-card-title">{{ titulo }}</div>
-      <table class="table-compact" style="font-size:12px;width:100%">
+    <div class="verba-card {{ 'real' if usar_realizado else 'prev' }}">
+      <div class="verba-card-title"><i class="ti ti-coin"></i>{{ titulo }}</div>
+      <table>
+        <thead><tr><th>Etapa</th><th class="col-v">{{ 'Investido' if usar_realizado else 'Previsto' }}</th><th>%</th></tr></thead>
         <tbody>
           {% for l in linhas %}
           {% if l.nome == 'Captação' %}
-          <tr><td class="td-bold">PQ / Impulsionar</td><td style="text-align:right">–</td><td style="text-align:right">–</td></tr>
+          <tr><td>PQ / Impulsionar</td><td class="num mut">–</td><td class="num mut">–</td></tr>
           {% endif %}
           {% set v = l.realizado if usar_realizado else l.previsto %}
           {% set p = l.pct_realizado if usar_realizado else l.pct_previsto %}
           <tr>
-            <td class="td-bold">{{ l.nome }}</td>
-            <td style="text-align:right">{{ v | brl if v > 0 else "–" }}</td>
-            <td style="text-align:right">{{ p | pct if v > 0 else "–" }}</td>
+            <td>{{ l.nome }}</td>
+            <td class="num {{ 'v' if v > 0 else 'mut' }}">{{ v | brl if v > 0 else "–" }}</td>
+            <td class="num {{ '' if v > 0 else 'mut' }}">{{ p | pct if v > 0 else "–" }}</td>
           </tr>
           {% endfor %}
-          <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
-            <td>TOTAL</td><td style="text-align:right">{{ total | brl }}</td><td style="text-align:right">100%</td>
-          </tr>
+          <tr class="destaque"><td>TOTAL</td><td class="num">{{ total | brl }}</td><td class="num">100%</td></tr>
           {% if not usar_realizado %}
-          <tr><td class="td-muted" style="font-style:italic">Remarketing</td><td></td>
-              <td class="td-muted" style="text-align:right;font-style:italic">{{ verba_pct_remarketing_previsto | pct }}</td></tr>
+          <tr><td class="mut">Remarketing</td><td></td><td class="num mut">{{ verba_pct_remarketing_previsto | pct }}</td></tr>
           {% endif %}
         </tbody>
       </table>
@@ -61,107 +121,94 @@
     {% endmacro %}
 
     {% macro card_captacao(titulo, resumo, usar_realizado) %}
-    <div class="verba-card">
-      <div class="verba-card-title">{{ titulo }}</div>
+    <div class="verba-card {{ 'real' if usar_realizado else 'prev' }}">
+      <div class="verba-card-title"><i class="ti ti-target-arrow"></i>{{ titulo }}</div>
       {% if resumo.linhas %}
       {% set total = resumo.total_realizado if usar_realizado else resumo.total_previsto %}
-      <table class="table-compact" style="font-size:12px;width:100%">
-        <thead>
-          <tr>
-            <th class="th-dark">TOTAL</th>
-            <th class="th-dark" style="text-align:right">{{ total | brl }}</th>
-            <th class="th-dark" style="text-align:right">Divisão por Público</th>
-            <th class="th-dark" style="text-align:right">Total gasto por plataforma</th>
-          </tr>
-        </thead>
+      <table>
+        <thead><tr><th>Público</th><th class="col-v">{{ 'Investido' if usar_realizado else 'Previsto' }}</th><th>%</th><th>Por plataforma</th></tr></thead>
         <tbody>
+          <tr class="destaque"><td>TOTAL</td><td class="num">{{ total | brl }}</td><td class="num">100%</td><td></td></tr>
           {% for l in resumo.linhas %}
           {% set v = l.realizado if usar_realizado else l.previsto %}
           {% set p = l.pct_realizado if usar_realizado else l.pct_previsto %}
           <tr>
-            <td class="td-bold">{{ l.nome }}</td>
-            <td style="text-align:right">{{ v | brl }}</td>
-            <td style="text-align:right">{{ p | round(2) }}%</td>
+            <td>{{ l.nome }}</td>
+            <td class="num v">{{ v | brl }}</td>
+            <td class="num">{{ p | round(2) }}%</td>
             {% if l.grupo_n %}
-            <td rowspan="{{ l.grupo_n }}" style="text-align:right;vertical-align:middle;font-weight:700">
-              {{ (l.grupo_realizado if usar_realizado else l.grupo_previsto) | brl }}
-            </td>
+            <td class="plataforma" rowspan="{{ l.grupo_n }}">{{ (l.grupo_realizado if usar_realizado else l.grupo_previsto) | brl }}</td>
             {% endif %}
           </tr>
           {% endfor %}
-          <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
-            <td colspan="2">Total</td><td style="text-align:right">100%</td><td></td>
-          </tr>
+          <tr class="divisor"><td colspan="4">Por plataforma</td></tr>
           {% for pl in resumo.plataformas %}
           <tr>
-            <td class="td-bold">{{ pl.nome }}</td><td></td>
-            <td style="text-align:right">{{ (pl.pct_realizado if usar_realizado else pl.pct_previsto) | round(2) }}%</td><td></td>
+            <td>{{ pl.nome }}</td><td></td>
+            <td class="num">{{ (pl.pct_realizado if usar_realizado else pl.pct_previsto) | round(2) }}%</td><td></td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
       {% else %}
-      <div class="no-data" style="padding:16px"><p>Públicos não configurados no wizard (Provisão de Verba).</p></div>
+      <div class="no-data" style="padding:24px"><p>Públicos não configurados no wizard (Provisão de Verba).</p></div>
       {% endif %}
     </div>
     {% endmacro %}
 
-    <style>
-      .verba-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:16px; align-items:start; }
-      .verba-card { background:var(--bs-card); border:1px solid var(--bs-border); border-radius:8px; overflow:hidden; }
-      .verba-card-title { background:#1f2937; color:#fff; font-weight:700; font-size:12px; padding:8px 16px; text-align:center; letter-spacing:.3px; }
-    </style>
-
     <div class="section">
       <div class="section-title"><i class="ti ti-coin"></i> Visão geral da verba</div>
       <div class="verba-grid">
-        {{ card_etapas("TOTAL — PREVISÃO", verba_linhas, verba_total_previsto, false) }}
-        {{ card_etapas("TOTAL — Investido", verba_linhas, verba_total_realizado, true) }}
-        {{ card_captacao("INVESTIMENTO EM CAPTAÇÃO PREVISTO", capt_resumo, false) }}
-        {{ card_captacao("INVESTIMENTO EM CAPTAÇÃO REALIZADO", capt_resumo, true) }}
+        {{ card_etapas("Total — Previsão", verba_linhas, verba_total_previsto, false) }}
+        {{ card_etapas("Total — Investido", verba_linhas, verba_total_realizado, true) }}
+        {{ card_captacao("Investimento em Captação — Previsto", capt_resumo, false) }}
+        {{ card_captacao("Investimento em Captação — Realizado", capt_resumo, true) }}
       </div>
-      <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
+      <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:16px">
         Previsto vem da provisão de verba cadastrada no wizard do lançamento; Investido é o gasto real Meta+Google (e WhatsApp) por etapa.
         "PQ / Impulsionar" ainda não tem categorização própria neste sistema.
+        <span style="margin-left:16px"><b style="color:var(--verba-prev)">■</b> Previsto &nbsp; <b style="color:var(--bs-accent)">■</b> Realizado &nbsp; <b style="color:var(--bs-warning)">■</b> Restante</span>
       </div>
     </div>
 
     {# ── Pré-Qualificação: Previsão / Verba investida / Restante ───────────── #}
     {% if preq_blocos and preq_blocos.blocos %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-coin"></i> Pré-Qualificação — Início {{ preq_blocos.inicio.strftime('%d/%m/%Y') }} · Fim {{ preq_blocos.fim.strftime('%d/%m/%Y') }}</div>
-      <div class="table-wrap" style="overflow-x:auto">
-        <table class="table-compact" style="font-size:12px;white-space:nowrap">
-          {% for b in preq_blocos.blocos %}
-          <thead>
-            <tr>
-              <th class="th-dark">{{ b.titulo }}</th>
-              <th class="th-dark" style="text-align:right">TOTAL</th>
-              {% for it in b.itens %}<th class="th-dark" style="text-align:right">{{ it.nome | upper }}</th>{% endfor %}
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="td-bold">Total</td>
-              <td style="text-align:right;font-weight:700">{{ b.total | brl }}</td>
-              {% for it in b.itens %}<td style="text-align:right">{{ it.total | brl }}</td>{% endfor %}
-            </tr>
-            <tr>
-              <td class="td-bold">Por dia</td>
-              <td style="text-align:right;font-weight:700">{{ b.por_dia | brl }}</td>
-              {% for it in b.itens %}<td style="text-align:right">{{ it.por_dia | brl }}</td>{% endfor %}
-            </tr>
-            <tr>
-              <td class="td-muted" style="font-style:italic">% do total</td>
-              <td style="text-align:right">100%</td>
-              {% for it in b.itens %}<td class="td-muted" style="text-align:right;font-style:italic">{{ ((it.total / b.total * 100) if b.total else 0) | round(2) }}%</td>{% endfor %}
-            </tr>
-            <tr><td colspan="{{ b.itens | length + 2 }}" style="padding:4px"></td></tr>
-          </tbody>
-          {% endfor %}
-        </table>
+      <div class="section-title"><i class="ti ti-coin"></i> Pré-Qualificação · {{ preq_blocos.inicio.strftime('%d/%m') }} a {{ preq_blocos.fim.strftime('%d/%m/%Y') }}</div>
+      <div class="verba-card verba-preq">
+        <div style="overflow-x:auto">
+          <table>
+            {% for b in preq_blocos.blocos %}
+            <thead>
+              <tr>
+                {% set cb = 'b-prev' if loop.index0 == 0 else ('b-real' if loop.index0 == 1 else 'b-rest') %}
+                <th class="{{ cb }}">{{ b.titulo.replace('PRÉ-QUALIFICAÇÃO — ', '') }}</th>
+                <th>Total</th>
+                {% for it in b.itens %}<th>{{ it.nome }}</th>{% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="destaque {{ 'b-prev' if loop.index0 == 0 else ('b-real' if loop.index0 == 1 else 'b-rest') }}">
+                <td>Total</td>
+                <td>{{ b.total | brl }}</td>
+                {% for it in b.itens %}<td>{{ it.total | brl }}</td>{% endfor %}
+              </tr>
+              <tr>
+                <td>Por dia</td>
+                <td>{{ b.por_dia | brl }}</td>
+                {% for it in b.itens %}<td>{{ it.por_dia | brl }}</td>{% endfor %}
+              </tr>
+              <tr>
+                <td class="mut">% do total</td>
+                <td class="mut">100%</td>
+                {% for it in b.itens %}<td class="mut">{{ ((it.total / b.total * 100) if b.total else 0) | round(1) }}%</td>{% endfor %}
+              </tr>
+            </tbody>
+            {% endfor %}
+          </table>
+        </div>
       </div>
-      <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
+      <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:16px">
         Por dia: previsão ÷ dias da etapa · investida ÷ dias decorridos · restante ÷ dias que faltam.
       </div>
     </div>
@@ -170,36 +217,39 @@
     {# ── Dias da semana: verba investida × previsão diária (captação) ─────── #}
     {% if dias_semana.dias %}
     <div class="section">
-      <div class="section-title"><i class="ti ti-calendar-dollar"></i> Dias da Semana — Verba investida × Previsão diária (Captação)</div>
-      <div class="table-wrap" style="overflow-x:auto">
-        <table class="table-compact" style="font-size:11px;white-space:nowrap">
-          <thead>
-            <tr>
-              <th class="th-dark" style="position:sticky;left:0">Dias da Semana</th>
-              {% for d in dias_semana.dias %}<th class="th-dark" style="text-align:right">{{ d.rotulo }}</th>{% endfor %}
-              <th class="th-dark" style="text-align:right">Até {{ dias_semana.hoje_str }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td class="td-bold" style="position:sticky;left:0;background:var(--bs-card)">Verba investida por dia</td>
-              {% for d in dias_semana.dias %}
-              <td style="text-align:right">{{ d.realizado | brl if d.passou else "–" }}</td>
-              {% endfor %}
-              <td style="text-align:right;font-weight:700">{{ dias_semana.gasto_ate_hoje | brl }}</td>
-            </tr>
-            <tr>
-              <td class="td-bold" style="position:sticky;left:0;background:var(--bs-card)">Previsão diária</td>
-              {% for d in dias_semana.dias %}<td style="text-align:right">{{ d.previsto | brl }}</td>{% endfor %}
-              <td style="text-align:right;font-weight:700">{{ dias_semana.previsto_ate_hoje | brl }}</td>
-            </tr>
-            <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
-              <td style="position:sticky;left:0">Diferença até {{ dias_semana.hoje_str }}</td>
-              <td colspan="{{ dias_semana.dias | length }}" style="text-align:right">{{ dias_semana.diferenca_pct | round(2) }}%</td>
-              <td style="text-align:right">{{ dias_semana.diferenca | brl }}</td>
-            </tr>
-          </tbody>
-        </table>
+      <div class="section-title"><i class="ti ti-calendar-dollar"></i> Dias da Semana — Captação</div>
+      <div class="verba-kpis">
+        <div class="verba-kpi real"><div class="rot">Gasto até {{ dias_semana.hoje_str }}</div><div class="val">{{ dias_semana.gasto_ate_hoje | brl }}</div></div>
+        <div class="verba-kpi prev"><div class="rot">Previsto até {{ dias_semana.hoje_str }}</div><div class="val">{{ dias_semana.previsto_ate_hoje | brl }}</div></div>
+        <div class="verba-kpi">
+          <div class="rot">Diferença</div>
+          <div class="val {{ 'neg' if dias_semana.diferenca < 0 else 'pos' }}">{{ dias_semana.diferenca | brl }}</div>
+          <div class="sub">{{ dias_semana.diferenca_pct | round(2) }}% {{ 'abaixo' if dias_semana.diferenca < 0 else 'acima' }} do previsto</div>
+        </div>
+      </div>
+      <div class="verba-card">
+        <div style="overflow-x:auto">
+          <table class="verba-dias">
+            <thead>
+              <tr>
+                <th style="position:sticky;left:0;background:var(--bs-card)"></th>
+                {% for d in dias_semana.dias %}<th class="{{ 'hoje' if d.hoje }}">{{ d.rotulo }}</th>{% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="l-real">
+                <td style="position:sticky;left:0;background:var(--bs-card);font-weight:700">Verba investida</td>
+                {% for d in dias_semana.dias %}
+                <td class="{{ 'hoje' if d.hoje }} {{ 'futuro' if not d.passou }}">{{ d.realizado | brl if d.passou else "–" }}</td>
+                {% endfor %}
+              </tr>
+              <tr class="l-prev">
+                <td style="position:sticky;left:0;background:var(--bs-card);font-weight:700">Previsão diária</td>
+                {% for d in dias_semana.dias %}<td class="{{ 'hoje' if d.hoje }} {{ 'futuro' if not d.passou }}">{{ d.previsto | brl }}</td>{% endfor %}
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
     {% endif %}

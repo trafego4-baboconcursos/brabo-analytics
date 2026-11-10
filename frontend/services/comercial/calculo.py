@@ -184,7 +184,7 @@ def calcular(vendas: list[Venda], cad: Cadastros, janelas: list[Janela],
 def resumo_por_beneficiario(linhas: list[LinhaComissao]) -> dict[str, dict[str, Decimal]]:
     resumo: dict[str, dict[str, Decimal]] = {}
     for l in linhas:
-        if l.situacao not in _BALDE:
+        if l.situacao not in _BALDE or l.papel == PAPEL_IA:
             continue
         r = resumo.setdefault(l.beneficiario, {"Ativa": _ZERO, "Reativa": _ZERO, "total": _ZERO,
                                                "elegivel": _ZERO, "prevista": _ZERO})

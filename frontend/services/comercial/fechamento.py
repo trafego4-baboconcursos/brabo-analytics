@@ -241,7 +241,7 @@ def totais(linhas: list[LinhaComissao], bonus: dict[str, dict]) -> dict:
         "elegivel": _q(eleg + est), "prevista": _q(prev), "estorno": _q(est), "bonus": _q(b),
         "total_pago": _q(eleg + est + prev + b),
         "participacao": _q(soma(part, ("elegivel", "prevista", ESTORNO))),
-        "linhas": len(linhas), "vendas_pagas": sum(1 for l in vendas if l.situacao in _PAGAS),
+        "linhas": sum(1 for l in linhas if l.papel != "ia"), "vendas_pagas": sum(1 for l in vendas if l.situacao in _PAGAS),
         "por_beneficiario": {n: {k: _q(v) for k, v in r.items()}
                              for n, r in sorted(resumo_por_beneficiario(linhas).items())},
     }

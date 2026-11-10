@@ -260,3 +260,12 @@ def test_camila_com_atribuicao_manual_vira_venda():
     v = replace(venda(cod=None), oferta="COM. LEAD - Camila")
     [l] = calcular([v], cad(atrib={"HP1": "AT4"}), [], HOJE)
     assert (l.papel, l.vendedor_codigo) == ("venda", "AT4")
+
+
+def test_camila_fora_do_resumo_e_dos_totais_congelados():
+    from frontend.services.comercial.fechamento import totais
+    v = replace(venda(cod=None), oferta="COM. LEAD - Camila")
+    ls = calcular([v, venda(tx="HP2")], cad(), [], HOJE)
+    assert "Camila" not in resumo_por_beneficiario(ls)
+    t = totais(ls, {})
+    assert "Camila" not in t["por_beneficiario"] and t["linhas"] == 1

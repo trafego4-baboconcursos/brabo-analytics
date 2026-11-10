@@ -204,3 +204,37 @@ def test_acumulado_mistura_congelado_tz_aware_com_guardado_naive(store_memoria):
     linhas, desde = carregar_acumulado(P_OUT, store=store_memoria)
     assert desde == datetime(2026, 1, 31, 23) and desde.tzinfo is None
     assert len(linhas) == 10
+
+
+# ---------------------------------------------------------------- Task 4: ressalvas da revisão da Task 2
+def test_vendedora_sem_venda_no_periodo_ganha_linha_zerada():
+    sem_venda = [l for l in ATUAL if l.vendedor_codigo != "AT4"]
+    v = view_desempenho(sem_venda, COMP, COMPARACAO, ACUM, P_OUT, ACESSO_EDILEIA, METAS_SO_DELA,
+                        meta_time=METAS_TOTAL)
+    assert [r["codigo"] for r in v["vendedores"]] == ["AT4"]
+    r = v["vendedores"][0]
+    assert r["qtd"] == 0 and r["vendido"] == D("0") and r["contribuicao"] == D("0.000")
+    assert r["contribuicao_ano"] is not None and r["pct_meta"] == D("0.000")
+    assert v["resumo"]["posicao"] is None
+    assert "AT9" not in str(v) and "Zelia" not in str(v)
+
+
+def test_gestor_nao_ganha_linha_zerada():
+    v = view_desempenho([l for l in ATUAL if l.vendedor_codigo != "AT4"], COMP, COMPARACAO, ACUM, P_OUT,
+                        ACESSO_MASTER, METAS, meta_time=METAS_TOTAL)
+    assert "AT4" not in [r["codigo"] for r in v["vendedores"]]
+
+
+def test_evolucao_atual_alinha_com_a_comparacao():
+    # mês corrente: série atual vai até hoje, mesmo sem venda nos últimos dias
+    v = view_desempenho(ATUAL, COMP, COMPARACAO, ACUM, P_OUT, ACESSO_MASTER, METAS, meta_time=METAS_TOTAL,
+                        hoje=date(2026, 10, 20))
+    assert len(v["evolucao"]["atual"]) == 20
+    assert v["evolucao"]["atual"][-1] == D("4000")
+    # mês encerrado: até o último dia do período
+    v2 = view_desempenho(ATUAL, COMP, COMPARACAO, ACUM, P_OUT, ACESSO_MASTER, METAS, meta_time=METAS_TOTAL,
+                         hoje=date(2026, 11, 6))
+    assert len(v2["evolucao"]["atual"]) == 31
+    assert len(v2["evolucao"]["comparacao"]) == 30
+    g = v2["grafico"]
+    assert len(g["atual"]) == 31 and g["atual"][-1] == 4000.0 and len(g["rotulos"]) == 31

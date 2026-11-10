@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% from "_macros_comercial.html" import estilo, barra, kpi with context %}
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% macro variacao(x, rotulo) -%}
+{%- if x is none -%}<span class="cm-sub">{{ 'sem base de comparação' if rotulo else '' }}</span>
+{%- else -%}<span class="dp-var {{ 'up' if x > 0 else ('down' if x < 0 else '') }}">{{ '▲' if x > 0 else ('▼' if x < 0 else '■') }} {{ ('%.1f' | format((x * 100) | abs)) | replace('.', ',') }}%</span>{% if rotulo %} <span class="cm-sub">comparando com {{ rotulo }}</span>{% endif %}
+{%- endif -%}
+{%- endmacro %}
+{% block content %}
+{{ estilo() }}
+<style>
+.dp-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:var(--s4); }
+.dp-var { font-size:var(--fs-xs); font-weight:600; white-space:nowrap; }
+.dp-var.up { color:var(--bs-success); }
+.dp-var.down { color:var(--bs-danger); }
+.dp-comparar { margin-top:var(--s2); }
+.dp-eu td { background:var(--bs-accent-bg); }
+.dp-nota { margin-top:var(--s2); }
+.dp-canvas { position:relative; height:320px; }
+.dp-divide { display:flex; flex-wrap:wrap; gap:var(--s1) var(--s3); }
+</style>
+{% set r = v.resumo %}
+{% set rot = v.comparacao.rotulo if v.comparacao else none %}
+{% set nomes = {} %}
+{% for x in v.vendedores %}{% if nomes.update({x.codigo: x.nome}) %}{% endif %}{% endfor %}
+{% set eu = v.vendedores[0] if (not v.gestor and v.vendedores) else none %}
+<div class="wrap">
+  <div class="hdr">
+    <a href="/comercial"><img src="/assets/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1><i class="ti ti-chart-line"></i> Comercial · Desempenho</h1>
+      <p>Vendido, ticket e contribuição por vendedor, produto e período, com comparação</p>
+    </div>
+  </div>
+
+  <div class="content">
+    {{ barra(v, meses, '/comercial/desempenho', [('comparar', request.query_params.get('comparar')), ('cinicio', request.query_params.get('cinicio')), ('cfim', request.query_params.get('cfim'))]) }}
+
+    <div class="section" style="margin-bottom:var(--s4);">
+      <form method="get" action="/comercial/desempenho" class="cm-filtros dp-comparar">
+        {% if v.periodo.livre %}<input type="hidden" name="inicio" value="{{ v.periodo.inicio }}"><input type="hidden" name="fim" value="{{ v.periodo.fim }}">
+        {% else %}<input type="hidden" name="mes" value="{{ v.periodo.mes.strftime('%Y-%m') }}">{% endif %}
+        <label><i class="ti ti-arrows-diff"></i> Comparar com
+          <select name="comparar" onchange="this.form.querySelectorAll('input[type=date]').forEach(i=>i.value='');this.form.submit()" aria-label="Comparar com">
+            {% if v.comparar_livre %}<option value="" selected>Intervalo livre</option>{% elif not v.comparacao %}<option value="" selected>Sem comparação</option>{% endif %}
+            {% for valor, rotulo in meses %}
+            <option value="{{ valor }}" {% if v.comparar_mes == valor %}selected{% endif %}>{{ rotulo }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        {% if v.gestor %}
+        <span>ou de <input type="date" name="cinicio" value="{{ v.comparacao.periodo.inicio if v.comparar_livre else '' }}" aria-label="Início da comparação"></span>
+        <span>até <input type="date" name="cfim" value="{{ v.comparacao.periodo.fim if v.comparar_livre else '' }}" aria-label="Fim da comparação"></span>
+        {% endif %}
+        <button type="submit" class="bs-pill accent" style="border:0;cursor:pointer;">Comparar</button>
+        {% if rot %}<span class="cm-sub">Comparando com {{ rot }}</span>{% endif %}
+      </form>
+    </div>
+
+    <div class="section">
+      <div class="section-title" data-sec-key="comercial-desempenho-resumo"><i class="ti ti-chart-bar"></i> Resumo do time</div>
+      <div class="dp-grid">
+        {{ kpi('ti-currency-dollar', r.vendido | brl_exato, 'Vendido', variacao(r.var_vendido, rot)) }}
+        {{ kpi('ti-shopping-cart', r.qtd | num, 'Vendas', variacao(r.var_qtd, rot)) }}
+        {{ kpi('ti-receipt', r.ticket | brl_exato, 'Ticket médio', variacao(r.var_ticket, rot)) }}
+        {{ kpi('ti-target', r.pct_meta_time | pct_taxa, '% da meta do time', ('Meta do time: ' ~ (r.meta_time | brl_exato)) if r.meta_time else 'meta é mensal: escolha um mês' if v.meta_so_mensal else 'Meta do time: não cadastrada') }}
+      </div>
+      <div class="cm-sub dp-nota">Conta só vendas com comissão (elegível, prevista ou reembolso a verificar); vendido = soma do valor-base.</div>
+    </div>
+
+    {% if eu %}
+    <div class="section">
+      <div class="section-title" data-sec-key="comercial-desempenho-eu"><i class="ti ti-user"></i> Os seus números</div>
+      <div class="dp-grid">
+        {{ kpi('ti-currency-dollar', eu.vendido | brl_exato, 'Vendido por você', variacao(eu.var_vendido, rot)) }}
+        {{ kpi('ti-shopping-cart', eu.qtd | num, 'Suas vendas', variacao(eu.var_qtd, rot)) }}
+        {{ kpi('ti-trophy', (r.posicao ~ 'º lugar no ranking') if r.posicao else '—', 'Posição no ranking', '') }}
+        {{ kpi('ti-percentage', eu.contribuicao | pct_taxa, 'Contribuição no período', 'sua parte do vendido do time') }}
+        {{ kpi('ti-calendar-stats', eu.contribuicao_ano | pct_taxa, 'Contribuição no ano', 'acumulado de janeiro até o fim do período') }}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="section">
+      <div class="section-title" data-sec-key="comercial-desempenho-vendedoras"><i class="ti ti-users"></i> Por vendedor</div>
+      {% if v.vendedores %}
+      <div class="table-wrap">
+        <table class="cm-tabela">
+          <thead><tr>
+            <th class="th-dark">Vendedor</th>
+            <th class="th-dark n">Vendido</th>
+            <th class="th-dark n">Qtd</th>
+            <th class="th-dark n">Ticket</th>
+            <th class="th-dark n">% meta</th>
+            <th class="th-dark n">Contribuição (período)</th>
+            <th class="th-dark n">Contribuição (ano)</th>
+            <th class="th-dark n">Variação</th>
+            <th class="th-dark">Produto que mais vende</th>
+          </tr></thead>
+          <tbody>
+            {% for x in v.vendedores %}
+            <tr class="{{ 'dp-eu' if not v.gestor }}">
+              <td class="nome">{{ x.nome }}{% if not v.gestor %} <span class="cm-sub">(você)</span>{% endif %}</td>
+              <td class="n">{{ x.vendido | brl_exato }}</td>
+              <td class="n">{{ x.qtd | num }}</td>
+              <td class="n">{{ x.ticket | brl_exato }}</td>
+              <td class="n">{{ '—' if v.meta_so_mensal else (x.pct_meta | pct_taxa) }}</td>
+              <td class="n">{{ x.contribuicao | pct_taxa }}</td>
+              <td class="n">{{ x.contribuicao_ano | pct_taxa }}</td>
+              <td class="n">{{ variacao(x.var_vendido, none) }}</td>
+              <td>{{ x.produto_top or '—' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="cm-vazio">Nenhuma venda com comissão no período.</div>
+      {% endif %}
+      <div class="cm-sub dp-nota">
+        {% if v.meta_so_mensal %}meta é mensal: escolha um mês para ver % da meta{% else %}Contribuição = vendido do vendedor ÷ vendido do time{% endif %}
+        {% if v.acumulado_desde %} · acumulado do ano com dados de {{ v.acumulado_desde.strftime('%d/%m %H:%M') }}{% endif %}
+      </div>
+    </div>
+
+    {% if v.ia %}
+    <div class="section">
+      <div class="section-title" data-sec-key="comercial-desempenho-ia"><i class="ti ti-robot"></i> Atendente IA · Camila</div>
+      <div class="table-wrap">
+        <table class="cm-tabela">
+          <thead><tr>
+            <th class="th-dark">Atendente</th>
+            <th class="th-dark n">Vendido</th>
+            <th class="th-dark n">Qtd</th>
+            <th class="th-dark n">Ticket</th>
+            <th class="th-dark n">Variação</th>
+          </tr></thead>
+          <tbody><tr>
+            <td class="nome">Camila (IA)</td>
+            <td class="n">{{ v.ia.vendido | brl_exato }}</td>
+            <td class="n">{{ v.ia.qtd | num }}</td>
+            <td class="n">{{ v.ia.ticket | brl_exato }}</td>
+            <td class="n">{{ variacao(v.ia.var_vendido, none) }}</td>
+          </tr></tbody>
+        </table>
+      </div>
+      <div class="cm-sub dp-nota">Sem comissão e fora dos totais do time, da meta, da contribuição e do ranking: só parâmetro de performance.</div>
+    </div>
+    {% endif %}
+
+    <div class="section">
+      <div class="section-title" data-sec-key="comercial-desempenho-produtos"><i class="ti ti-package"></i> Por produto</div>
+      {% if v.produtos %}
+      <div class="table-wrap">
+        <table class="cm-tabela">
+          <thead><tr>
+            <th class="th-dark">Produto</th>
+            <th class="th-dark n">Qtd</th>
+            <th class="th-dark n">Receita</th>
+            <th class="th-dark n">Ticket</th>
+            <th class="th-dark n">Variação</th>
+            <th class="th-dark">{{ 'Divisão por vendedor' if v.gestor else 'Divisão' }}</th>
+          </tr></thead>
+          <tbody>
+            {% for p in v.produtos %}
+            <tr>
+              <td class="nome">{{ p.produto }}</td>
+              <td class="n">{{ p.qtd | num }}</td>
+              <td class="n">{{ p.vendido | brl_exato }}</td>
+              <td class="n">{{ p.ticket | brl_exato }}</td>
+              <td class="n">{{ variacao(p.var_vendido, none) }}</td>
+              <td><div class="dp-divide">{% for cod, val in p.por_vendedor.items() | sort(attribute='1', reverse=true) %}<span class="cm-sub">{{ nomes.get(cod, cod) if v.gestor else 'você' }}: {{ val | brl_exato }}</span>{% endfor %}</div></td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="cm-vazio">Nenhuma venda com comissão no período.</div>
+      {% endif %}
+    </div>
+
+    <div class="section">
+      <div class="section-title" data-sec-key="comercial-desempenho-evolucao"><i class="ti ti-chart-line"></i> Evolução do vendido (acumulado por dia)</div>
+      {% if v.grafico.atual %}
+      <div class="dp-canvas"><canvas id="dp-evolucao" role="img" aria-label="Vendido acumulado por dia do período, atual contra comparação"></canvas></div>
+      <script type="application/json" id="dp-dados">{{ v.grafico | tojson }}</script>
+      <script>
+      (function () {
+        var g = JSON.parse(document.getElementById('dp-dados').textContent);
+        var cor = getComputedStyle(document.documentElement);
+        var series = [{label: g.rotulo_atual, data: g.atual, borderColor: (cor.getPropertyValue('--bs-accent') || '#2f5ee3').trim(),
+                       backgroundColor: 'transparent', tension: 0.2, pointRadius: 0}];
+        if (g.comparacao) {
+          series.push({label: g.rotulo_comparacao, data: g.comparacao, borderColor: (cor.getPropertyValue('--bs-ink-muted') || '#6b7280').trim(),
+                       backgroundColor: 'transparent', borderDash: [6, 4], tension: 0.2, pointRadius: 0});
+        }
+        new Chart(document.getElementById('dp-evolucao'), {
+          type: 'line',
+          data: {labels: g.rotulos, datasets: series},
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: {mode: 'index', intersect: false},
+            scales: {
+              x: {title: {display: true, text: 'Dia do período'}},
+              y: {beginAtZero: true, ticks: {callback: function (v) { return 'R$ ' + v.toLocaleString('pt-BR'); }}}
+            },
+            plugins: {tooltip: {callbacks: {label: function (c) {
+              return c.dataset.label + ': R$ ' + c.parsed.y.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            }}}}
+          }
+        });
+      })();
+      </script>
+      {% else %}
+      <div class="cm-vazio">Sem vendas no período para desenhar a evolução.</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

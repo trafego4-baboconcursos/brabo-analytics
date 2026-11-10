@@ -1,4 +1,5 @@
 from __future__ import annotations
+from decimal import Decimal
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.concurrency import run_in_threadpool
@@ -254,6 +255,42 @@ async def comercial_ranking(request: Request, mes: str | None = None, inicio: st
     _bonus, metas = await run_in_threadpool(t.ler_extras, periodo, acesso)
     return await _pagina(request, "comercial_ranking", "Comercial · Ranking", "comercial_ranking.html",
                          t.view_ranking(res, periodo, acesso, ordem, metas), hoje)
+
+
+@router.get("/comercial/desempenho", response_class=HTMLResponse)
+async def comercial_desempenho(request: Request, mes: str | None = None, inicio: str | None = None,
+                               fim: str | None = None, comparar: str | None = None,
+                               cinicio: str | None = None, cfim: str | None = None):
+    from frontend.db_readers import comercial as com  # noqa: PLC0415
+    from frontend.services.comercial import desempenho as d  # noqa: PLC0415
+    acesso = await _acesso(request)
+    if acesso is None:
+        return resposta_403()
+    try:
+        t, periodo, res, hoje = await _carregar(mes, inicio, fim, acesso)
+    except _Recusa as r:
+        return r.resposta
+    try:
+        comparacao = d.resolver_comparacao(periodo, comparar, cinicio, cfim, hoje, gestor=t.e_gestor(acesso))
+    except t.PeriodoInvalido as exc:
+        return resposta_400(str(exc), "Comparação indisponível", "/comercial/desempenho",
+                            "← Voltar ao Desempenho")
+    comp = await run_in_threadpool(d.carregar_linhas, comparacao.periodo) if comparacao else None
+    acumulado, desde = await run_in_threadpool(d.carregar_acumulado, periodo)
+    _bonus, metas = await run_in_threadpool(t.ler_extras, periodo, acesso)
+    meta_time = None  # soma de TODAS as metas do mês (sem recorte): é número geral do time
+    if not periodo.livre:
+        todas = await run_in_threadpool(com.ler_metas_mes, periodo.mes, None)
+        meta_time = sum((m["valor"] for m in todas.values()), Decimal("0")) if todas else None
+    view = d.view_desempenho(res.linhas, comp, comparacao, acumulado, periodo, acesso, metas,
+                             meta_time=meta_time, hoje=hoje)
+    view.update(gerado_em=res.gerado_em, fechado=res.fechado, fechado_em=res.fechado_em,
+                fechado_por=res.fechado_por, acumulado_desde=desde,
+                comparar_mes=(f"{comparacao.periodo.mes:%Y-%m}" if comparacao and not comparacao.periodo.livre
+                              else ""),
+                comparar_livre=bool(comparacao and comparacao.periodo.livre))
+    return await _pagina(request, "comercial_desempenho", "Comercial · Desempenho",
+                         "comercial_desempenho.html", view, hoje)
 
 
 @router.post("/comercial/recalcular")

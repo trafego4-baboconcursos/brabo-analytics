@@ -89,6 +89,7 @@ ROUTE_PERMISSIONS: dict[str, list[str]] = {
     "/comercial/comissoes":       _CMRC_AREA,
     "/comercial/comissoes.xlsx":  _CMRC_AREA,
     "/comercial/ranking":         _CMRC_AREA,
+    "/comercial/desempenho":      _CMRC_AREA,
     "/comercial/recalcular":      _CMRC_AREA,   # POST; só master/coordenador (checado na rota)
     # Inconsistências (Task 6). POSTs: reivindicar = qualquer nível; o resto = pode("aprovar")
     "/comercial/inconsistencias":       _CMRC_AREA,

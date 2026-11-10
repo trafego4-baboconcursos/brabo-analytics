@@ -195,10 +195,10 @@ def _isoladas(linhas: list[LinhaComissao], acesso: AcessoComercial) -> list[Linh
 def view_desempenho(atual: list[LinhaComissao], comp: list[LinhaComissao] | None,
                     comparacao: Comparacao | None, acumulado: list[LinhaComissao], periodo: Periodo,
                     acesso: AcessoComercial, metas: dict | None, *,
-                    meta_time: Decimal | None = None) -> dict:
+                    meta_time: Decimal | None = None, hoje: date | None = None) -> dict:
     """`metas`: por vendedora, já recortada para quem vê (`_so_meu`). `meta_time`: soma das metas de
     TODAS (lida sem recorte; vai inteira à vendedora porque é número geral do time). Período livre:
-    ambas None."""
+    ambas None. `hoje`: a série atual é completada com zeros até hoje (ou o fim do período)."""
     gestor = e_gestor(acesso)
     corte = comparacao.corte if comparacao else None
     tem_comp = comparacao is not None and comp is not None
@@ -243,6 +243,17 @@ def view_desempenho(atual: list[LinhaComissao], comp: list[LinhaComissao] | None
             "var_vendido": variacao(v["vendido"], c["vendido"]) if c else None,
             "var_qtd": variacao(v["qtd"], c["qtd"]) if c else None,
         })
+    cod_eu = acesso.vendedor_codigo
+    if not gestor and cod_eu and cod_eu not in ag_a["vendedores"]:
+        # vendedora sem venda no período: sem linha o card de contribuição/posição sumiria
+        ano = ag_ano["vendedores"].get(cod_eu)
+        meta = (metas_vis.get(cod_eu) or {}).get("valor")
+        vendedores.append({
+            "codigo": cod_eu, "nome": (metas_vis.get(cod_eu) or {}).get("nome") or cod_eu, "qtd": 0,
+            "vendido": _ZERO, "ticket": None, "por_produto": {}, "produto_top": None, "meta": meta,
+            "pct_meta": _pct_meta(_ZERO, meta), "contribuicao": _razao(_ZERO, vendido_a),
+            "contribuicao_ano": _razao(ano["vendido"] if ano else _ZERO, time_ano["vendido"]),
+            "contribuicao_meta": _razao(_ZERO, meta_time), "var_vendido": None, "var_qtd": None})
     vendedores.sort(key=lambda r: (-r["vendido"], r["nome"]))
 
     produtos = []
@@ -259,10 +270,17 @@ def view_desempenho(atual: list[LinhaComissao], comp: list[LinhaComissao] | None
         ia = {**ag_a["ia"], "ticket": _ticket(ag_a["ia"]["vendido"], ag_a["ia"]["qtd"]),
               "var_vendido": variacao(ag_a["ia"]["vendido"], ia_c["vendido"]) if ia_c else None}
 
-    evolucao = {"atual": _evolucao(ag_a["dias"], periodo.inicio, None), "comparacao": None}
+    ate = min(periodo.fim, hoje) if hoje else None
+    evolucao = {"atual": _evolucao(ag_a["dias"], periodo.inicio, ate), "comparacao": None}
     if tem_comp:
         evolucao["comparacao"] = _evolucao(ag_c["dias"], comparacao.periodo.inicio,
                                            corte or comparacao.periodo.fim)
+    n = max(len(evolucao["atual"]), len(evolucao["comparacao"] or []))
+    grafico = {"rotulos": [str(i) for i in range(1, n + 1)],
+               "atual": [float(x) for x in evolucao["atual"]],
+               "comparacao": ([float(x) for x in evolucao["comparacao"]]
+                              if evolucao["comparacao"] is not None else None),
+               "rotulo_atual": periodo.rotulo, "rotulo_comparacao": comparacao.rotulo if comparacao else None}
     return {"periodo": periodo, "comparacao": comparacao, "gestor": gestor, "resumo": resumo,
             "vendedores": vendedores, "produtos": produtos, "ia": ia, "evolucao": evolucao,
-            "meta_so_mensal": periodo.livre}
+            "grafico": grafico, "meta_so_mensal": periodo.livre}

@@ -243,6 +243,11 @@ def cli(_app_client, monkeypatch):
     # bônus/meta (Task 7a) são lidos na hora da tela: sem banco aqui
     monkeypatch.setattr(telas, "ler_extras", lambda periodo, acesso: (None, None) if periodo.livre else ({}, {}))
     monkeypatch.setattr(telas, "ler_vendedores_ativos", lambda: [])
+    import frontend.db_readers.comercial as _com_db
+    monkeypatch.setattr(_com_db, "ler_metas_mes",
+                        lambda mes, vendedor_codigo=None: {"AT4": {"nome": "Ediléia", "valor": D("2000")},
+                                                           "AT9": {"nome": "Jheniffer", "valor": D("3000")}})
+    monkeypatch.setattr(snap, "ler_guardado", lambda mes, **kw: None)  # acumulado: sem banco
     monkeypatch.setattr(snap, "marcar_desatualizado", lambda mes=None, **kw: chamadas["desat"].append(mes))
     monkeypatch.setattr(rotas, "_hoje", lambda: date(2026, 11, 6))  # janela de meses estável
     monkeypatch.setattr(rotas, "get_launches", lambda: [])  # sem banco: evita a espera do connect
@@ -262,12 +267,12 @@ def _como(c, email, role="comercial"):
 def test_rotas_registradas_com_area_comercial():
     from frontend.auth import ROUTE_PERMISSIONS, _CMRC_AREA
     for p in ("/comercial", "/comercial/comissoes", "/comercial/comissoes.xlsx",
-              "/comercial/ranking", "/comercial/recalcular"):
+              "/comercial/ranking", "/comercial/desempenho", "/comercial/recalcular"):
         assert ROUTE_PERMISSIONS[p] == _CMRC_AREA
 
 
 @pytest.mark.parametrize("pagina", ["/comercial", "/comercial/comissoes", "/comercial/ranking",
-                                    "/comercial/comissoes.xlsx"])
+                                    "/comercial/desempenho", "/comercial/comissoes.xlsx"])
 def test_sem_nivel_403(cli, pagina):
     resp = _como(cli, "ninguem@teste.local", "leitura").get(pagina)
     assert resp.status_code == 403
@@ -303,7 +308,7 @@ def test_vendedor_comissoes_so_ediléia(cli):
 
 
 @pytest.mark.parametrize("url", ["/comercial?mes=2025-12", "/comercial/comissoes?mes=2027-01",
-                                 "/comercial/ranking?mes=lixo",
+                                 "/comercial/ranking?mes=lixo", "/comercial/desempenho?mes=lixo",
                                  "/comercial/comissoes.xlsx?inicio=2026-01-01&fim=2026-10-31"])
 def test_periodo_fora_da_janela_400(cli, url):
     resp = _como(cli, "master@teste.local").get(url)
@@ -427,3 +432,63 @@ def test_recalcular_nao_redireciona_pra_fora(cli):
     resp = _como(cli, "master@teste.local").post("/comercial/recalcular?mes=2026-10",
                                                    data={"voltar": "https://evil.example/x"})
     assert resp.headers["location"] == "/comercial?mes=2026-10"
+
+
+# ---------------------------------------------------------------- Desempenho (Task 4)
+def test_desempenho_abre_para_gestor_e_vendedora(cli):
+    assert _como(cli, "master@teste.local").get("/comercial/desempenho?mes=2026-10").status_code == 200
+    assert _como(cli, "edileia@teste.local").get("/comercial/desempenho").status_code == 200
+
+
+def test_desempenho_vendedora_nao_ve_meta_do_time_nem_ia(cli):
+    html = _como(cli, "edileia@teste.local").get("/comercial/desempenho?mes=2026-10").text
+    assert "Meta do time" in html and "Atendente IA" not in html and "Contribuição" in html
+    assert "R$ 5.000,00" in html  # meta do time: soma de todas, número geral
+    for outro in ("Jheniffer", "Izabela", "Priscila", "AT9", "AT13", "AT11", "HP-"):
+        assert outro not in html
+
+
+def test_desempenho_gestor_ve_todas_e_a_ia_a_parte(cli, monkeypatch):
+    linhas = _linhas() + [_l("HP-IA-1", None, base="700", papel="ia", beneficiario="Camila")]
+    monkeypatch.setattr(snap, "obter_mes", lambda mes, **kw: ResultadoMes(mes, linhas, SEM_DATA, GERADO))
+    html = _como(cli, "master@teste.local").get("/comercial/desempenho?mes=2026-10").text
+    for nome in VENDEDORES.values():
+        assert nome in html
+    assert "Atendente IA" in html and "Camila" in html
+
+
+def test_vendedora_nao_compara_intervalo(cli):
+    r = _como(cli, "edileia@teste.local").get("/comercial/desempenho?cinicio=2026-09-01&cfim=2026-09-30")
+    assert r.status_code == 400
+
+
+def test_desempenho_comparacao_invalida_400(cli):
+    assert _como(cli, "master@teste.local").get("/comercial/desempenho?comparar=lixo").status_code == 400
+
+
+def test_desempenho_vendedora_sem_venda_ve_contribuicao_zerada(cli, monkeypatch):
+    sem = [l for l in _linhas() if l.vendedor_codigo != "AT4"]
+    monkeypatch.setattr(snap, "obter_mes", lambda mes, **kw: ResultadoMes(mes, sem, SEM_DATA, GERADO))
+    html = _como(cli, "edileia@teste.local").get("/comercial/desempenho?mes=2026-10").text
+    assert "Contribuição" in html and "0%" in html and "Jheniffer" not in html
+
+
+def test_desempenho_intervalo_livre_sem_meta(cli):
+    html = _como(cli, "master@teste.local").get("/comercial/desempenho?inicio=2026-10-01&fim=2026-10-15").text
+    assert "meta é mensal: escolha um mês" in html
+
+
+def test_desempenho_sem_acesso_comercial_403(cli):
+    assert _como(cli, "ninguem@teste.local", "leitura").get("/comercial/desempenho").status_code == 403
+
+
+def test_menu_tem_desempenho(cli):
+    html = _como(cli, "edileia@teste.local").get("/comercial/ranking").text
+    assert 'href="/comercial/desempenho"' in html
+    assert html.index('href="/comercial/ranking"') < html.index('href="/comercial/desempenho"')
+
+
+def test_serie_do_grafico_vai_em_json_nao_em_js_inline(cli):
+    html = _como(cli, "master@teste.local").get("/comercial/desempenho?mes=2026-10").text
+    assert 'type="application/json"' in html and "JSON.parse" in html
+    assert "chart.js@4.4.0" in html

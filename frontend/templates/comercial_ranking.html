@@ -9,7 +9,7 @@
 .cm-ordem { display:flex; align-items:center; flex-wrap:wrap; gap:var(--s2); font-size:var(--fs-sm); color:var(--bs-ink-muted); margin-bottom:var(--s3); }
 .cm-ordem a { text-decoration:none; }
 </style>
-{% set ordens = [('vendido', 'Vendido'), ('qtd', 'Qtd')] + ([('comissao', 'Comissão'), ('meta', '% da meta')] if v.mostra_comissao else []) %}
+{% set ordens = [('vendido', 'Vendido')] + ([('qtd', 'Qtd'), ('comissao', 'Comissão'), ('meta', '% da meta')] if v.mostra_comissao else []) %}
 <div class="wrap">
   <div class="hdr">
     <a href="/comercial"><img src="/assets/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
@@ -30,7 +30,7 @@
         <a href="/comercial/ranking?{{ v.periodo.query }}&ordem={{ chave }}" class="bs-pill {{ 'accent' if v.ordem == chave else 'neutral' }}"
            {% if v.ordem == chave %}aria-current="true"{% endif %}>{{ rotulo }}</a>
         {% endfor %}
-        <span class="cm-sub">· {{ 'meta cadastrada pelo gestor em Regras e vendedores' if v.mostra_comissao else 'você vê a meta só da sua linha' }}{{ '' if v.tem_meta else ' · meta é mensal: escolha um mês' }}</span>
+        <span class="cm-sub">· {{ 'meta cadastrada pelo gestor em Regras e vendedores' if v.mostra_comissao else 'você vê valores e meta só da sua linha' }}{{ '' if v.tem_meta else ' · meta é mensal: escolha um mês' }}</span>
       </div>
       {% if v.linhas %}
       <div class="table-wrap">
@@ -49,10 +49,14 @@
             <tr class="{{ 'cm-rk-eu' if v.meu_codigo and r.codigo == v.meu_codigo }}">
               <td class="n">{{ r.pos }}</td>
               <td class="nome">{{ r.nome }}{% if v.meu_codigo and r.codigo == v.meu_codigo %} <span class="cm-sub">(você)</span>{% endif %}</td>
+              {% if r.vendido is defined %}
               <td class="n">{{ r.qtd | num }}</td>
               <td class="n"><div class="cm-rk-barra"><span style="width:{{ (r.barra * 0.8) | round(0) | int }}px"></span>{{ r.vendido | brl_exato }}</div></td>
               <td class="n">{{ r.meta | brl_exato }}</td>
               <td class="n">{{ r.pct_meta | pct_taxa }}</td>
+              {% else %}
+              <td class="n">—</td><td class="n">—</td><td class="n">—</td><td class="n">—</td>
+              {% endif %}
               {% if v.mostra_comissao %}<td class="n">{{ r.comissao | brl_exato }}</td>{% endif %}
             </tr>
             {% endfor %}

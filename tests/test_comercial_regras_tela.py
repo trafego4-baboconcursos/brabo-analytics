@@ -700,7 +700,7 @@ def test_ranking_vendedor_ve_so_a_propria_meta():
     assert rk["ordem"] == "vendido"  # não ordena pelo que não vê
     por = {r["codigo"]: r for r in rk["linhas"]}
     assert por["AT4"]["meta"] == D("4000")
-    assert por["AT9"]["meta"] is None and por["AT9"]["pct_meta"] is None
+    assert "meta" not in por["AT9"] and "pct_meta" not in por["AT9"]  # outras: só codigo/nome/pos
     assert "AT11" not in por
 
 

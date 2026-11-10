@@ -67,7 +67,7 @@
       <div class="table-wrap">
         <ol style="margin:0;padding:var(--s4) var(--s4) var(--s4) var(--s10);font-size:var(--fs-sm);line-height:2;">
           {% for r in v.top3 %}
-          <li><strong>{{ r.nome }}</strong> — {{ r.vendido | brl_exato }} vendidos em {{ r.qtd | num }} vendas{% if v.mostra_comissao %} · comissão {{ r.comissao | brl_exato }}{% endif %}</li>
+          <li><strong>{{ r.pos }}º {{ r.nome }}</strong>{% if r.vendido is defined %} — {{ r.vendido | brl_exato }} vendidos em {{ r.qtd | num }} vendas{% endif %}{% if v.mostra_comissao %} · comissão {{ r.comissao | brl_exato }}{% endif %}</li>
           {% endfor %}
         </ol>
       </div>

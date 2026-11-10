@@ -136,6 +136,25 @@ def test_ranking_vendedor_sem_comissao_e_sem_ordem_por_comissao():
     assert len(r["linhas"]) == 4  # o ranking é de todos
 
 
+def test_ranking_vendedora_ve_so_posicao_e_nome_das_outras():
+    rk = telas.ranking(_linhas(), AT4, "qtd")
+    outras = [r for r in rk["linhas"] if r["codigo"] != "AT4"]
+    assert len(outras) == 3 and all(set(r) == {"codigo", "nome", "pos"} for r in outras)
+    minha = next(r for r in rk["linhas"] if r["codigo"] == "AT4")
+    assert minha["vendido"] > 0 and "qtd" in minha and rk["ordem"] == "vendido"
+    assert [r["pos"] for r in rk["linhas"]] == [1, 2, 3, 4]  # posição real, calculada antes do corte
+
+
+def test_ranking_gestor_continua_vendo_tudo():
+    rk = telas.ranking(_linhas(), MASTER, "qtd")
+    assert all("vendido" in r and "comissao" in r for r in rk["linhas"])
+
+
+def test_view_ranking_vendedora_sem_barra_nas_outras():
+    v = telas.view_ranking(_res(), telas.resolver_periodo("2026-10", None, None, date(2026, 11, 6)), AT4, "qtd")
+    assert all("barra" not in r for r in v["linhas"] if r["codigo"] != "AT4")
+
+
 def test_resolver_periodo():
     hoje = date(2026, 11, 6)
     p = telas.resolver_periodo(None, None, None, hoje)
@@ -492,3 +511,12 @@ def test_serie_do_grafico_vai_em_json_nao_em_js_inline(cli):
     html = _como(cli, "master@teste.local").get("/comercial/desempenho?mes=2026-10").text
     assert 'type="application/json"' in html and "JSON.parse" in html
     assert "chart.js@4.4.0" in html
+
+
+
+def test_rota_ranking_e_visao_vendedora_sem_valores_de_outra(cli):
+    for url in ("/comercial/ranking?mes=2026-10", "/comercial?mes=2026-10"):
+        html = _como(cli, "edileia@teste.local").get(url).text
+        assert "Jheniffer" in html                       # nome aparece
+        assert "3.500,00" not in html and "3000" not in html  # valor dela não
+        assert "Jheniffer" in html and "vendidos em" not in html.split("Jheniffer")[1][:80]

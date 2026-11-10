@@ -362,11 +362,12 @@ def opcoes_vendedores(linhas: list[LinhaComissao]) -> list[tuple[str, str]]:
 def ranking(linhas: list[LinhaComissao], acesso: AcessoComercial | None, ordem: str = "vendido",
             metas: dict | None = None) -> dict:
     """Ranking de TODOS os vendedores (nome, qtd, vendido, meta e % da meta).
-    Comissão só para gestor — e o vendedor também não pode ORDENAR por comissão nem por % da
-    meta, senão a ordem entregaria o que ele não vê. Vendedor vê a meta só da própria linha."""
+    Vendedor (10/11/26): vê posição e nome de todos, mas valores só da própria linha; as
+    linhas dos outros ficam só com codigo/nome/pos. Vendedor só ordena por "vendido" (qualquer
+    outra ordem entregaria o que ele não vê). A posição é calculada antes do corte."""
     gestor = e_gestor(acesso)
     metas = _so_meu(metas, acesso) or {}
-    if ordem not in ORDENS or (ordem in ("comissao", "meta") and not gestor):
+    if ordem not in ORDENS or (ordem != "vendido" and not gestor):
         ordem = "vendido"
     por: dict[str, dict] = {}
     def linha(l):
@@ -400,6 +401,10 @@ def ranking(linhas: list[LinhaComissao], acesso: AcessoComercial | None, ordem: 
         r["pos"] = i
         if not gestor:
             del r["comissao"]
+    if not gestor:
+        meu = acesso.vendedor_codigo if acesso else None
+        saida = [r if r["codigo"] == meu else {"codigo": r["codigo"], "nome": r["nome"], "pos": r["pos"]}
+                 for r in saida]
     return {"linhas": saida, "mostra_comissao": gestor, "ordem": ordem}
 
 
@@ -478,9 +483,10 @@ def view_comissoes(res: ResultadoMes, periodo: Periodo, acesso: AcessoComercial,
 def view_ranking(res: ResultadoMes, periodo: Periodo, acesso: AcessoComercial, ordem: str,
                  metas: dict | None = None) -> dict:
     rk = ranking(res.linhas, acesso, ordem, metas)
-    maior = max((r["vendido"] for r in rk["linhas"]), default=_ZERO)
+    maior = max((r["vendido"] for r in rk["linhas"] if "vendido" in r), default=_ZERO)
     for r in rk["linhas"]:
-        r["barra"] = int(r["vendido"] / maior * 100) if maior else 0
+        if "vendido" in r:
+            r["barra"] = int(r["vendido"] / maior * 100) if maior else 0
     return {**_cabecalho(res, periodo, acesso), **rk, "tem_meta": metas is not None,
             "meu_codigo": None if e_gestor(acesso) else acesso.vendedor_codigo}
 

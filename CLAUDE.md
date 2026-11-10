@@ -257,16 +257,22 @@ docs/
 Both are **Windows junctions** to `C:\dev\brabo-brain\performance` and `\marketing`, a separate **private**
 repo (`trafego4-baboconcursos/brabo-brain`) shared by the whole marketing + operational team. Paths in
 scripts, memory and wikilinks are unchanged, and this repo's git never sees them (`docs/*` is ignored).
-- Recording there means a commit **in brabo-brain**:
+- Recording there means a commit **in brabo-brain**. Use forward slashes, because Git Bash eats the backslashes.
+  Stage only your own files, never `add -A`, since other sessions share the clone:
   ```bash
-  git -C C:\dev\brabo-brain pull --rebase
-  git -C C:\dev\brabo-brain add ... && git -C C:\dev\brabo-brain commit -m "..." && git -C C:\dev\brabo-brain push
+  git -C C:/dev/brabo-brain add <your files> && git -C C:/dev/brabo-brain commit -m "..."
+  git -C C:/dev/brabo-brain pull --rebase --autostash && git -C C:/dev/brabo-brain push
   ```
-  `performance/` goes straight to `main`. `marketing/` (the shared KPI ruler, which overrides local
-  definitions) needs a branch + `gh pr create` + approval by Michel, Julia or Murilo.
-- Rules for any AI in that repo: `C:\dev\brabo-brain\AGENTS.md`. Diary entries carry **author and time**.
-- **Keep the brabo-brain clone on `main`.** The junction shows whatever branch is checked out there. A
-  branch left checked out changes what this vault sees.
+  - If the rebase conflicts: `git -C C:/dev/brabo-brain rebase --abort`, then tell the user. Never leave the
+    clone mid-rebase.
+  - `performance/` goes straight to `main`.
+  - `marketing/` (the shared KPI ruler, which overrides local definitions) goes through a **worktree**
+    (`git worktree add C:/dev/brabo-brain-pr/<x> -b marketing/<x> origin/main`), then `gh pr create`, then
+    approval by Michel, Julia or Murilo.
+  - The AI never approves or merges a PR.
+- Rules for any AI in that repo: `C:/dev/brabo-brain/AGENTS.md`. Diary entries carry **author and time**.
+- **Keep the brabo-brain clone on `main`, and never switch branches in it.** The junction shows whatever
+  branch is checked out there.
 - `gh` lives at `C:\Program Files\GitHub CLI\gh.exe`. Fresh shells may not have it on PATH yet.
 - On a new machine: clone brabo-brain to `C:\dev\brabo-brain`, then `mklink /J docs\performance ...` and
   `mklink /J docs\marketing ...` (see `RESTAURAR_MAQUINA_NOVA.md`).

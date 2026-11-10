@@ -46,8 +46,11 @@ def carregar_acumulado(periodo: Periodo, *, store=None) -> tuple[list[LinhaComis
         if r is None:
             r = _snap.obter_mes(mes, store=store)
         linhas.extend(l for l in r.linhas if l.data.date() <= fim)
-        if r.gerado_em is not None and (desde is None or r.gerado_em < desde):
-            desde = r.gerado_em
+        g = r.gerado_em
+        if g is not None and g.tzinfo is not None:  # congelado vem timestamptz; o resto é SP naive
+            g = g.astimezone(_snap._SP).replace(tzinfo=None)
+        if g is not None and (desde is None or g < desde):
+            desde = g
         mes = soma_meses(mes, 1)
     return linhas, desde
 

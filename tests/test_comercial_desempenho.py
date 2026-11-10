@@ -190,3 +190,17 @@ def test_carregar_linhas_e_telas_carregar(monkeypatch):
     from frontend.services.comercial.snapshot import ResultadoMes
     monkeypatch.setattr(desempenho.telas, "carregar", lambda p: ResultadoMes(p.mes, ATUAL, [], datetime(2026, 11, 1)))
     assert desempenho.carregar_linhas(P_OUT) == ATUAL
+
+
+def test_acumulado_mistura_congelado_tz_aware_com_guardado_naive(store_memoria):
+    from datetime import timezone
+    from frontend.services.comercial.desempenho import carregar_acumulado
+    from frontend.services.comercial.snapshot import ResultadoMes
+    # jan fechado: fechado_em timestamptz (UTC) = 2026-01-31 23:00 SP -> mais antigo que os naive de 01/10
+    congelado = ResultadoMes(date(2026, 1, 1), [linha("AT4", "Black", "10", date(2026, 1, 5))], [],
+                             datetime(2026, 2, 1, 2, tzinfo=timezone.utc), fechado=True,
+                             fechado_em=datetime(2026, 2, 1, 2, tzinfo=timezone.utc))
+    store_memoria.fechamento = lambda mes: congelado if mes == date(2026, 1, 1) else None
+    linhas, desde = carregar_acumulado(P_OUT, store=store_memoria)
+    assert desde == datetime(2026, 1, 31, 23) and desde.tzinfo is None
+    assert len(linhas) == 10

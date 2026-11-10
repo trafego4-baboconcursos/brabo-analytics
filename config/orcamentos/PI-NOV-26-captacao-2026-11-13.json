@@ -1,6 +1,6 @@
 {
   "lancamento": "PI-NOV-26",
-  "descricao": "Captação Facebook (Meta) + YouTube (Google): verba de 13/11 pela curva de ORCAMENTO_PI-NOV-26 (seção 5), diluindo até 16/11 o excedente de 02–04/11. Facebook (Meta) = curva × 0,8862 (R$ 16.068,49); YouTube (Google) = curva × 0,9647 (R$ 15.203,10). Cada campanha mantém a proporção do plano de 05/11. | 10/11: carrosséis pausados pelo Murilo em 09/11 — a verba deles (R$ 1606.85) foi redistribuída nas 6 campanhas principal/potencial (×1.1429); as 3 campanhas de carrossel saíram do plano.",
+  "descricao": "Captação Facebook (Meta) + YouTube (Google): verba de 13/11 pela curva de ORCAMENTO_PI-NOV-26 (seção 5), diluindo até 16/11 o excedente de 02–04/11. Facebook (Meta) = curva × 0,8862 (R$ 16.068,49); YouTube (Google) = curva × 0,9647 (R$ 15.203,10). Cada campanha mantém a proporção do plano de 05/11. | 10/11: carrosséis pausados pelo Murilo em 09/11 — a verba deles (R$ 1606.85) foi redistribuída nas 6 campanhas principal/potencial (×1.1429); as 3 campanhas de carrossel saíram do plano. | 10/11: aumento pontual do Murilo (YT Específico +50k, YT Frio +25k, FB Frio +20k) diluído pela curva 10–16/11.",
   "aplicar_em": "2026-11-13",
   "campanhas": [
     {
@@ -35,28 +35,28 @@
       "plataforma": "meta",
       "id": "120248674180810014",
       "nome": "[MA][cadastro][captação][frio][principal][PI-NOV-26][02.11.26]",
-      "valor": 1106.98,
+      "valor": 2292.2,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248674183310014",
       "nome": "[MA][cadastro][captação][frio][potencial][PI-NOV-26][02.11.26]",
-      "valor": 695.09,
+      "valor": 1439.31,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248674185420014",
       "nome": "[MA][cadastro][captação][frio][imagem][PI-NOV-26][02.11.26]",
-      "valor": 292.84,
+      "valor": 606.38,
       "conta": ""
     },
     {
       "plataforma": "meta",
       "id": "120248674190160014",
       "nome": "[MA][cadastro][captação][frio][reels][PI-NOV-26][02.11.26]",
-      "valor": 157.68,
+      "valor": 326.5,
       "conta": ""
     },
     {
@@ -112,35 +112,35 @@
       "plataforma": "google",
       "id": "24419825270",
       "nome": "[GA][cadastro][captação][específico][principal][PI-NOV-26][02.11.26]",
-      "valor": 3236.79,
+      "valor": 6553.0,
       "conta": "6482320788"
     },
     {
       "plataforma": "google",
       "id": "24425526718",
       "nome": "[GA][cadastro][captação][específico][potencial][PI-NOV-26][02.11.26]",
-      "valor": 1765.53,
+      "valor": 3574.38,
       "conta": "6482320788"
     },
     {
       "plataforma": "google",
       "id": "24425526856",
       "nome": "[GA][cadastro][captação][específico][imagem][PI-NOV-26][02.11.26]",
-      "valor": 882.76,
+      "valor": 1787.18,
       "conta": "6482320788"
     },
     {
       "plataforma": "google",
       "id": "24419825702",
       "nome": "[GA][cadastro][captação][frio][principal][PI-NOV-26][02.11.26]",
-      "valor": 801.03,
+      "valor": 2911.37,
       "conta": "6482320788"
     },
     {
       "plataforma": "google",
       "id": "24419825720",
       "nome": "[GA][cadastro][captação][frio][potencial][PI-NOV-26][02.11.26]",
-      "valor": 343.29,
+      "valor": 1247.7,
       "conta": "6482320788"
     }
   ]

@@ -15,7 +15,7 @@ Regras validadas:
 import io, os, re, sys
 
 RAIZ = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "docs")
-AREAS = {"indice","sistema","negocio","operacao","performance","lancamento","projeto","analise","historico"}
+AREAS = {"indice","sistema","negocio","operacao","performance","lancamento","projeto","analise","historico","marketing"}
 STATUS = {"vigente","pendente","arquivado"}
 OBRIGATORIOS = ("titulo","area","status","atualizado","responde")
 MARCA_INI, MARCA_FIM = "<!-- MAPA:INICIO -->", "<!-- MAPA:FIM -->"

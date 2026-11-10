@@ -4427,6 +4427,31 @@ do vendedor é na **camada de serviço** (a consulta já filtra), não no templa
 `ROUTE_PERMISSIONS` (`_CMRC_AREA`); o nível fino é checado no handler. Não pode remover o próprio
 acesso nem rebaixar o último master.
 
+**Ajustes de 2026-11-10 (pedido do comercial).**
+- **Atendimento:** só gestor vê (`acesso.ve_atendimento`). Vendedor e `consulta` não veem, seja
+  qual for o papel no painel. O papel `comercial` só vê com master/coordenador; o marketing
+  segue vendo. O menu e as quatro rotas `/atendimento*` checam isso. A home do papel `comercial`
+  passou a ser `/comercial`.
+- **Venda sem código AT é venda do marketing.** Não aparece nas Inconsistências, nem na tabela
+  e no Excel de Comissões do gestor (`telas._do_marketing`). As vendas da Camila (IA) seguem no
+  bloco próprio do Desempenho.
+- **Reivindicação:**
+  - Para a vendedora, o menu se chama "Reivindicações".
+  - Ela busca a venda pelo **telefone do contato**: vendas sem código ou da Camila, no mês atual
+    e no anterior, se estiverem abertos. A comparação é por DDD + 8 últimos dígitos
+    (`com.transacoes_do_telefone`), feita só sobre as vendas candidatas.
+  - Ao reivindicar, informa a conexão (lista fixa `inconsistencias.CONEXOES`), o telefone e a
+    justificativa. Os três são obrigatórios e ficam nas colunas novas de `comercial_atribuicoes`
+    (migração `SQL_MIGRACAO_ATRIB_JUSTIFICATIVA`).
+  - O gestor vê os três dados e responde com 👍 Aprovar ou 👎 Recusar; o motivo da recusa é
+    opcional. A resposta aparece em "Suas reivindicações".
+- **Desempenho:**
+  - Os meses guardados ficam decodificados na memória do processo, presos à versão do mês
+    (`snapshot.versoes_guardadas`, uma consulta leve sem o jsonb).
+  - Com isso, o acumulado do ano caiu de ~27 s para ~1 s depois da primeira leitura.
+  - O aquecimento (`prewarm.warm_comercial`) já deixa o ano carregado no boot e depois de cada ETL.
+  - Store injetado (testes) não usa o cache.
+
 **Snapshot.** `obter_mes` devolve `comercial_snapshot` e só recalcula se faltar, se tiver
 `invalidado_em` ou se `gerado_em` for de dia anterior (SP). O refresh do ETL
 (`/api/etl/refresh`) chama `marcar_desatualizado()`; o warm-up recalcula o mês corrente e **não

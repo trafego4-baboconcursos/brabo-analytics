@@ -29,7 +29,11 @@ from sqlalchemy import create_engine, text
 RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DIR_LANC = os.path.join(RAIZ, "docs", "performance", "lancamentos")
 
-RE_DATA = re.compile(r"\((\d{2})/(\d{2})/(\d{2})\)")
+# "(DD/MM/AA)" ou com hora depois: "(DD/MM/AA HHhMM)", "(DD/MM/AA ~08h40)".
+RE_DATA = re.compile(r"\((\d{2})/(\d{2})/(\d{2})(?:\s[^)]*)?\)")
+# Sufixo " — autor: Nome" do titulo (brabo-brain, fase 2). Sai antes do hash da chave.
+RE_AUTOR = re.compile(r"\s+[—-]+\s*autor:\s*(.+?)\s*$")
+RE_DIARIO = re.compile(r"^DIARIO_(.+)_(\d-[A-Z-]+)\.md$")
 RE_REGRA = re.compile(r"\b((?:ORC|CPA|SEG|META|VER)-\d+)\b")
 
 PRODUTO = {"PBB": "PBB", "PES": "PES", "PI": "PI"}
@@ -99,7 +103,20 @@ def plataforma_de(titulo):
 RE_H2_DATA = re.compile(r"^## (\d{4})-(\d{2})-(\d{2})")
 
 
-def ler_itens(caminho, codigo):
+def codigo_etapa_de(nome):
+    """(codigo, etapa) pelo nome do arquivo; None se nao for diario.
+
+    MUDANCAS_<COD>.md -> (COD, None); DIARIO_<COD>_<n>-<ETAPA>.md -> (COD, "n-ETAPA").
+    """
+    m = RE_DIARIO.match(nome)
+    if m:
+        return m.group(1), m.group(2)
+    if nome.startswith("MUDANCAS_") and nome.endswith(".md"):
+        return nome[len("MUDANCAS_"):-len(".md")], None
+    return None
+
+
+def ler_itens(caminho, codigo, etapa=None):
     """Extrai os '### ' do diario, ignorando o bloco de sumario gerado.
 
     A data vem do titulo quando ele traz "(DD/MM/AA)" (padrao do PES-SET-26)
@@ -107,6 +124,9 @@ def ler_itens(caminho, codigo):
     PBB-AGO-26 e do PI-AGO-26). Sem o fallback, dois dos tres diarios ficavam
     de fora inteiros.
     """
+    if etapa is None:
+        ce = codigo_etapa_de(os.path.basename(caminho))
+        etapa = ce[1] if ce else None
     eventos = []
     no_sumario = False
     data_secao = None
@@ -143,6 +163,10 @@ def ler_itens(caminho, codigo):
             fechar()
             pendente = None
             titulo = linha[4:].strip()
+            ma = RE_AUTOR.search(titulo)
+            autor = ma.group(1) if ma else None
+            if ma:
+                titulo = titulo[:ma.start()].rstrip()
             m = RE_DATA.search(titulo)
             if m:
                 d, mo, a = m.groups()
@@ -156,7 +180,7 @@ def ler_itens(caminho, codigo):
                 "chave": chave, "data": data, "escopo": escopo_de(codigo), "codigo": codigo,
                 "produto": produto_de(codigo), "expert": expert_de(codigo),
                 "plataforma": None, "tipo": classificar(titulo), "titulo": titulo,
-                "regra": None,
+                "regra": None, "etapa": etapa, "autor": autor,
                 "fonte": os.path.relpath(caminho, RAIZ).replace(os.sep, "/"),
             }
             pendente = (ev, [])
@@ -179,11 +203,12 @@ def coletar():
     if not os.path.isdir(base):
         return todos
     for raiz, _dirs, arquivos in os.walk(base):
+        _dirs.sort()
         for nome in sorted(arquivos):
-            if not (nome.startswith("MUDANCAS_") and nome.endswith(".md")):
+            ce = codigo_etapa_de(nome)
+            if not ce:
                 continue
-            codigo = nome[len("MUDANCAS_"):-len(".md")]
-            todos += ler_itens(os.path.join(raiz, nome), codigo)
+            todos += ler_itens(os.path.join(raiz, nome), ce[0], ce[1])
     return todos
 
 
@@ -225,16 +250,20 @@ def importar(eng, aplicar):
     sql = text("""
         INSERT INTO eventos_trafego
             (chave, data, escopo, codigo, produto, expert, plataforma, tipo,
-             titulo, regra, fonte)
+             titulo, regra, fonte, etapa, autor)
         VALUES (:chave, :data, :escopo, :codigo, :produto, :expert, :plataforma,
-                :tipo, :titulo, :regra, :fonte)
+                :tipo, :titulo, :regra, :fonte, :etapa, :autor)
         ON CONFLICT (chave) DO UPDATE SET
             data = EXCLUDED.data, tipo = EXCLUDED.tipo,
             plataforma = EXCLUDED.plataforma, regra = EXCLUDED.regra,
             titulo = EXCLUDED.titulo, fonte = EXCLUDED.fonte,
+            etapa = EXCLUDED.etapa, autor = EXCLUDED.autor,
             atualizado_em = NOW()
     """)
     with eng.begin() as c:
+        # Colunas da fase 2 do brabo-brain (diario por etapa + autor). Idempotente.
+        c.execute(text("ALTER TABLE eventos_trafego ADD COLUMN IF NOT EXISTS etapa TEXT"))
+        c.execute(text("ALTER TABLE eventos_trafego ADD COLUMN IF NOT EXISTS autor TEXT"))
         for e in evs:
             c.execute(sql, e)
         n = c.execute(text("select count(*) from eventos_trafego")).scalar()

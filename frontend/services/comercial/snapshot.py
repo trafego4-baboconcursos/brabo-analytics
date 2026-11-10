@@ -202,11 +202,83 @@ def agora_sp() -> datetime:
     return datetime.now(_SP).replace(tzinfo=None)
 
 
-def obter_mes(mes: date, *, hoje: datetime | None = None, store: Store | None = None) -> ResultadoMes:
+# ---------------------------------------------------------------- cache em memória (Desempenho)
+# O Desempenho lê o ano inteiro (11+ meses, ~30 mil linhas); cada mês custava ~2 s de banco
+# (10/11/26: ~23 s a página). O resultado decodificado fica na memória do processo, preso à
+# "versão" do mês (gerado_em/desatualizado/invalidado_em do snapshot + ativo/fechado_em/
+# reaberto_em do fechamento), lida numa consulta leve, sem o jsonb. Mudou a versão -> relê.
+# Só com o StoreBanco padrão: store injetado (testes) não usa o cache.
+SQL_VERSOES_SNAPSHOT = ("SELECT mes, gerado_em, desatualizado, invalidado_em "
+                        "FROM comercial_snapshot")
+SQL_VERSOES_FECHAMENTO = "SELECT mes, ativo, fechado_em, reaberto_em FROM comercial_fechamentos"
+_CACHE_MAX = 24
+_cache: dict[date, tuple[tuple, ResultadoMes]] = {}
+_cache_lock = __import__("threading").Lock()
+
+
+def versoes_guardadas() -> dict[date, tuple] | None:
+    """{mês: (snapshot, fechamento)} com as colunas de versão; None se não deu para ler."""
+    from frontend.db import _get_users_engine  # noqa: PLC0415
+    try:
+        with _get_users_engine().connect() as c:
+            snaps = {r[0]: tuple(r[1:]) for r in c.execute(text(SQL_VERSOES_SNAPSHOT)).fetchall()}
+            fechs = {r[0]: tuple(r[1:]) for r in c.execute(text(SQL_VERSOES_FECHAMENTO)).fetchall()}
+    except Exception:  # noqa: BLE001 — sem versão, lê do jeito antigo (sem cache)
+        logger.warning("versoes_guardadas: sem leitura de versão; segue sem cache", exc_info=True)
+        return None
+    return {m: (snaps.get(m), fechs.get(m)) for m in set(snaps) | set(fechs)}
+
+
+def _do_cache(mes: date, versao: tuple | None) -> ResultadoMes | None:
+    if versao is None:
+        return None
+    with _cache_lock:
+        hit = _cache.get(mes)
+    return hit[1] if hit and hit[0] == versao else None
+
+
+def _para_cache(mes: date, versao: tuple | None, r: ResultadoMes | None) -> None:
+    if versao is None or r is None:
+        return
+    with _cache_lock:
+        _cache[mes] = (versao, r)
+        while len(_cache) > _CACHE_MAX:
+            _cache.pop(min(_cache))
+
+
+def limpar_cache() -> None:
+    with _cache_lock:
+        _cache.clear()
+
+
+def obter_mes(mes: date, *, hoje: datetime | None = None, store: Store | None = None,
+              versoes: dict[date, tuple] | None = None) -> ResultadoMes:
     """Mês fechado -> as linhas congeladas (comercial_fechamentos), nunca recalculadas. Senão,
-    snapshot em dia se houver; senão calcula, grava e devolve."""
-    store = store or StoreBanco()
+    snapshot em dia se houver; senão calcula, grava e devolve. Com o store padrão, o que já
+    foi lido e não mudou de versão sai da memória."""
     mes = mes.replace(day=1)
+    if store is None:
+        versoes = versoes if versoes is not None else versoes_guardadas()
+        versao = (versoes or {}).get(mes) if versoes is not None else None
+        r = _do_cache(mes, versao)
+        if r is not None and (r.fechado or (not r.desatualizado
+                                            and r.gerado_em.date() >= (hoje or agora_sp()).date())):
+            return r
+        r = _obter_mes_banco(mes, hoje=hoje, store=StoreBanco())
+        # versão de antes da leitura: se o snapshot mudou no meio, a próxima leitura relê
+        if r.fechado or (r.gerado_em and versao and versao[0] and r.gerado_em == _naive_sp(versao[0][0])):
+            _para_cache(mes, versao, r)
+        return r
+    return _obter_mes_banco(mes, hoje=hoje, store=store)
+
+
+def _naive_sp(dt):
+    if isinstance(dt, datetime) and dt.tzinfo is not None:
+        return dt.astimezone(_SP).replace(tzinfo=None)
+    return dt
+
+
+def _obter_mes_banco(mes: date, *, hoje: datetime | None, store: Store) -> ResultadoMes:
     congelado = store.fechamento(mes)
     if congelado is not None:
         return congelado
@@ -217,13 +289,26 @@ def obter_mes(mes: date, *, hoje: datetime | None = None, store: Store | None = 
     return recalcular_mes(mes, hoje=hoje, store=store)
 
 
-def ler_guardado(mes: date, *, store: Store | None = None) -> ResultadoMes | None:
+def ler_guardado(mes: date, *, store: Store | None = None,
+                 versoes: dict[date, tuple] | None = None) -> ResultadoMes | None:
     """O que estiver gravado para o mês, sem teste de frescor e sem gravar: snapshot velho ou
-    desatualizado vale; mês fechado devolve o congelado; `None` se não há nada."""
-    store = store or StoreBanco()
+    desatualizado vale; mês fechado devolve o congelado; `None` se não há nada. Com o store
+    padrão e `versoes` (de `versoes_guardadas`), usa o cache em memória."""
     mes = mes.replace(day=1)
+    usa_cache = store is None and versoes is not None
+    if usa_cache:
+        versao = versoes.get(mes)
+        if versao is None:
+            return None  # nada gravado para o mês
+        r = _do_cache(mes, versao)
+        if r is not None:
+            return r
+    store = store or StoreBanco()
     congelado = store.fechamento(mes)
-    return congelado if congelado is not None else store.get(mes)
+    r = congelado if congelado is not None else store.get(mes)
+    if usa_cache:
+        _para_cache(mes, versao, r)
+    return r
 
 
 def recalcular_mes(mes: date, *, hoje: datetime | None = None, store: Store | None = None) -> ResultadoMes:

@@ -472,7 +472,8 @@ def test_escrita_em_mes_aberto_segue(cli):
 
 
 @pytest.mark.parametrize("rota,form", [
-    ("/comercial/reivindicar", {"transacao": "HP-EDI-1", "vendedor_codigo": "AT4", "mes": "2026-10"}),
+    ("/comercial/reivindicar", {"transacao": "HP-EDI-1", "vendedor_codigo": "AT4", "mes": "2026-10",
+                                "conexao": "Atendimento CS", "telefone": "11912345678", "justificativa": "x"}),
     ("/comercial/atribuicoes/aprovar", {"transacao": "HP-EDI-1", "mes": "2026-10"}),
     ("/comercial/atribuir", {"transacao": "HP-EDI-1", "vendedor_codigo": "AT9", "mes": "2026-10"}),
     ("/comercial/ajuste", {"transacao": "HP-EDI-1", "pct": "10", "justificativa": "x", "mes": "2026-10"}),

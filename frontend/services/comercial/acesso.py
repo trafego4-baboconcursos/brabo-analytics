@@ -86,5 +86,18 @@ def nivel_comercial(user: dict, *, ler: Callable[[str], dict | None] | None = No
     return a.nivel if a else None
 
 
+def ve_atendimento(role: str | None, nivel: str | None) -> bool:
+    """Página /atendimento (Unnichat): só gestor do comercial (Rafael, 10/11/26). Vendedor e
+    consulta (Financeiro/RH) não veem, seja qual for o papel no painel; o papel "comercial" só
+    com nível master/coordenador; o marketing (admin/analista/leitura sem nível) segue vendo."""
+    if role == "admin":
+        return True
+    if nivel in ("vendedor", "consulta"):
+        return False
+    if role == "comercial":
+        return nivel in ("master", "coordenador")
+    return True
+
+
 def pode(nivel: str | None, acao: str) -> bool:
     return acao in _PERMISSOES.get(nivel or "", set())

@@ -93,10 +93,40 @@ def client_comercial():
         yield c
 
 
-def test_comercial_home_vai_pro_atendimento(client_comercial):
+def test_comercial_home_vai_pra_area_comercial(client_comercial):
     resp = client_comercial.get("/")
     assert resp.status_code == 303
-    assert resp.headers["location"] == "/atendimento"
+    assert resp.headers["location"] == "/comercial"
+
+
+@pytest.mark.parametrize("role,nivel,ve", [
+    ("admin", None, True), ("admin", "vendedor", True),
+    ("comercial", "master", True), ("comercial", "coordenador", True),
+    ("comercial", "vendedor", False), ("comercial", "consulta", False), ("comercial", None, False),
+    ("leitura", None, True), ("analista", None, True),
+    ("leitura", "vendedor", False), ("leitura", "consulta", False), ("leitura", "coordenador", True),
+])
+def test_atendimento_so_gestor(role, nivel, ve):
+    from frontend.services.comercial.acesso import ve_atendimento
+
+    assert ve_atendimento(role, nivel) is ve
+
+
+@pytest.mark.parametrize("pagina", ["/atendimento", "/atendimento/conversas.csv", "/atendimento/atualizar/status"])
+def test_vendedora_nao_abre_atendimento(client_comercial, monkeypatch, pagina):
+    from frontend.services.comercial import acesso as ac
+
+    monkeypatch.setattr(ac, "nivel_comercial", lambda user, **k: "vendedor")
+    assert client_comercial.get(pagina).status_code == 403
+
+
+def test_comercial_sem_nivel_por_falha_de_banco_fica_fechado(client_comercial, monkeypatch):
+    from frontend.services.comercial import acesso as ac
+
+    def falha(user, **k):
+        raise RuntimeError("banco fora")
+    monkeypatch.setattr(ac, "nivel_comercial", falha)
+    assert client_comercial.get("/atendimento").status_code == 403
 
 
 @pytest.mark.parametrize("pagina", ["/calendario", "/meta", "/vendas", "/settings", "/debriefing"])

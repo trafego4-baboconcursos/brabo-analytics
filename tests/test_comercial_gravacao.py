@@ -87,7 +87,8 @@ def test_colunas_do_ddl_cobre_todas_as_tabelas():
     assert cols["comercial_atribuicoes"] == {
         "transacao": "text", "plataforma": "text", "vendedor_codigo": "text", "origem": "text",
         "status": "text", "pedido_por": "text", "aprovado_por": "text",
-        "criado_em": "timestamp with time zone", "motivo": "text"}
+        "criado_em": "timestamp with time zone", "motivo": "text",
+        "conexao": "text", "telefone_contato": "text", "justificativa": "text"}
     assert cols["comercial_regras_percentual"]["categorias"] == "ARRAY"
     assert cols["comercial_regras_percentual"]["id"] == "integer"
     assert cols["comercial_historico"]["id"] == "bigint"

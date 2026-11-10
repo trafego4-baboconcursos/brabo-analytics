@@ -117,7 +117,7 @@
   <button id="bs-menu-toggle" onclick="bsMenuToggle()" aria-label="Abrir menu">
     <i class="ti ti-menu-2"></i>
   </button>
-  <a href="{{ '/atendimento' if current_user and current_user.role == 'comercial' else '/calendario' }}">
+  <a href="{{ '/comercial' if current_user and current_user.role == 'comercial' else '/calendario' }}">
     <img src="/assets/logo-brabo-concursos-white.svg" alt="Brabo Analytics">
   </a>
   <span style="width:44px"></span>
@@ -128,7 +128,7 @@
   <!-- ── SIDEBAR ─────────────────────────────────────────────────────── -->
   <aside id="bs-drawer">
     <div class="bs-brand">
-      <a href="{{ '/atendimento' if current_user and current_user.role == 'comercial' else '/calendario' }}">
+      <a href="{{ '/comercial' if current_user and current_user.role == 'comercial' else '/calendario' }}">
         <img src="/assets/logo-brabo-concursos-white.svg" alt="Brabo Analytics">
         <span class="bs-brand-name">Brabo Analytics - V3.0</span>
       </a>
@@ -166,18 +166,28 @@
       <a class="bs-mode-btn {% if page == 'comercial_desempenho' %}active{% endif %}" href="/comercial/desempenho">
         <i class="ti ti-chart-line"></i> Desempenho
       </a>
+      {% if nivel_comercial in ('master', 'coordenador', 'consulta') %}
       <a class="bs-mode-btn {% if page == 'comercial_inconsistencias' %}active{% endif %}" href="/comercial/inconsistencias">
         <i class="ti ti-alert-triangle"></i> Inconsistências
       </a>
+      {% else %}
+      <a class="bs-mode-btn {% if page == 'comercial_inconsistencias' %}active{% endif %}" href="/comercial/inconsistencias">
+        <i class="ti ti-hand-finger"></i> Reivindicações
+      </a>
+      {% endif %}
       {% if nivel_comercial in ('master', 'coordenador') %}
       <a class="bs-mode-btn {% if page == 'comercial_regras' %}active{% endif %}" href="/comercial/regras">
         <i class="ti ti-adjustments"></i> Regras e vendedores
       </a>
       {% endif %}
       {% endif %}
+      {# Atendimento: só gestor (Rafael, 10/11/26) — espelha acesso.ve_atendimento; a rota checa de novo. #}
+      {% if current_user and (current_user.role == 'admin' or nivel_comercial in ('master', 'coordenador')
+            or (current_user.role != 'comercial' and nivel_comercial not in ('vendedor', 'consulta'))) %}
       <a class="bs-mode-btn {% if page == 'atendimento' %}active{% endif %}" href="/atendimento">
         <i class="ti ti-headset"></i> Atendimento
       </a>
+      {% endif %}
       {% endmacro %}
       {% if current_user and current_user.role == 'comercial' %}
       {{ menu_comercial() }}

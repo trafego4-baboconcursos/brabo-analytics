@@ -99,10 +99,10 @@ async def auth_middleware(request: Request, call_next):
             status_code=303,
         )
 
-    # O time comercial só tem uma página: a home (e o "voltar ao início" do 403)
-    # leva pra ela em vez de cair num 403 atrás do outro.
+    # O time comercial não vê o marketing: a home (e o "voltar ao início" do 403) leva
+    # para a área Comercial. Atendimento é só do gestor (10/11/26).
     if user["role"] == "comercial" and path == "/":
-        return RedirectResponse(url="/atendimento", status_code=303)
+        return RedirectResponse(url="/comercial", status_code=303)
 
     allowed_roles = ROUTE_PERMISSIONS.get(path, _ALL)
     if user["role"] not in allowed_roles:

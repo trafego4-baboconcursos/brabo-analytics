@@ -43,8 +43,10 @@ def carregar_acumulado(periodo: Periodo, *, store=None) -> tuple[list[LinhaComis
     linhas: list[LinhaComissao] = []
     faltantes: list[date] = []
     desde: datetime | None = None
+    versoes = _snap.versoes_guardadas() if store is None else None  # 1 consulta leve -> cache
     while mes <= mes_fim:
-        r = _snap.obter_mes(mes, store=store) if mes == mes_fim else _snap.ler_guardado(mes, store=store)
+        r = (_snap.obter_mes(mes, store=store, versoes=versoes) if mes == mes_fim
+             else _snap.ler_guardado(mes, store=store, versoes=versoes))
         if r is None:
             faltantes.append(mes)
             mes = soma_meses(mes, 1)

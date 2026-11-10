@@ -77,6 +77,10 @@ class FakeBanco:
             com.SQL_CODIGOS_CONFLITO: lambda p: _Res([("T-CONF", "lead AT4", "lead AT9")]),
             com.SQL_FECH_DA_TRANSACAO: lambda p: _Res([]),  # Task 7b: nenhum mês fechado aqui
             com.SQL_FECH_ATIVOS: lambda p: _Res([]),
+            # telefone do comprador: só HP-SEM-005 e a TMB T-FONE são de (11) 91234-5678
+            com.SQL_FONES_HOTMART: lambda p: _Res([(t, "+55 (11) 91234-5678" if t == "HP-SEM-005" else "21999998888")
+                                                   for t in p["t"]]),
+            com.SQL_FONES_TMB: lambda p: _Res([(t, "11912345678" if t == "T-FONE" else None) for t in p["t"]]),
         }
         self.h = {_n(k): v for k, v in h.items()}
 
@@ -106,7 +110,8 @@ class FakeBanco:
 
     def _fila(self, k, v):
         return (k[0], k[1], v["vendedor_codigo"], v["origem"], v["status"], v["pedido_por"],
-                v.get("aprovado_por"), datetime(2026, 11, 6, 9), v.get("motivo"))
+                v.get("aprovado_por"), datetime(2026, 11, 6, 9), v.get("motivo"), v.get("conexao"),
+                v.get("telefone_contato"), v.get("justificativa"))
 
     def _atrib_ler(self, p):
         v = self.atrib.get(self._k(p))
@@ -116,7 +121,8 @@ class FakeBanco:
         if self._k(p) in self.atrib:
             return _Res(rowcount=0)
         self.atrib[self._k(p)] = {"vendedor_codigo": p["vendedor_codigo"], "origem": "reivindicacao",
-                                  "status": "pendente", "pedido_por": p["por"]}
+                                  "status": "pendente", "pedido_por": p["por"], "conexao": p["conexao"],
+                                  "telefone_contato": p["telefone"], "justificativa": p["justificativa"]}
         return _Res(rowcount=1)
 
     def _decidir(self, p, novo):
@@ -397,21 +403,48 @@ def test_view_gestor_separa_secoes_e_limita_lista():
     assert [l.transacao for l in v["sem_base"]] == ["HP-SEMBASE"]
     assert [l.transacao for l in v["sem_regra"]] == ["HP-SEMREGRA"]
     assert v["codigos_novos"] == [("AT6", "Vendedor 6")]
-    assert v["sem_codigo_total"] == 250 and len(v["sem_codigo"]) == inc.LIMITE_LISTA
-    assert v["sem_codigo_cortado"] is True
+    assert "sem_codigo" not in v and v["achadas"] == []  # venda sem AT é do marketing (10/11/26)
     assert len(v["pendentes"]) == 1 and v["historico"]
 
 
 def test_view_vendedor_so_busca_e_proprios_pedidos():
     p = telas.resolver_periodo("2026-10", None, None, date(2026, 11, 6))
     v = inc.view_inconsistencias(_res(), p, AT4, _fila(False))
-    assert v["sem_codigo"] == []  # sem busca, nada
+    assert v["achadas"] == [] and not v["buscou"]  # sem busca, nada
     for chave in ("pendentes", "reembolso", "conflitos", "sem_base", "sem_regra", "codigos_novos", "historico"):
         assert v[chave] == [], chave
     assert [m["transacao"] for m in v["minhas"]] == ["HP-SEM-002"]  # o de AT9 cai mesmo se vier
-    v = inc.view_inconsistencias(_res(), p, AT4, _fila(False), q="sem-01")
-    assert {l.transacao for l in v["sem_codigo"]} == {f"HP-SEM-{i:03d}" for i in range(10, 20)}
-    assert (v["sem_codigo_total"], v["sem_codigo_achadas"]) == (250, 10)  # total do mês não muda com a busca
+    assert v["conexoes"] == inc.CONEXOES
+
+
+def test_buscar_por_telefone_so_candidatas():
+    pedidas = []
+
+    def fones(transacoes, tel):
+        pedidas.append((transacoes, tel))
+        return {"HP-SEM-003", "HP-EDI-1"}
+    achadas = inc.buscar_por_telefone("1112345678", [(date(2026, 10, 1), _linhas())], fones)
+    assert [(m, l.transacao) for m, l in achadas] == [(date(2026, 10, 1), "HP-SEM-003")]  # HP-EDI-1 tem dono
+    [(transacoes, tel)] = pedidas
+    assert tel == "1112345678" and "HP-EDI-1" not in transacoes and len(transacoes) == 250
+    assert inc.buscar_por_telefone("1112345678", [], fones) == []
+
+
+def test_meses_da_busca_atual_e_anterior_abertos():
+    assert inc.meses_da_busca(date(2026, 11, 6), {}) == [date(2026, 11, 1), date(2026, 10, 1)]
+    assert inc.meses_da_busca(date(2026, 11, 6), {date(2026, 10, 1): {}}) == [date(2026, 11, 1)]
+    assert inc.meses_da_busca(date(2026, 1, 3), {}) == [date(2026, 1, 1), date(2025, 12, 1)]
+
+
+def test_telefone_e_conexao():
+    assert inc.limpar_telefone("+55 (11) 91234-5678") == inc.limpar_telefone("11 1234-5678") == "1112345678"
+    assert inc.formatar_telefone("1112345678") == "(11) 1234-5678"
+    for ruim in ("", "123", "abc"):
+        with pytest.raises(inc.EntradaInvalida):
+            inc.limpar_telefone(ruim)
+    assert inc.limpar_conexao(" Perpétuo ") == "Perpétuo"
+    with pytest.raises(inc.EntradaInvalida):
+        inc.limpar_conexao("WhatsApp pessoal")
 
 
 @pytest.mark.parametrize("pct,base,esperado", [("10", "", (D("0.1"), None)), ("0,75", "", (D("0.0075"), None)),
@@ -471,6 +504,9 @@ def cli(_app_client, banco, monkeypatch):
     return _app_client
 
 
+_R = {"conexao": "Atendimento CS", "telefone": "(11) 91234-5678", "justificativa": "atendi no WhatsApp"}
+
+
 def _como(c, email, role="comercial"):
     from frontend.auth import _sign_session
     c.cookies.set("session_token", _sign_session("u-" + email, role, ["PI"], email))
@@ -506,13 +542,15 @@ def test_vendedor_nao_aprova_nem_decide(cli, rota):
 
 def test_fluxo_vendedor_reivindica_coordenador_aprova(cli):
     r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar",
-                                               data={"transacao": "HP-SEM-007", "vendedor_codigo": "AT9",
+                                               data={**_R, "transacao": "HP-SEM-007", "vendedor_codigo": "AT9",
                                                      "mes": "2026-10"})
     assert r.status_code == 303
     assert r.headers["location"] == "/comercial/inconsistencias?mes=2026-10&ok=reivindicada"
     a = cli.banco.atrib[("hotmart", "HP-SEM-007")]
     assert (a["status"], a["vendedor_codigo"], a["origem"], a["pedido_por"]) == (
         "pendente", "AT4", "reivindicacao", "edileia@teste.local")  # código do form ignorado
+    assert (a["conexao"], a["telefone_contato"], a["justificativa"]) == (
+        "Atendimento CS", "1112345678", "atendi no WhatsApp")
     assert cli.desat == []  # pendente não muda o cálculo
 
     r = _como(cli, "coord@teste.local").post("/comercial/atribuicoes/aprovar",
@@ -541,31 +579,45 @@ def test_mensagem_livre_na_url_nao_aparece(cli):
 
 def test_reivindicar_venda_ja_sua_recusa(cli):
     r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar",
-                                               data={"transacao": "HP-EDI-1", "mes": "2026-10"})
+                                               data={**_R, "transacao": "HP-EDI-1", "mes": "2026-10"})
     assert "erro=ja_e_sua" in r.headers["location"]
     assert cli.banco.atrib == {}
 
 
 def test_reivindicar_duplicado(cli):
-    _como(cli, "edileia@teste.local").post("/comercial/reivindicar", data={"transacao": "HP-SEM-001", "mes": "2026-10"})
+    _como(cli, "edileia@teste.local").post("/comercial/reivindicar", data={**_R, "transacao": "HP-SEM-001", "mes": "2026-10"})
     r = _como(cli, "master@teste.local").post("/comercial/reivindicar",
-                                              data={"transacao": "HP-SEM-001", "vendedor_codigo": "AT9", "mes": "2026-10"})
+                                              data={**_R, "transacao": "HP-SEM-001", "vendedor_codigo": "AT9", "mes": "2026-10"})
     assert "erro=ja_reivindicada" in r.headers["location"]
     assert cli.banco.atrib[("hotmart", "HP-SEM-001")]["vendedor_codigo"] == "AT4"
 
 
-def test_recusar_exige_motivo(cli):
+def test_recusar_motivo_opcional(cli):
     cli.banco.atrib[("hotmart", "HP1")] = {"vendedor_codigo": "AT4", "origem": "reivindicacao",
                                            "status": "pendente", "pedido_por": "x"}
+    cli.banco.atrib[("hotmart", "HP2")] = dict(cli.banco.atrib[("hotmart", "HP1")])
     r = _como(cli, "master@teste.local").post("/comercial/atribuicoes/recusar",
                                               data={"transacao": "HP1", "motivo": "   ", "mes": "2026-10"})
-    assert r.status_code == 400 and "obrigatório" in r.text
-    assert cli.banco.atrib[("hotmart", "HP1")]["status"] == "pendente" and cli.banco.historico == []
+    assert r.status_code == 303  # o 👎 basta
+    assert cli.banco.atrib[("hotmart", "HP1")]["status"] == "recusada"
+    assert cli.banco.historico[-1]["depois"] == "recusada (AT4)"
     r = _como(cli, "master@teste.local").post("/comercial/atribuicoes/recusar",
-                                              data={"transacao": "HP1", "motivo": "não é dela", "mes": "2026-10"})
+                                              data={"transacao": "HP2", "motivo": "não é dela", "mes": "2026-10"})
     assert r.status_code == 303
-    assert cli.banco.atrib[("hotmart", "HP1")]["motivo"] == "não é dela"
+    assert cli.banco.atrib[("hotmart", "HP2")]["motivo"] == "não é dela"
     assert cli.desat == []
+
+
+@pytest.mark.parametrize("campo,valor,trecho", [
+    ("conexao", "", "conexão"), ("conexao", "Outra", "conexão"),
+    ("telefone", "", "Telefone"), ("telefone", "12", "Telefone"),
+    ("justificativa", "  ", "Justificativa"),
+])
+def test_reivindicar_exige_conexao_telefone_justificativa(cli, campo, valor, trecho):
+    r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar",
+                                               data={**_R, "transacao": "HP-SEM-007", "mes": "2026-10", campo: valor})
+    assert r.status_code == 400 and trecho in r.text
+    assert cli.banco.atrib == {}
 
 
 def test_ajuste_sem_justificativa_400(cli):
@@ -627,11 +679,11 @@ def test_pagina_master(cli):
     assert r.status_code == 200, r.text[:300]
     html = r.text
     for trecho in ("Reembolso a verificar", "HP-JHE-REEMB", "Mantém", "Tira", "Escolher AT4", "Escolher AT9",
-                   "HP-SEMBASE", "HP-SEMREGRA", "Ajuste manual", "Vendedor 6", "Reivindicações pendentes",
+                   "HP-SEMBASE", "HP-SEMREGRA", "Ajuste manual", "Vendedor 6", "Reivindicações de venda",
                    "Aprovar", "Recusar", "Histórico recente", 'action="/comercial/atribuir"',
                    'href="/comercial/inconsistencias"'):
         assert trecho in html, trecho
-    assert html.count('<td style="white-space:nowrap;">HP-SEM-') == inc.LIMITE_LISTA + 1  # 200 da lista + 1 pedido pendente; nunca as 250
+    assert html.count('<td style="white-space:nowrap;">HP-SEM-') == 1  # só o pedido pendente: venda sem AT não é listada
     assert 'name="inicio"' not in html  # sem período livre nesta tela
 
 
@@ -647,8 +699,15 @@ def test_pagina_vendedor_isolada(cli):
                      "Jheniffer", "jhe@x", "Histórico recente", "Mantém", "/comercial/atribuir", "/comercial/ajuste",
                      "HP-SEM-0"):
         assert proibido not in html, proibido
-    html = _como(cli, "edileia@teste.local").get("/comercial/inconsistencias?mes=2026-10&q=SEM-00").text
+    assert "Reivindicar uma venda" in html and 'name="q"' in html
+    html = _como(cli, "edileia@teste.local").get("/comercial/inconsistencias?mes=2026-10&q=(11) 91234-5678").text
     assert "HP-SEM-005" in html and 'action="/comercial/reivindicar"' in html
+    assert html.count('<td style="white-space:nowrap;">HP-SEM-') == 1  # só a do telefone
+    assert 'value="1112345678"' in html and "Mateus Andrade (B2)" in html and 'name="justificativa"' in html
+    html = _como(cli, "edileia@teste.local").get("/comercial/inconsistencias?mes=2026-10&q=21 3333-4444").text
+    assert "Não achei venda sem código do telefone (21) 3333-4444" in html
+    html = _como(cli, "edileia@teste.local").get("/comercial/inconsistencias?mes=2026-10&q=12").text
+    assert "Telefone do contato inválido" in html
 
 
 def test_pagina_sem_nivel_403(cli):
@@ -686,19 +745,19 @@ def test_conferir_reivindicacao_ramos():
 
 @pytest.mark.parametrize("mes", ["", "   ", "lixo", "2025-12", "2026-12"])
 def test_reivindicar_sem_mes_valido_400(cli, mes):
-    r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar", data={"transacao": "HP-SEM-007", "mes": mes})
+    r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar", data={**_R, "transacao": "HP-SEM-007", "mes": mes})
     assert r.status_code == 400
     assert cli.banco.atrib == {} and cli.banco.historico == []
 
 
 def test_reivindicar_sem_mes_mensagem(cli):
-    r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar", data={"transacao": "HP-SEM-007"})
+    r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar", data={**_R, "transacao": "HP-SEM-007"})
     assert r.status_code == 400 and "Informe o mês da venda" in r.text
 
 
 def test_reivindicar_venda_fora_do_mes_recusa(cli):
     r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar",
-                                               data={"transacao": "HP-NAO-EXISTE", "mes": "2026-10"})
+                                               data={**_R, "transacao": "HP-NAO-EXISTE", "mes": "2026-10"})
     assert "erro=venda_nao_encontrada" in r.headers["location"]
     assert cli.banco.atrib == {}
 
@@ -708,33 +767,33 @@ def test_reivindicar_sem_snapshot_guardado_usa_calculo_do_mes(cli, monkeypatch):
     monkeypatch.setattr(inc, "linhas_guardadas", lambda mes: None)
     monkeypatch.setattr(snap, "obter_mes", lambda mes, **kw: (chamadas.append(mes), _res())[1])
     r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar",
-                                               data={"transacao": "HP-SEM-003", "mes": "2026-10"})
+                                               data={**_R, "transacao": "HP-SEM-003", "mes": "2026-10"})
     assert "ok=reivindicada" in r.headers["location"]
     assert chamadas == [date(2026, 10, 1)]
 
 
 @pytest.mark.parametrize("tx", ["HP-JHE-REEMB", "HP-SEMBASE", "HP-NOVO"])
 def test_reivindicar_venda_de_outro_vendedor(cli, tx):
-    r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar", data={"transacao": tx, "mes": "2026-10"})
+    r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar", data={**_R, "transacao": tx, "mes": "2026-10"})
     assert "erro=de_outro" in r.headers["location"]
     assert cli.banco.atrib == {}
 
 
 def test_reivindicar_conflito_com_o_proprio_codigo(cli):
-    r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar", data={"transacao": "T-CONF", "mes": "2026-10"})
+    r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar", data={**_R, "transacao": "T-CONF", "mes": "2026-10"})
     assert "ok=reivindicada" in r.headers["location"]
     assert cli.banco.atrib[("tmb", "T-CONF")]["vendedor_codigo"] == "AT4"
 
 
 def test_reivindicar_conflito_sem_o_proprio_codigo(cli):
-    r = _como(cli, "pri@teste.local").post("/comercial/reivindicar", data={"transacao": "T-CONF", "mes": "2026-10"})
+    r = _como(cli, "pri@teste.local").post("/comercial/reivindicar", data={**_R, "transacao": "T-CONF", "mes": "2026-10"})
     assert "erro=de_outro" in r.headers["location"]
     assert cli.banco.atrib == {}
 
 
 def test_reivindicar_conflito_sem_os_dois_codigos(cli, monkeypatch):
     monkeypatch.setattr(com, "ler_codigos_conflito", lambda pedidos: {})
-    r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar", data={"transacao": "T-CONF", "mes": "2026-10"})
+    r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar", data={**_R, "transacao": "T-CONF", "mes": "2026-10"})
     assert "erro=conflito_gestor" in r.headers["location"]
     assert cli.banco.atrib == {}
 
@@ -742,7 +801,7 @@ def test_reivindicar_conflito_sem_os_dois_codigos(cli, monkeypatch):
 def test_reivindicar_venda_atribuida_a_mao(cli, monkeypatch):
     ls = _linhas() + [_l("HP-MANUAL", "AT9", manual=True)]
     monkeypatch.setattr(inc, "linhas_guardadas", lambda mes: ls)
-    r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar", data={"transacao": "HP-MANUAL", "mes": "2026-10"})
+    r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar", data={**_R, "transacao": "HP-MANUAL", "mes": "2026-10"})
     assert "erro=ja_atribuida" in r.headers["location"]
 
 
@@ -754,8 +813,8 @@ def test_pendentes_mostram_dono_atual(cli):
     cli.banco.atrib[("hotmart", "HP-OUTRO-MES")] = {"vendedor_codigo": "AT4", "origem": "reivindicacao",
                                                     "status": "pendente", "pedido_por": "edi@x"}
     html = _como(cli, "master@teste.local").get("/comercial/inconsistencias?mes=2026-10").text
-    tabela = html[html.index("Reivindicações pendentes"):html.index("Vendas sem código (")]
-    assert "Dono atual da venda" in tabela
+    tabela = html[html.index("Reivindicações de venda"):html.index("Histórico recente")]
+    assert "Dono atual" in tabela
     assert "Jheniffer (AT9)" in tabela and "venda de outro vendedor" in tabela
     assert "sem código" in tabela and "fora deste mês" in tabela
 
@@ -826,7 +885,7 @@ def test_pagina_consulta_ve_tudo_sem_botoes(cli):
     assert r.status_code == 200, r.text[:300]
     html = r.text
     for trecho in ("Reembolso a verificar", "HP-JHE-REEMB", "HP-SEMBASE", "HP-SEMREGRA",
-                   "Reivindicações pendentes", "Histórico recente", "decisão do gestor"):
+                   "Reivindicações de venda", "Histórico recente", "decisão do gestor"):
         assert trecho in html, trecho
     for proibido in ('action="/comercial/reembolso"', 'action="/comercial/atribuir"', 'action="/comercial/ajuste"',
                      'action="/comercial/atribuicoes/aprovar"', 'action="/comercial/atribuicoes/recusar"',

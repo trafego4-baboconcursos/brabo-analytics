@@ -165,6 +165,10 @@ def e_gestor(acesso: AcessoComercial | None) -> bool:
     return bool(acesso) and pode(acesso.nivel, "ver_time")
 
 
+def _do_marketing(l: LinhaComissao) -> bool:
+    return l.papel == "venda" and l.situacao == "inconsistente" and l.motivo == "sem_codigo"
+
+
 def linhas_visiveis(linhas: list[LinhaComissao], acesso: AcessoComercial | None,
                     vendedor: str | None = None) -> list[LinhaComissao]:
     """Gestor: tudo (ou só um vendedor, com as participações nas vendas dele).
@@ -174,7 +178,8 @@ def linhas_visiveis(linhas: list[LinhaComissao], acesso: AcessoComercial | None,
     if e_gestor(acesso):
         if vendedor:
             return [l for l in linhas if l.vendedor_codigo == vendedor]
-        return list(linhas)
+        # venda sem código AT é do marketing (Rafael, 10/11/26): fora da tela e da planilha
+        return [l for l in linhas if not _do_marketing(l)]
     if pode(acesso.nivel, "ver_proprio") and acesso.vendedor_codigo:
         return [l for l in linhas if l.papel == "venda" and l.vendedor_codigo == acesso.vendedor_codigo]
     return []

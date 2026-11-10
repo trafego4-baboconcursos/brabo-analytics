@@ -13,6 +13,23 @@ from frontend.db_readers import (
 router = APIRouter()
 
 
+async def _bloqueia_atendimento(request: Request):
+    """403 se quem pede não é gestor (acesso.ve_atendimento); None se pode. Banco do nível
+    fora do ar: o papel "comercial" fica fechado, o marketing segue (não tem nível)."""
+    from frontend.services.comercial import acesso as ac  # noqa: PLC0415
+    user = _get_current_user(request) or {}
+    role = user.get("role")
+    if role == "admin":
+        return None
+    try:
+        nivel = await run_in_threadpool(ac.nivel_comercial, user)
+    except Exception:  # noqa: BLE001
+        if role == "comercial":
+            return resposta_403()
+        nivel = None
+    return None if ac.ve_atendimento(role, nivel) else resposta_403()
+
+
 @router.get("/atendimento", response_class=HTMLResponse)
 async def atendimento_page(request: Request, dias: int = 7, conexao: str | None = None,
                            inicio: str | None = None, fim: str | None = None):
@@ -22,6 +39,8 @@ async def atendimento_page(request: Request, dias: int = 7, conexao: str | None 
     por conta (número de WhatsApp do Unnichat, cadastro unnichat_conexoes), não
     por produto: o que importa é em qual conta o atendimento aconteceu.
     """
+    if (bloqueio := await _bloqueia_atendimento(request)) is not None:
+        return bloqueio
     launches = await run_in_threadpool(get_launches)
     atendimento = await run_in_threadpool(read_atendimento, dias, conexao, None, inicio, fim)
     ctx = _base_ctx(
@@ -34,7 +53,7 @@ async def atendimento_page(request: Request, dias: int = 7, conexao: str | None 
 
 
 @router.get("/atendimento/conversas.csv")
-async def atendimento_conversas_csv(conexao: str | None = None, atendente: str | None = None,
+async def atendimento_conversas_csv(request: Request, conexao: str | None = None, atendente: str | None = None,
                                     situacao: str | None = None):
     """Relatório completo das conversas abertas em CSV (Excel-friendly: ';' e
     BOM). A página mostra no máximo 200; aqui vêm todas, com os mesmos filtros
@@ -42,6 +61,9 @@ async def atendimento_conversas_csv(conexao: str | None = None, atendente: str |
     import csv
     import io
     from datetime import datetime
+
+    if (bloqueio := await _bloqueia_atendimento(request)) is not None:
+        return bloqueio
 
     conversas = await run_in_threadpool(read_conversas_abertas, conexao, atendente or None, situacao or None)
     buf = io.StringIO()
@@ -84,9 +106,11 @@ def _contas(conexao: str | None) -> list[str]:
 
 
 @router.post("/atendimento/atualizar")
-async def atendimento_atualizar(conexao: str | None = None):
+async def atendimento_atualizar(request: Request, conexao: str | None = None):
     from frontend.services.unnichat import banco  # noqa: PLC0415
 
+    if (bloqueio := await _bloqueia_atendimento(request)) is not None:
+        return bloqueio
     if not _coletor().ESTADO["ligado"]:
         return JSONResponse({"ok": False, "erro": "A coleta do Unnichat está desligada no servidor."}, status_code=503)
     na_fila = await run_in_threadpool(banco.pedir_atualizacao, _contas(conexao), ATUALIZAR_HORAS)
@@ -94,9 +118,11 @@ async def atendimento_atualizar(conexao: str | None = None):
 
 
 @router.get("/atendimento/atualizar/status")
-async def atendimento_atualizar_status(conexao: str | None = None):
+async def atendimento_atualizar_status(request: Request, conexao: str | None = None):
     from frontend.services.unnichat import banco  # noqa: PLC0415
 
+    if (bloqueio := await _bloqueia_atendimento(request)) is not None:
+        return bloqueio
     return {"na_fila": await run_in_threadpool(banco.atualizacao_pendente, _contas(conexao))}
 
 
@@ -396,19 +422,46 @@ async def comercial_inconsistencias(request: Request, mes: str | None = None, q:
     if gestor:
         pedidos = [l.transacao for l in res.linhas if l.papel == "venda" and l.motivo == "conflito_codigo"]
         conflitos = await run_in_threadpool(com.ler_codigos_conflito, pedidos)
-    view = inc.view_inconsistencias(res, periodo, acesso, fila, conflitos, q)
+    achadas, erro_busca, tel = [], None, ""
+    if not gestor and (q or "").strip():
+        try:
+            tel = inc.limpar_telefone(q)
+        except inc.EntradaInvalida as exc:
+            erro_busca = str(exc)
+        else:
+            achadas = await run_in_threadpool(_buscar_telefone, tel, res, hoje)
+    view = inc.view_inconsistencias(res, periodo, acesso, fila, conflitos, q, achadas)
+    view["telefone_busca"] = tel
+    view["telefone_rotulo"] = inc.formatar_telefone(tel)
     view["msg_ok"] = inc.MENSAGENS_OK.get(ok or "")
-    view["msg_erro"] = inc.MENSAGENS_ERRO.get(erro or "")
+    view["msg_erro"] = erro_busca or inc.MENSAGENS_ERRO.get(erro or "")
     return await _pagina(request, "comercial_inconsistencias", "Comercial · Inconsistências",
                          "comercial_inconsistencias.html", view, hoje)
 
 
+def _buscar_telefone(tel: str, res, hoje):
+    """Vendas sem código do telefone no mês atual e no anterior (abertos). O mês atual vem do
+    que a tela já carregou; o anterior, do snapshot guardado (sem recalcular no request)."""
+    inc, com = _inc(), _com()
+    meses = inc.meses_da_busca(hoje, com.meses_fechados())
+    meses_linhas = []
+    for m in meses:
+        ls = res.linhas if res.mes == m else inc.linhas_guardadas(m)
+        if ls:
+            meses_linhas.append((m, ls))
+    return inc.buscar_por_telefone(tel, meses_linhas, com.transacoes_do_telefone)
+
+
 @router.post("/comercial/reivindicar")
 async def comercial_reivindicar(request: Request, transacao: str = Form(""), vendedor_codigo: str = Form(""),
-                                mes: str = Form("")):
+                                mes: str = Form(""), conexao: str = Form(""), telefone: str = Form(""),
+                                justificativa: str = Form("")):
     def executar(acesso, email, mes_d):
         inc, com = _inc(), _com()
         t = inc.limpar_transacao(transacao)
+        cx = inc.limpar_conexao(conexao)
+        tel = inc.limpar_telefone(telefone)
+        just = inc.texto_obrigatorio(justificativa, "Justificativa")
         codigo = inc.codigo_do_pedido(acesso, vendedor_codigo)
         mes_venda = inc.mes_obrigatorio(mes, _hoje())  # Ruling 14: sem mês válido -> 400
         inc.exigir_venda_de_mes_aberto(t)  # Ruling 17
@@ -417,7 +470,8 @@ async def comercial_reivindicar(request: Request, transacao: str = Form(""), ven
         if linha is not None and linha.motivo == "conflito_codigo":
             conflito = com.ler_codigos_conflito([t]).get(t)
         inc.conferir_reivindicacao(linha, codigo, conflito)
-        com.reivindicar(t, inc.plataforma_de(t), codigo, email)
+        com.reivindicar(t, inc.plataforma_de(t), codigo, email, conexao=cx, telefone=tel,
+                        justificativa=just)
         return "reivindicada", t, False  # pendente não muda o cálculo: não invalida o mês
     return await _acao(request, "reivindicar", mes, executar)
 
@@ -439,7 +493,7 @@ async def comercial_recusar(request: Request, transacao: str = Form(""), motivo:
     def executar(acesso, email, mes_d):
         inc, com = _inc(), _com()
         t = inc.limpar_transacao(transacao)
-        m = inc.texto_obrigatorio(motivo, "Motivo da recusa")
+        m = (motivo or "").strip()[:inc.MAX_TEXTO] or None  # 👎 basta; o motivo é opcional
         com.decidir_atribuicao(t, inc.plataforma_de(t), False, email, m)
         return "recusada", t, False  # pendente -> recusada: a venda segue sem vendedor
     return await _acao(request, "aprovar", mes, executar)

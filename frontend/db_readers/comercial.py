@@ -50,6 +50,7 @@ DDL = [
         status text NOT NULL,   -- 'aprovada' | 'pendente' | 'recusada'
         pedido_por text NULL, aprovado_por text NULL,
         criado_em timestamptz NOT NULL DEFAULT now(), motivo text NULL,
+        conexao text NULL, telefone_contato text NULL, justificativa text NULL,
         PRIMARY KEY (plataforma, transacao))""",
     # chaves naturais: recarga idempotente (ON CONFLICT DO NOTHING) sem depender do id
     """CREATE UNIQUE INDEX IF NOT EXISTS ux_comercial_regras_nat ON comercial_regras_percentual
@@ -126,8 +127,14 @@ SQL_MIGRACAO_ACESSOS_CONSULTA = (
     "ALTER TABLE comercial_acessos DROP CONSTRAINT IF EXISTS comercial_acessos_nivel_check, "
     "ADD CONSTRAINT comercial_acessos_nivel_check "
     "CHECK (nivel IN ('master','coordenador','vendedor','consulta'))")
+# reivindicação com justificativa (10/11/26): em qual conexão negociou, telefone do contato
+# (o gestor acha a conversa) e o porquê.
+SQL_MIGRACAO_ATRIB_JUSTIFICATIVA = (
+    "ALTER TABLE comercial_atribuicoes ADD COLUMN IF NOT EXISTS conexao text, "
+    "ADD COLUMN IF NOT EXISTS telefone_contato text, ADD COLUMN IF NOT EXISTS justificativa text")
 MIGRACOES = [("comercial_snapshot", SQL_MIGRACAO_SNAPSHOT_INVALIDADO),
-             ("comercial_acessos", SQL_MIGRACAO_ACESSOS_CONSULTA)]
+             ("comercial_acessos", SQL_MIGRACAO_ACESSOS_CONSULTA),
+             ("comercial_atribuicoes", SQL_MIGRACAO_ATRIB_JUSTIFICATIVA)]
 
 
 # tipo do DDL -> data_type do information_schema
@@ -228,7 +235,8 @@ SQL_SNAPSHOT_DESATUALIZAR_TODOS = (
 # status e origem vão literais no texto (não por parâmetro), então nenhuma variação passa.
 SQL_ATRIB_REIVINDICAR = (
     "INSERT INTO comercial_atribuicoes (transacao, plataforma, vendedor_codigo, origem, status, "
-    "pedido_por) VALUES (:transacao, :plataforma, :vendedor_codigo, 'reivindicacao', 'pendente', :por) "
+    "pedido_por, conexao, telefone_contato, justificativa) VALUES (:transacao, :plataforma, "
+    ":vendedor_codigo, 'reivindicacao', 'pendente', :por, :conexao, :telefone, :justificativa) "
     "ON CONFLICT (plataforma, transacao) DO NOTHING")
 SQL_ATRIB_APROVAR = (
     "UPDATE comercial_atribuicoes SET status = 'aprovada', aprovado_por = :por "
@@ -332,7 +340,8 @@ ESCRITAS_TELA = (SQL_ATRIB_REIVINDICAR, SQL_ATRIB_APROVAR, SQL_ATRIB_RECUSAR, SQ
                  SQL_REEMBOLSO_UPSERT, SQL_AJUSTE_DESATIVAR, SQL_AJUSTE_INSERIR, SQL_HISTORICO_INSERIR)
 _EXATAS = {" ".join(q.split()) for q in
            (SQL_SNAPSHOT_UPSERT, SQL_SNAPSHOT_DESATUALIZAR_MES, SQL_SNAPSHOT_DESATUALIZAR_TODOS,
-            SQL_MIGRACAO_SNAPSHOT_INVALIDADO, SQL_MIGRACAO_ACESSOS_CONSULTA, *ESCRITAS_TELA, *ESCRITAS_REGRAS, *ESCRITAS_FECHAMENTO)}
+            SQL_MIGRACAO_SNAPSHOT_INVALIDADO, SQL_MIGRACAO_ACESSOS_CONSULTA, SQL_MIGRACAO_ATRIB_JUSTIFICATIVA,
+            *ESCRITAS_TELA, *ESCRITAS_REGRAS, *ESCRITAS_FECHAMENTO)}
 _SELECT_COUNT = re.compile(r"\s*SELECT\s+count\(\*\)\s+FROM\s+comercial_\w+\s*", re.IGNORECASE)
 _INSERT_COM_LEITURA = re.compile(r"\b(?:SELECT|FROM|JOIN|TABLE)\b", re.IGNORECASE)
 
@@ -909,15 +918,20 @@ def _chave(plataforma: str, transacao: str) -> dict:
     return {"plataforma": plataforma, "transacao": transacao}
 
 
-def reivindicar(transacao: str, plataforma: str, vendedor_codigo: str, por: str, *, conn=None) -> None:
-    """Pedido de atribuição (status pendente). Não mexe no cálculo até o gestor aprovar."""
+def reivindicar(transacao: str, plataforma: str, vendedor_codigo: str, por: str, *,
+                conexao: str | None = None, telefone: str | None = None,
+                justificativa: str | None = None, conn=None) -> None:
+    """Pedido de atribuição (status pendente), com conexão, telefone do contato e justificativa.
+    Não mexe no cálculo até o gestor aprovar."""
     with _transacao(conn) as c:
         atual = c.execute(text(SQL_ATRIB_LER), _chave(plataforma, transacao)).fetchone()
         if atual is not None:
             raise EscritaRecusada({"aprovada": "ja_atribuida", "pendente": "ja_reivindicada",
                                    "recusada": "ja_recusada"}.get(atual[0], "ja_reivindicada"))
         r = _gravar(c, SQL_ATRIB_REIVINDICAR, {**_chave(plataforma, transacao),
-                                                "vendedor_codigo": vendedor_codigo, "por": por})
+                                                "vendedor_codigo": vendedor_codigo, "por": por,
+                                                "conexao": conexao, "telefone": telefone,
+                                                "justificativa": justificativa})
         if r.rowcount == 0:  # outro pedido entrou entre a leitura e o INSERT
             raise EscritaRecusada("ja_reivindicada")
         _historico(c, "comercial_atribuicoes", f"{plataforma}:{transacao}", "status",
@@ -942,7 +956,7 @@ def decidir_atribuicao(transacao: str, plataforma: str, aprovar: bool, por: str,
                                   "ja_recusada" if atual[0] == "recusada" else "ja_decidida")
         novo = "aprovada" if aprovar else "recusada"
         _historico(c, "comercial_atribuicoes", f"{plataforma}:{transacao}", "status",
-                   f"pendente ({atual[1]})", f"{novo} ({atual[1]})" + ("" if aprovar else f": {motivo}"), por)
+                   f"pendente ({atual[1]})", f"{novo} ({atual[1]})" + ("" if aprovar or not motivo else f": {motivo}"), por)
         return atual[1]
 
 
@@ -1001,10 +1015,12 @@ def gravar_ajuste(transacao: str, plataforma: str, pct: Decimal | None, valor_ba
 
 # ---------------------------------------------------------------- Task 6: leituras da fila
 SQL_FILA_PENDENTES = ("SELECT plataforma, transacao, vendedor_codigo, origem, status, pedido_por, "
-                      "aprovado_por, criado_em, motivo FROM comercial_atribuicoes "
+                      "aprovado_por, criado_em, motivo, conexao, telefone_contato, justificativa "
+                      "FROM comercial_atribuicoes "
                       "WHERE status = 'pendente' ORDER BY criado_em, transacao")
 SQL_FILA_DO_VENDEDOR = ("SELECT plataforma, transacao, vendedor_codigo, origem, status, pedido_por, "
-                        "aprovado_por, criado_em, motivo FROM comercial_atribuicoes "
+                        "aprovado_por, criado_em, motivo, conexao, telefone_contato, justificativa "
+                      "FROM comercial_atribuicoes "
                         "WHERE vendedor_codigo = :codigo AND origem = 'reivindicacao' "
                         "ORDER BY criado_em DESC, transacao LIMIT 100")
 SQL_TRANSACOES_PENDENTES = "SELECT transacao FROM comercial_atribuicoes WHERE status = 'pendente'"
@@ -1014,7 +1030,7 @@ SQL_VENDEDORES_LISTA = "SELECT codigo, nome FROM comercial_vendedores WHERE ativ
 SQL_CODIGOS_CONFLITO = ("SELECT pedido, utm_content, utm_last_content FROM tmb_oficial "
                         "WHERE pedido = ANY(:pedidos)")
 _COLS_FILA = ("plataforma", "transacao", "vendedor_codigo", "origem", "status", "pedido_por",
-              "aprovado_por", "criado_em", "motivo")
+              "aprovado_por", "criado_em", "motivo", "conexao", "telefone_contato", "justificativa")
 _COLS_HIST = ("tabela", "registro_id", "campo", "antes", "depois", "por", "em")
 
 
@@ -1050,6 +1066,28 @@ def ler_fila(*, vendedor_codigo: str | None = None, gestor: bool = False) -> dic
             return out
         raise
     return out
+
+
+SQL_FONES_HOTMART = ("SELECT codigo_da_transacao, telefone FROM hotmart_oficial "
+                     "WHERE codigo_da_transacao = ANY(:t)")
+SQL_FONES_TMB = "SELECT pedido, telefone FROM tmb_oficial WHERE pedido = ANY(:t)"
+
+
+def transacoes_do_telefone(transacoes: list[str], telefone_norm: str) -> set[str]:
+    """Das `transacoes` dadas (as candidatas: vendas sem AT), as que o comprador tem esse
+    telefone (DDD + 8 últimos dígitos, `_norm_phone`). A busca é só nas candidatas — nunca
+    varre a base de compradores. Só SELECT."""
+    from frontend.db_readers.whatsapp_groups import _norm_phone  # noqa: PLC0415
+    hm = sorted({t for t in transacoes if t.upper().startswith("HP")})
+    tmb = sorted({t for t in transacoes if not t.upper().startswith("HP")})
+    achadas: set[str] = set()
+    with _get_users_engine().connect() as conn:
+        for sql, lista in ((SQL_FONES_HOTMART, hm), (SQL_FONES_TMB, tmb)):
+            if lista:
+                for t, fone in conn.execute(text(sql), {"t": lista}).fetchall():
+                    if _norm_phone(fone) == telefone_norm:
+                        achadas.add(str(t))
+    return achadas
 
 
 def ler_codigos_conflito(pedidos: list[str]) -> dict[str, tuple[str | None, str | None]]:

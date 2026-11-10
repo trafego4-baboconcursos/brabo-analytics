@@ -413,7 +413,10 @@ def test_ranking_master_com_coluna_comissao(cli):
 def test_menu_mostra_itens_comerciais(cli):
     html = _como(cli, "edileia@teste.local").get("/comercial/ranking").text
     assert 'href="/comercial/comissoes"' in html and 'href="/comercial/ranking"' in html
-    assert 'href="/atendimento"' in html
+    assert 'href="/atendimento"' not in html  # Atendimento é só do gestor (10/11/26)
+    assert "Reivindicações" in html and "Inconsistências" not in html
+    master = _como(cli, "master@teste.local").get("/comercial/ranking").text
+    assert 'href="/atendimento"' in master and "Inconsistências" in master
 
 
 def test_xlsx_planilha_valida(cli):
@@ -427,7 +430,8 @@ def test_xlsx_planilha_valida(cli):
     vendas = wb["Vendas"]
     assert [c.value for c in vendas[1]] == telas.CABECALHO_VENDAS
     valores = [r for r in vendas.iter_rows(min_row=2, values_only=True)]
-    assert len(valores) == len(_linhas())
+    # venda sem código AT é do marketing: fica fora da planilha (10/11/26)
+    assert len(valores) == len([l for l in _linhas() if l.motivo != "sem_codigo"])
     col_com = telas.CABECALHO_VENDAS.index("Comissão")
     assert all(isinstance(r[col_com], (int, float)) for r in valores)
 

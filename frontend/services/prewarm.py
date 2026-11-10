@@ -294,6 +294,12 @@ def _mes_fechado(mes) -> bool:
         return False
 
 
+def _aquecer_acumulado(hoje) -> None:
+    from frontend.services.comercial import desempenho, telas  # noqa: PLC0415
+    periodo = telas.resolver_periodo(None, None, None, hoje.date() if hasattr(hoje, "date") else hoje)
+    desempenho.carregar_acumulado(periodo)
+
+
 async def warm_comercial(origem: str = "boot") -> None:
     """Recalcula o snapshot da comissão do mês corrente e do anterior (~13 s cada). Melhor
     esforço: erro vira log e segue; roda fora do _WARM_LOCK para não atrasar o aquecimento."""
@@ -313,6 +319,12 @@ async def warm_comercial(origem: str = "boot") -> None:
                 logger.info("Comercial (%s): snapshot de %s em %.0f s.", origem, mes, _time.monotonic() - _t0)
             except Exception:
                 logger.exception("Comercial (%s): snapshot de %s falhou", origem, mes)
+        try:  # Desempenho: o ano inteiro decodificado na memória (1ª abertura ~27 s -> ~2 s)
+            _t0 = _time.monotonic()
+            await run_in_threadpool(_aquecer_acumulado, hoje)
+            logger.info("Comercial (%s): acumulado do ano em memória em %.0f s.", origem, _time.monotonic() - _t0)
+        except Exception:
+            logger.exception("Comercial (%s): acumulado do ano falhou", origem)
     except Exception:
         logger.exception("Comercial (%s): aquecimento falhou", origem)
     finally:

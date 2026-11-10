@@ -50,7 +50,7 @@
         {{ kpi('ti-target', v.pct_meta | pct_taxa, '% da meta' ~ (' do time' if v.gestor else ''), (k.vendido | brl_exato) ~ ' de ' ~ (v.meta | brl_exato), 'success' if v.pct_meta and v.pct_meta >= 1 else '') }}
         {% endif %}
         {% if v.gestor %}
-        {{ kpi('ti-alert-circle', k.inconsistencias | num, 'Inconsistências', 'conflito de código, sem valor-base, sem regra ou reembolso a decidir · ' ~ (k.sem_codigo | num) ~ ' vendas sem código (orgânicas) à parte', 'danger' if k.inconsistencias else 'success') }}
+        {{ kpi('ti-alert-circle', k.inconsistencias | num, 'Inconsistências', 'conflito de código, sem valor-base, sem regra ou reembolso a decidir', 'danger' if k.inconsistencias else 'success') }}
         {% endif %}
       </div>
       <div class="cm-sub">

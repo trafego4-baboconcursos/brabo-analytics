@@ -20,6 +20,11 @@
 .cm-busca input[type=search] { width:256px; font-size:var(--fs-sm); }
 .cm-subtitulo { font-size:var(--fs-sm); font-weight:700; margin:var(--s4) 0 var(--s2); }
 .cm-hist td { font-size:var(--fs-xs); }
+.cm-reiv { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:var(--s2); align-items:start; margin:0; }
+.cm-reiv select, .cm-reiv textarea, .cm-reiv input[type=text] { font:inherit; font-size:var(--fs-xs); color:var(--bs-ink); background:var(--bs-card);
+  border:1px solid var(--bs-border-s); border-radius:var(--bs-r-sm); padding:var(--s1) var(--s2); width:100%; box-sizing:border-box; }
+.cm-reiv textarea { min-height:64px; resize:vertical; }
+.cm-just { font-size:var(--fs-xs); max-width:320px; white-space:pre-wrap; }
 </style>
 {% set mes_txt = v.periodo.mes.strftime('%Y-%m') %}
 {% macro mes_hidden() %}<input type="hidden" name="mes" value="{{ mes_txt }}">{% endmacro %}
@@ -66,8 +71,8 @@
   <div class="hdr">
     <a href="/comercial"><img src="/assets/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
     <div>
-      <h1><i class="ti ti-alert-triangle"></i> Comercial · Inconsistências</h1>
-      <p>{{ 'Pendências do mês, pedidos de atribuição e vendas sem código' if v.gestor else 'Reivindique uma venda sem código e acompanhe seus pedidos' }}</p>
+      <h1><i class="ti {{ 'ti-alert-triangle' if v.gestor else 'ti-hand-finger' }}"></i> Comercial · {{ 'Inconsistências' if v.gestor else 'Reivindicações' }}</h1>
+      <p>{{ 'Pendências do mês e reivindicações de venda das vendedoras' if v.gestor else 'Reivindique uma venda que você negociou e que entrou sem o seu código, e acompanhe a resposta do gestor' }}</p>
     </div>
   </div>
 
@@ -87,7 +92,7 @@
       {{ kpi('ti-receipt-refund', v.reembolso | length, 'Reembolso a verificar', 'concluído depois de 7 dias: mantém ou tira', 'warning') }}
       {{ kpi('ti-arrows-split', v.conflitos | length, 'Conflito de código (TMB)', 'utm_content × utm_last_content', 'danger') }}
       {{ kpi('ti-calculator', (v.sem_base | length) + (v.sem_regra | length), 'Sem valor-base ou regra', (v.sem_base | length) ~ ' sem base · ' ~ (v.sem_regra | length) ~ ' sem regra') }}
-      {{ kpi('ti-hand-finger', v.pendentes | length, 'Pedidos pendentes', (v.sem_codigo_total | num) ~ ' vendas sem código no mês') }}
+      {{ kpi('ti-hand-finger', v.pendentes | length, 'Reivindicações', 'aguardando resposta', 'warning' if v.pendentes else 'success') }}
     </div>
 
     <div class="section">
@@ -193,22 +198,26 @@
     </div>
 
     <div class="section">
-      <div class="section-title" data-sec-key="comercial-inc-pedidos"><i class="ti ti-hand-finger"></i> Reivindicações pendentes ({{ v.pendentes | length }})</div>
+      <div class="section-title" data-sec-key="comercial-inc-pedidos"><i class="ti ti-hand-finger"></i> Reivindicações de venda ({{ v.pendentes | length }})</div>
+      <div class="cm-sub" style="margin-bottom:var(--s2);">Busque a conversa pelo telefone, na conexão indicada. Se aprovada, a venda passa para a vendedora. A resposta aparece na tela dela.</div>
       {% if v.pendentes %}
       <div class="table-wrap">
         <table class="cm-tabela">
           <thead><tr>
-            <th class="th-dark">Transação</th><th class="th-dark">Pedido para</th><th class="th-dark">Dono atual da venda</th><th class="th-dark">Pedido por</th><th class="th-dark">Em</th><th class="th-dark">Decisão</th>
+            <th class="th-dark">Vendedora</th><th class="th-dark">Transação</th><th class="th-dark">Conexão</th><th class="th-dark">Telefone do contato</th>
+            <th class="th-dark">Justificativa</th><th class="th-dark">Dono atual</th><th class="th-dark">Em</th><th class="th-dark">Resposta</th>
           </tr></thead>
           <tbody>
             {% for p in v.pendentes %}
             <tr>
+              <td class="nome">{{ p.vendedor_codigo }}<div class="cm-sub">{{ p.pedido_por or '' }}</div></td>
               <td style="white-space:nowrap;">{{ p.transacao }}</td>
-              <td class="nome">{{ p.vendedor_codigo }}</td>
+              <td>{{ p.conexao or '—' }}</td>
+              <td style="white-space:nowrap;">{{ p.telefone_rotulo or '—' }}</td>
+              <td class="cm-just">{{ p.justificativa or '—' }}</td>
               <td>{{ p.dono or '—' }}
                 {% if p.dono_motivo %}<div class="cm-sub">{{ motivo_rotulo.get(p.dono_motivo, p.dono_motivo) }}</div>{% endif %}
                 {% if p.de_outro %}<span class="cm-chip inconsistente">venda de outro vendedor</span>{% endif %}</td>
-              <td class="cm-sub">{{ p.pedido_por or '—' }}</td>
               <td style="white-space:nowrap;">{{ p.criado_em.strftime('%d/%m %H:%M') if p.criado_em else '—' }}</td>
               <td>
                 {% if v.edita %}
@@ -216,16 +225,14 @@
                   {% if not v.fechado %}
                   <form method="post" action="/comercial/atribuicoes/aprovar" class="cm-acao">
                     {{ mes_hidden() }}<input type="hidden" name="transacao" value="{{ p.transacao }}">
-                    <button type="submit" class="cm-btn ok">Aprovar</button>
+                    <button type="submit" class="cm-btn ok"><i class="ti ti-thumb-up"></i> Aprovar</button>
                   </form>
                   {% endif %}
-                  <details><summary>Recusar</summary>
-                    <form method="post" action="/comercial/atribuicoes/recusar" class="cm-acao">
-                      {{ mes_hidden() }}<input type="hidden" name="transacao" value="{{ p.transacao }}">
-                      <input type="text" name="motivo" placeholder="motivo (obrigatório)" required maxlength="1000" aria-label="Motivo">
-                      <button type="submit" class="cm-btn nao">Recusar</button>
-                    </form>
-                  </details>
+                  <form method="post" action="/comercial/atribuicoes/recusar" class="cm-acao">
+                    {{ mes_hidden() }}<input type="hidden" name="transacao" value="{{ p.transacao }}">
+                    <input type="text" name="motivo" placeholder="motivo (opcional)" maxlength="1000" aria-label="Motivo da recusa">
+                    <button type="submit" class="cm-btn nao"><i class="ti ti-thumb-down"></i> Recusar</button>
+                  </form>
                 </div>
                 {% else %}<span class="cm-sub">decisão do gestor</span>{% endif %}
               </td>
@@ -234,22 +241,97 @@
           </tbody>
         </table>
       </div>
-      {% else %}<div class="cm-vazio">Nenhum pedido aguardando.</div>{% endif %}
+      {% else %}<div class="cm-vazio">Nenhuma reivindicação aguardando.</div>{% endif %}
     </div>
     {% else %}
+    {% macro campos_reiv() %}
+      <label class="cm-sub">Em qual conexão você negociou?
+        <select name="conexao" required>
+          <option value="">escolha a conexão…</option>
+          {% for c in v.conexoes %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+        </select></label>
+      <label class="cm-sub">Por que essa venda é sua?
+        <textarea name="justificativa" required maxlength="1000" placeholder="ex.: atendi o lead em 05/11, mandei o link de pagamento e ele comprou logo depois"></textarea></label>
+    {% endmacro %}
     <div class="section">
-      <div class="section-title" data-sec-key="comercial-inc-meus"><i class="ti ti-hand-finger"></i> Seus pedidos</div>
+      <div class="section-title" data-sec-key="comercial-inc-reivindicar"><i class="ti ti-hand-finger"></i> Reivindicar uma venda</div>
+      <div class="cm-sub" style="margin-bottom:var(--s3);">É para a venda que entrou sem o seu código AT. Digite o telefone do contato com quem você negociou e aparecem as vendas sem código desse telefone neste mês e no anterior.</div>
+      {% if v.fechado %}<div class="cm-sub">Mês fechado: escolha um mês aberto para reivindicar.</div>{% else %}
+      <form method="get" action="/comercial/inconsistencias" class="cm-busca" role="search">
+        {{ mes_hidden() }}
+        <input type="search" name="q" value="{{ v.q }}" placeholder="telefone do contato, com DDD" maxlength="32" inputmode="tel" aria-label="Telefone do contato">
+        <button type="submit" class="bs-pill accent" style="border:0;cursor:pointer;">Buscar</button>
+        {% if v.q %}<a href="/comercial/inconsistencias?mes={{ mes_txt }}" class="cm-sub">limpar</a>{% endif %}
+      </form>
+      {% if v.buscou and v.telefone_busca %}
+        {% if v.achadas %}
+        <div class="table-wrap">
+          <table class="cm-tabela">
+            <thead><tr><th class="th-dark">Transação</th><th class="th-dark">Data</th><th class="th-dark">Plataforma</th><th class="th-dark">Produto</th><th class="th-dark n">Base</th><th class="th-dark">Reivindicar</th></tr></thead>
+            <tbody>
+              {% for m, l in v.achadas %}
+              <tr>
+                <td style="white-space:nowrap;">{{ l.transacao }}{% if l.papel == 'ia' %} <span class="cm-chip">Camila (IA)</span>{% endif %}</td>
+                <td style="white-space:nowrap;">{{ l.data.strftime('%d/%m %H:%M') }}</td>
+                <td>{{ plat(l) }}</td>
+                <td>{{ l.produto or l.categoria or '—' }}</td>
+                <td class="n">{{ l.valor_base | brl_exato }}</td>
+                <td>
+                  {% if l.transacao in v.com_pedido %}
+                  <span class="cm-chip prevista">em análise</span>
+                  {% else %}
+                  <form method="post" action="/comercial/reivindicar" class="cm-reiv">
+                    <input type="hidden" name="mes" value="{{ m.strftime('%Y-%m') }}">
+                    <input type="hidden" name="transacao" value="{{ l.transacao }}">
+                    <input type="hidden" name="telefone" value="{{ v.telefone_busca }}">
+                    {{ campos_reiv() }}
+                    <div><button type="submit" class="cm-btn">Enviar reivindicação</button></div>
+                  </form>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="cm-vazio">Não achei venda sem código do telefone {{ v.telefone_rotulo }} neste mês nem no anterior. Confira o número. Se você tiver o código da transação, use o formulário abaixo.</div>
+        {% endif %}
+      {% endif %}
+      <details style="margin-top:var(--s3);"><summary class="cm-sub" style="cursor:pointer;">Tem o código da transação (HP… ou pedido TMB)?</summary>
+        <form method="post" action="/comercial/reivindicar" class="cm-reiv" style="margin-top:var(--s2);">
+          {{ mes_hidden() }}
+          <label class="cm-sub">Código da transação
+            <input type="text" name="transacao" required maxlength="64"></label>
+          <label class="cm-sub">Telefone do contato
+            <input type="text" name="telefone" required maxlength="32" inputmode="tel" value="{{ v.q }}"></label>
+          {{ campos_reiv() }}
+          <div><button type="submit" class="cm-btn">Enviar reivindicação</button>
+            <div class="cm-sub">a venda precisa ser de {{ v.periodo.rotulo }}</div></div>
+        </form>
+      </details>
+      {% endif %}
+    </div>
+
+    <div class="section">
+      <div class="section-title" data-sec-key="comercial-inc-meus"><i class="ti ti-inbox"></i> Suas reivindicações</div>
       {% if v.minhas %}
       <div class="table-wrap">
         <table class="cm-tabela">
-          <thead><tr><th class="th-dark">Transação</th><th class="th-dark">Pedido em</th><th class="th-dark">Situação</th><th class="th-dark">Motivo</th></tr></thead>
+          <thead><tr><th class="th-dark">Transação</th><th class="th-dark">Conexão</th><th class="th-dark">Telefone</th><th class="th-dark">Enviada em</th><th class="th-dark">Resposta do gestor</th></tr></thead>
           <tbody>
             {% for p in v.minhas %}
             <tr>
               <td style="white-space:nowrap;">{{ p.transacao }}</td>
+              <td>{{ p.conexao or '—' }}</td>
+              <td style="white-space:nowrap;">{{ p.telefone_rotulo or '—' }}</td>
               <td style="white-space:nowrap;">{{ p.criado_em.strftime('%d/%m %H:%M') if p.criado_em else '—' }}</td>
-              <td><span class="cm-chip {{ {'aprovada': 'elegivel', 'pendente': 'prevista', 'recusada': 'inconsistente'}.get(p.status, '') }}">{{ p.status }}</span></td>
-              <td class="cm-sub">{{ p.motivo or '' }}</td>
+              <td>
+                {% if p.status == 'aprovada' %}<span class="cm-chip elegivel"><i class="ti ti-thumb-up"></i> aprovada</span>
+                {% elif p.status == 'recusada' %}<span class="cm-chip inconsistente"><i class="ti ti-thumb-down"></i> recusada</span>
+                {% else %}<span class="cm-chip prevista">em análise</span>{% endif %}
+                {% if p.motivo %}<div class="cm-sub">{{ p.motivo }}</div>{% endif %}
+              </td>
             </tr>
             {% endfor %}
           </tbody>
@@ -258,72 +340,6 @@
       {% else %}<div class="cm-vazio">Você ainda não reivindicou nenhuma venda.</div>{% endif %}
     </div>
     {% endif %}
-
-    <div class="section">
-      <div class="section-title" data-sec-key="comercial-inc-semcodigo"><i class="ti ti-search"></i> Vendas sem código ({{ v.sem_codigo_total | num }})</div>
-      <form method="get" action="/comercial/inconsistencias" class="cm-busca" role="search">
-        {{ mes_hidden() }}
-        <input type="search" name="q" value="{{ v.q }}" placeholder="buscar pela transação" maxlength="64" aria-label="Buscar transação">
-        <button type="submit" class="bs-pill accent" style="border:0;cursor:pointer;">Buscar</button>
-        {% if v.q %}<span class="cm-sub">{{ v.sem_codigo_achadas | num }} com “{{ v.q }}”</span>
-        <a href="/comercial/inconsistencias?mes={{ mes_txt }}" class="cm-sub">limpar</a>{% endif %}
-      </form>
-      {% if not v.gestor and not v.fechado %}
-      <form method="post" action="/comercial/reivindicar" class="cm-acao" style="margin-bottom:var(--s3);">
-        {{ mes_hidden() }}
-        <input type="text" name="transacao" placeholder="código da transação" required maxlength="64" aria-label="Transação para reivindicar">
-        <button type="submit" class="cm-btn">Reivindicar pelo código</button>
-        <span class="cm-sub">a venda precisa ser do mês selecionado</span>
-      </form>
-      {% endif %}
-      {% if v.sem_codigo %}
-      <div class="table-wrap">
-        <table class="cm-tabela">
-          <thead><tr>
-            <th class="th-dark">Transação</th><th class="th-dark">Data</th><th class="th-dark">Plataforma</th><th class="th-dark">Categoria</th><th class="th-dark n">Base</th><th class="th-dark">Ação</th>
-          </tr></thead>
-          <tbody>
-            {% for l in v.sem_codigo %}
-            <tr>
-              <td style="white-space:nowrap;">{{ l.transacao }}{% if l.papel == 'ia' %} <span class="cm-chip">Camila (IA)</span>{% endif %}</td>
-              <td style="white-space:nowrap;">{{ l.data.strftime('%d/%m %H:%M') }}</td>
-              <td>{{ plat(l) }}</td>
-              <td>{{ l.categoria or '—' }}</td>
-              <td class="n">{{ l.valor_base | brl_exato }}</td>
-              <td>
-                {% if l.transacao in v.com_pedido %}
-                <span class="cm-chip prevista">em análise</span>
-                {% elif v.fechado %}
-                <span class="cm-sub">mês fechado</span>
-                {% elif v.edita %}
-                <form method="post" action="/comercial/atribuir" class="cm-acao">
-                  {{ mes_hidden() }}<input type="hidden" name="transacao" value="{{ l.transacao }}">
-                  <select name="vendedor_codigo" required aria-label="Vendedor">
-                    <option value="">vendedor…</option>
-                    {% for cod, nome in v.vendedores %}<option value="{{ cod }}">{{ nome }} ({{ cod }})</option>{% endfor %}
-                  </select>
-                  <button type="submit" class="cm-btn">Atribuir</button>
-                </form>
-                {% elif not v.gestor %}
-                <form method="post" action="/comercial/reivindicar" class="cm-acao">
-                  {{ mes_hidden() }}<input type="hidden" name="transacao" value="{{ l.transacao }}">
-                  <button type="submit" class="cm-btn">Reivindicar</button>
-                </form>
-                {% else %}<span class="cm-sub">—</span>
-                {% endif %}
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% if v.sem_codigo_cortado %}<div class="cm-sub" style="margin-top:var(--s2);">Mostrando {{ v.sem_codigo | length }} de {{ v.sem_codigo_achadas | num }}. Use a busca para achar uma transação.</div>{% endif %}
-      {% elif not v.gestor and v.q | length < v.busca_min %}
-      <div class="cm-vazio">Digite ao menos {{ v.busca_min }} caracteres do código da transação para buscar.</div>
-      {% else %}
-      <div class="cm-vazio">Nenhuma venda sem código{{ ' com essa busca' if v.q else '' }}.</div>
-      {% endif %}
-    </div>
 
     {% if v.gestor %}
     <div class="section">

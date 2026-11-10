@@ -1,6 +1,10 @@
 """Tela de Inconsistências da área Comercial (Task 6): fila + ações do gestor/vendedor.
 
-O isolamento mora AQUI: o vendedor recebe só a busca de vendas sem código (que não têm dono)
+Venda sem código AT é venda do marketing (Rafael, 10/11/26): não é inconsistência e o gestor
+não a vê listada. A vendedora que negociou uma delas reivindica pelo TELEFONE do contato
+(+ conexão + justificativa); o gestor aprova ou recusa e a resposta volta para ela.
+
+O isolamento mora AQUI: o vendedor recebe só as vendas sem código do telefone que buscou
 e os PRÓPRIOS pedidos; pendências de venda (reembolso, conflito, base, regra), pedidos dos
 outros e o histórico só vão para o view-model do gestor. O template só desenha.
 
@@ -11,7 +15,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
 from frontend.services.comercial.acesso import AcessoComercial, pode
@@ -19,16 +23,18 @@ from frontend.services.comercial.calculo import PAPEL_IA, LinhaComissao
 from frontend.services.comercial.snapshot import ResultadoMes
 
 LIMITE_LISTA = 200          # nunca despejar as ~800 vendas sem código do mês
-BUSCA_MIN_VENDEDOR = 4      # vendedor só vê a lista quando busca (não "pesca" vendas alheias)
+# Conexões do Unnichat em que a vendedora pode ter negociado (lista do comercial, 10/11/26).
+CONEXOES = ("Mateus Andrade (Principal)", "Ivan Neto (Principal)", "Felipe Graton (Principal)",
+            "Atendimento CS", "Mateus Andrade (B2)", "Perpétuo")
 _RE_CODIGO = re.compile(r"^AT\d{1,4}$")
 _RE_TRANSACAO = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 _RE_VENDEDOR_AUTO = re.compile(r"^Vendedor \d+$")
 MAX_TEXTO = 1000
 
 MENSAGENS_OK = {
-    "reivindicada": "Pedido enviado. Fica pendente até o gestor aprovar.",
-    "aprovada": "Atribuição aprovada. A comissão do mês será recalculada na próxima abertura.",
-    "recusada": "Pedido recusado.",
+    "reivindicada": "Reivindicação enviada. Fica em análise até o gestor responder.",
+    "aprovada": "Reivindicação aprovada: a venda passa para a vendedora (recalcula na próxima abertura).",
+    "recusada": "Reivindicação recusada. A vendedora vê a resposta na tela dela.",
     "atribuida": "Venda atribuída ao vendedor.",
     "reembolso": "Decisão de reembolso registrada.",
     "ajuste": "Ajuste manual registrado.",
@@ -82,6 +88,29 @@ def texto_obrigatorio(txt: str | None, campo: str) -> str:
     if len(t) > MAX_TEXTO:
         raise EntradaInvalida(f"{campo}: no máximo {MAX_TEXTO} caracteres.")
     return t
+
+
+def limpar_conexao(txt: str | None) -> str:
+    c = (txt or "").strip()
+    if c not in CONEXOES:
+        raise EntradaInvalida("Escolha em qual conexão a venda foi negociada.")
+    return c
+
+
+def limpar_telefone(txt: str | None) -> str:
+    """Telefone do contato -> DDD + 8 últimos dígitos (mesma chave que casa com a venda)."""
+    from frontend.db_readers.whatsapp_groups import _norm_phone  # noqa: PLC0415
+    t = _norm_phone(txt)
+    if t is None:
+        raise EntradaInvalida("Telefone do contato inválido: use DDD + número (ex.: 11 91234-5678).")
+    return t
+
+
+def formatar_telefone(norm: str | None) -> str:
+    """'1112345678' -> '(11) 1234-5678' (sem o nono dígito, que a chave descarta)."""
+    if not norm or len(norm) != 10:
+        return norm or ""
+    return f"({norm[:2]}) {norm[2:6]}-{norm[6:]}"
 
 
 def _numero(txt: str | None) -> Decimal | None:
@@ -236,30 +265,52 @@ def _com_dono(pedido: dict, vendas: list[LinhaComissao]) -> dict:
             "de_outro": bool(linha.vendedor_codigo) and linha.vendedor_codigo != pedido.get("vendedor_codigo")}
 
 
+def _com_fone(pedido: dict) -> dict:
+    return {**pedido, "telefone_rotulo": formatar_telefone(pedido.get("telefone_contato"))}
+
+
+def candidatas_reivindicacao(linhas: list[LinhaComissao]) -> list[LinhaComissao]:
+    """Vendas que a vendedora pode reivindicar: sem código AT e da Camila (IA)."""
+    return sem_codigo(linhas, None)
+
+
+def buscar_por_telefone(telefone_norm: str, meses_linhas: list[tuple[date, list[LinhaComissao]]],
+                        fones_fn) -> list[tuple[date, LinhaComissao]]:
+    """(mês, linha) das candidatas (sem código / Camila) cujo comprador tem esse telefone.
+    `fones_fn(transacoes, telefone_norm) -> set` consulta o banco (só as candidatas)."""
+    cands = [(m, l) for m, ls in meses_linhas for l in candidatas_reivindicacao(ls or [])]
+    if not cands:
+        return []
+    achadas = fones_fn(sorted({l.transacao for _m, l in cands}), telefone_norm)
+    return [(m, l) for m, l in cands if l.transacao in achadas]
+
+
+def meses_da_busca(hoje: date, fechados) -> list[date]:
+    """Meses em que a vendedora busca: o atual e o anterior, só os abertos."""
+    atual = hoje.replace(day=1)
+    anterior = (atual - timedelta(days=1)).replace(day=1)
+    return [m for m in (atual, anterior) if m not in set(fechados or ())]
+
+
 def view_inconsistencias(res: ResultadoMes, periodo, acesso: AcessoComercial, fila: dict,
-                         conflitos: dict[str, tuple] | None = None, q: str | None = None) -> dict:
-    gestor = pode(acesso.nivel, "ver_time")   # vê a fila do time (consulta também)
-    edita = pode(acesso.nivel, "aprovar")     # só quem decide vê os botões
-    q = (q or "").strip()[:64]
-    todas_sem = sem_codigo(res.linhas, q)
-    total_mes = len(todas_sem) if not q else len(sem_codigo(res.linhas, None))
-    if not gestor and len(q) < BUSCA_MIN_VENDEDOR:
-        lista = []  # vendedor: só com busca
-    else:
-        lista = todas_sem[:LIMITE_LISTA]
+                         conflitos: dict[str, tuple] | None = None, q: str | None = None,
+                         achadas: list[tuple[date, LinhaComissao]] | None = None) -> dict:
+    """`q` = telefone buscado pela vendedora; `achadas` = (mês, linha) das vendas sem código
+    desse telefone (a rota busca). O gestor não recebe lista de vendas sem código."""
+    gestor = pode(acesso.nivel, "ver_time")
+    edita = pode(acesso.nivel, "aprovar")
+    q = (q or "").strip()[:32]
+    com_pedido = set(fila.get("com_pedido") or ())
     base = {
         "periodo": periodo, "gerado_em": res.gerado_em, "gestor": gestor, "edita": edita,
-        "acesso": acesso,
-        "fechado": res.fechado, "fechado_em": res.fechado_em, "fechado_por": res.fechado_por,
-        "sem_livre": True, "q": q,
-        "sem_codigo": lista, "sem_codigo_total": total_mes, "sem_codigo_achadas": len(todas_sem),
-        "sem_codigo_cortado": len(todas_sem) > len(lista) and bool(lista),
-        "busca_min": BUSCA_MIN_VENDEDOR,
-        "com_pedido": set(fila.get("com_pedido") or ()),
+        "acesso": acesso, "fechado": res.fechado, "fechado_em": res.fechado_em,
+        "fechado_por": res.fechado_por, "sem_livre": True, "q": q,
+        "achadas": list(achadas or [])[:LIMITE_LISTA], "buscou": bool(q),
+        "conexoes": CONEXOES, "com_pedido": com_pedido,
     }
     if not gestor:
         meu = acesso.vendedor_codigo
-        return {**base, "minhas": [p for p in fila.get("minhas", []) if p["vendedor_codigo"] == meu],
+        return {**base, "minhas": [_com_fone(p) for p in fila.get("minhas", []) if p["vendedor_codigo"] == meu],
                 "pendentes": [], "reembolso": [], "conflitos": [], "sem_base": [], "sem_regra": [],
                 "codigos_novos": [], "historico": [], "vendedores": []}
     vendas = _vendas(res.linhas)
@@ -268,7 +319,7 @@ def view_inconsistencias(res: ResultadoMes, periodo, acesso: AcessoComercial, fi
     return {
         **base,
         "minhas": [],
-        "pendentes": [_com_dono(p, vendas) for p in fila.get("pendentes", [])],
+        "pendentes": [_com_fone(_com_dono(p, vendas)) for p in fila.get("pendentes", [])],
         "reembolso": ordem(l for l in vendas if l.situacao == "reembolso_a_verificar"),
         "conflitos": [Conflito(l, tuple(c for c in dict.fromkeys(conflitos.get(l.transacao, ())) if c))
                       for l in ordem(l for l in vendas

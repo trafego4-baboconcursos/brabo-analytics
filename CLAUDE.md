@@ -253,6 +253,24 @@ docs/
     codigo-legado/             <- retired code
 ```
 
+### `docs/performance` and `docs/marketing` live in `brabo-brain` (since 2026-11-10)
+Both are **Windows junctions** to `C:\dev\brabo-brain\performance` and `\marketing`, a separate **private**
+repo (`trafego4-baboconcursos/brabo-brain`) shared by the whole marketing + operational team. Paths in
+scripts, memory and wikilinks are unchanged, and this repo's git never sees them (`docs/*` is ignored).
+- Recording there means a commit **in brabo-brain**:
+  ```bash
+  git -C C:\dev\brabo-brain pull --rebase
+  git -C C:\dev\brabo-brain add ... && git -C C:\dev\brabo-brain commit -m "..." && git -C C:\dev\brabo-brain push
+  ```
+  `performance/` goes straight to `main`. `marketing/` (the shared KPI ruler, which overrides local
+  definitions) needs a branch + `gh pr create` + approval by Michel, Julia or Murilo.
+- Rules for any AI in that repo: `C:\dev\brabo-brain\AGENTS.md`. Diary entries carry **author and time**.
+- **Keep the brabo-brain clone on `main`.** The junction shows whatever branch is checked out there. A
+  branch left checked out changes what this vault sees.
+- `gh` lives at `C:\Program Files\GitHub CLI\gh.exe`. Fresh shells may not have it on PATH yet.
+- On a new machine: clone brabo-brain to `C:\dev\brabo-brain`, then `mklink /J docs\performance ...` and
+  `mklink /J docs\marketing ...` (see `RESTAURAR_MAQUINA_NOVA.md`).
+
 ### Registering a conversation — where the outcome goes
 
 Do this **in the same turn** as the change, not "later". Each row is a trigger:

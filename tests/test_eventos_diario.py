@@ -68,3 +68,11 @@ def test_coletar_le_diarios(tmp_path, monkeypatch):
     evs = eventos.coletar()
     assert [(e["codigo"], e["etapa"], e["autor"]) for e in evs] == [
         ("X-26", "2-CAPTACAO", "Michel"), ("X-26", "2-CAPTACAO", "Gustavo")]
+
+
+def test_regra_ops_pq_gads(tmp_path):
+    p = _diario(tmp_path, "DIARIO_X-26_2-CAPTACAO.md",
+                "### (05/11/26 10h00) Pausado em vez de apagar — autor: Gustavo\n- conforme OPS-1\n"
+                "### (05/11/26 11h00) Pré-quali por custo por view — autor: Michel\n- PQ-1\n"
+                "### (05/11/26 12h00) Campanha VIDEO só pela interface — autor: Michel\n- GADS-1\n")
+    assert [e["regra"] for e in eventos.ler_itens(p, "X-26")] == ["OPS-1", "PQ-1", "GADS-1"]

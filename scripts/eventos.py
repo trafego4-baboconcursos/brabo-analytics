@@ -34,7 +34,7 @@ RE_DATA = re.compile(r"\((\d{2})/(\d{2})/(\d{2})(?:\s[^)]*)?\)")
 # Sufixo " — autor: Nome" do titulo (brabo-brain, fase 2). Sai antes do hash da chave.
 RE_AUTOR = re.compile(r"\s+[—-]+\s*autor:\s*(.+?)\s*$")
 RE_DIARIO = re.compile(r"^DIARIO_(.+)_(\d-[A-Z-]+)\.md$")
-RE_REGRA = re.compile(r"\b((?:ORC|CPA|SEG|META|VER)-\d+)\b")
+RE_REGRA = re.compile(r"\b((?:ORC|CPA|SEG|META|VER|OPS|PQ|GADS)-\d+)\b")
 
 PRODUTO = {"PBB": "PBB", "PES": "PES", "PI": "PI"}
 EXPERT_POR_PRODUTO = {"PBB": "Felipe Graton", "PES": "Ivan Neto", "PI": "Mateus Andrade"}

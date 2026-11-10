@@ -4416,8 +4416,13 @@ final e merge); **em validação — o pagamento ainda sai pela planilha**.
 valor-base ou participação **versiona** (fecha a vigência anterior, insere a nova), nunca dá UPDATE
 no valor.
 
-**Acesso.** `comercial_acessos` guarda o nível: `master`, `coordenador` ou `vendedor` (+ código
-AT). Master = coordenador = tudo; vendedor só o próprio; `admin` do painel = master. O isolamento
+**Acesso.** `comercial_acessos` guarda o nível: `master`, `coordenador`, `vendedor` (+ código
+AT) ou `consulta`. Master = coordenador = tudo; vendedor só o próprio; `admin` do painel = master.
+`consulta` (Financeiro/RH, desde 2026-11-10) só tem `ver_time`: vê tudo o que o gestor vê (time,
+comissão de cada vendedora, Excel, mês fechado, pendências), mas nenhuma ação — os formulários
+somem (`edita`/`edita_bonus`/`fechar`/`reabre` exigem a permissão da ação) e o POST devolve 403;
+"Regras e vendedores" fica fora do menu. O CHECK de nível da tabela foi trocado pela migração
+`SQL_MIGRACAO_ACESSOS_CONSULTA`. O isolamento
 do vendedor é na **camada de serviço** (a consulta já filtra), não no template. Toda rota está em
 `ROUTE_PERMISSIONS` (`_CMRC_AREA`); o nível fino é checado no handler. Não pode remover o próprio
 acesso nem rebaixar o último master.

@@ -390,7 +390,7 @@ async def comercial_inconsistencias(request: Request, mes: str | None = None, q:
     except t.PeriodoInvalido as exc:
         return resposta_400(str(exc))
     res = await run_in_threadpool(t.carregar, periodo)
-    gestor = ac.pode(acesso.nivel, "aprovar")
+    gestor = ac.pode(acesso.nivel, "ver_time")
     fila = await run_in_threadpool(lambda: com.ler_fila(vendedor_codigo=acesso.vendedor_codigo, gestor=gestor))
     conflitos = {}
     if gestor:

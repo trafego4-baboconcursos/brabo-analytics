@@ -439,7 +439,8 @@ def test_entrada():
 
 # ---------------------------------------------------------------- rotas
 _USUARIOS = {"master@teste.local": MASTER, "coord@teste.local": COORD, "edileia@teste.local": AT4,
-             "pri@teste.local": AcessoComercial("vendedor", "AT11")}
+             "pri@teste.local": AcessoComercial("vendedor", "AT11"),
+             "fin@teste.local": AcessoComercial("consulta")}
 
 
 @pytest.fixture(scope="module")
@@ -815,3 +816,28 @@ def test_venda_da_camila_aparece_em_sem_codigo_e_pode_ser_reivindicada():
     inc.conferir_reivindicacao(l, "AT4")
     assert inc.localizar([l], "HP1") == l
     assert inc.sem_codigo([replace(l, situacao="cancelada")], None) == []
+
+
+# ---------------------------------------------------------------- nível consulta (Financeiro/RH)
+def test_pagina_consulta_ve_tudo_sem_botoes(cli):
+    cli.banco.atrib[("hotmart", "HP-SEM-001")] = {"vendedor_codigo": "AT9", "origem": "reivindicacao",
+                                                  "status": "pendente", "pedido_por": "jhe@x"}
+    r = _como(cli, "fin@teste.local").get("/comercial/inconsistencias?mes=2026-10")
+    assert r.status_code == 200, r.text[:300]
+    html = r.text
+    for trecho in ("Reembolso a verificar", "HP-JHE-REEMB", "HP-SEMBASE", "HP-SEMREGRA",
+                   "Reivindicações pendentes", "Histórico recente", "decisão do gestor"):
+        assert trecho in html, trecho
+    for proibido in ('action="/comercial/reembolso"', 'action="/comercial/atribuir"', 'action="/comercial/ajuste"',
+                     'action="/comercial/atribuicoes/aprovar"', 'action="/comercial/atribuicoes/recusar"',
+                     'action="/comercial/reivindicar"', "Escolher AT4"):
+        assert proibido not in html, proibido
+
+
+@pytest.mark.parametrize("rota", ROTAS_POST)
+def test_consulta_nao_grava(cli, rota):
+    r = _como(cli, "fin@teste.local").post(rota, data={"transacao": "HP-JHE-REEMB", "justificativa": "x",
+                                                       "motivo": "x", "decisao": "tira", "mes": "2026-10",
+                                                       "vendedor_codigo": "AT4", "pct": "10"})
+    assert r.status_code == 403
+    assert cli.banco.sql == [] and cli.desat == []

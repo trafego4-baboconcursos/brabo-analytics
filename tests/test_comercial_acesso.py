@@ -102,3 +102,15 @@ def test_ddl_check_e_indice():
     j = "\n".join(DDL)
     assert "nivel <> 'vendedor' OR vendedor_codigo IS NOT NULL" in j
     assert "ux_comercial_acessos_email_lower" in j
+
+
+@pytest.mark.parametrize("acao", ACOES_TUDO)
+def test_consulta_so_ve_o_time(acao):
+    # Financeiro/RH (10/11/26): vê o que o gestor vê, não altera nada
+    assert pode("consulta", acao) is (acao == "ver_time")
+
+
+def test_consulta_sem_codigo_tem_acesso():
+    r = acesso_comercial({"role": "comercial", "email": "fin@x.com"},
+                         ler=lambda _e: {"nivel": "consulta", "vendedor_codigo": None})
+    assert r == AcessoComercial("consulta", None)

@@ -732,7 +732,8 @@ def test_xlsx_traz_bonus():
 
 
 # ---------------------------------------------------------------- rotas
-_USUARIOS = {"master@teste.local": MASTER, "coord@teste.local": COORD, "edileia@teste.local": AT4}
+_USUARIOS = {"master@teste.local": MASTER, "coord@teste.local": COORD, "edileia@teste.local": AT4,
+             "fin@teste.local": AcessoComercial("consulta")}
 
 
 @pytest.fixture(scope="module")
@@ -1049,3 +1050,19 @@ def test_bonus_volta_com_o_filtro_de_vendedor(cli):
     r = _como(cli, "master@teste.local").post("/comercial/bonus", data={
         "vendedor_codigo": "AT9", "mes": "2026-10", "valor": "11", "vendedor": "x&ok=1"})
     assert r.headers["location"] == "/comercial/comissoes?mes=2026-10&ok=bonus_gravado"
+
+
+# ---------------------------------------------------------------- nível consulta (Financeiro/RH)
+@pytest.mark.parametrize("rota", ROTAS_POST)
+def test_consulta_nao_grava_regras(cli, rota):
+    r = _como(cli, "fin@teste.local").post(rota, data=_FORM)
+    assert r.status_code == 403
+    assert cli.banco.escritas() == [] and cli.desat == []
+
+
+def test_consulta_nao_abre_regras(cli):
+    assert _como(cli, "fin@teste.local").get("/comercial/regras").status_code == 403
+
+
+def test_nivel_consulta_no_cadastro_de_acessos():
+    assert rt.NIVEIS["consulta"].startswith("Consulta")

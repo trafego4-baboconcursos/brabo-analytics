@@ -238,7 +238,8 @@ def _com_dono(pedido: dict, vendas: list[LinhaComissao]) -> dict:
 
 def view_inconsistencias(res: ResultadoMes, periodo, acesso: AcessoComercial, fila: dict,
                          conflitos: dict[str, tuple] | None = None, q: str | None = None) -> dict:
-    gestor = pode(acesso.nivel, "aprovar")
+    gestor = pode(acesso.nivel, "ver_time")   # vê a fila do time (consulta também)
+    edita = pode(acesso.nivel, "aprovar")     # só quem decide vê os botões
     q = (q or "").strip()[:64]
     todas_sem = sem_codigo(res.linhas, q)
     total_mes = len(todas_sem) if not q else len(sem_codigo(res.linhas, None))
@@ -247,7 +248,8 @@ def view_inconsistencias(res: ResultadoMes, periodo, acesso: AcessoComercial, fi
     else:
         lista = todas_sem[:LIMITE_LISTA]
     base = {
-        "periodo": periodo, "gerado_em": res.gerado_em, "gestor": gestor, "acesso": acesso,
+        "periodo": periodo, "gerado_em": res.gerado_em, "gestor": gestor, "edita": edita,
+        "acesso": acesso,
         "fechado": res.fechado, "fechado_em": res.fechado_em, "fechado_por": res.fechado_por,
         "sem_livre": True, "q": q,
         "sem_codigo": lista, "sem_codigo_total": total_mes, "sem_codigo_achadas": len(todas_sem),

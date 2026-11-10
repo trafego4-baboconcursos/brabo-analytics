@@ -64,7 +64,7 @@ DDL = [
         origem text NOT NULL, criado_em timestamptz NOT NULL DEFAULT now())""",
     """CREATE TABLE IF NOT EXISTS comercial_acessos (
         email text PRIMARY KEY,
-        nivel text NOT NULL CHECK (nivel IN ('master','coordenador','vendedor')),
+        nivel text NOT NULL CHECK (nivel IN ('master','coordenador','vendedor','consulta')),
         vendedor_codigo text NULL, criado_por text NULL, criado_em timestamptz NOT NULL DEFAULT now(),
         CHECK (nivel <> 'vendedor' OR vendedor_codigo IS NOT NULL))""",
     # escritores devem gravar o e-mail em minusculas; o indice barra duplicata por caixa
@@ -121,7 +121,13 @@ DDL = [
 # Rodam na transação de criar_tabelas, só se a tabela existe, ANTES da conferência de colunas.
 SQL_MIGRACAO_SNAPSHOT_INVALIDADO = (
     "ALTER TABLE comercial_snapshot ADD COLUMN IF NOT EXISTS invalidado_em timestamptz")
-MIGRACOES = [("comercial_snapshot", SQL_MIGRACAO_SNAPSHOT_INVALIDADO)]
+# nível "consulta" (Financeiro/RH, 10/11/26): troca o CHECK de nível criado sem ele.
+SQL_MIGRACAO_ACESSOS_CONSULTA = (
+    "ALTER TABLE comercial_acessos DROP CONSTRAINT IF EXISTS comercial_acessos_nivel_check, "
+    "ADD CONSTRAINT comercial_acessos_nivel_check "
+    "CHECK (nivel IN ('master','coordenador','vendedor','consulta'))")
+MIGRACOES = [("comercial_snapshot", SQL_MIGRACAO_SNAPSHOT_INVALIDADO),
+             ("comercial_acessos", SQL_MIGRACAO_ACESSOS_CONSULTA)]
 
 
 # tipo do DDL -> data_type do information_schema
@@ -326,7 +332,7 @@ ESCRITAS_TELA = (SQL_ATRIB_REIVINDICAR, SQL_ATRIB_APROVAR, SQL_ATRIB_RECUSAR, SQ
                  SQL_REEMBOLSO_UPSERT, SQL_AJUSTE_DESATIVAR, SQL_AJUSTE_INSERIR, SQL_HISTORICO_INSERIR)
 _EXATAS = {" ".join(q.split()) for q in
            (SQL_SNAPSHOT_UPSERT, SQL_SNAPSHOT_DESATUALIZAR_MES, SQL_SNAPSHOT_DESATUALIZAR_TODOS,
-            SQL_MIGRACAO_SNAPSHOT_INVALIDADO, *ESCRITAS_TELA, *ESCRITAS_REGRAS, *ESCRITAS_FECHAMENTO)}
+            SQL_MIGRACAO_SNAPSHOT_INVALIDADO, SQL_MIGRACAO_ACESSOS_CONSULTA, *ESCRITAS_TELA, *ESCRITAS_REGRAS, *ESCRITAS_FECHAMENTO)}
 _SELECT_COUNT = re.compile(r"\s*SELECT\s+count\(\*\)\s+FROM\s+comercial_\w+\s*", re.IGNORECASE)
 _INSERT_COM_LEITURA = re.compile(r"\b(?:SELECT|FROM|JOIN|TABLE)\b", re.IGNORECASE)
 

@@ -460,7 +460,8 @@ def view_comissoes(res: ResultadoMes, periodo: Periodo, acesso: AcessoComercial,
         p["a_pagar"] = p["elegivel"] + (p["prevista"] if res.fechado else _ZERO)
     # "Fechar mês": só gestor, mês que já terminou e ainda aberto — contagens do mês inteiro
     fechar = None
-    if gestor and not periodo.livre and not res.fechado and hoje and fech.pode_fechar_mes(periodo.mes, hoje):
+    if (gestor and pode(acesso.nivel, "fechar_mes") and not periodo.livre and not res.fechado and hoje
+            and fech.pode_fechar_mes(periodo.mes, hoje)):
         k_mes = kpis(res.linhas)
         fechar = fech.info_fechar(res.linhas, k_mes["inconsistencias"] - fech.a_verificar(res.linhas),
                                   periodo.rotulo)
@@ -468,15 +469,16 @@ def view_comissoes(res: ResultadoMes, periodo: Periodo, acesso: AcessoComercial,
         **_cabecalho(res, periodo, acesso),
         "kpis": com_bonus(kpis(vis), b, res.fechado),
         "vendedores": aplicar_bonus(tabela_vendedores(vis), b, res.fechado),
-        "edita_bonus": gestor and not periodo.livre and bonus is not None and not res.fechado,
+        "edita_bonus": (gestor and pode(acesso.nivel, "lancar_bonus") and not periodo.livre
+                        and bonus is not None and not res.fechado),
         "vendedores_ativos": list(vendedores_ativos or []) if gestor and not res.fechado else [],
         "participacoes": participacoes,
         "opcoes_vendedores": opcoes_vendedores(res.linhas) if gestor else [],
         "vendedor": filtro,
         "linhas": vis,
         "fechar": fechar,
-        "reabre": gestor and res.fechado and ultimo_fechado,
-        "reabre_bloqueado": gestor and res.fechado and not ultimo_fechado,  # Ruling 19b
+        "reabre": gestor and pode(acesso.nivel, "fechar_mes") and res.fechado and ultimo_fechado,
+        "reabre_bloqueado": gestor and pode(acesso.nivel, "fechar_mes") and res.fechado and not ultimo_fechado,  # Ruling 19b
     }
 
 

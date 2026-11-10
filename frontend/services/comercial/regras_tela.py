@@ -20,7 +20,8 @@ from frontend.services.comercial.inconsistencias import (  # noqa: F401  (reexpo
 PLATAFORMAS = {"hotmart": "Hotmart", "tmb": "TMB"}
 MODALIDADES = {"cartao_pix": "Cartão / Pix / à vista", "parcelado": "Parcelado / boleto / recorrência"}
 TIPOS = ("Ativa", "Reativa")
-NIVEIS = {"master": "Master", "coordenador": "Coordenador", "vendedor": "Vendedor"}
+NIVEIS = {"master": "Master", "coordenador": "Coordenador", "vendedor": "Vendedor",
+          "consulta": "Consulta (só leitura)"}
 INICIO_MINIMO = PRIMEIRO_MES  # piso único (meses.py)
 LIMITE_LISTA = 200
 MAX_NOME = 80

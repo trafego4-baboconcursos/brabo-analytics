@@ -19,12 +19,14 @@ _CACHE_TTL = 60.0
 _cache: dict[str, tuple[float, dict | None]] = {}
 
 # master == coordenador (decisão 06/11/26): tudo. vendedor: só o próprio + reivindicar.
+# consulta (Financeiro/RH, 10/11/26): vê tudo o que o gestor vê, sem alterar nada.
 _TUDO = {"ver_time", "editar_regras", "editar_participacoes", "aprovar", "lancar_bonus",
          "fechar_mes", "ver_proprio", "reivindicar"}
 _PERMISSOES: dict[str, set[str]] = {
     "master": _TUDO,
     "coordenador": _TUDO,
     "vendedor": {"ver_proprio", "reivindicar"},
+    "consulta": {"ver_time"},
 }
 
 

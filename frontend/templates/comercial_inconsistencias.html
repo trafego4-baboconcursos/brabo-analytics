@@ -25,7 +25,7 @@
 {% macro mes_hidden() %}<input type="hidden" name="mes" value="{{ mes_txt }}">{% endmacro %}
 {% macro plat(l) %}{{ 'Hotmart' if l.plataforma == 'hotmart' else ('TMB' if l.plataforma == 'tmb' else l.plataforma) }}{% endmacro %}
 {% macro form_ajuste(transacao) %}
-{% if not v.fechado %}
+{% if v.edita and not v.fechado %}
 <details><summary>Ajuste manual</summary>
   <form method="post" action="/comercial/ajuste" class="cm-acao">
     {{ mes_hidden() }}<input type="hidden" name="transacao" value="{{ transacao }}">
@@ -112,12 +112,14 @@
               <td class="n">{{ l.valor_base | brl_exato }}</td>
               <td class="n">{{ l.valor | brl_exato }}</td>
               <td>
+                {% if v.edita %}
                 <form method="post" action="/comercial/reembolso" class="cm-acao">
                   {{ mes_hidden() }}<input type="hidden" name="transacao" value="{{ l.transacao }}">
                   <input type="text" name="justificativa" placeholder="justificativa (obrigatória)" required maxlength="1000" aria-label="Justificativa">
                   <button type="submit" name="decisao" value="mantem" class="cm-btn ok">Mantém</button>
                   <button type="submit" name="decisao" value="tira" class="cm-btn nao">Tira</button>
                 </form>
+                {% else %}<span class="cm-sub">decisão do gestor</span>{% endif %}
               </td>
             </tr>
             {% endfor %}
@@ -142,7 +144,7 @@
               <td class="n">{{ c.linha.valor_base | brl_exato }}</td>
               <td>
                 <div class="cm-acao">
-                  {% for cod in c.codigos if not v.fechado %}
+                  {% for cod in c.codigos if v.edita and not v.fechado %}
                   <form method="post" action="/comercial/atribuir" class="cm-acao">
                     {{ mes_hidden() }}<input type="hidden" name="transacao" value="{{ c.linha.transacao }}">
                     <input type="hidden" name="vendedor_codigo" value="{{ cod }}">
@@ -176,7 +178,7 @@
         Não bloqueia: renomeie ou vincule no cadastro de vendedores.</div>
       {% endif %}
 
-      {% if not v.fechado %}
+      {% if v.edita and not v.fechado %}
       <div class="cm-subtitulo">Ajuste manual em qualquer venda</div>
       <form method="post" action="/comercial/ajuste" class="cm-acao">
         {{ mes_hidden() }}
@@ -209,6 +211,7 @@
               <td class="cm-sub">{{ p.pedido_por or '—' }}</td>
               <td style="white-space:nowrap;">{{ p.criado_em.strftime('%d/%m %H:%M') if p.criado_em else '—' }}</td>
               <td>
+                {% if v.edita %}
                 <div class="cm-acao">
                   {% if not v.fechado %}
                   <form method="post" action="/comercial/atribuicoes/aprovar" class="cm-acao">
@@ -224,6 +227,7 @@
                     </form>
                   </details>
                 </div>
+                {% else %}<span class="cm-sub">decisão do gestor</span>{% endif %}
               </td>
             </tr>
             {% endfor %}
@@ -291,7 +295,7 @@
                 <span class="cm-chip prevista">em análise</span>
                 {% elif v.fechado %}
                 <span class="cm-sub">mês fechado</span>
-                {% elif v.gestor %}
+                {% elif v.edita %}
                 <form method="post" action="/comercial/atribuir" class="cm-acao">
                   {{ mes_hidden() }}<input type="hidden" name="transacao" value="{{ l.transacao }}">
                   <select name="vendedor_codigo" required aria-label="Vendedor">
@@ -300,11 +304,12 @@
                   </select>
                   <button type="submit" class="cm-btn">Atribuir</button>
                 </form>
-                {% else %}
+                {% elif not v.gestor %}
                 <form method="post" action="/comercial/reivindicar" class="cm-acao">
                   {{ mes_hidden() }}<input type="hidden" name="transacao" value="{{ l.transacao }}">
                   <button type="submit" class="cm-btn">Reivindicar</button>
                 </form>
+                {% else %}<span class="cm-sub">—</span>
                 {% endif %}
               </td>
             </tr>

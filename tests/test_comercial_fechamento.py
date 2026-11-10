@@ -336,7 +336,8 @@ def test_mes_fechado_da_transacao(banco):
     assert com.mes_fechado_da_transacao("HP-EDI-1") is None
 
 
-_USUARIOS = {"master@teste.local": MASTER, "coord@teste.local": COORD, "edileia@teste.local": AT4}
+_USUARIOS = {"master@teste.local": MASTER, "coord@teste.local": COORD, "edileia@teste.local": AT4,
+             "fin@teste.local": AcessoComercial("consulta")}
 
 
 @pytest.fixture(scope="module")
@@ -763,3 +764,24 @@ def test_ranking_inclui_vendedor_so_com_estorno():
     assert rk["AT9"]["comissao"] == com_["AT9"]["total"] == D("200.00")
     vend = telas.ranking(linhas, AT4)["linhas"]
     assert all("comissao" not in r for r in vend)
+
+
+# ---------------------------------------------------------------- nível consulta (Financeiro/RH)
+@pytest.mark.parametrize("rota", ["/comercial/fechar-mes", "/comercial/reabrir-mes", "/comercial/bonus"])
+def test_consulta_nao_fecha_reabre_nem_lanca_bonus(cli, rota):
+    _congelar(cli.banco, SET, [])
+    r = _como(cli, "fin@teste.local").post(rota, data={"mes": "2026-10" if "fechar" in rota else "2026-09",
+                                                       "motivo": "x", "vendedor_codigo": "AT4", "valor": "100"})
+    assert r.status_code == 403
+    assert cli.banco.escritas() == [] and cli.desat == [] and cli.banco.fechamentos[SET]["ativo"]
+
+
+def test_consulta_ve_comissoes_do_time_sem_botoes(cli, monkeypatch):
+    html = _como(cli, "fin@teste.local").get("/comercial/comissoes?mes=2026-10").text
+    assert "Ediléia" in html and "Fechamento do período por vendedor" in html
+    assert 'action="/comercial/fechar-mes"' not in html and 'action="/comercial/bonus"' not in html
+    monkeypatch.setattr(snap, "obter_mes", lambda mes, **kw: _fechado())
+    html = _como(cli, "fin@teste.local").get("/comercial/comissoes?mes=2026-10").text
+    assert "Mês fechado em 02/11" in html and 'action="/comercial/reabrir-mes"' not in html
+    menu = _como(cli, "fin@teste.local").get("/comercial/ranking").text
+    assert 'href="/comercial/regras"' not in menu

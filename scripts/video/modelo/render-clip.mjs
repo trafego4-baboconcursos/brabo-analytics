@@ -15,7 +15,8 @@ await renderMedia({
   codec: "h264",
   crf: 26,
   scale: 0.5,
-  concurrency: 4,
+  // CONC=1 quando o Chrome estoura memória (DataCloneError … out of memory) em trechos pesados
+  concurrency: Number(process.env.CONC || 4),
   frameRange: [Math.round(Number(de) * 30), Math.round(Number(ate) * 30) - 1],
   outputLocation: out,
 });

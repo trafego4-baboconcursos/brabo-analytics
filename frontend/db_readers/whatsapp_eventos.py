@@ -21,6 +21,8 @@ Contas (validadas em 27/10/26):
 """
 from __future__ import annotations
 
+import threading
+import time
 from datetime import date, datetime
 from typing import Any
 
@@ -45,15 +47,57 @@ def _codigos(code: str) -> list[str]:
     return [code, *CODIGOS_EVENTOS.get(code.upper(), ())]
 
 
-def _carregar(code: str) -> pd.DataFrame:
+def _consultar(code: str, desde: pd.Timestamp | None = None) -> pd.DataFrame:
+    """Eventos do lançamento no banco; com `desde`, só os de `timestamp >= desde` (usa idx_eventos_timestamp)."""
     filtros = " OR ".join(f"nome_campanha ILIKE :p{i}" for i, _ in enumerate(_codigos(code)))
-    params = {f"p{i}": f"%[{c}]%" for i, c in enumerate(_codigos(code))}
+    params: dict[str, Any] = {f"p{i}": f"%[{c}]%" for i, c in enumerate(_codigos(code))}
+    corte = ""
+    if desde is not None:
+        corte = " AND timestamp >= :desde"
+        params["desde"] = desde.to_pydatetime()
     with _get_engine().connect() as conn:
         return pd.read_sql(
             text(f"""SELECT timestamp, nome_grupo, TRIM(ent_sai) AS ent_sai, numero_lead::text AS numero_lead, nome_campanha
-                     FROM leads_grupos_eventos WHERE {filtros}"""),
+                     FROM leads_grupos_eventos WHERE ({filtros}){corte}"""),
             conn, params=params,
         )
+
+
+# Leitura incremental (11/11/26). Baixar todos os eventos do lançamento a cada 5 min (50–90 mil linhas, ~6 MB)
+# era ~4 GB/dia de egress do Supabase — mais da metade do consumo do ciclo. Agora o processo guarda os eventos e
+# só relê a janela final: o que está nela é substituído pelo que o banco devolve (evento atrasado ou apagado
+# dentro da janela entra certo). Fora da janela, uma releitura completa a cada `_RECARGA_TOTAL` corrige o resto.
+_JANELA_RELEITURA = pd.Timedelta(hours=3)   # ~650 eventos/hora em lançamento ativo (nov/26)
+_RECARGA_TOTAL = 6 * 3600
+_eventos: dict[str, tuple[float, pd.DataFrame]] = {}   # code -> (hora da última leitura completa, eventos)
+_travas: dict[str, threading.Lock] = {}
+_trava_global = threading.Lock()
+
+
+def _trava(code: str) -> threading.Lock:
+    with _trava_global:
+        return _travas.setdefault(code, threading.Lock())
+
+
+def reset_eventos_cache() -> None:
+    _eventos.clear()
+
+
+def _carregar(code: str) -> pd.DataFrame:
+    with _trava(code):
+        guardado = _eventos.get(code)
+        agora = time.time()
+        if guardado is None or agora - guardado[0] >= _RECARGA_TOTAL or guardado[1].empty:
+            df = _consultar(code)
+            _eventos[code] = (agora, df)
+            return df
+        completo_em, antigo = guardado
+        desde = antigo["timestamp"].max() - _JANELA_RELEITURA
+        novos = _consultar(code, desde)
+        base = antigo[antigo["timestamp"] < desde]
+        df = base if novos.empty else pd.concat([base, novos], ignore_index=True)
+        _eventos[code] = (completo_em, df)
+        return df
 
 
 def _varredura(df: pd.DataFrame) -> dict:

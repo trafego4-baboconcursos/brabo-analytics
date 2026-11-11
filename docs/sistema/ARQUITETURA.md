@@ -4536,6 +4536,17 @@ Saiu da revisão [[REVISAO_TABELAS_ADS_2026-11-09]].
   A `leads` ganhou autovacuum com scale factor 0,02. Depois do `VACUUM`, a contagem por
   lançamento caiu de 30 s para menos de 1 s. Detalhes e definições para recriar:
   [[REVISAO_TABELAS_ADS_2026-11-09]].
+- **Grupos de WhatsApp (`whatsapp_eventos.py`): leitura incremental, 11/11/26.**
+  - **O problema:** com o cache de 5 min, o leitor baixava todos os eventos do lançamento a cada
+    rodada (165–187 mil linhas em PES-NOV-26 e PI-NOV-26). Isso dava ~4 GB/dia de egress no
+    Supabase, mais da metade do ciclo, e colocou a organização perto da cota de 250 GB.
+  - **Como funciona agora:** o processo guarda os eventos (`_eventos`). A cada rodada, relê só as
+    últimas 3 h (`_JANELA_RELEITURA`) e troca essa janela pelo que o banco devolve; um evento
+    atrasado ou apagado dentro dela sai certo. A cada 6 h (`_RECARGA_TOTAL`) relê tudo, o que
+    corrige atrasos maiores que a janela. Há uma trava por lançamento.
+  - **Resultado:** ~1–2 mil linhas por rodada, em 0,1 s em vez de 4–6 s. Card idêntico ao da
+    leitura completa, conferido nos dois lançamentos com o cache simulado de 1 h e de 24 h atrás.
+  - Teste: `tests/test_whatsapp_eventos_incremental.py`.
 
 ## `/verba` no layout da planilha "Verba Diária" (2026-11-10)
 

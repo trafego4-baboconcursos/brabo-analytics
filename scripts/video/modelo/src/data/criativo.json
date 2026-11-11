@@ -10,7 +10,7 @@
   },
   "cenas": [
     {
-      "id": "dona-de-casa", "componente": "Desenho", "de": 3.4, "ate": 9.0,
+      "id": "dona-de-casa", "componente": "Desenho", "de": 3.4, "ate": 8.88,
       "props": { "img": "dona-de-casa-original.jpg", "etiquetas": [
         { "texto": "trabalha", "em": 4.4, "x": 90, "y": 190, "rot": -4 },
         { "texto": "cuida da casa", "em": 4.82, "x": 430, "y": 290, "rot": 3 },
@@ -58,7 +58,7 @@
       "sfx": [[52.7, "whoosh", 0.35], [53.82, "mouse-click", 0.3], [54.28, "mouse-click", 0.3], [55.12, "mouse-click", 0.3]]
     },
     {
-      "id": "mapa", "componente": "Rota", "de": 62.9, "ate": 75.8,
+      "id": "mapa", "componente": "Rota", "de": 62.9, "ate": 74.45,
       "ancora_palavras": { "aprovada": "aprovada" },
       "props": { "imagem": "mapa-montanha-limpo.jpg", "imagemTamanho": [1536, 2752],
         "estrada": [[120, 1840], [200, 1790], [245, 1750], [245, 1680], [225, 1600], [205, 1520], [215, 1480], [280, 1445],
@@ -72,7 +72,7 @@
       "sfx": [[62.9, "whoosh", 0.35], [70.3, "mouse-click", 0.3], ["@aprovada", "ding", 0.3]]
     },
     {
-      "id": "metodo", "componente": "PapelMesa", "de": 85.8, "ate": 93.4,
+      "id": "metodo", "componente": "PapelMesa", "de": 85.8, "ate": 93.78,
       "props": { "kicker": "Por que tanta gente estuda e não passa", "titulo": "Mesmas 2h por dia, resultados opostos",
         "curvaRuim": { "rotulo": "sem método", "em": [86.2, 87.8] }, "curvaBoa": { "rotulo": "método certo", "em": [89.7, 91.0] },
         "circulo": { "em": 91.7 }, "mao": { "texto": "evolui mais rápido", "em": 91.9 },
@@ -80,14 +80,14 @@
       "sfx": [[85.8, "page-turn", 0.45], [89.5, "whip", 0.3], [91.7, "switch", 0.2]]
     },
     {
-      "id": "projeto", "componente": "Cartao", "de": 100.8, "ate": 105.4,
+      "id": "projeto", "componente": "Cartao", "de": 100.8, "ate": 105.34,
       "props": { "kicker": "✳ CURSO DO MATEUS", "titulo": "Projeto\nINSS",
         "subtitulo": { "texto": "Como estudar para ser aprovada", "em": 104.6 },
         "carimbo": { "texto": "GRATUITO", "em": 103.3 } },
       "sfx": [[100.8, "whoosh", 0.35], [103.3, "vine-boom", 0.2]]
     },
     {
-      "id": "checklist", "componente": "Checklist", "de": 110.7, "ate": 118.3,
+      "id": "checklist", "componente": "Checklist", "de": 110.7, "ate": 117.92,
       "props": { "kicker": "NO PROJETO INSS", "titulo": "Você vai aprender", "destacarUltimo": true, "itens": [
         { "texto": "Como organizar as matérias", "em": 110.9 },
         { "texto": "Quanto tempo estudar cada uma", "em": 112.0 },

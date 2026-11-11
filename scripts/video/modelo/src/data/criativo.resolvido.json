@@ -27,7 +27,7 @@
    "id": "dona-de-casa",
    "componente": "Desenho",
    "de": 3.4,
-   "ate": 9.0,
+   "ate": 8.88,
    "props": {
     "img": "dona-de-casa-original.jpg",
     "etiquetas": [
@@ -321,7 +321,7 @@
    "id": "mapa",
    "componente": "Rota",
    "de": 62.9,
-   "ate": 75.8,
+   "ate": 74.45,
    "ancora_palavras": {
     "aprovada": "aprovada"
    },
@@ -504,7 +504,7 @@
    "id": "metodo",
    "componente": "PapelMesa",
    "de": 85.8,
-   "ate": 93.4,
+   "ate": 93.78,
    "props": {
     "kicker": "Por que tanta gente estuda e não passa",
     "titulo": "Mesmas 2h por dia, resultados opostos",
@@ -557,7 +557,7 @@
    "id": "projeto",
    "componente": "Cartao",
    "de": 100.8,
-   "ate": 105.4,
+   "ate": 105.34,
    "props": {
     "kicker": "✳ CURSO DO MATEUS",
     "titulo": "Projeto\nINSS",
@@ -588,7 +588,7 @@
    "id": "checklist",
    "componente": "Checklist",
    "de": 110.7,
-   "ate": 118.3,
+   "ate": 117.92,
    "props": {
     "kicker": "NO PROJETO INSS",
     "titulo": "Você vai aprender",
@@ -711,7 +711,7 @@
  "cobertos": [
   [
    3.4,
-   9.0
+   8.88
   ],
   [
    19.13,
@@ -735,19 +735,19 @@
   ],
   [
    62.9,
-   75.8
+   74.45
   ],
   [
    85.8,
-   93.4
+   93.78
   ],
   [
    100.8,
-   105.4
+   105.34
   ],
   [
    110.7,
-   118.3
+   117.92
   ],
   [
    120.3,

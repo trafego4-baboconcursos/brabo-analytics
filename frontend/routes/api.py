@@ -2,7 +2,7 @@ from __future__ import annotations
 import os
 import time as _time
 from fastapi import APIRouter, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.concurrency import run_in_threadpool
 
 from frontend.core import (
@@ -67,6 +67,22 @@ def api_toggle_user(request: Request, user_id: str):
         return {"error": "Usuário não encontrado"}
     update_user(user_id, is_active=not target["is_active"])
     return {"ok": True, "is_active": not target["is_active"]}
+
+
+@router.post("/api/users/{user_id}/link-senha")
+def api_link_senha(request: Request, user_id: str):
+    """Admin gera o link de nova senha (vale RESET_HORAS, morre quando a senha muda)."""
+    from frontend.auth import RESET_HORAS, gerar_token_senha  # noqa: PLC0415
+    from frontend.db_readers.users import get_user_para_senha  # noqa: PLC0415
+    current = _get_current_user(request)
+    if current["role"] != "admin":
+        return JSONResponse({"error": "Sem permissão"}, status_code=403)
+    alvo = get_user_para_senha(user_id)
+    if not alvo or not alvo["is_active"]:
+        return JSONResponse({"error": "Usuário não encontrado ou inativo"}, status_code=404)
+    token = gerar_token_senha(alvo["id"], alvo["password_hash"] or "")
+    url = str(request.base_url).rstrip("/") + "/senha/" + token
+    return {"ok": True, "url": url, "email": alvo["email"], "horas": RESET_HORAS}
 
 
 @router.post("/api/users/{user_id}/role")

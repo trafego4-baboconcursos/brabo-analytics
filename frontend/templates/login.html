@@ -276,6 +276,13 @@
         <input type="hidden" name="next_launch" value="{{ next_launch }}">
         {% endif %}
 
+        {% if senha_trocada %}
+        <div class="error-alert" style="background:rgba(49,193,108,.15);border-color:rgba(49,193,108,.3);color:#6ee7a0">
+          <i class="ti ti-circle-check"></i>
+          <span>Senha salva! Entre com o seu e-mail e a senha nova.</span>
+        </div>
+        {% endif %}
+
         {% if invited %}
         <div class="error-alert" style="background:rgba(49,193,108,.15);border-color:rgba(49,193,108,.3);color:#6ee7a0">
           <i class="ti ti-circle-check"></i>

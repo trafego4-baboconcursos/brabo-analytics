@@ -2,7 +2,7 @@
 titulo: "Arquitetura do Brabo Analytics — 2026-11-03"
 area: sistema
 status: vigente
-atualizado: 2026-11-10
+atualizado: 2026-11-11
 responde:
   - "como agendar pausa de anuncio no etl"
   - "como o sistema funciona por dentro"
@@ -902,6 +902,17 @@ Auth HMAC e sessão — zero dependência de rotas ou cache:
 - Sessão HMAC: `_sign_session`, `_decode_session`, `_set_session_cookie`
 - Helpers: `_get_current_user`, `_filter_launches_for_user`
 - Rate limiting: `_check_login_rate_limit`, `_record_login_attempt`
+- Link de nova senha (2026-11-11): `gerar_token_senha` / `ler_token_senha`.
+  - Não usa tabela. O token é `user_id.validade.assinatura`, assinado com `SECRET_KEY` + o hash da
+    senha atual.
+  - Vale `RESET_HORAS` (48 h) e morre quando a senha muda, então é de uso único.
+  - Quem gera é o admin em Configurações → Usuários → "Link de nova senha"
+    (`POST /api/users/{id}/link-senha`).
+  - A pessoa abre `/senha/{token}`, que é rota pública, e cria a senha (mínimo 8 caracteres). O
+    login mostra "Senha salva".
+  - O painel não manda e-mail: o link vai pelo Slack.
+- O seletor de Tema saiu do bloco de admin do menu e aparece para todo usuário logado (a escolha
+  fica no navegador, em `tema.js`).
 
 ### `frontend/cache.py`
 Cache em memória com TTL — zero dependências além de `time`:

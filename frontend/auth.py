@@ -164,6 +164,40 @@ def _sign_session(user_id: str, role: str, products: list[str], email: str) -> s
     return base64.urlsafe_b64encode(f"{payload}|{sig}".encode()).decode("ascii")
 
 
+# ── Link de nova senha (11/11/26) ──────────────────────────────────────────────
+# Sem tabela: o token leva user_id + validade e é assinado com SECRET_KEY E com o hash da
+# senha atual. Trocou a senha, o hash muda e o link morre (uso único); vence em RESET_HORAS.
+RESET_HORAS = 48
+
+
+def _assinatura_reset(user_id: str, expira: int, password_hash: str) -> str:
+    msg = f"senha|{user_id}|{expira}|{password_hash or ''}"
+    return hmac.new(SECRET_KEY.encode(), msg.encode(), hashlib.sha256).hexdigest()[:40]
+
+
+def gerar_token_senha(user_id: str, password_hash: str, horas: int = RESET_HORAS,
+                      agora: float | None = None) -> str:
+    expira = int((agora if agora is not None else _time_module.time()) + horas * 3600)
+    return f"{user_id}.{expira}.{_assinatura_reset(user_id, expira, password_hash)}"
+
+
+def ler_token_senha(token: str, buscar_usuario, agora: float | None = None) -> dict | None:
+    """Usuário (dict de get_user_by_id) se o token vale; None se inválido, vencido ou já usado."""
+    try:
+        user_id, expira_txt, sig = (token or "").rsplit(".", 2)
+        expira = int(expira_txt)
+    except ValueError:
+        return None
+    if expira < (agora if agora is not None else _time_module.time()):
+        return None
+    user = buscar_usuario(user_id)
+    if not user or not user.get("is_active"):
+        return None
+    if not hmac.compare_digest(sig, _assinatura_reset(user_id, expira, user.get("password_hash") or "")):
+        return None
+    return user
+
+
 def _decode_session(token: str | None) -> dict | None:
     if not token:
         return None

@@ -86,6 +86,32 @@ def get_user_by_id(user_id: str) -> dict | None:
     }
 
 
+def get_user_para_senha(user_id: str) -> dict | None:
+    """id/e-mail/nome/ativo + hash da senha: só para o link de nova senha (auth.ler_token_senha).
+    Id que não é uuid (link adulterado) = None, não erro."""
+    import uuid as _uuid  # noqa: PLC0415
+    try:
+        _uuid.UUID(str(user_id))
+    except ValueError:
+        return None
+    with _get_users_engine().connect() as conn:
+        row = conn.execute(
+            text("SELECT id, email, name, is_active, password_hash FROM users WHERE id = :uid"),
+            {"uid": str(user_id)},
+        ).fetchone()
+    if not row:
+        return None
+    return {"id": str(row[0]), "email": row[1], "name": row[2], "is_active": row[3],
+            "password_hash": row[4]}
+
+
+def update_password(user_id: str, password_hash: str) -> None:
+    with _get_users_engine().connect() as conn:
+        conn.execute(text("UPDATE users SET password_hash = :h WHERE id = :uid"),
+                     {"h": password_hash, "uid": str(user_id)})
+        conn.commit()
+
+
 def list_users() -> list[dict]:
     with _get_users_engine().connect() as conn:
         rows = conn.execute(text(

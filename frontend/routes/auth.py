@@ -14,9 +14,11 @@ router = APIRouter()
 
 
 @router.get("/login")
-def login_page(request: Request, next: str | None = None, invited: str | None = None):
+def login_page(request: Request, next: str | None = None, invited: str | None = None,
+               senha: str | None = None):
     return templates.TemplateResponse("login.html", {
         "request": request, "error": None, "next_launch": next, "invited": invited,
+        "senha_trocada": senha,
     })
 
 
@@ -72,6 +74,45 @@ def logout_action():
     response = RedirectResponse(url="/login", status_code=303)
     response.delete_cookie(key="session_token", samesite="lax", secure=COOKIE_SECURE)
     return response
+
+
+def _usuario_do_link(token: str):
+    from frontend.auth import ler_token_senha  # noqa: PLC0415
+    from frontend.db_readers.users import get_user_para_senha  # noqa: PLC0415
+    try:
+        return ler_token_senha(token, get_user_para_senha)
+    except Exception:
+        logger.exception("link de nova senha: falha ao ler o usuário")
+        return None
+
+
+_LINK_RUIM = "Este link de nova senha é inválido, venceu ou já foi usado. Peça um novo ao administrador."
+
+
+@router.get("/senha/{token}")
+def senha_page(request: Request, token: str):
+    user = _usuario_do_link(token)
+    return templates.TemplateResponse("senha.html", {
+        "request": request, "token": token, "user": user,
+        "error": None if user else _LINK_RUIM, "bloqueado": user is None,
+    })
+
+
+@router.post("/senha/{token}")
+def senha_action(request: Request, token: str, password: str = Form(...),
+                 confirm_password: str = Form(...)):
+    from frontend.db_readers.users import update_password  # noqa: PLC0415
+    user = _usuario_do_link(token)
+    ctx = {"request": request, "token": token, "user": user, "bloqueado": user is None}
+    if user is None:
+        return templates.TemplateResponse("senha.html", {**ctx, "error": _LINK_RUIM})
+    if password != confirm_password:
+        return templates.TemplateResponse("senha.html", {**ctx, "error": "As senhas não coincidem."})
+    if len(password) < 8:
+        return templates.TemplateResponse("senha.html", {**ctx, "error": "A senha deve ter ao menos 8 caracteres."})
+    update_password(user["id"], _hash_password(password))
+    logger.info("senha trocada pelo link: %s", user["email"])
+    return RedirectResponse(url="/login?senha=1", status_code=303)
 
 
 @router.get("/invite/{token}")

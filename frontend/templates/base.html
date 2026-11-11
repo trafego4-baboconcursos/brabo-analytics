@@ -418,6 +418,13 @@
         {% endif %}
       </div>
 
+    </div>
+    {% endif %}
+
+    {# Tema: qualquer usuário escolhe (fica no navegador dele) — pedido do Rafael, 11/11/26. #}
+    {% if current_user %}
+    <div style="flex-shrink:0;">
+      {% if current_user.role != 'admin' %}<div class="bs-nav-sep"></div>{% endif %}
       <div class="bs-launch-picker" id="bs-theme-picker">
         <button type="button" class="bs-mode-btn bs-launch-picker-btn" id="bs-theme-btn" onclick="bsPickerToggle(this); bsThemeSyncActive();">
           <span class="bs-launch-picker-label"><i class="ti ti-palette"></i> Tema</span>

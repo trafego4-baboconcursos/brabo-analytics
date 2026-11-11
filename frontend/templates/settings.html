@@ -214,6 +214,14 @@
                   padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">
                   {{ 'Desativar' if u.is_active else 'Reativar' }}
                 </button>
+                {% if u.is_active %}
+                <button onclick="userLinkSenha('{{ u.id }}', this)" title="Gera um link para a pessoa criar uma senha nova (vale 48 h, uma vez)"
+                  style="border:1px solid var(--bs-border-s);background:var(--bs-surface);color:var(--bs-ink);
+                  padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer">
+                  <i class="ti ti-key"></i> Link de nova senha
+                </button>
+                <div class="link-senha" id="link-senha-{{ u.id }}" style="display:none;margin-top:6px;font-size:11px;max-width:320px;word-break:break-all"></div>
+                {% endif %}
               </td>
             </tr>
             {% endfor %}
@@ -550,6 +558,24 @@ async function userToggle(userId, isActive) {
   const res = await fetch(`/api/users/${userId}/toggle`, { method: 'POST' });
   if (res.ok) location.reload();
   else alert('Erro ao atualizar usuário.');
+}
+
+async function userLinkSenha(userId, btn) {
+  const caixa = document.getElementById(`link-senha-${userId}`);
+  btn.disabled = true;
+  try {
+    const res = await fetch(`/api/users/${userId}/link-senha`, { method: 'POST' });
+    const d = await res.json();
+    caixa.style.display = 'block';
+    if (!res.ok || !d.ok) { caixa.textContent = d.error || 'Erro ao gerar o link.'; return; }
+    caixa.textContent = '';
+    const a = document.createElement('code'); a.textContent = d.url;
+    const nota = document.createElement('div');
+    nota.style.color = 'var(--bs-ink-muted)';
+    nota.textContent = `Mande só para ${d.email}. Vale ${d.horas} h e uma vez.`;
+    caixa.append(a, nota);
+    try { await navigator.clipboard.writeText(d.url); nota.textContent += ' Copiado.'; } catch (e) {}
+  } finally { btn.disabled = false; }
 }
 
 // ── Convites — toggle "Todos" ─────────────────────────────

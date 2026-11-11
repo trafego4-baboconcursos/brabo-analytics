@@ -83,6 +83,7 @@ async def auth_middleware(request: Request, call_next):
         or path == "/api/etl/refresh"  # autenticado por token no próprio handler (chamado pelo ETL, não por pessoa)
         or path.startswith("/api/unnichat/webhook/")  # chamado pela automação do Unnichat; autenticado por X-Webhook-Secret
         or path.startswith("/invite/")
+        or path.startswith("/senha/")  # link de nova senha: autenticado pelo token assinado
         or path.startswith("/assets")
         or path.startswith("/static")
     ):

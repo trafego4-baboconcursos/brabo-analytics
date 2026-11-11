@@ -6,7 +6,7 @@ import path from "node:path";
 
 const [de, ate, nome] = process.argv.slice(2);
 const serveUrl = await bundle({ entryPoint: path.resolve("src/index.ts"), enableCaching: false });
-const ID = process.env.COMP || "AD358-Referencia";
+const ID = process.env.COMP || "Criativo-Story";
 const composition = await selectComposition({ serveUrl, id: ID });
 const out = path.resolve(`../output/previa/${nome}.mp4`);
 await renderMedia({

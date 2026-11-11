@@ -1,0 +1,761 @@
+{
+ "codigo": "AD368",
+ "lancamento": "PI-NOV-26",
+ "duracao_s": 146.4,
+ "selo_bruto_ate_s": 6.8,
+ "formatos": {
+  "story": {
+   "video": "ad358-story.mp4",
+   "legenda_queimada": false,
+   "ganho_sfx": 1.0
+  },
+  "feed": {
+   "video": "ad358-feed.mp4",
+   "legenda_queimada": true,
+   "queimada_desde_s": 7.1,
+   "ganho_sfx": 1.0
+  },
+  "h": {
+   "video": "ad358-h.mp4",
+   "legenda_queimada": true,
+   "queimada_desde_s": 7.1,
+   "ganho_sfx": 1.77
+  }
+ },
+ "cenas": [
+  {
+   "id": "dona-de-casa",
+   "componente": "Desenho",
+   "de": 3.4,
+   "ate": 9.0,
+   "props": {
+    "img": "dona-de-casa-original.jpg",
+    "etiquetas": [
+     {
+      "texto": "trabalha",
+      "em": 4.4,
+      "x": 90,
+      "y": 190,
+      "rot": -4
+     },
+     {
+      "texto": "cuida da casa",
+      "em": 4.82,
+      "x": 430,
+      "y": 290,
+      "rot": 3
+     },
+     {
+      "texto": "pouco tempo pra estudar",
+      "em": 6.25,
+      "x": 120,
+      "y": 390,
+      "rot": -2
+     }
+    ]
+   },
+   "sfx": [
+    [
+     3.4,
+     "whoosh",
+     0.35
+    ],
+    [
+     4.4,
+     "mouse-click",
+     0.3
+    ],
+    [
+     4.82,
+     "mouse-click",
+     0.3
+    ],
+    [
+     6.25,
+     "mouse-click",
+     0.3
+    ]
+   ],
+   "ancoras_s": {}
+  },
+  {
+   "id": "sem-faculdade",
+   "componente": "Desenho",
+   "de": 19.13,
+   "ate": 22.4,
+   "props": {
+    "img": "dona-de-casa-faculdade.jpg",
+    "etiquetas": [
+     {
+      "texto": "faculdade? não",
+      "em": 19.66,
+      "x": 40,
+      "y": 150,
+      "rot": -4
+     },
+     {
+      "texto": "só ensino médio",
+      "em": 20.8,
+      "x": 520,
+      "y": 310,
+      "rot": 3
+     }
+    ]
+   },
+   "sfx": [
+    [
+     19.13,
+     "whoosh",
+     0.35
+    ],
+    [
+     19.66,
+     "mouse-click",
+     0.3
+    ],
+    [
+     20.8,
+     "mouse-click",
+     0.3
+    ]
+   ],
+   "ancoras_s": {}
+  },
+  {
+   "id": "cargo",
+   "componente": "Manchete",
+   "de": 27.9,
+   "ate": 33.2,
+   "props": {
+    "kicker": "Ficha do concurso · INSS",
+    "titulo": "Técnico do Seguro Social",
+    "corpo": "Cargo da autarquia federal. Exige só nível médio: não precisa de faculdade.",
+    "destaque": {
+     "texto": "nível médio",
+     "em": 32.4
+    }
+   },
+   "sfx": [
+    [
+     27.9,
+     "page-turn",
+     0.45
+    ],
+    [
+     32.4,
+     "switch",
+     0.2
+    ]
+   ],
+   "ancoras_s": {}
+  },
+  {
+   "id": "salario",
+   "componente": "Grafico",
+   "de": 33.2,
+   "ate": 42.8,
+   "props": {
+    "kicker": "SALÁRIO INICIAL · TÉCNICO DO INSS",
+    "prefixo": "R$",
+    "valorFinal": 7234,
+    "pontos": [
+     7234,
+     7234,
+     7700,
+     7700,
+     8300,
+     8300,
+     9000,
+     9000,
+     9900,
+     9900,
+     11000
+    ],
+    "escala": [
+     6500,
+     13800
+    ],
+    "eixo": [
+     "INÍCIO",
+     "FINAL DE CARREIRA"
+    ],
+    "rotuloFim": {
+     "valor": "≈ R$ 11 mil",
+     "sub": "CARREIRA FEDERAL"
+    },
+    "selo": "✓ Estabilidade garantida por lei",
+    "em": {
+     "conta": [
+      34.1,
+      35.5
+     ],
+     "linha": [
+      36.1,
+      38.9
+     ],
+     "rotulo": 38.5,
+     "selo": 40.9
+    }
+   },
+   "sfx": [
+    [
+     33.2,
+     "whoosh",
+     0.35
+    ],
+    [
+     35.5,
+     "ding",
+     0.22
+    ],
+    [
+     38.5,
+     "ding",
+     0.22
+    ],
+    [
+     40.9,
+     "mouse-click",
+     0.3
+    ]
+   ],
+   "ancoras_s": {}
+  },
+  {
+   "id": "status",
+   "componente": "Carimbo",
+   "de": 42.8,
+   "ate": 51.6,
+   "props": {
+    "kicker": "Concurso INSS · situação hoje",
+    "pergunta": "O edital já saiu?",
+    "carimbo": {
+     "texto": "AINDA NÃO",
+     "em": 46.1
+    },
+    "corpo": "Está aguardando autorização para um novo concurso.",
+    "destaque": {
+     "texto": "aguardando autorização",
+     "em": 47.4
+    },
+    "mao": {
+     "texto": "→ dá tempo de se preparar!",
+     "em": 49.6
+    }
+   },
+   "sfx": [
+    [
+     42.8,
+     "page-turn",
+     0.45
+    ],
+    [
+     46.1,
+     "vine-boom",
+     0.2
+    ],
+    [
+     47.4,
+     "switch",
+     0.2
+    ]
+   ],
+   "ancoras_s": {}
+  },
+  {
+   "id": "tem-filho",
+   "componente": "Desenho",
+   "de": 52.7,
+   "ate": 57.1,
+   "props": {
+    "img": "dona-de-casa-filho.jpg",
+    "etiquetas": [
+     {
+      "texto": "trabalha",
+      "em": 53.82,
+      "x": 90,
+      "y": 190,
+      "rot": -4
+     },
+     {
+      "texto": "cuida da casa",
+      "em": 54.28,
+      "x": 430,
+      "y": 290,
+      "rot": 3
+     },
+     {
+      "texto": "tem filho",
+      "em": 55.12,
+      "x": 160,
+      "y": 390,
+      "rot": -2
+     }
+    ]
+   },
+   "sfx": [
+    [
+     52.7,
+     "whoosh",
+     0.35
+    ],
+    [
+     53.82,
+     "mouse-click",
+     0.3
+    ],
+    [
+     54.28,
+     "mouse-click",
+     0.3
+    ],
+    [
+     55.12,
+     "mouse-click",
+     0.3
+    ]
+   ],
+   "ancoras_s": {}
+  },
+  {
+   "id": "mapa",
+   "componente": "Rota",
+   "de": 62.9,
+   "ate": 75.8,
+   "ancora_palavras": {
+    "aprovada": "aprovada"
+   },
+   "props": {
+    "imagem": "mapa-montanha-limpo.jpg",
+    "imagemTamanho": [
+     1536,
+     2752
+    ],
+    "estrada": [
+     [
+      120,
+      1840
+     ],
+     [
+      200,
+      1790
+     ],
+     [
+      245,
+      1750
+     ],
+     [
+      245,
+      1680
+     ],
+     [
+      225,
+      1600
+     ],
+     [
+      205,
+      1520
+     ],
+     [
+      215,
+      1480
+     ],
+     [
+      280,
+      1445
+     ],
+     [
+      380,
+      1410
+     ],
+     [
+      450,
+      1390
+     ],
+     [
+      455,
+      1350
+     ],
+     [
+      430,
+      1280
+     ],
+     [
+      405,
+      1220
+     ],
+     [
+      410,
+      1180
+     ],
+     [
+      480,
+      1150
+     ],
+     [
+      580,
+      1120
+     ],
+     [
+      615,
+      1090
+     ],
+     [
+      600,
+      1040
+     ],
+     [
+      575,
+      1000
+     ],
+     [
+      560,
+      968
+     ]
+    ],
+    "trilha": [
+     [
+      560,
+      968
+     ],
+     [
+      505,
+      935
+     ],
+     [
+      420,
+      880
+     ],
+     [
+      470,
+      820
+     ],
+     [
+      400,
+      760
+     ],
+     [
+      452,
+      690
+     ],
+     [
+      425,
+      620
+     ],
+     [
+      470,
+      545
+     ],
+     [
+      478,
+      405
+     ]
+    ],
+    "cume": {
+     "x": 478,
+     "y": 402
+    },
+    "kicker": "ROTA ATÉ A APROVAÇÃO",
+    "titulo": "Preparação de médio e longo prazo",
+    "tituloDestaque": {
+     "texto": "médio e longo prazo",
+     "em": 65.4
+    },
+    "selo": {
+     "texto": "⏱ 2h por dia",
+     "em": 70.3
+    },
+    "rotuloCume": "Aprovação",
+    "em": {
+     "estrada": [
+      63.3,
+      68.9
+     ],
+     "trilha": [
+      70.9,
+      73.7
+     ],
+     "bandeira": 73.78,
+     "saiTitulo": 73.2
+    }
+   },
+   "sfx": [
+    [
+     62.9,
+     "whoosh",
+     0.35
+    ],
+    [
+     70.3,
+     "mouse-click",
+     0.3
+    ],
+    [
+     73.78,
+     "ding",
+     0.3
+    ]
+   ],
+   "ancoras_s": {
+    "aprovada": 73.78
+   }
+  },
+  {
+   "id": "metodo",
+   "componente": "PapelMesa",
+   "de": 85.8,
+   "ate": 93.4,
+   "props": {
+    "kicker": "Por que tanta gente estuda e não passa",
+    "titulo": "Mesmas 2h por dia, resultados opostos",
+    "curvaRuim": {
+     "rotulo": "sem método",
+     "em": [
+      86.2,
+      87.8
+     ]
+    },
+    "curvaBoa": {
+     "rotulo": "método certo",
+     "em": [
+      89.7,
+      91.0
+     ]
+    },
+    "circulo": {
+     "em": 91.7
+    },
+    "mao": {
+     "texto": "evolui mais rápido",
+     "em": 91.9
+    },
+    "adesivo": {
+     "texto": "O MÉTODO",
+     "em": 89.5
+    }
+   },
+   "sfx": [
+    [
+     85.8,
+     "page-turn",
+     0.45
+    ],
+    [
+     89.5,
+     "whip",
+     0.3
+    ],
+    [
+     91.7,
+     "switch",
+     0.2
+    ]
+   ],
+   "ancoras_s": {}
+  },
+  {
+   "id": "projeto",
+   "componente": "Cartao",
+   "de": 100.8,
+   "ate": 105.4,
+   "props": {
+    "kicker": "✳ CURSO DO MATEUS",
+    "titulo": "Projeto\nINSS",
+    "subtitulo": {
+     "texto": "Como estudar para ser aprovada",
+     "em": 104.6
+    },
+    "carimbo": {
+     "texto": "GRATUITO",
+     "em": 103.3
+    }
+   },
+   "sfx": [
+    [
+     100.8,
+     "whoosh",
+     0.35
+    ],
+    [
+     103.3,
+     "vine-boom",
+     0.2
+    ]
+   ],
+   "ancoras_s": {}
+  },
+  {
+   "id": "checklist",
+   "componente": "Checklist",
+   "de": 110.7,
+   "ate": 118.3,
+   "props": {
+    "kicker": "NO PROJETO INSS",
+    "titulo": "Você vai aprender",
+    "destacarUltimo": true,
+    "itens": [
+     {
+      "texto": "Como organizar as matérias",
+      "em": 110.9
+     },
+     {
+      "texto": "Quanto tempo estudar cada uma",
+      "em": 112.0
+     },
+     {
+      "texto": "As matérias mais importantes",
+      "em": 114.5
+     },
+     {
+      "texto": "O Método Ativo 5x",
+      "em": 117.1
+     }
+    ]
+   },
+   "sfx": [
+    [
+     110.7,
+     "whoosh",
+     0.35
+    ],
+    [
+     110.9,
+     "mouse-click",
+     0.35
+    ],
+    [
+     112.0,
+     "mouse-click",
+     0.35
+    ],
+    [
+     114.5,
+     "mouse-click",
+     0.35
+    ],
+    [
+     117.1,
+     "mouse-click",
+     0.35
+    ]
+   ],
+   "ancoras_s": {}
+  },
+  {
+   "id": "aprovacoes",
+   "componente": "Contador",
+   "de": 120.3,
+   "ate": 124.1,
+   "props": {
+    "kicker": "RESULTADO DO MÉTODO ATIVO 5X",
+    "numero": 6,
+    "rotulo": "aprovações\nem concurso",
+    "conta": [
+     120.4,
+     121.2
+    ],
+    "medalhas": {
+     "quantidade": 2,
+     "marca": "1º",
+     "texto": "duas em\n1º lugar",
+     "em": 122.3
+    }
+   },
+   "sfx": [
+    [
+     120.3,
+     "whoosh",
+     0.35
+    ],
+    [
+     121.2,
+     "ding",
+     0.28
+    ],
+    [
+     122.3,
+     "switch",
+     0.25
+    ]
+   ],
+   "ancoras_s": {}
+  },
+  {
+   "id": "cta",
+   "componente": "Cta",
+   "de": 133.0,
+   "ate": 146.4,
+   "props": {
+    "titulo": "Cadastro gratuito",
+    "subtitulo": "Projeto INSS · grupo no WhatsApp",
+    "chamada": {
+     "texto": "toque no botão ↓",
+     "em": 135.6
+    }
+   },
+   "sfx": [
+    [
+     133.0,
+     "whoosh",
+     0.3
+    ],
+    [
+     135.6,
+     "ding",
+     0.2
+    ]
+   ],
+   "ancoras_s": {}
+  }
+ ],
+ "cobertos": [
+  [
+   3.4,
+   9.0
+  ],
+  [
+   19.13,
+   22.4
+  ],
+  [
+   27.9,
+   33.2
+  ],
+  [
+   33.2,
+   42.8
+  ],
+  [
+   42.8,
+   51.6
+  ],
+  [
+   52.7,
+   57.1
+  ],
+  [
+   62.9,
+   75.8
+  ],
+  [
+   85.8,
+   93.4
+  ],
+  [
+   100.8,
+   105.4
+  ],
+  [
+   110.7,
+   118.3
+  ],
+  [
+   120.3,
+   124.1
+  ]
+ ],
+ "cta": [
+  133.0,
+  146.4
+ ]
+}

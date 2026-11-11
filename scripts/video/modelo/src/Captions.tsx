@@ -4,18 +4,24 @@ import { AbsoluteFill, interpolate, Sequence, useCurrentFrame, useVideoConfig } 
 import { clamp, color, font, pick, useFormato } from "./theme";
 
 /**
- * O bruto já traz a caixa "CONCURSO PÚBLICO R$ 7.234,00" (y≈1170–1470) nos
- * primeiros ~6,8 s. Nesse trecho a legenda sobe para o vão entre o queixo e a caixa.
+ * Quando a legenda muda de lugar (tudo vem do criativo.resolvido.json):
+ * - `seloBrutoAte`: o bruto traz um selo próprio na faixa da legenda (no AD368, a caixa
+ *   "CONCURSO PÚBLICO" até 6,8 s); enquanto ele está na tela e nenhuma cena cobre o
+ *   vídeo, a legenda sobe para acima dele;
+ * - `cta`: enquanto o botão final está na tela, a legenda sobe para acima dele;
+ * - `queimadaDesde`: o bruto deste formato já tem legenda queimada a partir desse
+ *   segundo — então a nossa só aparece antes disso ou quando uma cena cobre o vídeo,
+ *   no estilo da do bruto.
+ * As POSIÇÕES por formato ficam aqui (story 1080×1920 · feed 1080×1080 · h 1920×1080).
  */
-const CAIXA_DO_BRUTO_ATE_MS = 6800;
-// de 3,4 s em diante o desenho da dona de casa cobre a caixa: legenda volta ao lugar
-const DESENHO_DESDE_MS = 3400;
-// posições por formato (story 1080×1920 · feed 1080×1080 · h 1920×1080)
-// feed: caixa do bruto em y≈635–890, queixo dela ≈515 · h: caixa em y≈720–975, queixo ≈600
+export type ConfigLegenda = {
+  cobertos: [number, number][];
+  cta: [number, number] | null;
+  seloBrutoAte: number | null;
+  queimadaDesde: number | null;
+};
 const TOPO_PADRAO = { story: 1330, feed: 838, h: 878 };
 const TOPO_ACIMA_DA_CAIXA = { story: 990, feed: 500, h: 585 };
-// no fim o botão "Cadastro gratuito" ocupa a parte de baixo (y≈1480–1750): legenda sobe
-const CTA_DESDE_MS = 133000;
 const TOPO_ACIMA_DO_CTA = { story: 1176, feed: 668, h: 652 };
 const FIM_DE_FRASE = /[.?!]\s*$/;
 
@@ -44,25 +50,25 @@ const ESTILO_BRUTO = {
   h: { fontSize: 54, lineHeight: "62px", bottom: 105, width: 1500 },
 };
 const SOMBRA_BRUTO = "3px 3px 0 rgba(0,0,0,0.92), 1px 1px 6px rgba(0,0,0,0.5)";
-// a legenda queimada só começa no 1º corte (≈7,1 s); antes disso (abertura com ela)
-// a nossa entra no lugar, acima da caixa "CONCURSO PÚBLICO" (feed topo y≈635, h y≈720)
-const BRUTO_SEM_LEGENDA_ATE_S = 7.1;
-const BOTTOM_ACIMA_DA_CAIXA = { feed: 470, h: 380 };
+// estilo do bruto acima do selo dele (feed: selo y≈635–890 · h: y≈720–975)
+const BOTTOM_ACIMA_DA_CAIXA = { story: 930, feed: 470, h: 380 };
 
-const CaptionPage: React.FC<{ page: TikTokPage; cobertos: [number, number][] }> = ({ page, cobertos }) => {
+const CaptionPage: React.FC<{ page: TikTokPage; cfg: ConfigLegenda }> = ({ page, cfg }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const nowMs = page.startMs + (frame / fps) * 1000;
   const f = useFormato();
+  const s = nowMs / 1000;
+  const coberto = cfg.cobertos.some(([de, ate]) => s >= de && s < ate);
+  const sobreSelo = cfg.seloBrutoAte !== null && s < cfg.seloBrutoAte && !coberto;
 
-  if (f !== "story") {
-    // só enquanto a animação cobre o vídeo (folga de 0,15 s nas bordas por causa do fade)
-    const s = nowMs / 1000;
-    const abertura = s < BRUTO_SEM_LEGENDA_ATE_S;
-    if (!abertura && !cobertos.some(([de, ate]) => s >= de + 0.15 && s < ate - 0.15)) return null;
-    const e = ESTILO_BRUTO[f];
-    // antes do desenho a caixa do bruto está na tela: legenda acima dela
-    const bottom = nowMs < DESENHO_DESDE_MS ? BOTTOM_ACIMA_DA_CAIXA[f] : e.bottom;
+  if (cfg.queimadaDesde !== null) {
+    // só antes da legenda do bruto começar ou enquanto uma cena cobre o vídeo
+    // (folga de 0,15 s nas bordas por causa do fade)
+    const antes = s < cfg.queimadaDesde;
+    if (!antes && !cfg.cobertos.some(([de, ate]) => s >= de + 0.15 && s < ate - 0.15)) return null;
+    const e = ESTILO_BRUTO[f === "story" ? "feed" : f];
+    const bottom = sobreSelo ? BOTTOM_ACIMA_DA_CAIXA[f] : e.bottom;
     return (
       <AbsoluteFill style={{ alignItems: "center" }}>
         <div style={{
@@ -87,11 +93,7 @@ const CaptionPage: React.FC<{ page: TikTokPage; cobertos: [number, number][] }> 
           // começa antes do desenho desce junto com o corte para o desenho
           top: pick(
             f,
-            nowMs < DESENHO_DESDE_MS && nowMs < CAIXA_DO_BRUTO_ATE_MS
-              ? TOPO_ACIMA_DA_CAIXA
-              : nowMs >= CTA_DESDE_MS
-                ? TOPO_ACIMA_DO_CTA
-                : TOPO_PADRAO,
+            sobreSelo ? TOPO_ACIMA_DA_CAIXA : cfg.cta && s >= cfg.cta[0] ? TOPO_ACIMA_DO_CTA : TOPO_PADRAO,
           ),
           width: pick(f, { story: 920, feed: 960, h: 1500 }),
           textAlign: "center",
@@ -128,7 +130,7 @@ const CaptionPage: React.FC<{ page: TikTokPage; cobertos: [number, number][] }> 
   );
 };
 
-export const Captions: React.FC<{ captions: Caption[]; cobertos: [number, number][] }> = ({ captions, cobertos }) => {
+export const Captions: React.FC<{ captions: Caption[]; cfg: ConfigLegenda }> = ({ captions, cfg }) => {
   const { fps } = useVideoConfig();
   const { pages } = useMemo(
     () =>
@@ -152,7 +154,7 @@ export const Captions: React.FC<{ captions: Caption[]; cobertos: [number, number
         const dur = Math.max(1, Math.round(((endMs - page.startMs) / 1000) * fps));
         return (
           <Sequence key={page.startMs} from={from} durationInFrames={dur} layout="none">
-            <CaptionPage page={page} cobertos={cobertos} />
+            <CaptionPage page={page} cfg={cfg} />
           </Sequence>
         );
       })}

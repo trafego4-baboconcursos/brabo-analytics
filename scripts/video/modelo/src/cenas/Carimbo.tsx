@@ -16,7 +16,8 @@ export const Carimbo: React.FC<PropsCena<"Carimbo">> = ({ start, dur, props }) =
         <Kicker>{props.kicker}</Kicker>
         <div style={{ display: f === "h" ? "flex" : "block", alignItems: "center", gap: 60 }}>
           <div style={{ fontFamily: font.serif, fontWeight: 700, fontSize: pick(f, { story: 96, feed: 84, h: 96 }), lineHeight: 1.05,
-            flex: "1 1 auto" }}>
+            // h: pergunta curta fica numa linha ao lado do carimbo; longa quebra (senão empurra o carimbo para fora)
+            flex: "1 1 auto", whiteSpace: f === "h" && props.pergunta.length <= 20 ? "nowrap" : "normal" }}>
             {props.pergunta}
           </div>
           <div style={{ margin: pick(f, { story: "40px 0 30px", feed: "26px 0 20px", h: "0" }), flexShrink: 0 }}>

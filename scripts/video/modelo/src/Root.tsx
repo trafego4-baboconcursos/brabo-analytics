@@ -1,10 +1,10 @@
 import { CatalogoComposicoes } from "./Catalogo";
-import { MyComposition } from "./Composition";
+import { CriativoComposicoes } from "./Criativo";
 
 export const RemotionRoot: React.FC = () => {
   return (
     <>
-      <MyComposition />
+      <CriativoComposicoes />
       <CatalogoComposicoes />
     </>
   );

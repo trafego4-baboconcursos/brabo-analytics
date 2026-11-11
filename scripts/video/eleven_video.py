@@ -24,7 +24,10 @@ API = "https://api.elevenlabs.io/v1"
 MODELO = "veo-3.1-fast-generate-001"
 DURACOES_VEO = (4, 6, 8)
 BASE_PROMPT = ("Anime esta ilustração mantendo exatamente o mesmo desenho, traço, cores e enquadramento; "
-               "câmera parada, sem zoom e sem cortes; não adicione texto, pessoas nem objetos novos. ")
+               "câmera parada, sem zoom e sem cortes; não adicione texto, pessoas nem objetos novos; "
+               "nunca crie mãos, braços ou dedos a mais; mão que segura objeto fica parada. ")
+# ↑ AD368 (11/11/26): pedir "vire a página do caderno" gerou uma terceira mão. Peça movimento de
+#   rosto, respiração, vapor, luz — não ação de mão com objeto.
 ENV = Path("C:/dev/workspace-mmm/.env")
 LOG = Path("C:/dev/workspace-mmm/videos/_ia_uso.jsonl")
 

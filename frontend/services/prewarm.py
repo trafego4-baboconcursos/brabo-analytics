@@ -214,9 +214,14 @@ async def warm_active(codes: Iterable[str] | None = None, invalidate: bool = Fal
     `fontes` (só com invalidate): quais fontes do ETL acabaram de rodar —
     limita a recomputação aos leitores delas (LEITORES_POR_FONTE). None
     recomputa tudo."""
+    fontes = list(fontes) if fontes is not None else None  # lido duas vezes abaixo: não pode ser gerador
     async with _WARM_LOCK:
         if invalidate:
             reset_launches_cache()  # lançamento criado/renomeado pelo ETL aparece na lista
+            if fontes is None or {"meta_ads", "google_ads"} & set(fontes):
+                # histórico de criativos de lançamentos anteriores (cache de 6 h em ads_meta)
+                from frontend.db_readers.ads_meta import reset_historico_cache  # noqa: PLC0415
+                reset_historico_cache()
         launches = await run_in_threadpool(get_launches)
         to_warm = select_launches_to_warm(launches, codes)
         logger.info("Aquecimento (%s) de %d lançamento(s): %s", origem, len(to_warm), ", ".join(l.code for l in to_warm) or "-")

@@ -130,8 +130,10 @@ def api_delete_invite(request: Request, invite_id: str):
 
 @router.get("/api/launch-config/{launch_code}")
 async def api_get_launch_config(launch_code: str):
-    config = read_launch_config(launch_code)
-    defaults = _compute_launch_defaults(launch_code)
+    # Tudo aqui é SQL/arquivo síncrono: direto na rota async travava o servidor inteiro
+    # enquanto o COUNT(*) em leads rodava (6 s em média — revisão de 11/11/26).
+    config = await run_in_threadpool(read_launch_config, launch_code)
+    defaults = await run_in_threadpool(_compute_launch_defaults, launch_code)
 
     merged = {**defaults}
     for k, v in config.items():

@@ -684,6 +684,18 @@ CREATE INDEX IF NOT EXISTS idx_meta_lancamento ON meta_ads_daily(lancamento_codi
 CREATE INDEX IF NOT EXISTS idx_google_lancamento ON google_ads_daily(lancamento_codigo);
 CREATE INDEX IF NOT EXISTS idx_leads_lancamento ON leads(lancamento_codigo);
 
+-- 09/11/26 — alinhado ao banco de produção (docs/historico/REVISAO_TABELAS_ADS_2026-11-09.md).
+-- Conta de anúncio de origem do Google (GOOGLE_ADS_CUSTOMER_ID, só dígitos) — par do
+-- meta_ads_daily.account_id. TEXT porque é identificador, não número.
+ALTER TABLE google_ads_daily ADD COLUMN IF NOT EXISTS customer_id TEXT;
+-- Os índices mais usados das duas tabelas (lançamento+data: leitura de período; lançamento+conta:
+-- filtro por responsável). Existiam no banco mas não aqui — um banco recriado ficaria sem eles.
+-- Em banco já em uso, preferir CONCURRENTLY (etl/indexes_performance.sql) para não travar escrita.
+CREATE INDEX IF NOT EXISTS idx_meta_lancamento_date   ON meta_ads_daily   (lancamento_codigo, date);
+CREATE INDEX IF NOT EXISTS idx_google_lancamento_date ON google_ads_daily (lancamento_codigo, date);
+CREATE INDEX IF NOT EXISTS idx_meta_conta   ON meta_ads_daily   (lancamento_codigo, account_id);
+CREATE INDEX IF NOT EXISTS idx_google_conta ON google_ads_daily (lancamento_codigo, customer_id);
+
 ALTER TABLE meta_ads_daily DROP CONSTRAINT IF EXISTS meta_ads_daily_ad_id_date_key;
 DO $$
 BEGIN

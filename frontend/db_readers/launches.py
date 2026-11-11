@@ -9,6 +9,7 @@ função: o ciclo sales → launches → typeform → sales não fecha no topo.
 from __future__ import annotations
 
 import os
+import time
 import json as _json
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
@@ -31,12 +32,31 @@ _drive_cache: dict[str, tuple[float, dict]] = {}
 _DRIVE_CACHE_TTL = 300  # 5 minutos
 
 
+_AUTODETECT_TTL = 600  # 10 min: só alimenta valores sugeridos do wizard
+_autodetect_cache: dict[str, tuple[float, dict]] = {}
+
+
 def autodetect_launch_data(launch_code: str) -> dict:
     """
     Infere metas e filtros a partir dos dados reais já no banco.
     Retorna dict com chaves: meta_leads, meta_investimento_captacao, filtro_pre_quali.
     Nunca lança exceção — retorna {} se o banco estiver indisponível.
+
+    Cache por processo de 10 min: o COUNT(*) em `leads` era a consulta mais cara do
+    banco (6,2 s em média, revisão de 11/11/26) e o wizard a repetia a cada abertura.
+    Falha (banco fora) não é cacheada.
     """
+    hit = _autodetect_cache.get(launch_code)
+    if hit and time.time() - hit[0] < _AUTODETECT_TTL:
+        return dict(hit[1])
+    result = _ler_autodetect(launch_code)
+    if result is not None:
+        _autodetect_cache[launch_code] = (time.time(), result)
+        return dict(result)
+    return {}
+
+
+def _ler_autodetect(launch_code: str) -> dict | None:
     result: dict = {}
     try:
         engine = _get_engine()
@@ -81,6 +101,7 @@ def autodetect_launch_data(launch_code: str) -> dict:
                     break
     except Exception:
         logger.debug("autodetect_launch_data: DB indisponível para %s", launch_code)
+        return None
     return result
 
 

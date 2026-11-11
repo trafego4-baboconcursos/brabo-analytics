@@ -4511,7 +4511,10 @@ Saiu da revisão [[REVISAO_TABELAS_ADS_2026-11-09]].
   porque o código é sempre maiúsculo e `.` vem logo depois de `-` em ASCII. O resultado é
   idêntico ao do `ILIKE` (conferido em 6 lançamentos nas duas tabelas) e cai de 150–2.300 ms
   para 17–54 ms. As duas funções leem os nomes uma vez só e têm cache por processo de 6 h
-  (antes: 30 min numa e nenhum na outra). Teste: `tests/test_historico_ad_codes_cache.py`.
+  (antes: 30 min numa e nenhum na outra). 11/11/26: as duas funções compartilham a mesma leitura
+  (`_nomes_anteriores`). Na Black, com o cache frio, a consulta rodava duas vezes. O cache é
+  esquecido (`reset_historico_cache`) no aquecimento pós-ETL quando rodou `meta_ads` ou `google_ads`
+  (`prewarm.warm_active`). Teste: `tests/test_historico_ad_codes_cache.py`.
 - **Públicos/demografia do Google e região/demografia do Facebook (Meta)**
   (`upsert_audiences`/`upsert_demographics` em `etl_google_ads.py`,
   `upsert_region`/`upsert_demographics` em `etl_meta_ads.py`). O `to_sql` agora roda na mesma
@@ -4521,6 +4524,13 @@ Saiu da revisão [[REVISAO_TABELAS_ADS_2026-11-09]].
   `idx_meta_lancamento_date`/`idx_google_lancamento_date` e `idx_meta_conta`/`idx_google_conta`,
   que existiam só em produção. Os quatro índices também estão em `etl/indexes_performance.sql`
   (CONCURRENTLY).
+- **`GET /api/launch-config/{code}` (wizard), 11/11/26.** A rota é `async`, mas rodava
+  `read_launch_config` e `_compute_launch_defaults` direto no loop, e o servidor inteiro parava
+  enquanto isso. A primeira chamada para PI-NOV-26 levou 58 s, dos quais 28 s eram o
+  `COUNT(*)` em `leads`, perto do `statement_timeout` de 30 s. As duas funções agora rodam em
+  `run_in_threadpool`. `autodetect_launch_data` (`launches.py`) tem cache por processo de 10 min.
+  Uma falha não fica no cache: quando a contagem passa de 30 s, o wizard abre sem `meta_leads`
+  e a próxima abertura tenta de novo. Teste: `tests/test_autodetect_launch_cache.py`.
 
 ## `/verba` no layout da planilha "Verba Diária" (2026-11-10)
 

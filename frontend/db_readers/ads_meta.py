@@ -31,14 +31,64 @@ logger = get_logger("db")
 
 # O histórico de códigos/nomes só muda quando um lançamento anterior ganha anúncio novo (ETL), mas era relido do banco
 # (DISTINCT ad_name nas duas tabelas de anúncios, ~300 ms cada) a CADA leitura de Meta, Google e criativos: 42.543 chamadas
-# no pg_stat_statements em 27/10/26. Cache curto por processo; só guarda leitura que deu certo.
-_HISTORICO_TTL = 1800
+# no pg_stat_statements em 27/10/26. Cache por processo; só guarda leitura que deu certo.
+# 09/11/26: era a query mais cara do banco (~12,5 h de CPU desde 21/09). O ILIKE forçava seq scan —
+# agora é faixa de texto (usa índice, 613 → 130 ms) e o TTL subiu para 6 h: o que entra aqui são
+# lançamentos ANTERIORES, que quase nunca ganham anúncio novo.
+_HISTORICO_TTL = 6 * 3600
 _historico_codes_cache: dict[str, tuple[float, frozenset]] = {}
 _historico_nomes_cache: dict[str, tuple[float, dict]] = {}
+# Nomes crus, compartilhados pelas duas funções: com o cache frio, a Black pedia a MESMA leitura duas vezes.
+_nomes_anteriores_cache: dict[str, tuple[float, tuple[str, ...]]] = {}
+
+
+def reset_historico_cache() -> None:
+    """Esquece o histórico — chamado depois que o ETL de Meta/Google grava (prewarm.warm_active).
+    Sem isso, um anúncio novo num lançamento anterior levava até 6 h para aparecer."""
+    _historico_codes_cache.clear()
+    _historico_nomes_cache.clear()
+    _nomes_anteriores_cache.clear()
+
+
+def _nomes_anteriores(code: str) -> list[str] | None:
+    """`_ler_nomes_anteriores` com cache; falha não é cacheada."""
+    c = _nomes_anteriores_cache.get(code)
+    if c and time.time() - c[0] < _HISTORICO_TTL:
+        return list(c[1])
+    nomes = _ler_nomes_anteriores(code)
+    if nomes is not None:
+        _nomes_anteriores_cache[code] = (time.time(), tuple(nomes))
+    return nomes
+
+
+def _ler_nomes_anteriores(code: str) -> list[str] | None:
+    """ad_name distintos de lançamentos do MESMO produto exceto `code`, nas duas plataformas.
+
+    `lancamento_codigo` é sempre maiúsculo, então o prefixo vira faixa: 'PI-' <= x < 'PI.'
+    ('.' é o caractere seguinte a '-' em ASCII). Equivale a ILIKE 'PI-%', mas usa índice.
+    [] = sem produto; None = a leitura falhou."""
+    produto_prefix = code.split("-")[0].upper() if code else ""
+    if not produto_prefix:
+        return []
+    nomes: list[str] = []
+    try:
+        with _get_engine().connect() as conn:
+            for tabela in ("meta_ads_daily", "google_ads_daily"):
+                rows = conn.execute(
+                    text(f"SELECT DISTINCT ad_name FROM {tabela} "
+                         "WHERE lancamento_codigo >= :ini AND lancamento_codigo < :fim "
+                         "AND lancamento_codigo <> :code"),
+                    {"code": code, "ini": f"{produto_prefix}-", "fim": f"{produto_prefix}."},
+                ).fetchall()
+                nomes.extend(str(r[0] or "") for r in rows)
+    except Exception:
+        logger.exception("Falha ao buscar nomes de anúncios de lançamentos anteriores")
+        return None
+    return nomes
 
 
 def get_historico_ad_codes(code: str) -> set[str]:
-    """Retorna todos os AD\\d+ já usados em lançamentos ANTERIORES do mesmo produto (cache de 30 min)."""
+    """Retorna todos os AD\\d+ já usados em lançamentos ANTERIORES do mesmo produto (cache de 6 h)."""
     c = _historico_codes_cache.get(code)
     if c and time.time() - c[0] < _HISTORICO_TTL:
         return set(c[1])
@@ -51,31 +101,14 @@ def get_historico_ad_codes(code: str) -> set[str]:
 
 def _ler_historico_ad_codes(code: str) -> set[str] | None:
     """None = a leitura falhou (não confundir com "nenhum anúncio anterior")."""
-    produto_prefix = code.split("-")[0].upper() if code else ""
-    if not produto_prefix:
-        return set()
-    engine = _get_engine()
-    _TABELAS_VALIDAS = {"meta_ads_daily", "google_ads_daily"}
-    vistos: set[str] = set()
-    try:
-        with engine.connect() as conn:
-            for tabela in ("meta_ads_daily", "google_ads_daily"):
-                assert tabela in _TABELAS_VALIDAS, f"tabela inválida: {tabela}"
-                rows = conn.execute(
-                    text(f"""
-                        SELECT DISTINCT ad_name FROM {tabela}
-                        WHERE lancamento_codigo != :code
-                          AND lancamento_codigo ILIKE :prefix
-                    """),
-                    {"code": code, "prefix": f"{produto_prefix}-%"},
-                ).fetchall()
-                for row in rows:
-                    m = re.search(r"\bAD\d+\b", str(row[0] or ""), flags=re.IGNORECASE)
-                    if m:
-                        vistos.add(_normalize_ad_code(m.group(0)))
-    except Exception:
-        logger.exception("Falha ao buscar histórico de ad codes")
+    nomes = _nomes_anteriores(code)
+    if nomes is None:
         return None
+    vistos: set[str] = set()
+    for nome in nomes:
+        m = re.search(r"\bAD\d+\b", nome, flags=re.IGNORECASE)
+        if m:
+            vistos.add(_normalize_ad_code(m.group(0)))
     return vistos
 
 
@@ -83,27 +116,21 @@ def get_historico_ad_nomes(code: str) -> dict[str, set[str]]:
     """Black: código (AD-FE02) -> nomes normalizados que ele teve em lançamentos
     ANTERIORES do mesmo produto. O número do código é reaproveitado com outro
     vídeo (AD-IV09 era "caixinha de pergunta" na BV-25 e virou "Tudo em 1 min"),
-    então só o código não prova que o criativo já rodou."""
+    então só o código não prova que o criativo já rodou. Cache de 6 h, como o de códigos."""
     from src.nomenclatura import REGEX_CODIGO_BLACK, normalizar_nome_criativo  # noqa: PLC0415
 
-    produto_prefix = code.split("-")[0].upper() if code else ""
-    if not produto_prefix:
-        return {}
+    c = _historico_nomes_cache.get(code)
+    if c and time.time() - c[0] < _HISTORICO_TTL:
+        return {k: set(v) for k, v in c[1].items()}
+    nomes = _nomes_anteriores(code)
+    if nomes is None:                     # falha de banco: serve o último bom, se houver
+        return {k: set(v) for k, v in c[1].items()} if c else {}
     historico: dict[str, set[str]] = {}
-    try:
-        with _get_engine().connect() as conn:
-            for tabela in ("meta_ads_daily", "google_ads_daily"):
-                rows = conn.execute(
-                    text(f"SELECT DISTINCT ad_name FROM {tabela} "
-                         "WHERE lancamento_codigo != :code AND lancamento_codigo ILIKE :prefix"),
-                    {"code": code, "prefix": f"{produto_prefix}-%"},
-                ).fetchall()
-                for (ad_name,) in rows:
-                    m = re.search(REGEX_CODIGO_BLACK, str(ad_name or ""), flags=re.IGNORECASE)
-                    if m:
-                        historico.setdefault(m.group(0).upper(), set()).add(normalizar_nome_criativo(ad_name))
-    except Exception:
-        logger.exception("Falha ao buscar histórico de nomes de criativos; retornando vazio")
+    for ad_name in nomes:
+        m = re.search(REGEX_CODIGO_BLACK, ad_name, flags=re.IGNORECASE)
+        if m:
+            historico.setdefault(m.group(0).upper(), set()).add(normalizar_nome_criativo(ad_name))
+    _historico_nomes_cache[code] = (time.time(), {k: frozenset(v) for k, v in historico.items()})
     return historico
 
 

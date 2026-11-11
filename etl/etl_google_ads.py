@@ -790,7 +790,8 @@ def upsert_audiences(df: pd.DataFrame, since: str, until: str, launch_code: str 
                 text(f"DELETE FROM {table} WHERE date BETWEEN :s AND :u"),
                 {"s": since, "u": until},
             )
-    df.to_sql(table, engine, if_exists="append", index=False, method="multi", chunksize=500)
+        # Na MESMA transação do DELETE (como em upsert): fora dela, a janela ficava sem linhas entre os dois passos.
+        df.to_sql(table, conn, if_exists="append", index=False, method="multi", chunksize=500)
     logger.info("Upsert concluído: %d linhas gravadas em '%s'", len(df), table)
 
 
@@ -812,7 +813,8 @@ def upsert_demographics(df: pd.DataFrame, since: str, until: str, launch_code: s
                 text(f"DELETE FROM {table} WHERE date BETWEEN :s AND :u"),
                 {"s": since, "u": until},
             )
-    df.to_sql(table, engine, if_exists="append", index=False, method="multi", chunksize=500)
+        # Na MESMA transação do DELETE (como em upsert): fora dela, a janela ficava sem linhas entre os dois passos.
+        df.to_sql(table, conn, if_exists="append", index=False, method="multi", chunksize=500)
     logger.info("Upsert concluído: %d linhas gravadas em '%s'", len(df), table)
 
 

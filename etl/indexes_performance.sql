@@ -10,6 +10,13 @@ CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_meta_lancamento_date
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_google_lancamento_date
     ON google_ads_daily (lancamento_codigo, date);
 
+-- meta/google_ads_daily: filtro por conta de anúncio dentro do lançamento (responsável).
+-- Já existiam em produção sem estar no repo (achado de 09/11/26).
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_meta_conta
+    ON meta_ads_daily (lancamento_codigo, account_id);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_google_conta
+    ON google_ads_daily (lancamento_codigo, customer_id);
+
 -- leads: filtragem por lançamento + data de criação
 CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_leads_lancamento_created
     ON leads (lancamento_codigo, (created_at::date));

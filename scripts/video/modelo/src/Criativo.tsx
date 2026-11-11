@@ -5,7 +5,7 @@ import { AbsoluteFill, Composition, Sequence, staticFile, useVideoConfig } from 
 import { Captions } from "./Captions";
 import { CENAS } from "./cenas";
 import { EmendaContext } from "./Cutaway";
-import { FUNDO, PecasContext, type Ajuste } from "./pecas";
+import { FUNDO, LEGENDA, PecasContext, type Ajuste } from "./pecas";
 import captionsJson from "./data/captions.json";
 import criativoJson from "./data/criativo.resolvido.json";
 
@@ -69,7 +69,8 @@ const Efeitos: React.FC<{ ganho: number }> = ({ ganho }) => {
 
 /**
  * `soCena` + `isolar`: render de camadas do storyboard (render-pecas.mjs). Só a cena pedida;
- * isolar = id de uma peça → só ela, com fundo transparente; isolar = FUNDO → bruto + cena sem as peças.
+ * isolar = id de uma peça → só ela, com fundo transparente; isolar = FUNDO → bruto + cena sem as
+ * peças e sem legenda; isolar = LEGENDA → só a legenda (camada de cima, como no vídeo).
  */
 export const Criativo: React.FC<{ formato: ChaveFormato; soCena?: string; isolar?: string }> = ({ formato, soCena, isolar }) => {
   const { fps } = useVideoConfig();
@@ -98,7 +99,7 @@ export const Criativo: React.FC<{ formato: ChaveFormato; soCena?: string; isolar
           </Sequence>
         );
       })}
-      {!peca && <Captions captions={captions} cfg={{
+      {(isolar === undefined || isolar === LEGENDA) && <Captions captions={captions} cfg={{
         cobertos: criativo.cobertos,
         cta: criativo.cta,
         seloBrutoAte: criativo.selo_bruto_ate_s ?? null,

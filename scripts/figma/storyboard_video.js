@@ -2,17 +2,22 @@
 //
 // Antes de colar no use_figma, troque:
 //   __PAGINA__ → id da página "<COD> — Storyboard" (ex.: "1:3")
-//   __DADOS__  → conteúdo de `python -m scripts.video.storyboard ... --saida out/storyboard.json`
-// Depois suba o quadro renderizado de cada cena (render-stills, 0,4 s antes do fim) com
-// upload_assets nos nodeIds `imagens` que este script devolve, na ordem das telas.
+//   __DADOS__  → conteúdo de `python -m scripts.video.storyboard <resolvido> --captions … --saida out/storyboard.json
+//                [--camadas <output>/pecas/<COD>/story]`
+// Depois suba as imagens com upload_assets (nodeIds = `uploads[].no`, na ordem; no máx. 60 por chamada)
+// e POST de cada `uploads[].arquivo` (relativo à pasta das camadas) na URL devolvida.
 //
-// Cada tela: cabeçalho (id · componente · de→até), imagem 540×960, Status, fala, efeitos
-// e os TEXTOS EDITÁVEIS — uma camada TEXT por prop, com o caminho da prop no nome
-// ("destaque.texto"). O usuário edita esses textos e troca o Status para "Aprovado";
-// o Claude lê de volta só as telas aprovadas (scripts/video/storyboard.py:
-// diferencas_textos → lista para o usuário → aplicar_textos).
+// Cada tela: cabeçalho, PALCO 540×960 (metade do vídeo 1080×1920), Status, fala, efeitos e textos.
+// - Tela com camadas: no palco, "fundo" (travado), uma camada por PEÇA com o nome do id
+//   ("titulo", "etiquetas[0]") e "legenda" (travada, por cima). Peça filha (kicker da folha) fica
+//   DENTRO do frame da mãe. O usuário arrasta, gira e redimensiona as peças; o Claude lê de volta
+//   com storyboard_ler_camadas.js → storyboard.py (diferencas_ajustes → lista → aplicar_ajustes).
+// - Tela sem camadas: o palco recebe o still da cena (render-stills, 0,4 s antes do fim).
+// Textos: uma camada TEXT por prop, com o caminho da prop no nome ("destaque.texto"); volta por
+// diferencas_textos → aplicar_textos. O Status de cada tela é mantido ao refazer a página.
 const PAGINA = "__PAGINA__";
 const DADOS = __DADOS__;
+const K = 0.5; // palco = vídeo × 0,5
 
 const page = await figma.getNodeByIdAsync(PAGINA);
 await figma.setCurrentPageAsync(page);
@@ -28,26 +33,66 @@ function texto(t, size, bold, nome, cor) {
   if (cor) n.fills = [{ type: "SOLID", color: cor }];
   return n;
 }
+function quadro(nome, x, y, w, h, pai) {
+  const f = figma.createFrame();
+  f.name = nome;
+  f.resize(Math.max(1, w), Math.max(1, h));
+  f.x = x;
+  f.y = y;
+  f.fills = [];
+  f.clipsContent = false;
+  pai.appendChild(f);
+  return f;
+}
 const CINZA = { r: 0.45, g: 0.45, b: 0.45 };
 
-// idempotente: refaz só as telas deste criativo (nomes "Tela · <id>")
-page.findChildren((n) => n.name.startsWith("Tela · ")).forEach((n) => n.remove());
+// idempotente: refaz só as telas deste criativo (nomes "Tela · <id>"), guardando o Status
+const statusAntes = {};
+for (const n of page.findChildren((n) => n.name.startsWith("Tela · "))) {
+  const st = n.findOne((c) => c.name === "status" && c.type === "TEXT");
+  if (st) statusAntes[n.name.slice(7)] = st.characters;
+  n.remove();
+}
 
 const telas = [];
-const imagens = [];
+const uploads = []; // { no, arquivo } — arquivo null = still da cena (tela sem camadas)
 DADOS.telas.forEach((t, i) => {
   const col = figma.createAutoLayout("VERTICAL", { name: `Tela · ${t.id}`, itemSpacing: 16 });
   col.x = i * 620;
   col.y = 0;
   page.appendChild(col);
   col.appendChild(texto(`${i + 1}. ${t.id} · ${t.componente} · ${t.de}s → ${t.ate}s`, 24, true, "cabeçalho"));
-  const img = figma.createFrame();
-  img.name = "imagem";
-  img.resize(540, 960);
-  img.fills = [{ type: "SOLID", color: { r: 0.15, g: 0.15, b: 0.15 } }];
-  col.appendChild(img);
-  imagens.push(img.id);
-  col.appendChild(texto("Status: Proposta", 22, true, "status", { r: 0.91, g: 0.39, b: 0.24 }));
+  const palco = figma.createFrame();
+  palco.name = "palco";
+  palco.resize(540, 960);
+  palco.clipsContent = true;
+  palco.fills = [{ type: "SOLID", color: { r: 0.15, g: 0.15, b: 0.15 } }];
+  col.appendChild(palco);
+  const cam = t.camadas;
+  if (!cam) {
+    uploads.push({ no: palco.id, tela: t.id, arquivo: null });
+  } else {
+    const fundo = quadro("fundo", 0, 0, 540, 960, palco);
+    fundo.locked = true;
+    uploads.push({ no: fundo.id, tela: t.id, arquivo: cam.fundo });
+    const nos = {};
+    for (const p of cam.pecas) {
+      const mae = p.pai ? cam.pecas.find((q) => q.id === p.pai) : null;
+      const dentro = mae ? nos[mae.id] : palco;
+      const ox = mae ? mae.x : 0, oy = mae ? mae.y : 0;
+      const f = quadro(p.id, (p.x - ox) * K, (p.y - oy) * K, p.w * K, p.h * K, dentro);
+      nos[p.id] = f;
+      uploads.push({ no: f.id, tela: t.id, arquivo: p.arquivo });
+    }
+    if (cam.legenda) {
+      const l = cam.legenda;
+      const f = quadro("legenda", l.x * K, l.y * K, l.w * K, l.h * K, palco);
+      f.locked = true;
+      uploads.push({ no: f.id, tela: t.id, arquivo: l.arquivo });
+    }
+  }
+  const st = statusAntes[t.id] || "Status: Proposta";
+  col.appendChild(texto(st, 22, true, "status", { r: 0.91, g: 0.39, b: 0.24 }));
   const blocos = [["Fala", t.fala], ["Efeitos", t.efeitos.join(" · ") || "—"]];
   for (const [rot, val] of blocos) {
     col.appendChild(texto(rot.toUpperCase(), 14, true, `rótulo ${rot}`, CINZA));
@@ -68,4 +113,4 @@ DADOS.telas.forEach((t, i) => {
   }
   telas.push(col.id);
 });
-return { telas, imagens, total: telas.length };
+return { telas: telas.length, uploads };

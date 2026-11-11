@@ -18,6 +18,7 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -47,10 +48,16 @@ def _fala(captions: list[dict], de: float, ate: float) -> str:
     return " ".join(palavras)
 
 
-def dados_storyboard(criativo: dict, captions: list[dict]) -> dict:
+def dados_storyboard(criativo: dict, captions: list[dict], pecas: dict | None = None) -> dict:
+    """`pecas` (pecas.json do render de camadas): a tela vira palco editável — fundo + uma camada
+    por peça + legenda — em vez do still único."""
     telas = []
     for c in criativo["cenas"]:
-        telas.append({
+        if pecas and c["id"] in pecas:
+            telas.append({"camadas": pecas[c["id"]]})
+        else:
+            telas.append({})
+        telas[-1].update({
             "id": c["id"],
             "componente": c["componente"],
             "de": c["de"],
@@ -111,6 +118,12 @@ def diferencas_ajustes(criativo: dict, manifesto: dict, lidos: dict[str, dict[st
     por `escala_palco` — centro da caixa (cx, cy, que não muda ao girar), largura sem rotação e
     rotação do Figma (anti-horária; no CSS é horária, por isso o sinal inverte). O que mudou soma ao
     ajuste que já existia. Abaixo de 1 px / 0,5° / 1 % é ruído do arraste e não conta.
+
+    `origem` (opcional, do render "caixa:"): centro da caixa da <Peca>, em volta do qual o vídeo
+    gira/escala. No Figma o usuário gira/escala em volta do centro da IMAGEM; quando os dois não
+    coincidem (caixa mais larga que o visível), o deslocamento compensa:
+        d1 = d0 + (F − B) − ΔR·ΔS·(V − B)
+    F = centro no Figma, B = origem, V = centro visível renderizado (tudo no canvas do vídeo).
     """
     cenas = {c["id"]: c for c in criativo["cenas"]}
     saida = []
@@ -121,22 +134,87 @@ def diferencas_ajustes(criativo: dict, manifesto: dict, lidos: dict[str, dict[st
             if peca not in caixas:
                 raise KeyError(f"cena '{cena_id}': a camada '{peca}' não está no pecas.json (renomeada no Figma?)")
             b = caixas[peca]
+            # peça filha (ex.: kicker dentro da folha) vive no frame da mãe: coordenadas locais a ela
+            ox, oy = (caixas[b["pai"]]["x"], caixas[b["pai"]]["y"]) if b.get("pai") else (0, 0)
             antes = dict(atuais.get(peca, {}))
             depois = dict(antes)
-            dx = (l["cx"] - (b["x"] + b["w"] / 2) / escala_palco) * escala_palco
-            dy = (l["cy"] - (b["y"] + b["h"] / 2) / escala_palco) * escala_palco
+            vx, vy = b["x"] + b["w"] / 2, b["y"] + b["h"] / 2
+            bx, by = b.get("origem", (vx, vy))
+            fx, fy = l["cx"] * escala_palco + ox, l["cy"] * escala_palco + oy
+            rot_css = -l["rot"] if abs(l["rot"]) >= 0.5 else 0.0
+            razao = l["largura"] * escala_palco / b["w"]
+            if abs(razao - 1) < 0.01:
+                razao = 1.0
+            a = math.radians(rot_css)
+            ux, uy = vx - bx, vy - by
+            rx = razao * (ux * math.cos(a) - uy * math.sin(a))
+            ry = razao * (ux * math.sin(a) + uy * math.cos(a))
+            dx, dy = (fx - bx) - rx, (fy - by) - ry
             if abs(dx) >= 1:
                 depois["dx"] = round(antes.get("dx", 0) + dx)
             if abs(dy) >= 1:
                 depois["dy"] = round(antes.get("dy", 0) + dy)
-            if abs(l["rot"]) >= 0.5:
-                depois["rot"] = round(antes.get("rot", 0) - l["rot"], 1)
-            razao = l["largura"] * escala_palco / b["w"]
-            if abs(razao - 1) >= 0.01:
+            if rot_css:
+                depois["rot"] = round(antes.get("rot", 0) + rot_css, 1)
+            if razao != 1.0:
                 depois["escala"] = round(antes.get("escala", 1) * razao, 3)
             if depois != antes:
                 saida.append((cena_id, peca, antes, depois))
     return saida
+
+
+def caixa_alfa(caminho: Path, limiar: int = 8) -> tuple[int, int, int, int] | None:
+    """(x, y, w, h) do que é visível (alfa > limiar) no PNG; None se a imagem está vazia."""
+    from PIL import Image  # só o ETL local de vídeo usa; fora do requirements do servidor
+    with Image.open(caminho) as img:
+        if "A" not in img.getbands():       # PNG opaco (peça em tela cheia): a imagem toda
+            return 0, 0, img.width, img.height
+        bbox = img.getchannel("A").point(lambda a: 255 if a > limiar else 0).getbbox()
+    if not bbox:
+        return None
+    x0, y0, x1, y1 = bbox
+    return x0, y0, x1 - x0, y1 - y0
+
+
+def montar_pecas(pasta: Path) -> dict:
+    """pecas.json a partir do render de camadas (render-pecas.mjs).
+
+    Espera `<pasta>/<cena>/fundo.png`, `<cena>/<peça>.png` (canvas inteiro, alfa) e
+    `<cena>/lista.json` = [{id, pai?}] na ordem de empilhamento. Corta cada peça pelo alfa em
+    `<peça>.recorte.png`; peça sem pixel visível no instante do storyboard fica de fora.
+    """
+    from PIL import Image
+    pasta = Path(pasta)
+
+    def recortar(png: Path) -> dict | None:
+        caixa = caixa_alfa(png)
+        if caixa is None:
+            return None
+        x, y, w, h = caixa
+        recorte = png.with_suffix(".recorte.png")
+        with Image.open(png) as img:
+            img.crop((x, y, x + w, y + h)).save(recorte)
+        return {"arquivo": recorte.relative_to(pasta).as_posix(), "x": x, "y": y, "w": w, "h": h}
+
+    manifesto = {}
+    for lista in sorted(pasta.glob("*/lista.json")):
+        cena = lista.parent
+        pecas = []
+        for item in json.loads(lista.read_text(encoding="utf-8")):
+            r = recortar(cena / f"{item['id']}.png")
+            if r is None:
+                continue
+            p = {"id": item["id"], **r, **({"pai": item["pai"]} if item.get("pai") else {})}
+            # centro da caixa da <Peca> (render "caixa:"): origem de giro/escala no vídeo
+            caixa_png = cena / f"{item['id']}.caixa.png"
+            if caixa_png.exists() and (cx := caixa_alfa(caixa_png)):
+                p["origem"] = [cx[0] + cx[2] / 2, cx[1] + cx[3] / 2]
+            pecas.append(p)
+        manifesto[cena.name] = {"fundo": (cena / "fundo.png").relative_to(pasta).as_posix(), "pecas": pecas}
+        # a nossa legenda fica por cima de tudo no vídeo: camada de cima, travada no Figma
+        if (cena / "legenda.png").exists() and (leg := recortar(cena / "legenda.png")):
+            manifesto[cena.name]["legenda"] = leg
+    return manifesto
 
 
 def aplicar_ajustes(criativo: dict, difs: list[tuple[str, str, dict, dict]], formato: str = "story") -> dict:
@@ -153,13 +231,19 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("criativo", type=Path)
     ap.add_argument("--captions", type=Path, required=True)
     ap.add_argument("--saida", type=Path, required=True)
+    ap.add_argument("--camadas", type=Path, help="pasta do render-pecas.mjs (<output>/pecas/<COD>/<formato>): "
+                    "corta as peças, grava pecas.json lá e põe as camadas nas telas")
     a = ap.parse_args(argv)
     for s in (sys.stdout, sys.stderr):
         if hasattr(s, "reconfigure"):
             s.reconfigure(errors="replace")
     crit = json.loads(a.criativo.read_text(encoding="utf-8"))
     caps = json.loads(a.captions.read_text(encoding="utf-8"))
-    d = dados_storyboard(crit, caps)
+    pecas = None
+    if a.camadas:
+        pecas = montar_pecas(a.camadas)
+        (a.camadas / "pecas.json").write_text(json.dumps(pecas, ensure_ascii=False, indent=1), encoding="utf-8")
+    d = dados_storyboard(crit, caps, pecas=pecas)
     a.saida.parent.mkdir(parents=True, exist_ok=True)
     a.saida.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
     print(f"ok: {len(d['telas'])} telas -> {a.saida}")

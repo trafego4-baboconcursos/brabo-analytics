@@ -12,6 +12,10 @@ export type Ajuste = { dx?: number; dy?: number; rot?: number; escala?: number }
 /** `isolar`: render de camadas para o storyboard — o id da peça que fica visível sozinha, ou
  * FUNDO (tudo menos as peças). Sem `isolar`, render normal. */
 export const FUNDO = "__fundo__";
+/** Só a nossa legenda: camada de cima no storyboard (fica por cima de tudo no vídeo). */
+export const LEGENDA = "__legenda__";
+/** Prefixo de isolar: "caixa:<id>" pinta a caixa da peça (render-pecas.mjs → origem). */
+export const CAIXA = "caixa:";
 export const PecasContext = createContext<{ ajustes: Record<string, Ajuste>; isolar: string | null }>({
   ajustes: {},
   isolar: null,
@@ -32,16 +36,20 @@ export const useIsolandoPeca = () => {
 export const Peca: React.FC<{ id: string; style?: React.CSSProperties; children: React.ReactNode }> = ({ id, style, children }) => {
   const { ajustes, isolar } = useContext(PecasContext);
   const a = ajustes[id];
+  // "caixa:<id>": pinta só a caixa da peça (sem o conteúdo) — o centro dela é a origem de
+  // giro/escala, que o storyboard precisa para converter o que o usuário fez no Figma
+  const caixa = isolar === `${CAIXA}${id}`;
   return (
     <div
       data-peca={id}
       style={{
         ...style,
         ...(a ? { translate: `${a.dx ?? 0}px ${a.dy ?? 0}px`, rotate: `${a.rot ?? 0}deg`, scale: `${a.escala ?? 1}` } : {}),
-        ...(isolar === null ? {} : { visibility: isolar === id ? "visible" : "hidden" }),
+        ...(isolar === null ? {} : { visibility: isolar === id || caixa ? "visible" : "hidden" }),
+        ...(caixa ? { background: "#ff00ff" } : {}),
       }}
     >
-      {children}
+      {caixa ? <div style={{ visibility: "hidden" }}>{children}</div> : children}
     </div>
   );
 };

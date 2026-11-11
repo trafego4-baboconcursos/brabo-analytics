@@ -103,6 +103,82 @@ def test_aplicar_ajustes_grava_no_formato_sem_mexer_no_original():
     assert "ajustes" not in CRIATIVO["cenas"][1]
 
 
+def test_peca_filha_e_lida_relativa_a_caixa_da_mae():
+    # kicker dentro da folha: no Figma a camada fica dentro do frame da folha
+    manif = {"dona": {"pecas": [{"id": "folha", "x": 90, "y": 190, "w": 900, "h": 600},
+                                {"id": "etiquetas[0]", "pai": "folha", "x": 100, "y": 200, "w": 300, "h": 80}]}}
+    lido = {"dona": {"etiquetas[0]": {"cx": 80.0 + 10, "cy": 25.0, "largura": 150.0, "rot": 0.0}}}
+    assert diferencas_ajustes(CRIATIVO, manif, lido) == [("dona", "etiquetas[0]", {}, {"dx": 20})]
+
+
+def _png(caminho, caixa=None, tamanho=(1080, 1920)):
+    from PIL import Image
+    img = Image.new("RGBA", tamanho, (0, 0, 0, 0))
+    if caixa:
+        x, y, w, h = caixa
+        img.paste((255, 0, 0, 255), (x, y, x + w, y + h))
+    img.save(caminho)
+
+
+def test_montar_pecas_corta_pelo_alfa_e_pula_peca_vazia(tmp_path):
+    from scripts.video.storyboard import montar_pecas
+    cena = tmp_path / "dona"
+    cena.mkdir()
+    _png(cena / "fundo.png", (0, 0, 1080, 1920))
+    _png(cena / "etiquetas[0].png", (100, 200, 300, 80))
+    _png(cena / "imagem.png")                                     # peça que não aparece nesse instante
+    (cena / "lista.json").write_text('[{"id": "imagem"}, {"id": "etiquetas[0]"}]', encoding="utf-8")
+    _png(cena / "legenda.png", (90, 1300, 900, 100))
+    m = montar_pecas(tmp_path)
+    assert m["dona"]["fundo"] == "dona/fundo.png"
+    # legenda: camada de cima, recortada como as peças, mas não editável
+    assert m["dona"]["legenda"] == {"arquivo": "dona/legenda.recorte.png", "x": 90, "y": 1300, "w": 900, "h": 100}
+    assert m["dona"]["pecas"] == [{"id": "etiquetas[0]", "arquivo": "dona/etiquetas[0].recorte.png",
+                                   "x": 100, "y": 200, "w": 300, "h": 80}]
+    from PIL import Image
+    assert Image.open(tmp_path / "dona" / "etiquetas[0].recorte.png").size == (300, 80)
+
+
+# caixa da <Peca> mais larga que o visível (carimbo numa linha inteira da folha): no vídeo a
+# peça escala/gira em volta do centro da CAIXA (origem); no Figma, do centro da IMAGEM.
+MANIF_ORIGEM = {"dona": {"pecas": [{"id": "etiquetas[0]", "x": 100, "y": 200, "w": 300, "h": 80, "origem": [540, 240]}]}}
+
+
+def test_escala_em_volta_da_imagem_compensa_a_origem_da_caixa():
+    difs = diferencas_ajustes(CRIATIVO, MANIF_ORIGEM, _lido(largura=300.0))
+    assert difs == [("dona", "etiquetas[0]", {}, {"dx": 290, "escala": 2.0})]
+
+
+def test_rotacao_em_volta_da_imagem_compensa_a_origem_da_caixa():
+    difs = diferencas_ajustes(CRIATIVO, MANIF_ORIGEM, _lido(rot=90.0))
+    assert difs == [("dona", "etiquetas[0]", {}, {"dx": -290, "dy": -290, "rot": -90.0})]
+
+
+def test_montar_pecas_le_a_origem_da_caixa(tmp_path):
+    from scripts.video.storyboard import montar_pecas
+    cena = tmp_path / "dona"
+    cena.mkdir()
+    _png(cena / "fundo.png", (0, 0, 1080, 1920))
+    _png(cena / "etiquetas[0].png", (100, 200, 300, 80))
+    _png(cena / "etiquetas[0].caixa.png", (60, 200, 960, 80))      # caixa da peça (render "caixa:")
+    (cena / "lista.json").write_text('[{"id": "etiquetas[0]"}]', encoding="utf-8")
+    assert montar_pecas(tmp_path)["dona"]["pecas"][0]["origem"] == [540.0, 240.0]
+
+
+def test_caixa_alfa_de_png_opaco_sem_canal_alfa_e_a_imagem_toda(tmp_path):
+    # o render grava RGB quando a peça cobre o quadro inteiro (ex.: ilustração em tela cheia)
+    from PIL import Image
+    from scripts.video.storyboard import caixa_alfa
+    Image.new("RGB", (1080, 1920), (200, 100, 50)).save(tmp_path / "imagem.png")
+    assert caixa_alfa(tmp_path / "imagem.png") == (0, 0, 1080, 1920)
+
+
+def test_dados_storyboard_levam_as_camadas_de_cada_tela():
+    d = dados_storyboard(CRIATIVO, CAPTIONS, pecas=MANIFESTO)
+    assert d["telas"][1]["camadas"] == MANIFESTO["dona"]
+    assert "camadas" not in d["telas"][0]          # cena sem render de camadas: tela só com o still
+
+
 def test_camada_lida_que_nao_esta_no_manifesto_e_erro():
     with pytest.raises(KeyError, match=r"etiquetas\[9\]"):
         diferencas_ajustes(CRIATIVO, MANIFESTO, {"dona": {"etiquetas[9]": PARADO}})

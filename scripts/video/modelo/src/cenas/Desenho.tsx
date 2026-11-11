@@ -8,14 +8,15 @@ import type { PropsCena } from "./tipos";
 
 const PAPEL = color.paper;
 
-const Etiqueta: React.FC<{ em: number; t: (s: number) => number; rot: number; size: number; children: React.ReactNode; style?: React.CSSProperties }> = ({
-  em, t, rot, size, children, style,
-}) => {
+const Etiqueta: React.FC<{
+  em: number; t: (s: number) => number; rot: number; size: number; cor?: string; corTexto?: string;
+  children: React.ReactNode; style?: React.CSSProperties;
+}> = ({ em, t, rot, size, cor, corTexto, children, style }) => {
   const frame = useCurrentFrame();
   return (
     <div style={{
-      rotate: `${rot}deg`, padding: `${Math.round(size * 0.26)}px ${Math.round(size * 0.56)}px`, background: color.ink,
-      color: color.paper, fontFamily: font.ui, fontWeight: 800, fontSize: size, borderRadius: raio.etiqueta,
+      rotate: `${rot}deg`, padding: `${Math.round(size * 0.26)}px ${Math.round(size * 0.56)}px`, background: cor ?? color.ink,
+      color: corTexto ?? color.paper, fontFamily: font.ui, fontWeight: 800, fontSize: size, borderRadius: raio.etiqueta,
       boxShadow: "0 14px 30px rgba(0,0,0,0.3)", opacity: interpolate(frame, [t(em), t(em) + 4], [0, 1], clamp),
       scale: interpolate(frame, [t(em), t(em) + 8], [1.4, 1], { ...clamp, easing: ease }), ...style,
     }}>
@@ -44,7 +45,7 @@ export const Desenho: React.FC<PropsCena<"Desenho">> = ({ start, dur, props }) =
         }} /></Peca>
         {props.etiquetas.map((e, i) => (
           <Peca key={e.texto} id={`etiquetas[${i}]`} style={{ position: "absolute", left: e.x, top: e.y }}>
-            <Etiqueta em={e.em} t={t} rot={e.rot} size={54}>
+            <Etiqueta em={e.em} t={t} rot={e.rot} size={54} cor={e.cor} corTexto={e.corTexto}>
               {e.texto}
             </Etiqueta>
           </Peca>
@@ -71,7 +72,7 @@ export const Desenho: React.FC<PropsCena<"Desenho">> = ({ start, dur, props }) =
       }}>
         {props.etiquetas.map((e, i) => (
           <Peca key={e.texto} id={`etiquetas[${i}]`}>
-            <Etiqueta em={e.em} t={t} rot={e.rot} size={pick(f, { story: 54, feed: 46, h: 68 })}>
+            <Etiqueta em={e.em} t={t} rot={e.rot} size={pick(f, { story: 54, feed: 46, h: 68 })} cor={e.cor} corTexto={e.corTexto}>
               {e.texto}
             </Etiqueta>
           </Peca>

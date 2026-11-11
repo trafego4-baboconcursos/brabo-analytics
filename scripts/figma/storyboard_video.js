@@ -45,23 +45,63 @@ function quadro(nome, x, y, w, h, pai) {
   return f;
 }
 const CINZA = { r: 0.45, g: 0.45, b: 0.45 };
+const hex = (h) => ({ r: parseInt(h.slice(1, 3), 16) / 255, g: parseInt(h.slice(3, 5), 16) / 255, b: parseInt(h.slice(5, 7), 16) / 255 });
+await figma.loadFontAsync({ family: "Inter", style: "Extra Bold" });
 
-// idempotente: refaz só as telas deste criativo (nomes "Tela · <id>"), guardando o Status
+// Caixa + lettering: a peça vira um frame de auto layout com o texto vivo dentro ("texto").
+// O usuário digita no balão, troca a cor da caixa/letra e o tamanho da letra; a caixa cresce
+// junto. Centro em (cx, cy) do palco e rotação do vídeo. Devolve como ficou (nativos0).
+function caixaNativa(nome, n, pai) {
+  const f = figma.createFrame();
+  f.name = nome;
+  f.layoutMode = "HORIZONTAL";
+  f.primaryAxisSizingMode = "AUTO";
+  f.counterAxisSizingMode = "AUTO";
+  f.paddingTop = f.paddingBottom = n.padV;
+  f.paddingLeft = f.paddingRight = n.padH;
+  f.cornerRadius = n.raio;
+  f.fills = [{ type: "SOLID", color: hex(n.cor) }];
+  f.effects = [{ type: "DROP_SHADOW", color: { r: 0, g: 0, b: 0, a: 0.3 }, offset: { x: 0, y: 7 }, radius: 15,
+    spread: 0, visible: true, blendMode: "NORMAL" }];
+  const t = figma.createText();
+  t.name = "texto";
+  t.fontName = { family: "Inter", style: "Extra Bold" };
+  t.fontSize = n.fonte;
+  t.characters = n.texto;
+  t.fills = [{ type: "SOLID", color: hex(n.corTexto) }];
+  f.appendChild(t);
+  pai.appendChild(f);
+  f.rotation = n.rot;
+  const [[, , ox], [, , oy]] = pai.absoluteTransform;
+  const bb = f.absoluteBoundingBox;
+  f.x += n.cx - (bb.x - ox + bb.width / 2);
+  f.y += n.cy - (bb.y - oy + bb.height / 2);
+  return f;
+}
+
+// idempotente: refaz só as telas que estão em DADOS (as outras ficam como estão), guardando o
+// Status e a posição de cada uma. Para refazer só algumas, filtre DADOS.telas antes de colar.
 const statusAntes = {};
+const xAntes = {};
+const refazer = new Set(DADOS.telas.map((t) => t.id));
 for (const n of page.findChildren((n) => n.name.startsWith("Tela · "))) {
+  const id = n.name.slice(7);
+  if (!refazer.has(id)) continue;
   const st = n.findOne((c) => c.name === "status" && c.type === "TEXT");
-  if (st) statusAntes[n.name.slice(7)] = st.characters;
+  if (st) statusAntes[id] = st.characters;
+  xAntes[id] = n.x;
   n.remove();
 }
 
 const telas = [];
 const uploads = []; // { no, arquivo } — arquivo null = still da cena (tela sem camadas)
+const nativos0 = {}; // caixas + lettering como foram criadas → salvar em nativos0.json (volta)
 DADOS.telas.forEach((t, i) => {
   const col = figma.createAutoLayout("VERTICAL", { name: `Tela · ${t.id}`, itemSpacing: 16 });
-  col.x = i * 620;
+  col.x = xAntes[t.id] ?? i * 620;
   col.y = 0;
   page.appendChild(col);
-  col.appendChild(texto(`${i + 1}. ${t.id} · ${t.componente} · ${t.de}s → ${t.ate}s`, 24, true, "cabeçalho"));
+  col.appendChild(texto(`${Math.round(col.x / 620) + 1}. ${t.id} · ${t.componente} · ${t.de}s → ${t.ate}s`, 24, true, "cabeçalho"));
   const palco = figma.createFrame();
   palco.name = "palco";
   palco.resize(540, 960);
@@ -81,6 +121,12 @@ DADOS.telas.forEach((t, i) => {
       const dentro = mae ? nos[mae.id] : palco;
       const ox = mae ? mae.x : 0, oy = mae ? mae.y : 0;
       // nome em português ("Balão 1 · trabalha"); a volta traduz de novo (storyboard.nome_camada)
+      if (p.nativo) {
+        const f = caixaNativa(p.nome || p.id, p.nativo, dentro);
+        nos[p.id] = f;
+        (nativos0[t.id] ||= {})[p.id] = { largura: f.width, rot: f.rotation, fonte: p.nativo.fonte };
+        continue;
+      }
       const f = quadro(p.nome || p.id, (p.x - ox) * K, (p.y - oy) * K, p.w * K, p.h * K, dentro);
       nos[p.id] = f;
       uploads.push({ no: f.id, tela: t.id, arquivo: p.arquivo });
@@ -115,4 +161,4 @@ DADOS.telas.forEach((t, i) => {
   }
   telas.push(col.id);
 });
-return { telas: telas.length, uploads };
+return { telas: telas.length, uploads, nativos0 };

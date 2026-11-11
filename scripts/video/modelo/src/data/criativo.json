@@ -11,6 +11,7 @@
   "cenas": [
     {
       "id": "dona-de-casa", "componente": "Desenho", "de": 3.4, "ate": 8.88,
+      "ajustes": {"story": {"etiquetas[2]": {"dy": 50}}},
       "props": { "img": "dona-de-casa-original.jpg", "etiquetas": [
         { "texto": "trabalha", "em": 4.4, "x": 90, "y": 190, "rot": -4 },
         { "texto": "cuida da casa", "em": 4.82, "x": 430, "y": 290, "rot": 3 },
@@ -26,6 +27,7 @@
     },
     {
       "id": "cargo", "componente": "Manchete", "de": 27.9, "ate": 33.2,
+      "ajustes": {"story": {"folha": {"dy": 269}}},
       "props": { "kicker": "Ficha do concurso · INSS", "titulo": "Técnico do Seguro Social",
         "corpo": "Cargo da autarquia federal. Exige só nível médio: não precisa de faculdade.",
         "destaque": { "texto": "nível médio", "em": 32.4 } },
@@ -42,6 +44,7 @@
     },
     {
       "id": "status", "componente": "Carimbo", "de": 42.8, "ate": 51.6,
+      "ajustes": {"story": {"carimbo": {"dx": 154}}},
       "props": { "kicker": "Concurso INSS · situação hoje", "pergunta": "O edital já saiu?",
         "carimbo": { "texto": "AINDA NÃO", "em": 46.1 },
         "corpo": "Está aguardando autorização para um novo concurso.",
@@ -51,6 +54,7 @@
     },
     {
       "id": "tem-filho", "componente": "Desenho", "de": 52.7, "ate": 57.1,
+      "ajustes": {"story": {"etiquetas[2]": {"dx": -25, "dy": 42}}},
       "props": { "img": "dona-de-casa-filho.jpg", "etiquetas": [
         { "texto": "trabalha", "em": 53.82, "x": 90, "y": 190, "rot": -4 },
         { "texto": "cuida da casa", "em": 54.28, "x": 430, "y": 290, "rot": 3 },
@@ -59,6 +63,7 @@
     },
     {
       "id": "mapa", "componente": "Rota", "de": 62.9, "ate": 74.45,
+      "ajustes": {"story": {"selo": {"dx": 546, "dy": -524}}},
       "ancora_palavras": { "aprovada": "aprovada" },
       "props": { "imagem": "mapa-montanha-limpo.jpg", "imagemTamanho": [1536, 2752],
         "estrada": [[120, 1840], [200, 1790], [245, 1750], [245, 1680], [225, 1600], [205, 1520], [215, 1480], [280, 1445],

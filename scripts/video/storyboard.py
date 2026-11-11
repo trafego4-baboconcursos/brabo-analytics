@@ -58,10 +58,15 @@ def dados_storyboard(criativo: dict, captions: list[dict], pecas: dict | None = 
             cam = copy.deepcopy(pecas[c["id"]])
             for p in cam["pecas"]:
                 p["nome"] = nome_camada(p["id"], props)
+                if (nat := _spec_nativo(c, p)) is not None:
+                    p["nativo"] = nat
             telas.append({"camadas": cam})
         else:
             telas.append({})
-        telas[-1]["rotulos"] = {k: nome_camada(k, props) for k in _textos(props)}
+        # texto de peça caixa + lettering é editado no próprio balão, não na caixa TEXTOS
+        nativos = {f"{p['id']}." for p in telas[-1].get("camadas", {}).get("pecas", []) if "nativo" in p}
+        textos = {k: v for k, v in _textos(props).items() if not any(k.startswith(n) for n in nativos)}
+        telas[-1]["rotulos"] = {k: nome_camada(k, props) for k in textos}
         telas[-1].update({
             "id": c["id"],
             "componente": c["componente"],
@@ -69,7 +74,7 @@ def dados_storyboard(criativo: dict, captions: list[dict], pecas: dict | None = 
             "ate": c["ate"],
             "fala": _fala(captions, c["de"], c["ate"]),
             "efeitos": [f"{t} s {nome}" for t, nome, _vol in c.get("sfx", [])],
-            "textos": _textos(c.get("props", {})),
+            "textos": textos,
         })
     return {"codigo": criativo["codigo"], "telas": telas}
 
@@ -178,6 +183,8 @@ def diferencas_ajustes(criativo: dict, manifesto: dict, lidos: dict[str, dict[st
         por_nome = {nome_camada(i, cenas[cena_id].get("props", {})): i for i in caixas}
         for peca, l in camadas.items():
             peca = por_nome.get(peca, peca)   # camada vem com o nome em português
+            if "fonte" in l:                  # caixa + lettering: conta em diferencas_nativas
+                continue
             if peca not in caixas:
                 raise KeyError(f"cena '{cena_id}': a camada '{peca}' não está no pecas.json (renomeada no Figma?)")
             b = caixas[peca]
@@ -208,6 +215,93 @@ def diferencas_ajustes(criativo: dict, manifesto: dict, lidos: dict[str, dict[st
             if depois != antes:
                 saida.append((cena_id, peca, antes, depois))
     return saida
+
+
+# --- caixa + lettering (peças nativas no Figma) ---------------------------------------------
+_TOKENS = Path(__file__).resolve().parent / "modelo" / "src" / "tokens.json"
+
+
+def _cores() -> dict:
+    return json.loads(_TOKENS.read_text(encoding="utf-8"))["cor"]
+
+
+def _spec_nativo(cena: dict, peca: dict, formato: str = "story", k: float = 0.5) -> dict | None:
+    """Como desenhar a peça como caixa + texto vivo no Figma (palco × k), ou None se ela é imagem.
+    Balão (Desenho, story): fundo ink, letra Inter 800 54 px, padding 14/30, raio 14 — os mesmos
+    números de cenas/Desenho.tsx, vezes a escala do ajuste."""
+    m = re.fullmatch(r"etiquetas\[(\d+)\]", peca["id"])
+    if not (m and cena["componente"] == "Desenho" and formato == "story" and "origem" in peca):
+        return None
+    e = cena["props"]["etiquetas"][int(m.group(1))]
+    aj = cena.get("ajustes", {}).get(formato, {}).get(peca["id"], {})
+    s = aj.get("escala", 1) * k
+    cores = _cores()
+    return {"texto": e["texto"], "fonte": round(54 * s, 2), "cor": e.get("cor", cores["ink"]),
+            "corTexto": e.get("corTexto", cores["paper"]), "padV": round(14 * s, 2), "padH": round(30 * s, 2),
+            "raio": round(14 * s, 2), "rot": -(e.get("rot", 0) + aj.get("rot", 0)),
+            "cx": peca["origem"][0] * k, "cy": peca["origem"][1] * k}
+
+
+def diferencas_nativas(criativo: dict, manifesto: dict, lidos: dict, nativos0: dict,
+                       formato: str = "story", escala_palco: float = 2.0):
+    """Volta das peças caixa + lettering. Devolve (ajustes, props):
+    - ajustes [(cena, peça, antes, depois)]: o centro da caixa no Figma vira o centro no vídeo. Texto
+      maior/menor cresce a caixa para a direita nos dois lados (auto layout no Figma, left fixo no
+      vídeo), então esse crescimento é descontado; letra maior vira `escala`, em volta do centro.
+    - props [(cena, caminho, antes, depois)]: texto e cores mudados (aplicar com aplicar_props).
+    `nativos0[cena][peça]` = {largura, rot, fonte} como o Figma criou a caixa."""
+    cenas = {c["id"]: c for c in criativo["cenas"]}
+    cores = _cores()
+    ajustes, props = [], []
+    for cena_id, camadas in lidos.items():
+        cena = cenas[cena_id]
+        caixas = {p["id"]: p for p in manifesto[cena_id]["pecas"]}
+        por_nome = {nome_camada(i, cena.get("props", {})): i for i in caixas}
+        atuais = cena.get("ajustes", {}).get(formato, {})
+        for peca, l in camadas.items():
+            peca = por_nome.get(peca, peca)
+            if "fonte" not in l or peca not in nativos0.get(cena_id, {}):
+                continue
+            n0, b = nativos0[cena_id][peca], caixas[peca]
+            antes = dict(atuais.get(peca, {}))
+            depois = dict(antes)
+            razao = l["fonte"] / n0["fonte"]
+            if abs(razao - 1) < 0.01:
+                razao = 1.0
+            # quanto o texto (sem a escala) cresceu, em px do vídeo; metade disso o vídeo já anda sozinho
+            cresceu = escala_palco * (l["largura"] / razao - n0["largura"])
+            dx = l["cx"] * escala_palco - b["origem"][0] - (cresceu / 2 if razao == 1.0 else 0)
+            dy = l["cy"] * escala_palco - b["origem"][1]
+            if abs(dx) >= 1:
+                depois["dx"] = round(antes.get("dx", 0) + dx)
+            if abs(dy) >= 1:
+                depois["dy"] = round(antes.get("dy", 0) + dy)
+            drot = l["rot"] - n0["rot"]
+            if abs(drot) >= 0.5:
+                depois["rot"] = round(antes.get("rot", 0) - drot, 1)
+            if razao != 1.0:
+                depois["escala"] = round(antes.get("escala", 1) * razao, 3)
+            if depois != antes:
+                ajustes.append((cena_id, peca, antes, depois))
+            e = cena["props"]["etiquetas"][int(peca[peca.index("[") + 1:-1])]
+            for campo, padrao in (("texto", None), ("cor", cores["ink"]), ("corTexto", cores["paper"])):
+                atual = e.get(campo, padrao)
+                if campo in l and l[campo] != atual:
+                    props.append((cena_id, f"{peca}.{campo}", atual, l[campo]))
+    return ajustes, props
+
+
+def aplicar_props(criativo: dict, difs: list[tuple[str, str, object, object]]) -> dict:
+    """Cópia do criativo com as props trocadas pelo caminho (cria o campo se não existia, ex.: cor)."""
+    novo = copy.deepcopy(criativo)
+    cenas = {c["id"]: c for c in novo["cenas"]}
+    for cena_id, caminho, _antes, depois in difs:
+        passos = _passos(caminho)
+        alvo = cenas[cena_id]["props"]
+        for p in passos[:-1]:
+            alvo = alvo[p]
+        alvo[passos[-1]] = depois
+    return novo
 
 
 def caixa_alfa(caminho: Path, limiar: int = 8) -> tuple[int, int, int, int] | None:

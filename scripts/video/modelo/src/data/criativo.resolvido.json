@@ -28,6 +28,13 @@
    "componente": "Desenho",
    "de": 3.4,
    "ate": 8.88,
+   "ajustes": {
+    "story": {
+     "etiquetas[2]": {
+      "dy": 50
+     }
+    }
+   },
    "props": {
     "img": "dona-de-casa-original.jpg",
     "etiquetas": [
@@ -126,6 +133,13 @@
    "componente": "Manchete",
    "de": 27.9,
    "ate": 33.2,
+   "ajustes": {
+    "story": {
+     "folha": {
+      "dy": 269
+     }
+    }
+   },
    "props": {
     "kicker": "Ficha do concurso · INSS",
     "titulo": "Técnico do Seguro Social",
@@ -226,6 +240,13 @@
    "componente": "Carimbo",
    "de": 42.8,
    "ate": 51.6,
+   "ajustes": {
+    "story": {
+     "carimbo": {
+      "dx": 154
+     }
+    }
+   },
    "props": {
     "kicker": "Concurso INSS · situação hoje",
     "pergunta": "O edital já saiu?",
@@ -267,6 +288,14 @@
    "componente": "Desenho",
    "de": 52.7,
    "ate": 57.1,
+   "ajustes": {
+    "story": {
+     "etiquetas[2]": {
+      "dx": -25,
+      "dy": 42
+     }
+    }
+   },
    "props": {
     "img": "dona-de-casa-filho.jpg",
     "etiquetas": [
@@ -322,6 +351,14 @@
    "componente": "Rota",
    "de": 62.9,
    "ate": 74.45,
+   "ajustes": {
+    "story": {
+     "selo": {
+      "dx": 546,
+      "dy": -524
+     }
+    }
+   },
    "ancora_palavras": {
     "aprovada": "aprovada"
    },

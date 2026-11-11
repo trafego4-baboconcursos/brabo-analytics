@@ -26,6 +26,13 @@ for (const col of page.findChildren((n) => n.name.startsWith("Tela · "))) {
         largura: Math.round(n.width * 100) / 100,
         rot: Math.round(n.rotation * 10) / 10,
       };
+      // caixa + lettering: texto vivo, tamanho da letra e cores (storyboard.diferencas_nativas)
+      const t = n.children && n.children.find((c) => c.type === "TEXT" && c.name === "texto");
+      if (t) {
+        const h = (p) => "#" + [p.color.r, p.color.g, p.color.b].map((v) => Math.round(v * 255).toString(16).padStart(2, "0")).join("").toUpperCase();
+        Object.assign(camadas[n.name], { texto: t.characters, fonte: t.fontSize, cor: h(n.fills[0]), corTexto: h(t.fills[0]) });
+        continue;
+      }
       visitar(n);
     }
   };

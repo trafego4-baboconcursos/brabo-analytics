@@ -11,6 +11,8 @@ export type TextoEm = { texto: string; em: number };
 
 export type PropsDesenho = {
   img: string;
+  /** vídeo animado gerado a partir da ilustração (public/), no lugar da imagem; o 1º quadro é a img */
+  video?: string;
   /** x/y/rot só valem no story (no feed/h as etiquetas empilham na coluna) */
   /** cor/corTexto: opcionais (padrão ink/paper); vêm do balão caixa + lettering do storyboard */
   etiquetas: { texto: string; em: number; x: number; y: number; rot: number; cor?: string; corTexto?: string }[];

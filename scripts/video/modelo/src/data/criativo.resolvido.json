@@ -37,6 +37,7 @@
    },
    "props": {
     "img": "dona-de-casa-original.jpg",
+    "video": "dona-de-casa-original.mp4",
     "etiquetas": [
      {
       "texto": "trabalha",
@@ -92,6 +93,7 @@
    "ate": 22.4,
    "props": {
     "img": "dona-de-casa-faculdade.jpg",
+    "video": "dona-de-casa-faculdade.mp4",
     "etiquetas": [
      {
       "texto": "faculdade? não",
@@ -298,6 +300,7 @@
    },
    "props": {
     "img": "dona-de-casa-filho.jpg",
+    "video": "dona-de-casa-filho.mp4",
     "etiquetas": [
      {
       "texto": "trabalha",

@@ -1,4 +1,5 @@
 import React from "react";
+import { Video } from "@remotion/media";
 import { Img, interpolate, staticFile, useCurrentFrame } from "remotion";
 import { Cutaway } from "../Cutaway";
 import { clamp, color, font, pick, raio, useAt, useFormato } from "../theme";
@@ -7,6 +8,10 @@ import { Peca } from "../pecas";
 import type { PropsCena } from "./tipos";
 
 const PAPEL = color.paper;
+
+/** A ilustração: vídeo animado (gerado a partir dela, ex.: ElevenLabs/Veo) quando houver, senão a imagem. */
+const Ilustracao: React.FC<{ img: string; video?: string; style: React.CSSProperties }> = ({ img, video, style }) =>
+  video ? <Video src={staticFile(video)} muted style={style} /> : <Img src={staticFile(img)} style={style} />;
 
 const Etiqueta: React.FC<{
   em: number; t: (s: number) => number; rot: number; size: number; cor?: string; corTexto?: string;
@@ -40,7 +45,7 @@ export const Desenho: React.FC<PropsCena<"Desenho">> = ({ start, dur, props }) =
   if (f === "story") {
     return (
       <Cutaway durationInFrames={dur} background={PAPEL}>
-        <Peca id="imagem" style={{ position: "absolute", inset: 0 }}><Img src={staticFile(props.img)} style={{
+        <Peca id="imagem" style={{ position: "absolute", inset: 0 }}><Ilustracao img={props.img} video={props.video} style={{
           position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", scale: zoom,
         }} /></Peca>
         {props.etiquetas.map((e, i) => (
@@ -59,7 +64,7 @@ export const Desenho: React.FC<PropsCena<"Desenho">> = ({ start, dur, props }) =
   return (
     <Cutaway durationInFrames={dur} background={PAPEL}>
       <Peca id="imagem" style={{ position: "absolute", left: px, top: 0, width: pw, height: painel.h, overflow: "hidden" }}>
-        <Img src={staticFile(props.img)} style={{ width: "100%", height: "100%", objectFit: "cover",
+        <Ilustracao img={props.img} video={props.video} style={{ width: "100%", height: "100%", objectFit: "cover",
           objectPosition: f === "h" ? "50% 40%" : "50% 50%", scale: zoom }} />
       </Peca>
       {/* emenda suave entre a coluna creme e a parede creme da ilustração */}

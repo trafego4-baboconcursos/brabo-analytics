@@ -12,7 +12,7 @@
     {
       "id": "dona-de-casa", "componente": "Desenho", "de": 3.4, "ate": 8.88,
       "ajustes": {"story": {"etiquetas[2]": {"dy": 50}}},
-      "props": { "img": "dona-de-casa-original.jpg", "etiquetas": [
+      "props": { "img": "dona-de-casa-original.jpg", "video": "dona-de-casa-original.mp4", "etiquetas": [
         { "texto": "trabalha", "em": 4.4, "x": 90, "y": 190, "rot": -4 },
         { "texto": "cuida da casa", "em": 4.82, "x": 430, "y": 290, "rot": 3 },
         { "texto": "pouco tempo pra estudar", "em": 6.25, "x": 120, "y": 390, "rot": -2 } ] },
@@ -20,7 +20,7 @@
     },
     {
       "id": "sem-faculdade", "componente": "Desenho", "de": 19.13, "ate": 22.4,
-      "props": { "img": "dona-de-casa-faculdade.jpg", "etiquetas": [
+      "props": { "img": "dona-de-casa-faculdade.jpg", "video": "dona-de-casa-faculdade.mp4", "etiquetas": [
         { "texto": "faculdade? não", "em": 19.66, "x": 40, "y": 150, "rot": -4 },
         { "texto": "só ensino médio", "em": 20.8, "x": 520, "y": 310, "rot": 3 } ] },
       "sfx": [[19.13, "whoosh", 0.35], [19.66, "mouse-click", 0.3], [20.8, "mouse-click", 0.3]]
@@ -55,7 +55,7 @@
     {
       "id": "tem-filho", "componente": "Desenho", "de": 52.7, "ate": 57.1,
       "ajustes": {"story": {"etiquetas[2]": {"dx": -25, "dy": 42}}},
-      "props": { "img": "dona-de-casa-filho.jpg", "etiquetas": [
+      "props": { "img": "dona-de-casa-filho.jpg", "video": "dona-de-casa-filho.mp4", "etiquetas": [
         { "texto": "trabalha", "em": 53.82, "x": 90, "y": 190, "rot": -4 },
         { "texto": "cuida da casa", "em": 54.28, "x": 430, "y": 290, "rot": 3 },
         { "texto": "tem filho", "em": 55.12, "x": 160, "y": 390, "rot": -2 } ] },

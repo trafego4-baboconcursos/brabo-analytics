@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS leads (
 );
 
 CREATE INDEX IF NOT EXISTS idx_leads_email       ON leads (email);
-CREATE INDEX IF NOT EXISTS idx_leads_utm_content ON leads (utm_content);
+-- idx_leads_utm_content removido em 11/11/26: 2 usos (filtros por utm_content são regex, não usam btree).
 CREATE INDEX IF NOT EXISTS idx_leads_created_at  ON leads (created_at);
 
 
@@ -237,7 +237,7 @@ CREATE TABLE IF NOT EXISTS meta_ads_daily (
 
 CREATE INDEX IF NOT EXISTS idx_meta_date   ON meta_ads_daily (date);
 CREATE INDEX IF NOT EXISTS idx_meta_campaign_id ON meta_ads_daily (campaign_id);
-CREATE INDEX IF NOT EXISTS idx_meta_ad_id  ON meta_ads_daily (ad_id);
+-- idx_meta_ad_id removido em 11/11/26: 0 usos; a chave única (ad_id, date, lancamento_codigo) já cobre.
 
 
 -- ── GOOGLE ADS — performance diária por anúncio ──────────────────────────
@@ -272,7 +272,7 @@ CREATE TABLE IF NOT EXISTS google_ads_daily (
 
 CREATE INDEX IF NOT EXISTS idx_google_date   ON google_ads_daily (date);
 CREATE INDEX IF NOT EXISTS idx_google_campaign_id ON google_ads_daily (campaign_id);
-CREATE INDEX IF NOT EXISTS idx_google_ad_id  ON google_ads_daily (ad_id);
+-- idx_google_ad_id removido em 11/11/26: 0 usos; a chave única (ad_id, date, lancamento_codigo) já cobre.
 
 
 -- ── TYPEFORM — respostas da pesquisa ─────────────────────────────────────
@@ -680,9 +680,10 @@ CREATE TABLE IF NOT EXISTS ad_landing_pages (
 ALTER TABLE google_ads_daily ADD COLUMN IF NOT EXISTS lancamento_codigo TEXT;
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS lancamento_codigo TEXT;
 
-CREATE INDEX IF NOT EXISTS idx_meta_lancamento ON meta_ads_daily(lancamento_codigo);
-CREATE INDEX IF NOT EXISTS idx_google_lancamento ON google_ads_daily(lancamento_codigo);
+-- idx_meta_lancamento / idx_google_lancamento removidos em 11/11/26: cobertos por idx_*_lancamento_date.
 CREATE INDEX IF NOT EXISTS idx_leads_lancamento ON leads(lancamento_codigo);
+-- leads: limpeza automática mais frequente (padrão 0,2 = só após ~825 mil linhas alteradas). 11/11/26.
+ALTER TABLE leads SET (autovacuum_vacuum_scale_factor = 0.02, autovacuum_analyze_scale_factor = 0.02);
 
 -- 09/11/26 — alinhado ao banco de produção (docs/historico/REVISAO_TABELAS_ADS_2026-11-09.md).
 -- Conta de anúncio de origem do Google (GOOGLE_ADS_CUSTOMER_ID, só dígitos) — par do

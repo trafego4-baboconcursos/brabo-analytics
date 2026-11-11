@@ -4531,6 +4531,11 @@ Saiu da revisão [[REVISAO_TABELAS_ADS_2026-11-09]].
   `run_in_threadpool`. `autodetect_launch_data` (`launches.py`) tem cache por processo de 10 min.
   Uma falha não fica no cache: quando a contagem passa de 30 s, o wizard abre sem `meta_leads`
   e a próxima abertura tenta de novo. Teste: `tests/test_autodetect_launch_cache.py`.
+- **Manutenção do banco, 11/11/26.** Seis índices sem uso foram apagados: o duplicado de
+  `leads.lancamento_codigo`, `idx_leads_utm_content`, `idx_*_ad_id` e `idx_*_lancamento`.
+  A `leads` ganhou autovacuum com scale factor 0,02. Depois do `VACUUM`, a contagem por
+  lançamento caiu de 30 s para menos de 1 s. Detalhes e definições para recriar:
+  [[REVISAO_TABELAS_ADS_2026-11-09]].
 
 ## `/verba` no layout da planilha "Verba Diária" (2026-11-10)
 

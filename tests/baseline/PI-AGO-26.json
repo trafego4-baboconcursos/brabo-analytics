@@ -524,12 +524,12 @@
     "sha256": "b293cb4993097c39833d4967d487ed56824705487f2db72c7e29e1aa6d5c7508"
   },
   "read_hotmart_details": {
-    "bytes": 7363,
+    "bytes": 6371,
     "resumo": {
       "__n__": 34,
-      "__sha__": "c2044658e872e9b0"
+      "__sha__": "d0988dc0fb2529df"
     },
-    "sha256": "c2044658e872e9b0a0dcc9144021ac54b5b0aaec8a93db422d5f490919d1f134"
+    "sha256": "d0988dc0fb2529dfda09e1ff1474db2254199451fba45001e0c8b4341791c9d0"
   },
   "read_hotmart_recompra": {
     "bytes": 600,
@@ -901,50 +901,50 @@
     "sha256": "a65cab1c5de13fa316b6bcd816c27a509cc833861b399a011b6aab746cb5f708"
   },
   "read_tmb_details": {
-    "bytes": 3790,
+    "bytes": 3224,
     "resumo": {
       "cidades": {
         "__n__": 10,
-        "__sha__": "b59737abaa3a98fc"
+        "__sha__": "1912dda460b308d0"
       },
-      "com_utm_pct": 99.0826,
-      "com_utm_qtd": 864,
+      "com_utm_pct": 99.1917,
+      "com_utm_qtd": 859,
       "estados": {
         "__n__": 10,
-        "__sha__": "278daacc13e3f1a8"
+        "__sha__": "43e0ee87c0a7023b"
       },
-      "faturamento": 1634164.99,
+      "faturamento": 1621426.43,
       "file_name": "Supabase DB",
       "has_data": true,
       "ofertas": {
-        "__n__": 4,
-        "__sha__": "ec460e93e71717ca"
+        "__n__": 3,
+        "__sha__": "f3d9f0deff4c501f"
       },
       "pagamentos": {
         "__n__": 1,
-        "__sha__": "53080f183f04eb0c"
+        "__sha__": "2e380f3eab2d393f"
       },
       "status_emitidos": {
         "__n__": 1,
-        "__sha__": "8d838ec8ecb2dd6e"
+        "__sha__": "352fe5cec8c45b0b"
       },
       "taxa_cancelamento": 0.0,
-      "ticket_medio": 1874.0424,
+      "ticket_medio": 1872.3169,
       "timeline": {
-        "__n__": 18,
-        "__sha__": "bd959c8aa57cef64"
+        "__n__": 13,
+        "__sha__": "79702841e937efbb"
       },
       "total_cancelados": 0,
-      "total_emitidos": 872,
-      "total_vendas": 872,
+      "total_emitidos": 866,
+      "total_vendas": 866,
       "utm_sources": {
         "__n__": 4,
-        "__sha__": "548f6e5a911493ef"
+        "__sha__": "18de6c651829cd8f"
       },
-      "vendas_d1": 1,
-      "vendas_d1_pct": 0.1147
+      "vendas_d1": 3,
+      "vendas_d1_pct": 0.3464
     },
-    "sha256": "f997b1806a7770624b2991160e039ac00c8c37d843d782a4dc3f1653994d8891"
+    "sha256": "44f38f6f327480bf780850550f0f21e087039f60582cc98b475da09686d4249a"
   },
   "read_utm_cobertura": {
     "bytes": 47,

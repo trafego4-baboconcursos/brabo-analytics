@@ -36,6 +36,11 @@ def read_tmb_details(launch_folder_or_code: Any, start_date=None, end_date=None)
 
     effective_start = _safe_date(start_date) or _safe_date(dim_start)
     effective_end   = _safe_date(end_date)   or _safe_date(dim_end)
+    # Só as vendas do CARRINHO ABERTO (mesma janela do read_vendas) — ver hotmart.py.
+    from frontend.db_readers.launches import read_launch_config  # noqa: PLC0415
+    _cfg = read_launch_config(code)
+    effective_start = _safe_date(_cfg.get("carrinho_start_date")) or effective_start
+    effective_end = _safe_date(_cfg.get("carrinho_end_date")) or effective_end
 
     ops_engine = _get_users_engine()
     details = TmbDetails()

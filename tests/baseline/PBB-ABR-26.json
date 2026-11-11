@@ -499,12 +499,12 @@
     "sha256": "f6787bb1a44cd76cff369aa44cd267045fbfa7427cf4082170c175aa56a2bf29"
   },
   "read_hotmart_details": {
-    "bytes": 5528,
+    "bytes": 5082,
     "resumo": {
       "__n__": 34,
-      "__sha__": "2d2453d8a7fd75cd"
+      "__sha__": "a158fe10db64a60e"
     },
-    "sha256": "2d2453d8a7fd75cd58d3075fc7be9260b714fcc8f4dfba5bad4b23c5ff05ad9c"
+    "sha256": "a158fe10db64a60e9c3de5eefcfa5e5f3ff120c166d2cf4a0d399f644510c019"
   },
   "read_hotmart_recompra": {
     "bytes": 454,
@@ -765,50 +765,50 @@
     "sha256": "20ce2f85473ca5f26bde34a2862fba442accf4bfcb1c7e021527da4f517a5922"
   },
   "read_tmb_details": {
-    "bytes": 2910,
+    "bytes": 2636,
     "resumo": {
       "cidades": {
         "__n__": 10,
-        "__sha__": "969875e62435422b"
+        "__sha__": "860d4d4a0bfba9fd"
       },
-      "com_utm_pct": 24.4048,
-      "com_utm_qtd": 41,
+      "com_utm_pct": 23.1707,
+      "com_utm_qtd": 38,
       "estados": {
         "__n__": 7,
-        "__sha__": "53f1eb9e2c94bbf7"
+        "__sha__": "7900208bf47805fa"
       },
-      "faturamento": 274367.0,
+      "faturamento": 268607.5,
       "file_name": "Supabase DB",
       "has_data": true,
       "ofertas": {
         "__n__": 2,
-        "__sha__": "cd4c025b6145ab45"
+        "__sha__": "3fd1955cbc4ee07c"
       },
       "pagamentos": {
         "__n__": 1,
-        "__sha__": "c87a3b9cf5829a07"
+        "__sha__": "57d529c7ded86780"
       },
       "status_emitidos": {
         "__n__": 1,
-        "__sha__": "829486ae9fb04b1c"
+        "__sha__": "7cff43f852fab464"
       },
       "taxa_cancelamento": 0.0,
-      "ticket_medio": 1633.1369,
+      "ticket_medio": 1637.8506,
       "timeline": {
-        "__n__": 13,
-        "__sha__": "e6cd930fc743f1df"
+        "__n__": 10,
+        "__sha__": "90f2d4581e9b8e40"
       },
       "total_cancelados": 0,
-      "total_emitidos": 168,
-      "total_vendas": 168,
+      "total_emitidos": 164,
+      "total_vendas": 164,
       "utm_sources": {
         "__n__": 4,
-        "__sha__": "7e8a6d8d9e2c928a"
+        "__sha__": "329a2d7a33b584dc"
       },
-      "vendas_d1": 2,
-      "vendas_d1_pct": 1.1905
+      "vendas_d1": 1,
+      "vendas_d1_pct": 0.6098
     },
-    "sha256": "529a857ce98a0513c7871cca286c3398d5f2fa92d47a4c5c32f0eba38bf2e6b3"
+    "sha256": "a41ca64c6a2fa5f8f8be802fc8db178dea8be4d34001f23ec483f496a536c627"
   },
   "read_typeform": {
     "bytes": 4112,

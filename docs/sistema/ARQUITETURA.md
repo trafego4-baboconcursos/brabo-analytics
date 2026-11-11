@@ -4596,3 +4596,10 @@ Resumo Executivo, com uma tabela nova **Recebido × Projetado × A receber** por
 - Baseline de caracterização regravado só para `read_hotmart_details` e `read_tmb_details`
   (campos novos); `ATUALIZAR_BASELINE=1` sobrescreve o arquivo inteiro com as entradas dos testes
   selecionados — enxertar as duas entradas à mão, como foi feito.
+
+**Atualização 11/11/26 — só carrinho aberto.** `read_hotmart_details` e `read_tmb_details` liam o
+período inteiro do lançamento (pré-quali em diante) enquanto `read_vendas` já usava só a janela do
+carrinho; a tabela de forma de pagamento mostrava 66 vendas no PES-NOV-26 (contra 20 do carrinho).
+Agora os dois usam `carrinho_start_date`..`carrinho_end_date` (a segunda da live até o fim do
+carrinho), a mesma janela do `read_vendas`. Baselines de caracterização do Hotmart/TMB regravados
+(janela menor nos lançamentos fechados).

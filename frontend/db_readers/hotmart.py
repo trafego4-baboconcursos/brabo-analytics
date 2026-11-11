@@ -52,6 +52,11 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
     from frontend.db_readers.launches import read_launch_config  # noqa: PLC0415
     cfg = read_launch_config(code)
     hotmart_ids = _normalize_product_ids(cfg.get("hotmart_produto_ids"))
+    # Só as vendas do CARRINHO ABERTO (mesma janela do read_vendas): sem isso o
+    # detalhamento contava o período inteiro do lançamento — 66 vendas no PES-NOV-26
+    # contra as do carrinho (11/11/26).
+    effective_start = _safe_date(cfg.get("carrinho_start_date")) or effective_start
+    effective_end = _safe_date(cfg.get("carrinho_end_date")) or effective_end
 
     ops_engine = _get_users_engine()
     details = HotmartDetails()

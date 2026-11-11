@@ -847,7 +847,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       </div>
     {% endmacro %}
 
-    <div class="dbf-kpi-grid" style="--kpi-cols:8">
+    <div class="dbf-kpi-grid" style="--kpi-cols:6">
       {%- set kpis_gerais = [
         ("Total Investido",  dbf.invest,        dbf.prev_invest,        "brl0", "down"),
         ("Receita Líquida",  dbf.receita,       dbf.prev_receita,       "brl0", "up"),
@@ -855,71 +855,9 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
         ("Total Vendas",  dbf.total_vendas, dbf.prev_total_vendas, "num", "up"),
         ("Ticket Médio",  dbf.ticket,       dbf.prev_ticket,       "brl", "up"),
         ("Vendas na 1ª Hora", dbf.vendas_primeira_hora or 0, dbf.prev_vendas_primeira_hora or 0, "num", "up"),
-        ("Pico Grupos VIP", dbf.pessoas_grupos_vip, dbf.prev_pessoas_grupos_vip, "num", "up"),
-        ("Pico Grupos Normais", dbf.pessoas_grupos_normais, dbf.prev_pessoas_grupos_normais, "num", "up"),
       ] -%}
       {% for lbl, val, pval, fmt, polarity in kpis_gerais %}
         {{ kpi_card(lbl, val, pval, fmt, polarity) }}
-      {% endfor %}
-    </div>
-
-    {# Parte da Hotmart: do que o cliente pagou até o que cai pro produtor. Só Hotmart
-       (a Receita Líquida do topo soma Hotmart + TMB). O líquido já vem depois das duas
-       taxas: nas vendas de 2026 o `valor_de_compra_sem_impostos` é o faturamento
-       líquido do produtor (pago − parcelamento − taxa de processamento). #}
-    {% if dbf.taxa_hotmart > 0 or dbf.parcelamento_hotmart > 0 %}
-    <div class="dbf-kpi-grid" style="--kpi-cols:4">
-      {{ kpi_card("Pago pelos clientes (Hotmart)", dbf.pago_hotmart, dbf.prev_pago_hotmart, "brl0", "up") }}
-      {{ kpi_card("Taxa de parcelamento · " ~ ("%.1f"|format(dbf.parcelamento_hotmart_pct) | replace(".", ",")) ~ "% do pago", dbf.parcelamento_hotmart, dbf.prev_parcelamento_hotmart, "brl0", "down") }}
-      {{ kpi_card("Taxa Hotmart · " ~ ("%.1f"|format(dbf.taxa_hotmart_pct) | replace(".", ",")) ~ "% do pago", dbf.taxa_hotmart, dbf.prev_taxa_hotmart, "brl0", "down") }}
-      {{ kpi_card("Líquido do produtor (só Hotmart)", dbf.hotmart_liquido, dbf.prev_hotmart_liquido, "brl0", "up") }}
-    </div>
-    {% endif %}
-
-    <!-- Leads por fonte -->
-    {% set fontes_soma = dbf.fontes_leads | selectattr('has_data') | map(attribute='fonte') | list | join(' + ') %}
-    <div class="dbf-kpi-grid" style="--kpi-cols:{{ (dbf.fontes_leads | length * 2) + 2 }}">
-      {%- set totais_captacao = [
-        ("Leads Captação", dbf.total_leads, dbf.prev_total_leads, "num", "up"),
-        ("CPL Captação",   dbf.cpl,         dbf.prev_cpl,         "brl", "down"),
-      ] -%}
-      {% for lbl, val, pval, fmt, polarity in totais_captacao %}
-      <div class="dbf-kpi">
-        <div class="lbl">{{ lbl }}</div>
-        <div class="val {% if val == 0 %}zero{% endif %}">
-          {% if fmt == "num" %}{{ val | num }}{% elif fmt == "brl" %}{{ val | brl }}{% endif %}
-        </div>
-        {% if dbf.has_prev %}
-          {{ dbadge(val, pval, polarity) }}
-          <div class="prev-val">ant.: {% if fmt == "num" %}{{ pval | num }}{% elif fmt == "brl" %}{{ pval | brl }}{% endif %}</div>
-        {% endif %}
-        {% if fontes_soma %}<div class="prev-val" style="margin-top:2px">soma: {{ fontes_soma }}</div>{% endif %}
-      </div>
-      {% endfor %}
-      {% for f in dbf.fontes_leads %}
-      {%- set pairs = [
-        (f.fonte ~ " — Leads", f.leads,   f.prev_leads, "num", "up"),
-        (f.fonte ~ " — CPL",   f.cpl,     f.prev_cpl,   "brl", "down"),
-      ] -%}
-      {% for lbl, val, pval, fmt, polarity in pairs %}
-      <div class="dbf-kpi">
-        <div class="lbl"><i class="ti {{ f.icon }}" style="color:{{ f.color }}"></i> {{ lbl }}</div>
-        <div class="val {% if not f.has_data or val == 0 %}zero{% endif %}">
-          {% if not f.has_data %}—
-          {% elif fmt == "num" %}{{ val | num }}
-          {% elif fmt == "brl" %}{{ val | brl }}
-          {% endif %}
-        </div>
-        {% if dbf.has_prev and f.has_data %}
-          {{ dbadge(val, pval, polarity) }}
-          <div class="prev-val">ant.:
-            {% if fmt == "num" %}{{ pval | num }}
-            {% elif fmt == "brl" %}{{ pval | brl }}
-            {% endif %}
-          </div>
-        {% endif %}
-      </div>
-      {% endfor %}
       {% endfor %}
     </div>
 
@@ -1252,6 +1190,78 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       {% else %}
         {{ sem_dados("Tabelas de grupo de WhatsApp (Normal/VIP) do lançamento") }}
       {% endif %}
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- MÉTRICAS DO LANÇAMENTO (saiu do Resumo Executivo, 11/11/26)  -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-gauge"></i> Métricas do lançamento</div>
+
+    <div class="dbf-kpi-grid" style="--kpi-cols:2">
+      {{ kpi_card("Pico Grupos VIP", dbf.pessoas_grupos_vip, dbf.prev_pessoas_grupos_vip, "num", "up") }}
+      {{ kpi_card("Pico Grupos Normais", dbf.pessoas_grupos_normais, dbf.prev_pessoas_grupos_normais, "num", "up") }}
+    </div>
+
+    {# Parte da Hotmart: do que o cliente pagou até o que cai pro produtor. Só Hotmart
+       (a Receita Líquida do topo soma Hotmart + TMB). O líquido já vem depois das duas
+       taxas: nas vendas de 2026 o `valor_de_compra_sem_impostos` é o faturamento
+       líquido do produtor (pago − parcelamento − taxa de processamento). #}
+    {% if dbf.taxa_hotmart > 0 or dbf.parcelamento_hotmart > 0 %}
+    <div class="dbf-kpi-grid" style="--kpi-cols:4">
+      {{ kpi_card("Pago pelos clientes (Hotmart)", dbf.pago_hotmart, dbf.prev_pago_hotmart, "brl0", "up") }}
+      {{ kpi_card("Taxa de parcelamento · " ~ ("%.1f"|format(dbf.parcelamento_hotmart_pct) | replace(".", ",")) ~ "% do pago", dbf.parcelamento_hotmart, dbf.prev_parcelamento_hotmart, "brl0", "down") }}
+      {{ kpi_card("Taxa Hotmart · " ~ ("%.1f"|format(dbf.taxa_hotmart_pct) | replace(".", ",")) ~ "% do pago", dbf.taxa_hotmart, dbf.prev_taxa_hotmart, "brl0", "down") }}
+      {{ kpi_card("Líquido do produtor (só Hotmart)", dbf.hotmart_liquido, dbf.prev_hotmart_liquido, "brl0", "up") }}
+    </div>
+    {% endif %}
+
+    <!-- Leads por fonte -->
+    {% set fontes_soma = dbf.fontes_leads | selectattr('has_data') | map(attribute='fonte') | list | join(' + ') %}
+    <div class="dbf-kpi-grid" style="--kpi-cols:{{ (dbf.fontes_leads | length * 2) + 2 }}">
+      {%- set totais_captacao = [
+        ("Leads Captação", dbf.total_leads, dbf.prev_total_leads, "num", "up"),
+        ("CPL Captação",   dbf.cpl,         dbf.prev_cpl,         "brl", "down"),
+      ] -%}
+      {% for lbl, val, pval, fmt, polarity in totais_captacao %}
+      <div class="dbf-kpi">
+        <div class="lbl">{{ lbl }}</div>
+        <div class="val {% if val == 0 %}zero{% endif %}">
+          {% if fmt == "num" %}{{ val | num }}{% elif fmt == "brl" %}{{ val | brl }}{% endif %}
+        </div>
+        {% if dbf.has_prev %}
+          {{ dbadge(val, pval, polarity) }}
+          <div class="prev-val">ant.: {% if fmt == "num" %}{{ pval | num }}{% elif fmt == "brl" %}{{ pval | brl }}{% endif %}</div>
+        {% endif %}
+        {% if fontes_soma %}<div class="prev-val" style="margin-top:2px">soma: {{ fontes_soma }}</div>{% endif %}
+      </div>
+      {% endfor %}
+      {% for f in dbf.fontes_leads %}
+      {%- set pairs = [
+        (f.fonte ~ " — Leads", f.leads,   f.prev_leads, "num", "up"),
+        (f.fonte ~ " — CPL",   f.cpl,     f.prev_cpl,   "brl", "down"),
+      ] -%}
+      {% for lbl, val, pval, fmt, polarity in pairs %}
+      <div class="dbf-kpi">
+        <div class="lbl"><i class="ti {{ f.icon }}" style="color:{{ f.color }}"></i> {{ lbl }}</div>
+        <div class="val {% if not f.has_data or val == 0 %}zero{% endif %}">
+          {% if not f.has_data %}—
+          {% elif fmt == "num" %}{{ val | num }}
+          {% elif fmt == "brl" %}{{ val | brl }}
+          {% endif %}
+        </div>
+        {% if dbf.has_prev and f.has_data %}
+          {{ dbadge(val, pval, polarity) }}
+          <div class="prev-val">ant.:
+            {% if fmt == "num" %}{{ pval | num }}
+            {% elif fmt == "brl" %}{{ pval | brl }}
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+      {% endfor %}
     </div>
   </div>
 

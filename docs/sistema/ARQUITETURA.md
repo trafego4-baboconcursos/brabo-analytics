@@ -415,6 +415,9 @@ relacionados:
 >
 > **Debriefing: forma de pagamento com valor recebido × projetado (2026-11-11)**
 >
+>
+> **Debriefing: seção "Métricas do lançamento" (2026-11-11)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -4603,3 +4606,13 @@ carrinho; a tabela de forma de pagamento mostrava 66 vendas no PES-NOV-26 (contr
 Agora os dois usam `carrinho_start_date`..`carrinho_end_date` (a segunda da live até o fim do
 carrinho), a mesma janela do `read_vendas`. Baselines de caracterização do Hotmart/TMB regravados
 (janela menor nos lançamentos fechados).
+
+## Debriefing: seção "Métricas do lançamento" (2026-11-11)
+
+Os quadros que ficavam no fim do Resumo Executivo — Pico Grupos VIP / Normais, os 4 quadros da
+Hotmart (pago, taxa de parcelamento, taxa Hotmart, líquido do produtor) e a linha de Leads/CPL da
+Captação e por fonte — saíram de lá e formam uma seção própria, **"Métricas do lançamento"**, logo
+abaixo de "Compradores pelo Dia que Entraram no Grupo". Só mudou a posição no template
+(`frontend/templates/debriefing.html`); os dados são os mesmos. A chave da seção (slug do título)
+é nova: visualizações salvas antes de 11/11/26 mostram a seção no fim da página até alguém
+reordenar e salvar.

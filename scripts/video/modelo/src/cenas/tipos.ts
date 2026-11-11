@@ -97,7 +97,8 @@ export type PropsContador = {
   medalhas: { quantidade: number; marca: string; texto: string; em: number };
 };
 
-export type PropsSplash = { titulo: string; subtitulo?: string; em: number };
+/** `imagem`: elemento-herói opcional (ex.: PNG 3D do Blender com fundo transparente, em public/). */
+export type PropsSplash = { titulo: string; subtitulo?: string; em: number; imagem?: string };
 
 export type PropsCta = { titulo: string; subtitulo: string; chamada: TextoEm };
 

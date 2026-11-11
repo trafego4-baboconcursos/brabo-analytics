@@ -87,7 +87,7 @@ export const CATALOGO: { [N in keyof PropsPorCena]: PropsPorCena[N] } = {
     conta: [0.2, 1.0],
     medalhas: { quantidade: 2, marca: "1º", texto: "duas em\n1º lugar", em: 1.2 },
   },
-  Splash: { titulo: "Concurso do INSS", subtitulo: "2h por dia é suficiente?", em: 0.2 },
+  Splash: { titulo: "Concurso do INSS", subtitulo: "2h por dia é suficiente?", em: 0.2, imagem: "3d/trofeu.png" },
   Cta: {
     titulo: "Cadastro gratuito",
     subtitulo: "Projeto INSS · grupo no WhatsApp",

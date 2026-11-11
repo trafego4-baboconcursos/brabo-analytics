@@ -1,5 +1,5 @@
 import React from "react";
-import { Easing, interpolate, useCurrentFrame } from "remotion";
+import { Easing, Img, interpolate, staticFile, useCurrentFrame } from "remotion";
 import { Cutaway } from "../Cutaway";
 import { clamp, color, font, pick, useAt, useFormato } from "../theme";
 import { appear } from "./comum";
@@ -16,10 +16,22 @@ export const Splash: React.FC<PropsCena<"Splash">> = ({ start, dur, props }) => 
   const at = t(props.em);
   const faixa = interpolate(frame, [at - 6, at + 6], [-110, 0], { ...clamp, easing: Easing.bezier(0.16, 1, 0.3, 1) });
   const centro = pick(f, { story: 720, feed: 400, h: 400 });
+  const meiaFaixa = pick(f, { story: 136, feed: 104, h: 112 });
+  const tamImg = pick(f, { story: 520, feed: 272, h: 272 });
   return (
     <Cutaway durationInFrames={dur} background={color.night}>
+      {props.imagem && (
+        // elemento-herói logo acima da faixa: entra com salto um pouco antes do título
+        <Img src={staticFile(props.imagem)} style={{
+          position: "absolute", width: tamImg, height: tamImg, objectFit: "contain",
+          left: `calc(50% - ${tamImg / 2}px)`, top: centro - meiaFaixa - tamImg + 24,
+          opacity: interpolate(frame, [at - 8, at], [0, 1], clamp),
+          scale: interpolate(frame, [at - 8, at + 6], [0.6, 1], { ...clamp, easing: Easing.back(1.8), output: "perceptual-scale" }),
+          translate: interpolate(frame, [at - 8, at + 6], ["0px 40px", "0px 0px"], { ...clamp, easing: Easing.bezier(0.16, 1, 0.3, 1) }),
+        }} />
+      )}
       <div style={{
-        position: "absolute", left: 0, right: 0, top: centro - pick(f, { story: 136, feed: 104, h: 112 }),
+        position: "absolute", left: 0, right: 0, top: centro - meiaFaixa,
         height: pick(f, { story: 272, feed: 208, h: 224 }), background: color.coral,
         translate: `${faixa}% 0px`, rotate: "-3deg",
       }} />

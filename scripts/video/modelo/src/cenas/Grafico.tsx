@@ -59,7 +59,8 @@ export const Grafico: React.FC<PropsCena<"Grafico">> = ({ start, dur, props }) =
   const selo = (
     <Peca id="selo" style={{ display: "inline-block" }}><div style={{
       display: "inline-block", padding: "18px 34px", borderRadius: raio.pilula,
-      border: `3px solid ${color.coral}`, color: color.coral, fontFamily: font.ui, fontWeight: 600,
+      border: `3px solid var(--cor-texto, ${color.coral})`, color: `var(--cor-texto, ${color.coral})`,
+      background: "var(--cor, transparent)", fontFamily: font.ui, fontWeight: 600,
       // texto longo encolhe em vez de quebrar a pílula em 2 linhas (base: 32 caracteres)
       fontSize: Math.round(pick(f, { story: 44, feed: 40, h: 46 }) * Math.min(1, 32 / props.selo.length)),
       whiteSpace: "nowrap", ...appear(frame, t(em.selo)),

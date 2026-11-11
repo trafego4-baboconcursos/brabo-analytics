@@ -7,7 +7,7 @@ import React, { createContext, useContext } from "react";
  * "etiquetas[0]") ou um nome fixo para o que não é texto ("folha", "grafico").
  */
 
-export type Ajuste = { dx?: number; dy?: number; rot?: number; escala?: number };
+export type Ajuste = { dx?: number; dy?: number; rot?: number; escala?: number; cor?: string; corTexto?: string };
 
 /** `isolar`: render de camadas para o storyboard — o id da peça que fica visível sozinha, ou
  * FUNDO (tudo menos as peças). Sem `isolar`, render normal. */
@@ -44,6 +44,9 @@ export const Peca: React.FC<{ id: string; style?: React.CSSProperties; children:
       data-peca={id}
       style={{
         ...style,
+        // cor/corTexto do Figma viram var(--cor)/var(--cor-texto) para as caixas e textos da peça;
+        // "initial" corta a herança (peça filha não pega a cor da mãe) e o var() cai no padrão
+        ...({ "--cor": a?.cor ?? "initial", "--cor-texto": a?.corTexto ?? "initial" } as React.CSSProperties),
         ...(a ? { translate: `${a.dx ?? 0}px ${a.dy ?? 0}px`, rotate: `${a.rot ?? 0}deg`, scale: `${a.escala ?? 1}` } : {}),
         ...(isolar === null ? {} : { visibility: isolar === id || caixa ? "visible" : "hidden" }),
         ...(caixa ? { background: "#ff00ff" } : {}),

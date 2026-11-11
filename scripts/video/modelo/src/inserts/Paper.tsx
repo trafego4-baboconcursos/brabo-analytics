@@ -17,7 +17,7 @@ export const Sheet: React.FC<{ children: React.ReactNode; width?: number; tilt?:
     <Peca id="folha" style={{ position: "absolute", top, left: (W - width) / 2, width }}>
     <div
       style={{
-        background: color.paper,
+        background: `var(--cor, ${color.paper})`,
         color: color.ink,
         padding: "56px 60px 64px",
         boxShadow: "0 40px 80px rgba(0,0,0,0.55), 0 4px 10px rgba(0,0,0,0.3)",
@@ -80,8 +80,8 @@ export const Stamp: React.FC<{ from: number; children: React.ReactNode; rotate?:
         fontFamily: font.stamp,
         fontSize: 92,
         letterSpacing: 4,
-        color: color.marker,
-        border: `8px solid ${color.marker}`,
+        color: `var(--cor-texto, ${color.marker})`,
+        border: `8px solid var(--cor-texto, ${color.marker})`,
         borderRadius: 14,
         padding: "4px 30px",
         mixBlendMode: "multiply",

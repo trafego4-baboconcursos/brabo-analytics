@@ -54,6 +54,8 @@ def _validar_formatos(formatos: dict) -> None:
 
 
 CAMPOS_AJUSTE = ("dx", "dy", "rot", "escala")
+CORES_AJUSTE = ("cor", "corTexto")       # fundo/borda e texto da peça (vêm do Figma)
+_HEX = re.compile(r"^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$")
 
 
 def _validar_ajustes(c: dict, formatos: dict) -> None:
@@ -65,11 +67,13 @@ def _validar_ajustes(c: dict, formatos: dict) -> None:
             if not peca:
                 raise CriativoInvalido(f"cena '{c['id']}': ajuste com peça sem nome ({formato})")
             ruins = [k for k, v in aj.items()
-                     if k not in CAMPOS_AJUSTE or isinstance(v, bool) or not isinstance(v, (int, float))]
+                     if not ((k in CAMPOS_AJUSTE and isinstance(v, (int, float)) and not isinstance(v, bool))
+                             or (k in CORES_AJUSTE and isinstance(v, str) and _HEX.match(v)))]
             if ruins or aj.get("escala", 1) <= 0:
                 raise CriativoInvalido(
-                    f"cena '{c['id']}', peça '{peca}' ({formato}): ajuste aceita só números em "
-                    f"{', '.join(CAMPOS_AJUSTE)} (escala > 0); veio {aj}")
+                    f"cena '{c['id']}', peça '{peca}' ({formato}): ajuste aceita números em "
+                    f"{', '.join(CAMPOS_AJUSTE)} (escala > 0) e cor #RRGGBB(AA) em "
+                    f"{', '.join(CORES_AJUSTE)}; veio {aj}")
 
 
 def _achar_palavra(palavra: str, de: float, ate: float, transcricao: list[dict]) -> float:

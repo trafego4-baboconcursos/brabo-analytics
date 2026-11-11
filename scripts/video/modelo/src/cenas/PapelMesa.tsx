@@ -63,8 +63,8 @@ export const PapelMesa: React.FC<PropsCena<"PapelMesa">> = ({ start, dur, props 
       <div
         style={{
           position: "relative",
-          rotate: "-6deg", background: "#F7F3EA", padding: "10px 26px",
-          fontFamily: font.stamp, fontSize: pick(f, { story: 88, feed: 70, h: 84 }), color: color.ink,
+          rotate: "-6deg", background: "var(--cor, #F7F3EA)", padding: "10px 26px",
+          fontFamily: font.stamp, fontSize: pick(f, { story: 88, feed: 70, h: 84 }), color: `var(--cor-texto, ${color.ink})`,
           boxShadow: "0 12px 30px rgba(0,0,0,0.35)", ...appear(frame, t(props.adesivo.em)),
         }}
       >

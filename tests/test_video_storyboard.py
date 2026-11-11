@@ -246,6 +246,15 @@ def test_trocar_a_cor_da_caixa():
     assert "cor" not in CRIATIVO["cenas"][1]["props"]["etiquetas"][0]
 
 
+def test_cor_de_peca_sem_prop_de_cor_vira_ajuste():
+    # selo do mapa: não tem prop de cor → a cor nova vai para o ajuste da peça (Peca → CSS var)
+    manif = {"dona": {"pecas": [{"id": "etiquetas[0]", "x": 100, "y": 200, "w": 300, "h": 80, "origem": [250, 240]}]}}
+    n0 = {"dona": {"etiquetas[0]": {**NATIVOS0["dona"]["etiquetas[0]"], "cores": None}}}
+    aj, props = diferencas_nativas(CRIATIVO, manif, _balao(cor="#E8633D", corTexto="#E8633D"), n0)
+    assert props == []
+    assert aj == [("dona", "etiquetas[0]", {}, {"cor": "#E8633D", "corTexto": "#E8633D"})]
+
+
 def test_numero_editado_volta_como_numero():
     crit = {"codigo": "X", "cenas": [{"id": "sal", "componente": "Grafico", "de": 0, "ate": 1,
                                       "props": {"valorFinal": 7234, "prefixo": "R$"}, "sfx": []}]}

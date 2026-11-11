@@ -32,7 +32,8 @@ export const Checklist: React.FC<PropsCena<"Checklist">> = ({ start, dur, props 
                 flex: 1, display: "flex", alignItems: "center", gap: pick(f, { story: 30, feed: 24, h: 28 }),
                 padding: pick(f, { story: "30px 34px", feed: "22px 28px", h: "30px 34px" }),
                 borderRadius: 26,
-                background: destaque ? color.coral : color.card, border: `2px solid ${destaque ? color.coral : color.line}`,
+                background: `var(--cor, ${destaque ? color.coral : color.card})`, border: `2px solid ${destaque ? color.coral : color.line}`,
+                color: `var(--cor-texto, ${color.text})`,
                 fontFamily: font.ui, fontWeight: destaque ? 800 : 600, fontSize: size, ...appear(frame, t(item.em)),
               }}>
                 <div style={{

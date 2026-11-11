@@ -20,7 +20,7 @@ export const Cartao: React.FC<PropsCena<"Cartao">> = ({ start, dur, props }) => 
     <Cutaway durationInFrames={dur} background={fundoEscuro}>
       <Peca id="cartao" style={{ position: "absolute", top: pick(f, { story: 300, feed: 110, h: 170 }), left: (width - cardW) / 2, width: cardW }}>
       <div style={{
-        position: "relative", padding: pick(f, { story: 64, feed: 56, h: 72 }), borderRadius: raio.cartao, background: color.card,
+        position: "relative", padding: pick(f, { story: 64, feed: 56, h: 72 }), borderRadius: raio.cartao, background: `var(--cor, ${color.card})`,
         border: `2px solid ${color.line}`, color: color.text, boxSizing: "border-box",
       }}>
         <Peca id="kicker"><div style={{ fontFamily: font.mono, fontSize: 26, letterSpacing: 3, color: color.coral }}>{props.kicker}</div></Peca>
@@ -33,7 +33,8 @@ export const Cartao: React.FC<PropsCena<"Cartao">> = ({ start, dur, props }) => 
           {props.subtitulo.texto}
         </div></Peca>
         <Peca id="carimbo" style={{ position: "absolute", right: 60, top: pick(f, { story: 200, feed: 170, h: 250 }) }}>
-          <Stamp from={t(props.carimbo.em)} rotate={-12} style={{ color: color.lime, borderColor: color.lime, mixBlendMode: "normal",
+          <Stamp from={t(props.carimbo.em)} rotate={-12} style={{ color: `var(--cor-texto, ${color.lime})`,
+            borderColor: `var(--cor-texto, ${color.lime})`, mixBlendMode: "normal",
             fontSize: pick(f, { story: 92, feed: 80, h: 96 }) }}>
             {props.carimbo.texto}
           </Stamp>

@@ -18,7 +18,7 @@ export const Cta: React.FC<PropsCena<"Cta">> = ({ start, props }) => {
     <AbsoluteFill style={{ alignItems: "center" }}>
       <Peca id="botao" style={{ position: "absolute", top: pick(f, { story: 1480, feed: 636, h: 600 }) }}><div style={{
         padding: "26px 44px", borderRadius: 30,
-        background: color.coral, color: "white", fontFamily: font.ui, fontWeight: 800, fontSize: pick(f, { story: 56, feed: 50, h: 54 }),
+        background: `var(--cor, ${color.coral})`, color: "var(--cor-texto, white)", fontFamily: font.ui, fontWeight: 800, fontSize: pick(f, { story: 56, feed: 50, h: 54 }),
         textAlign: "center", boxShadow: "0 20px 50px rgba(0,0,0,0.4)", ...appear(frame, 0),
       }}>
         {props.titulo}

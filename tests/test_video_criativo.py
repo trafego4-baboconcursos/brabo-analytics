@@ -177,6 +177,14 @@ def test_ajuste_com_campo_nao_numerico_ou_desconhecido(tmp_path):
             carregar_criativo(_salvar(tmp_path, _criativo(_cena(ajustes=aj))), TRANSCRICAO)
 
 
+def test_ajuste_de_cor_aceita_hex(tmp_path):
+    aj = {"story": {"selo": {"cor": "#E8633D", "corTexto": "#F2EFE9CC"}}}
+    dados = carregar_criativo(_salvar(tmp_path, _criativo(_cena(ajustes=aj))), TRANSCRICAO)
+    assert dados["cenas"][0]["ajustes"] == aj
+    with pytest.raises(CriativoInvalido, match="'selo'"):
+        carregar_criativo(_salvar(tmp_path, _criativo(_cena(ajustes={"story": {"selo": {"cor": "coral"}}}))), TRANSCRICAO)
+
+
 def test_ajuste_com_peca_sem_nome(tmp_path):
     with pytest.raises(CriativoInvalido, match="peça sem nome"):
         carregar_criativo(_salvar(tmp_path, _criativo(_cena(ajustes={"story": {"": {"dx": 1}}}))), TRANSCRICAO)

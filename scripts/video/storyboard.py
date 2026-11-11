@@ -297,6 +297,12 @@ def diferencas_nativas(criativo: dict, manifesto: dict, lidos: dict, nativos0: d
                 depois["rot"] = round(antes.get("rot", 0) + rot_css, 1)
             if razao != 1.0:
                 depois["escala"] = round(antes.get("escala", 1) * razao, 3)
+            if not n0.get("cores"):
+                # peça sem prop de cor: a cor nova vai no ajuste (Peca → var(--cor) / var(--cor-texto))
+                for chave in ("cor", "corTexto"):
+                    novo, base = l.get(chave), n0.get(f"{chave}0")
+                    if novo and base and novo.upper() != str(antes.get(chave, base)).upper():
+                        depois[chave] = novo.upper()
             if depois != antes:
                 ajustes.append((cena_id, peca, antes, depois))
             for rotulo, novo in l.get("textos", {}).items():

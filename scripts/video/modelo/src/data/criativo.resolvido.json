@@ -305,6 +305,7 @@
      {
       "texto": "trabalha",
       "em": 53.82,
+      "cor": "#E8633D",
       "x": 90,
       "y": 190,
       "rot": -4
@@ -312,6 +313,7 @@
      {
       "texto": "cuida da casa",
       "em": 54.28,
+      "cor": "#E8633D",
       "x": 430,
       "y": 290,
       "rot": 3
@@ -319,6 +321,7 @@
      {
       "texto": "tem filho",
       "em": 55.12,
+      "cor": "#E8633D",
       "x": 160,
       "y": 390,
       "rot": -2
@@ -358,7 +361,18 @@
     "story": {
      "selo": {
       "dx": 546,
-      "dy": -524
+      "dy": -524,
+      "cor": "#E8633D"
+     }
+    },
+    "feed": {
+     "selo": {
+      "cor": "#E8633D"
+     }
+    },
+    "h": {
+     "selo": {
+      "cor": "#E8633D"
      }
     }
    },
@@ -545,6 +559,23 @@
    "componente": "PapelMesa",
    "de": 85.8,
    "ate": 93.78,
+   "ajustes": {
+    "story": {
+     "adesivo": {
+      "corTexto": "#E8633D"
+     }
+    },
+    "feed": {
+     "adesivo": {
+      "corTexto": "#E8633D"
+     }
+    },
+    "h": {
+     "adesivo": {
+      "corTexto": "#E8633D"
+     }
+    }
+   },
    "props": {
     "kicker": "Por que tanta gente estuda e não passa",
     "titulo": "Mesmas 2h por dia, resultados opostos",

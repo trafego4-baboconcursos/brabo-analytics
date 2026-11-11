@@ -9,7 +9,8 @@ import type { PropsCena, PropsRota } from "./tipos";
 const caminho = (pts: [number, number][]) => pts.map(([x, y], i) => `${i ? "L" : "M"} ${x} ${y}`).join(" ");
 
 const rotuloCume = (flag: number, size: number): React.CSSProperties => ({
-  whiteSpace: "nowrap", padding: "16px 30px", borderRadius: raio.pilula, background: color.coral, color: "white",
+  whiteSpace: "nowrap", padding: "16px 30px", borderRadius: raio.pilula, background: `var(--cor, ${color.coral})`,
+  color: "var(--cor-texto, white)",
   fontFamily: font.ui, fontWeight: 800, fontSize: size, boxShadow: "0 14px 34px rgba(0,0,0,0.35)",
   opacity: flag, scale: interpolate(flag, [0, 1], [0.6, 1]), transformOrigin: "0% 50%",
 });
@@ -82,8 +83,8 @@ export const Rota: React.FC<PropsCena<"Rota">> = ({ start, dur, props }) => {
     </>
   );
   const selo: React.CSSProperties = {
-    padding: "20px 34px", borderRadius: raio.pilula, background: color.card,
-    border: `2px solid ${color.line}`, color: color.text, fontFamily: font.ui, fontWeight: 800, fontSize: 52,
+    padding: "20px 34px", borderRadius: raio.pilula, background: `var(--cor, ${color.card})`,
+    border: `2px solid ${color.line}`, color: `var(--cor-texto, ${color.text})`, fontFamily: font.ui, fontWeight: 800, fontSize: 52,
     boxShadow: "0 16px 40px rgba(0,0,0,0.5)", ...appear(frame, t(props.selo.em)),
   };
 

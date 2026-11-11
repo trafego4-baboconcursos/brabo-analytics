@@ -5,6 +5,7 @@ import { AbsoluteFill, Composition, Sequence, staticFile, useVideoConfig } from 
 import { Captions } from "./Captions";
 import { CENAS } from "./cenas";
 import { EmendaContext } from "./Cutaway";
+import { FUNDO, PecasContext, type Ajuste } from "./pecas";
 import captionsJson from "./data/captions.json";
 import criativoJson from "./data/criativo.resolvido.json";
 
@@ -29,6 +30,7 @@ type Cena = {
   ate: number;
   props: unknown;
   sfx: [number, string, number][];
+  ajustes?: Partial<Record<ChaveFormato, Record<string, Ajuste>>>;
 };
 type Resolvido = {
   codigo: string;
@@ -65,36 +67,44 @@ const Efeitos: React.FC<{ ganho: number }> = ({ ganho }) => {
   );
 };
 
-export const Criativo: React.FC<{ formato: ChaveFormato }> = ({ formato }) => {
+/**
+ * `soCena` + `isolar`: render de camadas do storyboard (render-pecas.mjs). Só a cena pedida;
+ * isolar = id de uma peça → só ela, com fundo transparente; isolar = FUNDO → bruto + cena sem as peças.
+ */
+export const Criativo: React.FC<{ formato: ChaveFormato; soCena?: string; isolar?: string }> = ({ formato, soCena, isolar }) => {
   const { fps } = useVideoConfig();
   const f = criativo.formatos[formato]!;
-  const cenas = criativo.cenas;
+  const cenas = soCena ? criativo.cenas.filter((c) => c.id === soCena) : criativo.cenas;
+  const peca = isolar !== undefined && isolar !== FUNDO;
   return (
-    <AbsoluteFill style={{ background: "black" }}>
-      <Video name={`Bruto ${criativo.codigo} (${f.video})`} src={staticFile(f.video)} style={{ width: "100%", height: "100%" }} />
+    <AbsoluteFill style={{ background: peca ? "transparent" : "black" }}>
+      {!peca && <Video name={`Bruto ${criativo.codigo} (${f.video})`} src={staticFile(f.video)} style={{ width: "100%", height: "100%" }} />}
       {cenas.map((c) => {
         const Cena = CENAS[c.componente] as React.FC<{ start: number; dur: number; props: unknown }>;
         const dur = Math.round((c.ate - c.de) * fps);
         // colada na anterior/próxima (diferença < 1 quadro) = corte seco entre as duas
         const emenda = {
-          entrada: cenas.some((o) => o !== c && Math.abs(o.ate - c.de) < 1 / fps),
-          saida: cenas.some((o) => o !== c && Math.abs(o.de - c.ate) < 1 / fps),
+          entrada: criativo.cenas.some((o) => o !== c && Math.abs(o.ate - c.de) < 1 / fps),
+          saida: criativo.cenas.some((o) => o !== c && Math.abs(o.de - c.ate) < 1 / fps),
         };
+        const pecas = { ajustes: c.ajustes?.[formato] ?? {}, isolar: isolar ?? null };
         return (
           <Sequence key={c.id} name={`${c.id} · ${c.componente}`} from={Math.round(c.de * fps)} durationInFrames={dur}>
             <EmendaContext.Provider value={emenda}>
-              <Cena start={c.de} dur={dur} props={c.props} />
+              <PecasContext.Provider value={pecas}>
+                <Cena start={c.de} dur={dur} props={c.props} />
+              </PecasContext.Provider>
             </EmendaContext.Provider>
           </Sequence>
         );
       })}
-      <Captions captions={captions} cfg={{
+      {!peca && <Captions captions={captions} cfg={{
         cobertos: criativo.cobertos,
         cta: criativo.cta,
         seloBrutoAte: criativo.selo_bruto_ate_s ?? null,
         queimadaDesde: f.legenda_queimada ? (f.queimada_desde_s ?? 0) : null,
-      }} />
-      <Efeitos ganho={f.ganho_sfx} />
+      }} />}
+      {!soCena && <Efeitos ganho={f.ganho_sfx} />}
     </AbsoluteFill>
   );
 };

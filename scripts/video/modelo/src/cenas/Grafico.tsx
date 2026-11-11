@@ -3,6 +3,7 @@ import { Easing, interpolate, useCurrentFrame } from "remotion";
 import { Cutaway } from "../Cutaway";
 import { clamp, color, font, pick, raio, useAt, useFormato } from "../theme";
 import { appear, ease, fundoEscuro } from "./comum";
+import { Peca } from "../pecas";
 import type { PropsCena } from "./tipos";
 
 /**
@@ -25,16 +26,16 @@ export const Grafico: React.FC<PropsCena<"Grafico">> = ({ start, dur, props }) =
     .join(" ");
 
   const kicker = (
-    <div style={{ fontFamily: font.mono, fontSize: 26, letterSpacing: 3, color: color.muted }}>{props.kicker}</div>
+    <Peca id="kicker"><div style={{ fontFamily: font.mono, fontSize: 26, letterSpacing: 3, color: color.muted }}>{props.kicker}</div></Peca>
   );
   const numero = (
-    <div style={{ fontFamily: font.ui, fontWeight: 800, fontSize: pick(f, { story: 190, feed: 150, h: 210 }), letterSpacing: -6, lineHeight: 1.1 }}>
+    <Peca id="numero"><div style={{ fontFamily: font.ui, fontWeight: 800, fontSize: pick(f, { story: 190, feed: 150, h: 210 }), letterSpacing: -6, lineHeight: 1.1 }}>
       <span style={{ fontSize: pick(f, { story: 96, feed: 76, h: 104 }), verticalAlign: "top", marginRight: 10 }}>{props.prefixo}</span>
       {valor.toLocaleString("pt-BR")}
-    </div>
+    </div></Peca>
   );
   const grafico = (
-    <svg width={W} height={H + 60} style={{ overflow: "visible" }}>
+    <Peca id="grafico" style={{ width: W }}><svg width={W} height={H + 60} style={{ overflow: "visible" }}>
       {[0, 1, 2, 3].map((i) => (
         <line key={i} x1={0} x2={W} y1={(i / 3) * H} y2={(i / 3) * H} stroke="rgba(242,239,233,0.32)"
           strokeWidth={2} strokeDasharray="8 10" />
@@ -47,16 +48,16 @@ export const Grafico: React.FC<PropsCena<"Grafico">> = ({ start, dur, props }) =
         strokeDasharray={1} strokeDashoffset={1 - linha} />
       <text x={0} y={H + 50} fill="#C9C4BC" fontFamily={font.mono} fontSize={28}>{props.eixo[0]}</text>
       <text x={W} y={H + 50} fill="#C9C4BC" fontFamily={font.mono} fontSize={28} textAnchor="end">{props.eixo[1]}</text>
-    </svg>
+    </svg></Peca>
   );
   const rotuloFim = (top: number) => (
-    <div style={{ position: "absolute", top, right: 0, textAlign: "right", ...appear(frame, t(em.rotulo)) }}>
+    <Peca id="rotuloFim" style={{ position: "absolute", top, right: 0 }}><div style={{ textAlign: "right", ...appear(frame, t(em.rotulo)) }}>
       <div style={{ fontFamily: font.ui, fontWeight: 800, fontSize: 76, color: color.green }}>{props.rotuloFim.valor}</div>
       <div style={{ fontFamily: font.mono, fontSize: 24, color: color.muted }}>{props.rotuloFim.sub}</div>
-    </div>
+    </div></Peca>
   );
   const selo = (
-    <div style={{
+    <Peca id="selo" style={{ display: "inline-block" }}><div style={{
       display: "inline-block", padding: "18px 34px", borderRadius: raio.pilula,
       border: `3px solid ${color.coral}`, color: color.coral, fontFamily: font.ui, fontWeight: 600,
       // texto longo encolhe em vez de quebrar a pílula em 2 linhas (base: 32 caracteres)
@@ -64,7 +65,7 @@ export const Grafico: React.FC<PropsCena<"Grafico">> = ({ start, dur, props }) =
       whiteSpace: "nowrap", ...appear(frame, t(em.selo)),
     }}>
       {props.selo}
-    </div>
+    </div></Peca>
   );
 
   if (f === "h") {

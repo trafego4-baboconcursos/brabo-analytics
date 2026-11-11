@@ -154,3 +154,29 @@ def test_nomes_json_igual_a_biblioteca():
     m = re.search(r"export const CENAS[^=]*=\s*\{(.*?)\};", index, re.S)
     assert m, "não achei `export const CENAS = {…}` em src/cenas/index.ts"
     assert nomes == re.findall(r"(\w+),", m.group(1))
+
+
+# --- ajustes por peça (storyboard editável por camadas) ---
+
+def test_ajuste_valido_passa_para_o_resolvido(tmp_path):
+    aj = {"story": {"etiquetas[0]": {"dx": 20, "dy": -40, "rot": 5.5, "escala": 1.2}}}
+    dados = carregar_criativo(_salvar(tmp_path, _criativo(_cena(ajustes=aj))), TRANSCRICAO)
+    assert resolver_criativo(dados)["cenas"][0]["ajustes"] == aj
+
+
+def test_ajuste_em_formato_que_nao_existe(tmp_path):
+    aj = {"h": {"titulo": {"dx": 10}}}
+    with pytest.raises(CriativoInvalido, match="'mapa'.*formato 'h'"):
+        carregar_criativo(_salvar(tmp_path, _criativo(_cena(ajustes=aj))), TRANSCRICAO)
+
+
+def test_ajuste_com_campo_nao_numerico_ou_desconhecido(tmp_path):
+    for ruim in ({"dx": "10"}, {"zoom": 2}, {"escala": 0}, {"dx": True}):
+        aj = {"story": {"titulo": ruim}}
+        with pytest.raises(CriativoInvalido, match="'mapa'.*'titulo'"):
+            carregar_criativo(_salvar(tmp_path, _criativo(_cena(ajustes=aj))), TRANSCRICAO)
+
+
+def test_ajuste_com_peca_sem_nome(tmp_path):
+    with pytest.raises(CriativoInvalido, match="peça sem nome"):
+        carregar_criativo(_salvar(tmp_path, _criativo(_cena(ajustes={"story": {"": {"dx": 1}}}))), TRANSCRICAO)

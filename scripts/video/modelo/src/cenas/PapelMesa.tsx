@@ -4,6 +4,7 @@ import { Cutaway } from "../Cutaway";
 import { clamp, color, font, pick, useAt, useFormato } from "../theme";
 import { Handwriting, Kicker, Sheet } from "../inserts/Paper";
 import { appear, ease } from "./comum";
+import { Peca } from "../pecas";
 import type { PropsCena } from "./tipos";
 
 /**
@@ -31,12 +32,11 @@ export const PapelMesa: React.FC<PropsCena<"PapelMesa">> = ({ start, dur, props 
     >
       <Sheet tilt={-2} width={pick(f, { story: 900, feed: 900, h: 1360 })} top={pick(f, { story: 210, feed: 40, h: 50 })}>
         <div style={{ ...tape, top: -26, left: pick(f, { story: 340, feed: 340, h: 500 }), rotate: "-4deg" }} />
-        <Kicker>{props.kicker}</Kicker>
-        <div style={{ fontFamily: font.serif, fontWeight: 700, fontSize: pick(f, { story: 64, feed: 52, h: 56 }), lineHeight: 1.1,
-          marginBottom: pick(f, { story: 30, feed: 18, h: 24 }) }}>
+        <Peca id="kicker"><Kicker>{props.kicker}</Kicker></Peca>
+        <Peca id="titulo" style={{ marginBottom: pick(f, { story: 30, feed: 18, h: 24 }) }}><div style={{ fontFamily: font.serif, fontWeight: 700, fontSize: pick(f, { story: 64, feed: 52, h: 56 }), lineHeight: 1.1 }}>
           {props.titulo}
-        </div>
-        <svg width={W * k} height={H * k} viewBox={`0 0 ${W} ${H}`} style={{ overflow: "visible", display: "block",
+        </div></Peca>
+        <Peca id="grafico"><svg width={W * k} height={H * k} viewBox={`0 0 ${W} ${H}`} style={{ overflow: "visible", display: "block",
           marginLeft: f === "h" ? 220 : 0 }}>
           <line x1={0} y1={H} x2={W} y2={H} stroke={color.ink} strokeWidth={3} />
           <line x1={0} y1={0} x2={0} y2={H} stroke={color.ink} strokeWidth={3} />
@@ -53,15 +53,16 @@ export const PapelMesa: React.FC<PropsCena<"PapelMesa">> = ({ start, dur, props 
             fill="none" stroke={color.marker} strokeWidth={7} strokeLinecap="round" pathLength={1}
             opacity={frame >= t(props.circulo.em) ? 1 : 0}
             strokeDasharray={1} strokeDashoffset={draw(props.circulo.em, props.circulo.em + 0.6)} />
-        </svg>
-        <Handwriting from={t(props.mao.em)} style={{ textAlign: "right", marginTop: 10, fontSize: pick(f, { story: 64, feed: 52, h: 60 }),
+        </svg></Peca>
+        <Peca id="mao"><Handwriting from={t(props.mao.em)} style={{ textAlign: "right", marginTop: 10, fontSize: pick(f, { story: 64, feed: 52, h: 60 }),
           paddingLeft: pick(f, { story: 300, feed: 240, h: 0 }) }}>
           {props.mao.texto}
-        </Handwriting>
+        </Handwriting></Peca>
       </Sheet>
+      <Peca id="adesivo" style={{ position: "absolute", top: pick(f, { story: 1010, feed: 610, h: 600 }), left: pick(f, { story: 70, feed: 24, h: 40 }) }}>
       <div
         style={{
-          position: "absolute", top: pick(f, { story: 1010, feed: 610, h: 600 }), left: pick(f, { story: 70, feed: 24, h: 40 }),
+          position: "relative",
           rotate: "-6deg", background: "#F7F3EA", padding: "10px 26px",
           fontFamily: font.stamp, fontSize: pick(f, { story: 88, feed: 70, h: 84 }), color: color.ink,
           boxShadow: "0 12px 30px rgba(0,0,0,0.35)", ...appear(frame, t(props.adesivo.em)),
@@ -70,6 +71,7 @@ export const PapelMesa: React.FC<PropsCena<"PapelMesa">> = ({ start, dur, props 
         <div style={{ ...tape, top: -22, left: 20, width: 110, rotate: "8deg" }} />
         {props.adesivo.texto}
       </div>
+      </Peca>
     </Cutaway>
   );
 };

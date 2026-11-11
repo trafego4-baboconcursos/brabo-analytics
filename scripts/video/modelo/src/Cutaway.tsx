@@ -1,6 +1,7 @@
 import React, { createContext, useContext } from "react";
 import { AbsoluteFill, Easing, interpolate, useCurrentFrame } from "remotion";
 import { clamp } from "./theme";
+import { useIsolandoPeca } from "./pecas";
 
 /**
  * Emenda entre inserts colados (um termina no quadro em que o outro começa).
@@ -25,11 +26,13 @@ export const Cutaway: React.FC<{
   const emenda = useContext(EmendaContext);
   const ease = Easing.bezier(0.16, 1, 0.3, 1);
   const d = durationInFrames;
+  const isolando = useIsolandoPeca();
 
   return (
     <AbsoluteFill
       style={{
-        background,
+        background: isolando ? "transparent" : background,
+        visibility: isolando ? "hidden" : undefined,
         opacity: interpolate(frame, [0, 5, d - 6, d], [emenda.entrada ? 1 : 0, 1, 1, emenda.saida ? 1 : 0], clamp),
       }}
     >

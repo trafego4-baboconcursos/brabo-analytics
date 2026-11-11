@@ -53,6 +53,25 @@ def _validar_formatos(formatos: dict) -> None:
                 "(segundo em que a legenda do bruto começa; antes disso entra a nossa)")
 
 
+CAMPOS_AJUSTE = ("dx", "dy", "rot", "escala")
+
+
+def _validar_ajustes(c: dict, formatos: dict) -> None:
+    """`ajustes = {formato: {peça: {dx, dy, rot, escala}}}`: o que o usuário moveu no Figma."""
+    for formato, pecas in c.get("ajustes", {}).items():
+        if formato not in formatos:
+            raise CriativoInvalido(f"cena '{c['id']}': ajuste no formato '{formato}', que não está em 'formatos'")
+        for peca, aj in pecas.items():
+            if not peca:
+                raise CriativoInvalido(f"cena '{c['id']}': ajuste com peça sem nome ({formato})")
+            ruins = [k for k, v in aj.items()
+                     if k not in CAMPOS_AJUSTE or isinstance(v, bool) or not isinstance(v, (int, float))]
+            if ruins or aj.get("escala", 1) <= 0:
+                raise CriativoInvalido(
+                    f"cena '{c['id']}', peça '{peca}' ({formato}): ajuste aceita só números em "
+                    f"{', '.join(CAMPOS_AJUSTE)} (escala > 0); veio {aj}")
+
+
 def _achar_palavra(palavra: str, de: float, ate: float, transcricao: list[dict]) -> float:
     alvo = _normalizar(palavra)
     for c in transcricao:
@@ -84,6 +103,7 @@ def carregar_criativo(caminho: Path, transcricao: list[dict]) -> dict:
             raise CriativoInvalido(
                 f"cenas '{anterior['id']}' ({anterior['de']}–{anterior['ate']}) e '{c['id']}' "
                 f"({c['de']}–{c['ate']}) se sobrepõem; para emendar, a 2ª começa onde a 1ª termina")
+        _validar_ajustes(c, dados["formatos"])
         c["ancoras_s"] = {
             nome: _achar_palavra(palavra, c["de"], c["ate"], transcricao)
             for nome, palavra in c.get("ancora_palavras", {}).items()

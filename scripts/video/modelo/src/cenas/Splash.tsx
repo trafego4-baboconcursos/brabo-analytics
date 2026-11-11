@@ -3,6 +3,7 @@ import { Easing, Img, interpolate, staticFile, useCurrentFrame } from "remotion"
 import { Cutaway } from "../Cutaway";
 import { clamp, color, font, pick, useAt, useFormato } from "../theme";
 import { appear } from "./comum";
+import { Peca } from "../pecas";
 import type { PropsCena } from "./tipos";
 
 /**
@@ -22,36 +23,35 @@ export const Splash: React.FC<PropsCena<"Splash">> = ({ start, dur, props }) => 
     <Cutaway durationInFrames={dur} background={color.night}>
       {props.imagem && (
         // elemento-herói logo acima da faixa: entra com salto um pouco antes do título
-        <Img src={staticFile(props.imagem)} style={{
-          position: "absolute", width: tamImg, height: tamImg, objectFit: "contain",
-          left: `calc(50% - ${tamImg / 2}px)`, top: centro - meiaFaixa - tamImg + 24,
+        <Peca id="imagem" style={{ position: "absolute", width: tamImg, height: tamImg,
+          left: `calc(50% - ${tamImg / 2}px)`, top: centro - meiaFaixa - tamImg + 24 }}><Img src={staticFile(props.imagem)} style={{
+          width: tamImg, height: tamImg, objectFit: "contain", display: "block",
           opacity: interpolate(frame, [at - 8, at], [0, 1], clamp),
           scale: interpolate(frame, [at - 8, at + 6], [0.6, 1], { ...clamp, easing: Easing.back(1.8), output: "perceptual-scale" }),
           translate: interpolate(frame, [at - 8, at + 6], ["0px 40px", "0px 0px"], { ...clamp, easing: Easing.bezier(0.16, 1, 0.3, 1) }),
-        }} />
+        }} /></Peca>
       )}
-      <div style={{
-        position: "absolute", left: 0, right: 0, top: centro - meiaFaixa,
+      <Peca id="faixa" style={{ position: "absolute", left: 0, right: 0, top: centro - meiaFaixa }}><div style={{
         height: pick(f, { story: 272, feed: 208, h: 224 }), background: color.coral,
         translate: `${faixa}% 0px`, rotate: "-3deg",
-      }} />
+      }} /></Peca>
       <div style={{
         position: "absolute", left: pick(f, { story: 80, feed: 80, h: 160 }), right: pick(f, { story: 80, feed: 80, h: 160 }),
         top: centro, translate: "0 -50%", textAlign: "center", color: color.text,
       }}>
-        <div style={{
+        <Peca id="titulo"><div style={{
           fontFamily: font.ui, fontWeight: 800, fontSize: pick(f, { story: 120, feed: 96, h: 112 }), lineHeight: 1,
           letterSpacing: -3, whiteSpace: "pre-line",
           scale: interpolate(frame, [at, at + 14], [1.25, 1], { ...clamp, easing: Easing.back(1.6), output: "perceptual-scale" }),
           opacity: interpolate(frame, [at, at + 4], [0, 1], clamp),
         }}>
           {props.titulo}
-        </div>
+        </div></Peca>
         {props.subtitulo && (
-          <div style={{ fontFamily: font.ui, fontWeight: 600, fontSize: pick(f, { story: 48, feed: 40, h: 44 }), marginTop: 24,
+          <Peca id="subtitulo" style={{ marginTop: 24 }}><div style={{ fontFamily: font.ui, fontWeight: 600, fontSize: pick(f, { story: 48, feed: 40, h: 44 }),
             ...appear(frame, at + 10) }}>
             {props.subtitulo}
-          </div>
+          </div></Peca>
         )}
       </div>
     </Cutaway>

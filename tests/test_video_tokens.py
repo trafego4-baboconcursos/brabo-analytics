@@ -48,3 +48,10 @@ def test_legenda_lime_legivel_sobre_night():
 def test_theme_nao_tem_cor_solta():
     ts = (MODELO / "src" / "theme.ts").read_text(encoding="utf-8")
     assert not re.search(r'"#[0-9A-Fa-f]{6}"', ts)
+
+
+def test_tokens_json_nao_e_ignorado_pelo_git():
+    """A regra `token*.json` do .gitignore (credenciais) pegava o tokens.json e ele nunca subiu."""
+    import subprocess
+    r = subprocess.run(["git", "check-ignore", "-q", "--no-index", "scripts/video/modelo/src/tokens.json"], cwd=RAIZ)
+    assert r.returncode == 1, "tokens.json está no .gitignore; o modelo quebra num clone novo"

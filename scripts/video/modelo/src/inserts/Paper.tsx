@@ -2,6 +2,7 @@ import React from "react";
 import { Easing, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import { Highlight } from "@remotion/rough-notation";
 import { clamp, color, font, useAt } from "../theme";
+import { Peca } from "../pecas";
 
 /** Folha de papel (estilo "headline" da referência): leve inclinação que endireita. */
 export const Sheet: React.FC<{ children: React.ReactNode; width?: number; tilt?: number; top?: number }> = ({
@@ -13,12 +14,9 @@ export const Sheet: React.FC<{ children: React.ReactNode; width?: number; tilt?:
   const frame = useCurrentFrame();
   const { width: W } = useVideoConfig();
   return (
+    <Peca id="folha" style={{ position: "absolute", top, left: (W - width) / 2, width }}>
     <div
       style={{
-        position: "absolute",
-        top,
-        left: (W - width) / 2,
-        width,
         background: color.paper,
         color: color.ink,
         padding: "56px 60px 64px",
@@ -31,6 +29,7 @@ export const Sheet: React.FC<{ children: React.ReactNode; width?: number; tilt?:
     >
       {children}
     </div>
+    </Peca>
   );
 };
 

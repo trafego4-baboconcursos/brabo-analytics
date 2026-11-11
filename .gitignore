@@ -117,6 +117,8 @@ analises/comercial/
 scripts/video/modelo/public/*
 !scripts/video/modelo/public/sfx/
 scripts/video/output/
+# tokens do design system de vídeo (cores/fontes), não credencial: escapa do token*.json acima
+!scripts/video/modelo/src/tokens.json
 
 # Criativos de vídeo (brutos, proxies, renders) gerados por scripts/video/novo_criativo.py
 videos/

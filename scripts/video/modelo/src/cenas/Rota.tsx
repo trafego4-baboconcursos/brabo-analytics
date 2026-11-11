@@ -3,6 +3,7 @@ import { AbsoluteFill, Easing, Img, interpolate, staticFile, useCurrentFrame } f
 import { Cutaway } from "../Cutaway";
 import { clamp, color, font, pick, raio, useAt, useFormato } from "../theme";
 import { appear, fundoEscuro, partir, usePainel } from "./comum";
+import { Peca } from "../pecas";
 import type { PropsCena, PropsRota } from "./tipos";
 
 const caminho = (pts: [number, number][]) => pts.map(([x, y], i) => `${i ? "L" : "M"} ${x} ${y}`).join(" ");
@@ -46,9 +47,9 @@ const MapaDesenhado: React.FC<{ props: PropsRota; p: number; trilha: number; fla
         </g>
       </svg>
       {rotulo && (
-        <div style={{ position: "absolute", left: cume.x + 130, top: cume.y - 190, ...rotuloCume(flag, 54) }}>
+        <Peca id="rotuloCume" style={{ position: "absolute", left: cume.x + 130, top: cume.y - 190 }}><div style={rotuloCume(flag, 54)}>
           {props.rotuloCume}
-        </div>
+        </div></Peca>
       )}
     </AbsoluteFill>
   );
@@ -68,8 +69,8 @@ export const Rota: React.FC<PropsCena<"Rota">> = ({ start, dur, props }) => {
 
   const titulo = (size: number, sombra: boolean) => (
     <>
-      <div style={{ fontFamily: font.mono, fontSize: 26, letterSpacing: 3, color: "#C9C4BC" }}>{props.kicker}</div>
-      <div style={{ fontFamily: font.ui, fontWeight: 800, fontSize: size, lineHeight: 1.05, color: color.text,
+      <Peca id="kicker"><div style={{ fontFamily: font.mono, fontSize: 26, letterSpacing: 3, color: "#C9C4BC" }}>{props.kicker}</div></Peca>
+      <Peca id="titulo"><div style={{ fontFamily: font.ui, fontWeight: 800, fontSize: size, lineHeight: 1.05, color: color.text,
         textShadow: sombra ? "0 4px 24px rgba(0,0,0,0.6)" : "none" }}>
         {antes}
         <span style={{ color: color.coral,
@@ -77,7 +78,7 @@ export const Rota: React.FC<PropsCena<"Rota">> = ({ start, dur, props }) => {
           {alvo}
         </span>
         {depois}
-      </div>
+      </div></Peca>
     </>
   );
   const selo: React.CSSProperties = {
@@ -97,7 +98,7 @@ export const Rota: React.FC<PropsCena<"Rota">> = ({ start, dur, props }) => {
         }}>
           {titulo(84, true)}
         </div>
-        <div style={{ position: "absolute", top: 1000, left: 60, ...selo }}>{props.selo.texto}</div>
+        <Peca id="selo" style={{ position: "absolute", top: 1000, left: 60 }}><div style={selo}>{props.selo.texto}</div></Peca>
       </Cutaway>
     );
   }
@@ -116,9 +117,9 @@ export const Rota: React.FC<PropsCena<"Rota">> = ({ start, dur, props }) => {
         width: painel.colW - pick(f, { story: 0, feed: 70, h: 300 }), ...appear(frame, t(start + 0.3)),
       }}>
         {titulo(pick(f, { story: 84, feed: 58, h: 96 }), false)}
-        <div style={{ display: "inline-block", marginTop: pick(f, { story: 0, feed: 44, h: 70 }), ...selo }}>{props.selo.texto}</div>
+        <Peca id="selo" style={{ display: "inline-block", marginTop: pick(f, { story: 0, feed: 44, h: 70 }) }}><div style={selo}>{props.selo.texto}</div></Peca>
         <div style={{ marginTop: pick(f, { story: 0, feed: 34, h: 50 }) }}>
-          <div style={{ display: "inline-block", ...rotuloCume(flag, pick(f, { story: 54, feed: 52, h: 64 })) }}>⚑ {props.rotuloCume}</div>
+          <Peca id="rotuloCume" style={{ display: "inline-block" }}><div style={rotuloCume(flag, pick(f, { story: 54, feed: 52, h: 64 }))}>⚑ {props.rotuloCume}</div></Peca>
         </div>
       </div>
     </Cutaway>

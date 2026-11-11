@@ -60,3 +60,49 @@ def test_aplicar_textos_muda_so_o_caminho_editado():
 def test_texto_lido_de_caminho_que_nao_existe_e_erro():
     with pytest.raises(KeyError, match="dona.*titulo"):
         diferencas_textos(CRIATIVO, {"dona": {"titulo": "x"}})
+
+
+# --- ajustes por camada: posição/rotação/escala lidas do Figma (palco em meia escala) ---
+from scripts.video.storyboard import aplicar_ajustes, diferencas_ajustes  # noqa: E402
+
+# caixa da peça no canvas 1080×1920 (corte pelo alfa do render isolado)
+MANIFESTO = {"dona": {"pecas": [{"id": "etiquetas[0]", "x": 100, "y": 200, "w": 300, "h": 80}]}}
+PARADO = {"cx": 125.0, "cy": 120.0, "largura": 150.0, "rot": 0.0}   # mesma caixa no palco de 540
+
+
+def _lido(**mudou):
+    return {"dona": {"etiquetas[0]": {**PARADO, **mudou}}}
+
+
+def test_peca_intocada_nao_gera_ajuste():
+    assert diferencas_ajustes(CRIATIVO, MANIFESTO, _lido(cx=125.3, rot=0.2)) == []
+
+
+def test_mover_no_palco_vira_deslocamento_em_px_do_video():
+    difs = diferencas_ajustes(CRIATIVO, MANIFESTO, _lido(cx=135.0, cy=140.0))
+    assert difs == [("dona", "etiquetas[0]", {}, {"dx": 20, "dy": 40})]
+
+
+def test_girar_no_figma_inverte_o_sinal_e_dobrar_largura_e_escala_2():
+    difs = diferencas_ajustes(CRIATIVO, MANIFESTO, _lido(rot=10.0, largura=300.0))
+    assert difs == [("dona", "etiquetas[0]", {}, {"rot": -10.0, "escala": 2.0})]
+
+
+def test_ajuste_novo_soma_ao_que_ja_existia():
+    criativo = copy.deepcopy(CRIATIVO)
+    criativo["cenas"][1]["ajustes"] = {"story": {"etiquetas[0]": {"dx": 8, "rot": -4.0, "escala": 1.5}}}
+    difs = diferencas_ajustes(criativo, MANIFESTO, _lido(cx=135.0, rot=1.0, largura=300.0))
+    assert difs == [("dona", "etiquetas[0]", {"dx": 8, "rot": -4.0, "escala": 1.5},
+                     {"dx": 28, "rot": -5.0, "escala": 3.0})]
+
+
+def test_aplicar_ajustes_grava_no_formato_sem_mexer_no_original():
+    difs = [("dona", "etiquetas[0]", {}, {"dx": 20, "dy": 40})]
+    novo = aplicar_ajustes(CRIATIVO, difs, formato="story")
+    assert novo["cenas"][1]["ajustes"] == {"story": {"etiquetas[0]": {"dx": 20, "dy": 40}}}
+    assert "ajustes" not in CRIATIVO["cenas"][1]
+
+
+def test_camada_lida_que_nao_esta_no_manifesto_e_erro():
+    with pytest.raises(KeyError, match=r"etiquetas\[9\]"):
+        diferencas_ajustes(CRIATIVO, MANIFESTO, {"dona": {"etiquetas[9]": PARADO}})

@@ -112,3 +112,8 @@ outputs/exports/
 # Planilhas do comercial (CPF/telefone de comprador) e mockups do brainstorming
 analises/comercial/
 .superpowers/
+
+# Modelo Remotion de vídeo animado: versiona código, tokens e public/sfx; mídia de criativo e renders ficam fora
+scripts/video/modelo/public/*
+!scripts/video/modelo/public/sfx/
+scripts/video/output/

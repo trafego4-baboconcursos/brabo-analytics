@@ -162,7 +162,9 @@ def test_montar_pecas_le_a_origem_da_caixa(tmp_path):
     _png(cena / "etiquetas[0].png", (100, 200, 300, 80))
     _png(cena / "etiquetas[0].caixa.png", (60, 200, 960, 80))      # caixa da peça (render "caixa:")
     (cena / "lista.json").write_text('[{"id": "etiquetas[0]"}]', encoding="utf-8")
-    assert montar_pecas(tmp_path)["dona"]["pecas"][0]["origem"] == [540.0, 240.0]
+    p = montar_pecas(tmp_path)["dona"]["pecas"][0]
+    assert p["origem"] == [540.0, 240.0]
+    assert p["caixa"] == [60, 200, 960, 80]
 
 
 def test_nome_das_camadas_em_portugues_e_volta_pelo_nome():
@@ -182,26 +184,28 @@ def test_texto_lido_pelo_nome_em_portugues():
     assert diferencas_textos(CRIATIVO, lidos) == [("salario", "selo", "✓ Estabilidade", "✓ Estabilidade por lei")]
 
 
-# --- caixa + lettering: balão vira caixa nativa do Figma com texto vivo ---
+# --- peças nativas (texto vivo / caixa / vetor): o balão como exemplo ---
 from scripts.video.storyboard import aplicar_props, diferencas_nativas  # noqa: E402
 
 # balão de 300 px de largura no vídeo, centro (250, 240); no Figma (palco ½): centro (125, 120)
 MANIF_BALAO = {"dona": {"pecas": [{"id": "etiquetas[0]", "x": 100, "y": 200, "w": 300, "h": 80, "origem": [250, 240]}]}}
-NATIVOS0 = {"dona": {"etiquetas[0]": {"largura": 150.0, "rot": 4.0, "fonte": 27.0}}}   # como o Figma criou
+NATIVOS0 = {"dona": {"etiquetas[0]": {   # como o Figma criou a peça (devolvido pelo storyboard_video.js)
+    "cx": 125.0, "cy": 120.0, "largura": 150.0, "altura": 40.0, "rot": 4.0, "fonte": 27.0, "pv": [250, 240],
+    "ancora": "esq", "cores": {"fill": "etiquetas[0].cor", "texto": "etiquetas[0].corTexto"},
+    "cor0": "#1A1A1A", "corTexto0": "#F4EFE4"}}}
 
 
-def _balao(**mudou):
-    base = {"cx": 125.0, "cy": 120.0, "largura": 150.0, "rot": 4.0, "fonte": 27.0,
-            "texto": "trabalha", "cor": "#1A1A1A", "corTexto": "#F4EFE4"}
+def _balao(texto="trabalha", **mudou):
+    base = {"cx": 125.0, "cy": 120.0, "largura": 150.0, "altura": 40.0, "rot": 4.0, "fonte": 27.0,
+            "textos": {"✎ Balão 1 · texto": texto}, "cor": "#1A1A1A", "corTexto": "#F4EFE4"}
     return {"dona": {"etiquetas[0]": {**base, **mudou}}}
 
 
-def test_balao_vira_caixa_nativa_e_sai_da_caixa_de_textos():
+def test_balao_vira_peca_nativa_e_sai_da_caixa_de_textos():
     d = dados_storyboard(CRIATIVO, CAPTIONS, pecas=MANIF_BALAO)
     tela = d["telas"][1]
-    assert tela["camadas"]["pecas"][0]["nativo"] == {
-        "texto": "trabalha", "fonte": 27.0, "cor": "#1A1A1A", "corTexto": "#F4EFE4",
-        "padV": 7.0, "padH": 15.0, "raio": 7.0, "rot": 4.0, "cx": 125.0, "cy": 120.0}
+    nat = tela["camadas"]["pecas"][0]["nativo"]
+    assert (nat["fill"], nat["pv"], nat["filhos"][0]["rotulo"]) == ("#1A1A1A", [250.0, 240.0], "✎ Balão 1 · texto")
     assert "etiquetas[0].texto" not in tela["textos"]          # edita no próprio balão
 
 
@@ -211,17 +215,22 @@ def test_balao_intocado_nao_gera_nada():
 
 def test_texto_maior_cresce_para_a_direita_sem_mover_o_balao():
     # Figma: auto layout cresce a partir da esquerda → o centro anda metade do que cresceu
-    aj, props = diferencas_nativas(CRIATIVO, MANIF_BALAO, _balao(texto="trabalha fora", largura=200.0, cx=150.0), NATIVOS0)
+    aj, props = diferencas_nativas(CRIATIVO, MANIF_BALAO, _balao("trabalha fora", largura=200.0, cx=150.0), NATIVOS0)
     assert aj == []
     assert props == [("dona", "etiquetas[0].texto", "trabalha", "trabalha fora")]
 
 
 def test_mover_girar_e_aumentar_a_letra_do_balao():
     aj, _ = diferencas_nativas(CRIATIVO, MANIF_BALAO,
-                               _balao(cx=135.0, cy=130.0, rot=14.0, fonte=40.5, largura=225.0), NATIVOS0)
+                               _balao(cx=135.0, cy=130.0, rot=14.0, fonte=40.5, largura=225.0, altura=60.0), NATIVOS0)
     # o centro no Figma vai para onde o centro fica no vídeo (+10/+10 no palco = +20/+20); a letra
     # 1,5× cresce a caixa junto (escala em volta do centro), então não há "crescimento de texto"
     assert aj == [("dona", "etiquetas[0]", {}, {"dx": 20, "dy": 20, "rot": -10.0, "escala": 1.5})]
+
+
+def test_texto_que_quebra_linha_cresce_para_baixo_sem_mover():
+    aj, _ = diferencas_nativas(CRIATIVO, MANIF_BALAO, _balao("trabalha muito", altura=80.0, cy=140.0), NATIVOS0)
+    assert aj == []
 
 
 def test_balao_nativo_nao_entra_na_conta_das_imagens():
@@ -237,6 +246,17 @@ def test_trocar_a_cor_da_caixa():
     assert "cor" not in CRIATIVO["cenas"][1]["props"]["etiquetas"][0]
 
 
+def test_numero_editado_volta_como_numero():
+    crit = {"codigo": "X", "cenas": [{"id": "sal", "componente": "Grafico", "de": 0, "ate": 1,
+                                      "props": {"valorFinal": 7234, "prefixo": "R$"}, "sfx": []}]}
+    manif = {"sal": {"pecas": [{"id": "numero", "x": 0, "y": 0, "w": 100, "h": 50}]}}
+    n0 = {"sal": {"numero": {"cx": 25.0, "cy": 12.5, "largura": 50.0, "altura": 25.0, "rot": 0.0, "fonte": 95.0,
+                             "pv": [50, 25], "ancora": "esq"}}}
+    lido = {"sal": {"numero": {"cx": 25.0, "cy": 12.5, "largura": 50.0, "altura": 25.0, "rot": 0.0, "fonte": 95.0,
+                               "textos": {"✎ Valor": "7.500", "✎ Moeda": "R$"}}}}
+    assert diferencas_nativas(crit, manif, lido, n0)[1] == [("sal", "valorFinal", 7234, 7500)]
+
+
 def test_caixa_alfa_de_png_opaco_sem_canal_alfa_e_a_imagem_toda(tmp_path):
     # o render grava RGB quando a peça cobre o quadro inteiro (ex.: ilustração em tela cheia)
     from PIL import Image
@@ -247,8 +267,10 @@ def test_caixa_alfa_de_png_opaco_sem_canal_alfa_e_a_imagem_toda(tmp_path):
 
 def test_dados_storyboard_levam_as_camadas_de_cada_tela():
     d = dados_storyboard(CRIATIVO, CAPTIONS, pecas=MANIFESTO)
-    assert d["telas"][1]["camadas"]["pecas"] == [{**MANIFESTO["dona"]["pecas"][0], "nome": "Balão 1 · trabalha"}]
-    assert d["telas"][1]["rotulos"] == {"etiquetas[0].texto": "Balão 1 · texto"}
+    p = d["telas"][1]["camadas"]["pecas"][0]
+    assert {k: p[k] for k in MANIFESTO["dona"]["pecas"][0]} == MANIFESTO["dona"]["pecas"][0]
+    assert p["nome"] == "Balão 1 · trabalha" and p["nativo"]["t"] == "frame"
+    assert d["telas"][1]["rotulos"] == {}           # o texto do balão é editado no próprio balão
     assert "camadas" not in d["telas"][0]          # cena sem render de camadas: tela só com o still
 
 

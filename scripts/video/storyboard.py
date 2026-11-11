@@ -23,6 +23,8 @@ import re
 import sys
 from pathlib import Path
 
+from scripts.video.receitas_figma import receita
+
 _ARQUIVO = re.compile(r"\.(jpe?g|png|webp|gif|svg|mp4|mov|wav|mp3)$", re.I)
 _PASSO = re.compile(r"([^.\[\]]+)|\[(\d+)\]")
 
@@ -48,6 +50,15 @@ def _fala(captions: list[dict], de: float, ate: float) -> str:
     return " ".join(palavras)
 
 
+def _rotular(no: dict, props: dict, vivos: set) -> None:
+    """Nome em português de cada texto editável da receita ("✎ Título"); guarda os caminhos."""
+    if no["t"] == "texto" and no.get("caminho"):
+        no["rotulo"] = "✎ " + nome_camada(no["caminho"], props)
+        vivos.add(no["caminho"])
+    for f in no.get("filhos", []):
+        _rotular(f, props, vivos)
+
+
 def dados_storyboard(criativo: dict, captions: list[dict], pecas: dict | None = None) -> dict:
     """`pecas` (pecas.json do render de camadas): a tela vira palco editável — fundo + uma camada
     por peça + legenda — em vez do still único."""
@@ -56,16 +67,19 @@ def dados_storyboard(criativo: dict, captions: list[dict], pecas: dict | None = 
         props = c.get("props", {})
         if pecas and c["id"] in pecas:
             cam = copy.deepcopy(pecas[c["id"]])
+            vivos = set()   # caminhos editados no próprio texto da peça nativa
             for p in cam["pecas"]:
                 p["nome"] = nome_camada(p["id"], props)
-                if (nat := _spec_nativo(c, p)) is not None:
-                    p["nativo"] = nat
+                r = receita(c, p)
+                if isinstance(r, dict):
+                    _rotular(r, props, vivos)
+                    p["nativo"] = r
             telas.append({"camadas": cam})
         else:
+            vivos = set()
             telas.append({})
-        # texto de peça caixa + lettering é editado no próprio balão, não na caixa TEXTOS
-        nativos = {f"{p['id']}." for p in telas[-1].get("camadas", {}).get("pecas", []) if "nativo" in p}
-        textos = {k: v for k, v in _textos(props).items() if not any(k.startswith(n) for n in nativos)}
+        # texto de peça nativa é editado nela mesma; na caixa TEXTOS fica só o resto (ex.: marca-texto)
+        textos = {k: v for k, v in _textos(props).items() if k not in vivos}
         telas[-1]["rotulos"] = {k: nome_camada(k, props) for k in textos}
         telas[-1].update({
             "id": c["id"],
@@ -129,7 +143,7 @@ NOMES = {
     "selo": "Selo", "numero": "Número", "grafico": "Gráfico", "rotuloFim": "Valor final",
     "rotuloCume": "Placa no topo", "pergunta": "Pergunta", "adesivo": "Adesivo", "medalhas": "Medalhas",
     "imagem": "Ilustração", "botao": "Botão", "chamada": "Chamada", "faixa": "Faixa", "prefixo": "Moeda",
-    "eixo": "Eixo", "rotulo": "Rótulo", "destaque": "Marca-texto", "tituloDestaque": "Destaque do título",
+    "eixo": "Eixo", "valorFinal": "Valor", "rotulo": "Rótulo", "destaque": "Marca-texto", "tituloDestaque": "Destaque do título",
     "curvaRuim": "Curva ruim", "curvaBoa": "Curva boa",
     "etiquetas": "Balão", "itens": "Item",
     # subcampos
@@ -217,77 +231,95 @@ def diferencas_ajustes(criativo: dict, manifesto: dict, lidos: dict[str, dict[st
     return saida
 
 
-# --- caixa + lettering (peças nativas no Figma) ---------------------------------------------
-_TOKENS = Path(__file__).resolve().parent / "modelo" / "src" / "tokens.json"
+# --- peças nativas no Figma (texto/caixa/vetor; receitas em receitas_figma.py) -------------
+_NUMERICOS = ("valorFinal", "numero")   # props número mostradas como texto na peça
 
 
-def _cores() -> dict:
-    return json.loads(_TOKENS.read_text(encoding="utf-8"))["cor"]
-
-
-def _spec_nativo(cena: dict, peca: dict, formato: str = "story", k: float = 0.5) -> dict | None:
-    """Como desenhar a peça como caixa + texto vivo no Figma (palco × k), ou None se ela é imagem.
-    Balão (Desenho, story): fundo ink, letra Inter 800 54 px, padding 14/30, raio 14 — os mesmos
-    números de cenas/Desenho.tsx, vezes a escala do ajuste."""
-    m = re.fullmatch(r"etiquetas\[(\d+)\]", peca["id"])
-    if not (m and cena["componente"] == "Desenho" and formato == "story" and "origem" in peca):
-        return None
-    e = cena["props"]["etiquetas"][int(m.group(1))]
-    aj = cena.get("ajustes", {}).get(formato, {}).get(peca["id"], {})
-    s = aj.get("escala", 1) * k
-    cores = _cores()
-    return {"texto": e["texto"], "fonte": round(54 * s, 2), "cor": e.get("cor", cores["ink"]),
-            "corTexto": e.get("corTexto", cores["paper"]), "padV": round(14 * s, 2), "padH": round(30 * s, 2),
-            "raio": round(14 * s, 2), "rot": -(e.get("rot", 0) + aj.get("rot", 0)),
-            "cx": peca["origem"][0] * k, "cy": peca["origem"][1] * k}
+def caminhos_editaveis(props: dict) -> list[str]:
+    """Caminhos de prop que viram texto editável (textos + números mostrados como texto)."""
+    return list(_textos(props)) + [k for k in _NUMERICOS if isinstance(props.get(k), (int, float))]
 
 
 def diferencas_nativas(criativo: dict, manifesto: dict, lidos: dict, nativos0: dict,
                        formato: str = "story", escala_palco: float = 2.0):
-    """Volta das peças caixa + lettering. Devolve (ajustes, props):
-    - ajustes [(cena, peça, antes, depois)]: o centro da caixa no Figma vira o centro no vídeo. Texto
-      maior/menor cresce a caixa para a direita nos dois lados (auto layout no Figma, left fixo no
-      vídeo), então esse crescimento é descontado; letra maior vira `escala`, em volta do centro.
-    - props [(cena, caminho, antes, depois)]: texto e cores mudados (aplicar com aplicar_props).
-    `nativos0[cena][peça]` = {largura, rot, fonte} como o Figma criou a caixa."""
+    """Volta das peças nativas (texto vivo, caixa, vetor). Devolve (ajustes, props).
+
+    `lidos[cena][peça]` = {cx, cy, largura, altura, rot, fonte, textos {rótulo: texto}, cor, corTexto};
+    `nativos0[cena][peça]` = como o Figma criou: {cx, cy, largura, altura, rot, fonte, pv, ancora,
+    cores, cor0, corTexto0}; `pv` = onde a peça foi posta, em px do vídeo.
+    - ajustes: o centro F no Figma (convertido para o vídeo) é onde a peça tem que ficar. O vídeo
+      gira/escala em volta da caixa da <Peca> (B = origem) e a peça foi posta em P = pv:
+          d = (F − B) − razão·R(rot)·(P − B) − crescimento
+      crescimento = quanto o TEXTO aumentou a peça (sem a escala), pelo lado da âncora (esq/centro/dir;
+      sempre para baixo) — no vídeo ela cresce sozinha do mesmo jeito.
+    - props [(cena, caminho, antes, depois)]: textos (número volta como número) e cores (só nas peças
+      que têm prop de cor, ex.: balão). Aplicar com aplicar_props.
+    """
     cenas = {c["id"]: c for c in criativo["cenas"]}
-    cores = _cores()
     ajustes, props = [], []
     for cena_id, camadas in lidos.items():
         cena = cenas[cena_id]
+        pr = cena.get("props", {})
         caixas = {p["id"]: p for p in manifesto[cena_id]["pecas"]}
-        por_nome = {nome_camada(i, cena.get("props", {})): i for i in caixas}
+        por_nome = {nome_camada(i, pr): i for i in caixas}
+        rotulos = {nome_camada(c, pr): c for c in caminhos_editaveis(pr)}
         atuais = cena.get("ajustes", {}).get(formato, {})
         for peca, l in camadas.items():
             peca = por_nome.get(peca, peca)
             if "fonte" not in l or peca not in nativos0.get(cena_id, {}):
                 continue
             n0, b = nativos0[cena_id][peca], caixas[peca]
-            antes = dict(atuais.get(peca, {}))
-            depois = dict(antes)
-            razao = l["fonte"] / n0["fonte"]
+            bx, by = b.get("origem") or (b["x"] + b["w"] / 2, b["y"] + b["h"] / 2)
+            px, py = n0["pv"]
+            fx = px + (l["cx"] - n0["cx"]) * escala_palco
+            fy = py + (l["cy"] - n0["cy"]) * escala_palco
+            razao = l["fonte"] / n0["fonte"] if n0["fonte"] else 1.0
             if abs(razao - 1) < 0.01:
                 razao = 1.0
-            # quanto o texto (sem a escala) cresceu, em px do vídeo; metade disso o vídeo já anda sozinho
-            cresceu = escala_palco * (l["largura"] / razao - n0["largura"])
-            dx = l["cx"] * escala_palco - b["origem"][0] - (cresceu / 2 if razao == 1.0 else 0)
-            dy = l["cy"] * escala_palco - b["origem"][1]
+            drot = l["rot"] - n0["rot"]
+            rot_css = -drot if abs(drot) >= 0.5 else 0.0
+            a = math.radians(rot_css)
+            ux, uy = px - bx, py - by
+            tx = razao * (ux * math.cos(a) - uy * math.sin(a))
+            ty = razao * (ux * math.sin(a) + uy * math.cos(a))
+            gw = escala_palco * (l["largura"] / razao - n0["largura"])
+            gh = escala_palco * (l["altura"] / razao - n0["altura"])
+            cx = {"esq": gw / 2, "centro": 0.0, "dir": -gw / 2}[n0.get("ancora", "esq")]
+            dx = (fx - bx) - tx - cx
+            dy = (fy - by) - ty - gh / 2
+            antes = dict(atuais.get(peca, {}))
+            depois = dict(antes)
             if abs(dx) >= 1:
                 depois["dx"] = round(antes.get("dx", 0) + dx)
             if abs(dy) >= 1:
                 depois["dy"] = round(antes.get("dy", 0) + dy)
-            drot = l["rot"] - n0["rot"]
-            if abs(drot) >= 0.5:
-                depois["rot"] = round(antes.get("rot", 0) - drot, 1)
+            if rot_css:
+                depois["rot"] = round(antes.get("rot", 0) + rot_css, 1)
             if razao != 1.0:
                 depois["escala"] = round(antes.get("escala", 1) * razao, 3)
             if depois != antes:
                 ajustes.append((cena_id, peca, antes, depois))
-            e = cena["props"]["etiquetas"][int(peca[peca.index("[") + 1:-1])]
-            for campo, padrao in (("texto", None), ("cor", cores["ink"]), ("corTexto", cores["paper"])):
-                atual = e.get(campo, padrao)
-                if campo in l and l[campo] != atual:
-                    props.append((cena_id, f"{peca}.{campo}", atual, l[campo]))
+            for rotulo, novo in l.get("textos", {}).items():
+                caminho = rotulos.get(rotulo.removeprefix("✎ ").strip())
+                if caminho is None:
+                    continue
+                atual = _ler(pr, caminho)
+                if isinstance(atual, (int, float)) and not isinstance(atual, bool):
+                    digitos = re.sub(r"\D", "", novo)
+                    novo = int(digitos) if digitos else atual
+                if novo != atual:
+                    props.append((cena_id, caminho, atual, novo))
+            for campo, chave in (("fill", "cor"), ("texto", "corTexto")):
+                caminho = (n0.get("cores") or {}).get(campo)
+                if not caminho or chave not in l:
+                    continue
+                passos = _passos(caminho)
+                try:
+                    atual = _ler(pr, caminho)
+                except (KeyError, IndexError, TypeError):
+                    atual = n0.get(f"{chave}0")
+                if l[chave].upper() != str(atual).upper():
+                    props.append((cena_id, caminho, atual if passos else None, l[chave]))
     return ajustes, props
 
 
@@ -350,6 +382,7 @@ def montar_pecas(pasta: Path) -> dict:
             caixa_png = cena / f"{item['id']}.caixa.png"
             if caixa_png.exists() and (cx := caixa_alfa(caixa_png)):
                 p["origem"] = [cx[0] + cx[2] / 2, cx[1] + cx[3] / 2]
+                p["caixa"] = list(cx)          # (x, y, w, h): tamanho da peça nativa no Figma
             pecas.append(p)
         manifesto[cena.name] = {"fundo": (cena / "fundo.png").relative_to(pasta).as_posix(), "pecas": pecas}
         # a nossa legenda fica por cima de tudo no vídeo: camada de cima, travada no Figma

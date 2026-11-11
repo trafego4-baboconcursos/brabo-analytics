@@ -988,6 +988,170 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       {% endif %}
     </div>
 
+    {# Seção única de pagamento (17/09/26): as barras/pizza mostram a FAIXA DE
+       PARCELAMENTO e a tabela embaixo mostra o MÉTODO, que antes vivia numa
+       segunda seção de cards. As 4 faixas são mutuamente exclusivas e somam o
+       total, então a pizza é legítima — ver o comentário em debriefing.py sobre
+       a barra "Recorrência" que existia aqui e estava errada. #}
+    {% set vf = dbf.vendas_forma or [] %}
+    {% set vf_total = vf | sum(attribute='qtd') %}
+    <div class="info-box" style="margin-top:0">
+      <h2>Forma de Pagamento — Recebido × Projetado</h2>
+      {% set pv = dbf.pagamentos_valores or [] %}
+      {% if pv %}
+      <div class="table-wrap" data-no-filter>
+        <table class="table-compact" style="font-size:12px;">
+          <thead>
+            <tr>
+              <th class="th-dark">Forma de pagamento</th>
+              <th class="th-dark" style="text-align:right">Vendas</th>
+              <th class="th-dark" style="text-align:right">Recebido</th>
+              <th class="th-dark" style="text-align:right">Projetado</th>
+              <th class="th-dark" style="text-align:right">A receber</th>
+              <th class="th-dark" style="text-align:right">% recebido</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in pv %}
+            {% set falta = r.projetado - r.recebido %}
+            <tr>
+              <td class="td-bold">{{ r.metodo }}</td>
+              <td style="text-align:right">{{ r.qtd | num }}</td>
+              <td style="text-align:right;color:var(--bs-accent);font-weight:700">{{ r.recebido | brl }}</td>
+              <td style="text-align:right;color:#2563eb;font-weight:700">{{ r.projetado | brl }}</td>
+              <td style="text-align:right">{{ falta | brl if falta > 0.5 else '—' }}</td>
+              <td style="text-align:right">{{ ((r.recebido / r.projetado * 100) if r.projetado > 0 else 0) | round(1) }}%</td>
+            </tr>
+            {% endfor %}
+            <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
+              <td>TOTAL</td>
+              <td style="text-align:right">{{ pv | sum(attribute='qtd') | num }}</td>
+              <td style="text-align:right">{{ dbf.pv_recebido | brl }}</td>
+              <td style="text-align:right">{{ dbf.pv_projetado | brl }}</td>
+              <td style="text-align:right">{{ (dbf.pv_projetado - dbf.pv_recebido) | brl }}</td>
+              <td style="text-align:right">{{ ((dbf.pv_recebido / dbf.pv_projetado * 100) if dbf.pv_projetado > 0 else 0) | round(1) }}%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="font-size:11px;color:var(--bs-ink-muted);margin:8px 0 16px">
+        Projetado = valor contratado das vendas (o mesmo da Receita Líquida). Recebido = o que já foi cobrado: Hotmart soma as cobranças já feitas dentro do período;
+        no TMB só conta o contrato quitado (status Efetivado) — a exportação não traz as parcelas pagas dos contratos "Em Dia", que entram inteiros em "A receber".
+      </div>
+      {% endif %}
+      {% if vf_total > 0 %}
+      <div style="margin-bottom:4px;font-size:12px;color:var(--bs-ink-muted)">
+        Total: {{ dbf.total_vendas_pay | num }} vendas
+        {% if dbf.total_hm > 0 %} · Hotmart: {{ dbf.total_hm | num }}{% endif %}
+        {% if dbf.total_tmb > 0 %} · TMB (boleto parcelado): {{ dbf.total_tmb | num }}{% endif %}
+      </div>
+      <div class="vf-badges">
+        {% for f in vf %}
+        <div class="vf-badge-item">
+          <span class="vf-badge-lbl">{{ f.label }}</span>
+          {{ dbadge(f.qtd, f.prev_qtd, 'up') }}
+        </div>
+        {% endfor %}
+      </div>
+      <div class="vf-layout">
+        <div class="vf-chart-wrap"><canvas id="vfBarChart"></canvas></div>
+        <div class="vf-chart-wrap vf-pie"><canvas id="vfPieChart"></canvas></div>
+      </div>
+
+      {% if dbf.pagamentos_hm %}
+      <div class="vf-metodos">
+        <div class="vf-metodos-tit">Hotmart — por método de pagamento</div>
+        <div class="table-wrap" data-no-filter>
+          <table class="table-compact" style="font-size:12px;max-width:560px">
+            <thead>
+              <tr>
+                <th class="th-dark">Método</th>
+                <th class="th-dark" style="text-align:left">Vendas</th>
+                <th class="th-dark" style="text-align:left">%</th>
+                <th class="th-dark" style="text-align:left">À vista</th>
+                <th class="th-dark" style="text-align:left">12x</th>
+                <th class="th-dark" style="text-align:left">Outras</th>
+                <th class="th-dark" style="text-align:left">vs {{ dbf.prev_code or 'anterior' }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in dbf.pagamentos_hm %}
+              <tr>
+                <td class="td-bold">{{ p.metodo }}</td>
+                <td style="text-align:left">{{ p.qtd | num }}</td>
+                <td style="text-align:left">{{ p.pct_vendas | round(1) }}%</td>
+                <td style="text-align:left">{{ p.a_vista | num }}</td>
+                <td style="text-align:left">{{ p.parcelado_12x | num }}</td>
+                <td style="text-align:left">{{ p.parcelado_outros | num }}</td>
+                <td style="text-align:left">{% if p.prev_qtd %}{{ dbadge(p.qtd, p.prev_qtd, 'up') }}{% else %}—{% endif %}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+
+      <script>
+      (function() {
+        const labels = [{% for f in vf %}"{{ f.label | e }}"{% if not loop.last %},{% endif %}{% endfor %}];
+        const values = [{% for f in vf %}{{ f.qtd }}{% if not loop.last %},{% endif %}{% endfor %}];
+        const colors = ['#3b82f6', '#22c55e', '#a855f7', '#ef4444'];
+        const cssVar = (name, fallback) => (getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback);
+        const inkColor = cssVar('--bs-ink', '#1f2330');
+        const total = values.reduce((a, b) => a + b, 0);
+
+        const barEl = document.getElementById('vfBarChart');
+        if (barEl) {
+          new Chart(barEl, {
+            type: 'bar',
+            plugins: [ChartDataLabels],
+            data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 4, maxBarThickness: 56 }] },
+            options: {
+              responsive: true, maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false },
+                datalabels: {
+                  anchor: 'end', align: 'top', offset: 2,
+                  font: { size: 12, weight: '700' }, color: inkColor,
+                  formatter: v => v,
+                }
+              },
+              scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 11 }, color: inkColor } },
+                y: { beginAtZero: true, ticks: { font: { size: 11 }, color: inkColor } },
+              },
+            },
+          });
+        }
+
+        const pieEl = document.getElementById('vfPieChart');
+        if (pieEl) {
+          new Chart(pieEl, {
+            type: 'doughnut',
+            plugins: [ChartDataLabels],
+            data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0 }] },
+            options: {
+              responsive: true, maintainAspectRatio: false,
+              plugins: {
+                legend: { position: 'bottom', labels: { font: { size: 11 }, color: inkColor, boxWidth: 12 } },
+                tooltip: { enabled: false },
+                datalabels: {
+                  font: { size: 11, weight: '700' }, color: '#fff',
+                  formatter: v => (total > 0 && v / total >= 0.03) ? (v / total * 100).toFixed(1) + '%' : '',
+                }
+              },
+            },
+          });
+        }
+      })();
+      </script>
+      {% else %}
+      {{ sem_dados("Detalhamento por forma de pagamento (Hotmart + TMB) ainda não disponível para este lançamento") }}
+      {% endif %}
+    </div>
+
     <!-- Vendas por Período (antecipadas / carrinho aberto / semana seguinte) -->
     <div class="info-box" style="margin-top:0">
       <h2>Vendas por Período</h2>
@@ -2413,131 +2577,6 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
     </div>
     {% else %}
     {{ sem_dados("Dados de oferta ainda não cadastrados — preencher em Descrição do Bônus na configuração do lançamento") }}
-    {% endif %}
-  </div>
-
-  <!-- ═══════════════════════════════════════════════════════════ -->
-  <!-- 5h. DETALHAMENTO DE VENDAS (FORMA DE PAGAMENTO)             -->
-  <!-- ═══════════════════════════════════════════════════════════ -->
-  {# Seção única de pagamento (17/09/26): as barras/pizza mostram a FAIXA DE
-     PARCELAMENTO e a tabela embaixo mostra o MÉTODO, que antes vivia numa
-     segunda seção de cards. As 4 faixas são mutuamente exclusivas e somam o
-     total, então a pizza é legítima — ver o comentário em debriefing.py sobre
-     a barra "Recorrência" que existia aqui e estava errada. #}
-  {% set vf = dbf.vendas_forma or [] %}
-  {% set vf_total = vf | sum(attribute='qtd') %}
-  <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-report-money"></i> Detalhamento de Vendas (Forma de Pagamento)</div>
-    {% if vf_total > 0 %}
-    <div style="margin-bottom:4px;font-size:12px;color:var(--bs-ink-muted)">
-      Total: {{ dbf.total_vendas_pay | num }} vendas
-      {% if dbf.total_hm > 0 %} · Hotmart: {{ dbf.total_hm | num }}{% endif %}
-      {% if dbf.total_tmb > 0 %} · TMB (boleto parcelado): {{ dbf.total_tmb | num }}{% endif %}
-    </div>
-    <div class="vf-badges">
-      {% for f in vf %}
-      <div class="vf-badge-item">
-        <span class="vf-badge-lbl">{{ f.label }}</span>
-        {{ dbadge(f.qtd, f.prev_qtd, 'up') }}
-      </div>
-      {% endfor %}
-    </div>
-    <div class="vf-layout">
-      <div class="vf-chart-wrap"><canvas id="vfBarChart"></canvas></div>
-      <div class="vf-chart-wrap vf-pie"><canvas id="vfPieChart"></canvas></div>
-    </div>
-
-    {% if dbf.pagamentos_hm %}
-    <div class="vf-metodos">
-      <div class="vf-metodos-tit">Hotmart — por método de pagamento</div>
-      <div class="table-wrap" data-no-filter>
-        <table class="table-compact" style="font-size:12px;max-width:560px">
-          <thead>
-            <tr>
-              <th class="th-dark">Método</th>
-              <th class="th-dark" style="text-align:left">Vendas</th>
-              <th class="th-dark" style="text-align:left">%</th>
-              <th class="th-dark" style="text-align:left">À vista</th>
-              <th class="th-dark" style="text-align:left">12x</th>
-              <th class="th-dark" style="text-align:left">Outras</th>
-              <th class="th-dark" style="text-align:left">vs {{ dbf.prev_code or 'anterior' }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for p in dbf.pagamentos_hm %}
-            <tr>
-              <td class="td-bold">{{ p.metodo }}</td>
-              <td style="text-align:left">{{ p.qtd | num }}</td>
-              <td style="text-align:left">{{ p.pct_vendas | round(1) }}%</td>
-              <td style="text-align:left">{{ p.a_vista | num }}</td>
-              <td style="text-align:left">{{ p.parcelado_12x | num }}</td>
-              <td style="text-align:left">{{ p.parcelado_outros | num }}</td>
-              <td style="text-align:left">{% if p.prev_qtd %}{{ dbadge(p.qtd, p.prev_qtd, 'up') }}{% else %}—{% endif %}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-    {% endif %}
-
-    <script>
-    (function() {
-      const labels = [{% for f in vf %}"{{ f.label | e }}"{% if not loop.last %},{% endif %}{% endfor %}];
-      const values = [{% for f in vf %}{{ f.qtd }}{% if not loop.last %},{% endif %}{% endfor %}];
-      const colors = ['#3b82f6', '#22c55e', '#a855f7', '#ef4444'];
-      const cssVar = (name, fallback) => (getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback);
-      const inkColor = cssVar('--bs-ink', '#1f2330');
-      const total = values.reduce((a, b) => a + b, 0);
-
-      const barEl = document.getElementById('vfBarChart');
-      if (barEl) {
-        new Chart(barEl, {
-          type: 'bar',
-          plugins: [ChartDataLabels],
-          data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 4, maxBarThickness: 56 }] },
-          options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: {
-              legend: { display: false },
-              tooltip: { enabled: false },
-              datalabels: {
-                anchor: 'end', align: 'top', offset: 2,
-                font: { size: 12, weight: '700' }, color: inkColor,
-                formatter: v => v,
-              }
-            },
-            scales: {
-              x: { grid: { display: false }, ticks: { font: { size: 11 }, color: inkColor } },
-              y: { beginAtZero: true, ticks: { font: { size: 11 }, color: inkColor } },
-            },
-          },
-        });
-      }
-
-      const pieEl = document.getElementById('vfPieChart');
-      if (pieEl) {
-        new Chart(pieEl, {
-          type: 'doughnut',
-          plugins: [ChartDataLabels],
-          data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0 }] },
-          options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: {
-              legend: { position: 'bottom', labels: { font: { size: 11 }, color: inkColor, boxWidth: 12 } },
-              tooltip: { enabled: false },
-              datalabels: {
-                font: { size: 11, weight: '700' }, color: '#fff',
-                formatter: v => (total > 0 && v / total >= 0.03) ? (v / total * 100).toFixed(1) + '%' : '',
-              }
-            },
-          },
-        });
-      }
-    })();
-    </script>
-    {% else %}
-    {{ sem_dados("Detalhamento por forma de pagamento (Hotmart + TMB) ainda não disponível para este lançamento") }}
     {% endif %}
   </div>
 

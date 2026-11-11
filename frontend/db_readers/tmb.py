@@ -121,6 +121,23 @@ def read_tmb_details(launch_folder_or_code: Any, start_date=None, end_date=None)
         })
     details.ofertas = sorted(details.ofertas, key=lambda x: x["qtd"], reverse=True)
 
+    # Forma de pagamento: PROJETADO = valor contratado (o que a página já soma como
+    # receita); RECEBIDO = só o que já está quitado (status Efetivado/Pago). A
+    # exportação do TMB não traz as parcelas pagas de um contrato "Em Dia", então
+    # o parcelado em andamento entra inteiro em "a receber" — é conservador.
+    quitado = {"efetivado", "pago", "integralizado", "concluido"}
+    df_paid["forma_lbl"] = df_paid["forma_pagamento"].fillna("").astype(str).str.strip()
+    df_paid.loc[df_paid["forma_lbl"] == "", "forma_lbl"] = "Não informado"
+    df_paid["quitado"] = df_paid["status_norm"].isin(quitado)
+    for forma, g in df_paid.groupby("forma_lbl"):
+        details.pagamentos.append({
+            "metodo": str(forma).capitalize() + " (TMB)",
+            "qtd": int(len(g)),
+            "projetado": float(g["valor_liq"].sum()),
+            "recebido": float(g.loc[g["quitado"], "valor_liq"].sum()),
+        })
+    details.pagamentos = sorted(details.pagamentos, key=lambda x: x["qtd"], reverse=True)
+
     df_paid["utm_norm"] = df_paid["utm_source"].fillna("").astype(str).str.strip()
     details.com_utm_qtd = int((df_paid["utm_norm"] != "").sum())
     details.com_utm_pct = details.com_utm_qtd / details.total_vendas * 100 if details.total_vendas > 0 else 0.0

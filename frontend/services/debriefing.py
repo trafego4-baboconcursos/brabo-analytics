@@ -1096,6 +1096,20 @@ def _compute_debriefing_ctx(
         {**p, "prev_qtd": prev_por_metodo.get(p.get("metodo") or "", 0)}
         for p in (getattr(hotmart, "pagamentos", []) or [])
     ]
+    # Forma de pagamento com valores (Hotmart + TMB): projetado = valor contratado,
+    # recebido = já pago. Ordenado pelo projetado.
+    pagamentos_valores = [
+        {"metodo": p.get("metodo"), "plataforma": "Hotmart", "qtd": _i(p.get("qtd")),
+         "projetado": _f(p.get("projetado")), "recebido": _f(p.get("recebido"))}
+        for p in pagamentos_hm
+    ] + [
+        {"metodo": p.get("metodo"), "plataforma": "TMB", "qtd": _i(p.get("qtd")),
+         "projetado": _f(p.get("projetado")), "recebido": _f(p.get("recebido"))}
+        for p in (getattr(tmb, "pagamentos", []) or [])
+    ]
+    pagamentos_valores.sort(key=lambda r: r["projetado"], reverse=True)
+    pv_projetado = sum(r["projetado"] for r in pagamentos_valores)
+    pv_recebido = sum(r["recebido"] for r in pagamentos_valores)
     total_tmb  = _i(getattr(vendas, "tmb_vendas",    0))
     total_hm_v = _i(getattr(vendas, "hotmart_vendas", 0))
     prev_total_tmb = _i(getattr(prev_vendas, "tmb_vendas", 0))
@@ -1374,6 +1388,8 @@ def _compute_debriefing_ctx(
         "prev_vendas_primeira_hora": prev_vendas_primeira_hora,
         # Pagamentos
         "pagamentos_hm": pagamentos_hm, "total_tmb": total_tmb,
+        "pagamentos_valores": pagamentos_valores,
+        "pv_projetado": pv_projetado, "pv_recebido": pv_recebido,
         "vendas_forma": vendas_forma,
         "total_hm": total_hm_v, "total_vendas_pay": total_tmb + total_hm_v,
         "boleto_hm": boleto_hm, "cartao_hm": cartao_hm, "pix_hm": pix_hm,

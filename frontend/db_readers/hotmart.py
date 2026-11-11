@@ -125,6 +125,7 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
     recorrencia_receita = 0.0
     recorrencia_idx = []
     repeticao_idx = []
+    recebido_linhas: list = []   # (metodo, valor cobrado) de toda linha paga
     for idx, row in df_paid.iterrows():
         valor = _hmd_num(row.get("faturamento_liquido"))
         if valor is None:
@@ -135,6 +136,10 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
         if valor_bruto is None:
             valor_bruto = valor
         eh_por_parcela, eh_repeticao, cobrancas, parcelas = _parcela_unica_info(row)
+        # Recebido = o que foi de fato cobrado: todas as linhas pagas, inclusive as
+        # cobranças seguintes de um parcelado (que abaixo viram "repeticao" e saem
+        # da contagem de vendas). Guarda o valor ANTES de multiplicar pelas parcelas.
+        recebido_linhas.append((row.get("metodo_de_pagamento"), valor))
         if eh_por_parcela:
             # Venda "de parcela única" (tipo_de_cobranca = Recuperador
             # Inteligente, ou tipo vazio com quantidade_de_cobrancas
@@ -209,6 +214,10 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
     if not df_paid.empty and "metodo_de_pagamento" in df_paid.columns:
         # Agrupa pelo rótulo normalizado, não pelo valor cru: o mesmo método
         # vem em português e em inglês conforme a época da venda (CSV x API).
+        recebido_por_metodo: dict = {}
+        for _m, _v in recebido_linhas:
+            _k = str(_metodo_pagamento_pt(_m))
+            recebido_por_metodo[_k] = recebido_por_metodo.get(_k, 0.0) + float(_v or 0.0)
         pay_grouped = df_paid.groupby(df_paid["metodo_de_pagamento"].map(_metodo_pagamento_pt))
         for metodo, group in pay_grouped:
             faturamento = float(group["valor_liq"].sum())
@@ -226,6 +235,9 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
                 "parcelado_outros": int(((parcelas_grupo >= 2) & (parcelas_grupo != 12)).sum()),
                 "pct_vendas": float(len(group) / details.total_vendas * 100) if details.total_vendas > 0 else 0.0,
                 "faturamento": faturamento,
+                "projetado": faturamento,
+                # nunca acima do projetado (cobranças extras de contrato à vista)
+                "recebido": min(recebido_por_metodo.get(str(metodo), faturamento), faturamento),
                 "pct_faturamento": float(faturamento / details.faturamento * 100) if details.faturamento > 0 else 0.0,
                 "ticket_medio": float(group["valor_liq"].mean()) if not group.empty else 0.0,
             })

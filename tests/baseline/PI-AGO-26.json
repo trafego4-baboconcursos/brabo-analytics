@@ -524,12 +524,12 @@
     "sha256": "b293cb4993097c39833d4967d487ed56824705487f2db72c7e29e1aa6d5c7508"
   },
   "read_hotmart_details": {
-    "bytes": 7117,
+    "bytes": 7363,
     "resumo": {
       "__n__": 34,
-      "__sha__": "0da65e2547bb9eb3"
+      "__sha__": "c2044658e872e9b0"
     },
-    "sha256": "0da65e2547bb9eb3b24b7ab17ea8ccefadc4fdcf8d5c0467be4baf4f4b620fbb"
+    "sha256": "c2044658e872e9b0a0dcc9144021ac54b5b0aaec8a93db422d5f490919d1f134"
   },
   "read_hotmart_recompra": {
     "bytes": 600,
@@ -901,46 +901,50 @@
     "sha256": "a65cab1c5de13fa316b6bcd816c27a509cc833861b399a011b6aab746cb5f708"
   },
   "read_tmb_details": {
-    "bytes": 3694,
+    "bytes": 3790,
     "resumo": {
       "cidades": {
         "__n__": 10,
         "__sha__": "b59737abaa3a98fc"
       },
-      "com_utm_pct": 99.0836,
-      "com_utm_qtd": 865,
+      "com_utm_pct": 99.0826,
+      "com_utm_qtd": 864,
       "estados": {
         "__n__": 10,
-        "__sha__": "d2040b62f79187bb"
+        "__sha__": "278daacc13e3f1a8"
       },
-      "faturamento": 1636044.33,
+      "faturamento": 1634164.99,
       "file_name": "Supabase DB",
       "has_data": true,
       "ofertas": {
         "__n__": 4,
-        "__sha__": "1892440d97f1b0d6"
+        "__sha__": "ec460e93e71717ca"
+      },
+      "pagamentos": {
+        "__n__": 1,
+        "__sha__": "53080f183f04eb0c"
       },
       "status_emitidos": {
         "__n__": 1,
-        "__sha__": "6e20a7bcbfa89030"
+        "__sha__": "8d838ec8ecb2dd6e"
       },
       "taxa_cancelamento": 0.0,
-      "ticket_medio": 1874.0485,
+      "ticket_medio": 1874.0424,
       "timeline": {
         "__n__": 18,
-        "__sha__": "b0c0a6c250b544c6"
+        "__sha__": "bd959c8aa57cef64"
       },
       "total_cancelados": 0,
-      "total_emitidos": 873,
-      "total_vendas": 873,
+      "total_emitidos": 872,
+      "total_vendas": 872,
       "utm_sources": {
         "__n__": 4,
-        "__sha__": "347322ceb8d8c366"
+        "__sha__": "548f6e5a911493ef"
       },
       "vendas_d1": 1,
-      "vendas_d1_pct": 0.1145
+      "vendas_d1_pct": 0.1147
     },
-    "sha256": "49bbe3bcc50146b67bdf0f6d704c1c6d437247c11a55cba8a653d5dbd45a4b36"
+    "sha256": "f997b1806a7770624b2991160e039ac00c8c37d843d782a4dc3f1653994d8891"
   },
   "read_utm_cobertura": {
     "bytes": 47,

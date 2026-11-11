@@ -282,6 +282,7 @@ class TmbDetails:
     vendas_d1: int = 0
     vendas_d1_pct: float = 0.0
     ofertas: list[dict] = field(default_factory=list)
+    pagamentos: list[dict] = field(default_factory=list)  # forma de pagamento: projetado x recebido
     com_utm_qtd: int = 0
     com_utm_pct: float = 0.0
     utm_sources: list[dict] = field(default_factory=list)

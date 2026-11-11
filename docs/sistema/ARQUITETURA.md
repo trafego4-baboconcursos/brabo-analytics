@@ -412,6 +412,9 @@ relacionados:
 >
 > **`/verba` no layout da planilha "Verba Diária" (2026-11-10)**
 >
+>
+> **Debriefing: forma de pagamento com valor recebido × projetado (2026-11-11)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -4573,3 +4576,23 @@ remarketing ficam abaixo, como extras.
   do `launch_config` está vazio (PI-NOV-26 estava; o card de previsão saía zerado).
 - Fora do layout: "Orçamento Diário das Campanhas – Pré Quali" (divisão manual por sub-campanha) e
   a linha "PQ / Impulsionar" (sem categorização no sistema, aparece como "–").
+
+## Debriefing: forma de pagamento com valor recebido × projetado (2026-11-11)
+
+A seção de forma de pagamento (barras, pizza, tabela de métodos Hotmart) saiu de depois do
+"Detalhamento de Oferta" e agora fica logo abaixo de "Vendas por Dia — Carrinho Aberto", dentro do
+Resumo Executivo, com uma tabela nova **Recebido × Projetado × A receber** por forma
+(Hotmart + TMB).
+
+- **Projetado** = valor contratado da venda (o mesmo que soma a Receita Líquida).
+- **Recebido, Hotmart** = soma de tudo que foi cobrado dentro do período, inclusive as cobranças
+  seguintes de um parcelado (as linhas que `_parcela_unica_info` marca como repetição e que não
+  contam como venda). Limitado ao projetado do método. Campos `projetado`/`recebido` em
+  `HotmartDetails.pagamentos`.
+- **Recebido, TMB** = só contrato quitado (status Efetivado/Pago). A exportação do TMB não traz as
+  parcelas pagas de um contrato "Em Dia", então o parcelado em andamento entra inteiro em "A receber"
+  (conservador). Campo novo `TmbDetails.pagamentos`.
+- Montado em `frontend/services/debriefing.py` (`pagamentos_valores`, `pv_projetado`, `pv_recebido`).
+- Baseline de caracterização regravado só para `read_hotmart_details` e `read_tmb_details`
+  (campos novos); `ATUALIZAR_BASELINE=1` sobrescreve o arquivo inteiro com as entradas dos testes
+  selecionados — enxertar as duas entradas à mão, como foi feito.

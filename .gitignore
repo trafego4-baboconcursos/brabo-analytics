@@ -117,3 +117,6 @@ analises/comercial/
 scripts/video/modelo/public/*
 !scripts/video/modelo/public/sfx/
 scripts/video/output/
+
+# Criativos de vídeo (brutos, proxies, renders) gerados por scripts/video/novo_criativo.py
+videos/

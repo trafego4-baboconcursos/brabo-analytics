@@ -1,0 +1,9 @@
+{
+  "$descricao": "Correções do whisper aplicadas na transcrição de todo criativo novo. Cada regra troca uma SEQUÊNCIA de palavras (sem pontuação, maiúsculas importam) por outra; a pontuação da última palavra é mantida. Origem: AD368 (11/11/26).",
+  "regras": [
+    { "de": ["e", "NSS"], "para": ["INSS"] },
+    { "de": ["NSS"], "para": ["INSS"] },
+    { "de": ["Matheus"], "para": ["Mateus"] },
+    { "de": ["eu", "sabe"], "para": ["ou", "sabe"] }
+  ]
+}

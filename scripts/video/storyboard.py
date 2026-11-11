@@ -53,10 +53,15 @@ def dados_storyboard(criativo: dict, captions: list[dict], pecas: dict | None = 
     por peça + legenda — em vez do still único."""
     telas = []
     for c in criativo["cenas"]:
+        props = c.get("props", {})
         if pecas and c["id"] in pecas:
-            telas.append({"camadas": pecas[c["id"]]})
+            cam = copy.deepcopy(pecas[c["id"]])
+            for p in cam["pecas"]:
+                p["nome"] = nome_camada(p["id"], props)
+            telas.append({"camadas": cam})
         else:
             telas.append({})
+        telas[-1]["rotulos"] = {k: nome_camada(k, props) for k in _textos(props)}
         telas[-1].update({
             "id": c["id"],
             "componente": c["componente"],
@@ -86,7 +91,9 @@ def diferencas_textos(criativo: dict, lidos: dict[str, dict[str, str]]) -> list[
     saida = []
     for cena_id, textos in lidos.items():
         props = cenas[cena_id]["props"]
+        por_nome = {nome_camada(k, props): k for k in _textos(props)}
         for caminho, novo in textos.items():
+            caminho = por_nome.get(caminho, caminho)   # camada vem com o nome em português
             try:
                 antes = _ler(props, caminho)
             except (KeyError, IndexError, TypeError):
@@ -107,6 +114,44 @@ def aplicar_textos(criativo: dict, lidos: dict[str, dict[str, str]]) -> dict:
             alvo = alvo[p]
         alvo[passos[-1]] = depois
     return novo
+
+
+# Nomes das camadas no Figma em português (o usuário não lê "kicker"/"etiquetas[0]").
+# O id da peça / caminho da prop continua sendo a chave no código; a volta traduz de novo.
+NOMES = {
+    "kicker": "Sobretítulo", "titulo": "Título", "subtitulo": "Subtítulo", "corpo": "Texto",
+    "folha": "Folha de papel", "cartao": "Cartão", "carimbo": "Carimbo", "mao": "Anotação à mão",
+    "selo": "Selo", "numero": "Número", "grafico": "Gráfico", "rotuloFim": "Valor final",
+    "rotuloCume": "Placa no topo", "pergunta": "Pergunta", "adesivo": "Adesivo", "medalhas": "Medalhas",
+    "imagem": "Ilustração", "botao": "Botão", "chamada": "Chamada", "faixa": "Faixa", "prefixo": "Moeda",
+    "eixo": "Eixo", "rotulo": "Rótulo", "destaque": "Marca-texto", "tituloDestaque": "Destaque do título",
+    "curvaRuim": "Curva ruim", "curvaBoa": "Curva boa",
+    "etiquetas": "Balão", "itens": "Item",
+    # subcampos
+    "texto": "texto", "valor": "texto", "sub": "linha de baixo", "marca": "marca",
+}
+
+
+def nome_camada(caminho: str, props: dict) -> str:
+    """Nome em português de uma peça ou texto: "etiquetas[0]" → "Balão 1 · trabalha",
+    "rotuloFim.valor" → "Valor final · texto". Sem tradução, devolve o próprio caminho."""
+    passos = _passos(caminho)
+    if not passos or not isinstance(passos[0], str) or passos[0] not in NOMES:
+        return caminho
+    nome = NOMES[passos[0]]
+    resto = passos[1:]
+    if resto and isinstance(resto[0], int):
+        nome += f" {resto[0] + 1}"
+        try:
+            item = props[passos[0]][resto[0]]
+            if isinstance(item, dict) and isinstance(item.get("texto"), str) and len(resto) == 1:
+                nome += f" · {item['texto']}"
+        except (KeyError, IndexError, TypeError):
+            pass
+        resto = resto[1:]
+    for p in resto:
+        nome += f" · {NOMES.get(p, p) if isinstance(p, str) else p + 1}"
+    return nome
 
 
 def diferencas_ajustes(criativo: dict, manifesto: dict, lidos: dict[str, dict[str, dict]],
@@ -130,7 +175,9 @@ def diferencas_ajustes(criativo: dict, manifesto: dict, lidos: dict[str, dict[st
     for cena_id, camadas in lidos.items():
         caixas = {p["id"]: p for p in manifesto[cena_id]["pecas"]}
         atuais = cenas[cena_id].get("ajustes", {}).get(formato, {})
+        por_nome = {nome_camada(i, cenas[cena_id].get("props", {})): i for i in caixas}
         for peca, l in camadas.items():
+            peca = por_nome.get(peca, peca)   # camada vem com o nome em português
             if peca not in caixas:
                 raise KeyError(f"cena '{cena_id}': a camada '{peca}' não está no pecas.json (renomeada no Figma?)")
             b = caixas[peca]

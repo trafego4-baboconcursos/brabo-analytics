@@ -165,6 +165,23 @@ def test_montar_pecas_le_a_origem_da_caixa(tmp_path):
     assert montar_pecas(tmp_path)["dona"]["pecas"][0]["origem"] == [540.0, 240.0]
 
 
+def test_nome_das_camadas_em_portugues_e_volta_pelo_nome():
+    from scripts.video.storyboard import nome_camada
+    props = CRIATIVO["cenas"][1]["props"]
+    assert nome_camada("etiquetas[0]", props) == "Balão 1 · trabalha"
+    assert nome_camada("kicker", {}) == "Sobretítulo"
+    assert nome_camada("rotuloFim.valor", {}) == "Valor final · texto"
+    assert nome_camada("algo_novo", {}) == "algo_novo"            # sem tradução: fica o id
+    # a volta aceita a camada pelo nome em português
+    lido = {"dona": {"Balão 1 · trabalha": {**PARADO, "cx": 135.0}}}
+    assert diferencas_ajustes(CRIATIVO, MANIFESTO, lido) == [("dona", "etiquetas[0]", {}, {"dx": 20})]
+
+
+def test_texto_lido_pelo_nome_em_portugues():
+    lidos = {"salario": {"Selo": "✓ Estabilidade por lei", "Valor final · linha de baixo": "CARREIRA"}}
+    assert diferencas_textos(CRIATIVO, lidos) == [("salario", "selo", "✓ Estabilidade", "✓ Estabilidade por lei")]
+
+
 def test_caixa_alfa_de_png_opaco_sem_canal_alfa_e_a_imagem_toda(tmp_path):
     # o render grava RGB quando a peça cobre o quadro inteiro (ex.: ilustração em tela cheia)
     from PIL import Image
@@ -175,7 +192,8 @@ def test_caixa_alfa_de_png_opaco_sem_canal_alfa_e_a_imagem_toda(tmp_path):
 
 def test_dados_storyboard_levam_as_camadas_de_cada_tela():
     d = dados_storyboard(CRIATIVO, CAPTIONS, pecas=MANIFESTO)
-    assert d["telas"][1]["camadas"] == MANIFESTO["dona"]
+    assert d["telas"][1]["camadas"]["pecas"] == [{**MANIFESTO["dona"]["pecas"][0], "nome": "Balão 1 · trabalha"}]
+    assert d["telas"][1]["rotulos"] == {"etiquetas[0].texto": "Balão 1 · texto"}
     assert "camadas" not in d["telas"][0]          # cena sem render de camadas: tela só com o still
 
 

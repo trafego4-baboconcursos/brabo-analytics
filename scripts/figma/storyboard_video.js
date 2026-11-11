@@ -9,7 +9,7 @@
 //
 // Cada tela: cabeçalho, PALCO 540×960 (metade do vídeo 1080×1920), Status, fala, efeitos e textos.
 // - Tela com camadas: no palco, "fundo" (travado), uma camada por PEÇA com o nome do id
-//   ("titulo", "etiquetas[0]") e "legenda" (travada, por cima). Peça filha (kicker da folha) fica
+//   em português — "Título", "Balão 1 · trabalha" — e "legenda" (travada, por cima). Peça filha (kicker da folha) fica
 //   DENTRO do frame da mãe. O usuário arrasta, gira e redimensiona as peças; o Claude lê de volta
 //   com storyboard_ler_camadas.js → storyboard.py (diferencas_ajustes → lista → aplicar_ajustes).
 // - Tela sem camadas: o palco recebe o still da cena (render-stills, 0,4 s antes do fim).
@@ -80,7 +80,8 @@ DADOS.telas.forEach((t, i) => {
       const mae = p.pai ? cam.pecas.find((q) => q.id === p.pai) : null;
       const dentro = mae ? nos[mae.id] : palco;
       const ox = mae ? mae.x : 0, oy = mae ? mae.y : 0;
-      const f = quadro(p.id, (p.x - ox) * K, (p.y - oy) * K, p.w * K, p.h * K, dentro);
+      // nome em português ("Balão 1 · trabalha"); a volta traduz de novo (storyboard.nome_camada)
+      const f = quadro(p.nome || p.id, (p.x - ox) * K, (p.y - oy) * K, p.w * K, p.h * K, dentro);
       nos[p.id] = f;
       uploads.push({ no: f.id, tela: t.id, arquivo: p.arquivo });
     }
@@ -101,12 +102,13 @@ DADOS.telas.forEach((t, i) => {
     v.resize(540, v.height);
     col.appendChild(v);
   }
-  col.appendChild(texto("TEXTOS EDITÁVEIS (o nome da camada é o campo — não renomeie)", 14, true, "rótulo textos", CINZA));
+  col.appendChild(texto("TEXTOS — edite o texto em negrito (não renomeie as camadas)", 14, true, "rótulo textos", CINZA));
   const grupo = figma.createAutoLayout("VERTICAL", { name: "textos", itemSpacing: 10 });
   col.appendChild(grupo);
   for (const [caminho, valor] of Object.entries(t.textos)) {
-    grupo.appendChild(texto(caminho, 12, false, `rótulo ${caminho}`, CINZA));
-    const v = texto(valor, 20, true, caminho);
+    const nome = (t.rotulos && t.rotulos[caminho]) || caminho;
+    grupo.appendChild(texto(nome, 12, false, `rótulo ${nome}`, CINZA));
+    const v = texto(valor, 20, true, nome);
     v.textAutoResize = "HEIGHT";
     v.resize(540, v.height);
     grupo.appendChild(v);

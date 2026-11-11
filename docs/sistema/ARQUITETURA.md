@@ -4463,6 +4463,14 @@ acesso nem rebaixar o último master.
   - O aquecimento (`prewarm.warm_comercial`) já deixa o ano carregado no boot e depois de cada ETL.
   - Store injetado (testes) não usa o cache.
 
+**Visão geral: todas as vendas (2026-11-11, pedido do Rafael).** Abaixo do Top 3,
+`/comercial` lista uma linha por venda do período (`telas.todas_as_vendas`), da mais recente para
+a mais antiga. Ela recebe as linhas já filtradas por `linhas_visiveis`: o gestor vê o time e a
+vendedora só as próprias, sem a coluna Vendedora. Ficam de fora a participação, que repetiria a
+venda, e a venda do marketing; a IA entra, marcada "IA (sem comissão)". Ajuste ou atribuição
+manual leva a etiqueta "manual". Tem uma busca na própria página (nome, código, transação ou
+produto, lidos de `data-busca`) e um botão "Baixar Excel", que é o mesmo `/comercial/comissoes.xlsx`.
+
 **Snapshot.** `obter_mes` devolve `comercial_snapshot` e só recalcula se faltar, se tiver
 `invalidado_em` ou se `gerado_em` for de dia anterior (SP). O refresh do ETL
 (`/api/etl/refresh`) chama `marcar_desatualizado()`; o warm-up recalcula o mês corrente e **não

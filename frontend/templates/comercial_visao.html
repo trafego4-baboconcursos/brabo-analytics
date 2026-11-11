@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros_comercial.html" import estilo, barra, kpi with context %}
+{% from "_macros_comercial.html" import estilo, barra, kpi, situacao with context %}
 {% block content %}
 {{ estilo() }}
 {% set k = v.kpis %}
@@ -79,6 +79,72 @@
         <a href="/comercial/ranking?{{ v.periodo.query }}">Ver ranking completo →</a>
       </div>
     </div>
+
+    <div class="section">
+      <div class="section-title" data-sec-key="comercial-todas-vendas"><i class="ti ti-list-details"></i> {{ 'Todas as vendas do período' if v.gestor else 'Suas vendas no período' }} ({{ v.vendas | length }})</div>
+      {% if v.vendas %}
+      <div class="cm-vendas-barra">
+        <input type="search" id="cm-vendas-busca" placeholder="Buscar por nome, transação ou produto" aria-label="Buscar venda">
+        <span class="cm-sub" id="cm-vendas-conta" aria-live="polite"></span>
+        <a class="cm-btn" href="/comercial/comissoes.xlsx?{{ v.periodo.query }}"><i class="ti ti-file-spreadsheet"></i> Baixar Excel</a>
+      </div>
+      <div class="table-wrap cm-vendas-rolagem">
+        <table class="cm-tabela" id="cm-vendas">
+          <thead><tr>
+            <th class="th-dark">Data</th><th class="th-dark">Transação</th>{% if v.gestor %}<th class="th-dark">Vendedora</th>{% endif %}
+            <th class="th-dark">Plataforma</th><th class="th-dark">Produto</th><th class="th-dark">Categoria</th><th class="th-dark">Modalidade</th>
+            <th class="th-dark n">Base</th><th class="th-dark n">%</th><th class="th-dark n">Comissão</th><th class="th-dark">Situação</th>
+          </tr></thead>
+          <tbody>
+            {% for l in v.vendas %}
+            <tr data-busca="{{ (l.beneficiario ~ ' ' ~ (l.vendedor_codigo or '') ~ ' ' ~ l.transacao ~ ' ' ~ (l.produto or '')) | lower }}">
+              <td style="white-space:nowrap;">{{ l.data.strftime('%d/%m %H:%M') }}</td>
+              <td style="white-space:nowrap;">{{ l.transacao }}{% if l.atribuicao_manual or l.ajuste_manual %} <span class="cm-chip manual" title="{{ 'Comissão ajustada pelo gestor' if l.ajuste_manual else 'Vendedora atribuída pelo gestor' }}">manual</span>{% endif %}</td>
+              {% if v.gestor %}<td class="nome">{{ l.beneficiario }}{% if l.papel == 'ia' %} <span class="cm-chip cancelada">IA (sem comissão)</span>{% endif %}</td>{% endif %}
+              <td>{{ 'Hotmart' if l.plataforma == 'hotmart' else ('TMB' if l.plataforma == 'tmb' else l.plataforma) }}</td>
+              <td>{{ l.produto or '—' }}</td>
+              <td>{{ l.categoria or '—' }}</td>
+              <td>{{ l.modalidade }}</td>
+              <td class="n">{{ l.valor_base | brl_exato }}</td>
+              <td class="n">{{ l.pct | pct_taxa }}</td>
+              <td class="n">{{ l.valor | brl_exato }}</td>
+              <td>{{ situacao(l, situacao_rotulo) }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="cm-vazio">Nenhuma venda no período.</div>
+      {% endif %}
+    </div>
   </div>
 </div>
+<style>
+.cm-vendas-barra { display:flex; align-items:center; flex-wrap:wrap; gap:var(--s2); margin-bottom:var(--s2); }
+.cm-vendas-barra input[type=search] { flex:0 1 320px; font:inherit; font-size:var(--fs-sm); color:var(--bs-ink); background:var(--bs-card);
+  border:1px solid var(--bs-border-s); border-radius:var(--bs-r-sm); padding:var(--s1) var(--s2); }
+.cm-vendas-barra .cm-btn { margin-left:auto; }
+.cm-vendas-rolagem { max-height:640px; overflow:auto; }
+.cm-vendas-rolagem thead th { position:sticky; top:0; z-index:1; }
+#cm-vendas td { font-size:var(--fs-xs); }
+</style>
+<script>
+(function () {
+  var busca = document.getElementById('cm-vendas-busca');
+  if (!busca) return;
+  var linhas = Array.prototype.slice.call(document.querySelectorAll('#cm-vendas tbody tr'));
+  var conta = document.getElementById('cm-vendas-conta');
+  busca.addEventListener('input', function () {
+    var q = busca.value.trim().toLowerCase();
+    var n = 0;
+    linhas.forEach(function (tr) {
+      var ok = !q || tr.dataset.busca.indexOf(q) !== -1;
+      tr.hidden = !ok;
+      if (ok) n++;
+    });
+    conta.textContent = q ? n + ' de ' + linhas.length : '';
+  });
+})();
+</script>
 {% endblock %}

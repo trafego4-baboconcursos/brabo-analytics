@@ -544,3 +544,39 @@ def test_rota_ranking_vendedora_ordem_pedida_vira_vendido(cli, ordem):
     html = _como(cli, "edileia@teste.local").get(f"/comercial/ranking?mes=2026-10&ordem={ordem}").text
     assert html.index("Jheniffer") < html.index("Izabela") < html.index("Ediléia") < html.index("Priscila")
     assert 'aria-current="true">Vendido' in html
+
+
+# ---------------------------------------------------------------- Visão geral: todas as vendas (11/11/26)
+def test_todas_as_vendas_uma_por_venda_mais_recente_primeiro():
+    ls = _linhas() + [_l("HP-IA-1", None, papel="ia", beneficiario="Camila (IA)", dia=20)]
+    vendas = telas.todas_as_vendas(telas.linhas_visiveis(ls, MASTER))
+    trans = [l.transacao for l in vendas]
+    assert "HP-SEM-1" not in trans                       # marketing fora
+    assert trans.count("HP-EDI-1") == 1                  # participação não repete a venda
+    assert trans[0] == "HP-IA-1"                         # mais recente primeiro; IA entra
+    assert len(trans) == 9
+
+
+def test_todas_as_vendas_vendedora_so_as_dela():
+    vendas = telas.todas_as_vendas(telas.linhas_visiveis(_linhas(), AT4))
+    assert {l.transacao for l in vendas} == {"HP-EDI-1", "HP-EDI-2", "HP-EDI-3"}
+
+
+def test_visao_geral_tabela_de_todas_as_vendas(cli):
+    html = _como(cli, "master@teste.local").get("/comercial?mes=2026-10").text
+    sec = html[html.index("Todas as vendas do período"):]
+    assert "(8)" in sec[:80]
+    for t in ("HP-IZA-1", "HP-JHE-2", "HP-PRI-1", "HP-EDI-3"):
+        assert t in sec
+    assert "HP-SEM-1" not in sec
+    assert "/comercial/comissoes.xlsx?mes=2026-10" in sec
+    assert 'id="cm-vendas-busca"' in sec
+    assert "cm-chip manual" in sec                       # HP-EDI-2 atribuída à mão
+
+
+def test_visao_geral_vendedora_ve_so_as_proprias_vendas(cli):
+    html = _como(cli, "edileia@teste.local").get("/comercial?mes=2026-10").text
+    sec = html[html.index("Suas vendas no período"):]
+    assert "HP-EDI-1" in sec and "HP-EDI-2" in sec
+    assert "HP-JHE" not in sec and "HP-IZA" not in sec and "HP-PRI" not in sec
+    assert ">Vendedora<" not in sec

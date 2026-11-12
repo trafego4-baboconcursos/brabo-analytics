@@ -314,11 +314,13 @@ def _bucket_metodo_pagamento(metodo: Any) -> str:
 
 
 
+# Hora a hora do dia 1 do carrinho. 14h e 23h entraram em 12/11/26 (faltavam, e a tabela pulava
+# de 13h para 15h e acabava em 22h). Só o rótulo "9h" é lido fora daqui ("Vendas na 1ª Hora").
 _DIA1_CHECKPOINTS = [
     ("8h30", 8 * 60 + 30), ("9h", 9 * 60), ("10h", 10 * 60), ("11h", 11 * 60),
-    ("12h", 12 * 60), ("13h", 13 * 60), ("15h", 15 * 60), ("16h", 16 * 60),
-    ("17h", 17 * 60), ("18h", 18 * 60), ("19h", 19 * 60), ("20h", 20 * 60),
-    ("21h", 21 * 60), ("22h", 22 * 60),
+    ("12h", 12 * 60), ("13h", 13 * 60), ("14h", 14 * 60), ("15h", 15 * 60),
+    ("16h", 16 * 60), ("17h", 17 * 60), ("18h", 18 * 60), ("19h", 19 * 60),
+    ("20h", 20 * 60), ("21h", 21 * 60), ("22h", 22 * 60), ("23h", 23 * 60),
 ]
 
 _HOTMART_STATUS_APROVADO = (

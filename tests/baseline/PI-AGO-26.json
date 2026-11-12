@@ -171,15 +171,15 @@
     "sha256": "c93617fbb5746cf20ddc175878b8ca86eab5eba0770af22eb64a79e2a7ceacc6"
   },
   "read_dia1_sales": {
-    "bytes": 1295,
+    "bytes": 1477,
     "resumo": {
       "checkpoints": {
-        "__n__": 14,
-        "__sha__": "357116813baec6ad"
+        "__n__": 16,
+        "__sha__": "022707ddc35edfd6"
       },
       "data_abertura": "2026-08-13"
     },
-    "sha256": "d27108a8b61dac6bc9e4167b9d31563feb238d8d73d07f6e25d7f7c7fbb455bf"
+    "sha256": "0c6170a48d650ab78e02df2f2044bb857b718082f10b5596004f7ae46ee34526"
   },
   "read_disparo_resumo": {
     "bytes": 155,

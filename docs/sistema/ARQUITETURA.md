@@ -4760,3 +4760,9 @@ era morto pelo deploy seguinte sem nunca terminar — em 05/11/26 os leads chega
 tabela passou a `width:100%`, então as colunas que sobram dividem a largura toda. A lista de plataformas
 agora é dirigida por dados dentro da macro (uma linha por plataforma). A mesma tabela em
 `pre_qualificacao.html` mantém a macro antiga.
+
+**Dia 1 hora a hora: 14h e 23h (12/11/26).** A tabela "Dia 1 — Vendas Hora a Hora" (`/comparativo`, e o
+"Vendas na 1ª Hora" do debriefing) pulava de 13h para 15h e terminava em 22h. `_DIA1_CHECKPOINTS`
+(`frontend/db_readers/_vendas_comum.py`) agora tem 16 pontos, de 8h30 a 23h, incluindo 14h e 23h. Só o
+rótulo "9h" é lido fora da tabela. Baseline de caracterização do `read_dia1_sales` regravado (14 → 16
+checkpoints).

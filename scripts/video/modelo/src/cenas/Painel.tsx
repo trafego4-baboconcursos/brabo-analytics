@@ -15,6 +15,8 @@ import type { BlocoPainel, PropsCena } from "./tipos";
  */
 
 const amarelo = color.amarelo;
+// tema dia: palavra de destaque do título em madeira quente (paleta do bruto do AD359)
+const DESTAQUE_DIA = color.madeira;
 
 const Hud: React.FC<{ hud?: string; tag: string; tagEm: number }> = ({ hud, tag, tagEm }) => {
   const frame = useCurrentFrame();
@@ -44,7 +46,7 @@ const Hud: React.FC<{ hud?: string; tag: string; tagEm: number }> = ({ hud, tag,
   );
 };
 
-const Bloco: React.FC<{ b: BlocoPainel; t: (s: number) => number }> = ({ b, t }) => {
+const Bloco: React.FC<{ b: BlocoPainel; t: (s: number) => number; cartao?: boolean }> = ({ b, t, cartao }) => {
   const frame = useCurrentFrame();
   const f = useFormato();
   const largura = pick(f, { story: 900, feed: 860, h: 1100 });
@@ -52,7 +54,10 @@ const Bloco: React.FC<{ b: BlocoPainel; t: (s: number) => number }> = ({ b, t })
   if (b.tipo === "contador") {
     const n = Math.round(interpolate(frame, [t(b.conta[0]), t(b.conta[1])], [b.de ?? 0, b.ate], { ...clamp, easing: ease }));
     return (
-      <Peca id="numero" style={{ textAlign: "center", ...appear(frame, t(b.conta[0])) }}>
+      <Peca id="numero" style={{ textAlign: "center", ...appear(frame, t(b.conta[0])),
+        // dia: número num cartão navy (amarelo sobre céu claro não lê)
+        ...(cartao ? { background: `var(--cor, ${color.navy})`, borderRadius: 32, padding: "30px 60px 36px",
+          border: `3px solid ${amarelo}`, boxShadow: "0 20px 50px rgba(0,0,0,0.3)" } : {}) }}>
         <div style={{ fontFamily: font.ui, fontWeight: 800, fontSize: pick(f, { story: 230, feed: 170, h: 200 }), lineHeight: 1,
           color: `var(--cor-texto, ${amarelo})`, letterSpacing: -8, textShadow: "0 8px 40px rgba(0,0,0,0.5)" }}>
           {b.prefixo ?? ""}{n.toLocaleString("pt-BR")}{b.sufixo ?? ""}
@@ -132,6 +137,7 @@ export const Painel: React.FC<PropsCena<"Painel">> = ({ start, dur, props }) => 
   const f = useFormato();
   const zoom = interpolate(frame, [0, dur], [1.02, 1.1]);
   const titulo = props.titulo;
+  const dia = props.tema === "dia";
   const [antes, alvo, depois] = titulo ? partir(titulo.texto, titulo.destaque || titulo.texto.slice(0, 0)) : ["", "", ""];
   return (
     <Cutaway durationInFrames={dur} background={color.navy}>
@@ -141,23 +147,26 @@ export const Painel: React.FC<PropsCena<"Painel">> = ({ start, dur, props }) => 
             objectFit: "cover", scale: zoom }} />
         </Peca>
       )}
-      {/* véu: topo e base escuros para o HUD, o título e a legenda lerem bem */}
-      <div style={{ position: "absolute", inset: 0, background:
-        "linear-gradient(180deg, rgba(14,22,38,0.85) 0%, rgba(14,22,38,0.35) 28%, rgba(14,22,38,0.35) 55%, rgba(14,22,38,0.92) 100%)" }} />
+      {/* véu: noite = topo e base escuros; dia = topo creme (título navy) e base escura (legenda branca) */}
+      <div style={{ position: "absolute", inset: 0, background: dia
+        ? "linear-gradient(180deg, rgba(239,231,220,0.92) 0%, rgba(239,231,220,0.55) 24%, rgba(239,231,220,0) 40%, rgba(27,34,54,0) 58%, rgba(27,34,54,0.85) 100%)"
+        : "linear-gradient(180deg, rgba(14,22,38,0.85) 0%, rgba(14,22,38,0.35) 28%, rgba(14,22,38,0.35) 55%, rgba(14,22,38,0.92) 100%)" }} />
       <Hud hud={props.hud} tag={props.tag} tagEm={t(start + 0.2)} />
       {titulo && (
         <Peca id="titulo" style={{ position: "absolute", left: pick(f, { story: 70, feed: 60, h: 120 }),
           right: pick(f, { story: 70, feed: 60, h: 120 }), top: pick(f, { story: 260, feed: 120, h: 130 }), textAlign: "center",
           ...appear(frame, t(titulo.em)) }}>
           <div style={{ fontFamily: font.ui, fontWeight: 800, fontSize: pick(f, { story: 84, feed: 64, h: 72 }), lineHeight: 1.05,
-            color: "white", textTransform: "uppercase", textShadow: "0 6px 30px rgba(0,0,0,0.6)", whiteSpace: "pre-line" }}>
-            {antes}<span style={{ color: amarelo }}>{alvo}</span>{depois}
+            color: dia ? color.navy : "white", textTransform: "uppercase", whiteSpace: "pre-line",
+            textShadow: dia ? "0 2px 16px rgba(239,231,220,0.9)" : "0 6px 30px rgba(0,0,0,0.6)" }}>
+            {antes}<span style={{ color: dia ? DESTAQUE_DIA : amarelo }}>{alvo}</span>{depois}
           </div>
         </Peca>
       )}
-      <div style={{ position: "absolute", left: 0, right: 0, top: pick(f, { story: titulo ? 600 : 460, feed: 330, h: 330 }),
-        display: "flex", justifyContent: "center" }}>
-        <Bloco b={props.bloco} t={t} />
+      {/* dia: ilustração tem personagem no meio → bloco ancorado embaixo, logo acima da legenda (y≈1390) */}
+      <div style={{ position: "absolute", left: 0, right: 0, display: "flex", justifyContent: "center",
+        ...(dia && f === "story" ? { bottom: 540 } : { top: pick(f, { story: titulo ? 600 : 460, feed: 330, h: 330 }) }) }}>
+        <Bloco b={props.bloco} t={t} cartao={dia} />
       </div>
     </Cutaway>
   );

@@ -119,6 +119,8 @@ export type BlocoPainel =
  * `destaque` em amarelo, e um `bloco` de conteúdo.
  */
 export type PropsPainel = {
+  /** noite (padrão, referência) ou dia (paleta do bruto: creme, sálvia, madeira, navy) */
+  tema?: "noite" | "dia";
   fundo?: string;
   hud?: string;
   tag: string;

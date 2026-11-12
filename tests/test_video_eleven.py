@@ -22,6 +22,14 @@ def test_filtro_tira_as_faixas_pretas_e_volta_ao_tamanho():
     assert filtro_aparar("crop=1080:1920:0:0", 1080, 1920) is None      # sem faixa: não mexe
 
 
+def test_vai_e_volta_so_quando_a_cena_e_mais_longa_que_o_video():
+    from scripts.video.eleven_video import voltas_vai_e_volta
+    assert voltas_vai_e_volta(4.0, 3.5) == 0      # o vídeo já cobre a cena
+    assert voltas_vai_e_volta(8.0, 11.6) == 1     # ida + volta = 16 s
+    assert voltas_vai_e_volta(8.0, 16.0) == 1
+    assert voltas_vai_e_volta(8.0, 20.7) == 2     # 2× (ida + volta) = 32 s
+
+
 def test_pedido_usa_o_desenho_como_primeiro_quadro_sem_audio(tmp_path):
     img = tmp_path / "dona.jpg"
     img.write_bytes(b"\xff\xd8fake")

@@ -1,4 +1,5 @@
 import React from "react";
+import { Video } from "@remotion/media";
 import { Easing, Img, interpolate, staticFile, useCurrentFrame } from "remotion";
 import { Cutaway } from "../Cutaway";
 import { clamp, color, font, pick, raio, useAt, useFormato } from "../theme";
@@ -95,19 +96,26 @@ const Bloco: React.FC<{ b: BlocoPainel; t: (s: number) => number; cartao?: boole
   }
 
   if (b.tipo === "ordem" || b.tipo === "lista") {
+    // dia com 4+ itens: 2 colunas, baixinho, para não cobrir o rosto do personagem
+    const duas = cartao && f === "story" && b.itens.length > 3;
+    const fonte = duas ? 34 : pick(f, { story: 44, feed: 38, h: 42 });
     return (
-      <div style={{ width: largura, display: "flex", flexDirection: "column", gap: 22 }}>
+      <div style={duas
+        ? { width: 960, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }
+        : { width: largura, display: "flex", flexDirection: "column", gap: 22 }}>
         {b.itens.map((it, i) => {
           const marca = b.tipo === "ordem" ? String(i + 1) : it.ok === false ? "✕" : "✓";
           const corMarca = b.tipo === "ordem" ? amarelo : it.ok === false ? color.vermelho : color.green;
           const on = interpolate(frame, [t(it.em), t(it.em) + 10], [0.4, 1], { ...clamp, easing: Easing.back(2) });
           return (
             <Peca key={i} id={`itens[${i}]`} style={appear(frame, t(it.em))}>
-              <div style={{ display: "flex", alignItems: "center", gap: 26, padding: "24px 30px", borderRadius: 22,
+              <div style={{ display: "flex", alignItems: "center", gap: duas ? 16 : 26, padding: duas ? "20px 20px" : "24px 30px",
+                borderRadius: 22, height: duas ? "100%" : undefined, boxSizing: "border-box",
                 background: `var(--cor, ${color.navyCard})`, border: `3px solid ${b.tipo === "ordem" ? amarelo : color.navyLine}`,
-                color: `var(--cor-texto, white)`, fontFamily: font.ui, fontWeight: 800, fontSize: pick(f, { story: 44, feed: 38, h: 42 }) }}>
-                <div style={{ width: 66, height: 66, flexShrink: 0, borderRadius: 99, display: "flex", alignItems: "center",
-                  justifyContent: "center", background: corMarca, color: color.navy, fontSize: 38, scale: on }}>{marca}</div>
+                color: `var(--cor-texto, white)`, fontFamily: font.ui, fontWeight: 800, fontSize: fonte, lineHeight: 1.15 }}>
+                <div style={{ width: duas ? 54 : 66, height: duas ? 54 : 66, flexShrink: 0, borderRadius: 99, display: "flex",
+                  alignItems: "center", justifyContent: "center", background: corMarca, color: color.navy,
+                  fontSize: duas ? 32 : 38, scale: on }}>{marca}</div>
                 {it.texto}
               </div>
             </Peca>
@@ -141,10 +149,14 @@ export const Painel: React.FC<PropsCena<"Painel">> = ({ start, dur, props }) => 
   const [antes, alvo, depois] = titulo ? partir(titulo.texto, titulo.destaque || titulo.texto.slice(0, 0)) : ["", "", ""];
   return (
     <Cutaway durationInFrames={dur} background={color.navy}>
-      {props.fundo && (
+      {(props.fundo || props.fundoVideo) && (
         <Peca id="imagem" style={{ position: "absolute", inset: 0 }}>
-          <Img src={staticFile(props.fundo)} style={{ position: "absolute", inset: 0, width: "100%", height: "100%",
-            objectFit: "cover", scale: zoom }} />
+          {props.fundoVideo
+            // ilustração animada (IA, ida e volta para cobrir a cena); o 1º quadro é a própria `fundo`
+            ? <Video src={staticFile(props.fundoVideo)} muted style={{ position: "absolute", inset: 0, width: "100%",
+              height: "100%", objectFit: "cover", scale: zoom }} />
+            : <Img src={staticFile(props.fundo!)} style={{ position: "absolute", inset: 0, width: "100%", height: "100%",
+              objectFit: "cover", scale: zoom }} />}
         </Peca>
       )}
       {/* véu: noite = topo e base escuros; dia = topo creme (título navy) e base escura (legenda branca) */}

@@ -68,6 +68,34 @@ def filtro_aparar(cropdetect: str, largura: int, altura: int) -> str | None:
     return f"crop={w}:{h}:{x}:{y},scale={largura}:-2,crop={largura}:{altura}"
 
 
+def voltas_vai_e_volta(dur_video: float, dur_cena: float) -> int:
+    """Quantas vezes (ida + volta) o vídeo precisa tocar para cobrir a cena. 0 = já cobre.
+    O Veo vai até 8 s; cena mais longa toca o vídeo para frente e para trás (sem 'pulo')."""
+    if dur_video >= dur_cena - 1e-6:
+        return 0
+    import math
+    return math.ceil(dur_cena / (2 * dur_video) - 1e-9)
+
+
+def vai_e_volta(video: Path, dur_cena: float, saida: Path) -> Path:
+    """Gera `saida` = vídeo ida + volta, repetido o necessário para cobrir dur_cena (ffmpeg)."""
+    import subprocess
+    dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0",
+                                str(video)], capture_output=True, text=True).stdout.strip())
+    n = voltas_vai_e_volta(dur, dur_cena)
+    if n == 0:
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(video), "-c", "copy", str(saida)], check=True)
+        return saida
+    filtro = "[0:v]split[a][b];[b]reverse[r];[a][r]concat=n=2:v=1[c]"
+    if n > 1:
+        filtro += f";[c]loop=loop={n - 1}:size=32767:start=0[v]"
+    else:
+        filtro += ";[c]null[v]"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(video), "-filter_complex", filtro, "-map", "[v]", "-an",
+                    "-c:v", "libx264", "-crf", "16", "-pix_fmt", "yuv420p", str(saida)], check=True)
+    return saida
+
+
 def aparar_bordas(video: Path) -> bool:
     """Aplica filtro_aparar no próprio arquivo (ffmpeg no PATH). True se mexeu."""
     import re

@@ -122,6 +122,8 @@ export type PropsPainel = {
   /** noite (padrão, referência) ou dia (paleta do bruto: creme, sálvia, madeira, navy) */
   tema?: "noite" | "dia";
   fundo?: string;
+  /** vídeo animado da ilustração (IA, ida e volta), no lugar da imagem */
+  fundoVideo?: string;
   hud?: string;
   tag: string;
   titulo?: { texto: string; destaque?: string; em: number };

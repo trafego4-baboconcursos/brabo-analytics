@@ -48,7 +48,7 @@ from frontend.models import (
     TmbDetails,
     VendasSummary,
 )
-from frontend.utils import _extract_launch_code, _norm_text, _normalize_product_ids, _safe_date
+from frontend.utils import _extract_launch_code, _norm_text, _normalize_product_ids, _safe_date, split_hotmart_ids
 from logger import get_logger
 
 logger = get_logger("db")
@@ -95,7 +95,7 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
     carrinho_end = _safe_date(cfg.get("carrinho_end_date"))
     launch_start = carrinho_start or effective_start
     launch_end = carrinho_end or effective_end
-    hotmart_ids = _normalize_product_ids(cfg.get("hotmart_produto_ids"))
+    hotmart_ids, hotmart_ofertas = split_hotmart_ids(cfg.get("hotmart_produto_ids"))
     tmb_ids = _normalize_product_ids(cfg.get("tmb_produto_ids"))
     logger.info(
         "read_vendas: config code=%s has_cfg=%s carrinho=%s..%s hotmart_ids=%s tmb_ids=%s",
@@ -114,13 +114,13 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
                    telefone, comprador_a, estado_provincia, codigo_sck
             FROM hotmart_clean_oficial
             WHERE status_da_transacao IN ('Completa', 'Aprovada', 'Paga', 'Completo', 'Aprovado', 'Pago', 'approved', 'complete', 'APPROVED', 'COMPLETED')
-              AND CASE
+              AND (CASE
                   WHEN produto ILIKE '%black vital%' THEN 'BLACK'
                   WHEN produto ILIKE '%inss%' THEN 'INSS'
                   WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%' OR produto ILIKE '%escrevente%') THEN 'TJ'
                   WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'
                   ELSE 'OUTRO'
-              END = :project
+              END = :project OR lower(codigo_do_preco) = ANY(:offer_ids))
               AND COALESCE(
                 """ + _hm_data_sql("data_da_transacao") + """,
                 """ + _hm_data_sql("confirmacao_do_pagamento") + r"""
@@ -131,9 +131,10 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
               ))
         """
         )
-        params: dict = {"project": project, "start": launch_start, "end": launch_end}
+        # offer_ids: ofertas avulsas ("oferta:<codigo>" no config) — ver split_hotmart_ids
+        params: dict = {"project": project, "start": launch_start, "end": launch_end, "offer_ids": hotmart_ofertas}
         if use_ids:
-            sql += " AND codigo_do_produto = ANY(:product_ids)"
+            sql += " AND (codigo_do_produto = ANY(:product_ids) OR lower(codigo_do_preco) = ANY(:offer_ids))"
             params["product_ids"] = hotmart_ids
         else:
             # filtro por projeto: produto do perpétuo é perpétuo, mesmo vendido dentro do carrinho

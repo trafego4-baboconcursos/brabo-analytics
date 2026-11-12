@@ -418,6 +418,9 @@ relacionados:
 >
 > **Debriefing: seção "Métricas do lançamento" (2026-11-11)**
 >
+>
+> **Oferta avulsa de outro produto contando num lançamento (2026-11-12)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -4622,3 +4625,17 @@ Atualizar agora / Gerar PDF" (`.dbf-accordion-controls`) agora é `position: sti
 rolagem, logo abaixo do cabeçalho (`.hdr`, também sticky). O topo exato (`--dbf-sticky-top` = topo +
 altura do `.hdr`) é medido por um script pequeno na própria página, porque muda com o subnav e no
 celular; a barra ganha sombra (`.is-stuck`) quando está grudada e volta ao fluxo normal na impressão.
+
+## Oferta avulsa de outro produto contando num lançamento (2026-11-12)
+
+`launch_config.hotmart_produto_ids` agora aceita, além do id do produto, **`oferta:<codigo>`** — o
+`off=` do link de checkout (coluna `codigo_do_preco`, em minúsculas). A venda daquela oferta entra no
+lançamento mesmo que o produto seja de outro projeto. Caso de uso: o upsell "Black Vitalícia 2026 —
+Oferta Funil de Vendas TJSP" (`oferta:izfne8k1`, produto `8643509` da Black) que é do funil do PES-NOV-26.
+
+- `frontend.utils.split_hotmart_ids` separa (produtos, ofertas); `read_vendas` e `read_hotmart_details`
+  filtram `(produto do projeto OU oferta listada)`. Sem coluna nova nem mudança no wizard.
+- Entra em `read_vendas`, no detalhamento do debriefing (oferta, forma de pagamento, timeline) e no total.
+- **Fora, por enquanto:** `read_dia1_sales` (curva da 1ª hora), afiliados e perpétuo seguem só por produto.
+- A mesma venda continua contando também no lançamento dono do produto (BV-26 tem o `8643509` inteiro):
+  não há desconto automático entre lançamentos.

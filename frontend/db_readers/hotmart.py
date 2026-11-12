@@ -31,6 +31,7 @@ from frontend.utils import (
     _norm_text,
     _normalize_product_ids,
     _safe_date,
+    split_hotmart_ids,
 )
 from logger import get_logger
 
@@ -51,7 +52,7 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
 
     from frontend.db_readers.launches import read_launch_config  # noqa: PLC0415
     cfg = read_launch_config(code)
-    hotmart_ids = _normalize_product_ids(cfg.get("hotmart_produto_ids"))
+    hotmart_ids, hotmart_ofertas = split_hotmart_ids(cfg.get("hotmart_produto_ids"))
     # Só as vendas do CARRINHO ABERTO (mesma janela do read_vendas): sem isso o
     # detalhamento contava o período inteiro do lançamento — 66 vendas no PES-NOV-26
     # contra as do carrinho (11/11/26).
@@ -69,13 +70,13 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
                faturamento_liquido, valor_de_compra_sem_impostos, valor_de_compra_com_impostos,
                nome_deste_preco, codigo_do_produto, codigo_do_preco, estado_provincia, cidade
         FROM hotmart_clean_oficial
-        WHERE CASE
+        WHERE (CASE
               WHEN produto ILIKE '%black vital%' THEN 'BLACK'
               WHEN produto ILIKE '%inss%' THEN 'INSS'
               WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%' OR produto ILIKE '%escrevente%') THEN 'TJ'
               WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'
               ELSE 'OUTRO'
-          END = :project
+          END = :project OR lower(codigo_do_preco) = ANY(:offer_ids))
           AND COALESCE(
             """ + _hm_data_sql("data_da_transacao") + """,
             """ + _hm_data_sql("confirmacao_do_pagamento") + r"""
@@ -86,9 +87,9 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
           ))
     """
     )
-    params: dict = {"project": project, "start": effective_start, "end": effective_end}
+    params: dict = {"project": project, "start": effective_start, "end": effective_end, "offer_ids": hotmart_ofertas}
     if hotmart_ids:
-        sql += " AND codigo_do_produto = ANY(:product_ids)"
+        sql += " AND (codigo_do_produto = ANY(:product_ids) OR lower(codigo_do_preco) = ANY(:offer_ids))"
         params["product_ids"] = hotmart_ids
     else:
         sql += " AND NOT (codigo_do_produto = ANY(:perp_ids))"   # produto do perpétuo não é do lançamento

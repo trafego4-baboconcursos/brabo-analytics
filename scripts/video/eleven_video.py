@@ -127,11 +127,21 @@ def _req(metodo: str, url: str, chave: str, corpo: dict | None = None) -> dict:
     dados = json.dumps(corpo).encode() if corpo is not None else None
     r = urllib.request.Request(url, data=dados, method=metodo,
                                headers={"xi-api-key": chave, "Content-Type": "application/json"})
-    try:
-        with urllib.request.urlopen(r, timeout=120) as resp:
-            return json.load(resp)
-    except urllib.error.HTTPError as e:
-        raise SystemExit(f"ElevenLabs {e.code}: {e.read().decode(errors='replace')[:400]}")
+    for tentativa in range(6):
+        try:
+            with urllib.request.urlopen(r, timeout=120) as resp:
+                return json.load(resp)
+        except urllib.error.HTTPError as e:
+            if e.code == 429 or e.code >= 500:
+                time.sleep(15 * (tentativa + 1))
+                continue
+            raise SystemExit(f"ElevenLabs {e.code}: {e.read().decode(errors='replace')[:400]}")
+        except (urllib.error.URLError, TimeoutError, ConnectionError):
+            # rede caiu (AD359, 12/11: DNS falhou no meio da espera e a geração paga se perdeu)
+            if metodo == "POST":
+                raise                    # POST não repete: poderia cobrar duas vezes
+            time.sleep(15 * (tentativa + 1))
+    raise SystemExit(f"ElevenLabs: sem rede depois de 6 tentativas ({url})")
 
 
 def creditos(chave: str) -> int:
@@ -144,6 +154,11 @@ def gerar(imagem: Path, saida: Path, movimento: str, segundos: float) -> dict:
     antes = creditos(chave)
     g = _req("POST", f"{API}/flows/video", chave, montar_pedido(imagem, movimento, segundos))
     gid = g["id"]
+    # id anotado já no envio: se o processo cair, dá para baixar depois sem pagar de novo
+    LOG.parent.mkdir(parents=True, exist_ok=True)
+    with LOG.open("a", encoding="utf-8") as f:
+        f.write(json.dumps({"quando": datetime.now().isoformat(timespec="seconds"), "enviado": gid,
+                            "imagem": str(imagem), "saida": str(saida)}, ensure_ascii=False) + "\n")
     while True:
         time.sleep(12)
         g = _req("GET", f"{API}/flows/video/{gid}", chave)

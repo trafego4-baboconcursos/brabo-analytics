@@ -4616,3 +4616,9 @@ abaixo de "Compradores pelo Dia que Entraram no Grupo". Só mudou a posição no
 (`frontend/templates/debriefing.html`); os dados são os mesmos. A chave da seção (slug do título)
 é nova: visualizações salvas antes de 11/11/26 mostram a seção no fim da página até alguém
 reordenar e salvar.
+
+**Barra de controles fixa (12/11/26).** No debriefing, a barra "Recolher / Expandir / Seções / Buscar /
+Atualizar agora / Gerar PDF" (`.dbf-accordion-controls`) agora é `position: sticky` e acompanha a
+rolagem, logo abaixo do cabeçalho (`.hdr`, também sticky). O topo exato (`--dbf-sticky-top` = topo +
+altura do `.hdr`) é medido por um script pequeno na própria página, porque muda com o subnav e no
+celular; a barra ganha sombra (`.is-stuck`) quando está grudada e volta ao fluxo normal na impressão.

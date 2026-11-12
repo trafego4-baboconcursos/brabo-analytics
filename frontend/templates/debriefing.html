@@ -34,6 +34,18 @@
    linha do botão "Gerar PDF" — por isso align-items:center (evita a
    barra injetada ficar mais baixa que o link do PDF). */
 .dbf-accordion-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 28px; }
+/* Barra fixa ao rolar (12/11/26): cola logo abaixo do cabeçalho (.hdr, também sticky).
+   O topo exato vem do JS (--dbf-sticky-top = topo + altura do .hdr, que muda com o
+   subnav e no celular); 80px é só o valor antes do JS rodar. Sangra até as bordas do
+   .content (margem negativa = padding dele) para o fundo cobrir a página inteira. */
+.dbf-accordion-controls {
+  position: sticky; top: var(--dbf-sticky-top, 80px); z-index: 40;
+  margin: 0 -32px 8px; padding: 12px 32px 20px;   /* folga embaixo é padding (tem fundo), não margem */
+  background: var(--bs-surface); border-bottom: 1px solid transparent;
+  transition: box-shadow .15s ease, border-color .15s ease;
+}
+.dbf-accordion-controls.is-stuck { border-bottom-color: var(--bs-border); box-shadow: 0 6px 14px rgba(20,26,52,.07); }
+@media print { .dbf-accordion-controls { position: static; } }
 .dbf-accordion-controls .bs-accordion-controls { margin-bottom: 0; }
 .dbf-header-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 /* Discreto de propósito, igual .cmp-live-btn em comparativo.html: o
@@ -55,7 +67,7 @@
    perdem o texto e viram um quadrado só com o ícone, senão os 5
    controles não cabem sem quebrar linha (achado 16/09/26). */
 @media (max-width: 640px) {
-  .dbf-accordion-controls { flex-wrap: nowrap; gap: 6px; }
+  .dbf-accordion-controls { flex-wrap: nowrap; gap: 6px; margin: 0 -16px 4px; padding: 8px 16px 12px; }
   .dbf-accordion-controls .bs-accordion-controls { gap: 6px; }
   .dbf-accordion-controls .bs-accordion-controls button,
   .dbf-accordion-controls .bs-sec-picker-btn { padding: 7px 9px; font-size: 11px; }
@@ -690,6 +702,32 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
     </div>
     {% endif %}
   </div>
+
+  <script>
+  (function () {
+    // Mantém a barra de controles colada abaixo do cabeçalho sticky e marca o estado "grudada".
+    var ctrl = document.querySelector('.dbf-accordion-controls');
+    var hdr = document.querySelector('.hdr');
+    if (!ctrl) return;
+    function medir() {
+      var topo = 0;
+      if (hdr) {
+        var t = parseFloat(getComputedStyle(hdr).top) || 0;
+        topo = t + hdr.getBoundingClientRect().height;
+      }
+      ctrl.style.setProperty('--dbf-sticky-top', Math.round(topo) + 'px');
+      return topo;
+    }
+    function marcar() {
+      var topo = medir();
+      ctrl.classList.toggle('is-stuck', ctrl.getBoundingClientRect().top <= topo + 2);
+    }
+    var scroller = document.getElementById('bs-main');
+    [window, scroller].forEach(function (el) { if (el) el.addEventListener('scroll', marcar, { passive: true }); });
+    window.addEventListener('resize', marcar);
+    marcar();
+  })();
+  </script>
 
   {% if slides %}
   <div class="dbf-slides-toolbar">

@@ -1242,6 +1242,56 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       {{ kpi_card("Pico Grupos Normais", dbf.pessoas_grupos_normais, dbf.prev_pessoas_grupos_normais, "num", "up") }}
     </div>
 
+    <!-- Vendas por produto que compõe o lançamento -->
+    <div class="info-box" style="margin-top:0">
+      <h2>Vendas por Produto</h2>
+      {% set vpp = dbf.vendas_por_produto or [] %}
+      {% if vpp %}
+      <div class="table-wrap" data-no-filter>
+        <table class="table-compact" style="font-size:12px;">
+          <thead>
+            <tr>
+              <th class="th-dark">Produto</th>
+              <th class="th-dark" style="text-align:right">Vendas</th>
+              <th class="th-dark" style="text-align:right">% vendas</th>
+              <th class="th-dark" style="text-align:right">Faturamento líquido</th>
+              <th class="th-dark" style="text-align:right">% faturamento</th>
+              <th class="th-dark" style="text-align:right">Ticket médio</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in vpp %}
+            <tr>
+              <td class="td-bold">{{ p.nome }}
+                <span class="ldt-pct" style="font-weight:400">{{ p.plataforma }}{% if p.oferta_avulsa %} · oferta de outro produto{% endif %}</span>
+              </td>
+              <td style="text-align:right"><strong>{{ p.qtd | num }}</strong></td>
+              <td style="text-align:right">{{ p.pct_vendas | round(1) }}%</td>
+              <td style="text-align:right">{{ p.faturamento | brl }}</td>
+              <td style="text-align:right">{{ p.pct_faturamento | round(1) }}%</td>
+              <td style="text-align:right">{{ p.ticket_medio | brl }}</td>
+            </tr>
+            {% endfor %}
+            <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
+              <td>TOTAL</td>
+              <td style="text-align:right">{{ dbf.vpp_qtd | num }}</td>
+              <td style="text-align:right">100%</td>
+              <td style="text-align:right">{{ dbf.vpp_fat | brl }}</td>
+              <td style="text-align:right">100%</td>
+              <td style="text-align:right">{{ ((dbf.vpp_fat / dbf.vpp_qtd) if dbf.vpp_qtd else 0) | brl }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
+        Só vendas do carrinho aberto, com a mesma regra de valor da Receita Líquida (líquido do produtor; parcelado projetado). Uma oferta avulsa de outro produto
+        (ex.: upsell da Black no funil do PES) aparece em linha própria.
+      </div>
+      {% else %}
+        {{ sem_dados("Vendas Hotmart/TMB do lançamento no período do carrinho") }}
+      {% endif %}
+    </div>
+
     {# Parte da Hotmart: do que o cliente pagou até o que cai pro produtor. Só Hotmart
        (a Receita Líquida do topo soma Hotmart + TMB). O líquido já vem depois das duas
        taxas: nas vendas de 2026 o `valor_de_compra_sem_impostos` é o faturamento

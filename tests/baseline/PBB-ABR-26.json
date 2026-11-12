@@ -499,12 +499,12 @@
     "sha256": "f6787bb1a44cd76cff369aa44cd267045fbfa7427cf4082170c175aa56a2bf29"
   },
   "read_hotmart_details": {
-    "bytes": 5082,
+    "bytes": 5256,
     "resumo": {
-      "__n__": 34,
-      "__sha__": "a158fe10db64a60e"
+      "__n__": 35,
+      "__sha__": "3f9b061ebc373b8b"
     },
-    "sha256": "a158fe10db64a60e9c3de5eefcfa5e5f3ff120c166d2cf4a0d399f644510c019"
+    "sha256": "3f9b061ebc373b8bba50ea6db7e443c70c9afc343283eb6421cf27f6a0e01eec"
   },
   "read_hotmart_recompra": {
     "bytes": 454,
@@ -765,7 +765,7 @@
     "sha256": "20ce2f85473ca5f26bde34a2862fba442accf4bfcb1c7e021527da4f517a5922"
   },
   "read_tmb_details": {
-    "bytes": 2636,
+    "bytes": 2809,
     "resumo": {
       "cidades": {
         "__n__": 10,
@@ -788,6 +788,10 @@
         "__n__": 1,
         "__sha__": "57d529c7ded86780"
       },
+      "produtos": {
+        "__n__": 1,
+        "__sha__": "29fdabfe14c665a4"
+      },
       "status_emitidos": {
         "__n__": 1,
         "__sha__": "7cff43f852fab464"
@@ -808,7 +812,7 @@
       "vendas_d1": 1,
       "vendas_d1_pct": 0.6098
     },
-    "sha256": "a41ca64c6a2fa5f8f8be802fc8db178dea8be4d34001f23ec483f496a536c627"
+    "sha256": "4cc7ec6910aa75faf3f4225186d0f821e2dfded9bb9d522a582d057285104f04"
   },
   "read_typeform": {
     "bytes": 4112,

@@ -1098,6 +1098,17 @@ def _compute_debriefing_ctx(
     ]
     # Forma de pagamento com valores (Hotmart + TMB): projetado = valor contratado,
     # recebido = já pago. Ordenado pelo projetado.
+    # Vendas por produto/oferta que compõe o lançamento (Hotmart + TMB), pelo líquido.
+    vendas_por_produto = (
+        [{**p, "plataforma": "Hotmart"} for p in (getattr(hotmart, "produtos", []) or [])]
+        + [{**p, "plataforma": "TMB"} for p in (getattr(tmb, "produtos", []) or [])]
+    )
+    vendas_por_produto.sort(key=lambda p: (p["qtd"], p["faturamento"]), reverse=True)
+    vpp_qtd = sum(p["qtd"] for p in vendas_por_produto)
+    vpp_fat = sum(p["faturamento"] for p in vendas_por_produto)
+    for p in vendas_por_produto:
+        p["pct_vendas"] = (p["qtd"] / vpp_qtd * 100) if vpp_qtd else 0.0
+        p["pct_faturamento"] = (p["faturamento"] / vpp_fat * 100) if vpp_fat else 0.0
     pagamentos_valores = [
         {"metodo": p.get("metodo"), "plataforma": "Hotmart", "qtd": _i(p.get("qtd")),
          "projetado": _f(p.get("projetado")), "recebido": _f(p.get("recebido"))}
@@ -1389,6 +1400,7 @@ def _compute_debriefing_ctx(
         # Pagamentos
         "pagamentos_hm": pagamentos_hm, "total_tmb": total_tmb,
         "pagamentos_valores": pagamentos_valores,
+        "vendas_por_produto": vendas_por_produto, "vpp_qtd": vpp_qtd, "vpp_fat": vpp_fat,
         "pv_projetado": pv_projetado, "pv_recebido": pv_recebido,
         "vendas_forma": vendas_forma,
         "total_hm": total_hm_v, "total_vendas_pay": total_tmb + total_hm_v,

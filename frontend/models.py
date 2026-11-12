@@ -260,6 +260,7 @@ class HotmartDetails:
     parcelado_12x_qtd: int = 0
     outros_parcelamentos_qtd: int = 0
     pagamentos: list[dict] = field(default_factory=list)
+    produtos: list[dict] = field(default_factory=list)  # vendas por produto/oferta que compõe o lançamento
     parcelas: list[dict] = field(default_factory=list)
     fluxo_caixa: dict = field(default_factory=dict)
     timeline: list[dict] = field(default_factory=list)
@@ -283,6 +284,7 @@ class TmbDetails:
     vendas_d1_pct: float = 0.0
     ofertas: list[dict] = field(default_factory=list)
     pagamentos: list[dict] = field(default_factory=list)  # forma de pagamento: projetado x recebido
+    produtos: list[dict] = field(default_factory=list)    # vendas por produto que compõe o lançamento
     com_utm_qtd: int = 0
     com_utm_pct: float = 0.0
     utm_sources: list[dict] = field(default_factory=list)

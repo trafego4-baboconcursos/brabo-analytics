@@ -4639,3 +4639,11 @@ Oferta Funil de Vendas TJSP" (`oferta:izfne8k1`, produto `8643509` da Black) que
 - **Fora, por enquanto:** `read_dia1_sales` (curva da 1ª hora), afiliados e perpétuo seguem só por produto.
 - A mesma venda continua contando também no lançamento dono do produto (BV-26 tem o `8643509` inteiro):
   não há desconto automático entre lançamentos.
+
+**Vendas por produto em "Métricas do lançamento" (12/11/26).** A seção ganhou a tabela "Vendas por
+Produto": cada produto que compõe a venda do lançamento (Hotmart + TMB) com vendas, % de vendas,
+faturamento líquido, % do faturamento e ticket médio, mais o TOTAL (fecha com a Receita Líquida).
+Uma oferta avulsa de outro produto (`oferta:<codigo>`, ex.: upsell da Black no funil do PES) aparece
+em linha própria. Dados: `HotmartDetails.produtos` e `TmbDetails.produtos` (agrupados no leitor, só
+carrinho aberto) → `vendas_por_produto` em `frontend/services/debriefing.py`. Baselines de
+caracterização do Hotmart/TMB regravados pelo campo novo.

@@ -126,6 +126,18 @@ def read_tmb_details(launch_folder_or_code: Any, start_date=None, end_date=None)
         })
     details.ofertas = sorted(details.ofertas, key=lambda x: x["qtd"], reverse=True)
 
+    # Vendas por produto que compõe o lançamento
+    _tot_f = float(df_paid["valor_liq"].sum())
+    for _nome, _g in df_paid.groupby(df_paid["produto"].fillna("").astype(str).str.strip()):
+        _fat = float(_g["valor_liq"].sum())
+        details.produtos.append({
+            "nome": _nome or "Produto TMB", "oferta_avulsa": False, "qtd": int(len(_g)),
+            "faturamento": _fat, "ticket_medio": _fat / len(_g) if len(_g) else 0.0,
+            "pct_vendas": (len(_g) / len(df_paid) * 100) if len(df_paid) else 0.0,
+            "pct_faturamento": (_fat / _tot_f * 100) if _tot_f else 0.0,
+        })
+    details.produtos.sort(key=lambda p: p["qtd"], reverse=True)
+
     # Forma de pagamento: PROJETADO = valor contratado (o que a página já soma como
     # receita); RECEBIDO = só o que já está quitado (status Efetivado/Pago). A
     # exportação do TMB não traz as parcelas pagas de um contrato "Em Dia", então

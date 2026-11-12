@@ -68,7 +68,7 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
         SELECT codigo_da_transacao, status_da_transacao, data_da_transacao, confirmacao_do_pagamento,
                metodo_de_pagamento, tipo_de_cobranca, quantidade_de_cobrancas, quantidade_total_de_parcelas,
                faturamento_liquido, valor_de_compra_sem_impostos, valor_de_compra_com_impostos,
-               nome_deste_preco, codigo_do_produto, codigo_do_preco, estado_provincia, cidade
+               nome_deste_preco, codigo_do_produto, codigo_do_preco, estado_provincia, cidade, produto
         FROM hotmart_clean_oficial
         WHERE (CASE
               WHEN produto ILIKE '%black vital%' THEN 'BLACK'
@@ -183,6 +183,36 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
     details.receita_liquida = float(df_paid["valor_liq"].sum())
     details.receita_bruta = float(df_paid["valor_bruto"].sum())
     details.faturamento = details.receita_liquida
+
+    # Vendas por produto que compõe o lançamento. Venda que entrou por OFERTA avulsa
+    # (produto de outro projeto, `oferta:<codigo>` no config) vira uma linha própria,
+    # com o nome da oferta; o resto agrupa pelo produto.
+    if not df_paid.empty:
+        _ids_produto = set(hotmart_ids)
+        _de_oferta = (
+            df_paid["codigo_do_produto"].astype(str).map(lambda x: bool(_ids_produto) and x not in _ids_produto)
+        )
+        df_paid["_prod_chave"] = [
+            ("oferta:" + str(cp)) if of else str(cd)
+            for of, cp, cd in zip(_de_oferta, df_paid["codigo_do_preco"], df_paid["codigo_do_produto"])
+        ]
+        df_paid["_prod_nome"] = [
+            str(np_ or pr or "").strip() if of else str(pr or "").strip()
+            for of, np_, pr in zip(_de_oferta, df_paid["nome_deste_preco"], df_paid["produto"])
+        ]
+        _tot_v, _tot_f = len(df_paid), float(df_paid["valor_liq"].sum())
+        for _chave, _g in df_paid.groupby("_prod_chave"):
+            _fat = float(_g["valor_liq"].sum())
+            details.produtos.append({
+                "nome": _g["_prod_nome"].iloc[0] or str(_chave),
+                "oferta_avulsa": str(_chave).startswith("oferta:"),
+                "qtd": int(len(_g)),
+                "faturamento": _fat,
+                "ticket_medio": _fat / len(_g) if len(_g) else 0.0,
+                "pct_vendas": (len(_g) / _tot_v * 100) if _tot_v else 0.0,
+                "pct_faturamento": (_fat / _tot_f * 100) if _tot_f else 0.0,
+            })
+        details.produtos.sort(key=lambda p: p["qtd"], reverse=True)
     details.taxas = max(0.0, details.receita_bruta - details.receita_liquida)
     details.taxas_pct = details.taxas / details.receita_bruta * 100 if details.receita_bruta > 0 else 0.0
     details.ticket_medio = details.faturamento / details.total_vendas if details.total_vendas > 0 else 0.0

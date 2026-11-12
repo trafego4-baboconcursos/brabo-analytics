@@ -2,52 +2,40 @@
 {% block head %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-  /* Painel de vendas numa tela só — layout do painel de referência (fundo escuro, moldura e
-     títulos dourados, cartões creme). As cores são deste painel de propósito, não do tema. */
-  .rs { --rs-ouro:#d4a72c; --rs-borda:#c9a227; --rs-creme:#f8de8e; --rs-marinho:#1a2c5e;
-        --rs-roxo:#3b2a4a; --rs-tinta:#14110a;
-        font-family:'Barlow Condensed','Inter',sans-serif; background:linear-gradient(180deg,#3a3a3a 0%,#1d1d1d 100%);
-        border:3px solid var(--rs-borda); border-radius:20px; padding:24px; margin:24px; color:var(--rs-tinta); }
-  .rs-titulo { text-align:center; color:var(--rs-ouro); font-size:34px; font-weight:700; letter-spacing:.5px; margin:0 0 24px; text-transform:uppercase; }
-  .rs-card { background:var(--rs-creme); border:2px solid var(--rs-borda); border-radius:18px; box-shadow:0 0 0 2px rgba(26,44,94,.55); padding:16px 24px; min-width:0; }
-  .rs-linha { display:grid; gap:16px; margin-bottom:16px; }
+  /* Painel de vendas numa tela só. A disposição dos blocos segue o painel de referência; o
+     visual é o do tema (tokens --bs-*, grade de 8px), igual às outras páginas. */
+  .rs-linha { display:grid; gap:24px; margin-bottom:24px; }
   .rs-kpis { grid-template-columns:repeat(4,minmax(0,1fr)); }
-  .rs-meio { grid-template-columns:minmax(0,30fr) minmax(0,70fr); }
+  .rs-meio { grid-template-columns:minmax(0,3fr) minmax(0,7fr); }
   .rs-base { grid-template-columns:minmax(0,34fr) minmax(0,44fr) minmax(0,22fr); margin-bottom:0; }
+  .rs-card { background:var(--bs-card); border:1px solid var(--bs-border); border-radius:var(--bs-r-lg,12px); box-shadow:var(--bs-sh-sm,none); padding:24px; min-width:0; }
 
   .rs-kpi { display:flex; align-items:center; gap:16px; }
-  .rs-kpi-ico { flex:0 0 72px; height:72px; border-radius:12px; background:#000; color:var(--rs-ouro); display:flex; align-items:center; justify-content:center; font-size:40px; }
-  .rs-kpi-txt { flex:1; text-align:center; min-width:0; }
-  .rs-kpi-rot { font-size:26px; font-weight:700; line-height:1.1; }
-  .rs-kpi-val { font-size:34px; font-weight:600; line-height:1.15; white-space:nowrap; font-variant-numeric:tabular-nums; }
-  .rs-kpi-val.forte { font-weight:700; }
+  .rs-kpi-ico { flex:0 0 56px; height:56px; border-radius:var(--bs-r-md,8px); background:var(--bs-accent-bg); color:var(--bs-accent); display:flex; align-items:center; justify-content:center; font-size:28px; }
+  .rs-kpi-rot { font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--bs-ink-muted); }
+  .rs-kpi-val { font-size:28px; font-weight:800; line-height:1.15; margin-top:4px; font-variant-numeric:tabular-nums; color:var(--bs-ink); white-space:nowrap; }
 
-  .rs-h { font-size:26px; font-weight:700; margin:0 0 8px; }
-  .rs-h.centro { text-align:center; font-size:24px; }
+  .rs-h { font-size:14px; font-weight:800; margin:0 0 16px; color:var(--bs-ink); }
   .rs-graf { position:relative; height:240px; }
   .rs-graf.alto { height:272px; }
 
-  .rs-lado { display:flex; flex-direction:column; gap:16px; }
-  .rs-lado .rs-card { text-align:center; padding:12px 16px; }
-  .rs-lado-rot { font-size:26px; font-weight:700; }
-  .rs-lado-val { font-size:34px; font-weight:700; font-variant-numeric:tabular-nums; line-height:1.15; }
-  .rs-lado-val.invest { color:#7a0f0f; }
-  .rs-lado-val.lucro { color:#1f6b2e; }
-  .rs-lado-val.neg { color:#7a0f0f; }
-  .rs-data { font-size:22px; font-weight:700; color:var(--rs-marinho); font-variant-numeric:tabular-nums; }
-  .rs-data-leg { font-size:16px; font-weight:500; line-height:1.15; margin-top:4px; }
-  .rs-nota { text-align:center; color:rgba(255,255,255,.65); font-family:'Inter',sans-serif; font-size:11px; margin-top:16px; }
+  .rs-lado { display:flex; flex-direction:column; gap:24px; }
+  .rs-lado .rs-card { padding:16px 24px; flex:1; display:flex; flex-direction:column; justify-content:center; }
+  .rs-lado-rot { font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--bs-ink-muted); }
+  .rs-lado-val { font-size:28px; font-weight:800; line-height:1.15; margin-top:4px; font-variant-numeric:tabular-nums; }
+  .rs-lado-val.invest { color:var(--bs-danger); }
+  .rs-lado-val.lucro  { color:var(--bs-success); }
+  .rs-lado-val.neg    { color:var(--bs-danger); }
+  .rs-data { font-size:20px; font-weight:800; color:var(--bs-ink); font-variant-numeric:tabular-nums; margin-top:4px; }
+  .rs-data-leg { font-size:12px; color:var(--bs-ink-muted); margin-top:4px; line-height:1.35; }
+  .rs-nota { font-size:11px; color:var(--bs-ink-muted); margin-top:24px; }
 
   @media (max-width: 1100px) {
-    .rs { margin:12px; padding:16px; }
-    .rs-titulo { font-size:26px; }
     .rs-kpis { grid-template-columns:repeat(2,minmax(0,1fr)); }
     .rs-meio, .rs-base { grid-template-columns:minmax(0,1fr); }
   }
-  @media (max-width: 560px) { .rs-kpis { grid-template-columns:minmax(0,1fr); } .rs-kpi-val { font-size:28px; } }
+  @media (max-width: 560px) { .rs-kpis { grid-template-columns:minmax(0,1fr); } .rs-linha { gap:16px; } }
 </style>
 {% endblock %}
 
@@ -59,38 +47,46 @@
   <p>O resumo aparece quando a primeira venda do carrinho entrar.</p></div></div></div>
 {% else %}
 {% set r = resumo %}
-<div class="rs">
-  <h1 class="rs-titulo">{{ r.titulo }}</h1>
-
-  <div class="rs-linha rs-kpis">
-    <div class="rs-card rs-kpi"><div class="rs-kpi-ico"><i class="ti ti-chart-line"></i></div>
-      <div class="rs-kpi-txt"><div class="rs-kpi-rot">Receita Líquida</div><div class="rs-kpi-val">{{ r.receita | brl }}</div></div></div>
-    <div class="rs-card rs-kpi"><div class="rs-kpi-ico"><i class="ti ti-moneybag"></i></div>
-      <div class="rs-kpi-txt"><div class="rs-kpi-rot">ROAS*</div><div class="rs-kpi-val forte">{{ ('%.2f' % r.roas) | replace('.', ',') }}</div></div></div>
-    <div class="rs-card rs-kpi"><div class="rs-kpi-ico"><i class="ti ti-devices"></i></div>
-      <div class="rs-kpi-txt"><div class="rs-kpi-rot">Qtd. de Vendas</div><div class="rs-kpi-val">{{ r.n_vendas | num }}</div></div></div>
-    <div class="rs-card rs-kpi"><div class="rs-kpi-ico"><i class="ti ti-coins"></i></div>
-      <div class="rs-kpi-txt"><div class="rs-kpi-rot">Ticket Médio</div><div class="rs-kpi-val">{{ r.ticket | brl }}</div></div></div>
-  </div>
-
-  <div class="rs-linha rs-meio">
-    <div class="rs-card"><h2 class="rs-h">Número de Vendas</h2><div class="rs-graf"><canvas id="rsProdutos"></canvas></div></div>
-    <div class="rs-card"><h2 class="rs-h">Vendas por Dia</h2><div class="rs-graf"><canvas id="rsDias"></canvas></div></div>
-  </div>
-
-  <div class="rs-linha rs-base">
-    <div class="rs-card"><h2 class="rs-h centro">Já eram alunos vs. Novos Alunos</h2><div class="rs-graf alto"><canvas id="rsAlunos"></canvas></div></div>
-    <div class="rs-card"><h2 class="rs-h centro">Modelo de Pagamento</h2><div class="rs-graf alto"><canvas id="rsPagamento"></canvas></div></div>
-    <div class="rs-lado">
-      <div class="rs-card"><div class="rs-lado-rot" style="color:#7a0f0f">Investimento</div><div class="rs-lado-val invest">{{ r.invest | brl }}</div></div>
-      <div class="rs-card"><div class="rs-lado-rot" style="color:#1f6b2e">Lucro</div><div class="rs-lado-val {{ 'lucro' if r.lucro >= 0 else 'neg' }}">{{ r.lucro | brl }}</div></div>
-      <div class="rs-card"><div class="rs-data">{{ r.ultima_venda or '—' }}</div>
-        <div class="rs-data-leg">Data e hora da venda mais recente do registro atual (última atualização)</div></div>
+<div class="wrap">
+  <div class="hdr">
+    <a href="/?launch_code={{ active_code }}"><img src="/assets/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1>Resumo — {{ launch.code }}</h1>
+      <p>{{ r.titulo }}</p>
     </div>
   </div>
 
-  <div class="rs-nota">*ROAS = receita líquida ÷ investimento (Meta + Google + WhatsApp). Lucro = receita líquida − investimento.
-    "Alunos" = compradores com compra anterior ao carrinho (Hotmart + TMB, por e-mail); "mesmo projeto" = já comprou do mesmo projeto.</div>
+  <div class="content">
+    <div class="rs-linha rs-kpis">
+      <div class="rs-card rs-kpi"><div class="rs-kpi-ico"><i class="ti ti-chart-line"></i></div>
+        <div><div class="rs-kpi-rot">Receita Líquida</div><div class="rs-kpi-val">{{ r.receita | brl }}</div></div></div>
+      <div class="rs-card rs-kpi"><div class="rs-kpi-ico"><i class="ti ti-moneybag"></i></div>
+        <div><div class="rs-kpi-rot">ROAS*</div><div class="rs-kpi-val">{{ ('%.2f' % r.roas) | replace('.', ',') }}</div></div></div>
+      <div class="rs-card rs-kpi"><div class="rs-kpi-ico"><i class="ti ti-devices"></i></div>
+        <div><div class="rs-kpi-rot">Qtd. de Vendas</div><div class="rs-kpi-val">{{ r.n_vendas | num }}</div></div></div>
+      <div class="rs-card rs-kpi"><div class="rs-kpi-ico"><i class="ti ti-coins"></i></div>
+        <div><div class="rs-kpi-rot">Ticket Médio</div><div class="rs-kpi-val">{{ r.ticket | brl }}</div></div></div>
+    </div>
+
+    <div class="rs-linha rs-meio">
+      <div class="rs-card"><h2 class="rs-h">Número de Vendas</h2><div class="rs-graf"><canvas id="rsProdutos"></canvas></div></div>
+      <div class="rs-card"><h2 class="rs-h">Vendas por Dia</h2><div class="rs-graf"><canvas id="rsDias"></canvas></div></div>
+    </div>
+
+    <div class="rs-linha rs-base">
+      <div class="rs-card"><h2 class="rs-h">Já eram alunos vs. Novos Alunos</h2><div class="rs-graf alto"><canvas id="rsAlunos"></canvas></div></div>
+      <div class="rs-card"><h2 class="rs-h">Modelo de Pagamento</h2><div class="rs-graf alto"><canvas id="rsPagamento"></canvas></div></div>
+      <div class="rs-lado">
+        <div class="rs-card"><div class="rs-lado-rot">Investimento</div><div class="rs-lado-val invest">{{ r.invest | brl }}</div></div>
+        <div class="rs-card"><div class="rs-lado-rot">Lucro</div><div class="rs-lado-val {{ 'lucro' if r.lucro >= 0 else 'neg' }}">{{ r.lucro | brl }}</div></div>
+        <div class="rs-card"><div class="rs-lado-rot">Última venda</div><div class="rs-data">{{ r.ultima_venda or '—' }}</div>
+          <div class="rs-data-leg">Data e hora da venda mais recente do registro atual (última atualização)</div></div>
+      </div>
+    </div>
+
+    <div class="rs-nota">*ROAS = receita líquida ÷ investimento (Meta + Google + WhatsApp). Lucro = receita líquida − investimento.
+      "Alunos" = compradores com compra anterior ao carrinho (Hotmart + TMB, por e-mail); "mesmo projeto" = já comprou do mesmo projeto.</div>
+  </div>
 </div>
 
 <script>
@@ -98,15 +94,23 @@
   const dados = {{ {
     'produtos': r.produtos, 'dias': r.dias, 'pagamento': r.pagamento, 'perfil': r.perfil.linhas
   } | tojson }};
-  const MAR = '#1a2c5e', ROXO = '#3b2a4a', TINTA = '#14110a';
+  // Canvas não resolve var(--token): lê o valor computado antes de montar os gráficos.
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const ACENTO = css('--bs-accent') || '#374151';
+  const INFO = css('--bs-info') || '#2f5ee3';
+  const OK = css('--bs-success') || '#16a34a';
+  const TINTA = css('--bs-ink') || '#1f2330';
+  const MUDO = css('--bs-ink-muted') || '#6b7280';
+  const GRADE = css('--bs-border') || '#e5e7eb';
   const fmt = new Intl.NumberFormat('pt-BR');
   Chart.register(ChartDataLabels);
-  Chart.defaults.font.family = "'Barlow Condensed','Inter',sans-serif";
-  Chart.defaults.color = TINTA;
-  Chart.defaults.animation = false;   // painel de leitura: já desenhado, sem animação
-  const eixo = { grid: { color: 'rgba(0,0,0,.12)', borderDash: [3, 3] }, ticks: { font: { size: 13, weight: '600' }, precision: 0 }, beginAtZero: true };
-  const semGrade = { grid: { display: false }, ticks: { font: { size: 12, weight: '600' }, maxRotation: 0, minRotation: 0 } };
-  const rotuloValor = { anchor: 'end', align: 'top', offset: 2, font: { size: 15, weight: '700' }, color: TINTA, formatter: v => fmt.format(v) };
+  Chart.defaults.animation = false;
+  Chart.defaults.color = MUDO;
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+
+  const eixo = { grid: { color: GRADE }, border: { display: false }, ticks: { font: { size: 11 }, precision: 0 }, beginAtZero: true };
+  const semGrade = { grid: { display: false }, ticks: { font: { size: 11 }, maxRotation: 0, minRotation: 0 } };
+  const rotuloValor = { anchor: 'end', align: 'top', offset: 2, font: { size: 12, weight: '700' }, color: TINTA, formatter: v => fmt.format(v) };
 
   // Rótulo em até 3 linhas (sem girar o texto): quebra nos espaços perto de 16 caracteres.
   const curto = s => {
@@ -120,7 +124,7 @@
   new Chart(document.getElementById('rsProdutos'), {
     type: 'bar',
     data: { labels: dados.produtos.map(p => curto(p.nome)),
-            datasets: [{ data: dados.produtos.map(p => p.qtd), backgroundColor: ROXO, borderRadius: 2, maxBarThickness: 72 }] },
+            datasets: [{ data: dados.produtos.map(p => p.qtd), backgroundColor: ACENTO, borderRadius: 4, maxBarThickness: 72 }] },
     options: { responsive: true, maintainAspectRatio: false, layout: { padding: { top: 22 } },
       plugins: { legend: { display: false }, datalabels: rotuloValor,
                  tooltip: { callbacks: { title: it => dados.produtos[it[0].dataIndex].nome } } },
@@ -131,35 +135,34 @@
   new Chart(document.getElementById('rsDias'), {
     type: 'line',
     data: { labels: dados.dias.rotulos,
-            datasets: [{ data: dados.dias.valores, borderColor: MAR, backgroundColor: MAR, borderWidth: 4, pointRadius: 0, pointHoverRadius: 5, tension: 0 }] },
+            datasets: [{ data: dados.dias.valores, borderColor: ACENTO, backgroundColor: ACENTO + '22', fill: true, borderWidth: 2.5, pointRadius: 2, pointHoverRadius: 5, tension: 0.3 }] },
     options: { responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false }, datalabels: { display: false } },
-      scales: { x: { ...semGrade, title: { display: !!dados.dias.mes, text: dados.dias.mes, font: { size: 13, weight: '600' } } }, y: eixo } }
+      scales: { x: { ...semGrade, title: { display: !!dados.dias.mes, text: dados.dias.mes, font: { size: 11, weight: '600' } } }, y: eixo } }
   });
 
   // Já eram alunos x novos alunos
-  const corPerfil = ['#d97bc4', MAR, '#217a4b'];
+  const corPerfil = [ACENTO, INFO, OK];
   const totalPerfil = dados.perfil.reduce((a, p) => a + p.qtd, 0);
+  const grande = c => c.dataset.data[c.dataIndex] / totalPerfil > 0.5;
   new Chart(document.getElementById('rsAlunos'), {
     type: 'pie',
     data: { labels: dados.perfil.map(p => p.rotulo),
-            datasets: [{ data: dados.perfil.map(p => p.qtd), backgroundColor: corPerfil, borderWidth: 0 }] },
+            datasets: [{ data: dados.perfil.map(p => p.qtd), backgroundColor: corPerfil, borderColor: css('--bs-card') || '#fff', borderWidth: 2 }] },
     // rotation: gira a pizza para as fatias pequenas ficarem à esquerda, onde os rótulos empilham sem se sobrepor
-    options: { responsive: true, maintainAspectRatio: false, rotation: 262, layout: { padding: { left: 104, top: 12, right: 8, bottom: 12 } },
+    options: { responsive: true, maintainAspectRatio: false, rotation: 262, layout: { padding: { left: 88, top: 12, right: 0, bottom: 12 } },
       plugins: {
-        legend: { position: 'right', labels: { boxWidth: 12, font: { size: 14, weight: '600' } } },
-        datalabels: { color: (c) => c.dataset.data[c.dataIndex] / totalPerfil > 0.5 ? '#fff' : TINTA,
-                      font: { size: 15, weight: '700' },
-                      anchor: (c) => c.dataset.data[c.dataIndex] / totalPerfil > 0.5 ? 'center' : 'end',
-                      align: (c) => c.dataset.data[c.dataIndex] / totalPerfil > 0.5 ? 'center' : 'end', offset: 4, clamp: false,
-                      formatter: (v) => v > 0 ? fmt.format(v) + ' (' + (v / totalPerfil * 100).toFixed(2).replace('.', ',') + '%)' : '' } } }
+        legend: { position: 'right', labels: { boxWidth: 10, padding: 10, color: TINTA, font: { size: 11, weight: '600' } } },
+        datalabels: { color: c => grande(c) ? '#fff' : TINTA, font: { size: 12, weight: '700' },
+                      anchor: c => grande(c) ? 'center' : 'end', align: c => grande(c) ? 'center' : 'end', offset: 4, clamp: false,
+                      formatter: v => v > 0 ? fmt.format(v) + ' (' + (v / totalPerfil * 100).toFixed(2).replace('.', ',') + '%)' : '' } } }
   });
 
   // Modelo de pagamento
   new Chart(document.getElementById('rsPagamento'), {
     type: 'bar',
     data: { labels: dados.pagamento.map(p => curto(p.rotulo)),
-            datasets: [{ data: dados.pagamento.map(p => p.qtd), backgroundColor: MAR, borderRadius: 2, maxBarThickness: 48 }] },
+            datasets: [{ data: dados.pagamento.map(p => p.qtd), backgroundColor: ACENTO, borderRadius: 4, maxBarThickness: 48 }] },
     options: { responsive: true, maintainAspectRatio: false, layout: { padding: { top: 22 } },
       plugins: { legend: { display: false }, datalabels: rotuloValor },
       scales: { x: semGrade, y: eixo } }

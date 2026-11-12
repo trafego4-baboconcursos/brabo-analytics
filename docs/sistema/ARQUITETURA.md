@@ -4653,12 +4653,13 @@ caracterização do Hotmart/TMB regravados pelo campo novo.
 
 ## Página /resumo — painel de vendas numa tela só (2026-11-12)
 
-Nova aba **Resumo** no menu (Visão Geral, logo depois de Início), no layout de um painel de
-referência: moldura dourada em fundo escuro, 4 cartões (Receita Líquida, ROAS*, Qtd. de Vendas,
-Ticket Médio), Número de Vendas (por produto), Vendas por Dia, Já eram alunos × Novos alunos,
-Modelo de Pagamento, Investimento, Lucro e a hora da venda mais recente. Rota `resumo_page`
+Nova aba **Resumo** no menu (Visão Geral, logo depois de Início). A **disposição dos dados** segue um
+painel de referência — 4 cartões (Receita Líquida, ROAS*, Qtd. de Vendas, Ticket Médio), Número de
+Vendas (por produto), Vendas por Dia, Já eram alunos × Novos alunos, Modelo de Pagamento,
+Investimento, Lucro e a hora da venda mais recente — mas o **visual é o do tema** (tokens `--bs-*`,
+cabeçalho `.hdr`, grade de 8px; os gráficos leem as cores dos tokens). Rota `resumo_page`
 (`frontend/routes/analytics.py`), contexto em `frontend/services/resumo.py`, tela
-`frontend/templates/resumo.html` (Chart.js; cores do painel, não do tema).
+`frontend/templates/resumo.html` (Chart.js).
 
 - **Números:** receita/vendas de `read_vendas`; investimento = Meta + Google + WhatsApp (o mesmo do
   `/funil`); ROAS = receita ÷ investimento; Lucro = receita − investimento. Conferido com o painel de
@@ -4675,4 +4676,3 @@ Modelo de Pagamento, Investimento, Lucro e a hora da venda mais recente. Rota `r
   nenhuma (novo aluno). É aproximação pelo histórico de vendas, não pelo LMS.
 - **Hora da última venda:** `ultima_venda` em `HotmartDetails`/`TmbDetails` (`parse_ts_brt`, horário de
   Brasília).
-- Dependência nova de rede na tela: fonte Barlow Condensed do Google Fonts (fallback Inter).

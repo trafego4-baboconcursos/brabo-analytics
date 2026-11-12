@@ -156,107 +156,6 @@
     </div>
     {% endmacro %}
 
-    <div class="section">
-      <div class="section-title"><i class="ti ti-coin"></i> Visão geral da verba</div>
-      <div class="verba-grid">
-        {{ card_etapas("Total — Previsão", verba_linhas, verba_total_previsto, false) }}
-        {{ card_etapas("Total — Investido", verba_linhas, verba_total_realizado, true) }}
-        {{ card_captacao("Investimento em Captação — Previsto", capt_resumo, false) }}
-        {{ card_captacao("Investimento em Captação — Realizado", capt_resumo, true) }}
-      </div>
-      <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:16px">
-        Previsto vem da provisão de verba cadastrada no wizard do lançamento; Investido é o gasto real Meta+Google (e WhatsApp) por etapa.
-        "PQ / Impulsionar" ainda não tem categorização própria neste sistema.
-        <span style="margin-left:16px"><b style="color:var(--verba-prev)">■</b> Previsto &nbsp; <b style="color:var(--bs-accent)">■</b> Realizado &nbsp; <b style="color:var(--bs-warning)">■</b> Restante</span>
-      </div>
-    </div>
-
-    {# ── Pré-Qualificação: Previsão / Verba investida / Restante ───────────── #}
-    {% if preq_blocos and preq_blocos.blocos %}
-    <div class="section">
-      <div class="section-title"><i class="ti ti-coin"></i> Pré-Qualificação · {{ preq_blocos.inicio.strftime('%d/%m') }} a {{ preq_blocos.fim.strftime('%d/%m/%Y') }}</div>
-      <div class="verba-card verba-preq">
-        <div style="overflow-x:auto">
-          <table>
-            {% for b in preq_blocos.blocos %}
-            <thead>
-              <tr>
-                {% set cb = 'b-prev' if loop.index0 == 0 else ('b-real' if loop.index0 == 1 else 'b-rest') %}
-                <th class="{{ cb }}">{{ b.titulo.replace('PRÉ-QUALIFICAÇÃO — ', '') }}</th>
-                <th>Total</th>
-                {% for it in b.itens %}<th>{{ it.nome }}</th>{% endfor %}
-              </tr>
-            </thead>
-            <tbody>
-              <tr class="destaque {{ 'b-prev' if loop.index0 == 0 else ('b-real' if loop.index0 == 1 else 'b-rest') }}">
-                <td>Total</td>
-                <td>{{ b.total | brl }}</td>
-                {% for it in b.itens %}<td>{{ it.total | brl }}</td>{% endfor %}
-              </tr>
-              <tr>
-                <td>Por dia</td>
-                <td>{{ b.por_dia | brl }}</td>
-                {% for it in b.itens %}<td>{{ it.por_dia | brl }}</td>{% endfor %}
-              </tr>
-              <tr>
-                <td class="mut">% do total</td>
-                <td class="mut">100%</td>
-                {% for it in b.itens %}<td class="mut">{{ ((it.total / b.total * 100) if b.total else 0) | round(1) }}%</td>{% endfor %}
-              </tr>
-            </tbody>
-            {% endfor %}
-          </table>
-        </div>
-      </div>
-      <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:16px">
-        Por dia: previsão ÷ dias da etapa · investida ÷ dias decorridos · restante ÷ dias que faltam.
-      </div>
-    </div>
-    {% endif %}
-
-    {# ── Dias da semana: verba investida × previsão diária (captação) ─────── #}
-    {% if dias_semana.dias %}
-    <div class="section">
-      <div class="section-title"><i class="ti ti-calendar-dollar"></i> Dias da Semana — Captação</div>
-      <div class="verba-kpis">
-        <div class="verba-kpi real"><div class="rot">Gasto até {{ dias_semana.hoje_str }}</div><div class="val">{{ dias_semana.gasto_ate_hoje | brl }}</div></div>
-        <div class="verba-kpi prev"><div class="rot">Previsto até {{ dias_semana.hoje_str }}</div><div class="val">{{ dias_semana.previsto_ate_hoje | brl }}</div></div>
-        <div class="verba-kpi">
-          <div class="rot">Diferença</div>
-          <div class="val {{ 'neg' if dias_semana.diferenca < 0 else 'pos' }}">{{ dias_semana.diferenca | brl }}</div>
-          <div class="sub">{{ dias_semana.diferenca_pct | round(2) }}% {{ 'abaixo' if dias_semana.diferenca < 0 else 'acima' }} do previsto</div>
-        </div>
-      </div>
-      <div class="verba-card">
-        <div style="overflow-x:auto">
-          <table class="verba-dias">
-            <thead>
-              <tr>
-                <th style="position:sticky;left:0;background:var(--bs-card)"></th>
-                {% for d in dias_semana.dias %}<th class="{{ 'hoje' if d.hoje }}">{{ d.rotulo }}</th>{% endfor %}
-              </tr>
-            </thead>
-            <tbody>
-              <tr class="l-real">
-                <td style="position:sticky;left:0;background:var(--bs-card);font-weight:700">Verba investida</td>
-                {% for d in dias_semana.dias %}
-                <td class="{{ 'hoje' if d.hoje }} {{ 'futuro' if not d.passou }}">{{ d.realizado | brl if d.passou else "–" }}</td>
-                {% endfor %}
-              </tr>
-              <tr class="l-prev">
-                <td style="position:sticky;left:0;background:var(--bs-card);font-weight:700">Previsão diária</td>
-                {% for d in dias_semana.dias %}<td class="{{ 'hoje' if d.hoje }} {{ 'futuro' if not d.passou }}">{{ d.previsto | brl }}</td>{% endfor %}
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    {% endif %}
-
-    {{ tabela_dia_publico("Divisão de verba por público em cada dia", dia_publico_realizado, "Total") }}
-
-
     {% macro bloco_curva(titulo, curva, chart_id) %}
     <div class="section">
       <div class="section-title"><i class="ti ti-coin"></i> {{ titulo }}</div>
@@ -359,11 +258,115 @@
     </div>
     {% endmacro %}
 
-    {{ bloco_curva("Verba Investida por Dia — Captação", curva_capt, "curvaCaptChart") }}
+    <div class="section">
+      <div class="section-title"><i class="ti ti-coin"></i> Visão geral da verba</div>
+      <div class="verba-grid">
+        {{ card_etapas("Total — Previsão", verba_linhas, verba_total_previsto, false) }}
+        {{ card_etapas("Total — Investido", verba_linhas, verba_total_realizado, true) }}
+        {{ card_captacao("Investimento em Captação — Previsto", capt_resumo, false) }}
+        {{ card_captacao("Investimento em Captação — Realizado", capt_resumo, true) }}
+      </div>
+      <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:16px">
+        Previsto vem da provisão de verba cadastrada no wizard do lançamento; Investido é o gasto real Meta+Google (e WhatsApp) por etapa.
+        "PQ / Impulsionar" ainda não tem categorização própria neste sistema.
+        <span style="margin-left:16px"><b style="color:var(--verba-prev)">■</b> Previsto &nbsp; <b style="color:var(--bs-accent)">■</b> Realizado &nbsp; <b style="color:var(--bs-warning)">■</b> Restante</span>
+      </div>
+    </div>
+
+    {# ═══ ETAPA 1 · PRÉ-QUALIFICAÇÃO ═══ #}
+    {# ── Pré-Qualificação: Previsão / Verba investida / Restante ───────────── #}
+    {% if preq_blocos and preq_blocos.blocos %}
+    <div class="section">
+      <div class="section-title"><i class="ti ti-coin"></i> Pré-Qualificação · {{ preq_blocos.inicio.strftime('%d/%m') }} a {{ preq_blocos.fim.strftime('%d/%m/%Y') }}</div>
+      <div class="verba-card verba-preq">
+        <div style="overflow-x:auto">
+          <table>
+            {% for b in preq_blocos.blocos %}
+            <thead>
+              <tr>
+                {% set cb = 'b-prev' if loop.index0 == 0 else ('b-real' if loop.index0 == 1 else 'b-rest') %}
+                <th class="{{ cb }}">{{ b.titulo.replace('PRÉ-QUALIFICAÇÃO — ', '') }}</th>
+                <th>Total</th>
+                {% for it in b.itens %}<th>{{ it.nome }}</th>{% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="destaque {{ 'b-prev' if loop.index0 == 0 else ('b-real' if loop.index0 == 1 else 'b-rest') }}">
+                <td>Total</td>
+                <td>{{ b.total | brl }}</td>
+                {% for it in b.itens %}<td>{{ it.total | brl }}</td>{% endfor %}
+              </tr>
+              <tr>
+                <td>Por dia</td>
+                <td>{{ b.por_dia | brl }}</td>
+                {% for it in b.itens %}<td>{{ it.por_dia | brl }}</td>{% endfor %}
+              </tr>
+              <tr>
+                <td class="mut">% do total</td>
+                <td class="mut">100%</td>
+                {% for it in b.itens %}<td class="mut">{{ ((it.total / b.total * 100) if b.total else 0) | round(1) }}%</td>{% endfor %}
+              </tr>
+            </tbody>
+            {% endfor %}
+          </table>
+        </div>
+      </div>
+      <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:16px">
+        Por dia: previsão ÷ dias da etapa · investida ÷ dias decorridos · restante ÷ dias que faltam.
+      </div>
+    </div>
+    {% endif %}
+
     {{ bloco_curva("Verba Investida por Dia — Pré-Qualificação", curva_preq, "curvaPreqChart") }}
+
+    {# ═══ ETAPA 2 · CAPTAÇÃO ═══ #}
+    {# ── Dias da semana: verba investida × previsão diária (captação) ─────── #}
+    {% if dias_semana.dias %}
+    <div class="section">
+      <div class="section-title"><i class="ti ti-calendar-dollar"></i> Dias da Semana — Captação</div>
+      <div class="verba-kpis">
+        <div class="verba-kpi real"><div class="rot">Gasto até {{ dias_semana.hoje_str }}</div><div class="val">{{ dias_semana.gasto_ate_hoje | brl }}</div></div>
+        <div class="verba-kpi prev"><div class="rot">Previsto até {{ dias_semana.hoje_str }}</div><div class="val">{{ dias_semana.previsto_ate_hoje | brl }}</div></div>
+        <div class="verba-kpi">
+          <div class="rot">Diferença</div>
+          <div class="val {{ 'neg' if dias_semana.diferenca < 0 else 'pos' }}">{{ dias_semana.diferenca | brl }}</div>
+          <div class="sub">{{ dias_semana.diferenca_pct | round(2) }}% {{ 'abaixo' if dias_semana.diferenca < 0 else 'acima' }} do previsto</div>
+        </div>
+      </div>
+      <div class="verba-card">
+        <div style="overflow-x:auto">
+          <table class="verba-dias">
+            <thead>
+              <tr>
+                <th style="position:sticky;left:0;background:var(--bs-card)"></th>
+                {% for d in dias_semana.dias %}<th class="{{ 'hoje' if d.hoje }}">{{ d.rotulo }}</th>{% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="l-real">
+                <td style="position:sticky;left:0;background:var(--bs-card);font-weight:700">Verba investida</td>
+                {% for d in dias_semana.dias %}
+                <td class="{{ 'hoje' if d.hoje }} {{ 'futuro' if not d.passou }}">{{ d.realizado | brl if d.passou else "–" }}</td>
+                {% endfor %}
+              </tr>
+              <tr class="l-prev">
+                <td style="position:sticky;left:0;background:var(--bs-card);font-weight:700">Previsão diária</td>
+                {% for d in dias_semana.dias %}<td class="{{ 'hoje' if d.hoje }} {{ 'futuro' if not d.passou }}">{{ d.previsto | brl }}</td>{% endfor %}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {{ tabela_dia_publico("Divisão de verba por público em cada dia — Captação", dia_publico_realizado, "Total") }}
+
+    {{ bloco_curva("Verba Investida por Dia — Captação", curva_capt, "curvaCaptChart") }}
 
     {{ tabela_dia_publico_combinada("Verba Diária — Previsto × Realizado — Captação", verba_diaria_combinada) }}
 
+    {# ═══ ETAPA 3 · REMARKETING ═══ #}
     {# ── Blocos 8+: Previsto x Realizado por sub-etapa de remarketing ──── #}
     {% for sub in subetapas_blocos %}
     <div class="section">

@@ -46,7 +46,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 106 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 107 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Ano global do sistema (2026-10-22)**
@@ -433,6 +433,7 @@ relacionados:
 > - [[ARQUITETURA#Debriefing: Matrículas contam só alunos novos (12/11/26)|Debriefing: Matrículas contam só alunos novos (12/11/26)]]
 > - [[ARQUITETURA#Debriefing: Vendas por Dia também conta só alunos novos (12/11/26)|Debriefing: Vendas por Dia também conta só alunos novos (12/11/26)]]
 > - [[ARQUITETURA#Insights: tudo em seções, barra de controles no topo (12/11/26)|Insights: tudo em seções, barra de controles no topo (12/11/26)]]
+> - [[ARQUITETURA#Verba: seções na ordem das etapas (12/11/26)|Verba: seções na ordem das etapas (12/11/26)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -4817,3 +4818,6 @@ checkpoints).
 
 ### Insights: tudo em seções, barra de controles no topo (12/11/26)
 `insights.html`: hero, saúde geral, cards por canal e ranking de criativos eram blocos soltos; como o `secoes.js` insere a barra (Recolher/Expandir/Seções/Buscar) antes da primeira `.section`, ela caía no meio da página e esses blocos não recolhiam nem reordenavam. Agora cada bloco é uma `.section` (Saúde Geral, Resumo por Canal, Alertas, Ranking de Criativos, Análise Automática, Oportunidades de Escala, Temperatura, Comercial) e só o hero fica acima da barra. Regra para páginas novas: conteúdo abaixo do cabeçalho vai sempre dentro de `.section`.
+
+### Verba: seções na ordem das etapas (12/11/26)
+`verba.html` agora segue o lançamento: Visão geral → Pré-Qualificação (resumo + curva por dia) → Captação (dias da semana, divisão por público por dia, curva, verba diária previsto×realizado) → Remarketing (Lembrete → Matrículas Abertas). Antes a curva de Captação vinha antes da de Pré-Quali e o resumo da Pré-Quali ficava separado da curva dela. `bloco_curva` passou a ser definido no topo (macro precisa existir antes do primeiro uso).

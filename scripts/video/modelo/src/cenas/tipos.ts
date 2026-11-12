@@ -105,6 +105,27 @@ export type PropsSplash = { titulo: string; subtitulo?: string; em: number; imag
 
 export type PropsCta = { titulo: string; subtitulo: string; chamada: TextoEm };
 
+/** Bloco de conteúdo do Painel (estilo "noite" do AD359). Tempos em segundos absolutos. */
+export type BlocoPainel =
+  | { tipo: "contador"; de?: number; ate: number; prefixo?: string; sufixo?: string; rotulo: string; conta: Intervalo }
+  | { tipo: "barras"; itens: { rotulo: string; valor: string; fracao: number; cor?: "amarelo" | "verde" | "vermelho"; em: number }[] }
+  | { tipo: "ordem"; itens: { texto: string; em: number; ok?: boolean }[] }
+  | { tipo: "lista"; itens: { texto: string; em: number; ok?: boolean }[] }
+  | { tipo: "carimbo"; texto: string; em: number };
+
+/**
+ * Painel "noite": ilustração chapada de fundo (`fundo`, em public/, gerada por IA), HUD com
+ * `hud` (pílula com ponto vermelho, opcional) e `tag` (assunto, amarela), `titulo` com a palavra
+ * `destaque` em amarelo, e um `bloco` de conteúdo.
+ */
+export type PropsPainel = {
+  fundo?: string;
+  hud?: string;
+  tag: string;
+  titulo?: { texto: string; destaque?: string; em: number };
+  bloco: BlocoPainel;
+};
+
 export type PropsPorCena = {
   Desenho: PropsDesenho;
   Manchete: PropsManchete;
@@ -117,6 +138,7 @@ export type PropsPorCena = {
   Contador: PropsContador;
   Splash: PropsSplash;
   Cta: PropsCta;
+  Painel: PropsPainel;
 };
 
 export type NomeCena = keyof PropsPorCena;

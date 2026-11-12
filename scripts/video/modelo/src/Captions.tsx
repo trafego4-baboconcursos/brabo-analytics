@@ -46,6 +46,8 @@ const CONTORNO = [
  * última linha termina em y≈966; h ≈39 px, 62 px, y≈960) — a troca não aparece.
  */
 const ESTILO_BRUTO = {
+  // story (AD359, 12/11): legenda do bruto no meio-baixo, maiúscula ≈42 px, base em y≈1480
+  story: { fontSize: 50, lineHeight: "58px", bottom: 440, width: 920 },
   feed: { fontSize: 50, lineHeight: "58px", bottom: 104, width: 980 },
   h: { fontSize: 54, lineHeight: "62px", bottom: 105, width: 1500 },
 };
@@ -67,7 +69,7 @@ const CaptionPage: React.FC<{ page: TikTokPage; cfg: ConfigLegenda }> = ({ page,
     // (folga de 0,15 s nas bordas por causa do fade)
     const antes = s < cfg.queimadaDesde;
     if (!antes && !cfg.cobertos.some(([de, ate]) => s >= de + 0.15 && s < ate - 0.15)) return null;
-    const e = ESTILO_BRUTO[f === "story" ? "feed" : f];
+    const e = ESTILO_BRUTO[f];
     const bottom = sobreSelo ? BOTTOM_ACIMA_DA_CAIXA[f] : e.bottom;
     return (
       <AbsoluteFill style={{ alignItems: "center" }}>

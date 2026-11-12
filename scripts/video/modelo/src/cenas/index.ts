@@ -7,6 +7,7 @@ import { Cta } from "./Cta";
 import { Desenho } from "./Desenho";
 import { Grafico } from "./Grafico";
 import { Manchete } from "./Manchete";
+import { Painel } from "./Painel";
 import { PapelMesa } from "./PapelMesa";
 import { Rota } from "./Rota";
 import { Splash } from "./Splash";
@@ -29,6 +30,7 @@ export const CENAS: { [N in NomeCena]: React.FC<PropsCena<N>> } = {
   Contador,
   Splash,
   Cta,
+  Painel,
 };
 
 export type { NomeCena, PropsCena, PropsPorCena } from "./tipos";

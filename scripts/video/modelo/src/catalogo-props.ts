@@ -93,4 +93,15 @@ export const CATALOGO: { [N in keyof PropsPorCena]: PropsPorCena[N] } = {
     subtitulo: "Projeto INSS · grupo no WhatsApp",
     chamada: { texto: "toque no botão ↓", em: 0.6 },
   },
+  Painel: {
+    hud: "EDITAL · AGUARDANDO",
+    tag: "Antes do edital",
+    titulo: { texto: "O que fazer antes do edital sair", destaque: "antes do edital", em: 0.2 },
+    bloco: { tipo: "ordem", itens: [
+      { texto: "Criar o hábito de estudar todo dia", em: 0.4 },
+      { texto: "Aprender a estudar do jeito certo", em: 0.6 },
+      { texto: "Entender as matérias do concurso", em: 0.8 },
+      { texto: "Fazer uma boa base antes da prova", em: 1.0 },
+    ] },
+  },
 };

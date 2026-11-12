@@ -762,7 +762,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       <h1>{{ launch.code if launch else 'Debriefing' }}</h1>
       <div class="cv-sub">{{ launch.name if launch else '' }}{% if dbf.periodo_atual %} · {{ dbf.periodo_atual }}{% endif %}{% if dbf.has_prev %} · comparativo vs {{ dbf.prev_code }}{% endif %}</div>
       <div class="cv-kpis">
-        <div class="cv-kpi"><div class="lbl">Matrículas</div><div class="val">{{ dbf.total_vendas | num }}</div></div>
+        <div class="cv-kpi"><div class="lbl">Matrículas</div><div class="val">{{ dbf.total_matriculas | num }}</div></div>
         <div class="cv-kpi"><div class="lbl">Total investido</div><div class="val">{{ dbf.invest | brl(0) }}</div></div>
         <div class="cv-kpi"><div class="lbl">Receita líquida</div><div class="val">{{ dbf.receita | brl(0) }}</div></div>
         <div class="cv-kpi"><div class="lbl">ROAS</div><div class="val">{{ "%.2f"|format(dbf.roas) }}x</div></div>
@@ -844,13 +844,13 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
     <div class="mat-cmp">
       <div class="mat-card curr">
         <div style="display:flex;align-items:baseline;gap:10px">
-          <div class="mat-num">{{ dbf.total_vendas | num }}</div>
+          <div class="mat-num">{{ dbf.total_matriculas | num }}</div>
           <span class="mat-tag" style="margin-top:0">{{ launch.code if launch else '—' }}</span>
         </div>
         <div style="display:flex;align-items:center;gap:10px">
           <div style="font-size:22px;font-weight:700;color:rgba(255,255,255,.9)">matrículas</div>
-          {% if dbf.has_prev and dbf.prev_total_vendas > 0 %}
-            {% set dd = ((dbf.total_vendas - dbf.prev_total_vendas) / dbf.prev_total_vendas * 100) | round(1) %}
+          {% if dbf.has_prev and dbf.prev_total_matriculas > 0 %}
+            {% set dd = ((dbf.total_matriculas - dbf.prev_total_matriculas) / dbf.prev_total_matriculas * 100) | round(1) %}
             <span class="mat-var-badge {{ 'up' if dd > 0 else ('down' if dd < 0 else '') }}" style="margin-top:0;margin-left:0">
               {% if dd > 0 %}▲ +{% elif dd < 0 %}▼ {% else %}= {% endif %}{{ dd }}% vs anterior
             </span>
@@ -868,7 +868,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       <div class="mat-card prev">
         <div style="display:flex;align-items:baseline;gap:10px">
           <div class="mat-num" style="font-size:48px;{% if not dbf.has_prev %}color:var(--bs-ink-subtle){% endif %}">
-            {% if dbf.has_prev %}{{ dbf.prev_total_vendas | num }}{% else %}—{% endif %}
+            {% if dbf.has_prev %}{{ dbf.prev_total_matriculas | num }}{% else %}—{% endif %}
           </div>
           <span class="mat-tag" style="margin-top:0">{% if dbf.has_prev %}{{ dbf.prev_code }}{% else %}Lançamento anterior{% endif %}</span>
         </div>

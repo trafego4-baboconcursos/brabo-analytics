@@ -1135,6 +1135,16 @@ def _compute_debriefing_ctx(
         [{**p} for p in (getattr(hotmart, "produtos", None) or [])]
         + [{**p} for p in (getattr(tmb, "produtos", None) or [])]
     )
+    # Matrículas = alunos novos do produto do lançamento. Upsell (oferta avulsa) é venda para quem
+    # já é aluno, então fica fora da contagem; continua em total_vendas, receita e ROAS.
+    upsell_qtd = sum(int(p.get("qtd") or 0) for p in matriculas_produtos if p.get("upsell"))
+    total_matriculas = max(0, total_vendas - upsell_qtd)
+    prev_upsell_qtd = sum(
+        int(p.get("qtd") or 0)
+        for p in (getattr(prev_hotmart, "produtos", None) or [])
+        if p.get("oferta_avulsa")
+    )
+    prev_total_matriculas = max(0, prev_total_vendas - prev_upsell_qtd)
     # Vendas por produto/oferta que compõe o lançamento (Hotmart + TMB), pelo líquido.
     vendas_por_produto = (
         [{**p, "plataforma": "Hotmart"} for p in (getattr(hotmart, "produtos", []) or [])]
@@ -1384,6 +1394,7 @@ def _compute_debriefing_ctx(
         "taxa_hotmart_pct": taxa_hotmart / pago_hotmart * 100 if pago_hotmart > 0 else 0.0,
         "parcelamento_hotmart_pct": parcelamento_hotmart / pago_hotmart * 100 if pago_hotmart > 0 else 0.0,
         "total_vendas": total_vendas, "ticket": ticket,
+        "total_matriculas": total_matriculas, "upsell_qtd": upsell_qtd,
         "total_leads": total_leads, "cpl": cpl,
         "fontes_leads": fontes_leads,
         # Saúde do lançamento
@@ -1404,6 +1415,7 @@ def _compute_debriefing_ctx(
         "prev_taxa_hotmart_pct": prev_taxa_hotmart / prev_pago_hotmart * 100 if prev_pago_hotmart > 0 else 0.0,
         "prev_parcelamento_hotmart_pct": prev_parcelamento_hotmart / prev_pago_hotmart * 100 if prev_pago_hotmart > 0 else 0.0,
         "prev_total_vendas": prev_total_vendas, "prev_ticket": prev_ticket,
+        "prev_total_matriculas": prev_total_matriculas,
         "prev_total_leads": prev_total_leads, "prev_cpl": prev_cpl,
         # Etapas
         "etapas": etapas, "prev_etapas": prev_etapas,

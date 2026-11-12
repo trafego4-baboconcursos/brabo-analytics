@@ -46,7 +46,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 103 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 104 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Ano global do sistema (2026-10-22)**
@@ -430,6 +430,7 @@ relacionados:
 >
 > **Scheduler: deploy não deixa mais rodada pendurada (2026-11-12)**
 >
+> - [[ARQUITETURA#Debriefing: Matrículas contam só alunos novos (12/11/26)|Debriefing: Matrículas contam só alunos novos (12/11/26)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -4766,3 +4767,6 @@ agora é dirigida por dados dentro da macro (uma linha por plataforma). A mesma 
 (`frontend/db_readers/_vendas_comum.py`) agora tem 16 pontos, de 8h30 a 23h, incluindo 14h e 23h. Só o
 rótulo "9h" é lido fora da tabela. Baseline de caracterização do `read_dia1_sales` regravado (14 → 16
 checkpoints).
+
+### Debriefing: Matrículas contam só alunos novos (12/11/26)
+`total_matriculas` (e `prev_total_matriculas`) = `total_vendas` menos as vendas de oferta avulsa (upsell, `oferta:<codigo>`), pois upsell é venda para quem já é aluno. O cartão "Matrículas", o KPI do resumo e a variação vs anterior usam `total_matriculas`; "Total Vendas", receita, ROAS, ticket e saúde seguem com `total_vendas` (upsell incluído). Em `frontend/services/debriefing.py`.

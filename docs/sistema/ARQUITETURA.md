@@ -2,7 +2,7 @@
 titulo: "Arquitetura do Brabo Analytics — 2026-11-03"
 area: sistema
 status: vigente
-atualizado: 2026-11-11
+atualizado: 2026-11-12
 responde:
   - "como agendar pausa de anuncio no etl"
   - "como o sistema funciona por dentro"
@@ -423,6 +423,9 @@ relacionados:
 >
 >
 > **Página /resumo — painel de vendas numa tela só (2026-11-12)**
+>
+>
+> **Tela de loading: 100 frases e retrato do autor (2026-11-12)**
 >
 
 <!-- SUMARIO:FIM -->
@@ -4687,3 +4690,33 @@ a oferta avulsa de outro produto (`oferta:<codigo>`, ex.: upsell da Black no fun
 colunas deixam de ficar coladas à esquerda com vão à direita), números alinhados à direita e sem
 quebra de linha nos nomes ("Parcelado Hotmart", "À vista"), coluna de % com barra de proporção,
 linha de TOTAL e cabeçalho "Outras parcelas" por extenso.
+
+## Tela de loading: 100 frases e retrato do autor (2026-11-12)
+
+O overlay de navegação (`#bs-loading-overlay`, `base.html` + `static/js/carregamento.js` +
+`static/css/layout.css`) passou de 34 para **100 frases** no conjunto padrão (`BS_QUOTES`) e ganhou o
+**retrato do autor** dentro do anel de carregamento.
+
+- **Frases:** filósofos, grandes pensadores, bíblicas (texto da NVI, autor com livro e versículo, ex.:
+  "Salomão · Provérbios 16:3") e cientistas. Cada item é `[frase, autor, slug]`. Critério mantido:
+  só frase de autoria consolidada, nada "de internet". Os conjuntos dos temas de filme (Outatime,
+  Predador, Homem-Aranha, Aranhaverso) não mudaram e não têm slug.
+- **Anel:** `.bs-loading-spinner` agora tem 128px. O anel gira num `::before` e o retrato
+  (`.bs-loading-foto`, 104px) fica parado dentro, com contorno na `--bs-accent`. A foto aparece e troca
+  junto com a frase (depois de 400ms, a cada 7s). Os temas de filme continuam escondendo o anel e
+  mostrando o ícone deles (relógio, mira, teia).
+- **Cor do tema:** os retratos são sanguínea/sépia; um overlay `mix-blend-mode: color` com 55% de
+  opacidade em `--bs-accent` (`.bs-loading-foto::after`) tinge a foto com a cor do tema ativo.
+- **Arquivos:** `frontend/static/img/pensadores/<slug>.webp`, 208px, cerca de 10 KB cada (77 autores,
+  menos de 1 MB). O navegador baixa só o retrato da frase que aparece, e a próxima é pré-carregada.
+  Se o arquivo falhar, aparecem as iniciais do autor no lugar (`.sem-foto`).
+- **Geração:** `scripts/gerar_retratos_pensadores.py`. Gera por IA (ElevenLabs Flows,
+  `POST /v1/flows/image`, modelo `gemini-3-pro-image`, 1:1 1K) no estilo estudo de Leonardo da Vinci
+  e recorta para 208px. Por padrão gera só os slugs sem arquivo; `--so <slug>` refaz um retrato. O
+  dicionário `PESSOAS` tem a descrição visual de cada slug. **Frase com autor novo exige uma entrada
+  ali e rodar o script.** Os PNG brutos ficam em `outputs/_retratos_pensadores_bruto/` e não são versionados.
+
+**Faixas de pagamento como cartões (12/11/26).** Em "Forma de Pagamento", os marcadores de baixo (À vista,
+Parcelado em 12x, Outras parcelas, Entrada de boleto parcelado) viraram os mesmos cartões `.dbf-kpi` dos
+KPIs do topo — cantos arredondados, valor (vendas), variação e "ant." do lançamento anterior — em vez de
+só o rótulo com a variação em %.

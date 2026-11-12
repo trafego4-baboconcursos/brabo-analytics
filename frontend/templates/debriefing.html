@@ -1057,12 +1057,10 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
         {% if dbf.total_hm > 0 %} · Hotmart: {{ dbf.total_hm | num }}{% endif %}
         {% if dbf.total_tmb > 0 %} · TMB (boleto parcelado): {{ dbf.total_tmb | num }}{% endif %}
       </div>
-      <div class="vf-badges">
+      {# Mesmos cartões dos KPIs do topo (cantos arredondados, valor + variação + "ant."). #}
+      <div class="dbf-kpi-grid" style="--kpi-cols:{{ vf | length }};margin-top:16px">
         {% for f in vf %}
-        <div class="vf-badge-item">
-          <span class="vf-badge-lbl">{{ f.label }}</span>
-          {{ dbadge(f.qtd, f.prev_qtd, 'up') }}
-        </div>
+        {{ kpi_card(f.label, f.qtd, f.prev_qtd, "num", "up") }}
         {% endfor %}
       </div>
       <div class="vf-layout">

@@ -13,42 +13,116 @@
   /* ── Frases de pensadores enquanto carrega ──────────────────────────
      Só frases de atribuição consolidada (evita as "de internet"). A primeira
      aparece depois de ~400ms — navegação rápida não pisca frase — e troca a
-     cada 7s enquanto a espera durar. */
+     cada 7s enquanto a espera durar.
+     [frase, autor, slug do retrato]. O retrato fica em
+     static/img/pensadores/<slug>.webp (gerado por scripts/gerar_retratos_pensadores.py,
+     que tem a descrição visual de cada slug). Bíblicas: texto da NVI, autor
+     com livro e versículo. */
   var BS_QUOTES = [
-    ["Não é porque as coisas são difíceis que não ousamos; é porque não ousamos que elas são difíceis.", "Sêneca"],
-    ["Nenhum vento é favorável para quem não sabe a que porto se dirige.", "Sêneca"],
-    ["Somos o que fazemos repetidamente. A excelência, portanto, não é um ato, mas um hábito.", "Aristóteles"],
-    ["A felicidade da sua vida depende da qualidade dos seus pensamentos.", "Marco Aurélio"],
-    ["O que atrapalha o caminho torna-se o caminho.", "Marco Aurélio"],
-    ["Não é o que acontece com você, mas como você reage, que importa.", "Epicteto"],
-    ["Só sei que nada sei.", "Sócrates"],
-    ["Uma vida sem reflexão não merece ser vivida.", "Sócrates"],
-    ["O começo é a parte mais importante do trabalho.", "Platão"],
-    ["Escolhe um trabalho de que gostes, e não terás que trabalhar nem um dia na tua vida.", "Confúcio"],
-    ["Não importa quão devagar você vá, desde que não pare.", "Confúcio"],
-    ["Uma viagem de mil milhas começa com um único passo.", "Lao Tsé"],
-    ["Conhece o inimigo e conhece a ti mesmo; em cem batalhas, nunca correrás perigo.", "Sun Tzu"],
-    ["A simplicidade é a sofisticação máxima.", "Leonardo da Vinci"],
-    ["A imaginação é mais importante que o conhecimento.", "Albert Einstein"],
-    ["No meio da dificuldade encontra-se a oportunidade.", "Albert Einstein"],
-    ["Penso, logo existo.", "René Descartes"],
-    ["Ousa saber.", "Immanuel Kant"],
-    ["Quem tem um porquê para viver suporta quase qualquer como.", "Friedrich Nietzsche"],
-    ["A dúvida é o princípio da sabedoria.", "Aristóteles"],
-    ["O que não se pode medir não se pode melhorar.", "Peter Drucker"],
-    ["A melhor maneira de prever o futuro é criá-lo.", "Peter Drucker"],
-    ["A paciência é amarga, mas o seu fruto é doce.", "Jean-Jacques Rousseau"],
-    ["O homem é a medida de todas as coisas.", "Protágoras"],
-    ["Bem começado, metade feito.", "Aristóteles"],
-    ["Feliz aquele que transfere o que sabe e aprende o que ensina.", "Cora Coralina"],
-    ["Tudo vale a pena se a alma não é pequena.", "Fernando Pessoa"],
-    ["Navegar é preciso; viver não é preciso.", "Fernando Pessoa"],
-    ["O saber a gente aprende com os mestres e os livros. A sabedoria, se aprende é com a vida e com os humildes.", "Cora Coralina"],
-    ["A leitura é para o intelecto o que o exercício é para o corpo.", "Joseph Addison"],
-    ["Conhecimento é poder.", "Francis Bacon"],
-    ["Quem não conhece a história está condenado a repeti-la.", "George Santayana"],
-    ["A educação é a arma mais poderosa que você pode usar para mudar o mundo.", "Nelson Mandela"],
-    ["Ensinar não é transferir conhecimento, mas criar as possibilidades para a sua própria produção.", "Paulo Freire"],
+    // filósofos
+    ["Não é porque as coisas são difíceis que não ousamos; é porque não ousamos que elas são difíceis.", "Sêneca", "seneca"],
+    ["Nenhum vento é favorável para quem não sabe a que porto se dirige.", "Sêneca", "seneca"],
+    ["Enquanto adiamos, a vida passa.", "Sêneca", "seneca"],
+    ["Somos o que fazemos repetidamente. A excelência, portanto, não é um ato, mas um hábito.", "Aristóteles", "aristoteles"],
+    ["A dúvida é o princípio da sabedoria.", "Aristóteles", "aristoteles"],
+    ["Bem começado, metade feito.", "Aristóteles", "aristoteles"],
+    ["A felicidade da sua vida depende da qualidade dos seus pensamentos.", "Marco Aurélio", "marco-aurelio"],
+    ["O que atrapalha o caminho torna-se o caminho.", "Marco Aurélio", "marco-aurelio"],
+    ["Não perca mais tempo discutindo como deve ser um homem bom. Seja um.", "Marco Aurélio", "marco-aurelio"],
+    ["Não é o que acontece com você, mas como você reage, que importa.", "Epicteto", "epicteto"],
+    ["Primeiro diga a si mesmo o que você quer ser; depois faça o que tem de fazer.", "Epicteto", "epicteto"],
+    ["Só sei que nada sei.", "Sócrates", "socrates"],
+    ["Uma vida sem reflexão não merece ser vivida.", "Sócrates", "socrates"],
+    ["O começo é a parte mais importante do trabalho.", "Platão", "platao"],
+    ["O homem é a medida de todas as coisas.", "Protágoras", "protagoras"],
+    ["Ninguém entra duas vezes no mesmo rio.", "Heráclito", "heraclito"],
+    ["Não estrague o que você tem desejando o que não tem; lembre-se de que o que tem agora já esteve entre as coisas que você só desejava.", "Epicuro", "epicuro"],
+    ["A gratidão não é só a maior das virtudes, mas a mãe de todas as outras.", "Cícero", "cicero"],
+    ["Escolhe um trabalho de que gostes, e não terás que trabalhar nem um dia na tua vida.", "Confúcio", "confucio"],
+    ["Não importa quão devagar você vá, desde que não pare.", "Confúcio", "confucio"],
+    ["Uma viagem de mil milhas começa com um único passo.", "Lao Tsé", "lao-tse"],
+    ["Conhece o inimigo e conhece a ti mesmo; em cem batalhas, nunca correrás perigo.", "Sun Tzu", "sun-tzu"],
+    ["A palavra é metade de quem fala, metade de quem ouve.", "Michel de Montaigne", "montaigne"],
+    ["O coração tem razões que a própria razão desconhece.", "Blaise Pascal", "pascal"],
+    ["Penso, logo existo.", "René Descartes", "descartes"],
+    ["Tudo o que é excelente é tão difícil quanto raro.", "Baruch Spinoza", "spinoza"],
+    ["O ótimo é inimigo do bom.", "Voltaire", "voltaire"],
+    ["A paciência é amarga, mas o seu fruto é doce.", "Jean-Jacques Rousseau", "rousseau"],
+    ["Ousa saber.", "Immanuel Kant", "kant"],
+    ["A vida só pode ser compreendida olhando-se para trás, mas só pode ser vivida olhando-se para a frente.", "Søren Kierkegaard", "kierkegaard"],
+    ["O talento acerta um alvo que ninguém mais consegue acertar; o gênio acerta um alvo que ninguém mais consegue ver.", "Arthur Schopenhauer", "schopenhauer"],
+    ["Quem tem um porquê para viver suporta quase qualquer como.", "Friedrich Nietzsche", "nietzsche"],
+    ["O problema do mundo é que os tolos e os fanáticos estão sempre certos de si, e os mais sábios, cheios de dúvidas.", "Bertrand Russell", "bertrand-russell"],
+    ["Os limites da minha linguagem significam os limites do meu mundo.", "Ludwig Wittgenstein", "wittgenstein"],
+    // grandes pensadores
+    ["A simplicidade é a sofisticação máxima.", "Leonardo da Vinci", "leonardo-da-vinci"],
+    ["Nossas dúvidas são traidoras e nos fazem perder o bem que poderíamos conquistar, por medo de tentar.", "William Shakespeare", "shakespeare"],
+    ["Conhecimento é poder.", "Francis Bacon", "francis-bacon"],
+    ["A leitura é para o intelecto o que o exercício é para o corpo.", "Joseph Addison", "joseph-addison"],
+    ["Bem feito é melhor do que bem dito.", "Benjamin Franklin", "benjamin-franklin"],
+    ["Saber não basta; é preciso aplicar. Querer não basta; é preciso fazer.", "Johann Wolfgang von Goethe", "goethe"],
+    ["Quem não conhece a história está condenado a repeti-la.", "George Santayana", "santayana"],
+    ["A força não vem da capacidade física. Vem de uma vontade indomável.", "Mahatma Gandhi", "gandhi"],
+    ["Nunca ceda — nunca, nunca, nunca, nunca.", "Winston Churchill", "churchill"],
+    ["Sozinhos, pouco podemos fazer; juntos, podemos fazer muito.", "Helen Keller", "helen-keller"],
+    ["Tudo pode ser tirado de uma pessoa, menos a última das liberdades humanas: escolher a própria atitude diante de qualquer circunstância.", "Viktor Frankl", "viktor-frankl"],
+    ["Se não puder voar, corra; se não puder correr, ande; se não puder andar, rasteje; mas, faça o que fizer, continue em frente.", "Martin Luther King Jr.", "martin-luther-king"],
+    ["A educação é a arma mais poderosa que você pode usar para mudar o mundo.", "Nelson Mandela", "mandela"],
+    ["O que não se pode medir não se pode melhorar.", "Peter Drucker", "drucker"],
+    ["A melhor maneira de prever o futuro é criá-lo.", "Peter Drucker", "drucker"],
+    ["A única maneira de fazer um excelente trabalho é amar o que você faz.", "Steve Jobs", "steve-jobs"],
+    ["Tudo vale a pena se a alma não é pequena.", "Fernando Pessoa", "fernando-pessoa"],
+    ["Navegar é preciso; viver não é preciso.", "Fernando Pessoa", "fernando-pessoa"],
+    ["Feliz aquele que transfere o que sabe e aprende o que ensina.", "Cora Coralina", "cora-coralina"],
+    ["O saber a gente aprende com os mestres e os livros. A sabedoria, se aprende é com a vida e com os humildes.", "Cora Coralina", "cora-coralina"],
+    ["No meio do caminho tinha uma pedra.", "Carlos Drummond de Andrade", "drummond"],
+    ["O correr da vida embrulha tudo, a vida é assim: esquenta e esfria, aperta e daí afrouxa, sossega e depois desinquieta. O que ela quer da gente é coragem.", "Guimarães Rosa", "guimaraes-rosa"],
+    ["Liberdade é pouco. O que eu desejo ainda não tem nome.", "Clarice Lispector", "clarice-lispector"],
+    ["O otimista é um tolo. O pessimista, um chato. Bom mesmo é ser um realista esperançoso.", "Ariano Suassuna", "suassuna"],
+    ["Só há duas opções nesta vida: se resignar ou se indignar. E eu não vou me resignar nunca.", "Darcy Ribeiro", "darcy-ribeiro"],
+    ["Ensinar não é transferir conhecimento, mas criar as possibilidades para a sua própria produção.", "Paulo Freire", "paulo-freire"],
+    // bíblicos (NVI)
+    ["Consagre ao Senhor tudo o que você faz, e os seus planos serão bem-sucedidos.", "Salomão · Provérbios 16:3", "salomao"],
+    ["Observe a formiga, preguiçoso, reflita nos caminhos dela e seja sábio!", "Salomão · Provérbios 6:6", "salomao"],
+    ["Como o ferro afia o ferro, o homem afia o seu companheiro.", "Salomão · Provérbios 27:17", "salomao"],
+    ["Para tudo há uma ocasião certa; há um tempo certo para cada propósito debaixo do céu.", "Salomão · Eclesiastes 3:1", "salomao"],
+    ["O Senhor é o meu pastor; de nada terei falta.", "Davi · Salmos 23:1", "davi"],
+    ["O Senhor é a minha luz e a minha salvação; de quem terei temor?", "Davi · Salmos 27:1", "davi"],
+    ["Ensina-nos a contar os nossos dias para que o nosso coração alcance sabedoria.", "Moisés · Salmos 90:12", "moises"],
+    ["Seja forte e corajoso! Não se apavore nem desanime, pois o Senhor, o seu Deus, estará com você por onde você andar.", "Josué 1:9", "josue"],
+    ["Aqueles que esperam no Senhor renovam as suas forças. Voam alto como águias; correm e não ficam exaustos, andam e não se cansam.", "Isaías 40:31", "isaias"],
+    ["Porque sou eu que conheço os planos que tenho para vocês, planos de dar a vocês esperança e um futuro.", "Jeremias 29:11", "jeremias"],
+    ["Peçam, e lhes será dado; busquem, e encontrarão; batam, e a porta lhes será aberta.", "Jesus · Mateus 7:7", "jesus"],
+    ["Não se preocupem com o amanhã, pois o amanhã trará as suas próprias preocupações. Basta a cada dia o seu próprio mal.", "Jesus · Mateus 6:34", "jesus"],
+    ["Tudo posso naquele que me fortalece.", "Paulo · Filipenses 4:13", "paulo"],
+    ["Combati o bom combate, terminei a corrida, guardei a fé.", "Paulo · 2 Timóteo 4:7", "paulo"],
+    ["E não nos cansemos de fazer o bem, pois no tempo próprio colheremos, se não desanimarmos.", "Paulo · Gálatas 6:9", "paulo"],
+    ["Assim, permanecem agora estes três: a fé, a esperança e o amor. O maior deles, porém, é o amor.", "Paulo · 1 Coríntios 13:13", "paulo"],
+    ["Se algum de vocês tem falta de sabedoria, peça-a a Deus, que a todos dá livremente, de boa vontade; e lhe será concedida.", "Tiago 1:5", "tiago"],
+    ["Lancem sobre ele toda a sua ansiedade, porque ele tem cuidado de vocês.", "Pedro · 1 Pedro 5:7", "pedro"],
+    // cientistas
+    ["Deem-me um ponto de apoio e eu moverei a Terra.", "Arquimedes", "arquimedes"],
+    ["Se eu vi mais longe, foi por estar sobre ombros de gigantes.", "Isaac Newton", "newton"],
+    ["Na natureza nada se cria, nada se perde, tudo se transforma.", "Antoine Lavoisier", "lavoisier"],
+    ["Nada é bom demais para ser verdade, se for coerente com as leis da natureza.", "Michael Faraday", "faraday"],
+    ["No campo da observação, o acaso favorece apenas as mentes preparadas.", "Louis Pasteur", "pasteur"],
+    ["Um homem que ousa desperdiçar uma hora de tempo não descobriu o valor da vida.", "Charles Darwin", "darwin"],
+    ["Gênio é um por cento de inspiração e noventa e nove por cento de transpiração.", "Thomas Edison", "edison"],
+    ["Não esmorecer para não desmerecer.", "Oswaldo Cruz", "oswaldo-cruz"],
+    ["A vida não é fácil para nenhum de nós. Mas e daí? Precisamos ter perseverança e, acima de tudo, confiança em nós mesmos.", "Marie Curie", "marie-curie"],
+    ["A imaginação é mais importante que o conhecimento.", "Albert Einstein", "einstein"],
+    ["No meio da dificuldade encontra-se a oportunidade.", "Albert Einstein", "einstein"],
+    ["A vida é como andar de bicicleta: para manter o equilíbrio, é preciso continuar em movimento.", "Albert Einstein", "einstein"],
+    ["Um especialista é alguém que cometeu todos os erros possíveis num campo muito restrito.", "Niels Bohr", "niels-bohr"],
+    ["Às vezes a gente encontra o que não estava procurando.", "Alexander Fleming", "fleming"],
+    ["Só podemos enxergar um pouco à frente, mas podemos ver muito do que ainda precisa ser feito.", "Alan Turing", "turing"],
+    ["A melhor maneira de ter uma boa ideia é ter muitas ideias.", "Linus Pauling", "linus-pauling"],
+    ["A ciência e a vida cotidiana não podem e não devem ser separadas.", "Rosalind Franklin", "rosalind-franklin"],
+    ["O primeiro princípio é que você não deve enganar a si mesmo — e você é a pessoa mais fácil de enganar.", "Richard Feynman", "feynman"],
+    ["O que eu não consigo criar, eu não entendo.", "Richard Feynman", "feynman"],
+    ["Afirmações extraordinárias exigem evidências extraordinárias.", "Carl Sagan", "carl-sagan"],
+    ["Por mais difícil que a vida pareça, sempre há algo que você pode fazer e em que pode ter sucesso.", "Stephen Hawking", "hawking"],
+    ["O que você faz faz diferença, e você precisa decidir que tipo de diferença quer fazer.", "Jane Goodall", "jane-goodall"],
   ];
   // Easter egg: no tema "Outatime" (De Volta para o Futuro), as frases de
   // pensador viram falas do filme — trocam junto quando o tema muda
@@ -141,23 +215,59 @@
     return BS_QUOTES;
   }
   var quoteBox = document.getElementById('bs-loading-quote');
-  var _qDelay = null, _qRotate = null, _qLast = -1;
+  var _qDelay = null, _qRotate = null, _qLast = -1, _qNext = -1;
+
+  /* Retrato do autor dentro do anel (só nas frases com slug — as dos temas
+     de filme não têm, e esses temas escondem o anel). A cor do tema vem de
+     um overlay em CSS. Sem imagem (404/erro), cai nas iniciais. */
+  var fotoBox = overlay ? overlay.querySelector('.bs-loading-foto') : null;
+  var fotoImg = fotoBox ? fotoBox.querySelector('img') : null;
+  var fotoIni = fotoBox ? fotoBox.querySelector('.bs-loading-ini') : null;
+  var FOTO_BASE = (overlay && overlay.getAttribute('data-fotos')) || '/static/img/pensadores/';
+  function fotoUrl(slug) { return FOTO_BASE + slug + '.webp'; }
+  function iniciais(autor) {
+    var nome = autor.split(' · ')[0].replace(/[^\p{L}\s]/gu, ' ').trim().split(/\s+/);
+    var ini = nome[0].charAt(0) + (nome.length > 1 ? nome[nome.length - 1].charAt(0) : '');
+    return ini.toUpperCase();
+  }
+  if (fotoImg) {
+    fotoImg.addEventListener('error', function() { fotoBox.classList.add('sem-foto'); });
+    fotoImg.addEventListener('load', function() { fotoBox.classList.remove('sem-foto'); });
+  }
+  function sorteia(quotes, evita) {
+    var i;
+    do { i = Math.floor(Math.random() * quotes.length); } while (i === evita && quotes.length > 1);
+    return i;
+  }
+  function preload(q) { if (q && q[2]) { var im = new Image(); im.src = fotoUrl(q[2]); } }
 
   function bsQuoteShow() {
     var quotes = activeQuotes();
     if (!quoteBox || quotes.length === 0) return;
-    var i;
-    do { i = Math.floor(Math.random() * quotes.length); } while (i === _qLast && quotes.length > 1);
+    var i = (_qNext >= 0 && _qNext < quotes.length && _qNext !== _qLast) ? _qNext : sorteia(quotes, _qLast);
     _qLast = i;
+    _qNext = sorteia(quotes, i);
+    preload(quotes[_qNext]);   // a próxima foto já chega em cache antes da troca
     quoteBox.classList.remove('in');
+    if (fotoBox) fotoBox.classList.remove('in');
     setTimeout(function() {
-      quoteBox.querySelector('.q').textContent = quotes[i][0];
-      quoteBox.querySelector('.a').textContent = quotes[i][1];
+      var q = quotes[i];
+      quoteBox.querySelector('.q').textContent = q[0];
+      quoteBox.querySelector('.a').textContent = q[1];
       quoteBox.classList.add('in');
+      if (fotoBox && q[2]) {
+        fotoIni.textContent = iniciais(q[1]);
+        fotoBox.classList.remove('sem-foto');
+        fotoImg.src = fotoUrl(q[2]);
+        fotoBox.classList.add('in');
+      }
     }, quoteBox.classList.contains('in') ? 300 : 0);
   }
   function bsQuoteStart() {
     bsQuoteStop();
+    // já sorteia a primeira e baixa a foto nos ~400ms antes de ela aparecer
+    var quotes = activeQuotes();
+    if (quotes.length && _qNext < 0) { _qNext = sorteia(quotes, _qLast); preload(quotes[_qNext]); }
     _qDelay = setTimeout(function() {
       bsQuoteShow();
       _qRotate = setInterval(bsQuoteShow, 7000);
@@ -167,6 +277,7 @@
     clearTimeout(_qDelay); clearInterval(_qRotate);
     _qDelay = _qRotate = null;
     if (quoteBox) quoteBox.classList.remove('in');
+    if (fotoBox) fotoBox.classList.remove('in');
   }
 
   function startProgress() {

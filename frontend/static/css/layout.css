@@ -384,14 +384,39 @@ html[data-bs-theme="aranhaverso"] .bs-web-spokes {
   88% { transform:translate(-1px,0); }
   90% { transform:translate(0,0); }
 }
+/* Anel de 128px girando por fora (::before) e o retrato do autor da frase
+   parado dentro (104px). O anel gira sozinho para a foto não rodar junto. */
 .bs-loading-spinner {
-  width:44px; height:44px;
-  border:4px solid rgba(0,0,0,.08);
+  position:relative; width:128px; height:128px; border-radius:50%;
+}
+.bs-loading-spinner::before {
+  content:""; position:absolute; inset:0; border-radius:50%;
+  border:4px solid rgba(127,127,127,.16);
   border-top-color:var(--bs-accent,#2f5ee3);
-  border-radius:50%;
-  animation:bs-spin .7s linear infinite;
+  animation:bs-spin .9s linear infinite;
   box-shadow:0 4px 20px rgba(20,26,52,.12);
 }
+.bs-loading-foto {
+  position:absolute; inset:12px; border-radius:50%; overflow:hidden; isolation:isolate;
+  border:2px solid var(--bs-accent,#2f5ee3);
+  background:color-mix(in srgb, var(--bs-accent,#2f5ee3) 14%, var(--bs-bg,#f1f3f5));
+  opacity:0; transform:scale(.94);
+  transition:opacity .45s ease, transform .45s ease;
+}
+.bs-loading-foto.in { opacity:1; transform:none; }
+.bs-loading-foto img { width:100%; height:100%; display:block; object-fit:cover; }
+/* Tingido suave: a cor do tema por cima da sanguínea, com metade da força. */
+.bs-loading-foto::after {
+  content:""; position:absolute; inset:0; pointer-events:none;
+  background:var(--bs-accent,#2f5ee3); mix-blend-mode:color; opacity:.55;
+}
+/* Sem retrato (arquivo faltando): iniciais do autor no lugar. */
+.bs-loading-ini {
+  display:none; position:absolute; inset:0; align-items:center; justify-content:center;
+  font:700 30px/1 'Manrope','Inter',sans-serif; letter-spacing:.02em; color:var(--bs-accent,#2f5ee3);
+}
+.bs-loading-foto.sem-foto img { display:none; }
+.bs-loading-foto.sem-foto .bs-loading-ini { display:flex; }
 
 .bs-drawer-footer {
   margin-top:0;

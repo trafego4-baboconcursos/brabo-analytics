@@ -130,6 +130,26 @@
     <path d="M32 54 Q36 69 60 70 Q84 69 88 54" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".7"/>
     <line x1="51" y1="62" x2="69" y2="62" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".45"/>
   </svg>
+  <svg class="bs-loading-casa" viewBox="0 0 120 90" width="120" height="90" aria-hidden="true">
+    <path d="M82 26.3 V16 H90 V32.2" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+    <rect x="24" y="40" width="72" height="44" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+    <polyline points="14,44 60,10 106,44" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect class="bs-casa-janela" x="32" y="50" width="14" height="12" rx="1.5"/>
+    <rect class="bs-casa-janela" x="74" y="50" width="14" height="12" rx="1.5"/>
+    <rect x="53" y="62" width="14" height="22" fill="none" stroke="currentColor" stroke-width="2.5"/>
+    <circle cx="57" cy="58" r="5" fill="none" stroke="#1e8a4c" stroke-width="2.5"/>
+    <g class="bs-casa-luzes">
+      <circle cx="18.6" cy="44" r="3.6" fill="#ff3b3b"/><circle cx="27.8" cy="37" r="3.6" fill="#2ecc71"/>
+      <circle cx="37" cy="30.2" r="3.6" fill="#ffd23f"/><circle cx="46.2" cy="23.4" r="3.6" fill="#3fa9ff"/>
+      <circle cx="55.4" cy="16.6" r="3.6" fill="#ff3b3b"/><circle cx="64.6" cy="16.6" r="3.6" fill="#2ecc71"/>
+      <circle cx="73.8" cy="23.4" r="3.6" fill="#ffd23f"/><circle cx="83" cy="30.2" r="3.6" fill="#3fa9ff"/>
+      <circle cx="92.2" cy="37" r="3.6" fill="#ff3b3b"/><circle cx="101.4" cy="44" r="3.6" fill="#2ecc71"/>
+    </g>
+  </svg>
+  <svg class="bs-loading-coracao" viewBox="0 0 100 100" width="96" height="96" aria-hidden="true">
+    <circle class="bs-coracao-anel" cx="50" cy="50" r="46" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="3 7" stroke-linecap="round"/>
+    <path class="bs-coracao" d="M50 80 C22 61 13 47 13 34 C13 23 22 15 32 15 C40 15 46 20 50 27 C54 20 60 15 68 15 C78 15 87 23 87 34 C87 47 78 61 50 80 Z" fill="#e23b3b" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/>
+  </svg>
   <div class="bs-loading-quote" id="bs-loading-quote" aria-live="polite"><div class="q"></div><div class="a"></div></div>
 </div>
 
@@ -493,6 +513,12 @@
           </button>
           <button type="button" class="bs-theme-opt" data-theme-val="diretiva" onclick="bsSetTheme('diretiva')">
             <span class="bs-theme-dot" style="background:#0b1016;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08), inset 0 0 0 3px #5b9bd5"></span> Diretiva Primária <i class="ti ti-robot" style="margin-left:auto;font-size:13px;opacity:.6"></i>
+          </button>
+          <button type="button" class="bs-theme-opt" data-theme-val="kevin" onclick="bsSetTheme('kevin')">
+            <span class="bs-theme-dot" style="background:#faf5ec;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12), inset 0 0 0 2px #c41e3a, inset 0 0 0 4px #1e6b45"></span> Esta Casa É Minha <i class="ti ti-home-heart" style="margin-left:auto;font-size:13px;opacity:.6"></i>
+          </button>
+          <button type="button" class="bs-theme-opt" data-theme-val="grinch" onclick="bsSetTheme('grinch')">
+            <span class="bs-theme-dot" style="background:#0d1a0f;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08), inset 0 0 0 2px #6fa82f, inset 0 0 0 4px #e23b3b"></span> Quemlândia <i class="ti ti-christmas-tree" style="margin-left:auto;font-size:13px;opacity:.6"></i>
           </button>
           <div id="bs-custom-theme-opts"></div>
         </div>

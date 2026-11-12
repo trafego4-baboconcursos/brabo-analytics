@@ -87,6 +87,22 @@
       "--bs-card": "#1a242f",
       "--bs-ink": "#e6edf3",
       "--bs-sidebar": "#0e1620"
+    },
+    "kevin": {
+      "--bs-accent": "#c41e3a",
+      "--bs-bg": "#faf5ec",
+      "--bs-border": "#eadfcc",
+      "--bs-card": "#ffffff",
+      "--bs-ink": "#2a1d17",
+      "--bs-sidebar": "#133b2b"
+    },
+    "grinch": {
+      "--bs-accent": "#6fa82f",
+      "--bs-bg": "#0d1a0f",
+      "--bs-border": "#24402b",
+      "--bs-card": "#1b3122",
+      "--bs-ink": "#f1f7ec",
+      "--bs-sidebar": "#0f2214"
     }
   },
   "calendario": {

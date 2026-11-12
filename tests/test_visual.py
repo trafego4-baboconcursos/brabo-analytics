@@ -328,7 +328,7 @@ def test_pagina_nao_mudou_visualmente(pagina_logada, servidor, nome, rota):
 
 @pytest.mark.parametrize("tema", ["a", "brabo", "b", "c", "d", "outatime",
                                   "predador", "spidey", "aranhaverso", "springfield",
-                                  "diretiva"])
+                                  "diretiva", "kevin", "grinch"])
 def test_tema_troca_os_tokens(pagina_logada, servidor, tema):
     """Cada tema precisa resolver todos os tokens e produzir um conjunto próprio.
 

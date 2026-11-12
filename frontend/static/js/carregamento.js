@@ -222,8 +222,33 @@
     ["Diretiva 4: confidencial.", "Visor do RoboCop, RoboCop (1987)"],
     ["Você sabe voar, Bobby?", "Clarence Boddicker, RoboCop (1987)"],
   ];
+  // Temas de Natal. "Esta Casa É Minha" — Esqueceram de Mim (1990).
+  var KV_QUOTES = [
+    ["Feliz Natal, seu animal imundo!", "Johnny, em “Anjos com Almas Imundas” — Esqueceram de Mim (1990)"],
+    ["Fique com o troco, seu animal imundo.", "Johnny, em “Anjos com Almas Imundas” — Esqueceram de Mim (1990)"],
+    ["Esta é a minha casa. Eu tenho que defendê-la.", "Kevin McCallister, Esqueceram de Mim (1990)"],
+    ["Eu fiz a minha família desaparecer!", "Kevin McCallister, Esqueceram de Mim (1990)"],
+    ["Eu não tenho mais medo!", "Kevin McCallister, Esqueceram de Mim (1990)"],
+    ["Estou comendo besteira e vendo porcaria! É melhor vocês virem me impedir!", "Kevin McCallister, Esqueceram de Mim (1990)"],
+    ["Se você vir o Papai Noel, diga que, em vez de presentes, este ano eu só quero a minha família de volta.", "Kevin McCallister, Esqueceram de Mim (1990)"],
+    ["Kevin, você é o que os franceses chamam de les incompétents.", "Linnie McCallister, Esqueceram de Mim (1990)"],
+    ["Kevin!", "Kate McCallister, Esqueceram de Mim (1990)"],
+    ["Nós somos os Bandidos Molhados.", "Marv, Esqueceram de Mim (1990)"],
+  ];
+  // "Quemlândia" — O Grinch (livro do Dr. Seuss, 1957, e filme de 2000).
+  var GR_QUOTES = [
+    ["O Grinch odiava o Natal! A temporada de Natal inteira! Por favor, não pergunte por quê. Ninguém sabe bem o motivo.", "Como o Grinch Roubou o Natal, Dr. Seuss"],
+    ["Cada Quem lá embaixo, em Quemlândia, gostava muito do Natal… mas o Grinch, que morava ao norte de Quemlândia, não!", "Como o Grinch Roubou o Natal, Dr. Seuss"],
+    ["O Natal veio! Veio sem fitas! Veio sem etiquetas! Veio sem pacotes, caixas ou sacolas!", "Como o Grinch Roubou o Natal, Dr. Seuss"],
+    ["Talvez o Natal não venha de uma loja. Talvez o Natal… signifique um pouquinho mais!", "O Grinch, Como o Grinch Roubou o Natal (Dr. Seuss)"],
+    ["E dizem, em Quemlândia, que o pequeno coração do Grinch cresceu três tamanhos naquele dia.", "Como o Grinch Roubou o Natal, Dr. Seuss"],
+    ["4h: chafurdar na autopiedade. 4h30: encarar o abismo. 5h: resolver a fome no mundo, não contar a ninguém.", "A agenda do Grinch, O Grinch (2000)"],
+    ["Onde está você, Natal?", "Cindy Lou Quem, O Grinch (2000)"],
+  ];
   function activeQuotes() {
     var t = document.documentElement.getAttribute('data-bs-theme');
+    if (t === 'kevin') return KV_QUOTES;
+    if (t === 'grinch') return GR_QUOTES;
     if (t === 'diretiva') return RC_QUOTES;
     if (t === 'outatime') return BF_QUOTES;
     if (t === 'predador') return PD_QUOTES;

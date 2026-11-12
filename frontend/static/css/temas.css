@@ -277,6 +277,85 @@ html[data-bs-theme="diretiva"] .bs-live-dot {
   background: #ff3b30; box-shadow: 0 0 6px #ff3b30;
 }
 
+/* Temas de Natal (pedido de 12/11/26, para o fim de ano). Os dois trocam o
+   spinner por uma animação própria e põem neve caindo atrás da frase do
+   loading (layout.css, cor da neve em --bs-neve). */
+
+/* "Esta Casa É Minha" — easter egg Esqueceram de Mim (1990): a casa
+   dos McCallister decorada. Tema CLARO (o único além do Springfield): papel
+   creme, vermelho de laço no accent, verde de pinheiro na sidebar e no
+   realce, dourado das luzinhas no warning. Mountains of Christmas no
+   título e Playfair Display nos números. No loading, a casa com o pisca-pisca no telhado. */
+html[data-bs-theme="kevin"] {
+  --bs-accent: #c41e3a; --bs-accent-2: #1e6b45; --bs-accent-bg: #fbe9eb;
+  --bs-sidebar: #133b2b; --bs-sidebar-dark: #0a2419;
+  --bs-bg: #faf5ec; --bs-surface: #fffaf2; --bs-card: #ffffff;
+  --bs-ink: #2a1d17; --bs-ink-muted: #6e5d52; --bs-ink-subtle: #a08f83;
+  --bs-border: #eadfcc; --bs-border-s: #dccdb2;
+  --bs-success: #1e8a4c; --bs-success-bg: #e6f4ec;
+  --bs-warning: #c98a00; --bs-warning-bg: #fdf3d8;
+  --bs-danger: #c41e3a; --bs-danger-bg: #fbe9eb;
+  --bs-info: #1e6b45; --bs-info-bg: #e5f1ea;
+  --bs-neve: rgba(120,145,175,.32);
+}
+html[data-bs-theme="kevin"] body {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+/* Mountains of Christmas só no título: nos números ela desenha o zero como
+   um "o" pequeno. Números em Playfair Display (cartão de Natal), lining. */
+html[data-bs-theme="kevin"] .hdr h1,
+html[data-bs-theme="kevin"] h1 {
+  font-family: 'Mountains of Christmas', 'Inter', serif;
+  font-weight: 700;
+  letter-spacing: .01em;
+}
+html[data-bs-theme="kevin"] .tp-value,
+html[data-bs-theme="kevin"] .kpi-val,
+html[data-bs-theme="kevin"] .dbf-kpi .val,
+html[data-bs-theme="kevin"] .mat-num {
+  font-family: 'Playfair Display', 'Inter', serif;
+  font-weight: 800;
+  font-variant-numeric: lining-nums;
+}
+html[data-bs-theme="kevin"] .bs-live-dot {
+  background: #1e8a4c; box-shadow: 0 0 6px #1e8a4c;
+}
+
+/* "Quemlândia" — easter egg O Grinch: noite verde-escura do Monte Crumpit,
+   verde-limão do Grinch no accent, vermelho da roupa de Papai Noel no
+   realce, branco de neve no texto. Chewy (traço de livro infantil) nos
+   números. No loading, o coração que cresce três tamanhos. */
+html[data-bs-theme="grinch"] {
+  --bs-accent: #6fa82f; --bs-accent-2: #e23b3b; --bs-accent-bg: #1c3012;
+  --bs-sidebar: #0f2214; --bs-sidebar-dark: #07130a;
+  --bs-bg: #0d1a0f; --bs-surface: #14261a; --bs-card: #1b3122;
+  --bs-ink: #f1f7ec; --bs-ink-muted: #a3b89c; --bs-ink-subtle: #6b8065;
+  --bs-border: #24402b; --bs-border-s: #2f5238;
+  --bs-success: #6fdc8c; --bs-success-bg: #0f2a18;
+  --bs-warning: #ffd166; --bs-warning-bg: #2e2508;
+  --bs-danger: #ff4d4d; --bs-danger-bg: #330d0d;
+  --bs-info: #ff8fb1; --bs-info-bg: #33141f;
+  --bs-sh-sm: 0 0 4px rgba(111,168,47,.16); --bs-sh-md: 0 0 16px rgba(111,168,47,.18);
+  --bs-sh-lg: 0 0 32px rgba(111,168,47,.22); --bs-sh-xl: 0 0 60px rgba(111,168,47,.28);
+  --bs-neve: rgba(255,255,255,.75);
+}
+html[data-bs-theme="grinch"] body {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+html[data-bs-theme="grinch"] .hdr h1,
+html[data-bs-theme="grinch"] h1,
+html[data-bs-theme="grinch"] .tp-value,
+html[data-bs-theme="grinch"] .kpi-val,
+html[data-bs-theme="grinch"] .dbf-kpi .val,
+html[data-bs-theme="grinch"] .mat-num {
+  font-family: 'Chewy', 'Inter', sans-serif;
+  letter-spacing: .02em;
+  text-shadow: 0 0 8px rgba(111,168,47,.35);
+}
+html[data-bs-theme="grinch"] .bs-live-dot {
+  background: #e23b3b; box-shadow: 0 0 6px #e23b3b;
+}
+
 /* Tema gerado em /settings (Gerador de Temas) — cores vêm via
    --bs-* setadas direto no <html> (não dá pra prever de antemão como
    nos outros temas, já que são escolhidas pela pessoa). Só a fonte

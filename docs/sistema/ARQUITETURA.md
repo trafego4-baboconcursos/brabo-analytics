@@ -4735,6 +4735,19 @@ capacete com o visor (`.bs-loading-visor`) e a varredura vermelha indo e voltand
 no menu), `tema.js` (`BS_THEME_LABELS`), `carregamento.js` e o baseline de tokens de
 `tests/test_visual.py`.
 
+**Temas de Natal (12/11/26).** Dois easter eggs para o fim de ano, logo depois da Diretiva Primária no
+seletor, pelas mesmas peças:
+- **"Esta Casa É Minha"** (chave `kevin`, Esqueceram de Mim): tema **claro** (creme, vermelho
+  `#c41e3a` no accent, verde-pinheiro na sidebar e no `--bs-accent-2`). Mountains of Christmas só nos
+  títulos (nos números ela desenha o zero como "o"); números em Playfair Display com `lining-nums`.
+  Loading: casa com janelas acesas e pisca-pisca no telhado (`.bs-loading-casa`), frases em `KV_QUOTES`.
+- **"Quemlândia"** (chave `grinch`, O Grinch): escuro verde, accent `#6fa82f` (o limão `#8cc63f` dava
+  contraste 2,05 com texto branco; esse dá 2,87), vermelho de Papai Noel no `--bs-accent-2`, Chewy nos
+  números. Loading: coração que cresce três tamanhos em degraus (`.bs-loading-coracao`), frases em
+  `GR_QUOTES` (livro do Dr. Seuss e filme de 2000).
+- Nos dois, neve no fundo do overlay (`#bs-loading-overlay::before`, `z-index:-1`, cor em
+  `--bs-neve`), parada com `prefers-reduced-motion`.
+
 **Faixas de pagamento como cartões (12/11/26).** Em "Forma de Pagamento", os marcadores de baixo (À vista,
 Parcelado em 12x, Outras parcelas, Entrada de boleto parcelado) viraram os mesmos cartões `.dbf-kpi` dos
 KPIs do topo — cantos arredondados, valor (vendas), variação e "ant." do lançamento anterior — em vez de

@@ -396,6 +396,51 @@ html[data-bs-theme="diretiva"] .bs-visor-scan {
   animation:bs-visor-scan 1.2s ease-in-out infinite alternate;
 }
 @keyframes bs-visor-scan { from { transform:translateX(0); } to { transform:translateX(92px); } }
+/* Temas de Natal: "Esta Casa É Minha" (casa dos McCallister com o
+   pisca-pisca no telhado) e "Quemlândia" (o coração do Grinch crescendo três
+   tamanhos). Nos dois, neve caindo atrás da frase (::before do overlay, em
+   z-index -1 para ficar sob o conteúdo e sobre o fundo). */
+.bs-loading-casa, .bs-loading-coracao { display:none; }
+html[data-bs-theme="kevin"] .bs-loading-spinner,
+html[data-bs-theme="grinch"] .bs-loading-spinner { display:none; }
+html[data-bs-theme="kevin"] .bs-loading-casa { display:block; color:var(--bs-accent-2); }
+.bs-casa-janela { fill:#ffcf5a; animation:bs-casa-janela 3s ease-in-out infinite; }
+@keyframes bs-casa-janela { 0%,100% { opacity:1; } 50% { opacity:.55; } }
+.bs-casa-luzes circle { animation:bs-pisca 1.2s steps(1) infinite; }
+.bs-casa-luzes circle:nth-child(odd) { animation-delay:-.6s; }
+@keyframes bs-pisca { 0%,100% { opacity:1; } 50% { opacity:.2; } }
+html[data-bs-theme="grinch"] .bs-loading-coracao {
+  display:block; color:var(--bs-accent);
+  filter:drop-shadow(0 0 8px var(--bs-accent));
+}
+.bs-coracao { transform-box:fill-box; transform-origin:center; animation:bs-cresce 3.2s ease-out infinite; }
+@keyframes bs-cresce {
+  0%, 18%  { transform:scale(.5); }
+  25%, 43% { transform:scale(.66); }
+  50%, 68% { transform:scale(.83); }
+  75%, 93% { transform:scale(1); }
+  100%     { transform:scale(.5); }
+}
+.bs-coracao-anel { transform-origin:50px 50px; animation:bs-ret-spin 8s linear infinite; opacity:.6; }
+html[data-bs-theme="kevin"] #bs-loading-overlay::before,
+html[data-bs-theme="grinch"] #bs-loading-overlay::before {
+  content:""; position:absolute; inset:0; z-index:-1; pointer-events:none;
+  background-image:
+    radial-gradient(circle at 23% 31%, var(--bs-neve) 0 2px, transparent 3px),
+    radial-gradient(circle at 71% 64%, var(--bs-neve) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 47% 83%, var(--bs-neve) 0 2.5px, transparent 3.5px),
+    radial-gradient(circle at 86% 17%, var(--bs-neve) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 12% 72%, var(--bs-neve) 0 1px, transparent 2px);
+  background-size:233px 197px, 157px 181px, 311px 263px, 127px 149px, 89px 113px;
+  animation:bs-neve 11s linear infinite;
+}
+@keyframes bs-neve {
+  from { background-position:0 0, 0 0, 0 0, 0 0, 0 0; }
+  to   { background-position:30px 197px, -20px 181px, 40px 263px, -12px 149px, 8px 113px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #bs-loading-overlay::before, .bs-casa-luzes circle, .bs-coracao { animation:none !important; }
+}
 /* Anel de 128px girando por fora (::before) e o retrato do autor da frase
    parado dentro (104px). O anel gira sozinho para a foto não rodar junto. */
 .bs-loading-spinner {

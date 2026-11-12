@@ -4653,7 +4653,7 @@ caracterização do Hotmart/TMB regravados pelo campo novo.
 
 ## Página /resumo — painel de vendas numa tela só (2026-11-12)
 
-Nova aba **Resumo** no menu (Visão Geral, logo depois de Início). A **disposição dos dados** segue um
+Nova aba **Resumo** no menu (Visão Geral, último item, depois de Verba do Lançamento). A **disposição dos dados** segue um
 painel de referência — 4 cartões (Receita Líquida, ROAS*, Qtd. de Vendas, Ticket Médio), Número de
 Vendas (por produto), Vendas por Dia, Já eram alunos × Novos alunos, Modelo de Pagamento,
 Investimento, Lucro e a hora da venda mais recente — mas o **visual é o do tema** (tokens `--bs-*`,

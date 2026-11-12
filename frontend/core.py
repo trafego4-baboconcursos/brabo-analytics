@@ -389,8 +389,6 @@ def _build_funis_nav_groups(launch, active_code, page, current_user, previous_la
             "links": [
                 {"page": "index", "label": "Início", "icon": "ti-home",
                  "href": _href("/"), "enabled": True},
-                {"page": "resumo", "label": "Resumo", "icon": "ti-layout-dashboard",
-                 "href": _href("/resumo"), "enabled": True},
                 {"page": "pre_qualificacao", "label": "Pré-Qualificação", "icon": "ti-list-check",
                  "href": _href("/pre-qualificacao"), "enabled": True},
                 {"page": "captacao", "label": "Captação", "icon": "ti-target-arrow",
@@ -407,6 +405,8 @@ def _build_funis_nav_groups(launch, active_code, page, current_user, previous_la
                  "href": _href("/debriefing"), "enabled": True},
                 {"page": "verba", "label": "Verba do Lançamento", "icon": "ti-cash",
                  "href": _href("/verba"), "enabled": True},
+                {"page": "resumo", "label": "Resumo", "icon": "ti-layout-dashboard",
+                 "href": _href("/resumo"), "enabled": True},
             ],
         },
         {

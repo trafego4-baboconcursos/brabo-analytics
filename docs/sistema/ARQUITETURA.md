@@ -4682,3 +4682,8 @@ cabeçalho `.hdr`, grade de 8px; os gráficos leem as cores dos tokens). Rota `r
 para os produtos do próprio lançamento (principal e BLP) e **Upsell · oferta de outro produto** para
 a oferta avulsa de outro produto (`oferta:<codigo>`, ex.: upsell da Black no funil do PES). Usa
 `dbf.vendas_por_produto`, o mesmo dado da tabela "Vendas por Produto" de Métricas do lançamento.
+
+**Tabela "Hotmart — por método de pagamento" diagramada (12/11/26).** Largura limitada (1040px, as
+colunas deixam de ficar coladas à esquerda com vão à direita), números alinhados à direita e sem
+quebra de linha nos nomes ("Parcelado Hotmart", "À vista"), coluna de % com barra de proporção,
+linha de TOTAL e cabeçalho "Outras parcelas" por extenso.

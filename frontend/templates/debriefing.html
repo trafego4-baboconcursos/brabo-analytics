@@ -354,6 +354,14 @@
 .vf-chart-wrap { position: relative; height: 300px; }
 .vf-chart-wrap.vf-pie { height: 280px; }
 .vf-metodos { margin-top: 20px; }
+.vf-metodos .table-wrap { max-width: 1040px; }   /* colunas juntas: a moldura não estica até a borda da tela */
+.vf-met-tab { width: 100%; font-size: 12px; }
+.vf-met-tab th, .vf-met-tab td { white-space: nowrap; padding: 8px 16px; }
+.vf-met-tab .num { text-align: right; font-variant-numeric: tabular-nums; min-width: 80px; }
+.vf-met-tab thead th.num { text-align: right; }
+.vf-pct { display: inline-block; min-width: 48px; font-variant-numeric: tabular-nums; }
+.vf-bar { display: inline-block; width: 120px; height: 6px; border-radius: 3px; background: var(--bs-border); vertical-align: middle; margin-left: 8px; overflow: hidden; }
+.vf-bar > span { display: block; height: 100%; background: var(--bs-accent); border-radius: 3px; }
 .vf-metodos-tit { font-size: 12px; font-weight: 700; color: var(--bs-ink-muted); margin-bottom: 8px; }
 
 /* ── Comparison section ────────────────────────────────────────── */
@@ -1059,30 +1067,39 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       <div class="vf-metodos">
         <div class="vf-metodos-tit">Hotmart — por método de pagamento</div>
         <div class="table-wrap" data-no-filter>
-          <table class="table-compact" style="font-size:12px;max-width:560px">
+          <table class="table-compact vf-met-tab">
             <thead>
               <tr>
                 <th class="th-dark">Método</th>
-                <th class="th-dark" style="text-align:left">Vendas</th>
-                <th class="th-dark" style="text-align:left">%</th>
-                <th class="th-dark" style="text-align:left">À vista</th>
-                <th class="th-dark" style="text-align:left">12x</th>
-                <th class="th-dark" style="text-align:left">Outras</th>
-                <th class="th-dark" style="text-align:left">vs {{ dbf.prev_code or 'anterior' }}</th>
+                <th class="th-dark num">Vendas</th>
+                <th class="th-dark">% das vendas</th>
+                <th class="th-dark num">À vista</th>
+                <th class="th-dark num">12x</th>
+                <th class="th-dark num">Outras parcelas</th>
+                <th class="th-dark num">vs {{ dbf.prev_code or 'anterior' }}</th>
               </tr>
             </thead>
             <tbody>
               {% for p in dbf.pagamentos_hm %}
               <tr>
                 <td class="td-bold">{{ p.metodo }}</td>
-                <td style="text-align:left">{{ p.qtd | num }}</td>
-                <td style="text-align:left">{{ p.pct_vendas | round(1) }}%</td>
-                <td style="text-align:left">{{ p.a_vista | num }}</td>
-                <td style="text-align:left">{{ p.parcelado_12x | num }}</td>
-                <td style="text-align:left">{{ p.parcelado_outros | num }}</td>
-                <td style="text-align:left">{% if p.prev_qtd %}{{ dbadge(p.qtd, p.prev_qtd, 'up') }}{% else %}—{% endif %}</td>
+                <td class="num"><strong>{{ p.qtd | num }}</strong></td>
+                <td><span class="vf-pct">{{ p.pct_vendas | round(1) }}%</span><span class="vf-bar"><span style="width:{{ [p.pct_vendas, 100] | min }}%"></span></span></td>
+                <td class="num">{{ p.a_vista | num }}</td>
+                <td class="num">{{ p.parcelado_12x | num }}</td>
+                <td class="num">{{ p.parcelado_outros | num }}</td>
+                <td class="num">{% if p.prev_qtd %}{{ dbadge(p.qtd, p.prev_qtd, 'up') }}{% else %}—{% endif %}</td>
               </tr>
               {% endfor %}
+              <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
+                <td>TOTAL</td>
+                <td class="num">{{ dbf.pagamentos_hm | sum(attribute='qtd') | num }}</td>
+                <td>100%</td>
+                <td class="num">{{ dbf.pagamentos_hm | sum(attribute='a_vista') | num }}</td>
+                <td class="num">{{ dbf.pagamentos_hm | sum(attribute='parcelado_12x') | num }}</td>
+                <td class="num">{{ dbf.pagamentos_hm | sum(attribute='parcelado_outros') | num }}</td>
+                <td class="num"></td>
+              </tr>
             </tbody>
           </table>
         </div>

@@ -4748,6 +4748,11 @@ seletor, pelas mesmas peças:
   `GR_QUOTES` (livro do Dr. Seuss e filme de 2000).
 - Nos dois, neve no fundo do overlay (`#bs-loading-overlay::before`, `z-index:-1`, cor em
   `--bs-neve`), parada com `prefers-reduced-motion`.
+- **Funil como árvore de Natal** (só no tema `kevin`, só CSS em `temas.css`): o "Funil de Conversão
+  Geral" de `/funil` (`.funil-viz`) usa `column-reverse`, então vendas fica no alto e o topo do funil na
+  base; o HTML não muda. Andares verdes com largura fixa por posição contada do fim (36/52/68/84/100%,
+  funciona com e sem a etapa de pesquisa), bolas abaixo do texto, pisca-pisca no pé de cada andar,
+  estrela (`::after`) e tronco com presentes (`::before`). Sem dados (`.no-data`), nada muda (`:has`).
 
 **Faixas de pagamento como cartões (12/11/26).** Em "Forma de Pagamento", os marcadores de baixo (À vista,
 Parcelado em 12x, Outras parcelas, Entrada de boleto parcelado) viraram os mesmos cartões `.dbf-kpi` dos

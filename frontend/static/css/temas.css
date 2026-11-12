@@ -320,6 +320,60 @@ html[data-bs-theme="kevin"] .mat-num {
 html[data-bs-theme="kevin"] .bs-live-dot {
   background: #1e8a4c; box-shadow: 0 0 6px #1e8a4c;
 }
+/* Funil de Conversão Geral (/funil) vira árvore de Natal: column-reverse põe
+   a ponta estreita (vendas) no alto. O HTML não muda, só a exibição. Larguras
+   fixas por posição contada do fim (a etapa de pesquisa é condicional: com 4
+   ou 5 andares a base é sempre o topo do funil, 100%). Estrela = ::after
+   (último item, vai pro alto); tronco = ::before (primeiro, vai pra base).
+   Pseudo-elementos não contam no nth-child. Sem dados (.no-data), nada muda. */
+html[data-bs-theme="kevin"] .funil-viz {
+  flex-direction: column-reverse; gap: 4px;
+}
+html[data-bs-theme="kevin"] .funil-step {
+  clip-path: polygon(3% 0, 97% 0, 100% 100%, 0 100%);
+  border-radius: 0;
+  background-color: #1e6b45 !important;
+  /* bolas penduradas abaixo do texto (rótulo à esquerda, número à direita) */
+  background-image:
+    radial-gradient(circle at 30% 80%, #c41e3a 0 5px, transparent 6px),
+    radial-gradient(circle at 47% 82%, #ffd23f 0 4px, transparent 5px),
+    radial-gradient(circle at 62% 80%, #3fa9ff 0 4.5px, transparent 5.5px);
+  text-shadow: 0 1px 2px rgba(0,0,0,.35);
+}
+html[data-bs-theme="kevin"] .funil-step:nth-last-child(1) { max-width: 36%; background-color: #36a86e !important; }
+html[data-bs-theme="kevin"] .funil-step:nth-last-child(2) { max-width: 52%; background-color: #2f9a64 !important; }
+html[data-bs-theme="kevin"] .funil-step:nth-last-child(3) { max-width: 68%; background-color: #2a8a5a !important; }
+html[data-bs-theme="kevin"] .funil-step:nth-last-child(4) { max-width: 84%; background-color: #237a4f !important; }
+html[data-bs-theme="kevin"] .funil-step:first-child       { max-width: 100%; background-color: #1e6b45 !important; }
+/* pisca-pisca na barra de baixo de cada andar */
+html[data-bs-theme="kevin"] .funil-step::after {
+  content: ""; position: absolute; left: 4%; right: 4%; bottom: 1px; height: 6px; pointer-events: none;
+  background: radial-gradient(circle, #ff3b3b 0 2.5px, transparent 3px) 0 0 / 24px 6px repeat-x,
+              radial-gradient(circle, #ffd23f 0 2.5px, transparent 3px) 12px 0 / 24px 6px repeat-x;
+  animation: bs-pisca 1.2s steps(1) infinite;
+}
+html[data-bs-theme="kevin"] .funil-viz:has(.funil-step)::after {
+  content: "\2605"; order: 0; font-size: 40px; line-height: 1; margin-bottom: -6px;
+  color: #ffd23f; text-shadow: 0 0 10px rgba(255,210,63,.9), 0 0 2px #c98a00;
+  animation: bs-estrela 2.4s ease-in-out infinite;
+}
+html[data-bs-theme="kevin"] .funil-viz:has(.funil-step)::before {
+  /* tronco no meio e um presente de cada lado (camadas: fitas por cima das caixas) */
+  content: ""; width: 220px; height: 30px;
+  background:
+    linear-gradient(#ffd23f, #ffd23f) 34px 4px / 5px 26px no-repeat,
+    linear-gradient(#ffd23f, #ffd23f) 20px 13px / 32px 4px no-repeat,
+    linear-gradient(#c41e3a, #c41e3a) 20px 4px / 32px 26px no-repeat,
+    linear-gradient(#ffd23f, #ffd23f) 181px 10px / 5px 20px no-repeat,
+    linear-gradient(#ffd23f, #ffd23f) 168px 17px / 30px 4px no-repeat,
+    linear-gradient(#3fa9ff, #3fa9ff) 168px 10px / 30px 20px no-repeat,
+    linear-gradient(90deg, #6b3f22, #8a5530 50%, #6b3f22) 82px 0 / 56px 26px no-repeat;
+}
+@keyframes bs-estrela { 0%,100% { transform: scale(1); } 50% { transform: scale(1.12) rotate(8deg); } }
+@media (prefers-reduced-motion: reduce) {
+  html[data-bs-theme="kevin"] .funil-step::after,
+  html[data-bs-theme="kevin"] .funil-viz:has(.funil-step)::after { animation: none; }
+}
 
 /* "Quemlândia" — easter egg O Grinch: noite verde-escura do Monte Crumpit,
    verde-limão do Grinch no accent, vermelho da roupa de Papai Noel no

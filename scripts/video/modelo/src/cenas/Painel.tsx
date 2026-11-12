@@ -1,6 +1,6 @@
 import React from "react";
 import { Video } from "@remotion/media";
-import { Easing, Img, interpolate, staticFile, useCurrentFrame } from "remotion";
+import { Easing, Img, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { Cutaway } from "../Cutaway";
 import { clamp, color, font, pick, raio, useAt, useFormato } from "../theme";
 import { Peca } from "../pecas";
@@ -50,7 +50,7 @@ const Hud: React.FC<{ hud?: string; tag: string; tagEm: number }> = ({ hud, tag,
 const Bloco: React.FC<{ b: BlocoPainel; t: (s: number) => number; cartao?: boolean }> = ({ b, t, cartao }) => {
   const frame = useCurrentFrame();
   const f = useFormato();
-  const largura = pick(f, { story: 900, feed: 860, h: 1100 });
+  const largura = pick(f, { story: 900, feed: 860, h: 1000 });
 
   if (b.tipo === "contador") {
     const n = Math.round(interpolate(frame, [t(b.conta[0]), t(b.conta[1])], [b.de ?? 0, b.ate], { ...clamp, easing: ease }));
@@ -97,11 +97,11 @@ const Bloco: React.FC<{ b: BlocoPainel; t: (s: number) => number; cartao?: boole
 
   if (b.tipo === "ordem" || b.tipo === "lista") {
     // dia com 4+ itens: 2 colunas, baixinho, para não cobrir o rosto do personagem
-    const duas = cartao && f === "story" && b.itens.length > 3;
-    const fonte = duas ? 34 : pick(f, { story: 44, feed: 38, h: 42 });
+    const duas = cartao && f !== "h" && b.itens.length > 3;
+    const fonte = duas ? pick(f, { story: 34, feed: 30, h: 30 }) : pick(f, { story: 44, feed: 38, h: 38 });
     return (
       <div style={duas
-        ? { width: 960, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }
+        ? { width: pick(f, { story: 960, feed: 960, h: 960 }), display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18 }
         : { width: largura, display: "flex", flexDirection: "column", gap: 22 }}>
         {b.itens.map((it, i) => {
           const marca = b.tipo === "ordem" ? String(i + 1) : it.ok === false ? "✕" : "✓";
@@ -143,31 +143,53 @@ export const Painel: React.FC<PropsCena<"Painel">> = ({ start, dur, props }) => 
   const frame = useCurrentFrame();
   const t = useAt(start);
   const f = useFormato();
+  const { width, height } = useVideoConfig();
   const zoom = interpolate(frame, [0, dur], [1.02, 1.1]);
   const titulo = props.titulo;
   const dia = props.tema === "dia";
   const [antes, alvo, depois] = titulo ? partir(titulo.texto, titulo.destaque || titulo.texto.slice(0, 0)) : ["", "", ""];
+  // a ilustração é 9:16. story/feed: cobre a tela (caixa calculada — o <Video> não respeita object-fit);
+  // h: painel 9:16 de altura cheia à direita, texto e bloco na coluna da esquerda (rosto não é cortado)
+  const painel = f === "h";
+  const pw = Math.round((height * 9) / 16);
+  const cw = painel ? pw : Math.max(width, (height * 9) / 16);
+  const ch = painel ? height : (cw * 16) / 9;
+  const caixa: React.CSSProperties = painel
+    ? { position: "absolute", right: 0, top: 0, width: pw, height }
+    : { position: "absolute", left: (width - cw) / 2, top: (height - ch) / 2, width: cw, height: ch };
+  const midia: React.CSSProperties = { position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", scale: zoom };
+  const colunaDireita = painel ? pw : 0;
   return (
-    <Cutaway durationInFrames={dur} background={color.navy}>
+    <Cutaway durationInFrames={dur} background={dia ? color.creme : color.navy}>
       {(props.fundo || props.fundoVideo) && (
-        <Peca id="imagem" style={{ position: "absolute", inset: 0 }}>
+        <Peca id="imagem" style={{ ...caixa, overflow: "hidden" }}>
           {props.fundoVideo
             // ilustração animada (IA, ida e volta para cobrir a cena); o 1º quadro é a própria `fundo`
-            ? <Video src={staticFile(props.fundoVideo)} muted style={{ position: "absolute", inset: 0, width: "100%",
-              height: "100%", objectFit: "cover", scale: zoom }} />
-            : <Img src={staticFile(props.fundo!)} style={{ position: "absolute", inset: 0, width: "100%", height: "100%",
-              objectFit: "cover", scale: zoom }} />}
+            ? <Video src={staticFile(props.fundoVideo)} muted style={midia} />
+            : <Img src={staticFile(props.fundo!)} style={midia} />}
         </Peca>
       )}
-      {/* véu: noite = topo e base escuros; dia = topo creme (título navy) e base escura (legenda branca) */}
-      <div style={{ position: "absolute", inset: 0, background: dia
-        ? "linear-gradient(180deg, rgba(239,231,220,0.92) 0%, rgba(239,231,220,0.55) 24%, rgba(239,231,220,0) 40%, rgba(27,34,54,0) 58%, rgba(27,34,54,0.85) 100%)"
-        : "linear-gradient(180deg, rgba(14,22,38,0.85) 0%, rgba(14,22,38,0.35) 28%, rgba(14,22,38,0.35) 55%, rgba(14,22,38,0.92) 100%)" }} />
+      {painel ? (
+        // h: emenda suave entre a coluna lisa e o painel da ilustração
+        <div style={{ position: "absolute", top: 0, bottom: 0, right: pw - 140, width: 160, background: dia
+          ? "linear-gradient(90deg, rgba(239,231,220,1), rgba(239,231,220,0))"
+          : "linear-gradient(90deg, rgba(14,22,38,1), rgba(14,22,38,0))" }} />
+      ) : (
+        /* véu: noite = topo e base escuros; dia = topo creme (título navy) e base escura (legenda branca) */
+        <div style={{ position: "absolute", inset: 0, background: dia
+          ? "linear-gradient(180deg, rgba(239,231,220,0.92) 0%, rgba(239,231,220,0.55) 24%, rgba(239,231,220,0) 40%, rgba(27,34,54,0) 58%, rgba(27,34,54,0.85) 100%)"
+          : "linear-gradient(180deg, rgba(14,22,38,0.85) 0%, rgba(14,22,38,0.35) 28%, rgba(14,22,38,0.35) 55%, rgba(14,22,38,0.92) 100%)" }} />
+      )}
+      {painel && dia && (
+        // h dia: base escura só na coluna, para a legenda branca ler
+        <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: 260,
+          background: "linear-gradient(180deg, rgba(27,34,54,0), rgba(27,34,54,0.8))" }} />
+      )}
       <Hud hud={props.hud} tag={props.tag} tagEm={t(start + 0.2)} />
       {titulo && (
-        <Peca id="titulo" style={{ position: "absolute", left: pick(f, { story: 70, feed: 60, h: 120 }),
-          right: pick(f, { story: 70, feed: 60, h: 120 }), top: pick(f, { story: 260, feed: 120, h: 130 }), textAlign: "center",
-          ...appear(frame, t(titulo.em)) }}>
+        <Peca id="titulo" style={{ position: "absolute", left: pick(f, { story: 70, feed: 60, h: 100 }),
+          right: pick(f, { story: 70, feed: 60, h: colunaDireita + 60 }), top: pick(f, { story: 260, feed: 120, h: 140 }),
+          textAlign: "center", ...appear(frame, t(titulo.em)) }}>
           <div style={{ fontFamily: font.ui, fontWeight: 800, fontSize: pick(f, { story: 84, feed: 64, h: 72 }), lineHeight: 1.05,
             color: dia ? color.navy : "white", textTransform: "uppercase", whiteSpace: "pre-line",
             textShadow: dia ? "0 2px 16px rgba(239,231,220,0.9)" : "0 6px 30px rgba(0,0,0,0.6)" }}>
@@ -175,9 +197,10 @@ export const Painel: React.FC<PropsCena<"Painel">> = ({ start, dur, props }) => 
           </div>
         </Peca>
       )}
-      {/* dia: ilustração tem personagem no meio → bloco ancorado embaixo, logo acima da legenda (y≈1390) */}
-      <div style={{ position: "absolute", left: 0, right: 0, display: "flex", justifyContent: "center",
-        ...(dia && f === "story" ? { bottom: 540 } : { top: pick(f, { story: titulo ? 600 : 460, feed: 330, h: 330 }) }) }}>
+      {/* dia (story/feed): personagem no meio da ilustração → bloco ancorado embaixo, logo acima da legenda */}
+      <div style={{ position: "absolute", left: 0, right: colunaDireita, display: "flex", justifyContent: "center",
+        ...(dia && !painel ? { bottom: pick(f, { story: 540, feed: 196, h: 0 }) }
+          : { top: pick(f, { story: titulo ? 600 : 460, feed: 330, h: 360 }) }) }}>
         <Bloco b={props.bloco} t={t} cartao={dia} />
       </div>
     </Cutaway>

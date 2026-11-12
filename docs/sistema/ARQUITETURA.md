@@ -4753,3 +4753,10 @@ era morto pelo deploy seguinte sem nunca terminar — em 05/11/26 os leads chega
   rodando no boot (leva ~2 min). Só o Active decide: as outras fontes lentas acabam em segundos e fariam
   qualquer rodada recente parecer "em dia".
 - Testes: `tests/test_etl_runs_boot.py` (SQLite em memória).
+
+**Performance Diária por Plataforma — colunas zeradas somem (12/11/26).** Na página de Captação
+(`dashboard.html`, macro `daily_table`), a plataforma sem nenhum lead/conversão e nenhum gasto no período
+(Facebook, YouTube, GA Search, GA P-Max, GA Display) deixa de aparecer; Dia/Data e Geral ficam sempre. A
+tabela passou a `width:100%`, então as colunas que sobram dividem a largura toda. A lista de plataformas
+agora é dirigida por dados dentro da macro (uma linha por plataforma). A mesma tabela em
+`pre_qualificacao.html` mantém a macro antiga.

@@ -3,6 +3,8 @@ frontend/services/debriefing.py — Builders de contexto para debriefing.html.
 """
 from __future__ import annotations
 
+import re
+
 from typing import Any
 
 from src.constants import climas_ordem, etapa_prequali
@@ -12,6 +14,35 @@ from frontend.services.fetch import _launch_cfg
 
 _CLIMA_ORDER = ["Quente", "Frio", "Específico"]
 _REMARKETING_SUBETAPAS = ["Lembrete", "Depoimento", "Aulas no Ar", "Replay", "Matrículas Abertas"]
+
+_SUFIXO_OFERTA_TMB = re.compile(r"\s*-\s*(?:lead|crossell|cross\s?sell|upsell)\w*\s*$", re.IGNORECASE)
+
+
+def _resumo_matriculas_produtos(produtos: list[dict]) -> list[dict]:
+    """[{"nome","qtd","upsell"}] para a linha do cartão de Matrículas.
+
+    Os produtos do lançamento (principal + BLP/boleto, e as ofertas do TMB) somam numa linha só,
+    "Mentoria <projeto>"; cada oferta avulsa de outro produto (upsell) vira uma linha com o nome
+    curto do produto ("Black Vitalícia 2026 - Oferta Funil…" -> "Black Vitalícia").
+    """
+    principais: dict[str, int] = {}
+    upsells: dict[str, int] = {}
+    for p in produtos:
+        qtd = int(p.get("qtd") or 0)
+        nome = str(p.get("nome") or "").strip()
+        if p.get("oferta_avulsa"):
+            curto = re.sub(r"\s+20\d\d\b", "", nome.split(" - ")[0]).strip() or nome
+            upsells[curto] = upsells.get(curto, 0) + qtd
+            continue
+        base = _SUFIXO_OFERTA_TMB.sub("", re.sub(r"\s*-\s*BLP\b", "", nome, flags=re.IGNORECASE)).strip()
+        if base.lower().startswith("mentoria"):
+            base = "Mentoria " + base.replace(" - ", " ").split()[-1]
+        principais[base] = principais.get(base, 0) + qtd
+    linhas = [{"nome": n, "qtd": q, "upsell": False} for n, q in sorted(principais.items(), key=lambda x: -x[1])]
+    linhas += [{"nome": n, "qtd": q, "upsell": True} for n, q in sorted(upsells.items(), key=lambda x: -x[1])]
+    return linhas
+
+
 # Duas perguntas diferentes, e confundi-las já custou um número errado:
 # `_REMARKETING_SUBETAPAS` é quais chaves de `por_etapa` do Meta/Google compõem o
 # *gasto* de Remarketing — o WhatsApp não está lá porque não é campanha de mídia,
@@ -1098,6 +1129,12 @@ def _compute_debriefing_ctx(
     ]
     # Forma de pagamento com valores (Hotmart + TMB): projetado = valor contratado,
     # recebido = já pago. Ordenado pelo projetado.
+    # Linha do cartão de Matrículas: "Mentoria TJSP: N" (produto do lançamento, cartão + boleto
+    # somados) e "<Produto>: N UPSELL" para cada oferta avulsa de outro produto.
+    matriculas_produtos = _resumo_matriculas_produtos(
+        [{**p} for p in (getattr(hotmart, "produtos", None) or [])]
+        + [{**p} for p in (getattr(tmb, "produtos", None) or [])]
+    )
     # Vendas por produto/oferta que compõe o lançamento (Hotmart + TMB), pelo líquido.
     vendas_por_produto = (
         [{**p, "plataforma": "Hotmart"} for p in (getattr(hotmart, "produtos", []) or [])]
@@ -1400,6 +1437,7 @@ def _compute_debriefing_ctx(
         # Pagamentos
         "pagamentos_hm": pagamentos_hm, "total_tmb": total_tmb,
         "pagamentos_valores": pagamentos_valores,
+        "matriculas_produtos": matriculas_produtos,
         "vendas_por_produto": vendas_por_produto, "vpp_qtd": vpp_qtd, "vpp_fat": vpp_fat,
         "pv_projetado": pv_projetado, "pv_recebido": pv_recebido,
         "vendas_forma": vendas_forma,

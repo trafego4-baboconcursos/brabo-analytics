@@ -4726,3 +4726,10 @@ O overlay de navegação (`#bs-loading-overlay`, `base.html` + `static/js/carreg
 Parcelado em 12x, Outras parcelas, Entrada de boleto parcelado) viraram os mesmos cartões `.dbf-kpi` dos
 KPIs do topo — cantos arredondados, valor (vendas), variação e "ant." do lançamento anterior — em vez de
 só o rótulo com a variação em %.
+
+**Matrículas — linha resumida (12/11/26).** Os chips por produto no bloco colorido viraram uma linha
+curta entre "matrículas / vs anterior" e o período: `Mentoria TJSP: 775 · Black Vitalícia: 37 UPSELL`.
+Os produtos do lançamento (principal + BLP/boleto, e as ofertas do TMB) somam numa linha só
+("Mentoria <projeto>"); cada oferta avulsa de outro produto (`oferta:<codigo>`) vira uma linha com o
+nome curto e a etiqueta UPSELL. Função `_resumo_matriculas_produtos` em `frontend/services/debriefing.py`
+→ `dbf.matriculas_produtos`.

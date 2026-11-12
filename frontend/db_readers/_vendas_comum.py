@@ -20,6 +20,49 @@ import pandas as pd
 from frontend.utils import _norm_text
 
 
+def parse_ts_brt(valor: Any):
+    """Instante de uma venda como datetime NAIVE no horário de Brasília, ou None.
+
+    Aceita os formatos que a Hotmart/TMB misturam: `DD/MM/YYYY [HH:MM:SS]` (já em
+    Brasília), epoch em segundos ou milissegundos e ISO/datetime (com fuso é convertido;
+    sem fuso é tratado como Brasília).
+    """
+    from datetime import datetime, timedelta, timezone  # noqa: PLC0415
+
+    brt = timezone(timedelta(hours=-3))
+    if valor is None:
+        return None
+    try:
+        if isinstance(valor, float) and math.isnan(valor):
+            return None
+    except Exception:  # noqa: BLE001
+        pass
+    if isinstance(valor, (datetime, pd.Timestamp)):
+        d = pd.Timestamp(valor)
+        if pd.isna(d):
+            return None
+        return d.tz_convert(brt).tz_localize(None).to_pydatetime() if d.tzinfo else d.to_pydatetime()
+    s = str(valor).strip().strip('"')
+    if not s:
+        return None
+    if re.fullmatch(r"\d{10,13}", s):
+        n = int(s)
+        if len(s) == 13:
+            n //= 1000
+        return datetime.fromtimestamp(n, brt).replace(tzinfo=None)
+    m = re.fullmatch(r"(\d{2})/(\d{2})/(\d{4})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?", s)
+    if m:
+        d, mo, y, hh, mi, ss = m.groups()
+        return datetime(int(y), int(mo), int(d), int(hh or 0), int(mi or 0), int(ss or 0))
+    try:
+        d = pd.Timestamp(s)
+        if pd.isna(d):
+            return None
+        return d.tz_convert(brt).tz_localize(None).to_pydatetime() if d.tzinfo else d.to_pydatetime()
+    except Exception:  # noqa: BLE001
+        return None
+
+
 # Produtos Hotmart do PERPÉTUO, por vertical. Venda desses produtos é SEMPRE perpétuo — mesmo
 # que caia dentro do carrinho de um lançamento do mesmo projeto (o nome do produto tem "INSS",
 # "TJ" ou "BB", e o filtro por projeto dos lançamentos o pegava). Os leitores de lançamento

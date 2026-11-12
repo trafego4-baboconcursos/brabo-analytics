@@ -421,6 +421,9 @@ relacionados:
 >
 > **Oferta avulsa de outro produto contando num lançamento (2026-11-12)**
 >
+>
+> **Página /resumo — painel de vendas numa tela só (2026-11-12)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -4647,3 +4650,29 @@ Uma oferta avulsa de outro produto (`oferta:<codigo>`, ex.: upsell da Black no f
 em linha própria. Dados: `HotmartDetails.produtos` e `TmbDetails.produtos` (agrupados no leitor, só
 carrinho aberto) → `vendas_por_produto` em `frontend/services/debriefing.py`. Baselines de
 caracterização do Hotmart/TMB regravados pelo campo novo.
+
+## Página /resumo — painel de vendas numa tela só (2026-11-12)
+
+Nova aba **Resumo** no menu (Visão Geral, logo depois de Início), no layout de um painel de
+referência: moldura dourada em fundo escuro, 4 cartões (Receita Líquida, ROAS*, Qtd. de Vendas,
+Ticket Médio), Número de Vendas (por produto), Vendas por Dia, Já eram alunos × Novos alunos,
+Modelo de Pagamento, Investimento, Lucro e a hora da venda mais recente. Rota `resumo_page`
+(`frontend/routes/analytics.py`), contexto em `frontend/services/resumo.py`, tela
+`frontend/templates/resumo.html` (Chart.js; cores do painel, não do tema).
+
+- **Números:** receita/vendas de `read_vendas`; investimento = Meta + Google + WhatsApp (o mesmo do
+  `/funil`); ROAS = receita ÷ investimento; Lucro = receita − investimento. Conferido com o painel de
+  referência do PES-SET-26: ROAS 3,41 contra 3,40 e pico de 1.128 vendas em 17/09, com diferença de
+  ~0,3% de receita por vendas lançadas depois.
+- **Vendas por produto:** `HotmartDetails.produtos` + `TmbDetails.produtos`; o sufixo de oferta do TMB
+  ("- Lead…", "- Crossell…", "- UpSell…") sai do nome para a mesma Mentoria não virar várias barras;
+  oferta avulsa de outro produto (`oferta:<codigo>`) fica em barra própria.
+- **Modelo de pagamento:** as 4 faixas exclusivas do debriefing (à vista, 12x, outras parcelas, entrada
+  de boleto parcelado) — não tem as categorias de recorrência do painel de referência.
+- **Aluno × novo:** não existe cadastro de alunos no banco. `read_perfil_compradores`
+  (`frontend/db_readers/resumo.py`) classifica cada comprador do lançamento (por e-mail) pelas compras
+  pagas ANTERIORES ao início do carrinho (Hotmart + TMB): do mesmo projeto, de outro projeto ou
+  nenhuma (novo aluno). É aproximação pelo histórico de vendas, não pelo LMS.
+- **Hora da última venda:** `ultima_venda` em `HotmartDetails`/`TmbDetails` (`parse_ts_brt`, horário de
+  Brasília).
+- Dependência nova de rede na tela: fonte Barlow Condensed do Google Fonts (fallback Inter).

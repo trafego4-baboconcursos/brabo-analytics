@@ -12,7 +12,7 @@ import pandas as pd
 from sqlalchemy import text
 
 from frontend.db import _get_engine, _get_users_engine
-from frontend.db_readers._vendas_comum import _bucket_metodo_pagamento
+from frontend.db_readers._vendas_comum import _bucket_metodo_pagamento, parse_ts_brt
 from frontend.models import TmbDetails
 from frontend.utils import (
     _extract_launch_code,
@@ -137,6 +137,9 @@ def read_tmb_details(launch_folder_or_code: Any, start_date=None, end_date=None)
             "pct_faturamento": (_fat / _tot_f * 100) if _tot_f else 0.0,
         })
     details.produtos.sort(key=lambda p: p["qtd"], reverse=True)
+    _tss = [t for t in (parse_ts_brt(v) for v in df_paid["data_efetivado"]) if t is not None]
+    if _tss:
+        details.ultima_venda = max(_tss).strftime("%Y-%m-%d %H:%M:%S")
 
     # Forma de pagamento: PROJETADO = valor contratado (o que a página já soma como
     # receita); RECEBIDO = só o que já está quitado (status Efetivado/Pago). A

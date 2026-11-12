@@ -33,6 +33,7 @@ from frontend.utils import (
     _safe_date,
     split_hotmart_ids,
 )
+from frontend.db_readers._vendas_comum import parse_ts_brt
 from logger import get_logger
 
 logger = get_logger("db")
@@ -213,6 +214,15 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
                 "pct_faturamento": (_fat / _tot_f * 100) if _tot_f else 0.0,
             })
         details.produtos.sort(key=lambda p: p["qtd"], reverse=True)
+
+        # Instante da venda paga mais recente (Brasília) — cartão "última atualização" do /resumo.
+        _tss = [
+            parse_ts_brt(a) or parse_ts_brt(b)
+            for a, b in zip(df_paid["data_da_transacao"], df_paid["confirmacao_do_pagamento"])
+        ]
+        _tss = [t for t in _tss if t is not None]
+        if _tss:
+            details.ultima_venda = max(_tss).strftime("%Y-%m-%d %H:%M:%S")
     details.taxas = max(0.0, details.receita_bruta - details.receita_liquida)
     details.taxas_pct = details.taxas / details.receita_bruta * 100 if details.receita_bruta > 0 else 0.0
     details.ticket_medio = details.faturamento / details.total_vendas if details.total_vendas > 0 else 0.0

@@ -478,6 +478,27 @@ async def verba_page(request: Request, launch_code: str | None = None):
     return templates.TemplateResponse("verba.html", ctx)
 
 
+@router.get("/resumo", response_class=HTMLResponse)
+async def resumo_page(request: Request, launch_code: str | None = None):
+    """Resumo — painel de vendas do lançamento numa tela só (receita, ROAS, vendas por produto e
+    por dia, aluno × novo, modelo de pagamento, investimento e lucro)."""
+    from frontend.services.fetch import _hotmart_details, _tmb_details  # noqa: PLC0415
+    from frontend.services.resumo import montar_resumo  # noqa: PLC0415
+
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    resumo = None
+    if launch:
+        d = await _fetch_all_data(launch)
+        hm = await run_in_threadpool(_hotmart_details, launch) if launch.has_vendas else None
+        tmb = await run_in_threadpool(_tmb_details, launch) if launch.has_vendas else None
+        cfg = await run_in_threadpool(_launch_cfg, launch.code)
+        resumo = await run_in_threadpool(montar_resumo, launch, d, hm, tmb, cfg, hoje_brasil())
+    ctx = _base_ctx(request, "resumo", "Resumo", launch, launches, resumo=resumo,
+                    data_errors=(d.get("_errors", []) if launch else []))
+    return templates.TemplateResponse("resumo.html", ctx)
+
+
 @router.get("/funil", response_class=HTMLResponse)
 async def funil_page(request: Request, launch_code: str | None = None):
     launches = await run_in_threadpool(get_launches)

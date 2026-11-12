@@ -329,9 +329,15 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
         # virava o "D1" da página e a abertura real aparecia como cauda.
         abertura = _safe_date(cfg.get("abertura_oficial_carrinho"))
         d1_date = pd.Timestamp(abertura) if abertura else df_paid["data_parsed"].min()
+        # Upsell (oferta avulsa) por dia: o debriefing desconta das matrículas (aluno novo).
+        if "_prod_chave" in df_paid:
+            df_paid["_upsell"] = df_paid["_prod_chave"].astype(str).str.startswith("oferta:").astype(int)
+        else:
+            df_paid["_upsell"] = 0
         timeline_grouped = df_paid.groupby(df_paid["data_parsed"].dt.date).agg(
             vendas=("valor_liq", "count"),
-            faturamento=("valor_liq", "sum")
+            faturamento=("valor_liq", "sum"),
+            upsell=("_upsell", "sum"),
         ).reset_index().sort_values("data_parsed")
 
         for _, row in timeline_grouped.iterrows():
@@ -341,6 +347,7 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
                 "data_str": dt.strftime("%d/%b"),
                 "vendas": int(row["vendas"]),
                 "faturamento": float(row["faturamento"]),
+                "upsell": int(row["upsell"]),
                 "is_d1": pd.notna(d1_date) and dt == d1_date.date()
             })
 

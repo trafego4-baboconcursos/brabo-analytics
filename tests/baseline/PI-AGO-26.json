@@ -524,12 +524,12 @@
     "sha256": "b293cb4993097c39833d4967d487ed56824705487f2db72c7e29e1aa6d5c7508"
   },
   "read_hotmart_details": {
-    "bytes": 6584,
+    "bytes": 6738,
     "resumo": {
       "__n__": 36,
-      "__sha__": "c70f447cf28bf064"
+      "__sha__": "53428342bfbfec22"
     },
-    "sha256": "c70f447cf28bf064a76a20fdba663a397df8f7f29e0cf6c699f6b122af6b6833"
+    "sha256": "53428342bfbfec226fb4f21ca260486a0697d51d5c97dc3f937074b596ff190b"
   },
   "read_hotmart_recompra": {
     "bytes": 600,

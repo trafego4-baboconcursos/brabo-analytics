@@ -890,7 +890,10 @@ def _compute_debriefing_ctx(
     _merged: dict = {}
     for t in _hm_tl:
         d = t.get("data", "")
-        _merged[d] = {"data": d, "data_str": t.get("data_str", d), "vendas": _i(t.get("vendas")), "faturamento": float(t.get("faturamento") or 0)}
+        # "vendas" = alunos novos: o upsell (venda p/ quem já é aluno) sai da contagem diária,
+        # mas o faturamento continua inteiro. "upsell" fica no registro para quem precisar.
+        _up = _i(t.get("upsell"))
+        _merged[d] = {"data": d, "data_str": t.get("data_str", d), "vendas": max(0, _i(t.get("vendas")) - _up), "upsell": _up, "faturamento": float(t.get("faturamento") or 0)}
     for t in _tmb_tl:
         d = t.get("data", "")
         if d in _merged:

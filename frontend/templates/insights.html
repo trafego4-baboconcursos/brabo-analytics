@@ -125,6 +125,14 @@
 .ins-score-bar  { height: 6px; background: rgba(255,255,255,.1); border-radius: 3px; overflow: hidden; }
 .ins-score-bar-fill { height: 100%; border-radius: 3px; transition: width .6s ease; }
 .ins-score-pct  { font-size: 12px; font-weight: 700; }
+/* Blocos dentro de .section: o espaçamento vem da seção, não do bloco */
+.section > .ins-cards, .section > .ins-highlight-grid, .section > .ins-score-box { margin-bottom: 0; }
+@media (max-width: 900px) {
+  .ins-hero { flex-direction: column; align-items: flex-start; }
+  .ins-hero-stats { flex-wrap: wrap; gap: 24px; }
+  .ins-highlight-grid { grid-template-columns: 1fr; }
+  .ins-score-box { flex-direction: column; align-items: flex-start; }
+}
 </style>
 {% endblock %}
 
@@ -163,8 +171,8 @@
   {# ── Hero ───────────────────────────────────────────────────────── #}
   <div class="ins-hero">
     <div class="ins-hero-text">
-      <h1>Relatório de Insights — {{ launch.code if launch else "Sem Lançamento" }}</h1>
-      <p>{{ launch.name if launch else "" }} &nbsp;|&nbsp; Análise automática baseada em dados rastreados por UTM + Active Campaign</p>
+      <h1>{{ launch.name if launch and launch.name else (launch.code if launch else "Sem Lançamento") }}</h1>
+      <p>Análise automática baseada em dados rastreados por UTM + Active Campaign</p>
     </div>
     <div class="ins-hero-stats">
       <div class="ins-hero-stat">
@@ -197,7 +205,8 @@
   {% set score_criat = (rows_com_venda | length / criat_total * 25) | round(1) if criat_total > 0 else 0 %}
   {% set score_total = (score_roas + score_rastr + score_cpl + score_criat) | round(0) | int %}
 
-
+  <div class="section">
+  <div class="section-title"><i class="ti ti-heartbeat"></i> Saúde Geral do Lançamento</div>
   <div class="ins-score-box">
     <div class="ins-score-circle">
       <span class="ins-score-num" style="color:{% if score_total >= 80 %}#4ade80{% elif score_total >= 60 %}#facc15{% else %}#f87171{% endif %}">
@@ -206,7 +215,6 @@
       <span class="ins-score-max">/100</span>
     </div>
     <div>
-      <div style="font-size:11px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;font-weight:700">Saúde Geral do Lançamento</div>
       <div style="font-size:22px;font-weight:800;margin-bottom:12px">
         {% if score_total >= 80 %}🟢 Excelente{% elif score_total >= 65 %}🟡 Bom{% elif score_total >= 50 %}🟠 Regular{% else %}🔴 Atenção{% endif %}
       </div>
@@ -234,9 +242,12 @@
       </div>
     </div>
   </div>
+  </div>{# .section Saúde #}
   {% endif %}
 
   {# ── Cards KPI por canal ────────────────────────────────────────── #}
+  <div class="section">
+  <div class="section-title"><i class="ti ti-layout-dashboard"></i> Resumo por Canal</div>
   <div class="ins-cards">
 
     <div class="ins-card {% if meta_roas >= 1.5 %}green{% elif meta_roas < 1 %}red{% else %}orange{% endif %}">
@@ -309,6 +320,7 @@
     {% endif %}
 
   </div>
+  </div>{# .section Resumo por Canal #}
 
   {# ── Alertas automáticos ─────────────────────────────────────────── #}
   <div class="section">
@@ -453,6 +465,8 @@
 
   {# ── Top / Piores criativos ─────────────────────────────────────── #}
   {% if rows_com_venda or rows_sem_venda %}
+  <div class="section">
+  <div class="section-title"><i class="ti ti-trophy"></i> Ranking de Criativos</div>
   <div class="ins-highlight-grid">
 
     <div class="ins-highlight-box">
@@ -519,6 +533,7 @@
     </div>
 
   </div>
+  </div>{# .section Ranking #}
   {% endif %}
 
   {# ── Insights de criativos ─────────────────────────────────────── #}
@@ -538,7 +553,7 @@
   {% if rows_com_venda %}
   {% set escalaveis = rows_com_venda | sort(attribute='roas', reverse=True) %}
   <div class="section">
-    <div class="section-title"><i class="ti ti-bulb"></i> Oportunidades de Escala</div>
+    <div class="section-title"><i class="ti ti-rocket"></i> Oportunidades de Escala</div>
     <div class="note">ADs com vendas rastreadas, ordenados por ROAS. Priorize escalar os com ROAS mais alto e CPL eficiente.</div>
     <div class="table-wrap" style="margin-top:12px">
       <table>

@@ -4697,9 +4697,15 @@ O overlay de navegação (`#bs-loading-overlay`, `base.html` + `static/js/carreg
 `static/css/layout.css`) passou de 34 para **100 frases** no conjunto padrão (`BS_QUOTES`) e ganhou o
 **retrato do autor** dentro do anel de carregamento.
 
-- **Frases:** filósofos, grandes pensadores, bíblicas (texto da NVI, autor com livro e versículo, ex.:
-  "Salomão · Provérbios 16:3") e cientistas. Cada item é `[frase, autor, slug]`. Critério mantido:
-  só frase de autoria consolidada, nada "de internet". Os conjuntos dos temas de filme (Outatime,
+- **Frases:** filósofos, grandes pensadores, bíblicas (texto da NVI 1993/2000, a NVI-PT do Bible
+  Gateway, com autor, livro e versículo, ex.: "Salomão · Provérbios 16:3") e cientistas. Cada item é
+  `[frase, autor, slug]`. Critério: só frase com fonte primária (obra, carta, discurso ou entrevista
+  documentada) e na redação documentada. Conferência de 12/11/26 (Quote Investigator, Wikiquote,
+  textos originais): saíram as atribuições erradas que vinham da lista antiga ("Somos o que fazemos
+  repetidamente" era do Will Durant, "A simplicidade é a sofisticação máxima" não é do Leonardo, as
+  duas do Drucker e as duas do Confúcio não se sustentavam), e as redações populares de Lavoisier,
+  Russell, Suassuna, Goodall e Darcy Ribeiro foram trocadas pelo texto documentado. Frase nova
+  precisa da mesma conferência. Os conjuntos dos temas de filme (Outatime,
   Predador, Homem-Aranha, Aranhaverso) não mudaram e não têm slug.
 - **Anel:** `.bs-loading-spinner` agora tem 128px. O anel gira num `::before` e o retrato
   (`.bs-loading-foto`, 104px) fica parado dentro, com contorno na `--bs-accent`. A foto aparece e troca

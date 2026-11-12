@@ -4676,3 +4676,9 @@ cabeçalho `.hdr`, grade de 8px; os gráficos leem as cores dos tokens). Rota `r
   nenhuma (novo aluno). É aproximação pelo histórico de vendas, não pelo LMS.
 - **Hora da última venda:** `ultima_venda` em `HotmartDetails`/`TmbDetails` (`parse_ts_brt`, horário de
   Brasília).
+
+**Produtos nas Matrículas (12/11/26).** O cartão "Matrículas" do debriefing ganhou, embaixo, uma linha
+"Produtos:" com um chip por produto que compõe a matrícula (nome, vendas e etiqueta): **Lançamento**
+para os produtos do próprio lançamento (principal e BLP) e **Upsell · oferta de outro produto** para
+a oferta avulsa de outro produto (`oferta:<codigo>`, ex.: upsell da Black no funil do PES). Usa
+`dbf.vendas_por_produto`, o mesmo dado da tabela "Vendas por Produto" de Métricas do lançamento.

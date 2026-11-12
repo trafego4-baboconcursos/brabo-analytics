@@ -186,6 +186,13 @@
 }
 
 /* ── Matrículas ───────────────────────────────────────────────── */
+.mat-prod { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:16px; }
+.mat-prod-tit { font-size:12px; font-weight:700; color:var(--bs-ink-muted); text-transform:uppercase; letter-spacing:.04em; margin-right:4px; }
+.mat-prod-chip { display:inline-flex; align-items:center; gap:8px; background:var(--bs-card); border:1px solid var(--bs-border); border-radius:20px; padding:4px 12px; font-size:12px; color:var(--bs-ink); }
+.mat-prod-chip.upsell { border-color:var(--bs-accent); background:var(--bs-accent-bg); }
+.mat-prod-qtd { font-weight:800; font-variant-numeric:tabular-nums; }
+.mat-prod-tag { font-size:10px; font-weight:700; color:var(--bs-ink-muted); text-transform:uppercase; letter-spacing:.04em; }
+.mat-prod-chip.upsell .mat-prod-tag { color:var(--bs-accent); }
 .mat-cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .mat-card {
   border-radius: 10px; padding: 24px;
@@ -850,6 +857,20 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
         {% if dbf.has_prev and dbf.periodo_prev %}<div style="font-size:12px;font-weight:600;color:var(--bs-ink-subtle);margin-top:8px"><i class="ti ti-calendar"></i> {{ dbf.periodo_prev }}</div>{% endif %}
       </div>
     </div>
+    {# Quais produtos compõem as matrículas: venda do lançamento × upsell/oferta de outro produto. #}
+    {% set mat_prod = dbf.vendas_por_produto or [] %}
+    {% if mat_prod %}
+    <div class="mat-prod">
+      <span class="mat-prod-tit">Produtos:</span>
+      {% for p in mat_prod %}
+      <span class="mat-prod-chip {{ 'upsell' if p.oferta_avulsa else '' }}">
+        <strong>{{ p.nome }}</strong>
+        <span class="mat-prod-qtd">{{ p.qtd | num }}</span>
+        <span class="mat-prod-tag">{% if p.oferta_avulsa %}Upsell · oferta de outro produto{% else %}Lançamento{% endif %}</span>
+      </span>
+      {% endfor %}
+    </div>
+    {% endif %}
   </div>
 
   <!-- ═══════════════════════════════════════════════════════════ -->

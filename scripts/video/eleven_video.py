@@ -54,6 +54,40 @@ def montar_pedido(imagem: Path, movimento: str, segundos: float) -> dict:
     }
 
 
+def filtro_aparar(cropdetect: str, largura: int, altura: int) -> str | None:
+    """Filtro ffmpeg que tira as faixas pretas que o Veo põe nas laterais (cropdetect) e volta ao
+    tamanho original sem distorcer (amplia pela largura e recorta no centro). None = sem faixa."""
+    w, h, x, y = (int(v) for v in cropdetect.removeprefix("crop=").split(":"))
+    if (w, h) == (largura, altura):
+        return None
+    m = 2   # +2 px de cada lado que sobrou cortado: a borda da faixa vem meio escura (antialias)
+    if w < largura:
+        w, x = w - 2 * m, x + m
+    if h < altura:
+        h, y = h - 2 * m, y + m
+    return f"crop={w}:{h}:{x}:{y},scale={largura}:-2,crop={largura}:{altura}"
+
+
+def aparar_bordas(video: Path) -> bool:
+    """Aplica filtro_aparar no próprio arquivo (ffmpeg no PATH). True se mexeu."""
+    import re
+    import subprocess
+    sonda = subprocess.run(["ffmpeg", "-hide_banner", "-i", str(video), "-vf", "cropdetect=limit=24:round=2:reset=0",
+                            "-f", "null", "-"], capture_output=True, text=True, errors="replace")
+    achados = re.findall(r"crop=\d+:\d+:\d+:\d+", sonda.stderr)
+    dims = re.search(r", (\d{3,5})x(\d{3,5})", sonda.stderr)
+    if not achados or not dims:
+        return False
+    filtro = filtro_aparar(achados[-1], int(dims.group(1)), int(dims.group(2)))
+    if filtro is None:
+        return False
+    tmp = video.with_suffix(".aparado.mp4")
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(video), "-vf", filtro, "-an", "-c:v", "libx264", "-crf", "16",
+                    "-pix_fmt", "yuv420p", str(tmp)], check=True)
+    tmp.replace(video)
+    return True
+
+
 def _chave() -> str:
     for linha in ENV.read_text(encoding="utf-8").splitlines():
         if linha.startswith("ELEVENLABS_API_KEY="):
@@ -92,6 +126,7 @@ def gerar(imagem: Path, saida: Path, movimento: str, segundos: float) -> dict:
     saida.parent.mkdir(parents=True, exist_ok=True)
     with urllib.request.urlopen(g["content_url"], timeout=300) as r:
         saida.write_bytes(r.read())
+    aparar_bordas(saida)       # Veo entrega com 4 px pretos nas laterais
     gasto = antes - creditos(chave)
     registro = {"quando": datetime.now().isoformat(timespec="seconds"), "ferramenta": "elevenlabs/" + MODELO,
                 "id": gid, "imagem": str(imagem), "saida": str(saida), "segundos": duracao_veo(segundos),

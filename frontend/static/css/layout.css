@@ -384,6 +384,18 @@ html[data-bs-theme="aranhaverso"] .bs-web-spokes {
   88% { transform:translate(-1px,0); }
   90% { transform:translate(0,0); }
 }
+.bs-loading-visor { display:none; }
+/* Easter egg "Diretiva Primária": troca o spinner pelo visor do RoboCop,
+   com a varredura vermelha indo e voltando de um canto ao outro. */
+html[data-bs-theme="diretiva"] .bs-loading-spinner { display:none; }
+html[data-bs-theme="diretiva"] .bs-loading-visor {
+  display:block; color:var(--bs-accent-2);
+  filter:drop-shadow(0 0 6px var(--bs-accent));
+}
+html[data-bs-theme="diretiva"] .bs-visor-scan {
+  animation:bs-visor-scan 1.2s ease-in-out infinite alternate;
+}
+@keyframes bs-visor-scan { from { transform:translateX(0); } to { transform:translateX(92px); } }
 /* Anel de 128px girando por fora (::before) e o retrato do autor da frase
    parado dentro (104px). O anel gira sozinho para a foto não rodar junto. */
 .bs-loading-spinner {

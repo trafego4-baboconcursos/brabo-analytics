@@ -79,6 +79,14 @@
       "--bs-card": "#ffffff",
       "--bs-ink": "#1a1a2e",
       "--bs-sidebar": "#1b3b6f"
+    },
+    "diretiva": {
+      "--bs-accent": "#5b9bd5",
+      "--bs-bg": "#0b1016",
+      "--bs-border": "#243241",
+      "--bs-card": "#1a242f",
+      "--bs-ink": "#e6edf3",
+      "--bs-sidebar": "#0e1620"
     }
   },
   "calendario": {

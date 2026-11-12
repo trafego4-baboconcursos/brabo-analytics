@@ -137,7 +137,7 @@ window.bsSetCustomTheme = function(name) {
     location.reload();
   }
 };
-var BS_THEME_LABELS = { a: 'Colorful', brabo: "Orange's New Black", b: 'Deep Lagoon', c: 'Slate Teal', d: 'Midnight Indigo', outatime: 'Outatime', predador: 'Predador', spidey: 'Amigão da Vizinhança', aranhaverso: 'Aranhaverso', springfield: 'Springfield', boss: 'Boss' };
+var BS_THEME_LABELS = { a: 'Colorful', brabo: "Orange's New Black", b: 'Deep Lagoon', c: 'Slate Teal', d: 'Midnight Indigo', outatime: 'Outatime', predador: 'Predador', spidey: 'Amigão da Vizinhança', aranhaverso: 'Aranhaverso', springfield: 'Springfield', boss: 'Boss', diretiva: 'Diretiva Primária' };
 function bsRenderCustomThemeOpts() {
   var menu = document.getElementById('bs-custom-theme-opts');
   if (!menu) return;

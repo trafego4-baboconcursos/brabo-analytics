@@ -4726,6 +4726,15 @@ O overlay de navegação (`#bs-loading-overlay`, `base.html` + `static/js/carreg
   dicionário `PESSOAS` tem a descrição visual de cada slug. **Frase com autor novo exige uma entrada
   ali e rodar o script.** Os PNG brutos ficam em `outputs/_retratos_pensadores_bruto/` e não são versionados.
 
+**Tema "Diretiva Primária" (12/11/26).** Easter egg do RoboCop (1987), chave `diretiva`, último da
+lista de temas de filme no seletor (ícone `ti-robot`). Paleta escura de aço azulado (`--bs-accent`
+`#5b9bd5`), cromo no `--bs-accent-2`, vermelho só no perigo e no ponto "ao vivo", ciano de HUD no
+info; números em Russo One (somada ao `@import` de `tokens.css`). No loading, o anel dá lugar a um
+capacete com o visor (`.bs-loading-visor`) e a varredura vermelha indo e voltando, e as frases vêm de
+`RC_QUOTES` (falas do filme, sem slug). Peças: `temas.css`, `layout.css`, `base.html` (SVG + opção
+no menu), `tema.js` (`BS_THEME_LABELS`), `carregamento.js` e o baseline de tokens de
+`tests/test_visual.py`.
+
 **Faixas de pagamento como cartões (12/11/26).** Em "Forma de Pagamento", os marcadores de baixo (À vista,
 Parcelado em 12x, Outras parcelas, Entrada de boleto parcelado) viraram os mesmos cartões `.dbf-kpi` dos
 KPIs do topo — cantos arredondados, valor (vendas), variação e "ant." do lançamento anterior — em vez de

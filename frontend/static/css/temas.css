@@ -242,6 +242,41 @@ html[data-bs-theme="boss"] .bs-live-dot {
   background: #f0c419; box-shadow: 0 0 6px #f0c419;
 }
 
+/* "Diretiva Primária" — easter egg RoboCop (1987): aço azulado do traje
+   (accent), cromo prateado no realce, vermelho só no visor e no perigo,
+   ciano do HUD de visão do RoboCop no info. Russo One (chapa de metal,
+   cantos retos) nos números. No loading, o visor com a varredura vermelha
+   no lugar do spinner. */
+html[data-bs-theme="diretiva"] {
+  --bs-accent: #5b9bd5; --bs-accent-2: #c9d4df; --bs-accent-bg: #142231;
+  --bs-sidebar: #0e1620; --bs-sidebar-dark: #070b11;
+  --bs-bg: #0b1016; --bs-surface: #131b24; --bs-card: #1a242f;
+  --bs-ink: #e6edf3; --bs-ink-muted: #94a3b2; --bs-ink-subtle: #5f6d7b;
+  --bs-border: #243241; --bs-border-s: #314354;
+  --bs-success: #3ddc97; --bs-success-bg: #0c2a1e;
+  --bs-warning: #ffb020; --bs-warning-bg: #2e2208;
+  --bs-danger: #ff3b30; --bs-danger-bg: #300d0b;
+  --bs-info: #7fd8ff; --bs-info-bg: #0b2433;
+  --bs-sh-sm: 0 0 4px rgba(91,155,213,.16); --bs-sh-md: 0 0 16px rgba(91,155,213,.18);
+  --bs-sh-lg: 0 0 32px rgba(91,155,213,.22); --bs-sh-xl: 0 0 60px rgba(91,155,213,.28);
+}
+html[data-bs-theme="diretiva"] body {
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+html[data-bs-theme="diretiva"] .hdr h1,
+html[data-bs-theme="diretiva"] h1,
+html[data-bs-theme="diretiva"] .tp-value,
+html[data-bs-theme="diretiva"] .kpi-val,
+html[data-bs-theme="diretiva"] .dbf-kpi .val,
+html[data-bs-theme="diretiva"] .mat-num {
+  font-family: 'Russo One', 'Inter', sans-serif;
+  letter-spacing: .03em;
+  text-shadow: 0 1px 0 rgba(255,255,255,.14), 0 0 10px rgba(91,155,213,.35);
+}
+html[data-bs-theme="diretiva"] .bs-live-dot {
+  background: #ff3b30; box-shadow: 0 0 6px #ff3b30;
+}
+
 /* Tema gerado em /settings (Gerador de Temas) — cores vêm via
    --bs-* setadas direto no <html> (não dá pra prever de antemão como
    nos outros temas, já que são escolhidas pela pessoa). Só a fonte

@@ -207,8 +207,24 @@
     ["Poderes grandes trazem grandes responsabilidades — em qualquer universo.", "Narração, Homem-Aranha no Aranhaverso"],
     ["Um radioaranha te mordeu. Bem-vindo ao clube.", "Bordão de origem, Aranhaverso"],
   ];
+  // Easter egg do tema "Diretiva Primária" — RoboCop (1987).
+  var RC_QUOTES = [
+    ["Vivo ou morto, você vem comigo.", "RoboCop, RoboCop (1987)"],
+    ["Servir à confiança pública. Proteger os inocentes. Cumprir a lei.", "Diretivas primárias, RoboCop (1987)"],
+    ["Sua vez, verme.", "RoboCop, RoboCop (1987)"],
+    ["Obrigado pela cooperação. Boa noite.", "RoboCop, RoboCop (1987)"],
+    ["Por favor, largue a arma. Você tem 20 segundos para obedecer.", "ED-209, RoboCop (1987)"],
+    ["Eu compraria isso por um dólar!", "Bixby Snyder, RoboCop (1987)"],
+    ["Tenho certeza de que é só uma falha. Um contratempo temporário.", "Dick Jones, RoboCop (1987)"],
+    ["A Velha Detroit tem um câncer. Esse câncer é o crime.", "Reunião da diretoria da OCP, RoboCop (1987)"],
+    ["Murphy, é você.", "Anne Lewis, RoboCop (1987)"],
+    ["Bela pontaria, filho. Qual é o seu nome? — Murphy.", "Presidente da OCP e RoboCop, RoboCop (1987)"],
+    ["Diretiva 4: confidencial.", "Visor do RoboCop, RoboCop (1987)"],
+    ["Você sabe voar, Bobby?", "Clarence Boddicker, RoboCop (1987)"],
+  ];
   function activeQuotes() {
     var t = document.documentElement.getAttribute('data-bs-theme');
+    if (t === 'diretiva') return RC_QUOTES;
     if (t === 'outatime') return BF_QUOTES;
     if (t === 'predador') return PD_QUOTES;
     if (t === 'spidey') return SM_QUOTES;

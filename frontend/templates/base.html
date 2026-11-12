@@ -111,6 +111,25 @@
     </g>
     <circle cx="50" cy="50" r="4" fill="currentColor"/>
   </svg>
+  <svg class="bs-loading-visor" viewBox="0 0 120 72" width="120" height="72" aria-hidden="true">
+    <defs>
+      <clipPath id="bs-visor-clip"><path d="M10 30 Q60 18 110 30 L106 46 Q60 36 14 46 Z"/></clipPath>
+      <linearGradient id="bs-visor-grad" x1="0" x2="1" y1="0" y2="0">
+        <stop offset="0" stop-color="#ff3b30" stop-opacity="0"/>
+        <stop offset=".5" stop-color="#ff3b30" stop-opacity="1"/>
+        <stop offset="1" stop-color="#ff3b30" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <path d="M22 56 L16 30 Q16 4 60 4 Q104 4 104 30 L98 56" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <line x1="60" y1="7" x2="60" y2="20" stroke="currentColor" stroke-width="2" opacity=".45"/>
+    <path d="M10 30 Q60 18 110 30 L106 46 Q60 36 14 46 Z" fill="rgba(0,0,0,.55)"/>
+    <g clip-path="url(#bs-visor-clip)">
+      <rect class="bs-visor-scan" x="2" y="14" width="24" height="40" fill="url(#bs-visor-grad)"/>
+    </g>
+    <path d="M10 30 Q60 18 110 30 L106 46 Q60 36 14 46 Z" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M32 54 Q36 69 60 70 Q84 69 88 54" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".7"/>
+    <line x1="51" y1="62" x2="69" y2="62" stroke="currentColor" stroke-width="2" stroke-linecap="round" opacity=".45"/>
+  </svg>
   <div class="bs-loading-quote" id="bs-loading-quote" aria-live="polite"><div class="q"></div><div class="a"></div></div>
 </div>
 
@@ -471,6 +490,9 @@
           </button>
           <button type="button" class="bs-theme-opt" data-theme-val="boss" onclick="bsSetTheme('boss')">
             <span class="bs-theme-dot" style="background:#141414;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08), inset 0 0 0 3px #d4a017"></span> Boss <i class="ti ti-crown" style="margin-left:auto;font-size:13px;opacity:.6"></i>
+          </button>
+          <button type="button" class="bs-theme-opt" data-theme-val="diretiva" onclick="bsSetTheme('diretiva')">
+            <span class="bs-theme-dot" style="background:#0b1016;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08), inset 0 0 0 3px #5b9bd5"></span> Diretiva Primária <i class="ti ti-robot" style="margin-left:auto;font-size:13px;opacity:.6"></i>
           </button>
           <div id="bs-custom-theme-opts"></div>
         </div>

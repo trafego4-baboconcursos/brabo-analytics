@@ -4,7 +4,7 @@
 /* tokens :root, reset, foco de teclado */
 
 /* ── Basis Design System — Brabo Analytics ──────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&family=Archivo+Black&family=Orbitron:wght@600;700;800&family=Black+Ops+One&family=Bangers&family=Bungee&family=Luckiest+Guy&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&family=Archivo+Black&family=Orbitron:wght@600;700;800&family=Black+Ops+One&family=Bangers&family=Bungee&family=Luckiest+Guy&family=Russo+One&display=swap');
 
 :root {
   --bs-ink:          #1f2330;

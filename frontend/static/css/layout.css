@@ -325,103 +325,58 @@
   opacity:1; visibility:visible; pointer-events:auto;
   transition:opacity .18s ease;
 }
-.bs-loading-clock { display:none; }
-/* Easter egg "Outatime": troca o spinner pelo relógio da torre de Hill
-   Valley, ponteiros girando feito no salto no tempo. */
-html[data-bs-theme="outatime"] .bs-loading-spinner { display:none; }
-html[data-bs-theme="outatime"] .bs-loading-clock {
-  display:block; color:var(--bs-accent);
-  filter:drop-shadow(0 0 8px var(--bs-accent));
-}
-html[data-bs-theme="outatime"] .bs-clock-hour {
-  transform-origin:50px 60px; animation:bs-clock-spin 2.4s linear infinite;
-}
-html[data-bs-theme="outatime"] .bs-clock-min {
-  transform-origin:50px 60px; animation:bs-clock-spin 1s linear infinite;
-}
-@keyframes bs-clock-spin { to { transform:rotate(360deg); } }
-.bs-loading-reticle { display:none; }
-/* Easter egg "Predador": troca o spinner pela mira/retículo de caça
-   térmica, anel pontilhado girando feito escaneando o alvo. */
-html[data-bs-theme="predador"] .bs-loading-spinner { display:none; }
-html[data-bs-theme="predador"] .bs-loading-reticle {
-  display:block; color:var(--bs-accent);
-  filter:drop-shadow(0 0 8px var(--bs-accent));
-}
-html[data-bs-theme="predador"] .bs-ret-ring {
-  transform-origin:50px 50px; animation:bs-ret-spin 2.5s linear infinite;
-}
-@keyframes bs-ret-spin { to { transform:rotate(360deg); } }
-.bs-loading-web { display:none; }
-/* Easter egg "Amigão da Vizinhança": troca o spinner por uma teia,
-   pulsando/girando devagar feito o sentido aranha disparando. */
-html[data-bs-theme="spidey"] .bs-loading-spinner { display:none; }
-html[data-bs-theme="spidey"] .bs-loading-web {
-  display:block; color:var(--bs-accent);
-  filter:drop-shadow(0 0 8px var(--bs-accent));
-  animation:bs-web-pulse 1.6s ease-in-out infinite;
-}
-html[data-bs-theme="spidey"] .bs-web-spokes {
-  transform-origin:50px 50px; animation:bs-web-spin 6s linear infinite;
-}
-@keyframes bs-web-spin { to { transform:rotate(360deg); } }
-@keyframes bs-web-pulse { 0%,100% { transform:scale(1); } 50% { transform:scale(1.08); } }
-/* Easter egg "Aranhaverso": mesma teia, mas com o efeito glitch/cromático
-   rosa+ciano do filme e um tremor errático em vez de giro suave. */
-html[data-bs-theme="aranhaverso"] .bs-loading-spinner { display:none; }
-html[data-bs-theme="aranhaverso"] .bs-loading-web {
-  display:block; color:var(--bs-ink);
-  filter:drop-shadow(-2px 0 0 var(--bs-accent-2)) drop-shadow(2px 0 0 var(--bs-accent));
-  animation:bs-glitch-jitter 2.2s steps(1) infinite;
-}
-html[data-bs-theme="aranhaverso"] .bs-web-spokes {
-  transform-origin:50px 50px; animation:bs-web-spin 5s linear infinite;
-}
-@keyframes bs-glitch-jitter {
-  0%, 82%, 100% { transform:translate(0,0); }
-  84% { transform:translate(-2px,1px); }
-  86% { transform:translate(2px,-1px); }
-  88% { transform:translate(-1px,0); }
-  90% { transform:translate(0,0); }
-}
-.bs-loading-visor { display:none; }
-/* Easter egg "Diretiva Primária": troca o spinner pelo visor do RoboCop,
-   com a varredura vermelha indo e voltando de um canto ao outro. */
-html[data-bs-theme="diretiva"] .bs-loading-spinner { display:none; }
-html[data-bs-theme="diretiva"] .bs-loading-visor {
-  display:block; color:var(--bs-accent-2);
-  filter:drop-shadow(0 0 6px var(--bs-accent));
-}
-html[data-bs-theme="diretiva"] .bs-visor-scan {
-  animation:bs-visor-scan 1.2s ease-in-out infinite alternate;
-}
-@keyframes bs-visor-scan { from { transform:translateX(0); } to { transform:translateX(92px); } }
-/* Temas de Natal: "Esta Casa É Minha" (casa dos McCallister com o
-   pisca-pisca no telhado) e "Quemlândia" (o coração do Grinch crescendo três
-   tamanhos). Nos dois, neve caindo atrás da frase (::before do overlay, em
-   z-index -1 para ficar sob o conteúdo e sobre o fundo). */
-.bs-loading-casa, .bs-loading-coracao { display:none; }
+/* ── Loadings 8 bits dos temas de filme ────────────────────────────────
+   Os SVGs saem de scripts/gerar_pixel_loading.py (templates/_loading_pixel.html,
+   não editar à mão). Cada tema esconde o anel com retrato e mostra o seu sprite.
+   Quadros: <g class="fr frN">, um visível por vez via opacity com steps(1);
+   --t é a duração do ciclo, --i o índice e --n o total. Movimento em unidades
+   do grid do sprite (translate em px no SVG = unidade do viewBox). */
+.bs-px { display:none; overflow:hidden; }
+html[data-bs-theme="outatime"] .bs-loading-spinner,
+html[data-bs-theme="predador"] .bs-loading-spinner,
+html[data-bs-theme="spidey"] .bs-loading-spinner,
+html[data-bs-theme="aranhaverso"] .bs-loading-spinner,
+html[data-bs-theme="diretiva"] .bs-loading-spinner,
 html[data-bs-theme="kevin"] .bs-loading-spinner,
 html[data-bs-theme="grinch"] .bs-loading-spinner { display:none; }
-html[data-bs-theme="kevin"] .bs-loading-casa { display:block; color:var(--bs-accent-2); }
-.bs-casa-janela { fill:#ffcf5a; animation:bs-casa-janela 3s ease-in-out infinite; }
-@keyframes bs-casa-janela { 0%,100% { opacity:1; } 50% { opacity:.55; } }
-.bs-casa-luzes circle { animation:bs-pisca 1.2s steps(1) infinite; }
-.bs-casa-luzes circle:nth-child(odd) { animation-delay:-.6s; }
-@keyframes bs-pisca { 0%,100% { opacity:1; } 50% { opacity:.2; } }
-html[data-bs-theme="grinch"] .bs-loading-coracao {
-  display:block; color:var(--bs-accent);
-  filter:drop-shadow(0 0 8px var(--bs-accent));
+html[data-bs-theme="outatime"] .bs-px-outatime { display:block; filter:drop-shadow(0 0 6px rgba(51,201,255,.55)); }
+html[data-bs-theme="predador"] .bs-px-predador { display:block; filter:drop-shadow(0 0 6px rgba(255,69,0,.6)); }
+html[data-bs-theme="spidey"] .bs-px-spidey { display:block; filter:drop-shadow(0 0 6px rgba(216,31,38,.5)); }
+html[data-bs-theme="aranhaverso"] .bs-px-aranhaverso { display:block; animation:bs-px-glitch 2.2s steps(1) infinite; }
+html[data-bs-theme="diretiva"] .bs-px-diretiva { display:block; filter:drop-shadow(0 0 6px rgba(91,155,213,.45)); }
+html[data-bs-theme="kevin"] .bs-px-kevin { display:block; }
+html[data-bs-theme="grinch"] .bs-px-grinch { display:block; filter:drop-shadow(0 0 8px rgba(140,198,63,.55)); }
+.bs-px .fr {
+  animation-duration:var(--t,.6s); animation-timing-function:steps(1); animation-iteration-count:infinite;
+  animation-delay:calc(var(--t,.6s) * (var(--i,0) / var(--n,2) - 1));
 }
-.bs-coracao { transform-box:fill-box; transform-origin:center; animation:bs-cresce 3.2s ease-out infinite; }
-@keyframes bs-cresce {
-  0%, 18%  { transform:scale(.5); }
-  25%, 43% { transform:scale(.66); }
-  50%, 68% { transform:scale(.83); }
-  75%, 93% { transform:scale(1); }
-  100%     { transform:scale(.5); }
+.bs-px .fr2 { animation-name:bs-fr2; }
+.bs-px .fr3 { animation-name:bs-fr3; }
+.bs-px .fr4 { animation-name:bs-fr4; }
+@keyframes bs-fr2 { 0% { opacity:1; } 50%, 100% { opacity:0; } }
+@keyframes bs-fr3 { 0% { opacity:1; } 33.333%, 100% { opacity:0; } }
+@keyframes bs-fr4 { 0% { opacity:1; } 25%, 100% { opacity:0; } }
+/* DeLorean: sobe e desce 1 pixel; linhas de velocidade correm para trás */
+.bs-px .px-bob { animation:bs-px-bob .48s steps(1) infinite; }
+@keyframes bs-px-bob { 0% { transform:translateY(0); } 50%, 100% { transform:translateY(-1px); } }
+.bs-px .px-vel { animation:bs-px-vel .32s steps(8) infinite; }
+@keyframes bs-px-vel { from { transform:translateX(0); } to { transform:translateX(-8px); } }
+/* aranha descendo e subindo no fio, 1 pixel por passo */
+.bs-px .px-desce { animation:bs-px-desce 1.6s steps(4) infinite alternate; }
+@keyframes bs-px-desce { from { transform:translateY(0); } to { transform:translateY(4px); } }
+@keyframes bs-px-glitch {
+  0%, 82%, 100% { transform:translate(0,0); }
+  84% { transform:translate(-3px,1px); }
+  86% { transform:translate(3px,-1px); }
+  88% { transform:translate(-2px,0); }
+  90% { transform:translate(0,0); }
 }
-.bs-coracao-anel { transform-origin:50px 50px; animation:bs-ret-spin 8s linear infinite; opacity:.6; }
+/* visor do RoboCop: o bloco vermelho anda 15 pixels e volta */
+.bs-px .px-scan { animation:bs-px-scan 1.2s steps(15) infinite alternate; }
+@keyframes bs-px-scan { from { transform:translateX(0); } to { transform:translateX(15px); } }
+@keyframes bs-pisca { 0%,100% { opacity:1; } 50% { opacity:.2; } }  /* usado no funil-árvore (temas.css) */
+/* Temas de Natal: neve caindo atrás da frase (::before do overlay, em
+   z-index -1 para ficar sob o conteúdo e sobre o fundo). */
 html[data-bs-theme="kevin"] #bs-loading-overlay::before,
 html[data-bs-theme="grinch"] #bs-loading-overlay::before {
   content:""; position:absolute; inset:0; z-index:-1; pointer-events:none;
@@ -439,7 +394,8 @@ html[data-bs-theme="grinch"] #bs-loading-overlay::before {
   to   { background-position:30px 197px, -20px 181px, 40px 263px, -12px 149px, 8px 113px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  #bs-loading-overlay::before, .bs-casa-luzes circle, .bs-coracao { animation:none !important; }
+  #bs-loading-overlay::before, .bs-px, .bs-px * { animation:none !important; }
+  .bs-px .fr:not(.f0) { opacity:0; }
 }
 /* Anel de 128px girando por fora (::before) e o retrato do autor da frase
    parado dentro (104px). O anel gira sozinho para a foto não rodar junto. */

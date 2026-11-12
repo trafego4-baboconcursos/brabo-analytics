@@ -4716,7 +4716,7 @@ O overlay de navegação (`#bs-loading-overlay`, `base.html` + `static/js/carreg
 - **Anel:** `.bs-loading-spinner` agora tem 128px. O anel gira num `::before` e o retrato
   (`.bs-loading-foto`, 104px) fica parado dentro, com contorno na `--bs-accent`. A foto aparece e troca
   junto com a frase (depois de 400ms, a cada 7s). Os temas de filme continuam escondendo o anel e
-  mostrando o ícone deles (relógio, mira, teia).
+  mostrando o sprite 8 bits deles (ver "Loadings 8 bits" abaixo).
 - **Cor do tema:** os retratos são sanguínea/sépia; um overlay `mix-blend-mode: color` com 55% de
   opacidade em `--bs-accent` (`.bs-loading-foto::after`) tinge a foto com a cor do tema ativo.
 - **Arquivos:** `frontend/static/img/pensadores/<slug>.webp`, 208px, cerca de 10 KB cada (77 autores,
@@ -4732,7 +4732,7 @@ O overlay de navegação (`#bs-loading-overlay`, `base.html` + `static/js/carreg
 lista de temas de filme no seletor (ícone `ti-robot`). Paleta escura de aço azulado (`--bs-accent`
 `#5b9bd5`), cromo no `--bs-accent-2`, vermelho só no perigo e no ponto "ao vivo", ciano de HUD no
 info; números em Russo One (somada ao `@import` de `tokens.css`). No loading, o anel dá lugar a um
-capacete com o visor (`.bs-loading-visor`) e a varredura vermelha indo e voltando, e as frases vêm de
+capacete com o visor e a varredura vermelha indo e voltando (sprite 8 bits), e as frases vêm de
 `RC_QUOTES` (falas do filme, sem slug). Peças: `temas.css`, `layout.css`, `base.html` (SVG + opção
 no menu), `tema.js` (`BS_THEME_LABELS`), `carregamento.js` e o baseline de tokens de
 `tests/test_visual.py`.
@@ -4742,10 +4742,10 @@ seletor, pelas mesmas peças:
 - **"Esta Casa É Minha"** (chave `kevin`, Esqueceram de Mim): tema **claro** (creme, vermelho
   `#c41e3a` no accent, verde-pinheiro na sidebar e no `--bs-accent-2`). Mountains of Christmas só nos
   títulos (nos números ela desenha o zero como "o"); números em Playfair Display com `lining-nums`.
-  Loading: casa com janelas acesas e pisca-pisca no telhado (`.bs-loading-casa`), frases em `KV_QUOTES`.
+  Loading: casa com janelas acesas e pisca-pisca no telhado (sprite 8 bits), frases em `KV_QUOTES`.
 - **"Quemlândia"** (chave `grinch`, O Grinch): escuro verde, accent `#6fa82f` (o limão `#8cc63f` dava
   contraste 2,05 com texto branco; esse dá 2,87), vermelho de Papai Noel no `--bs-accent-2`, Chewy nos
-  números. Loading: coração que cresce três tamanhos em degraus (`.bs-loading-coracao`), frases em
+  números. Loading: coração que cresce três tamanhos em degraus (sprite 8 bits), frases em
   `GR_QUOTES` (livro do Dr. Seuss e filme de 2000).
 - Nos dois, neve no fundo do overlay (`#bs-loading-overlay::before`, `z-index:-1`, cor em
   `--bs-neve`), parada com `prefers-reduced-motion`.
@@ -4754,6 +4754,18 @@ seletor, pelas mesmas peças:
   base; o HTML não muda. Andares verdes com largura fixa por posição contada do fim (36/52/68/84/100%,
   funciona com e sem a etapa de pesquisa), bolas abaixo do texto, pisca-pisca no pé de cada andar,
   estrela (`::after`) e tronco com presentes (`::before`). Sem dados (`.no-data`), nada muda (`:has`).
+
+**Loadings 8 bits dos temas de filme (12/11/26).** Os sete temas de filme trocaram os ícones vetoriais do
+loading por pixel art: Outatime (DeLorean voando, com rodas recolhidas, brilho azul, fogo no escape e
+linhas de velocidade), Predador (mira com a tríade de lasers), Amigão da Vizinhança (aranha descendo no
+fio), Aranhaverso (a mesma aranha com fantasmas rosa/ciano e tremor), Diretiva Primária (capacete com a
+varredura no visor), Esta Casa É Minha (casa com neve e pisca-pisca) e Quemlândia (coração crescendo três
+tamanhos). Os SVGs são **gerados** por `scripts/gerar_pixel_loading.py` (mapas de caracteres + paleta;
+um `<path>` por cor, `crispEdges`) em `frontend/templates/_loading_pixel.html`, incluído no overlay do
+`base.html` — não editar o partial à mão; `--check` diz se está desatualizado. A animação é CSS no bloco
+"Loadings 8 bits" de `layout.css`: quadros `<g class="fr frN">` alternados por opacidade com `steps(1)`
+(`--t`, `--i`, `--n`) e movimentos em unidades do grid. Com `prefers-reduced-motion`, fica parado no
+primeiro quadro. Os SVGs vetoriais antigos (relógio, mira, teia, visor, casa, coração) saíram.
 
 **Faixas de pagamento como cartões (12/11/26).** Em "Forma de Pagamento", os marcadores de baixo (À vista,
 Parcelado em 12x, Outras parcelas, Entrada de boleto parcelado) viraram os mesmos cartões `.dbf-kpi` dos

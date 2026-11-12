@@ -427,6 +427,9 @@ relacionados:
 >
 > **Tela de loading: 100 frases e retrato do autor (2026-11-12)**
 >
+>
+> **Scheduler: deploy não deixa mais rodada pendurada (2026-11-12)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -4733,3 +4736,20 @@ Os produtos do lançamento (principal + BLP/boleto, e as ofertas do TMB) somam n
 ("Mentoria <projeto>"); cada oferta avulsa de outro produto (`oferta:<codigo>`) vira uma linha com o
 nome curto e a etiqueta UPSELL. Função `_resumo_matriculas_produtos` em `frontend/services/debriefing.py`
 → `dbf.matriculas_produtos`.
+
+## Scheduler: deploy não deixa mais rodada pendurada (2026-11-12)
+
+Todo deploy reinicia o `etl/scheduler.py`, e isso causava dois problemas: (1) a rodada em andamento era
+morta no meio e a linha do `etl_runs` ficava `running` para sempre (havia linhas órfãs de dias); (2) o
+ciclo lento (Active Campaign, ~20 min, até 45 em captura pesada) disparava imediatamente a cada boot e
+era morto pelo deploy seguinte sem nunca terminar — em 05/11/26 os leads chegaram a ficar 5,7 h atrasados.
+
+- **Boot:** `etl_runs.encerrar_orfas()` marca como `error` ("Interrompida: o scheduler reiniciou…") tudo
+  que está `running`. No boot nenhuma rodada deste processo existe, então são de processo morto; se um
+  container antigo ainda estiver terminando, o `finish_run` dele sobrescreve depois (UPDATE por id).
+- **Ciclo lento no boot só se precisar:** `etl_runs.minutos_desde_ultimo_ok(("active_campaign",))` — se o
+  último Active ok tem menos de 60 min, o ciclo lento não roda no boot e o cron do minuto :20 cobre; se
+  tem mais (ou o banco está indisponível), roda na hora. O ciclo rápido (Meta/Google/GA4) continua
+  rodando no boot (leva ~2 min). Só o Active decide: as outras fontes lentas acabam em segundos e fariam
+  qualquer rodada recente parecer "em dia".
+- Testes: `tests/test_etl_runs_boot.py` (SQLite em memória).

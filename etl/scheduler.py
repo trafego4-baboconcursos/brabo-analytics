@@ -29,6 +29,7 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_MISSED
 
 from budget_alert import rodar_alerta_orcamento, alerta_pendente
+from etl_runs import encerrar_orfas, minutos_desde_ultimo_ok
 
 BASE_DIR     = Path(__file__).parent
 ORQUESTRADOR = BASE_DIR / "run_all.py"
@@ -56,6 +57,10 @@ FONTES_RAPIDAS = "meta_ads,google_ads,ga4,sheets_contagem"
 # é uma consulta ao launch_config e sai.
 FONTES_LENTAS = "active_campaign,instagram,ac_ebook,ac_engajamento,whatsapp,ac_campaigns,youtube,publicos"
 INTERVALO_LENTAS_MINUTOS = 60
+# Fonte que decide se o ciclo lento roda já no boot (ver main()): só o Active Campaign — é o
+# pesado e o que o deploy matava. As outras lentas (youtube, publicos…) acabam em segundos e
+# fariam qualquer rodada recente parecer "em dia".
+_FONTES_LENTAS_TUDO = ("active_campaign",)
 
 load_dotenv(dotenv_path=BASE_DIR.parent / ".env")
 
@@ -350,6 +355,21 @@ def main() -> None:
     logger.info("  Log file: %s", LOG_FILE.as_posix())
     logger.info("=====================================================")
 
+    # Deploy mata o container no meio da rodada e a linha fica 'running' para sempre.
+    # No boot nenhuma rodada deste processo existe: o que está 'running' é de processo morto.
+    n_orfas = encerrar_orfas()
+    if n_orfas:
+        logger.warning("Boot: %d rodada(s) órfã(s) do etl_runs marcada(s) como erro (reinício do scheduler)", n_orfas)
+
+    # Ciclo lento no boot só se a última rodada ok já tem mais de 1 h. Todo deploy reinicia o
+    # scheduler; rodar o Active (~20 min, até 45 em captura pesada) a cada reinício o deixava
+    # sempre sendo morto pelo deploy seguinte e sem terminar (visto em 05/11/26: leads 5,7 h
+    # atrasados). Dentro da janela, o cron do minuto :20 cobre.
+    _min_ok = minutos_desde_ultimo_ok(_FONTES_LENTAS_TUDO)
+    _lento_agora = _min_ok is None or _min_ok > INTERVALO_LENTAS_MINUTOS
+    logger.info("Boot: último Active ok há %s min -> ciclo lento imediato: %s",
+                "?" if _min_ok is None else f"{_min_ok:.0f}", "sim" if _lento_agora else "não")
+
     scheduler = BlockingScheduler(timezone="America/Sao_Paulo")
     scheduler.add_listener(_on_job_event, EVENT_JOB_ERROR | EVENT_JOB_MISSED)
 
@@ -384,7 +404,8 @@ def main() -> None:
         misfire_grace_time=600,
         id="etl_carga_lenta",
         name="ETL lento (Active Campaign, Instagram, WhatsApp)",
-        next_run_time=datetime.now(timezone.utc),
+        # sem next_run_time: o APScheduler agenda pelo próximo :20 do cron
+        **({"next_run_time": datetime.now(timezone.utc)} if _lento_agora else {}),
     )
 
     # Reprocessamento profundo diário (janela de 18 dias), 3h40 da madrugada:

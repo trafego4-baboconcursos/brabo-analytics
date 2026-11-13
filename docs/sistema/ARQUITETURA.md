@@ -46,7 +46,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 107 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 108 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Ano global do sistema (2026-10-22)**
@@ -434,6 +434,7 @@ relacionados:
 > - [[ARQUITETURA#Debriefing: Vendas por Dia também conta só alunos novos (12/11/26)|Debriefing: Vendas por Dia também conta só alunos novos (12/11/26)]]
 > - [[ARQUITETURA#Insights: tudo em seções, barra de controles no topo (12/11/26)|Insights: tudo em seções, barra de controles no topo (12/11/26)]]
 > - [[ARQUITETURA#Verba: seções na ordem das etapas (12/11/26)|Verba: seções na ordem das etapas (12/11/26)]]
+> - [[ARQUITETURA#Debriefing: chave nova no ctx precisa de fallback no template (13/11/26)|Debriefing: chave nova no ctx precisa de fallback no template (13/11/26)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -4821,3 +4822,6 @@ checkpoints).
 
 ### Verba: seções na ordem das etapas (12/11/26)
 `verba.html` agora segue o lançamento: Visão geral → Pré-Qualificação (resumo + curva por dia) → Captação (dias da semana, divisão por público por dia, curva, verba diária previsto×realizado) → Remarketing (Lembrete → Matrículas Abertas). Antes a curva de Captação vinha antes da de Pré-Quali e o resumo da Pré-Quali ficava separado da curva dela. `bloco_curva` passou a ser definido no topo (macro precisa existir antes do primeiro uso).
+
+### Debriefing: chave nova no ctx precisa de fallback no template (13/11/26)
+Chave nova no contexto do debriefing derruba as páginas que leem `debriefing_snapshot` gerado antes do deploy: lançamentos encerrados (ex.: BV-26) não são re-aquecidos e ficam com o snapshot velho. `total_matriculas`/`prev_total_matriculas` (12/11) causaram 500 em `/debriefing?launch_code=BV-26` por isso. Regra: todo campo novo lido no template usa `| default(<campo antigo>)`, ou o snapshot é refeito antes do deploy.

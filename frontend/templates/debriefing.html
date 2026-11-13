@@ -900,7 +900,8 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
         </div>
         {% if dbf.has_prev %}
           {{ dbadge(val, pval, polarity) }}
-          <div class="prev-val">ant.:
+          {%- set _no_ponto = (dbf.carrinho_ref | default('')) and lbl in ["Receita Líquida", "Total Vendas", "Ticket Médio"] %}
+          <div class="prev-val"{% if _no_ponto %} title="{{ dbf.prev_code }} no mesmo ponto do carrinho ({{ dbf.carrinho_ref }}), não o total fechado"{% endif %}>{% if _no_ponto %}{{ dbf.prev_code }} no mesmo ponto:{% else %}ant.:{% endif %}
             {% if fmt == "brl0" %}{{ pval | brl(0) }}
             {% elif fmt == "brl" %}{{ pval | brl }}
             {% elif fmt == "num" %}{{ pval | num }}

@@ -46,7 +46,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 108 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 109 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Ano global do sistema (2026-10-22)**
@@ -435,6 +435,7 @@ relacionados:
 > - [[ARQUITETURA#Insights: tudo em seções, barra de controles no topo (12/11/26)|Insights: tudo em seções, barra de controles no topo (12/11/26)]]
 > - [[ARQUITETURA#Verba: seções na ordem das etapas (12/11/26)|Verba: seções na ordem das etapas (12/11/26)]]
 > - [[ARQUITETURA#Debriefing: chave nova no ctx precisa de fallback no template (13/11/26)|Debriefing: chave nova no ctx precisa de fallback no template (13/11/26)]]
+> - [[ARQUITETURA#ETL GA4: uma propriedade fora do ar não derruba as outras (13/11/26)|ETL GA4: uma propriedade fora do ar não derruba as outras (13/11/26)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -4825,3 +4826,6 @@ checkpoints).
 
 ### Debriefing: chave nova no ctx precisa de fallback no template (13/11/26)
 Chave nova no contexto do debriefing derruba as páginas que leem `debriefing_snapshot` gerado antes do deploy: lançamentos encerrados (ex.: BV-26) não são re-aquecidos e ficam com o snapshot velho. `total_matriculas`/`prev_total_matriculas` (12/11) causaram 500 em `/debriefing?launch_code=BV-26` por isso. Regra: todo campo novo lido no template usa `| default(<campo antigo>)`, ou o snapshot é refeito antes do deploy.
+
+### ETL GA4: uma propriedade fora do ar não derruba as outras (13/11/26)
+**Sintoma:** `etl_runs` do `ga4` em `error` a cada rodada desde 05:18 de 13/11 (timeout de 60 s e 429), `ga4_daily` sem nenhuma linha do dia. **Diagnóstico:** com `returnPropertyQuota`, a cota estava folgada (tokens/hora 39.9k de 40k); o `runReport` da propriedade `503652898` (LP Brabo Concursos) devolvia 502 após 60 s mesmo com a consulta mínima (só `date`) para 10–13/11, enquanto 05/11 e 20/10 respondiam em ~1 s. Depois o mesmo aconteceu com as outras (timeout/429): instabilidade do backend do GA4, não da consulta nem da cota. **Antes:** qualquer falha abortava o script e NENHUMA propriedade era gravada. **Agora (`etl/etl_ga4.py`):** cada propriedade é isolada (try/except); quem falha é registrada em `falhas` e pulada no 2º relatório (não repete as 3 tentativas de 60 s); o `DELETE` da janela vale só para as propriedades que responderam (`_delete_janela`), então a que falhou mantém o dado anterior em vez de ficar zerada; ao final grava o que deu e sai com código 1 listando as propriedades (aparece em `etl_runs`). Teste: `tests/test_ga4_delete_janela.py`.

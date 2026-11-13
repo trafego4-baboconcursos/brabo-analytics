@@ -924,6 +924,17 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
         {{ kpi_card(lbl, val, pval, fmt, polarity) }}
       {% endfor %}
     </div>
+    {% if dbf.carrinho_regra | default(false) %}
+      <p class="dbf-nota-regra" style="font-size:12px;opacity:.75;margin:8px 0 0">
+        Vendas = só carrinho (1ª cobrança, desde a abertura); upgrade para a Black{% if dbf.upgrades_qtd | default(0) %} ({{ dbf.upgrades_qtd | num }}){% endif %} e compras de teste ficam fora da contagem e do ticket.
+        {% if dbf.carrinho_ref | default('') %}«ant.» = {{ dbf.prev_code }} no mesmo ponto do carrinho ({{ dbf.carrinho_ref }}).{% endif %}
+      </p>
+      {% if dbf.carrinho_ref | default('') %}
+        <p class="dbf-aviso-boleto" style="font-size:12px;margin:6px 0 0;padding:8px 12px;border-radius:8px;background:color-mix(in srgb,var(--bs-warning,#f59e0b) 14%,transparent)">
+          <i class="ti ti-alert-triangle"></i> O boleto/Pix parcelado da Hotmart chega ao banco com atraso e com a data original do pedido: durante o carrinho, as vendas do dia podem aparecer menores do que realmente são e sobem nas horas seguintes.
+        </p>
+      {% endif %}
+    {% endif %}
 
     <!-- Timeline vendas (carrinho aberto) -->
     <div class="info-box" style="margin-top:0">

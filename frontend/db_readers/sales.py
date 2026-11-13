@@ -732,3 +732,170 @@ def read_dia1_sales(launch: Any) -> dict:
         })
 
     return {"data_abertura": str(day), "checkpoints": checkpoints}
+
+
+# Expressão SQL do instante (horário de Brasília, sem fuso) de uma coluna de data da Hotmart.
+# Mesmos 3 formatos de `_hm_data_sql`, mas devolve timestamp e não date.
+_HM_TS_SQL = r"""CASE WHEN NULLIF({c},'') ~ '^\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}$'
+          THEN to_date(split_part({c}, ' ', 1), 'DD/MM/YYYY') + split_part({c}, ' ', 2)::interval
+     WHEN NULLIF({c},'') ~ '^\d{2}/\d{2}/\d{4}$' THEN to_date({c}, 'DD/MM/YYYY')::timestamp
+     WHEN NULLIF({c},'') ~ '^\d{10,13}$'
+          THEN (to_timestamp(CASE WHEN length({c}) = 13 THEN {c}::bigint / 1000 ELSE {c}::bigint END) AT TIME ZONE 'America/Sao_Paulo')
+     WHEN NULLIF({c},'') IS NOT NULL THEN ({c}::timestamptz AT TIME ZONE 'America/Sao_Paulo') END"""
+
+
+def _hm_ts_sql(col: str) -> str:
+    return _HM_TS_SQL.replace("{c}", col)
+
+
+def abertura_carrinho_ts(cfg: dict):
+    """Instante da abertura do carrinho (Brasília, naive): `abertura_oficial_carrinho` + `abertura_oficial_hora`
+    (HH:MM). Sem a data, devolve None; sem a hora, vale 00:00."""
+    from datetime import datetime  # noqa: PLC0415
+
+    dia = _safe_date(cfg.get("abertura_oficial_carrinho"))
+    if not dia:
+        return None
+    hora = str(cfg.get("abertura_oficial_hora") or "").strip()
+    try:
+        hh, mm = (int(x) for x in hora.split(":")[:2]) if hora else (0, 0)
+    except ValueError:
+        hh, mm = 0, 0
+    return datetime(dia.year, dia.month, dia.day, hh, mm)
+
+
+def read_vendas_carrinho(launch_folder_or_code: Any, ate=None) -> dict | None:
+    """Vendas pela regra do Painel Lançamento (debriefing).
+
+    - vendas = só a 1ª cobrança (o `_parcela_unica_info` já descarta as demais) de compras feitas a partir
+      do instante da abertura do carrinho; compras de antes da abertura (período de aulas) não contam;
+    - upgrade (oferta avulsa listada como `oferta:<codigo>` no config, ex. Black) não é venda: some da
+      contagem e do ticket, mas a receita dele continua em `receita`;
+    - e-mail @aprovasim.com e `+teste` já saem na consulta;
+    - `ate` (datetime naive de Brasília) corta tudo que vier depois — usado pra comparar o lançamento
+      anterior no mesmo ponto relativo do carrinho.
+    Devolve None sem abertura configurada (o chamador cai no cálculo antigo).
+    """
+    from frontend.db_readers.launches import read_launch_config  # noqa: PLC0415
+
+    code = _extract_launch_code(launch_folder_or_code)
+    cfg = read_launch_config(code)
+    abertura = abertura_carrinho_ts(cfg)
+    c_ini = _safe_date(cfg.get("carrinho_start_date"))
+    c_fim = _safe_date(cfg.get("carrinho_end_date"))
+    if abertura is None or c_ini is None or c_fim is None:
+        return None
+    hotmart_ids, hotmart_ofertas = split_hotmart_ids(cfg.get("hotmart_produto_ids"))
+    with _get_engine().connect() as conn:
+        row = conn.execute(text("SELECT projeto FROM dim_lancamentos WHERE codigo = :code"), {"code": code}).fetchone()
+    project = row[0] if row else None
+    from datetime import datetime  # noqa: PLC0415
+
+    ini = datetime(c_ini.year, c_ini.month, c_ini.day)
+    fim = datetime(c_fim.year, c_fim.month, c_fim.day, 23, 59, 59)
+    if ate is not None and ate < fim:
+        fim = ate
+    ts_expr = "COALESCE(" + _hm_ts_sql("data_da_transacao") + ", " + _hm_ts_sql("confirmacao_do_pagamento") + ")"
+    sql = (
+        "SELECT * FROM (SELECT " + ts_expr + r""" AS ts, email_do_a_comprador_a, codigo_do_produto, codigo_do_preco,
+               tipo_de_cobranca, quantidade_de_cobrancas, quantidade_total_de_parcelas,
+               faturamento_liquido, valor_de_compra_sem_impostos
+        FROM hotmart_clean_oficial
+        WHERE status_da_transacao = ANY(:status)
+          AND (email_do_a_comprador_a IS NULL OR (
+              email_do_a_comprador_a NOT ILIKE '%+teste%' AND email_do_a_comprador_a NOT ILIKE '%@aprovasim.com'))
+        """
+    )
+    params: dict = {"status": list(_HOTMART_STATUS_APROVADO), "ini": ini, "fim": fim, "offer_ids": hotmart_ofertas}
+    if hotmart_ids:
+        sql += " AND (codigo_do_produto = ANY(:product_ids) OR lower(codigo_do_preco) = ANY(:offer_ids))"
+        params["product_ids"] = hotmart_ids
+    else:
+        sql += (
+            " AND (CASE WHEN produto ILIKE '%black vital%' THEN 'BLACK' WHEN produto ILIKE '%inss%' THEN 'INSS'"
+            " WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%' OR produto ILIKE '%escrevente%') THEN 'TJ'"
+            " WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'"
+            " ELSE 'OUTRO' END = :project OR lower(codigo_do_preco) = ANY(:offer_ids))"
+            " AND NOT (codigo_do_produto = ANY(:perp_ids))"
+        )
+        params["project"] = project
+        params["perp_ids"] = HOTMART_IDS_PERPETUO
+    sql += ") t WHERE t.ts BETWEEN :ini AND :fim"
+    df = pd.read_sql(text(sql), _get_users_engine(), params=params)
+
+    def _num(v):
+        try:
+            x = float(v)
+            return x if math.isfinite(x) else None
+        except (TypeError, ValueError):
+            return None
+
+    out = {
+        "abertura": abertura, "ate": fim, "vendas": 0, "upgrades": 0, "pre_abertura": 0,
+        "receita": 0.0, "receita_upgrade": 0.0, "receita_pre": 0.0, "receita_carrinho": 0.0,
+        "ultima_venda": None,
+    }
+    ofertas = {str(o).strip().lower() for o in (hotmart_ofertas or [])}
+    for _, r in df.iterrows():
+        eh_por_parcela, eh_repeticao, _cobr, parcelas = _parcela_unica_info(r)
+        if eh_repeticao:
+            continue
+        valor = _num(r.get("faturamento_liquido"))
+        if valor is None:
+            valor = _num(r.get("valor_de_compra_sem_impostos")) or 0.0
+        if eh_por_parcela:
+            valor *= max(1, parcelas)
+        ts = pd.Timestamp(r["ts"]).to_pydatetime()
+        if ts.tzinfo is not None:
+            ts = ts.replace(tzinfo=None)
+        out["receita"] += valor
+        if out["ultima_venda"] is None or ts > out["ultima_venda"]:
+            out["ultima_venda"] = ts
+        if str(r.get("codigo_do_preco") or "").strip().lower() in ofertas:
+            out["upgrades"] += 1
+            out["receita_upgrade"] += valor
+        elif ts < abertura:
+            out["pre_abertura"] += 1
+            out["receita_pre"] += valor
+        else:
+            out["vendas"] += 1
+            out["receita_carrinho"] += valor
+    # TMB (boleto parcelado de lançamentos antigos): instante = data_efetivado. Sem lancamento_id
+    # (venda nova ainda não classificada) cai no projeto, igual ao read_vendas.
+    tmb_ids = _normalize_product_ids(cfg.get("tmb_produto_ids"))
+    tmb_proj = """CASE WHEN produto ILIKE '%black vital%' THEN 'BLACK' WHEN produto ILIKE '%inss%' THEN 'INSS'
+        WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%' OR produto ILIKE '%escrevente%') THEN 'TJ'
+        WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'
+        ELSE 'OUTRO' END"""
+
+    def _tmb(usar_ids: bool) -> pd.DataFrame:
+        filtro = (
+            "lancamento_id = ANY(ARRAY[" + ", ".join(str(int(i)) for i in tmb_ids) + "]::int[])"
+            if usar_ids else tmb_proj + " = :project"
+        )
+        p_tmb = {"ini": ini, "fim": fim}
+        if not usar_ids:
+            p_tmb["project"] = project
+        return pd.read_sql(
+            text("SELECT data_efetivado AS ts, valor_liquido FROM tmb_clean_oficial WHERE valor_liquido > 0 AND "
+                 + filtro + " AND data_efetivado BETWEEN :ini AND :fim"),
+            _get_users_engine(), params=p_tmb,
+        )
+
+    tdf = _tmb(True) if tmb_ids else pd.DataFrame()
+    if tdf.empty and project:
+        tdf = _tmb(False)
+    for _, r in tdf.iterrows():
+        valor = _num(r.get("valor_liquido")) or 0.0
+        out["receita"] += valor
+        _t = pd.Timestamp(r["ts"]).to_pydatetime()
+        if out["ultima_venda"] is None or _t > out["ultima_venda"]:
+            out["ultima_venda"] = _t
+        if _t < abertura:
+            out["pre_abertura"] += 1
+            out["receita_pre"] += valor
+        else:
+            out["vendas"] += 1
+            out["receita_carrinho"] += valor
+    out["ticket"] = out["receita_carrinho"] / out["vendas"] if out["vendas"] else 0.0
+    return out

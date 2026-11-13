@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import re
 
+from datetime import datetime
 from typing import Any
 
 from src.constants import climas_ordem, etapa_prequali
@@ -714,6 +715,8 @@ def _compute_debriefing_ctx(
     dia1_sales: Any = None,
     prev_dia1_sales: Any = None,
     sorteio: Any = None,
+    carrinho: Any = None,
+    prev_carrinho: Any = None,
 ) -> dict:
     def _f(x): return float(x or 0)
     def _i(x): return int(x or 0)
@@ -792,6 +795,22 @@ def _compute_debriefing_ctx(
     prev_hotmart_liquido = _f(getattr(prev_vendas, "hotmart_receita", 0))
     prev_total_vendas = _i(getattr(prev_vendas, "total_vendas", 0))
     prev_ticket = _f(getattr(prev_vendas, "total_ticket_medio", 0))
+    # Regra do Painel Lançamento: vendas = só carrinho (1ª cobrança, sem upgrade/teste/compra pré-abertura);
+    # ticket exclui upgrade e pré-abertura; "ant." no mesmo ponto do carrinho. ROAS fica com a receita cheia
+    # (acima) — receita e upgrade continuam somando nele.
+    carrinho_ativo = bool(carrinho)
+    carrinho_ref = ""
+    if carrinho_ativo:
+        total_vendas = _i(carrinho.get("vendas"))
+        ticket = _f(carrinho.get("ticket"))
+        if prev_carrinho:
+            prev_total_vendas = _i(prev_carrinho.get("vendas"))
+            prev_ticket = _f(prev_carrinho.get("ticket"))
+            prev_receita = _f(prev_carrinho.get("receita"))
+            _ate = prev_carrinho.get("ate")
+            _ab = prev_carrinho.get("abertura")
+            if _ate and _ab and _ate < datetime(_ate.year, _ate.month, _ate.day, 23, 59, 59):
+                carrinho_ref = _ate.strftime("%d/%m %Hh%M")
     prev_meta_capt    = _captacao(prev_meta)
     prev_meta_leads   = _i(prev_meta_capt.get("leads"))
     prev_meta_spend   = _f(prev_meta_capt.get("custo"))
@@ -1141,13 +1160,13 @@ def _compute_debriefing_ctx(
     # Matrículas = alunos novos do produto do lançamento. Upsell (oferta avulsa) é venda para quem
     # já é aluno, então fica fora da contagem; continua em total_vendas, receita e ROAS.
     upsell_qtd = sum(int(p.get("qtd") or 0) for p in matriculas_produtos if p.get("upsell"))
-    total_matriculas = max(0, total_vendas - upsell_qtd)
+    total_matriculas = total_vendas if carrinho_ativo else max(0, total_vendas - upsell_qtd)
     prev_upsell_qtd = sum(
         int(p.get("qtd") or 0)
         for p in (getattr(prev_hotmart, "produtos", None) or [])
         if p.get("oferta_avulsa")
     )
-    prev_total_matriculas = max(0, prev_total_vendas - prev_upsell_qtd)
+    prev_total_matriculas = prev_total_vendas if (carrinho_ativo and prev_carrinho) else max(0, prev_total_vendas - prev_upsell_qtd)
     # Vendas por produto/oferta que compõe o lançamento (Hotmart + TMB), pelo líquido.
     vendas_por_produto = (
         [{**p, "plataforma": "Hotmart"} for p in (getattr(hotmart, "produtos", []) or [])]
@@ -1418,6 +1437,8 @@ def _compute_debriefing_ctx(
         "prev_taxa_hotmart_pct": prev_taxa_hotmart / prev_pago_hotmart * 100 if prev_pago_hotmart > 0 else 0.0,
         "prev_parcelamento_hotmart_pct": prev_parcelamento_hotmart / prev_pago_hotmart * 100 if prev_pago_hotmart > 0 else 0.0,
         "prev_total_vendas": prev_total_vendas, "prev_ticket": prev_ticket,
+        "carrinho_regra": carrinho_ativo, "carrinho_ref": carrinho_ref,
+        "upgrades_qtd": _i((carrinho or {}).get("upgrades")), "pre_abertura_qtd": _i((carrinho or {}).get("pre_abertura")),
         "prev_total_matriculas": prev_total_matriculas,
         "prev_total_leads": prev_total_leads, "prev_cpl": prev_cpl,
         # Etapas

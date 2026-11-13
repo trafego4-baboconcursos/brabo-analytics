@@ -313,6 +313,18 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
             falhas.append("whatsapp_groups_resumo")
             return None, None
 
+    async def f_carrinho():
+        """Vendas pela regra do Painel Lançamento (só carrinho, sem upgrade) e o lançamento anterior no
+        MESMO ponto do carrinho (mesmo tempo decorrido desde a abertura)."""
+        if not launch:
+            return None, None
+        try:
+            return await run_in_threadpool(_carrinho_par, launch, previous)
+        except Exception:
+            logger.exception("Debriefing: falha ao montar vendas do carrinho")
+            falhas.append("vendas_carrinho")
+            return None, None
+
     async def f_dia1_sales():
         """Vendas cumulativas hora a hora no dia 1 — "Vendas na 1ª Hora"
         (atual + lançamento anterior, pra comparativo)."""
@@ -368,6 +380,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         historico_grande,
         (whatsapp_groups_resumo, prev_whatsapp_groups_resumo),
         (dia1_sales, prev_dia1_sales),
+        (carrinho, prev_carrinho),
         sorteio,
         (versao_lp_por_ad, conversao_paginas_todas),
     ) = await asyncio.gather(
@@ -377,7 +390,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         f_disparo_resumo(), f_ebook(), f_hotmart_recompra(),
         f_hotmart_semana_seguinte(), f_compradores_por_dia_grupo(),
         f_forma_pagamento_entrada(), f_comparativo_historico(),
-        f_historico_grande(), f_whatsapp_groups_resumo(), f_dia1_sales(),
+        f_historico_grande(), f_whatsapp_groups_resumo(), f_dia1_sales(), f_carrinho(),
         f_sorteio(), f_versao_lp(),
     )
 
@@ -417,6 +430,8 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         prev_whatsapp_groups_resumo=prev_whatsapp_groups_resumo,
         dia1_sales=dia1_sales,
         prev_dia1_sales=prev_dia1_sales,
+        carrinho=carrinho,
+        prev_carrinho=prev_carrinho,
         sorteio=sorteio,
     )
     return {
@@ -426,6 +441,30 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         "creative_data_error": creative_data_error,
         "falhas": falhas,
     }
+
+
+def _carrinho_par(launch: Any, previous: Any) -> tuple:
+    """(atual, anterior). O anterior é cortado no mesmo tempo decorrido desde a abertura do carrinho
+    (ex.: 13/11 08h43 ↔ 18/09 08h43); com o carrinho atual já encerrado, compara o total fechado."""
+    from datetime import datetime as _dt  # noqa: PLC0415
+    from zoneinfo import ZoneInfo  # noqa: PLC0415
+
+    from frontend.db_readers.launches import read_launch_config  # noqa: PLC0415
+    from frontend.db_readers.sales import abertura_carrinho_ts, read_vendas_carrinho  # noqa: PLC0415
+
+    curr = read_vendas_carrinho(launch.code)
+    if not curr or not previous:
+        return curr, None
+    prev_abertura = abertura_carrinho_ts(read_launch_config(previous.code))
+    if prev_abertura is None:
+        return curr, None
+    agora = _dt.now(ZoneInfo("America/Sao_Paulo")).replace(tzinfo=None)
+    if agora >= curr["ate"]:
+        return curr, read_vendas_carrinho(previous.code, None)
+    # A carga da Hotmart já parou por horas (12–13/11/26): o ponto de comparação não pode andar na frente do
+    # dado carregado, senão o anterior ganha horas de venda que o atual ainda não recebeu. Usa a última venda.
+    ponto = min(agora, curr["ultima_venda"]) if curr.get("ultima_venda") else agora
+    return curr, read_vendas_carrinho(previous.code, prev_abertura + (ponto - curr["abertura"]))
 
 
 # Por que o snapshot de cada lançamento não foi regravado na última tentativa (memória do processo).

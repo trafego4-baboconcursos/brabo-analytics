@@ -46,7 +46,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 109 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 110 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Ano global do sistema (2026-10-22)**
@@ -436,6 +436,7 @@ relacionados:
 > - [[ARQUITETURA#Verba: seções na ordem das etapas (12/11/26)|Verba: seções na ordem das etapas (12/11/26)]]
 > - [[ARQUITETURA#Debriefing: chave nova no ctx precisa de fallback no template (13/11/26)|Debriefing: chave nova no ctx precisa de fallback no template (13/11/26)]]
 > - [[ARQUITETURA#ETL GA4: uma propriedade fora do ar não derruba as outras (13/11/26)|ETL GA4: uma propriedade fora do ar não derruba as outras (13/11/26)]]
+> - [[ARQUITETURA#Debriefing: vendas pela regra do Painel Lançamento (13/11/26)|Debriefing: vendas pela regra do Painel Lançamento (13/11/26)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -4829,3 +4830,6 @@ Chave nova no contexto do debriefing derruba as páginas que leem `debriefing_sn
 
 ### ETL GA4: uma propriedade fora do ar não derruba as outras (13/11/26)
 **Sintoma:** `etl_runs` do `ga4` em `error` a cada rodada desde 05:18 de 13/11 (timeout de 60 s e 429), `ga4_daily` sem nenhuma linha do dia. **Diagnóstico:** com `returnPropertyQuota`, a cota estava folgada (tokens/hora 39.9k de 40k); o `runReport` da propriedade `503652898` (LP Brabo Concursos) devolvia 502 após 60 s mesmo com a consulta mínima (só `date`) para 10–13/11, enquanto 05/11 e 20/10 respondiam em ~1 s. Depois o mesmo aconteceu com as outras (timeout/429): instabilidade do backend do GA4, não da consulta nem da cota. **Antes:** qualquer falha abortava o script e NENHUMA propriedade era gravada. **Agora (`etl/etl_ga4.py`):** cada propriedade é isolada (try/except); quem falha é registrada em `falhas` e pulada no 2º relatório (não repete as 3 tentativas de 60 s); o `DELETE` da janela vale só para as propriedades que responderam (`_delete_janela`), então a que falhou mantém o dado anterior em vez de ficar zerada; ao final grava o que deu e sai com código 1 listando as propriedades (aparece em `etl_runs`). Teste: `tests/test_ga4_delete_janela.py`.
+
+### Debriefing: vendas pela regra do Painel Lançamento (13/11/26)
+`sales.read_vendas_carrinho(code, ate=None)` (só o debriefing usa; `read_vendas` das outras páginas não mudou). **Vendas** = 1ª cobrança (descarta `quantidade_de_cobrancas > 1`) de compras a partir do instante da abertura do carrinho — `abertura_oficial_carrinho` + nova coluna `launch_config.abertura_oficial_hora` (texto `HH:MM`; PES-SET-26 e PES-NOV-26 = 07:58). Fora da contagem: e-mail `@aprovasim.com`/`+teste`, compras anteriores à abertura e **upgrade** (qualquer `oferta:<codigo>` do config, ex. Black `izfne8k1`); a receita desses continua em `receita`/ROAS. **Ticket** = (receita − upgrade − pré-abertura) ÷ vendas. Inclui TMB (instante = `data_efetivado`; sem `lancamento_id` cai no projeto) — era o boleto parcelado do PES-SET-26. **"ant."**: `_carrinho_par` (`debriefing_build.py`) corta o lançamento anterior no mesmo tempo decorrido desde a abertura (13/11 08h43 ↔ 18/09 08h43); o ponto é `min(agora, última venda carregada)` para não correr na frente da carga da Hotmart. Com o carrinho encerrado, compara o total fechado. Contexto novo (`carrinho_regra`, `carrinho_ref`, `upgrades_qtd`, `pre_abertura_qtd`) com `default()` no template (regra do snapshot). Matrículas = vendas do carrinho. Validação 13/11: 1.162 vendas às 08h43 (regra do time: 1.163) contra 1.140 do PES-SET-26 no mesmo ponto (+1,9%). Carga da Hotmart (`hotmart_clean_oficial`) é externa a este repo — atraso do boleto parcelado (8829061) e paradas de 12–13/11 seguem abertos com quem mantém a carga; o debriefing mostra aviso enquanto o carrinho está aberto.

@@ -49,11 +49,13 @@ ATRASO_INICIAL_MIN = 5  # o boot do site é pesado; a primeira checagem espera
 LIMITES_H: dict[str, float] = {
     "meta_ads": 2.0,
     "google_ads": 2.0,
+    "tiktok_ads": 2.0,   # ciclo rápido, como Meta/Google (desde 13/11/26)
     "active_campaign": 3.0,
 }
 NOMES: dict[str, str] = {
     "meta_ads": "Meta Ads",
     "google_ads": "Google Ads",
+    "tiktok_ads": "TikTok Ads",
     "active_campaign": "Active Campaign",
 }
 HISTORICO = "historico_utm"

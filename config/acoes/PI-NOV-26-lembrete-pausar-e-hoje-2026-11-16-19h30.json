@@ -1,0 +1,31 @@
+{
+  "lancamento": "PI-NOV-26",
+  "descricao": "Pausar os 4 conjuntos 'é hoje 16/11' do lembrete no Facebook (Meta) às 19h30 de 16/11, início da Aula 1. Os conjuntos ficaram até 23h59 porque o Meta exige 24h com verba diária; a campanha também termina às 19h30. Pedido do usuário 13/11.",
+  "executar_em": "2026-11-16T19:30",
+  "acoes": [
+    {
+      "plataforma": "meta",
+      "id": "120248888483960014",
+      "nome": "[MA][tráfego][lembrete][PI-NOV-26] / 00 - Cadastrados [PI-NOV-26] - é hoje 16/11",
+      "status": "PAUSED"
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248888494150014",
+      "nome": "[MA][tráfego][lembrete][PI-NOV-26] / 01 - Cadastrados [PI-AGO-26] - é hoje 16/11",
+      "status": "PAUSED"
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248888503070014",
+      "nome": "[MA][tráfego][lembrete][reels][PI-NOV-26] / 00 - Cadastrados [PI-NOV-26] - é hoje 16/11",
+      "status": "PAUSED"
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248888511790014",
+      "nome": "[MA][tráfego][lembrete][reels][PI-NOV-26] / 01 - Cadastrados [PI-AGO-26] - é hoje 16/11",
+      "status": "PAUSED"
+    }
+  ]
+}

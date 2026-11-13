@@ -1,0 +1,42 @@
+{
+  "lancamento": "PI-NOV-26",
+  "descricao": "Lembrete PI-NOV-26: os conjuntos/campanha gerais ficam com metade da verba no dia; a outra metade está nos conjuntos/campanha do dia (decisão do usuário 13/11, ORCAMENTO_PI-NOV-26 seção 11). Segunda 16/11: 'é hoje' (LT101, LT106 no feed; LT108, LT109, LT111 no reels) e campanha [GA][lembrete][segunda].",
+  "aplicar_em": "2026-11-16",
+  "campanhas": [
+    {
+      "plataforma": "meta",
+      "id": "120248799240300014",
+      "nome": "[MA][tráfego][lembrete][PI-NOV-26][13.11.26] / 00 - Cadastrados [PI-NOV-26]",
+      "valor": 155,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248799240590014",
+      "nome": "[MA][tráfego][lembrete][PI-NOV-26][13.11.26] / 01 - Cadastrados [PI-AGO-26]",
+      "valor": 110,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248799238460014",
+      "nome": "[MA][tráfego][lembrete][reels][PI-NOV-26][13.11.26] / 00 - Cadastrados [PI-NOV-26]",
+      "valor": 130,
+      "conta": ""
+    },
+    {
+      "plataforma": "meta",
+      "id": "120248799239690014",
+      "nome": "[MA][tráfego][lembrete][reels][PI-NOV-26][13.11.26] / 01 - Cadastrados [PI-AGO-26]",
+      "valor": 85,
+      "conta": ""
+    },
+    {
+      "plataforma": "google",
+      "conta": "6482320788",
+      "id": "24454687386",
+      "nome": "[GA][lembrete][PI-NOV-26][13.11.26]",
+      "valor": 205
+    }
+  ]
+}

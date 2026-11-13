@@ -230,7 +230,9 @@ def read_comparativo_historico(launch: Launch, all_launches: list[Launch], n: in
         m = _meta(l) if getattr(l, "has_meta", False) else None
         g = _google(l) if getattr(l, "has_google", False) else None
         v = _vendas(l) if getattr(l, "has_vendas", False) else None
-        invest = float(getattr(m, "total_gasto", 0) or 0) + float(getattr(g, "total_custo", 0) or 0)
+        t = _tiktok_seguro(l)
+        invest = (float(getattr(m, "total_gasto", 0) or 0) + float(getattr(g, "total_custo", 0) or 0)
+                  + float(getattr(t, "total_gasto", 0) or 0))
         total_vendas = int(getattr(v, "total_vendas", 0) or 0)
         por_canal = getattr(v, "por_canal", {}) or {}
         comercial_cs = int((por_canal.get("Comercial") or {}).get("vendas", 0)) + int((por_canal.get("IA") or {}).get("vendas", 0))
@@ -244,6 +246,16 @@ def read_comparativo_historico(launch: Launch, all_launches: list[Launch], n: in
         }
 
     return [_linha(l) for l in chain]
+
+
+def _tiktok_seguro(launch: Launch):
+    """TikTok do lançamento para as tabelas históricas; falha de leitura não derruba a linha."""
+    from frontend.services.fetch import _tiktok  # noqa: PLC0415
+    try:
+        return _tiktok(launch)
+    except Exception:
+        logger.exception("TikTok: falha ao ler %s para o histórico", getattr(launch, "code", "?"))
+        return None
 
 
 def read_historico_grande(launch: Launch, all_launches: list[Launch], n: int = 8) -> list[dict]:
@@ -274,7 +286,9 @@ def read_historico_grande(launch: Launch, all_launches: list[Launch], n: int = 8
         g = _google(l) if getattr(l, "has_google", False) else None
         v = _vendas(l) if getattr(l, "has_vendas", False) else None
 
-        invest = float(getattr(m, "total_gasto", 0) or 0) + float(getattr(g, "total_custo", 0) or 0)
+        t = _tiktok_seguro(l)
+        invest = (float(getattr(m, "total_gasto", 0) or 0) + float(getattr(g, "total_custo", 0) or 0)
+                  + float(getattr(t, "total_gasto", 0) or 0))
         total_vendas = int(getattr(v, "total_vendas", 0) or 0)
         receita_bruta = float(getattr(v, "total_receita_bruta", 0) or 0)
         receita_liquida = float(getattr(v, "total_receita_liquida", 0) or 0)
@@ -298,9 +312,9 @@ def read_historico_grande(launch: Launch, all_launches: list[Launch], n: int = 8
         pico_aula1 = int(getattr(aula1, "peak_concurrent", 0) or 0) if aula1 else None
         comp_aula1 = (pico_aula1 / grupos_wpp * 100) if (pico_aula1 and grupos_wpp > 0) else None
 
-        e_pq = get_etapa(m, g, etapa_prequali(l.code))
-        e_capt = get_etapa(m, g, "Captação")
-        e_rmk = get_etapa(m, g, "Remarketing")
+        e_pq = get_etapa(m, g, etapa_prequali(l.code), tiktok=t)
+        e_capt = get_etapa(m, g, "Captação", tiktok=t)
+        e_rmk = get_etapa(m, g, "Remarketing", tiktok=t)
         div_total = e_pq["invest"] + e_capt["invest"] + e_rmk["invest"]
         div_qcr = {
             "quente": (e_pq["invest"] / div_total * 100) if div_total > 0 else 0.0,

@@ -717,6 +717,8 @@ def _compute_debriefing_ctx(
     sorteio: Any = None,
     carrinho: Any = None,
     prev_carrinho: Any = None,
+    tiktok: Any = None,
+    prev_tiktok: Any = None,
 ) -> dict:
     def _f(x): return float(x or 0)
     def _i(x): return int(x or 0)
@@ -753,7 +755,8 @@ def _compute_debriefing_ctx(
     vendas_primeira_hora = _venda_1h_de(dia1_sales)
     prev_vendas_primeira_hora = _venda_1h_de(prev_dia1_sales)
 
-    invest = _f(getattr(meta, "total_gasto", 0)) + _f(getattr(google, "total_custo", 0)) + wa_gasto
+    invest = (_f(getattr(meta, "total_gasto", 0)) + _f(getattr(google, "total_custo", 0))
+              + _f(getattr(tiktok, "total_gasto", 0)) + wa_gasto)
     receita = _f(getattr(vendas, "total_receita_liquida", 0)) or _f(getattr(vendas, "total_receita", 0))
     receita_bruta = _f(getattr(vendas, "total_receita_bruta", 0)) or _f(getattr(vendas, "total_receita", 0))
     taxa_hotmart = _f(getattr(vendas, "hotmart_taxa", 0))
@@ -775,16 +778,18 @@ def _compute_debriefing_ctx(
     google_spend = _f(google_capt.get("custo"))
     google_cpl   = google_spend / google_leads if google_leads > 0 else 0.0
 
-    # TikTok — sem integração ainda
-    tiktok_leads = 0
-    tiktok_spend = 0.0
-    tiktok_cpl   = 0.0
+    # TikTok (tiktok_ads_daily, desde 13/11/26): leads = conversões do grupo de lead na Captação.
+    tiktok_capt  = (getattr(tiktok, "por_etapa", {}) or {}).get("Captação") or {}
+    tiktok_leads = _i(tiktok_capt.get("leads"))
+    tiktok_spend = _f(tiktok_capt.get("gasto"))
+    tiktok_cpl   = tiktok_spend / tiktok_leads if tiktok_leads > 0 else 0.0
 
     total_leads = meta_leads + google_leads + tiktok_leads
     total_spend_all = meta_spend + google_spend + tiktok_spend
     cpl = total_spend_all / total_leads if total_leads > 0 else 0.0
 
-    prev_invest = _f(getattr(prev_meta, "total_gasto", 0)) + _f(getattr(prev_google, "total_custo", 0)) + prev_wa_gasto
+    prev_invest = (_f(getattr(prev_meta, "total_gasto", 0)) + _f(getattr(prev_google, "total_custo", 0))
+                   + _f(getattr(prev_tiktok, "total_gasto", 0)) + prev_wa_gasto)
     prev_receita = _f(getattr(prev_vendas, "total_receita_liquida", 0)) or _f(getattr(prev_vendas, "total_receita", 0))
     prev_receita_bruta = _f(getattr(prev_vendas, "total_receita_bruta", 0)) or _f(getattr(prev_vendas, "total_receita", 0))
     prev_roas = prev_receita / prev_invest if prev_invest > 0 else 0.0
@@ -819,8 +824,13 @@ def _compute_debriefing_ctx(
     prev_google_leads = int(_f(prev_google_capt.get("conversoes")))
     prev_google_spend = _f(prev_google_capt.get("custo"))
     prev_google_cpl   = prev_google_spend / prev_google_leads if prev_google_leads > 0 else 0.0
-    prev_total_leads  = prev_meta_leads + prev_google_leads
-    prev_cpl = (prev_meta_spend + prev_google_spend) / prev_total_leads if prev_total_leads > 0 else 0.0
+    prev_tiktok_capt  = (getattr(prev_tiktok, "por_etapa", {}) or {}).get("Captação") or {}
+    prev_tiktok_leads = _i(prev_tiktok_capt.get("leads"))
+    prev_tiktok_spend = _f(prev_tiktok_capt.get("gasto"))
+    prev_tiktok_cpl   = prev_tiktok_spend / prev_tiktok_leads if prev_tiktok_leads > 0 else 0.0
+    prev_total_leads  = prev_meta_leads + prev_google_leads + prev_tiktok_leads
+    prev_cpl = ((prev_meta_spend + prev_google_spend + prev_tiktok_spend) / prev_total_leads
+                if prev_total_leads > 0 else 0.0)
 
     fontes_leads = [
         {"fonte": "Meta",   "icon": "ti-brand-meta",   "color": "#1877F2",
@@ -831,10 +841,10 @@ def _compute_debriefing_ctx(
          "prev_leads": prev_google_leads, "prev_cpl": prev_google_cpl, "has_data": google_leads > 0},
         {"fonte": "TikTok", "icon": "ti-brand-tiktok", "color": "#000000",
          "spend": tiktok_spend, "leads": tiktok_leads, "cpl": tiktok_cpl,
-         "prev_leads": 0, "prev_cpl": 0.0, "has_data": False},
+         "prev_leads": prev_tiktok_leads, "prev_cpl": prev_tiktok_cpl, "has_data": tiktok_leads > 0},
     ]
 
-    def get_etapa(m, g, name, whatsapp=0.0):
+    def get_etapa(m, g, name, whatsapp=0.0, t=None):
         # "Remarketing" não existe como chave própria em por_etapa — Meta/Google
         # classificam essas campanhas nas sub-etapas (Lembrete, Depoimento, etc.),
         # então somamos todas elas para compor o total de Remarketing. O WhatsApp
@@ -851,8 +861,12 @@ def _compute_debriefing_ctx(
             g_c += _f(g_d.get("custo"))
             m_l += _i(m_d.get("leads"))
             g_l += _i(g_d.get("conversoes"))
-        total = m_c + g_c + whatsapp
-        return {"nome": name, "invest": total, "meta": m_c, "google": g_c, "tiktok": 0.0, "whatsapp": whatsapp, "leads": m_l + g_l}
+        t_por = (getattr(t, "por_etapa", {}) or {}) if t else {}
+        t_c = sum(_f((t_por.get(n) or {}).get("gasto")) for n in names)
+        t_l = sum(_i((t_por.get(n) or {}).get("leads")) for n in names)
+        total = m_c + g_c + t_c + whatsapp
+        return {"nome": name, "invest": total, "meta": m_c, "google": g_c, "tiktok": t_c, "whatsapp": whatsapp,
+                "leads": m_l + g_l + t_l}
 
     def _previsto_por_etapa(cfg: dict) -> dict:
         """Verba planejada por etapa (cadastrada no wizard) — Pré-Qualificação e
@@ -883,18 +897,19 @@ def _compute_debriefing_ctx(
     base = invest or 1.0
     etapas = []
     for name in [etapa_pq, "Captação", "Remarketing"]:
-        e = get_etapa(meta, google, name, whatsapp=wa_gasto if name == "Remarketing" else 0.0)
+        e = get_etapa(meta, google, name, whatsapp=wa_gasto if name == "Remarketing" else 0.0, t=tiktok)
         e["pct"] = e["invest"] / base * 100
         e["previsto"] = previsto_map.get(name, 0.0)
         etapas.append(e)
 
     prev_etapas: list = []
-    if prev_meta or prev_google:
+    if prev_meta or prev_google or prev_tiktok:
         prev_cfg = _launch_cfg(previous.code) if previous else {}
         prev_previsto_map = _previsto_por_etapa(prev_cfg)
         prev_base = prev_invest or 1.0
         for name in [etapa_pq, "Captação", "Remarketing"]:
-            e = get_etapa(prev_meta, prev_google, name, whatsapp=prev_wa_gasto if name == "Remarketing" else 0.0)
+            e = get_etapa(prev_meta, prev_google, name, whatsapp=prev_wa_gasto if name == "Remarketing" else 0.0,
+                          t=prev_tiktok)
             e["pct"] = e["invest"] / prev_base * 100
             e["previsto"] = prev_previsto_map.get(name, 0.0)
             prev_etapas.append(e)
@@ -1274,11 +1289,15 @@ def _compute_debriefing_ctx(
             "climas": google_preq_clima,
         },
     }
-    prequali_invest["total"] = prequali_invest["meta"]["total"] + prequali_invest["google"]["total"]
-    prequali_invest["prev_total"] = prequali_invest["meta"]["prev_total"] + prequali_invest["google"]["prev_total"]
+    _tk_pq = (getattr(tiktok, "por_etapa", {}) or {}).get(etapa_pq) or {}
+    _prev_tk_pq = (getattr(prev_tiktok, "por_etapa", {}) or {}).get(etapa_pq) or {}
+    prequali_invest["tiktok"] = {"total": _f(_tk_pq.get("gasto")), "prev_total": _f(_prev_tk_pq.get("gasto"))}
+    prequali_invest["total"] = (prequali_invest["meta"]["total"] + prequali_invest["google"]["total"]
+                                + prequali_invest["tiktok"]["total"])
+    prequali_invest["prev_total"] = (prequali_invest["meta"]["prev_total"] + prequali_invest["google"]["prev_total"]
+                                     + prequali_invest["tiktok"]["prev_total"])
 
-    # Top 5 anúncios (por leads) da Pré-Qualificação, por plataforma — TikTok
-    # fica vazio até existir integração.
+    # Top 5 anúncios (por leads) da Pré-Qualificação, por plataforma.
     # Nome: o do Facebook vem completo (descreve o criativo); o do Google/
     # YouTube costuma só repetir o ADxxx sem descrição — usa o nome do Meta
     # como preferência quando o mesmo ad_code roda nas duas plataformas.
@@ -1313,7 +1332,7 @@ def _compute_debriefing_ctx(
     preq_top_ads = {
         "meta":   _preq_top_ads_view(getattr(meta, "preq_por_ad", None) or []),
         "google": _preq_top_ads_view(getattr(google, "preq_por_ad", None) or [], prefer_meta_nome=True),
-        "tiktok": [],
+        "tiktok": _preq_top_ads_view(getattr(tiktok, "preq_por_ad", None) or []),
     }
 
     leads_detail_table = _build_leads_detail_table(

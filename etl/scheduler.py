@@ -52,7 +52,8 @@ INTERVALO_MINUTOS = 30
 # LENTAS mudam devagar ou são caras: a cada meia hora entravam ~55 leads, que
 # não mudam decisão nenhuma. De hora em hora, `active_campaign` (o gargalo, 45%
 # do tempo e 63% das falhas) roda 24x/dia em vez de 48.
-FONTES_RAPIDAS = "meta_ads,google_ads,ga4,sheets_contagem"
+# tiktok_ads (13/11/26): 4 contas, ~20s por conta numa janela de 3 dias de folga — é gasto, entra no rápido.
+FONTES_RAPIDAS = "meta_ads,google_ads,tiktok_ads,ga4,sheets_contagem"
 # `youtube` só chama a API do início do evento ao fim do carrinho; fora disso
 # é uma consulta ao launch_config e sai.
 FONTES_LENTAS = "active_campaign,instagram,ac_ebook,ac_engajamento,whatsapp,ac_campaigns,youtube,publicos"

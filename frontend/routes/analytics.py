@@ -77,12 +77,17 @@ async def captacao(request: Request, launch_code: str | None = None, trilha: str
     google_capt_gasto = float(google_capt.get("custo") or 0)
     meta_capt_leads = int(meta_capt.get("leads") or 0)
     google_capt_conv = float(google_capt.get("conversoes") or 0)
+    # TikTok (tiktok_ads_daily, desde 13/11/26): `leads` = conversões do grupo de lead.
+    tiktok = d.get("tiktok")
+    tiktok_capt = (getattr(tiktok, "por_etapa", {}) or {}).get("Captação") or {}
+    tiktok_capt_gasto = float(tiktok_capt.get("gasto") or 0)
+    tiktok_capt_leads = int(tiktok_capt.get("leads") or 0)
 
-    # ads_invest é só Meta+Google (captação de lead de verdade) — CPL/valor por
+    # ads_invest é só Meta+Google+TikTok (captação de lead de verdade) — CPL/valor por
     # lead e a meta de investimento de captação NUNCA podem incluir WhatsApp,
     # que não gera lead nenhum. wa_gasto só entra no invest/ROAS (KPI de
     # investimento total da campanha, não de custo por lead).
-    ads_invest = meta_capt_gasto + google_capt_gasto
+    ads_invest = meta_capt_gasto + google_capt_gasto + tiktok_capt_gasto
     receita = (vendas.total_receita if vendas else 0.0)
     invest  = ads_invest + wa_gasto
     roas    = receita / invest if invest > 0 else 0.0
@@ -97,6 +102,8 @@ async def captacao(request: Request, launch_code: str | None = None, trilha: str
         google_capt_gasto = float(gt.get("custo") or 0)
         meta_capt_leads = int(mt.get("leads") or 0)
         google_capt_conv = float(gt.get("conversoes") or 0)
+        # Trilha da Black: o TikTok não separa por trilha.
+        tiktok_capt_gasto, tiktok_capt_leads = 0.0, 0
         wa_gasto = 0.0
         ads_invest = meta_capt_gasto + google_capt_gasto
         invest = ads_invest
@@ -110,7 +117,7 @@ async def captacao(request: Request, launch_code: str | None = None, trilha: str
     cfg = await run_in_threadpool(_launch_cfg, launch.code) if launch else {}
     goal_leads  = int(cfg.get("meta_leads") or 0)
     goal_invest = float(cfg.get("meta_investimento_captacao") or 0)
-    leads_meta  = meta_capt_leads + int(round(google_capt_conv))
+    leads_meta  = meta_capt_leads + int(round(google_capt_conv)) + tiktok_capt_leads
     prog_leads  = min(100.0, leads_meta / goal_leads * 100) if goal_leads > 0 and not trilha_nome else None
     valor_medio_lead = ads_invest / leads_meta if leads_meta > 0 else 0.0
     prog_invest = min(100.0, ads_invest / goal_invest * 100) if goal_invest > 0 and not trilha_nome else None
@@ -138,7 +145,7 @@ async def captacao(request: Request, launch_code: str | None = None, trilha: str
 
     # % de Leads por Campanha — Facebook/YouTube por temperatura (só
     # Captação; a segmentação por temperatura não existe em Pré-Qualificação
-    # neste sistema) + TikTok (sempre 0, sem fonte de dado ainda).
+    # neste sistema) + TikTok (uma linha só, todas as temperaturas).
     # Na Black o vocabulário de público é outro (Aluno/Super Quente/Novo);
     # fixar Quente/Frio/Específico mostrava três linhas zeradas.
     _clima_labels = climas_ordem(launch.code if launch else None)
@@ -162,7 +169,7 @@ async def captacao(request: Request, launch_code: str | None = None, trilha: str
             "leads": int(round(g.get("conversoes") or 0)),
             "gasto": float(g.get("custo") or 0),
         })
-    leads_por_campanha_raw.append({"campanha": "Tiktok", "leads": 0, "gasto": 0.0})
+    leads_por_campanha_raw.append({"campanha": "TikTok", "leads": tiktok_capt_leads, "gasto": tiktok_capt_gasto})
     total_leads_camp = sum(r["leads"] for r in leads_por_campanha_raw) or 1
     total_gasto_camp = sum(r["gasto"] for r in leads_por_campanha_raw) or 1
     leads_por_campanha = []
@@ -236,6 +243,7 @@ async def captacao(request: Request, launch_code: str | None = None, trilha: str
         meta=meta, google=google, vendas=vendas, wa_gasto=wa_gasto,
         meta_capt_gasto=meta_capt_gasto, google_capt_gasto=google_capt_gasto,
         meta_capt_leads=meta_capt_leads, google_capt_conv=google_capt_conv,
+        tiktok=tiktok, tiktok_capt_gasto=tiktok_capt_gasto, tiktok_capt_leads=tiktok_capt_leads,
         receita=receita, invest=invest, roas=roas,
         goal_leads=goal_leads, goal_invest=goal_invest,
         leads_meta=leads_meta, valor_medio_lead=valor_medio_lead,
@@ -279,12 +287,19 @@ async def pre_qualificacao(request: Request, launch_code: str | None = None):
     google_preq_gasto = float(google_preq.get("custo") or 0)
     meta_preq_leads = int(meta_preq.get("leads") or 0)
     google_preq_conv = float(google_preq.get("conversoes") or 0)
-    invest_preq = meta_preq_gasto + google_preq_gasto
-    leads_preq = meta_preq_leads + int(round(google_preq_conv))
+    tiktok = d.get("tiktok")
+    tiktok_preq = (getattr(tiktok, "por_etapa", {}) or {}).get(_etapa_pq) or {}
+    tiktok_preq_gasto = float(tiktok_preq.get("gasto") or 0)
+    tiktok_preq_leads = int(tiktok_preq.get("leads") or 0)
+    tiktok_preq_imp = int(tiktok_preq.get("impressoes") or 0)
+    tiktok_preq_v25 = int(tiktok_preq.get("views_25") or 0)
+    tiktok_preq_v50 = int(tiktok_preq.get("views_50") or 0)
+    invest_preq = meta_preq_gasto + google_preq_gasto + tiktok_preq_gasto
+    leads_preq = meta_preq_leads + int(round(google_preq_conv)) + tiktok_preq_leads
     cpl_preq = invest_preq / leads_preq if leads_preq > 0 else 0.0
 
-    # ThruViews (Meta) / Views (Google TrueView) — mesma etapa, sem TikTok
-    # ainda (sem fonte de dado integrada).
+    # ThruViews (Meta) / Views (Google TrueView) — mesma etapa. O TikTok fica de fora:
+    # não tem ThruPlay (a métrica dele mais próxima é a view de 6s, que não é a mesma coisa).
     meta_preq_thruviews = int(meta_preq.get("thruplays") or 0)
     google_preq_views = int(google_preq.get("visualizacoes") or 0)
     thruviews_preq = meta_preq_thruviews + google_preq_views
@@ -295,13 +310,15 @@ async def pre_qualificacao(request: Request, launch_code: str | None = None):
     google_preq_imp = int(google_preq.get("impressoes") or 0)
     meta_preq_cpm = meta_preq_gasto / meta_preq_imp * 1000 if meta_preq_imp > 0 else 0.0
     google_preq_cpm = google_preq_gasto / google_preq_imp * 1000 if google_preq_imp > 0 else 0.0
-    cpm_preq = invest_preq / (meta_preq_imp + google_preq_imp) * 1000 if (meta_preq_imp + google_preq_imp) > 0 else 0.0
+    _imp_preq = meta_preq_imp + google_preq_imp + tiktok_preq_imp
+    cpm_preq = invest_preq / _imp_preq * 1000 if _imp_preq > 0 else 0.0
+    tiktok_preq_cpm = tiktok_preq_gasto / tiktok_preq_imp * 1000 if tiktok_preq_imp > 0 else 0.0
     meta_preq_v25 = int(meta_preq.get("views_25") or 0)
     google_preq_v25 = int(google_preq.get("views_25") or 0)
     meta_preq_v50 = int(meta_preq.get("views_50") or 0)
     google_preq_v50 = int(google_preq.get("views_50") or 0)
-    v25_preq = meta_preq_v25 + google_preq_v25
-    v50_preq = meta_preq_v50 + google_preq_v50
+    v25_preq = meta_preq_v25 + google_preq_v25 + tiktok_preq_v25
+    v50_preq = meta_preq_v50 + google_preq_v50 + tiktok_preq_v50
     custo_v50_preq = invest_preq / v50_preq if v50_preq > 0 else 0.0
 
     conversao_pagina_captura = None
@@ -313,7 +330,7 @@ async def pre_qualificacao(request: Request, launch_code: str | None = None):
 
     # % de Leads por Campanha — Facebook/YouTube por temperatura, escopado
     # pela Pré-Qualificação (por_temperatura_prequali existe em ambas as
-    # plataformas) + TikTok (sempre 0, sem fonte de dado ainda).
+    # plataformas) + TikTok (uma linha só).
     _clima_labels = climas_ordem(launch.code if launch else None)
     meta_temp_preq = (getattr(meta, "por_temperatura_prequali", {}) or {})
     google_temp_preq = (getattr(google, "por_temperatura_prequali", {}) or {})
@@ -332,7 +349,7 @@ async def pre_qualificacao(request: Request, launch_code: str | None = None):
             "leads": int(round(g.get("conversoes") or 0)),
             "gasto": float(g.get("custo") or 0),
         })
-    leads_por_campanha_preq_raw.append({"campanha": "Tiktok", "leads": 0, "gasto": 0.0})
+    leads_por_campanha_preq_raw.append({"campanha": "TikTok", "leads": tiktok_preq_leads, "gasto": tiktok_preq_gasto})
     total_leads_camp_preq = sum(r["leads"] for r in leads_por_campanha_preq_raw) or 1
     total_gasto_camp_preq = sum(r["gasto"] for r in leads_por_campanha_preq_raw) or 1
     leads_por_campanha_preq = []
@@ -368,6 +385,9 @@ async def pre_qualificacao(request: Request, launch_code: str | None = None):
         v25_preq=v25_preq, meta_preq_v25=meta_preq_v25, google_preq_v25=google_preq_v25,
         v50_preq=v50_preq, meta_preq_v50=meta_preq_v50, google_preq_v50=google_preq_v50,
         custo_v50_preq=custo_v50_preq,
+        tiktok=tiktok, tiktok_preq_gasto=tiktok_preq_gasto, tiktok_preq_leads=tiktok_preq_leads,
+        tiktok_preq_cpm=tiktok_preq_cpm, tiktok_preq_v25=tiktok_preq_v25, tiktok_preq_v50=tiktok_preq_v50,
+        tiktok_ads_preq=(getattr(tiktok, "preq_por_ad", None) or []),
         leads_por_campanha=leads_por_campanha_preq,
         total_leads_camp=total_leads_camp_preq, total_gasto_camp=total_gasto_camp_preq,
     )
@@ -384,6 +404,7 @@ async def verba_page(request: Request, launch_code: str | None = None):
     launch = resolve_launch(launch_code, launches)
     d = await _fetch_all_data(launch, needs_daily=True)
     meta, google = d["meta"], d["google"]
+    tiktok = d.get("tiktok")
     wa_cost = d.get("wa_cost")
     wa_gasto = (wa_cost.get("total_cost_brl") or 0.0) if wa_cost else 0.0
     daily_capt = d.get("daily_breakdown") or []
@@ -401,10 +422,10 @@ async def verba_page(request: Request, launch_code: str | None = None):
 
     linhas = []
     for nome in ["Pré-Qualificação", "Captação"]:
-        e = get_etapa(meta, google, nome)
+        e = get_etapa(meta, google, nome, tiktok=tiktok)
         linhas.append({"nome": nome, "previsto": previsto_map.get(nome, 0.0), "realizado": e["invest"]})
     for nome in REMARKETING_SUBETAPAS:
-        e = get_etapa(meta, google, nome)
+        e = get_etapa(meta, google, nome, tiktok=tiktok)
         linhas.append({"nome": nome, "previsto": previsto_sub.get(nome, 0.0), "realizado": e["invest"]})
     linhas.append({"nome": "WhatsApp", "previsto": previsto_whatsapp, "realizado": wa_gasto})
 
@@ -421,8 +442,8 @@ async def verba_page(request: Request, launch_code: str | None = None):
 
     # Bloco 2/4: Investimento em Captação / Pré-Qualificação por Público
     # (bucket previsto % x realizado real por temperatura Meta/Google).
-    bloco_capt_publico = buckets_previsto_x_realizado(meta, google, cfg, "Captação")
-    bloco_preq_publico = buckets_previsto_x_realizado(meta, google, cfg, "Pré-Qualificação")
+    bloco_capt_publico = buckets_previsto_x_realizado(meta, google, cfg, "Captação", tiktok=tiktok)
+    bloco_preq_publico = buckets_previsto_x_realizado(meta, google, cfg, "Pré-Qualificação", tiktok=tiktok)
 
     # Curva diária de verba investida (previsto x realizado) — Captação e
     # Pré-Qualificação.
@@ -444,7 +465,7 @@ async def verba_page(request: Request, launch_code: str | None = None):
         et = etapa_cfg(cfg, nome)
         if not et:
             continue
-        bloco_pub = buckets_previsto_x_realizado(meta, google, cfg, nome)
+        bloco_pub = buckets_previsto_x_realizado(meta, google, cfg, nome, tiktok=tiktok)
         daily_rows = await run_in_threadpool(
             investimento_diario_etapa, launch.code, nome, et.get("start_date"), et.get("end_date"),
         ) if launch else []

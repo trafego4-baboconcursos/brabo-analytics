@@ -2,9 +2,11 @@
 titulo: "Arquitetura do Brabo Analytics — 2026-11-03"
 area: sistema
 status: vigente
-atualizado: 2026-11-12
+atualizado: 2026-11-13
 responde:
   - "como agendar pausa de anuncio no etl"
+  - "como o tiktok ads entra no banco"
+  - "onde fica o token da api do tiktok"
   - "como o sistema funciona por dentro"
   - "onde fica o encurtador de links (substituto do bitly)"
   - "como o encurtador de links grava cliques e redireciona"
@@ -437,6 +439,9 @@ relacionados:
 > - [[ARQUITETURA#Debriefing: chave nova no ctx precisa de fallback no template (13/11/26)|Debriefing: chave nova no ctx precisa de fallback no template (13/11/26)]]
 > - [[ARQUITETURA#ETL GA4: uma propriedade fora do ar não derruba as outras (13/11/26)|ETL GA4: uma propriedade fora do ar não derruba as outras (13/11/26)]]
 > - [[ARQUITETURA#Debriefing: vendas pela regra do Painel Lançamento (13/11/26)|Debriefing: vendas pela regra do Painel Lançamento (13/11/26)]]
+>
+> **TikTok Ads entra no ETL — `tiktok_ads_daily` (2026-11-13)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -2850,9 +2855,8 @@ PES-SET-26 isso é R$ 577.327 → R$ 588.942, e a variação contra o PES-MAI-26
 -11,6%. `inv_a`/`inv_b` **continuam sendo só mídia** — são eles que alimentam ROAS, CPA e CPL
 no resto da página, e mexer neles mudaria essas métricas junto.
 
-**TikTok não aparece porque não há fonte de dado** — não existe tabela de gasto de TikTok no
-banco (só o rótulo em `leads.py`). Ele some pela mesma regra do valor zero, mas a causa é
-ausência de dado, não gasto zero: quando a integração existir, basta popular `inv_tiktok_*`.
+**TikTok entra desde 13/11/26** — `inv_tiktok_*` e `inv_tiktok_total_*`, de `tiktok_ads_daily`
+(ver "TikTok Ads entra no ETL"). Lançamento sem TikTok continua sem a linha (valor zero some).
 
 ---
 
@@ -4833,3 +4837,59 @@ Chave nova no contexto do debriefing derruba as páginas que leem `debriefing_sn
 
 ### Debriefing: vendas pela regra do Painel Lançamento (13/11/26)
 `sales.read_vendas_carrinho(code, ate=None)` (só o debriefing usa; `read_vendas` das outras páginas não mudou). **Vendas** = 1ª cobrança (descarta `quantidade_de_cobrancas > 1`) de compras a partir do instante da abertura do carrinho — `abertura_oficial_carrinho` + nova coluna `launch_config.abertura_oficial_hora` (texto `HH:MM`; PES-SET-26 e PES-NOV-26 = 07:58). Fora da contagem: e-mail `@aprovasim.com`/`+teste`, compras anteriores à abertura e **upgrade** (qualquer `oferta:<codigo>` do config, ex. Black `izfne8k1`); a receita desses continua em `receita`/ROAS. **Ticket** = (receita − upgrade − pré-abertura) ÷ vendas. Inclui TMB (instante = `data_efetivado`; sem `lancamento_id` cai no projeto) — era o boleto parcelado do PES-SET-26. **"ant."**: `_carrinho_par` (`debriefing_build.py`) corta o lançamento anterior no mesmo tempo decorrido desde a abertura (13/11 08h43 ↔ 18/09 08h43); o ponto é `min(agora, última venda carregada)` para não correr na frente da carga da Hotmart. Com o carrinho encerrado, compara o total fechado. Contexto novo (`carrinho_regra`, `carrinho_ref`, `upgrades_qtd`, `pre_abertura_qtd`) com `default()` no template (regra do snapshot). Matrículas = vendas do carrinho. Validação 13/11: 1.162 vendas às 08h43 (regra do time: 1.163) contra 1.140 do PES-SET-26 no mesmo ponto (+1,9%). Carga da Hotmart (`hotmart_clean_oficial`) é externa a este repo — atraso do boleto parcelado (8829061) e paradas de 12–13/11 seguem abertos com quem mantém a carga; o debriefing mostra aviso enquanto o carrinho está aberto.
+
+## TikTok Ads entra no ETL — `tiktok_ads_daily` (2026-11-13)
+
+Primeira fonte de dado do TikTok. App **Brabo-Analytics** aprovado no TikTok for Business
+(Marketing API v1.3, perfil de desenvolvedor como anunciante direto da Aprova Sim). O token é de
+longa duração: sai uma vez da troca do `auth_code` (redirect em `<painel>/tiktok/callback`, rota
+que **não existe** — o código é lido da barra de endereço) e só para de valer se a autorização for
+revogada. Conta nova = refazer a autorização marcando-a e atualizar `TIKTOK_ADVERTISER_IDS`.
+
+- **Script:** `etl/etl_tiktok_ads.py --since/--until [--launch-code] [--dry-run]`. Fonte
+  `tiktok_ads` do `run_all.py`, no ciclo **rápido** do scheduler (é gasto). Sem
+  `TIKTOK_ACCESS_TOKEN`/`TIKTOK_ADVERTISER_IDS` no ambiente, avisa no log e sai com 0 — não dispara
+  alerta a cada ciclo num servidor ainda sem as variáveis.
+- **Chamada:** `/report/integrated/get/` (`AUCTION_AD`, dimensões `ad_id` + `stat_time_day`),
+  fatiada em janelas de 30 dias (limite da API com quebra diária), paginada em 1.000. O objetivo
+  da campanha vem de `/campaign/get/`. Fuso = o da conta (as 4 são UTC-3). Token vai no header
+  `Access-Token`, nunca na URL. A API responde HTTP 200 com erro em `code` — `api_get` converte
+  em exceção.
+- **Tabela:** `tiktok_ads_daily` (analytics), uma linha por anúncio-dia, só com impressão ou gasto
+  (a API devolve linha zerada para anúncio ativo sem entrega). `conversions` = evento de
+  otimização (lead em `LEAD_GENERATION`); `results` = resultado do objetivo (view de 6s em
+  `VIDEO_VIEWS`). Mesma escrita do Meta: DELETE da janela + INSERT na mesma transação e nome de
+  campanha congelado. Classificação: `campanha_historico.preparar(plataforma="tiktok")` →
+  `src/nomenclatura.categorizar_campanha_tiktok` — colchetes como no Meta (`[TK][captação][quente]`)
+  e, sem colchete, substring. Sem o fallback as campanhas antigas, em texto livre ("[CADASTRO
+  ESCREVENTE] Captação Quente [PES-JAN-26]"), caíam todas em "Outros" e sumiam da Captação. O
+  DELETE é restrito às contas lidas: conta tirada do `.env` não perde o histórico.
+- **`lancamento_codigo`:** `resolve_launch_code`, igual às outras plataformas. Distribuição com tag
+  `[distribuição]` vira `DISTRIBUICAO-<EXPERT>`; Brabo Editora e a `[VV] Distribuição de Conteúdo
+  Frio - 16.05.2025` (sem a tag) ficam NULL, como no Meta.
+- **Carga inicial (13/11/26):** mai/25 → 13/11/26, 2.788 linhas, R$ 91,6 mil. Lançamentos com
+  TikTok: PES-JUN-25 (R$ 3,1 mil), PES-AGO-25 (R$ 11,9 mil), PES-JAN-26 (R$ 7,1 mil); o resto é
+  distribuição (Ivan R$ 45,7 mil, Felipe R$ 4,0 mil, Mateus R$ 3,7 mil) e Brabo Editora.
+- **Leitura no painel** (`frontend/db_readers/ads_tiktok.py::read_tiktok` → `TikTokSummary`, chaves
+  iguais às do `MetaSummary`: `por_etapa`, `por_temperatura_captacao/_prequali`, `por_conta`,
+  `captacao_por_ad`, `preq_por_ad`). Entra em `_fetch_all_data` como `d["tiktok"]` (cache
+  `tiktok::<ini>::<fim>`, recomputado pelo aviso do ETL via `LEITORES_POR_FONTE["tiktok_ads"]`).
+  `leads` do TikTok = `conversions`. Onde aparece:
+  - `/captacao` e `/pre-qualificacao`: soma no investimento, nos leads, CPM e viu 25/50%; linha
+    TikTok em "% de leads por campanha". ThruView **não** soma (TikTok não tem ThruPlay).
+  - "KPIs x anterior" (`kpis_captacao_periodo_comparavel`): TikTok no investimento e nos leads do
+    anterior (`leads_tiktok`).
+  - `/verba`: `get_etapa`/`bucket_realizado`/`buckets_previsto_x_realizado` recebem `tiktok=`;
+    bucket do wizard com plataforma `tiktok` passa a ter realizado.
+  - Debriefing: investimento total (atual e anterior), fonte TikTok em "Leads por fonte", TikTok
+    nas etapas e na pré-quali (`prequali_invest.tiktok`), top anúncios da pré-quali.
+    `SNAPSHOT_VERSION` 21 → 22 e manifesto regravado.
+  - `/comparativo`: `inv_tiktok_*` (janela da Captação) entra em `inv_a/inv_b` e
+    `inv_tiktok_total_*` no total do card "O Paradoxo". Históricos de `core.py`
+    (`read_comparativo_historico`, `read_historico_grande`) somam o TikTok no investimento.
+  - `/distribuicao/<perfil>`: TikTok no investimento, card "Views de 6s (TikTok)" + seguidores
+    ganhos, viu 50%/100%, e tabela "Criativos TikTok" (hook = 2s ÷ impressão, hold = 6s ÷ 2s).
+    Cartões de `/lancamentos` (`read_distribuicao_cards`) somam o gasto do TikTok.
+- **Fica de fora:** thumbnails/texto dos criativos do TikTok, o vigia do ETL
+  (`vigia_etl.LIMITES_H`) e a atribuição de venda por ADxxx (as UTMs do TikTok ainda não são
+  conferidas). Cor da plataforma: `--tiktok-color` (#FE2C55) e `.plat-tiktok`/`.td-tiktok`.

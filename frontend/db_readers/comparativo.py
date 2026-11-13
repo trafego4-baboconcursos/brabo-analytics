@@ -153,6 +153,16 @@ def read_comparativo(launch_b: Launch, launch_a: Launch, launch_a2: Launch | Non
             """), p_base).fetchone()
             result["google_inv_total"] = float(r[0] or 0)
 
+            # TikTok (tiktok_ads_daily, desde 13/11/26): mesma janela de Captação do meta_inv acima
+            # (por data, todas as etapas) e o lançamento inteiro, como Meta/Google.
+            r = conn.execute(text(f"""
+                SELECT COALESCE(SUM(spend) FILTER (WHERE TRUE{_date_clause('date')}), 0),
+                       COALESCE(SUM(spend), 0)
+                FROM tiktok_ads_daily WHERE lancamento_codigo = :code
+            """), p_dates if cs and ce else p_base).fetchone()
+            result["tiktok_inv"] = float(r[0] or 0)
+            result["tiktok_inv_total"] = float(r[1] or 0)
+
             # â€” Leads CRM â€”
             r = conn.execute(text(f"""
                 SELECT COUNT(*) FROM leads
@@ -241,14 +251,16 @@ def read_comparativo(launch_b: Launch, launch_a: Launch, launch_a2: Launch | Non
     rb = _query_launch(launch_b)
 
     # â€” Investimentos â€”
-    inv_capt_a = ra["meta_inv"] + ra["google_inv"]
-    inv_capt_b = rb["meta_inv"] + rb["google_inv"]
+    inv_capt_a = ra["meta_inv"] + ra["google_inv"] + ra["tiktok_inv"]
+    inv_capt_b = rb["meta_inv"] + rb["google_inv"] + rb["tiktok_inv"]
     data.inv_a = inv_capt_a
     data.inv_b = inv_capt_b
     data.inv_meta_a = ra["meta_inv"]
     data.inv_meta_b = rb["meta_inv"]
     data.inv_google_a = ra["google_inv"]
     data.inv_google_b = rb["google_inv"]
+    data.inv_tiktok_a = ra["tiktok_inv"]
+    data.inv_tiktok_b = rb["tiktok_inv"]
 
     # WhatsApp entra no total do card, mas NÃO em inv_a/inv_b: aqueles são
     # mídia de Captação e alimentam ROAS/CPA/CPL do resto da página — mexer
@@ -276,8 +288,10 @@ def read_comparativo(launch_b: Launch, launch_a: Launch, launch_a2: Launch | Non
     data.inv_meta_total_b = rb["meta_inv_total"]
     data.inv_google_total_a = ra["google_inv_total"]
     data.inv_google_total_b = rb["google_inv_total"]
-    data.inv_total_a = data.inv_meta_total_a + data.inv_google_total_a + data.inv_whatsapp_a
-    data.inv_total_b = data.inv_meta_total_b + data.inv_google_total_b + data.inv_whatsapp_b
+    data.inv_tiktok_total_a = ra["tiktok_inv_total"]
+    data.inv_tiktok_total_b = rb["tiktok_inv_total"]
+    data.inv_total_a = data.inv_meta_total_a + data.inv_google_total_a + data.inv_tiktok_total_a + data.inv_whatsapp_a
+    data.inv_total_b = data.inv_meta_total_b + data.inv_google_total_b + data.inv_tiktok_total_b + data.inv_whatsapp_b
 
     # â€” Meta â€”
     data.meta_leads_a = ra["meta_leads"]

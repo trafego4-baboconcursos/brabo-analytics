@@ -91,6 +91,55 @@ def _google_rows(conn, codigo: str, start: date, end: date):
     ).fetchall()
 
 
+def _tiktok_rows(conn, codigo: str, start: date, end: date):
+    return conn.execute(
+        text(
+            "SELECT date, ad_name, spend, impressions, clicks, video_plays, video_views_2s, video_views_6s, "
+            "video_views_25, video_views_50, video_views_100, follows, profile_visits "
+            "FROM tiktok_ads_daily WHERE lancamento_codigo = :codigo AND date BETWEEN :start AND :end"
+        ),
+        {"codigo": codigo, "start": start, "end": end},
+    ).fetchall()
+
+
+def _tiktok_totals(rows) -> dict:
+    return {
+        "spend": sum(float(r.spend or 0) for r in rows),
+        "impressions": sum(r.impressions or 0 for r in rows),
+        "views_6s": sum(r.video_views_6s or 0 for r in rows),
+        "views_50": sum(r.video_views_50 or 0 for r in rows),
+        "views_100": sum(r.video_views_100 or 0 for r in rows),
+        "follows": sum(r.follows or 0 for r in rows),
+    }
+
+
+def _tiktok_criativos(rows) -> list[dict]:
+    """Por criativo. O TikTok não tem ThruPlay: hook = view de 2s ÷ impressão, hold = 6s ÷ 2s.
+    Post impulsionado vem sem ADxxx (o nome é a legenda do post) — agrupa pelo nome."""
+    by_ad: dict[str, dict] = {}
+    for r in rows:
+        code = _extract_ad_code(r.ad_name) or (r.ad_name or "")
+        d = by_ad.setdefault(code, {
+            "ad_code": code, "ad_name": r.ad_name, "spend": 0.0, "impressions": 0, "views_2s": 0,
+            "views_6s": 0, "views_50": 0, "views_100": 0, "follows": 0, "profile_visits": 0,
+        })
+        d["spend"] += float(r.spend or 0)
+        d["impressions"] += r.impressions or 0
+        d["views_2s"] += r.video_views_2s or 0
+        d["views_6s"] += r.video_views_6s or 0
+        d["views_50"] += r.video_views_50 or 0
+        d["views_100"] += r.video_views_100 or 0
+        d["follows"] += r.follows or 0
+        d["profile_visits"] += r.profile_visits or 0
+    out = []
+    for d in by_ad.values():
+        d["hook_rate"] = round(d["views_2s"] / d["impressions"] * 100, 2) if d["impressions"] else 0
+        d["hold_rate"] = round(d["views_6s"] / d["views_2s"] * 100, 2) if d["views_2s"] else 0
+        d["custo_por_view_6s"] = round(d["spend"] / d["views_6s"], 4) if d["views_6s"] else None
+        out.append(d)
+    return sorted(out, key=lambda d: -d["spend"])
+
+
 def _meta_totals(rows) -> dict:
     return {
         "spend": sum(float(r.spend or 0) for r in rows),
@@ -169,23 +218,26 @@ def read_distribuicao(username: str, days: int = 30, compare: bool = False, inic
         with _get_engine().connect() as conn:
             meta_rows = _meta_rows(conn, codigo, start, end)
             google_rows = _google_rows(conn, codigo, start, end)
+            tiktok_rows = _tiktok_rows(conn, codigo, start, end)
             prev_meta_rows = _meta_rows(conn, codigo, prev_start, prev_end) if compare else []
             prev_google_rows = _google_rows(conn, codigo, prev_start, prev_end) if compare else []
+            prev_tiktok_rows = _tiktok_rows(conn, codigo, prev_start, prev_end) if compare else []
     except Exception:
         logger.exception("read_distribuicao: falha para %s", username)
         return None
 
     meta_totals = _meta_totals(meta_rows)
     google_totals = _google_totals(google_rows)
-    investimento_total = meta_totals["spend"] + google_totals["cost"]
-    views_50_total = meta_totals["views_50"] + google_totals["views_50"]
+    tiktok_totals = _tiktok_totals(tiktok_rows)
+    investimento_total = meta_totals["spend"] + google_totals["cost"] + tiktok_totals["spend"]
+    views_50_total = meta_totals["views_50"] + google_totals["views_50"] + tiktok_totals["views_50"]
 
     result = {
         "username": username,
         "name": account.get("name"),
         "profile_url": (None if account.get("sem_instagram")
                         else f"https://instagram.com/{username}"),
-        "no_data": not meta_rows and not google_rows,
+        "no_data": not meta_rows and not google_rows and not tiktok_rows,
         "days": days,
         "personalizado": personalizado,
         "compare": compare,
@@ -193,20 +245,26 @@ def read_distribuicao(username: str, days: int = 30, compare: bool = False, inic
         "range_end": end.isoformat(),
         "investimento_meta": meta_totals["spend"],
         "investimento_google": google_totals["cost"],
+        "investimento_tiktok": tiktok_totals["spend"],
         "investimento_total": investimento_total,
         "thruplays_meta": meta_totals["thruplays"],
         "views_google": google_totals["views"],
+        "views_6s_tiktok": tiktok_totals["views_6s"],
+        "seguidores_tiktok": tiktok_totals["follows"],
         "views_50_total": views_50_total,
-        "views_100_total": meta_totals["views_100"] + google_totals["views_100"],
+        "views_100_total": meta_totals["views_100"] + google_totals["views_100"] + tiktok_totals["views_100"],
         "criativos_meta": _meta_criativos(meta_rows),
         "criativos_google": _google_criativos(google_rows),
+        "criativos_tiktok": _tiktok_criativos(tiktok_rows),
     }
 
     if compare:
         prev_meta_totals = _meta_totals(prev_meta_rows)
         prev_google_totals = _google_totals(prev_google_rows)
-        prev_investimento_total = prev_meta_totals["spend"] + prev_google_totals["cost"]
-        prev_views_50_total = prev_meta_totals["views_50"] + prev_google_totals["views_50"]
+        prev_tiktok_totals = _tiktok_totals(prev_tiktok_rows)
+        prev_investimento_total = prev_meta_totals["spend"] + prev_google_totals["cost"] + prev_tiktok_totals["spend"]
+        prev_views_50_total = (prev_meta_totals["views_50"] + prev_google_totals["views_50"]
+                               + prev_tiktok_totals["views_50"])
         result["prev_range_start"] = prev_start.isoformat()
         result["prev_range_end"] = prev_end.isoformat()
         result["deltas"] = {
@@ -266,6 +324,9 @@ def read_distribuicao_cards(ano: int) -> list[dict]:
                       WHERE lancamento_codigo ILIKE 'DISTRIBUICAO%' AND date BETWEEN :ini AND :fim
                       UNION ALL
                       SELECT lancamento_codigo, date, cost, impressions FROM google_ads_daily
+                      WHERE lancamento_codigo ILIKE 'DISTRIBUICAO%' AND date BETWEEN :ini AND :fim
+                      UNION ALL
+                      SELECT lancamento_codigo, date, spend, impressions FROM tiktok_ads_daily
                       WHERE lancamento_codigo ILIKE 'DISTRIBUICAO%' AND date BETWEEN :ini AND :fim) t
                 GROUP BY 1
             """), {"ini": date(ano, 1, 1), "fim": date(ano, 12, 31), "ini30": ini30}).fetchall()

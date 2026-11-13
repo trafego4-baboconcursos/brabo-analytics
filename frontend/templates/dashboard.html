@@ -50,6 +50,7 @@
         <div class="tp-compare">
           {% if meta %}<span class="plat-meta">Meta</span>: {{ meta_capt_gasto | brl }}{% endif %}
           {% if google %}{% if meta %} · {% endif %}<span class="plat-google">Google</span>: {{ google_capt_gasto | brl }}{% endif %}
+          {% if tiktok_capt_gasto %}{% if meta or google %} · {% endif %}<span class="plat-tiktok">TikTok</span>: {{ tiktok_capt_gasto | brl }}{% endif %}
           {% if wa_gasto %}{% if meta or google %} · {% endif %}<span class="plat-wa">WhatsApp</span>: {{ wa_gasto | brl }}{% endif %}
         </div>
         {% if prev_kpis %}
@@ -75,11 +76,13 @@
           <div class="tp-cmp-row tp-cmp-total"><span>Total</span><span>{{ leads_meta | num }}</span><span>{{ prev_kpis.leads | num }}</span><span>{{ kpi_delta(leads_meta, prev_kpis.leads) }}</span></div>
           {% if meta %}<div class="tp-cmp-row"><span class="plat-meta">Meta</span><span>{{ meta_capt_leads | num }}</span><span>{{ prev_kpis.leads_meta | num }}</span><span>{{ kpi_delta(meta_capt_leads, prev_kpis.leads_meta) }}</span></div>{% endif %}
           {% if google %}<div class="tp-cmp-row"><span class="plat-google">Google</span><span>{{ google_capt_conv | round | int | num }}</span><span>{{ prev_kpis.leads_google | num }}</span><span>{{ kpi_delta(google_capt_conv | round | int, prev_kpis.leads_google) }}</span></div>{% endif %}
+          {% if tiktok_capt_leads or prev_kpis.leads_tiktok %}<div class="tp-cmp-row"><span class="plat-tiktok">TikTok</span><span>{{ tiktok_capt_leads | num }}</span><span>{{ (prev_kpis.leads_tiktok or 0) | num }}</span><span>{{ kpi_delta(tiktok_capt_leads, prev_kpis.leads_tiktok or 0) }}</span></div>{% endif %}
         </div>
         {% else %}
         <div class="tp-compare">
           {% if meta %}Meta: {{ meta_capt_leads | num }}{% endif %}
           {% if google %}{% if meta %} · {% endif %}Google: {{ google_capt_conv | round | int | num }}{% endif %}
+          {% if tiktok_capt_leads %}{% if meta or google %} · {% endif %}TikTok: {{ tiktok_capt_leads | num }}{% endif %}
         </div>
         {% endif %}
       </div>
@@ -90,7 +93,7 @@
         </div>
         <div class="tp-value">{{ valor_medio_lead | brl }}</div>
         <div class="tp-label">CPL</div>
-        <div class="tp-compare">Investimento <strong>total</strong> / <strong>leads</strong> (<span class="plat-meta">Meta</span> + <span class="plat-google">Google</span>)</div>
+        <div class="tp-compare">Investimento <strong>total</strong> / <strong>leads</strong> (<span class="plat-meta">Meta</span> + <span class="plat-google">Google</span>{% if tiktok_capt_gasto %} + <span class="plat-tiktok">TikTok</span>{% endif %})</div>
         {% if prev_kpis %}
         <div class="tp-compare">{{ kpi_delta(valor_medio_lead, prev_kpis.cpl, polarity="down") }} vs {{ prev_kpis.cpl | brl }}</div>
         {% endif %}

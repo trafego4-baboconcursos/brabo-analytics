@@ -78,7 +78,11 @@ TABLE = "debriefing_snapshot"
 # page na seção de Captação). Caso clássico da regra — sem o bump a seção só
 # apareceria no próximo reaquecimento, e foi exatamente o que aconteceu no
 # primeiro teste local: a página veio sem a seção porque leu o snapshot v16.
-SNAPSHOT_VERSION = 21
+#
+# 13/11/26: TikTok entra no debriefing (tiktok_ads_daily) — investimento total, fontes de leads,
+# etapas, pré-quali (`prequali_invest.tiktok`, chave nova) e top anúncios. Sem o bump o snapshot
+# velho seguiria sem o TikTok até o próximo reaquecimento.
+SNAPSHOT_VERSION = 22
 
 DDL = f"""
 CREATE TABLE IF NOT EXISTS {TABLE} (

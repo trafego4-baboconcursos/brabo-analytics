@@ -49,6 +49,7 @@ CONTRATOS = [
     ("etl_meta_ads", "build_df_from_api", "meta_ads_daily"),
     ("etl_meta_ads", "build_df_from_demographics_api", "meta_ads_demographics_daily"),
     ("etl_meta_ads", "build_df_from_region_api", "meta_ads_region_daily"),
+    ("etl_tiktok_ads", "build_df", "tiktok_ads_daily"),
 ]
 
 # Os upsert acrescentam esta coluna depois do builder, então ela conta como

@@ -81,6 +81,16 @@ def _google(launch: Any):
                            lambda: read_google(launch.folder, start_date=start, end_date=end))
 
 
+def _tiktok(launch: Any):
+    """TikTok Ads do lançamento (tiktok_ads_daily), na mesma janela de Meta/Google.
+    None quando o lançamento não tem TikTok."""
+    from frontend.db_readers.ads_tiktok import read_tiktok  # noqa: PLC0415
+
+    start, end = _window(launch)
+    return _get_or_compute(launch.code, f"tiktok::{start}::{end}",
+                           lambda: read_tiktok(launch.code, start_date=start, end_date=end))
+
+
 def _vendas(launch: Any):
     start, end = _window(launch)
     return read_vendas(launch.folder, start_date=start, end_date=end)
@@ -397,7 +407,12 @@ def _fetch_prev_for_debriefing(launch: Any) -> dict:
         daily_captacao = rows_capt or []
     except Exception:
         logger.exception("_fetch_prev_for_debriefing: falha ao buscar daily_breakdown de %s", launch.code)
-    return {"meta": meta, "google": google, "vendas": vendas, "wa_cost": wa_cost, "hotmart": hotmart,
+    try:
+        tiktok = _tiktok(launch)
+    except Exception:
+        logger.exception("_fetch_prev_for_debriefing: falha ao ler TikTok de %s", launch.code)
+        tiktok = None
+    return {"meta": meta, "google": google, "tiktok": tiktok, "vendas": vendas, "wa_cost": wa_cost, "hotmart": hotmart,
             "daily_captacao": daily_captacao}
 
 async def _warm_debriefing(launch: Any, previous: Any, vendas: Any) -> None:
@@ -615,8 +630,17 @@ async def _fetch_all_data(
             logger.exception("Falha ao ler custo de WhatsApp")
             return None
 
-    meta, google, vendas, tfc, tf, daily_tuple, thumb, comp, vc, hm, tmb, yt_aulas, wa_cost = await asyncio.gather(
-        f_meta(), f_google(), f_vendas(), f_tfc(), f_tf(), f_daily(), f_thumb(), f_comp(), f_vc(), f_hm(), f_tmb(), f_youtube(), f_wa_cost()
+    async def f_tiktok():
+        if not launch: return None
+        try: return await run_in_threadpool(_tiktok, launch)
+        except Exception:
+            logger.exception("Falha ao ler TikTok Ads")
+            _errors.append("TikTok Ads")
+            return None
+
+    meta, google, vendas, tfc, tf, daily_tuple, thumb, comp, vc, hm, tmb, yt_aulas, wa_cost, tiktok = await asyncio.gather(
+        f_meta(), f_google(), f_vendas(), f_tfc(), f_tf(), f_daily(), f_thumb(), f_comp(), f_vc(), f_hm(), f_tmb(), f_youtube(), f_wa_cost(),
+        f_tiktok(),
     )
 
     daily_captacao, daily_preq = daily_tuple if isinstance(daily_tuple, tuple) else (daily_tuple, [])
@@ -662,7 +686,7 @@ async def _fetch_all_data(
     )
 
     return {
-        "meta": meta_enriched, "google": google_enriched, "vendas": vendas,
+        "meta": meta_enriched, "google": google_enriched, "tiktok": tiktok, "vendas": vendas,
         "typeform_count": tfc, "tf": tf,
         "daily_breakdown": daily_captacao,
         "daily_breakdown_preq": daily_preq,

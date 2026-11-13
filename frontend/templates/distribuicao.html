@@ -45,7 +45,7 @@
           </div>
           <div class="tp-value">{{ distrib.investimento_total | brl }}</div>
           <div class="tp-label">Investimento em distribuição</div>
-          <div class="tp-compare">Meta {{ distrib.investimento_meta | brl }} · Google {{ distrib.investimento_google | brl }}</div>
+          <div class="tp-compare">Meta {{ distrib.investimento_meta | brl }} · Google {{ distrib.investimento_google | brl }}{% if distrib.investimento_tiktok %} · <span class="plat-tiktok">TikTok</span> {{ distrib.investimento_tiktok | brl }}{% endif %}</div>
         </div>
         <div class="tp-kpi">
           <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-player-play"></i></div></div>
@@ -57,6 +57,14 @@
           <div class="tp-value">{{ distrib.views_google | num }}</div>
           <div class="tp-label">Views (Google/YouTube)</div>
         </div>
+        {% if distrib.investimento_tiktok %}
+        <div class="tp-kpi">
+          <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-brand-tiktok"></i></div></div>
+          <div class="tp-value">{{ distrib.views_6s_tiktok | num }}</div>
+          <div class="tp-label">Views de 6s (TikTok)</div>
+          {% if distrib.seguidores_tiktok %}<div class="tp-compare">+{{ distrib.seguidores_tiktok | num }} seguidores no TikTok</div>{% endif %}
+        </div>
+        {% endif %}
         <div class="tp-kpi">
           <div class="tp-kpi-top">
             <div class="tp-icon warning"><i class="ti ti-progress"></i></div>
@@ -67,12 +75,12 @@
             {% endif %}
           </div>
           <div class="tp-value">{{ distrib.views_50_total | num }}</div>
-          <div class="tp-label">Viu 50% (Meta + Google)</div>
+          <div class="tp-label">Viu 50% (Meta + Google{% if distrib.investimento_tiktok %} + TikTok{% endif %})</div>
         </div>
         <div class="tp-kpi">
           <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-check"></i></div></div>
           <div class="tp-value">{{ distrib.views_100_total | num }}</div>
-          <div class="tp-label">Viu 100% (Meta + Google)</div>
+          <div class="tp-label">Viu 100% (Meta + Google{% if distrib.investimento_tiktok %} + TikTok{% endif %})</div>
         </div>
       </div>
     </div>
@@ -145,6 +153,48 @@
               <td class="numero">{{ c.views_100 | num }}</td>
               <td class="numero">{{ c.completion_rate }}%</td>
               <td class="numero">{{ c.cpv | brl if c.cpv is not none else "—" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    {% if distrib.criativos_tiktok %}
+    <div class="section">
+      <div class="section-title"><i class="ti ti-palette"></i> Criativos {{ plat_badge("TikTok") }}</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Criativo</th>
+              <th class="th-num">Investimento</th>
+              <th class="th-num">Impressões</th>
+              <th class="th-num">Viu 2s</th>
+              <th class="th-num">Viu 6s</th>
+              <th class="th-num">Viu 50%</th>
+              <th class="th-num">Viu 100%</th>
+              <th class="th-num">Hook rate</th>
+              <th class="th-num">Hold rate</th>
+              <th class="th-num">Custo/view 6s</th>
+              <th class="th-num">Seguidores</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in distrib.criativos_tiktok %}
+            <tr>
+              <td>{{ c.ad_name | truncate(90) }}</td>
+              <td class="numero">{{ c.spend | brl }}</td>
+              <td class="numero">{{ c.impressions | num }}</td>
+              <td class="numero">{{ c.views_2s | num }}</td>
+              <td class="numero">{{ c.views_6s | num }}</td>
+              <td class="numero">{{ c.views_50 | num }}</td>
+              <td class="numero">{{ c.views_100 | num }}</td>
+              <td class="numero">{{ c.hook_rate }}%</td>
+              <td class="numero">{{ c.hold_rate }}%</td>
+              <td class="numero">{{ c.custo_por_view_6s | brl if c.custo_por_view_6s is not none else "—" }}</td>
+              <td class="numero">{{ c.follows | num }}</td>
             </tr>
             {% endfor %}
           </tbody>

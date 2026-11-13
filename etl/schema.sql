@@ -275,6 +275,52 @@ CREATE INDEX IF NOT EXISTS idx_google_campaign_id ON google_ads_daily (campaign_
 -- idx_google_ad_id removido em 11/11/26: 0 usos; a chave única (ad_id, date, lancamento_codigo) já cobre.
 
 
+-- ── TIKTOK ADS — performance diária por anúncio (etl/etl_tiktok_ads.py, desde 13/11/26) ──
+-- Marketing API v1.3, /report/integrated/get/ com dimensões ad_id + stat_time_day, no fuso
+-- da conta (UTC-3). Só anúncio-dia com impressão ou gasto. Classificação pelas regras do Meta.
+CREATE TABLE IF NOT EXISTS tiktok_ads_daily (
+    id                BIGSERIAL PRIMARY KEY,
+    date              DATE    NOT NULL,
+    ad_id             TEXT    NOT NULL,
+    ad_name           TEXT,
+    adgroup_id        TEXT,
+    adgroup_name      TEXT,
+    campaign_id       TEXT,
+    campaign_name     TEXT,
+    objective_type    TEXT,                     -- LEAD_GENERATION, VIDEO_VIEWS, PRODUCT_SALES...
+    account_id        TEXT,                     -- advertiser_id (cada expert tem a sua conta)
+    impressions       INTEGER       DEFAULT 0,
+    clicks            INTEGER       DEFAULT 0,
+    spend             NUMERIC(12,2) DEFAULT 0,  -- BRL
+    reach             INTEGER       DEFAULT 0,
+    conversions       INTEGER       DEFAULT 0,  -- evento de otimização (lead em LEAD_GENERATION)
+    results           INTEGER       DEFAULT 0,  -- "resultado" do objetivo (view de 6s em VIDEO_VIEWS)
+    video_plays       INTEGER       DEFAULT 0,
+    video_views_2s    INTEGER       DEFAULT 0,
+    video_views_6s    INTEGER       DEFAULT 0,
+    video_views_25    INTEGER       DEFAULT 0,
+    video_views_50    INTEGER       DEFAULT 0,
+    video_views_75    INTEGER       DEFAULT 0,
+    video_views_100   INTEGER       DEFAULT 0,
+    video_avg_time_watched NUMERIC(8,2) DEFAULT 0,  -- segundos por play
+    likes             INTEGER       DEFAULT 0,
+    comments          INTEGER       DEFAULT 0,
+    shares            INTEGER       DEFAULT 0,
+    follows           INTEGER       DEFAULT 0,
+    profile_visits    INTEGER       DEFAULT 0,
+    lancamento_codigo TEXT,
+    etapa             TEXT,
+    temperatura       TEXT,
+    bucket            TEXT,
+    segmento          TEXT,
+    updated_at        TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE (ad_id, date, lancamento_codigo)
+);
+
+CREATE INDEX IF NOT EXISTS idx_tiktok_date ON tiktok_ads_daily (date);
+CREATE INDEX IF NOT EXISTS idx_tiktok_lanc ON tiktok_ads_daily (lancamento_codigo, date);
+
+
 -- ── TYPEFORM — respostas da pesquisa ─────────────────────────────────────
 CREATE TABLE IF NOT EXISTS typeform_respostas (
     response_id  TEXT PRIMARY KEY,

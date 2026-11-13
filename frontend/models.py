@@ -494,6 +494,8 @@ class ComparativoData:
     inv_meta_b: float = 0.0
     inv_google_a: float = 0.0
     inv_google_b: float = 0.0
+    inv_tiktok_a: float = 0.0   # TikTok de Captação (tiktok_ads_daily, desde 13/11/26)
+    inv_tiktok_b: float = 0.0
     leads_a: int = 0
     leads_b: int = 0
     cpl_a: float = 0.0
@@ -552,6 +554,8 @@ class ComparativoData:
     inv_meta_total_b: float = 0.0
     inv_google_total_a: float = 0.0
     inv_google_total_b: float = 0.0
+    inv_tiktok_total_a: float = 0.0
+    inv_tiktok_total_b: float = 0.0
     # Total investido mostrado no card = mídia (todas as etapas) + WhatsApp.
     inv_total_a: float = 0.0
     inv_total_b: float = 0.0

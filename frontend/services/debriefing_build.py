@@ -394,6 +394,14 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         f_sorteio(), f_versao_lp(),
     )
 
+    prev_tiktok = None
+    if previous:
+        try:
+            from frontend.services.fetch import _tiktok  # noqa: PLC0415
+            prev_tiktok = await run_in_threadpool(_tiktok, previous)
+        except Exception:
+            logger.exception("Debriefing: falha ao ler TikTok do lançamento anterior")
+
     dbf = _compute_debriefing_ctx(
         launch, previous,
         meta, google, vendas, sales_attr, daily, hotmart, creative_data,
@@ -433,6 +441,8 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         carrinho=carrinho,
         prev_carrinho=prev_carrinho,
         sorteio=sorteio,
+        tiktok=d.get("tiktok"),
+        prev_tiktok=prev_tiktok,
     )
     return {
         "dbf": dbf,

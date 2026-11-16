@@ -812,6 +812,9 @@ def _compute_debriefing_ctx(
             prev_total_vendas = _i(prev_carrinho.get("vendas"))
             prev_ticket = _f(prev_carrinho.get("ticket"))
             prev_receita = _f(prev_carrinho.get("receita"))
+            # ROAS do anterior no mesmo ponto: receita até ali ÷ investimento do lançamento (o gasto do anterior
+            # após o ponto é desprezível — ~R$ 1 mil de R$ 718 mil no PES-SET-26).
+            prev_roas = prev_receita / prev_invest if prev_invest > 0 and prev_receita > 0 else prev_roas
             _ate = prev_carrinho.get("ate")
             _ab = prev_carrinho.get("abertura")
             if _ate and _ab and _ate < datetime(_ate.year, _ate.month, _ate.day, 23, 59, 59):

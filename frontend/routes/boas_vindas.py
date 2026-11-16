@@ -73,16 +73,26 @@ async def boas_vindas_compradores_csv(request: Request, launch_code: str | None 
 
     buf = io.StringIO()
     w = csv.writer(buf, delimiter=";")
-    w.writerow(["Comprou em", "E-mail", "Produto", "Situação", "Entrou na automação às", "Na fila agora"])
+    cab = ["Comprou em", "E-mail", "Produto", "Situação", "Entrou na automação às", "Na fila agora"]
+    if snap.get("aberturas_ok"):
+        cab += ["Abriu o e-mail de boas-vindas", "Última abertura"]
+    w.writerow(cab)
     for p in snap["pessoas"]:
-        if situacao and p["situacao"] != situacao:
+        if situacao == "nao_abriu":
+            if p["situacao"] != "entrou" or p.get("abriu"):
+                continue
+        elif situacao and p["situacao"] != situacao:
             continue
-        w.writerow([
+        linha = [
             p["quando"].strftime("%d/%m/%Y %H:%M"), p["email"], p["produto"],
             mbv.SITUACOES[p["situacao"]],
             p["entrou_hora"] or ("antes do dia" if p["situacao"] == "entrou" else ""),
             "sim" if p["na_fila"] else "não",
-        ])
+        ]
+        if snap.get("aberturas_ok"):
+            linha += ["sim" if p.get("abriu") else ("não" if p["situacao"] == "entrou" else ""),
+                      p["abriu"].strftime("%d/%m/%Y %H:%M") if p.get("abriu") else ""]
+        w.writerow(linha)
     nome = f"boas-vindas_{snap['codigo']}_{snap['atualizado_em'].strftime('%Y-%m-%d_%H%M')}"
     nome += f"_{situacao}.csv" if situacao else ".csv"
     return Response(

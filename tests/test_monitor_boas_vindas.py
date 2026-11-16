@@ -122,3 +122,24 @@ def test_serie_de_dia_inteiro_nao_passa_da_meia_noite():
     fim_do_dia = inicio + timedelta(days=1) - timedelta(seconds=1)
     serie = montar_serie(inicio, fim_do_dia, [_h(23, 58)], [], {})
     assert serie[-1]["t"] == "2026-11-13T00:00-03:00" and serie[-1]["compradores"] == 1
+
+
+def test_aberturas_guarda_a_mais_recente_e_para_quando_passa_do_dia():
+    from frontend.services.monitor_boas_vindas import juntar_pagina_aberturas  # noqa: PLC0415
+
+    desde = datetime(2026, 11, 12, tzinfo=BR)
+    acum: dict = {}
+    # A API devolve da abertura mais recente pra mais antiga, com fuso do Active (-06:00).
+    pagina1 = [
+        {"email": "A@x.com ", "tstamp_iso": "2026-11-12T09:00:00-06:00"},   # 12:00 em Brasília
+        {"email": "b@x.com", "tstamp_iso": "2026-11-12T06:00:00-06:00"},
+    ]
+    assert juntar_pagina_aberturas(pagina1, desde, acum) is False      # ainda dentro do dia: continua
+    pagina2 = [
+        {"email": "a@x.com", "tstamp_iso": "2026-11-12T05:30:00-06:00"},   # abertura mais antiga do mesmo e-mail
+        {"email": "velho@x.com", "tstamp_iso": "2026-11-11T20:00:00-06:00"},  # antes do dia: fica de fora
+    ]
+    assert juntar_pagina_aberturas(pagina2, desde, acum) is True       # passou do dia: para
+    assert acum == {"a@x.com": datetime(2026, 11, 12, 12, 0, tzinfo=BR),
+                    "b@x.com": datetime(2026, 11, 12, 9, 0, tzinfo=BR)}
+    assert juntar_pagina_aberturas([], desde, acum) is True            # página vazia = fim da lista

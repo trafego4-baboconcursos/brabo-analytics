@@ -217,19 +217,32 @@ def abertura_de(codigo: str | None) -> dict | None:
 
 class _Active:
     def __init__(self):
-        self.base = os.environ["AC_API_URL"].rstrip("/") + "/api/3"
+        self.raiz = os.environ["AC_API_URL"].rstrip("/")
+        self.base = self.raiz + "/api/3"
         self.s = requests.Session()
         self.s.headers.update({"Api-Token": os.environ["AC_API_KEY"]})
 
-    def get(self, caminho: str, **params) -> dict:
+    def _pedir(self, url: str, params: dict) -> dict:
         for tentativa in range(4):
-            r = self.s.get(f"{self.base}/{caminho}", params=params, timeout=60)
+            r = self.s.get(url, params=params, timeout=60)
             if r.status_code == 429:  # limite de 5 req/s da conta, dividido com o ETL e a integração
                 time.sleep(2 + 2 * tentativa)
                 continue
             r.raise_for_status()
             return r.json()
-        raise RuntimeError(f"Active Campaign: 429 persistente em {caminho}")
+        raise RuntimeError(f"Active Campaign: 429 persistente em {url}")
+
+    def get(self, caminho: str, **params) -> dict:
+        return self._pedir(f"{self.base}/{caminho}", params)
+
+    def v1(self, acao: str, **params) -> list[dict]:
+        """API v1 (admin/api.php): a única que lista quem abriu uma campanha de uma
+        vez, 100 por página, da abertura mais recente pra mais antiga. Página
+        vazia ou fora do fim volta []."""
+        js = self._pedir(f"{self.raiz}/admin/api.php", {
+            "api_action": acao, "api_key": os.environ["AC_API_KEY"], "api_output": "json", **params,
+        })
+        return [v for k, v in js.items() if k.isdigit() and isinstance(v, dict)]
 
 
 _EMAIL_DO_CONTATO: dict[str, str] = {}   # id do contato no Active -> e-mail (não muda; vale o processo todo)
@@ -257,6 +270,54 @@ def _entradas_automacao(ac: _Active, automacao_id: str, desde: datetime) -> list
         x["_quando"] = datetime.fromisoformat(x["adddate"]).astimezone(BR)
         x["_email"] = _EMAIL_DO_CONTATO.get(x["contact"])
     return linhas
+
+
+def juntar_pagina_aberturas(itens: list[dict], desde: datetime, acumulado: dict[str, datetime]) -> bool:
+    """Junta uma página da campaign_report_open_list em `acumulado` {e-mail: abertura
+    mais recente}. A lista vem da mais recente pra mais antiga, então devolve True
+    (pode parar) quando a página acaba ou já chegou em antes de `desde`."""
+    if not itens:
+        return True
+    for x in itens:
+        email = (x.get("email") or "").strip().lower()
+        try:
+            quando = datetime.fromisoformat(x["tstamp_iso"]).astimezone(BR)
+        except (KeyError, ValueError):
+            continue
+        if not email or quando < desde:
+            continue
+        if email not in acumulado or quando > acumulado[email]:
+            acumulado[email] = quando
+    try:
+        return datetime.fromisoformat(itens[-1]["tstamp_iso"]) < desde
+    except (KeyError, ValueError):
+        return True
+
+
+_CAMPANHAS: dict = {"em": 0.0, "ids": []}
+_MAX_PAGINAS_ABERTURA = 60   # 6.000 pessoas por e-mail: sobra pro dia mais cheio já visto (~950 no PES-NOV-26)
+
+
+def _campanhas_da_automacao(ac: _Active, automacao_id: str) -> list[str]:
+    """Os e-mails de boas-vindas (um por curso, mais cópias) são campanhas da
+    automação. Descobre sozinho, pra cópia nova entrar sem mexer em config."""
+    if time.monotonic() - _CAMPANHAS["em"] < 3600 and _CAMPANHAS["ids"]:
+        return _CAMPANHAS["ids"]
+    camps = ac.get(f"automations/{automacao_id}/campaigns").get("campaigns", [])
+    ids = [str(c["id"]) for c in camps if str(c.get("status")) == "1" and int(c.get("send_amt") or 0) > 0]
+    _CAMPANHAS.update(em=time.monotonic(), ids=ids)
+    return ids
+
+
+def _aberturas(ac: _Active, automacao_id: str, desde: datetime) -> dict[str, datetime]:
+    """E-mail -> abertura mais recente de algum e-mail de boas-vindas, desde `desde`."""
+    acumulado: dict[str, datetime] = {}
+    for cid in _campanhas_da_automacao(ac, automacao_id):
+        for pagina in range(1, _MAX_PAGINAS_ABERTURA + 1):
+            if juntar_pagina_aberturas(ac.v1("campaign_report_open_list", campaignid=cid, page=pagina),
+                                       desde, acumulado):
+                break
+    return acumulado
 
 
 # ── Leitura: vendas (banco operacional) ────────────────────────────────────────
@@ -340,9 +401,18 @@ def calcular(ab: dict, agora: datetime | None = None) -> dict:
     agora = min(agora_real, fim - timedelta(seconds=1))
     ao_vivo = inicio <= agora_real < fim
 
-    linhas = _entradas_automacao(_Active(), str(cfg["automacao_id"]), inicio - timedelta(days=1))
+    ac = _Active()
+    linhas = _entradas_automacao(ac, str(cfg["automacao_id"]), inicio - timedelta(days=1))
     compras = _compras(ab, inicio, fim)
     compras = {e: v for e, v in compras.items() if v[0] <= agora}
+    # Abertura do e-mail de boas-vindas: medida pelo pixel, então Apple Mail pode
+    # marcar sozinho e quem bloqueia imagem aparece como não aberto. Se a leitura
+    # falhar, a página segue sem a coluna (abertos = None), não cai.
+    try:
+        abertos: dict[str, datetime] | None = _aberturas(ac, str(cfg["automacao_id"]), inicio)
+    except Exception:  # noqa: BLE001
+        logger.warning("Monitor de boas-vindas: aberturas do e-mail indisponíveis para %s", ab["codigo"], exc_info=True)
+        abertos = None
 
     na_automacao = {x["_email"] for x in linhas if x["_email"]}
     fora = [e for e in compras if e not in na_automacao]
@@ -378,14 +448,23 @@ def calcular(ab: dict, agora: datetime | None = None) -> dict:
     # Uma linha por comprador, pra quem acompanha os alunos no dia (página e CSV).
     # Mais novo primeiro; "entrou_hora" vazio + situação "entrou" = já estava na
     # automação antes do dia.
+    def _abriu_txt(quando: datetime | None) -> str | None:
+        if not quando:
+            return None
+        return quando.strftime("%H:%M") if quando.date() == ab["dia"] else quando.strftime("%d/%m %H:%M")
+
     pessoas = sorted((
         {"email": e, "quando": q, "hora": q.strftime("%H:%M"), "produto": p,
          "situacao": grupos["situacao"][e],
          "entrou_hora": entrou[e].strftime("%H:%M") if e in entrou else None,
-         "na_fila": e in na_fila}
+         "na_fila": e in na_fila,
+         "abriu": (abertos or {}).get(e),
+         "abriu_txt": _abriu_txt((abertos or {}).get(e))}
         for e, (q, p) in compras.items()
     ), key=lambda r: r["quando"], reverse=True)
     contagem = {k: sum(1 for r in pessoas if r["situacao"] == k) for k in SITUACOES}
+    abriram = sum(1 for r in pessoas if r["situacao"] == "entrou" and r["abriu"])
+    contagem["nao_abriu"] = contagem["entrou"] - abriram if abertos is not None else 0
 
     return {
         "codigo": ab["codigo"], "curso": ab.get("curso"), "dia": ab["dia"],
@@ -402,6 +481,8 @@ def calcular(ab: dict, agora: datetime | None = None) -> dict:
         "por_produto": sorted(por_produto.values(), key=lambda r: -r["compradores"]),
         "pessoas": pessoas,
         "contagem": contagem,
+        "aberturas_ok": abertos is not None,
+        "abriram": abriram,
         "serie": montar_serie(inicio, agora, [v[0] for v in compras.values()], list(entrou.values()), hist, bucket),
     }
 

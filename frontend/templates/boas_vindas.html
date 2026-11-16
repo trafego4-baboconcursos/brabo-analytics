@@ -104,7 +104,7 @@
             <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-mail-check"></i></div></div>
             <div class="tp-value">{{ s.entradas | num }}</div>
             <div class="tp-label">Entraram na automação</div>
-            <div class="tp-compare">compradores do dia que já entraram{% if s.outras_entradas %} · {{ s.outras_entradas | num }} de outros cursos{% endif %}</div>
+            <div class="tp-compare">{% if s.aberturas_ok and s.entradas %}{{ s.abriram | num }} já abriram o e-mail ({{ (s.abriram / s.contagem.entrou * 100) | round | int if s.contagem.entrou else 0 }}%){% else %}compradores do dia que já entraram{% endif %}{% if s.outras_entradas %} · {{ s.outras_entradas | num }} de outros cursos{% endif %}</div>
           </div>
           <div class="tp-kpi">
             <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-hourglass"></i></div></div>
@@ -154,28 +154,35 @@
           <button type="button" data-filtro="" aria-pressed="true">Todos · {{ s.compradores | num }}</button>
           {% for k, rotulo in situacoes.items() %}{% if s.contagem[k] %}
           <button type="button" data-filtro="{{ k }}" aria-pressed="false">{{ rotulo }} · {{ s.contagem[k] | num }}</button>
+          {% if k == 'entrou' and s.aberturas_ok and s.contagem.nao_abriu %}
+          <button type="button" data-filtro="nao_abriu" aria-pressed="false">Entrou e não abriu o e-mail · {{ s.contagem.nao_abriu | num }}</button>
+          {% endif %}
           {% endif %}{% endfor %}
           <input type="search" id="bv-busca" placeholder="Buscar e-mail" aria-label="Buscar comprador pelo e-mail">
           <a class="bv-baixar" id="bv-baixar" href="/boas-vindas/compradores.csv?launch_code={{ s.codigo }}"><i class="ti ti-download"></i> Baixar planilha</a>
         </div>
         <div class="table-wrap" style="max-height:520px;overflow-y:auto;">
           <table class="table-compact bv-tabela bv-pessoas">
-            <thead><tr><th class="th-dark">Comprou às</th><th class="th-dark">E-mail</th><th class="th-dark">Produto</th><th class="th-dark">Situação</th><th class="th-dark">Entrou às</th></tr></thead>
+            <thead><tr><th class="th-dark">Comprou às</th><th class="th-dark">E-mail</th><th class="th-dark">Produto</th><th class="th-dark">Situação</th><th class="th-dark">Entrou às</th>{% if s.aberturas_ok %}<th class="th-dark">Abriu o e-mail</th>{% endif %}</tr></thead>
             <tbody>
               {% for p in s.pessoas %}
-              <tr data-situacao="{{ p.situacao }}" data-email="{{ p.email }}">
+              <tr data-situacao="{{ p.situacao }}" data-email="{{ p.email }}" data-abriu="{{ '1' if p.abriu else '0' }}">
                 <td>{{ p.hora }}</td>
                 <td class="email">{{ p.email }}</td>
                 <td>{{ p.produto }}</td>
                 <td><span class="bv-chip {{ p.situacao }}">{{ situacoes[p.situacao] }}</span></td>
                 <td>{{ p.entrou_hora or ('antes do dia' if p.situacao == 'entrou' else '—') }}</td>
+                {% if s.aberturas_ok %}
+                <td>{% if p.abriu %}<span class="bv-chip entrou"><i class="ti ti-mail-opened"></i> {{ p.abriu_txt }}</span>{% elif p.situacao == 'entrou' %}<span class="bv-chip ja_aluno">Ainda não</span>{% else %}—{% endif %}</td>
+                {% endif %}
               </tr>
               {% endfor %}
             </tbody>
           </table>
           <div class="bv-vazio" id="bv-vazio" hidden>Ninguém com esse filtro.</div>
         </div>
-        <div class="bv-meta">Mais recente primeiro. "Já era aluno" = tinha compra aprovada antes do dia e não recebe as boas-vindas. "A caminho" = comprou há menos de {{ s.tolerancia_min }} min. A planilha baixa só o filtro escolhido.</div>
+        <div class="bv-meta">Mais recente primeiro. "Já era aluno" = tinha compra aprovada antes do dia e não recebe as boas-vindas. "A caminho" = comprou há menos de {{ s.tolerancia_min }} min. A planilha baixa só o filtro escolhido.
+          {% if s.aberturas_ok %}"Abriu o e-mail" = abriu algum e-mail de boas-vindas desde o dia da abertura (mostra a abertura mais recente). A abertura é medida por uma imagem escondida no e-mail: o Apple Mail pode marcar como aberto sozinho, e quem bloqueia imagem aparece como "ainda não" mesmo tendo lido.{% else %}Não deu para ler as aberturas do e-mail nesta leitura; a coluna volta na próxima.{% endif %}</div>
       </div>
       <script>
       (function() {
@@ -196,7 +203,10 @@
         function aplicar() {
           var q = (busca.value || '').trim().toLowerCase(), n = 0;
           linhas.forEach(function(tr) {
-            var ok = (!filtro || tr.dataset.situacao === filtro) && (!q || tr.dataset.email.indexOf(q) >= 0);
+            var naSituacao = filtro === 'nao_abriu'
+              ? (tr.dataset.situacao === 'entrou' && tr.dataset.abriu === '0')
+              : (!filtro || tr.dataset.situacao === filtro);
+            var ok = naSituacao && (!q || tr.dataset.email.indexOf(q) >= 0);
             tr.hidden = !ok;
             if (ok) n++;
           });

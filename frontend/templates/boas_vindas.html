@@ -104,8 +104,17 @@
             <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-mail-check"></i></div></div>
             <div class="tp-value">{{ s.entradas | num }}</div>
             <div class="tp-label">Entraram na automação</div>
-            <div class="tp-compare">{% if s.aberturas_ok and s.entradas %}{{ s.abriram | num }} já abriram o e-mail ({{ (s.abriram / s.contagem.entrou * 100) | round | int if s.contagem.entrou else 0 }}%){% else %}compradores do dia que já entraram{% endif %}{% if s.outras_entradas %} · {{ s.outras_entradas | num }} de outros cursos{% endif %}</div>
+            <div class="tp-compare">compradores do dia que já entraram{% if s.outras_entradas %} · {{ s.outras_entradas | num }} de outros cursos{% endif %}</div>
           </div>
+          {% if s.aberturas_ok %}
+          {% set pct_abriu = ((s.abriram / s.contagem.entrou * 100) | round | int) if s.contagem.entrou else 0 %}
+          <div class="tp-kpi">
+            <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-mail-opened"></i></div></div>
+            <div class="tp-value">{{ s.abriram | num }} <span style="font-size:.55em;font-weight:600;color:var(--bs-ink-muted);">{{ pct_abriu }}%</span></div>
+            <div class="tp-label">Abriram o e-mail de boas-vindas</div>
+            <div class="tp-compare">dos {{ s.contagem.entrou | num }} que entraram · {{ s.contagem.nao_abriu | num }} ainda não abriram</div>
+          </div>
+          {% endif %}
           <div class="tp-kpi">
             <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-hourglass"></i></div></div>
             <div class="tp-value">{{ s.fila | num }}</div>

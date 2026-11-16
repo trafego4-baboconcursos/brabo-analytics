@@ -80,6 +80,8 @@ def test_classificar_separa_ja_aluno_a_caminho_e_faltando():
     assert [f["email"] for f in r["faltando"]] == ["novo@x.com"]
     assert r["faltando"][0]["hora"] == "08:05"
     assert r["a_caminho"] == 1 and r["ja_alunos"] == 1
+    assert r["situacao"] == {"entrou@x.com": "entrou", "veterano@x.com": "ja_aluno",
+                             "novo@x.com": "fora", "recente@x.com": "a_caminho"}
 
 
 def test_classificar_lista_faltando_do_mais_antigo_pro_mais_novo():

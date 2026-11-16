@@ -15,7 +15,20 @@
   .bv-tabela th.n, .bv-tabela td.numero { text-align:right; font-variant-numeric:tabular-nums; }
   .bv-tabela tr.agora td { font-weight:700; }
   .bv-delta-alta { color:#9a6700; font-weight:700; }
-  .bv-faltando td.email { font-family:ui-monospace, Consolas, monospace; font-size:12.5px; user-select:all; }
+  .bv-faltando td.email, .bv-pessoas td.email { font-family:ui-monospace, Consolas, monospace; font-size:12.5px; user-select:all; }
+  .bv-filtros { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:4px 0 10px; }
+  .bv-filtros button { border:1px solid var(--bs-border-s); background:var(--bs-card); color:var(--bs-ink); border-radius:999px; padding:5px 12px; font:inherit; font-size:12.5px; font-weight:600; cursor:pointer; }
+  .bv-filtros button[aria-pressed="true"] { background:var(--bs-ink); color:var(--bs-card); border-color:var(--bs-ink); }
+  .bv-filtros button:focus-visible { outline:2px solid #2a78d6; outline-offset:2px; }
+  .bv-filtros input { border:1px solid var(--bs-border-s); border-radius:8px; padding:6px 10px; font:inherit; font-size:12.5px; color:var(--bs-ink); background:var(--bs-card); min-width:220px; }
+  .bv-baixar { margin-left:auto; display:inline-flex; align-items:center; gap:6px; text-decoration:none; font-size:12.5px; font-weight:600; border:1px solid var(--bs-border-s); border-radius:8px; padding:6px 11px; color:var(--bs-ink); background:var(--bs-card); }
+  .bv-baixar:hover { background:var(--bs-surface); }
+  .bv-chip { display:inline-flex; align-items:center; gap:4px; font-size:12px; font-weight:600; padding:3px 9px; border-radius:999px; white-space:nowrap; }
+  .bv-chip.entrou    { background:var(--bs-success-bg); color:var(--bs-success); }
+  .bv-chip.fora      { background:var(--bs-danger-bg);  color:var(--bs-danger); }
+  .bv-chip.a_caminho { background:var(--bs-warning-bg); color:#9a6700; }
+  .bv-chip.ja_aluno  { background:var(--bs-surface);    color:var(--bs-ink-muted); }
+  .bv-vazio { font-size:13px; color:var(--bs-ink-muted); padding:10px 2px; }
 </style>
 
 <div class="wrap">
@@ -134,6 +147,75 @@
         </div>
       </div>
       {% endif %}
+
+      <div class="section">
+        <div class="section-title" data-sec-key="compradores"><i class="ti ti-users"></i> Compradores do dia ({{ s.compradores | num }})</div>
+        <div class="bv-filtros" role="group" aria-label="Filtrar compradores pela situação">
+          <button type="button" data-filtro="" aria-pressed="true">Todos · {{ s.compradores | num }}</button>
+          {% for k, rotulo in situacoes.items() %}{% if s.contagem[k] %}
+          <button type="button" data-filtro="{{ k }}" aria-pressed="false">{{ rotulo }} · {{ s.contagem[k] | num }}</button>
+          {% endif %}{% endfor %}
+          <input type="search" id="bv-busca" placeholder="Buscar e-mail" aria-label="Buscar comprador pelo e-mail">
+          <a class="bv-baixar" id="bv-baixar" href="/boas-vindas/compradores.csv?launch_code={{ s.codigo }}"><i class="ti ti-download"></i> Baixar planilha</a>
+        </div>
+        <div class="table-wrap" style="max-height:520px;overflow-y:auto;">
+          <table class="table-compact bv-tabela bv-pessoas">
+            <thead><tr><th class="th-dark">Comprou às</th><th class="th-dark">E-mail</th><th class="th-dark">Produto</th><th class="th-dark">Situação</th><th class="th-dark">Entrou às</th></tr></thead>
+            <tbody>
+              {% for p in s.pessoas %}
+              <tr data-situacao="{{ p.situacao }}" data-email="{{ p.email }}">
+                <td>{{ p.hora }}</td>
+                <td class="email">{{ p.email }}</td>
+                <td>{{ p.produto }}</td>
+                <td><span class="bv-chip {{ p.situacao }}">{{ situacoes[p.situacao] }}</span></td>
+                <td>{{ p.entrou_hora or ('antes do dia' if p.situacao == 'entrou' else '—') }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <div class="bv-vazio" id="bv-vazio" hidden>Ninguém com esse filtro.</div>
+        </div>
+        <div class="bv-meta">Mais recente primeiro. "Já era aluno" = tinha compra aprovada antes do dia e não recebe as boas-vindas. "A caminho" = comprou há menos de {{ s.tolerancia_min }} min. A planilha baixa só o filtro escolhido.</div>
+      </div>
+      <script>
+      (function() {
+        var wrap = document.querySelector('.bv-filtros');
+        if (!wrap) return;
+        var linhas = [].slice.call(document.querySelectorAll('.bv-pessoas tbody tr'));
+        var busca = document.getElementById('bv-busca');
+        var vazio = document.getElementById('bv-vazio');
+        var baixar = document.getElementById('bv-baixar');
+        var base = baixar.getAttribute('href');
+        var chave = 'bv-filtro-{{ s.codigo }}';
+        var filtro = '';
+        function marcar() {
+          wrap.querySelectorAll('button[data-filtro]').forEach(function(b) {
+            b.setAttribute('aria-pressed', b.dataset.filtro === filtro ? 'true' : 'false');
+          });
+        }
+        function aplicar() {
+          var q = (busca.value || '').trim().toLowerCase(), n = 0;
+          linhas.forEach(function(tr) {
+            var ok = (!filtro || tr.dataset.situacao === filtro) && (!q || tr.dataset.email.indexOf(q) >= 0);
+            tr.hidden = !ok;
+            if (ok) n++;
+          });
+          vazio.hidden = n > 0;
+          baixar.setAttribute('href', base + (filtro ? '&situacao=' + filtro : ''));
+        }
+        // A página recarrega a cada 5 min no dia de abertura: o filtro escolhido sobrevive ao recarregar.
+        try { var salvo = sessionStorage.getItem(chave); if (salvo && wrap.querySelector('button[data-filtro="' + salvo + '"]')) filtro = salvo; } catch (e) {}
+        wrap.addEventListener('click', function(ev) {
+          var b = ev.target.closest('button[data-filtro]');
+          if (!b) return;
+          filtro = b.dataset.filtro;
+          try { sessionStorage.setItem(chave, filtro); } catch (e) {}
+          marcar(); aplicar();
+        });
+        busca.addEventListener('input', aplicar);
+        marcar(); aplicar();
+      })();
+      </script>
 
       <div class="section">
         <div class="section-title" data-sec-key="curva"><i class="ti ti-chart-line"></i> Compras × entradas, de 5 em 5 minutos</div>

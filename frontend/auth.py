@@ -81,6 +81,7 @@ ROUTE_PERMISSIONS: dict[str, list[str]] = {
     "/afiliados":         _DTLD,
     # Boas-vindas no carrinho: lista e-mail de comprador, então fica na faixa das páginas de venda.
     "/boas-vindas":       _DTLD,
+    "/boas-vindas/compradores.csv": _DTLD,
     "/atendimento":       _CMRC,
     "/atendimento/conversas.csv": _CMRC,
     "/atendimento/atualizar": _CMRC,          # botão "Atualizar agora": só pede releitura, não edita dado

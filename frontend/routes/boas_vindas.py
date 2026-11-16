@@ -12,7 +12,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Request
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 
 from frontend.core import _base_ctx, get_launches, resolve_launch, templates
 from frontend.services import monitor_boas_vindas as mbv
@@ -46,7 +46,47 @@ async def boas_vindas_page(request: Request, launch_code: str | None = None):
     ctx = _base_ctx(
         request, "boas_vindas", f"Boas-vindas{' — ' + codigo if codigo else ''}", launch, launches,
         codigo=codigo, monitorado=mbv.tem_monitor(codigo),
-        alvo=alvo, snap=snap, erro=erro, hoje=hoje,
+        alvo=alvo, snap=snap, erro=erro, hoje=hoje, situacoes=mbv.SITUACOES,
         ao_vivo=bool(alvo and alvo["dia"] == hoje),
     )
     return templates.TemplateResponse("boas_vindas.html", ctx)
+
+
+@router.get("/boas-vindas/compradores.csv")
+async def boas_vindas_compradores_csv(request: Request, launch_code: str | None = None,
+                                      situacao: str | None = None):
+    """Todos os compradores do dia de abertura com a situação na automação, em CSV
+    (Excel: ';' e BOM). `situacao` filtra (fora, a_caminho, entrou, ja_aluno), como
+    os botões da página."""
+    import csv
+    import io
+
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    codigo = launch.code if launch else (launch_code or "").upper()
+    alvo = await run_in_threadpool(mbv.abertura_de, codigo) if mbv.tem_monitor(codigo) else None
+    hoje = datetime.now(mbv.BR).date()
+    if not alvo or alvo["dia"] > hoje:
+        return Response("Este lançamento ainda não teve dia de abertura com monitor de boas-vindas.",
+                        status_code=404, media_type="text/plain; charset=utf-8")
+    snap = await run_in_threadpool(mbv.obter, alvo)
+
+    buf = io.StringIO()
+    w = csv.writer(buf, delimiter=";")
+    w.writerow(["Comprou em", "E-mail", "Produto", "Situação", "Entrou na automação às", "Na fila agora"])
+    for p in snap["pessoas"]:
+        if situacao and p["situacao"] != situacao:
+            continue
+        w.writerow([
+            p["quando"].strftime("%d/%m/%Y %H:%M"), p["email"], p["produto"],
+            mbv.SITUACOES[p["situacao"]],
+            p["entrou_hora"] or ("antes do dia" if p["situacao"] == "entrou" else ""),
+            "sim" if p["na_fila"] else "não",
+        ])
+    nome = f"boas-vindas_{snap['codigo']}_{snap['atualizado_em'].strftime('%Y-%m-%d_%H%M')}"
+    nome += f"_{situacao}.csv" if situacao else ".csv"
+    return Response(
+        "﻿" + buf.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{nome}"'},
+    )

@@ -133,17 +133,29 @@ def classificar(compras: dict[str, tuple[datetime, str]], na_automacao: set[str]
     e faltando (aluno novo, comprou há mais da tolerância: esse é o problema)."""
     limite = agora - timedelta(minutes=tolerancia_min)
     faltando, a_caminho, ja_alunos = [], 0, 0
+    situacao: dict[str, str] = {}
     for email, (quando, produto) in compras.items():
         if email in na_automacao:
-            continue
-        if email in comprou_antes:
+            situacao[email] = "entrou"
+        elif email in comprou_antes:
+            situacao[email] = "ja_aluno"
             ja_alunos += 1
         elif quando <= limite:
+            situacao[email] = "fora"
             faltando.append({"email": email, "quando": quando, "hora": quando.strftime("%H:%M"), "produto": produto})
         else:
+            situacao[email] = "a_caminho"
             a_caminho += 1
     faltando.sort(key=lambda r: r["quando"])
-    return {"faltando": faltando, "a_caminho": a_caminho, "ja_alunos": ja_alunos}
+    return {"faltando": faltando, "a_caminho": a_caminho, "ja_alunos": ja_alunos, "situacao": situacao}
+
+
+SITUACOES = {
+    "fora": "Fora da automação",
+    "a_caminho": "A caminho",
+    "entrou": "Entrou na automação",
+    "ja_aluno": "Já era aluno",
+}
 
 
 def linha_para_abertura(row: dict, por_projeto: dict) -> dict | None:
@@ -363,6 +375,18 @@ def calcular(ab: dict, agora: datetime | None = None) -> dict:
         r["compradores"] += 1
         r["na_automacao"] += e in na_automacao
 
+    # Uma linha por comprador, pra quem acompanha os alunos no dia (página e CSV).
+    # Mais novo primeiro; "entrou_hora" vazio + situação "entrou" = já estava na
+    # automação antes do dia.
+    pessoas = sorted((
+        {"email": e, "quando": q, "hora": q.strftime("%H:%M"), "produto": p,
+         "situacao": grupos["situacao"][e],
+         "entrou_hora": entrou[e].strftime("%H:%M") if e in entrou else None,
+         "na_fila": e in na_fila}
+        for e, (q, p) in compras.items()
+    ), key=lambda r: r["quando"], reverse=True)
+    contagem = {k: sum(1 for r in pessoas if r["situacao"] == k) for k in SITUACOES}
+
     return {
         "codigo": ab["codigo"], "curso": ab.get("curso"), "dia": ab["dia"],
         "tag_gatilho": ab.get("tag_gatilho"),
@@ -376,6 +400,8 @@ def calcular(ab: dict, agora: datetime | None = None) -> dict:
         "ja_alunos": grupos["ja_alunos"],
         "outras_entradas": len(outras),
         "por_produto": sorted(por_produto.values(), key=lambda r: -r["compradores"]),
+        "pessoas": pessoas,
+        "contagem": contagem,
         "serie": montar_serie(inicio, agora, [v[0] for v in compras.values()], list(entrou.values()), hist, bucket),
     }
 

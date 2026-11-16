@@ -767,8 +767,8 @@ def abertura_carrinho_ts(cfg: dict):
 def read_vendas_carrinho(launch_folder_or_code: Any, ate=None) -> dict | None:
     """Vendas pela regra do Painel Lançamento (debriefing).
 
-    - vendas = só a 1ª cobrança (o `_parcela_unica_info` já descarta as demais) de compras feitas a partir
-      do instante da abertura do carrinho; compras de antes da abertura (período de aulas) não contam;
+    - vendas = só a 1ª cobrança (o `_parcela_unica_info` já descarta as demais) de compras feitas desde o
+      1º dia de live (`carrinho_start_date`); a abertura (quinta) só ancora o ponto de comparação do «ant.»;
     - upgrade (oferta avulsa listada como `oferta:<codigo>` no config, ex. Black) não é venda: some da
       contagem e do ticket, mas a receita dele continua em `receita`;
     - e-mail @aprovasim.com e `+teste` já saem na consulta;
@@ -854,10 +854,12 @@ def read_vendas_carrinho(launch_folder_or_code: Any, ate=None) -> dict | None:
         if str(r.get("codigo_do_preco") or "").strip().lower() in ofertas:
             out["upgrades"] += 1
             out["receita_upgrade"] += valor
-        elif ts < abertura:
-            out["pre_abertura"] += 1
-            out["receita_pre"] += valor
         else:
+            # Regra de todos os lançamentos: vendas contam desde o 1º dia de live (carrinho_start_date).
+            # A abertura (quinta) só ancora a comparação hora a hora; o que veio antes dela é só informativo.
+            if ts < abertura:
+                out["pre_abertura"] += 1
+                out["receita_pre"] += valor
             out["vendas"] += 1
             out["receita_carrinho"] += valor
     # TMB (boleto parcelado de lançamentos antigos): instante = data_efetivado. Sem lancamento_id
@@ -894,8 +896,7 @@ def read_vendas_carrinho(launch_folder_or_code: Any, ate=None) -> dict | None:
         if _t < abertura:
             out["pre_abertura"] += 1
             out["receita_pre"] += valor
-        else:
-            out["vendas"] += 1
-            out["receita_carrinho"] += valor
+        out["vendas"] += 1
+        out["receita_carrinho"] += valor
     out["ticket"] = out["receita_carrinho"] / out["vendas"] if out["vendas"] else 0.0
     return out

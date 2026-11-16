@@ -800,8 +800,8 @@ def _compute_debriefing_ctx(
     prev_hotmart_liquido = _f(getattr(prev_vendas, "hotmart_receita", 0))
     prev_total_vendas = _i(getattr(prev_vendas, "total_vendas", 0))
     prev_ticket = _f(getattr(prev_vendas, "total_ticket_medio", 0))
-    # Regra do Painel Lançamento: vendas = só carrinho (1ª cobrança, sem upgrade/teste/compra pré-abertura);
-    # ticket exclui upgrade e pré-abertura; "ant." no mesmo ponto do carrinho. ROAS fica com a receita cheia
+    # Regra do Painel Lançamento: vendas = 1ª cobrança desde o 1º dia de live, sem upgrade/teste;
+    # ticket = receita sem upgrade ÷ vendas; "ant." no mesmo ponto relativo à abertura do carrinho. ROAS fica com a receita cheia
     # (acima) — receita e upgrade continuam somando nele.
     carrinho_ativo = bool(carrinho)
     carrinho_ref = ""

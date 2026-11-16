@@ -927,7 +927,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
     </div>
     {% if dbf.carrinho_regra | default(false) %}
       <p class="dbf-nota-regra" style="font-size:12px;opacity:.75;margin:8px 0 0">
-        Vendas = só carrinho (1ª cobrança, desde a abertura); upgrade para a Black{% if dbf.upgrades_qtd | default(0) %} ({{ dbf.upgrades_qtd | num }}){% endif %} e compras de teste ficam fora da contagem e do ticket.
+        Vendas = 1ª cobrança, desde o 1º dia de live; upgrade para a Black{% if dbf.upgrades_qtd | default(0) %} ({{ dbf.upgrades_qtd | num }}){% endif %} e compras de teste ficam fora da contagem e do ticket. A comparação usa a abertura do carrinho como referência de horário.
         {% if dbf.carrinho_ref | default('') %}«ant.» = {{ dbf.prev_code }} no mesmo ponto do carrinho ({{ dbf.carrinho_ref }}).{% endif %}
       </p>
       {% if dbf.carrinho_ref | default('') %}

@@ -15,8 +15,27 @@ os.environ.setdefault("SUPABASE_USERS_URL", "postgresql://smoke:smoke@127.0.0.1:
 from datetime import date, datetime, timedelta  # noqa: E402
 
 from frontend.services.monitor_boas_vindas import (  # noqa: E402
-    BR, chave_bucket, classificar, config, linha_para_abertura, montar_serie, parse_hm,
+    BR, chave_bucket, classificar, config, linha_para_abertura, montar_serie, parse_hm, tem_monitor,
 )
+
+
+def test_so_os_lancamentos_da_mentoria_vitalicia_tem_a_pagina():
+    assert tem_monitor("PES-NOV-26") and tem_monitor("pi-nov-26") and tem_monitor("PBB-AGO-26")
+    assert not tem_monitor("BV-26") and not tem_monitor(None) and not tem_monitor("")
+
+
+def test_menu_do_lancamento_tem_boas_vindas_ao_lado_de_campanhas():
+    from frontend.core import _build_funis_nav_groups  # noqa: PLC0415
+
+    def links(codigo, role="admin"):
+        grupos = _build_funis_nav_groups(None, codigo, "boas_vindas", {"role": role}, None)
+        return {lk["page"]: lk for g in grupos for lk in g["links"]}
+
+    pes = links("PES-NOV-26")
+    assert pes["boas_vindas"]["href"] == "/boas-vindas?launch_code=PES-NOV-26"
+    assert pes["boas_vindas"]["enabled"] is True
+    assert links("BV-26")["boas_vindas"]["enabled"] is False
+    assert "boas_vindas" not in links("PES-NOV-26", role="trafego")   # tráfego não vê e-mail de comprador
 
 
 def test_parse_hm_aceita_os_tres_formatos_da_hotmart():

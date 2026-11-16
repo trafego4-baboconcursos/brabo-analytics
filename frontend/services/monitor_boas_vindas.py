@@ -55,6 +55,18 @@ def config() -> dict:
         return yaml.safe_load(f) or {}
 
 
+_PREFIXOS: set[str] | None = None
+
+
+def tem_monitor(codigo: str | None) -> bool:
+    """O lançamento usa esta automação? Só olha o prefixo (PES/PI/PBB), sem banco:
+    é chamado pra montar o menu de toda página de lançamento."""
+    global _PREFIXOS
+    if _PREFIXOS is None:
+        _PREFIXOS = {str(p).upper() for p in (config().get("por_projeto") or {})}
+    return bool(codigo) and str(codigo).upper().split("-")[0] in _PREFIXOS
+
+
 # ── Funções puras (testadas em tests/test_monitor_boas_vindas.py) ─────────────
 
 def parse_hm(valor) -> datetime | None:
@@ -179,8 +191,14 @@ def aberturas() -> list[dict]:
     return lista
 
 
-def abertura_do_dia(dia: date) -> dict | None:
-    return next((a for a in aberturas() if a["dia"] == dia), None)
+def aberturas_do_dia(dia: date) -> list[dict]:
+    """Pode ser mais de uma: dois cursos abrindo o carrinho no mesmo dia têm cada um o seu monitor."""
+    return [a for a in aberturas() if a["dia"] == dia]
+
+
+def abertura_de(codigo: str | None) -> dict | None:
+    codigo = str(codigo or "").upper()
+    return next((a for a in aberturas() if a["codigo"] == codigo), None)
 
 
 # ── Leitura: Active Campaign ───────────────────────────────────────────────────
@@ -382,15 +400,19 @@ def obter(ab: dict, max_idade_s: int = 270) -> dict:
         return snap
 
 
-def rodada(hoje: date | None = None) -> dict | None:
-    """Uma leitura do laço. Só calcula se algum carrinho abre hoje."""
+def rodada(hoje: date | None = None) -> list[dict]:
+    """Uma leitura do laço. Só calcula os lançamentos cujo carrinho abre hoje,
+    cada um separado; um que falhe não impede os outros."""
     hoje = hoje or datetime.now(BR).date()
-    ab = abertura_do_dia(hoje)
-    if not ab:
-        return None
-    snap = obter(ab, max_idade_s=60)
-    ESTADO.update(ultima_rodada=datetime.now(BR), erro=None)
-    return snap
+    snaps, erros = [], []
+    for ab in aberturas_do_dia(hoje):
+        try:
+            snaps.append(obter(ab, max_idade_s=60))
+        except Exception as e:  # noqa: BLE001
+            erros.append(f"{ab['codigo']}: {str(e)[:200]}")
+            logger.exception("Monitor de boas-vindas: leitura de %s falhou", ab["codigo"])
+    ESTADO.update(ultima_rodada=datetime.now(BR), erro="; ".join(erros) or None)
+    return snaps
 
 
 async def _laco() -> None:

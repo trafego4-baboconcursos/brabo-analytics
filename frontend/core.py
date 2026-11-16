@@ -384,6 +384,15 @@ def _v1_reports_for_launch(launch: Launch | None) -> list[dict]:
 
 # ── Contexto base ──────────────────────────────────────────────────────────────
 
+def _tem_boas_vindas(codigo: str | None) -> bool:
+    """O lançamento tem a página Boas-vindas (carrinho)? Só olha o prefixo, sem banco."""
+    try:
+        from frontend.services.monitor_boas_vindas import tem_monitor  # noqa: PLC0415
+        return tem_monitor(codigo)
+    except Exception:  # noqa: BLE001 — menu nunca quebra por causa disso
+        return False
+
+
 def _build_funis_nav_groups(launch, active_code, page, current_user, previous_launch) -> list[dict]:
     """Grupos de navegação do modo Funis — usados tanto na barra horizontal
     (desktop) quanto na lista vertical dentro da gaveta (mobile), pra não
@@ -446,6 +455,10 @@ def _build_funis_nav_groups(launch, active_code, page, current_user, previous_la
                  "href": _href("/analise-copys"), "enabled": bool(launch and launch.has_meta)},
                 {"page": "crm_campanhas", "label": "Campanhas (E-mails)", "icon": "ti-mail",
                  "href": _href("/crm-campanhas"), "enabled": bool(launch and launch.has_ac)},
+                # Compras x automação de boas-vindas no dia de abertura do carrinho
+                # (frontend/routes/boas_vindas.py). Só PES/PI/PBB usam essa automação.
+                {"page": "boas_vindas", "label": "Boas-vindas (carrinho)", "icon": "ti-mail-heart",
+                 "href": _href("/boas-vindas"), "enabled": _tem_boas_vindas(active_code)},
                 {"page": "meta-audiences", "label": "Meta Audiências", "icon": "ti-user-check",
                  "href": _href("/meta-audiences"), "enabled": bool(launch and launch.has_meta)},
                 {"page": "google-audiences", "label": "Google Audiências", "icon": "ti-trending-up",
@@ -649,8 +662,6 @@ def _base_ctx(
         nav_mode = "comercial"
     elif page == "links":
         nav_mode = "links"
-    elif page == "boas_vindas":
-        nav_mode = "boas_vindas"
     else:
         nav_mode = "funis"
 

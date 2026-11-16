@@ -15,17 +15,15 @@
   .bv-tabela th.n, .bv-tabela td.numero { text-align:right; font-variant-numeric:tabular-nums; }
   .bv-tabela tr.agora td { font-weight:700; }
   .bv-delta-alta { color:#9a6700; font-weight:700; }
-  .bv-aberturas { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
-  .bv-aberturas .bs-pill { text-decoration:none; }
   .bv-faltando td.email { font-family:ui-monospace, Consolas, monospace; font-size:12.5px; user-select:all; }
 </style>
 
 <div class="wrap">
   <div class="hdr">
-    <a href="/boas-vindas"><img src="/assets/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <a href="/?launch_code={{ active_code }}"><img src="/assets/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
     <div>
-      <h1><i class="ti ti-mail-heart"></i> Boas-vindas no carrinho</h1>
-      <p>Quem comprou a Mentoria Vitalícia × quem entrou na automação de boas-vindas do Active Campaign, de 5 em 5 minutos, no dia de abertura do carrinho</p>
+      <h1>Boas-vindas no carrinho{% if codigo %} — {{ codigo }}{% endif %}</h1>
+      <p>Active Campaign | Quem comprou a Mentoria Vitalícia × quem entrou na automação de boas-vindas, de 5 em 5 minutos, no dia de abertura do carrinho</p>
     </div>
   </div>
 
@@ -35,32 +33,30 @@
     <div class="note danger">{{ erro }}</div>
     {% endif %}
 
-    {% if not alvo %}
+    {% if not monitorado %}
       <div class="no-data">
-        <i class="ti ti-calendar-off"></i>
-        {% if pedido_lancamento %}
-        <h3>{{ pedido_lancamento | upper }} não tem monitor de boas-vindas</h3>
-        <p>O monitor vale para os lançamentos da Mentoria Vitalícia (TJSP, INSS e Banco do Brasil) que têm data de abertura e produto Hotmart no Settings.</p>
-        {% else %}
-        <h3>Nenhum carrinho abre hoje</h3>
-        <p>Esta página só acompanha o dia de abertura do carrinho. No dia, ela lê as vendas e a automação sozinha, de 5 em 5 minutos.</p>
-        {% endif %}
-        {% if proxima %}
-        <p><strong>Próxima abertura:</strong> {{ proxima.codigo }} ({{ proxima.curso }}) em {{ proxima.dia.strftime('%d/%m') }}{% if proxima.hora %} às {{ proxima.hora }}{% endif %}.</p>
-        {% endif %}
-        {% if recentes %}
-        <div class="bv-aberturas" style="justify-content:center;">
-          {% for a in recentes %}<a class="bs-pill neutral" href="/boas-vindas?lancamento={{ a.codigo }}">{{ a.codigo }} · {{ a.dia.strftime('%d/%m') }}</a>{% endfor %}
-        </div>
-        {% endif %}
+        <i class="ti ti-mail-off"></i>
+        <h3>{{ codigo or 'Este lançamento' }} não usa a automação de boas-vindas</h3>
+        <p>O monitor vale para os lançamentos da Mentoria Vitalícia: TJSP, INSS e Banco do Brasil.</p>
       </div>
 
+    {% elif not alvo %}
+      {% if not erro %}
+      <div class="no-data">
+        <i class="ti ti-calendar-off"></i>
+        <h3>{{ codigo }} ainda não tem data de abertura ou produto Hotmart</h3>
+        <p>O monitor usa a data de abertura oficial do carrinho e os produtos Hotmart cadastrados no Settings do lançamento. Assim que estiverem lá, ele começa sozinho no dia.</p>
+      </div>
+      {% endif %}
+
     {% elif not s %}
+      {% if not erro %}
       <div class="no-data">
         <i class="ti ti-calendar-time"></i>
-        <h3>{{ alvo.codigo }} abre o carrinho em {{ alvo.dia.strftime('%d/%m') }}</h3>
-        <p>O monitor começa sozinho nesse dia. Até lá, não há o que acompanhar.</p>
+        <h3>{{ alvo.codigo }} abre o carrinho em {{ alvo.dia.strftime('%d/%m') }}{% if alvo.hora %} às {{ alvo.hora }}{% endif %}</h3>
+        <p>O monitor começa sozinho nesse dia e lê as vendas e a automação de 5 em 5 minutos. Até lá, não há o que acompanhar.</p>
       </div>
+      {% endif %}
 
     {% else %}
       {% set falt = s.faltando | length %}
@@ -196,11 +192,6 @@
           Vendas: Hotmart e TMB aprovadas (banco operacional), pela hora da aprovação. Quem já tinha compra aprovada antes do dia conta como "já era aluno" e não recebe as boas-vindas.
           Entradas e fila contam só os compradores deste lançamento: a automação é a mesma dos três cursos.
         </div>
-        {% if recentes %}
-        <div class="bv-aberturas">
-          {% for a in recentes %}<a class="bs-pill {{ 'accent' if a.codigo == s.codigo else 'neutral' }}" href="/boas-vindas?lancamento={{ a.codigo }}">{{ a.codigo }} · {{ a.dia.strftime('%d/%m') }}</a>{% endfor %}
-        </div>
-        {% endif %}
       </div>
 
       <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>

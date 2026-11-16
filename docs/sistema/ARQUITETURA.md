@@ -48,7 +48,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 113 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 114 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Ano global do sistema (2026-10-22)**
@@ -445,6 +445,7 @@ relacionados:
 > - [[ARQUITETURA#Debriefing: "Compradores pelo Dia que Entraram no Grupo" lê leads_grupos_eventos (16/11/26)|Debriefing: "Compradores pelo Dia que Entraram no Grupo" lê leads_grupos_eventos (16/11/26)]]
 > - [[ARQUITETURA#Receita: lançamento × upsell nos cards, e /resumo alinhado às matrículas (16/11/26)|Receita: lançamento × upsell nos cards, e /resumo alinhado às matrículas (16/11/26)]]
 > - [[ARQUITETURA#Aquecimento do debriefing: `perfil_pesquisa` estourava o statement_timeout (16/11/26)|Aquecimento do debriefing: `perfil_pesquisa` estourava o statement_timeout (16/11/26)]]
+> - [[ARQUITETURA#Debriefing: bloco «Qualidade dos Leads — Score pela Pesquisa» (16/11/26)|Debriefing: bloco «Qualidade dos Leads — Score pela Pesquisa» (16/11/26)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -4909,3 +4910,6 @@ Card «Receita Líquida» do debriefing e do `/resumo` mostram a quebra «Lança
 
 ### Aquecimento do debriefing: `perfil_pesquisa` estourava o statement_timeout (16/11/26)
 **Alerta (Slack, 09h43):** «Aquecimento do debriefing falhou — PES-NOV-26 · perfil_pesquisa · QueryCanceled». **Causa:** `read_perfil_por_anuncio` cruza ~16,5 mil e-mails da pesquisa com `lead_utm_lancamento` (`email = ANY(:emails)`) e agrega leads por anúncio; sozinha leva ~0,5 s + ~7 s de leitura do sistema novo, mas logo depois de um deploy (09h40) todos os lançamentos ativos aquecem juntos e a consulta passou dos 30 s do pool. O comentário da função falava num timeout maior que não existia mais no código. **Correção:** as duas consultas de `lead_utm_lancamento` rodam numa transação com `SET LOCAL statement_timeout = 120000` (volta ao padrão no fim da transação). Saída idêntica (5 anúncios, 16.503 cruzados). O snapshot anterior foi mantido durante a falha, então a página nunca ficou sem número.
+
+### Debriefing: bloco «Qualidade dos Leads — Score pela Pesquisa» (16/11/26)
+**O que é:** tabela de faixas A/B/C com leads, % dos leads, compradores, taxa de compra e % dos compradores. **Modelo:** regressão logística treinada em 18 lançamentos fechados (PES/PI/PBB) com 8 perguntas-padrão da pesquisa (idade, gênero, estado, filhos, com quem mora, escolaridade, situação, nível), gerada por `scripts/lead_score_treino.py --exportar` em `config/lead_score_modelo.json` (só coeficientes, sem dado pessoal). Os dados de treino vêm de `scripts/lead_score_dataset.py`, que também recupera as respostas do Typeform antigo — chaves eram ids de campo sem título — casando o conjunto de respostas de cada campo com o vocabulário das perguntas dos lançamentos que mantêm o título. **Aplicação:** `frontend/services/lead_score.py` (`obter`, cache de 30 min) pontua só quem respondeu a pesquisa do sistema novo; faixa A = metade de cima dos respondentes DO lançamento, B = metade de baixo, C = não respondeu (corte relativo porque o modelo não separa por produto). Carrega como seção lazy (`/debriefing/secao/lead_score`) e entra no snapshot (`f_lead_score`, falha vira `falhas` sem derrubar o resto). Lançamento com Typeform antigo não tem o bloco. **Validação (deixa um lançamento de fora):** AUC médio 0,632 (só «respondeu» = 0,626; entre respondentes 0,609). PES-NOV-26 (carrinho aberto): A 3,08% · B 1,83% · C 0,63% de compra; PES-SET-26 fechado: A 4,77% · B 2,83% · C 1,09%. **Limite:** 79% dos leads não respondem e concentram ~49% dos compradores. **Retreino:** rodar os dois scripts quando houver lançamento novo fechado (documentado no cabeçalho de cada um).

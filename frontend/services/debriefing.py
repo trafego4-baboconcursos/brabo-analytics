@@ -715,6 +715,7 @@ def _compute_debriefing_ctx(
     dia1_sales: Any = None,
     prev_dia1_sales: Any = None,
     sorteio: Any = None,
+    lead_score: Any = None,
     carrinho: Any = None,
     prev_carrinho: Any = None,
     tiktok: Any = None,
@@ -1549,6 +1550,7 @@ def _compute_debriefing_ctx(
         "pesquisa_engajamento": pesquisa_engajamento,
         # Sorteio — participação por aula (Google Forms) × base de leads
         "sorteio": sorteio,
+        "lead_score": lead_score,
         # Comercial × IA × Orgânico (sck Hotmart / utm_source TMB)
         "vendas_por_canal": getattr(vendas, "por_canal", {}) or {},
         # Antigo × novo (ADxxx já usado em lançamento anterior do produto)

@@ -1192,7 +1192,7 @@ async def debriefing(request: Request, launch_code: str | None = None, modo: str
     return templates.TemplateResponse("debriefing.html", ctx)
 
 
-_DEBRIEFING_SECOES_LAZY = ("pesquisa_engajamento", "qualidade_regiao", "perfil_por_anuncio", "caminho_comprador", "leads_x_whatsapp", "vendas_grupos_whatsapp", "disparo_resumo", "funil_pesquisa", "comparativo_historico", "historico_grande", "sorteio", "cadastrados_lancamentos_anteriores")
+_DEBRIEFING_SECOES_LAZY = ("pesquisa_engajamento", "qualidade_regiao", "perfil_por_anuncio", "caminho_comprador", "leads_x_whatsapp", "vendas_grupos_whatsapp", "disparo_resumo", "funil_pesquisa", "comparativo_historico", "historico_grande", "sorteio", "lead_score", "cadastrados_lancamentos_anteriores")
 
 
 @router.get("/debriefing/secao/{secao}", response_class=HTMLResponse)
@@ -1244,6 +1244,13 @@ async def debriefing_secao(request: Request, secao: str, launch_code: str | None
         elif secao == "caminho_comprador":
             cc = await run_in_threadpool(_caminho_comprador, launch, None)
             dbf[secao] = (cc or {}).get("resumo")
+        elif secao == "lead_score":
+            from frontend.db_readers.sales import read_vendas  # noqa: PLC0415
+            from frontend.services.lead_score import obter  # noqa: PLC0415
+
+            v = await run_in_threadpool(read_vendas, launch.code)
+            compradores = (set(getattr(v, "emails_hotmart", set()) or set()) | set(getattr(v, "emails_tmb", set()) or set())) if v else set()
+            dbf[secao] = await run_in_threadpool(obter, launch.code, compradores) if compradores else None
         elif secao == "cadastrados_lancamentos_anteriores":
             dbf[secao] = await run_in_threadpool(_cadastrados_lancamentos_anteriores, launch, None)
         elif secao == "perfil_por_anuncio":

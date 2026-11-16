@@ -191,6 +191,19 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
             falhas.append("sorteio")
             return None
 
+    async def f_lead_score():
+        """Qualidade dos leads pelo score da pesquisa (faixas A/B/C). Só lançamento com pesquisa no sistema novo."""
+        if not (launch and vendas) or lazy:
+            return None
+        try:
+            from frontend.services.lead_score import obter  # noqa: PLC0415
+            compradores = set(getattr(vendas, "emails_hotmart", set()) or set()) | set(getattr(vendas, "emails_tmb", set()) or set())
+            return await run_in_threadpool(obter, launch.code, compradores)
+        except Exception:
+            logger.exception("Debriefing: falha ao montar o score dos leads")
+            falhas.append("lead_score")
+            return None
+
     async def f_disparo_resumo():
         if not launch or lazy:
             return None
@@ -382,6 +395,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         (dia1_sales, prev_dia1_sales),
         (carrinho, prev_carrinho),
         sorteio,
+        lead_score,
         (versao_lp_por_ad, conversao_paginas_todas),
     ) = await asyncio.gather(
         f_creative(), f_leads_antigos(), f_perfil_pesquisa(),
@@ -391,7 +405,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         f_hotmart_semana_seguinte(), f_compradores_por_dia_grupo(),
         f_forma_pagamento_entrada(), f_comparativo_historico(),
         f_historico_grande(), f_whatsapp_groups_resumo(), f_dia1_sales(), f_carrinho(),
-        f_sorteio(), f_versao_lp(),
+        f_sorteio(), f_lead_score(), f_versao_lp(),
     )
 
     prev_tiktok = None
@@ -441,6 +455,7 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         carrinho=carrinho,
         prev_carrinho=prev_carrinho,
         sorteio=sorteio,
+        lead_score=lead_score,
         tiktok=d.get("tiktok"),
         prev_tiktok=prev_tiktok,
     )

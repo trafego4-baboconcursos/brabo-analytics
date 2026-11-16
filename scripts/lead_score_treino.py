@@ -89,6 +89,7 @@ def main() -> None:
     ap.add_argument("--score")
     ap.add_argument("--saida")
     ap.add_argument("--c", type=float, default=0.5)
+    ap.add_argument("--exportar", help="grava o modelo treinado (JSON) para o painel calcular o score sem retreinar")
     ap.add_argument("--excluir", default="PES-NOV-26,PI-NOV-26", help="carrinho aberto: fora do treino e da validação")
     a = ap.parse_args()
     df = carregar(Path(a.entrada))
@@ -116,6 +117,23 @@ def main() -> None:
     w = pd.Series(m.lr.coef_[0], index=m.nomes).sort_values()
     print("\nPesos (log-odds; positivo = mais chance de comprar)")
     print(w.tail(12).round(2).to_string()); print("..."); print(w.head(8).round(2).to_string())
+
+    if a.exportar:
+        import json
+        resp = df[df["respondeu"] == 1]
+        p_resp = m.prever(resp)
+        modelo = {
+            "perguntas": PERGUNTAS,
+            "vocab": m.vocab,
+            "intercepto": float(m.lr.intercept_[0]),
+            "coef": [float(x) for x in m.lr.coef_[0]],          # 1º = respondeu; depois uma coluna por (pergunta, resposta)
+            "limiar_a": float(np.median(p_resp)),                # A = respondeu com probabilidade acima da mediana dos respondentes
+            "lancamentos": sorted(df["launch"].unique().tolist()),
+            "auc_medio_validacao": float(np.mean([x[1] for x in aucs])),
+            "auc_medio_entre_respondentes": float(np.mean([x[2] for x in aucs])),
+        }
+        Path(a.exportar).write_text(json.dumps(modelo, ensure_ascii=False), encoding="utf-8")
+        print("modelo exportado:", a.exportar)
 
     if a.score and a.saida:
         alvo = pd.read_pickle(Path(a.entrada) / f"{a.score}.pkl")

@@ -2510,6 +2510,22 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   {% endif %}
 
   <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4d. QUALIDADE DOS LEADS (score pela pesquisa)             -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% set ls = dbf.lead_score | default(none) %}
+  {% if lazy %}
+  <div class="dbf-section" data-lazy-section="lead_score">
+    <div class="dbf-section-title"><i class="ti ti-target-arrow"></i> Qualidade dos Leads — Score pela Pesquisa</div>
+    {{ lazy_skeleton() }}
+  </div>
+  {% elif ls and ls.faixas %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-target-arrow"></i> Qualidade dos Leads — Score pela Pesquisa</div>
+    {% include "debriefing/_secao_lead_score.html" %}
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 5. VENDAS POR PÚBLICO (atribuição UTM)                    -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <div class="dbf-section">

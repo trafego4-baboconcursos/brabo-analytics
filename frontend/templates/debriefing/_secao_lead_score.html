@@ -1,0 +1,41 @@
+{# Corpo da seção "Qualidade dos Leads — Score pela Pesquisa" (frontend/services/lead_score.py).
+   Vazio quando o lançamento não tem pesquisa pontuável. #}
+{% set ls = dbf.lead_score | default(none) %}
+{% if ls and ls.faixas %}
+<div class="dbf-lazy-body">
+    <div class="table-wrap" data-no-filter>
+      <table class="table-compact" style="font-size:12px;">
+        <thead><tr>
+          <th>Faixa</th><th>Leads</th><th>% dos leads</th><th>Compradores</th><th>Taxa de compra</th><th>% dos compradores</th>
+        </tr></thead>
+        <tbody>
+          {% set rotulos = {"A": "A — respondeu, perfil forte", "B": "B — respondeu, perfil médio", "C": "C — não respondeu a pesquisa"} %}
+          {% for f in ls.faixas %}
+          <tr>
+            <td>{{ rotulos[f.faixa] }}</td>
+            <td class="numero">{{ f.leads | num }}</td>
+            <td class="numero">{{ ("%.1f" | format(f.pct_leads)) | replace('.', ',') }}%</td>
+            <td class="numero">{{ f.compradores | num }}</td>
+            <td class="numero"><strong>{{ ("%.2f" | format(f.taxa)) | replace('.', ',') }}%</strong></td>
+            <td class="numero">{{ ("%.1f" | format(f.pct_compradores)) | replace('.', ',') }}%</td>
+          </tr>
+          {% endfor %}
+          <tr class="total-row">
+            <td>Total</td>
+            <td class="numero">{{ ls.total_leads | num }}</td>
+            <td class="numero">100%</td>
+            <td class="numero">{{ ls.compradores | num }}</td>
+            <td class="numero">{{ ("%.2f" | format(ls.taxa_geral)) | replace('.', ',') }}%</td>
+            <td class="numero">100%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
+      Só {{ ("%.0f" | format(ls.pct_respondentes)) }}% dos leads responderam a pesquisa — para os demais o score não tem como separar. O modelo
+      (regressão logística treinada em {{ ls.lancamentos_treino }} lançamentos fechados) ordena os respondentes pelas respostas
+      (idade, estado, escolaridade, situação, nível, filhos, com quem mora, gênero); a faixa A é a metade de maior probabilidade.
+      Compradores = e-mails com compra no lançamento que estão na base de leads.
+    </div>
+</div>
+{% endif %}

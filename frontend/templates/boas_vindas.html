@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+{% block content %}
+{% set s = snap %}
+<style>
+  .bv-veredito { display:flex; align-items:center; gap:14px; padding:14px 16px; border-radius:12px; margin-bottom:16px; }
+  .bv-veredito .bv-dot { width:12px; height:12px; border-radius:50%; flex:none; }
+  .bv-veredito strong { display:block; font-size:16px; }
+  .bv-veredito span { color:var(--bs-ink-muted); font-size:13px; }
+  .bv-veredito.ok   { background:var(--bs-success-bg); } .bv-veredito.ok .bv-dot { background:var(--bs-success); } .bv-veredito.ok strong { color:var(--bs-success); }
+  .bv-veredito.warn { background:var(--bs-warning-bg); } .bv-veredito.warn .bv-dot { background:#9a6700; } .bv-veredito.warn strong { color:#9a6700; }
+  .bv-veredito.bad  { background:var(--bs-danger-bg); }  .bv-veredito.bad .bv-dot { background:var(--bs-danger); } .bv-veredito.bad strong { color:var(--bs-danger); }
+  .bv-meta { font-size:12px; color:var(--bs-ink-muted); margin-top:8px; }
+  .bv-legenda { display:flex; flex-wrap:wrap; gap:16px; font-size:12px; color:var(--bs-ink-muted); margin-bottom:8px; }
+  .bv-legenda i { display:inline-block; width:14px; height:3px; border-radius:2px; vertical-align:middle; margin-right:6px; }
+  .bv-tabela th.n, .bv-tabela td.numero { text-align:right; font-variant-numeric:tabular-nums; }
+  .bv-tabela tr.agora td { font-weight:700; }
+  .bv-delta-alta { color:#9a6700; font-weight:700; }
+  .bv-aberturas { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+  .bv-aberturas .bs-pill { text-decoration:none; }
+  .bv-faltando td.email { font-family:ui-monospace, Consolas, monospace; font-size:12.5px; user-select:all; }
+</style>
+
+<div class="wrap">
+  <div class="hdr">
+    <a href="/boas-vindas"><img src="/assets/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
+    <div>
+      <h1><i class="ti ti-mail-heart"></i> Boas-vindas no carrinho</h1>
+      <p>Quem comprou a Mentoria Vitalícia × quem entrou na automação de boas-vindas do Active Campaign, de 5 em 5 minutos, no dia de abertura do carrinho</p>
+    </div>
+  </div>
+
+  <div class="content">
+
+    {% if erro and not s %}
+    <div class="note danger">{{ erro }}</div>
+    {% endif %}
+
+    {% if not alvo %}
+      <div class="no-data">
+        <i class="ti ti-calendar-off"></i>
+        {% if pedido_lancamento %}
+        <h3>{{ pedido_lancamento | upper }} não tem monitor de boas-vindas</h3>
+        <p>O monitor vale para os lançamentos da Mentoria Vitalícia (TJSP, INSS e Banco do Brasil) que têm data de abertura e produto Hotmart no Settings.</p>
+        {% else %}
+        <h3>Nenhum carrinho abre hoje</h3>
+        <p>Esta página só acompanha o dia de abertura do carrinho. No dia, ela lê as vendas e a automação sozinha, de 5 em 5 minutos.</p>
+        {% endif %}
+        {% if proxima %}
+        <p><strong>Próxima abertura:</strong> {{ proxima.codigo }} ({{ proxima.curso }}) em {{ proxima.dia.strftime('%d/%m') }}{% if proxima.hora %} às {{ proxima.hora }}{% endif %}.</p>
+        {% endif %}
+        {% if recentes %}
+        <div class="bv-aberturas" style="justify-content:center;">
+          {% for a in recentes %}<a class="bs-pill neutral" href="/boas-vindas?lancamento={{ a.codigo }}">{{ a.codigo }} · {{ a.dia.strftime('%d/%m') }}</a>{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+
+    {% elif not s %}
+      <div class="no-data">
+        <i class="ti ti-calendar-time"></i>
+        <h3>{{ alvo.codigo }} abre o carrinho em {{ alvo.dia.strftime('%d/%m') }}</h3>
+        <p>O monitor começa sozinho nesse dia. Até lá, não há o que acompanhar.</p>
+      </div>
+
+    {% else %}
+      {% set falt = s.faltando | length %}
+      {% set share = (falt / s.compradores) if s.compradores else 0 %}
+      {% if falt == 0 %}
+        {% set estado = 'ok' %}
+        {% set titulo = 'A automação está acompanhando as vendas' %}
+        {% set texto = 'Todo aluno novo que comprou há mais de ' ~ s.tolerancia_min ~ ' min já entrou na automação.' ~ ((' ' ~ s.ja_alunos ~ (' já era aluno e ficou de fora, como deve ser.' if s.ja_alunos == 1 else ' já eram alunos e ficaram de fora, como deve ser.')) if s.ja_alunos else '') %}
+      {% elif falt <= 3 and share < 0.02 %}
+        {% set estado = 'warn' %}
+        {% set titulo = falt ~ (' aluno novo ficou de fora' if falt == 1 else ' alunos novos ficaram de fora') %}
+        {% set texto = 'Compraram há mais de ' ~ s.tolerancia_min ~ ' min e não estão na automação. Veja a lista abaixo.' %}
+      {% else %}
+        {% set estado = 'bad' %}
+        {% set titulo = 'A automação ficou para trás' %}
+        {% set texto = falt ~ ' alunos novos (' ~ ((share * 100) | round(1) | string | replace('.', ',')) ~ '% de quem comprou) estão fora há mais de ' ~ s.tolerancia_min ~ ' min, desde ' ~ s.faltando[0].hora ~ '. Veja a lista abaixo.' %}
+      {% endif %}
+
+      <div class="section" style="margin-bottom:20px;">
+        <div class="bv-veredito {{ estado }}" role="status" aria-live="polite">
+          <div class="bv-dot"></div>
+          <div><strong>{{ titulo }}</strong><span>{{ texto }}</span></div>
+        </div>
+        <div class="tp-kpi-grid">
+          <div class="tp-kpi">
+            <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-shopping-cart"></i></div></div>
+            <div class="tp-value">{{ s.compradores | num }}</div>
+            <div class="tp-label">Compraram</div>
+            <div class="tp-compare">pessoas únicas, Hotmart + TMB, no dia</div>
+          </div>
+          <div class="tp-kpi">
+            <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-mail-check"></i></div></div>
+            <div class="tp-value">{{ s.entradas | num }}</div>
+            <div class="tp-label">Entraram na automação</div>
+            <div class="tp-compare">compradores do dia que já entraram{% if s.outras_entradas %} · {{ s.outras_entradas | num }} de outros cursos{% endif %}</div>
+          </div>
+          <div class="tp-kpi">
+            <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-hourglass"></i></div></div>
+            <div class="tp-value">{{ s.fila | num }}</div>
+            <div class="tp-label">Na fila agora</div>
+            <div class="tp-compare">ainda recebendo os e-mails da sequência</div>
+          </div>
+          <div class="tp-kpi">
+            <div class="tp-kpi-top"><div class="tp-icon {{ 'danger' if falt else 'success' }}"><i class="ti ti-user-exclamation"></i></div></div>
+            <div class="tp-value">{{ falt | num }}</div>
+            <div class="tp-label">Alunos novos fora da automação</div>
+            <div class="tp-compare">compraram há +{{ s.tolerancia_min }} min · {{ s.a_caminho | num }} a caminho · {{ s.ja_alunos | num }} já eram alunos</div>
+          </div>
+        </div>
+        <div class="bv-meta">
+          <strong>{{ s.codigo }}</strong> ({{ s.curso }}) · abertura em {{ s.dia.strftime('%d/%m/%Y') }}
+          · leitura das <strong>{{ s.atualizado_em.strftime('%H:%M') }}</strong>
+          {% if ao_vivo %}· a página se atualiza sozinha a cada {{ s.intervalo_min }} min{% else %}· dia encerrado{% endif %}
+          · automação {{ s.automacao_id }} "{{ s.automacao_nome }}"
+        </div>
+      </div>
+
+      {% if s.faltando %}
+      <div class="section">
+        <div class="section-title" data-sec-key="faltando"><i class="ti ti-user-exclamation"></i> Alunos novos fora da automação ({{ falt }})</div>
+        <div class="note warning">
+          Compraram há mais de {{ s.tolerancia_min }} min, não tinham compra anterior e não entraram na automação.
+          Em 12/11/26 a causa foi sempre a mesma: o contato chegou no Active com a tag <code>{{ s.tag_gatilho | replace('MENT', 'MEN') }}</code> da Hotmart,
+          mas sem a <code>{{ s.tag_gatilho }}</code>, que é o gatilho da automação. Colocar essa tag no contato faz ele entrar na hora.
+        </div>
+        <div class="table-wrap">
+          <table class="table-compact bv-tabela bv-faltando">
+            <thead><tr><th class="th-dark">Comprou às</th><th class="th-dark">E-mail</th><th class="th-dark">Produto</th></tr></thead>
+            <tbody>
+              {% for f in s.faltando %}
+              <tr><td>{{ f.hora }}</td><td class="email">{{ f.email }}</td><td>{{ f.produto }}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="section">
+        <div class="section-title" data-sec-key="curva"><i class="ti ti-chart-line"></i> Compras × entradas, de 5 em 5 minutos</div>
+        <div class="bv-legenda">
+          <span><i style="background:#2a78d6"></i>Compraram (acumulado)</span>
+          <span><i style="background:#1baf7a"></i>Entraram na automação (acumulado)</span>
+          <span><i style="background:#eb6834"></i>Na fila (foto a cada leitura)</span>
+        </div>
+        <div class="chart-wrap" style="height:300px">
+          <canvas id="bvCurva" aria-label="Compradores e entradas na automação, acumulado de 5 em 5 minutos" role="img"></canvas>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title" data-sec-key="leituras"><i class="ti ti-list-numbers"></i> Leituras</div>
+        <div class="note info">Diferença = compraram − entraram. Ela inclui quem já era aluno e quem ainda está a caminho, então raramente chega a zero. Se só cresce, a automação ficou para trás.</div>
+        <div class="table-wrap" style="max-height:420px;overflow-y:auto;">
+          <table class="table-compact bv-tabela">
+            <thead><tr><th class="th-dark">Até</th><th class="th-dark n">Compraram</th><th class="th-dark n">Entraram</th><th class="th-dark n">Diferença</th><th class="th-dark n">Na fila</th></tr></thead>
+            <tbody>
+              {% for p in s.serie | reverse %}
+              {% set dif = p.compradores - p.entradas %}
+              <tr class="{{ 'agora' if loop.first }}">
+                <td>{{ p.rotulo }}</td>
+                <td class="numero">{{ p.compradores | num }}</td>
+                <td class="numero">{{ p.entradas | num }}</td>
+                <td class="numero {{ 'bv-delta-alta' if dif > 20 }}">{{ dif | num }}</td>
+                <td class="numero">{{ (p.fila | num) if p.fila is not none else '·' }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title" data-sec-key="por-produto"><i class="ti ti-package"></i> Por produto</div>
+        <div class="table-wrap">
+          <table class="table-compact bv-tabela">
+            <thead><tr><th class="th-dark">Produto</th><th class="th-dark n">Compraram</th><th class="th-dark n">Na automação</th><th class="th-dark n">%</th></tr></thead>
+            <tbody>
+              {% for p in s.por_produto %}
+              <tr>
+                <td>{{ p.produto }}</td>
+                <td class="numero">{{ p.compradores | num }}</td>
+                <td class="numero">{{ p.na_automacao | num }}</td>
+                <td class="numero">{{ ((p.na_automacao / p.compradores * 100) | round | int) if p.compradores else '—' }}%</td>
+              </tr>
+              {% else %}
+              <tr><td colspan="4">Nenhuma compra ainda.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="bv-meta">
+          Vendas: Hotmart e TMB aprovadas (banco operacional), pela hora da aprovação. Quem já tinha compra aprovada antes do dia conta como "já era aluno" e não recebe as boas-vindas.
+          Entradas e fila contam só os compradores deste lançamento: a automação é a mesma dos três cursos.
+        </div>
+        {% if recentes %}
+        <div class="bv-aberturas">
+          {% for a in recentes %}<a class="bs-pill {{ 'accent' if a.codigo == s.codigo else 'neutral' }}" href="/boas-vindas?lancamento={{ a.codigo }}">{{ a.codigo }} · {{ a.dia.strftime('%d/%m') }}</a>{% endfor %}
+        </div>
+        {% endif %}
+      </div>
+
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+      <script>
+      (function() {
+        const labels     = [{% for p in s.serie %}"{{ p.rotulo }}"{% if not loop.last %},{% endif %}{% endfor %}];
+        const compraram  = [{% for p in s.serie %}{{ p.compradores }}{% if not loop.last %},{% endif %}{% endfor %}];
+        const entraram   = [{% for p in s.serie %}{{ p.entradas }}{% if not loop.last %},{% endif %}{% endfor %}];
+        const fila       = [{% for p in s.serie %}{{ p.fila if p.fila is not none else 'null' }}{% if not loop.last %},{% endif %}{% endfor %}];
+        const el = document.getElementById('bvCurva');
+        if (!el || !window.Chart) return;
+        const css = getComputedStyle(document.documentElement);
+        const muted = css.getPropertyValue('--bs-ink-muted').trim() || '#6b7280';
+        const grid  = css.getPropertyValue('--bs-border').trim() || '#e5e7eb';
+        const fmt = v => Number(v).toLocaleString('pt-BR');
+        new Chart(el, {
+          type: 'line',
+          data: { labels, datasets: [
+            { label: 'Compraram', data: compraram, borderColor: '#2a78d6', backgroundColor: 'rgba(42,120,214,.08)', fill: true, borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: .2 },
+            { label: 'Entraram',  data: entraram,  borderColor: '#1baf7a', backgroundColor: 'transparent', borderWidth: 2, pointRadius: 0, pointHoverRadius: 5, tension: .2 },
+            { label: 'Na fila',   data: fila,      borderColor: '#eb6834', backgroundColor: '#eb6834', borderWidth: 1.5, borderDash: [4, 3], pointRadius: 2.5, spanGaps: true, tension: 0 },
+          ]},
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+              legend: { display: false },
+              tooltip: { callbacks: { label: c => c.parsed.y == null ? null : ` ${c.dataset.label}: ${fmt(c.parsed.y)}` } },
+            },
+            scales: {
+              x: { grid: { display: false }, ticks: { color: muted, maxTicksLimit: 12 } },
+              y: { beginAtZero: true, grid: { color: grid }, ticks: { color: muted, callback: fmt } },
+            },
+          },
+        });
+      })();
+      </script>
+    {% endif %}
+    {% if ao_vivo %}
+    {# Dia de abertura: recarrega a cada 5 min, inclusive depois de um erro de leitura. #}
+    <script>setTimeout(function() { location.reload(); }, 5 * 60 * 1000);</script>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

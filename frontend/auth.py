@@ -79,6 +79,8 @@ ROUTE_PERMISSIONS: dict[str, list[str]] = {
     # e qualquer papel logado leria nome de afiliado e comissão, mesmo com o
     # item escondido do menu (o menu não é a trava).
     "/afiliados":         _DTLD,
+    # Boas-vindas no carrinho: lista e-mail de comprador, então fica na faixa das páginas de venda.
+    "/boas-vindas":       _DTLD,
     "/atendimento":       _CMRC,
     "/atendimento/conversas.csv": _CMRC,
     "/atendimento/atualizar": _CMRC,          # botão "Atualizar agora": só pede releitura, não edita dado

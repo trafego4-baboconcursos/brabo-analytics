@@ -2,8 +2,10 @@
 titulo: "Arquitetura do Brabo Analytics — 2026-11-03"
 area: sistema
 status: vigente
-atualizado: 2026-11-13
+atualizado: 2026-11-16
 responde:
+  - "onde fica o monitor de boas-vindas no dia de abertura do carrinho"
+  - "por que comprador nao recebeu o email de boas-vindas"
   - "como agendar pausa de anuncio no etl"
   - "como o tiktok ads entra no banco"
   - "onde fica o token da api do tiktok"
@@ -446,6 +448,9 @@ relacionados:
 > - [[ARQUITETURA#Receita: lançamento × upsell nos cards, e /resumo alinhado às matrículas (16/11/26)|Receita: lançamento × upsell nos cards, e /resumo alinhado às matrículas (16/11/26)]]
 > - [[ARQUITETURA#Aquecimento do debriefing: `perfil_pesquisa` estourava o statement_timeout (16/11/26)|Aquecimento do debriefing: `perfil_pesquisa` estourava o statement_timeout (16/11/26)]]
 > - [[ARQUITETURA#Debriefing: bloco «Qualidade dos Leads — Score pela Pesquisa» (16/11/26)|Debriefing: bloco «Qualidade dos Leads — Score pela Pesquisa» (16/11/26)]]
+>
+> **Página /boas-vindas — compras × automação de boas-vindas no dia de abertura do carrinho (2026-11-16)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -4913,3 +4918,19 @@ Card «Receita Líquida» do debriefing e do `/resumo` mostram a quebra «Lança
 
 ### Debriefing: bloco «Qualidade dos Leads — Score pela Pesquisa» (16/11/26)
 **O que é:** tabela de faixas A/B/C com leads, % dos leads, compradores, taxa de compra e % dos compradores. **Modelo:** regressão logística treinada em 18 lançamentos fechados (PES/PI/PBB) com 8 perguntas-padrão da pesquisa (idade, gênero, estado, filhos, com quem mora, escolaridade, situação, nível), gerada por `scripts/lead_score_treino.py --exportar` em `config/lead_score_modelo.json` (só coeficientes, sem dado pessoal). Os dados de treino vêm de `scripts/lead_score_dataset.py`, que também recupera as respostas do Typeform antigo — chaves eram ids de campo sem título — casando o conjunto de respostas de cada campo com o vocabulário das perguntas dos lançamentos que mantêm o título. **Aplicação:** `frontend/services/lead_score.py` (`obter`, cache de 30 min) pontua só quem respondeu a pesquisa do sistema novo; faixa A = metade de cima dos respondentes DO lançamento, B = metade de baixo, C = não respondeu (corte relativo porque o modelo não separa por produto). Carrega como seção lazy (`/debriefing/secao/lead_score`) e entra no snapshot (`f_lead_score`, falha vira `falhas` sem derrubar o resto). Lançamento com Typeform antigo não tem o bloco. **Validação (deixa um lançamento de fora):** AUC médio 0,632 (só «respondeu» = 0,626; entre respondentes 0,609). PES-NOV-26 (carrinho aberto): A 3,08% · B 1,83% · C 0,63% de compra; PES-SET-26 fechado: A 4,77% · B 2,83% · C 1,09%. **Limite:** 79% dos leads não respondem e concentram ~49% dos compradores. **Retreino:** rodar os dois scripts quando houver lançamento novo fechado (documentado no cabeçalho de cada um).
+
+## Página /boas-vindas — compras × automação de boas-vindas no dia de abertura do carrinho (2026-11-16)
+
+**O que é:** no dia de abertura do carrinho de um lançamento da Mentoria Vitalícia (PES, PI, PBB), a página compara quem comprou com quem entrou na automação 319 "Email Boas Vindas EDM" do Active Campaign, a cada 5 min. Mostra quatro números (compraram, entraram, na fila, alunos novos fora da automação), um aviso verde, amarelo ou vermelho, a curva acumulada, a tabela de leituras, a divisão por produto e a lista de e-mails de quem ficou de fora. Nos outros dias, mostra a próxima abertura e links para as aberturas passadas (`?lancamento=PES-NOV-26`).
+
+**Origem:** monitor feito ao vivo no carrinho do PES-NOV-26 (12/11/26). Alunos reclamaram de não receber o e-mail, e o monitor achou 61 alunos novos fora da automação. A causa: a integração de fora do Active, que coloca `EDM_LEAD`, `EDM_COMPROU` e `[MENT] [VIT] <curso>` alguns segundos depois das tags da Hotmart (`[MEN] [VIT] <curso>`), pulou a `[MENT]`. Pulou no pico das 08h, de vez em quando com movimento baixo, e sempre em quem já era `EDM_LEAD` de antes. Colocar a `[MENT]` à mão fez os 61 entrarem na hora. A integração em si não foi corrigida aqui.
+
+**Regras (no docstring de `frontend/services/monitor_boas_vindas.py`):**
+- o gatilho da automação é `tagadd` de `[MENT] [VIT] TJSP/INSS/BBSA` e roda uma vez por contato. A automação é a mesma para os três cursos, então entradas e fila contam só os compradores do lançamento;
+- quem tem compra aprovada (Hotmart ou TMB) antes do dia já é aluno e não recebe boas-vindas, e isso está certo. Ter só a tag `EDM_LEAD` não faz de ninguém aluno;
+- compra com menos de 15 min (`tolerancia_min`) conta como "a caminho";
+- `contactAutomations` da API do Active não vem em ordem cronológica, então sempre se pede `orders[adddate]=DESC`.
+
+**Peças:** `config/monitor_boas_vindas.yaml` (automação, tolerância, intervalo, tag e padrão da TMB por prefixo); `frontend/services/monitor_boas_vindas.py` (leitura do Active por GET e das vendas no banco operacional por SELECT, cálculo, cache de 4,5 min e laço de fundo); `frontend/routes/boas_vindas.py` + `templates/boas_vindas.html`; item "Carrinho → Boas-vindas" no menu; permissão `_DTLD` (lista e-mail de comprador). O dia de abertura vem de `launch_config.abertura_oficial_carrinho` (ou `carrinho_start_date`) e os produtos de `hotmart_produto_ids` (só os ids numéricos).
+
+**Quando roda:** o laço (`agendar()` no startup, `MONITOR_BOAS_VINDAS=false` desliga) confere a data a cada 5 min e só lê o Active e as vendas no dia de abertura. Cada leitura faz de 2 a 15 GETs no Active (paginação da automação e e-mails novos, com cache de e-mail por processo) e 2 ou 3 SELECTs pequenos. A página aberta recarrega sozinha a cada 5 min nesse dia. **Limite:** a foto da fila a cada leitura fica em memória, e um redeploy no meio do dia perde os pontos anteriores dela. As curvas de compra e entrada são refeitas pelos horários e não se perdem. Testes: `tests/test_monitor_boas_vindas.py`.

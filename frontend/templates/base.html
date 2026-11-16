@@ -353,6 +353,15 @@
       {{ menu_comercial() }}
       {% endif %}
 
+      {# Carrinho: compras x automação de boas-vindas no dia de abertura (frontend/routes/boas_vindas.py). #}
+      {% if not current_user or current_user.role in ('admin', 'analista', 'leitura') %}
+      <div class="bs-nav-sep"></div>
+      <div class="bs-nav-group">Carrinho</div>
+      <a class="bs-mode-btn {% if nav_mode == 'boas_vindas' %}active{% endif %}" href="/boas-vindas">
+        <i class="ti ti-mail-heart"></i> Boas-vindas
+      </a>
+      {% endif %}
+
       {# Links: encurtador próprio que substitui o Bitly (frontend/routes/links.py). #}
       <div class="bs-nav-sep"></div>
       <div class="bs-nav-group">Links</div>

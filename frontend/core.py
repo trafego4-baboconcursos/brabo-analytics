@@ -649,6 +649,8 @@ def _base_ctx(
         nav_mode = "comercial"
     elif page == "links":
         nav_mode = "links"
+    elif page == "boas_vindas":
+        nav_mode = "boas_vindas"
     else:
         nav_mode = "funis"
 

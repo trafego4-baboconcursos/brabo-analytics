@@ -48,7 +48,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 112 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 113 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Ano global do sistema (2026-10-22)**
@@ -444,6 +444,7 @@ relacionados:
 >
 > - [[ARQUITETURA#Debriefing: "Compradores pelo Dia que Entraram no Grupo" lê leads_grupos_eventos (16/11/26)|Debriefing: "Compradores pelo Dia que Entraram no Grupo" lê leads_grupos_eventos (16/11/26)]]
 > - [[ARQUITETURA#Receita: lançamento × upsell nos cards, e /resumo alinhado às matrículas (16/11/26)|Receita: lançamento × upsell nos cards, e /resumo alinhado às matrículas (16/11/26)]]
+> - [[ARQUITETURA#Aquecimento do debriefing: `perfil_pesquisa` estourava o statement_timeout (16/11/26)|Aquecimento do debriefing: `perfil_pesquisa` estourava o statement_timeout (16/11/26)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -4905,3 +4906,6 @@ revogada. Conta nova = refazer a autorização marcando-a e atualizar `TIKTOK_AD
 
 ### Receita: lançamento × upsell nos cards, e /resumo alinhado às matrículas (16/11/26)
 Card «Receita Líquida» do debriefing e do `/resumo` mostram a quebra «Lançamento R$ X · Upsell Black R$ Y» (`receita_upsell` = `receita_upgrade` de `read_vendas_carrinho`); o total continua com o upsell, como no ROAS. O `/resumo` contava venda bruta (1.343 no PES-NOV-26, com os 45 upgrades da Black) e ticket R$ 1.545; agora `montar_resumo` usa `read_vendas_carrinho`: **Qtd. de Vendas (matrículas) 1.298**, ticket R$ 1.581 (sem upsell), «Vendas por Dia» sem o upsell (usa `upsell` da timeline do Hotmart) e a barra da Black rotulada «(upsell)». Sem a regra nova (config sem abertura) a página cai no cálculo antigo. Pendente: o gráfico «Modelo de Pagamento» ainda soma os 1.343 (inclui o upsell).
+
+### Aquecimento do debriefing: `perfil_pesquisa` estourava o statement_timeout (16/11/26)
+**Alerta (Slack, 09h43):** «Aquecimento do debriefing falhou — PES-NOV-26 · perfil_pesquisa · QueryCanceled». **Causa:** `read_perfil_por_anuncio` cruza ~16,5 mil e-mails da pesquisa com `lead_utm_lancamento` (`email = ANY(:emails)`) e agrega leads por anúncio; sozinha leva ~0,5 s + ~7 s de leitura do sistema novo, mas logo depois de um deploy (09h40) todos os lançamentos ativos aquecem juntos e a consulta passou dos 30 s do pool. O comentário da função falava num timeout maior que não existia mais no código. **Correção:** as duas consultas de `lead_utm_lancamento` rodam numa transação com `SET LOCAL statement_timeout = 120000` (volta ao padrão no fim da transação). Saída idêntica (5 anúncios, 16.503 cruzados). O snapshot anterior foi mantido durante a falha, então a página nunca ficou sem número.

@@ -48,7 +48,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 110 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 111 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Ano global do sistema (2026-10-22)**
@@ -442,6 +442,7 @@ relacionados:
 >
 > **TikTok Ads entra no ETL — `tiktok_ads_daily` (2026-11-13)**
 >
+> - [[ARQUITETURA#Debriefing: "Compradores pelo Dia que Entraram no Grupo" lê leads_grupos_eventos (16/11/26)|Debriefing: "Compradores pelo Dia que Entraram no Grupo" lê leads_grupos_eventos (16/11/26)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -4893,3 +4894,6 @@ revogada. Conta nova = refazer a autorização marcando-a e atualizar `TIKTOK_AD
 - **Fica de fora:** thumbnails/texto dos criativos do TikTok, o vigia do ETL
   (`vigia_etl.LIMITES_H`) e a atribuição de venda por ADxxx (as UTMs do TikTok ainda não são
   conferidas). Cor da plataforma: `--tiktok-color` (#FE2C55) e `.plat-tiktok`/`.td-tiktok`.
+
+### Debriefing: "Compradores pelo Dia que Entraram no Grupo" lê leads_grupos_eventos (16/11/26)
+**Sintoma:** a seção vinha vazia no PES-NOV-26. **Causa:** `read_compradores_por_dia_grupo` só olhava as tabelas por lançamento (`<COD>_API`/`_VIP`), que não existem desde 22/10/26 — `read_whatsapp_groups` já tinha o fallback para `leads_grupos_eventos`, esta função não. **Correção:** sem tabela, `_primeira_entrada_por_eventos` pega a primeira entrada (`ent_sai = 'Entrou'`, data de Brasília) de cada telefone comprador, com o mesmo `CODIGOS_EVENTOS` (PES-NOV-26 → `[PES-PPE-26]`). PES-SET-26 (tabela antiga) não mudou: 1.425. PES-NOV-26: 1.220 (165 pré-quali, 971 captação, 84 fora das janelas, 76 sem telefone/entrada). 22/10 é a carga inicial da automação — 142 compradores caem nesse dia por isso; o rodapé da seção avisa.

@@ -1268,7 +1268,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
           {{ kpi_card("Compradores — Captação", cpg.captacao.total, pcpg.captacao.total if pcpg else 0, "num", "up") }}
         </div>
         <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
-          Data de entrada = primeira entrada em grupo Normal ou VIP, cruzada por telefone com compradores Hotmart+TMB. {{ cpg.sem_data }} compradores sem telefone/entrada de grupo identificada não entram no gráfico.
+          Data de entrada = primeira entrada em grupo Normal ou VIP, cruzada por telefone com compradores Hotmart+TMB. {{ cpg.sem_data }} compradores sem telefone/entrada de grupo identificada não entram no gráfico.{% if cpg.timeline[0].data == '2026-10-22' %} 22/10 é a carga inicial da automação de grupos: concentra quem já estava neles antes dessa data.{% endif %}
         </div>
       {% else %}
         {{ sem_dados("Tabelas de grupo de WhatsApp (Normal/VIP) do lançamento") }}

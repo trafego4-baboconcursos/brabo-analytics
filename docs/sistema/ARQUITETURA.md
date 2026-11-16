@@ -48,7 +48,7 @@ relacionados:
 
 <!-- SUMARIO:INICIO -->
 
-> [!abstract]- Sumario - 111 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
+> [!abstract]- Sumario - 112 itens (gerado por `scripts/check_docs.py --atualizar-mapa`)
 >
 >
 > **Ano global do sistema (2026-10-22)**
@@ -443,6 +443,7 @@ relacionados:
 > **TikTok Ads entra no ETL — `tiktok_ads_daily` (2026-11-13)**
 >
 > - [[ARQUITETURA#Debriefing: "Compradores pelo Dia que Entraram no Grupo" lê leads_grupos_eventos (16/11/26)|Debriefing: "Compradores pelo Dia que Entraram no Grupo" lê leads_grupos_eventos (16/11/26)]]
+> - [[ARQUITETURA#Receita: lançamento × upsell nos cards, e /resumo alinhado às matrículas (16/11/26)|Receita: lançamento × upsell nos cards, e /resumo alinhado às matrículas (16/11/26)]]
 
 <!-- SUMARIO:FIM -->
 
@@ -4901,3 +4902,6 @@ revogada. Conta nova = refazer a autorização marcando-a e atualizar `TIKTOK_AD
 **Atualização 16/11/26 (regra de todos os lançamentos):** vendas contam desde o 1º dia de live; só a comparação hora a hora (Vendas na 1ª Hora) usa a quinta de abertura. PES-NOV-26: 1.297 (1.299 de 1ª cobrança nos 2 produtos − 2 de teste/equipe); o time falava em 1.302 — 5 a mais, sendo 2 deles os de teste/equipe se a fonte deles não os exclui.
 
 **ROAS do «ant.» no mesmo ponto (16/11/26):** o card de ROAS do debriefing comparava o ROAS parcial do lançamento em andamento com o ROAS FECHADO do anterior (PES-NOV-26 2,85x contra 3,40x do PES-SET-26, −16,3%). Com o carrinho aberto, `prev_roas` = receita do anterior até o mesmo ponto ÷ investimento do anterior (o gasto depois do ponto é ~R$ 1 mil de R$ 718 mil); o card rotula «no mesmo ponto». Resultado: 2,85x contra 2,87x (−0,7%). `prev_roas_bruto` segue com o total fechado do anterior.
+
+### Receita: lançamento × upsell nos cards, e /resumo alinhado às matrículas (16/11/26)
+Card «Receita Líquida» do debriefing e do `/resumo` mostram a quebra «Lançamento R$ X · Upsell Black R$ Y» (`receita_upsell` = `receita_upgrade` de `read_vendas_carrinho`); o total continua com o upsell, como no ROAS. O `/resumo` contava venda bruta (1.343 no PES-NOV-26, com os 45 upgrades da Black) e ticket R$ 1.545; agora `montar_resumo` usa `read_vendas_carrinho`: **Qtd. de Vendas (matrículas) 1.298**, ticket R$ 1.581 (sem upsell), «Vendas por Dia» sem o upsell (usa `upsell` da timeline do Hotmart) e a barra da Black rotulada «(upsell)». Sem a regra nova (config sem abertura) a página cai no cálculo antigo. Pendente: o gráfico «Modelo de Pagamento» ainda soma os 1.343 (inclui o upsell).

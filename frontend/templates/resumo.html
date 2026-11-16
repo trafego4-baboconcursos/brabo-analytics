@@ -16,6 +16,7 @@
   .rs-kpi-rot { font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--bs-ink-muted); }
   .rs-kpi-val { font-size:28px; font-weight:800; line-height:1.15; margin-top:4px; font-variant-numeric:tabular-nums; color:var(--bs-ink); white-space:nowrap; }
 
+  .rs-kpi-sub { font-size:12px; color:var(--bs-ink-muted); margin-top:4px; white-space:nowrap; }
   .rs-h { font-size:14px; font-weight:800; margin:0 0 16px; color:var(--bs-ink); }
   .rs-graf { position:relative; height:240px; }
   .rs-graf.alto { height:272px; }
@@ -59,11 +60,12 @@
   <div class="content">
     <div class="rs-linha rs-kpis">
       <div class="rs-card rs-kpi"><div class="rs-kpi-ico"><i class="ti ti-chart-line"></i></div>
-        <div><div class="rs-kpi-rot">Receita Líquida</div><div class="rs-kpi-val">{{ r.receita | brl }}</div></div></div>
+        <div><div class="rs-kpi-rot">Receita Líquida</div><div class="rs-kpi-val">{{ r.receita | brl }}</div>
+          {% if r.receita_upsell > 0 %}<div class="rs-kpi-sub">Lançamento {{ r.receita_lancamento | brl }} · Upsell Black {{ r.receita_upsell | brl }}</div>{% endif %}</div></div>
       <div class="rs-card rs-kpi"><div class="rs-kpi-ico"><i class="ti ti-moneybag"></i></div>
         <div><div class="rs-kpi-rot">ROAS*</div><div class="rs-kpi-val">{{ ('%.2f' % r.roas) | replace('.', ',') }}</div></div></div>
       <div class="rs-card rs-kpi"><div class="rs-kpi-ico"><i class="ti ti-devices"></i></div>
-        <div><div class="rs-kpi-rot">Qtd. de Vendas</div><div class="rs-kpi-val">{{ r.n_vendas | num }}</div></div></div>
+        <div><div class="rs-kpi-rot">Qtd. de Vendas (matrículas)</div><div class="rs-kpi-val">{{ r.n_vendas | num }}</div></div></div>
       <div class="rs-card rs-kpi"><div class="rs-kpi-ico"><i class="ti ti-coins"></i></div>
         <div><div class="rs-kpi-rot">Ticket Médio</div><div class="rs-kpi-val">{{ r.ticket | brl }}</div></div></div>
     </div>
@@ -84,7 +86,7 @@
       </div>
     </div>
 
-    <div class="rs-nota">*ROAS = receita líquida ÷ investimento (Meta + Google + WhatsApp). Lucro = receita líquida − investimento.
+    <div class="rs-nota">*ROAS = receita líquida ÷ investimento (Meta + Google + WhatsApp). Lucro = receita líquida − investimento. Qtd. de vendas e ticket contam só matrículas (sem o upsell da Black); a receita do upsell soma na receita líquida.
       "Alunos" = compradores com compra anterior ao carrinho (Hotmart + TMB, por e-mail); "mesmo projeto" = já comprou do mesmo projeto.</div>
   </div>
 </div>

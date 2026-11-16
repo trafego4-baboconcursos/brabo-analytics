@@ -898,6 +898,9 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
           {% elif fmt == "roas" %}{{ "%.2f"|format(val) }}x
           {% endif %}
         </div>
+        {% if lbl == "Receita Líquida" and (dbf.receita_upsell | default(0)) > 0 %}
+          <div class="prev-val" style="margin-top:2px">Lançamento {{ (val - dbf.receita_upsell) | brl(0) }}<br>Upsell Black {{ dbf.receita_upsell | brl(0) }}</div>
+        {% endif %}
         {% if dbf.has_prev %}
           {{ dbadge(val, pval, polarity) }}
           {%- set _no_ponto = (dbf.carrinho_ref | default('')) and lbl in ["Receita Líquida", "ROAS", "Total Vendas", "Ticket Médio"] %}

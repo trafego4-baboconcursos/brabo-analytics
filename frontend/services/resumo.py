@@ -46,7 +46,8 @@ def _dias_do_carrinho(cfg: dict, hm: Any, tmb: Any, hoje: date) -> dict:
         for t in tl:
             k = str(t.get("data") or "")[:10]
             if k:
-                por_dia[k] = por_dia.get(k, 0) + int(t.get("vendas") or 0)
+                # venda do dia sem o upsell (oferta avulsa, ex. upgrade Black): matrícula = aluno novo
+                por_dia[k] = por_dia.get(k, 0) + max(0, int(t.get("vendas") or 0) - int(t.get("upsell") or 0))
     if not ini and por_dia:
         ini = date.fromisoformat(min(por_dia))
     if not ini:
@@ -71,12 +72,25 @@ def montar_resumo(launch: Any, d: dict, hm: Any, tmb: Any, cfg: dict, hoje: date
     n_vendas = int(getattr(vendas, "total_vendas", 0) or 0)
     invest = _f(getattr(meta, "total_gasto", 0)) + _f(getattr(google, "total_custo", 0)) + wa_gasto
 
+    # Mesma regra do debriefing: vendas = matrículas (1ª cobrança desde o 1º dia de live, sem upgrade/teste);
+    # o upsell (upgrade da Black) fica fora da contagem e do ticket e continua somando na receita.
+    receita_upsell, upsell_qtd = 0.0, 0
+    try:
+        from frontend.db_readers.sales import read_vendas_carrinho  # noqa: PLC0415
+        cart = read_vendas_carrinho(launch.code)
+    except Exception:  # noqa: BLE001 — sem a regra nova a página cai no cálculo antigo
+        cart = None
+    if cart:
+        n_vendas = int(cart["vendas"])
+        receita_upsell = _f(cart["receita_upgrade"])
+        upsell_qtd = int(cart["upgrades"])
+
     # Vendas por produto (Hotmart + TMB somados). O `produto` do TMB traz a oferta no fim
     # ("… - TJSP - Lead17990"): tira o sufixo para a mesma Mentoria não virar várias barras.
     # Oferta avulsa de outro produto (ex.: upsell da Black) segue em barra própria.
     soma: dict[str, int] = {}
     for p in list(getattr(hm, "produtos", None) or []) + list(getattr(tmb, "produtos", None) or []):
-        nome = p["nome"] if p.get("oferta_avulsa") else _SUFIXO_OFERTA.sub("", p["nome"]).strip()
+        nome = (p["nome"] + " (upsell)") if p.get("oferta_avulsa") else _SUFIXO_OFERTA.sub("", p["nome"]).strip()
         soma[nome] = soma.get(nome, 0) + int(p["qtd"])
     produtos = sorted(({"nome": n, "qtd": q} for n, q in soma.items()), key=lambda p: p["qtd"], reverse=True)
 
@@ -98,7 +112,8 @@ def montar_resumo(launch: Any, d: dict, hm: Any, tmb: Any, cfg: dict, hoje: date
     return {
         "titulo": f"DADOS DE VENDAS - {titulo_do_lancamento(launch.code)}",
         "receita": receita, "n_vendas": n_vendas,
-        "ticket": (receita / n_vendas) if n_vendas else 0.0,
+        "receita_upsell": receita_upsell, "receita_lancamento": receita - receita_upsell, "upsell_qtd": upsell_qtd,
+        "ticket": ((receita - receita_upsell) / n_vendas) if n_vendas else 0.0,
         "invest": invest, "roas": (receita / invest) if invest > 0 else 0.0,
         "lucro": receita - invest,
         "produtos": produtos,

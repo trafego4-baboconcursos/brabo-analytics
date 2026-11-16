@@ -1460,6 +1460,7 @@ def _compute_debriefing_ctx(
         "prev_parcelamento_hotmart_pct": prev_parcelamento_hotmart / prev_pago_hotmart * 100 if prev_pago_hotmart > 0 else 0.0,
         "prev_total_vendas": prev_total_vendas, "prev_ticket": prev_ticket,
         "carrinho_regra": carrinho_ativo, "carrinho_ref": carrinho_ref,
+        "receita_upsell": _f((carrinho or {}).get("receita_upgrade")),
         "upgrades_qtd": _i((carrinho or {}).get("upgrades")), "pre_abertura_qtd": _i((carrinho or {}).get("pre_abertura")),
         "prev_total_matriculas": prev_total_matriculas,
         "prev_total_leads": prev_total_leads, "prev_cpl": prev_cpl,

@@ -37,5 +37,38 @@
       (idade, estado, escolaridade, situação, nível, filhos, com quem mora, gênero); a faixa A é a metade de maior probabilidade.
       Compradores = e-mails com compra no lançamento que estão na base de leads.
     </div>
+  {% if ls.anuncios %}
+    <h3 style="font-size:13px;margin:24px 0 8px">Por anúncio — qualidade do lead, não só o custo</h3>
+    <div class="table-wrap" data-no-filter>
+      <table class="table-compact" style="font-size:12px;">
+        <thead><tr>
+          <th>Anúncio</th><th>Gasto</th><th>Leads</th><th>CPL</th><th>Responderam</th><th>Leads A</th>
+          <th title="% de faixa A entre os que responderam — mede a qualidade sem depender de quantos responderam">% A entre respondentes</th>
+          <th title="Gasto ÷ leads da faixa A">Custo por lead A</th><th>Compradores</th><th>CPA</th>
+        </tr></thead>
+        <tbody>
+          {% for a in ls.anuncios %}
+          <tr>
+            <td title="{{ a.nome }}"><strong>{{ a.ad }}</strong></td>
+            <td class="numero">{{ a.gasto | brl(0) if a.gasto else '—' }}</td>
+            <td class="numero">{{ a.leads | num }}</td>
+            <td class="numero">{{ a.cpl | brl if a.cpl else '—' }}</td>
+            <td class="numero">{{ a.resp | num }} ({{ ("%.0f" | format(a.pct_resp)) }}%)</td>
+            <td class="numero">{{ a.a | num }}</td>
+            <td class="numero"><strong>{{ ("%.0f" | format(a.pct_a_resp)) }}%</strong></td>
+            <td class="numero">{{ a.custo_a | brl if a.custo_a else '—' }}</td>
+            <td class="numero">{{ a.compradores | num }}</td>
+            <td class="numero">{{ a.cpa | brl if a.cpa else '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
+      Anúncio de origem = ADxxx do utm_term/utm_content do cadastro; só anúncios com 200+ leads, os {{ ls.anuncios | length }} de maior gasto.
+      CPL daqui = gasto ÷ leads com o ADxxx no UTM; anúncio com pouco lead rastreado (ex.: Google sem UTM no anúncio) aparece com CPL alto. «Custo por lead A» depende de quantos leads do anúncio responderam; para comparar a qualidade, olhe «% A entre respondentes».
+      Compradores = e-mails com compra cujo cadastro veio do anúncio (a atribuição por última origem do debriefing pode diferir).
+    </div>
+  {% endif %}
 </div>
 {% endif %}

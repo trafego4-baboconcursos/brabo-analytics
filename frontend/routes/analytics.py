@@ -1246,11 +1246,14 @@ async def debriefing_secao(request: Request, secao: str, launch_code: str | None
             dbf[secao] = (cc or {}).get("resumo")
         elif secao == "lead_score":
             from frontend.db_readers.sales import read_vendas  # noqa: PLC0415
-            from frontend.services.lead_score import obter  # noqa: PLC0415
+            from frontend.services.lead_score import gasto_por_anuncio, obter  # noqa: PLC0415
 
             v = await run_in_threadpool(read_vendas, launch.code)
+            d_ls = await _fetch_all_data(launch)
             compradores = (set(getattr(v, "emails_hotmart", set()) or set()) | set(getattr(v, "emails_tmb", set()) or set())) if v else set()
-            dbf[secao] = await run_in_threadpool(obter, launch.code, compradores) if compradores else None
+            dbf[secao] = await run_in_threadpool(
+                obter, launch.code, compradores, gasto_por_anuncio(d_ls.get("meta"), d_ls.get("google")),
+            ) if compradores else None
         elif secao == "cadastrados_lancamentos_anteriores":
             dbf[secao] = await run_in_threadpool(_cadastrados_lancamentos_anteriores, launch, None)
         elif secao == "perfil_por_anuncio":

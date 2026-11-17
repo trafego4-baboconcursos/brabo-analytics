@@ -80,7 +80,29 @@ def _probabilidades(m: dict, resp: pd.DataFrame) -> list[float]:
     return out
 
 
-def calcular(code: str, emails_compradores: set[str]) -> dict | None:
+_AD_SQL = (
+    "COALESCE(substring(UPPER(COALESCE(utm_term, '')) FROM '^(AD[0-9]+)'), "
+    "substring(UPPER(COALESCE(utm_content, '')) FROM '^(AD[0-9]+)'))"
+)
+_MIN_LEADS_ANUNCIO = 200
+_TOP_ANUNCIOS = 15
+
+
+def gasto_por_anuncio(meta: Any, google: Any) -> dict[str, dict]:
+    """{ADxxx: {nome, gasto}} somando Meta + Google (mesmas listas do perfil por anúncio do debriefing)."""
+    info: dict[str, dict] = {}
+    for a in [
+        *(getattr(meta, "preq_por_ad", None) or []), *(getattr(meta, "captacao_por_ad", None) or []),
+        *(getattr(google, "preq_por_ad", None) or []), *(getattr(google, "anuncios_por_ad", None) or []),
+    ]:
+        cod = str(a.get("ad_code") or "").upper()
+        if cod:
+            d = info.setdefault(cod, {"nome": a.get("nome") or cod, "gasto": 0.0})
+            d["gasto"] += float(a.get("gasto") or 0)
+    return info
+
+
+def calcular(code: str, emails_compradores: set[str], anuncios: dict[str, dict] | None = None) -> dict | None:
     """{faixas:[{faixa,leads,pct_leads,compradores,taxa,pct_compradores}], total_leads, respondentes, ...} ou None."""
     from frontend.db_readers.typeform import _novo_sistema_respostas_cached  # noqa: PLC0415
 
@@ -126,6 +148,49 @@ def calcular(code: str, emails_compradores: set[str]) -> dict | None:
     resp["faixa"] = ["A" if p > limiar else "B" for p in resp["p"]]
     resp["comprou"] = resp["email"].isin(compradores_nos_leads)
 
+    # Anúncio de origem (ADxxx do utm_term/utm_content) do lead: total por anúncio, dos respondentes e dos compradores.
+    with _get_engine().connect() as conn:
+        conn.execute(text("SET LOCAL statement_timeout = 120000"))
+        leads_por_ad = {r[0]: int(r[1]) for r in conn.execute(text(
+            "SELECT " + _AD_SQL + " AS ad, COUNT(DISTINCT email) FROM lead_utm_lancamento "
+            "WHERE lancamento_codigo = :c AND " + _AD_SQL + " IS NOT NULL GROUP BY 1"), {"c": code})}
+        ad_de: dict[str, str] = {}
+        for lote in (resp["email"].tolist(), sorted(compradores_nos_leads)):
+            if not lote:
+                continue
+            for e, ad in conn.execute(text(
+                    "SELECT email, " + _AD_SQL + " FROM lead_utm_lancamento "
+                    "WHERE lancamento_codigo = :c AND email = ANY(:e) AND " + _AD_SQL + " IS NOT NULL"),
+                    {"c": code, "e": lote}):
+                ad_de.setdefault(e, ad)
+    resp["ad"] = resp["email"].map(ad_de)
+    por_ad: dict[str, dict] = {
+        ad: {"ad": ad, "leads": n, "resp": 0, "a": 0, "b": 0, "compradores": 0} for ad, n in leads_por_ad.items()}
+    for ad, faixa in zip(resp["ad"], resp["faixa"]):
+        if ad in por_ad:
+            por_ad[ad]["resp"] += 1
+            por_ad[ad]["a" if faixa == "A" else "b"] += 1
+    for e in compradores_nos_leads:
+        ad = ad_de.get(e)
+        if ad in por_ad:
+            por_ad[ad]["compradores"] += 1
+    anuncios = anuncios or {}
+    linhas_ad = []
+    for ad, d in por_ad.items():
+        if d["leads"] < _MIN_LEADS_ANUNCIO:
+            continue
+        gasto = float((anuncios.get(ad) or {}).get("gasto") or 0)
+        d.update({
+            "nome": (anuncios.get(ad) or {}).get("nome") or ad, "gasto": gasto,
+            "pct_resp": d["resp"] / d["leads"] * 100,
+            "pct_a_resp": d["a"] / d["resp"] * 100 if d["resp"] else 0.0,
+            "cpl": gasto / d["leads"] if gasto else 0.0,
+            "custo_a": gasto / d["a"] if gasto and d["a"] else 0.0,
+            "cpa": gasto / d["compradores"] if gasto and d["compradores"] else 0.0,
+        })
+        linhas_ad.append(d)
+    linhas_ad.sort(key=lambda d: d["gasto"], reverse=True)
+
     n_resp = len(resp)
     compr_total = len(compradores_nos_leads)
     linhas = []
@@ -142,12 +207,13 @@ def calcular(code: str, emails_compradores: set[str]) -> dict | None:
         "faixas": linhas, "total_leads": total_leads, "respondentes": n_resp,
         "pct_respondentes": n_resp / total_leads * 100, "compradores": compr_total,
         "taxa_geral": compr_total / total_leads * 100 if total_leads else 0.0,
+        "anuncios": linhas_ad[:_TOP_ANUNCIOS],
         "auc_resp": m.get("auc_medio_entre_respondentes"), "lancamentos_treino": len(m.get("lancamentos") or []),
     }
 
 
-def obter(code: str, emails_compradores: set[str]) -> dict | None:
-    """`calcular` com cache de 30 min por lançamento (leva ~10 s: Typeform novo + 3 consultas na base de leads)."""
+def obter(code: str, emails_compradores: set[str], anuncios: dict[str, dict] | None = None) -> dict | None:
+    """`calcular` com cache de 30 min por lançamento (leva ~15 s: Typeform novo + consultas na base de leads)."""
     from frontend.cache import _get_or_compute  # noqa: PLC0415
 
-    return _get_or_compute(code, "lead_score", lambda: calcular(code, emails_compradores), ttl=1800)
+    return _get_or_compute(code, "lead_score", lambda: calcular(code, emails_compradores, anuncios), ttl=1800)

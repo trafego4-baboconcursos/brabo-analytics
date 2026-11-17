@@ -196,9 +196,9 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         if not (launch and vendas) or lazy:
             return None
         try:
-            from frontend.services.lead_score import obter  # noqa: PLC0415
+            from frontend.services.lead_score import gasto_por_anuncio, obter  # noqa: PLC0415
             compradores = set(getattr(vendas, "emails_hotmart", set()) or set()) | set(getattr(vendas, "emails_tmb", set()) or set())
-            return await run_in_threadpool(obter, launch.code, compradores)
+            return await run_in_threadpool(obter, launch.code, compradores, gasto_por_anuncio(meta, google))
         except Exception:
             logger.exception("Debriefing: falha ao montar o score dos leads")
             falhas.append("lead_score")

@@ -46,6 +46,29 @@ PERGUNTAS = {
 }
 
 
+# Pergunta de múltipla escolha "Selecione as 3 opções que mais preocupam você…": a resposta vem como as 3 opções
+# escolhidas, separadas por vírgula. Fica fora de PERGUNTAS (que é de escolha única, 1 valor = 1 coluna); cada opção
+# vira uma variável 0/1 (trecho normalizado, sem acento, que identifica a opção — ver `lead_score_treino.OPCOES_PREOCUP`).
+PAD_PREOCUP = r"selecione as \d opcoes"
+_TRECHOS_PREOCUP = ("nao sei estudar do jeito certo", "nao sei montar um cronograma", "estou ha muito tempo sem estudar",
+                    "nao tenho dinheiro para investir", "medo de estudar muito", "pouco tempo disponivel",
+                    "medo de esquecer tudo", "procrastinacao", "estou velho para comecar",
+                    "medo de nao sair o concurso", "medo de nao dar tempo")
+
+
+def _campo_preocup(raw: pd.DataFrame) -> str | None:
+    """Typeform antigo (campos por id): o campo cujas respostas contêm as opções de preocupação (≥90% das linhas)."""
+    melhor = None
+    for campo in [c for c in raw.columns if c != "email_norm"]:
+        v = raw[campo].dropna().map(_norm)
+        if len(v) < 200:
+            continue
+        cob = float(v.map(lambda t: any(o in t for o in _TRECHOS_PREOCUP)).mean())
+        if cob >= 0.9 and (melhor is None or cob > melhor[1]):
+            melhor = (campo, cob)
+    return melhor[0] if melhor else None
+
+
 def _norm(s: str) -> str:
     import unicodedata
     s = unicodedata.normalize("NFKD", str(s)).encode("ascii", "ignore").decode().lower()
@@ -115,8 +138,11 @@ def respostas(code: str, mapear: bool = True) -> pd.DataFrame:
         a = pd.DataFrame([{"email_norm": e, **(v or {})} for e, v in linhas])
         if not a.empty:
             mapa = _mapear_campos(a)
-            a = a[["email_norm", *mapa]].rename(columns={c: f"__{q}" for c, q in mapa.items()})
-            a = a.rename(columns={f"__{q}": q for q in mapa.values()})
+            campo_pre = _campo_preocup(a)
+            b = a[["email_norm", *mapa]].rename(columns=mapa)
+            if campo_pre:
+                b["preocup"] = a[campo_pre]
+            a = b
             a.attrs["ja_padrao"] = True
     else:
         a = pd.DataFrame(T._registros_materializados(where, {"fid": proj_id.upper(), "code": code}, proj_id.upper()))
@@ -140,11 +166,12 @@ def montar(code: str) -> pd.DataFrame | None:
     df = pd.DataFrame({"email": leads})
     df["comprou"] = df["email"].isin(compradores)
     df["respondeu"] = False
-    for chave in PERGUNTAS:
+    chaves = [*PERGUNTAS, "preocup"]
+    for chave in chaves:
         df[chave] = None
     if not tf.empty:
         cols = {}
-        for chave, padrao in PERGUNTAS.items():
+        for chave, padrao in {**PERGUNTAS, "preocup": PAD_PREOCUP}.items():
             if chave in tf.columns:                       # Typeform antigo, já traduzido por _mapear_campos
                 cols[chave] = chave
                 continue
@@ -155,7 +182,7 @@ def montar(code: str) -> pd.DataFrame | None:
         sub = sub.rename(columns={"email_norm": "email"})
         df = df.drop(columns=list(cols)).merge(sub, on="email", how="left") if cols else df
         df["respondeu"] = df["email"].isin(set(tf["email_norm"].dropna()))
-        for chave in PERGUNTAS:
+        for chave in chaves:
             if chave not in df.columns:
                 df[chave] = None
     df["launch"] = code

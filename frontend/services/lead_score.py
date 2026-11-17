@@ -41,6 +41,7 @@ _PADROES = {
     "situacao": r"situacao profissional",
     "nivel": r"voce se considera",
 }
+_PAD_PREOCUP = r"selecione as \d opcoes"        # múltipla escolha: "3 opções que mais preocupam você"
 
 
 def _norm(s: Any) -> str:
@@ -71,11 +72,18 @@ def _probabilidades(m: dict, resp: pd.DataFrame) -> list[float]:
     coef = m["coef"]
     peso = {nc: coef[i + 1] for i, nc in enumerate(nomes_cols)}
     base = m["intercepto"] + coef[0]
+    # Múltipla escolha (preocupações): uma coluna 0/1 por opção, depois das de escolha única (mesma ordem do treino).
+    opcoes = (m.get("multi") or {}).get("preocup") or []
+    peso_op = coef[1 + len(nomes_cols): 1 + len(nomes_cols) + len(opcoes)]
     out = []
     for _, r in resp.iterrows():
         z = base
         for q in m["perguntas"]:
             z += peso.get((q, r[q]), 0.0)
+        txt = r.get("preocup") or ""
+        for o, w in zip(opcoes, peso_op):
+            if o in txt:
+                z += w
         out.append(1.0 / (1.0 + math.exp(-z)))
     return out
 
@@ -123,6 +131,8 @@ def calcular(code: str, emails_compradores: set[str], anuncios: dict[str, dict] 
     resp = pd.DataFrame({"email": tf["email_norm"].values})
     for q in m["perguntas"]:
         resp[q] = tf[cols[q]].map(_limpa).values if q in cols else ""
+    col_pre = next((c for c in tf.columns if c != "email_norm" and re.search(_PAD_PREOCUP, _norm(c))), None)
+    resp["preocup"] = tf[col_pre].map(_norm).values if col_pre else ""
 
     emails = [e for e in resp["email"].tolist() if e]
     compradores = sorted(emails_compradores or [])

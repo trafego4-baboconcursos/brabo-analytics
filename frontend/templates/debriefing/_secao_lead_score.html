@@ -34,7 +34,7 @@
     <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
       Só {{ ("%.0f" | format(ls.pct_respondentes)) }}% dos leads responderam a pesquisa — para os demais o score não tem como separar. O modelo
       (regressão logística treinada em {{ ls.lancamentos_treino }} lançamentos fechados) ordena os respondentes pelas respostas
-      (idade, estado, escolaridade, situação, nível, filhos, com quem mora, gênero); a faixa A é a metade de maior probabilidade.
+      (idade, estado, escolaridade, situação, nível, filhos, com quem mora, gênero e as 3 preocupações com o concurso); a faixa A é a metade de maior probabilidade.
       Compradores = e-mails com compra no lançamento que estão na base de leads.
     </div>
   {% if ls.anuncios %}

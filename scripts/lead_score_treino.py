@@ -21,6 +21,20 @@ from sklearn.metrics import roc_auc_score
 
 PERGUNTAS = ["idade", "genero", "estado", "filhos", "mora", "escolaridade", "situacao", "nivel"]   # presentes em TODOS os lançamentos
 MIN_RESPOSTA = 300     # respostas raras (menos que isso no treino) viram "outra"
+# Pergunta de múltipla escolha ("3 opções que mais preocupam você"): cada opção é uma variável 0/1. O trecho é o texto da
+# opção sem acento e em minúsculas; a mesma lista vai no JSON do modelo e é usada por `frontend/services/lead_score.py`.
+OPCOES_PREOCUP = ["nao sei estudar do jeito certo", "nao sei montar um cronograma", "estou ha muito tempo sem estudar",
+                  "nao tenho dinheiro para investir", "medo de estudar muito", "pouco tempo disponivel",
+                  "medo de esquecer tudo", "procrastinacao", "estou velho para comecar",
+                  "medo de nao sair o concurso", "medo de nao dar tempo"]
+
+
+def _norm_txt(v) -> str:
+    import unicodedata
+    if v is None or (isinstance(v, float) and np.isnan(v)):
+        return ""
+    s = unicodedata.normalize("NFKD", str(v)).encode("ascii", "ignore").decode().lower()
+    return re.sub(r"\s+", " ", s)
 
 
 def _limpa(v) -> str:
@@ -42,6 +56,7 @@ def carregar(pasta: Path, codigos: list[str] | None = None) -> pd.DataFrame:
     df = pd.concat(dfs, ignore_index=True)
     for q in PERGUNTAS:
         df[q] = df[q].map(_limpa)
+    df["preocup"] = df["preocup"].map(_norm_txt) if "preocup" in df else ""
     df["respondeu"] = df["respondeu"].astype(int)
     df["y"] = df["comprou"].astype(int)
     df["produto"] = df["launch"].str.split("-").str[0]
@@ -49,22 +64,27 @@ def carregar(pasta: Path, codigos: list[str] | None = None) -> pd.DataFrame:
 
 
 class Modelo:
-    def __init__(self, c: float = 0.5):
+    def __init__(self, c: float = 0.5, multi: bool = True):
         self.c = c
+        self.multi = multi          # usa as opções de preocupação (múltipla escolha)
 
     def _x(self, df: pd.DataFrame) -> np.ndarray:
         cols = []
         for q in PERGUNTAS:
             ok = df[q].isin(self.vocab[q])
             s = df[q].where(ok, "")
-            cols.append(pd.get_dummies(s).reindex(columns=self.vocab[q], fill_value=0).astype(float))
+            cols.append(pd.get_dummies(s).reindex(columns=self.vocab[q], fill_value=0).astype(np.float32))
+        if self.multi:
+            t = df["preocup"].fillna("").map(_norm_txt)
+            cols.append(pd.DataFrame({o: t.map(lambda s, o=o: 1.0 if o in s else 0.0) for o in OPCOES_PREOCUP}, index=df.index).astype(np.float32))
         x = pd.concat(cols, axis=1)
-        x.insert(0, "respondeu", df["respondeu"].astype(float).values)
+        x.insert(0, "respondeu", df["respondeu"].astype(np.float32).values)
         return x.values
 
     def fit(self, df: pd.DataFrame) -> "Modelo":
         self.vocab = {q: [v for v, n in df[q].value_counts().items() if v and n >= MIN_RESPOSTA] for q in PERGUNTAS}
-        self.nomes = ["respondeu"] + [f"{q}={v}" for q in PERGUNTAS for v in self.vocab[q]]
+        self.nomes = (["respondeu"] + [f"{q}={v}" for q in PERGUNTAS for v in self.vocab[q]]
+                      + ([f"preocup={o}" for o in OPCOES_PREOCUP] if self.multi else []))
         self.lr = LogisticRegression(C=self.c, max_iter=400)
         self.lr.fit(self._x(df), df["y"].values)
         return self
@@ -107,11 +127,14 @@ def main() -> None:
         a1 = roc_auc_score(te["y"], p)
         mr = te["respondeu"].values == 1
         a2 = roc_auc_score(te["y"].values[mr], p[mr])      # só entre quem respondeu: o valor das respostas em si
-        aucs.append((a0, a1, a2))
+        sem = Modelo(a.c, multi=False).fit(tr).prever(te)  # mesmo modelo sem as opções de preocupação (comparação)
+        a3 = roc_auc_score(te["y"].values[mr], sem[mr])
+        aucs.append((a0, a1, a2, a3))
         q = lift_por_decil(te["y"].values, p)
         print(f"{code:<12}{len(te):>8}{100 * te['respondeu'].mean():>7.1f}{100 * te['y'].mean():>7.2f} | {a0:>17.3f}{a1:>12.3f}{a2:>10.3f} | "
-              f"{100 * q[0][0]:.2f}% / {100 * q[-1][0]:.2f}% ({q[0][1]:.1f}x)")
-    print(f"{'MÉDIA':<12}{'':>8}{'':>7}{'':>7} | {np.mean([x[0] for x in aucs]):>17.3f}{np.mean([x[1] for x in aucs]):>12.3f}{np.mean([x[2] for x in aucs]):>10.3f}")
+              f"{100 * q[0][0]:.2f}% / {100 * q[-1][0]:.2f}% ({q[0][1]:.1f}x) | resp. sem preocupações {a3:.3f}")
+    print(f"{'MÉDIA':<12}{'':>8}{'':>7}{'':>7} | {np.mean([x[0] for x in aucs]):>17.3f}{np.mean([x[1] for x in aucs]):>12.3f}{np.mean([x[2] for x in aucs]):>10.3f}"
+          f" | resp. sem preocupações {np.mean([x[3] for x in aucs]):.3f}")
 
     m = Modelo(a.c).fit(df)
     w = pd.Series(m.lr.coef_[0], index=m.nomes).sort_values()
@@ -126,7 +149,8 @@ def main() -> None:
             "perguntas": PERGUNTAS,
             "vocab": m.vocab,
             "intercepto": float(m.lr.intercept_[0]),
-            "coef": [float(x) for x in m.lr.coef_[0]],          # 1º = respondeu; depois uma coluna por (pergunta, resposta)
+            "coef": [float(x) for x in m.lr.coef_[0]],          # 1º = respondeu; depois uma coluna por (pergunta, resposta); no fim, uma por opção de preocupação
+            "multi": {"preocup": OPCOES_PREOCUP},               # opções 0/1 (trecho sem acento contido no texto da resposta)
             "limiar_a": float(np.median(p_resp)),                # A = respondeu com probabilidade acima da mediana dos respondentes
             "lancamentos": sorted(df["launch"].unique().tolist()),
             "auc_medio_validacao": float(np.mean([x[1] for x in aucs])),
@@ -140,6 +164,7 @@ def main() -> None:
         alvo["comprou"] = alvo["comprou"].astype(bool)
         for q in PERGUNTAS:
             alvo[q] = alvo[q].map(_limpa)
+        alvo["preocup"] = alvo["preocup"].map(_norm_txt) if "preocup" in alvo else ""
         alvo["respondeu"] = alvo["respondeu"].astype(int)
         p = m.prever(alvo)
         pct = pd.Series(p).rank(pct=True).values * 100

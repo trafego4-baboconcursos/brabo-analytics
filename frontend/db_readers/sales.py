@@ -50,6 +50,7 @@ from frontend.models import (
 )
 from frontend.utils import _extract_launch_code, _norm_text, _normalize_product_ids, _safe_date, split_hotmart_ids
 from logger import get_logger
+from src.constants import TMB_FATOR_LIQUIDO
 
 logger = get_logger("db")
 
@@ -282,7 +283,7 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
     if not tmb_df.empty:
         for _, row in tmb_df.iterrows():
             try:
-                valor = float(row["valor_liquido"])
+                valor = float(row["valor_liquido"]) * TMB_FATOR_LIQUIDO  # vem sem a taxa da TMB
             except (TypeError, ValueError):
                 valor = 0.0
             if not math.isfinite(valor) or valor <= 0:
@@ -293,7 +294,7 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
 
             summary.tmb_vendas += 1
             summary.tmb_receita += valor
-            summary.tmb_receita_bruta += valor  # TMB não expõe valor pré-comissão
+            summary.tmb_receita_bruta += valor / TMB_FATOR_LIQUIDO  # bruto = ticket (valor_liquido, antes da taxa)
             if email:
                 summary.emails_tmb.add(email)
                 summary.receita_por_email[email] = summary.receita_por_email.get(email, 0.0) + valor
@@ -700,7 +701,7 @@ def read_dia1_sales(launch: Any) -> dict:
 
     if not tmb_df.empty:
         # TMB não expõe valor pré-comissão — usa o líquido mesmo (ver read_vendas)
-        tmb_df["valor"] = pd.to_numeric(tmb_df["valor_liquido"], errors="coerce").fillna(0.0)
+        tmb_df["valor"] = pd.to_numeric(tmb_df["valor_liquido"], errors="coerce").fillna(0.0) * TMB_FATOR_LIQUIDO
 
     # "day"/"ts" acima são naive mas já em horário de Brasília (a query SQL
     # converte explicitamente AT TIME ZONE 'America/Sao_Paulo'). pd.Timestamp.now()
@@ -888,7 +889,7 @@ def read_vendas_carrinho(launch_folder_or_code: Any, ate=None) -> dict | None:
     if tdf.empty and project:
         tdf = _tmb(False)
     for _, r in tdf.iterrows():
-        valor = _num(r.get("valor_liquido")) or 0.0
+        valor = (_num(r.get("valor_liquido")) or 0.0) * TMB_FATOR_LIQUIDO
         out["receita"] += valor
         _t = pd.Timestamp(r["ts"]).to_pydatetime()
         if out["ultima_venda"] is None or _t > out["ultima_venda"]:

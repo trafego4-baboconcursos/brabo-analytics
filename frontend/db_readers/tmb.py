@@ -21,6 +21,7 @@ from frontend.utils import (
     _safe_date,
 )
 from logger import get_logger
+from src.constants import TMB_FATOR_LIQUIDO
 
 logger = get_logger("db")
 
@@ -85,7 +86,7 @@ def read_tmb_details(launch_folder_or_code: Any, start_date=None, end_date=None)
         })
 
     df_paid = df_all[df_all["status_norm"].isin({"vigente", "efetivado", "pago", "em dia", "integralizado", "aprovado", "concluido", "active"})].copy()
-    df_paid["valor_liq"] = pd.to_numeric(df_paid["valor_liquido"], errors="coerce").fillna(0.0)
+    df_paid["valor_liq"] = pd.to_numeric(df_paid["valor_liquido"], errors="coerce").fillna(0.0) * TMB_FATOR_LIQUIDO
 
     details.total_vendas = len(df_paid)
     details.faturamento = float(df_paid["valor_liq"].sum())

@@ -63,7 +63,7 @@ def test_tmb_codigo_fallback_e_conflito():
     assert [x.transacao for x in v] == ["1", "2", "4"]
     assert v[0].codigo_at == "AT11" and not v[0].conflito_codigo and v[0].pago
     assert v[0].produto_id == "29395" and v[0].categoria == "LEAD" and v[0].modalidade == "parcelado"
-    assert v[0].valor_cobrado == Decimal("1879.34")
+    assert v[0].valor_cobrado == Decimal("1788.10")  # 1879.34 x 0,951453 (taxa TMB)
     assert v[1].codigo_at is None and v[1].conflito_codigo
     # Ruling 6: cancelado depois de efetivar conta como paga e cancelada na data_cancelamento
     assert v[2].produto_id == "" and v[2].pago and v[2].cancelada_em == datetime(2026, 10, 7)

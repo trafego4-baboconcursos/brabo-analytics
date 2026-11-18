@@ -14,6 +14,8 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy import text
 
+from src.constants import TMB_FATOR_LIQUIDO
+
 from logger import get_logger
 from frontend.db import _get_users_engine
 from frontend.services.comercial.modelos import Cadastros, Venda  # noqa: F401  (reexportados)
@@ -23,6 +25,7 @@ from frontend.services.comercial.regras import (
 from frontend.services.comercial.tabelas import Participacao, RegraPercentual, ValorBase, categorias_ordenadas
 
 logger = get_logger("db")
+_TMB_FATOR = Decimal(str(TMB_FATOR_LIQUIDO))  # ticket da TMB vem sem a taxa
 
 DDL = [
     """CREATE TABLE IF NOT EXISTS comercial_vendedores (
@@ -611,6 +614,8 @@ def normalizar_tmb(linhas: list[dict]) -> list[Venda]:
         if pedido.upper() == "TESTE":
             continue
         valor = _dec(l.get("ticket"))
+        if valor is not None:
+            valor = (valor * _TMB_FATOR).quantize(Decimal("0.01"))  # ticket vem sem a taxa da TMB
         data = _data_local(l.get("data_efetivado"))
         if valor is None or data is None or not pedido:
             ignoradas += 1

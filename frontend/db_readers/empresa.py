@@ -24,6 +24,7 @@ import pandas as pd
 from sqlalchemy import text
 
 from logger import get_logger
+from src.constants import TMB_FATOR_LIQUIDO
 from frontend.db import _get_engine, _get_users_engine
 from frontend.db_readers._vendas_comum import (
     _HOTMART_STATUS_APROVADO,
@@ -99,7 +100,7 @@ def _hotmart_ano(ano: int) -> dict:
 def _tmb_ano(ano: int) -> dict:
     with _get_users_engine().connect() as conn:
         n, r = conn.execute(text(_TMB_ANO_SQL), {"start": date(ano, 1, 1), "end": date(ano, 12, 31)}).fetchone()
-    return {"vendas": int(n or 0), "receita": float(r or 0.0)}
+    return {"vendas": int(n or 0), "receita": float(r or 0.0) * TMB_FATOR_LIQUIDO}
 
 
 def _investimento_fora_de_lancamento(ano: int) -> dict:

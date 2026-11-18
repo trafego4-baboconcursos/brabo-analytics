@@ -764,6 +764,9 @@ def _compute_debriefing_ctx(
     parcelamento_hotmart = _f(getattr(vendas, "hotmart_parcelamento", 0))
     pago_hotmart = _f(getattr(vendas, "hotmart_receita_bruta", 0))
     hotmart_liquido = _f(getattr(vendas, "hotmart_receita", 0))
+    taxa_tmb = _f(getattr(vendas, "tmb_taxa", 0))
+    ticket_tmb = _f(getattr(vendas, "tmb_receita_bruta", 0))
+    tmb_liquido = _f(getattr(vendas, "tmb_receita", 0))
     roas = receita / invest if invest > 0 else 0.0
     roas_bruto = receita_bruta / invest if invest > 0 else 0.0
     total_vendas = _i(getattr(vendas, "total_vendas", 0))
@@ -799,6 +802,9 @@ def _compute_debriefing_ctx(
     prev_parcelamento_hotmart = _f(getattr(prev_vendas, "hotmart_parcelamento", 0))
     prev_pago_hotmart = _f(getattr(prev_vendas, "hotmart_receita_bruta", 0))
     prev_hotmart_liquido = _f(getattr(prev_vendas, "hotmart_receita", 0))
+    prev_taxa_tmb = _f(getattr(prev_vendas, "tmb_taxa", 0))
+    prev_ticket_tmb = _f(getattr(prev_vendas, "tmb_receita_bruta", 0))
+    prev_tmb_liquido = _f(getattr(prev_vendas, "tmb_receita", 0))
     prev_total_vendas = _i(getattr(prev_vendas, "total_vendas", 0))
     prev_ticket = _f(getattr(prev_vendas, "total_ticket_medio", 0))
     # Regra do Painel Lançamento: vendas = 1ª cobrança desde o 1º dia de live, sem upgrade/teste;
@@ -1436,6 +1442,9 @@ def _compute_debriefing_ctx(
         "invest": invest, "wa_gasto": wa_gasto, "receita": receita, "roas": roas,
         "receita_bruta": receita_bruta, "roas_bruto": roas_bruto,
         "taxa_hotmart": taxa_hotmart, "parcelamento_hotmart": parcelamento_hotmart, "pago_hotmart": pago_hotmart, "hotmart_liquido": hotmart_liquido,
+        "taxa_tmb": taxa_tmb, "ticket_tmb": ticket_tmb, "tmb_liquido": tmb_liquido,
+        "taxa_tmb_pct": taxa_tmb / ticket_tmb * 100 if ticket_tmb > 0 else 0.0,
+        "prev_taxa_tmb": prev_taxa_tmb, "prev_ticket_tmb": prev_ticket_tmb, "prev_tmb_liquido": prev_tmb_liquido,
         "taxa_hotmart_pct": taxa_hotmart / pago_hotmart * 100 if pago_hotmart > 0 else 0.0,
         "parcelamento_hotmart_pct": parcelamento_hotmart / pago_hotmart * 100 if pago_hotmart > 0 else 0.0,
         "total_vendas": total_vendas, "ticket": ticket,

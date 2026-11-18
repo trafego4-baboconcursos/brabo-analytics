@@ -294,7 +294,9 @@ def _read_vendas_uncached(code: str, start_date=None, end_date=None) -> VendasSu
 
             summary.tmb_vendas += 1
             summary.tmb_receita += valor
-            summary.tmb_receita_bruta += valor / TMB_FATOR_LIQUIDO  # bruto = ticket (valor_liquido, antes da taxa)
+            _ticket = valor / TMB_FATOR_LIQUIDO  # ticket = valor_liquido antes da taxa
+            summary.tmb_receita_bruta += _ticket
+            summary.tmb_taxa += _ticket - valor
             if email:
                 summary.emails_tmb.add(email)
                 summary.receita_por_email[email] = summary.receita_por_email.get(email, 0.0) + valor

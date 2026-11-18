@@ -185,6 +185,7 @@ class VendasSummary:
     tmb_vendas: int = 0
     tmb_receita: float = 0.0
     tmb_receita_bruta: float = 0.0
+    tmb_taxa: float = 0.0  # taxa efetiva paga à TMB (ticket − líquido)
     tmb_ticket_medio: float = 0.0
     total_vendas: int = 0
     total_receita: float = 0.0

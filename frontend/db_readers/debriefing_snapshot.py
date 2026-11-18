@@ -82,7 +82,8 @@ TABLE = "debriefing_snapshot"
 # 13/11/26: TikTok entra no debriefing (tiktok_ads_daily) — investimento total, fontes de leads,
 # etapas, pré-quali (`prequali_invest.tiktok`, chave nova) e top anúncios. Sem o bump o snapshot
 # velho seguiria sem o TikTok até o próximo reaquecimento.
-SNAPSHOT_VERSION = 22
+# 18/11/26: fileira da TMB no debriefing (taxa_tmb, ticket_tmb, tmb_liquido, *_pct e prev_*) — chave nova no dbf.
+SNAPSHOT_VERSION = 23
 
 DDL = f"""
 CREATE TABLE IF NOT EXISTS {TABLE} (

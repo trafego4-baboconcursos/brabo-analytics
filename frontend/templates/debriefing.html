@@ -1353,6 +1353,15 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
     </div>
     {% endif %}
 
+    {# Parte da TMB: o ticket vem sem a taxa; a taxa efetiva (TMB_FATOR_LIQUIDO) é o que pagamos à TMB. #}
+    {% if dbf.taxa_tmb > 0 %}
+    <div class="dbf-kpi-grid" style="--kpi-cols:3">
+      {{ kpi_card("Ticket pago (TMB)", dbf.ticket_tmb, dbf.prev_ticket_tmb, "brl0", "up") }}
+      {{ kpi_card("Taxa TMB · " ~ ("%.1f"|format(dbf.taxa_tmb_pct) | replace(".", ",")) ~ "% do ticket", dbf.taxa_tmb, dbf.prev_taxa_tmb, "brl0", "down") }}
+      {{ kpi_card("Líquido do produtor (só TMB)", dbf.tmb_liquido, dbf.prev_tmb_liquido, "brl0", "up") }}
+    </div>
+    {% endif %}
+
     <!-- Leads por fonte -->
     {% set fontes_soma = dbf.fontes_leads | selectattr('has_data') | map(attribute='fonte') | list | join(' + ') %}
     <div class="dbf-kpi-grid" style="--kpi-cols:{{ (dbf.fontes_leads | length * 2) + 2 }}">

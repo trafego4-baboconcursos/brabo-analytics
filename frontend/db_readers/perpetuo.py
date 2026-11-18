@@ -90,6 +90,24 @@ _VALOR_LIQUIDO_SQL = (
 )
 
 
+def _ultimo_dia_com_gasto(codigo: str) -> date | None:
+    """Último dia com gasto da vertical em qualquer plataforma (None se nunca teve)."""
+    try:
+        with _get_engine().connect() as conn:
+            return conn.execute(
+                text(
+                    "SELECT MAX(d) FROM ("
+                    "SELECT MAX(date) AS d FROM meta_ads_daily WHERE lancamento_codigo = :codigo AND spend > 0 "
+                    "UNION ALL "
+                    "SELECT MAX(date) FROM google_ads_daily WHERE lancamento_codigo = :codigo AND cost > 0) x"
+                ),
+                {"codigo": codigo},
+            ).scalar()
+    except Exception:
+        logger.exception("read_perpetuo: falha ao buscar o último dia com gasto de %s", codigo)
+        return None
+
+
 def _vendas(produtos: list[str], start: date, end: date) -> dict:
     """Vendas Hotmart dos produtos da vertical no período.
 
@@ -232,6 +250,11 @@ def read_perpetuo(vertical: str, days: int = 30, compare: bool = False, inicio=N
         logger.exception("read_perpetuo: falha para %s", vertical)
         return None
 
+    # Sem dado no período: separa "vertical pausada" (já teve gasto) de "campanha ainda não entra no ETL".
+    ultimo_gasto = None
+    if not meta_rows and not google_rows:
+        ultimo_gasto = _ultimo_dia_com_gasto(codigo)
+
     meta_totals = _meta_totals(meta_rows)
     google_totals = _google_totals(google_rows)
     vendas = _vendas(info.get("hotmart") or [], start, end)
@@ -242,6 +265,7 @@ def read_perpetuo(vertical: str, days: int = 30, compare: bool = False, inicio=N
         "vertical": vertical,
         "nome": info["nome"],
         "no_data": not meta_rows and not google_rows,
+        "ultimo_gasto": ultimo_gasto.isoformat() if ultimo_gasto else None,
         "days": days,
         "personalizado": personalizado,
         "compare": compare,

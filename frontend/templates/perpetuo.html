@@ -25,10 +25,14 @@
     {% from "_macros_periodo.html" import seletor_periodo %}
     {{ seletor_periodo(perpetuo, "/perpetuo/" ~ perpetuo.vertical, active_code) }}
 
-    {% if perpetuo.no_data %}
+    {% if perpetuo.no_data and perpetuo.ultimo_gasto %}
+    <div class="note warning">Sem gasto no período selecionado — as campanhas desta vertical estão sem veiculação desde
+      {{ perpetuo.ultimo_gasto[8:10] }}/{{ perpetuo.ultimo_gasto[5:7] }}/{{ perpetuo.ultimo_gasto[:4] }} (último dia com gasto).
+      Aumente o período para ver o histórico.</div>
+    {% elif perpetuo.no_data %}
     <div class="note warning">Nenhum dado no período selecionado — a campanha dessa vertical ainda não foi renomeada
       com a tag <code>[perpétuo]</code>, ou a conta de anúncio ainda não está incluída no ETL. Ver
-      <code>performance-manager/LEVANTAMENTO_PERPETUO_DISTRIBUICAO.md</code>.</div>
+      <code>docs/performance/perpetuo/LEVANTAMENTO_PERPETUO_DISTRIBUICAO.md</code>.</div>
     {% endif %}
 
     <div class="section">

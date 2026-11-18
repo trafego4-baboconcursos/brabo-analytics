@@ -3030,6 +3030,11 @@ e **nenhum** código de lançamento no nome. Até 21/10 o fallback exigia també
 `lancamento_codigo` NULL; foram reclassificadas no banco. Teste em
 `tests/test_launch_resolver_perpetuo.py`.
 
+**Aviso de "sem dado" (18/11/26):** quando a vertical não tem linha no período, `read_perpetuo` busca o último dia com
+gasto (`_ultimo_dia_com_gasto`, Meta + Google pelo `PERPETUO-*`) e a página diz "sem veiculação desde DD/MM/AAAA" — o caso
+normal é campanha pausada (INSS desde 03/11, BB desde 22/10). O aviso antigo ("não foi renomeada / conta fora do ETL") fica só
+para vertical que nunca teve gasto.
+
 ### Histórico de UTM por lançamento (`lead_utm_lancamento`)
 
 A `leads` espelha o Active Campaign — **uma linha por contato** — e

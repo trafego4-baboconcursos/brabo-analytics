@@ -1,6 +1,6 @@
 """
 frontend/services/monitor_boas_vindas.py — Monitor da automação de boas-vindas no
-dia de abertura do carrinho (página /boas-vindas).
+carrinho, da abertura até o fechamento (página /boas-vindas).
 
 Compara, de 5 em 5 minutos, quem comprou a Mentoria Vitalícia do lançamento com
 quem entrou na automação "Email Boas Vindas EDM" do Active Campaign. Nasceu como
@@ -17,11 +17,15 @@ ou aqui:
 - a API do Active NÃO devolve contactAutomations em ordem cronológica: sempre
   pedir orders[adddate]=DESC.
 
-Só leitura: GET na API do Active, SELECT no banco operacional. Roda sozinho só no
-dia de abertura (launch_config.abertura_oficial_carrinho, senão carrinho_start_date);
-nos outros dias o laço só confere a data. A série da fila ("na fila" a cada leitura)
-fica em memória: um redeploy no meio do dia perde os pontos anteriores da fila,
-mas as curvas de compra e entrada são refeitas pelos horários e não se perdem.
+Só leitura: GET na API do Active, SELECT no banco operacional. Roda sozinho do dia
+de abertura (launch_config.abertura_oficial_carrinho, senão carrinho_start_date) até
+o fim do carrinho (carrinho_end_date). Antes era só o dia de abertura; em 18/11/26
+a Talita procurou uma aluna que pediu em 12/11 no parcelamento Hotmart e só foi
+aprovada em 13/11, e ela não aparecia. Desde então entra quem fez o pedido OU teve
+o pagamento aprovado dentro da janela (213 pedidos assim só no PES-NOV-26).
+A série da fila ("na fila" a cada leitura) fica em memória: um redeploy perde os
+pontos anteriores da fila, mas as curvas de compra e entrada são refeitas pelos
+horários e não se perdem.
 """
 from __future__ import annotations
 
@@ -126,6 +130,24 @@ def montar_serie(inicio: datetime, agora: datetime, tempos_compra: list[datetime
     return serie
 
 
+def hora_da_compra(pedido: datetime | None, aprovacao: datetime | None,
+                   inicio: datetime, fim: datetime) -> datetime | None:
+    """Hora que conta pra uma venda da Hotmart, ou None se ela está fora da janela.
+
+    Entra quem fez o pedido OU teve a aprovação dentro de [inicio, fim): parcelamento
+    Hotmart e boleto pedem num dia e aprovam no outro. A hora que conta é a da
+    aprovação, porque é quando a Hotmart manda a tag pro Active."""
+    dentro = [t for t in (pedido, aprovacao) if t and inicio <= t < fim]
+    if not dentro:
+        return None
+    return aprovacao or pedido
+
+
+def aberta_em(ab: dict, dia: date) -> bool:
+    """O carrinho de `ab` está na janela do monitor nesse dia (abertura até o fim, inclusive)?"""
+    return ab["dia"] <= dia <= ab["fim"]
+
+
 def classificar(compras: dict[str, tuple[datetime, str]], na_automacao: set[str],
                 comprou_antes: set[str], agora: datetime, tolerancia_min: int) -> dict:
     """Separa quem comprou e NÃO está na automação em três grupos:
@@ -172,8 +194,13 @@ def linha_para_abertura(row: dict, por_projeto: dict) -> dict | None:
     produtos = [str(p) for p in (row.get("hotmart_produto_ids") or []) if str(p).strip().isdigit()]
     if not produtos:
         return None
+    fim = row.get("carrinho_end_date")
+    if isinstance(fim, str):
+        fim = date.fromisoformat(fim[:10])
+    if not fim or fim < dia:   # sem fim cadastrado: vale só o dia de abertura
+        fim = dia
     return {
-        "codigo": codigo, "prefixo": prefixo, "dia": dia,
+        "codigo": codigo, "prefixo": prefixo, "dia": dia, "fim": fim,
         "hora": row.get("abertura_oficial_hora") or None,
         "produtos": produtos, **proj,
     }
@@ -194,7 +221,7 @@ def aberturas() -> list[dict]:
     por_projeto = config().get("por_projeto") or {}
     with _get_users_engine().connect() as conn:
         rows = conn.execute(text(
-            "SELECT lancamento_codigo, abertura_oficial_carrinho, carrinho_start_date, "
+            "SELECT lancamento_codigo, abertura_oficial_carrinho, carrinho_start_date, carrinho_end_date, "
             "abertura_oficial_hora, hotmart_produto_ids FROM launch_config"
         )).mappings().all()
     lista = [a for a in (linha_para_abertura(dict(r), por_projeto) for r in rows) if a]
@@ -203,9 +230,10 @@ def aberturas() -> list[dict]:
     return lista
 
 
-def aberturas_do_dia(dia: date) -> list[dict]:
-    """Pode ser mais de uma: dois cursos abrindo o carrinho no mesmo dia têm cada um o seu monitor."""
-    return [a for a in aberturas() if a["dia"] == dia]
+def abertas_em(dia: date) -> list[dict]:
+    """Carrinhos na janela do monitor nesse dia. Pode ser mais de um: dois cursos com
+    carrinho aberto ao mesmo tempo têm cada um o seu monitor."""
+    return [a for a in aberturas() if aberta_em(a, dia)]
 
 
 def abertura_de(codigo: str | None) -> dict | None:
@@ -247,21 +275,37 @@ class _Active:
 
 _EMAIL_DO_CONTATO: dict[str, str] = {}   # id do contato no Active -> e-mail (não muda; vale o processo todo)
 
+# Entradas já lidas, por automação. O carrinho dura ~2 semanas e a automação é a
+# mesma dos três cursos: reler tudo a cada 5 min seriam dezenas de páginas por
+# rodada, dividindo o limite de 5 req/s com o ETL. Depois da primeira leitura, só
+# relê as entradas dos últimos _RELEITURA_MIN antes da leitura anterior: é o
+# bastante pra pegar as novas e o status de quem saiu da fila (a espera é de 10 min).
+_ENTRADAS: dict[str, dict] = {}
+_RELEITURA_MIN = 40
+
 
 def _entradas_automacao(ac: _Active, automacao_id: str, desde: datetime) -> list[dict]:
     """Entradas na automação desde `desde`, da mais nova pra mais velha."""
-    vistos: dict[str, dict] = {}
+    cache = _ENTRADAS.get(automacao_id)
+    if cache is None or desde < cache["desde"]:
+        cache = {"linhas": {}, "desde": desde, "lido_em": None}
+        corte = desde
+    else:
+        corte = max(desde, cache["lido_em"] - timedelta(minutes=_RELEITURA_MIN))
+    comeco = datetime.now(BR)
     off = 0
     while True:
         pg = ac.get(f"automations/{automacao_id}/contactAutomations",
                     limit=100, offset=off, **{"orders[adddate]": "DESC"}).get("contactAutomations", [])
         for x in pg:
-            vistos[x["id"]] = x
-        mais_velha = min((datetime.fromisoformat(x["adddate"]) for x in pg), default=desde)
-        if len(pg) < 100 or mais_velha < desde or off > 20000:
+            cache["linhas"][x["id"]] = x
+        mais_velha = min((datetime.fromisoformat(x["adddate"]) for x in pg), default=corte)
+        if len(pg) < 100 or mais_velha < corte or off > 20000:
             break
         off += 100
-    linhas = list(vistos.values())
+    cache["lido_em"] = comeco
+    _ENTRADAS[automacao_id] = cache
+    linhas = [x for x in cache["linhas"].values() if datetime.fromisoformat(x["adddate"]) >= desde]
     faltam = sorted({x["contact"] for x in linhas} - set(_EMAIL_DO_CONTATO))
     for i in range(0, len(faltam), 100):
         for c in ac.get("contacts", ids=",".join(faltam[i:i + 100]), limit=100).get("contacts", []):
@@ -322,20 +366,25 @@ def _aberturas(ac: _Active, automacao_id: str, desde: datetime) -> dict[str, dat
 
 # ── Leitura: vendas (banco operacional) ────────────────────────────────────────
 
-def _compras(ab: dict, inicio: datetime, fim: datetime) -> dict[str, tuple[datetime, str]]:
-    """E-mail -> (hora da aprovação, produto) da primeira compra do dia, Hotmart + TMB."""
+def _compras(ab: dict, inicio: datetime, fim: datetime) -> tuple[dict[str, tuple[datetime, str]], dict[str, datetime]]:
+    """(e-mail -> (hora que conta, produto) da primeira compra na janela, e-mail ->
+    hora do pedido quando ela é diferente da aprovação). Hotmart + TMB."""
     from frontend.db import _get_users_engine  # noqa: PLC0415
     from frontend.db_readers._vendas_comum import _hm_data_sql  # noqa: PLC0415
 
-    d_sql = f"COALESCE({_hm_data_sql('data_da_transacao')}, {_hm_data_sql('confirmacao_do_pagamento')})"
+    # Pedido ou aprovação na janela: o filtro do banco vai de um dia antes (fuso) até
+    # alguns dias depois do fim (parcelamento aprovado depois do fechamento).
+    pedido_sql, aprov_sql = _hm_data_sql("data_da_transacao"), _hm_data_sql("confirmacao_do_pagamento")
     with _get_users_engine().connect() as conn:
         hm = conn.execute(text(f"""
             SELECT lower(trim(email_do_a_comprador_a)) AS email, produto,
                    data_da_transacao, confirmacao_do_pagamento
             FROM hotmart_clean_oficial
             WHERE codigo_do_produto::text = ANY(:ids)
-              AND {d_sql} BETWEEN :d0 AND :d1
-        """), {"ids": ab["produtos"], "d0": inicio.date() - timedelta(days=1), "d1": inicio.date()}).mappings().all()
+              AND (COALESCE({pedido_sql}, {aprov_sql}) BETWEEN :d0 AND :d1
+                   OR {aprov_sql} BETWEEN :d0 AND :d1)
+        """), {"ids": ab["produtos"], "d0": inicio.date() - timedelta(days=1),
+               "d1": fim.date()}).mappings().all()
         tmb = conn.execute(text("""
             SELECT lower(trim(email_cliente)) AS email, produto, data_efetivado
             FROM tmb_clean_oficial
@@ -344,25 +393,27 @@ def _compras(ab: dict, inicio: datetime, fim: datetime) -> dict[str, tuple[datet
                "d1": fim.replace(tzinfo=None)}).mappings().all()
 
     compras: dict[str, tuple[datetime, str]] = {}
+    pedidos: dict[str, datetime] = {}
 
-    def _guardar(email, quando, produto):
+    def _guardar(email, quando, produto, pedido=None):
         if not email or any(t in email for t in _EMAILS_TESTE) or not quando:
-            return
-        if not (inicio <= quando < fim):
             return
         if email not in compras or quando < compras[email][0]:
             compras[email] = (quando, produto)
+            if pedido and abs(quando - pedido) > timedelta(minutes=30):
+                pedidos[email] = pedido
+            else:
+                pedidos.pop(email, None)
 
     for r in hm:
-        # Aprovação primeiro: é quando a Hotmart manda a tag pro Active.
-        _guardar(r["email"], parse_hm(r["confirmacao_do_pagamento"]) or parse_hm(r["data_da_transacao"]),
-                 (r["produto"] or "").strip())
+        pedido, aprovacao = parse_hm(r["data_da_transacao"]), parse_hm(r["confirmacao_do_pagamento"])
+        _guardar(r["email"], hora_da_compra(pedido, aprovacao, inicio, fim), (r["produto"] or "").strip(), pedido)
     for r in tmb:
         q = r["data_efetivado"]
         if q is not None:
             q = q.replace(tzinfo=BR) if q.tzinfo is None else q.astimezone(BR)
-        _guardar(r["email"], q, f"{(r['produto'] or '').strip()} · TMB")
-    return compras
+        _guardar(r["email"], q if q and inicio <= q < fim else None, f"{(r['produto'] or '').strip()} · TMB")
+    return compras, pedidos
 
 
 def _comprou_antes(emails: list[str], inicio: datetime) -> set[str]:
@@ -391,19 +442,23 @@ _FILA: dict[tuple[str, str], dict[str, int]] = {}   # (lançamento, dia) -> {fim
 
 
 def calcular(ab: dict, agora: datetime | None = None) -> dict:
-    """Retrato do dia de abertura de `ab` até `agora` (ou até o fim do dia, se já passou)."""
+    """Retrato do carrinho de `ab`, da abertura até `agora` (ou até o fechamento, se já passou)."""
     cfg = config()
     bucket = int(cfg.get("intervalo_min") or 5)
     tolerancia = int(cfg.get("tolerancia_min") or 15)
     inicio = datetime.combine(ab["dia"], dtime(0), BR)
-    fim = inicio + timedelta(days=1)
+    fim = datetime.combine(ab["fim"] + timedelta(days=1), dtime(0), BR)
     agora_real = agora or datetime.now(BR)
-    agora = min(agora_real, fim - timedelta(seconds=1))
+    agora = agora_real
     ao_vivo = inicio <= agora_real < fim
+    # A curva de 5 em 5 min é de um dia só: hoje, com o carrinho aberto; depois, o da abertura.
+    dia_curva = agora_real.date() if ao_vivo else ab["dia"]
+    ini_curva = datetime.combine(dia_curva, dtime(0), BR)
+    fim_curva = min(agora_real, ini_curva + timedelta(days=1) - timedelta(seconds=1))
 
     ac = _Active()
     linhas = _entradas_automacao(ac, str(cfg["automacao_id"]), inicio - timedelta(days=1))
-    compras = _compras(ab, inicio, fim)
+    compras, pedidos = _compras(ab, inicio, fim)
     compras = {e: v for e, v in compras.items() if v[0] <= agora}
     # Abertura do e-mail de boas-vindas: medida pelo pixel, então Apple Mail pode
     # marcar sozinho e quem bloqueia imagem aparece como não aberto. Se a leitura
@@ -414,12 +469,12 @@ def calcular(ab: dict, agora: datetime | None = None) -> dict:
         logger.warning("Monitor de boas-vindas: aberturas do e-mail indisponíveis para %s", ab["codigo"], exc_info=True)
         abertos = None
 
-    na_automacao = {x["_email"] for x in linhas if x["_email"]}
-    fora = [e for e in compras if e not in na_automacao]
-    grupos = classificar(compras, na_automacao, _comprou_antes(fora, inicio), agora, tolerancia)
-
     # Entradas e fila contam só os compradores deste lançamento: a automação é a
-    # mesma dos três cursos, e quem comprou outro curso no dia não entra na conta.
+    # mesma dos três cursos, e quem comprou outro curso no período não entra na conta.
+    # Vale qualquer entrada desde a véspera da abertura, mesmo antes da compra que
+    # ficou no banco: em 13/11 duas compradoras tinham entrado (e aberto o e-mail)
+    # em 12/11, numa compra anterior que não ficou na tabela.
+    na_automacao: set[str] = set()
     entrou: dict[str, datetime] = {}
     na_fila: set[str] = set()
     outras: set[str] = set()
@@ -428,6 +483,7 @@ def calcular(ab: dict, agora: datetime | None = None) -> dict:
         if not e:
             continue
         if e in compras:
+            na_automacao.add(e)
             if x["_quando"] >= inicio:
                 entrou[e] = min(entrou.get(e, x["_quando"]), x["_quando"])
             if str(x.get("status")) == "1":
@@ -435,7 +491,10 @@ def calcular(ab: dict, agora: datetime | None = None) -> dict:
         elif inicio <= x["_quando"] <= agora:
             outras.add(e)
 
-    hist = _FILA.setdefault((ab["codigo"], ab["dia"].isoformat()), {})
+    fora = [e for e in compras if e not in na_automacao]
+    grupos = classificar(compras, na_automacao, _comprou_antes(fora, inicio), agora, tolerancia)
+
+    hist = _FILA.setdefault((ab["codigo"], dia_curva.isoformat()), {})
     if ao_vivo:
         hist[chave_bucket(agora, bucket)] = len(na_fila)
 
@@ -445,29 +504,47 @@ def calcular(ab: dict, agora: datetime | None = None) -> dict:
         r["compradores"] += 1
         r["na_automacao"] += e in na_automacao
 
-    # Uma linha por comprador, pra quem acompanha os alunos no dia (página e CSV).
-    # Mais novo primeiro; "entrou_hora" vazio + situação "entrou" = já estava na
-    # automação antes do dia.
-    def _abriu_txt(quando: datetime | None) -> str | None:
-        if not quando:
-            return None
-        return quando.strftime("%H:%M") if quando.date() == ab["dia"] else quando.strftime("%d/%m %H:%M")
+    # Uma linha por comprador, pra quem acompanha os alunos (página e CSV). Mais novo
+    # primeiro; "entrou_hora" vazio + situação "entrou" = já estava na automação
+    # antes da abertura. "pedido_txt" = pediu bem antes de aprovar (parcelamento/boleto).
+    def _txt(quando: datetime | None) -> str | None:
+        return quando.strftime("%d/%m %H:%M") if quando else None
 
     pessoas = sorted((
-        {"email": e, "quando": q, "hora": q.strftime("%H:%M"), "produto": p,
+        {"email": e, "quando": q, "hora": q.strftime("%H:%M"), "quando_txt": _txt(q), "produto": p,
+         "pedido_txt": _txt(pedidos.get(e)),
          "situacao": grupos["situacao"][e],
-         "entrou_hora": entrou[e].strftime("%H:%M") if e in entrou else None,
+         "entrou_hora": _txt(entrou.get(e)),
          "na_fila": e in na_fila,
          "abriu": (abertos or {}).get(e),
-         "abriu_txt": _abriu_txt((abertos or {}).get(e))}
+         "abriu_txt": _txt((abertos or {}).get(e))}
         for e, (q, p) in compras.items()
     ), key=lambda r: r["quando"], reverse=True)
     contagem = {k: sum(1 for r in pessoas if r["situacao"] == k) for k in SITUACOES}
     abriram = sum(1 for r in pessoas if r["situacao"] == "entrou" and r["abriu"])
     contagem["nao_abriu"] = contagem["entrou"] - abriram if abertos is not None else 0
 
+    # Um resumo por dia do carrinho (pela hora que conta da compra).
+    por_dia = []
+    ultimo = max([min(ab["fim"], agora.date()), *(r["quando"].date() for r in pessoas)])
+    d = ab["dia"]
+    while d <= ultimo:
+        doz = [r for r in pessoas if r["quando"].date() == d]
+        por_dia.append({
+            "dia": d, "compradores": len(doz),
+            **{k: sum(1 for r in doz if r["situacao"] == k) for k in SITUACOES},
+            "abriram": sum(1 for r in doz if r["situacao"] == "entrou" and r["abriu"]),
+            "depois_do_fim": d > ab["fim"],
+        })
+        d += timedelta(days=1)
+
+    tempos_curva = [q for q, _ in compras.values() if q.date() == dia_curva]
+    entradas_curva = [t for t in entrou.values() if t.date() == dia_curva]
+
     return {
-        "codigo": ab["codigo"], "curso": ab.get("curso"), "dia": ab["dia"],
+        "codigo": ab["codigo"], "curso": ab.get("curso"), "dia": ab["dia"], "fim": ab["fim"],
+        "dia_curva": dia_curva, "por_dia": por_dia,
+        "pedido_antes": sum(1 for r in pessoas if r["pedido_txt"]),
         "tag_gatilho": ab.get("tag_gatilho"),
         "automacao_id": str(cfg["automacao_id"]), "automacao_nome": cfg.get("automacao_nome"),
         "atualizado_em": agora_real, "ao_vivo": ao_vivo, "tolerancia_min": tolerancia, "intervalo_min": bucket,
@@ -483,7 +560,7 @@ def calcular(ab: dict, agora: datetime | None = None) -> dict:
         "contagem": contagem,
         "aberturas_ok": abertos is not None,
         "abriram": abriram,
-        "serie": montar_serie(inicio, agora, [v[0] for v in compras.values()], list(entrou.values()), hist, bucket),
+        "serie": montar_serie(ini_curva, fim_curva, tempos_curva, entradas_curva, hist, bucket),
     }
 
 
@@ -498,6 +575,8 @@ def obter(ab: dict, max_idade_s: int = 270) -> dict:
     """Retrato em cache (até `max_idade_s`) ou recém-calculado. Uma conta por vez:
     duas abas abertas não dobram as chamadas ao Active."""
     chave = f"{ab['codigo']}|{ab['dia']}"
+    if datetime.now(BR).date() > ab["fim"] + timedelta(days=2):
+        max_idade_s = max(max_idade_s, 3600)   # carrinho fechado: o retrato quase não muda
     with _TRAVA:
         em, snap = _ULTIMO.get(chave, (0.0, None))
         if snap is not None and time.monotonic() - em < max_idade_s:
@@ -508,11 +587,11 @@ def obter(ab: dict, max_idade_s: int = 270) -> dict:
 
 
 def rodada(hoje: date | None = None) -> list[dict]:
-    """Uma leitura do laço. Só calcula os lançamentos cujo carrinho abre hoje,
-    cada um separado; um que falhe não impede os outros."""
+    """Uma leitura do laço. Só calcula os lançamentos com carrinho aberto hoje
+    (da abertura ao fim), cada um separado; um que falhe não impede os outros."""
     hoje = hoje or datetime.now(BR).date()
     snaps, erros = [], []
-    for ab in aberturas_do_dia(hoje):
+    for ab in abertas_em(hoje):
         try:
             snaps.append(obter(ab, max_idade_s=60))
         except Exception as e:  # noqa: BLE001
@@ -548,4 +627,4 @@ def agendar() -> None:
     if _TAREFA is not None and not _TAREFA.done():
         return
     _TAREFA = asyncio.create_task(_laco())
-    logger.info("Monitor de boas-vindas agendado: só calcula no dia de abertura do carrinho")
+    logger.info("Monitor de boas-vindas agendado: calcula da abertura ao fim de cada carrinho")

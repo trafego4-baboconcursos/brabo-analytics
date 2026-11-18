@@ -29,6 +29,8 @@
   .bv-chip.a_caminho { background:var(--bs-warning-bg); color:#9a6700; }
   .bv-chip.ja_aluno  { background:var(--bs-surface);    color:var(--bs-ink-muted); }
   .bv-vazio { font-size:13px; color:var(--bs-ink-muted); padding:10px 2px; }
+  .bv-sub { font-size:11.5px; color:var(--bs-ink-muted); }
+  .bv-tabela tr.hoje td { font-weight:700; }
 </style>
 
 <div class="wrap">
@@ -36,7 +38,7 @@
     <a href="/?launch_code={{ active_code }}"><img src="/assets/logo-b-brabo-concursos.png" alt="Brabo Analytics"></a>
     <div>
       <h1>Boas-vindas no carrinho{% if codigo %} — {{ codigo }}{% endif %}</h1>
-      <p>Active Campaign | Quem comprou a Mentoria Vitalícia × quem entrou na automação de boas-vindas, de 5 em 5 minutos, no dia de abertura do carrinho</p>
+      <p>Active Campaign | Quem comprou a Mentoria Vitalícia × quem entrou na automação de boas-vindas, de 5 em 5 minutos, da abertura ao fim do carrinho</p>
     </div>
   </div>
 
@@ -67,7 +69,7 @@
       <div class="no-data">
         <i class="ti ti-calendar-time"></i>
         <h3>{{ alvo.codigo }} abre o carrinho em {{ alvo.dia.strftime('%d/%m') }}{% if alvo.hora %} às {{ alvo.hora }}{% endif %}</h3>
-        <p>O monitor começa sozinho nesse dia e lê as vendas e a automação de 5 em 5 minutos. Até lá, não há o que acompanhar.</p>
+        <p>O monitor começa sozinho nesse dia e lê as vendas e a automação de 5 em 5 minutos até o fim do carrinho ({{ alvo.fim.strftime('%d/%m') }}). Até lá, não há o que acompanhar.</p>
       </div>
       {% endif %}
 
@@ -85,7 +87,7 @@
       {% else %}
         {% set estado = 'bad' %}
         {% set titulo = 'A automação ficou para trás' %}
-        {% set texto = falt ~ ' alunos novos (' ~ ((share * 100) | round(1) | string | replace('.', ',')) ~ '% de quem comprou) estão fora há mais de ' ~ s.tolerancia_min ~ ' min, desde ' ~ s.faltando[0].hora ~ '. Veja a lista abaixo.' %}
+        {% set texto = falt ~ ' alunos novos (' ~ ((share * 100) | round(1) | string | replace('.', ',')) ~ '% de quem comprou) estão fora há mais de ' ~ s.tolerancia_min ~ ' min, desde ' ~ s.faltando[0].quando.strftime('%d/%m %H:%M') ~ '. Veja a lista abaixo.' %}
       {% endif %}
 
       <div class="section" style="margin-bottom:20px;">
@@ -98,13 +100,13 @@
             <div class="tp-kpi-top"><div class="tp-icon"><i class="ti ti-shopping-cart"></i></div></div>
             <div class="tp-value">{{ s.compradores | num }}</div>
             <div class="tp-label">Compraram</div>
-            <div class="tp-compare">pessoas únicas, Hotmart + TMB, no dia</div>
+            <div class="tp-compare">pessoas únicas, Hotmart + TMB, desde a abertura{% if s.pedido_antes %} · {{ s.pedido_antes | num }} pediram antes e pagaram depois{% endif %}</div>
           </div>
           <div class="tp-kpi">
             <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-mail-check"></i></div></div>
             <div class="tp-value">{{ s.entradas | num }}</div>
             <div class="tp-label">Entraram na automação</div>
-            <div class="tp-compare">compradores do dia que já entraram{% if s.outras_entradas %} · {{ s.outras_entradas | num }} de outros cursos{% endif %}</div>
+            <div class="tp-compare">compradores que já entraram{% if s.outras_entradas %} · {{ s.outras_entradas | num }} de outros cursos{% endif %}</div>
           </div>
           {% if s.aberturas_ok %}
           {% set pct_abriu = ((s.abriram / s.contagem.entrou * 100) | round | int) if s.contagem.entrou else 0 %}
@@ -129,9 +131,9 @@
           </div>
         </div>
         <div class="bv-meta">
-          <strong>{{ s.codigo }}</strong> ({{ s.curso }}) · abertura em {{ s.dia.strftime('%d/%m/%Y') }}
-          · leitura das <strong>{{ s.atualizado_em.strftime('%H:%M') }}</strong>
-          {% if ao_vivo %}· a página se atualiza sozinha a cada {{ s.intervalo_min }} min{% else %}· dia encerrado{% endif %}
+          <strong>{{ s.codigo }}</strong> ({{ s.curso }}) · carrinho de {{ s.dia.strftime('%d/%m') }} a {{ s.fim.strftime('%d/%m/%Y') }}
+          · leitura de <strong>{{ s.atualizado_em.strftime('%d/%m %H:%M') }}</strong>
+          {% if ao_vivo %}· a página se atualiza sozinha a cada {{ s.intervalo_min }} min{% else %}· carrinho encerrado{% endif %}
           · automação {{ s.automacao_id }} "{{ s.automacao_nome }}"
         </div>
       </div>
@@ -146,10 +148,10 @@
         </div>
         <div class="table-wrap">
           <table class="table-compact bv-tabela bv-faltando">
-            <thead><tr><th class="th-dark">Comprou às</th><th class="th-dark">E-mail</th><th class="th-dark">Produto</th></tr></thead>
+            <thead><tr><th class="th-dark">Comprou em</th><th class="th-dark">E-mail</th><th class="th-dark">Produto</th></tr></thead>
             <tbody>
               {% for f in s.faltando %}
-              <tr><td>{{ f.hora }}</td><td class="email">{{ f.email }}</td><td>{{ f.produto }}</td></tr>
+              <tr><td>{{ f.quando.strftime('%d/%m %H:%M') }}</td><td class="email">{{ f.email }}</td><td>{{ f.produto }}</td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -158,7 +160,7 @@
       {% endif %}
 
       <div class="section">
-        <div class="section-title" data-sec-key="compradores"><i class="ti ti-users"></i> Compradores do dia ({{ s.compradores | num }})</div>
+        <div class="section-title" data-sec-key="compradores"><i class="ti ti-users"></i> Compradores do carrinho ({{ s.compradores | num }})</div>
         <div class="bv-filtros" role="group" aria-label="Filtrar compradores pela situação">
           <button type="button" data-filtro="" aria-pressed="true">Todos · {{ s.compradores | num }}</button>
           {% for k, rotulo in situacoes.items() %}{% if s.contagem[k] %}
@@ -172,15 +174,15 @@
         </div>
         <div class="table-wrap" style="max-height:520px;overflow-y:auto;">
           <table class="table-compact bv-tabela bv-pessoas">
-            <thead><tr><th class="th-dark">Comprou às</th><th class="th-dark">E-mail</th><th class="th-dark">Produto</th><th class="th-dark">Situação</th><th class="th-dark">Entrou às</th>{% if s.aberturas_ok %}<th class="th-dark">Abriu o e-mail</th>{% endif %}</tr></thead>
+            <thead><tr><th class="th-dark">Comprou em</th><th class="th-dark">E-mail</th><th class="th-dark">Produto</th><th class="th-dark">Situação</th><th class="th-dark">Entrou em</th>{% if s.aberturas_ok %}<th class="th-dark">Abriu o e-mail</th>{% endif %}</tr></thead>
             <tbody>
               {% for p in s.pessoas %}
               <tr data-situacao="{{ p.situacao }}" data-email="{{ p.email }}" data-abriu="{{ '1' if p.abriu else '0' }}">
-                <td>{{ p.hora }}</td>
+                <td>{{ p.quando_txt }}{% if p.pedido_txt %}<div class="bv-sub">pedido em {{ p.pedido_txt }}</div>{% endif %}</td>
                 <td class="email">{{ p.email }}</td>
                 <td>{{ p.produto }}</td>
                 <td><span class="bv-chip {{ p.situacao }}">{{ situacoes[p.situacao] }}</span></td>
-                <td>{{ p.entrou_hora or ('antes do dia' if p.situacao == 'entrou' else '—') }}</td>
+                <td>{{ p.entrou_hora or ('antes da abertura' if p.situacao == 'entrou' else '—') }}</td>
                 {% if s.aberturas_ok %}
                 <td>{% if p.abriu %}<span class="bv-chip entrou"><i class="ti ti-mail-opened"></i> {{ p.abriu_txt }}</span>{% elif p.situacao == 'entrou' %}<span class="bv-chip ja_aluno">Ainda não</span>{% else %}—{% endif %}</td>
                 {% endif %}
@@ -190,7 +192,7 @@
           </table>
           <div class="bv-vazio" id="bv-vazio" hidden>Ninguém com esse filtro.</div>
         </div>
-        <div class="bv-meta">Mais recente primeiro. "Já era aluno" = tinha compra aprovada antes do dia e não recebe as boas-vindas. "A caminho" = comprou há menos de {{ s.tolerancia_min }} min. A planilha baixa só o filtro escolhido.
+        <div class="bv-meta">Mais recente primeiro. "Comprou em" = aprovação do pagamento; quem pediu no parcelamento Hotmart ou no boleto e pagou depois mostra também quando fez o pedido. "Já era aluno" = tinha compra aprovada antes da abertura e não recebe as boas-vindas. "A caminho" = comprou há menos de {{ s.tolerancia_min }} min. A planilha baixa só o filtro escolhido.
           {% if s.aberturas_ok %}"Abriu o e-mail" = abriu algum e-mail de boas-vindas desde o dia da abertura (mostra a abertura mais recente). A abertura é medida por uma imagem escondida no e-mail: o Apple Mail pode marcar como aberto sozinho, e quem bloqueia imagem aparece como "ainda não" mesmo tendo lido.{% else %}Não deu para ler as aberturas do e-mail nesta leitura; a coluna volta na próxima.{% endif %}</div>
       </div>
       <script>
@@ -237,7 +239,31 @@
       </script>
 
       <div class="section">
-        <div class="section-title" data-sec-key="curva"><i class="ti ti-chart-line"></i> Compras × entradas, de 5 em 5 minutos</div>
+        <div class="section-title" data-sec-key="por-dia"><i class="ti ti-calendar-stats"></i> Por dia do carrinho</div>
+        <div class="table-wrap">
+          <table class="table-compact bv-tabela">
+            <thead><tr><th class="th-dark">Dia</th><th class="th-dark n">Compraram</th><th class="th-dark n">Entraram</th>{% if s.aberturas_ok %}<th class="th-dark n">Abriram</th>{% endif %}<th class="th-dark n">Fora</th><th class="th-dark n">A caminho</th><th class="th-dark n">Já eram alunos</th></tr></thead>
+            <tbody>
+              {% for d in s.por_dia | reverse %}
+              <tr class="{{ 'hoje' if d.dia == hoje }}">
+                <td>{{ d.dia.strftime('%d/%m') }}{% if d.dia == s.dia %} · abertura{% elif d.dia == s.fim %} · fechamento{% elif d.depois_do_fim %} · pagou depois do fim{% endif %}{% if d.dia == hoje %} · hoje{% endif %}</td>
+                <td class="numero">{{ d.compradores | num }}</td>
+                <td class="numero">{{ d.entrou | num }}</td>
+                {% if s.aberturas_ok %}<td class="numero">{{ d.abriram | num }}</td>{% endif %}
+                <td class="numero {{ 'bv-delta-alta' if d.fora }}">{{ d.fora | num }}</td>
+                <td class="numero">{{ d.a_caminho | num }}</td>
+                <td class="numero">{{ d.ja_aluno | num }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="bv-meta">Pela data que conta da compra (aprovação do pagamento).</div>
+      </div>
+
+      {% set rot_curva = ('hoje (' ~ s.dia_curva.strftime('%d/%m') ~ ')') if s.dia_curva == hoje else ('no dia da abertura (' ~ s.dia_curva.strftime('%d/%m') ~ ')') %}
+      <div class="section">
+        <div class="section-title" data-sec-key="curva"><i class="ti ti-chart-line"></i> Compras × entradas {{ rot_curva }}, de 5 em 5 minutos</div>
         <div class="bv-legenda">
           <span><i style="background:#2a78d6"></i>Compraram (acumulado)</span>
           <span><i style="background:#1baf7a"></i>Entraram na automação (acumulado)</span>
@@ -249,7 +275,7 @@
       </div>
 
       <div class="section">
-        <div class="section-title" data-sec-key="leituras"><i class="ti ti-list-numbers"></i> Leituras</div>
+        <div class="section-title" data-sec-key="leituras"><i class="ti ti-list-numbers"></i> Leituras {{ rot_curva }}</div>
         <div class="note info">Diferença = compraram − entraram. Ela inclui quem já era aluno e quem ainda está a caminho, então raramente chega a zero. Se só cresce, a automação ficou para trás.</div>
         <div class="table-wrap" style="max-height:420px;overflow-y:auto;">
           <table class="table-compact bv-tabela">
@@ -290,7 +316,7 @@
           </table>
         </div>
         <div class="bv-meta">
-          Vendas: Hotmart e TMB aprovadas (banco operacional), pela hora da aprovação. Quem já tinha compra aprovada antes do dia conta como "já era aluno" e não recebe as boas-vindas.
+          Vendas: Hotmart e TMB aprovadas (banco operacional), pela hora da aprovação, da abertura ao fim do carrinho cadastrado no Settings. Quem fez o pedido dentro do carrinho e pagou depois também entra. Quem já tinha compra aprovada antes da abertura conta como "já era aluno" e não recebe as boas-vindas.
           Entradas e fila contam só os compradores deste lançamento: a automação é a mesma dos três cursos.
         </div>
       </div>
@@ -332,7 +358,7 @@
       </script>
     {% endif %}
     {% if ao_vivo %}
-    {# Dia de abertura: recarrega a cada 5 min, inclusive depois de um erro de leitura. #}
+    {# Carrinho aberto: recarrega a cada 5 min, inclusive depois de um erro de leitura. #}
     <script>setTimeout(function() { location.reload(); }, 5 * 60 * 1000);</script>
     {% endif %}
   </div>

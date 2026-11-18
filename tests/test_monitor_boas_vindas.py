@@ -15,7 +15,8 @@ os.environ.setdefault("SUPABASE_USERS_URL", "postgresql://smoke:smoke@127.0.0.1:
 from datetime import date, datetime, timedelta  # noqa: E402
 
 from frontend.services.monitor_boas_vindas import (  # noqa: E402
-    BR, chave_bucket, classificar, config, linha_para_abertura, montar_serie, parse_hm, tem_monitor,
+    BR, aberta_em, chave_bucket, classificar, config, hora_da_compra, linha_para_abertura, montar_serie,
+    parse_hm, tem_monitor,
 )
 
 
@@ -95,12 +96,42 @@ def test_abertura_usa_a_oficial_e_so_produto_numerico():
     por_projeto = config()["por_projeto"]
     a = linha_para_abertura({
         "lancamento_codigo": "PES-NOV-26", "carrinho_start_date": date(2026, 11, 9),
+        "carrinho_end_date": date(2026, 11, 23),
         "abertura_oficial_carrinho": date(2026, 11, 12), "abertura_oficial_hora": "07:58",
         "hotmart_produto_ids": ["6857003", "8829061", "oferta:izfne8k1"],
     }, por_projeto)
     assert a["dia"] == date(2026, 11, 12) and a["hora"] == "07:58"
+    assert a["fim"] == date(2026, 11, 23)   # o monitor vai até o fim do carrinho cadastrado
     assert a["produtos"] == ["6857003", "8829061"]
     assert a["tag_gatilho"] == "[MENT] [VIT] [TJSP]"
+
+
+def test_janela_vai_da_abertura_ao_fim_do_carrinho():
+    por_projeto = config()["por_projeto"]
+    a = linha_para_abertura({"lancamento_codigo": "PES-NOV-26", "abertura_oficial_carrinho": "2026-11-12",
+                             "carrinho_end_date": "2026-11-23", "hotmart_produto_ids": ["6857003"]}, por_projeto)
+    assert not aberta_em(a, date(2026, 11, 11))
+    assert aberta_em(a, date(2026, 11, 12)) and aberta_em(a, date(2026, 11, 18)) and aberta_em(a, date(2026, 11, 23))
+    assert not aberta_em(a, date(2026, 11, 24))
+    # sem fim cadastrado (ou fim antes da abertura): vale só o dia de abertura
+    sem_fim = linha_para_abertura({"lancamento_codigo": "PI-NOV-26", "abertura_oficial_carrinho": "2026-11-19",
+                                   "hotmart_produto_ids": ["6856971"]}, por_projeto)
+    assert sem_fim["fim"] == date(2026, 11, 19)
+
+
+def test_pedido_no_carrinho_aprovado_depois_conta_pela_aprovacao():
+    # Caso da Talita (18/11/26): pediu em 12/11 08:07 no parcelamento Hotmart, aprovado em 13/11 03:19.
+    pedido, aprovacao = _h(8, 7), datetime(2026, 11, 13, 3, 19, tzinfo=BR)
+    so_o_dia = (datetime(2026, 11, 12, tzinfo=BR), datetime(2026, 11, 13, tzinfo=BR))
+    assert hora_da_compra(pedido, aprovacao, *so_o_dia) == aprovacao   # antes ela sumia da página
+    carrinho = (datetime(2026, 11, 12, tzinfo=BR), datetime(2026, 11, 24, tzinfo=BR))
+    assert hora_da_compra(pedido, aprovacao, *carrinho) == aprovacao
+    # aprovada dentro, pedida antes da abertura: entra (a tag chega na aprovação)
+    assert hora_da_compra(datetime(2026, 11, 10, 9, 0, tzinfo=BR), _h(9, 0), *so_o_dia) == _h(9, 0)
+    # nem pedido nem aprovação na janela: fora
+    assert hora_da_compra(datetime(2026, 11, 10, tzinfo=BR), datetime(2026, 11, 11, tzinfo=BR), *so_o_dia) is None
+    # sem a aprovação no banco: vale o pedido
+    assert hora_da_compra(pedido, None, *so_o_dia) == pedido
 
 
 def test_abertura_cai_pro_inicio_do_carrinho_e_ignora_quem_nao_usa_a_automacao():

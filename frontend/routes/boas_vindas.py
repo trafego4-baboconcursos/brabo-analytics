@@ -1,10 +1,10 @@
-"""Página /boas-vindas?launch_code=... — compras x automação de boas-vindas no dia
-de abertura do carrinho, uma por lançamento (menu do lançamento, grupo Leads &
-Audiências, ao lado de Campanhas (E-mails)).
+"""Página /boas-vindas?launch_code=... — compras x automação de boas-vindas no
+carrinho, da abertura ao fechamento, uma por lançamento (menu do lançamento, grupo
+Leads & Audiências, ao lado de Campanhas (E-mails)).
 
 O cálculo e o laço de 5 em 5 min ficam em frontend/services/monitor_boas_vindas.py.
-No dia de abertura a página mostra o carrinho ao vivo; depois, o retrato daquele
-dia; antes, a data em que o monitor começa.
+Com o carrinho aberto a página mostra tudo ao vivo; depois, o retrato do carrinho
+inteiro; antes da abertura, a data em que o monitor começa.
 """
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ async def boas_vindas_page(request: Request, launch_code: str | None = None):
         request, "boas_vindas", f"Boas-vindas{' — ' + codigo if codigo else ''}", launch, launches,
         codigo=codigo, monitorado=mbv.tem_monitor(codigo),
         alvo=alvo, snap=snap, erro=erro, hoje=hoje, situacoes=mbv.SITUACOES,
-        ao_vivo=bool(alvo and alvo["dia"] == hoje),
+        ao_vivo=bool(alvo and mbv.aberta_em(alvo, hoje)),
     )
     return templates.TemplateResponse("boas_vindas.html", ctx)
 
@@ -55,9 +55,9 @@ async def boas_vindas_page(request: Request, launch_code: str | None = None):
 @router.get("/boas-vindas/compradores.csv")
 async def boas_vindas_compradores_csv(request: Request, launch_code: str | None = None,
                                       situacao: str | None = None):
-    """Todos os compradores do dia de abertura com a situação na automação, em CSV
-    (Excel: ';' e BOM). `situacao` filtra (fora, a_caminho, entrou, ja_aluno), como
-    os botões da página."""
+    """Todos os compradores do carrinho (abertura ao fechamento) com a situação na
+    automação, em CSV (Excel: ';' e BOM). `situacao` filtra (fora, a_caminho, entrou,
+    ja_aluno, nao_abriu), como os botões da página."""
     import csv
     import io
 
@@ -67,13 +67,14 @@ async def boas_vindas_compradores_csv(request: Request, launch_code: str | None 
     alvo = await run_in_threadpool(mbv.abertura_de, codigo) if mbv.tem_monitor(codigo) else None
     hoje = datetime.now(mbv.BR).date()
     if not alvo or alvo["dia"] > hoje:
-        return Response("Este lançamento ainda não teve dia de abertura com monitor de boas-vindas.",
+        return Response("O carrinho deste lançamento ainda não abriu (ou ele não tem monitor de boas-vindas).",
                         status_code=404, media_type="text/plain; charset=utf-8")
     snap = await run_in_threadpool(mbv.obter, alvo)
 
     buf = io.StringIO()
     w = csv.writer(buf, delimiter=";")
-    cab = ["Comprou em", "E-mail", "Produto", "Situação", "Entrou na automação às", "Na fila agora"]
+    cab = ["Comprou em", "Pedido em (se pagou depois)", "E-mail", "Produto", "Situação",
+           "Entrou na automação em", "Na fila agora"]
     if snap.get("aberturas_ok"):
         cab += ["Abriu o e-mail de boas-vindas", "Última abertura"]
     w.writerow(cab)
@@ -84,9 +85,9 @@ async def boas_vindas_compradores_csv(request: Request, launch_code: str | None 
         elif situacao and p["situacao"] != situacao:
             continue
         linha = [
-            p["quando"].strftime("%d/%m/%Y %H:%M"), p["email"], p["produto"],
+            p["quando"].strftime("%d/%m/%Y %H:%M"), p.get("pedido_txt") or "", p["email"], p["produto"],
             mbv.SITUACOES[p["situacao"]],
-            p["entrou_hora"] or ("antes do dia" if p["situacao"] == "entrou" else ""),
+            p["entrou_hora"] or ("antes da abertura" if p["situacao"] == "entrou" else ""),
             "sim" if p["na_fila"] else "não",
         ]
         if snap.get("aberturas_ok"):

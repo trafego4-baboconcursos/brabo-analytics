@@ -16,6 +16,7 @@ import json
 import math
 import re
 import unicodedata
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -349,7 +350,9 @@ def calcular_leads(code: str, emails_compradores: set[str]) -> pd.DataFrame | No
     leads["decil_origem"] = (np.ceil(leads["p_origem"].rank(method="first", pct=True) * 10)).astype(int).clip(1, 10)
     compradores = set(emails_compradores or [])
     leads["comprou"] = leads["email"].isin(compradores)
-    return leads.sort_values("p_origem", ascending=False).reset_index(drop=True)
+    leads = leads.sort_values("p_origem", ascending=False).reset_index(drop=True)
+    leads.attrs["gerado_em"] = datetime.now().strftime("%d/%m %H:%M")
+    return leads
 
 
 def obter_leads(code: str, emails_compradores: set[str]) -> pd.DataFrame | None:
@@ -357,3 +360,54 @@ def obter_leads(code: str, emails_compradores: set[str]) -> pd.DataFrame | None:
     from frontend.cache import _get_or_compute  # noqa: PLC0415
 
     return _get_or_compute(code, "lead_score_leads", lambda: calcular_leads(code, emails_compradores), ttl=1800)
+
+
+def resumo_painel(df: pd.DataFrame) -> dict:
+    """Escada de compra do score com origem (por decil) e da pesquisa (A/B/C) para a /leads, mais um veredito de
+    «estamos no caminho certo?»: quanto mais compra os 30% de maior nota (decis 8–10) em relação aos 30% de menor
+    (decis 1–3). A leitura só é firme com compradores suficientes; antes disso o veredito diz que ainda é cedo."""
+    total, compr = len(df), int(df["comprou"].sum())
+    base = compr / total * 100 if total else 0.0
+    decis = []
+    for k in range(10, 0, -1):
+        s = df[df["decil_origem"] == k]
+        n, c = len(s), int(s["comprou"].sum())
+        taxa = c / n * 100 if n else 0.0
+        decis.append({"decil": k, "leads": n, "compradores": c, "taxa": taxa, "lift": taxa / base if base else 0.0})
+    topo, fundo = df[df["decil_origem"] >= 8], df[df["decil_origem"] <= 3]
+    t_topo = topo["comprou"].mean() * 100 if len(topo) else 0.0
+    t_fundo = fundo["comprou"].mean() * 100 if len(fundo) else 0.0
+    razao = t_topo / t_fundo if t_fundo > 0 else None
+    faixas = []
+    for f in ("A", "B", "C"):
+        s = df[df["faixa_pesquisa"] == f]
+        c = int(s["comprou"].sum())
+        faixas.append({"faixa": f, "leads": len(s), "compradores": c, "taxa": c / len(s) * 100 if len(s) else 0.0})
+    nr = df[df["respondeu"] == 0]
+    mediana = nr["p_origem"].median() if len(nr) else 0.0
+    nr_alta, nr_baixa = nr[nr["p_origem"] > mediana], nr[nr["p_origem"] <= mediana]
+    if compr == 0:
+        estado, texto = "cedo", "Ainda sem compradores neste lançamento: a escada aparece aqui conforme as vendas entram."
+    elif compr < _MIN_COMPRADORES_VEREDITO:
+        estado, texto = "cedo", (f"Ainda é cedo: {compr} compradores até agora. A tendência já aparece, mas a leitura só fica firme "
+                                 f"a partir de ~{_MIN_COMPRADORES_VEREDITO}.")
+    elif razao is None or razao >= _RAZAO_BOA:
+        estado, texto = "ok", "No caminho: o score está separando quem compra de quem não compra, como nos lançamentos fechados."
+    elif razao >= _RAZAO_FRACA:
+        estado, texto = "atencao", "Abaixo do esperado: o score ainda separa, mas menos que nos lançamentos fechados."
+    else:
+        estado, texto = "ruim", "Fora do esperado: os leads de maior nota quase não compram mais que os de menor. Vale investigar."
+    return {
+        "total": total, "compradores": compr, "base": base, "decis": decis, "faixas": faixas,
+        "t_topo": t_topo, "t_fundo": t_fundo, "razao": razao, "estado": estado, "texto": texto,
+        "nr_alta": float(nr_alta["comprou"].mean() * 100) if len(nr_alta) else 0.0,
+        "nr_baixa": float(nr_baixa["comprou"].mean() * 100) if len(nr_baixa) else 0.0,
+        "nr_total": len(nr), "gerado_em": df.attrs.get("gerado_em"),
+    }
+
+
+_MIN_COMPRADORES_VEREDITO = 100
+# Razão (taxa dos decis 8–10 ÷ taxa dos decis 1–3) nos 11 lançamentos fechados de 2026: 1,0 · 1,4 · 1,4 · 1,4 · 1,8 · 1,9 · 2,2 ·
+# 2,3 · 2,6 · 4,1 · 5,4 (mediana ~2; medida na própria base de treino, então levemente otimista). Limites: «no caminho» a partir de
+# 1,7 (7 de 11), «abaixo do esperado» de 1,3 a 1,7 (3 de 11), «fora do esperado» abaixo de 1,3 (1 de 11).
+_RAZAO_BOA, _RAZAO_FRACA = 1.7, 1.3

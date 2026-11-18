@@ -69,6 +69,7 @@ ROUTE_PERMISSIONS: dict[str, list[str]] = {
     "/publicos":          _MEDIA,
     "/landing-pages":     _MEDIA,
     "/leads":             _DTLD,
+    "/leads/score/resumo": _DTLD,
     "/leads/score.csv":   _DTLD,   # lista e-mail de lead com score: mesma faixa da /leads (o dict é por caminho exato)
     "/crm-campanhas":     _DTLD,
     "/pesquisas":         _DTLD,

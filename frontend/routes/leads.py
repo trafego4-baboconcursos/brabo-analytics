@@ -24,6 +24,32 @@ async def leads_page(request: Request, launch_code: str | None = None):
     return templates.TemplateResponse("leads.html", ctx)
 
 
+def _score_leads_df(code: str):
+    """DataFrame do score por lead do lançamento (cache de 30 min em `lead_score.obter_leads`)."""
+    from frontend.db_readers.sales import read_vendas  # noqa: PLC0415
+    from frontend.services import lead_score as ls  # noqa: PLC0415
+
+    v = read_vendas(code)
+    compradores = (v.emails_hotmart | v.emails_tmb) if v else set()
+    return ls.obter_leads(code, compradores)
+
+
+@router.get("/leads/score/resumo", response_class=HTMLResponse)
+async def leads_score_resumo(request: Request, launch_code: str | None = None):
+    """Trecho da /leads (carregado por fetch): escada de compra do score por decil e por faixa, com o veredito
+    «estamos no caminho certo?». Vazio quando o lançamento não tem leads com UTM ou o modelo não está disponível."""
+    from frontend.services import lead_score as ls  # noqa: PLC0415
+
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    if not launch:
+        return HTMLResponse("")
+    df = await run_in_threadpool(_score_leads_df, launch.code)
+    if df is None or df.empty:
+        return HTMLResponse("")
+    return templates.TemplateResponse("leads/_score_resumo.html", {"request": request, "r": ls.resumo_painel(df)})
+
+
 @router.get("/leads/score.csv")
 async def leads_score_csv(request: Request, launch_code: str | None = None,
                           decil_min: int | None = None, comprou: str | None = None):
@@ -32,20 +58,13 @@ async def leads_score_csv(request: Request, launch_code: str | None = None,
     também para quem não respondeu). `decil_min` (1–10) mantém só os leads dos decis de cima; `comprou=nao|sim`
     filtra por compra. Contém e-mail, então fica na mesma faixa de acesso da /leads."""
     from fastapi.responses import Response  # noqa: PLC0415
-    from frontend.db_readers.sales import read_vendas  # noqa: PLC0415
-    from frontend.services import lead_score as ls  # noqa: PLC0415
 
     launches = await run_in_threadpool(get_launches)
     launch = resolve_launch(launch_code, launches)
     if not launch:
         return Response("Lançamento não encontrado.", status_code=404, media_type="text/plain; charset=utf-8")
 
-    def _montar():
-        v = read_vendas(launch.code)
-        compradores = (v.emails_hotmart | v.emails_tmb) if v else set()
-        return ls.obter_leads(launch.code, compradores)
-
-    df = await run_in_threadpool(_montar)
+    df = await run_in_threadpool(_score_leads_df, launch.code)
     if df is None or df.empty:
         return Response("Este lançamento não tem leads com UTM ou o modelo de score não está disponível.",
                         status_code=404, media_type="text/plain; charset=utf-8")

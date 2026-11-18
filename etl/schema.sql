@@ -1445,6 +1445,8 @@ CREATE TABLE IF NOT EXISTS lead_utm_lancamento (
 );
 
 CREATE INDEX IF NOT EXISTS idx_lead_utm_lancamento_lanc  ON lead_utm_lancamento (lancamento_codigo);
+-- 18/11/26: cobre COUNT(DISTINCT contact_id) por lançamento sem ir à tabela (10 s -> ~2 s; estourava o statement_timeout no aquecimento)
+CREATE INDEX IF NOT EXISTS idx_lead_utm_lancamento_lanc_contact ON lead_utm_lancamento (lancamento_codigo, contact_id);
 
 CREATE INDEX IF NOT EXISTS idx_lead_utm_lancamento_email ON lead_utm_lancamento (email);
 

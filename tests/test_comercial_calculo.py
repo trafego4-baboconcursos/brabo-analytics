@@ -309,3 +309,55 @@ def test_nome_do_preco_com_cross_up_em_qualquer_lugar_e_ativa_e_black_segue_ativ
     assert not e_up_ou_cross_sell("BLACK VITALÍCIA", "COM. CROSS - AT4", "Mentoria")
     v = replace(venda(), oferta="COM. CROSS - AT4")
     assert calcular([v], cad(), [j], HOJE)[0].tipo == "Ativa"
+
+
+
+def test_reativa_so_para_venda_lead():
+    """Rafael Batista, 18/11/26 (vale para o ano inteiro): dentro da janela só LEAD é Reativa;
+    apostila e venda sem categoria são Ativa; categoria mista segue o nome do preço."""
+    from dataclasses import replace
+    j = Janela("PI-OUT-26", "INSS", datetime(2026, 10, 5), datetime(2026, 10, 12, 23, 59, 59), frozenset({"6856971"}), frozenset())
+    c = cad()
+    c.valores_base.append(ValorBase(5, "hotmart", D("199"), D("199"), "APOSTILA MEQ|ESQ", date(2026, 1, 1), None))
+    c.valores_base.append(ValorBase(6, "hotmart", D("149.90"), D("1477"), "LEAD/CROSS SELL", date(2026, 1, 1), None))
+    [lead] = calcular([venda()], c, [j], HOJE)
+    [apostila] = calcular([venda(tx="HP2", valor="199")], c, [j], HOJE)
+    [sem_base] = calcular([venda(tx="HP3", valor="777")], c, [j], HOJE)
+    [misto] = calcular([replace(venda(tx="HP5", valor="149.90"), oferta="COM. LEAD - AT4")], c, [j], HOJE)
+    [misto_cross] = calcular([replace(venda(tx="HP6", valor="149.90"), oferta="COM. CROSS LEAD - AT4")], c, [j], HOJE)
+    [up] = calcular([replace(venda(tx="HP7"), oferta="COM. UP LEAD - AT12")], c, [j], HOJE)
+    assert (lead.tipo, apostila.tipo, sem_base.tipo) == ("Reativa", "Ativa", "Ativa")
+    assert apostila.pct == D("0.04")
+    assert (misto.tipo, misto_cross.tipo, up.tipo) == ("Reativa", "Ativa", "Ativa")
+
+
+def test_black_segue_so_o_periodo_de_12_a_19_10():
+    """Black: Lead, Cross ou Up Sell, Reativa só de 12 a 19/10/26 — sem olhar a janela do lançamento."""
+    from dataclasses import replace
+    c = cad()
+    c.valores_base.append(ValorBase(7, "hotmart", D("197.80"), D("1947.97"), "BLACK VITALÍCIA", date(2026, 1, 1), None))
+    def bv(tx, dia, oferta="COM. LEAD - AT4"):
+        return replace(venda(tx=tx, valor="197.80", data=dia), produto="Black Vitalícia 2026", oferta=oferta)
+    [dentro] = calcular([bv("B1", datetime(2026, 10, 12, 0, 0))], c, [], HOJE)
+    [fim] = calcular([bv("B2", datetime(2026, 10, 19, 23, 0))], c, [], HOJE)
+    [cross] = calcular([bv("B3", datetime(2026, 10, 15, 9), "COM. CROSS LEAD - AT4")], c, [], HOJE)
+    [antes] = calcular([bv("B4", datetime(2026, 10, 11, 23, 59))], c, [], HOJE)
+    [depois] = calcular([bv("B5", datetime(2026, 10, 20, 0, 0))], c, [], HOJE)
+    j = Janela("BV-26", "BLACK", datetime(2026, 10, 20), datetime(2026, 10, 27), frozenset({"6856971"}), frozenset())
+    [janela_lanc] = calcular([bv("B6", datetime(2026, 10, 21))], c, [j], HOJE)
+    assert (dentro.tipo, fim.tipo, cross.tipo) == ("Reativa", "Reativa", "Reativa")
+    assert (antes.tipo, depois.tipo, janela_lanc.tipo) == ("Ativa", "Ativa", "Ativa")
+
+
+def test_categoria_permite_reativa():
+    from frontend.services.comercial import regras
+    assert regras.categoria_permite_reativa("LEAD")
+    assert regras.categoria_permite_reativa(" lead ")
+    assert regras.categoria_permite_reativa("LEAD/CROSS SELL")
+    assert not regras.categoria_permite_reativa(None)
+    assert not regras.categoria_permite_reativa("APOSTILA MEQ|ESQ")
+    assert not regras.categoria_permite_reativa("PLANNER")
+    assert regras.e_up_ou_cross_sell("LEAD", "COM. UP LEAD - AT12")
+    assert regras.e_up_ou_cross_sell("LEAD/CROSS SELL", "COM. CROSS LEAD - AT12")
+    assert not regras.e_up_ou_cross_sell("LEAD", "COM. LEAD - AT12")
+    assert not regras.e_up_ou_cross_sell("LEAD", "COM. LEAD A VISTA - AT12")

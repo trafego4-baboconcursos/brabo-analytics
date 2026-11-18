@@ -10,8 +10,8 @@ from datetime import datetime
 from decimal import Decimal
 
 from frontend.services.comercial.modelos import Cadastros, Venda
-from frontend.services.comercial.regras import (Janela, e_up_ou_cross_sell, extrair_atendente_ia, situacao,
-                                               tipo_venda)
+from frontend.services.comercial.regras import (Janela, categoria_permite_reativa, e_black, e_up_ou_cross_sell,
+                                               extrair_atendente_ia, situacao, tipo_black, tipo_venda)
 from frontend.services.comercial.tabelas import (
     BASE_TMB_POR_CATEGORIA,
     buscar_valor_base,
@@ -98,6 +98,11 @@ def _linha_venda(venda: Venda, cad: Cadastros, tipo: str, sit: str, dia) -> Linh
     ajustado = aj_pct is not None or aj_base is not None
     if aj_base is not None:
         base = aj_base
+    # Rafael, 18/11/26: Black segue só o período dela; fora da Black, a janela vale só para LEAD
+    if e_black(categoria, venda.produto):
+        tipo = tipo_black(venda.data)
+    elif tipo == "Reativa" and not categoria_permite_reativa(categoria):
+        tipo = "Ativa"
     # condição especial (ex.: CS da Izabela) pode forçar o tipo antes de escolher o %
     tipo = tipo_forcado(cad.regras, venda.plataforma, venda.modalidade, codigo, dia,
                         categoria) or tipo

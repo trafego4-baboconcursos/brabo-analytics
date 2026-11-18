@@ -131,8 +131,8 @@
                       <select name="nivel" aria-label="Nível">
                         {% for n, rot in v.niveis.items() %}<option value="{{ n }}" {% if n == a.nivel %}selected{% endif %}>{{ rot }}</option>{% endfor %}
                       </select>
-                      <select name="vendedor_codigo" aria-label="Código (só vendedor)">
-                        <option value="">— código (só vendedor) —</option>
+                      <select name="vendedor_codigo" aria-label="Código de vendedor (vendedor, ou gestor que também vende)">
+                        <option value="">— código (vendedor ou gestor que vende) —</option>
                         {% for ven in v.vendedores %}<option value="{{ ven.codigo }}" {% if ven.codigo == a.vendedor_codigo %}selected{% endif %}>{{ ven.nome }} ({{ ven.codigo }})</option>{% endfor %}
                       </select>
                       <button type="submit" class="cm-btn">Salvar</button>
@@ -158,8 +158,8 @@
           <input type="hidden" name="acao" value="gravar">
           <input type="email" name="email" placeholder="e-mail de login no painel" required maxlength="254" aria-label="E-mail">
           <select name="nivel" aria-label="Nível">{% for n, rot in v.niveis.items() %}<option value="{{ n }}" {% if n == 'vendedor' %}selected{% endif %}>{{ rot }}</option>{% endfor %}</select>
-          <select name="vendedor_codigo" aria-label="Código (só vendedor)">
-            <option value="">— código (só vendedor) —</option>
+          <select name="vendedor_codigo" aria-label="Código de vendedor (vendedor, ou gestor que também vende)">
+            <option value="">— código (vendedor ou gestor que vende) —</option>
             {% for ven in v.vendedores_ativos %}<option value="{{ ven.codigo }}">{{ ven.nome }} ({{ ven.codigo }})</option>{% endfor %}
           </select>
           <button type="submit" class="cm-btn">Dar acesso</button>

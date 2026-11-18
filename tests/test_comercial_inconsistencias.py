@@ -900,3 +900,41 @@ def test_consulta_nao_grava(cli, rota):
                                                        "vendedor_codigo": "AT4", "pct": "10"})
     assert r.status_code == 403
     assert cli.banco.sql == [] and cli.desat == []
+
+
+
+# ---------------------------------------------------------------- coordenador que também vende (18/11/26)
+RAFA = AcessoComercial("coordenador", "AT12")
+
+
+def test_gestor_com_codigo_reivindica_para_si():
+    assert inc.pode_reivindicar(RAFA)
+    assert not inc.pode_reivindicar(MASTER)
+    assert inc.pode_reivindicar(AT4)
+    assert inc.codigo_do_pedido(RAFA, "") == "AT12"
+    assert inc.codigo_do_pedido(RAFA, "at9") == "AT9"
+    with pytest.raises(inc.EntradaInvalida):
+        inc.codigo_do_pedido(MASTER, "")
+
+
+def test_view_gestor_com_codigo_tem_os_dois_lados():
+    fila = _fila(True)
+    fila["minhas"] = [{"transacao": "HP-R-1", "vendedor_codigo": "AT12", "status": "pendente"},
+                      {"transacao": "HP-X", "vendedor_codigo": "AT9", "status": "pendente"}]
+    p = telas.resolver_periodo("2026-10", None, None, date(2026, 11, 6))
+    v = inc.view_inconsistencias(_res(), p, RAFA, fila)
+    assert v["gestor"] and v["reivindica"]
+    assert [m["transacao"] for m in v["minhas"]] == ["HP-R-1"]
+    assert v["pendentes"]
+    sem = inc.view_inconsistencias(_res(), p, MASTER, fila)
+    assert not sem["reivindica"] and sem["minhas"] == []
+
+
+def test_rota_coordenador_que_vende_ve_reivindicar(cli, monkeypatch):
+    monkeypatch.setitem(_USUARIOS, "rafa@teste.local", RAFA)
+    html = _como(cli, "rafa@teste.local").get("/comercial/inconsistencias?mes=2026-10").text
+    assert "Reivindicar uma venda (suas vendas)" in html
+    assert "Suas reivindicações" in html
+    assert "Reivindicações de venda" in html  # e segue com a fila de gestor
+    html = _como(cli, "master@teste.local").get("/comercial/inconsistencias?mes=2026-10").text
+    assert "Reivindicar uma venda" not in html

@@ -2,7 +2,7 @@
 titulo: "Arquitetura do Brabo Analytics — 2026-11-03"
 area: sistema
 status: vigente
-atualizado: 2026-11-16
+atualizado: 2026-11-18
 responde:
   - "onde fica o monitor de boas-vindas no dia de abertura do carrinho"
   - "por que comprador nao recebeu o email de boas-vindas"
@@ -4508,6 +4508,27 @@ vendedora só as próprias, sem a coluna Vendedora. Ficam de fora a participaç�
 venda, e a venda do marketing; a IA entra, marcada "IA (sem comissão)". Ajuste ou atribuição
 manual leva a etiqueta "manual". Tem uma busca na própria página (nome, código, transação ou
 produto, lidos de `data-busca`) e um botão "Baixar Excel", que é o mesmo `/comercial/comissoes.xlsx`.
+
+**Ajustes de 2026-11-18 (pedido do Rafael). Valem para o ano inteiro.**
+- **Reativa só para venda LEAD.**
+  - Dentro da janela do lançamento, só é Reativa a venda de categoria com LEAD
+    (`regras.categoria_permite_reativa`). Apostila, planner e venda sem categoria são Ativa.
+  - Nas categorias mistas ("LEAD/CROSS SELL"), quem decide é o "Nome deste preço": "COM. CROSS…"
+    e "COM. UP…" são Up/Cross Sell e portanto Ativa (`_RE_ALUNO_NO_NOME` passou a reconhecer
+    "COM. UP"). O resto é LEAD.
+- **Black Vitalícia segue só o período** (`regras.JANELAS_BLACK`): de 12 a 19/10/26 é Reativa e
+  fora disso é Ativa, seja Lead, Cross ou Up Sell. A janela do lançamento não conta. A Black é
+  reconhecida por `_e_black`: categoria começando com BLACK ou produto com "black".
+- **Gestor que também vende.**
+  - `comercial_acessos.vendedor_codigo` passou a valer também para master e coordenador. O campo
+    é opcional e o código precisa estar cadastrado; o nível consulta nunca tem código.
+  - Com código, a página Inconsistências mostra a ele, além da fila de gestor, os blocos
+    "Reivindicar uma venda (suas vendas)" e "Suas reivindicações"
+    (`inconsistencias.pode_reivindicar`).
+  - Sem código no formulário, a reivindicação vai para o código dele (`codigo_do_pedido`), e ele
+    aprova na mesma fila das vendedoras. Caso real: o Rafael, AT12.
+- Impacto medido em 18/11, comparando a regra nova com a antiga sobre os mesmos dados: +R$ 140,84
+  no ano. Outubro não muda, porque a janela da Black já era de 12 a 19/10.
 
 **Snapshot.** `obter_mes` devolve `comercial_snapshot` e só recalcula se faltar, se tiver
 `invalidado_em` ou se `gerado_em` for de dia anterior (SP). O refresh do ETL

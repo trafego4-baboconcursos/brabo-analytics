@@ -19,6 +19,7 @@ import unicodedata
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from sqlalchemy import text
 
@@ -110,13 +111,11 @@ def gasto_por_anuncio(meta: Any, google: Any) -> dict[str, dict]:
     return info
 
 
-def calcular(code: str, emails_compradores: set[str], anuncios: dict[str, dict] | None = None) -> dict | None:
-    """{faixas:[{faixa,leads,pct_leads,compradores,taxa,pct_compradores}], total_leads, respondentes, ...} ou None."""
+def _respostas_df(code: str, m: dict) -> pd.DataFrame | None:
+    """Respostas da pesquisa do sistema novo: uma linha por e-mail, colunas = as perguntas do modelo + `preocup`
+    (texto normalizado da múltipla escolha). None se o lançamento não tem pesquisa pontuável."""
     from frontend.db_readers.typeform import _novo_sistema_respostas_cached  # noqa: PLC0415
 
-    m = _carregar_modelo()
-    if not m:
-        return None
     tf = _novo_sistema_respostas_cached(code)
     if tf is None or tf.empty:
         return None
@@ -133,6 +132,17 @@ def calcular(code: str, emails_compradores: set[str], anuncios: dict[str, dict] 
         resp[q] = tf[cols[q]].map(_limpa).values if q in cols else ""
     col_pre = next((c for c in tf.columns if c != "email_norm" and re.search(_PAD_PREOCUP, _norm(c))), None)
     resp["preocup"] = tf[col_pre].map(_norm).values if col_pre else ""
+    return resp
+
+
+def calcular(code: str, emails_compradores: set[str], anuncios: dict[str, dict] | None = None) -> dict | None:
+    """{faixas:[{faixa,leads,pct_leads,compradores,taxa,pct_compradores}], total_leads, respondentes, ...} ou None."""
+    m = _carregar_modelo()
+    if not m:
+        return None
+    resp = _respostas_df(code, m)
+    if resp is None:
+        return None
 
     emails = [e for e in resp["email"].tolist() if e]
     compradores = sorted(emails_compradores or [])
@@ -227,3 +237,123 @@ def obter(code: str, emails_compradores: set[str], anuncios: dict[str, dict] | N
     from frontend.cache import _get_or_compute  # noqa: PLC0415
 
     return _get_or_compute(code, "lead_score", lambda: calcular(code, emails_compradores, anuncios), ttl=1800)
+
+
+# ── Score por lead, com origem (CSV de /leads/score.csv) ──────────────────────────────────────────────────────
+# Segundo modelo, à parte do bloco do debriefing: além das respostas, usa a ORIGEM do lead (canal, temperatura e etapa
+# da campanha, lidos do UTM). Pontua TAMBÉM quem não respondeu a pesquisa. Fica fora do bloco porque o canal entra no
+# score: usar essa nota para julgar anúncios repetiria o canal (ver ARQUITETURA, «Score por lead com origem»).
+_MODELO_ORIGEM_JSON = Path(__file__).resolve().parent.parent.parent / "config" / "lead_score_modelo_origem.json"
+_modelo_origem: dict | None = None
+_TEMPERATURAS = ("super quente", "quente", "morno", "frio", "organico", "aluno")
+
+
+def _carregar_modelo_origem() -> dict | None:
+    global _modelo_origem
+    if _modelo_origem is None:
+        try:
+            _modelo_origem = json.loads(_MODELO_ORIGEM_JSON.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            logger.warning("lead_score: modelo com origem ausente em %s", _MODELO_ORIGEM_JSON)
+            return None
+    return _modelo_origem
+
+
+def derivar_origem(utm_source: Any, utm_campaign: Any) -> pd.DataFrame:
+    """canal / temp / etapa a partir do UTM — a MESMA regra do treino (`scripts/lead_score_treino_origem.py`).
+    canal: google (inclui YouTube) | meta | vazio | outro (nos lançamentos antigos o YouTube vem como `yt-…` e cai aqui);
+    temp: quente/frio/… lido de `[quente]` no nome da campanha (só existe nas campanhas de mai/26 em diante);
+    etapa: pre (pré-qualificação) | capt (captação) | outro."""
+    src = pd.Series(utm_source).fillna("").map(_norm).reset_index(drop=True)
+    camp = pd.Series(utm_campaign).fillna("").map(_norm).reset_index(drop=True)
+    canal = np.where(src.str.contains("google|youtube|gads"), "google",
+                     np.where(src.str.contains("face|fb|meta|insta|ig"), "meta",
+                              np.where(src == "", "vazio", "outro")))
+
+    def _temp(c: str) -> str:
+        for t in _TEMPERATURAS:
+            if f"[{t}]" in c:
+                return t
+        return "outro"
+
+    etapa = np.where(camp.str.contains("qualifica"), "pre", np.where(camp.str.contains("capta"), "capt", "outro"))
+    return pd.DataFrame({"canal": canal, "temp": camp.map(_temp).values, "etapa": etapa})
+
+
+def _logit_vetorial(m: dict, df: pd.DataFrame, com_origem: bool = False) -> np.ndarray:
+    """Probabilidade de compra de cada linha de `df` (colunas: `respondeu` 0/1, as perguntas do modelo, `preocup`,
+    e `canal`/`temp`/`etapa` quando `com_origem`). Mesma codificação do treino: respondeu, respostas de escolha
+    única, opções de preocupação, [coluna de «linha de carga», sempre 0 aqui] e, por fim, a origem."""
+    coef = m["coef"]
+    z = np.full(len(df), float(m["intercepto"]))
+    z += coef[0] * df["respondeu"].to_numpy(dtype=float)
+    i = 1
+    for q in m["perguntas"]:
+        for v in m["vocab"][q]:
+            z += coef[i] * (df[q].to_numpy() == v)
+            i += 1
+    opcoes = (m.get("multi") or {}).get("preocup") or []
+    txt = df["preocup"].fillna("").astype(str)
+    for o in opcoes:
+        z += coef[i] * txt.str.contains(o, regex=False).to_numpy()
+        i += 1
+    if com_origem:
+        i += int(m.get("colunas_controle", 0))              # controle do tipo de linha: não vale para lead novo
+        for campo, valor in m["origem"]["cols"]:
+            z += coef[i] * (df[campo].to_numpy() == valor)
+            i += 1
+    return 1.0 / (1.0 + np.exp(-z))
+
+
+def calcular_leads(code: str, emails_compradores: set[str]) -> pd.DataFrame | None:
+    """Um DataFrame com um lead por linha: e-mail, se respondeu, faixa e nota só pela pesquisa (como o bloco do
+    debriefing), canal/temperatura/etapa, nota e decil com origem (vale para todos) e se comprou. None sem modelo/leads."""
+    m, mo = _carregar_modelo(), _carregar_modelo_origem()
+    if not m or not mo:
+        return None
+    with _get_engine().connect() as conn:
+        conn.execute(text("SET LOCAL statement_timeout = 180000"))
+        rows = conn.execute(text(
+            "SELECT DISTINCT ON (email) email, utm_source, utm_campaign FROM lead_utm_lancamento "
+            "WHERE lancamento_codigo = :c AND email <> '' ORDER BY email, primeiro_visto_em"), {"c": code}).fetchall()
+    if not rows:
+        return None
+    leads = pd.DataFrame(rows, columns=["email", "utm_source", "utm_campaign"])
+    leads = pd.concat([leads[["email"]], derivar_origem(leads["utm_source"], leads["utm_campaign"])], axis=1)
+
+    resp = _respostas_df(code, m)
+    cols_resp = [*m["perguntas"], "preocup"]
+    if resp is not None and not resp.empty:
+        leads = leads.merge(resp, on="email", how="left", indicator="_m")
+        leads["respondeu"] = (leads.pop("_m") == "both").astype(int)
+    else:
+        leads["respondeu"] = 0
+    for c in cols_resp:
+        leads[c] = leads[c].fillna("") if c in leads else ""
+
+    resp_mask = leads["respondeu"].to_numpy() == 1
+    leads["p_pesquisa"] = np.nan
+    if resp_mask.any():
+        p = _logit_vetorial(m, leads[resp_mask])
+        leads.loc[resp_mask, "p_pesquisa"] = p
+        corte = float(np.median(p))
+        leads["faixa_pesquisa"] = np.where(~resp_mask, "C", np.where(leads["p_pesquisa"] > corte, "A", "B"))
+        leads["nota_pesquisa"] = (leads["p_pesquisa"].rank(pct=True) * 100).round().astype("Int64")
+    else:
+        leads["faixa_pesquisa"], leads["nota_pesquisa"] = "C", pd.NA
+
+    leads["p_origem"] = _logit_vetorial(mo, leads, com_origem=True)
+    leads["nota_origem"] = (leads["p_origem"].rank(pct=True) * 100).round().astype(int).clip(lower=1)
+    # Decil com tamanhos iguais: muitos leads empatam na mesma nota (mesmo canal e campanha, sem pesquisa), e o rank
+    # médio deixaria decis vazios. `first` desempata pela ordem da consulta (e-mail), sem efeito na ordenação.
+    leads["decil_origem"] = (np.ceil(leads["p_origem"].rank(method="first", pct=True) * 10)).astype(int).clip(1, 10)
+    compradores = set(emails_compradores or [])
+    leads["comprou"] = leads["email"].isin(compradores)
+    return leads.sort_values("p_origem", ascending=False).reset_index(drop=True)
+
+
+def obter_leads(code: str, emails_compradores: set[str]) -> pd.DataFrame | None:
+    """`calcular_leads` com cache de 30 min por lançamento (consulta de até ~300 mil leads)."""
+    from frontend.cache import _get_or_compute  # noqa: PLC0415
+
+    return _get_or_compute(code, "lead_score_leads", lambda: calcular_leads(code, emails_compradores), ttl=1800)

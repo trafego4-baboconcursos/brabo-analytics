@@ -18,6 +18,20 @@
     </div>
     {% else %}
 
+    {# ── Score por lead (CSV): dois scores lado a lado, fora do debriefing porque o canal entra em um deles ── #}
+    <div class="section">
+    <div class="section-title"><i class="ti ti-file-spreadsheet"></i> Score por lead</div>
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:16px;">
+      <a class="btn" href="/leads/score.csv?launch_code={{ active_code }}"><i class="ti ti-download"></i> Baixar planilha de leads com score</a>
+      <a class="btn" href="/leads/score.csv?launch_code={{ active_code }}&decil_min=8&comprou=nao"><i class="ti ti-download"></i> Só decis 8–10 que ainda não compraram</a>
+    </div>
+    <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:8px;max-width:760px">
+      Uma linha por lead, do maior para o menor score. Duas notas: <strong>só pela pesquisa</strong> (a do bloco «Qualidade dos Leads» do debriefing; só quem respondeu)
+      e <strong>com origem</strong> (soma o canal e o tipo de campanha do UTM; vale também para quem não respondeu). A nota com origem serve para priorizar
+      leads, não para comparar anúncios — o canal já está nela. Leva uns 20 a 30 segundos na primeira vez.
+    </div>
+    </div>
+
     {# ── KPIs (design system: tp-kpi) ── #}
     <div class="section">
     <div class="section-title"><i class="ti ti-gauge"></i> KPIs — Qualidade de Lead</div>

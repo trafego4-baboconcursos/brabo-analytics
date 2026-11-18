@@ -1,4 +1,5 @@
 from __future__ import annotations
+from datetime import datetime
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.concurrency import run_in_threadpool
@@ -21,6 +22,49 @@ async def leads_page(request: Request, launch_code: str | None = None):
         leads=leads, vendas=vendas,
         data_errors=d.get("_errors", []))
     return templates.TemplateResponse("leads.html", ctx)
+
+
+@router.get("/leads/score.csv")
+async def leads_score_csv(request: Request, launch_code: str | None = None,
+                          decil_min: int | None = None, comprou: str | None = None):
+    """Score por lead do lançamento em CSV (Excel: ';' e BOM): uma linha por lead, do maior para o menor score.
+    Traz dois scores lado a lado — só pela pesquisa (o do debriefing) e com origem (canal/temperatura/etapa, vale
+    também para quem não respondeu). `decil_min` (1–10) mantém só os leads dos decis de cima; `comprou=nao|sim`
+    filtra por compra. Contém e-mail, então fica na mesma faixa de acesso da /leads."""
+    from fastapi.responses import Response  # noqa: PLC0415
+    from frontend.db_readers.sales import read_vendas  # noqa: PLC0415
+    from frontend.services import lead_score as ls  # noqa: PLC0415
+
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    if not launch:
+        return Response("Lançamento não encontrado.", status_code=404, media_type="text/plain; charset=utf-8")
+
+    def _montar():
+        v = read_vendas(launch.code)
+        compradores = (v.emails_hotmart | v.emails_tmb) if v else set()
+        return ls.obter_leads(launch.code, compradores)
+
+    df = await run_in_threadpool(_montar)
+    if df is None or df.empty:
+        return Response("Este lançamento não tem leads com UTM ou o modelo de score não está disponível.",
+                        status_code=404, media_type="text/plain; charset=utf-8")
+    if decil_min:
+        df = df[df["decil_origem"] >= max(1, min(10, decil_min))]
+    if comprou in ("sim", "nao"):
+        df = df[df["comprou"] == (comprou == "sim")]
+    saida = df[["email", "respondeu", "faixa_pesquisa", "nota_pesquisa", "canal", "temp", "etapa",
+                "nota_origem", "decil_origem", "comprou"]].copy()
+    saida["respondeu"] = saida["respondeu"].map({1: "sim", 0: "não"})
+    saida["comprou"] = saida["comprou"].map({True: "sim", False: "não"})
+    saida.columns = ["E-mail", "Respondeu a pesquisa", "Faixa (só pesquisa)", "Nota (só pesquisa, 1-100)", "Canal",
+                     "Temperatura", "Etapa", "Nota (com origem, 1-100)", "Decil (com origem, 10 = melhor)", "Comprou"]
+    nome = f"score-leads_{launch.code}_{datetime.now().strftime('%Y-%m-%d')}.csv"
+    return Response(
+        "﻿" + saida.to_csv(sep=";", index=False),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{nome}"'},
+    )
 
 
 @router.get("/pesquisas", response_class=HTMLResponse)

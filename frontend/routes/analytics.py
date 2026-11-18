@@ -914,8 +914,11 @@ def _empresa_do_ano(resumo: dict, empresa: dict, perpetuo: dict) -> dict:
     perp_r, perp_v = perpetuo["total"]["receita"], perpetuo["total"]["vendas"]
     setor_r = max(vendido_r - t["receita"] - perp_r, 0.0)
     setor_v = max(vendido_v - t["vendas"] - perp_v, 0)
-    total_r = t["receita"] + perp_r + setor_r
-    total_v = t["vendas"] + perp_v + setor_v
+    # Hotmart Editora é outra conta (não está em Hotmart/TMB acima): soma só na linha Perpétuo e no total.
+    ed = empresa.get("editora") or {}
+    ed_r, ed_v = float(ed.get("receita") or 0.0), int(ed.get("vendas") or 0)
+    total_r = t["receita"] + perp_r + ed_r + setor_r
+    total_v = t["vendas"] + perp_v + ed_v + setor_v
 
     inv = empresa["invest"]
     inv_dist = inv["distribuicao"] + inv["sem_codigo"]
@@ -934,8 +937,8 @@ def _empresa_do_ano(resumo: dict, empresa: dict, perpetuo: dict) -> dict:
                "Vendas fora do carrinho: mentorias, apostilas e cursos vendidos fora da janela de um lançamento",
                setor_r, setor_v, 0.0),
         _linha("perpetuo", "Perpétuo", "ti-infinity",
-               "Mestre em Questões (TJ-SP, INSS, BB) e Planner",
-               perp_r, perp_v, inv["perpetuo"]),
+               "Mestre em Questões (TJ-SP, INSS, BB), Planner e a Hotmart Editora (apostilas físicas)",
+               perp_r + ed_r, perp_v + ed_v, inv["perpetuo"]),
         _linha("distribuicao", "Distribuição", "ti-share",
                "Só anúncio: as campanhas de distribuição não têm venda ligada; o que trazem aparece nos lançamentos ou no setor de vendas",
                0.0, 0, inv_dist),

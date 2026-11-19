@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi.concurrency import run_in_threadpool
+from frontend.cache import force_refresh_start, force_refresh_end
 
 from frontend.core import (
     logger,
@@ -525,11 +526,26 @@ async def refresh_debriefing_snapshot(launch: Any, launches: list) -> None:
     from frontend.db_readers.debriefing_snapshot import read_snapshot, write_snapshot  # noqa: PLC0415
 
     t0 = time.perf_counter()
+    # Com o carrinho aberto, as vendas mudam por fora do ETL e em rajada (abertura: 1 -> 349 vendas em minutos, 19/11/26).
+    # O cache devolve o valor vencido enquanto recalcula em segundo plano; o snapshot montado nessa janela gravava a
+    # receita de antes da abertura (R$ 1.726 e ROAS 0,00x com 349 vendas). Então a montagem recalcula os leitores de
+    # venda NA HORA — só neste caminho e só com o carrinho aberto; quem navega continua no cache de 5 min.
+    token = None
+    try:
+        from frontend.services.fetch import carrinho_aberto  # noqa: PLC0415
+        from frontend.services.prewarm import LEITORES_VENDAS  # noqa: PLC0415
+        if await run_in_threadpool(carrinho_aberto, launch.code):
+            token = force_refresh_start(readers=LEITORES_VENDAS, codes={launch.code})
+    except Exception:
+        logger.exception("Snapshot de %s: não deu pra decidir o refresh forçado das vendas (segue com o cache)", launch.code)
     try:
         built = await build_debriefing_context(launch, launches, lazy=False)
     except Exception as e:
         ULTIMA_FALHA[launch.code] = {"quando": datetime.now(timezone.utc), "blocos": [], "erro": f"{type(e).__name__}: {str(e)[:160]}"}
         raise
+    finally:
+        if token is not None:
+            force_refresh_end(token)
     duration_ms = int((time.perf_counter() - t0) * 1000)
     falhas = built.get("falhas") or []
     if falhas:

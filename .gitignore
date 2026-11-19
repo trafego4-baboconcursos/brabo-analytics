@@ -112,3 +112,6 @@ outputs/exports/
 # Planilhas do comercial (CPF/telefone de comprador) e mockups do brainstorming
 analises/comercial/
 .superpowers/
+
+# Edição de vídeo (brutos, referências e renders): local, nunca versionar.
+videos/

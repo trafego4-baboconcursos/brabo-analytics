@@ -2,7 +2,7 @@
 titulo: "Metodologia de Extração e Atribuição de Dados por Lançamento"
 area: sistema
 status: vigente
-atualizado: 2026-10-29
+atualizado: 2026-11-18
 responde:
   - "como e medido o carregamento da pagina dos anuncios"
   - "o que e landing page view"
@@ -105,6 +105,15 @@ relacionados:
 >
 >
 > **Custo de WhatsApp por etapa (29/10/26)**
+>
+>
+> **14. Comissão do comercial: como sai do dado (2026-11-06)**
+>
+>
+> **Receita líquida da TMB: `valor_liquido` vem sem a taxa (18/11/26)**
+>
+>
+> **Faturamento total da empresa: TMB pelo critério do financeiro e Hotmart Editora (18/11/26)**
 >
 
 <!-- SUMARIO:FIM -->
@@ -605,3 +614,79 @@ Custo das mensagens (`whatsapp_messages_daily`, com IOF) é repartido por **data
 Pré-Qualificação). A página Captação usa só a fatia Captação. Não há atribuição por template nem por lançamento: o filtro
 é o produto do número (`config/whatsapp_accounts.yaml`), então disparo de outro lançamento no mesmo número e período
 (ex.: Black BV-26 nos números do Mateus em 15/10/26) entra junto. Detalhes: [[ARQUITETURA]].
+
+---
+
+## 14. Comissão do comercial: como sai do dado (2026-11-06)
+
+Calculada em `frontend/services/comercial/` a partir de `hotmart_oficial` e `tmb_oficial` (só
+leitura). Plano e regras: [[PLANO_AREA_COMERCIAL_COMISSOES]]; telas e fechamento: [[ARQUITETURA]].
+
+- **Código AT (vendedor).** Hotmart: `nome_deste_preco`; quando vem vazio (~100 vendas/mês), o
+  `codigo_do_preco` é resolvido por `comercial_ofertas`. TMB: `utm_content` → `utm_last_content`.
+  Venda sem código é orgânica (não é inconsistência); código divergente entre campos é conflito.
+- **Valor-base.** Hotmart pela API: busca por `valor_de_compra_sem_impostos +
+  taxa_de_processamento`, na vigência da data da venda. Quando esse valor não acha base (desde 09/11/26), tenta, nesta ordem:
+  no Parcelamento Inteligente (`quantidade_de_cobrancas` = 1 e `quantidade_total_de_parcelas` > 1),
+  primeiro `valor_de_compra_com_impostos` × parcelas, porque a Hotmart grava só a 1ª parcela, e depois o valor com impostos; nos
+  demais casos, `valor_de_compra_com_impostos`, que é a coluna L, a referência do gestor (1.798,80 Não Aluno /
+  899,40 Cross / 499,90 Up). A parcela sozinha **não** é tentada antes de × N: 149,90 casaria com a
+  base de recorrência (1.477). Efeito: as 10 vendas sem base de ago–nov/26 acharam base; comissão
+  +27,62 / +184,68 / +173,90 / +64,72.
+- **Só a 1ª cobrança** conta (recorrência não gera nova comissão); dedupe por transação; datas em
+  horário de Brasília.
+- **Ativa × Reativa.** Janela Reativa pela data do evento (`evento_start_date`); sem ela,
+  `aulas_start_date`; a janela manual (`comercial_janela_reativa`) prevalece sobre ambas.
+  Venda para aluno é sempre Ativa, porque a Reativa só vale para aluno novo (desde 10/11/26,
+  `regras.e_up_ou_cross_sell`). O sinal vem do nome do preço ("Cross", "Up Sell" ou "Upgrade" em qualquer
+  lugar) e, sem ele, da categoria `CROSS SELL`/`UP SELL` do valor-base. Exceção: a Black segue Ativa/Reativa.
+- **TMB paga** = tem `data_efetivado` válida, inclusive pedido cancelado depois de efetivado
+  (cancelado antes de efetivar não paga). Cancelado sem `data_cancelamento` cai na data da venda.
+- **Prevista × elegível.** Prevista até 7 dias da efetivação; depois, elegível. Cancelamento ou
+  reembolso nos 7 dias tira a comissão; reembolso que o dado não decide fica como
+  "reembolso a verificar" (inconsistência) até o gestor decidir mantém/tira.
+
+## Receita líquida da TMB: `valor_liquido` vem sem a taxa (18/11/26)
+
+Em `tmb_clean_oficial`, a coluna `valor_liquido` **não é líquida**: tem o mesmo valor do ticket (`tmb_oficial.ticket`),
+ainda sem a taxa da TMB. Somada como líquida, a TMB ficava ~4,85% acima do que entrou no caixa.
+
+Regra: **receita líquida TMB = `valor_liquido` × `TMB_FATOR_LIQUIDO`** (0,951453, ou seja, desconta 4,8547%), em
+`src/constants.py`. Vale para toda venda TMB, de qualquer lançamento (carrinho, upsell/crosssell). Hotmart não muda:
+`valor_de_compra_sem_impostos` já vem líquido.
+
+Origem do fator (financeiro, "contas a receber por data de efetivação", 01/01–31/10/2026, status Efetivado): ticket
+R$ 12.940.385,51; taxa R$ 603.896,33; recebido líquido R$ 12.312.185,86; 12.312.185,86 ÷ 12.940.385,51 = 0,951453.
+Usa a taxa **efetiva** (4,85%), não a contratada (4,67%), porque é a que bate com o caixa (inclui tarifas fixas,
+antecipação e mix de parcelas). Atualizar a constante quando o financeiro fechar novos meses.
+
+Onde se aplica (leitura, nada gravado no banco): `read_vendas` (`tmb_receita`; `tmb_receita_bruta` passa a ser o
+ticket = `valor_liquido`, antes da taxa), dia 1 (`read_dia1_sales`), carrinho (`read_carrinho`), detalhes TMB
+(`db_readers/tmb.py`), faturamento da empresa no ano (`db_readers/empresa.py`) e a **área Comercial** (`normalizar_tmb` em
+`db_readers/comercial.py`: `valor_cobrado` = ticket × fator, base da comissão; aplicado em 18/11/26).
+
+No debriefing, a ponte da TMB fica numa fileira própria abaixo da da Hotmart: **Ticket pago (TMB)** → **Taxa TMB**
+(= ticket − líquido; `VendasSummary.tmb_taxa`) → **Líquido do produtor (só TMB)**, com o "ant." do lançamento anterior (18/11/26).
+
+## Faturamento total da empresa: TMB pelo critério do financeiro e Hotmart Editora (18/11/26)
+
+Pedido da equipe para o total do Resumo Executivo (`/lancamentos`) bater com o painel da meta (R$ 35.999.623 contra
+R$ 35.884.713 no painel; diferença de R$ 114.910 em 2 pontos). Só mexe no **total da empresa**
+(`db_readers/empresa.py`), não nos números por lançamento.
+
+1. **TMB** = `tmb_oficial` com `status = 'Efetivado'`, soma do `ticket` × `TMB_FATOR_LIQUIDO` (0,951453), pela
+   `data_efetivado` (DD/MM/AAAA, ISO ou epoch). É o critério do relatório "contas a receber por data de efetivação".
+   Antes: `tmb_clean_oficial.valor_liquido` pela data de criação do pedido (7.745 pedidos em 2026; agora 7.767) —
+   ~R$ 36 mil abaixo.
+2. **Hotmart Editora** (conta "Brabo Editora Ltda": apostilas físicas, Planner, combos) entra no total e na linha
+   **Perpétuo**, fora de Hotmart/TMB (não afeta o "setor de vendas"). As tabelas `ht_editora_oficial`,
+   `ht_editora_clean_oficial` e `ht_editora_estado_transacao` existem e estão **vazias** (falta ligar o webhook da
+   conta). Até lá vale o relatório da Hotmart Editora até 18/11/26 — jan–out R$ 78.572,31 + nov R$ 8.452,21 =
+   R$ 87.024,52 (`_EDITORA_RELATORIO`) — e, depois de 18/11, somam-se as linhas de `ht_editora_clean_oficial` (as
+   anteriores a essa data são ignoradas, para não dobrar quando o webhook trouxer histórico). Mesma regra de valor da
+   Hotmart (`faturamento_liquido`; cobrança repetida fora).
+   **Não usar `hotmart_editora_oficial` / `hotmart_editora_clean_oficial`**: apesar do nome, o produtor é a Aprovasim
+   (Vitalícia, Black, MEQ R$ 199); somar entraria em dobro (R$ 6,27 milhões em 2026).
+
+Conferência em 18/11/26: Hotmart R$ 23.514.058 + TMB R$ 12.410.194 + Editora R$ 87.025 = R$ 36.011.276, R$ 11.652 acima
+do painel da meta (Hotmart principal ~R$ 8 mil acima, sem ajuste, mais vendas posteriores ao relatório).

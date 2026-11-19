@@ -106,11 +106,14 @@ def chave_bucket(agora: datetime, bucket_min: int = 5) -> str:
 
 def montar_serie(inicio: datetime, agora: datetime, tempos_compra: list[datetime],
                  tempos_entrada: list[datetime], fila_hist: dict[str, int],
-                 bucket_min: int = 5) -> list[dict]:
+                 bucket_min: int = 5, marcar_agora: bool = False) -> list[dict]:
     """Um ponto a cada `bucket_min` minutos, com o acumulado ATÉ aquele horário.
 
     Começa no bloco da primeira compra ou entrada (não às 00:00, pra não desenhar
-    horas de linha zerada) e vai até o bloco que contém `agora`."""
+    horas de linha zerada) e vai até o bloco que contém `agora`. Com `marcar_agora`
+    (página ao vivo), o bloco em andamento leva o rótulo da hora real da leitura e
+    `agora=True`: às 08:06 a última linha dizia "08:10" e parecia relógio adiantado
+    (Mateus, 19/11/26). A chave `t` continua o fim do bloco, que é onde a fila entra."""
     bucket = timedelta(minutes=bucket_min)
     fim_atual = _piso(agora, bucket_min) + bucket
     primeiro = min([*sorted(tempos_compra)[:1], *sorted(tempos_entrada)[:1]], default=agora)
@@ -119,9 +122,11 @@ def montar_serie(inicio: datetime, agora: datetime, tempos_compra: list[datetime
     serie = []
     while t <= fim_atual:
         k = t.isoformat(timespec="minutes")
+        em_andamento = marcar_agora and t > agora
         serie.append({
             "t": k,
-            "rotulo": t.astimezone(BR).strftime("%H:%M"),
+            "rotulo": (agora if em_andamento else t).astimezone(BR).strftime("%H:%M"),
+            "agora": em_andamento,
             "compradores": sum(1 for x in compras if x < t),
             "entradas": sum(1 for x in entradas if x < t),
             "fila": fila_hist.get(k),
@@ -560,7 +565,8 @@ def calcular(ab: dict, agora: datetime | None = None) -> dict:
         "contagem": contagem,
         "aberturas_ok": abertos is not None,
         "abriram": abriram,
-        "serie": montar_serie(ini_curva, fim_curva, tempos_curva, entradas_curva, hist, bucket),
+        "serie": montar_serie(ini_curva, fim_curva, tempos_curva, entradas_curva, hist, bucket,
+                              marcar_agora=ao_vivo),
     }
 
 

@@ -284,7 +284,7 @@
               {% for p in s.serie | reverse %}
               {% set dif = p.compradores - p.entradas %}
               <tr class="{{ 'agora' if loop.first }}">
-                <td>{{ p.rotulo }}</td>
+                <td>{{ p.rotulo }}{% if p.agora %} · agora{% endif %}</td>
                 <td class="numero">{{ p.compradores | num }}</td>
                 <td class="numero">{{ p.entradas | num }}</td>
                 <td class="numero {{ 'bv-delta-alta' if dif > 20 }}">{{ dif | num }}</td>

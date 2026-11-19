@@ -64,6 +64,17 @@ def test_serie_acumula_ate_o_fim_de_cada_bloco_e_comeca_na_primeira_compra():
     assert serie[-1]["fila"] == 1 and serie[0]["fila"] is None
 
 
+def test_bloco_em_andamento_mostra_a_hora_da_leitura_e_nao_o_fim_do_bloco():
+    # Às 08:06 a linha atual dizia "08:10" (Mateus, 19/11/26). Ao vivo, mostra 08:06.
+    inicio = datetime(2026, 11, 12, tzinfo=BR)
+    serie = montar_serie(inicio, _h(8, 6), [_h(8, 0), _h(8, 5)], [], {}, marcar_agora=True)
+    assert [p["rotulo"] for p in serie] == ["08:00", "08:05", "08:06"]
+    assert [p["agora"] for p in serie] == [False, False, True]
+    assert serie[-1]["t"] == "2026-11-12T08:10-03:00" and serie[-1]["compradores"] == 2
+    # Sem marcar (dia encerrado), continua o fim do bloco.
+    assert montar_serie(inicio, _h(8, 6), [_h(8, 0)], [], {})[-1]["rotulo"] == "08:10"
+
+
 def test_chave_da_fila_e_o_fim_do_bloco_atual():
     assert chave_bucket(_h(8, 11)) == "2026-11-12T08:15-03:00"
     assert chave_bucket(_h(8, 15)) == "2026-11-12T08:20-03:00"

@@ -975,6 +975,26 @@ def _compute_debriefing_ctx(
             periodo_prev = ""
         if c_start and c_end:
             timeline = [t for t in timeline_raw if c_start <= t.get("data", "") <= c_end]
+            # Gráfico "Vendas por Dia": todos os dias do carrinho, do 1º dia (carrinho_start_date) até hoje ou o
+            # fim, com zero nos dias sem venda. Sem isso só apareciam os dias com venda de matrícula (o upsell
+            # sai da conta) e a linha ligava 18/11 direto a 19/11, escondendo 16 e 17/11 (PI-NOV-26, 19/11/26).
+            try:
+                from datetime import date as _d, datetime as _dt, timedelta as _td  # noqa: PLC0415
+                from zoneinfo import ZoneInfo  # noqa: PLC0415
+
+                _ini = _d.fromisoformat(str(c_start))
+                _fim = min(_d.fromisoformat(str(c_end)), _dt.now(ZoneInfo("America/Sao_Paulo")).date())
+                _por_dia = {t.get("data", ""): t for t in timeline}
+                _cheio, _dia = [], _ini
+                while _dia <= _fim:
+                    _iso = _dia.isoformat()
+                    _cheio.append(_por_dia.get(_iso) or {"data": _iso, "data_str": _dia.strftime("%d/%b"),
+                                                         "vendas": 0, "upsell": 0, "faturamento": 0.0})
+                    _dia += _td(days=1)
+                if _cheio:
+                    timeline = _cheio
+            except Exception:
+                pass   # data de config inválida: segue só com os dias que têm venda
         else:
             timeline = timeline_raw
     else:

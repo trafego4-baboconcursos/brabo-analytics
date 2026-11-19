@@ -936,18 +936,22 @@ def _empresa_do_ano(resumo: dict, empresa: dict, perpetuo: dict) -> dict:
                 "receita": receita, "vendas": vendas, "invest": invest,
                 "pct": receita / total_r * 100 if total_r > 0 else 0.0}
 
+    # Ordem fixa: a Distribuição fica no índice 3 (a rota lê `linhas[3]["invest"]`).
+    # "Outros" = toda venda que não é de lançamento nem de vertical do perpétuo: mentorias e cursos vendidos fora do
+    # carrinho (antes "Setor de vendas") e o que a Hotmart Editora vende fora do perpétuo (Correios, livros).
+    outros_r, outros_v = setor_r + ed_resto_r, setor_v + ed_resto_v
     linhas = [
         _linha("lancamentos", "Lançamentos", "ti-rocket",
                f"Vendas dentro do carrinho dos {resumo['n_lancamentos']} lançamentos do ano",
                t["receita"], t["vendas"], t["invest"]),
-        _linha("vendas", "Setor de vendas", "ti-headset",
-               "Vendas fora do carrinho: mentorias, apostilas e cursos vendidos fora da janela de um lançamento",
-               setor_r, setor_v, 0.0),
         _linha("perpetuo", "Perpétuo", "ti-infinity",
-               "Mestre em Questões (TJ-SP, INSS, BB), Planner e a Hotmart Editora (apostilas físicas)",
-               perp_r + ed_resto_r, perp_v + ed_resto_v, inv["perpetuo"]),
+               "Mestre em Questões (TJ-SP, INSS, BB) e Planner, nas contas Aprovasim e Brabo Editora",
+               perp_r, perp_v, inv["perpetuo"]),
+        _linha("outros", "Outros", "ti-dots",
+               "Todas as outras vendas: mentorias e cursos fora do carrinho e o que a Editora vende fora do perpétuo",
+               outros_r, outros_v, 0.0),
         _linha("distribuicao", "Distribuição", "ti-share",
-               "Só anúncio: as campanhas de distribuição não têm venda ligada; o que trazem aparece nos lançamentos ou no setor de vendas",
+               "Só gasto: não tem venda ligada, o que ela traz aparece em Lançamentos ou em Outros",
                0.0, 0, inv_dist),
     ]
     return {

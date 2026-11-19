@@ -340,6 +340,25 @@ def read_comparativo(launch_b: Launch, launch_a: Launch, launch_a2: Launch | Non
     vendas_b = rb["hotmart_count"] + rb["tmb_count"]
     receita_a = ra["hotmart_receita"] + ra["tmb_receita"]
     receita_b = rb["hotmart_receita"] + rb["tmb_receita"]
+
+    # Carrinho do atual ainda aberto: o anterior é cortado na MESMA hora desde a abertura (como o debriefing), senão
+    # o atual (parcial) é comparado com o anterior fechado e tudo aparece como queda. Vendas/faturamento/ticket dos
+    # dois lados passam à regra do Painel Lançamento (1ª cobrança; upgrade fora da contagem). A divisão Hotmart/TMB
+    # não existe nesse corte, então a página esconde essas duas linhas enquanto `ponto_ref` estiver preenchido.
+    ticket_corte_a = ticket_corte_b = None
+    try:
+        from frontend.db_readers.sales import read_vendas_carrinho_par  # noqa: PLC0415
+
+        curr, prev, ponto, ponto_prev = read_vendas_carrinho_par(launch_b.code, launch_a.code)
+        if curr and prev and ponto is not None:
+            vendas_b, receita_b = int(curr["vendas"]), float(curr["receita"])
+            vendas_a, receita_a = int(prev["vendas"]), float(prev["receita"])
+            ticket_corte_b = _safe_div(float(curr["receita_carrinho"]), curr["vendas"])
+            ticket_corte_a = _safe_div(float(prev["receita_carrinho"]), prev["vendas"])
+            data.ponto_ref = f"{ponto:%d/%m %Hh%M} ↔ {ponto_prev:%d/%m %Hh%M}"
+    except Exception:
+        logger.exception("Comparativo: falha ao cortar o anterior no mesmo ponto (%s vs %s); segue com o total",
+                         launch_b.code, launch_a.code)
     data.vendas_a   = vendas_a
     data.vendas_b   = vendas_b
     data.hotmart_a  = ra["hotmart_count"]
@@ -352,8 +371,8 @@ def read_comparativo(launch_b: Launch, launch_a: Launch, launch_a2: Launch | Non
     data.receita_hotmart_b = rb["hotmart_receita"]
     data.receita_tmb_a     = ra["tmb_receita"]
     data.receita_tmb_b     = rb["tmb_receita"]
-    data.ticket_a   = _safe_div(receita_a, vendas_a)
-    data.ticket_b   = _safe_div(receita_b, vendas_b)
+    data.ticket_a   = ticket_corte_a if ticket_corte_a is not None else _safe_div(receita_a, vendas_a)
+    data.ticket_b   = ticket_corte_b if ticket_corte_b is not None else _safe_div(receita_b, vendas_b)
     data.roas_a     = _safe_div(receita_a, inv_capt_a)
     data.roas_b     = _safe_div(receita_b, inv_capt_b)
     # ROAS do card "O Paradoxo": receita sobre o investimento do

@@ -767,6 +767,33 @@ def abertura_carrinho_ts(cfg: dict):
     return datetime(dia.year, dia.month, dia.day, hh, mm)
 
 
+def read_vendas_carrinho_par(code: str, previous_code: str | None):
+    """(atual, anterior, ponto_atual, ponto_anterior) pela regra do Painel Lançamento.
+
+    O anterior é cortado no MESMO tempo decorrido desde a abertura do carrinho (ex.: 19/11 08h43 <-> 21/08 08h43),
+    para comparar a mesma hora de cada lançamento. `ponto_*` vêm preenchidos só com o carrinho atual ainda aberto;
+    encerrado, compara o total fechado e `ponto_*` ficam None. Usado pelo debriefing e pelo /comparativo."""
+    from datetime import datetime as _dt  # noqa: PLC0415
+    from zoneinfo import ZoneInfo  # noqa: PLC0415
+
+    from frontend.db_readers.launches import read_launch_config  # noqa: PLC0415
+
+    curr = read_vendas_carrinho(code)
+    if not curr or not previous_code:
+        return curr, None, None, None
+    prev_abertura = abertura_carrinho_ts(read_launch_config(previous_code))
+    if prev_abertura is None:
+        return curr, None, None, None
+    agora = _dt.now(ZoneInfo("America/Sao_Paulo")).replace(tzinfo=None)
+    if agora >= curr["ate"]:
+        return curr, read_vendas_carrinho(previous_code, None), None, None
+    # A carga da Hotmart já parou por horas (12–13/11/26): o ponto de comparação não pode andar na frente do
+    # dado carregado, senão o anterior ganha horas de venda que o atual ainda não recebeu. Usa a última venda.
+    ponto = min(agora, curr["ultima_venda"]) if curr.get("ultima_venda") else agora
+    ponto_prev = prev_abertura + (ponto - curr["abertura"])
+    return curr, read_vendas_carrinho(previous_code, ponto_prev), ponto, ponto_prev
+
+
 def read_vendas_carrinho(launch_folder_or_code: Any, ate=None) -> dict | None:
     """Vendas pela regra do Painel Lançamento (debriefing).
 

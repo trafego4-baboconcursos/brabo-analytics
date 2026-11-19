@@ -509,6 +509,8 @@ class ComparativoData:
     dia1_a: dict = field(default_factory=dict)
     dia1_b: dict = field(default_factory=dict)
     dia1_a2: dict = field(default_factory=dict)
+    # Carrinho atual aberto: vendas/faturamento do anterior cortados na mesma hora. Texto "19/11 08h43 ↔ 21/08 08h43".
+    ponto_ref: str = ""
     code_a2: str = ""
     google_conv_a: int = 0
     google_conv_b: int = 0

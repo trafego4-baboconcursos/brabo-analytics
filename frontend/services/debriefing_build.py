@@ -471,26 +471,12 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
 
 def _carrinho_par(launch: Any, previous: Any) -> tuple:
     """(atual, anterior). O anterior é cortado no mesmo tempo decorrido desde a abertura do carrinho
-    (ex.: 13/11 08h43 ↔ 18/09 08h43); com o carrinho atual já encerrado, compara o total fechado."""
-    from datetime import datetime as _dt  # noqa: PLC0415
-    from zoneinfo import ZoneInfo  # noqa: PLC0415
+    (ex.: 13/11 08h43 ↔ 18/09 08h43); com o carrinho atual já encerrado, compara o total fechado.
+    A regra mora em `sales.read_vendas_carrinho_par` (o /comparativo usa a mesma)."""
+    from frontend.db_readers.sales import read_vendas_carrinho_par  # noqa: PLC0415
 
-    from frontend.db_readers.launches import read_launch_config  # noqa: PLC0415
-    from frontend.db_readers.sales import abertura_carrinho_ts, read_vendas_carrinho  # noqa: PLC0415
-
-    curr = read_vendas_carrinho(launch.code)
-    if not curr or not previous:
-        return curr, None
-    prev_abertura = abertura_carrinho_ts(read_launch_config(previous.code))
-    if prev_abertura is None:
-        return curr, None
-    agora = _dt.now(ZoneInfo("America/Sao_Paulo")).replace(tzinfo=None)
-    if agora >= curr["ate"]:
-        return curr, read_vendas_carrinho(previous.code, None)
-    # A carga da Hotmart já parou por horas (12–13/11/26): o ponto de comparação não pode andar na frente do
-    # dado carregado, senão o anterior ganha horas de venda que o atual ainda não recebeu. Usa a última venda.
-    ponto = min(agora, curr["ultima_venda"]) if curr.get("ultima_venda") else agora
-    return curr, read_vendas_carrinho(previous.code, prev_abertura + (ponto - curr["abertura"]))
+    curr, prev, _ponto, _ponto_prev = read_vendas_carrinho_par(launch.code, previous.code if previous else None)
+    return curr, prev
 
 
 # Por que o snapshot de cada lançamento não foi regravado na última tentativa (memória do processo).

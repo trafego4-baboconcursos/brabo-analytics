@@ -31,7 +31,7 @@
   .cmp-gauge-inner { width: 156px; height: 156px; border-radius: 50%; background: #131f33; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
   .cmp-gauge-value { font-size: 30px; font-weight: 800; color: #fff; letter-spacing: -.01em; }
   .cmp-gauge-label { font-size: 10.5px; color: #94a3b8; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
-  .cmp-gauge-marker { position: absolute; top: -6px; left: 50%; width: 13px; height: 13px; border-radius: 50%; background: #f5576c; border: 3px solid #131f33; }
+  .cmp-gauge-marker { position: absolute; top: 50%; left: 50%; margin: -6.5px 0 0 -6.5px; width: 13px; height: 13px; border-radius: 50%; background: #f5576c; border: 3px solid #131f33; }
   .cmp-gauge-delta { font-size: 12.5px; font-weight: 700; display: flex; align-items: center; gap: 5px; }
   .cmp-gauge-note { font-size: 10px; color: #5b6b85; }
   .cmp-paradox-divider { width: 1px; align-self: stretch; background: rgba(255,255,255,.08); }
@@ -232,6 +232,12 @@
     {% set rec_cor = '#31c16c' if rec_d >= 0 else '#f05454' %}
     <div class="section">
       <div class="section-title"><i class="ti ti-bolt" style="color:var(--bs-warning)"></i> O Paradoxo</div>
+      {% if comp.ponto_ref %}
+      <div class="cmp-gauge-note" style="margin:-6px 0 12px;font-size:12px;color:var(--bs-ink-muted)">
+        <i class="ti ti-clock"></i> Vendas, faturamento, ticket e ROAS do {{ comp.code_a }} no mesmo ponto do carrinho ({{ comp.ponto_ref }}): o carrinho de {{ comp.code_b }} ainda está aberto.
+        Investimento e leads seguem do lançamento inteiro.
+      </div>
+      {% endif %}
       <div class="cmp-paradox">
         <div class="cmp-paradox-glow"></div>
 
@@ -255,7 +261,7 @@
                 <div class="cmp-gauge-value">{{ "%.2f"|format(comp.roas_total_b)|replace(".", ",") }}x</div>
                 <div class="cmp-gauge-label">ROAS atual</div>
               </div>
-              <div class="cmp-gauge-marker" style="transform:translateX(-50%) rotate({{ roas_deg_a }}deg) translateY(-88px) rotate(-{{ roas_deg_a }}deg);" title="ROAS anterior: {{ '%.2f'|format(comp.roas_total_a)|replace('.', ',') }}x"></div>
+              <div class="cmp-gauge-marker" style="transform:rotate({{ roas_deg_a }}deg) translateY(-89px) rotate(-{{ roas_deg_a }}deg);" title="ROAS anterior: {{ '%.2f'|format(comp.roas_total_a)|replace('.', ',') }}x"></div>
             </div>
             <div class="cmp-gauge-delta" style="color:{{ '#31c16c' if roas_d >= 0 else '#f05454' }}">
               {{ '↑' if roas_d > 0 else ('↓' if roas_d < 0 else '→') }} {{ "%.1f"|format(roas_mag)|replace(".", ",") }}%
@@ -424,8 +430,10 @@
             <thead><tr><th class="h-dark" style="width:38%">Indicador</th><th class="h-b">🔴 {{ comp.code_b }}</th><th class="h-a">🟣 {{ comp.code_a }}</th></tr></thead>
             <tbody>
               {{ sc_row('Vendas Totais', comp.vendas_b, comp.vendas_a, comp.vendas_a, comp.vendas_b, fmt='num', bold=true) }}
+              {% if not comp.ponto_ref %}
               {{ sc_row('Hotmart', comp.hotmart_b, comp.hotmart_a, comp.hotmart_a, comp.hotmart_b, fmt='num') }}
               {{ sc_row('TMB (Boleto)', comp.tmb_b, comp.tmb_a, comp.tmb_a, comp.tmb_b, fmt='num') }}
+              {% endif %}
               {{ sc_row('Faturamento Total', comp.receita_b, comp.receita_a, comp.receita_a, comp.receita_b, bold=true) }}
               {{ sc_row('Ticket Médio', comp.ticket_b, comp.ticket_a, comp.ticket_a, comp.ticket_b) }}
               {{ sc_row('ROAS (Receita / Invest. Captação)', comp.roas_b, comp.roas_a, comp.roas_a, comp.roas_b, fmt='x') }}

@@ -120,11 +120,11 @@ def _base():
     return resumo, empresa, perp
 
 
-def test_setor_de_vendas_e_o_que_sobra_do_total_vendido():
+def test_outros_e_o_que_sobra_do_total_vendido():
     r = _empresa_do_ano(*_base())
     por = {x["chave"]: x for x in r["linhas"]}
     assert por["lancamentos"]["receita"] == 900.0 and por["perpetuo"]["receita"] == 10.0
-    assert por["vendas"]["receita"] == 190.0 and por["vendas"]["vendas"] == 11   # 1100 - 900 - 10 ; 105 - 90 - 4
+    assert por["outros"]["receita"] == 190.0 and por["outros"]["vendas"] == 11   # 1100 - 900 - 10 ; 105 - 90 - 4
     assert r["receita"] == 1100.0 and r["vendas"] == 105
     assert round(sum(x["pct"] for x in r["linhas"]), 6) == 100.0
 
@@ -137,11 +137,11 @@ def test_distribuicao_so_tem_investimento_e_o_total_soma_tudo():
     assert round(r["roas"], 4) == round(1100.0 / 136.0, 4)
 
 
-def test_setor_de_vendas_nunca_fica_negativo():
+def test_outros_nunca_fica_negativo():
     resumo, empresa, perp = _base()
     empresa["hotmart"]["receita"] = 100.0      # total vendido menor que os lançamentos: dado incompleto
     r = _empresa_do_ano(resumo, empresa, perp)
-    assert {x["chave"]: x for x in r["linhas"]}["vendas"]["receita"] == 0.0
+    assert {x["chave"]: x for x in r["linhas"]}["outros"]["receita"] == 0.0
 
 
 def test_meta_usa_o_total_da_empresa_mas_a_media_e_so_dos_lancamentos(monkeypatch):
@@ -288,3 +288,17 @@ def test_ano_de_2027_funciona_sem_nada_de_2026_no_codigo(monkeypatch):
     assert r["ano"] == 2027 and r["n_lancamentos"] == 2
     assert [x["code"] for x in r["ranking"]] == ["PES-MAI-27", "PI-JAN-27"]
     assert r["total"]["receita"] == 10.0 and r["meta"] is None   # 2026 não vaza; sem meta, sem barra
+
+
+def test_editora_no_perpetuo_nao_conta_duas_vezes_e_o_resto_vai_para_outros():
+    """A Editora é outra conta (fora de Hotmart/TMB). O que é vertical do perpétuo já vem em `perp_total`; o resto
+    entra em Outros. As linhas somam o total, que é toda a venda (Hotmart + TMB + Editora)."""
+    resumo, empresa, perp = _base()
+    perp["total"] = {"receita": 60.0, "vendas": 8, "receita_editora": 40.0, "vendas_editora": 4}
+    empresa["editora"] = {"receita": 50.0, "vendas": 5}
+    r = _empresa_do_ano(resumo, empresa, perp)
+    por = {x["chave"]: x for x in r["linhas"]}
+    assert por["perpetuo"]["receita"] == 60.0
+    assert por["outros"]["receita"] == (1100.0 - 900.0 - 20.0) + 10.0      # setor (sem a parte Editora do perpétuo) + resto da Editora
+    assert r["receita"] == 1100.0 + 50.0                                    # toda a venda: vendido + Editora
+    assert round(sum(x["receita"] for x in r["linhas"]), 6) == r["receita"]

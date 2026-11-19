@@ -75,6 +75,19 @@ HOTMART_IDS_PERPETUO_POR_VERTICAL: dict[str, list[str]] = {
 }
 HOTMART_IDS_PERPETUO: list[str] = sorted({i for ids in HOTMART_IDS_PERPETUO_POR_VERTICAL.values() for i in ids})
 
+# Mesmos produtos do perpétuo vendidos pela conta "Brabo Editora Ltda" (apostilas físicas, Planner, combos), que tem
+# IDs próprios e vive em `hotmart_editora_clean_oficial` (não na `hotmart_clean_oficial`, que é da Aprovasim). Só linhas com
+# `produtor_a = PRODUTOR_EDITORA`: a tabela também traz algumas da Aprovasim, que já estão na principal (dobraria).
+# Fora de propósito: Mentoria Correios, apostilas/livros dos Correios, Livro Improvável, COMBO INSS 8073438 e KIT TJSP
+# 8073703 (1 venda cada, sem vertical clara). Conferido contra o relatório da conta em 19/11/26.
+PRODUTOR_EDITORA = "Brabo Editora Ltda"
+HOTMART_EDITORA_IDS_PERPETUO_POR_VERTICAL: dict[str, list[str]] = {
+    "pmq-tjsp": ["5150278", "5146580"],
+    "pmq-inss": ["5150260", "5146472"],
+    "pmq-pbb": ["6239843", "6474104"],
+    "planner": ["5150092"],
+}
+
 
 def _hm_data_sql(col: str) -> str:
     """Fragmento SQL que extrai a data (fuso America/Sao_Paulo) de uma coluna

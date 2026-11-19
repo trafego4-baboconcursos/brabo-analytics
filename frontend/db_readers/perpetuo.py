@@ -25,6 +25,8 @@ from frontend.services.attribution import _extract_ad_code
 from frontend.db_readers._vendas_comum import (
     _HOTMART_STATUS_APROVADO,
     HOTMART_IDS_PERPETUO_POR_VERTICAL as _IDS,
+    HOTMART_EDITORA_IDS_PERPETUO_POR_VERTICAL as _IDS_ED,
+    PRODUTOR_EDITORA,
     _hm_data_sql,
 )
 
@@ -32,13 +34,13 @@ logger = get_logger("db")
 
 VERTICALS: dict[str, dict] = {
     "pmq-tjsp": {"codigo": "PERPETUO-PMQ-TJSP", "nome": "Mestre em Questões — TJ-SP",
-                 "hotmart": _IDS["pmq-tjsp"]},
+                 "hotmart": _IDS["pmq-tjsp"], "hotmart_editora": _IDS_ED["pmq-tjsp"]},
     "pmq-inss": {"codigo": "PERPETUO-PMQ-INSS", "nome": "Mestre em Questões — INSS",
-                 "hotmart": _IDS["pmq-inss"]},
+                 "hotmart": _IDS["pmq-inss"], "hotmart_editora": _IDS_ED["pmq-inss"]},
     "pmq-pbb":  {"codigo": "PERPETUO-PMQ-PBB",  "nome": "Mestre em Questões — Banco do Brasil",
-                 "hotmart": _IDS["pmq-pbb"]},
+                 "hotmart": _IDS["pmq-pbb"], "hotmart_editora": _IDS_ED["pmq-pbb"]},
     "planner":  {"codigo": "PERPETUO-PLANNER",  "nome": "Planner",
-                 "hotmart": _IDS["planner"]},
+                 "hotmart": _IDS["planner"], "hotmart_editora": _IDS_ED["planner"]},
 }
 
 
@@ -108,7 +110,7 @@ def _ultimo_dia_com_gasto(codigo: str) -> date | None:
         return None
 
 
-def _vendas(produtos: list[str], start: date, end: date) -> dict:
+def _vendas(produtos: list[str], start: date, end: date, produtos_editora: list[str] | None = None) -> dict:
     """Vendas Hotmart dos produtos da vertical no período.
 
     **Não é venda atribuída ao anúncio** — é toda venda do produto na janela.
@@ -119,27 +121,39 @@ def _vendas(produtos: list[str], start: date, end: date) -> dict:
     Enquanto o `src` não for configurado, o número aqui é **teto**: inclui
     orgânico, e-mail e régua. A página diz isso na tela.
 
-    Vive no banco OPERACIONAL (`hotmart_clean_oficial`), não no analytics.
+    Vive no banco OPERACIONAL e soma DUAS contas da Hotmart: a Aprovasim (`hotmart_clean_oficial`, pelos IDs
+    de `produtos`) e a Brabo Editora (`hotmart_editora_clean_oficial`, pelos IDs de `produtos_editora`, só linhas
+    do produtor Brabo Editora — as da Aprovasim que a tabela traz já estão na principal). Devolve também a
+    parte da Editora (`vendas_editora`/`receita_editora`) para o total da empresa não contá-la duas vezes.
     """
-    if not produtos:
-        return {"vendas": 0, "receita": 0.0}
+    vazio = {"vendas": 0, "receita": 0.0, "vendas_editora": 0, "receita_editora": 0.0}
+    if not produtos and not produtos_editora:
+        return vazio
     data_sql = _hm_data_sql("data_da_transacao")
     valor = _VALOR_LIQUIDO_SQL
+    base = ("SELECT COUNT(*) AS vendas, COALESCE(SUM({valor}),0) AS receita FROM {tabela} "
+            "WHERE codigo_do_produto = ANY(:ids) AND status_da_transacao = ANY(:ok){extra} "
+            "AND {data} BETWEEN :start AND :end")
+    ok = list(_HOTMART_STATUS_APROVADO)
+    saida = dict(vazio)
     try:
         with _get_users_engine().connect() as conn:
-            r = conn.execute(
-                text(
-                    f"SELECT COUNT(*) AS vendas, COALESCE(SUM({valor}),0) AS receita "
-                    f"FROM hotmart_clean_oficial "
-                    f"WHERE codigo_do_produto = ANY(:ids) AND status_da_transacao = ANY(:ok) "
-                    f"AND {data_sql} BETWEEN :start AND :end"
-                ),
-                {"ids": produtos, "ok": list(_HOTMART_STATUS_APROVADO), "start": start, "end": end},
-            ).fetchone()
+            if produtos:
+                r = conn.execute(text(base.format(valor=valor, tabela="hotmart_clean_oficial", extra="", data=data_sql)),
+                                 {"ids": produtos, "ok": ok, "start": start, "end": end}).fetchone()
+                saida["vendas"], saida["receita"] = int(r[0] or 0), float(r[1] or 0.0)
+            if produtos_editora:
+                r = conn.execute(text(base.format(valor=valor, tabela="hotmart_editora_clean_oficial",
+                                                  extra=" AND produtor_a = :produtor", data=data_sql)),
+                                 {"ids": produtos_editora, "ok": ok, "produtor": PRODUTOR_EDITORA,
+                                  "start": start, "end": end}).fetchone()
+                saida["vendas_editora"], saida["receita_editora"] = int(r[0] or 0), float(r[1] or 0.0)
     except Exception:
-        logger.exception("read_perpetuo: falha ao ler vendas dos produtos %s", produtos)
-        return {"vendas": 0, "receita": 0.0}
-    return {"vendas": int(r[0] or 0), "receita": float(r[1] or 0.0)}
+        logger.exception("read_perpetuo: falha ao ler vendas dos produtos %s / editora %s", produtos, produtos_editora)
+        return vazio
+    saida["vendas"] += saida["vendas_editora"]
+    saida["receita"] += saida["receita_editora"]
+    return saida
 
 
 def _meta_totals(rows) -> dict:
@@ -257,7 +271,7 @@ def read_perpetuo(vertical: str, days: int = 30, compare: bool = False, inicio=N
 
     meta_totals = _meta_totals(meta_rows)
     google_totals = _google_totals(google_rows)
-    vendas = _vendas(info.get("hotmart") or [], start, end)
+    vendas = _vendas(info.get("hotmart") or [], start, end, info.get("hotmart_editora"))
     investimento_total = meta_totals["spend"] + google_totals["cost"]
     leads_total = meta_totals["leads"] + google_totals["conversions"]
 
@@ -294,7 +308,7 @@ def read_perpetuo(vertical: str, days: int = 30, compare: bool = False, inicio=N
         prev_meta_totals = _meta_totals(prev_meta_rows)
         prev_google_totals = _google_totals(prev_google_rows)
         prev_investimento_total = prev_meta_totals["spend"] + prev_google_totals["cost"]
-        prev_vendas = _vendas(info.get("hotmart") or [], prev_start, prev_end)
+        prev_vendas = _vendas(info.get("hotmart") or [], prev_start, prev_end, info.get("hotmart_editora"))
         prev_leads_total = prev_meta_totals["leads"] + prev_google_totals["conversions"]
         result["prev_range_start"] = prev_start.isoformat()
         result["prev_range_end"] = prev_end.isoformat()
@@ -389,6 +403,22 @@ def read_perpetuo_mensal(meses: int = 6) -> dict:
                     continue
                 v, r = vendas.get((ym, slug), (0, 0.0))
                 vendas[(ym, slug)] = (v + int(n or 0), r + float(receita or 0))
+            # Conta Brabo Editora: mesmos produtos do perpétuo com IDs próprios (ver _vendas_comum).
+            produto_da_vertical_ed = {p: slug for slug, v in VERTICALS.items() for p in v.get("hotmart_editora") or []}
+            for ym, produto, n, receita in conn.execute(
+                text(f"SELECT to_char({data_sql}, 'YYYY-MM'), codigo_do_produto, "
+                     f"COUNT(*), COALESCE(SUM({valor}), 0) FROM hotmart_editora_clean_oficial "
+                     f"WHERE codigo_do_produto = ANY(:ids) AND produtor_a = :produtor "
+                     f"AND status_da_transacao = ANY(:ok) "
+                     f"AND {data_sql} BETWEEN :inicio AND :fim GROUP BY 1, 2"),
+                {"ids": list(produto_da_vertical_ed), "produtor": PRODUTOR_EDITORA, "ok": list(_HOTMART_STATUS_APROVADO),
+                 "inicio": inicio, "fim": fim},
+            ).fetchall():
+                slug = produto_da_vertical_ed.get(str(produto))
+                if not slug:
+                    continue
+                v, r = vendas.get((ym, slug), (0, 0.0))
+                vendas[(ym, slug)] = (v + int(n or 0), r + float(receita or 0))
     except Exception:
         logger.exception("read_perpetuo_mensal: falha ao ler vendas")
         return {"meses": [], "erro": "vendas"}
@@ -436,11 +466,14 @@ def read_perpetuo_ano(ano: int) -> dict:
     """
     verticais: dict[str, dict] = {}
     for slug, info in VERTICALS.items():
-        v = _vendas(info.get("hotmart") or [], date(ano, 1, 1), date(ano, 12, 31))
-        verticais[slug] = {"nome": info["nome"], "vendas": v["vendas"], "receita": v["receita"]}
+        v = _vendas(info.get("hotmart") or [], date(ano, 1, 1), date(ano, 12, 31), info.get("hotmart_editora"))
+        verticais[slug] = {"nome": info["nome"], "vendas": v["vendas"], "receita": v["receita"],
+                           "vendas_editora": v["vendas_editora"], "receita_editora": v["receita_editora"]}
     return {
         "total": {"vendas": sum(x["vendas"] for x in verticais.values()),
-                  "receita": sum(x["receita"] for x in verticais.values())},
+                  "receita": sum(x["receita"] for x in verticais.values()),
+                  "vendas_editora": sum(x["vendas_editora"] for x in verticais.values()),
+                  "receita_editora": sum(x["receita_editora"] for x in verticais.values())},
         "verticais": verticais,
     }
 
@@ -472,8 +505,9 @@ def read_perpetuo_cards(ano: int) -> list[dict]:
     cartoes = []
     for slug, info in VERTICALS.items():
         ids = info.get("hotmart") or []
-        v_ano = _vendas(ids, date(ano, 1, 1), date(ano, 12, 31))
-        v_30 = _vendas(ids, ini30, hoje)
+        ids_ed = info.get("hotmart_editora")
+        v_ano = _vendas(ids, date(ano, 1, 1), date(ano, 12, 31), ids_ed)
+        v_30 = _vendas(ids, ini30, hoje, ids_ed)
         inv = por_codigo.get(info["codigo"], {"ano": 0.0, "d30": 0.0})
         cartoes.append({
             "slug": slug, "nome": info["nome"], "codigo": info["codigo"],

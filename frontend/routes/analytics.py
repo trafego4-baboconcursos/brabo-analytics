@@ -912,13 +912,20 @@ def _empresa_do_ano(resumo: dict, empresa: dict, perpetuo: dict) -> dict:
     vendido_r = empresa["hotmart"]["receita"] + empresa["tmb"]["receita"]
     vendido_v = empresa["hotmart"]["vendas"] + empresa["tmb"]["vendas"]
     perp_r, perp_v = perpetuo["total"]["receita"], perpetuo["total"]["vendas"]
-    setor_r = max(vendido_r - t["receita"] - perp_r, 0.0)
-    setor_v = max(vendido_v - t["vendas"] - perp_v, 0)
-    # Hotmart Editora é outra conta (não está em Hotmart/TMB acima): soma só na linha Perpétuo e no total.
+    # O perpétuo soma duas contas: Aprovasim (já dentro de Hotmart/TMB acima) e Brabo Editora (fora delas). A parte da
+    # Editora que está no perpétuo NÃO entra de novo como "Editora" e NÃO é descontada do setor de vendas.
+    perp_ed_r = float(perpetuo["total"].get("receita_editora") or 0.0)
+    perp_ed_v = int(perpetuo["total"].get("vendas_editora") or 0)
+    perp_main_r, perp_main_v = perp_r - perp_ed_r, perp_v - perp_ed_v
+    setor_r = max(vendido_r - t["receita"] - perp_main_r, 0.0)
+    setor_v = max(vendido_v - t["vendas"] - perp_main_v, 0)
+    # Hotmart Editora inteira é outra conta (não está em Hotmart/TMB acima): o que não é produto de vertical do
+    # perpétuo (Correios, livros...) soma na linha Perpétuo e no total; o que é, já veio dentro de `perp_r`.
     ed = empresa.get("editora") or {}
     ed_r, ed_v = float(ed.get("receita") or 0.0), int(ed.get("vendas") or 0)
-    total_r = t["receita"] + perp_r + ed_r + setor_r
-    total_v = t["vendas"] + perp_v + ed_v + setor_v
+    ed_resto_r, ed_resto_v = max(ed_r - perp_ed_r, 0.0), max(ed_v - perp_ed_v, 0)
+    total_r = t["receita"] + perp_r + ed_resto_r + setor_r
+    total_v = t["vendas"] + perp_v + ed_resto_v + setor_v
 
     inv = empresa["invest"]
     inv_dist = inv["distribuicao"] + inv["sem_codigo"]
@@ -938,7 +945,7 @@ def _empresa_do_ano(resumo: dict, empresa: dict, perpetuo: dict) -> dict:
                setor_r, setor_v, 0.0),
         _linha("perpetuo", "Perpétuo", "ti-infinity",
                "Mestre em Questões (TJ-SP, INSS, BB), Planner e a Hotmart Editora (apostilas físicas)",
-               perp_r + ed_r, perp_v + ed_v, inv["perpetuo"]),
+               perp_r + ed_resto_r, perp_v + ed_resto_v, inv["perpetuo"]),
         _linha("distribuicao", "Distribuição", "ti-share",
                "Só anúncio: as campanhas de distribuição não têm venda ligada; o que trazem aparece nos lançamentos ou no setor de vendas",
                0.0, 0, inv_dist),

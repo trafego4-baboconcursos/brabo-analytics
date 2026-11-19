@@ -66,7 +66,7 @@ def vigia(monkeypatch):
     """checar_e_avisar com banco e Slack trocados por memória."""
     enviadas: list[str] = []
     estado = {"ultimas": _frescas(), "historico": AGORA - timedelta(minutes=10)}
-    monkeypatch.setattr(v, "_ler_estado_banco", lambda: (estado["ultimas"], estado["historico"]))
+    monkeypatch.setattr(v, "_ler_estado_banco", lambda: (estado["ultimas"], estado["historico"], estado.get("sem_historico")))
     monkeypatch.setattr(v, "_enviar_slack", lambda msg: enviadas.append(msg) or True)
     monkeypatch.setattr(v, "ESTADO", {"problemas": [], "checado_em": None, "desde": None, "avisado_em": None})
     return estado, enviadas
@@ -160,3 +160,19 @@ def test_aviso_imediato_de_falha_do_aquecimento_traz_o_erro_e_nao_repete_em_2h(m
     assert v.avisar_falha_aquecimento("BV-26", ["leads"], None, AGORA + timedelta(minutes=30)) is False   # não repete
     assert v.avisar_falha_aquecimento("PI-NOV-26", ["x"], None, AGORA + timedelta(minutes=30)) is True    # outro lançamento
     assert v.avisar_falha_aquecimento("BV-26", ["leads"], None, AGORA + timedelta(hours=v.AVISO_FALHA_INTERVALO_H + 0.1)) is True
+
+
+def test_historico_parado_sem_cadastro_novo_nao_e_problema():
+    """Madrugada / captação encerrada: o AC carrega, mas o trigger não tem o que gravar (0 cadastros sem histórico)."""
+    assert v.avaliar(_frescas(), AGORA - timedelta(hours=7), AGORA, leads_sem_historico=0) == []
+
+
+def test_historico_parado_com_cadastro_novo_sem_historico_avisa():
+    problemas = v.avaliar(_frescas(), AGORA - timedelta(hours=7), AGORA, leads_sem_historico=12)
+    assert [p["tipo"] for p in problemas] == ["historico_parado"]
+    assert "12 cadastro(s) novo(s) sem histórico" in problemas[0]["texto"]
+
+
+def test_historico_parado_nao_medido_mantem_regra_antiga():
+    problemas = v.avaliar(_frescas(), AGORA - timedelta(hours=7), AGORA, leads_sem_historico=None)
+    assert [p["tipo"] for p in problemas] == ["historico_parado"]

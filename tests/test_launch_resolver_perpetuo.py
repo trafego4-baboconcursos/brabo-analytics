@@ -38,7 +38,7 @@ def test_nao_e_perpetuo(nome):
     ("[MA][engajamento][distribuição][quente][felipe graton][25.08.26]", "DISTRIBUICAO-FELIPE-GRATON"),
     ("[ma][tráfego][distribuição][frio][mateus andrade][15.05.26]", "DISTRIBUICAO-MATEUS-ANDRADE"),
     ("[MA][engajamento][distribuição][frio][brabo concursos]", "DISTRIBUICAO-BRABO-CONCURSOS"),
-    ("[MA][engajamento][distribuição][frio][brabo editora][15.07.2026]", None),
+    ("[MA][engajamento][distribuição][frio][brabo editora][15.07.2026]", "DISTRIBUICAO-BRABO-EDITORA"),
 ])
 def test_distribuicao_por_expert(nome, esperado):
     assert resolve_perpetuo_or_distribuicao_code(nome) == esperado

@@ -21,6 +21,25 @@
   {% else %}
 
     {% from "_macros_platform.html" import plat_badge %}
+    {# Miniatura do criativo (ad_creatives, chave ADxx). Sem miniatura: quadro tracejado, mantém o alinhamento. #}
+    {% macro celula_thumb(c) %}
+      {% if drive_thumbnails %}
+      {% set td = drive_thumbnails.get(c.ad_code) %}
+      <td style="padding:4px 6px;">
+        {% if td %}
+        <a href="{{ td.preview }}" target="_blank" rel="noopener" title="Abrir {{ c.ad_code }}">
+          <img src="{{ td.thumb }}" alt="{{ c.ad_code }}" loading="lazy"
+               style="width:80px;height:52px;object-fit:cover;border-radius:5px;border:1px solid var(--bs-border);display:block"
+               onerror="this.style.display='none'">
+        </a>
+        {% else %}
+        <div style="width:80px;height:52px;border-radius:5px;border:1px dashed var(--bs-border-s);background:var(--bs-accent-bg);display:flex;align-items:center;justify-content:center">
+          <i class="ti ti-photo" style="color:var(--bs-ink-subtle);font-size:20px"></i>
+        </div>
+        {% endif %}
+      </td>
+      {% endif %}
+    {% endmacro %}
     {% set base_url = "/distribuicao/" ~ distrib.username ~ (("?launch_code=" ~ active_code) if active_code else "") %}
     {% set sep = "&" if active_code else "?" %}
     {% from "_macros_periodo.html" import seletor_periodo %}
@@ -92,6 +111,7 @@
         <table>
           <thead>
             <tr>
+              {% if drive_thumbnails %}<th>Miniatura</th>{% endif %}
               <th>Criativo</th>
               <th class="th-num">Investimento</th>
               <th class="th-num">Impressões</th>
@@ -107,6 +127,7 @@
           <tbody>
             {% for c in distrib.criativos_meta %}
             <tr>
+              {{ celula_thumb(c) }}
               <td>{{ c.ad_name }}</td>
               <td class="numero">{{ c.spend | brl }}</td>
               <td class="numero">{{ c.impressions | num }}</td>
@@ -132,6 +153,7 @@
         <table>
           <thead>
             <tr>
+              {% if drive_thumbnails %}<th>Miniatura</th>{% endif %}
               <th>Criativo</th>
               <th class="th-num">Investimento</th>
               <th class="th-num">Impressões</th>
@@ -145,6 +167,7 @@
           <tbody>
             {% for c in distrib.criativos_google %}
             <tr>
+              {{ celula_thumb(c) }}
               <td>{{ c.ad_name }}</td>
               <td class="numero">{{ c.cost | brl }}</td>
               <td class="numero">{{ c.impressions | num }}</td>
@@ -168,6 +191,7 @@
         <table>
           <thead>
             <tr>
+              {% if drive_thumbnails %}<th>Miniatura</th>{% endif %}
               <th>Criativo</th>
               <th class="th-num">Investimento</th>
               <th class="th-num">Impressões</th>
@@ -184,6 +208,7 @@
           <tbody>
             {% for c in distrib.criativos_tiktok %}
             <tr>
+              {{ celula_thumb(c) }}
               <td>{{ c.ad_name | truncate(90) }}</td>
               <td class="numero">{{ c.spend | brl }}</td>
               <td class="numero">{{ c.impressions | num }}</td>

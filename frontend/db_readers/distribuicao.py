@@ -74,7 +74,7 @@ def _meta_rows(conn, codigo: str, start: date, end: date):
         text(
             "SELECT date, ad_name, spend, impressions, clicks, "
             "video_views_3s, video_views_25, video_views_50, video_views_75, video_views_100, video_thruplays "
-            "FROM meta_ads_daily WHERE lancamento_codigo = :codigo AND date BETWEEN :start AND :end"
+            "FROM meta_ads_daily WHERE lancamento_codigo = ANY(:codigo) AND date BETWEEN :start AND :end"
         ),
         {"codigo": codigo, "start": start, "end": end},
     ).fetchall()
@@ -85,7 +85,7 @@ def _google_rows(conn, codigo: str, start: date, end: date):
         text(
             "SELECT date, ad_name, cost, impressions, clicks, avg_cpv, "
             "video_views, video_views_25, video_views_50, video_views_75, video_views_100 "
-            "FROM google_ads_daily WHERE lancamento_codigo = :codigo AND date BETWEEN :start AND :end"
+            "FROM google_ads_daily WHERE lancamento_codigo = ANY(:codigo) AND date BETWEEN :start AND :end"
         ),
         {"codigo": codigo, "start": start, "end": end},
     ).fetchall()
@@ -96,7 +96,7 @@ def _tiktok_rows(conn, codigo: str, start: date, end: date):
         text(
             "SELECT date, ad_name, spend, impressions, clicks, video_plays, video_views_2s, video_views_6s, "
             "video_views_25, video_views_50, video_views_100, follows, profile_visits "
-            "FROM tiktok_ads_daily WHERE lancamento_codigo = :codigo AND date BETWEEN :start AND :end"
+            "FROM tiktok_ads_daily WHERE lancamento_codigo = ANY(:codigo) AND date BETWEEN :start AND :end"
         ),
         {"codigo": codigo, "start": start, "end": end},
     ).fetchall()
@@ -209,6 +209,10 @@ def read_distribuicao(username: str, days: int = 30, compare: bool = False, inic
     if not account:
         return None
     codigo = _codigo_from_name(account["name"])
+    # Perfil com backup (ex.: @braboconcursos é o perfil do Ivan Neto): o gasto está gravado sob o código de
+    # cada um e a página soma os dois, como o cartão de /lancamentos (_juntar_backups).
+    codigos = [codigo] + [_codigo_from_name(a["name"]) for a in _load_distribuicao_extra()
+                          if a.get("backup_de") == username]
 
     start, end, days, personalizado = resolver_periodo(days, inicio, fim)
     prev_end = start - timedelta(days=1)
@@ -216,12 +220,12 @@ def read_distribuicao(username: str, days: int = 30, compare: bool = False, inic
 
     try:
         with _get_engine().connect() as conn:
-            meta_rows = _meta_rows(conn, codigo, start, end)
-            google_rows = _google_rows(conn, codigo, start, end)
-            tiktok_rows = _tiktok_rows(conn, codigo, start, end)
-            prev_meta_rows = _meta_rows(conn, codigo, prev_start, prev_end) if compare else []
-            prev_google_rows = _google_rows(conn, codigo, prev_start, prev_end) if compare else []
-            prev_tiktok_rows = _tiktok_rows(conn, codigo, prev_start, prev_end) if compare else []
+            meta_rows = _meta_rows(conn, codigos, start, end)
+            google_rows = _google_rows(conn, codigos, start, end)
+            tiktok_rows = _tiktok_rows(conn, codigos, start, end)
+            prev_meta_rows = _meta_rows(conn, codigos, prev_start, prev_end) if compare else []
+            prev_google_rows = _google_rows(conn, codigos, prev_start, prev_end) if compare else []
+            prev_tiktok_rows = _tiktok_rows(conn, codigos, prev_start, prev_end) if compare else []
     except Exception:
         logger.exception("read_distribuicao: falha para %s", username)
         return None
@@ -234,6 +238,8 @@ def read_distribuicao(username: str, days: int = 30, compare: bool = False, inic
 
     result = {
         "username": username,
+        "codigo": codigo,
+        "codigos": codigos,
         "name": account.get("name"),
         "profile_url": (None if account.get("sem_instagram")
                         else f"https://instagram.com/{username}"),

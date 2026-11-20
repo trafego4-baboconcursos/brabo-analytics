@@ -569,6 +569,18 @@ def _build_distribuicao_nav_items(current_path: str, active_code: str | None) ->
             href += f"?launch_code={active_code}"
         items.append({"username": username, "label": account["name"], "href": href,
                       "active": current_path == f"/distribuicao/{username}", **_identidade_expert(account)})
+    # Perfis só da distribuição paga (sem Instagram). Quem tem `backup_de` (Ivan Neto) já soma no cartão do
+    # perfil principal e não ganha item próprio.
+    from frontend.db_readers.distribuicao import _load_distribuicao_extra  # noqa: PLC0415
+    for account in _load_distribuicao_extra():
+        if account.get("backup_de"):
+            continue
+        username = account["username"]
+        href = f"/distribuicao/{username}"
+        if active_code:
+            href += f"?launch_code={active_code}"
+        items.append({"username": username, "label": account["name"], "href": href,
+                      "active": current_path == f"/distribuicao/{username}", **_identidade_expert(account)})
     return items
 
 

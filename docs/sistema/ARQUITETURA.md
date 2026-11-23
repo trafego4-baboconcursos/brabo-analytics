@@ -2,7 +2,7 @@
 titulo: "Arquitetura do Brabo Analytics — 2026-11-03"
 area: sistema
 status: vigente
-atualizado: 2026-11-18
+atualizado: 2026-11-23
 responde:
   - "onde fica o monitor de boas-vindas no dia de abertura do carrinho"
   - "por que comprador nao recebeu o email de boas-vindas"
@@ -455,8 +455,7 @@ relacionados:
 
 <!-- SUMARIO:FIM -->
 
-Estado atual da arquitetura após as sessões de refatoração de 2026-06-23 e 2026-06-25, o God Module Split
-(S1–S9, 2026-07-02) e a remoção do shim `database_reader.py` (S10, 2026-09-15).
+Estado atual da arquitetura após as sessões de refatoração de 2026-06-23 e 2026-06-25, o God Module Split (S1–S9, 2026-07-02) e a remoção do shim `database_reader.py` (S10, 2026-09-15).
 
 ---
 
@@ -579,10 +578,7 @@ workspace-mmm/
 
 ## God Module Split (S1–S9 em 2026-07-01; encerrado em 2026-09-15)
 
-O `database_reader.py` original tinha **4.180 linhas e 74 funções** em um único arquivo. O split incremental
-preservou 100% de compatibilidade porque `database_reader.py` seguiu re-exportando tudo — nenhum caller
-(especialmente `core.py`) precisou mudar durante as sessões S1–S9. Em S10 o shim foi removido e os callers
-passaram a importar de `frontend.db_readers`.
+O `database_reader.py` original tinha **4.180 linhas e 74 funções** em um único arquivo. O split incremental preservou 100% de compatibilidade porque `database_reader.py` seguiu re-exportando tudo — nenhum caller (especialmente `core.py`) precisou mudar durante as sessões S1–S9. Em S10 o shim foi removido e os callers passaram a importar de `frontend.db_readers`.
 
 | Sessão | O que foi extraído | Resultado |
 |--------|--------------------|-----------|
@@ -613,31 +609,15 @@ O `database_reader.py` **não existe mais**. As três coisas que ainda moravam n
 | `read_youtube_aulas` | `frontend/db_readers/youtube_aulas.py` (já existia) |
 | `KNOWN_META_ACCOUNTS` / `KNOWN_GOOGLE_ACCOUNTS` | `frontend/ad_accounts.py` — onde a docstring já dizia que era o lugar delas |
 
-`frontend/db_readers/__init__.py` deixou de ser `from frontend.database_reader import *` e passou a listar
-explicitamente o que exporta, então `from frontend.db_readers import read_meta` continua funcionando sem
-que ninguém dependa do arquivo onde a função mora.
+`frontend/db_readers/__init__.py` deixou de ser `from frontend.database_reader import *` e passou a listar explicitamente o que exporta, então `from frontend.db_readers import read_meta` continua funcionando sem que ninguém dependa do arquivo onde a função mora.
 
-**`frontend/db_readers/nomenclatura.py` (novo; virou re-export de `src/nomenclatura.py` em 21/09/26 —
-ver a seção "Nome de campanha congelado" abaixo).** A classificação de campanha pelo nome (etapa, temperatura,
-bucket, segmento) estava duplicada entre `ads_meta.py` e `ads_google.py`: `BUCKET_MAP` e `MODIFIER_MAP` eram
-byte a byte idênticos nos dois, e o laço de classificação era quase igual. Os mapas de **etapa** e
-**temperatura**, esses sim, diferem de propósito (o Meta casa a chave entre colchetes e lista `aula 1..4`
-uma a uma; o Google casa por substring e tem `Performance Max`) — e continuam separados, agora com o motivo
-escrito ao lado.
+**`frontend/db_readers/nomenclatura.py` (novo; virou re-export de `src/nomenclatura.py` em 21/09/26 — ver a seção "Nome de campanha congelado" abaixo).** A classificação de campanha pelo nome (etapa, temperatura, bucket, segmento) estava duplicada entre `ads_meta.py` e `ads_google.py`: `BUCKET_MAP` e `MODIFIER_MAP` eram byte a byte idênticos nos dois, e o laço de classificação era quase igual. Os mapas de **etapa** e **temperatura**, esses sim, diferem de propósito (o Meta casa a chave entre colchetes e lista `aula 1..4` uma a uma; o Google casa por substring e tem `Performance Max`) — e continuam separados, agora com o motivo escrito ao lado.
 
-Isso também desfez o ciclo `sales` ↔ `ads_meta`: `sales` importava `_categorize_campaign` de `ads_meta`, que
-por sua vez precisava de `read_vendas` de volta. Hoje os dois dependem de `nomenclatura`, que é folha, e
-`ads_meta`/`ads_google` importam `sales` normalmente, no topo do módulo.
+Isso também desfez o ciclo `sales` ↔ `ads_meta`: `sales` importava `_categorize_campaign` de `ads_meta`, que por sua vez precisava de `read_vendas` de volta. Hoje os dois dependem de `nomenclatura`, que é folha, e `ads_meta`/`ads_google` importam `sales` normalmente, no topo do módulo.
 
-**Ciclo que continua existindo:** `sales` → `launches` → `typeform` → `sales`. `discover_launches` precisa
-saber se o lançamento tem pesquisa (typeform), `typeform` precisa de `read_vendas`, e `sales` precisa de
-`read_launch_config`. Essas três dependências seguem importadas dentro das funções, e o motivo está escrito
-na docstring de cada uma. Desfazer exigiria tirar `_resolve_typeform_ids` de `typeform.py`.
+**Ciclo que continua existindo:** `sales` → `launches` → `typeform` → `sales`. `discover_launches` precisa saber se o lançamento tem pesquisa (typeform), `typeform` precisa de `read_vendas`, e `sales` precisa de `read_launch_config`. Essas três dependências seguem importadas dentro das funções, e o motivo está escrito na docstring de cada uma. Desfazer exigiria tirar `_resolve_typeform_ids` de `typeform.py`.
 
-**Equivalência provada, não presumida:** `tests/test_nomenclatura.py` roda a implementação nova contra uma
-fixture gerada com a implementação antiga sobre **todas as 837 campanhas distintas que existem no banco**
-(470 Meta × 2 modos de `legacy`, 367 Google). São 1.311 casos; qualquer divergência de classificação em
-campanha real derruba o teste.
+**Equivalência provada, não presumida:** `tests/test_nomenclatura.py` roda a implementação nova contra uma fixture gerada com a implementação antiga sobre **todas as 837 campanhas distintas que existem no banco** (470 Meta × 2 modos de `legacy`, 367 Google). São 1.311 casos; qualquer divergência de classificação em campanha real derruba o teste.
 
 **Estado de `core.py` após S8:** 689 linhas.
 
@@ -653,15 +633,9 @@ campanha real derruba o teste.
 
 ## Banco operacional fora do ar: a página culpa Meta e Google (2026-10-01)
 
-**O sintoma mente.** Com `SUPABASE_USERS_URL` inválido, toda página mostra
-`Falha ao carregar: Meta Ads, Google Ads` — exatamente os dois que estão bem. O analytics
-responde normal; quem caiu é o operacional.
+**O sintoma mente.** Com `SUPABASE_USERS_URL` inválido, toda página mostra `Falha ao carregar: Meta Ads, Google Ads` — exatamente os dois que estão bem. O analytics responde normal; quem caiu é o operacional.
 
-**Por que a culpa cai no inocente.** `_meta()`/`_google()` em `services/fetch.py` começam por
-`_window(launch)`, que lê `launch_config` — tabela do banco **operacional**. Sem a janela de
-datas os dois leitores estouram, e o `_errors` que a página exibe nomeia o leitor que falhou,
-não a dependência que faltou. O debriefing ainda parece íntegro porque serve o
-`debriefing_snapshot` (analytics), então a tela fica convincente enquanto nada ao vivo funciona.
+**Por que a culpa cai no inocente.** `_meta()`/`_google()` em `services/fetch.py` começam por `_window(launch)`, que lê `launch_config` — tabela do banco **operacional**. Sem a janela de datas os dois leitores estouram, e o `_errors` que a página exibe nomeia o leitor que falhou, não a dependência que faltou. O debriefing ainda parece íntegro porque serve o `debriefing_snapshot` (analytics), então a tela fica convincente enquanto nada ao vivo funciona.
 
 **`/health` é a única fonte honesta** — ele testa as duas conexões em separado:
 
@@ -669,222 +643,97 @@ não a dependência que faltou. O debriefing ainda parece íntegro porque serve 
 {"status":"degraded","db_analytics":"ok","db_operational":"error","launches_cached":14}
 ```
 
-Checar isso primeiro economiza o diagnóstico inteiro. Sinais de apoio, todos efeito e não causa:
-`/debriefing?ao_vivo=1` em 500, abas Hotmart/TMB desabilitadas no subnav (o `discover_launches`
-não acha linha nas tabelas de venda) e KPI de receita vazio.
+Checar isso primeiro economiza o diagnóstico inteiro. Sinais de apoio, todos efeito e não causa: `/debriefing?ao_vivo=1` em 500, abas Hotmart/TMB desabilitadas no subnav (o `discover_launches` não acha linha nas tabelas de venda) e KPI de receita vazio.
 
-**Senha com `#` quebra em dois lugares diferentes** e nenhum erro menciona senha. No `.env` o
-`dotenv` trata `#` como início de comentário e trunca o valor; na URL o `#` é o delimitador de
-fragmento, então `urlparse` corta a senha e tenta ler o resto como porta — o erro que aparece é
-`Port could not be cast to integer value as '<pedaço da senha>'`. **Aspas não resolvem** (o
-problema é o parser de URL, não o dotenv): a senha tem de ir percent-encoded, `#` → `%23`. Vale
-para o `.env` local **e** para a variável no EasyPanel. Ver [[RESTAURAR_MAQUINA_NOVA]].
+**Senha com `#` quebra em dois lugares diferentes** e nenhum erro menciona senha. No `.env` o `dotenv` trata `#` como início de comentário e trunca o valor; na URL o `#` é o delimitador de fragmento, então `urlparse` corta a senha e tenta ler o resto como porta — o erro que aparece é `Port could not be cast to integer value as '<pedaço da senha>'`. **Aspas não resolvem** (o problema é o parser de URL, não o dotenv): a senha tem de ir percent-encoded, `#` → `%23`. Vale para o `.env` local **e** para a variável no EasyPanel. Ver [[RESTAURAR_MAQUINA_NOVA]].
 
-**`/vendas` não serve de termômetro:** é página da era CSV e pede
-`analises/[LANCAMENTO]/Vendas/hotmart*.csv`; não lê o banco. "Sem dados" ali é o normal dela,
-não incidente. Venda de verdade está no `/debriefing`, no `/hotmart` e no `/afiliados`.
+**`/vendas` não serve de termômetro:** é página da era CSV e pede `analises/[LANCAMENTO]/Vendas/hotmart*.csv`; não lê o banco. "Sem dados" ali é o normal dela, não incidente. Venda de verdade está no `/debriefing`, no `/hotmart` e no `/afiliados`.
 
 ---
 
 ## Operação de ads — `scripts/ads/` (2026-09-29)
 
-Cada operação nas plataformas (trocar público, verba, data de fim, status, subir lista) era refeita num script
-temporário que sumia no fim da conversa — e os erros se repetiam (helper que engolia HTTP 4xx e devolvia vazio,
-dict sem `json.dumps` no payload do Meta, pixel faltando em anúncio replicado, lista do Google com duração 0).
-Virou um pacote no repositório:
+Cada operação nas plataformas (trocar público, verba, data de fim, status, subir lista) era refeita num script temporário que sumia no fim da conversa — e os erros se repetiam (helper que engolia HTTP 4xx e devolvia vazio, dict sem `json.dumps` no payload do Meta, pixel faltando em anúncio replicado, lista do Google com duração 0). Virou um pacote no repositório:
 
 - `scripts/ads/padroes.py` — valores fixos (contas, pixels, páginas, UTM, idade, geo, regulação BR, pisos de verba).
-- `scripts/ads/meta.py` — cliente da Marketing API que **falha alto** (`MetaErro` com subcode e explicação),
-  serializa sozinho campos aninhados e traz operações que conferem o resultado: targeting lido-alterado-devolvido
-  inteiro, status e fim nos 3 níveis, verba com piso, usersreplace, criativo com UTM em `url_tags`, anúncio sempre
-  com pixel no `tracking_specs`.
-- `scripts/ads/google.py` — cliente REST do Google Ads + Data Manager (`GoogleErro`; recusa mutar VIDEO com
-  `ManualObrigatorio`; verba só em orçamento próprio; exclusão no resource Audience; Customer Match com MCC).
-- `scripts/ads/conferir.py` — `python -m scripts.ads.conferir BV-26`: checklist do padrão em todas as campanhas
-  de um lançamento, só leitura. Na primeira rodada achou 19 anúncios do BV-26 sem pixel e 6 Demand Gen sem região.
+- `scripts/ads/meta.py` — cliente da Marketing API que **falha alto** (`MetaErro` com subcode e explicação), serializa sozinho campos aninhados e traz operações que conferem o resultado: targeting lido-alterado-devolvido inteiro, status e fim nos 3 níveis, verba com piso, usersreplace, criativo com UTM em `url_tags`, anúncio sempre com pixel no `tracking_specs`.
+- `scripts/ads/google.py` — cliente REST do Google Ads + Data Manager (`GoogleErro`; recusa mutar VIDEO com `ManualObrigatorio`; verba só em orçamento próprio; exclusão no resource Audience; Customer Match com MCC).
+- `scripts/ads/conferir.py` — `python -m scripts.ads.conferir BV-26`: checklist do padrão em todas as campanhas de um lançamento, só leitura. Na primeira rodada achou 19 anúncios do BV-26 sem pixel e 6 Demand Gen sem região.
 - Testes das partes puras em `tests/test_ads.py`. Uso e regras: `docs/performance/playbooks/MANUAL_OPERACAO_ADS.md`.
-- `scripts/orcamento.py <LANC>` — previsto × realizado de verba de qualquer lançamento: lê o bloco `CONFIG`
-  (contas, início, etapas pelo nome da campanha) e a tabela `PLANO` do `ORCAMENTO_<LANC>.md`, busca o gasto e a
-  verba ao vivo e reescreve as seções geradas do doc. Substituiu o `bv26_orcamento.py` (29/09), com saída idêntica.
-  Molde em `docs/performance/playbooks/MODELO_ORCAMENTO.md`.
-- `scripts/ajustar_verba_lista.py` + `.github/workflows/bv-26-verba-cheia.yml` (2026-10-09) — verba diária agendada: o
-  workflow roda **todo dia às 00h05 (Brasília)** e aplica cada `config/orcamentos/BV-26-*.json` cujo `aplicar_em` é o dia
-  (outro dia = sai sem fazer nada); relê cada campanha e **falha o job** se alguma não bater. Uso típico: campanha ativada
-  com verba proporcional às horas restantes → plano com a cheia para D+1, commitado **e com push** antes da meia-noite
-  (o Actions só enxerga o que está na `main`; `config/orcamentos/` é rastreado). Primeira rodada diária: 10/10/26, 20 campanhas.
+- `scripts/orcamento.py <LANC>` — previsto × realizado de verba de qualquer lançamento: lê o bloco `CONFIG` (contas, início, etapas pelo nome da campanha) e a tabela `PLANO` do `ORCAMENTO_<LANC>.md`, busca o gasto e a verba ao vivo e reescreve as seções geradas do doc. Substituiu o `bv26_orcamento.py` (29/09), com saída idêntica. Molde em `docs/performance/playbooks/MODELO_ORCAMENTO.md`.
+- `scripts/ajustar_verba_lista.py` + `.github/workflows/bv-26-verba-cheia.yml` (2026-10-09) — verba diária agendada: o workflow roda **todo dia às 00h05 (Brasília)** e aplica cada `config/orcamentos/BV-26-*.json` cujo `aplicar_em` é o dia (outro dia = sai sem fazer nada); relê cada campanha e **falha o job** se alguma não bater. Uso típico: campanha ativada com verba proporcional às horas restantes → plano com a cheia para D+1, commitado **e com push** antes da meia-noite (o Actions só enxerga o que está na `main`; `config/orcamentos/` é rastreado). Primeira rodada diária: 10/10/26, 20 campanhas.
 
 ## Engajamento de e-mail desce ao contato — e vira venda (2026-09-22)
 
-`ac_campaigns` guarda só o agregado da campanha (envios, aberturas, cliques), então
-`/crm-campanhas` não tinha como ligar e-mail a venda: faltava **quem** recebeu.
+`ac_campaigns` guarda só o agregado da campanha (envios, aberturas, cliques), então `/crm-campanhas` não tinha como ligar e-mail a venda: faltava **quem** recebeu.
 
-**Onde o AC entrega o contato.** `/campaigns/{id}/links` lista os links da campanha e
-`/linkData?filters[linkid]=` devolve quem tocou em cada link — a mesma porta que
-`etl_ac_ebook.py` já usava para o PDF do guia. O `contact_id` do AC **é** o `leads.id`
-(casou 1:1 em 14.014 registros no PES-SET-26), e daí `leads.email` chega no comprador.
+**Onde o AC entrega o contato.** `/campaigns/{id}/links` lista os links da campanha e `/linkData?filters[linkid]=` devolve quem tocou em cada link — a mesma porta que `etl_ac_ebook.py` já usava para o PDF do guia. O `contact_id` do AC **é** o `leads.id` (casou 1:1 em 14.014 registros no PES-SET-26), e daí `leads.email` chega no comprador.
 
-**O link que não é link.** A URL literal `"open"` é o pixel de abertura, não um clique.
-Tratar os dois juntos infla "clique" em 10-30x: a campanha "Agenda de Mentoria" (01/09)
-tem 0 cliques reais e 2.232 aberturas. `etl_ac_engajamento.py` separa por
-`link == "open"` e grava duas colunas booleanas; conferido contra o agregado que já
-existia, os cliques únicos batem (141 de 179 totais, 61 de 75, 158 de 200 — a diferença
-é o mesmo contato clicando de novo).
+**O link que não é link.** A URL literal `"open"` é o pixel de abertura, não um clique. Tratar os dois juntos infla "clique" em 10-30x: a campanha "Agenda de Mentoria" (01/09) tem 0 cliques reais e 2.232 aberturas. `etl_ac_engajamento.py` separa por `link == "open"` e grava duas colunas booleanas; conferido contra o agregado que já existia, os cliques únicos batem (141 de 179 totais, 61 de 75, 158 de 200 — a diferença é o mesmo contato clicando de novo).
 
-**Tabela `ac_campaign_engajamento`** — PK `(lancamento_codigo, campaign_id, contact_id)`,
-colunas `email`/`abriu`/`clicou`. Criada pelo próprio ETL (`CREATE TABLE IF NOT EXISTS`),
-como a do ebook, e não está no `schema.sql`. Guarda contato a contato de propósito: agregar
-no ETL congelaria a contagem de compradores no instante da coleta, e durante carrinho aberto
-ela muda a cada hora. O upsert é `DELETE` do lançamento + `append`.
+**Tabela `ac_campaign_engajamento`** — PK `(lancamento_codigo, campaign_id, contact_id)`, colunas `email`/`abriu`/`clicou`. Criada pelo próprio ETL (`CREATE TABLE IF NOT EXISTS`), como a do ebook, e não está no `schema.sql`. Guarda contato a contato de propósito: agregar no ETL congelaria a contagem de compradores no instante da coleta, e durante carrinho aberto ela muda a cada hora. O upsert é `DELETE` do lançamento + `append`.
 
-**Por que o e-mail é resolvido no ETL, e não na página.** A primeira versão fazia
-`JOIN leads l ON l.id = e.contact_id` na leitura, como `read_ebook_compradores` faz até
-hoje. `leads` tem **3,97 milhões de linhas**, e o plano depende do tamanho do lado
-esquerdo: com 22 mil linhas (PBB-AGO-26) o Postgres mantinha o index scan em `leads_pkey`
-e respondia em 0,4 s; com 70 mil (PI-AGO-26) ele troca por **seq scan da tabela inteira** e
-estoura o `statement_timeout` de 30 s. Era isso que fazia o bug parecer intermitente — o
-PES-SET-26 passou no teste isolado e quebrou quando os três rodaram juntos.
+**Por que o e-mail é resolvido no ETL, e não na página.** A primeira versão fazia `JOIN leads l ON l.id = e.contact_id` na leitura, como `read_ebook_compradores` faz até hoje. `leads` tem **3,97 milhões de linhas**, e o plano depende do tamanho do lado esquerdo: com 22 mil linhas (PBB-AGO-26) o Postgres mantinha o index scan em `leads_pkey` e respondia em 0,4 s; com 70 mil (PI-AGO-26) ele troca por **seq scan da tabela inteira** e estoura o `statement_timeout` de 30 s. Era isso que fazia o bug parecer intermitente — o PES-SET-26 passou no teste isolado e quebrou quando os três rodaram juntos.
 
-Nem chunking resolve: lookup por PK em página fria (contato antigo) custa muito mais que os
-~4 ms do caso quente, e 36 mil deles davam ~150 s. Com o e-mail gravado na linha, a página
-lê só `ac_campaign_engajamento` (106 mil linhas, índice em `email`) e **nunca toca em
-`leads`**. O custo foi para o job de hora em hora, que resolve os 36 mil contatos em 41 s
-em lotes de 500 com `statement_timeout` elevado para 300 s — os 30 s de `src/db_engine.py`
-são o limite certo para uma página web, não para um batch que ninguém está esperando. O ETL
-**estoura em vez de devolver mapa parcial**: linha sem e-mail sairia do cruzamento em
-silêncio e o número apareceria menor na página sem nenhum sinal de que faltou dado.
+Nem chunking resolve: lookup por PK em página fria (contato antigo) custa muito mais que os ~4 ms do caso quente, e 36 mil deles davam ~150 s. Com o e-mail gravado na linha, a página lê só `ac_campaign_engajamento` (106 mil linhas, índice em `email`) e **nunca toca em `leads`**. O custo foi para o job de hora em hora, que resolve os 36 mil contatos em 41 s em lotes de 500 com `statement_timeout` elevado para 300 s — os 30 s de `src/db_engine.py` são o limite certo para uma página web, não para um batch que ninguém está esperando. O ETL **estoura em vez de devolver mapa parcial**: linha sem e-mail sairia do cruzamento em silêncio e o número apareceria menor na página sem nenhum sinal de que faltou dado.
 
-`read_ebook_compradores` tem o mesmo join e passa só porque `ac_ebook_clicks` tem 6,5 mil
-linhas — é a mesma armadilha esperando a tabela crescer.
+`read_ebook_compradores` tem o mesmo join e passa só porque `ac_ebook_clicks` tem 6,5 mil linhas — é a mesma armadilha esperando a tabela crescer.
 
-**A coleta é incremental, senão o scheduler nunca a terminaria.** `run_all.py` mata qualquer
-fonte em 900 s, e a primeira passada do PI-AGO-26 (46 campanhas, contato a contato) leva
-24 min — a fonte morreria no meio a cada hora e **não completaria uma vez sequer**. Duas
-medidas: `_TIMEOUTS_POR_FONTE["ac_engajamento"] = 3600` para a primeira passada, e
-`campanhas_do_lancamento()` só recoleta campanha **enviada nos últimos 14 dias ou ainda sem
-linha gravada** — abertura de e-mail de 30 dias atrás não se move mais. O PI cai de 46 para
-17 campanhas por rodada (as de engajamento zero, que não gravam linha e são baratas). O
-`DELETE` do upsert é escopado nas campanhas regravadas; um `DELETE` do lançamento inteiro
-levaria junto exatamente as antigas que a regra decidiu preservar. `--tudo` força a
-recoleta completa.
+**A coleta é incremental, senão o scheduler nunca a terminaria.** `run_all.py` mata qualquer fonte em 900 s, e a primeira passada do PI-AGO-26 (46 campanhas, contato a contato) leva 24 min — a fonte morreria no meio a cada hora e **não completaria uma vez sequer**. Duas medidas: `_TIMEOUTS_POR_FONTE["ac_engajamento"] = 3600` para a primeira passada, e `campanhas_do_lancamento()` só recoleta campanha **enviada nos últimos 14 dias ou ainda sem linha gravada** — abertura de e-mail de 30 dias atrás não se move mais. O PI cai de 46 para 17 campanhas por rodada (as de engajamento zero, que não gravam linha e são baratas). O `DELETE` do upsert é escopado nas campanhas regravadas; um `DELETE` do lançamento inteiro levaria junto exatamente as antigas que a regra decidiu preservar. `--tudo` força a recoleta completa.
 
-**Seleção de campanha ficou em um lugar só.** Campanha de e-mail quase nunca traz o código
-do lançamento no nome (`ac_campaigns.lancamento_codigo` é NULL em 3.325 de 3.325), então o
-vínculo sai de data de envio + palavra do produto no nome. Essa regra estava inline no
-leitor; virou `ac_keywords()` em `src/constants.py`, usada também pelo ETL — se as duas
-divergirem, a página mostra campanha que o ETL não coletou.
+**Seleção de campanha ficou em um lugar só.** Campanha de e-mail quase nunca traz o código do lançamento no nome (`ac_campaigns.lancamento_codigo` é NULL em 3.325 de 3.325), então o vínculo sai de data de envio + palavra do produto no nome. Essa regra estava inline no leitor; virou `ac_keywords()` em `src/constants.py`, usada também pelo ETL — se as duas divergirem, a página mostra campanha que o ETL não coletou.
 
-**`read_ac_campaigns` passou a precisar de `vendas`**, então saiu da primeira rodada do
-`asyncio.gather` em `services/fetch.py` e foi para a segunda, junto de `f_leads`, onde
-`vendas` já está resolvido — em vez de disparar um `read_vendas` concorrente.
+**`read_ac_campaigns` passou a precisar de `vendas`**, então saiu da primeira rodada do `asyncio.gather` em `services/fetch.py` e foi para a segunda, junto de `f_leads`, onde `vendas` já está resolvido — em vez de disparar um `read_vendas` concorrente.
 
-**O número é sobreposição, não atribuição.** Quem abriu seis e-mails conta nos seis;
-somar as colunas por campanha dá muito mais que o total de vendas. O total sem repetição
-vem de `_ac_totais_compradores`, com consulta própria e `BOOL_OR` por e-mail, e a nota
-abaixo da tabela diz isso ao leitor.
+**O número é sobreposição, não atribuição.** Quem abriu seis e-mails conta nos seis; somar as colunas por campanha dá muito mais que o total de vendas. O total sem repetição vem de `_ac_totais_compradores`, com consulta própria e `BOOL_OR` por e-mail, e a nota abaixo da tabela diz isso ao leitor.
 
 ---
 
 ## Nome de campanha congelado e etapa gravada na escrita (2026-09-21)
 
-**O bug.** O upsert dos dois ETLs é `DELETE` da faixa de datas + `append`. Um backfill sobre período
-antigo regravava as linhas com o nome **atual** da campanha na API, então `campaign_name` significava
-"nome na última vez que o ETL rodou", não "nome durante o lançamento". Quando uma campanha é
-reaproveitada num lançamento novo e renomeada, o histórico do lançamento antigo passa a exibir o código
-do lançamento novo.
+**O bug.** O upsert dos dois ETLs é `DELETE` da faixa de datas + `append`. Um backfill sobre período antigo regravava as linhas com o nome **atual** da campanha na API, então `campaign_name` significava "nome na última vez que o ETL rodou", não "nome durante o lançamento". Quando uma campanha é reaproveitada num lançamento novo e renomeada, o histórico do lançamento antigo passa a exibir o código do lançamento novo.
 
-Aconteceu: o backfill de 18/09/26 regravou 4.579 linhas de maio, e R$ 74 mil de Captação do PES-MAI-26
-passaram a aparecer como `[GA][...][old][PES-SET-26][04.09.26]`. No banco inteiro eram 4 campanhas com
-dois nomes (R$ 205 mil, que se partiam em duas nas visões por campanha) e 10 do PBB-JUN-26 com o
-histórico inteiro regravado (R$ 41 mil).
+Aconteceu: o backfill de 18/09/26 regravou 4.579 linhas de maio, e R$ 74 mil de Captação do PES-MAI-26 passaram a aparecer como `[GA][...][old][PES-SET-26][04.09.26]`. No banco inteiro eram 4 campanhas com dois nomes (R$ 205 mil, que se partiam em duas nas visões por campanha) e 10 do PBB-JUN-26 com o histórico inteiro regravado (R$ 41 mil).
 
 **A correção.** `etl/campanha_historico.py`, chamado pelos dois `upsert()` **antes** do DELETE:
 
-1. lê o nome já gravado para cada `(campaign_id, date)` da faixa e devolve esse nome nas linhas que já
-   existiam — linha nova recebe o nome atual, normalmente;
+1. lê o nome já gravado para cada `(campaign_id, date)` da faixa e devolve esse nome nas linhas que já existiam — linha nova recebe o nome atual, normalmente;
 2. grava `etapa`/`temperatura`/`segmento` (e `bucket`, no Meta) derivados do nome **congelado**.
 
-O passo 2 fecha um risco que ainda não tinha estourado: a classificação era calculada em tempo de leitura
-sobre o nome vigente, então uma campanha reaproveitada que trocasse de etapa no nome
-(`[captação]` → `[matrículas abertas]`) reclassificaria todo o histórico em silêncio.
+O passo 2 fecha um risco que ainda não tinha estourado: a classificação era calculada em tempo de leitura sobre o nome vigente, então uma campanha reaproveitada que trocasse de etapa no nome (`[captação]` → `[matrículas abertas]`) reclassificaria todo o histórico em silêncio.
 
-**`campaign_id` não é chave de lançamento.** Serve para identidade e só para isso: 14 campanhas
-atravessam dois lançamentos (a mesma campanha tem gasto em maio no PES-MAI-26 e em setembro no
-PES-SET-26). Quem resolve lançamento continua sendo `(nome, data)` em `launch_resolver.py`.
+**`campaign_id` não é chave de lançamento.** Serve para identidade e só para isso: 14 campanhas atravessam dois lançamentos (a mesma campanha tem gasto em maio no PES-MAI-26 e em setembro no PES-SET-26). Quem resolve lançamento continua sendo `(nome, data)` em `launch_resolver.py`.
 
-**Escape.** `--renomear-campanhas` nos dois ETLs desliga o congelamento, para quando o nome mudou porque
-estava **errado** e a correção deve mesmo se propagar para trás.
+**Escape.** `--renomear-campanhas` nos dois ETLs desliga o congelamento, para quando o nome mudou porque estava **errado** e a correção deve mesmo se propagar para trás.
 
-**Onde o módulo mora.** `nomenclatura.py` saiu de `frontend/db_readers/` para `src/`, junto de
-`constants.py` e `ad_codes.py` — ETL e frontend precisam da mesma função, e ETL não deve importar de
-`frontend/`. `frontend/db_readers/nomenclatura.py` continua existindo como re-export, porque oito pontos
-do frontend e o `etl/budget_alert.py` importam de lá.
+**Onde o módulo mora.** `nomenclatura.py` saiu de `frontend/db_readers/` para `src/`, junto de `constants.py` e `ad_codes.py` — ETL e frontend precisam da mesma função, e ETL não deve importar de `frontend/`. `frontend/db_readers/nomenclatura.py` continua existindo como re-export, porque oito pontos do frontend e o `etl/budget_alert.py` importam de lá.
 
-**Leitura tolerante à ordem de deploy.** `frontend/db_readers/classificacao.py` monta o `SELECT` só com
-as colunas que existem (`frontend/db.py::colunas_da_tabela`, cacheado por processo) e calcula pelo nome
-as linhas que ainda estão com `NULL`. Sem isso, subir o código antes de rodar a migração derrubaria todas
-as páginas de anúncio de uma vez.
+**Leitura tolerante à ordem de deploy.** `frontend/db_readers/classificacao.py` monta o `SELECT` só com as colunas que existem (`frontend/db.py::colunas_da_tabela`, cacheado por processo) e calcula pelo nome as linhas que ainda estão com `NULL`. Sem isso, subir o código antes de rodar a migração derrubaria todas as páginas de anúncio de uma vez.
 
-**Escrita tolerante à ordem de deploy, também.** `preparar()` descarta as colunas de classificação
-que a tabela ainda não tem. Sem isso o ETL quebraria de hora em hora: `to_sql` monta o INSERT com
-**todas** as colunas do DataFrame, e o código foi para a `main` antes da migração rodar. O
-congelamento de nome, que não depende de coluna nova, morreria junto. A lição é que o guard tem de
-vir no **mesmo commit** que passa a gravar a coluna — deploy e migração não são atômicos.
+**Escrita tolerante à ordem de deploy, também.** `preparar()` descarta as colunas de classificação que a tabela ainda não tem. Sem isso o ETL quebraria de hora em hora: `to_sql` monta o INSERT com **todas** as colunas do DataFrame, e o código foi para a `main` antes da migração rodar. O congelamento de nome, que não depende de coluna nova, morreria junto. A lição é que o guard tem de vir no **mesmo commit** que passa a gravar a coluna — deploy e migração não são atômicos.
 
-**Migração:** `scripts/migrar_classificacao_campanhas.py` (`--dry-run` mostra, sem argumento aplica).
-Cria as colunas, restaura o nome histórico e preenche a classificação do que já está gravado.
-**Aplicada em 21/09/26:** 2.174 linhas do PES-MAI-26 e 1.540 da distribuição voltaram ao nome de
-época, 211.102 linhas classificadas, zero `etapa` nula, e o gasto por etapa ficou idêntico ao de
-antes — nenhum dinheiro mudou de linha, que é o esperado, já que a função de classificação é a
-mesma dos dois lados.
+**Migração:** `scripts/migrar_classificacao_campanhas.py` (`--dry-run` mostra, sem argumento aplica). Cria as colunas, restaura o nome histórico e preenche a classificação do que já está gravado. **Aplicada em 21/09/26:** 2.174 linhas do PES-MAI-26 e 1.540 da distribuição voltaram ao nome de época, 211.102 linhas classificadas, zero `etapa` nula, e o gasto por etapa ficou idêntico ao de antes — nenhum dinheiro mudou de linha, que é o esperado, já que a função de classificação é a mesma dos dois lados.
 
-**A regra de qual nome vale.** Não é "o nome da data mais antiga" — o dry-run provou que erra. Na campanha
-de distribuição do Felipe Graton o prefixo `[OLD]` foi posto em 25/08/26 e um backfill já tinha regravado
-as linhas mais antigas com ele, enquanto linhas de dezembro escritas uma hora antes ainda tinham o nome
-original. Vale a **era de nome**: cada nome distinto começa no `updated_at` mais antigo em que aparece, e
-a linha de data `D` carrega o nome da era que continha `D`. Quem foi escrito primeiro é que guarda o nome
-de época; a data do dado não diz nada sobre isso.
+**A regra de qual nome vale.** Não é "o nome da data mais antiga" — o dry-run provou que erra. Na campanha de distribuição do Felipe Graton o prefixo `[OLD]` foi posto em 25/08/26 e um backfill já tinha regravado as linhas mais antigas com ele, enquanto linhas de dezembro escritas uma hora antes ainda tinham o nome original. Vale a **era de nome**: cada nome distinto começa no `updated_at` mais antigo em que aparece, e a linha de data `D` carrega o nome da era que continha `D`. Quem foi escrito primeiro é que guarda o nome de época; a data do dado não diz nada sobre isso.
 
 ### Perfil de classificação da Black (2026-09-21)
 
-A Black Vitálicia é um funil diferente do lançamento normal e não cabe no mesmo vocabulário:
-tem etapa **Aquecimento** (inexistente no normal), públicos **Aluno / Super Quente / Novo**
-(em vez de Quente / Frio / Específico) e formatos **Volume / Carrossel / Trio**. Forçá-la no
-mapa normal jogava tudo em "Outros" (foi o caso do BV-25) ou, se as chaves fossem adicionadas
-ao mapa global, contaminaria a classificação dos lançamentos que rodam hoje.
+A Black Vitálicia é um funil diferente do lançamento normal e não cabe no mesmo vocabulário: tem etapa **Aquecimento** (inexistente no normal), públicos **Aluno / Super Quente / Novo** (em vez de Quente / Frio / Específico) e formatos **Volume / Carrossel / Trio**. Forçá-la no mapa normal jogava tudo em "Outros" (foi o caso do BV-25) ou, se as chaves fossem adicionadas ao mapa global, contaminaria a classificação dos lançamentos que rodam hoje.
 
-Solução: um **perfil por tipo de lançamento**, escolhido pelo código (`_is_black()` = começa com
-`BV`), em `src/nomenclatura.py`. `categorizar_campanha_meta`/`google` recebem `launch_code` e, se
-Black, usam `ETAPA_MAP_BLACK` / `TEMPERATURA_MAP_BLACK` / `BUCKET_MAP_BLACK` — que cobrem as duas
-grafias da Black: o **BV-25** (etapa no objetivo: `[CADASTRO]`=Captação, `[ENGAJAMENTO]`/Base
-Forte=Aquecimento, `[RECONHECIMENTO]`=Lembrete, `[VENDAS]`=Matrículas) e o **BV-26** (etapa direta:
-`[aquecimento][captação][lembrete][matrículas]`). Só o perfil Black usa fallback por substring em
-temperatura/bucket — o `legacy` normal continua fazendo fallback só de etapa, como antes.
+Solução: um **perfil por tipo de lançamento**, escolhido pelo código (`_is_black()` = começa com `BV`), em `src/nomenclatura.py`. `categorizar_campanha_meta`/`google` recebem `launch_code` e, se Black, usam `ETAPA_MAP_BLACK` / `TEMPERATURA_MAP_BLACK` / `BUCKET_MAP_BLACK` — que cobrem as duas grafias da Black: o **BV-25** (etapa no objetivo: `[CADASTRO]`=Captação, `[ENGAJAMENTO]`/Base Forte=Aquecimento, `[RECONHECIMENTO]`=Lembrete, `[VENDAS]`=Matrículas) e o **BV-26** (etapa direta: `[aquecimento][captação][lembrete][matrículas]`). Só o perfil Black usa fallback por substring em temperatura/bucket — o `legacy` normal continua fazendo fallback só de etapa, como antes.
 
-O lançamento normal **não muda em nada** — mesma máquina do commit anterior, mesmos mapas; o
-golden test (`test_meta_classifica_igual_a_implementacao_antiga`) garante isso, e o PES-SET-26 foi
-conferido linha a linha sem alteração. As colunas gravadas do BV-25/BV-26 foram reprocessadas em
-21/09 com o perfil novo (o ETL passa `launch_code` na escrita, então lançamento novo já nasce
-classificado). É o mesmo padrão de exceção-por-lançamento de `src/ad_codes.py`, mas para a
-classificação — e não confundir os dois: `uses_legacy_ad_codes()` é só BV-25 (regex de código de
-anúncio); `_is_black()` é BV-* (perfil de classificação).
+O lançamento normal **não muda em nada** — mesma máquina do commit anterior, mesmos mapas; o golden test (`test_meta_classifica_igual_a_implementacao_antiga`) garante isso, e o PES-SET-26 foi conferido linha a linha sem alteração. As colunas gravadas do BV-25/BV-26 foram reprocessadas em 21/09 com o perfil novo (o ETL passa `launch_code` na escrita, então lançamento novo já nasce classificado). É o mesmo padrão de exceção-por-lançamento de `src/ad_codes.py`, mas para a classificação — e não confundir os dois: `uses_legacy_ad_codes()` é só BV-25 (regex de código de anúncio); `_is_black()` é BV-* (perfil de classificação).
 
 ## Snapshot de lançamento fechado nunca reaquece sozinho (2026-09-21)
 
-`frontend/services/prewarm.py` escolhe o que aquecer assim: o **último lançamento de cada produto**,
-os **ativos** (`data_fim >= hoje - 7 dias`) até o teto de `MAX_LAUNCHES = 5`, e o **anterior de cada
-um desses**. Lançamento fechado que não seja o anterior de um ativo **não entra em nenhum ciclo** —
-nem no boot, nem no periódico.
+`frontend/services/prewarm.py` escolhe o que aquecer assim: o **último lançamento de cada produto**, os **ativos** (`data_fim >= hoje - 7 dias`) até o teto de `MAX_LAUNCHES = 5`, e o **anterior de cada um desses**. Lançamento fechado que não seja o anterior de um ativo **não entra em nenhum ciclo** — nem no boot, nem no periódico.
 
-Consequência prática, descoberta ao corrigir a janela de Pré-Qualificação: mudar dado de um
-lançamento antigo (`launch_config`, atribuição, reclassificação) **não aparece no `/debriefing`**,
-porque a página lê `debriefing_snapshot` e o snapshot daquele lançamento pode ter semanas. Em
-21/09/26 o do PES-MAR-26 era de **04/09** — 17 dias parado.
+Consequência prática, descoberta ao corrigir a janela de Pré-Qualificação: mudar dado de um lançamento antigo (`launch_config`, atribuição, reclassificação) **não aparece no `/debriefing`**, porque a página lê `debriefing_snapshot` e o snapshot daquele lançamento pode ter semanas. Em 21/09/26 o do PES-MAR-26 era de **04/09** — 17 dias parado.
 
 Duas armadilhas somadas:
 
 1. **Snapshot velho.** Reinicia o app e o número não muda, porque o reaquecimento não passa por ali.
-2. **Cache em memória.** `_launch_cfg` fica 1 h (`frontend/cache.py::_CACHE_TTL`), então mesmo a
-   leitura ao vivo usa a config antiga se o processo subiu antes da alteração.
+2. **Cache em memória.** `_launch_cfg` fica 1 h (`frontend/cache.py::_CACHE_TTL`), então mesmo a leitura ao vivo usa a config antiga se o processo subiu antes da alteração.
 
 **Ao mexer em dado de lançamento fechado, force o reaquecimento** em vez de contar com o boot:
 
@@ -943,16 +792,12 @@ Auth HMAC e sessão — zero dependência de rotas ou cache:
 - Helpers: `_get_current_user`, `_filter_launches_for_user`
 - Rate limiting: `_check_login_rate_limit`, `_record_login_attempt`
 - Link de nova senha (2026-11-11): `gerar_token_senha` / `ler_token_senha`.
-  - Não usa tabela. O token é `user_id.validade.assinatura`, assinado com `SECRET_KEY` + o hash da
-    senha atual.
+  - Não usa tabela. O token é `user_id.validade.assinatura`, assinado com `SECRET_KEY` + o hash da senha atual.
   - Vale `RESET_HORAS` (48 h) e morre quando a senha muda, então é de uso único.
-  - Quem gera é o admin em Configurações → Usuários → "Link de nova senha"
-    (`POST /api/users/{id}/link-senha`).
-  - A pessoa abre `/senha/{token}`, que é rota pública, e cria a senha (mínimo 8 caracteres). O
-    login mostra "Senha salva".
+  - Quem gera é o admin em Configurações → Usuários → "Link de nova senha" (`POST /api/users/{id}/link-senha`).
+  - A pessoa abre `/senha/{token}`, que é rota pública, e cria a senha (mínimo 8 caracteres). O login mostra "Senha salva".
   - O painel não manda e-mail: o link vai pelo Slack.
-- O seletor de Tema saiu do bloco de admin do menu e aparece para todo usuário logado (a escolha
-  fica no navegador, em `tema.js`).
+- O seletor de Tema saiu do bloco de admin do menu e aparece para todo usuário logado (a escolha fica no navegador, em `tema.js`).
 
 ### `frontend/cache.py`
 Cache em memória com TTL — zero dependências além de `time`:
@@ -1054,63 +899,32 @@ Quatro camadas, com dependências diferentes de banco.
 
 ### 2. Fumaça (`-m smoke`) — precisa de banco
 
-Loga com as credenciais legadas e confere que cada página autenticada responde 200.
-Pega erro de template, de rota e de import; **não** pega número errado.
+Loga com as credenciais legadas e confere que cada página autenticada responde 200. Pega erro de template, de rota e de import; **não** pega número errado.
 
 ### 3. Caracterização (`-m caracterizacao`) — precisa de banco
 
-`tests/test_caracterizacao_readers.py` congela num baseline o que cada `read_*` de
-`frontend/db_readers/` devolve, para dois lançamentos encerrados (PBB-ABR-26 e PI-AGO-26).
-É a rede que permite refatorar leitura sem medo: se um número mudar, o teste cai.
+`tests/test_caracterizacao_readers.py` congela num baseline o que cada `read_*` de `frontend/db_readers/` devolve, para dois lançamentos encerrados (PBB-ABR-26 e PI-AGO-26). É a rede que permite refatorar leitura sem medo: se um número mudar, o teste cai.
 
-Os readers são descobertos por **introspecção** — `read_*` novo entra na cobertura sozinho,
-desde que a assinatura seja `(launch…, **opcionais)`. `test_descobriu_readers` garante que a
-introspecção não quebrou e virou um no-op silencioso.
+Os readers são descobertos por **introspecção** — `read_*` novo entra na cobertura sozinho, desde que a assinatura seja `(launch…, **opcionais)`. `test_descobriu_readers` garante que a introspecção não quebrou e virou um no-op silencioso.
 
-O baseline guarda **digest + esqueleto**, nunca o conteúdo: a saída completa são ~180 MB e
-inclui e-mail e telefone de comprador, que não podem entrar no repositório. Quando um teste
-cai, a saída inteira é gravada em `tests/baseline/_falhas/` (ignorado pelo git) pra dar o diff.
+O baseline guarda **digest + esqueleto**, nunca o conteúdo: a saída completa são ~180 MB e inclui e-mail e telefone de comprador, que não podem entrar no repositório. Quando um teste cai, a saída inteira é gravada em `tests/baseline/_falhas/` (ignorado pelo git) pra dar o diff.
 
-**Nem todo reader dá pra congelar pelo valor.** Os listados em `VOLATEIS` leem tabelas que
-continuam recebendo linhas mesmo depois do carrinho fechar (sendflow/WhatsApp, formulários do
-sistema novo, sincronismo do AC) ou devolvem totais globais, não recortados pela janela do
-lançamento. Deles o teste cobra só a **forma** da resposta. A lista foi medida, não chutada:
-duas execuções a 15 minutos de distância divergiram nesses e em nenhum outro.
+**Nem todo reader dá pra congelar pelo valor.** Os listados em `VOLATEIS` leem tabelas que continuam recebendo linhas mesmo depois do carrinho fechar (sendflow/WhatsApp, formulários do sistema novo, sincronismo do AC) ou devolvem totais globais, não recortados pela janela do lançamento. Deles o teste cobra só a **forma** da resposta. A lista foi medida, não chutada: duas execuções a 15 minutos de distância divergiram nesses e em nenhum outro.
 
-`read_launch_config` entrou nessa lista em 16/09 por um motivo **diferente dos outros**: ali não é
-dado chegando sozinho, é gente editando. `launch_config` é preenchida à mão no wizard de
-Configurações, a qualquer momento e inclusive em lançamento já fechado, e `updated_at` faz parte da
-resposta do reader — então todo salvamento muda o digest. Congelado por valor, o teste falhava
-sempre que alguém mexia no wizard (foi o que aconteceu quando a oferta do PI-AGO-26 foi preenchida
-no meio de uma rodada: mesmas 42 chaves, sha diferente). Nenhuma medição de 15 minutos pega isso —
-depende de alguém abrir a tela.
+`read_launch_config` entrou nessa lista em 16/09 por um motivo **diferente dos outros**: ali não é dado chegando sozinho, é gente editando. `launch_config` é preenchida à mão no wizard de Configurações, a qualquer momento e inclusive em lançamento já fechado, e `updated_at` faz parte da resposta do reader — então todo salvamento muda o digest. Congelado por valor, o teste falhava sempre que alguém mexia no wizard (foi o que aconteceu quando a oferta do PI-AGO-26 foi preenchida no meio de uma rodada: mesmas 42 chaves, sha diferente). Nenhuma medição de 15 minutos pega isso — depende de alguém abrir a tela.
 
 ### 4. Visual (`-m visual`) — precisa de banco **e** do Chromium do Playwright
 
-`tests/test_visual.py` cobre o buraco que as três camadas acima deixam: um stylesheet que não
-carregou, um JS que morreu no console ou um accordion que parou de montar **não mudam o status
-HTTP nem os números**. O smoke vê 200, a caracterização vê os mesmos dados, e a página está crua
-na tela. Foi essa a lacuna que a extração do CSS/JS do `base.html` (21/09/2026) expôs.
+`tests/test_visual.py` cobre o buraco que as três camadas acima deixam: um stylesheet que não carregou, um JS que morreu no console ou um accordion que parou de montar **não mudam o status HTTP nem os números**. O smoke vê 200, a caracterização vê os mesmos dados, e a página está crua na tela. Foi essa a lacuna que a extração do CSS/JS do `base.html` (21/09/2026) expôs.
 
-**Não compara pixel** — compara o que o browser *calculou*, pelo mesmo princípio do baseline de
-caracterização: tokens `--bs-*` resolvidos, geometria de sidebar/main/topbar, contagem dos
-componentes que o JS monta (chevrons, controles do accordion, `.table-wrap`), as funções globais
-que cada arquivo de `static/js/` registra, e o console limpo. PNG entre máquinas é flaky por
-fonte, antialiasing e versão do Chromium; `getComputedStyle` não é. Os screenshots são gravados
-assim mesmo em `tests/baseline/_visual/` (ignorado pelo git), porque quando cai a primeira
-pergunta é sempre "como ficou a tela?".
+**Não compara pixel** — compara o que o browser *calculou*, pelo mesmo princípio do baseline de caracterização: tokens `--bs-*` resolvidos, geometria de sidebar/main/topbar, contagem dos componentes que o JS monta (chevrons, controles do accordion, `.table-wrap`), as funções globais que cada arquivo de `static/js/` registra, e o console limpo. PNG entre máquinas é flaky por fonte, antialiasing e versão do Chromium; `getComputedStyle` não é. Os screenshots são gravados assim mesmo em `tests/baseline/_visual/` (ignorado pelo git), porque quando cai a primeira pergunta é sempre "como ficou a tela?".
 
-Cobre 12 páginas (uma por trilha do menu, mais debriefing e settings), os 10 temas, o accordion
-(recolher/expandir/busca) e a abertura do wizard. Não são as 32 páginas de propósito: o que
-quebra o design system quebra em todas ao mesmo tempo, e cada página custa ~8s.
+Cobre 12 páginas (uma por trilha do menu, mais debriefing e settings), os 10 temas, o accordion (recolher/expandir/busca) e a abertura do wizard. Não são as 32 páginas de propósito: o que quebra o design system quebra em todas ao mesmo tempo, e cada página custa ~8s.
 
 **Duas armadilhas já pagas**, ambas erro do teste e não do app:
 
-- **`networkidle` não serve aqui.** Exige 500 ms sem nenhum request, e o teste sobe um servidor
-  novo — o cache está sempre frio. `/comparativo` estourava 120s. Usa `load` + espera curta.
-- **Procurar botão por texto pega o botão errado.** A sidebar tem um "Recolher menu" que casa com
-  `/Recolher/i` antes do "Recolher" do accordion; o teste acusava um bug de accordion inexistente.
-  Usa `[data-act="collapse"]`/`[data-act="expand"]`.
+- **`networkidle` não serve aqui.** Exige 500 ms sem nenhum request, e o teste sobe um servidor novo — o cache está sempre frio. `/comparativo` estourava 120s. Usa `load` + espera curta.
+- **Procurar botão por texto pega o botão errado.** A sidebar tem um "Recolher menu" que casa com `/Recolher/i` antes do "Recolher" do accordion; o teste acusava um bug de accordion inexistente. Usa `[data-act="collapse"]`/`[data-act="expand"]`.
 
 ```bash
 # unitários (CI, sem banco)
@@ -1127,63 +941,31 @@ ATUALIZAR_VISUAL=1 python -m pytest tests/test_visual.py -m visual
 python -m pytest tests/test_visual.py -m visual
 ```
 
-> ⚠️ **`ATUALIZAR_BASELINE=1` só vale na suíte inteira.** Escopado em alguns test ids, ele reescreve
-> o arquivo do lançamento **apenas com as chaves daqueles testes** e apaga as dos outros readers —
-> regravar só `read_launch_config` de dois lançamentos custou 2.655 linhas de baseline. Se precisar
-> atualizar um reader só, extraia a entrada nova, restaure o arquivo e aplique a chave à mão. E
-> restaure com **cópia de backup**, não com `git checkout -- a b c`: basta um dos caminhos não estar
-> versionado pra ele abortar sem reverter nada (silenciosamente, se o stderr estiver descartado).
+> ⚠️ **`ATUALIZAR_BASELINE=1` só vale na suíte inteira.** Escopado em alguns test ids, ele reescreve o arquivo do lançamento **apenas com as chaves daqueles testes** e apaga as dos outros readers — regravar só `read_launch_config` de dois lançamentos custou 2.655 linhas de baseline. Se precisar atualizar um reader só, extraia a entrada nova, restaure o arquivo e aplique a chave à mão. E restaure com **cópia de backup**, não com `git checkout -- a b c`: basta um dos caminhos não estar versionado pra ele abortar sem reverter nada (silenciosamente, se o stderr estiver descartado).
 
 ---
 
 ## Rodar os testes escrevia no banco de producao (2026-09-16)
 
-`PRE_WARM_CACHE` vem **ligado por padrao** (`os.environ.get("PRE_WARM_CACHE", "true")`). O
-aquecimento sobe junto com o app, no evento de startup do FastAPI, e grava `debriefing_snapshot`
-— tabela do banco analytics, que **nao** tem guard de somente-leitura (o guard existe so no banco
-operacional e cobre duas tabelas: `tmb_clean_oficial` e `hotmart_clean_oficial`).
+`PRE_WARM_CACHE` vem **ligado por padrao** (`os.environ.get("PRE_WARM_CACHE", "true")`). O aquecimento sobe junto com o app, no evento de startup do FastAPI, e grava `debriefing_snapshot` — tabela do banco analytics, que **nao** tem guard de somente-leitura (o guard existe so no banco operacional e cobre duas tabelas: `tmb_clean_oficial` e `hotmart_clean_oficial`).
 
-`tests/test_frontend_smoke.py` carrega o `.env` real e usa `TestClient(app)` como context manager,
-o que dispara esse startup. Resultado: **rodar a suite de fumaca reescrevia os snapshots de
-producao** com o codigo do checkout. Os testes de caracterizacao ja desligavam; o de fumaca nao.
+`tests/test_frontend_smoke.py` carrega o `.env` real e usa `TestClient(app)` como context manager, o que dispara esse startup. Resultado: **rodar a suite de fumaca reescrevia os snapshots de producao** com o codigo do checkout. Os testes de caracterizacao ja desligavam; o de fumaca nao.
 
-Corrigido com `os.environ["PRE_WARM_CACHE"] = "false"` antes de importar `frontend.app`. Efeito
-colateral bom: `/debriefing` passa a ser exercitado pelo caminho **ao vivo**, que e onde os 500
-aparecem — o caminho do snapshot mascarava erro de template quando o snapshot estava velho.
+Corrigido com `os.environ["PRE_WARM_CACHE"] = "false"` antes de importar `frontend.app`. Efeito colateral bom: `/debriefing` passa a ser exercitado pelo caminho **ao vivo**, que e onde os 500 aparecem — o caminho do snapshot mascarava erro de template quando o snapshot estava velho.
 
-**O que isso revelou, e continua valendo.** Qualquer processo local com o `.env` de producao
-escreve nessa tabela sozinho, sem requisicao HTTP nenhuma: basta o app estar de pe. Foi assim que
-o diagnostico do 500 do `/debriefing` se perdeu — um servidor de desenvolvimento rodando codigo
-novo gravava snapshots no formato novo enquanto o checkout da investigacao, um commit atras, lia
-com o template velho.
+**O que isso revelou, e continua valendo.** Qualquer processo local com o `.env` de producao escreve nessa tabela sozinho, sem requisicao HTTP nenhuma: basta o app estar de pe. Foi assim que o diagnostico do 500 do `/debriefing` se perdeu — um servidor de desenvolvimento rodando codigo novo gravava snapshots no formato novo enquanto o checkout da investigacao, um commit atras, lia com o template velho.
 
-Das 13 escritas do frontend no banco, **12 exigem acao humana autenticada** (wizard de
-lancamento, gestao de usuarios, cache de thumbnails). A do snapshot e a unica autonoma — e por
-isso a unica que vaza de um ambiente para o outro sem ninguem perceber.
+Das 13 escritas do frontend no banco, **12 exigem acao humana autenticada** (wizard de lancamento, gestao de usuarios, cache de thumbnails). A do snapshot e a unica autonoma — e por isso a unica que vaza de um ambiente para o outro sem ninguem perceber.
 
-**Ao rodar o app localmente contra o `.env` de producao, use `PRE_WARM_CACHE=false`** a menos que
-queira mesmo regravar os snapshots que todo mundo le.
+**Ao rodar o app localmente contra o `.env` de producao, use `PRE_WARM_CACHE=false`** a menos que queira mesmo regravar os snapshots que todo mundo le.
 
 ### Reincidiu no mesmo dia, com três servidores (2026-09-16)
 
-Horas depois, `/debriefing` voltou a dar 500 — e desta vez **ia e voltava sozinho**, o mesmo
-lançamento alternando entre carregar e quebrar a cada rodada de aquecimento. Havia **três uvicorn
-de pé ao mesmo tempo** contra o `.env` de produção (portas 8000, 8934 e 8291, subidos às 09:11,
-09:55 e 10:15), cada um com uma versão diferente do código congelada em memória. Todos gravando
-`debriefing_snapshot` a cada ciclo, um por cima do outro. Quem abrisse a página pegava o payload
-de quem tivesse gravado por último.
+Horas depois, `/debriefing` voltou a dar 500 — e desta vez **ia e voltava sozinho**, o mesmo lançamento alternando entre carregar e quebrar a cada rodada de aquecimento. Havia **três uvicorn de pé ao mesmo tempo** contra o `.env` de produção (portas 8000, 8934 e 8291, subidos às 09:11, 09:55 e 10:15), cada um com uma versão diferente do código congelada em memória. Todos gravando `debriefing_snapshot` a cada ciclo, um por cima do outro. Quem abrisse a página pegava o payload de quem tivesse gravado por último.
 
-O gatilho foi a Saúde do Lançamento 2.0 ter mudado a forma do `dbf` (`saude_pesos` e os
-`saude_score_*` novos) **sem subir `SNAPSHOT_VERSION`** — exatamente o que o comentário em
-`frontend/db_readers/debriefing_snapshot.py` já dizia não ser opcional, depois de a mesma coisa ter
-acontecido entre 04/09 e 15/09. Subido para `7`.
+O gatilho foi a Saúde do Lançamento 2.0 ter mudado a forma do `dbf` (`saude_pesos` e os `saude_score_*` novos) **sem subir `SNAPSHOT_VERSION`** — exatamente o que o comentário em `frontend/db_readers/debriefing_snapshot.py` já dizia não ser opcional, depois de a mesma coisa ter acontecido entre 04/09 e 15/09. Subido para `7`.
 
-**A lição que faltava no registro anterior:** subir a versão **não conserta um processo já de pé**.
-O Jinja relê o template do disco a cada request, mas o Python fica congelado em memória — o
-servidor das 09:11 servia o template novo, que pede `dbf.saude_pesos`, com um código que nunca
-calcula esse campo. Por isso ele devolvia 500 em `?ao_vivo=1` de forma determinística, mesmo com o
-banco perfeito. Diagnóstico de 500 no `/debriefing` começa por **quantos processos estão de pé e
-desde quando**:
+**A lição que faltava no registro anterior:** subir a versão **não conserta um processo já de pé**. O Jinja relê o template do disco a cada request, mas o Python fica congelado em memória — o servidor das 09:11 servia o template novo, que pede `dbf.saude_pesos`, com um código que nunca calcula esse campo. Por isso ele devolvia 500 em `?ao_vivo=1` de forma determinística, mesmo com o banco perfeito. Diagnóstico de 500 no `/debriefing` começa por **quantos processos estão de pé e desde quando**:
 
 ```bash
 # PowerShell — todo uvicorn vivo, com porta e hora de início
@@ -1196,34 +978,20 @@ Um servidor só, reiniciado depois de qualquer mudança no `dbf`.
 
 ### O escritor que não estava nesta máquina — a tabela virou monotônica (2026-09-16)
 
-Com um único servidor local de pé, a tabela continuou voltando inteira para a versão 6 a cada
-~30 min: uma varredura sequencial pelos 9 lançamentos, o intervalo do `PRE_WARM_INTERVAL_MIN`.
-Não era processo local (varredura de `Win32_Process` mostrava só um uvicorn) e não era deploy
-remoto (`FRONTEND_URL` aponta pra `127.0.0.1`, não há servidor de produção). Era **outra máquina
-com o `.env` de produção e um checkout antigo** — e não deu pra identificar qual: o tráfego do app
-passa pelo Supavisor, então `pg_stat_activity.client_addr` devolve o endereço do pooler, não o do
-cliente.
+Com um único servidor local de pé, a tabela continuou voltando inteira para a versão 6 a cada ~30 min: uma varredura sequencial pelos 9 lançamentos, o intervalo do `PRE_WARM_INTERVAL_MIN`. Não era processo local (varredura de `Win32_Process` mostrava só um uvicorn) e não era deploy remoto (`FRONTEND_URL` aponta pra `127.0.0.1`, não há servidor de produção). Era **outra máquina com o `.env` de produção e um checkout antigo** — e não deu pra identificar qual: o tráfego do app passa pelo Supavisor, então `pg_stat_activity.client_addr` devolve o endereço do pooler, não o do cliente.
 
-Enquanto isso durou, a página ficava **correta e lenta**: o leitor descartava o payload de versão
-diferente e recalculava ao vivo, 25-80s por lançamento em vez de 0,2s.
+Enquanto isso durou, a página ficava **correta e lenta**: o leitor descartava o payload de versão diferente e recalculava ao vivo, 25-80s por lançamento em vez de 0,2s.
 
 Duas mudanças fecham esse buraco, independentemente de quem seja o escritor:
 
-1. **`write_snapshot` não rebaixa mais a versão.** O `ON CONFLICT DO UPDATE` ganhou
-   `WHERE COALESCE((debriefing_snapshot.payload->>'_version')::int, 0) <= :versao`, então um
-   processo com código antigo simplesmente não grava por cima de um snapshot mais novo — o upsert
-   vira no-op e o processo loga que *ele* é o desatualizado. Regravação na mesma versão (o refresh
-   normal) e subida de versão seguem funcionando. **Preço:** rollback de propósito pra uma versão
-   anterior não consegue regravar; nesse caso, apagar as linhas da tabela.
-2. **Todo snapshot carrega `_writer`** (`hostname#pid`). Da próxima vez, descobrir a origem é uma
-   consulta:
+1. **`write_snapshot` não rebaixa mais a versão.** O `ON CONFLICT DO UPDATE` ganhou `WHERE COALESCE((debriefing_snapshot.payload->>'_version')::int, 0) <= :versao`, então um processo com código antigo simplesmente não grava por cima de um snapshot mais novo — o upsert vira no-op e o processo loga que *ele* é o desatualizado. Regravação na mesma versão (o refresh normal) e subida de versão seguem funcionando. **Preço:** rollback de propósito pra uma versão anterior não consegue regravar; nesse caso, apagar as linhas da tabela.
+2. **Todo snapshot carrega `_writer`** (`hostname#pid`). Da próxima vez, descobrir a origem é uma consulta:
    ```sql
    SELECT lancamento_codigo, payload->>'_version', payload->>'_writer', computed_at
    FROM debriefing_snapshot ORDER BY computed_at DESC;
    ```
 
-Desfecho do dia: depois do push da versão 7, as escritas de fora passaram a sair como v7 — a outra
-máquina atualizou. O que a sobrevivência dessa tabela não pode depender é disso acontecer.
+Desfecho do dia: depois do push da versão 7, as escritas de fora passaram a sair como v7 — a outra máquina atualizou. O que a sobrevivência dessa tabela não pode depender é disso acontecer.
 
 ---
 
@@ -1231,51 +999,29 @@ máquina atualizou. O que a sobrevivência dessa tabela não pode depender é di
 
 O erro mais caro desta refatoracao, e vale escrito por inteiro porque o mecanismo se repete.
 
-**O bug.** `attribution.py` e `orcamento.py` importavam `_categorize_campaign` de `ads_meta` e
-`ads_google` **dentro de funcoes** (import diferido, para quebrar ciclo). Ao extrair a
-classificacao para `nomenclatura.py`, a funcao saiu daqueles modulos e os 6 pontos de import
-ficaram apontando para o vazio. Import dentro de funcao so falha quando a funcao roda — nao no
-import do modulo, nao na coleta do pytest, nao numa varredura de imports de topo.
+**O bug.** `attribution.py` e `orcamento.py` importavam `_categorize_campaign` de `ads_meta` e `ads_google` **dentro de funcoes** (import diferido, para quebrar ciclo). Ao extrair a classificacao para `nomenclatura.py`, a funcao saiu daqueles modulos e os 6 pontos de import ficaram apontando para o vazio. Import dentro de funcao so falha quando a funcao roda — nao no import do modulo, nao na coleta do pytest, nao numa varredura de imports de topo.
 
-Resultado: o bloco "Atribuicao" do dashboard falhava nos 11 lancamentos com Active Campaign,
-mostrando "Falha ao carregar: Atribuicao. Os totais desta pagina podem estar incompletos."
-Quem achou foi o usuario, olhando a tela.
+Resultado: o bloco "Atribuicao" do dashboard falhava nos 11 lancamentos com Active Campaign, mostrando "Falha ao carregar: Atribuicao. Os totais desta pagina podem estar incompletos." Quem achou foi o usuario, olhando a tela.
 
-**Por que a rede nao pegou — o que importa de verdade.** O teste captura excecao e a registra
-como resultado (`{"__excecao__": ...}`), porque excecao tambem e comportamento. Mas o baseline
-foi **gerado com o codigo ja quebrado**: o ImportError virou o valor esperado. Todas as
-verificacoes seguintes compararam excecao com excecao e passaram. A rede aprovou, repetidamente,
-exatamente o bug que existia para pegar.
+**Por que a rede nao pegou — o que importa de verdade.** O teste captura excecao e a registra como resultado (`{"__excecao__": ...}`), porque excecao tambem e comportamento. Mas o baseline foi **gerado com o codigo ja quebrado**: o ImportError virou o valor esperado. Todas as verificacoes seguintes compararam excecao com excecao e passaram. A rede aprovou, repetidamente, exatamente o bug que existia para pegar.
 
 **As tres correcoes:**
 
 1. Os 6 imports apontam para `nomenclatura` (assinaturas identicas, so mudou nome e modulo).
-2. `caracterizacao_util.recusar_excecao_no_baseline` faz `ATUALIZAR_BASELINE=1` **falhar** quando
-   a saida e uma excecao capturada. Congelar excecao e sempre suspeito; congelar em silencio e
-   o que torna o teste inutil.
-3. Varredura de nomes orfaos com `ast` em **todo** o `frontend/`, nao so nos arquivos tocados.
-   Ela achou mais dois quebrados pela mesma refatoracao: `_norm_text` em `criativos.py` e
-   `read_dia1_sales` em `comparativo.py`. Some-se a verificacao de que todos os 86 imports
-   diferidos do `frontend/` resolvem.
+2. `caracterizacao_util.recusar_excecao_no_baseline` faz `ATUALIZAR_BASELINE=1` **falhar** quando a saida e uma excecao capturada. Congelar excecao e sempre suspeito; congelar em silencio e o que torna o teste inutil.
+3. Varredura de nomes orfaos com `ast` em **todo** o `frontend/`, nao so nos arquivos tocados. Ela achou mais dois quebrados pela mesma refatoracao: `_norm_text` em `criativos.py` e `read_dia1_sales` em `comparativo.py`. Some-se a verificacao de que todos os 86 imports diferidos do `frontend/` resolvem.
 
-**A regra que fica:** ao mover uma funcao de modulo, `grep` pelo nome **em todo o repositorio**,
-nao so nos arquivos que voce editou — import diferido nao aparece no topo de nada. E antes de
-gravar baseline, confirme que o codigo esta verde por outro meio; um baseline gerado sobre codigo
-quebrado e pior que nenhum, porque da a impressao de cobertura.
+**A regra que fica:** ao mover uma funcao de modulo, `grep` pelo nome **em todo o repositorio**, nao so nos arquivos que voce editou — import diferido nao aparece no topo de nada. E antes de gravar baseline, confirme que o codigo esta verde por outro meio; um baseline gerado sobre codigo quebrado e pior que nenhum, porque da a impressao de cobertura.
 
 ---
 
 ## Os dois modos da rede de caracterização — e qual vale de fato (2026-09-16)
 
-O baseline commitado em `tests/baseline/` **envelhece**, e isso não é defeito: `leads`,
-`ga4` e `typeform` continuam recebendo linhas pelo sincronismo do Active Campaign e do GA4
-mesmo para lançamento encerrado. Um baseline gerado à noite e verificado no dia seguinte
-acusou 9 readers "divergentes" sem nenhuma mudança de código.
+O baseline commitado em `tests/baseline/` **envelhece**, e isso não é defeito: `leads`, `ga4` e `typeform` continuam recebendo linhas pelo sincronismo do Active Campaign e do GA4 mesmo para lançamento encerrado. Um baseline gerado à noite e verificado no dia seguinte acusou 9 readers "divergentes" sem nenhuma mudança de código.
 
 Por isso a rede tem dois modos, e é importante não confundi-los:
 
-**Modo A/B (o que vale para aprovar uma refatoração).** Gera o baseline no código **antigo**,
-num worktree do commit anterior, e verifica no código novo minutos depois:
+**Modo A/B (o que vale para aprovar uma refatoração).** Gera o baseline no código **antigo**, num worktree do commit anterior, e verifica no código novo minutos depois:
 
 ```bash
 git worktree add "$TEMP/antes" <commit-anterior>
@@ -1283,53 +1029,31 @@ cd "$TEMP/antes" && BASELINE_DIR="$TEMP/base" ATUALIZAR_BASELINE=1     pytest te
 cd /c/dev/workspace-mmm && BASELINE_DIR="$TEMP/base"     pytest tests/test_caracterizacao_readers.py -m caracterizacao
 ```
 
-Como as duas leituras acontecem com minutos de diferença, o dado não se move, e **toda**
-divergência é do código. Foi assim que S10, S11 e S12 foram validadas — e foi assim que o
-bug das constantes de UF órfãs apareceu.
+Como as duas leituras acontecem com minutos de diferença, o dado não se move, e **toda** divergência é do código. Foi assim que S10, S11 e S12 foram validadas — e foi assim que o bug das constantes de UF órfãs apareceu.
 
-**Modo tripwire (o baseline commitado).** Serve para acusar mudança acidental no dia a dia.
-Para os readers que acompanham tabelas vivas ele compara só a forma (`VOLATEIS`), porque
-comparar valor contra um baseline de ontem só produziria alarme falso.
+**Modo tripwire (o baseline commitado).** Serve para acusar mudança acidental no dia a dia. Para os readers que acompanham tabelas vivas ele compara só a forma (`VOLATEIS`), porque comparar valor contra um baseline de ontem só produziria alarme falso.
 
-**A regra:** divergência no baseline commitado é *suspeita*, não veredicto. Antes de tratar
-como regressão, rode o mesmo reader em dois processos separados — se o digest bate, o código
-é determinístico e o que mudou foi o dado. Se não bate, achou um bug de ordenação (já
-aconteceu duas vezes, ver a seção sobre desempate).
+**A regra:** divergência no baseline commitado é *suspeita*, não veredicto. Antes de tratar como regressão, rode o mesmo reader em dois processos separados — se o digest bate, o código é determinístico e o que mudou foi o dado. Se não bate, achou um bug de ordenação (já aconteceu duas vezes, ver a seção sobre desempate).
 
 ---
 
 ## A rede de caracterização precisou distinguir rede ruim de regressão (2026-09-16)
 
-Nas primeiras execuções a rede acusou falha três vezes sem que nada tivesse mudado no código.
-Duas causas, ambas defeito do teste, não do sistema:
+Nas primeiras execuções a rede acusou falha três vezes sem que nada tivesse mudado no código. Duas causas, ambas defeito do teste, não do sistema:
 
-**1. Timeout do banco contava como "a saída mudou".** Quando o Supabase fica lento, a consulta
-estoura o `statement_timeout` e o reader levanta. O teste transformava a exceção em resultado e
-comparava com o baseline — acusando regressão onde só houve rede ruim. Numa das noites a suíte
-levou 23 minutos contra os ~5 habituais e 35 testes "falharam".
+**1. Timeout do banco contava como "a saída mudou".** Quando o Supabase fica lento, a consulta estoura o `statement_timeout` e o reader levanta. O teste transformava a exceção em resultado e comparava com o baseline — acusando regressão onde só houve rede ruim. Numa das noites a suíte levou 23 minutos contra os ~5 habituais e 35 testes "falharam".
 
-Agora `caracterizacao_util.e_falha_de_infra` percorre a cadeia de causas (o SQLAlchemy embrulha o
-erro do psycopg2, e a frase reveladora está duas camadas abaixo) e o teste **pula** quando
-reconhece falha de acesso — timeout, conexão fechada, sem slot, deadlock. `KeyError` e
-`AttributeError` continuam sendo falha de verdade: são erros de *como o dado é calculado*, não de
-*chegar até o dado*.
+Agora `caracterizacao_util.e_falha_de_infra` percorre a cadeia de causas (o SQLAlchemy embrulha o erro do psycopg2, e a frase reveladora está duas camadas abaixo) e o teste **pula** quando reconhece falha de acesso — timeout, conexão fechada, sem slot, deadlock. `KeyError` e `AttributeError` continuam sendo falha de verdade: são erros de *como o dado é calculado*, não de *chegar até o dado*.
 
-**2. A comparação por forma trocava de representação sozinha.** `resumir` colapsa um dicionário
-assim que ele passa de 30 chaves. Um dicionário aninhado que cruzasse esse limiar por dado novo
-mudava de representação sem nenhuma mudança de código, e o teste acusava "mudou de forma".
-`_forma` passou a ser deliberadamente raso: nomes dos campos de primeiro nível e a espécie de
-cada um.
+**2. A comparação por forma trocava de representação sozinha.** `resumir` colapsa um dicionário assim que ele passa de 30 chaves. Um dicionário aninhado que cruzasse esse limiar por dado novo mudava de representação sem nenhuma mudança de código, e o teste acusava "mudou de forma". `_forma` passou a ser deliberadamente raso: nomes dos campos de primeiro nível e a espécie de cada um.
 
-**Por que isso importa mais do que parece:** uma rede que grita lobo deixa de ser consultada, e
-aí não serve para nada. Se ela vai bloquear um commit, precisa errar para o lado de calar a boca
-quando o problema não é do código.
+**Por que isso importa mais do que parece:** uma rede que grita lobo deixa de ser consultada, e aí não serve para nada. Se ela vai bloquear um commit, precisa errar para o lado de calar a boca quando o problema não é do código.
 
 ---
 
 ## S12 — sales.py dividido por plataforma (2026-09-15)
 
-`db_readers/sales.py` tinha 1.341 linhas e misturava a venda do lançamento com o detalhe de
-cada plataforma. Virou quatro módulos:
+`db_readers/sales.py` tinha 1.341 linhas e misturava a venda do lançamento com o detalhe de cada plataforma. Virou quatro módulos:
 
 | Módulo | Linhas | Responsabilidade |
 |---|---|---|
@@ -1340,17 +1064,9 @@ cada plataforma. Virou quatro módulos:
 
 `sales.py` reexporta os outros, então os imports existentes continuam valendo.
 
-`_vendas_comum.py` não é um "utils" genérico: cada peça está ali porque é usada de dois ou três
-lugares, e duplicá-la faria o número da Hotmart divergir do consolidado. O caso mais sensível é
-`_parcela_unica_info`, que decide se a linha é venda à vista, parcelada ou assinatura recorrente
-— critério usado na contagem, no faturamento e no dia 1.
+`_vendas_comum.py` não é um "utils" genérico: cada peça está ali porque é usada de dois ou três lugares, e duplicá-la faria o número da Hotmart divergir do consolidado. O caso mais sensível é `_parcela_unica_info`, que decide se a linha é venda à vista, parcelada ou assinatura recorrente — critério usado na contagem, no faturamento e no dia 1.
 
-**Um bug meu, pego pela rede.** Na primeira tentativa, `_norm_uf` foi para `_vendas_comum.py` e
-as constantes que ela usa (`_UF_POR_NOME`, `_UFS_VALIDAS`) ficaram em `sales.py`. O teste de
-caracterização acusou 35 readers divergentes — `read_vendas` mudava e o erro se propagava para
-Meta, Google, Hotmart, TMB e dia 1. Sem a rede isso teria ido para produção como estado de
-comprador errado em relatório de região. A varredura de nomes órfãos com `ast` virou parte do
-procedimento de qualquer divisão de módulo daqui pra frente.
+**Um bug meu, pego pela rede.** Na primeira tentativa, `_norm_uf` foi para `_vendas_comum.py` e as constantes que ela usa (`_UF_POR_NOME`, `_UFS_VALIDAS`) ficaram em `sales.py`. O teste de caracterização acusou 35 readers divergentes — `read_vendas` mudava e o erro se propagava para Meta, Google, Hotmart, TMB e dia 1. Sem a rede isso teria ido para produção como estado de comprador errado em relatório de região. A varredura de nomes órfãos com `ast` virou parte do procedimento de qualquer divisão de módulo daqui pra frente.
 
 ---
 
@@ -1364,92 +1080,49 @@ procedimento de qualquer divisão de módulo daqui pra frente.
 | `attribution.py` | 288 | `_sales_attribution`: casa venda com lead e decide anúncio/campanha/etapa |
 | `criativos.py` | 476 | `_creative_overview` e `_creative_insights`: ranking de ADxxx e Validados × Novos |
 
-`attribution.py` reexporta os dois outros, então `from frontend.services.attribution import
-_creative_overview` — que `core.py` e outros usam há tempo — continua valendo.
+`attribution.py` reexporta os dois outros, então `from frontend.services.attribution import _creative_overview` — que `core.py` e outros usam há tempo — continua valendo.
 
-**Não confundir `classificadores.py` com `db_readers/nomenclatura.py`.** O segundo lê o padrão
-de colchetes do nome da campanha na plataforma (`[MA][CAPTAÇÃO][QUENTE]…`); o primeiro trabalha
-sobre as UTMs que chegam com a venda, onde o texto vem solto e a decisão é por palavra
-encontrada. São regras diferentes para perguntas diferentes, e é por isso que continuam
-separadas em vez de unificadas.
+**Não confundir `classificadores.py` com `db_readers/nomenclatura.py`.** O segundo lê o padrão de colchetes do nome da campanha na plataforma (`[MA][CAPTAÇÃO][QUENTE]…`); o primeiro trabalha sobre as UTMs que chegam com a venda, onde o texto vem solto e a decisão é por palavra encontrada. São regras diferentes para perguntas diferentes, e é por isso que continuam separadas em vez de unificadas.
 
-**Rede usada:** `tests/test_caracterizacao_servicos.py` (novo) congela a saída de
-`_sales_attribution`, `_creative_overview` e do contexto do debriefing para PBB-ABR-26 e
-PI-AGO-26. Foi gravado **antes** da divisão e verificado depois: as três saídas continuaram
-idênticas. Sem isso, mexer em `_creative_overview` — que carrega as correções sutis de escopo
-de etapa de 14/09 — seria aposta, não refatoração.
+**Rede usada:** `tests/test_caracterizacao_servicos.py` (novo) congela a saída de `_sales_attribution`, `_creative_overview` e do contexto do debriefing para PBB-ABR-26 e PI-AGO-26. Foi gravado **antes** da divisão e verificado depois: as três saídas continuaram idênticas. Sem isso, mexer em `_creative_overview` — que carrega as correções sutis de escopo de etapa de 14/09 — seria aposta, não refatoração.
 
 ---
 
 ## /debriefing em 500 — campo removido do contexto, mantido no template (2026-09-15/16)
 
-**Sintoma:** `/debriefing` (e `?modo=slides`) devolvendo 500 com
-`UndefinedError: 'dict object' has no attribute 'total_grupos_vip'`.
+**Sintoma:** `/debriefing` (e `?modo=slides`) devolvendo 500 com `UndefinedError: 'dict object' has no attribute 'total_grupos_vip'`.
 
-**Causa real:** o commit `bf8065c` ("Resumo Executivo: Pessoas nos Grupos vira pico; remove Total
-de Grupos") tirou `total_grupos_normais`/`total_grupos_vip` e os `prev_` correspondentes do
-`_compute_debriefing_ctx`, e ajustou o primeiro grid de KPIs. Mas o template tinha **dois** blocos
-citando esses campos: `kpis_gerais` e um segundo, "Grupos WhatsApp — Normal x VIP", que passou
-despercebido e continuou pedindo `dbf.total_grupos_vip`.
+**Causa real:** o commit `bf8065c` ("Resumo Executivo: Pessoas nos Grupos vira pico; remove Total de Grupos") tirou `total_grupos_normais`/`total_grupos_vip` e os `prev_` correspondentes do `_compute_debriefing_ctx`, e ajustou o primeiro grid de KPIs. Mas o template tinha **dois** blocos citando esses campos: `kpis_gerais` e um segundo, "Grupos WhatsApp — Normal x VIP", que passou despercebido e continuou pedindo `dbf.total_grupos_vip`.
 
-**Correção:** o segundo bloco foi removido por inteiro. Era o que o commit pretendia — os dois
-cards de "Total" saíram por decisão do usuário (a tabela do Supabase ficava incompleta em alguns
-lançamentos) e os dois de "Pessoas" já haviam subido para o grid principal, então o bloco era
-duplicata.
+**Correção:** o segundo bloco foi removido por inteiro. Era o que o commit pretendia — os dois cards de "Total" saíram por decisão do usuário (a tabela do Supabase ficava incompleta em alguns lançamentos) e os dois de "Pessoas" já haviam subido para o grid principal, então o bloco era duplicata.
 
-**Por que o diagnóstico demorou.** Um servidor de desenvolvimento rodando na máquina com o código
-novo já gravava snapshots no formato novo **no banco compartilhado**, enquanto o checkout usado na
-investigação estava um commit atrás, com o template velho. O sintoma — "o snapshot não tem o campo
-que o template pede" — parecia guard de versão quebrado, quando era só uma árvore desatualizada
-lendo snapshot de outra.
+**Por que o diagnóstico demorou.** Um servidor de desenvolvimento rodando na máquina com o código novo já gravava snapshots no formato novo **no banco compartilhado**, enquanto o checkout usado na investigação estava um commit atrás, com o template velho. O sintoma — "o snapshot não tem o campo que o template pede" — parecia guard de versão quebrado, quando era só uma árvore desatualizada lendo snapshot de outra.
 
-**Lição que fica:** um `.env` apontando para o banco compartilhado significa que *qualquer*
-servidor local escreve em produção-de-fato. Ao investigar divergência entre snapshot e código,
-confirme primeiro em que commit está o processo que **escreveu** o snapshot, não só o que o lê.
+**Lição que fica:** um `.env` apontando para o banco compartilhado significa que *qualquer* servidor local escreve em produção-de-fato. Ao investigar divergência entre snapshot e código, confirme primeiro em que commit está o processo que **escreveu** o snapshot, não só o que o lê.
 
-**`SNAPSHOT_VERSION` foi para 6 assim mesmo**, e continua valendo: `bf8065c` mudou o *significado*
-de `pessoas_grupos_*` (passou a ser o pico histórico, não o número atual). Sem o bump, os snapshots
-v5 seguiriam válidos e o dashboard mostraria a semântica antiga até o aquecimento seguinte. A regra
-não muda: mexeu nos campos que o template consome do `dbf`, sobe `SNAPSHOT_VERSION` no mesmo commit.
+**`SNAPSHOT_VERSION` foi para 6 assim mesmo**, e continua valendo: `bf8065c` mudou o *significado* de `pessoas_grupos_*` (passou a ser o pico histórico, não o número atual). Sem o bump, os snapshots v5 seguiriam válidos e o dashboard mostraria a semântica antiga até o aquecimento seguinte. A regra não muda: mexeu nos campos que o template consome do `dbf`, sobe `SNAPSHOT_VERSION` no mesmo commit.
 
 ---
 
 ## Ordem não determinística em listas ordenadas por contagem (2026-09-15)
 
-**Sintoma:** dois downloads de `/api/caminho-comprador.csv` do mesmo lançamento, sem nenhum
-dado novo no meio, saíam com as linhas em ordem diferente — e portanto pareciam ter mudado.
-A tabela do Debriefing embaralhava pelo mesmo motivo a cada reinício do servidor.
+**Sintoma:** dois downloads de `/api/caminho-comprador.csv` do mesmo lançamento, sem nenhum dado novo no meio, saíam com as linhas em ordem diferente — e portanto pareciam ter mudado. A tabela do Debriefing embaralhava pelo mesmo motivo a cada reinício do servidor.
 
-**Causa:** `read_caminho_comprador` monta as linhas iterando `buyers`, que é um `set` de
-e-mails. O Python aleatoriza o hash de string a cada processo, então a ordem de iteração muda.
-Existia um `rows.sort(key=receita, reverse=True)`, mas ele **não é uma ordem total**: como o
-preço do produto é o mesmo para quase todo mundo, a maioria das linhas empata em receita, e
-`sort` é estável — ou seja, preserva entre os empatados exatamente a ordem arbitrária do set.
+**Causa:** `read_caminho_comprador` monta as linhas iterando `buyers`, que é um `set` de e-mails. O Python aleatoriza o hash de string a cada processo, então a ordem de iteração muda. Existia um `rows.sort(key=receita, reverse=True)`, mas ele **não é uma ordem total**: como o preço do produto é o mesmo para quase todo mundo, a maioria das linhas empata em receita, e `sort` é estável — ou seja, preserva entre os empatados exatamente a ordem arbitrária do set.
 
-**Correção:** desempate explícito por e-mail, `rows.sort(key=lambda r: (-r["receita"], r["email"]))`.
-Não muda nenhum valor, só torna a ordem reprodutível.
+**Correção:** desempate explícito por e-mail, `rows.sort(key=lambda r: (-r["receita"], r["email"]))`. Não muda nenhum valor, só torna a ordem reprodutível.
 
-**Como apareceu:** os testes de caracterização (ver seção Testes) acusaram este reader como o
-único divergente entre o código antes e depois de S10. A investigação mostrou que o código
-**antigo** também divergia de si mesmo entre duas execuções — era defeito pré-existente, não
-regressão da refatoração.
+**Como apareceu:** os testes de caracterização (ver seção Testes) acusaram este reader como o único divergente entre o código antes e depois de S10. A investigação mostrou que o código **antigo** também divergia de si mesmo entre duas execuções — era defeito pré-existente, não regressão da refatoração.
 
 ### O mesmo defeito em `read_hotmart_recompra`
 
-`por_meio` (Boleto / Pix / Cartão / TMB, na recompra) é montado iterando um `set` de e-mails e
-ordenado só por `qtd`. Com "Boleto" e "Pix" empatados em 1, os dois trocavam de posição entre
-dois carregamentos da página. Corrigido com o mesmo desempate: `key=lambda x: (-x["qtd"], x["meio"])`.
+`por_meio` (Boleto / Pix / Cartão / TMB, na recompra) é montado iterando um `set` de e-mails e ordenado só por `qtd`. Com "Boleto" e "Pix" empatados em 1, os dois trocavam de posição entre dois carregamentos da página. Corrigido com o mesmo desempate: `key=lambda x: (-x["qtd"], x["meio"])`.
 
 ### A regra
 
-**Ordenação por contagem ou por valor precisa de critério de desempate.** `sorted`/`sort_values`
-são estáveis, ou seja, preservam entre os empatados a ordem em que os itens chegaram — e quando
-essa ordem veio de iterar um `set` ou um `dict` montado a partir de um `set`, ela muda a cada
-processo, porque o Python aleatoriza o hash de string. Empate é a regra, não a exceção: preço
-igual, contagem 1, mesma data.
+**Ordenação por contagem ou por valor precisa de critério de desempate.** `sorted`/`sort_values` são estáveis, ou seja, preservam entre os empatados a ordem em que os itens chegaram — e quando essa ordem veio de iterar um `set` ou um `dict` montado a partir de um `set`, ela muda a cada processo, porque o Python aleatoriza o hash de string. Empate é a regra, não a exceção: preço igual, contagem 1, mesma data.
 
-Os dois casos foram achados pelos testes de caracterização, que comparam o resultado inteiro por
-digest — nenhum apareceria numa conferência visual do dashboard.
+Os dois casos foram achados pelos testes de caracterização, que comparam o resultado inteiro por digest — nenhum apareceria numa conferência visual do dashboard.
 
 ---
 
@@ -1551,18 +1224,11 @@ tmb_lancamento_id = int(first) if first else None
 
 ## Venda por versão de landing page — `ad_copy_textos` como ponte (2026-09-19)
 
-Seção "Páginas de Captura — Venda por Versão" no `/debriefing` (Captação). Responde
-"qual versão da LP vende mais barato", que a seção vizinha ("Landing Pages que Mais
-Converteram") não alcança: aquela vem do GA4, que é anônimo — sabe sessão e evento,
-nunca venda.
+Seção "Páginas de Captura — Venda por Versão" no `/debriefing` (Captação). Responde "qual versão da LP vende mais barato", que a seção vizinha ("Landing Pages que Mais Converteram") não alcança: aquela vem do GA4, que é anônimo — sabe sessão e evento, nunca venda.
 
-**A versão não está em nenhuma UTM, e não dá pra colocar.** Os cinco campos já
-carregam lançamento (`utm_campaign`), público (`utm_content` → `view_atribuicao_publicos`)
-e `ADxxx` (`utm_term` → `view_atribuicao`); sobrescrever qualquer um quebra uma view.
+**A versão não está em nenhuma UTM, e não dá pra colocar.** Os cinco campos já carregam lançamento (`utm_campaign`), público (`utm_content` → `view_atribuicao_publicos`) e `ADxxx` (`utm_term` → `view_atribuicao`); sobrescrever qualquer um quebra uma view.
 
-**A ponte é o anúncio.** `etl_copy_meta.py`/`etl_copy_google.py` já ingerem o link de
-destino de cada anúncio em `ad_copy_textos` (`campo='link'`), e a versão está no slug
-da URL. Como a atribuição já casa comprador→lead→`ADxxx`, a cadeia fecha sozinha:
+**A ponte é o anúncio.** `etl_copy_meta.py`/`etl_copy_google.py` já ingerem o link de destino de cada anúncio em `ad_copy_textos` (`campo='link'`), e a versão está no slug da URL. Como a atribuição já casa comprador→lead→`ADxxx`, a cadeia fecha sozinha:
 
 ```
 venda → lead (e-mail/telefone) → utm_term (ADxxx) → ad_copy_textos.campo='link' → slug → versão
@@ -1576,33 +1242,17 @@ venda → lead (e-mail/telefone) → utm_term (ADxxx) → ad_copy_textos.campo='
 
 ### Três coisas que a tabela deliberadamente NÃO faz
 
-1. **Não usa o investimento total do anúncio.** Gasto/leads/vendas saem de
-   `creative_data["rows"]`, que já é escopado em Captação. Somar verba de
-   Pré-Quali/Remarketing em cima de venda de Captação infla o ROAS — mesma armadilha
-   já documentada em `_creative_overview`.
-2. **Não chuta anúncio ambíguo.** Um anúncio pode apontar pra várias LPs ao mesmo
-   tempo (Google com vários `final_urls`, carrossel Meta com link por card). Esses vão
-   pro bloco `nao_atribuido`, nunca pra uma versão. No PES-SET-26 são 26 anúncios /
-   R$ 235 mil — 37% da verba de captação.
-3. **Não confunde "sem link" com "não tem link".** `ADxxx` que só existe na UTM, com
-   gasto casado no nível da campanha do Google, ganhou a flag `sem_ad_na_plataforma`
-   em `_creative_overview` e vai pra um bucket próprio. Sem isso a nota da página
-   mandaria rodar o ETL de copy pra resolver R$ 110 mil que o ETL não resolveria —
-   uma campanha inteira não tem destino único por natureza.
+1. **Não usa o investimento total do anúncio.** Gasto/leads/vendas saem de `creative_data["rows"]`, que já é escopado em Captação. Somar verba de Pré-Quali/Remarketing em cima de venda de Captação infla o ROAS — mesma armadilha já documentada em `_creative_overview`.
+2. **Não chuta anúncio ambíguo.** Um anúncio pode apontar pra várias LPs ao mesmo tempo (Google com vários `final_urls`, carrossel Meta com link por card). Esses vão pro bloco `nao_atribuido`, nunca pra uma versão. No PES-SET-26 são 26 anúncios / R$ 235 mil — 37% da verba de captação.
+3. **Não confunde "sem link" com "não tem link".** `ADxxx` que só existe na UTM, com gasto casado no nível da campanha do Google, ganhou a flag `sem_ad_na_plataforma` em `_creative_overview` e vai pra um bucket próprio. Sem isso a nota da página mandaria rodar o ETL de copy pra resolver R$ 110 mil que o ETL não resolveria — uma campanha inteira não tem destino único por natureza.
 
 ### Limites conhecidos
 
-`ad_copy_textos` guarda o link **atual** do anúncio, sem histórico: LP trocada no meio
-do voo faz o período anterior aparecer com a página nova. E só existe link para
-lançamento em que os ETLs de copy rodaram. Fechar 100% (incluindo orgânico e e-mail,
-que não têm `ADxxx`) exige marcação nascida na própria LP — plano em
-[[PLANO_VERSAO_LANDING_PAGE]].
+`ad_copy_textos` guarda o link **atual** do anúncio, sem histórico: LP trocada no meio do voo faz o período anterior aparecer com a página nova. E só existe link para lançamento em que os ETLs de copy rodaram. Fechar 100% (incluindo orgânico e e-mail, que não têm `ADxxx`) exige marcação nascida na própria LP — plano em [[PLANO_VERSAO_LANDING_PAGE]].
 
 ## Legendas dos criativos — `ad_transcricoes` (2026-09-17)
 
-Base da página "Análise de Copys". Ingere `analises/[LANCAMENTO]/Legendas/*.txt`
-(transcrição falada de cada `ADxxx`, com minutagem) para três tabelas no banco de
-analytics, mais a view `view_copy_performance`.
+Base da página "Análise de Copys". Ingere `analises/[LANCAMENTO]/Legendas/*.txt` (transcrição falada de cada `ADxxx`, com minutagem) para três tabelas no banco de analytics, mais a view `view_copy_performance`.
 
 ```bash
 python etl/etl_legendas.py --launch PES-SET-26            # uma pasta
@@ -1620,27 +1270,15 @@ Fica **fora do `scheduler.py`** de propósito: legenda não muda de hora em hora
 
 ### O que a `hook_confiavel` protege
 
-Levantamento do PES-SET-26 (33 arquivos): **só 9 são transcrição do corte final
-publicado**. 20 são material bruto de câmera e 4 são estáticos sem fala. Nos brutos
-a minutagem **não é a do anúncio** — em `AD269` os três blocos abrem todos em
-`[00:00]` com falas diferentes (um por ator), e `AD247` tem 299s de filmagem crua
-com takes descartados para um anúncio de ~60s.
+Levantamento do PES-SET-26 (33 arquivos): **só 9 são transcrição do corte final publicado**. 20 são material bruto de câmera e 4 são estáticos sem fala. Nos brutos a minutagem **não é a do anúncio** — em `AD269` os três blocos abrem todos em `[00:00]` com falas diferentes (um por ator), e `AD247` tem 299s de filmagem crua com takes descartados para um anúncio de ~60s.
 
-`hook_rate` (3s) continua confiável porque vem da plataforma. O **texto** desses 3
-segundos, não. Por isso só `fonte_tipo='corte_final'` recebe `hook_confiavel=True`,
-e **toda análise temporal (gancho, quartil, segundo do CTA) tem que filtrar por essa
-coluna** — senão mede texto que nunca foi ao ar.
+`hook_rate` (3s) continua confiável porque vem da plataforma. O **texto** desses 3 segundos, não. Por isso só `fonte_tipo='corte_final'` recebe `hook_confiavel=True`, e **toda análise temporal (gancho, quartil, segundo do CTA) tem que filtrar por essa coluna** — senão mede texto que nunca foi ao ar.
 
-Decisão de 17/09/26: não reconstruir a timeline dos brutos. Eles entram para texto,
-busca e classificação, e ficam fora da análise temporal. Nos lançamentos novos, o
-caminho é transcrever o corte final desde o começo.
+Decisão de 17/09/26: não reconstruir a timeline dos brutos. Eles entram para texto, busca e classificação, e ficam fora da análise temporal. Nos lançamentos novos, o caminho é transcrever o corte final desde o começo.
 
 ### Vendas não entram na view
 
-`view_copy_performance` junta só gasto e métricas de vídeo. As vendas moram no banco
-operacional e `view_atribuicao` subestima gravemente — a página junta vendas em
-Python, via `frontend/services/criativos.py::_creative_overview`, como o resto do
-sistema.
+`view_copy_performance` junta só gasto e métricas de vídeo. As vendas moram no banco operacional e `view_atribuicao` subestima gravemente — a página junta vendas em Python, via `frontend/services/criativos.py::_creative_overview`, como o resto do sistema.
 
 Plano completo: [[PLANO_ANALISE_COPYS]].
 
@@ -1659,145 +1297,53 @@ A conta do Typeform foi cancelada; `frontend/db_readers/typeform.py` não chama 
 
 ### /pesquisas sem venda mostrava só o total (2026-10-23)
 
-Todos os blocos de perfil da página (`read_typeform`) eram **compradores × não compradores**:
-`comp_ncomp_distribution` devolve `{}` quando não há comprador. Antes do carrinho abrir
-(caso do PI-NOV-26 em 23/10: 373 respondentes, 0 vendas, carrinho 19/11) a página só exibia o
-número de preenchimentos, embora as 20 perguntas estivessem no banco.
+Todos os blocos de perfil da página (`read_typeform`) eram **compradores × não compradores**: `comp_ncomp_distribution` devolve `{}` quando não há comprador. Antes do carrinho abrir (caso do PI-NOV-26 em 23/10: 373 respondentes, 0 vendas, carrinho 19/11) a página só exibia o número de preenchimentos, embora as 20 perguntas estivessem no banco.
 
-- `TypeformSummary.respostas_gerais` — distribuição de **cada pergunta de múltipla escolha** do
-  sistema novo entre todos os respondentes (e `pct_comp` entre compradores, quando há venda).
-  As opções vêm de `perguntas.configuracao->'opcoes'` (`_read_novo_sistema_perguntas_escolha`),
-  na ordem do formulário; seleção múltipla (`max_selecoes > 1`) casa a opção inteira entre os
-  separadores `", "` da materialização. Estado fica de fora (já tem Top Estados); texto livre
-  também. Só sistema novo: lançamento do Typeform legado não ganha o bloco.
-- `pesquisas.html` — novo bloco "Respostas da Pesquisa — Todos os Respondentes" (mesmo dia,
-  2ª versão: cartões `.rg-*` com barras horizontais em colunas CSS, não `<table>`. Tabela com
-  mais de 5 linhas ganha filtro e download do `tabelas.js`, que aqui não fazem sentido. Com
-  venda, cada opção ganha uma 2ª barra verde, a dos compradores); o bloco
-  "Perfil Demográfico — Compradores vs Não Compradores" só aparece com `tf_compras > 0`.
-- **Obstáculos (mesmo dia):** a tabela usava uma lista fixa de 9 dificuldades herdada do
-  Typeform. Na pesquisa interna ela mostrava 0% para opção que o formulário não tem ("Sem
-  dinheiro" no PES-NOV-26) e ignorava a que ele tem ("Estou velho para começar..."). Agora,
-  quando há pergunta de preocupações no formulário, as linhas vêm das opções dele; a opção que
-  casa com um padrão da lista fixa mantém o rótulo curto (os insights de IA e os ganchos de
-  copy leem por ele). Essa pergunta sai do grid geral para não repetir. Layout: `.pbar-wrap`
-  com valor de largura fixa (barras alinhadas), colunas fixas, espaçamento em `var(--s*)`;
-  sem venda vira uma coluna só, "% dos respondentes".
-- **Funil de respondentes (mesmo dia):** o funil próprio da página (`.tf-funnel-*`, blocos de
-  110px que não se encaixavam, ~560px) foi refeito em `.pf-*`, no padrão de funnel chart do
-  AntV/MUI. As faixas formam um funil contínuo e centralizado (a base de cada uma é o topo da
-  seguinte, via `clip-path` com `--topo/--base`), com o valor dentro e centralizado para a borda
-  inclinada não cortar o texto. Layout (pedido do usuário): 70% à esquerda com o cartão da etapa
-  e o % da etapa anterior; funil nos 30% da direita. Cores: `--bs-accent` escurecendo por etapa (`color-mix` com `--bs-ink`) e
-  compradores em `--bs-success`. A etapa "respostas enviadas" só aparece quando há repetidas;
-  sem venda, compradores mostra "—". Uma tentativa intermediária com o `.funil-step` do /funil
-  foi descartada: o texto encostava na borda e os cartões sumiam. O cruzamento com o CRM
-  continua só por e-mail: em 23/10 o telefone casaria mais 12 respondentes no PES-NOV-26 e 26 no
-  PI-NOV-26. Não foi implementado.
+- `TypeformSummary.respostas_gerais` — distribuição de **cada pergunta de múltipla escolha** do sistema novo entre todos os respondentes (e `pct_comp` entre compradores, quando há venda). As opções vêm de `perguntas.configuracao->'opcoes'` (`_read_novo_sistema_perguntas_escolha`), na ordem do formulário; seleção múltipla (`max_selecoes > 1`) casa a opção inteira entre os separadores `", "` da materialização. Estado fica de fora (já tem Top Estados); texto livre também. Só sistema novo: lançamento do Typeform legado não ganha o bloco.
+- `pesquisas.html` — novo bloco "Respostas da Pesquisa — Todos os Respondentes" (mesmo dia, 2ª versão: cartões `.rg-*` com barras horizontais em colunas CSS, não `<table>`. Tabela com mais de 5 linhas ganha filtro e download do `tabelas.js`, que aqui não fazem sentido. Com venda, cada opção ganha uma 2ª barra verde, a dos compradores); o bloco "Perfil Demográfico — Compradores vs Não Compradores" só aparece com `tf_compras > 0`.
+- **Obstáculos (mesmo dia):** a tabela usava uma lista fixa de 9 dificuldades herdada do Typeform. Na pesquisa interna ela mostrava 0% para opção que o formulário não tem ("Sem dinheiro" no PES-NOV-26) e ignorava a que ele tem ("Estou velho para começar..."). Agora, quando há pergunta de preocupações no formulário, as linhas vêm das opções dele; a opção que casa com um padrão da lista fixa mantém o rótulo curto (os insights de IA e os ganchos de copy leem por ele). Essa pergunta sai do grid geral para não repetir. Layout: `.pbar-wrap` com valor de largura fixa (barras alinhadas), colunas fixas, espaçamento em `var(--s*)`; sem venda vira uma coluna só, "% dos respondentes".
+- **Funil de respondentes (mesmo dia):** o funil próprio da página (`.tf-funnel-*`, blocos de 110px que não se encaixavam, ~560px) foi refeito em `.pf-*`, no padrão de funnel chart do AntV/MUI. As faixas formam um funil contínuo e centralizado (a base de cada uma é o topo da seguinte, via `clip-path` com `--topo/--base`), com o valor dentro e centralizado para a borda inclinada não cortar o texto. Layout (pedido do usuário): 70% à esquerda com o cartão da etapa e o % da etapa anterior; funil nos 30% da direita. Cores: `--bs-accent` escurecendo por etapa (`color-mix` com `--bs-ink`) e compradores em `--bs-success`. A etapa "respostas enviadas" só aparece quando há repetidas; sem venda, compradores mostra "—". Uma tentativa intermediária com o `.funil-step` do /funil foi descartada: o texto encostava na borda e os cartões sumiam. O cruzamento com o CRM continua só por e-mail: em 23/10 o telefone casaria mais 12 respondentes no PES-NOV-26 e 26 no PI-NOV-26. Não foi implementado.
 
 
 ## Calendário de lançamentos — fonte das datas-padrão (2026-09-14)
 
-`frontend/calendar_parser.py::parse_calendar` extrai, por lançamento, o início/fim de cada etapa
-(pré-quali, captação, depoimento, aulas, carrinho) direto do HTML do calendário. É o que alimenta
-`_compute_launch_defaults` em `core.py`, ou seja, os valores que o wizard de lançamento sugere.
+`frontend/calendar_parser.py::parse_calendar` extrai, por lançamento, o início/fim de cada etapa (pré-quali, captação, depoimento, aulas, carrinho) direto do HTML do calendário. É o que alimenta `_compute_launch_defaults` em `core.py`, ou seja, os valores que o wizard de lançamento sugere.
 
-**Local canônico:** `analises/calendario/SISTEMA_CALENDARIO_2026.html`, junto dos CSVs de consulta
-(`BASE_CONSULTA_CALENDARIO_2026*.csv`). Fica sob `analises/` de propósito — é a pasta montada
-como estático em `/analises` (desde 21/09/2026 há também `/static`, para o CSS/JS do design
-system — ver a seção do fim), então a mesma cópia serve o parser, os relatórios v1 (que linkam
-`../calendario/...`) e o navegador. Os dois CSVs têm exceção no `.gitignore`, que por padrão
-ignora `analises/**/*.csv`.
+**Local canônico:** `analises/calendario/SISTEMA_CALENDARIO_2026.html`, junto dos CSVs de consulta (`BASE_CONSULTA_CALENDARIO_2026*.csv`). Fica sob `analises/` de propósito — é a pasta montada como estático em `/analises` (desde 21/09/2026 há também `/static`, para o CSS/JS do design system — ver a seção do fim), então a mesma cópia serve o parser, os relatórios v1 (que linkam `../calendario/...`) e o navegador. Os dois CSVs têm exceção no `.gitignore`, que por padrão ignora `analises/**/*.csv`.
 
-**Armadilha já materializada:** o parser varre apenas `analises/`. Enquanto o HTML esteve em
-`frontend/static/calendario/` (pasta que **não** é montada), `parse_calendar` caiu em
-`get_static_fallback_bounds()` — datas chumbadas no código — **sem logar nada**. As datas gerais
-batiam, mas o fallback devolve `stages: {}`, então a Captação virava o range inteiro do lançamento
-e pré-quali/carrinho/evento voltavam `None`. Corrigido em 2026-09-14: arquivo movido pro local
-canônico e o fallback agora emite `logger.warning`.
+**Armadilha já materializada:** o parser varre apenas `analises/`. Enquanto o HTML esteve em `frontend/static/calendario/` (pasta que **não** é montada), `parse_calendar` caiu em `get_static_fallback_bounds()` — datas chumbadas no código — **sem logar nada**. As datas gerais batiam, mas o fallback devolve `stages: {}`, então a Captação virava o range inteiro do lançamento e pré-quali/carrinho/evento voltavam `None`. Corrigido em 2026-09-14: arquivo movido pro local canônico e o fallback agora emite `logger.warning`.
 
-**Duas fontes, papeis diferentes:** o HTML do calendário é o *planejado* (sugestão de datas);
-`launch_config` (banco operacional) é o *configurado*. Quando divergirem, `launch_config` manda.
-Na mesma correção o calendário ainda trazia o `PBB-AGO-26` sob o código antigo `PBB-OUT-26` com
-datas de set/out; código e as 5 etapas foram realinhados com o `launch_config`.
+**Duas fontes, papeis diferentes:** o HTML do calendário é o *planejado* (sugestão de datas); `launch_config` (banco operacional) é o *configurado*. Quando divergirem, `launch_config` manda. Na mesma correção o calendário ainda trazia o `PBB-AGO-26` sob o código antigo `PBB-OUT-26` com datas de set/out; código e as 5 etapas foram realinhados com o `launch_config`.
 
-**Segunda ocorrência do mesmo caminho quebrado (2026-09-16):** a correção acima trocou o caminho
-lido por `calendar_parser.py` (sugestão de datas do wizard), mas `frontend/routes/analytics.py::
-_load_calendario_assets` — usado só pela página `/calendario` pra reaproveitar o CSS/JS do HTML
-legado (métricas, chips, tabelas) — continuou apontando pra `frontend/static/calendario/`, que já
-não existia. O `try/except` engolia o erro e a página rodava sem esse CSS, silenciosamente, por 2
-dias. Corrigido pro mesmo caminho canônico (`analises/calendario/`).
+**Segunda ocorrência do mesmo caminho quebrado (2026-09-16):** a correção acima trocou o caminho lido por `calendar_parser.py` (sugestão de datas do wizard), mas `frontend/routes/analytics.py:: _load_calendario_assets` — usado só pela página `/calendario` pra reaproveitar o CSS/JS do HTML legado (métricas, chips, tabelas) — continuou apontando pra `frontend/static/calendario/`, que já não existia. O `try/except` engolia o erro e a página rodava sem esse CSS, silenciosamente, por 2 dias. Corrigido pro mesmo caminho canônico (`analises/calendario/`).
 
 ## Calendário — linha do tempo editável (vis-timeline, 2026-09-16)
 
-A página `/calendario` ganhou uma visualização tipo Gantt em cima das duas tabelas existentes
-(mantidas como estão): 1 linha por lançamento, 1 barra por etapa. Biblioteca
-[vis-timeline](https://github.com/visjs/vis-timeline) (MIT/Apache-2.0, via CDN jsdelivr, sem
-build step — mesmo padrão do Chart.js/Tabler Icons já usados no resto do sistema).
+A página `/calendario` ganhou uma visualização tipo Gantt em cima das duas tabelas existentes (mantidas como estão): 1 linha por lançamento, 1 barra por etapa. Biblioteca [vis-timeline](https://github.com/visjs/vis-timeline) (MIT/Apache-2.0, via CDN jsdelivr, sem build step — mesmo padrão do Chart.js/Tabler Icons já usados no resto do sistema).
 
-`frontend/services/calendario.py::_build_timeline` monta os dados: um `group` por lançamento, um
-`item` por etapa. Etapa sem data vira um item "fantasma" (`ghost: true`, barra tracejada,
-posicionada logo após a última etapa conhecida daquele lançamento) — arrastar/redimensionar
-qualquer barra (real ou fantasma) chama `POST /api/launch-config/{code}` só com as 2 colunas
-daquela etapa. Esse endpoint já existia pro wizard de Configurações, já faz upsert parcial (não
-sobrescreve o resto da config) e já é role-guardado (`admin`/`analista`/`trafego`); a linha do
-tempo não precisou de endpoint novo. Quem não tem esses papéis vê a régua em modo leitura (a
-trava real é no servidor; o client só evita mostrar um arrastar que ia falhar).
+`frontend/services/calendario.py::_build_timeline` monta os dados: um `group` por lançamento, um `item` por etapa. Etapa sem data vira um item "fantasma" (`ghost: true`, barra tracejada, posicionada logo após a última etapa conhecida daquele lançamento) — arrastar/redimensionar qualquer barra (real ou fantasma) chama `POST /api/launch-config/{code}` só com as 2 colunas daquela etapa. Esse endpoint já existia pro wizard de Configurações, já faz upsert parcial (não sobrescreve o resto da config) e já é role-guardado (`admin`/`analista`/`trafego`); a linha do tempo não precisou de endpoint novo. Quem não tem esses papéis vê a régua em modo leitura (a trava real é no servidor; o client só evita mostrar um arrastar que ia falhar).
 
-Datas: o servidor manda `"YYYY-MM-DD"` (sem hora); o JS converte pra `Date` local explícito antes
-de qualquer coisa (`localDateFromIso`), nunca deixa o parser de string do vis-timeline decidir —
-uma string ISO sem timezone é interpretada como UTC meia-noite, que em fuso negativo (BR) vira o
-dia anterior na hora local. Salvar recarrega a página inteira em vez de tentar sincronizar o
-estado client-side — mais simples, e garante que status/métricas recalculados batem com o banco.
+Datas: o servidor manda `"YYYY-MM-DD"` (sem hora); o JS converte pra `Date` local explícito antes de qualquer coisa (`localDateFromIso`), nunca deixa o parser de string do vis-timeline decidir — uma string ISO sem timezone é interpretada como UTC meia-noite, que em fuso negativo (BR) vira o dia anterior na hora local. Salvar recarrega a página inteira em vez de tentar sincronizar o estado client-side — mais simples, e garante que status/métricas recalculados batem com o banco.
 
-**Padrão visual + grade de mês (2026-09-16):** a página parou de depender do CSS/JS extraído do
-HTML estático (`cal_styles`/`cal_script`, `_load_calendario_assets` em `analytics.py` — removido)
-e passou a usar os tokens `--bs-*` como o resto do sistema, acompanhando tema. Ganhou também um
-toggle "Linha do Tempo" / "Calendário": a segunda opção é uma grade de mês nova (navegação
-anterior/próximo/hoje), só leitura — mostra as etapas já datadas num grid de dias; editar
-continua sendo exclusivo da Linha do Tempo (arrastar uma barra). As duas visões e as duas tabelas
-de baixo (Pipeline Completo / Agenda por Lançamento) reaproveitam o mesmo `cal.timeline_items`.
+**Padrão visual + grade de mês (2026-09-16):** a página parou de depender do CSS/JS extraído do HTML estático (`cal_styles`/`cal_script`, `_load_calendario_assets` em `analytics.py` — removido) e passou a usar os tokens `--bs-*` como o resto do sistema, acompanhando tema. Ganhou também um toggle "Linha do Tempo" / "Calendário": a segunda opção é uma grade de mês nova (navegação anterior/próximo/hoje), só leitura — mostra as etapas já datadas num grid de dias; editar continua sendo exclusivo da Linha do Tempo (arrastar uma barra). As duas visões e as duas tabelas de baixo (Pipeline Completo / Agenda por Lançamento) reaproveitam o mesmo `cal.timeline_items`.
 
-**Refatoração de layout pro padrão do sistema (2026-09-18):** a página ainda usava componentes
-locais reimplementando coisa que já existe compartilhada — trocado por `.wrap`/`.hdr` (cabeçalho
-sticky padrão, no lugar de `.container`/`.header` própria sem sticky nenhum), `.tp-kpi-grid`/
-`.tp-kpi` (cards de métrica, mesmo componente do dashboard), `.note.warning` (existia em
-`base.html`, a página reimplementava do zero) e `.bs-pill.accent/info/success/danger` (no lugar
-de 6 variantes de `.tag` próprias). "Pipeline Completo de Lançamentos" e "Agenda Por Lançamento"
-viram `.section`/`.section-title` de verdade — ganham recolher/reordenar/ocultar como qualquer
-tabela grande do sistema. A Linha do Tempo/toggle Calendário ficam de propósito FORA do accordion
-genérico (`.cal-h2` imita o visual sem usar a classe `.section-title`): o vis-timeline calcula a
-largura só na primeira renderização, e recolher via `display:none` sem um redraw manual deixaria
-a régua em branco ao expandir de novo. `.launch-name`/`.project-badge`/`.chip`/`.stage` seguem
-locais — cores por produto/etapa não têm componente compartilhado equivalente.
+**Refatoração de layout pro padrão do sistema (2026-09-18):** a página ainda usava componentes locais reimplementando coisa que já existe compartilhada — trocado por `.wrap`/`.hdr` (cabeçalho sticky padrão, no lugar de `.container`/`.header` própria sem sticky nenhum), `.tp-kpi-grid`/ `.tp-kpi` (cards de métrica, mesmo componente do dashboard), `.note.warning` (existia em `base.html`, a página reimplementava do zero) e `.bs-pill.accent/info/success/danger` (no lugar de 6 variantes de `.tag` próprias). "Pipeline Completo de Lançamentos" e "Agenda Por Lançamento" viram `.section`/`.section-title` de verdade — ganham recolher/reordenar/ocultar como qualquer tabela grande do sistema. A Linha do Tempo/toggle Calendário ficam de propósito FORA do accordion genérico (`.cal-h2` imita o visual sem usar a classe `.section-title`): o vis-timeline calcula a largura só na primeira renderização, e recolher via `display:none` sem um redraw manual deixaria a régua em branco ao expandir de novo. `.launch-name`/`.project-badge`/`.chip`/`.stage` seguem locais — cores por produto/etapa não têm componente compartilhado equivalente.
 
 ## Documentação como sistema (2026-09-14)
 
-**Navegação da performance (2026-09-29):** cada lançamento tem um hub — o diário `MUDANCAS_<LANÇAMENTO>` —
-com uma linha 🧭 logo abaixo do título listando os docs da pasta, o lançamento anterior/seguinte do mesmo
-produto e as referências fixas (`REGRAS_DECISAO`, `MANUAL_OPERACAO_ADS`, `FECHAMENTO_LANCAMENTO`). Todo doc
-da pasta tem o hub em `relacionados`. O `INDICE_PERFORMANCE` abre com a tabela "quero saber X → abra Y" e lista
-os lançamentos por produto. Doc novo de lançamento: pôr o hub nos `relacionados` e o doc na linha 🧭 do hub.
+**Navegação da performance (2026-09-29):** cada lançamento tem um hub — o diário `MUDANCAS_<LANÇAMENTO>` — com uma linha 🧭 logo abaixo do título listando os docs da pasta, o lançamento anterior/seguinte do mesmo produto e as referências fixas (`REGRAS_DECISAO`, `MANUAL_OPERACAO_ADS`, `FECHAMENTO_LANCAMENTO`). Todo doc da pasta tem o hub em `relacionados`. O `INDICE_PERFORMANCE` abre com a tabela "quero saber X → abra Y" e lista os lançamentos por produto. Doc novo de lançamento: pôr o hub nos `relacionados` e o doc na linha 🧭 do hub.
 
-`docs/` deixou de ser uma pasta de arquivos soltos e virou um vault com roteamento, para que
-nem pessoa nem agente precise ler tudo para achar uma coisa. Três camadas:
+`docs/` deixou de ser uma pasta de arquivos soltos e virou um vault com roteamento, para que nem pessoa nem agente precise ler tudo para achar uma coisa. Três camadas:
 
-1. **Frontmatter em todo `.md`** — `titulo`, `area`, `status`, `atualizado` e `responde`
-   (as perguntas que aquele doc responde). É o índice legivel por máquina: dá para varrer o
-   vault inteiro lendo 14 linhas por arquivo (~570 linhas) em vez das ~6.700 linhas de conteúdo.
-2. **Mapa de roteamento** em `docs/README.md`, uma tabela `pergunta -> doc` **gerada** a partir
-   desses `responde`. Não editar à mão.
-3. **Validador** `scripts/check_docs.py` — confere frontmatter obrigatório, nomes únicos no
-   vault, wikilinks quebrados e se todo doc é alcançável a partir do README; com
-   `--atualizar-mapa` regenera a tabela. Saída diferente de zero = build quebrado.
+1. **Frontmatter em todo `.md`** — `titulo`, `area`, `status`, `atualizado` e `responde` (as perguntas que aquele doc responde). É o índice legivel por máquina: dá para varrer o vault inteiro lendo 14 linhas por arquivo (~570 linhas) em vez das ~6.700 linhas de conteúdo.
+2. **Mapa de roteamento** em `docs/README.md`, uma tabela `pergunta -> doc` **gerada** a partir desses `responde`. Não editar à mão.
+3. **Validador** `scripts/check_docs.py` — confere frontmatter obrigatório, nomes únicos no vault, wikilinks quebrados e se todo doc é alcançável a partir do README; com `--atualizar-mapa` regenera a tabela. Saída diferente de zero = build quebrado.
 
 ```bash
 python scripts/check_docs.py --atualizar-mapa
 ```
 
-**Restrições que isso impõe:** nome de arquivo único no vault (o `[[link]]` do Obsidian resolve
-por nome, não por caminho) e sem `[`/`]` no nome — colchete quebra a sintaxe do wikilink; foi
-por isso que `VERIFICACAO_GOOGLE_ADS_[PES-JAN-26].md` precisou ser renomeado.
+**Restrições que isso impõe:** nome de arquivo único no vault (o `[[link]]` do Obsidian resolve por nome, não por caminho) e sem `[`/`]` no nome — colchete quebra a sintaxe do wikilink; foi por isso que `VERIFICACAO_GOOGLE_ADS_[PES-JAN-26].md` precisou ser renomeado.
 
 **`docs/performance` e `docs/marketing` moram no `brabo-brain` (10/11/26).**
 
@@ -1811,46 +1357,23 @@ por isso que `VERIFICACAO_GOOGLE_ADS_[PES-JAN-26].md` precisou ser renomeado.
 - **Pegadinha:** a junção mostra o branch que estiver checado no clone do `brabo-brain`, que deve ficar sempre na `main`.
 - **Onde estão o desenho e o plano:** `IDEIA_PROJETO_INTERNO_EQUIPE` e `PLANO_IMPLEMENTACAO_BRABO_BRAIN`.
 
-As regras de onde escrever cada tipo de registro estão em `CLAUDE.md`, seção
-*Documentation (`docs/`)* — fonte única; `AGENTS.md` só aponta pra lá, depois de as duas
-cópias terem divergido.
+As regras de onde escrever cada tipo de registro estão em `CLAUDE.md`, seção *Documentation (`docs/`)* — fonte única; `AGENTS.md` só aponta pra lá, depois de as duas cópias terem divergido.
 
 ## Egress do Supabase — cruzamento de telefone dos grupos otimizado (2026-09-14)
 
-`frontend/db_readers/whatsapp_groups.py::_telefones_tabela` (usada em `_compradores_grupos`,
-que alimenta `read_vendas_grupos_whatsapp` e `read_leads_x_whatsapp`) e `_fones_com_data`
-(usada em `read_compradores_por_dia_grupo`) traziam a coluna `"NÚMERO"` **inteira** das tabelas
-`[CODE]_API`/`[CODE]_VIP_API` (até ~410 mil linhas por lançamento) pro Python, só pra cruzar
-contra uma lista pequena de compradores (Hotmart+TMB). O mesmo padrão estava duplicado em
-`frontend/db_readers/caminho_comprador.py`.
+`frontend/db_readers/whatsapp_groups.py::_telefones_tabela` (usada em `_compradores_grupos`, que alimenta `read_vendas_grupos_whatsapp` e `read_leads_x_whatsapp`) e `_fones_com_data` (usada em `read_compradores_por_dia_grupo`) traziam a coluna `"NÚMERO"` **inteira** das tabelas `[CODE]_API`/`[CODE]_VIP_API` (até ~410 mil linhas por lançamento) pro Python, só pra cruzar contra uma lista pequena de compradores (Hotmart+TMB). O mesmo padrão estava duplicado em `frontend/db_readers/caminho_comprador.py`.
 
-**Impacto real:** via `pg_stat_statements`, essa única consulta (`SELECT DISTINCT "NÚMERO"
-FROM "PI_AGO_26_API"`) respondia por ~655 milhões de linhas / ~13% de todo o egress do banco
-analytics em 10 dias (04-14/09) — Shared Pooler Egress estourando os 250 GB inclusos do plano
-Pro do Supabase, virando custo real de tráfego excedente (~US$0,09/GB acima do limite).
+**Impacto real:** via `pg_stat_statements`, essa única consulta (`SELECT DISTINCT "NÚMERO" FROM "PI_AGO_26_API"`) respondia por ~655 milhões de linhas / ~13% de todo o egress do banco analytics em 10 dias (04-14/09) — Shared Pooler Egress estourando os 250 GB inclusos do plano Pro do Supabase, virando custo real de tráfego excedente (~US$0,09/GB acima do limite).
 
-**Fix:** função SQL `norm_phone_brasil(v text)` (criada sob demanda via `_ensure_norm_phone_fn`,
-espelha `_norm_phone()` do Python) permite filtrar o telefone **dentro do banco** — a consulta
-vira `WHERE norm_phone_brasil("NÚMERO"::text) = ANY(:alvos)`, e só os telefones que batem com
-compradores voltam pro Python, não a tabela inteira. Validado contra 3 lançamentos
-(PI-AGO-26, PES-SET-26, PBB-AGO-26): resultado idêntico ao método antigo em todos.
+**Fix:** função SQL `norm_phone_brasil(v text)` (criada sob demanda via `_ensure_norm_phone_fn`, espelha `_norm_phone()` do Python) permite filtrar o telefone **dentro do banco** — a consulta vira `WHERE norm_phone_brasil("NÚMERO"::text) = ANY(:alvos)`, e só os telefones que batem com compradores voltam pro Python, não a tabela inteira. Validado contra 3 lançamentos (PI-AGO-26, PES-SET-26, PBB-AGO-26): resultado idêntico ao método antigo em todos.
 
-**Armadilha do fix:** criar a função via `CREATE OR REPLACE FUNCTION` usando a mesma `conn`
-de leitura do chamador (`engine.connect()`, sem commit explícito) a torna visível só dentro
-daquela transação — ao fechar a conexão sem commit, o `CREATE FUNCTION` é desfeito e a próxima
-conexão (nova transação) não encontra mais a função. `_ensure_norm_phone_fn()` usa
-`engine.begin()` próprio (sempre commitado), independente da conexão de quem chama.
+**Armadilha do fix:** criar a função via `CREATE OR REPLACE FUNCTION` usando a mesma `conn` de leitura do chamador (`engine.connect()`, sem commit explícito) a torna visível só dentro daquela transação — ao fechar a conexão sem commit, o `CREATE FUNCTION` é desfeito e a próxima conexão (nova transação) não encontra mais a função. `_ensure_norm_phone_fn()` usa `engine.begin()` próprio (sempre commitado), independente da conexão de quem chama.
 
 ## Egress do Supabase — os cruzamentos que baixavam a base inteira (2026-09-14)
 
-Continuação do item anterior. Um relatório técnico apontou ~1 TB de Shared Pooler Egress em
-30 dias contra os 250 GB inclusos no plano Pro (US$ 0,09/GB de excedente). A causa é sempre o
-mesmo padrão: **baixar a tabela inteira pro Python pra filtrar/agregar em pandas**. O
-`pg_stat_statements` confirmou a atribuição antes de mexer em qualquer linha de código.
+Continuação do item anterior. Um relatório técnico apontou ~1 TB de Shared Pooler Egress em 30 dias contra os 250 GB inclusos no plano Pro (US$ 0,09/GB de excedente). A causa é sempre o mesmo padrão: **baixar a tabela inteira pro Python pra filtrar/agregar em pandas**. O `pg_stat_statements` confirmou a atribuição antes de mexer em qualquer linha de código.
 
-A regra que saiu disso: quando o resultado é uma contagem, uma soma ou um cruzamento contra
-uma lista pequena, o filtro e o `GROUP BY` vão pro SQL. Só volta pro Python o que ele de fato
-usa. Passar a lista de compradores como parâmetro é *upload*, que não é cobrado como egress.
+A regra que saiu disso: quando o resultado é uma contagem, uma soma ou um cruzamento contra uma lista pequena, o filtro e o `GROUP BY` vão pro SQL. Só volta pro Python o que ele de fato usa. Passar a lista de compradores como parâmetro é *upload*, que não é cobrado como egress.
 
 ### O que foi feito, por ordem de impacto
 
@@ -1862,55 +1385,28 @@ usa. Passar a lista de compradores como parâmetro é *upload*, que não é cobr
 | `typeform_respostas` + backups | ~25 GB | índices de expressão + poda de colunas |
 | telefones dos grupos WhatsApp | ~25 GB | `norm_phone_brasil()` (seção anterior) |
 
-**`leads`** — `read_leads` agregava em pandas as 269 mil linhas do PI-AGO-26 a cada chamada;
-agora o `GROUP BY utm_source, utm_medium, utm_campaign, dia` roda no servidor e só a linha dos
-compradores desce. `read_ac_leads_for_attribution` ganhou filtro opcional por e-mail/telefone,
-e o mapa `utm_term -> campanha` virou `read_term_campaign_map` (agregação no SQL, com
-`ORDER BY termo, n DESC, campanha` replicando o desempate do `idxmax()` do pandas).
+**`leads`** — `read_leads` agregava em pandas as 269 mil linhas do PI-AGO-26 a cada chamada; agora o `GROUP BY utm_source, utm_medium, utm_campaign, dia` roda no servidor e só a linha dos compradores desce. `read_ac_leads_for_attribution` ganhou filtro opcional por e-mail/telefone, e o mapa `utm_term -> campanha` virou `read_term_campaign_map` (agregação no SQL, com `ORDER BY termo, n DESC, campanha` replicando o desempate do `idxmax()` do pandas).
 
-**Typeform** — as três tabelas `typeform_respostas*` (~990 mil linhas) caíam em *Seq Scan*
-porque o filtro do frontend é `upper(coalesce(form_id, ''))` e os índices eram em `form_id`
-puro. Nunca tinham sido analisadas também (`n_live_tup = 0` com 800 mil linhas reais), então o
-planejador estimava 1.764 linhas onde vinham 95 mil. Índices de expressão + `ANALYZE`: 32.880
-→ 1.889 buffers por chamada. **Isso explica o timeout intermitente de 30s** que derrubava a
-seção do PI-AGO-26 — o sintoma aparecia como `SSL connection has been closed unexpectedly`,
-não como timeout, o que despistou o diagnóstico por um bom tempo.
+**Typeform** — as três tabelas `typeform_respostas*` (~990 mil linhas) caíam em *Seq Scan* porque o filtro do frontend é `upper(coalesce(form_id, ''))` e os índices eram em `form_id` puro. Nunca tinham sido analisadas também (`n_live_tup = 0` com 800 mil linhas reais), então o planejador estimava 1.764 linhas onde vinham 95 mil. Índices de expressão + `ANALYZE`: 32.880 → 1.889 buffers por chamada. **Isso explica o timeout intermitente de 30s** que derrubava a seção do PI-AGO-26 — o sintoma aparecia como `SSL connection has been closed unexpectedly`, não como timeout, o que despistou o diagnóstico por um bom tempo.
 
-**Sistema de pesquisa novo** — o JOIN `submissoes × respostas × perguntas` (912 mil linhas
-agregadas em ~27 mil jsonb) rodava duas vezes por lançamento a cada TTL, porque
-`read_typeform`, `read_typeform_count`, `read_perfil_por_anuncio` e `read_pesquisa_engajamento`
-chamavam o helper direto, cada um sob o cache do seu próprio reader.
-`_novo_sistema_respostas_cached` guarda o resultado sob a chave do lançamento, que o
-`_invalidate` do ETL já limpa.
+**Sistema de pesquisa novo** — o JOIN `submissoes × respostas × perguntas` (912 mil linhas agregadas em ~27 mil jsonb) rodava duas vezes por lançamento a cada TTL, porque `read_typeform`, `read_typeform_count`, `read_perfil_por_anuncio` e `read_pesquisa_engajamento` chamavam o helper direto, cada um sob o cache do seu próprio reader. `_novo_sistema_respostas_cached` guarda o resultado sob a chave do lançamento, que o `_invalidate` do ETL já limpa.
 
-**GA4** — `read_landing_pages_por_etapa` e `read_conversao_pagina_captura` baixavam uma linha
-por dia por página e somavam em pandas. Etapa e versão são função pura do `landing_page`, então
-a agregação subiu pro SQL: 7.511 → 81 linhas no PI-AGO-26, saída byte-idêntica.
+**GA4** — `read_landing_pages_por_etapa` e `read_conversao_pagina_captura` baixavam uma linha por dia por página e somavam em pandas. Etapa e versão são função pura do `landing_page`, então a agregação subiu pro SQL: 7.511 → 81 linhas no PI-AGO-26, saída byte-idêntica.
 
-`meta_ads_daily`/`google_ads_daily` ficaram como estão: os readers precisam da granularidade
-por anúncio e por dia, e depois das correções acima essas consultas não aparecem mais entre as
-15 maiores do `pg_stat_statements`.
+`meta_ads_daily`/`google_ads_daily` ficaram como estão: os readers precisam da granularidade por anúncio e por dia, e depois das correções acima essas consultas não aparecem mais entre as 15 maiores do `pg_stat_statements`.
 
 ### Como validar mudança de reader sem regressão
 
-`pg_stat_statements` foi zerado em 14/09/26 (5,0 bilhões de linhas / 13,0 milhões de chamadas
-acumuladas), então daqui pra frente ele mede só o código otimizado.
+`pg_stat_statements` foi zerado em 14/09/26 (5,0 bilhões de linhas / 13,0 milhões de chamadas acumuladas), então daqui pra frente ele mede só o código otimizado.
 
 Duas armadilhas que custaram tempo e valem pra qualquer refatoração de leitura:
 
-- **Comparar snapshots só de lançamentos ENCERRADOS.** Usar um lançamento ativo (PES-SET-26)
-  polui o diff com centenas de falsos positivos, porque o ETL atualiza as métricas no meio da
-  captura.
-- **Diferença de 1 a 3 leads entre duas capturas é drift real, não regressão.** Um contato que
-  se recadastra tem o `lancamento_codigo` sobrescrito, então ele sai da contagem de um
-  lançamento e entra na de outro entre uma rodada e outra.
+- **Comparar snapshots só de lançamentos ENCERRADOS.** Usar um lançamento ativo (PES-SET-26) polui o diff com centenas de falsos positivos, porque o ETL atualiza as métricas no meio da captura.
+- **Diferença de 1 a 3 leads entre duas capturas é drift real, não regressão.** Um contato que se recadastra tem o `lancamento_codigo` sobrescrito, então ele sai da contagem de um lançamento e entra na de outro entre uma rodada e outra.
 
-Quando o diff acusar diferença, isolar com `git stash` dos arquivos alterados e recapturar: se
-a diferença persiste com o código antigo, é dado que mudou, não a refatoração.
+Quando o diff acusar diferença, isolar com `git stash` dos arquivos alterados e recapturar: se a diferença persiste com o código antigo, é dado que mudou, não a refatoração.
 
-**O método rigoroso (usado em S10).** `git stash` serve pra um caso pontual, mas a comparação
-honesta é gerar o baseline com o código **antigo** e verificar com o **novo**, com poucos
-minutos entre as duas — senão o drift de dado se mistura com o efeito da refatoração:
+**O método rigoroso (usado em S10).** `git stash` serve pra um caso pontual, mas a comparação honesta é gerar o baseline com o código **antigo** e verificar com o **novo**, com poucos minutos entre as duas — senão o drift de dado se mistura com o efeito da refatoração:
 
 ```bash
 git worktree add "$TEMP/mmm-head" HEAD
@@ -1924,186 +1420,73 @@ cd "$TEMP/mmm-head" && BASELINE_DIR="C:/dev/workspace-mmm/tests/baseline"   ATUA
 cd C:/dev/workspace-mmm && python -m pytest tests/test_caracterizacao_readers.py -m caracterizacao
 ```
 
-`BASELINE_DIR` existe exatamente pra isso. Em S10 esse método deu 74 de 76 readers idênticos
-byte a byte, e as 2 divergências eram não determinismo pré-existente — que só ficou visível
-porque o código antigo também divergia **de si mesmo** entre duas execuções.
+`BASELINE_DIR` existe exatamente pra isso. Em S10 esse método deu 74 de 76 readers idênticos byte a byte, e as 2 divergências eram não determinismo pré-existente — que só ficou visível porque o código antigo também divergia **de si mesmo** entre duas execuções.
 
 ## Histórico de lançamentos por lead — tags do Active Campaign (2026-09-14)
 
-`leads` guarda só o cadastro **mais recente**: o upsert do ETL sobrescreve
-`lancamento_codigo` quando o mesmo contato se cadastra de novo. Por isso "esse lead já
-participou de lançamentos anteriores?" não tinha resposta no banco — é a pendência que estava
-registrada em `projetos/` como "Anteriores por lançamento específico (dado perdido)".
+`leads` guarda só o cadastro **mais recente**: o upsert do ETL sobrescreve `lancamento_codigo` quando o mesmo contato se cadastra de novo. Por isso "esse lead já participou de lançamentos anteriores?" não tinha resposta no banco — é a pendência que estava registrada em `projetos/` como "Anteriores por lançamento específico (dado perdido)".
 
-O dado não estava perdido: está nas tags do Active Campaign. As tags de lançamento seguem
-`[PRODUTO] [LANÇAMENTO] [CÓDIGO]` (ex: `[INSS] [LANÇAMENTO] [PI-AGO-26]`), são **cumulativas**
-— o contato nunca perde a tag do lançamento anterior — e vão até abr/2024. Das 1.932 tags da
-conta, 31 casam, uma por código do sistema. O marcador `[LANÇAMENTO]` é o que separa essas de
-tags que só citam o código sem ser cadastro (ex: `[INSS][PDF][PI-AGO-26]`).
+O dado não estava perdido: está nas tags do Active Campaign. As tags de lançamento seguem `[PRODUTO] [LANÇAMENTO] [CÓDIGO]` (ex: `[INSS] [LANÇAMENTO] [PI-AGO-26]`), são **cumulativas** — o contato nunca perde a tag do lançamento anterior — e vão até abr/2024. Das 1.932 tags da conta, 31 casam, uma por código do sistema. O marcador `[LANÇAMENTO]` é o que separa essas de tags que só citam o código sem ser cadastro (ex: `[INSS][PDF][PI-AGO-26]`).
 
-**Tabela `lead_lancamentos`** (`contact_id`, `lancamento_codigo`, `tagged_at`) materializa
-esse histórico, uma linha por contato × lançamento.
+**Tabela `lead_lancamentos`** (`contact_id`, `lancamento_codigo`, `tagged_at`) materializa esse histórico, uma linha por contato × lançamento.
 
-**Coleta:** `etl_active_campaign.py` pede `include=contactTags.tag` de carona na paginação de
-contatos que já existia. A alternativa — `/contacts?tagid=N` por tag — significaria varrer 284
-mil contatos só no PI-AGO-26. As tags são gravadas **antes** do filtro de UTM, que descarta
-contatos sem `utm_content`/`utm_term`: esse contato não entra em `leads`, mas a tag dele vale
-pro histórico.
+**Coleta:** `etl_active_campaign.py` pede `include=contactTags.tag` de carona na paginação de contatos que já existia. A alternativa — `/contacts?tagid=N` por tag — significaria varrer 284 mil contatos só no PI-AGO-26. As tags são gravadas **antes** do filtro de UTM, que descarta contatos sem `utm_content`/`utm_term`: esse contato não entra em `leads`, mas a tag dele vale pro histórico.
 
-**Leitura:** `read_lancamentos_anteriores(code, emails=None)` devolve
-`{email: [códigos anteriores]}` e `read_recorrencia_lancamento(code)` devolve o agregado
-(novos vs recorrentes + de qual lançamento vieram). "Anterior" é pela data da tag
-(`ant.tagged_at < atual.tagged_at`) — sem isso um lançamento posterior apareceria como passado.
+**Leitura:** `read_lancamentos_anteriores(code, emails=None)` devolve `{email: [códigos anteriores]}` e `read_recorrencia_lancamento(code)` devolve o agregado (novos vs recorrentes + de qual lançamento vieram). "Anterior" é pela data da tag (`ant.tagged_at < atual.tagged_at`) — sem isso um lançamento posterior apareceria como passado.
 
-**Backfill:** a conta tem 3,97 milhões de contatos e 3,43 milhões de pares contato × tag de
-lançamento. Não existe atalho na API: `filters[tag]` em `/contactTags` é ignorado (devolve os
-14,5 milhões de vínculos da conta) e o `limit` trava em 100 — varrer tudo são ~34 mil
-requisições. **Não é preciso.** Quando um contato se cadastra num lançamento ele é
-*atualizado*, então o ETL normal já o captura com a lista completa de tags: a cobertura dos
-próximos lançamentos é automática. O backfill só serve pra leads de lançamentos passados que
-não foram tocados desde então, e aí vale a passada direcionada por tag
-(`/contacts?tagid=N&include=contactTags.tag`, ~4,3 mil requisições pros três lançamentos em
-uso, ver `scratchpad/backfill_tags.py`).
+**Backfill:** a conta tem 3,97 milhões de contatos e 3,43 milhões de pares contato × tag de lançamento. Não existe atalho na API: `filters[tag]` em `/contactTags` é ignorado (devolve os 14,5 milhões de vínculos da conta) e o `limit` trava em 100 — varrer tudo são ~34 mil requisições. **Não é preciso.** Quando um contato se cadastra num lançamento ele é *atualizado*, então o ETL normal já o captura com a lista completa de tags: a cobertura dos próximos lançamentos é automática. O backfill só serve pra leads de lançamentos passados que não foram tocados desde então, e aí vale a passada direcionada por tag (`/contacts?tagid=N&include=contactTags.tag`, ~4,3 mil requisições pros três lançamentos em uso, ver `scratchpad/backfill_tags.py`).
 
-**Backfill fora do fluxo rastreado (2026-09-18).** Entre o levantamento acima (17/09) e hoje,
-alguém rodou um backfill direto no banco — sem passar por `etl_active_campaign.py` — que
-avançou `lead_lancamentos` para 153.534 pares / 110.474 contatos e, mais importante, criou
-duas colunas em `leads` que não estavam no `schema.sql`: `tags` (string crua com as tags do
-contato, separadas por ` | `) e `tags_atualizado_em` (timestamp), preenchidas para 98,3% dos
-1.247.312 leads. As colunas foram adicionadas ao `schema.sql` em 18/09/26 só pra não se
-perderem numa reinstalação; nenhum código do repositório lê ou escreve nelas. Isso duplica o
-mesmo fato (tags de lançamento por contato) em dois formatos sem um ETL que mantenha ambos
-sincronizados — decisão de manter `leads.tags` ou descartá-la em favor só de
-`lead_lancamentos`, e plano de ressync que cobre as duas frentes, em
-[[PLANO_RESSINCRONIZACAO_LEADS_AC]].
+**Backfill fora do fluxo rastreado (2026-09-18).** Entre o levantamento acima (17/09) e hoje, alguém rodou um backfill direto no banco — sem passar por `etl_active_campaign.py` — que avançou `lead_lancamentos` para 153.534 pares / 110.474 contatos e, mais importante, criou duas colunas em `leads` que não estavam no `schema.sql`: `tags` (string crua com as tags do contato, separadas por ` | `) e `tags_atualizado_em` (timestamp), preenchidas para 98,3% dos 1.247.312 leads. As colunas foram adicionadas ao `schema.sql` em 18/09/26 só pra não se perderem numa reinstalação; nenhum código do repositório lê ou escreve nelas. Isso duplica o mesmo fato (tags de lançamento por contato) em dois formatos sem um ETL que mantenha ambos sincronizados — decisão de manter `leads.tags` ou descartá-la em favor só de `lead_lancamentos`, e plano de ressync que cobre as duas frentes, em [[PLANO_RESSINCRONIZACAO_LEADS_AC]].
 
-**Datas corrompidas corrigidas (2026-09-19).** A carga de 13/08 tinha deixado 136.205 leads
-com `created_at` nulo e 23.254 no futuro (ver [[PLANO_RESSINCRONIZACAO_LEADS_AC]] pro
-diagnóstico). Corrigido ressincronizando só os 159.478 `id`s afetados contra `/contacts` do
-AC, em lotes de `ids[]` (532 requisições) em vez do crawl completo dos ~3,97M de contatos —
-`leads` hoje tem zero `created_at` nulo/futuro. De carona, `lead_lancamentos` subiu de
-110.474 para 270.596 contatos cobertos, porque a mesma busca já trazia `contactTags.tag`.
-`etl/ressync_leads_ac.py` fica no repo com os dois modos (`--so-corrompidos` pro que foi
-usado; o crawl completo original continua disponível sem essa flag, pra quando/se fizer
-sentido completar o histórico dos contatos que nunca corromperam). A decisão sobre
-`leads.tags`/`tags_atualizado_em` continua em aberto — nada escreveu nelas nessa correção.
+**Datas corrompidas corrigidas (2026-09-19).** A carga de 13/08 tinha deixado 136.205 leads com `created_at` nulo e 23.254 no futuro (ver [[PLANO_RESSINCRONIZACAO_LEADS_AC]] pro diagnóstico). Corrigido ressincronizando só os 159.478 `id`s afetados contra `/contacts` do AC, em lotes de `ids[]` (532 requisições) em vez do crawl completo dos ~3,97M de contatos — `leads` hoje tem zero `created_at` nulo/futuro. De carona, `lead_lancamentos` subiu de 110.474 para 270.596 contatos cobertos, porque a mesma busca já trazia `contactTags.tag`. `etl/ressync_leads_ac.py` fica no repo com os dois modos (`--so-corrompidos` pro que foi usado; o crawl completo original continua disponível sem essa flag, pra quando/se fizer sentido completar o histórico dos contatos que nunca corromperam). A decisão sobre `leads.tags`/`tags_atualizado_em` continua em aberto — nada escreveu nelas nessa correção.
 
-**`leads.tags`/`tags_atualizado_em` descartadas (2026-09-21).** Decisão da seção 6 do
-[[PLANO_RESSINCRONIZACAO_LEADS_AC]] tomada: `DROP COLUMN` nas duas (e removidas do
-`schema.sql`). Nenhum código lia ou escrevia nelas; `lead_lancamentos` já cobre o caso de
-uso de forma consultável.
+**`leads.tags`/`tags_atualizado_em` descartadas (2026-09-21).** Decisão da seção 6 do [[PLANO_RESSINCRONIZACAO_LEADS_AC]] tomada: `DROP COLUMN` nas duas (e removidas do `schema.sql`). Nenhum código lia ou escrevia nelas; `lead_lancamentos` já cobre o caso de uso de forma consultável.
 
-**Efeito colateral no teste de caracterização (2026-09-19).** Corrigir `leads.created_at`
-mudou de verdade a saída de readers que dependem dele pra lançamentos já "congelados" —
-`read_leads_antigos_compradores` (classifica comprador por `created_at` × início do
-lançamento) mudou pra PBB-ABR-26 porque leads que antes ficavam `sem_lead` (created_at nulo)
-ou classificados errado (created_at no futuro/trocado) agora caem na categoria certa
-(`novo`/`antigo`). `pytest tests/test_caracterizacao_readers.py` acusa isso — e mais 11
-falhas de outros readers (ads_google, ads_meta, hotmart, sales, typeform) que já estavam
-desatualizadas antes desta sessão, por deriva normal de dado em produção. Nenhuma das 12
-falhas tem a ver com código novo — são baseline desatualizado, não regressão. Regenerar com
-`ATUALIZAR_BASELINE=1 pytest tests/test_caracterizacao_readers.py -m caracterizacao`
-(decisão de quando fazer isso não foi tomada nesta sessão).
+**Efeito colateral no teste de caracterização (2026-09-19).** Corrigir `leads.created_at` mudou de verdade a saída de readers que dependem dele pra lançamentos já "congelados" — `read_leads_antigos_compradores` (classifica comprador por `created_at` × início do lançamento) mudou pra PBB-ABR-26 porque leads que antes ficavam `sem_lead` (created_at nulo) ou classificados errado (created_at no futuro/trocado) agora caem na categoria certa (`novo`/`antigo`). `pytest tests/test_caracterizacao_readers.py` acusa isso — e mais 11 falhas de outros readers (ads_google, ads_meta, hotmart, sales, typeform) que já estavam desatualizadas antes desta sessão, por deriva normal de dado em produção. Nenhuma das 12 falhas tem a ver com código novo — são baseline desatualizado, não regressão. Regenerar com `ATUALIZAR_BASELINE=1 pytest tests/test_caracterizacao_readers.py -m caracterizacao` (decisão de quando fazer isso não foi tomada nesta sessão).
 
 ## Cadastrados em lançamentos anteriores — nova seção no /debriefing (2026-09-19)
 
-`lead_lancamentos` tinha reader pronto desde 14/09/26 (`read_lancamentos_anteriores`,
-`read_recorrencia_lancamento`) mas nunca foi ligado a nenhuma rota — ver seção acima. Faltava
-responder "dos compradores DESTE lançamento, quantos já estavam cadastrados em lançamentos
-anteriores, e quantos compraram sem sequer se recadastrar" (pedido de negócio, com exemplo
-do relatório v1 legado "Cadastrados em Lançamentos Anteriores").
+`lead_lancamentos` tinha reader pronto desde 14/09/26 (`read_lancamentos_anteriores`, `read_recorrencia_lancamento`) mas nunca foi ligado a nenhuma rota — ver seção acima. Faltava responder "dos compradores DESTE lançamento, quantos já estavam cadastrados em lançamentos anteriores, e quantos compraram sem sequer se recadastrar" (pedido de negócio, com exemplo do relatório v1 legado "Cadastrados em Lançamentos Anteriores").
 
-**Por que não reusar `read_lancamentos_anteriores` direto:** ela exige que o contato também
-tenha a tag do lançamento **atual** em `lead_lancamentos` (`JOIN ... atual.lancamento_codigo
-= :code`) — perde quem comprou sem se recadastrar, que é justamente metade do que se queria
-medir. `read_cadastrados_lancamentos_anteriores` (nova, `frontend/db_readers/leads.py`) usa
-a data de início do lançamento como corte em vez da tag atual (mesmo critério já usado por
-`read_leads_antigos_compradores` pra "lead novo × antigo"), e devolve: contagem por
-lançamento anterior (ordenada cronologicamente, com fallback de ordenação pelo próprio código
-`PREFIXO-MES-AA` quando o lançamento é antigo demais pra estar em `dim_lancamentos`), + total
-de compradores com histórico e quantos desses não se cadastraram no lançamento atual.
+**Por que não reusar `read_lancamentos_anteriores` direto:** ela exige que o contato também tenha a tag do lançamento **atual** em `lead_lancamentos` (`JOIN ... atual.lancamento_codigo = :code`) — perde quem comprou sem se recadastrar, que é justamente metade do que se queria medir. `read_cadastrados_lancamentos_anteriores` (nova, `frontend/db_readers/leads.py`) usa a data de início do lançamento como corte em vez da tag atual (mesmo critério já usado por `read_leads_antigos_compradores` pra "lead novo × antigo"), e devolve: contagem por lançamento anterior (ordenada cronologicamente, com fallback de ordenação pelo próprio código `PREFIXO-MES-AA` quando o lançamento é antigo demais pra estar em `dim_lancamentos`), + total de compradores com histórico e quantos desses não se cadastraram no lançamento atual.
 
-Ligada como seção lazy do `/debriefing` (`cadastrados_lancamentos_anteriores`, padrão de
-`caminho_comprador`/`historico_grande`): `frontend/services/fetch.py` →
-`frontend/services/debriefing_build.py` (`f_cadastrados_lancamentos_anteriores`) →
-`frontend/routes/analytics.py` (`_DEBRIEFING_SECOES_LAZY` + `/debriefing/secao/{secao}`) →
-`frontend/templates/debriefing/_secao_cadastrados_lancamentos_anteriores.html`. Testado ao
-vivo (`?ao_vivo=1`) e em modo slides contra PES-SET-26 antes de dar como pronto.
+Ligada como seção lazy do `/debriefing` (`cadastrados_lancamentos_anteriores`, padrão de `caminho_comprador`/`historico_grande`): `frontend/services/fetch.py` → `frontend/services/debriefing_build.py` (`f_cadastrados_lancamentos_anteriores`) → `frontend/routes/analytics.py` (`_DEBRIEFING_SECOES_LAZY` + `/debriefing/secao/{secao}`) → `frontend/templates/debriefing/_secao_cadastrados_lancamentos_anteriores.html`. Testado ao vivo (`?ao_vivo=1`) e em modo slides contra PES-SET-26 antes de dar como pronto.
 
-**Mesma ressalva de cobertura parcial** de `lead_lancamentos` (seção acima) se aplica aqui —
-os números tendem a subestimar; a seção traz essa nota no rodapé.
+**Mesma ressalva de cobertura parcial** de `lead_lancamentos` (seção acima) se aplica aqui — os números tendem a subestimar; a seção traz essa nota no rodapé.
 
 ## Atribuição por criativo — o sorteio do UTM e as vendas "sem veiculação" (2026-09-14)
 
-Investigação a partir de um achado do harness de snapshot: o mesmo ADxxx aparecia com
-campanha/source diferentes entre duas capturas seguidas, sem nada ter mudado no dado.
+Investigação a partir de um achado do harness de snapshot: o mesmo ADxxx aparecia com campanha/source diferentes entre duas capturas seguidas, sem nada ter mudado no dado.
 
 ### O sorteio do UTM representante
 
-`_sales_attribution` monta `por_criativo_utm[ad_code]` guardando **o primeiro comprador que
-chegasse** — e a ordem vem do banco, sem `ORDER BY`. O mesmo ADxxx costuma ter UTMs diferentes
-entre compradores (veiculou na Meta e no Google, ou a campanha mudou de nome no meio do
-lançamento), então o representante mudava a cada recomputação do cache.
+`_sales_attribution` monta `por_criativo_utm[ad_code]` guardando **o primeiro comprador que chegasse** — e a ordem vem do banco, sem `ORDER BY`. O mesmo ADxxx costuma ter UTMs diferentes entre compradores (veiculou na Meta e no Google, ou a campanha mudou de nome no meio do lançamento), então o representante mudava a cada recomputação do cache.
 
-Não era instabilidade de exibição. Em `_creative_overview` o `campaign` do representante é
-casado contra os nomes das campanhas do Google pra recuperar gasto/leads/cliques; quando o
-sorteado era um UTM da Meta, nenhuma campanha casava, o gasto dava zero e o criativo era
-**descartado do ranking principal**, caindo na seção 3. Atingia a maioria dos criativos: 37 de
-57 ADs do PI-AGO-26, 27 de 52 do PES-MAI-26, 25 de 31 do PBB-AGO-26 têm mais de uma campanha.
+Não era instabilidade de exibição. Em `_creative_overview` o `campaign` do representante é casado contra os nomes das campanhas do Google pra recuperar gasto/leads/cliques; quando o sorteado era um UTM da Meta, nenhuma campanha casava, o gasto dava zero e o criativo era **descartado do ranking principal**, caindo na seção 3. Atingia a maioria dos criativos: 37 de 57 ADs do PI-AGO-26, 27 de 52 do PES-MAI-26, 25 de 31 do PBB-AGO-26 têm mais de uma campanha.
 
-Agora `por_criativo_utm` acumula todas as campanhas vistas (`campaigns`) e a união dos
-lançamentos detectados; o representante exibido é a menor tupla
-`(source, medium, campaign, content, term)`, estável independente da ordem do banco; e o
-casamento com o Google usa **todas** as campanhas observadas do ADxxx — só pode somar
-investimento, nunca remover. Recuperou R$ 9.881,75 no ranking do PBB-AGO-26.
+Agora `por_criativo_utm` acumula todas as campanhas vistas (`campaigns`) e a união dos lançamentos detectados; o representante exibido é a menor tupla `(source, medium, campaign, content, term)`, estável independente da ordem do banco; e o casamento com o Google usa **todas** as campanhas observadas do ADxxx — só pode somar investimento, nunca remover. Recuperou R$ 9.881,75 no ranking do PBB-AGO-26.
 
 ### Pré-Qualificação aparecendo como "sem veiculação"
 
-A seção 2 do `/criativos` é declaradamente só de Captação (`captacao_por_ad`), mas as vendas
-vêm de qualquer etapa. Criativo que só veiculou na Pré-Qualificação caía na seção 3 sob um
-texto que afirmava não haver investimento "nem em `meta_ads_daily`, nem em `google_ads_daily`"
-— falso: o AD030 tem R$ 17.443 de gasto no próprio PI-AGO-26, só que na outra etapa.
+A seção 2 do `/criativos` é declaradamente só de Captação (`captacao_por_ad`), mas as vendas vêm de qualquer etapa. Criativo que só veiculou na Pré-Qualificação caía na seção 3 sob um texto que afirmava não haver investimento "nem em `meta_ads_daily`, nem em `google_ads_daily`" — falso: o AD030 tem R$ 17.443 de gasto no próprio PI-AGO-26, só que na outra etapa.
 
-Somar `preq_por_ad` ao ranking quebraria o sentido da seção 2, então o gasto de Pré-Quali é
-levantado à parte (`preq_gasto`) e a seção 3 passa a mostrá-lo. Isso reclassificou 11 dos 14
-casos do PI-AGO-26 (R$ 69.492 de faturamento, R$ 144.320 de investimento real) e zerou a seção
-no PES-MAI-26.
+Somar `preq_por_ad` ao ranking quebraria o sentido da seção 2, então o gasto de Pré-Quali é levantado à parte (`preq_gasto`) e a seção 3 passa a mostrá-lo. Isso reclassificou 11 dos 14 casos do PI-AGO-26 (R$ 69.492 de faturamento, R$ 144.320 de investimento real) e zerou a seção no PES-MAI-26.
 
 ### O que sobra: renomeação de campanha/anúncio
 
-Os 3 casos restantes do PI-AGO-26 (R$ 165 mil, quase tudo em AD255 e AD267) **não** são lacuna
-de ingestão: o gasto da Meta no período bate exatamente entre a API e o banco
-(R$ 839.663,31 dos dois lados, 15/07–12/08). Também não é conta de anúncio faltando — das 25
-contas visíveis ao token, as 20 fora do ETL não têm nenhum gasto de PI-AGO-26.
+Os 3 casos restantes do PI-AGO-26 (R$ 165 mil, quase tudo em AD255 e AD267) **não** são lacuna de ingestão: o gasto da Meta no período bate exatamente entre a API e o banco (R$ 839.663,31 dos dois lados, 15/07–12/08). Também não é conta de anúncio faltando — das 25 contas visíveis ao token, as 20 fora do ETL não têm nenhum gasto de PI-AGO-26.
 
-É **renomeação**. A campanha do AD255 existe na conta como
-`[MA][cadastro][captação][específico][potencial][PI-AGO-26][27.07.26]`, criada em 21/07 e
-renomeada depois (a data do lançamento foi empurrada de 20/07 pra 27/07). Os leads captados
-antes da renomeação carregam o nome antigo no `utm_campaign`, o banco guarda o nome atual, e o
-código deixa de casar. O mesmo vale pros anúncios — há ads no banco chamados
-`AD302 - AD043 - Estúdio Brabo - PI-AGO-26`, com dois códigos no nome, sinal de renomeação.
+É **renomeação**. A campanha do AD255 existe na conta como `[MA][cadastro][captação][específico][potencial][PI-AGO-26][27.07.26]`, criada em 21/07 e renomeada depois (a data do lançamento foi empurrada de 20/07 pra 27/07). Os leads captados antes da renomeação carregam o nome antigo no `utm_campaign`, o banco guarda o nome atual, e o código deixa de casar. O mesmo vale pros anúncios — há ads no banco chamados `AD302 - AD043 - Estúdio Brabo - PI-AGO-26`, com dois códigos no nome, sinal de renomeação.
 
-**O conserto estrutural existe e não está funcionando:** `vk_ad_id` carrega o ID real do
-anúncio, que não muda com rename. O mapeamento do ETL está correto (campo 10 = `vk_ad_id` na
-conta do AC, confirmado via `/fields`), mas o campo está **0% preenchido** nos três lançamentos
-ativos — 0 de 269.392 leads no PI-AGO-26, 0 de 70.312 no PBB-AGO-26, 0 de 56.254 no PES-SET-26.
-Ou seja, o parâmetro não está chegando ao Active Campaign. Enquanto isso não for resolvido no
-lado do tráfego (garantir a UTM padrão completa nos anúncios de captação), toda campanha
-renomeada no meio do voo continua órfã das vendas captadas antes da renomeação.
+**O conserto estrutural existe e não está funcionando:** `vk_ad_id` carrega o ID real do anúncio, que não muda com rename. O mapeamento do ETL está correto (campo 10 = `vk_ad_id` na conta do AC, confirmado via `/fields`), mas o campo está **0% preenchido** nos três lançamentos ativos — 0 de 269.392 leads no PI-AGO-26, 0 de 70.312 no PBB-AGO-26, 0 de 56.254 no PES-SET-26. Ou seja, o parâmetro não está chegando ao Active Campaign. Enquanto isso não for resolvido no lado do tráfego (garantir a UTM padrão completa nos anúncios de captação), toda campanha renomeada no meio do voo continua órfã das vendas captadas antes da renomeação.
 
 ## Eventos de tráfego — a juncão entre o diário e a métrica (2026-09-14)
 
-Os diários (`docs/performance/lancamentos/[CODIGO]/MUDANCAS_*.md`) registram o que foi feito;
-`meta_ads_daily`/`google_ads_daily` registram o que aconteceu. Eram dois mundos: o banco não
-enxerga markdown, então cruzar ação com resultado dependia de parsear título de seção —
-frágil, e inútil pro dashboard.
+Os diários (`docs/performance/lancamentos/[CODIGO]/MUDANCAS_*.md`) registram o que foi feito; `meta_ads_daily`/`google_ads_daily` registram o que aconteceu. Eram dois mundos: o banco não enxerga markdown, então cruzar ação com resultado dependia de parsear título de seção — frágil, e inútil pro dashboard.
 
-**`eventos_trafego`** (analytics, DDL em `etl/schema.sql`) é o índice legível por máquina desses
-diários. O `.md` continua sendo a narrativa legível por gente; cada item vira uma linha com
-`data`, `escopo`, `codigo`, `produto`, `expert`, `plataforma`, `tipo`, `regra` e `resultado`.
+**`eventos_trafego`** (analytics, DDL em `etl/schema.sql`) é o índice legível por máquina desses diários. O `.md` continua sendo a narrativa legível por gente; cada item vira uma linha com `data`, `escopo`, `codigo`, `produto`, `expert`, `plataforma`, `tipo`, `regra` e `resultado`.
 
-O `escopo` usa o mesmo vocabulário de `lancamento_codigo`, então os três mundos convivem:
-`lancamento` (PES-SET-26), `perpetuo` (PERPETUO-PMQ-TJSP), `distribuicao` (DISTRIBUICAO-IVAN-NETO).
+O `escopo` usa o mesmo vocabulário de `lancamento_codigo`, então os três mundos convivem: `lancamento` (PES-SET-26), `perpetuo` (PERPETUO-PMQ-TJSP), `distribuicao` (DISTRIBUICAO-IVAN-NETO).
 
 `scripts/eventos.py` cria a tabela e importa os diários:
 
@@ -2114,179 +1497,96 @@ python scripts/eventos.py --importar --aplicar
 python scripts/eventos.py --listar PES-SET-26
 ```
 
-Reimportar não duplica — a chave é `codigo + hash do título`. A data vem do título quando ele
-traz `(DD/MM/AA)` (padrão do PES-SET-26) ou do cabeçalho `## YYYY-MM-DD` acima (padrão do
-PBB-AGO-26 e PI-AGO-26); sem esse fallback, dois dos três diários ficavam de fora inteiros.
+Reimportar não duplica — a chave é `codigo + hash do título`. A data vem do título quando ele traz `(DD/MM/AA)` (padrão do PES-SET-26) ou do cabeçalho `## YYYY-MM-DD` acima (padrão do PBB-AGO-26 e PI-AGO-26); sem esse fallback, dois dos três diários ficavam de fora inteiros.
 
-**O que isso destrava:** `JOIN` entre evento e métrica do dia. Exemplo real — o CPA do
-PES-SET-26 subiu de R$ 6,74 (01/09) para R$ 12,20 (04/09), e o dia 04/09 concentra **17 ações**
-de 7 tipos diferentes. Sem a tabela, associar uma coisa à outra exigia ler 240 KB de markdown.
+**O que isso destrava:** `JOIN` entre evento e métrica do dia. Exemplo real — o CPA do PES-SET-26 subiu de R$ 6,74 (01/09) para R$ 12,20 (04/09), e o dia 04/09 concentra **17 ações** de 7 tipos diferentes. Sem a tabela, associar uma coisa à outra exigia ler 240 KB de markdown.
 
-**Armadilha do DDL:** o bloco tem ponto-e-vírgula dentro de comentário `--`; separar por `;`
-sem tirar os comentários antes corta a tabela no meio.
+**Armadilha do DDL:** o bloco tem ponto-e-vírgula dentro de comentário `--`; separar por `;` sem tirar os comentários antes corta a tabela no meio.
 
 ### Como conferir se as correções de egress estão valendo
 
 `python scripts/checar_egress.py` responde as duas perguntas com o mesmo dado:
 
-1. **O deploy pegou?** Código antigo e novo geram formas de consulta inconfundíveis (o GA4
-   antigo trazia linha por dia sem `GROUP BY`; o novo agrega no banco). O script checa cada par
-   velho/novo — se as novas aparecem e as velhas não, o container está com o código novo.
-2. **O egress caiu?** Compara o ritmo de linhas devolvidas com a linha de base do relatório
-   técnico (4,93 bilhões de linhas em ~10 dias = ~493 milhões/dia). A meta, na proporção do
-   relatório, é ~95 milhões de linhas/dia — o equivalente aos 250 GB inclusos.
+1. **O deploy pegou?** Código antigo e novo geram formas de consulta inconfundíveis (o GA4 antigo trazia linha por dia sem `GROUP BY`; o novo agrega no banco). O script checa cada par velho/novo — se as novas aparecem e as velhas não, o container está com o código novo.
+2. **O egress caiu?** Compara o ritmo de linhas devolvidas com a linha de base do relatório técnico (4,93 bilhões de linhas em ~10 dias = ~493 milhões/dia). A meta, na proporção do relatório, é ~95 milhões de linhas/dia — o equivalente aos 250 GB inclusos.
 
-Pré-requisito: rodar `SELECT pg_stat_statements_reset()` com o código novo já no ar e esperar
-algumas horas. Abaixo de 1 hora o número não significa nada, e **leitura feita da máquina local
-entra na mesma estatística** — rodar o dashboard ou o harness durante a janela contamina a
-medição. O reset pós-deploy foi feito em 14/09/26.
+Pré-requisito: rodar `SELECT pg_stat_statements_reset()` com o código novo já no ar e esperar algumas horas. Abaixo de 1 hora o número não significa nada, e **leitura feita da máquina local entra na mesma estatística** — rodar o dashboard ou o harness durante a janela contamina a medição. O reset pós-deploy foi feito em 14/09/26.
 
 ### Anotações no gráfico (`/verba`)
 
-`frontend/db_readers/eventos.py::read_eventos` lê a tabela e `eventos_por_dia` agrupa pela
-chave `dd/mm`, que é exatamente o `data_str` usado no eixo X das curvas de verba. Em
-`verba.html`, dia com ação registrada ganha ponto maior na cor do tipo
-(`pointRadius`/`pointBackgroundColor` por índice, sem plugin extra), e o `afterBody` do tooltip
-lista o que foi feito. Abaixo do gráfico, legenda de cores e a tabela completa em `<details>`.
+`frontend/db_readers/eventos.py::read_eventos` lê a tabela e `eventos_por_dia` agrupa pela chave `dd/mm`, que é exatamente o `data_str` usado no eixo X das curvas de verba. Em `verba.html`, dia com ação registrada ganha ponto maior na cor do tipo (`pointRadius`/`pointBackgroundColor` por índice, sem plugin extra), e o `afterBody` do tooltip lista o que foi feito. Abaixo do gráfico, legenda de cores e a tabela completa em `<details>`.
 
-**O formato da data é o acoplamento frágil:** o agrupamento usa `%d/%m` porque é o que a curva
-usa. Se o eixo mudar de formato, as anotações somem em silêncio — nada quebra, só param de
-aparecer. Conferir a interseção entre `labels` e as chaves de `evDia` ao mexer em qualquer um
-dos dois.
+**O formato da data é o acoplamento frágil:** o agrupamento usa `%d/%m` porque é o que a curva usa. Se o eixo mudar de formato, as anotações somem em silêncio — nada quebra, só param de aparecer. Conferir a interseção entre `labels` e as chaves de `evDia` ao mexer em qualquer um dos dois.
 
-`read_eventos` engole a exceção e devolve lista vazia se a tabela não existir — num ambiente
-sem o schema novo o gráfico perde a anotação, mas a página continua de pé.
+`read_eventos` engole a exceção e devolve lista vazia se a tabela não existir — num ambiente sem o schema novo o gráfico perde a anotação, mas a página continua de pé.
 
 ### Contexto medido por evento
 
-`scripts/eventos.py --medir` preenche `contexto_metrica`: como gasto, conversões e CPA se
-moveram numa janela em volta da data (padrão 3 dias antes × 3 dias a partir da data).
+`scripts/eventos.py --medir` preenche `contexto_metrica`: como gasto, conversões e CPA se moveram numa janela em volta da data (padrão 3 dias antes × 3 dias a partir da data).
 
-**É coluna separada de `resultado` de propósito.** `resultado` é texto escrito por gente — o
-que aconteceu *por causa* da ação. `contexto_metrica` é só o que as métricas fizeram no
-período; várias ações dividem o mesmo dia, e a janela captura tudo que mudou. Misturar as
-duas daria a um número automatizado a autoridade de uma conclusão.
+**É coluna separada de `resultado` de propósito.** `resultado` é texto escrito por gente — o que aconteceu *por causa* da ação. `contexto_metrica` é só o que as métricas fizeram no período; várias ações dividem o mesmo dia, e a janela captura tudo que mudou. Misturar as duas daria a um número automatizado a autoridade de uma conclusão.
 
-Duas proteções contra número enganoso: janela anterior com menos de R$ 500 ou 10 conversões
-vira "sem base de comparação"; variação acima de 300% vira "mudança de patamar" — no início
-do lançamento qualquer comparação com quase-zero produzia coisas como "+42570%".
+Duas proteções contra número enganoso: janela anterior com menos de R$ 500 ou 10 conversões vira "sem base de comparação"; variação acima de 300% vira "mudança de patamar" — no início do lançamento qualquer comparação com quase-zero produzia coisas como "+42570%".
 
 Dos 193 eventos: 123 medidos, 20 mudança de patamar, 18 sem base, 32 sem dado no período.
 
-`scripts/efeito_acao.py --itens` passou a ler a tabela em vez de parsear o markdown — com
-isso funciona para distribuição e perpétuo do mesmo jeito que para lançamento.
+`scripts/efeito_acao.py --itens` passou a ler a tabela em vez de parsear o markdown — com isso funciona para distribuição e perpétuo do mesmo jeito que para lançamento.
 
 
 ## Dados das aulas no YouTube — duas fontes, uma tabela (2026-09-15)
 
-A API do YouTube ainda não está conectada. Até lá os dados das aulas entram pelo export
-manual do YouTube Studio, e o sistema aceita as duas fontes na mesma tabela.
+A API do YouTube ainda não está conectada. Até lá os dados das aulas entram pelo export manual do YouTube Studio, e o sistema aceita as duas fontes na mesma tabela.
 
-**`etl/etl_youtube_csv.py`** lê `analises/[LAUNCH]/Youtube/Aula N/` — zip ou CSV solto, como
-o Studio baixa — e grava com `fonte='manual'`. É ingestão manual: de propósito **não** está
-no `run_all.py` nem no `scheduler.py`.
+**`etl/etl_youtube_csv.py`** lê `analises/[LAUNCH]/Youtube/Aula N/` — zip ou CSV solto, como o Studio baixa — e grava com `fonte='manual'`. É ingestão manual: de propósito **não** está no `run_all.py` nem no `scheduler.py`.
 
-O export é o relatório da *transmissão ao vivo*: `liveViewership_*.csv` (curva minuto a
-minuto) e `liveEngagements_*.csv` (totais por tipo). Ele resolve exatamente o campo que a
-API **não** entrega para uma live encerrada — `peak_concurrent`, já que
-`liveStreamingDetails.concurrentViewers` da Data API só existe enquanto a transmissão está
-no ar. Ou seja: mesmo com a API conectada, o pico de simultâneos continuará vindo daqui.
+O export é o relatório da *transmissão ao vivo*: `liveViewership_*.csv` (curva minuto a minuto) e `liveEngagements_*.csv` (totais por tipo). Ele resolve exatamente o campo que a API **não** entrega para uma live encerrada — `peak_concurrent`, já que `liveStreamingDetails.concurrentViewers` da Data API só existe enquanto a transmissão está no ar. Ou seja: mesmo com a API conectada, o pico de simultâneos continuará vindo daqui.
 
-Em compensação o export não tem views totais, watch time, retenção média, likes, comments,
-live vs replay nem o `video_id` — isso é do `etl_youtube_analytics.py` (API) ou do export do
-Modo avançado.
+Em compensação o export não tem views totais, watch time, retenção média, likes, comments, live vs replay nem o `video_id` — isso é do `etl_youtube_analytics.py` (API) ou do export do Modo avançado.
 
-**Por isso o upsert de cada script só toca as colunas que ele realmente mede.** Os dois
-escrevem na mesma linha de `youtube_aulas_stats` sem zerar o trabalho do outro. Enquanto não
-há `video_id` real, o CSV usa a chave estável `manual-aula-N`, que satisfaz o
-`UNIQUE(launch_code, video_id)` sem colidir com a linha que a API vai gravar depois.
+**Por isso o upsert de cada script só toca as colunas que ele realmente mede.** Os dois escrevem na mesma linha de `youtube_aulas_stats` sem zerar o trabalho do outro. Enquanto não há `video_id` real, o CSV usa a chave estável `manual-aula-N`, que satisfaz o `UNIQUE(launch_code, video_id)` sem colidir com a linha que a API vai gravar depois.
 
 **Tabelas (banco analytics):**
 
-- `youtube_aulas_stats` — 1 linha por vídeo. Ganhou `viewers_fim`, `chat_msgs`, `reacoes` e
-  `fonte` ('api' | 'manual').
-- `youtube_live_curva` — 1 linha por (lançamento, aula, segundo). A série minuto a minuto não
-  cabe numa tabela de 1 linha por vídeo. ~~a API não entrega essa curva~~ — **errado**: entrega
-  via `livestreamPosition` (ver "Aulas ao vivo do YouTube entram sozinhas no ETL", 23/10/26).
+- `youtube_aulas_stats` — 1 linha por vídeo. Ganhou `viewers_fim`, `chat_msgs`, `reacoes` e `fonte` ('api' | 'manual').
+- `youtube_live_curva` — 1 linha por (lançamento, aula, segundo). A série minuto a minuto não cabe numa tabela de 1 linha por vídeo. ~~a API não entrega essa curva~~ — **errado**: entrega via `livestreamPosition` (ver "Aulas ao vivo do YouTube entram sozinhas no ETL", 23/10/26).
 
-`read_youtube_aulas` (`frontend/database_reader.py`) monta as duas coisas: os agregados mais
-a curva já convertida para minutos, e calcula `retencao_live_pct` (fim/pico). Isso é **campo,
-não property** — o snapshot do debriefing serializa com `dataclasses.asdict`, que ignora
-properties, e a página leria `Undefined`.
+`read_youtube_aulas` (`frontend/database_reader.py`) monta as duas coisas: os agregados mais a curva já convertida para minutos, e calcula `retencao_live_pct` (fim/pico). Isso é **campo, não property** — o snapshot do debriefing serializa com `dataclasses.asdict`, que ignora properties, e a página leria `Undefined`.
 
-A seção "Engajamento das Aulas — YouTube" do `/debriefing` renderiza a partir de qualquer uma
-das fontes: mostra o que existe e omite o resto, com badge "CSV" no dado manual e sparkline
-SVG da curva. Os 4 KPIs do rodapé trocam de métrica conforme a fonte (sem API: chat, reações
-e retenção ao vivo no lugar de views e watch time).
+A seção "Engajamento das Aulas — YouTube" do `/debriefing` renderiza a partir de qualquer uma das fontes: mostra o que existe e omite o resto, com badge "CSV" no dado manual e sparkline SVG da curva. Os 4 KPIs do rodapé trocam de métrica conforme a fonte (sem API: chat, reações e retenção ao vivo no lugar de views e watch time).
 
-**`video_id` e thumbnail.** Os IDs dos vídeos ficam em `config/launches/<launch>.yaml`
-(bloco `youtube.aulas`), lidos por `_load_videos` — o mesmo ponto que o ETL da API usa, para
-não haver duas listas. Com o ID real, o card renderiza a thumb oficial
-(`i.ytimg.com/vi/<id>/maxresdefault.jpg`, com fallback `mqdefault` no `onerror`) e vira link
-para o vídeo; sem ele, a linha usa a chave `manual-aula-N` e o card só não mostra thumb. A
-thumb não passa por proxy nem por credencial, diferente das thumbnails de criativo do Drive.
+**`video_id` e thumbnail.** Os IDs dos vídeos ficam em `config/launches/<launch>.yaml` (bloco `youtube.aulas`), lidos por `_load_videos` — o mesmo ponto que o ETL da API usa, para não haver duas listas. Com o ID real, o card renderiza a thumb oficial (`i.ytimg.com/vi/<id>/maxresdefault.jpg`, com fallback `mqdefault` no `onerror`) e vira link para o vídeo; sem ele, a linha usa a chave `manual-aula-N` e o card só não mostra thumb. A thumb não passa por proxy nem por credencial, diferente das thumbnails de criativo do Drive.
 
 ### Página `/aulas-ao-vivo`
 
-A seção do debriefing mostra o resumo; a página mostra a curva. `read_aulas_ao_vivo`
-(`frontend/db_readers/youtube_aulas.py`) lê `youtube_live_curva` inteira e deriva minuto do
-pico, média de simultâneos, régua de retenção a cada 15 min em % do pico, as janelas de maior
-queda e a interação por pessoa.
+A seção do debriefing mostra o resumo; a página mostra a curva. `read_aulas_ao_vivo` (`frontend/db_readers/youtube_aulas.py`) lê `youtube_live_curva` inteira e deriva minuto do pico, média de simultâneos, régua de retenção a cada 15 min em % do pico, as janelas de maior queda e a interação por pessoa.
 
-**Ela não passa por `_fetch_all_data` de propósito.** A página depende só das duas tabelas de
-YouTube; puxar Meta, Google e vendas junto custaria dezenas de segundos sem alimentar nada do
-que ela mostra. Resultado: ~0,4s contra os ~22s do debriefing ao vivo.
+**Ela não passa por `_fetch_all_data` de propósito.** A página depende só das duas tabelas de YouTube; puxar Meta, Google e vendas junto custaria dezenas de segundos sem alimentar nada do que ela mostra. Resultado: ~0,4s contra os ~22s do debriefing ao vivo.
 
-Duas decisões de leitura que valem para qualquer lançamento: as janelas de queda só contam
-**depois** do pico (antes dele a audiência ainda está entrando, e uma queda ali é ruído), e o
-engajamento é dividido pelo pico de audiência — o volume bruto sempre premia a aula mais
-cheia.
+Duas decisões de leitura que valem para qualquer lançamento: as janelas de queda só contam **depois** do pico (antes dele a audiência ainda está entrando, e uma queda ali é ruído), e o engajamento é dividido pelo pico de audiência — o volume bruto sempre premia a aula mais cheia.
 ## Código de anúncio e imagem de criativo (15/09/26)
 
 ### Convenção de nome por lançamento
 
-A chave de atribuição é `ADxxx` (`AD` + número), extraída do nome do anúncio. Lançamentos
-anteriores à padronização não seguem isso — o BV-25 usa `AD-<iniciais><n>` com prefixo por
-etapa (`ADC`/`ADR`/`ADL`) e `UGC`, e o regex corrente reconhecia 7 dos 237 nomes.
+A chave de atribuição é `ADxxx` (`AD` + número), extraída do nome do anúncio. Lançamentos anteriores à padronização não seguem isso — o BV-25 usa `AD-<iniciais><n>` com prefixo por etapa (`ADC`/`ADR`/`ADL`) e `UGC`, e o regex corrente reconhecia 7 dos 237 nomes.
 
-`src/ad_codes.py` centraliza a extração e resolve isso **por lançamento**
-(`extract_ad_code(ad_name, launch_code)`): só um código listado em `_LEGACY_LAUNCHES` usa o
-regex antigo, e para um `ADxxx` normal os dois caminhos devolvem o mesmo valor. A alternativa
-— estender o regex global — mexeria na chave de atribuição de todos os lançamentos ativos,
-que é justamente o que não se quer tocar.
+`src/ad_codes.py` centraliza a extração e resolve isso **por lançamento** (`extract_ad_code(ad_name, launch_code)`): só um código listado em `_LEGACY_LAUNCHES` usa o regex antigo, e para um `ADxxx` normal os dois caminhos devolvem o mesmo valor. A alternativa — estender o regex global — mexeria na chave de atribuição de todos os lançamentos ativos, que é justamente o que não se quer tocar.
 
-A classificação de etapa tem o mesmo recorte: `_categorize_campaign` casa a tag entre
-colchetes, e na convenção antiga o que está entre colchetes é o *objetivo* da campanha Meta
-(`[CADASTRO]`), com a etapa solta no nome. O fallback sem colchetes só roda em lançamento
-legado e só quando o match normal falha.
+A classificação de etapa tem o mesmo recorte: `_categorize_campaign` casa a tag entre colchetes, e na convenção antiga o que está entre colchetes é o *objetivo* da campanha Meta (`[CADASTRO]`), com a etapa solta no nome. O fallback sem colchetes só roda em lançamento legado e só quando o match normal falha.
 
 ### De onde vem a imagem do criativo
 
-`ad_creatives` guarda os **bytes** da thumb e da imagem cheia (migration 006); as URLs do CDN
-do Facebook expiram, os bytes não. Serve por `/api/meta-creative/{launch}/{ad_code}/{kind}`.
-Lançamento com `drive_folder_url` no `launch_config` usa as imagens do Drive; sem ele (caso do
-BV-25), a origem é o próprio Meta.
+`ad_creatives` guarda os **bytes** da thumb e da imagem cheia (migration 006); as URLs do CDN do Facebook expiram, os bytes não. Serve por `/api/meta-creative/{launch}/{ad_code}/{kind}`. Lançamento com `drive_folder_url` no `launch_config` usa as imagens do Drive; sem ele (caso do BV-25), a origem é o próprio Meta.
 
-O Meta expõe a imagem de quatro formas diferentes, e `_creative_image_url` tenta todas nesta
-ordem: `image_url` direto, `object_story_spec` (`video_data`/`link_data`/`photo_data`),
-`asset_feed_spec.videos[].thumbnail_url` (Advantage+/dynamic creative) e, por último,
-`asset_feed_spec.images[].hash` — que não é URL e precisa ser resolvido em `/adimages`.
+O Meta expõe a imagem de quatro formas diferentes, e `_creative_image_url` tenta todas nesta ordem: `image_url` direto, `object_story_spec` (`video_data`/`link_data`/`photo_data`), `asset_feed_spec.videos[].thumbnail_url` (Advantage+/dynamic creative) e, por último, `asset_feed_spec.images[].hash` — que não é URL e precisa ser resolvido em `/adimages`.
 
 Dois cuidados que valem para qualquer backfill de imagem:
 
-- **A URL de `/adimages` é assinada e de vida curta.** A resolução acontece em janelas de
-  `_JANELA_HASHES` registros, imediatamente antes do download. Resolver a fila inteira antes
-  faz o fim dela chegar expirado.
-- **Uma linha só está completa com thumb E imagem.** A thumb do criativo é 64x64, pequena
-  demais para a grade; o guard de reprocessamento considera as duas colunas, senão um
-  criativo que falhou o download uma vez nunca mais é tentado.
+- **A URL de `/adimages` é assinada e de vida curta.** A resolução acontece em janelas de `_JANELA_HASHES` registros, imediatamente antes do download. Resolver a fila inteira antes faz o fim dela chegar expirado.
+- **Uma linha só está completa com thumb E imagem.** A thumb do criativo é 64x64, pequena demais para a grade; o guard de reprocessamento considera as duas colunas, senão um criativo que falhou o download uma vez nunca mais é tentado.
 
 ## Egress — contagens de e-mail que desciam como lista (2026-09-15)
 
-Medição pós-deploy (22h de janela limpa): o egress caiu 81%, de ~493 para ~92 milhões de
-linhas/dia. Auditando o que sobrou, três consultas ainda seguiam o padrão que o relatório
-apontou — **baixar uma lista para contar/cruzar em Python** —, somando 20,6 milhões de linhas
-por dia (24% do total) para produzir três números e um teste de pertinência:
+Medição pós-deploy (22h de janela limpa): o egress caiu 81%, de ~493 para ~92 milhões de linhas/dia. Auditando o que sobrou, três consultas ainda seguiam o padrão que o relatório apontou — **baixar uma lista para contar/cruzar em Python** —, somando 20,6 milhões de linhas por dia (24% do total) para produzir três números e um teste de pertinência:
 
 | Onde | Antes | Agora |
 |---|---|---|
@@ -2294,60 +1594,29 @@ por dia (24% do total) para produzir três números e um teste de pertinência:
 | `read_pesquisa_engajamento` | mesma lista, e ainda devolvia como parâmetro `= ANY(:emails)` do cruzamento | os três números (respostas, base, cruzadas) numa consulta só: **1 linha** |
 | `caminho_comprador.py` | baixava os ~13 mil respondentes do lançamento pra testar `email in respondentes` contra ~2,5 mil compradores | `AND LOWER(email) = ANY(:buyers)` |
 
-O caso do `caminho_comprador` é instrutivo: o telefone nesse mesmo arquivo já tinha sido
-corrigido em 14/09, e o e-mail dez linhas abaixo passou batido. Ao corrigir um cruzamento num
-arquivo, vale varrer o resto dele.
+O caso do `caminho_comprador` é instrutivo: o telefone nesse mesmo arquivo já tinha sido corrigido em 14/09, e o e-mail dez linhas abaixo passou batido. Ao corrigir um cruzamento num arquivo, vale varrer o resto dele.
 
-Detalhe que precisa ser preservado no `read_typeform_count`: o `if not emails` que decidia o
-fallback por data olhava a contagem **crua** do Typeform, não a dos e-mails válidos. Por isso a
-consulta devolve duas contagens (`bruto` e o total unido) em vez de só o total.
+Detalhe que precisa ser preservado no `read_typeform_count`: o `if not emails` que decidia o fallback por data olhava a contagem **crua** do Typeform, não a dos e-mails válidos. Por isso a consulta devolve duas contagens (`bruto` e o total unido) em vez de só o total.
 
 Validado com o harness de snapshot contra PI-AGO-26, PBB-AGO-26 e PES-MAI-26: zero diferença.
 
-**Atualização 10/11/26 — `read_pesquisa_engajamento` estourava o timeout no aquecimento.** Com a
-base do PI-NOV-26 em 149 mil leads, a consulta lia `lead_utm_lancamento` duas vezes
-(`COUNT(DISTINCT)` + `IN (SELECT ...)`) e levava 25–53 s contra o `statement_timeout` de 30 s;
-o bloco `perfil_pesquisa` do snapshot do debriefing falhava e o snapshot anterior era mantido
-(alerta "Aquecimento do debriefing falhou"). Agora a base é um CTE lido **uma vez** e o cruzamento
-é um `EXISTS`: PI-NOV-26 em 2,9 s, PES-NOV-26 em 1,6 s, mesmos números.
+**Atualização 10/11/26 — `read_pesquisa_engajamento` estourava o timeout no aquecimento.** Com a base do PI-NOV-26 em 149 mil leads, a consulta lia `lead_utm_lancamento` duas vezes (`COUNT(DISTINCT)` + `IN (SELECT ...)`) e levava 25–53 s contra o `statement_timeout` de 30 s; o bloco `perfil_pesquisa` do snapshot do debriefing falhava e o snapshot anterior era mantido (alerta "Aquecimento do debriefing falhou"). Agora a base é um CTE lido **uma vez** e o cruzamento é um `EXISTS`: PI-NOV-26 em 2,9 s, PES-NOV-26 em 1,6 s, mesmos números.
 
 ### Pendência: `read_typeform` do PI-AGO-26 falha ~50% das vezes
 
-O `SELECT *` com a coluna `answers` sobre a união deduplicada leva ~33s no PI-AGO-26, contra o
-`statement_timeout` de 30s (`src/db_engine.py`) — duas execuções seguidas deram uma OK e uma
-`DatabaseError`. Quando passa, os valores batem (`total_tf=47140`, `tf_leads_crm=39314`). É a
-mesma consulta que lidera o egress restante (6,5 milhões de linhas em 777 chamadas), então vale
-atacar as duas coisas juntas.
+O `SELECT *` com a coluna `answers` sobre a união deduplicada leva ~33s no PI-AGO-26, contra o `statement_timeout` de 30s (`src/db_engine.py`) — duas execuções seguidas deram uma OK e uma `DatabaseError`. Quando passa, os valores batem (`total_tf=47140`, `tf_leads_crm=39314`). É a mesma consulta que lidera o egress restante (6,5 milhões de linhas em 777 chamadas), então vale atacar as duas coisas juntas.
 
 ## Saúde do Lançamento — nota 0-100 no Debriefing (2026-09-15/16)
 
-Nova seção no topo do `/debriefing`, acima de Matrículas: uma nota 0-100 resumindo o
-lançamento. Primeira versão (15/09) reaproveitou o score que já existia no `/insights`
-(4 fatores de 25 pts: ROAS, rastreabilidade UTM, CPL médio Meta, % de ads com venda) — só
-precisou mover o cálculo pra dentro de `_compute_debriefing_ctx()`
-(`frontend/services/debriefing.py`), porque o `/insights` calcula inline no template a partir de
-objetos Python (`meta`/`google`/`sales_attr`) que o Debriefing não tem disponíveis quando lê do
-snapshot pré-computado (`debriefing_snapshot`, JSONB) — só o dict `dbf`, serializável.
+Nova seção no topo do `/debriefing`, acima de Matrículas: uma nota 0-100 resumindo o lançamento. Primeira versão (15/09) reaproveitou o score que já existia no `/insights` (4 fatores de 25 pts: ROAS, rastreabilidade UTM, CPL médio Meta, % de ads com venda) — só precisou mover o cálculo pra dentro de `_compute_debriefing_ctx()` (`frontend/services/debriefing.py`), porque o `/insights` calcula inline no template a partir de objetos Python (`meta`/`google`/`sales_attr`) que o Debriefing não tem disponíveis quando lê do snapshot pré-computado (`debriefing_snapshot`, JSONB) — só o dict `dbf`, serializável.
 
-No dia seguinte o usuário trouxe uma proposta própria de pesos ("Saúde do Lançamento 2.0"), que
-substituiu os 4 fatores por 7: ROAS (50 pts), Meta de Faturamento (15), CAC/Custo por Venda (10),
-Conversão do Funil (10), Eficiência dos Anúncios (5), Volume de Vendas vs lançamento anterior (5)
-e Rastreabilidade (5). "Meta de Faturamento" não existia em lugar nenhum do sistema — nova coluna
-`launch_config.meta_faturamento` (`src/db/migrations/008_meta_faturamento.sql`) + campo no wizard
-de Configurações (pane Vendas). Quando a meta não está cadastrada, ou quando não há lançamento
-anterior do mesmo produto (fator Volume), o peso desse fator é redistribuído proporcionalmente
-entre os que têm dado — não contar como 0, porque não ter a referência não é "lançamento ruim".
+No dia seguinte o usuário trouxe uma proposta própria de pesos ("Saúde do Lançamento 2.0"), que substituiu os 4 fatores por 7: ROAS (50 pts), Meta de Faturamento (15), CAC/Custo por Venda (10), Conversão do Funil (10), Eficiência dos Anúncios (5), Volume de Vendas vs lançamento anterior (5) e Rastreabilidade (5). "Meta de Faturamento" não existia em lugar nenhum do sistema — nova coluna `launch_config.meta_faturamento` (`src/db/migrations/008_meta_faturamento.sql`) + campo no wizard de Configurações (pane Vendas). Quando a meta não está cadastrada, ou quando não há lançamento anterior do mesmo produto (fator Volume), o peso desse fator é redistribuído proporcionalmente entre os que têm dado — não contar como 0, porque não ter a referência não é "lançamento ruim".
 
-Dois cortes de nota são palpite documentado, não regra validada — ajustar se o usuário achar
-errado: CAC pontua cheio em custo-por-venda R$0 e zero a partir do ticket médio (ponto de
-empate); Conversão do Funil pontua cheio a partir de 3% leads→vendas.
+Dois cortes de nota são palpite documentado, não regra validada — ajustar se o usuário achar errado: CAC pontua cheio em custo-por-venda R$0 e zero a partir do ticket médio (ponto de empate); Conversão do Funil pontua cheio a partir de 3% leads→vendas.
 
 ### A trava por ROAS (16/09/26) — nota é uma coisa, rótulo é outra
 
-Somar 7 fatores num número só tem um efeito colateral previsível: **os 50 pts do ROAS podem ser
-compensados pelos outros 50**. Foi o que aconteceu no PI-AGO-26 — nota 80/100 🟢 "Excelente" com
-ROAS de 2,78x, sustentada por rastreabilidade (81,8%) e eficiência de anúncio (42/54). Um
-lançamento que devolveu menos de 3x não devia poder se chamar Excelente.
+Somar 7 fatores num número só tem um efeito colateral previsível: **os 50 pts do ROAS podem ser compensados pelos outros 50**. Foi o que aconteceu no PI-AGO-26 — nota 80/100 🟢 "Excelente" com ROAS de 2,78x, sustentada por rastreabilidade (81,8%) e eficiência de anúncio (42/54). Um lançamento que devolveu menos de 3x não devia poder se chamar Excelente.
 
 A regra (pauta Júlia/Michel) não mexe na nota: o ROAS passa a **limitar o rótulo**.
 
@@ -2358,157 +1627,72 @@ A regra (pauta Júlia/Michel) não mexe na nota: o ROAS passa a **limitar o rót
 | 1 – 1,99x | Atenção |
 | < 1x | **Péssimo** (faixa nova, só se chega nela por aqui) |
 
-Abaixo de 1x a receita **líquida** (já sem a taxa da Hotmart, mas ainda sem imposto/produto/equipe)
-não paga nem a mídia, então o rótulo é Péssimo por pior que a nota fosse boa.
+Abaixo de 1x a receita **líquida** (já sem a taxa da Hotmart, mas ainda sem imposto/produto/equipe) não paga nem a mídia, então o rótulo é Péssimo por pior que a nota fosse boa.
 
 Duas guardas vêm **antes** da trava, senão ela mente nos dois extremos:
 
-- **carrinho ainda aberto → "Em andamento".** A nota mede um lançamento pela metade. Sem a guarda,
-  o PES-SET-26 (carrinho 14–28/09) apareceria "Péssimo" todo dia até fechar, com ROAS 0,02x, porque
-  as vendas só entram no fim. O corte é `carrinho_end_date` do wizard; sem ela, `dim_lancamentos.data_fim`.
-- **sem venda nenhuma → "Sem dados".** Lançamento futuro (PI-NOV-26) ou legado sem venda atribuída
-  (BV-25): não há o que classificar.
+- **carrinho ainda aberto → "Em andamento".** A nota mede um lançamento pela metade. Sem a guarda, o PES-SET-26 (carrinho 14–28/09) apareceria "Péssimo" todo dia até fechar, com ROAS 0,02x, porque as vendas só entram no fim. O corte é `carrinho_end_date` do wizard; sem ela, `dim_lancamentos.data_fim`.
+- **sem venda nenhuma → "Sem dados".** Lançamento futuro (PI-NOV-26) ou legado sem venda atribuída (BV-25): não há o que classificar.
 
-A regra é `_saude_classificacao()` em `frontend/services/debriefing.py`, função pura, coberta por
-`tests/test_saude_lancamento.py` com os números reais de cada lançamento. O template só renderiza
-`dbf.saude_faixa` — **a cor do número e o texto do rótulo saem da mesma tupla**, o que de quebra
-corrigiu uma incoerência antiga: o template tinha corte próprio pra cor (60) e outro pro rótulo
-(65), então nota 60–64 saía amarela escrito "🟠 Regular".
+A regra é `_saude_classificacao()` em `frontend/services/debriefing.py`, função pura, coberta por `tests/test_saude_lancamento.py` com os números reais de cada lançamento. O template só renderiza `dbf.saude_faixa` — **a cor do número e o texto do rótulo saem da mesma tupla**, o que de quebra corrigiu uma incoerência antiga: o template tinha corte próprio pra cor (60) e outro pro rótulo (65), então nota 60–64 saía amarela escrito "🟠 Regular".
 
-Quando a trava segura a faixa, aparece um aviso sob o rótulo ("ROAS 2,78x limita a faixa") — sem
-ele, uma nota 80 escrita "Bom" parece bug.
+Quando a trava segura a faixa, aparece um aviso sob o rótulo ("ROAS 2,78x limita a faixa") — sem ele, uma nota 80 escrita "Bom" parece bug.
 
-**Efeito no histórico:** muda um lançamento fechado — PI-AGO-26 de 🟢 Excelente para 🟡 Bom.
-PES-MAI-26 (3,42x), PBB-JUN-26 (3,26x) e PI-ABR-26 (3,12x) seguem Excelente; PBB-AGO-26 (2,20x)
-já estava em Bom.
+**Efeito no histórico:** muda um lançamento fechado — PI-AGO-26 de 🟢 Excelente para 🟡 Bom. PES-MAI-26 (3,42x), PBB-JUN-26 (3,26x) e PI-ABR-26 (3,12x) seguem Excelente; PBB-AGO-26 (2,20x) já estava em Bom.
 
-Segue **pendente de calibração** (levantamento em [[MUDANCAS_PI-AGO-26]], item 50): o fator CAC é
-hoje `10 * (1 − custo_venda/ticket)`, e como `ticket = receita/vendas` e `custo_venda = invest/vendas`,
-essa razão **é exatamente `1/ROAS`** — ou seja, 60 dos 100 pontos medem a mesma coisa. O teto de CAC
-pedido pela Júlia só resolve isso se for um **alvo em R$ por lançamento** (como a Meta de Faturamento),
-não uma razão sobre o ticket. E o corte de 3% da Conversão do Funil ignora que a conversão é
-estrutural por produto (PES 2,7–3,5%, PBB 0,65–1,0%, PI 0,8–1,0%).
+Segue **pendente de calibração** (levantamento em [[MUDANCAS_PI-AGO-26]], item 50): o fator CAC é hoje `10 * (1 − custo_venda/ticket)`, e como `ticket = receita/vendas` e `custo_venda = invest/vendas`, essa razão **é exatamente `1/ROAS`** — ou seja, 60 dos 100 pontos medem a mesma coisa. O teto de CAC pedido pela Júlia só resolve isso se for um **alvo em R$ por lançamento** (como a Meta de Faturamento), não uma razão sobre o ticket. E o corte de 3% da Conversão do Funil ignora que a conversão é estrutural por produto (PES 2,7–3,5%, PBB 0,65–1,0%, PI 0,8–1,0%).
 
-**Mobile (16/09):** abaixo de 640px, `.dbf-saude` era `flex-wrap` mas continuava `flex-direction:
-row` — a nota (bloco estreito) só ocupava parte da primeira linha do wrap, e o primeiro item
-(ROAS) entrava na MESMA linha ao lado dela em vez de abaixo; os itens seguintes empilhavam por
-baixo dos dois, deixando a nota "flutuando" no meio da pilha em vez de no topo. Fix: nesse
-breakpoint `.dbf-saude` vira `flex-direction: column` — nota em cima, ocupando a largura toda,
-itens empilhados abaixo. A legenda ("Nota de 0 a 100 combinando 7 fatores...") ganhou `<strong>`
-nos nomes dos 7 fatores e em "fora da nota".
+**Mobile (16/09):** abaixo de 640px, `.dbf-saude` era `flex-wrap` mas continuava `flex-direction: row` — a nota (bloco estreito) só ocupava parte da primeira linha do wrap, e o primeiro item (ROAS) entrava na MESMA linha ao lado dela em vez de abaixo; os itens seguintes empilhavam por baixo dos dois, deixando a nota "flutuando" no meio da pilha em vez de no topo. Fix: nesse breakpoint `.dbf-saude` vira `flex-direction: column` — nota em cima, ocupando a largura toda, itens empilhados abaixo. A legenda ("Nota de 0 a 100 combinando 7 fatores...") ganhou `<strong>` nos nomes dos 7 fatores e em "fora da nota".
 
 ## Wizard de Configurações — o que era gravado, e o que a página via (2026-09-16)
 
-Usuário salvou a verba de Captação do PES-SET-26 no wizard e não viu o número no `/debriefing`.
-O dado estava gravado desde o primeiro clique; o que faltava era tudo o que acontece **depois**
-do `INSERT`. Cinco defeitos distintos no caminho `wizard → launch_config → página`, todos
-corrigidos de uma vez.
+Usuário salvou a verba de Captação do PES-SET-26 no wizard e não viu o número no `/debriefing`. O dado estava gravado desde o primeiro clique; o que faltava era tudo o que acontece **depois** do `INSERT`. Cinco defeitos distintos no caminho `wizard → launch_config → página`, todos corrigidos de uma vez.
 
 ### 1. `/debriefing` não lê `launch_config` — lê o snapshot
 
-`save_launch_config` invalidava o cache em memória (`_invalidate` + `reset_launches_cache`), e
-isso basta pro `/verba`, `/funil` e companhia. Mas o `/debriefing` renderiza a partir de
-`debriefing_snapshot`, uma linha JSONB reescrita só pelo aquecimento periódico — nada disparava
-a remontagem dela ao salvar. Config nova só aparecia na rodada seguinte: **até
-`PRE_WARM_INTERVAL_MIN` minutos (padrão 30)**. No incidente foram 9 minutos, e o usuário olhou
-dentro deles.
+`save_launch_config` invalidava o cache em memória (`_invalidate` + `reset_launches_cache`), e isso basta pro `/verba`, `/funil` e companhia. Mas o `/debriefing` renderiza a partir de `debriefing_snapshot`, uma linha JSONB reescrita só pelo aquecimento periódico — nada disparava a remontagem dela ao salvar. Config nova só aparecia na rodada seguinte: **até `PRE_WARM_INTERVAL_MIN` minutos (padrão 30)**. No incidente foram 9 minutos, e o usuário olhou dentro deles.
 
-`POST /api/launch-config/{code}` agora chama `schedule_snapshot_only(launch, launches, force=True)`
-depois de invalidar o cache. Medido em produção: save 13:19:35 → snapshot regravado 13:20:46 (71s,
-cache frio de propósito — a remontagem vem logo após o `_invalidate`).
+`POST /api/launch-config/{code}` agora chama `schedule_snapshot_only(launch, launches, force=True)` depois de invalidar o cache. Medido em produção: save 13:19:35 → snapshot regravado 13:20:46 (71s, cache frio de propósito — a remontagem vem logo após o `_invalidate`).
 
-O `force` é o detalhe que importa: `schedule_snapshot_only` tem um guard de "um por código por
-vez", e sem ele um save que caísse no meio de uma montagem já em curso seria simplesmente
-descartado — e essa montagem, que leu a config **antiga**, gravaria o estado velho por cima. Com
-`force=True` o código entra em `_SNAPSHOT_REFAZER` e a remontagem é reagendada quando a atual
-termina.
+O `force` é o detalhe que importa: `schedule_snapshot_only` tem um guard de "um por código por vez", e sem ele um save que caísse no meio de uma montagem já em curso seria simplesmente descartado — e essa montagem, que leu a config **antiga**, gravaria o estado velho por cima. Com `force=True` o código entra em `_SNAPSHOT_REFAZER` e a remontagem é reagendada quando a atual termina.
 
 ### 2. O save era overwrite da linha inteira, não patch
 
-O `INSERT ... ON CONFLICT DO UPDATE` tinha a lista de colunas escrita à mão, e toda coluna
-ausente do payload do wizard era reescrita com o valor default. `bonus_oferta` é o caso
-materializado: o JS nunca mandou esse campo, então **todo salvamento do wizard zerava a coluna
-pra `[]`**. Qualquer coluna nova teria o mesmo destino até alguém lembrar de acrescentá-la no JS.
+O `INSERT ... ON CONFLICT DO UPDATE` tinha a lista de colunas escrita à mão, e toda coluna ausente do payload do wizard era reescrita com o valor default. `bonus_oferta` é o caso materializado: o JS nunca mandou esse campo, então **todo salvamento do wizard zerava a coluna pra `[]`**. Qualquer coluna nova teria o mesmo destino até alguém lembrar de acrescentá-la no JS.
 
-Agora existe `_CONFIG_COLUNAS`, um dict `coluna -> conversor` que é ao mesmo tempo a allowlist de
-escrita e a especificação de tipo. `save_launch_config` monta o SQL só com as colunas presentes em
-`config`: o que não for mandado fica como está. Limpar um campo continua funcionando, porque o
-wizard manda `""` explicitamente (e `""` vira `NULL`), o que é diferente de não mandar a chave.
+Agora existe `_CONFIG_COLUNAS`, um dict `coluna -> conversor` que é ao mesmo tempo a allowlist de escrita e a especificação de tipo. `save_launch_config` monta o SQL só com as colunas presentes em `config`: o que não for mandado fica como está. Limpar um campo continua funcionando, porque o wizard manda `""` explicitamente (e `""` vira `NULL`), o que é diferente de não mandar a chave.
 
-Os nomes de coluna do SQL saem sempre de `_CONFIG_COLUNAS`, nunca do payload — a montagem por
-f-string não tem como carregar entrada do usuário.
+Os nomes de coluna do SQL saem sempre de `_CONFIG_COLUNAS`, nunca do payload — a montagem por f-string não tem como carregar entrada do usuário.
 
 ### 3. Número inválido virava `NULL` em silêncio
 
-`_or_int`/`_or_zero` capturavam `ValueError` e devolviam `None`. Digitar um valor que não
-converte gravava `NULL` e respondia `{"ok": true}` — o botão dizia "✓ Salvo!" e o campo voltava
-vazio depois. Os conversores agora levantam `ConfigInvalida`, e a rota devolve
-`{"ok": false, "error": ...}` com o nome do campo.
+`_or_int`/`_or_zero` capturavam `ValueError` e devolviam `None`. Digitar um valor que não converte gravava `NULL` e respondia `{"ok": true}` — o botão dizia "✓ Salvo!" e o campo voltava vazio depois. Os conversores agora levantam `ConfigInvalida`, e a rota devolve `{"ok": false, "error": ...}` com o nome do campo.
 
-Isso cobre o cliente não-navegador. No navegador o problema é anterior: num `<input type=number>`,
-texto que o browser não consegue parsear (`540.000` digitado no teclado brasileiro) nem chega ao
-servidor — `.value` devolve `""`, indistinguível de campo apagado. O único lugar onde esse estado
-ainda existe é `validity.badInput`, então `lcSave` checa os inputs numéricos do modal antes de
-montar o payload e recusa com a lista de campos.
+Isso cobre o cliente não-navegador. No navegador o problema é anterior: num `<input type=number>`, texto que o browser não consegue parsear (`540.000` digitado no teclado brasileiro) nem chega ao servidor — `.value` devolve `""`, indistinguível de campo apagado. O único lugar onde esse estado ainda existe é `validity.badInput`, então `lcSave` checa os inputs numéricos do modal antes de montar o payload e recusa com a lista de campos.
 
 ### 4. Escrita de config sem checagem de papel
 
-`ROUTE_PERMISSIONS` (`frontend/auth.py`) casa **path exato** e só lista páginas, então `/api/*`
-passava com qualquer sessão válida: um usuário `leitura` reescrevia a config de qualquer
-lançamento. `POST /api/launch-config/{code}` agora exige `admin`/`analista`/`trafego`, o mesmo
-conjunto de `POST /api/lancamentos`. Continua sendo um guard por rota, não por default — a
-inversão ("negar por default") segue no backlog.
+`ROUTE_PERMISSIONS` (`frontend/auth.py`) casa **path exato** e só lista páginas, então `/api/*` passava com qualquer sessão válida: um usuário `leitura` reescrevia a config de qualquer lançamento. `POST /api/launch-config/{code}` agora exige `admin`/`analista`/`trafego`, o mesmo conjunto de `POST /api/lancamentos`. Continua sendo um guard por rota, não por default — a inversão ("negar por default") segue no backlog.
 
 ### 5. A etapa "WhatsApp" não existia no wizard
 
-`/debriefing` e `/verba` casam a etapa de orçamento pelo **nome exato** — em
-`routes/analytics.py`, literalmente `et.get("nome") == "WhatsApp"`. Mas as etapas padrão do wizard
-eram só Lembrete, Depoimento, Aulas no Ar, Replay e Matrículas Abertas. Sem ninguém criar uma
-etapa custom grafada exatamente assim, o previsto do WhatsApp era sempre R$ 0 — no PES-SET-26,
-contra R$ 8.638,51 de gasto real, que entrava no realizado do Remarketing sem previsto
-correspondente.
+`/debriefing` e `/verba` casam a etapa de orçamento pelo **nome exato** — em `routes/analytics.py`, literalmente `et.get("nome") == "WhatsApp"`. Mas as etapas padrão do wizard eram só Lembrete, Depoimento, Aulas no Ar, Replay e Matrículas Abertas. Sem ninguém criar uma etapa custom grafada exatamente assim, o previsto do WhatsApp era sempre R$ 0 — no PES-SET-26, contra R$ 8.638,51 de gasto real, que entrava no realizado do Remarketing sem previsto correspondente.
 
-"WhatsApp" virou etapa padrão. Junto foi corrigido o `lcPopulateEtapas`, que só renderizava as
-etapas padrão quando o lançamento **não tinha nenhuma salva** — em config existente, uma etapa
-padrão nova nunca apareceria. Agora as padrão entram sempre, e as customizadas do usuário são
-acrescentadas depois, sem duplicar. Efeito colateral aceito: etapa padrão removida à mão volta na
-próxima abertura, com total 0.
+"WhatsApp" virou etapa padrão. Junto foi corrigido o `lcPopulateEtapas`, que só renderizava as etapas padrão quando o lançamento **não tinha nenhuma salva** — em config existente, uma etapa padrão nova nunca apareceria. Agora as padrão entram sempre, e as customizadas do usuário são acrescentadas depois, sem duplicar. Efeito colateral aceito: etapa padrão removida à mão volta na próxima abertura, com total 0.
 
-**Os nomes das etapas padrão são chave, não rótulo.** Renomear "WhatsApp" ou "Lembrete" no wizard
-zera o previsto da seção correspondente do debriefing, sem erro nenhum.
+**Os nomes das etapas padrão são chave, não rótulo.** Renomear "WhatsApp" ou "Lembrete" no wizard zera o previsto da seção correspondente do debriefing, sem erro nenhum.
 
 ## Preview de landing page via thum.io (2026-09-16)
 
-"Landing Pages que Mais Converteram" (Pré-Qualificação e Captação, `/debriefing`) ganhou uma
-coluna de miniatura da página. Sem infra própria: um `<img>` aponta direto pra
-`https://image.thum.io/get/width/500/crop/340/viewportWidth/1440/noanimate/<url-completa-da-lp>` —
-serviço público de screenshot, sem chave de API, sem custo. A URL completa é montada com o mesmo
-`lp_base_url` já usado pro link da página (`lp.mateusandrade.com.br` pra INSS,
-`lp.braboconcursos.com.br` pros demais produtos) — o GA4 só guarda o caminho, não o host.
+"Landing Pages que Mais Converteram" (Pré-Qualificação e Captação, `/debriefing`) ganhou uma coluna de miniatura da página. Sem infra própria: um `<img>` aponta direto pra `https://image.thum.io/get/width/500/crop/340/viewportWidth/1440/noanimate/<url-completa-da-lp>` — serviço público de screenshot, sem chave de API, sem custo. A URL completa é montada com o mesmo `lp_base_url` já usado pro link da página (`lp.mateusandrade.com.br` pra INSS, `lp.braboconcursos.com.br` pros demais produtos) — o GA4 só guarda o caminho, não o host.
 
-Testado direto contra o thum.io (fora do preview reduzido do card): devolve JPEG real da página,
-~5-17KB, HTTP 200. Sem cache próprio — cada carregamento da página pode disparar uma renderização
-nova do lado do thum.io se o cache deles tiver expirado (comportamento deles, fora do nosso
-controle). Se o volume de tráfego no debriefing crescer e isso ficar lento/instável, a alternativa
-é migrar pra captura própria via Playwright no servidor (mesmo padrão de
-`ad_creatives.thumb_data`/`image_data`, ver "Código de anúncio e imagem de criativo" acima) — mais
-robusto e sem depender de terceiro, mas exige instalar o binário do Chromium (~300MB) e uma
-camada de cache/armazenamento próprias. Decisão registrada 16/09/26: optou-se pelo terceiro
-primeiro, por ser zero-infra e já resolver o pedido.
+Testado direto contra o thum.io (fora do preview reduzido do card): devolve JPEG real da página, ~5-17KB, HTTP 200. Sem cache próprio — cada carregamento da página pode disparar uma renderização nova do lado do thum.io se o cache deles tiver expirado (comportamento deles, fora do nosso controle). Se o volume de tráfego no debriefing crescer e isso ficar lento/instável, a alternativa é migrar pra captura própria via Playwright no servidor (mesmo padrão de `ad_creatives.thumb_data`/`image_data`, ver "Código de anúncio e imagem de criativo" acima) — mais robusto e sem depender de terceiro, mas exige instalar o binário do Chromium (~300MB) e uma camada de cache/armazenamento próprias. Decisão registrada 16/09/26: optou-se pelo terceiro primeiro, por ser zero-infra e já resolver o pedido.
 
-**Ajuste 16/09/26 (mesmo dia):** o card era 64×44px e `width/300/crop/200` sem `viewportWidth` —
-o thum.io renderizava a versão responsiva/estreita da LP, então duas variantes diferentes da
-mesma página ficavam com preview quase idêntico (dá pra ver isso comparando dois `crop` de LPs
-diferentes sem o parâmetro: ambos ficam "escuros e genéricos"). Corrigido com `viewportWidth/1440`
-(força o navegador headless do thum.io a renderizar em layout desktop) e ~40% de aumento em
-`width`/`crop` e no tamanho exibido do `<img>` (64×44 → 90×62px) — pedido do usuário: "não da para
-mostrar a diferença entre uma pagina e outra".
+**Ajuste 16/09/26 (mesmo dia):** o card era 64×44px e `width/300/crop/200` sem `viewportWidth` — o thum.io renderizava a versão responsiva/estreita da LP, então duas variantes diferentes da mesma página ficavam com preview quase idêntico (dá pra ver isso comparando dois `crop` de LPs diferentes sem o parâmetro: ambos ficam "escuros e genéricos"). Corrigido com `viewportWidth/1440` (força o navegador headless do thum.io a renderizar em layout desktop) e ~40% de aumento em `width`/`crop` e no tamanho exibido do `<img>` (64×44 → 90×62px) — pedido do usuário: "não da para mostrar a diferença entre uma pagina e outra".
 
 ## `SNAPSHOT_VERSION`: por que virou teste (2026-09-16)
 
-Quatro quebras do `/debriefing` em dois dias, todas com a mesma causa: o `dbf` ganhou campo, o
-template passou a pedir esse campo, e `SNAPSHOT_VERSION` não subiu junto. O snapshot já gravado
-passava no guard de versão, o template pedia o que aquele payload não tinha, a página devolvia 500.
+Quatro quebras do `/debriefing` em dois dias, todas com a mesma causa: o `dbf` ganhou campo, o template passou a pedir esse campo, e `SNAPSHOT_VERSION` não subiu junto. O snapshot já gravado passava no guard de versão, o template pedia o que aquele payload não tinha, a página devolvia 500.
 
 | versão | o que mudou no `dbf` |
 |---|---|
@@ -2519,54 +1703,29 @@ passava no guard de versão, o template pedia o que aquele payload não tinha, a
 | 9 → 10 | mesma forma, valores diferentes: previsto de Remarketing passou a incluir o WhatsApp |
 | 10 → 11 | trava por ROAS — `saude_faixa`, `saude_em_andamento` |
 
-O aviso estava escrito em `frontend/db_readers/debriefing_snapshot.py` desde a primeira vez, com
-todas as letras, dizendo que subir o número não é opcional. **Quatro vezes não bastou.** Um
-comentário não roda.
+O aviso estava escrito em `frontend/db_readers/debriefing_snapshot.py` desde a primeira vez, com todas as letras, dizendo que subir o número não é opcional. **Quatro vezes não bastou.** Um comentário não roda.
 
 ### O teste que cobra
 
-`tests/test_dbf_contrato.py` lê por AST as chaves do `return` de `_compute_debriefing_ctx` e compara
-com `tests/baseline/dbf_manifesto.json`. Mudou a forma sem o bump, falha dizendo qual campo entrou
-ou saiu e para qual número subir. Não executa o produtor — precisaria de banco e leva ~1 min por
-lançamento, e o que interessa aqui é a *forma*, que é estática. Roda em 0,06s, sem banco, na faixa
-rápida do CI.
+`tests/test_dbf_contrato.py` lê por AST as chaves do `return` de `_compute_debriefing_ctx` e compara com `tests/baseline/dbf_manifesto.json`. Mudou a forma sem o bump, falha dizendo qual campo entrou ou saiu e para qual número subir. Não executa o produtor — precisaria de banco e leva ~1 min por lançamento, e o que interessa aqui é a *forma*, que é estática. Roda em 0,06s, sem banco, na faixa rápida do CI.
 
-Só `ATUALIZAR_MANIFESTO=1` escreve o manifesto. Um teste que regrava o próprio gabarito numa rodada
-normal esconde exatamente o que ele existe pra denunciar — e, diferente do `ATUALIZAR_BASELINE=1`,
-aqui não há risco de escopar e perder o resto: é um arquivo só, reescrito inteiro.
+Só `ATUALIZAR_MANIFESTO=1` escreve o manifesto. Um teste que regrava o próprio gabarito numa rodada normal esconde exatamente o que ele existe pra denunciar — e, diferente do `ATUALIZAR_BASELINE=1`, aqui não há risco de escopar e perder o resto: é um arquivo só, reescrito inteiro.
 
 ### O outro lado: campo que ninguém produz
 
-O segundo teste do arquivo cobra que todo `dbf.x` lido nos templates exista no produtor. Esse
-defeito é mais silencioso que o 500: com guarda no template (`{% if dbf.x %}`), o campo ausente não
-quebra nada — só cai no ramo do "não configurado" para sempre.
+O segundo teste do arquivo cobra que todo `dbf.x` lido nos templates exista no produtor. Esse defeito é mais silencioso que o 500: com guarda no template (`{% if dbf.x %}`), o campo ausente não quebra nada — só cai no ramo do "não configurado" para sempre.
 
-Foi o caso de `oferta_preco_parcelado`, achado por esse teste na primeira execução: o template lia,
-ninguém produzia, e a linha "Preço parcelado" do Detalhamento de Oferta mostrava "não configurado"
-mesmo com `produto_preco_parcelado` preenchido no wizard. Corrigido, e é o que levou a versão a 9.
+Foi o caso de `oferta_preco_parcelado`, achado por esse teste na primeira execução: o template lia, ninguém produzia, e a linha "Preço parcelado" do Detalhamento de Oferta mostrava "não configurado" mesmo com `produto_preco_parcelado` preenchido no wizard. Corrigido, e é o que levou a versão a 9.
 
 ### Previsto e realizado tinham que somar as mesmas coisas (2026-09-16)
 
-Uma constante respondendo a duas perguntas diferentes. `_REMARKETING_SUBETAPAS`
-(`Lembrete`, `Depoimento`, `Aulas no Ar`, `Replay`, `Matrículas Abertas`) diz **quais chaves de
-`por_etapa` do Meta/Google compõem o gasto** de Remarketing — o WhatsApp não está lá, e com razão:
-não é campanha de mídia, o gasto dele entra separado por `wa_gasto`. Mas a mesma lista era usada
-para decidir **quais etapas do wizard compõem o orçamento**, e aí o WhatsApp precisa entrar, porque
-é uma etapa como as outras.
+Uma constante respondendo a duas perguntas diferentes. `_REMARKETING_SUBETAPAS` (`Lembrete`, `Depoimento`, `Aulas no Ar`, `Replay`, `Matrículas Abertas`) diz **quais chaves de `por_etapa` do Meta/Google compõem o gasto** de Remarketing — o WhatsApp não está lá, e com razão: não é campanha de mídia, o gasto dele entra separado por `wa_gasto`. Mas a mesma lista era usada para decidir **quais etapas do wizard compõem o orçamento**, e aí o WhatsApp precisa entrar, porque é uma etapa como as outras.
 
-Resultado: `get_etapa` somava o gasto do WhatsApp no realizado, `_previsto_por_etapa` não somava a
-verba dele no previsto. No PI-AGO-26, com R$ 115.024 cadastrados, o Remarketing aparecia como
-**previsto R$ 35.076 contra realizado R$ 69.211, ▲97,3%** — um estouro de orçamento que não existia.
-Com o WhatsApp no previsto: R$ 150.100, **▼53,9%**, sobra. O Total Investido também mudava de
-▲0,7% para ▼6,6%.
+Resultado: `get_etapa` somava o gasto do WhatsApp no realizado, `_previsto_por_etapa` não somava a verba dele no previsto. No PI-AGO-26, com R$ 115.024 cadastrados, o Remarketing aparecia como **previsto R$ 35.076 contra realizado R$ 69.211, ▲97,3%** — um estouro de orçamento que não existia. Com o WhatsApp no previsto: R$ 150.100, **▼53,9%**, sobra. O Total Investido também mudava de ▲0,7% para ▼6,6%.
 
-A linha do WhatsApp no detalhamento tinha `"previsto": 0.0` cravado, então mostrava "—" mesmo com
-verba cadastrada — passa a ler do wizard como as outras, e aparece também quando há verba sem gasto
-(orçamento provisionado e não usado é informação, não ausência de dado).
+A linha do WhatsApp no detalhamento tinha `"previsto": 0.0` cravado, então mostrava "—" mesmo com verba cadastrada — passa a ler do wizard como as outras, e aparece também quando há verba sem gasto (orçamento provisionado e não usado é informação, não ausência de dado).
 
-Separado em `_REMARKETING_ETAPAS_ORCAMENTO`. **O sintoma dessa classe de bug é a variação com o
-sinal trocado** — quando previsto e realizado não somam o mesmo conjunto, o número não fica só
-impreciso, ele inverte a conclusão.
+Separado em `_REMARKETING_ETAPAS_ORCAMENTO`. **O sintoma dessa classe de bug é a variação com o sinal trocado** — quando previsto e realizado não somam o mesmo conjunto, o número não fica só impreciso, ele inverte a conclusão.
 
 ### Resumo do que protege o quê
 
@@ -2580,395 +1739,180 @@ impreciso, ele inverte a conclusão.
 
 ## Mobile: scroll horizontal em vez de esconder colunas (2026-09-16)
 
-`/debriefing` tinha duas formas distintas de "resolver" tabela larga no celular, e as duas
-perdiam dado: "Detalhamento de Tráfego" dava `display:none` em Previsto/Realizado/Var/Lanç. Ant.
-abaixo de 640px (`.alloc-row-budget`); "Dia a Dia de Captação" e a tabela de "Ebook → Compra" não
-tinham wrapper de scroll nenhum, deixavam o navegador encolher as colunas até quebrar "R$" numa
-linha e o valor na outra.
+`/debriefing` tinha duas formas distintas de "resolver" tabela larga no celular, e as duas perdiam dado: "Detalhamento de Tráfego" dava `display:none` em Previsto/Realizado/Var/Lanç. Ant. abaixo de 640px (`.alloc-row-budget`); "Dia a Dia de Captação" e a tabela de "Ebook → Compra" não tinham wrapper de scroll nenhum, deixavam o navegador encolher as colunas até quebrar "R$" numa linha e o valor na outra.
 
-Fix: toda tabela larga vira `overflow-x:auto` num wrapper próprio (`.alloc-scroll`,
-`.day-table-wrap`, ou o já existente `.table-wrap`), mantendo as colunas todas, em qualquer
-largura — rola em vez de esconder. `.dbf-table td` ganhou `white-space:nowrap` (o `th` já tinha),
-pra travar o valor numa linha só em vez de reflow.
+Fix: toda tabela larga vira `overflow-x:auto` num wrapper próprio (`.alloc-scroll`, `.day-table-wrap`, ou o já existente `.table-wrap`), mantendo as colunas todas, em qualquer largura — rola em vez de esconder. `.dbf-table td` ganhou `white-space:nowrap` (o `th` já tinha), pra travar o valor numa linha só em vez de reflow.
 
-**A pegadinha:** `overflow-x:auto` no wrapper não bastava. `.cmp-curr`/`.cmp-prev` (os itens do
-grid `.cmp-grid`) e os `<div>` de `.day-tables-grid` são itens de grid/flex, que por padrão têm
-`min-width: auto` — respeitam o tamanho mínimo intrínseco do conteúdo em vez de encolher pra
-largura disponível. Sem `min-width: 0` explícito nesses itens, o wrapper de scroll nunca
-"sentia" falta de espaço (nunca ficava menor que o próprio conteúdo) e era a **página inteira**
-que ganhava barra de rolagem horizontal, não o card. Medido via
-`el.scrollWidth > el.clientWidth` no DevTools/Playwright: antes do `min-width:0`, todo
-`.alloc-scroll` reportava `scrollWidth === clientWidth` (não rolava nada, só empurrava a página);
-depois, `scrollWidth` (622px) > `clientWidth` (315px) e a página ficou sem overflow.
+**A pegadinha:** `overflow-x:auto` no wrapper não bastava. `.cmp-curr`/`.cmp-prev` (os itens do grid `.cmp-grid`) e os `<div>` de `.day-tables-grid` são itens de grid/flex, que por padrão têm `min-width: auto` — respeitam o tamanho mínimo intrínseco do conteúdo em vez de encolher pra largura disponível. Sem `min-width: 0` explícito nesses itens, o wrapper de scroll nunca "sentia" falta de espaço (nunca ficava menor que o próprio conteúdo) e era a **página inteira** que ganhava barra de rolagem horizontal, não o card. Medido via `el.scrollWidth > el.clientWidth` no DevTools/Playwright: antes do `min-width:0`, todo `.alloc-scroll` reportava `scrollWidth === clientWidth` (não rolava nada, só empurrava a página); depois, `scrollWidth` (622px) > `clientWidth` (315px) e a página ficou sem overflow.
 
 ## Accordion: título em 2 linhas, ícone maior — mudança única, ~30 páginas (2026-09-16)
 
-Usuário mandou print do Debriefing no celular ("Detalhamento por Dia de Captação" com o título
-quebrando em parágrafo e cada badge — `PI-AGO-26`, `PI-ABR-26`, `Captação` — pulando pra uma linha
-própria, bagunçado) + um desenho à mão do layout que queria: ícone maior, título numa linha,
-badges na linha de baixo, sem a palavra "vs" entre lançamentos.
+Usuário mandou print do Debriefing no celular ("Detalhamento por Dia de Captação" com o título quebrando em parágrafo e cada badge — `PI-AGO-26`, `PI-ABR-26`, `Captação` — pulando pra uma linha própria, bagunçado) + um desenho à mão do layout que queria: ícone maior, título numa linha, badges na linha de baixo, sem a palavra "vs" entre lançamentos.
 
-`bsInitAccordion()` (`base.html`) é o motor genérico de accordion — reconhece qualquer
-`.section`/`.dbf-section-title` com esse bloco, sem precisar tocar no template de cada página
-(comentário original: "generalizado pra qualquer página que já usa o bloco .section/.section-
-title"). Isso significa que o problema (e o fix) não é do Debriefing: é de **toda** página que
-usa esse padrão — confirmado em ~30 arquivos via grep. A causa raiz é a mesma em qualquer uma:
-ícone + texto + badges (o "badge de tag" automático que essa mesma função injeta por
-palavra-chave do título, e badges que a própria página já colocava soltas ali, como o
-`.dbf-launch-badge` do Debriefing) brigavam pelo mesmo `display:flex; flex-wrap:wrap` — sem
-espaço, cada peça quebrava pra uma linha, cada uma na sua, imprevisível.
+`bsInitAccordion()` (`base.html`) é o motor genérico de accordion — reconhece qualquer `.section`/`.dbf-section-title` com esse bloco, sem precisar tocar no template de cada página (comentário original: "generalizado pra qualquer página que já usa o bloco .section/.section- title"). Isso significa que o problema (e o fix) não é do Debriefing: é de **toda** página que usa esse padrão — confirmado em ~30 arquivos via grep. A causa raiz é a mesma em qualquer uma: ícone + texto + badges (o "badge de tag" automático que essa mesma função injeta por palavra-chave do título, e badges que a própria página já colocava soltas ali, como o `.dbf-launch-badge` do Debriefing) brigavam pelo mesmo `display:flex; flex-wrap:wrap` — sem espaço, cada peça quebrava pra uma linha, cada uma na sua, imprevisível.
 
 **Fix, todo dentro de `bsInitAccordion()` + CSS de `.section-title`/`.dbf-section-title`:**
-- O ícone (sempre o 1º filho, se houver — nunca é o chevron, que entra por último) sai do bloco
-  de texto e vira filho direto do título, sozinho — CSS aumenta pra 26px (~altura de 2 linhas),
-  alinhado ao centro do bloco ao lado.
-- O resto do conteúdo original — que antes ia tudo pra um `<span class="bs-sec-orig">` só — agora
-  é separado nó a nó: texto vai pra `.bs-sec-orig` (linha 1), qualquer **elemento** (badge que a
-  página já tinha, ex. `.dbf-launch-badge`) vai pra um novo `<div class="bs-sec-badges">` (linha
-  2). A tag automática (`.bs-sec-tag`) entra nesse mesmo `.bs-sec-badges`. Um `.bs-sec-body`
-  (`display:flex; flex-wrap:wrap`) envolve as duas linhas — no desktop, com espaço de sobra, as
-  duas ainda colam numa linha só (nada muda visualmente); no celular (`max-width:640px`) vira
-  `flex-direction:column` e força as duas linhas separadas.
-- `.bs-sec-badges` fica `display:none` quando vazio (sem tag automática nem badge da página) —
-  `updateBadgesVisibility()`, chamada toda vez que `applyCustom()` roda (inclusive quando o
-  usuário edita a tag manualmente no painel "Seções").
-- Chevron sempre `position:absolute` no canto (nunca mais dentro do flex) — só existia essa regra
-  antes pra celular (`max-width:520px`); virou permanente, então o comportamento é o mesmo em
-  qualquer largura, sem depender de breakpoint pra não quebrar.
+- O ícone (sempre o 1º filho, se houver — nunca é o chevron, que entra por último) sai do bloco de texto e vira filho direto do título, sozinho — CSS aumenta pra 26px (~altura de 2 linhas), alinhado ao centro do bloco ao lado.
+- O resto do conteúdo original — que antes ia tudo pra um `<span class="bs-sec-orig">` só — agora é separado nó a nó: texto vai pra `.bs-sec-orig` (linha 1), qualquer **elemento** (badge que a página já tinha, ex. `.dbf-launch-badge`) vai pra um novo `<div class="bs-sec-badges">` (linha 2). A tag automática (`.bs-sec-tag`) entra nesse mesmo `.bs-sec-badges`. Um `.bs-sec-body` (`display:flex; flex-wrap:wrap`) envolve as duas linhas — no desktop, com espaço de sobra, as duas ainda colam numa linha só (nada muda visualmente); no celular (`max-width:640px`) vira `flex-direction:column` e força as duas linhas separadas.
+- `.bs-sec-badges` fica `display:none` quando vazio (sem tag automática nem badge da página) — `updateBadgesVisibility()`, chamada toda vez que `applyCustom()` roda (inclusive quando o usuário edita a tag manualmente no painel "Seções").
+- Chevron sempre `position:absolute` no canto (nunca mais dentro do flex) — só existia essa regra antes pra celular (`max-width:520px`); virou permanente, então o comportamento é o mesmo em qualquer largura, sem depender de breakpoint pra não quebrar.
 
-**Testado nos dois formatos que existem** (a maioria das ~30 páginas não tem ícone no título, só
-número + texto — ex. Funil, Verba; um grupo menor tem, ex. Debriefing, Comparativo): Debriefing
-(ícone + 2 badges), Funil (sem ícone, com 1 badge), Comparativo (ícone + 1 badge) — mobile (390px)
-e desktop (1280px), accordion recolher/expandir e o painel "Seções" continuam funcionando.
+**Testado nos dois formatos que existem** (a maioria das ~30 páginas não tem ícone no título, só número + texto — ex. Funil, Verba; um grupo menor tem, ex. Debriefing, Comparativo): Debriefing (ícone + 2 badges), Funil (sem ícone, com 1 badge), Comparativo (ícone + 1 badge) — mobile (390px) e desktop (1280px), accordion recolher/expandir e o painel "Seções" continuam funcionando.
 
-De quebra: as duas badges de lançamento do Debriefing (`.dbf-launch-badge`) perderam o "vs" —
-"vs PI-ABR-26" virou só "PI-ABR-26" — pedido explícito junto com o desenho.
+De quebra: as duas badges de lançamento do Debriefing (`.dbf-launch-badge`) perderam o "vs" — "vs PI-ABR-26" virou só "PI-ABR-26" — pedido explícito junto com o desenho.
 
 ## Título sem "Captação/Pré-Quali/Meta/Google/YouTube/TikTok" no texto — vira badge (2026-09-16)
 
-Continuação do fix acima: usuário pediu pra tirar a palavra da etapa (Captação/Pré-Qualificação)
-e da plataforma (Meta/Google/YouTube/TikTok) do texto de ~19 títulos do Debriefing — a etapa já
-tinha tag automática, a plataforma não tinha nada. Sequência final pedida: **etapa → plataforma →
-lançamento atual → lançamento anterior**, todas as badges do mesmo tamanho.
+Continuação do fix acima: usuário pediu pra tirar a palavra da etapa (Captação/Pré-Qualificação) e da plataforma (Meta/Google/YouTube/TikTok) do texto de ~19 títulos do Debriefing — a etapa já tinha tag automática, a plataforma não tinha nada. Sequência final pedida: **etapa → plataforma → lançamento atual → lançamento anterior**, todas as badges do mesmo tamanho.
 
-**A pegadinha:** a tag automática (`detectTag()`, `bsInitAccordion()`) funciona escaneando
-palavra-chave **no texto visível** do título (`title.textContent`). Tirar a palavra do texto
-quebra a própria detecção que mostra a tag — sem "Captação" no texto, nada dispara o badge
-"Captação". Resolvido com um atributo `data-tag="Captação"` no `<div class="dbf-section-title">`,
-que `initAccordion()` agora lê **antes** de cair pra `detectTag(label)`:
+**A pegadinha:** a tag automática (`detectTag()`, `bsInitAccordion()`) funciona escaneando palavra-chave **no texto visível** do título (`title.textContent`). Tirar a palavra do texto quebra a própria detecção que mostra a tag — sem "Captação" no texto, nada dispara o badge "Captação". Resolvido com um atributo `data-tag="Captação"` no `<div class="dbf-section-title">`, que `initAccordion()` agora lê **antes** de cair pra `detectTag(label)`:
 ```js
 var forcedTag = title.getAttribute('data-tag');
 return { ..., autoTag: forcedTag || detectTag(label) };
 ```
-Só os ~19 títulos que tiveram a palavra removida ganharam `data-tag` explícito; o resto do
-sistema (as outras ~29 páginas) continua 100% por detecção automática, sem tocar em nada.
+Só os ~19 títulos que tiveram a palavra removida ganharam `data-tag` explícito; o resto do sistema (as outras ~29 páginas) continua 100% por detecção automática, sem tocar em nada.
 
-**Plataforma vira badge** — `plat_badge(nome)` (`debriefing/_macros.html`), logo + nome, mesmo
-tamanho de `.dbf-launch-badge`/`.bs-sec-tag` (11px/700/2px 8px/20px, unificado nos três pro pedido
-"mesmo tamanho das tag de lançamento"). Usado só nos títulos que tinham a palavra da plataforma
-solta no texto (ex.: "Top 5 Melhores Ads — Captação (Meta)" → "Top 5 Melhores Ads" +
-`plat_badge("Meta")`). As variantes por plataforma de "Top 5 Melhores Ads" trocaram o ícone
-principal de marca (`ti-brand-meta`/`ti-brand-youtube`) por `ti-trophy` genérico — mesmo ícone da
-variante combinada (Meta+Google), pra não ter 3 ícones diferentes pra 3 recortes do mesmo
-ranking.
+**Plataforma vira badge** — `plat_badge(nome)` (`debriefing/_macros.html`), logo + nome, mesmo tamanho de `.dbf-launch-badge`/`.bs-sec-tag` (11px/700/2px 8px/20px, unificado nos três pro pedido "mesmo tamanho das tag de lançamento"). Usado só nos títulos que tinham a palavra da plataforma solta no texto (ex.: "Top 5 Melhores Ads — Captação (Meta)" → "Top 5 Melhores Ads" + `plat_badge("Meta")`). As variantes por plataforma de "Top 5 Melhores Ads" trocaram o ícone principal de marca (`ti-brand-meta`/`ti-brand-youtube`) por `ti-trophy` genérico — mesmo ícone da variante combinada (Meta+Google), pra não ter 3 ícones diferentes pra 3 recortes do mesmo ranking.
 
-**Ordem das badges já saía certa sem esforço extra:** `bsInitAccordion()` insere a tag automática
-**antes** do loop que aspira o resto do conteúdo original do título pra `.bs-sec-badges` — como
-cada template já escreve `{{ plat_badge(...) }}` antes de `.dbf-launch-badge` (atual) antes de
-`.dbf-launch-badge.prev` (anterior), a ordem final bate exatamente com "etapa → plataforma →
-lançamento → lançamento anterior" sem precisar de nenhuma lógica de reordenação.
+**Ordem das badges já saía certa sem esforço extra:** `bsInitAccordion()` insere a tag automática **antes** do loop que aspira o resto do conteúdo original do título pra `.bs-sec-badges` — como cada template já escreve `{{ plat_badge(...) }}` antes de `.dbf-launch-badge` (atual) antes de `.dbf-launch-badge.prev` (anterior), a ordem final bate exatamente com "etapa → plataforma → lançamento → lançamento anterior" sem precisar de nenhuma lógica de reordenação.
 
 ## plat_badge() migrou pra fora do Debriefing + extensão pra 11 páginas (2026-09-16/17)
 
-`plat_badge()` e `_PLAT_BADGE` saíram de `debriefing/_macros.html` pra `_macros_platform.html`
-(raiz de `templates/`, sem `{% extends %}`, mesmo padrão de `_macros_verba.html`) — pedido do
-usuário de estender a limpeza de título pras outras páginas, e não fazia sentido um macro
-genérico morar num caminho com "debriefing". CSS de `.dbf-plat-badge` foi atrás, de
-`debriefing.html` pra `base.html` (é usado em páginas que não são o Debriefing agora). Depois,
-outra sessão trocou o ícone branco simples por um círculo branco com o ícone colorido dentro
-(`.dbf-plat-badge-dot`) e acrescentou WhatsApp/Active Campaign ao dicionário — evolução
-coerente, não precisou de ajuste.
+`plat_badge()` e `_PLAT_BADGE` saíram de `debriefing/_macros.html` pra `_macros_platform.html` (raiz de `templates/`, sem `{% extends %}`, mesmo padrão de `_macros_verba.html`) — pedido do usuário de estender a limpeza de título pras outras páginas, e não fazia sentido um macro genérico morar num caminho com "debriefing". CSS de `.dbf-plat-badge` foi atrás, de `debriefing.html` pra `base.html` (é usado em páginas que não são o Debriefing agora). Depois, outra sessão trocou o ícone branco simples por um círculo branco com o ícone colorido dentro (`.dbf-plat-badge-dot`) e acrescentou WhatsApp/Active Campaign ao dicionário — evolução coerente, não precisou de ajuste.
 
-Mesma limpeza do Debriefing (tirar "Captação"/"Pré-Qualificação"/"Meta Ads"/"Google
-Ads"/"YouTube"/"TikTok" do texto do título, badge no lugar) estendida pra comparativo,
-criativos, dashboard, distribuição, funil, google, google-audiences, meta, perpétuo e
-pré-qualificação. Três armadilhas que apareceram só fora do Debriefing:
+Mesma limpeza do Debriefing (tirar "Captação"/"Pré-Qualificação"/"Meta Ads"/"Google Ads"/"YouTube"/"TikTok" do texto do título, badge no lugar) estendida pra comparativo, criativos, dashboard, distribuição, funil, google, google-audiences, meta, perpétuo e pré-qualificação. Três armadilhas que apareceram só fora do Debriefing:
 
-1. **"Meta" é ambíguo em português.** `meta.html` tem "Distribuição de Verba Meta Captação vs
-   Meta Estratégica" — aqui "Meta" é a palavra comum (meta estratégica de alocação de verba: 70%
-   Principal / 25% Potencial / 5% Reels), não a plataforma. Trocado por badge teria mudado o
-   sentido da frase. Deixado sem tocar.
-2. **Página 100% de uma plataforma/etapa não precisa do badge redundante.** `meta.html`,
-   `google.html`, `meta-audiences`, `google-audiences` já têm "Meta Ads"/"Google Ads" no `<h1>`
-   da página — todo badge de plataforma em toda seção seria ruído. Só a etapa (`Captação`) virou
-   tag onde fazia sentido; a palavra da plataforma nem foi tocada nesses 4 arquivos. Mesma lógica
-   em `pre_qualificacao.html` (h1 já diz "Pré-Qualificação") — a palavra saiu do texto, mas sem
-   tag (senão toda seção da página ganharia a mesma tag óbvia).
-3. **`funil.html` já tinha um sistema de badge de plataforma próprio** (SVG hardcoded,
-   `.platform-badge`/`.section-title.platform-meta`/`.platform-google`, de uma feature anterior a
-   este trabalho) — mantido como está (não fazia sentido ter dois sistemas de badge na mesma
-   página); só a palavra duplicada ("Meta Ads -", "Google Ads -") saiu do texto do título, que
-   antes repetia o que o badge já mostrava.
+1. **"Meta" é ambíguo em português.** `meta.html` tem "Distribuição de Verba Meta Captação vs Meta Estratégica" — aqui "Meta" é a palavra comum (meta estratégica de alocação de verba: 70% Principal / 25% Potencial / 5% Reels), não a plataforma. Trocado por badge teria mudado o sentido da frase. Deixado sem tocar.
+2. **Página 100% de uma plataforma/etapa não precisa do badge redundante.** `meta.html`, `google.html`, `meta-audiences`, `google-audiences` já têm "Meta Ads"/"Google Ads" no `<h1>` da página — todo badge de plataforma em toda seção seria ruído. Só a etapa (`Captação`) virou tag onde fazia sentido; a palavra da plataforma nem foi tocada nesses 4 arquivos. Mesma lógica em `pre_qualificacao.html` (h1 já diz "Pré-Qualificação") — a palavra saiu do texto, mas sem tag (senão toda seção da página ganharia a mesma tag óbvia).
+3. **`funil.html` já tinha um sistema de badge de plataforma próprio** (SVG hardcoded, `.platform-badge`/`.section-title.platform-meta`/`.platform-google`, de uma feature anterior a este trabalho) — mantido como está (não fazia sentido ter dois sistemas de badge na mesma página); só a palavra duplicada ("Meta Ads -", "Google Ads -") saiu do texto do título, que antes repetia o que o badge já mostrava.
 
-Testado: as 11 rotas devolvem 200 e a inspeção visual (Playwright, funil/pré-qualificação/
-captação) confirma ordem e tamanho consistentes com o Debriefing.
+Testado: as 11 rotas devolvem 200 e a inspeção visual (Playwright, funil/pré-qualificação/ captação) confirma ordem e tamanho consistentes com o Debriefing.
 
 ## Bug corrigido: etapa "Replay" do Meta sempre caía em "Outros" (2026-09-16)
 
-`categorizar_campanha_meta` (`frontend/db_readers/nomenclatura.py`) casa a chave da etapa contra
-o colchete **exato** da campanha (`f"[{chave}]" in camp`) — funciona para `[aula 1]`..`[aula 4]`
-porque a convenção de nome usa um número por colchete. Mas a etapa Replay nomeia a campanha como
-`[replay aula 1]`, `[replay aula 2]`... — **um colchete só**, com "replay" e o número da aula
-juntos. `ETAPA_MAP_META` só tinha as chaves genéricas `"replay"` e `"replay aulas"`, que nunca
-batem com `[replay aula N]` (não é match exato de colchete) — toda campanha de Replay do Meta
-caía em `"Outros"` e desaparecia de qualquer soma por etapa. O Google não tinha esse bug (casa
-por substring, não colchete exato), então o sintoma só aparecia no lado Meta.
+`categorizar_campanha_meta` (`frontend/db_readers/nomenclatura.py`) casa a chave da etapa contra o colchete **exato** da campanha (`f"[{chave}]" in camp`) — funciona para `[aula 1]`..`[aula 4]` porque a convenção de nome usa um número por colchete. Mas a etapa Replay nomeia a campanha como `[replay aula 1]`, `[replay aula 2]`... — **um colchete só**, com "replay" e o número da aula juntos. `ETAPA_MAP_META` só tinha as chaves genéricas `"replay"` e `"replay aulas"`, que nunca batem com `[replay aula N]` (não é match exato de colchete) — toda campanha de Replay do Meta caía em `"Outros"` e desaparecia de qualquer soma por etapa. O Google não tinha esse bug (casa por substring, não colchete exato), então o sintoma só aparecia no lado Meta.
 
-**Descoberto via:** usuário comparou o relatório diário do Slack (`etl/budget_alert.py`) com o
-gasto real do PES-SET-26 e viu "Replay: Meta R$0,00" no dia em que a campanha Meta de Replay
-tinha gastado R$308,19 de verdade — o Google da mesma etapa aparecia certo, o que apontou pro
-classificador em vez da consulta às contas. Provavelmente afetava **todo lançamento anterior**
-que já rodou etapa Replay no Meta, não só esse.
+**Descoberto via:** usuário comparou o relatório diário do Slack (`etl/budget_alert.py`) com o gasto real do PES-SET-26 e viu "Replay: Meta R$0,00" no dia em que a campanha Meta de Replay tinha gastado R$308,19 de verdade — o Google da mesma etapa aparecia certo, o que apontou pro classificador em vez da consulta às contas. Provavelmente afetava **todo lançamento anterior** que já rodou etapa Replay no Meta, não só esse.
 
-**Fix:** adicionadas as chaves específicas `"replay aula 1"`..`"replay aula 4"` em
-`ETAPA_MAP_META`, mesmo padrão já usado pra `"aula 1"`..`"aula 4"`. `tests/test_nomenclatura.py`
-é um teste de equivalência contra uma fixture gerada pela implementação antiga (ver seção
-anterior) — 4 dos 1.311 casos mudaram de resultado de propósito (as 4 campanhas reais de Replay
-do Meta no banco: PES-MAR-26 aula 1/2/3, PES-SET-26 aula 1), fixture atualizada à mão pra refletir
-a classificação correta. Suite completa rodada depois do fix, sem outras regressões.
+**Fix:** adicionadas as chaves específicas `"replay aula 1"`..`"replay aula 4"` em `ETAPA_MAP_META`, mesmo padrão já usado pra `"aula 1"`..`"aula 4"`. `tests/test_nomenclatura.py` é um teste de equivalência contra uma fixture gerada pela implementação antiga (ver seção anterior) — 4 dos 1.311 casos mudaram de resultado de propósito (as 4 campanhas reais de Replay do Meta no banco: PES-MAR-26 aula 1/2/3, PES-SET-26 aula 1), fixture atualizada à mão pra refletir a classificação correta. Suite completa rodada depois do fix, sem outras regressões.
 
 ---
 
 ## "Vendas Hora a Hora" do dia 1 zerava sem product_ids no launch_config (2026-09-17)
 
-**Sintoma:** em `/comparativo?launch_code=PES-SET-26`, o bloco "Dia 1 — Vendas Hora a Hora" não
-trazia nada na coluna do PES-MAI-26 (todos os checkpoints zerados), enquanto o resto da página
-— investimento, leads, vendas totais, ROAS do mesmo PES-MAI-26 — aparecia normalmente.
+**Sintoma:** em `/comparativo?launch_code=PES-SET-26`, o bloco "Dia 1 — Vendas Hora a Hora" não trazia nada na coluna do PES-MAI-26 (todos os checkpoints zerados), enquanto o resto da página — investimento, leads, vendas totais, ROAS do mesmo PES-MAI-26 — aparecia normalmente.
 
-**Causa:** `read_dia1_sales` (`db_readers/sales.py`) só sabia consultar Hotmart/TMB por
-`codigo_do_produto`/`lancamento_id`, lidos de `hotmart_produto_ids`/`tmb_produto_ids` do
-`launch_config`. Quando essas listas vêm vazias, os `if hotmart_ids:` / `if tmb_ids:` pulavam a
-consulta inteira e os DataFrames ficavam vazios — sem erro, sem log, só zero. O PES-MAI-26 é o
-único lançamento regular com esses dois campos vazios no `launch_config` (o BV-25 também está
-vazio, mas não tem `abertura_oficial_carrinho`, então nem chega nessa parte).
+**Causa:** `read_dia1_sales` (`db_readers/sales.py`) só sabia consultar Hotmart/TMB por `codigo_do_produto`/`lancamento_id`, lidos de `hotmart_produto_ids`/`tmb_produto_ids` do `launch_config`. Quando essas listas vêm vazias, os `if hotmart_ids:` / `if tmb_ids:` pulavam a consulta inteira e os DataFrames ficavam vazios — sem erro, sem log, só zero. O PES-MAI-26 é o único lançamento regular com esses dois campos vazios no `launch_config` (o BV-25 também está vazio, mas não tem `abertura_oficial_carrinho`, então nem chega nessa parte).
 
-Só o dia 1 quebrava porque o `read_vendas` **já tinha** o fallback que faltava aqui: quando não há
-product_ids, ele consulta por projeto (`SELECT projeto FROM dim_lancamentos`, aplicado via `CASE`
-em `produto ILIKE`) em vez de por ID. Todos os outros números do PES-MAI-26 no sistema já vinham
-por esse caminho — o dia 1 era a única leitura que não tinha o par.
+Só o dia 1 quebrava porque o `read_vendas` **já tinha** o fallback que faltava aqui: quando não há product_ids, ele consulta por projeto (`SELECT projeto FROM dim_lancamentos`, aplicado via `CASE` em `produto ILIKE`) em vez de por ID. Todos os outros números do PES-MAI-26 no sistema já vinham por esse caminho — o dia 1 era a única leitura que não tinha o par.
 
-**Fix:** mesmo fallback do `read_vendas` no `read_dia1_sales` — sem product_ids, filtra por
-projeto + o dia da abertura. Com product_ids, nada muda (cláusula e parâmetros idênticos aos de
-antes), então não há regressão nos lançamentos já configurados.
+**Fix:** mesmo fallback do `read_vendas` no `read_dia1_sales` — sem product_ids, filtra por projeto + o dia da abertura. Com product_ids, nada muda (cláusula e parâmetros idênticos aos de antes), então não há regressão nos lançamentos já configurados.
 
-**Diferença entre os dois caminhos, medida no PES-MAI-26:** filtrar por projeto pega 4 vendas
-Hotmart a mais no dia (678 vs 674 às 22h, R$760 em R$1,61 mi — 0,4%), provavelmente produto TJ
-fora do ID principal. Optou-se por **não** preencher os product_ids do PES-MAI-26 no
-`launch_config`: mexer neles mudaria o total, o ROAS e o debriefing do lançamento inteiro
-retroativamente, já que hoje tudo dele é calculado pelo fallback de projeto. Do jeito que ficou,
-o dia 1 passa a bater com o resto dos números do próprio lançamento.
+**Diferença entre os dois caminhos, medida no PES-MAI-26:** filtrar por projeto pega 4 vendas Hotmart a mais no dia (678 vs 674 às 22h, R$760 em R$1,61 mi — 0,4%), provavelmente produto TJ fora do ID principal. Optou-se por **não** preencher os product_ids do PES-MAI-26 no `launch_config`: mexer neles mudaria o total, o ROAS e o debriefing do lançamento inteiro retroativamente, já que hoje tudo dele é calculado pelo fallback de projeto. Do jeito que ficou, o dia 1 passa a bater com o resto dos números do próprio lançamento.
 
-**Como conferir se volta a acontecer:** um lançamento com `abertura_oficial_carrinho` preenchida
-e dia 1 inteiro zerado (nenhum checkpoint com venda, nenhum "ainda não chegou") é o sintoma —
-checar `hotmart_produto_ids`/`tmb_produto_ids` e se `dim_lancamentos.projeto` existe pro código.
+**Como conferir se volta a acontecer:** um lançamento com `abertura_oficial_carrinho` preenchida e dia 1 inteiro zerado (nenhum checkpoint com venda, nenhum "ainda não chegou") é o sintoma — checar `hotmart_produto_ids`/`tmb_produto_ids` e se `dim_lancamentos.projeto` existe pro código.
 
 ### Segundo caso, no dia da abertura: TMB entra sem `lancamento_id`
 
-No dia 1 do PES-SET-26 (17/09/26) o TMB continuou zerado mesmo **com** `tmb_produto_ids`
-cadastrado (`29395`). Causa: a venda nova chega em `tmb_clean_oficial` com `lancamento_id` **NULL**
-— a classificação só vem depois (196 linhas de set/26 ainda nulas às 8h30, todas do dia). O filtro
-`lancamento_id = ANY(...)` não casa com NULL, então o dia da abertura — justamente quando a tela é
-mais olhada — lê zero, e só ficaria certo horas depois.
+No dia 1 do PES-SET-26 (17/09/26) o TMB continuou zerado mesmo **com** `tmb_produto_ids` cadastrado (`29395`). Causa: a venda nova chega em `tmb_clean_oficial` com `lancamento_id` **NULL** — a classificação só vem depois (196 linhas de set/26 ainda nulas às 8h30, todas do dia). O filtro `lancamento_id = ANY(...)` não casa com NULL, então o dia da abertura — justamente quando a tela é mais olhada — lê zero, e só ficaria certo horas depois.
 
-De novo o `read_vendas` já tratava: o retry dele do TMB dispara **sempre que o resultado vem
-vazio** (`if tmb_df.empty:`), não só quando faltam IDs. Por isso o total da página mostrava as
-vendas do dia e o dia 1 não. `read_dia1_sales` passou a fazer o mesmo retry por projeto.
+De novo o `read_vendas` já tratava: o retry dele do TMB dispara **sempre que o resultado vem vazio** (`if tmb_df.empty:`), não só quando faltam IDs. Por isso o total da página mostrava as vendas do dia e o dia 1 não. `read_dia1_sales` passou a fazer o mesmo retry por projeto.
 
-**Efeito colateral aceito:** se um lançamento tiver de verdade zero venda TMB no dia 1, o retry
-passa a contar as vendas TMB daquele projeto no dia. É o mesmo comportamento que o `read_vendas`
-já tem desde antes, e no dia da abertura a venda do projeto é a do lançamento — preferiu-se a
-consistência entre os dois números à precisão teórica de um caso que não apareceu.
+**Efeito colateral aceito:** se um lançamento tiver de verdade zero venda TMB no dia 1, o retry passa a contar as vendas TMB daquele projeto no dia. É o mesmo comportamento que o `read_vendas` já tem desde antes, e no dia da abertura a venda do projeto é a do lançamento — preferiu-se a consistência entre os dois números à precisão teórica de um caso que não apareceu.
 
 ### O Hotmart guarda a data como epoch em milissegundos
 
-Investigando o mesmo dia: `hotmart_clean_oficial.data_da_transacao` grava as vendas novas como
-epoch ms (`1789642687000`), não como `DD/MM/YYYY`. O SQL do dia 1 e o `_hm_data_sql` já tratam os
-dois formatos — mas **qualquer consulta manual com `LIKE '17/09/2026%'` devolve zero linhas e dá a
-impressão de que a tabela está parada**. Pra conferir por data, usar sempre o `_hm_data_sql`.
+Investigando o mesmo dia: `hotmart_clean_oficial.data_da_transacao` grava as vendas novas como epoch ms (`1789642687000`), não como `DD/MM/YYYY`. O SQL do dia 1 e o `_hm_data_sql` já tratam os dois formatos — mas **qualquer consulta manual com `LIKE '17/09/2026%'` devolve zero linhas e dá a impressão de que a tabela está parada**. Pra conferir por data, usar sempre o `_hm_data_sql`.
 
 ### O cache da página é de 60 min — no dia da abertura isso aparece
 
-`frontend/cache.py::_CACHE_TTL` = 3600s, e `/comparativo` guarda o `ComparativoData` inteiro. Num
-dia normal ninguém nota; no dia 1, em que os checkpoints viram de hora em hora, um checkpoint que
-acabou de ficar válido pode levar até 1h pra aparecer. Não é bug do leitor — se o número bate no
-`read_dia1_sales` direto e não na tela, é cache.
+`frontend/cache.py::_CACHE_TTL` = 3600s, e `/comparativo` guarda o `ComparativoData` inteiro. Num dia normal ninguém nota; no dia 1, em que os checkpoints viram de hora em hora, um checkpoint que acabou de ficar válido pode levar até 1h pra aparecer. Não é bug do leitor — se o número bate no `read_dia1_sales` direto e não na tela, é cache.
 
-Por isso `/comparativo` ganhou **`?ao_vivo=1`** (17/09/26), mesmo nome do que o `/debriefing` já
-usava. Não basta ignorar o cache da página: `read_comparativo` chama `read_vendas`, `read_meta` e
-`read_google`, que têm cache próprio (`_get_or_compute`) e devolveriam o valor velho do mesmo
-jeito. A rota usa o `force_refresh_start()`/`force_refresh_end()` do `frontend/cache.py` — o
-mesmo par que o re-aquecimento pós-ETL usa — que faz o `_get_or_compute` recomputar de forma
-síncrona e gravar por cima. O resultado ainda vai pro cache, então a visita normal seguinte já
-pega o número novo.
+Por isso `/comparativo` ganhou **`?ao_vivo=1`** (17/09/26), mesmo nome do que o `/debriefing` já usava. Não basta ignorar o cache da página: `read_comparativo` chama `read_vendas`, `read_meta` e `read_google`, que têm cache próprio (`_get_or_compute`) e devolveriam o valor velho do mesmo jeito. A rota usa o `force_refresh_start()`/`force_refresh_end()` do `frontend/cache.py` — o mesmo par que o re-aquecimento pós-ETL usa — que faz o `_get_or_compute` recomputar de forma síncrona e gravar por cima. O resultado ainda vai pro cache, então a visita normal seguinte já pega o número novo.
 
-É **lento de propósito** (recalcula tudo, sem stale-while-revalidate): é botão de conferência no
-dia da abertura, não caminho de uso normal. Vale como padrão pra qualquer página cacheada que
-precise de um "confere agora" — copiar esse par, não só pular o `_get_cached`.
+É **lento de propósito** (recalcula tudo, sem stale-while-revalidate): é botão de conferência no dia da abertura, não caminho de uso normal. Vale como padrão pra qualquer página cacheada que precise de um "confere agora" — copiar esse par, não só pular o `_get_cached`.
 
-O botão "Atualizar agora" fica no `.hdr` da página (`.cmp-live-btn`, só o ícone abaixo de 640px), e
-com `?ao_vivo=1` ativo aparece um "Recalculado agora, sem cache" embaixo do subtítulo. Não tem
-estado de carregando próprio de propósito: o `base.html` já prende um overlay de carregamento em
-todo `a[href]` de conteúdo que navega na mesma aba (linha ~2407), então o clique já mostra o
-overlay com a frase durante o ~1min. Como o resultado vai pro cache, quem clica atualiza pra todo
-mundo, não só pra própria aba.
+O botão "Atualizar agora" fica no `.hdr` da página (`.cmp-live-btn`, só o ícone abaixo de 640px), e com `?ao_vivo=1` ativo aparece um "Recalculado agora, sem cache" embaixo do subtítulo. Não tem estado de carregando próprio de propósito: o `base.html` já prende um overlay de carregamento em todo `a[href]` de conteúdo que navega na mesma aba (linha ~2407), então o clique já mostra o overlay com a frase durante o ~1min. Como o resultado vai pro cache, quem clica atualiza pra todo mundo, não só pra própria aba.
 
-**Bônus do mesmo dia:** o bloco "O Paradoxo" (`.cmp-paradox`, `grid-template-columns: 1fr auto 1fr`)
-não tinha breakpoint e estourava a largura no celular — 285px de overflow a 375px, fazendo a
-**página inteira** rolar na horizontal. Empilhado abaixo de 768px, igual `.cmp-funnel-grid` e
-`.cmp-ads-grid` já faziam. Era pré-existente, não veio do botão.
+**Bônus do mesmo dia:** o bloco "O Paradoxo" (`.cmp-paradox`, `grid-template-columns: 1fr auto 1fr`) não tinha breakpoint e estourava a largura no celular — 285px de overflow a 375px, fazendo a **página inteira** rolar na horizontal. Empilhado abaixo de 768px, igual `.cmp-funnel-grid` e `.cmp-ads-grid` já faziam. Era pré-existente, não veio do botão.
 
 ### O aquecimento gravava numa chave que a rota nunca lia
 
-Investigando por que a primeira abertura do `/comparativo` custava ~2min mesmo com o aquecimento
-ativo: a rota e o aquecimento montavam a chave do cache cada um por sua conta, e as duas
-divergiram.
+Investigando por que a primeira abertura do `/comparativo` custava ~2min mesmo com o aquecimento ativo: a rota e o aquecimento montavam a chave do cache cada um por sua conta, e as duas divergiram.
 
 | quem | chave | o que calculava |
 |---|---|---|
 | aquecimento (`fetch.py::f_comp`) | `PES-MAI-26_PES-SET-26` | `read_comparativo(launch, previous)` |
 | rota (`/comparativo`) | `PES-MAI-26_PES-SET-26_PES-MAR-26` | `read_comparativo(launch, previous, previous2)` |
 
-O sufixo entrou quando o dia 1 ganhou a variação da coluna "anterior" contra o ciclo dela mesma
-(o `previous2`); o aquecimento não foi junto. Resultado: ele pagava a consulta inteira, gravava
-numa chave órfã, e **toda** primeira visita recalculava do zero — inclusive depois de cada rodada
-do ETL. Ninguém percebeu porque não dá erro: só fica lento.
+O sufixo entrou quando o dia 1 ganhou a variação da coluna "anterior" contra o ciclo dela mesma (o `previous2`); o aquecimento não foi junto. Resultado: ele pagava a consulta inteira, gravava numa chave órfã, e **toda** primeira visita recalculava do zero — inclusive depois de cada rodada do ETL. Ninguém percebeu porque não dá erro: só fica lento.
 
-**Fix:** `comparativo_cache_key()` e `comparativo_cached()` em `services/fetch.py` são agora o
-único lugar que monta a chave e lê/grava essa entrada; rota e aquecimento chamam a mesma função, e
-o aquecimento passou a receber `previous2` (`warm_launch` já tinha a lista de lançamentos pra
-derivar). A lição vale além daqui: **chave de cache montada em dois lugares diverge** — quando
-mais de um caminho lê a mesma entrada, a chave tem dono único.
+**Fix:** `comparativo_cache_key()` e `comparativo_cached()` em `services/fetch.py` são agora o único lugar que monta a chave e lê/grava essa entrada; rota e aquecimento chamam a mesma função, e o aquecimento passou a receber `previous2` (`warm_launch` já tinha a lista de lançamentos pra derivar). A lição vale além daqui: **chave de cache montada em dois lugares diverge** — quando mais de um caminho lê a mesma entrada, a chave tem dono único.
 
 ## Card "O Paradoxo" do /comparativo — ordem e gasto por plataforma (2026-09-17)
 
-A ordem passou a ser **faturamento → vendas → investimento**, cada um com o detalhe por
-plataforma logo abaixo do total (pedido do usuário). A caixa de diferença do meio segue a mesma
-ordem. Plataforma com valor zero não é exibida (macro `plataformas()` em `comparativo.html`).
+A ordem passou a ser **faturamento → vendas → investimento**, cada um com o detalhe por plataforma logo abaixo do total (pedido do usuário). A caixa de diferença do meio segue a mesma ordem. Plataforma com valor zero não é exibida (macro `plataformas()` em `comparativo.html`).
 
-Dados novos em `ComparativoData`: `receita_hotmart_*`/`receita_tmb_*` (já vinham da consulta,
-só não eram expostos) e `inv_whatsapp_*`, de `read_whatsapp_messages`, que casa a janela do
-lançamento com as contas do produto em `config/whatsapp_accounts.yaml`.
+Dados novos em `ComparativoData`: `receita_hotmart_*`/`receita_tmb_*` (já vinham da consulta, só não eram expostos) e `inv_whatsapp_*`, de `read_whatsapp_messages`, que casa a janela do lançamento com as contas do produto em `config/whatsapp_accounts.yaml`.
 
-**O total do card mudou.** Antes "Investimento" era só mídia de Captação (Meta+Google); agora é
-`inv_total_* = Meta + Google + WhatsApp`, senão o detalhe embaixo não fecharia com o total. No
-PES-SET-26 isso é R$ 577.327 → R$ 588.942, e a variação contra o PES-MAI-26 vai de -11,1% para
--11,6%. `inv_a`/`inv_b` **continuam sendo só mídia** — são eles que alimentam ROAS, CPA e CPL
-no resto da página, e mexer neles mudaria essas métricas junto.
+**O total do card mudou.** Antes "Investimento" era só mídia de Captação (Meta+Google); agora é `inv_total_* = Meta + Google + WhatsApp`, senão o detalhe embaixo não fecharia com o total. No PES-SET-26 isso é R$ 577.327 → R$ 588.942, e a variação contra o PES-MAI-26 vai de -11,1% para -11,6%. `inv_a`/`inv_b` **continuam sendo só mídia** — são eles que alimentam ROAS, CPA e CPL no resto da página, e mexer neles mudaria essas métricas junto.
 
-**TikTok entra desde 13/11/26** — `inv_tiktok_*` e `inv_tiktok_total_*`, de `tiktok_ads_daily`
-(ver "TikTok Ads entra no ETL"). Lançamento sem TikTok continua sem a linha (valor zero some).
+**TikTok entra desde 13/11/26** — `inv_tiktok_*` e `inv_tiktok_total_*`, de `tiktok_ads_daily` (ver "TikTok Ads entra no ETL"). Lançamento sem TikTok continua sem a linha (valor zero some).
 
 ---
 
 ## Método de pagamento vinha em dois idiomas e virava dois cards (2026-09-17)
 
-No "Detalhamento de Vendas por Pagamento" (`/debriefing`) apareciam **CREDIT_CARD com 612 vendas
-e "Cartão de Crédito" com 1** — o mesmo método, contado duas vezes. Causa: `hotmart.py` agrupava
-por `metodo_de_pagamento` **cru**, e a coluna guarda os mesmos métodos em dois dialetos, conforme
-a época da venda:
+No "Detalhamento de Vendas por Pagamento" (`/debriefing`) apareciam **CREDIT_CARD com 612 vendas e "Cartão de Crédito" com 1** — o mesmo método, contado duas vezes. Causa: `hotmart.py` agrupava por `metodo_de_pagamento` **cru**, e a coluna guarda os mesmos métodos em dois dialetos, conforme a época da venda:
 
 | era | dialeto | exemplos |
 |---|---|---|
 | export CSV (início do projeto) | português | `Cartão de Crédito`, `Pix`, `Boleto Bancário` |
 | API (atual) | inglês maiúsculo | `CREDIT_CARD`, `PIX`, `BILLET`, `APPLE_PAY` |
 
-São 20 valores distintos na tabela, com **6 pares** que significam a mesma coisa: cartão, pix,
-boleto, Apple Pay, PayPal e Pix Automático. Depois de normalizar sobram 13 rótulos.
+São 20 valores distintos na tabela, com **6 pares** que significam a mesma coisa: cartão, pix, boleto, Apple Pay, PayPal e Pix Automático. Depois de normalizar sobram 13 rótulos.
 
-**Fix:** `_metodo_pagamento_pt()` em `_vendas_comum.py`, aplicado no `groupby` do
-`read_hotmart_details`. Valor não mapeado volta cru de propósito — aparecer em inglês na tela é o
-sinal de que entrou um método novo pra incluir no dicionário.
+**Fix:** `_metodo_pagamento_pt()` em `_vendas_comum.py`, aplicado no `groupby` do `read_hotmart_details`. Valor não mapeado volta cru de propósito — aparecer em inglês na tela é o sinal de que entrou um método novo pra incluir no dicionário.
 
-**Por que não reusar `_hm_metodo_label`:** ele classifica qualquer `installment` como
-"Recorrência", mas `HOTMART_INSTALLMENTS` é o parcelado da própria Hotmart, não assinatura — usá-lo
-aqui trocaria 373 vendas de categoria. Ele continua respondendo "Forma de Pagamento da Entrada",
-que é outra pergunta. Duas perguntas diferentes sobre a mesma coluna, dois normalizadores.
+**Por que não reusar `_hm_metodo_label`:** ele classifica qualquer `installment` como "Recorrência", mas `HOTMART_INSTALLMENTS` é o parcelado da própria Hotmart, não assinatura — usá-lo aqui trocaria 373 vendas de categoria. Ele continua respondendo "Forma de Pagamento da Entrada", que é outra pergunta. Duas perguntas diferentes sobre a mesma coluna, dois normalizadores.
 
-Na tela, os rótulos perderam o `text-transform: uppercase` (nome em português a 10px em caixa alta
-fica gritado) e o corte em 20 caracteres, que truncava `HOTMART_INSTALLMEN`.
+Na tela, os rótulos perderam o `text-transform: uppercase` (nome em português a 10px em caixa alta fica gritado) e o corte em 20 caracteres, que truncava `HOTMART_INSTALLMEN`.
 
 ### À vista x parcelado por método (2026-09-17)
 
-Cada card do método ganhou a divisão entre à vista (1 parcela) e parcelado (2x+), pedida pra
-saber quanto do cartão é parcelado. Calculada **dentro do grupo do próprio método**
-(`quantidade_total_de_parcelas` do grupo, sem parcela informada = 1), não a partir dos campos
-`a_vista_qtd`/`parcelado_12x_qtd` que já existiam: aqueles são do lançamento inteiro e partem de
-um `df_regular` que tenta remover recorrência por índice, então não fechariam com o número do
-card. Do jeito que ficou, `a_vista + parcelado == qtd` em todo método — dá pra conferir somando na
-tela.
+Cada card do método ganhou a divisão entre à vista (1 parcela) e parcelado (2x+), pedida pra saber quanto do cartão é parcelado. Calculada **dentro do grupo do próprio método** (`quantidade_total_de_parcelas` do grupo, sem parcela informada = 1), não a partir dos campos `a_vista_qtd`/`parcelado_12x_qtd` que já existiam: aqueles são do lançamento inteiro e partem de um `df_regular` que tenta remover recorrência por índice, então não fechariam com o número do card. Do jeito que ficou, `a_vista + parcelado == qtd` em todo método — dá pra conferir somando na tela.
 
-A linha só aparece quando há parcelado, senão Pix e Boleto (sempre à vista) ganhariam um
-"0 parcelado" que é só ruído.
+A linha só aparece quando há parcelado, senão Pix e Boleto (sempre à vista) ganhariam um "0 parcelado" que é só ruído.
 
 ### As duas seções de pagamento viraram uma (2026-09-17)
 
-Havia duas seções respondendo quase a mesma coisa. Ficou **uma**: "Detalhamento de Vendas (Forma
-de Pagamento)", com barras + pizza por **faixa de parcelamento** e, embaixo, uma tabela por
-**método** — que era o conteúdo da seção de cards ("Detalhamento de Vendas por Pagamento"),
-removida.
+Havia duas seções respondendo quase a mesma coisa. Ficou **uma**: "Detalhamento de Vendas (Forma de Pagamento)", com barras + pizza por **faixa de parcelamento** e, embaixo, uma tabela por **método** — que era o conteúdo da seção de cards ("Detalhamento de Vendas por Pagamento"), removida.
 
-**A pizza estava sobre um denominador falso.** A versão antiga tinha 5 barras (à vista, 12x,
-outros, Recorrência, entrada TMB) que somavam 1.586 num lançamento de 1.013 vendas — e a fatia
-"Recorrência 46,7%" saía dessa soma. A raiz é o `recorrencia_qtd`, que **não conta recorrência**:
-ele vem do `eh_por_parcela` do `_parcela_unica_info`, cuja condição é `tipo == "recuperador
-inteligente" or (tipo_vazio and tem_cobrancas)`. Toda venda da era API tem `tipo_de_cobranca`
-vazio e `quantidade_de_cobrancas` preenchido, então o segundo ramo casa com quase tudo: **740 de
-752** no PES-SET-26. Pior, o contador incrementa no laço sobre o `df_paid` **antes** do drop das
-repetições, somando linhas que nem são venda — das 740, só **197** estavam no painel.
+**A pizza estava sobre um denominador falso.** A versão antiga tinha 5 barras (à vista, 12x, outros, Recorrência, entrada TMB) que somavam 1.586 num lançamento de 1.013 vendas — e a fatia "Recorrência 46,7%" saía dessa soma. A raiz é o `recorrencia_qtd`, que **não conta recorrência**: ele vem do `eh_por_parcela` do `_parcela_unica_info`, cuja condição é `tipo == "recuperador inteligente" or (tipo_vazio and tem_cobrancas)`. Toda venda da era API tem `tipo_de_cobranca` vazio e `quantidade_de_cobrancas` preenchido, então o segundo ramo casa com quase tudo: **740 de 752** no PES-SET-26. Pior, o contador incrementa no laço sobre o `df_paid` **antes** do drop das repetições, somando linhas que nem são venda — das 740, só **197** estavam no painel.
 
-O flag está certo pro que existe: marcar que o valor gravado é o da PARCELA, pra multiplicar e
-chegar no faturamento. O erro foi reaproveitá-lo como contagem de vendas recorrentes. A barra foi
-**removida** e as faixas passaram a ser somadas a partir do `a_vista`/`parcelado_12x`/
-`parcelado_outros` de cada método (`hotmart.py`), que são exclusivas e fecham com o total — aí a
-pizza volta a significar algo. `recorrencia_qtd`/`recorrencia_receita` não são lidos por ninguém;
-o comentário no `hotmart.py` foi corrigido, porque afirmava o contrário e foi o que gerou o erro.
+O flag está certo pro que existe: marcar que o valor gravado é o da PARCELA, pra multiplicar e chegar no faturamento. O erro foi reaproveitá-lo como contagem de vendas recorrentes. A barra foi **removida** e as faixas passaram a ser somadas a partir do `a_vista`/`parcelado_12x`/ `parcelado_outros` de cada método (`hotmart.py`), que são exclusivas e fecham com o total — aí a pizza volta a significar algo. `recorrencia_qtd`/`recorrencia_receita` não são lidos por ninguém; o comentário no `hotmart.py` foi corrigido, porque afirmava o contrário e foi o que gerou o erro.
 
-Mudou a forma do `dbf` duas vezes no mesmo dia (a seção de cards entrou e saiu), então
-`SNAPSHOT_VERSION` foi 12 → 13 → 14. O manifesto **tem que** ser regravado com
-`ATUALIZAR_MANIFESTO=1 python -m pytest tests/test_dbf_contrato.py` — editar o JSON à mão não
-basta, porque ele guarda a versão também e o teste acusa "subiu a versão sem o dbf mudar de forma".
+Mudou a forma do `dbf` duas vezes no mesmo dia (a seção de cards entrou e saiu), então `SNAPSHOT_VERSION` foi 12 → 13 → 14. O manifesto **tem que** ser regravado com `ATUALIZAR_MANIFESTO=1 python -m pytest tests/test_dbf_contrato.py` — editar o JSON à mão não basta, porque ele guarda a versão também e o teste acusa "subiu a versão sem o dbf mudar de forma".
 
 ### Pendência: o painel soma 30 vendas a mais que o próprio cabeçalho
 
-Já era assim antes desta correção. Na mesma seção, o cabeçalho diz "Hotmart: 662" (vem do
-`read_vendas`, que descarta linha de recorrência via `_parcela_unica_info`) e os cards somam 692
-(vem do `read_hotmart_details.total_vendas`, que não descarta) — 30 de diferença, consistente
-dentro de cada leitor, divergente entre os dois. Não mexi: decidir se cobrança recorrente conta
-como venda nesse painel é escolha de negócio, não bug de código.
+Já era assim antes desta correção. Na mesma seção, o cabeçalho diz "Hotmart: 662" (vem do `read_vendas`, que descarta linha de recorrência via `_parcela_unica_info`) e os cards somam 692 (vem do `read_hotmart_details.total_vendas`, que não descarta) — 30 de diferença, consistente dentro de cada leitor, divergente entre os dois. Não mexi: decidir se cobrança recorrente conta como venda nesse painel é escolha de negócio, não bug de código.
 
 ---
 
 ## Página de Afiliados — `/afiliados` (2026-09-18)
 
-Lista quem vendeu pelo programa de afiliados da Hotmart, por lançamento. Entra no
-grupo **Vendas** do menu, ao lado de Vendas/Hotmart/TMB.
+Lista quem vendeu pelo programa de afiliados da Hotmart, por lançamento. Entra no grupo **Vendas** do menu, ao lado de Vendas/Hotmart/TMB.
 
 - `frontend/db_readers/afiliados.py::read_afiliados` — única consulta da página
 - `frontend/models.py::AfiliadosSummary`
-- `frontend/routes/vendas.py::afiliados_page` — não passa pelo `_fetch_all_data`
-  de propósito: é uma consulta só, carregar Meta/Google/Typeform junto custaria
-  mais que a página inteira
+- `frontend/routes/vendas.py::afiliados_page` — não passa pelo `_fetch_all_data` de propósito: é uma consulta só, carregar Meta/Google/Typeform junto custaria mais que a página inteira
 - `frontend/templates/afiliados.html`
-- `ROUTE_PERMISSIONS["/afiliados"] = _DTLD` (admin/analista), igual às outras
-  páginas de venda. Sem essa linha o default do middleware é `_ALL` e qualquer
-  papel logado leria nome de afiliado e comissão — esconder o item do menu não é
-  a trava.
+- `ROUTE_PERMISSIONS["/afiliados"] = _DTLD` (admin/analista), igual às outras páginas de venda. Sem essa linha o default do middleware é `_ALL` e qualquer papel logado leria nome de afiliado e comissão — esconder o item do menu não é a trava.
 
 ### Só Hotmart
 
-`tmb_clean_oficial` não tem nenhuma coluna de afiliado, então o item do menu
-segue `has_hotmart`, não `has_vendas`. Os campos que a Hotmart entrega, todos
-exibidos na página:
+`tmb_clean_oficial` não tem nenhuma coluna de afiliado, então o item do menu segue `has_hotmart`, não `has_vendas`. Os campos que a Hotmart entrega, todos exibidos na página:
 
 | coluna | o que é |
 |---|---|
@@ -2981,366 +1925,173 @@ exibidos na página:
 
 ### A casa fica de fora — e por quê
 
-`nome_do_a_afiliado_a` traz **"Aprovasim - Cursos, Treinamentos e Coaching
-Eireli" em 105.955 das 108.227 linhas** da base: toda venda do próprio produtor
-passa sob a indicação dela. Incluí-la faria a página repetir o faturamento total
-de `/hotmart` e enterrar os parceiros de verdade, que é o que a tela existe pra
-mostrar. O filtro está em `_SQL_SO_TERCEIROS`.
+`nome_do_a_afiliado_a` traz **"Aprovasim - Cursos, Treinamentos e Coaching Eireli" em 105.955 das 108.227 linhas** da base: toda venda do próprio produtor passa sob a indicação dela. Incluí-la faria a página repetir o faturamento total de `/hotmart` e enterrar os parceiros de verdade, que é o que a tela existe pra mostrar. O filtro está em `_SQL_SO_TERCEIROS`.
 
-Dimensão real do programa, medida em 18/09/26: **43 vendas por afiliado parceiro
-em toda a história da conta (2022-2026)**, sendo 25 com comissão > 0. Nenhuma
-linha tem `venda_feita_como = 'Afiliado'` — a conta nunca vendeu *como* afiliado,
-só *recebeu* venda de afiliado. Uma página vazia aqui quase sempre é o retrato
-correto, não um bug de leitura.
+Dimensão real do programa, medida em 18/09/26: **43 vendas por afiliado parceiro em toda a história da conta (2022-2026)**, sendo 25 com comissão > 0. Nenhuma linha tem `venda_feita_como = 'Afiliado'` — a conta nunca vendeu *como* afiliado, só *recebeu* venda de afiliado. Uma página vazia aqui quase sempre é o retrato correto, não um bug de leitura.
 
 ### Janela do carrinho e o aviso de "fora da janela"
 
-O recorte é o mesmo de `sales.py`: janela do carrinho de `launch_config`, com
-`dim_lancamentos` de fallback, e escopo por `hotmart_produto_ids` quando o wizard
-tem os ids (PES-MAI-26 está sem, então cai no CASE de projeto).
+O recorte é o mesmo de `sales.py`: janela do carrinho de `launch_config`, com `dim_lancamentos` de fallback, e escopo por `hotmart_produto_ids` quando o wizard tem os ids (PES-MAI-26 está sem, então cai no CASE de projeto).
 
-Só que **a venda por afiliado aqui é majoritariamente perpétua** — a Mentoria
-Vitalícia é vendida o ano inteiro, não no carrinho. Dos 20 casos de 2026, só
-9 caem dentro de uma janela (PES-MAI-26). Por isso o leitor também conta as
-vendas do mesmo produto que ficaram **fora** da janela e o template as anuncia:
-sem esse número a página pareceria vazia quando o que não pega é o recorte.
+Só que **a venda por afiliado aqui é majoritariamente perpétua** — a Mentoria Vitalícia é vendida o ano inteiro, não no carrinho. Dos 20 casos de 2026, só 9 caem dentro de uma janela (PES-MAI-26). Por isso o leitor também conta as vendas do mesmo produto que ficaram **fora** da janela e o template as anuncia: sem esse número a página pareceria vazia quando o que não pega é o recorte.
 
 ### Perpétuo
 
-**Implementado em 05/10/26.** `read_perpetuo` lê verba em
-`meta_ads_daily`/`google_ads_daily` pelo pseudo-lançamento `PERPETUO-*` (analytics)
-e venda em `hotmart_clean_oficial` pelo código do produto (banco **operacional**,
-via `_get_users_engine` + `_hm_data_sql`). O mapa vertical → produto vive em
-`VERTICALS`, no próprio leitor.
+**Implementado em 05/10/26.** `read_perpetuo` lê verba em `meta_ads_daily`/`google_ads_daily` pelo pseudo-lançamento `PERPETUO-*` (analytics) e venda em `hotmart_clean_oficial` pelo código do produto (banco **operacional**, via `_get_users_engine` + `_hm_data_sql`). O mapa vertical → produto vive em `VERTICALS`, no próprio leitor.
 
-A venda **não é atribuída ao anúncio**: o perpétuo vende direto, sem captura de
-lead, e o `src` da Hotmart chega vazio porque os anúncios não o passam no link de
-checkout. Custo por venda e ROAS são **teto** — incluem orgânico, e-mail e régua —,
-e a página diz isso na tela. O que resolve é ad-ops, não código: `?src=` com o
-código da campanha no checkout dos anúncios `[compra]`.
+A venda **não é atribuída ao anúncio**: o perpétuo vende direto, sem captura de lead, e o `src` da Hotmart chega vazio porque os anúncios não o passam no link de checkout. Custo por venda e ROAS são **teto** — incluem orgânico, e-mail e régua —, e a página diz isso na tela. O que resolve é ad-ops, não código: `?src=` com o código da campanha no checkout dos anúncios `[compra]`.
 
-`read_perpetuo_mensal(meses=6)` (07/10/26) dá o mesmo recorte por **mês civil
-fechado** e com as 4 verticais juntas, porque o seletor da página é em dias
-corridos (7/30/90) e nunca fecha um mês. Uma seção só, repetida nas 4 páginas de
-propósito: a pergunta "quanto o perpétuo deu em agosto?" é do perpétuo inteiro.
+`read_perpetuo_mensal(meses=6)` (07/10/26) dá o mesmo recorte por **mês civil fechado** e com as 4 verticais juntas, porque o seletor da página é em dias corridos (7/30/90) e nunca fecha um mês. Uma seção só, repetida nas 4 páginas de propósito: a pergunta "quanto o perpétuo deu em agosto?" é do perpétuo inteiro.
 
-**Classificação (21/10/26):** sem a tag `[perpétuo]`, uma campanha cai num
-`PERPETUO-*` pelo fallback de `etl/launch_resolver.py` — `[compra]` + tag de produto
-e **nenhum** código de lançamento no nome. Até 21/10 o fallback exigia também
-`[frio]`, e as search `[compra][quente]` (R$ 7,5 mil, mai–ago/26) ficavam com
-`lancamento_codigo` NULL; foram reclassificadas no banco. Teste em
-`tests/test_launch_resolver_perpetuo.py`.
+**Classificação (21/10/26):** sem a tag `[perpétuo]`, uma campanha cai num `PERPETUO-*` pelo fallback de `etl/launch_resolver.py` — `[compra]` + tag de produto e **nenhum** código de lançamento no nome. Até 21/10 o fallback exigia também `[frio]`, e as search `[compra][quente]` (R$ 7,5 mil, mai–ago/26) ficavam com `lancamento_codigo` NULL; foram reclassificadas no banco. Teste em `tests/test_launch_resolver_perpetuo.py`.
 
-**Aviso de "sem dado" (18/11/26):** quando a vertical não tem linha no período, `read_perpetuo` busca o último dia com
-gasto (`_ultimo_dia_com_gasto`, Meta + Google pelo `PERPETUO-*`) e a página diz "sem veiculação desde DD/MM/AAAA" — o caso
-normal é campanha pausada (INSS desde 03/11, BB desde 22/10). O aviso antigo ("não foi renomeada / conta fora do ETL") fica só
-para vertical que nunca teve gasto.
+**Aviso de "sem dado" (18/11/26):** quando a vertical não tem linha no período, `read_perpetuo` busca o último dia com gasto (`_ultimo_dia_com_gasto`, Meta + Google pelo `PERPETUO-*`) e a página diz "sem veiculação desde DD/MM/AAAA" — o caso normal é campanha pausada (INSS desde 03/11, BB desde 22/10). O aviso antigo ("não foi renomeada / conta fora do ETL") fica só para vertical que nunca teve gasto.
 
 ### Histórico de UTM por lançamento (`lead_utm_lancamento`)
 
-A `leads` espelha o Active Campaign — **uma linha por contato** — e
-`etl_active_campaign.upsert()` a sobrescreve quando quem já está na base se cadastra num
-lançamento novo. Desde 07/10/26, **antes** de sobrescrever, o mesmo `upsert()` grava
-`lead_utm_lancamento` (`etl/historico_utm.py`), uma linha por
-`(contact_id, lancamento_codigo, trilha)`:
+A `leads` espelha o Active Campaign — **uma linha por contato** — e `etl_active_campaign.upsert()` a sobrescreve quando quem já está na base se cadastra num lançamento novo. Desde 07/10/26, **antes** de sobrescrever, o mesmo `upsert()` grava `lead_utm_lancamento` (`etl/historico_utm.py`), uma linha por `(contact_id, lancamento_codigo, trilha)`:
 
 - mesmo lançamento → a **última** UTM vence (regra do Michel);
 - lançamento diferente → linha nova; a do lançamento antigo **nunca é tocada**;
-- `trilha` é `''` fora da Black; na Black separa Base Forte × Black Vitalícia (mesmo código
-  BV-26). Guardar separado é a escolha reversível.
+- `trilha` é `''` fora da Black; na Black separa Base Forte × Black Vitalícia (mesmo código BV-26). Guardar separado é a escolha reversível.
 
-O código do lançamento vem **só** da própria `utm_campaign` — UTM que não nomeia lançamento
-não entra, e o fallback por pasta do modo CSV é ignorado.
+O código do lançamento vem **só** da própria `utm_campaign` — UTM que não nomeia lançamento não entra, e o fallback por pasta do modo CSV é ignorado.
 
-O gancho fica **dentro** do `upsert()`, não no `main()`, porque `ressync_leads_ac.py` chama
-`upsert()` direto — e um ressync completo é a operação que apagaria tudo de uma vez. Roda
-**antes** da sobrescrita e falha alto: se o histórico não gravar, a `leads` fica como estava.
+O gancho fica **dentro** do `upsert()`, não no `main()`, porque `ressync_leads_ac.py` chama `upsert()` direto — e um ressync completo é a operação que apagaria tudo de uma vez. Roda **antes** da sobrescrita e falha alto: se o histórico não gravar, a `leads` fica como estava.
 
-Semeado em 07/10/26 com o estado atual da `leads` (`semear_da_leads`, INSERT…SELECT no
-servidor, `DO NOTHING`): **1.898.635 linhas, 24 lançamentos**. A coluna `origem` separa
-`seed_leads`, `etl_ac`, `csv_ac`, `ressync_ac` e (no backfill) `export_ac`/`backup`.
+Semeado em 07/10/26 com o estado atual da `leads` (`semear_da_leads`, INSERT…SELECT no servidor, `DO NOTHING`): **1.898.635 linhas, 24 lançamentos**. A coluna `origem` separa `seed_leads`, `etl_ac`, `csv_ac`, `ressync_ac` e (no backfill) `export_ac`/`backup`.
 
-**Os leitores ainda não usam a tabela** — o frontend segue lendo a `leads`. A migração (view
-com o formato da `leads`, atribuição primeiro) é o passo 3 de
-[[CONGELAR_ATRIBUICAO_LANCAMENTO]].
+**Os leitores ainda não usam a tabela** — o frontend segue lendo a `leads`. A migração (view com o formato da `leads`, atribuição primeiro) é o passo 3 de [[CONGELAR_ATRIBUICAO_LANCAMENTO]].
 
-Duas armadilhas pegas na construção: o DDL é uma **lista de comandos**, nunca dividido por
-`;` (comentário com ponto e vírgula quebrou a divisão); e o módulo usa o logger do projeto
-(o `logging` cru não tem handler no ETL e a linha de contagem sumia).
+**Como as linhas de lançamentos antigos foram criadas (investigado 17/11/26, PI-AGO-26 e outros 10 de 2026):** a coluna `origem` não mede de onde o lead veio, mede **quando a carga passou pelo contato**. No PI-AGO-26, 240.727 linhas são `seed_leads` (semeadas em 22/09–07/10) e só 27 compradores estão nelas; **1.442 dos 1.797 compradores estão em 14.134 linhas `etl_ac` criadas num único dia (07/10/26)**, mais 326 em `export_ac` (backfill de 12/08). Taxa de compra: seed 0,01%, `etl_ac` 10,2%, `export_ac` 6,6%. A causa provável é o contato ter tido o registro mexido no Active Campaign naquele dia (comprador), enquanto o seed pegou o estado de `leads`, onde quem entrou depois noutro lançamento já tinha a UTM sobrescrita. Consequências: (1) **toda análise que filtre ou estratifique por `origem` mistura população**, não canal; (2) o UTM de cada linha é o último que nomeia o lançamento, mas a troca dentro do mesmo lançamento é rara (53 contatos em `lead_utm_historico` no PI-AGO-26), então o risco de «último toque» é pequeno; (3) `primeiro_visto_em` é a data em que o sistema viu a linha (a maioria cai em 22/09 e 07/10), **não a data do cadastro**: não serve como variável de score; (4) a tabela «Por anúncio» do bloco «Qualidade dos Leads» e a atribuição por cadastro seguem válidas para o UTM, mas a contagem de leads de lançamentos antigos depende dessa história de carga. Em lançamento ao vivo (PES-NOV-26) as linhas nascem na hora, sem esse efeito. **Dentro de cada estrato, o canal separa comprador de não comprador** (AUC 0,53–0,63 na maioria dos 11 lançamentos de 2026; Google > Meta nos recentes), então é sinal real.
+
+Duas armadilhas pegas na construção: o DDL é uma **lista de comandos**, nunca dividido por `;` (comentário com ponto e vírgula quebrou a divisão); e o módulo usa o logger do projeto (o `logging` cru não tem handler no ETL e a linha de contagem sumia).
 
 ### Aluno × não aluno nos grupos (`frontend/db_readers/whatsapp_alunos.py`, 08/10/26)
 
-Seção da `/whatsapp`, **só em lançamento Black**. Cruza os membros da tabela de grupo (resolvida com os
-mesmos apelidos de `whatsapp_groups`) com a régua `aluno_regua`, carregada de arquivo por
-`scripts/carregar_regua_alunos.py` (foto; recarregar substitui tudo). Regra, em SQL no servidor: a plataforma
-decide quem é aluno — telefone (DDD + 8) e, sem casamento, telefone → e-mail no CRM → e-mail na plataforma; a
-lista de ex-aluno do Active só marca ex-aluno de quem não é ativo. ~15 s (o casamento por e-mail varre a
-`leads`), cache de 1h com recálculo em segundo plano e aquecido junto com o WhatsApp. Conferido contra a
-análise manual de 05/10: 11 diferenças em 16.614 números.
+Seção da `/whatsapp`, **só em lançamento Black**. Cruza os membros da tabela de grupo (resolvida com os mesmos apelidos de `whatsapp_groups`) com a régua `aluno_regua`, carregada de arquivo por `scripts/carregar_regua_alunos.py` (foto; recarregar substitui tudo). Regra, em SQL no servidor: a plataforma decide quem é aluno — telefone (DDD + 8) e, sem casamento, telefone → e-mail no CRM → e-mail na plataforma; a lista de ex-aluno do Active só marca ex-aluno de quem não é ativo. ~15 s (o casamento por e-mail varre a `leads`), cache de 1h com recálculo em segundo plano e aquecido junto com o WhatsApp. Conferido contra a análise manual de 05/10: 11 diferenças em 16.614 números.
 
 ### Alerta de orçamento na Black (`etl/budget_alert.py`, 08/10/26)
 
-O classificador de campanha (`categorizar_campanha_meta/_google`) só usa o vocabulário da Black
-quando recebe o **código do lançamento**. O alerta chamava sem ele em quatro pontos, e as
-campanhas da BV-26 viravam "Outros": nenhuma etapa contava como ativa, o alerta anunciou
-Aquecimento "encerrado, R$ 0,00", marcou a etapa como pausada e parou de reportar a Black. Agora
-toda chamada passa `codigo`. Junto: etapa que **nunca gastou** (WhatsApp manual, Reserva) não é
-mais anunciada como "encerrada" — fica pausada em silêncio. Detalhe no item 204 do
-`MUDANCAS_BV-26`.
+O classificador de campanha (`categorizar_campanha_meta/_google`) só usa o vocabulário da Black quando recebe o **código do lançamento**. O alerta chamava sem ele em quatro pontos, e as campanhas da BV-26 viravam "Outros": nenhuma etapa contava como ativa, o alerta anunciou Aquecimento "encerrado, R$ 0,00", marcou a etapa como pausada e parou de reportar a Black. Agora toda chamada passa `codigo`. Junto: etapa que **nunca gastou** (WhatsApp manual, Reserva) não é mais anunciada como "encerrada" — fica pausada em silêncio. Detalhe no item 204 do `MUDANCAS_BV-26`.
 
-**Regra geral que isso reforça:** toda chamada a classificador de campanha passa o código do
-lançamento, mesmo onde hoje só há lançamento normal.
+**Regra geral que isso reforça:** toda chamada a classificador de campanha passa o código do lançamento, mesmo onde hoje só há lançamento normal.
 
 ### Vigia do ETL (`frontend/services/vigia_etl.py`)
 
-**O site avisa quando o ETL para, porque o ETL parado não consegue avisar que parou.** São
-serviços separados no EasyPanel. A cada 15 min (primeira rodada 5 min depois do boot) o site lê
-o `etl_runs` e o histórico de UTM e acusa dois problemas:
+**O site avisa quando o ETL para, porque o ETL parado não consegue avisar que parou.** São serviços separados no EasyPanel. A cada 15 min (primeira rodada 5 min depois do boot) o site lê o `etl_runs` e o histórico de UTM e acusa dois problemas:
 
-1. **ETL parado** — fonte crítica sem carga OK além do limite: Meta e Google 2h, Active
-   Campaign 3h (~4x a cadência real medida no `etl_runs`: 30 min e 60 min).
-2. **Histórico não grava** — o Active Campaign carrega mas o `lead_utm_lancamento` não é escrito
-   há mais de 3h. Foi o estado real de 07/10/26 às 16:24: site atualizado, serviço do ETL ainda
-   com o código antigo, reescrevendo 16.271 leads sem gravar histórico. Com o AC parado, só o
-   primeiro aviso sai (o segundo seria consequência).
+1. **ETL parado** — fonte crítica sem carga OK além do limite: Meta e Google 2h, Active Campaign 3h (~4x a cadência real medida no `etl_runs`: 30 min e 60 min).
+2. **Histórico não grava** — o Active Campaign carrega mas o `lead_utm_lancamento` não é escrito há mais de 3h. Foi o estado real de 07/10/26 às 16:24: site atualizado, serviço do ETL ainda com o código antigo, reescrevendo 16.271 leads sem gravar histórico. Com o AC parado, só o primeiro aviso sai (o segundo seria consequência).
 
-**Mensagem no Slack** pelo mesmo bot e canal do alerta de orçamento (`SLACK_BOT_TOKEN`,
-`SLACK_BUDGET_CHANNEL`) — **essas variáveis precisam existir no serviço do site**, não só no do
-ETL; sem elas o vigia avisa só na tela e loga um aviso. Uma mensagem quando o problema aparece,
-lembrete a cada 6h, e uma quando normaliza. Estado em memória: depois de um restart, no máximo
-uma mensagem repetida.
+**Mensagem no Slack** pelo mesmo bot e canal do alerta de orçamento (`SLACK_BOT_TOKEN`, `SLACK_BUDGET_CHANNEL`) — **essas variáveis precisam existir no serviço do site**, não só no do ETL; sem elas o vigia avisa só na tela e loga um aviso. Uma mensagem quando o problema aparece, lembrete a cada 6h, e uma quando normaliza. Estado em memória: depois de um restart, no máximo uma mensagem repetida.
 
-**Na tela**, faixa vermelha no topo de todas as páginas, vinda do mesmo estado (zero consulta
-por página). A faixa antiga de "dados desatualizados" (`ETL_STALE_HOURS`, 25h) fica escondida
-quando o vigia já acusou.
+**Na tela**, faixa vermelha no topo de todas as páginas, vinda do mesmo estado (zero consulta por página). A faixa antiga de "dados desatualizados" (`ETL_STALE_HOURS`, 25h) fica escondida quando o vigia já acusou.
 
-Antes disso ninguém era avisado: a faixa de 25h só aparecia para quem abrisse o site, e o canal
-de falha do próprio ETL (`ERROR_WEBHOOK_URL`) estava vazio.
+Antes disso ninguém era avisado: a faixa de 25h só aparecia para quem abrisse o site, e o canal de falha do próprio ETL (`ERROR_WEBHOOK_URL`) estava vazio.
 
-A checagem do histórico usa `ORDER BY ultimo_visto_em DESC LIMIT 1` sobre o índice
-`idx_lead_utm_lancamento_visto` — 0,1 s, contra 3,5 s do `max()`. Precisou de `ANALYZE` depois da
-semeadura de 1,9 mi de linhas, senão o planejador ignorava o índice.
+A checagem do histórico usa `ORDER BY ultimo_visto_em DESC LIMIT 1` sobre o índice `idx_lead_utm_lancamento_visto` — 0,1 s, contra 3,5 s do `max()`. Precisou de `ANALYZE` depois da semeadura de 1,9 mi de linhas, senão o planejador ignorava o índice.
 
-**Correção junto:** `ler_congelada` chamava `criar_tabela()` a cada leitura — `ALTER TABLE ...
-ADD COLUMN IF NOT EXISTS` pega lock exclusivo mesmo com a coluna existindo, e isso rodava a cada
-atribuição de cada página. Leitura não faz mais DDL; quem cria é quem grava.
+**Correção junto:** `ler_congelada` chamava `criar_tabela()` a cada leitura — `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` pega lock exclusivo mesmo com a coluna existindo, e isso rodava a cada atribuição de cada página. Leitura não faz mais DDL; quem cria é quem grava.
 
 ### `/whatsapp` na Black: dois blocos, Vitalícia e Base Forte (10/10/26)
 
-Num lançamento normal a página tem dois blocos de grupos (Normais e VIP). Na Black são a **Black Vitalícia**
-(bloco principal: tabela `BV_26`, grupos "Desconto Black Vitalícia" e "Black Vitalícia 2026") e a **Base Forte**
-(segundo bloco: `base_forte`, gravada com o nome da trilha — `APELIDOS_ARMAZENAMENTO`). Quem decide é
-`whatsapp_groups._candidatos_tabelas`; os rótulos vêm de `src.constants.rotulos_blocos_whatsapp`. Na série diária
-do Sheets (`whatsapp_sheets`) as linhas do código `base-forte` viram o bloco `vip` e as de `BV-26` o `normal`.
-A seção de aluno × não aluno (`whatsapp_alunos`) é calculada por bloco (`"vitalicia"` | `"base_forte"`).
+Num lançamento normal a página tem dois blocos de grupos (Normais e VIP). Na Black são a **Black Vitalícia** (bloco principal: tabela `BV_26`, grupos "Desconto Black Vitalícia" e "Black Vitalícia 2026") e a **Base Forte** (segundo bloco: `base_forte`, gravada com o nome da trilha — `APELIDOS_ARMAZENAMENTO`). Quem decide é `whatsapp_groups._candidatos_tabelas`; os rótulos vêm de `src.constants.rotulos_blocos_whatsapp`. Na série diária do Sheets (`whatsapp_sheets`) as linhas do código `base-forte` viram o bloco `vip` e as de `BV-26` o `normal`. A seção de aluno × não aluno (`whatsapp_alunos`) é calculada por bloco (`"vitalicia"` | `"base_forte"`).
 
-Armadilha que originou isto: o seletor de tabela pega **a primeira candidata com linhas**. Com a `base_forte` na
-frente, a `BV_26` — vazia até 09/10 — nunca era relida depois de preenchida.
+Armadilha que originou isto: o seletor de tabela pega **a primeira candidata com linhas**. Com a `base_forte` na frente, a `BV_26` — vazia até 09/10 — nunca era relida depois de preenchida.
 
 ### As páginas passaram a ler o ESTADO, não a `leads` (08/10/26)
 
-**Por quê.** A `leads` tem uma linha por contato; quem se cadastrou depois em outro lançamento some do
-anterior, junto com a UTM. Medido no PI-AGO-26: **1,9% dos leads mas 18,1% dos compradores** (quem se perde
-compra 11,6x mais). O estado (`lead_utm_lancamento`) tem uma linha por (contato, lançamento) e é de 10 a 80x
-mais rápido: contagem do lançamento 0,29 s contra 7,2 s; UTM dos 2,5 mil compradores 0,09 s contra 7,7 s.
+**Por quê.** A `leads` tem uma linha por contato; quem se cadastrou depois em outro lançamento some do anterior, junto com a UTM. Medido no PI-AGO-26: **1,9% dos leads mas 18,1% dos compradores** (quem se perde compra 11,6x mais). O estado (`lead_utm_lancamento`) tem uma linha por (contato, lançamento) e é de 10 a 80x mais rápido: contagem do lançamento 0,29 s contra 7,2 s; UTM dos 2,5 mil compradores 0,09 s contra 7,7 s.
 
-**O que leem o estado agora:** a atribuição de vendas (`read_ac_leads_for_attribution`), `read_vendas_consolidado`
-(leads no CRM e compradores no CRM), as contagens de `core.py` e `whatsapp_groups`, `read_utm_cobertura`,
-`read_term_campaign_map`, `read_vendas_por_dia_cadastro`, `caminho_comprador`, a busca de compradores em
-`ads_meta`/`ads_google`, `sorteio` e as consultas de `typeform` (respondente × lead, perfil por anúncio,
-pesquisa de engajamento). Contagem passa a ser `COUNT(DISTINCT contact_id)`: na Black há uma linha por trilha.
+**O que leem o estado agora:** a atribuição de vendas (`read_ac_leads_for_attribution`), `read_vendas_consolidado` (leads no CRM e compradores no CRM), as contagens de `core.py` e `whatsapp_groups`, `read_utm_cobertura`, `read_term_campaign_map`, `read_vendas_por_dia_cadastro`, `caminho_comprador`, a busca de compradores em `ads_meta`/`ads_google`, `sorteio` e as consultas de `typeform` (respondente × lead, perfil por anúncio, pesquisa de engajamento). Contagem passa a ser `COUNT(DISTINCT contact_id)`: na Black há uma linha por trilha.
 
-**O que continua na `leads`, e por quê.** `read_leads` (série por dia e por UTM): ela precisa de `created_at`
-de todos os contatos, que não está no estado, e várias consultas dela se somam na mesma página — misturar as
-duas fontes faria os totais não fecharem. O `_date_clause` do comparativo (filtro por data de criação), a
-detecção de lançamentos, as consultas de tags de lançamentos anteriores e a de e-book (dependem de `leads.id`
-e do `lancamento_codigo` como "lançamento atual do contato"). O passo por telefone da atribuição também lê a
-`leads` (não há índice por telefone), mas agora só para quem não casou por e-mail.
+**O que continua na `leads`, e por quê.** `read_leads` (série por dia e por UTM): ela precisa de `created_at` de todos os contatos, que não está no estado, e várias consultas dela se somam na mesma página — misturar as duas fontes faria os totais não fecharem. O `_date_clause` do comparativo (filtro por data de criação), a detecção de lançamentos, as consultas de tags de lançamentos anteriores e a de e-book (dependem de `leads.id` e do `lancamento_codigo` como "lançamento atual do contato"). O passo por telefone da atribuição também lê a `leads` (não há índice por telefone), mas agora só para quem não casou por e-mail.
 
-**Nada cai.** O estado é um superconjunto do que `leads WHERE lancamento_codigo = X` devolvia:
-(a) `seed_leads`: o que a `leads` tinha em 07/10/26; (b) `export_ac`: o backfill dos exports do Active da
-época; (c) `seed_fallback`: 20.601 contatos que a `leads` marca com o lançamento pelo caminho legado do modo
-CSV, sem UTM que o nomeie; (d) `trigger`: tudo daqui para frente. Conferido nos 10 lançamentos: contagem do
-estado >= `leads` em todos (PI-AGO-26 267.200 → 272.076), compradores no CRM >= em todos (PI-AGO-26
-1.473 → 1.799), cobertura de UTM idêntica.
+**Nada cai.** O estado é um superconjunto do que `leads WHERE lancamento_codigo = X` devolvia: (a) `seed_leads`: o que a `leads` tinha em 07/10/26; (b) `export_ac`: o backfill dos exports do Active da época; (c) `seed_fallback`: 20.601 contatos que a `leads` marca com o lançamento pelo caminho legado do modo CSV, sem UTM que o nomeie; (d) `trigger`: tudo daqui para frente. Conferido nos 10 lançamentos: contagem do estado >= `leads` em todos (PI-AGO-26 267.200 → 272.076), compradores no CRM >= em todos (PI-AGO-26 1.473 → 1.799), cobertura de UTM idêntica.
 
-**Regra do backfill (estendida em 08/10/26).** Código do lançamento na `utm_campaign` sempre vale. Quando a
-campanha **não nomeia nenhum lançamento**, vale o código nos outros campos (nome do anúncio em `utm_term`,
-nome do público em `utm_content`): os primeiros lançamentos (PBB-JUN-26, PES-MAI-26, PI-JAN-26) nomeavam a
-campanha só com a data. Se a campanha nomeia **outro** lançamento, não vale: o anúncio pode ter sido
-reaproveitado. A extensão acrescentou 2.793 contatos, 2.734 no PBB-JUN-26.
+**Regra do backfill (estendida em 08/10/26).** Código do lançamento na `utm_campaign` sempre vale. Quando a campanha **não nomeia nenhum lançamento**, vale o código nos outros campos (nome do anúncio em `utm_term`, nome do público em `utm_content`): os primeiros lançamentos (PBB-JUN-26, PES-MAI-26, PI-JAN-26) nomeavam a campanha só com a data. Se a campanha nomeia **outro** lançamento, não vale: o anúncio pode ter sido reaproveitado. A extensão acrescentou 2.793 contatos, 2.734 no PBB-JUN-26.
 
-**Resultado na atribuição (10 lançamentos fechados):** compradores rastreados **12.467 → 13.698 (+1.231)**,
-idêntico ao que a trava (`atribuicao_congelada`) já dava — a trava vira rede de segurança, não mais remendo.
-Fica o `lead_utm_lancamento` como fonte única; `leads_por_lancamento` (visão com junção) foi criada e **não é
-usada**: 18 a 60 s nas leituras grandes, contra 7 s da própria `leads`.
+**Resultado na atribuição (10 lançamentos fechados):** compradores rastreados **12.467 → 13.698 (+1.231)**, idêntico ao que a trava (`atribuicao_congelada`) já dava — a trava vira rede de segurança, não mais remendo. Fica o `lead_utm_lancamento` como fonte única; `leads_por_lancamento` (visão com junção) foi criada e **não é usada**: 18 a 60 s nas leituras grandes, contra 7 s da própria `leads`.
 
-**Limite conhecido.** Um carregamento pelo modo CSV (plano B) que marque o lançamento só pela pasta, sem UTM
-que o nomeie, não entra no estado em tempo real (o trigger só registra UTM que nomeia o lançamento) e não
-aparece nas contagens novas. Só vale para lançamentos antigos, já semeados.
+**Limite conhecido.** Um carregamento pelo modo CSV (plano B) que marque o lançamento só pela pasta, sem UTM que o nomeie, não entra no estado em tempo real (o trigger só registra UTM que nomeia o lançamento) e não aparece nas contagens novas. Só vale para lançamentos antigos, já semeados.
 
 ### Trigger do histórico de UTM (`etl/historico_utm_trigger.py`) — INSTALADO em 08/10/26
 
-**Estado: instalado na `leads` de produção em 08/10/26 (~14:57 BRT), com o ok do Michel.** Teste de
-fumaça no trigger real passou (grava um contato sintético, confere e desfaz). A primeira carga do Active
-depois da instalação terminou `ok` com 13.496 leads gravados — o trigger não atrapalha a gravação — e ele
-registrou por conta própria um caso real (contato que trocou para a UTM `pbb-out-25`).
+**Estado: instalado na `leads` de produção em 08/10/26 (~14:57 BRT), com o ok do Michel.** Teste de fumaça no trigger real passou (grava um contato sintético, confere e desfaz). A primeira carga do Active depois da instalação terminou `ok` com 13.496 leads gravados — o trigger não atrapalha a gravação — e ele registrou por conta própria um caso real (contato que trocou para a UTM `pbb-out-25`).
 
-**O passo antigo do ETL foi removido do código** (`gravar_historico_antes` em `etl_active_campaign.upsert`):
-ele gravava o estado ANTES da `leads`, e por isso escondia do trigger a troca de UTM vinda do ETL. Medido
-logo após a instalação: o ETL de produção, ainda com o passo antigo, regravou o estado de 12.803 contatos
-(origem `etl_ac`) e o histórico ficou em 0. **Só passa a registrar as trocas vindas do ETL depois do deploy
-do serviço do ETL com este código.** Não registra o que não mudou: a carga horária reenvia os mesmos contatos
-e o trigger só age quando o contato é novo ou a UTM mudou.
+**O passo antigo do ETL foi removido do código** (`gravar_historico_antes` em `etl_active_campaign.upsert`): ele gravava o estado ANTES da `leads`, e por isso escondia do trigger a troca de UTM vinda do ETL. Medido logo após a instalação: o ETL de produção, ainda com o passo antigo, regravou o estado de 12.803 contatos (origem `etl_ac`) e o histórico ficou em 0. **Só passa a registrar as trocas vindas do ETL depois do deploy do serviço do ETL com este código.** Não registra o que não mudou: a carga horária reenvia os mesmos contatos e o trigger só age quando o contato é novo ou a UTM mudou.
 
 
-O problema é o mesmo do `lead_utm_lancamento` (a `leads` guarda uma linha por contato e quem grava nela
-sobrescreve a UTM), mas a captura sai do Python e vai para **dentro do banco**: um trigger na `leads` que
-dispara na mesma gravação de qualquer escritor — nosso ETL, o upsert em tempo real do Mateus, qualquer um
-futuro. **Zero requisição a mais**, em tempo real, sem ninguém mudar código. É o padrão de mercado do
-audit trigger: tabela de estado atual + tabela de histórico.
+O problema é o mesmo do `lead_utm_lancamento` (a `leads` guarda uma linha por contato e quem grava nela sobrescreve a UTM), mas a captura sai do Python e vai para **dentro do banco**: um trigger na `leads` que dispara na mesma gravação de qualquer escritor — nosso ETL, o upsert em tempo real do Mateus, qualquer um futuro. **Zero requisição a mais**, em tempo real, sem ninguém mudar código. É o padrão de mercado do audit trigger: tabela de estado atual + tabela de histórico.
 
 **Duas tabelas, sem duplicar:**
-- `lead_utm_lancamento` (já existe, 1,9 mi de linhas): o **estado atual**, uma linha por
-  (contato, lançamento, trilha). É o que as páginas vão ler. Ganha a coluna `utm_desde`.
-- `lead_utm_historico` (nova): só as UTMs **substituídas**. Dentro do mesmo lançamento a UTM quase não muda
-  (11 a 57 contatos por lançamento, <0,1%), então é pequena. Uma cópia completa de todo toque seria 99,9%
-  repetida num banco que já está com 8,9 GB.
-- Lançamento diferente é outra chave no estado: a linha do lançamento antigo **nunca é tocada**. Primeiro
-  toque = o registro mais antigo do histórico, ou o próprio estado se não houve troca.
+- `lead_utm_lancamento` (já existe, 1,9 mi de linhas): o **estado atual**, uma linha por (contato, lançamento, trilha). É o que as páginas vão ler. Ganha a coluna `utm_desde`.
+- `lead_utm_historico` (nova): só as UTMs **substituídas**. Dentro do mesmo lançamento a UTM quase não muda (11 a 57 contatos por lançamento, <0,1%), então é pequena. Uma cópia completa de todo toque seria 99,9% repetida num banco que já está com 8,9 GB.
+- Lançamento diferente é outra chave no estado: a linha do lançamento antigo **nunca é tocada**. Primeiro toque = o registro mais antigo do histórico, ou o próprio estado se não houve troca.
 
-**Como o trigger é seguro** (um defeito nele poderia bloquear a gravação na `leads`):
-`EXCEPTION WHEN OTHERS` vira WARNING — se o histórico falhar, a `leads` grava do mesmo jeito;
-`SECURITY DEFINER` — escritor sem permissão nas tabelas novas não faz falhar em silêncio; dispara **por
-comando** com tabelas de transição (uma inserção em lote, não uma por linha); só age quando o contato é novo
-ou a UTM mudou; só entra UTM que nomeia um lançamento (`link_bio`, `{{campaign.name}}` e orgânico não entram).
+**Como o trigger é seguro** (um defeito nele poderia bloquear a gravação na `leads`): `EXCEPTION WHEN OTHERS` vira WARNING — se o histórico falhar, a `leads` grava do mesmo jeito; `SECURITY DEFINER` — escritor sem permissão nas tabelas novas não faz falhar em silêncio; dispara **por comando** com tabelas de transição (uma inserção em lote, não uma por linha); só age quando o contato é novo ou a UTM mudou; só entra UTM que nomeia um lançamento (`link_bio`, `{{campaign.name}}` e orgânico não entram).
 
-**Provas (`tests/test_trigger_utm.py`, 12 casos, numa transação desfeita no fim):** contato novo; UTM sem
-código não entra; UTM nova no mesmo lançamento guarda a antiga; outro lançamento não toca no anterior;
-trilhas da Black separadas; atualizar outra coisa não faz nada; voltar à UTM anterior não duplica;
-maiúscula/espaço não criam UTM nova; **falha no histórico não derruba a `leads`**; lote de 20 mil;
-regex do código igual à do Python sobre nomes reais. Quebrando o trigger de propósito, 3 testes falham.
-Custo: 20 mil contatos em 1 comando = +1,2 s; um cadastro isolado ~20 ms com e sem trigger (dentro do ruído).
+**Provas (`tests/test_trigger_utm.py`, 12 casos, numa transação desfeita no fim):** contato novo; UTM sem código não entra; UTM nova no mesmo lançamento guarda a antiga; outro lançamento não toca no anterior; trilhas da Black separadas; atualizar outra coisa não faz nada; voltar à UTM anterior não duplica; maiúscula/espaço não criam UTM nova; **falha no histórico não derruba a `leads`**; lote de 20 mil; regex do código igual à do Python sobre nomes reais. Quebrando o trigger de propósito, 3 testes falham. Custo: 20 mil contatos em 1 comando = +1,2 s; um cadastro isolado ~20 ms com e sem trigger (dentro do ruído).
 
-**Instalar/reverter:** `python scripts/instalar_trigger_utm.py --instalar | --verificar | --remover`
-(uma transação, `lock_timeout` curto com nova tentativa porque o ETL grava em transações de minutos).
-`--remover` desliga os triggers e mantém as tabelas e os dados.
+**Instalar/reverter:** `python scripts/instalar_trigger_utm.py --instalar | --verificar | --remover` (uma transação, `lock_timeout` curto com nova tentativa porque o ETL grava em transações de minutos). `--remover` desliga os triggers e mantém as tabelas e os dados.
 
 ### Trava da atribuição (`atribuicao_congelada`)
 
-`_sales_attribution` casa comprador com lead por `leads.lancamento_codigo`. A `leads` tem
-**uma linha por contato**, então quando a pessoa entra num lançamento novo a linha é reescrita
-e o lançamento antigo perde o comprador junto com a UTM — 32% a 41% em todo lançamento fechado
-(medido em 07/10/26, seção 13 de [[METODOLOGIA_EXTRACAO_DADOS]]).
+`_sales_attribution` casa comprador com lead por `leads.lancamento_codigo`. A `leads` tem **uma linha por contato**, então quando a pessoa entra num lançamento novo a linha é reescrita e o lançamento antigo perde o comprador junto com a UTM — 32% a 41% em todo lançamento fechado (medido em 07/10/26, seção 13 de [[METODOLOGIA_EXTRACAO_DADOS]]).
 
-`atribuicao_congelada` guarda a **melhor UTM já observada** por (lançamento, comprador), com o
-`score` do próprio `_utm_score`. `_sales_attribution` semeia `buyer_utms` com ela **antes** de
-ler a `leads`; o dado ao vivo só substitui com score maior. Gravação monotônica
-(`ON CONFLICT ... WHERE EXCLUDED.score > ...`), então congelar de novo nunca piora.
+`atribuicao_congelada` guarda a **melhor UTM já observada** por (lançamento, comprador), com o `score` do próprio `_utm_score`. `_sales_attribution` semeia `buyer_utms` com ela **antes** de ler a `leads`; o dado ao vivo só substitui com score maior. Gravação monotônica (`ON CONFLICT ... WHERE EXCLUDED.score > ...`), então congelar de novo nunca piora.
 
-Semear antes, e não depois, é o que faz a trava valer no pior caso — a `leads` não devolver
-linha nenhuma. Nesse caso o DataFrame vem sem `phone`/`email_norm` (retorno antecipado de
-`read_ac_leads_for_attribution`), por isso a cascata de telefone tem guarda de vazio.
+Semear antes, e não depois, é o que faz a trava valer no pior caso — a `leads` não devolver linha nenhuma. Nesse caso o DataFrame vem sem `phone`/`email_norm` (retorno antecipado de `read_ac_leads_for_attribution`), por isso a cascata de telefone tem guarda de vazio.
 
-Alimentada por `scripts/congelar_atribuicao.py --desde-a-live`, que o `etl/scheduler.py` roda
-**todo dia às 4h10** (job `congelar_atribuicao`, em subprocesso, timeout 30 min, alerta no
-webhook se falhar) para os lançamentos cuja primeira live já aconteceu.
+Alimentada por `scripts/congelar_atribuicao.py --desde-a-live`, que o `etl/scheduler.py` roda **todo dia às 4h10** (job `congelar_atribuicao`, em subprocesso, timeout 30 min, alerta no webhook se falhar) para os lançamentos cuja primeira live já aconteceu.
 
-O que já tinha sido perdido antes da trava foi remontado por
-`scripts/recuperar_utms_export_ac.py`, a partir dos exports do AC da época em
-`analises/[LANC]/Active Campaign/` — só UTM que nomeia o lançamento, gravada com
-`origem = 'export_ac'`. A coluna `origem` separa medida do dia (`ao_vivo`) de história remontada.
+O que já tinha sido perdido antes da trava foi remontado por `scripts/recuperar_utms_export_ac.py`, a partir dos exports do AC da época em `analises/[LANC]/Active Campaign/` — só UTM que nomeia o lançamento, gravada com `origem = 'export_ac'`. A coluna `origem` separa medida do dia (`ao_vivo`) de história remontada.
 
-`ler_congelada` só engole "relation does not exist" — qualquer outro erro sobe. Engolir
-qualquer "does not exist" fez a trava devolver vazio quando uma coluna nova ainda não existia
-(pego no mesmo dia em que foi escrito).
+`ler_congelada` só engole "relation does not exist" — qualquer outro erro sobe. Engolir qualquer "does not exist" fez a trava devolver vazio quando uma coluna nova ainda não existia (pego no mesmo dia em que foi escrito).
 
 ### Lista de cadastrados do lançamento (Meta + Google, job diário)
 
-A regra SEG-4 manda excluir o cadastrado do lançamento atual em todo grupo de captação e pré-quali. O público de site
-`[SITE] Cadastrados [<LANC>]` sozinho não serve: só entra quem o pixel/tag registrou na página de obrigado e a
-plataforma identificou. No PES-NOV-26 eram 5–11 mil de 37,7 mil leads (MUDANCAS itens 107–108). Desde 30/10/26 cada
-lançamento em captação tem também uma lista de clientes tirada da tabela `leads`:
-Meta `[Lista] Cadastrados [<LANC>]`, na conta de públicos da CA2, compartilhada com as contas de campanha; Google
-`[LISTA] Cadastrados [<LANC>] - 540 dias`, pela Data Manager.
+A regra SEG-4 manda excluir o cadastrado do lançamento atual em todo grupo de captação e pré-quali. O público de site `[SITE] Cadastrados [<LANC>]` sozinho não serve: só entra quem o pixel/tag registrou na página de obrigado e a plataforma identificou. No PES-NOV-26 eram 5–11 mil de 37,7 mil leads (MUDANCAS itens 107–108). Desde 30/10/26 cada lançamento em captação tem também uma lista de clientes tirada da tabela `leads`: Meta `[Lista] Cadastrados [<LANC>]`, na conta de públicos da CA2, compartilhada com as contas de campanha; Google `[LISTA] Cadastrados [<LANC>] - 540 dias`, pela Data Manager.
 
-`scripts/ads/listas_cadastrados.py` cria (`--criar`) e atualiza. `etl/scheduler.py` roda `--ativos` **todo dia às
-4h40** (job `listas_cadastrados`, subprocesso, timeout 30 min, alerta no webhook se falhar). Os lançamentos e IDs ficam em
-`scripts/ads/padroes.py::LISTAS_CADASTRADOS`, cada um até a data `ate`.
-**As duas listas só crescem** (Meta `POST /users`; a Data Manager só acrescenta). A `leads` tem uma linha por contato, então
-quem se cadastra no lançamento seguinte some da consulta; substituir tiraria essa pessoa da exclusão.
-O Google descarta a ingestão feita no mesmo dia da criação (VER-5), por isso o job pula o Google no dia
-`google_criada`. O Meta recusa atualização enquanto a carga anterior ainda processa (erro 2650/1870145): nesse caso o job
-falha e alerta. Depende de `google-ads-datamanager` (no `requirements.txt` desde 30/10/26) e de o
-`GOOGLE_ADS_REFRESH_TOKEN` do servidor ter o escopo `datamanager`.
+`scripts/ads/listas_cadastrados.py` cria (`--criar`) e atualiza. `etl/scheduler.py` roda `--ativos` **todo dia às 4h40** (job `listas_cadastrados`, subprocesso, timeout 30 min, alerta no webhook se falhar). Os lançamentos e IDs ficam em `scripts/ads/padroes.py::LISTAS_CADASTRADOS`, cada um até a data `ate`. **As duas listas só crescem** (Meta `POST /users`; a Data Manager só acrescenta). A `leads` tem uma linha por contato, então quem se cadastra no lançamento seguinte some da consulta; substituir tiraria essa pessoa da exclusão. O Google descarta a ingestão feita no mesmo dia da criação (VER-5), por isso o job pula o Google no dia `google_criada`. O Meta recusa atualização enquanto a carga anterior ainda processa (erro 2650/1870145): nesse caso o job falha e alerta. Depende de `google-ads-datamanager` (no `requirements.txt` desde 30/10/26) e de o `GOOGLE_ADS_REFRESH_TOKEN` do servidor ter o escopo `datamanager`.
 
 ### Apelidos de armazenamento (`APELIDOS_ARMAZENAMENTO`)
 
-Quando o dado de um lançamento foi gravado sob um nome que **não** é o código do
-lançamento, o apelido fica em `src/constants.py::APELIDOS_ARMAZENAMENTO` — num
-lugar só, não espalhado pelos leitores. Hoje tem uma entrada: a automação de
-grupos de WhatsApp gravou a Black como a trilha, então `BV-26` →
-(`base_forte`, `base-forte`).
+Quando o dado de um lançamento foi gravado sob um nome que **não** é o código do lançamento, o apelido fica em `src/constants.py::APELIDOS_ARMAZENAMENTO` — num lugar só, não espalhado pelos leitores. Hoje tem uma entrada: a automação de grupos de WhatsApp gravou a Black como a trilha, então `BV-26` → (`base_forte`, `base-forte`).
 
-Isso fazia a `/whatsapp?launch_code=BV-26` abrir **toda zerada** (07/10/26), e a
-armadilha vale registrar: a tabela `BV_26` **existe e tem 0 linhas**.
-`_escolhe_tabela` prefere a primeira candidata *com* linhas, mas `base_forte` não
-estava entre as candidatas — então ele caía na vazia e devolvia zero em vez de
-nada. Zero e "sem dado" são diagnósticos diferentes.
+Isso fazia a `/whatsapp?launch_code=BV-26` abrir **toda zerada** (07/10/26), e a armadilha vale registrar: a tabela `BV_26` **existe e tem 0 linhas**. `_escolhe_tabela` prefere a primeira candidata *com* linhas, mas `base_forte` não estava entre as candidatas — então ele caía na vazia e devolvia zero em vez de nada. Zero e "sem dado" são diagnósticos diferentes.
 
-A mesma página tinha um segundo problema, de outra natureza: `read_whatsapp_messages`
-filtra conta por `product` do prefixo do lançamento, e **a Black é multiproduto** —
-roda nos números dos três experts e nenhuma conta tem `product: BV`. Para o prefixo
-`BV` valem todas as contas com produto identificado; `product: null` (institucional
-não confirmado) continua fora.
+A mesma página tinha um segundo problema, de outra natureza: `read_whatsapp_messages` filtra conta por `product` do prefixo do lançamento, e **a Black é multiproduto** — roda nos números dos três experts e nenhuma conta tem `product: BV`. Para o prefixo `BV` valem todas as contas com produto identificado; `product: null` (institucional não confirmado) continua fora.
 
-O conserto definitivo dos dois é upstream — a automação gravar o código do
-lançamento —, mas enquanto não for, o apelido resolve na leitura.
+O conserto definitivo dos dois é upstream — a automação gravar o código do lançamento —, mas enquanto não for, o apelido resolve na leitura.
 
 ---
 
 ## "Conversões" da landing page contavam disparo de evento, não pessoa (2026-09-18)
 
-**Sintoma:** o usuário estranhou 1.000 conversões numa LP de Pré-Qualificação do PES-SET-26 —
-22,1% de 4.527 sessões, enquanto a versão `-pq-yt` da mesma página fazia 3,7%.
+**Sintoma:** o usuário estranhou 1.000 conversões numa LP de Pré-Qualificação do PES-SET-26 — 22,1% de 4.527 sessões, enquanto a versão `-pq-yt` da mesma página fazia 3,7%.
 
-**Causa:** `read_landing_pages_por_etapa` usava `ga4_daily.key_events`, que é **contagem de
-disparos**, não de pessoas. Medindo pelo `ga4_events_daily`, o evento ocorreu em **636 sessões** e
-disparou **1.000 vezes** — 1,57x por sessão. Vale pra tudo: a LP de Captação v7 mostrava 20.098
-com o evento em 11.318 sessões (1,78x). A prova de que estava errado estava na própria tela: as
-páginas de obrigado passavam de **100% de taxa de conversão**, o que é impossível.
+**Causa:** `read_landing_pages_por_etapa` usava `ga4_daily.key_events`, que é **contagem de disparos**, não de pessoas. Medindo pelo `ga4_events_daily`, o evento ocorreu em **636 sessões** e disparou **1.000 vezes** — 1,57x por sessão. Vale pra tudo: a LP de Captação v7 mostrava 20.098 com o evento em 11.318 sessões (1,78x). A prova de que estava errado estava na própria tela: as páginas de obrigado passavam de **100% de taxa de conversão**, o que é impossível.
 
-**Qual evento é o quê** (configuração do GA4, confirmada pelo usuário em 18/09/26 e já descrita no
-`read_conversao_pagina_captura` desde 06/09/26):
+**Qual evento é o quê** (configuração do GA4, confirmada pelo usuário em 18/09/26 e já descrita no `read_conversao_pagina_captura` desde 06/09/26):
 
 | evento | quando dispara |
 |---|---|
 | `generate_lead` | a pessoa preencheu o formulário e caiu na página de obrigado — **é o lead** |
 | `qualify_lead` | clicou no botão pra entrar no grupo de WhatsApp |
 
-Só o `qualify_lead` está marcado como key event no GA4, então `ga4_daily.key_events` era igual ao
-`qualify_lead` (conferido linha a linha) — a tabela mostrava a etapa errada do funil, e em
-contagem de disparo.
+Só o `qualify_lead` está marcado como key event no GA4, então `ga4_daily.key_events` era igual ao `qualify_lead` (conferido linha a linha) — a tabela mostrava a etapa errada do funil, e em contagem de disparo.
 
-**Fix:** a tabela passou a ler o `ga4_events_daily` por sessão, com as duas etapas em colunas
-separadas: Leads (`generate_lead`) e Grupo WhatsApp (`qualify_lead`). `read_conversao_pagina_captura`,
-no mesmo arquivo, já fazia assim — este leitor é que estava fora do padrão.
+**Fix:** a tabela passou a ler o `ga4_events_daily` por sessão, com as duas etapas em colunas separadas: Leads (`generate_lead`) e Grupo WhatsApp (`qualify_lead`). `read_conversao_pagina_captura`, no mesmo arquivo, já fazia assim — este leitor é que estava fora do padrão.
 
-PES-SET-26, Pré-Quali `-pq-fb`: de "1.000 conversões (22,1%)" para **753 leads (16,6%) e 636 no
-WhatsApp (14,0%)**. Nenhuma taxa passa de 100% agora.
+PES-SET-26, Pré-Quali `-pq-fb`: de "1.000 conversões (22,1%)" para **753 leads (16,6%) e 636 no WhatsApp (14,0%)**. Nenhuma taxa passa de 100% agora.
 
-**Pendência conhecida:** boa parte do tráfego dessa LP fica de fora do recorte. O
-`lancamento_codigo` do `ga4_daily` vem do **nome da campanha** (`resolve_launch_code`), então
-sessão sem campanha atribuída entra como NULL — a mesma página tem ~10.908 sessões nesse estado,
-contra 4.527 dentro do lançamento. A etapa já é classificada pelo path da LP
-(`_etapa_from_landing_page`); dá pra derivar o lançamento do path também, mas isso muda o recorte
-de todos os números de GA4 e não foi feito agora.
+**Pendência conhecida:** boa parte do tráfego dessa LP fica de fora do recorte. O `lancamento_codigo` do `ga4_daily` vem do **nome da campanha** (`resolve_launch_code`), então sessão sem campanha atribuída entra como NULL — a mesma página tem ~10.908 sessões nesse estado, contra 4.527 dentro do lançamento. A etapa já é classificada pelo path da LP (`_etapa_from_landing_page`); dá pra derivar o lançamento do path também, mas isso muda o recorte de todos os números de GA4 e não foi feito agora.
 
 ## Egress — o backup do Typeform materializado (2026-09-18)
 
-Medindo o egress restante **por byte** em vez de por linha, o quadro se inverteu: o
-`read_meta` liderava em número de linhas (51 milhões), mas cada linha tem 333 bytes. O
-Typeform tinha menos linhas e **4,8 KB cada**, por causa do `answers` (jsonb).
+Medindo o egress restante **por byte** em vez de por linha, o quadro se inverteu: o `read_meta` liderava em número de linhas (51 milhões), mas cada linha tem 333 bytes. O Typeform tinha menos linhas e **4,8 KB cada**, por causa do `answers` (jsonb).
 
 | Consulta | Linhas/dia | Bytes/linha | GB/dia |
 |---|---|---|---|
@@ -3349,62 +2100,40 @@ Typeform tinha menos linhas e **4,8 KB cada**, por causa do `answers` (jsonb).
 | Pesquisa nova (`jsonb_object_agg`) | 5,6 M | 1.309 | 7,4 |
 | `read_meta` + `read_google` | 17,7 M | 333 | 5,9 |
 
-São 636 MB por ciclo de pré-aquecimento só de Typeform — a 2 ciclos/hora, 0,92 TB/mês.
-Sozinho explica o alerta de ~1 TB do Supabase. E o dado é **backup congelado** (última
-escrita entre 18/08 e 01/09) de três lançamentos encerrados; os ativos usam o sistema de
-pesquisa novo e têm zero.
+São 636 MB por ciclo de pré-aquecimento só de Typeform — a 2 ciclos/hora, 0,92 TB/mês. Sozinho explica o alerta de ~1 TB do Supabase. E o dado é **backup congelado** (última escrita entre 18/08 e 01/09) de três lançamentos encerrados; os ativos usam o sistema de pesquisa novo e têm zero.
 
-**Lição de método:** ranquear consumo por número de linhas engana. `scripts/checar_egress.py`
-conta linhas e por isso apontou o alvo errado por dois dias.
+**Lição de método:** ranquear consumo por número de linhas engana. `scripts/checar_egress.py` conta linhas e por isso apontou o alvo errado por dois dias.
 
 ### O que foi feito
 
-`typeform_respostas_valores` guarda a mesma informação com o `answers` trocado pelos valores
-que o frontend de fato usa. O `answers` carrega o metadado do Typeform (id, tipo e ref de cada
-resposta) que `_reconstruct_tabular_df` descarta na hora.
+`typeform_respostas_valores` guarda a mesma informação com o `answers` trocado pelos valores que o frontend de fato usa. O `answers` carrega o metadado do Typeform (id, tipo e ref de cada resposta) que `_reconstruct_tabular_df` descarta na hora.
 
 - **464 MB → 48 MB** por leitura do PI-AGO-26 (9,7×)
-- A extração roda no servidor (`jsonb_array_elements` + `jsonb_object_agg`), então recriar a
-  tabela **não gera egress**
-- Recriação: `python scripts/materializar_typeform.py` (SQL em `etl/materializar_typeform.sql`).
-  Só necessária se `typeform_respostas` receber dado novo — hoje só por execução manual de
-  `etl_typeform.py`
+- A extração roda no servidor (`jsonb_array_elements` + `jsonb_object_agg`), então recriar a tabela **não gera egress**
+- Recriação: `python scripts/materializar_typeform.py` (SQL em `etl/materializar_typeform.sql`). Só necessária se `typeform_respostas` receber dado novo — hoje só por execução manual de `etl_typeform.py`
 
-**Resolve junto a falha intermitente:** `read_typeform` do PI-AGO-26 levava ~33s contra o
-`statement_timeout` de 30s e falhava cerca de metade das vezes (o sintoma aparecia como
-`DatabaseError`/`SSL connection has been closed`, não como timeout). Depois: três execuções
-seguidas OK, com `total_tf=47.140` e `total_tf_raw=48.431` idênticos aos valores históricos.
+**Resolve junto a falha intermitente:** `read_typeform` do PI-AGO-26 levava ~33s contra o `statement_timeout` de 30s e falhava cerca de metade das vezes (o sintoma aparecia como `DatabaseError`/`SSL connection has been closed`, não como timeout). Depois: três execuções seguidas OK, com `total_tf=47.140` e `total_tf_raw=48.431` idênticos aos valores históricos.
 
 ### Duas armadilhas na conversão
 
 A extração em SQL precisou replicar detalhes do Python que, se ignorados, mudariam a saída:
 
 - `str(True)` no Python dá `"True"`; o `->>` do Postgres dá `"true"`.
-- Quando o mesmo título aparece duas vezes, o dict do Python fica com o **último** da lista —
-  daí o `WITH ORDINALITY` e o `ORDER BY ord` no `jsonb_object_agg`.
+- Quando o mesmo título aparece duas vezes, o dict do Python fica com o **último** da lista — daí o `WITH ORDINALITY` e o `ORDER BY ord` no `jsonb_object_agg`.
 
-Validação: 360 respostas de 6 formulários comparadas campo a campo contra
-`_reconstruct_tabular_df`, **zero diferenças**.
+Validação: 360 respostas de 6 formulários comparadas campo a campo contra `_reconstruct_tabular_df`, **zero diferenças**.
 
 ### Efeito colateral corrigido: top de estados desempatado
 
-Trocar a origem da leitura reordenou estados **empatados** no top-10 (`top_estados_comp`), sem
-nenhum número mudar: o `value_counts()` do pandas mantém a ordem de aparição entre contagens
-iguais. Agora o desempate é pelo nome do estado, o que torna a lista estável independente da
-ordem em que as linhas chegam.
+Trocar a origem da leitura reordenou estados **empatados** no top-10 (`top_estados_comp`), sem nenhum número mudar: o `value_counts()` do pandas mantém a ordem de aparição entre contagens iguais. Agora o desempate é pelo nome do estado, o que torna a lista estável independente da ordem em que as linhas chegam.
 
-`total_tf_raw` continua contando a fonte original, incluindo resposta sem e-mail válido (que a
-tabela materializada não tem, porque `_reconstruct_tabular_df` também as descarta) — por isso
-`_contar_respostas_brutas` faz um `COUNT(*)` à parte, de uma linha só.
+`total_tf_raw` continua contando a fonte original, incluindo resposta sem e-mail válido (que a tabela materializada não tem, porque `_reconstruct_tabular_df` também as descarta) — por isso `_contar_respostas_brutas` faz um `COUNT(*)` à parte, de uma linha só.
 
 ---
 
 ## Print da landing page: captura própria no lugar do thum.io (2026-09-18)
 
-A miniatura da LP no "Landing Pages que Mais Converteram" passou a ser **print nosso, guardado no
-banco**. O thum.io (serviço público, adotado em 16/09) resolvia sem infra, mas não dava controle
-de nada: renderizava a versão responsiva por padrão, decidia sozinho quando recapturar e ia à rede
-a cada carregamento da página.
+A miniatura da LP no "Landing Pages que Mais Converteram" passou a ser **print nosso, guardado no banco**. O thum.io (serviço público, adotado em 16/09) resolvia sem infra, mas não dava controle de nada: renderizava a versão responsiva por padrão, decidia sozinho quando recapturar e ia à rede a cada carregamento da página.
 
 | peça | onde |
 |---|---|
@@ -3413,127 +2142,72 @@ a cada carregamento da página.
 | rota | `GET /api/lp-screenshot/{landing_page}` |
 | miniatura | macro `lp_thumb` no `debriefing.html`, 300px de largura |
 
-**Por que script e não parte do app.** A captura exige Chromium (~400MB via Playwright) e a imagem
-de produção é uma `python:3.10-slim`. Rodando a captura fora do container, o deploy continua leve —
-o app só lê bytes do banco, sem nenhuma dependência nova. O custo é a recaptura ser manual, o que
-casa com o fato de a LP mudar poucas vezes por lançamento. Se um dia isso tiver que ser automático,
-aí sim entra `playwright` no `requirements.txt` e `playwright install --with-deps chromium` no
-Dockerfile — decisão consciente, não esquecimento. Por isso o `playwright` **não** está no
-requirements: quem captura instala à parte.
+**Por que script e não parte do app.** A captura exige Chromium (~400MB via Playwright) e a imagem de produção é uma `python:3.10-slim`. Rodando a captura fora do container, o deploy continua leve — o app só lê bytes do banco, sem nenhuma dependência nova. O custo é a recaptura ser manual, o que casa com o fato de a LP mudar poucas vezes por lançamento. Se um dia isso tiver que ser automático, aí sim entra `playwright` no `requirements.txt` e `playwright install --with-deps chromium` no Dockerfile — decisão consciente, não esquecimento. Por isso o `playwright` **não** está no requirements: quem captura instala à parte.
 
-**Layout desktop com arquivo pequeno.** Estreitar o viewport pra diminuir a imagem renderizaria o
-layout mobile, que é justamente o defeito do thum.io. A saída é `device_scale_factor=0.5`: a página
-é montada em 1280px CSS (desktop) e o arquivo sai com 640px de largura. Exibida a 300px, ainda
-sobra resolução pra tela retina.
+**Layout desktop com arquivo pequeno.** Estreitar o viewport pra diminuir a imagem renderizaria o layout mobile, que é justamente o defeito do thum.io. A saída é `device_scale_factor=0.5`: a página é montada em 1280px CSS (desktop) e o arquivo sai com 640px de largura. Exibida a 300px, ainda sobra resolução pra tela retina.
 
-**Captura é da página inteira, exibição não.** `full_page=True` guarda a página toda, mas a célula
-mostra só o topo com `max-height` — a imagem tem milhares de pixels de altura e esticaria a linha
-da tabela. O print completo fica acessível pela URL da rota.
+**Captura é da página inteira, exibição não.** `full_page=True` guarda a página toda, mas a célula mostra só o topo com `max-height` — a imagem tem milhares de pixels de altura e esticaria a linha da tabela. O print completo fica acessível pela URL da rota.
 
 **Duas armadilhas que custaram as primeiras tentativas:**
 
-1. `wait_until="networkidle"` **não funciona nessas LPs.** Elas têm pixel de rastreamento, player
-   de vídeo e polling, então a rede nunca fica ociosa: o `goto` estourou 60s em **100%** das
-   páginas. O certo é esperar `domcontentloaded` + `load` (com o `load` opcional) — pro print o
-   que importa é o DOM montado, não a rede parar.
-2. **O domínio das LPs está atrás do Cloudflare**, que barra o User-Agent padrão do Playwright
-   (`HeadlessChrome`). A primeira captura gravou, sem erro nenhum, a tela "Um momento…" do desafio
-   no lugar da página — o defeito só apareceu quando abri a imagem. Basta um User-Agent de
-   navegador real; testei as quatro combinações (headless shell, headless+UA, Chrome real
-   headless, Chrome real com janela) e só a do UA padrão é barrada. O script agora **falha alto**
-   se detectar o desafio, em vez de gravar a imagem errada.
+1. `wait_until="networkidle"` **não funciona nessas LPs.** Elas têm pixel de rastreamento, player de vídeo e polling, então a rede nunca fica ociosa: o `goto` estourou 60s em **100%** das páginas. O certo é esperar `domcontentloaded` + `load` (com o `load` opcional) — pro print o que importa é o DOM montado, não a rede parar.
+2. **O domínio das LPs está atrás do Cloudflare**, que barra o User-Agent padrão do Playwright (`HeadlessChrome`). A primeira captura gravou, sem erro nenhum, a tela "Um momento…" do desafio no lugar da página — o defeito só apareceu quando abri a imagem. Basta um User-Agent de navegador real; testei as quatro combinações (headless shell, headless+UA, Chrome real headless, Chrome real com janela) e só a do UA padrão é barrada. O script agora **falha alto** se detectar o desafio, em vez de gravar a imagem errada.
 
-**Página sem captura não quebra a coluna:** o `<img>` tem `onerror` que cai no thum.io. A rota só
-lê bytes do banco pela chave, nunca busca URL em tempo de request — não dá pra usá-la pra fazer o
-servidor acessar endereço arbitrário.
+**Página sem captura não quebra a coluna:** o `<img>` tem `onerror` que cai no thum.io. A rota só lê bytes do banco pela chave, nunca busca URL em tempo de request — não dá pra usá-la pra fazer o servidor acessar endereço arbitrário.
 
 ---
 
 ## Landing pages do PBB nunca apareceram na tabela — o nome da LP não tem o "P" (2026-09-18)
 
-Ao capturar os prints do PBB-AGO-26, saíram 9 páginas e **todas eram de obrigado** (`/obg-...`),
-nenhuma LP. Não era falta de atribuição: as LPs têm `lancamento_codigo` preenchido e **371.323
-sessões** em 9 páginas.
+Ao capturar os prints do PBB-AGO-26, saíram 9 páginas e **todas eram de obrigado** (`/obg-...`), nenhuma LP. Não era falta de atribuição: as LPs têm `lancamento_codigo` preenchido e **371.323 sessões** em 9 páginas.
 
-**Causa:** `_etapa_from_landing_page` exige o código do lançamento inteiro dentro do path, e a LP
-do PBB não tem o "P":
+**Causa:** `_etapa_from_landing_page` exige o código do lançamento inteiro dentro do path, e a LP do PBB não tem o "P":
 
 | página | path | contém `pbb-ago-26`? |
 |---|---|---|
 | landing page | `/projeto-bb-ago-26-v2` | **não** (é `projeto-bb-`) |
 | obrigado | `/obg-pbb-ago-26-v2` | sim |
 
-Por isso só as páginas de obrigado passavam no filtro. Valia para **todos** os lançamentos do
-produto — PBB-FEV-26, PBB-ABR-26, PBB-JUN-26 e PBB-AGO-26, todos com 0 LPs listadas. INSS e TJ-SP
-não sofrem porque o path repete o código inteiro (`projeto-inss-pi-ago-26`,
-`projeto-escrevente-pes-set-26`).
+Por isso só as páginas de obrigado passavam no filtro. Valia para **todos** os lançamentos do produto — PBB-FEV-26, PBB-ABR-26, PBB-JUN-26 e PBB-AGO-26, todos com 0 LPs listadas. INSS e TJ-SP não sofrem porque o path repete o código inteiro (`projeto-inss-pi-ago-26`, `projeto-escrevente-pes-set-26`).
 
-**Fix:** aceitar também o slug sem a primeira letra (`bb-ago-26`). Não corre risco de pegar
-lançamento vizinho porque o mês/ano continua no meio do termo — conferido que nenhum lançamento
-passa a listar página de outro. PBB-AGO-26 foi de 0 para 9 LPs; PES-SET-26 e PI-AGO-26 não mudaram.
+**Fix:** aceitar também o slug sem a primeira letra (`bb-ago-26`). Não corre risco de pegar lançamento vizinho porque o mês/ano continua no meio do termo — conferido que nenhum lançamento passa a listar página de outro. PBB-AGO-26 foi de 0 para 9 LPs; PES-SET-26 e PI-AGO-26 não mudaram.
 
 ### Print: recortar na largura do viewport, não na do documento
 
-A v5 do PBB-AGO-26 tem um marquee que estica o `scrollWidth` para **7.975px**. Com `full_page`
-puro, o print saía um retângulo quase vazio com o conteúdo espremido em 13% da imagem. A captura
-agora usa `clip` fixo na largura do viewport (1280) e teto de 6.000px de altura. Várias outras LPs
-também estouravam de leve (1.492, 1.658) — o recorte normaliza todas.
+A v5 do PBB-AGO-26 tem um marquee que estica o `scrollWidth` para **7.975px**. Com `full_page` puro, o print saía um retângulo quase vazio com o conteúdo espremido em 13% da imagem. A captura agora usa `clip` fixo na largura do viewport (1280) e teto de 6.000px de altura. Várias outras LPs também estouravam de leve (1.492, 1.658) — o recorte normaliza todas.
 
 ### Segunda rodada: não precisamos dos valores, só do e-mail (2026-09-18)
 
-A materialização cortou 9,7×, mas a pergunta certa era outra: **precisamos ler a tabela toda?**
-Não — e nem os valores.
+A materialização cortou 9,7×, mas a pergunta certa era outra: **precisamos ler a tabela toda?** Não — e nem os valores.
 
-O `TypeformSummary` tem 45 campos e **todos são agregados**: percentuais por categoria, listas
-de top-10, contagens. Nenhum precisa da linha individual. Só que há um detalhe decisivo:
+O `TypeformSummary` tem 45 campos e **todos são agregados**: percentuais por categoria, listas de top-10, contagens. Nenhum precisa da linha individual. Só que há um detalhe decisivo:
 
-**Nenhum formulário tem título de pergunta legível.** As chaves são todas id de campo
-(`fAY7LnIKilfk`) — conferido nas 697 mil respostas, zero com título. O backup não guardou
-`field.title` e a conta foi cancelada antes de o mapeamento id→título ser salvo. Como toda a
-demografia (gênero, situação, nível, idade, obstáculos, estado) é descoberta procurando o
-**nome** da pergunta, nada casa e essas seções saem vazias de qualquer jeito.
+**Nenhum formulário tem título de pergunta legível.** As chaves são todas id de campo (`fAY7LnIKilfk`) — conferido nas 697 mil respostas, zero com título. O backup não guardou `field.title` e a conta foi cancelada antes de o mapeamento id→título ser salvo. Como toda a demografia (gênero, situação, nível, idade, obstáculos, estado) é descoberta procurando o **nome** da pergunta, nada casa e essas seções saem vazias de qualquer jeito.
 
 Ou seja: o sistema transportava 48 MB de valores para alimentar seções que retornam `{}`.
 
-O que de fato se usa das respostas do Typeform é o **e-mail** — cruzamentos com CRM e
-compradores, contagem, e o fallback de estado pelo CSV local (que casa por e-mail). Então
-`_registros_materializados` só traz `valores` quando `_tem_titulo_legivel` encontra alguma
-pergunta com nome de verdade. A checagem fica no código em vez de a decisão ser assumida: se o
-mapeamento for recuperado um dia, volta a trazer tudo sozinho.
+O que de fato se usa das respostas do Typeform é o **e-mail** — cruzamentos com CRM e compradores, contagem, e o fallback de estado pelo CSV local (que casa por e-mail). Então `_registros_materializados` só traz `valores` quando `_tem_titulo_legivel` encontra alguma pergunta com nome de verdade. A checagem fica no código em vez de a decisão ser assumida: se o mapeamento for recuperado um dia, volta a trazer tudo sozinho.
 
 **464 MB → 1,2 MB por leitura do PI-AGO-26 (387×).** Por ciclo de aquecimento: 636 MB → ~2,5 MB.
 
 ### O passo que faltava: CLUSTER
 
-Reduzir o payload não bastou — a leitura ainda levava 21,5s. O plano mostrava o índice sendo
-usado (10 ms) e depois **39.460 páginas de heap** lidas. Causa: a tabela tem ~85 mil páginas e
-as respostas de um formulário estavam espalhadas por ela toda, então o bitmap scan tocava 46%
-do arquivo mesmo pedindo uma coluna só.
+Reduzir o payload não bastou — a leitura ainda levava 21,5s. O plano mostrava o índice sendo usado (10 ms) e depois **39.460 páginas de heap** lidas. Causa: a tabela tem ~85 mil páginas e as respostas de um formulário estavam espalhadas por ela toda, então o bitmap scan tocava 46% do arquivo mesmo pedindo uma coluna só.
 
 Duas correções, nesta ordem de importância:
 
-- `CLUSTER typeform_respostas_valores USING idx_tf_val_fid_email` reordena fisicamente por
-  formulário: **21,5s → 0,9s**.
-- Índice de cobertura `((upper(coalesce(form_id,''))), email_norm)`, que também torna o índice
-  só de `form_id` redundante — e aquele ainda fazia o planejador preferir bitmap scan, que
-  nunca é index-only.
+- `CLUSTER typeform_respostas_valores USING idx_tf_val_fid_email` reordena fisicamente por formulário: **21,5s → 0,9s**.
+- Índice de cobertura `((upper(coalesce(form_id,''))), email_norm)`, que também torna o índice só de `form_id` redundante — e aquele ainda fazia o planejador preferir bitmap scan, que nunca é index-only.
 
-`CLUSTER` e `VACUUM` não rodam dentro de transação; `scripts/materializar_typeform.py` faz os
-dois fora, com `isolation_level(0)`.
+`CLUSTER` e `VACUUM` não rodam dentro de transação; `scripts/materializar_typeform.py` faz os dois fora, com `isolation_level(0)`.
 
 ### Armadilha que eu mesmo criei e corrigi
 
-A primeira versão de `_tem_titulo_legivel` usava o `where` completo do chamador com `LIMIT 1`.
-Um `LIMIT 1` sobre um padrão que **nunca casa** não sai cedo: varre tudo procurando o que não
-existe — e no `read_perfil_por_anuncio` ainda arrastava junto a subconsulta de `leads`. Estourou
-o `statement_timeout` e derrubou a seção. A checagem agora olha só o `form_id`, com `LIMIT 200`
-interno: as perguntas são as mesmas em todas as respostas do formulário, então a amostra basta.
+A primeira versão de `_tem_titulo_legivel` usava o `where` completo do chamador com `LIMIT 1`. Um `LIMIT 1` sobre um padrão que **nunca casa** não sai cedo: varre tudo procurando o que não existe — e no `read_perfil_por_anuncio` ainda arrastava junto a subconsulta de `leads`. Estourou o `statement_timeout` e derrubou a seção. A checagem agora olha só o `form_id`, com `LIMIT 200` interno: as perguntas são as mesmas em todas as respostas do formulário, então a amostra basta.
 
 ## ETL — cadência por natureza do dado (2026-09-18)
 
-O scheduler rodava uma carga única a cada 30 min. Medido sobre 7 dias de `etl_runs`, o ciclo
-levava **19 min em média e 74 min no pior caso** — 247% da janela. Nem todas as fontes custam
-o mesmo nem mudam no mesmo ritmo:
+O scheduler rodava uma carga única a cada 30 min. Medido sobre 7 dias de `etl_runs`, o ciclo levava **19 min em média e 74 min no pior caso** — 247% da janela. Nem todas as fontes custam o mesmo nem mudam no mesmo ritmo:
 
 | fonte | média | máx | falhas (7d) |
 |---|---|---|---|
@@ -3545,33 +2219,20 @@ o mesmo nem mudam no mesmo ritmo:
 
 Agora são dois jobs no mesmo processo (nada de container novo):
 
-- **Rápido, a cada 30 min** — `meta_ads`, `google_ads`, `ga4`, `sheets_contagem`: 177s de
-  trabalho, ciclo de ~3 min contra 19. É o que sustenta decisão de verba.
-- **Lento, de hora em hora** (`minute=20`, deslocado do `:00/:30` do rápido e do `:15` do
-  alerta de orçamento) — `active_campaign`, `instagram`, `ac_ebook`, `whatsapp`,
-  `ac_campaigns`.
+- **Rápido, a cada 30 min** — `meta_ads`, `google_ads`, `ga4`, `sheets_contagem`: 177s de trabalho, ciclo de ~3 min contra 19. É o que sustenta decisão de verba.
+- **Lento, de hora em hora** (`minute=20`, deslocado do `:00/:30` do rápido e do `:15` do alerta de orçamento) — `active_campaign`, `instagram`, `ac_ebook`, `whatsapp`, `ac_campaigns`.
 
 ### Por que não uniformemente de hora em hora
 
-Medido no pico de Captação do PES-SET-26 (08-13/09): entram **~55 leads e ~R$ 1.187 de gasto a
-cada meia hora** no horário comercial. Dobrar o atraso do gasto é caro — há regra fixa de
-orçamento diário e já houve estouro real de 337%. Já 110 leads acumulados não mudam decisão
-nenhuma. Por isso a divisão é por **natureza do dado**, não uniforme.
+Medido no pico de Captação do PES-SET-26 (08-13/09): entram **~55 leads e ~R$ 1.187 de gasto a cada meia hora** no horário comercial. Dobrar o atraso do gasto é caro — há regra fixa de orçamento diário e já houve estouro real de 337%. Já 110 leads acumulados não mudam decisão nenhuma. Por isso a divisão é por **natureza do dado**, não uniforme.
 
 ### Dois cuidados que o desenho embute
 
-**Locks separados.** Com lock único o ciclo curto seria pulado durante os ~17 min do longo e
-perderia o ganho todo. As fontes não se cruzam; e as três que batem na mesma API do Active
-Campaign estão todas na cadência lenta, no mesmo processo, então seguem serializadas entre si.
+**Locks separados.** Com lock único o ciclo curto seria pulado durante os ~17 min do longo e perderia o ganho todo. As fontes não se cruzam; e as três que batem na mesma API do Active Campaign estão todas na cadência lenta, no mesmo processo, então seguem serializadas entre si.
 
-**Só o ciclo curto avisa o dashboard.** Avisar nos dois levaria a 72 invalidações de cache por
-dia em vez de 48, aumentando o egress que passamos dias reduzindo. O dado do ciclo longo entra
-no re-aquecimento seguinte, no máximo 30 min depois (`rodar_carga(avisar=...)`).
+**Só o ciclo curto avisa o dashboard.** Avisar nos dois levaria a 72 invalidações de cache por dia em vez de 48, aumentando o egress que passamos dias reduzindo. O dado do ciclo longo entra no re-aquecimento seguinte, no máximo 30 min depois (`rodar_carga(avisar=...)`).
 
-O isolamento de falha que um desmembramento em serviços traria **já existia**: cada fonte é um
-subprocesso com timeout próprio de 15 min, e o orquestrador segue para a próxima quando uma
-falha (`run_all.py`). O apagão de 7h12 em 17/09 não foi passo travado — foi o `scheduler.py`
-não subir por import quebrado, e nove containers teriam o mesmo import quebrado.
+O isolamento de falha que um desmembramento em serviços traria **já existia**: cada fonte é um subprocesso com timeout próprio de 15 min, e o orquestrador segue para a próxima quando uma falha (`run_all.py`). O apagão de 7h12 em 17/09 não foi passo travado — foi o `scheduler.py` não subir por import quebrado, e nove containers teriam o mesmo import quebrado.
 
 ### Rede de testes contra os dois apagões de setembro
 
@@ -3582,289 +2243,148 @@ Dois apagões com três dias de intervalo, ambos invisíveis para o CI:
 | 17/09 | `budget_alert.py` importava nome que a refatoração moveu; `scheduler.py` o importa no topo e entrou em crash-loop | **7h12 sem ETL** | `tests/test_imports.py` |
 | 18/09 | commit `c8c9421` passou a gravar `customer_id` em duas tabelas sem criar a coluna | ~3h de `google_ads` falhando | `tests/test_etl_schema.py` |
 
-O segundo é o mais traiçoeiro: **import saudável não garante schema compatível.** O código
-importava, o CI passava, e o ETL falhava com `UndefinedColumn` a cada rodada — só apareceu
-quando alguém leu o log.
+O segundo é o mais traiçoeiro: **import saudável não garante schema compatível.** O código importava, o CI passava, e o ETL falhava com `UndefinedColumn` a cada rodada — só apareceu quando alguém leu o log.
 
-`test_etl_schema.py` monta o DataFrame de cada ETL e confere contra o `information_schema` que
-toda coluna que ele pretende escrever existe. Dois detalhes fazem funcionar sem rede nem
-fixture pesada:
+`test_etl_schema.py` monta o DataFrame de cada ETL e confere contra o `information_schema` que toda coluna que ele pretende escrever existe. Dois detalhes fazem funcionar sem rede nem fixture pesada:
 
-- os builders leem a linha da API com `r.get(...)`, então passar `[{}]` devolve as colunas
-  certas com valores nulos;
-- os `upsert` gravam com `df.to_sql(...)`, que usa exatamente `df.columns` — é o mesmo conjunto
-  que iria pro `INSERT`.
+- os builders leem a linha da API com `r.get(...)`, então passar `[{}]` devolve as colunas certas com valores nulos;
+- os `upsert` gravam com `df.to_sql(...)`, que usa exatamente `df.columns` — é o mesmo conjunto que iria pro `INSERT`.
 
-Precisa de banco, então roda no marcador `smoke` (o CI não tem banco). Conferido que falha
-removendo `customer_id` e volta a passar com a coluna de volta.
+Precisa de banco, então roda no marcador `smoke` (o CI não tem banco). Conferido que falha removendo `customer_id` e volta a passar com a coluna de volta.
 
-Cobre hoje os 7 pares builder→tabela de `etl_google_ads` e `etl_meta_ads`. Os demais ETLs têm
-formato diferente e ficaram de fora **de propósito**: melhor não cobrir do que cobrir errado.
-Ao adicionar um builder novo, some uma linha em `CONTRATOS`.
+Cobre hoje os 7 pares builder→tabela de `etl_google_ads` e `etl_meta_ads`. Os demais ETLs têm formato diferente e ficaram de fora **de propósito**: melhor não cobrir do que cobrir errado. Ao adicionar um builder novo, some uma linha em `CONTRATOS`.
 
 ---
 
 ## "Form performance" do Typeform (Starts/Submissions/Completion rate/Tempo) no debriefing (2026-09-17)
 
-Novas tabelas `typeform_insights`/`typeform_insights_2` (mesmo banco analytics, uma linha por
-`form_id`, colunas `total_visits`, `unique_visits`, `responses_count`, `completion_rate`,
-`average_time`, `platforms`/`fields` em jsonb) — snapshot da **Insights API** do Typeform
-(`/insights/{form_id}/summary`), capturado num backup pontual fora deste repo (conta cancelada,
-mesma razão do backup de `typeform_respostas_backup*`/`typeform_forms*`). Diferente da tabela de
-respostas, não é histórico incremental: uma linha por formulário, sobrescrita a cada captura.
+Novas tabelas `typeform_insights`/`typeform_insights_2` (mesmo banco analytics, uma linha por `form_id`, colunas `total_visits`, `unique_visits`, `responses_count`, `completion_rate`, `average_time`, `platforms`/`fields` em jsonb) — snapshot da **Insights API** do Typeform (`/insights/{form_id}/summary`), capturado num backup pontual fora deste repo (conta cancelada, mesma razão do backup de `typeform_respostas_backup*`/`typeform_forms*`). Diferente da tabela de respostas, não é histórico incremental: uma linha por formulário, sobrescrita a cada captura.
 
-`read_pesquisa_engajamento()` (`frontend/db_readers/typeform.py`) resolve o `form_id` do
-lançamento do jeito que já fazia (`_resolve_typeform_ids`) e junta mais uma consulta pequena
-(`UNION ALL` das duas tabelas de insights, `WHERE upper(form_id) = :fid`) no mesmo dict de
-retorno: `form_starts` (= `total_visits`, é o que o Typeform chama "Starts" na tela — "Views" não
-vem dessa API, só existe na UI do Typeform), `form_submissions`, `form_completion_rate`,
-`form_avg_time` (segundos) e `form_avg_time_fmt` (`"MM:SS"`).
+`read_pesquisa_engajamento()` (`frontend/db_readers/typeform.py`) resolve o `form_id` do lançamento do jeito que já fazia (`_resolve_typeform_ids`) e junta mais uma consulta pequena (`UNION ALL` das duas tabelas de insights, `WHERE upper(form_id) = :fid`) no mesmo dict de retorno: `form_starts` (= `total_visits`, é o que o Typeform chama "Starts" na tela — "Views" não vem dessa API, só existe na UI do Typeform), `form_submissions`, `form_completion_rate`, `form_avg_time` (segundos) e `form_avg_time_fmt` (`"MM:SS"`).
 
-Comparativo vs lançamento anterior segue o padrão já usado pra `prev_respostas`
-(`frontend/services/fetch.py::_pesquisa_engajamento`, badge `dbadge()` de
-`debriefing/_macros.html`) — `prev_form_starts`/`prev_form_submissions`/
-`prev_form_completion_rate`/`prev_form_avg_time`, mesmo cache por `launch.code`.
+Comparativo vs lançamento anterior segue o padrão já usado pra `prev_respostas` (`frontend/services/fetch.py::_pesquisa_engajamento`, badge `dbadge()` de `debriefing/_macros.html`) — `prev_form_starts`/`prev_form_submissions`/ `prev_form_completion_rate`/`prev_form_avg_time`, mesmo cache por `launch.code`.
 
-**Achado ao mexer no `_pesquisa_engajamento`:** a rota lazy (`/debriefing/secao/pesquisa_engajamento`
-em `frontend/routes/analytics.py`) chamava `_pesquisa_engajamento(launch)` **sem** `previous` —
-só o branch irmão `funil_pesquisa` passava. Resultado: o comparativo só aparecia quando a página
-vinha do `debriefing_snapshot` (o caminho comum) ou em `modo=slides`; no live/`?ao_vivo=1` sumia
-sem erro nenhum. Corrigido junto (agora os dois branches resolvem `previous` e chamam igual).
+**Achado ao mexer no `_pesquisa_engajamento`:** a rota lazy (`/debriefing/secao/pesquisa_engajamento` em `frontend/routes/analytics.py`) chamava `_pesquisa_engajamento(launch)` **sem** `previous` — só o branch irmão `funil_pesquisa` passava. Resultado: o comparativo só aparecia quando a página vinha do `debriefing_snapshot` (o caminho comum) ou em `modo=slides`; no live/`?ao_vivo=1` sumia sem erro nenhum. Corrigido junto (agora os dois branches resolvem `previous` e chamam igual).
 
-Template (`_secao_pesquisa_engajamento.html`) usa `pe.get('form_starts') is not none` — não
-`pe.form_starts is not none` — de propósito: uma linha de `debriefing_snapshot` gravada antes
-desse deploy não tem essas chaves, e o acesso direto por atributo em Jinja devolve `Undefined`
-(que passa em `is not none`), renderizando a seção nova com zeros até o próximo rebuild do
-snapshot. `.get()` num dict comum resolve isso sem precisar forçar rebuild.
+Template (`_secao_pesquisa_engajamento.html`) usa `pe.get('form_starts') is not none` — não `pe.form_starts is not none` — de propósito: uma linha de `debriefing_snapshot` gravada antes desse deploy não tem essas chaves, e o acesso direto por atributo em Jinja devolve `Undefined` (que passa em `is not none`), renderizando a seção nova com zeros até o próximo rebuild do snapshot. `.get()` num dict comum resolve isso sem precisar forçar rebuild.
 
-Pendência (fora deste repo): `docs/negocio/BRABO_ANALYTICS_APRESENTACAO_EXEC.md` deveria registrar
-essa mudança também, mas esse arquivo não está neste checkout (só `docs/sistema/` é versionado
-aqui, ver nota no topo do arquivo/CLAUDE.md) — quem tiver o vault completo precisa atualizar lá.
+Pendência (fora deste repo): `docs/negocio/BRABO_ANALYTICS_APRESENTACAO_EXEC.md` deveria registrar essa mudança também, mas esse arquivo não está neste checkout (só `docs/sistema/` é versionado aqui, ver nota no topo do arquivo/CLAUDE.md) — quem tiver o vault completo precisa atualizar lá.
 
 ---
 
 ## Conta do Meta fora do ETL, e as armadilhas do backfill (2026-09-18)
 
-**O que estava errado.** O `META_AD_ACCOUNT_ID` do servidor tinha 3 contas; o `.env` local, 5.
-As duas ausentes eram `act_1572917053349409` (CA Ivan Anunciante) e `act_754583761035107`
-(Brabo Editora). Efeito no debriefing: o "Total Investido" do PES-SET-26 mostrava R$ 696.856 em
-vez de R$ 712.522 — faltava a campanha `[MA][cadastro][captação][específico][principal]`, que
-roda na conta do Ivan (R$ 15.612,65). O ROAS ficava otimista na mesma proporção e o segmento
-Específico aparecia com gasto zero.
+**O que estava errado.** O `META_AD_ACCOUNT_ID` do servidor tinha 3 contas; o `.env` local, 5. As duas ausentes eram `act_1572917053349409` (CA Ivan Anunciante) e `act_754583761035107` (Brabo Editora). Efeito no debriefing: o "Total Investido" do PES-SET-26 mostrava R$ 696.856 em vez de R$ 712.522 — faltava a campanha `[MA][cadastro][captação][específico][principal]`, que roda na conta do Ivan (R$ 15.612,65). O ROAS ficava otimista na mesma proporção e o segmento Específico aparecia com gasto zero.
 
-**Como foi achado:** confrontando campanha a campanha contra a Marketing API. Google bateu (3
-centavos em R$ 274 mil); Meta acusou uma campanha com gasto na API e **nenhuma linha** no banco.
-O `account_id` no `meta_ads_daily` (gravado desde 16/09) confirmou: só 2 das 5 contas apareciam.
+**Como foi achado:** confrontando campanha a campanha contra a Marketing API. Google bateu (3 centavos em R$ 274 mil); Meta acusou uma campanha com gasto na API e **nenhuma linha** no banco. O `account_id` no `meta_ads_daily` (gravado desde 16/09) confirmou: só 2 das 5 contas apareciam.
 
-**Lição de escopo — meça antes de reprocessar.** A reação inicial foi reprocessar mai–set inteiro
-das duas plataformas. O usuário questionou *"por que puxar os lançamentos de novo?"* e a medição
-deu razão a ele: comparando API x banco por lançamento, **o dado de lançamento já estava completo**
-(Google: R$ 0,48 de diferença em R$ 1,49 mi). Todo o buraco — R$ 122 mil somando as duas
-plataformas — estava em **distribuição e perpétuo**, porque as contas ausentes só tinham campanhas
-sem tag de lançamento (fora o Específico, já corrigido por um backfill dirigido com
-`--launch-code`). Reprocessar lançamento era risco pelo risco.
+**Lição de escopo — meça antes de reprocessar.** A reação inicial foi reprocessar mai–set inteiro das duas plataformas. O usuário questionou *"por que puxar os lançamentos de novo?"* e a medição deu razão a ele: comparando API x banco por lançamento, **o dado de lançamento já estava completo** (Google: R$ 0,48 de diferença em R$ 1,49 mi). Todo o buraco — R$ 122 mil somando as duas plataformas — estava em **distribuição e perpétuo**, porque as contas ausentes só tinham campanhas sem tag de lançamento (fora o Específico, já corrigido por um backfill dirigido com `--launch-code`). Reprocessar lançamento era risco pelo risco.
 
 ### Quatro armadilhas do backfill longo
 
-1. **`run_all.py` mata a fonte em 900s.** Meta em nível de anúncio, 6 semanas, não cabe. Morre
-   sem gravar nada — o ETL busca tudo antes de escrever, então o timeout não corrompe, só perde
-   o trabalho. Para período longo, chamar o script da fonte direto.
-2. **Janela longa faz o Meta devolver 500.** Mai–set numa sequência só: `500 Internal Server
-   Error`. Fatiado por mês, passa. Daí `scripts/backfill_ads.py`, que também limita o estrago:
-   o upsert apaga o período que vai reinserir, então uma fatia que falha deixa as outras de pé.
-3. **O upsert é DELETE + INSERT do período.** Sem `--launch-code`, apaga todos os lançamentos da
-   janela e reinsere só o que a API devolveu — uma busca incompleta vira perda permanente. Daí
-   `scripts/backup_ads_periodo.py`, que tira a foto antes e gera o resumo por lançamento usado
-   na conferência depois. Com `--launch-code`, o filtro vale pro DELETE **e** pro dataframe, então
-   dá pra reprocessar um lançamento sem tocar nos vizinhos.
-4. **Backfill não sobrevive à causa raiz.** O scheduler roda um job profundo de **18 dias**
-   toda madrugada (`etl_carga_profunda`, 3h40). Como o upsert apaga a janela inteira sem filtro
-   de conta, tudo que foi backfillado dentro desses 18 dias é apagado na madrugada seguinte se a
-   conta de origem não estiver no `.env` **do servidor**. Aconteceu com o perpétuo: o backfill de
-   21/09 (R$ 3,7 mil do Google) durou menos de 24h e o dado voltou a terminar em 03/09 — ver
-   [[ACOMPANHAMENTO_PERPETUO_MEQ]] § 3. **Ordem certa: corrigir a variável → redeploy → backfill.**
+1. **`run_all.py` mata a fonte em 900s.** Meta em nível de anúncio, 6 semanas, não cabe. Morre sem gravar nada — o ETL busca tudo antes de escrever, então o timeout não corrompe, só perde o trabalho. Para período longo, chamar o script da fonte direto.
+2. **Janela longa faz o Meta devolver 500.** Mai–set numa sequência só: `500 Internal Server Error`. Fatiado por mês, passa. Daí `scripts/backfill_ads.py`, que também limita o estrago: o upsert apaga o período que vai reinserir, então uma fatia que falha deixa as outras de pé.
+3. **O upsert é DELETE + INSERT do período.** Sem `--launch-code`, apaga todos os lançamentos da janela e reinsere só o que a API devolveu — uma busca incompleta vira perda permanente. Daí `scripts/backup_ads_periodo.py`, que tira a foto antes e gera o resumo por lançamento usado na conferência depois. Com `--launch-code`, o filtro vale pro DELETE **e** pro dataframe, então dá pra reprocessar um lançamento sem tocar nos vizinhos.
+4. **Backfill não sobrevive à causa raiz.** O scheduler roda um job profundo de **18 dias** toda madrugada (`etl_carga_profunda`, 3h40). Como o upsert apaga a janela inteira sem filtro de conta, tudo que foi backfillado dentro desses 18 dias é apagado na madrugada seguinte se a conta de origem não estiver no `.env` **do servidor**. Aconteceu com o perpétuo: o backfill de 21/09 (R$ 3,7 mil do Google) durou menos de 24h e o dado voltou a terminar em 03/09 — ver [[ACOMPANHAMENTO_PERPETUO_MEQ]] § 3. **Ordem certa: corrigir a variável → redeploy → backfill.**
 
-**`PAGE_SIZE` de 50 → 500** em `etl_meta_ads.py` (insights de anúncio, demografia e região).
-Medido na conta mais pesada, 3 dias, mesmas 1.126 linhas: 50 → 23 páginas em 103,9s; 200 → 6 em
-37,0s; 500 → 3 em 22,1s; 1000 → 2 em 18,2s. 500 pega 4,7x do ganho; de 500 pra 1000 sobra 18% e
-não compensa o risco de timeout em janela longa.
+**`PAGE_SIZE` de 50 → 500** em `etl_meta_ads.py` (insights de anúncio, demografia e região). Medido na conta mais pesada, 3 dias, mesmas 1.126 linhas: 50 → 23 páginas em 103,9s; 200 → 6 em 37,0s; 500 → 3 em 22,1s; 1000 → 2 em 18,2s. 500 pega 4,7x do ganho; de 500 pra 1000 sobra 18% e não compensa o risco de timeout em janela longa.
 
-**Falha de rede parece falha de dado.** Duas fatias abortaram com `getaddrinfo failed` /
-`ConnectionReset` — queda de DNS local, não a API. O log do `run_all` truncado escondia isso;
-sempre rodar com `python -u` e salvar o log **inteiro** (nada de `| tail`, que trunca e ainda
-segura a saída até o fim).
+**Falha de rede parece falha de dado.** Duas fatias abortaram com `getaddrinfo failed` / `ConnectionReset` — queda de DNS local, não a API. O log do `run_all` truncado escondia isso; sempre rodar com `python -u` e salvar o log **inteiro** (nada de `| tail`, que trunca e ainda segura a saída até o fim).
 
-**Resultado:** +R$ 122.211 recuperados (Meta R$ 63.333, Google R$ 58.878), nenhum lançamento
-perdendo um centavo, e campanhas `[ivan neto]` que estavam rotuladas como
-DISTRIBUICAO-BRABO-CONCURSOS reclassificadas corretamente nas duas plataformas.
+**Resultado:** +R$ 122.211 recuperados (Meta R$ 63.333, Google R$ 58.878), nenhum lançamento perdendo um centavo, e campanhas `[ivan neto]` que estavam rotuladas como DISTRIBUICAO-BRABO-CONCURSOS reclassificadas corretamente nas duas plataformas.
 
 ## CSS e JS saíram do `base.html` para `/static` (2026-09-21)
 
-O `base.html` tinha **5.053 linhas**: 1.827 de CSS e 2.343 de JS inline, mais 883 de markup.
-Como todo template faz `{% extends "base.html" %}`, qualquer ajuste de estilo ou de
-comportamento passava por esse arquivo — e ele não era cacheável, porque o middleware manda
-`Cache-Control: no-store` em tudo que é `text/html`. Ou seja: **cada navegação rebaixava 200 KB
-de CSS e JS que nunca mudam**.
+O `base.html` tinha **5.053 linhas**: 1.827 de CSS e 2.343 de JS inline, mais 883 de markup. Como todo template faz `{% extends "base.html" %}`, qualquer ajuste de estilo ou de comportamento passava por esse arquivo — e ele não era cacheável, porque o middleware manda `Cache-Control: no-store` em tudo que é `text/html`. Ou seja: **cada navegação rebaixava 200 KB de CSS e JS que nunca mudam**.
 
-Agora são 16 arquivos em `frontend/static/` (8 CSS + 8 JS), servidos por um mount novo, e o
-`base.html` ficou com **942 linhas** só de markup. O mapa de qual arquivo tem o quê está em
-[[DESIGN_SYSTEM]], na seção "Onde estão as coisas".
+Agora são 16 arquivos em `frontend/static/` (8 CSS + 8 JS), servidos por um mount novo, e o `base.html` ficou com **942 linhas** só de markup. O mapa de qual arquivo tem o quê está em [[DESIGN_SYSTEM]], na seção "Onde estão as coisas".
 
-**A extração não mudou nenhuma regra nem nenhuma função.** Os 16 arquivos são byte-a-byte
-iguais ao que estava inline, com exatamente duas exceções, ambas porque Jinja não roda em
-arquivo `.css`/`.js`:
+**A extração não mudou nenhuma regra nem nenhuma função.** Os 16 arquivos são byte-a-byte iguais ao que estava inline, com exatamente duas exceções, ambas porque Jinja não roda em arquivo `.css`/`.js`:
 
 | o que era | virou |
 |---|---|
 | `--bs-accent: {{ accent }}` dentro do `:root` | valor fixo em `tokens.css`; a cor do lançamento continua vindo do `<style id="brabo-accent">`, que segue inline e sobrescreve — era o que já acontecia antes |
 | `var PAGE = '{{ page }}'` dentro do JS | `document.body.dataset.page`, com o `<body>` recebendo `data-page="{{ page }}"` |
 
-**Duas coisas continuam inline de propósito:** o `<style id="brabo-accent">` (depende de
-`{{ accent }}`) e o script anti-flash do tema no `<head>` — esse precisa rodar antes do primeiro
-paint, e num `<script src>` a rede entraria no caminho crítico, trazendo de volta o flash de
-tema errado que ele existe para evitar.
+**Duas coisas continuam inline de propósito:** o `<style id="brabo-accent">` (depende de `{{ accent }}`) e o script anti-flash do tema no `<head>` — esse precisa rodar antes do primeiro paint, e num `<script src>` a rede entraria no caminho crítico, trazendo de volta o flash de tema errado que ele existe para evitar.
 
-**Cache-busting é obrigatório aqui.** As URLs saem de `static_url()` (`frontend/core.py`), que
-anexa `?v=<mtime>`. Sem isso, o navegador serviria o CSS antigo depois de um deploy — o
-`no-store` do middleware só cobre `text/html`, e nada mais forçaria a atualização. O `stat` roda
-a cada render de propósito: com cache em memória, editar um `.css` em desenvolvimento não
-apareceria sem reiniciar o servidor, já que o `--reload` do uvicorn só observa `.py`.
+**Cache-busting é obrigatório aqui.** As URLs saem de `static_url()` (`frontend/core.py`), que anexa `?v=<mtime>`. Sem isso, o navegador serviria o CSS antigo depois de um deploy — o `no-store` do middleware só cobre `text/html`, e nada mais forçaria a atualização. O `stat` roda a cada render de propósito: com cache em memória, editar um `.css` em desenvolvimento não apareceria sem reiniciar o servidor, já que o `--reload` do uvicorn só observa `.py`.
 
-**O mount `/static` já era esperado pelo código.** O middleware de autenticação em
-`frontend/app.py` liberava `path.startswith("/static")` desde antes da pasta existir. Cuidado
-relacionado: `frontend/static/calendario/` foi um caminho morto que causou dois bugs silenciosos
-(ver a seção do calendário acima). Ele não voltou — a pasta nova tem só `css/` e `js/`, e o
-parser do calendário continua lendo de `analises/calendario/`.
+**O mount `/static` já era esperado pelo código.** O middleware de autenticação em `frontend/app.py` liberava `path.startswith("/static")` desde antes da pasta existir. Cuidado relacionado: `frontend/static/calendario/` foi um caminho morto que causou dois bugs silenciosos (ver a seção do calendário acima). Ele não voltou — a pasta nova tem só `css/` e `js/`, e o parser do calendário continua lendo de `analises/calendario/`.
 
-**Ordem de carga é contrato.** Os `<link>` e `<script>` no `base.html` estão na ordem da cascata
-do CSS e das dependências do JS; reordenar quebra em silêncio. Os `<script>` são síncronos, sem
-`defer`/`async`, pelo mesmo motivo.
+**Ordem de carga é contrato.** Os `<link>` e `<script>` no `base.html` estão na ordem da cascata do CSS e das dependências do JS; reordenar quebra em silêncio. Os `<script>` são síncronos, sem `defer`/`async`, pelo mesmo motivo.
 
-**Como foi verificado:** 85 testes unitários (inclui a compilação de todos os templates), 21
-páginas no smoke contra o banco real, os 16 estáticos respondendo 200, e uma passada de
-Playwright em 6 páginas conferindo tokens computados, largura da sidebar, contagem de seções,
-troca dos 10 temas, busca de seções, accordion e abertura do wizard — **zero erros de console**.
+**Como foi verificado:** 85 testes unitários (inclui a compilação de todos os templates), 21 páginas no smoke contra o banco real, os 16 estáticos respondendo 200, e uma passada de Playwright em 6 páginas conferindo tokens computados, largura da sidebar, contagem de seções, troca dos 10 temas, busca de seções, accordion e abertura do wizard — **zero erros de console**.
 
 ---
 
 ## Visualização salva "perdia" seções em outro lançamento (2026-09-21)
 
-**Sintoma:** no `/debriefing` de um lançamento, o Resumo Executivo parecia ter sumido; só voltava
-clicando em **Seções → Ordem original do sistema**. Quem não tinha visualização salva nunca viu o
-problema.
+**Sintoma:** no `/debriefing` de um lançamento, o Resumo Executivo parecia ter sumido; só voltava clicando em **Seções → Ordem original do sistema**. Quem não tinha visualização salva nunca viu o problema.
 
-**Causa:** a chave de cada seção sai do **texto do título** (`slugKey(title.textContent)`), e três
-títulos carregam a badge com o código do lançamento — Resumo Executivo, Detalhamento de Tráfego e
-Detalhamento por Dia. A mesma seção virava chave diferente em cada lançamento:
+**Causa:** a chave de cada seção sai do **texto do título** (`slugKey(title.textContent)`), e três títulos carregam a badge com o código do lançamento — Resumo Executivo, Detalhamento de Tráfego e Detalhamento por Dia. A mesma seção virava chave diferente em cada lançamento:
 
 | lançamento aberto | chave gerada |
 |---|---|
 | PES-SET-26 | `resumo-executivo-pes-set-26-pes-mai-26` |
 | PES-MAI-26 | `resumo-executivo-pes-mai-26-pes-mar-26` |
 
-A visualização salva guarda a chave de **um** lançamento. Ao abrir outro, essas seções não eram
-reconhecidas e caíam no `meta.forEach(... indexOf === -1) container.appendChild(...)` — ou seja,
-iam para o **fim da página**. Não ficavam ocultas; ficavam no rodapé, o que passa a impressão de
-terem sumido.
+A visualização salva guarda a chave de **um** lançamento. Ao abrir outro, essas seções não eram reconhecidas e caíam no `meta.forEach(... indexOf === -1) container.appendChild(...)` — ou seja, iam para o **fim da página**. Não ficavam ocultas; ficavam no rodapé, o que passa a impressão de terem sumido.
 
-**Fix (`static/js/secoes.js`):** a chave passa a sair do título **sem** as `.dbf-launch-badge`
-(clona o nó, remove as badges, gera o slug). As três viram `resumo-executivo`,
-`detalhamento-de-trafego` e `detalhamento-por-dia` em qualquer lançamento. O `label` continua com a
-badge, que é o que aparece na lista de Seções.
+**Fix (`static/js/secoes.js`):** a chave passa a sair do título **sem** as `.dbf-launch-badge` (clona o nó, remove as badges, gera o slug). As três viram `resumo-executivo`, `detalhamento-de-trafego` e `detalhamento-por-dia` em qualquer lançamento. O `label` continua com a badge, que é o que aparece na lista de Seções.
 
-**Views antigas continuam valendo:** `k()` ganhou um passo que remove o padrão de código de
-lançamento da chave salva antes de desistir (`-pes-set-26`, `-bv-25`…), e cada seção registra a
-chave antiga do lançamento aberto em `deLegacy`. Verificado no navegador: com uma view gravada com
-as chaves do PES-SET-26, o PES-MAI-26 abre com o Resumo Executivo na posição salva em vez de no
-rodapé.
+**Views antigas continuam valendo:** `k()` ganhou um passo que remove o padrão de código de lançamento da chave salva antes de desistir (`-pes-set-26`, `-bv-25`…), e cada seção registra a chave antiga do lançamento aberto em `deLegacy`. Verificado no navegador: com uma view gravada com as chaves do PES-SET-26, o PES-MAI-26 abre com o Resumo Executivo na posição salva em vez de no rodapé.
 
-**Nota de escopo:** este bug é diferente de "o debriefing não é igual em todos os lançamentos".
-Cinco seções (Typeform ×3, Leads × Grupos de WhatsApp, Páginas de Captura) realmente não são
-renderizadas quando a fonte não existe naquele lançamento — Typeform foi cancelado e o GA4 só
-passou a ser coletado depois de mai/26. Mostrar a seção com `sem_dados()` em vez de omitir segue
-como decisão em aberto com o usuário.
+**Nota de escopo:** este bug é diferente de "o debriefing não é igual em todos os lançamentos". Cinco seções (Typeform ×3, Leads × Grupos de WhatsApp, Páginas de Captura) realmente não são renderizadas quando a fonte não existe naquele lançamento — Typeform foi cancelado e o GA4 só passou a ser coletado depois de mai/26. Mostrar a seção com `sem_dados()` em vez de omitir segue como decisão em aberto com o usuário.
 
 ### Datas de cadastro dos leads — resolvido (2026-09-21)
 
-A carga de 13/08/26 gravou datas trocadas por `dayfirst=True`: com data ISO, o pandas troca mês
-e dia quando o dia é ≤ 12 (`2026-01-12` virava `2026-12-01`) e descarta a linha como nula
-quando é > 12. Resultado: **136 mil leads sem `created_at`** (10,9% da base) e 23 mil com data
-no futuro — qualquer corte por período simplesmente não os enxergava.
+A carga de 13/08/26 gravou datas trocadas por `dayfirst=True`: com data ISO, o pandas troca mês e dia quando o dia é ≤ 12 (`2026-01-12` virava `2026-12-01`) e descarta a linha como nula quando é > 12. Resultado: **136 mil leads sem `created_at`** (10,9% da base) e 23 mil com data no futuro — qualquer corte por período simplesmente não os enxergava.
 
-A causa já estava corrigida no código desde 02/09 (formato explícito no lugar do `dayfirst`),
-mas o dado gravado não. Não dava para consertar com `UPDATE`: existe transformação inversa
-exata (trocar mês/dia e somar 3 horas, validada em 25 de 25 casos contra a API), mas ela só
-podia ser aplicada onde a troca era **certa** — nas 411 mil linhas de data passada com dia ≤ 12
-a troca produziu outra data plausível, e rodar ali corromperia as ~78% corretas.
+A causa já estava corrigida no código desde 02/09 (formato explícito no lugar do `dayfirst`), mas o dado gravado não. Não dava para consertar com `UPDATE`: existe transformação inversa exata (trocar mês/dia e somar 3 horas, validada em 25 de 25 casos contra a API), mas ela só podia ser aplicada onde a troca era **certa** — nas 411 mil linhas de data passada com dia ≤ 12 a troca produziu outra data plausível, e rodar ali corromperia as ~78% corretas.
 
-**Ressincronizado contra o `cdate` do Active Campaign entre 18 e 21/09/26.** Medido em 21/09:
-`created_at` nulo e data futura em **zero**, e o total de leads subiu de 1.247.308 para
-1.247.392 — datas foram preenchidas, nenhuma linha removida. O `lead_lancamentos` passou de
-153.374 para 364.773 pares na mesma passada.
+**Ressincronizado contra o `cdate` do Active Campaign entre 18 e 21/09/26.** Medido em 21/09: `created_at` nulo e data futura em **zero**, e o total de leads subiu de 1.247.308 para 1.247.392 — datas foram preenchidas, nenhuma linha removida. O `lead_lancamentos` passou de 153.374 para 364.773 pares na mesma passada.
 
-Detalhe do registro: **quem executou e por qual método não ficou documentado** — não houve
-commit correspondente no repositório. Se o problema reaparecer, esse é o rastro que falta.
+Detalhe do registro: **quem executou e por qual método não ficou documentado** — não houve commit correspondente no repositório. Se o problema reaparecer, esse é o rastro que falta.
 
 ---
 
 ## /pesquisas entra no acordeão padrão (2026-09-22)
 
-A página estava fora do padrão das demais: dois blocos grandes ficavam **soltos**, como filhos
-diretos do `.content`, então o acordeão não os enxergava — não dava pra recolher, reordenar nem
-ocultar:
+A página estava fora do padrão das demais: dois blocos grandes ficavam **soltos**, como filhos diretos do `.content`, então o acordeão não os enxergava — não dava pra recolher, reordenar nem ocultar:
 
 | bloco | virou |
 |---|---|
 | `.tp-kpi-grid` (respostas, respondentes, leads, faturamento) | seção "Resumo da Pesquisa" |
 | `.grid` com Top Estados + Top Anúncios | seção "Top Estados e Anúncios" |
 
-O acordeão descobre seção por `.section > .section-title` (`static/js/secoes.js`); bloco fora
-dessa estrutura simplesmente não existe pra ele. Com o ajuste, a página foi de 6 para **8 seções**
-reconhecidas, e nada mais sobra solto.
+O acordeão descobre seção por `.section > .section-title` (`static/js/secoes.js`); bloco fora dessa estrutura simplesmente não existe pra ele. Com o ajuste, a página foi de 6 para **8 seções** reconhecidas, e nada mais sobra solto.
 
-Os outros 6 títulos ganharam ícone (`<i class="ti …">`), que era a outra diferença visível pro
-resto do sistema — no debriefing todo título abre com ícone.
+Os outros 6 títulos ganharam ícone (`<i class="ti …">`), que era a outra diferença visível pro resto do sistema — no debriefing todo título abre com ícone.
 
-**O que NÃO foi mexido:** a página tem um acordeão caseiro (`toggleAccordion`, classes
-`.accordion-item/.accordion-header/.accordion-content`) usado **dentro** da seção "Roteiros e
-Ganchos de Copy" pra abrir cada roteiro. É aninhado e por item, não concorre com o acordeão de
-seção — trocar por outra coisa seria mexer no que funciona.
+**O que NÃO foi mexido:** a página tem um acordeão caseiro (`toggleAccordion`, classes `.accordion-item/.accordion-header/.accordion-content`) usado **dentro** da seção "Roteiros e Ganchos de Copy" pra abrir cada roteiro. É aninhado e por item, não concorre com o acordeão de seção — trocar por outra coisa seria mexer no que funciona.
 
-Conferido no navegador: 8 seções, 8 com ícone, 8 chevrons, barra de controles presente,
-Recolher/Expandir levando de 8 pra 0, zero erro de JS e zero overflow horizontal.
+Conferido no navegador: 8 seções, 8 com ícone, 8 chevrons, barra de controles presente, Recolher/Expandir levando de 8 pra 0, zero erro de JS e zero overflow horizontal.
 
 ---
 
 ## /google-audiences e /meta-audiences entram no acordeão padrão (2026-09-22)
 
-Mesmo caso do `/pesquisas` no dia anterior: a faixa de KPIs (`.tp-kpi-grid`) ficava solta, como
-filho direto do `.content`, fora de qualquer `.section`. O acordeão descobre seção por
-`.section > .section-title`, então o bloco não podia ser recolhido, reordenado nem ocultado. Virou
-a seção **"Visão Geral"** nas duas páginas.
+Mesmo caso do `/pesquisas` no dia anterior: a faixa de KPIs (`.tp-kpi-grid`) ficava solta, como filho direto do `.content`, fora de qualquer `.section`. O acordeão descobre seção por `.section > .section-title`, então o bloco não podia ser recolhido, reordenado nem ocultado. Virou a seção **"Visão Geral"** nas duas páginas.
 
-Nenhum dos títulos tinha ícone — as duas páginas foram as únicas assim. Todos ganharam (`ti-`
-temperature/bulb/trophy/users/layout-grid), que é como o resto do sistema escreve título de seção.
+Nenhum dos títulos tinha ícone — as duas páginas foram as únicas assim. Todos ganharam (`ti-` temperature/bulb/trophy/users/layout-grid), que é como o resto do sistema escreve título de seção.
 
-**Armadilha de verificação:** o primeiro teste automático disse "4 de 4 títulos com ícone" quando
-nenhum tinha. O seletor era `title.querySelector('i.ti')`, e o **chevron** do próprio acordeão é
-um `<i class="ti ti-chevron-down">` dentro do título — todo título "tinha ícone". O teste certo
-ignora quem tem a classe `bs-chevron`. Vale pra qualquer checagem futura de ícone em título.
+**Armadilha de verificação:** o primeiro teste automático disse "4 de 4 títulos com ícone" quando nenhum tinha. O seletor era `title.querySelector('i.ti')`, e o **chevron** do próprio acordeão é um `<i class="ti ti-chevron-down">` dentro do título — todo título "tinha ícone". O teste certo ignora quem tem a classe `bs-chevron`. Vale pra qualquer checagem futura de ícone em título.
 
-Conferido: google-audiences 5 seções, meta-audiences 6, todas com ícone de verdade, nada solto,
-Recolher/Expandir levando tudo a 0 e de volta, zero erro de JS e zero overflow horizontal.
+Conferido: google-audiences 5 seções, meta-audiences 6, todas com ícone de verdade, nada solto, Recolher/Expandir levando tudo a 0 e de volta, zero erro de JS e zero overflow horizontal.
 
 ---
 
 ## /leads: "compradores sem CRM" era falso, e a página ganhou anúncio (2026-09-22)
 
-**Conferência pedida pelo usuário.** Os números de topo batem com as fontes: 56.461 leads =
-linhas da tabela `leads` do lançamento; 1.440 compradores = `read_vendas` (a fonte correta, ver
-`feedback_vendas_fonte_correta`). O card **"Compradores sem CRM — 529"**, porém, estava errado.
+**Conferência pedida pelo usuário.** Os números de topo batem com as fontes: 56.461 leads = linhas da tabela `leads` do lançamento; 1.440 compradores = `read_vendas` (a fonte correta, ver `feedback_vendas_fonte_correta`). O card **"Compradores sem CRM — 529"**, porém, estava errado.
 
-**O que ele media de verdade:** o casamento comprador↔lead roda com
-`WHERE lancamento_codigo = :code AND LOWER(TRIM(email)) = ANY(:buyers)` — só e-mail, e só leads
-**deste** lançamento. Quem não casava caía em "sem CRM". Medido no PES-SET-26, **nenhum dos 1.440
-compradores está fora do CRM**:
+**O que ele media de verdade:** o casamento comprador↔lead roda com `WHERE lancamento_codigo = :code AND LOWER(TRIM(email)) = ANY(:buyers)` — só e-mail, e só leads **deste** lançamento. Quem não casava caía em "sem CRM". Medido no PES-SET-26, **nenhum dos 1.440 compradores está fora do CRM**:
 
 | onde o comprador está cadastrado | qtd |
 |---|---|
@@ -3873,93 +2393,45 @@ compradores está fora do CRM**:
 | lançamentos anteriores (PES-MAI/MAR/JAN, PI-AGO…) | ~100 |
 | casou só por **telefone** neste lançamento (comprou com outro e-mail) | 116 |
 
-Ou seja, era recompra e falha de etiquetagem sendo lida como furo de rastreamento. Por e-mail
-casam 910; incluindo telefone, 1.415 dos 1.440.
+Ou seja, era recompra e falha de etiquetagem sendo lida como furo de rastreamento. Por e-mail casam 910; incluindo telefone, 1.415 dos 1.440.
 
-**Fix:** o card virou dois — "Compradores que já eram base" (530) e "Compradores fora do CRM" (0,
-buscando por e-mail **ou** telefone, em qualquer lançamento) — mais a seção 7, que mostra em quais
-lançamentos essa gente está cadastrada. A soma das origens passa do total de propósito: a mesma
-pessoa aparece em mais de um lançamento.
+**Fix:** o card virou dois — "Compradores que já eram base" (530) e "Compradores fora do CRM" (0, buscando por e-mail **ou** telefone, em qualquer lançamento) — mais a seção 7, que mostra em quais lançamentos essa gente está cadastrada. A soma das origens passa do total de propósito: a mesma pessoa aparece em mais de um lançamento.
 
-**Armadilha no meio do caminho:** a primeira versão do `OR telefone` usava a agenda inteira de
-compradores em vez de só os do `resto`, e a quebra por origem acusava 1.007 no próprio lançamento —
-gente que já tinha casado por e-mail. O filtro de telefone tem que ser dos mesmos compradores da
-consulta.
+**Armadilha no meio do caminho:** a primeira versão do `OR telefone` usava a agenda inteira de compradores em vez de só os do `resto`, e a quebra por origem acusava 1.007 no próprio lançamento — gente que já tinha casado por e-mail. O filtro de telefone tem que ser dos mesmos compradores da consulta.
 
-**Seção nova: "Qualidade por Anúncio (ADxxx)".** O código do anúncio vem no `utm_term` do lead
-(não no `utm_content`) e está preenchido em ~100% da base — 59 anúncios com 10+ leads no
-PES-SET-26. Mostra que volume e venda não andam juntos: AD347 traz 6.757 leads e converte 1,60%,
-enquanto o AD290 traz 4.412 e converte **1,97%**; já o AD366 traz 3.677 e converte 0,44%. É
-consulta agregada própria — juntar `utm_term` ao GROUP BY principal multiplicaria a cardinalidade
-de todas as outras quebras (ver a nota de egress no próprio `read_leads`).
+**Seção nova: "Qualidade por Anúncio (ADxxx)".** O código do anúncio vem no `utm_term` do lead (não no `utm_content`) e está preenchido em ~100% da base — 59 anúncios com 10+ leads no PES-SET-26. Mostra que volume e venda não andam juntos: AD347 traz 6.757 leads e converte 1,60%, enquanto o AD290 traz 4.412 e converte **1,97%**; já o AD366 traz 3.677 e converte 0,44%. É consulta agregada própria — juntar `utm_term` ao GROUP BY principal multiplicaria a cardinalidade de todas as outras quebras (ver a nota de egress no próprio `read_leads`).
 
-**Ainda parado na tabela `leads`**, se quiser ampliar mais: `gclid` (19,6%) e `fbclid` (79,0%),
-insumo do projeto de conversão offline; e `tags`/`ativo`/`status_listas` (93%), que dariam saúde
-da base — quem segue ativo, quem descadastrou.
+**Ainda parado na tabela `leads`**, se quiser ampliar mais: `gclid` (19,6%) e `fbclid` (79,0%), insumo do projeto de conversão offline; e `tags`/`ativo`/`status_listas` (93%), que dariam saúde da base — quem segue ativo, quem descadastrou.
 
 ## O upsert de `leads` apagava coluna que o ETL não conhece (2026-09-22)
 
-**Sintoma:** colunas de `leads` gravadas por fora do ETL voltavam a NULL sozinhas, de hora em
-hora. Quem percebeu associou ao scheduler — `active_campaign` está em `FONTES_LENTAS`, cron
-`minute=20`.
+**Sintoma:** colunas de `leads` gravadas por fora do ETL voltavam a NULL sozinhas, de hora em hora. Quem percebeu associou ao scheduler — `active_campaign` está em `FONTES_LENTAS`, cron `minute=20`.
 
-**Causa:** `upsert()` em `etl/etl_active_campaign.py` era `DELETE FROM leads WHERE id = ANY(...)`
-seguido de `INSERT (col_list)`, e `col_list` vem de `list(df.columns)` — as colunas do
-**DataFrame**, não as da tabela. Toda coluna que existe em `leads` e não vem no ETL era recriada
-no default (NULL) em cada linha tocada. Silencioso por construção: `INSERT` não reclama de coluna
-ausente, só grava NULL.
+**Causa:** `upsert()` em `etl/etl_active_campaign.py` era `DELETE FROM leads WHERE id = ANY(...)` seguido de `INSERT (col_list)`, e `col_list` vem de `list(df.columns)` — as colunas do **DataFrame**, não as da tabela. Toda coluna que existe em `leads` e não vem no ETL era recriada no default (NULL) em cada linha tocada. Silencioso por construção: `INSERT` não reclama de coluna ausente, só grava NULL.
 
-**Fix (`f358ae6`):** virou `INSERT ... ON CONFLICT (id) DO UPDATE SET`, com o `SET` montado só a
-partir das colunas do DataFrame. O que está fora dele não é tocado. Corrige a classe inteira do
-problema sem o ETL precisar saber quais colunas existem — que é o ponto, porque hoje ele não sabe.
-`updated_at` entra no `SET` explicitamente: o `DEFAULT NOW()` da coluna só vale no `INSERT`, então
-sem isso ele congelaria no valor antigo a cada atualização.
+**Fix (`f358ae6`):** virou `INSERT ... ON CONFLICT (id) DO UPDATE SET`, com o `SET` montado só a partir das colunas do DataFrame. O que está fora dele não é tocado. Corrige a classe inteira do problema sem o ETL precisar saber quais colunas existem — que é o ponto, porque hoje ele não sabe. `updated_at` entra no `SET` explicitamente: o `DEFAULT NOW()` da coluna só vale no `INSERT`, então sem isso ele congelaria no valor antigo a cada atualização.
 
-Vale para quem chama `upsert()` de fora também: `etl/ressync_leads_ac.py` (linhas 230 e 303)
-importa a mesma função, então a recarga completa do Active Campaign usa este mesmo caminho.
+Vale para quem chama `upsert()` de fora também: `etl/ressync_leads_ac.py` (linhas 230 e 303) importa a mesma função, então a recarga completa do Active Campaign usa este mesmo caminho.
 
-**O que isso protege:** `ativo` (843.386 valores) e `status_listas` — em produção, **fora do
-`schema.sql`**, sem registro de decisão. Já `tags`/`tags_atualizado_em` têm decisão registrada de
-descartar (`ee4e361`), mas nunca foram dropadas do banco; o fix passa a preservá-las como efeito
-colateral. Se a decisão continua de pé, o caminho é um `DROP COLUMN` explícito, não deixar um ETL
-apagar por omissão.
+**O que isso protege:** `ativo` (843.386 valores) e `status_listas` — em produção, **fora do `schema.sql`**, sem registro de decisão. Já `tags`/`tags_atualizado_em` têm decisão registrada de descartar (`ee4e361`), mas nunca foram dropadas do banco; o fix passa a preservá-las como efeito colateral. Se a decisão continua de pé, o caminho é um `DROP COLUMN` explícito, não deixar um ETL apagar por omissão.
 
-**O segundo escritor tem nome: o Mateus.** Confirmado pelo usuário no mesmo dia. Ele rodou um
-upsert de todos os leads do Active Campaign por fora do repositório — `ativo`, `status_listas` e
-`tags` são colunas dele. Isso fecha, de uma vez, por que não estão no `schema.sql`, por que nenhum
-código nosso as grava, e por que os números pareciam impossíveis:
+**O segundo escritor tem nome: o Mateus.** Confirmado pelo usuário no mesmo dia. Ele rodou um upsert de todos os leads do Active Campaign por fora do repositório — `ativo`, `status_listas` e `tags` são colunas dele. Isso fecha, de uma vez, por que não estão no `schema.sql`, por que nenhum código nosso as grava, e por que os números pareciam impossíveis:
 
-- a recarga de 3.969.286 linhas rodou 09:31–11:24 por esse caminho, com o código **antigo** (o
-  arquivo só foi modificado às 11:31, depois do fim — `git status` às 09:45 não tinha nenhum
-  arquivo tracked modificado, confirmado por três sessões);
+- a recarga de 3.969.286 linhas rodou 09:31–11:24 por esse caminho, com o código **antigo** (o arquivo só foi modificado às 11:31, depois do fim — `git status` às 09:45 não tinha nenhum arquivo tracked modificado, confirmado por três sessões);
 - ainda assim `ativo` ficou em 843.386 antes e depois, número idêntico;
 - não há `DEFAULT` em `ativo` nem trigger em `leads`;
-- nenhum código desta máquina (`etl/`, `scripts/`, `src/`, `.py` não rastreados) grava `ativo` ou
-  `status_listas`;
-- linhas com e sem `ativo` compartilham o mesmo `min(updated_at)` ao microssegundo, então vieram
-  da mesma transação.
+- nenhum código desta máquina (`etl/`, `scripts/`, `src/`, `.py` não rastreados) grava `ativo` ou `status_listas`;
+- linhas com e sem `ativo` compartilham o mesmo `min(updated_at)` ao microssegundo, então vieram da mesma transação.
 
-O `min(updated_at)` idêntico era do lote **dele**, não do nosso. Não havia trigger nem default a
-procurar: havia uma pessoa.
+O `min(updated_at)` idêntico era do lote **dele**, não do nosso. Não havia trigger nem default a procurar: havia uma pessoa.
 
-**Por que ainda importa.** `leads` tem dois escritores legítimos que não se conhecem. O nosso ETL
-só faz upsert de quem tem `utm_content` ou `utm_term` — 1.936.550 das 3.969.286 linhas — e nessa
-população 99,2% tem `tags` e 657.120 têm `ativo`. Era exatamente aí que o `DELETE+INSERT` mordia o
-trabalho dele. O `ON CONFLICT` elimina a interação: cada um escreve as suas colunas e nenhum apaga
-as do outro.
+**Por que ainda importa.** `leads` tem dois escritores legítimos que não se conhecem. O nosso ETL só faz upsert de quem tem `utm_content` ou `utm_term` — 1.936.550 das 3.969.286 linhas — e nessa população 99,2% tem `tags` e 657.120 têm `ativo`. Era exatamente aí que o `DELETE+INSERT` mordia o trabalho dele. O `ON CONFLICT` elimina a interação: cada um escreve as suas colunas e nenhum apaga as do outro.
 
-**O que os dados NÃO sustentam:** a taxa de perda por ciclo. O total de `tags` não caiu entre
-11:55 e 14:09 (3.954.186 nas duas medições), mesmo com um ciclo lento no meio que reescreveu 14.830
-linhas, das quais só 0,86% tinham `tags`. Pode ser que já estivessem sem as colunas antes. A
-interação destrutiva está provada por leitura do código; o quanto ela de fato apagou, não.
+**O que os dados NÃO sustentam:** a taxa de perda por ciclo. O total de `tags` não caiu entre 11:55 e 14:09 (3.954.186 nas duas medições), mesmo com um ciclo lento no meio que reescreveu 14.830 linhas, das quais só 0,86% tinham `tags`. Pode ser que já estivessem sem as colunas antes. A interação destrutiva está provada por leitura do código; o quanto ela de fato apagou, não.
 
-É o mesmo padrão de `ee4e361` ("colunas criadas por fora do fluxo rastreado em 18/09/26") e do
-`customer_id` do Google Ads (`c8c9421`): trabalho legítimo entrando pelo banco antes de entrar pelo
-repositório. Enquanto `ativo`/`status_listas` não estiverem no `schema.sql`, ele não descreve a
-produção — mas agora isso é combinação com o dono das colunas, não descarte.
+É o mesmo padrão de `ee4e361` ("colunas criadas por fora do fluxo rastreado em 18/09/26") e do `customer_id` do Google Ads (`c8c9421`): trabalho legítimo entrando pelo banco antes de entrar pelo repositório. Enquanto `ativo`/`status_listas` não estiverem no `schema.sql`, ele não descreve a produção — mas agora isso é combinação com o dono das colunas, não descarte.
 
-**Não validado contra o banco.** O fix passa nos 86 testes de import; a verificação em produção foi
-negada por permissão nesta sessão. As medições acima vieram de outra sessão, não de leitura própria.
+**Não validado contra o banco.** O fix passa nos 86 testes de import; a verificação em produção foi negada por permissão nesta sessão. As medições acima vieram de outra sessão, não de leitura própria.
 
 
 ## Integracao YouTube Analytics API e Multi-Token por Canal (2026-09-22)
@@ -3988,72 +2460,40 @@ A API do YouTube Analytics foi integrada com suporte a multi-canal (diferentes c
 O token `YOUTUBE_REFRESH_TOKEN_PI` foi testado direto contra as duas APIs e responde:
 
 - `POST oauth2/token` → 200, escopos `yt-analytics.readonly` + `youtube.readonly`.
-- Data API `/channels?mine=true` → canal **Mateus Andrade - O Brabo dos Concursos**
-  (`@mateusandradeobrabo`, id `UC6yeThdN8E9i1go5dZ2TttA`), 2,05 mi de inscritos, 462 vídeos.
+- Data API `/channels?mine=true` → canal **Mateus Andrade - O Brabo dos Concursos** (`@mateusandradeobrabo`, id `UC6yeThdN8E9i1go5dZ2TttA`), 2,05 mi de inscritos, 462 vídeos.
 - Analytics API `/reports` → série diária de `views`/`estimatedMinutesWatched` sem erro.
 
-Não há escopo monetário (`yt-analytics-monetary.readonly`), então métrica de receita não sai
-por esse token — só audiência e retenção.
+Não há escopo monetário (`yt-analytics-monetary.readonly`), então métrica de receita não sai por esse token — só audiência e retenção.
 
-O ETL rodou ponta a ponta em PI-AGO-26 e PI-JAN-26 (exit 0, 5 aulas cada), com split
-live/replay preenchido.
+O ETL rodou ponta a ponta em PI-AGO-26 e PI-JAN-26 (exit 0, 5 aulas cada), com split live/replay preenchido.
 
 ### Duas armadilhas encontradas no roteamento de token
 
-1. **A janela de datas precisa cobrir a publicação das aulas.** A Analytics API devolve
-   `rows: [[0,0,0,0]]` — não erro — para vídeo publicado fora do `--start-date/--end-date`.
-   Uma primeira rodada de PI-AGO-26 com 20/07→10/08 gravou 4 das 5 aulas zeradas, porque as
-   aulas 2–5 saíram entre 12 e 18/08. Confira `published_at` antes de escolher o período.
-2. **Fallback silencioso para o canal errado.** `_load_client_credentials` caía em
-   `YOUTUBE_REFRESH_TOKEN` (canal do BB) quando a variável do prefixo estava vazia — o caso
-   atual de PES e PBB. O resultado seria a tabela inteira zerada sem nenhum aviso. Agora esse
-   caminho emite `logger.warning` nomeando a variável que faltou. O log de sucesso também foi
-   corrigido: dizia sempre "Usando YOUTUBE_REFRESH_TOKEN do .env", mesmo usando o `_PI`.
+1. **A janela de datas precisa cobrir a publicação das aulas.** A Analytics API devolve `rows: [[0,0,0,0]]` — não erro — para vídeo publicado fora do `--start-date/--end-date`. Uma primeira rodada de PI-AGO-26 com 20/07→10/08 gravou 4 das 5 aulas zeradas, porque as aulas 2–5 saíram entre 12 e 18/08. Confira `published_at` antes de escolher o período.
+2. **Fallback silencioso para o canal errado.** `_load_client_credentials` caía em `YOUTUBE_REFRESH_TOKEN` (canal do BB) quando a variável do prefixo estava vazia — o caso atual de PES e PBB. O resultado seria a tabela inteira zerada sem nenhum aviso. Agora esse caminho emite `logger.warning` nomeando a variável que faltou. O log de sucesso também foi corrigido: dizia sempre "Usando YOUTUBE_REFRESH_TOKEN do .env", mesmo usando o `_PI`.
 
 ---
 
 ## Egress — refresh seletivo pós-ETL, vendas sem `SELECT *`, pesquisa nova materializada (2026-09-30)
 
-Painel da org em 30/09 (ciclo 12/09–12/10, 18 dias): **588,7 GB** de egress, US$ 30,48 de
-excedente — `marketing_project` 495,8 GB e `comercial_project` 92,8 GB. O `comercial_project`
-é o banco **operacional** deste dashboard (`SUPABASE_USERS_URL`: hotmart, tmb, users,
-launch_config), então os dois números são nossos. Pelo `pg_stat_statements`, o que sobrou
-depois das correções de 14–18/09 tinha três causas, atacadas aqui nesta ordem de impacto.
+Painel da org em 30/09 (ciclo 12/09–12/10, 18 dias): **588,7 GB** de egress, US$ 30,48 de excedente — `marketing_project` 495,8 GB e `comercial_project` 92,8 GB. O `comercial_project` é o banco **operacional** deste dashboard (`SUPABASE_USERS_URL`: hotmart, tmb, users, launch_config), então os dois números são nossos. Pelo `pg_stat_statements`, o que sobrou depois das correções de 14–18/09 tinha três causas, atacadas aqui nesta ordem de impacto.
 
 ### 1. O aviso do ETL recomputava tudo, a cada 30 min
 
-O ciclo curto do scheduler (`meta_ads`, `google_ads`, `ga4`, `sheets_contagem`) chama
-`POST /api/etl/refresh`, e o dashboard respondia com `warm_active(invalidate=True)`: **todos**
-os leitores dos lançamentos ativos (e dos anteriores, via comparativo) eram recomputados —
-Typeform congelado, pesquisa nova, `leads`, grupos de WhatsApp, vendas — embora só os
-anúncios tivessem mudado. O que de fato muda a cada 30 min cabe em 1–2 GB/dia; o resto era
-releitura de dado parado. Foi por isso que dobrar `PRE_WARM_INTERVAL_MIN` (18/09) quase não
-apareceu no egress: a cadência efetiva era a do ETL.
+O ciclo curto do scheduler (`meta_ads`, `google_ads`, `ga4`, `sheets_contagem`) chama `POST /api/etl/refresh`, e o dashboard respondia com `warm_active(invalidate=True)`: **todos** os leitores dos lançamentos ativos (e dos anteriores, via comparativo) eram recomputados — Typeform congelado, pesquisa nova, `leads`, grupos de WhatsApp, vendas — embora só os anúncios tivessem mudado. O que de fato muda a cada 30 min cabe em 1–2 GB/dia; o resto era releitura de dado parado. Foi por isso que dobrar `PRE_WARM_INTERVAL_MIN` (18/09) quase não apareceu no egress: a cadência efetiva era a do ETL.
 
 **O que mudou** (`frontend/cache.py`, `frontend/services/prewarm.py`, `frontend/routes/api.py`):
 
-- `force_refresh_start(readers=…, codes=…)` — o contexto do refresh forçado carrega um
-  conjunto de **prefixos de leitor** (parte da chave antes de `::`) e de **códigos de
-  lançamento**. `_get_or_compute` só recomputa no lugar a chave que está nos dois escopos; o
-  resto segue no TTL de 1h. Sem argumentos, o comportamento é o antigo (tudo) — é o que o
-  aquecimento periódico, o ETL manual e o `?ao_vivo=1` continuam usando.
-- `LEITORES_POR_FONTE` (prewarm.py) diz que leitores dependem de cada fonte do ETL.
-  `LEITORES_VENDAS` entra em todo aviso de propósito: vendas não têm fonte no ETL (Hotmart e
-  TMB sincronizam por fora), mas o dia 1 do carrinho é acompanhado hora a hora.
-- `/api/etl/refresh` aceita `{"sources": [...]}` no body. O scheduler ainda não manda; enquanto
-  isso o dashboard descobre pela `etl_runs` (`fontes_recem_concluidas`: rodadas `ok` nos
-  últimos 15 min). Se não der pra saber, recomputa tudo, como antes.
-- O escopo por código deixa o lançamento **anterior** (lido pelo comparativo do ativo) no TTL
-  normal em vez de recomputá-lo a cada aviso.
+- `force_refresh_start(readers=…, codes=…)` — o contexto do refresh forçado carrega um conjunto de **prefixos de leitor** (parte da chave antes de `::`) e de **códigos de lançamento**. `_get_or_compute` só recomputa no lugar a chave que está nos dois escopos; o resto segue no TTL de 1h. Sem argumentos, o comportamento é o antigo (tudo) — é o que o aquecimento periódico, o ETL manual e o `?ao_vivo=1` continuam usando.
+- `LEITORES_POR_FONTE` (prewarm.py) diz que leitores dependem de cada fonte do ETL. `LEITORES_VENDAS` entra em todo aviso de propósito: vendas não têm fonte no ETL (Hotmart e TMB sincronizam por fora), mas o dia 1 do carrinho é acompanhado hora a hora.
+- `/api/etl/refresh` aceita `{"sources": [...]}` no body. O scheduler ainda não manda; enquanto isso o dashboard descobre pela `etl_runs` (`fontes_recem_concluidas`: rodadas `ok` nos últimos 15 min). Se não der pra saber, recomputa tudo, como antes.
+- O escopo por código deixa o lançamento **anterior** (lido pelo comparativo do ativo) no TTL normal em vez de recomputá-lo a cada aviso.
 
-Pré-requisito que não mudou: o aviso só existe se `ETL_REFRESH_TOKEN` e `FRONTEND_URL`
-estiverem configurados nos dois serviços. Sem eles, só o aquecimento periódico (1h, tudo) roda.
+Pré-requisito que não mudou: o aviso só existe se `ETL_REFRESH_TOKEN` e `FRONTEND_URL` estiverem configurados nos dois serviços. Sem eles, só o aquecimento periódico (1h, tudo) roda.
 
 ### 2. Vendas: `SELECT *` de 66 colunas e histórico inteiro por chamada
 
-No banco operacional, `hotmart_clean_oficial` tem 66 colunas e **636 bytes por linha**; o
-dashboard usava ~13 delas (~120 bytes). Três leituras respondiam pela maior parte do egress
-desse banco (`pg_stat_statements` desde 12/02/26):
+No banco operacional, `hotmart_clean_oficial` tem 66 colunas e **636 bytes por linha**; o dashboard usava ~13 delas (~120 bytes). Três leituras respondiam pela maior parte do egress desse banco (`pg_stat_statements` desde 12/02/26):
 
 | Leitor | Antes | Agora |
 |---|---|---|
@@ -4062,42 +2502,21 @@ desse banco (`pg_stat_statements` desde 12/02/26):
 | `read_dia1_sales` (`sales.py`) | baixava **toda** venda aprovada do produto (~5,5 mil linhas/chamada, 109 M acumuladas) e recortava o dia no pandas | recorte do dia no SQL (`ts BETWEEN`); o filtro em pandas ficou como estava |
 | `read_hotmart_recompra` (`hotmart.py`) | histórico inteiro de `hotmart_oficial` (~17,8 mil linhas/chamada, 180 M acumuladas) | pré-filtro de data no SQL com 1 dia de folga; só os 3 formatos de data conhecidos são recortados — formato desconhecido passa e o pandas decide, como antes (a tabela é crua, um cast que falhe derrubaria a consulta) |
 
-Saída idêntica: verificado com `tests/test_caracterizacao_readers.py` contra baseline gerado
-com o código anterior minutos antes (PBB-ABR-26 e PI-AGO-26; ver
-"Como validar mudança de reader sem regressão").
+Saída idêntica: verificado com `tests/test_caracterizacao_readers.py` contra baseline gerado com o código anterior minutos antes (PBB-ABR-26 e PI-AGO-26; ver "Como validar mudança de reader sem regressão").
 
 ### 3. Pesquisa nova materializada
 
-`_read_novo_sistema_respostas` agregava `jsonb_object_agg(p.titulo, r.valor)` sobre o JOIN de
-929 mil respostas a cada recarga, devolvendo ~20 mil linhas de ~1,8 KB por lançamento
-(2,6 GB/dia). O envelope de cada resposta (`{'texto'}`, `{'opcao','texto_outro'}`,
-`{'opcoes'}`) era descartado logo em seguida pelo `_extract_valor`.
+`_read_novo_sistema_respostas` agregava `jsonb_object_agg(p.titulo, r.valor)` sobre o JOIN de 929 mil respostas a cada recarga, devolvendo ~20 mil linhas de ~1,8 KB por lançamento (2,6 GB/dia). O envelope de cada resposta (`{'texto'}`, `{'opcao','texto_outro'}`, `{'opcoes'}`) era descartado logo em seguida pelo `_extract_valor`.
 
-- `etl/materializar_pesquisa.sql` cria a **materialized view** `pesquisa_respostas_valores`
-  (uma linha por submissão: `submissao_id`, `formulario_id`, `created_at`, `email_norm`,
-  `valores` jsonb já extraído — mesma regra do `_extract_valor`, replicada em SQL) e agenda
-  `REFRESH MATERIALIZED VIEW CONCURRENTLY` no **pg_cron a cada 15 min**
-  (job `pesquisa_respostas_valores_refresh`). Aplicada em produção em 30/09/26: 54.661 linhas,
-  94 MB, ~1,4 KB/linha, refresh em ~4 s. Como o leitor cacheia por 1h, o atraso de até 15 min
-  não aparece. É um arquivo à parte, como `etl/materializar_typeform.sql` — falta entrar no
-  `etl/schema.sql`.
-- O leitor lê da view (`ORDER BY submissao_id`, então a ordem passou a ser determinística);
-  se a view não existir, cai no JOIN antigo (`_read_novo_sistema_respostas_join`). Os dois
-  caminhos passam por `_wide_pesquisa`, que monta o DataFrame — e foram comparados célula a
-  célula nos formulários 9 (PBB-AGO-26, 27.160 × 20) e 13 (PES-SET-26, 17.206 × 20):
-  **zero diferenças**, inclusive depois do `drop_duplicates(keep="last")`. Leitura 2× mais
-  rápida.
+- `etl/materializar_pesquisa.sql` cria a **materialized view** `pesquisa_respostas_valores` (uma linha por submissão: `submissao_id`, `formulario_id`, `created_at`, `email_norm`, `valores` jsonb já extraído — mesma regra do `_extract_valor`, replicada em SQL) e agenda `REFRESH MATERIALIZED VIEW CONCURRENTLY` no **pg_cron a cada 15 min** (job `pesquisa_respostas_valores_refresh`). Aplicada em produção em 30/09/26: 54.661 linhas, 94 MB, ~1,4 KB/linha, refresh em ~4 s. Como o leitor cacheia por 1h, o atraso de até 15 min não aparece. É um arquivo à parte, como `etl/materializar_typeform.sql` — falta entrar no `etl/schema.sql`.
+- O leitor lê da view (`ORDER BY submissao_id`, então a ordem passou a ser determinística); se a view não existir, cai no JOIN antigo (`_read_novo_sistema_respostas_join`). Os dois caminhos passam por `_wide_pesquisa`, que monta o DataFrame — e foram comparados célula a célula nos formulários 9 (PBB-AGO-26, 27.160 × 20) e 13 (PES-SET-26, 17.206 × 20): **zero diferenças**, inclusive depois do `drop_duplicates(keep="last")`. Leitura 2× mais rápida.
 - Mudou a regra de extração no Python? Mude na view também e rode o `REFRESH`.
 
 ### Como conferir se valeu
 
-`python scripts/checar_egress.py` (pesa por byte) depois de um `pg_stat_statements_reset()`
-com o código novo no ar. No banco operacional o `pg_stat_statements` nunca foi zerado
-(desde 12/02/26) — zerar lá também antes de medir. Meta: os dois projetos somados abaixo de
-~8 GB/dia (250 GB/mês).
+`python scripts/checar_egress.py` (pesa por byte) depois de um `pg_stat_statements_reset()` com o código novo no ar. No banco operacional o `pg_stat_statements` nunca foi zerado (desde 12/02/26) — zerar lá também antes de medir. Meta: os dois projetos somados abaixo de ~8 GB/dia (250 GB/mês).
 
-Reverter: `_backup_egress_leitores_20260930/` no repo tem os originais; a materialização pode
-ficar (o código antigo não a usa).
+Reverter: `_backup_egress_leitores_20260930/` no repo tem os originais; a materialização pode ficar (o código antigo não a usa).
 
 ### Vendas da Black no dashboard (10/10/26)
 
@@ -4109,8 +2528,7 @@ Todo `CASE` produto→projeto dos leitores de venda (`sales`, `hotmart`, `tmb`, 
   1. confere em `padroes.LPS_OFICIAIS` (lançamento → {url: tag esperada});
   2. abre no Chromium (Playwright, user-agent de celular: o Cloudflare segura o headless padrão e o `curl`). Depois **rola a página**, porque o site adia GTM/pixel até a 1ª interação. Lê `_form_NNN` no HTML, `gtm.js?id=` e o pixel em `facebook.com/tr` (GET com `?id=` **ou** POST multipart com `name="id"`; o fbevents.js usa os dois);
   3. lê o formulário em `GET /api/3/forms/{id}` do AC: `name` e as ações `add-a-tag` de `actiondata`;
-  4. PageSpeed Insights (mobile) com OAuth.
-  Sai com 1 se alguma LP tiver alerta. Testes em `tests/test_ads.py`.
+  4. PageSpeed Insights (mobile) com OAuth. Sai com 1 se alguma LP tiver alerta. Testes em `tests/test_ads.py`.
 - **Acesso Google novo:** `GTM_REFRESH_TOKEN` (escopos `tagmanager.readonly` + `openid`; mesmo OAuth client do Google Ads; gerado por `etl/get_gtm_token.py`). O `openid` é o que a PageSpeed aceita em OAuth: sem auth a API devolve 429 (cota compartilhada), e com os tokens de Ads/GA4 devolve 403.
 - **`meta_ads_daily.landing_page_views`** (desde 10/10/26, backfill a partir de 23/09/26; antes disso fica 0): `actions[landing_page_view]` dos insights, gravado por `etl_meta_ads.build_df_from_api`. **Atenção ao ler:** a LP só carrega o pixel depois da 1ª interação, então LPV/clique subconta quem abre e sai sem tocar. Não é medida pura de velocidade (MUDANCAS_BV-26 item 264).
 - **Fix `campanha_historico.classificar`:** em janela longa, o nome congelado deixava `lancamento_codigo` = NaN (float) nas campanhas sem lançamento, e `uses_legacy_ad_codes` quebrava no `.strip()`. Isso derrubava qualquer backfill do Meta com campanha de distribuição renomeada. O scheduler (3 dias) não era afetado. Agora o que não é string vira `None`.
@@ -4171,23 +2589,10 @@ Até aqui o deploy era manual: push no GitHub e alguém clicava **Deploy** no Ea
 
 ### Vendas por anúncio na Black (27/10/26)
 
-`frontend/services/attribution.py::_sales_attribution` extraía o código do anúncio das UTMs com `_extract_ad_code`
-(`\bAD\d+\b`), que não reconhece a convenção da Black (`AD-TR35`, `ADC-MA38`). Resultado: **0 vendas atribuídas a anúncio
-na BV-26** (1.163 vendas), e a coluna de vendas/ROAS do `/criativos` vazia. Agora, quando `uses_legacy_ad_codes(launch.code)`
-(todo `BV-*`), usa `src/ad_codes.extract_ad_code(texto_utm, launch.code)`, a mesma regra que o `/criativos` já usava para o
-gasto, e as chaves casam. Demais lançamentos seguem com `_extract_ad_code`, sem mudança (PI-AGO-26 idêntico antes/depois:
-1.984 vendas em 57 anúncios). BV-26 depois: 452 vendas em 80 anúncios; na captação, 397 vendas / R$ 687.885 em 60 anúncios,
-todos com gasto casado. Ainda com a regex clássica (não afetam o `/criativos`): `db_readers/caminho_comprador.py`,
-`db_readers/typeform.py` (pesquisa por anúncio) e `services/copys.py`.
+`frontend/services/attribution.py::_sales_attribution` extraía o código do anúncio das UTMs com `_extract_ad_code` (`\bAD\d+\b`), que não reconhece a convenção da Black (`AD-TR35`, `ADC-MA38`). Resultado: **0 vendas atribuídas a anúncio na BV-26** (1.163 vendas), e a coluna de vendas/ROAS do `/criativos` vazia. Agora, quando `uses_legacy_ad_codes(launch.code)` (todo `BV-*`), usa `src/ad_codes.extract_ad_code(texto_utm, launch.code)`, a mesma regra que o `/criativos` já usava para o gasto, e as chaves casam. Demais lançamentos seguem com `_extract_ad_code`, sem mudança (PI-AGO-26 idêntico antes/depois: 1.984 vendas em 57 anúncios). BV-26 depois: 452 vendas em 80 anúncios; na captação, 397 vendas / R$ 687.885 em 60 anúncios, todos com gasto casado. Ainda com a regex clássica (não afetam o `/criativos`): `db_readers/caminho_comprador.py`, `db_readers/typeform.py` (pesquisa por anúncio) e `services/copys.py`.
 
 ## Grupos de WhatsApp — modelo novo por eventos (27/10/26)
-Desde 22/10/26 a automação grava um **evento por entrada/saída** em `leads_grupos_eventos` (analytics DB: `timestamp` com hora real, `nome_grupo`, `ent_sai` Entrou/Saiu, `numero_lead`,
-`nome_campanha` = "Projeto INSS [PI-NOV-26]" no normal, "Grupo VIP [PI-NOV-26]" no VIP) e um resumo por pessoa em `leads_grupos` (só o último status — **defasada, não usar como base**).
-Não existe mais tabela `<COD>_API` por lançamento nem linha na planilha para os lançamentos novos. Leitor: `frontend/db_readers/whatsapp_eventos.py`, usado **só como alternativa**
-(`whatsapp_sheets.contar_lancamento`/`historico_diario`/`pico_por_bloco` e `whatsapp_groups._read_whatsapp_uncached`) quando o lançamento não tem dado no modelo antigo; a Black fica de fora.
-Contas: pessoa ativa = último evento Entrou em ≥1 grupo; entradas do dia = primeira entrada no bloco; saídas do dia = pessoas com evento Saiu; "leads totais" = total limpo ao fim do dia (dia em
-Brasília). Validado: PI-AGO-26 bate exato com a tabela antiga (409.919/380.537); PBB-AGO-26 a 17 pessoas; view `vw_leads_ativos_grupos` a ~0,2%. O dia 22/10/26 é a carga inicial da automação.
-**Premissa a confirmar:** os grupos do PES-NOV-26 saem como `[PES-PPE-26]` (Pós-Edital); o mapa fica em `CODIGOS_EVENTOS`.
+Desde 22/10/26 a automação grava um **evento por entrada/saída** em `leads_grupos_eventos` (analytics DB: `timestamp` com hora real, `nome_grupo`, `ent_sai` Entrou/Saiu, `numero_lead`, `nome_campanha` = "Projeto INSS [PI-NOV-26]" no normal, "Grupo VIP [PI-NOV-26]" no VIP) e um resumo por pessoa em `leads_grupos` (só o último status — **defasada, não usar como base**). Não existe mais tabela `<COD>_API` por lançamento nem linha na planilha para os lançamentos novos. Leitor: `frontend/db_readers/whatsapp_eventos.py`, usado **só como alternativa** (`whatsapp_sheets.contar_lancamento`/`historico_diario`/`pico_por_bloco` e `whatsapp_groups._read_whatsapp_uncached`) quando o lançamento não tem dado no modelo antigo; a Black fica de fora. Contas: pessoa ativa = último evento Entrou em ≥1 grupo; entradas do dia = primeira entrada no bloco; saídas do dia = pessoas com evento Saiu; "leads totais" = total limpo ao fim do dia (dia em Brasília). Validado: PI-AGO-26 bate exato com a tabela antiga (409.919/380.537); PBB-AGO-26 a 17 pessoas; view `vw_leads_ativos_grupos` a ~0,2%. O dia 22/10/26 é a carga inicial da automação. **Premissa a confirmar:** os grupos do PES-NOV-26 saem como `[PES-PPE-26]` (Pós-Edital); o mapa fica em `CODIGOS_EVENTOS`.
 
 ## Faxina da raiz do repositório e `outputs/` separado (2026-10-28)
 
@@ -4199,659 +2604,252 @@ Brasília). Validado: PI-AGO-26 bate exato com a tabela antiga (409.919/380.537)
 
 ## Distribuição: vence o expert que aparece primeiro no nome (2026-10-28)
 
-`etl/launch_resolver.py::resolve_perpetuo_or_distribuicao_code` escolhia o código da distribuição pela
-**ordem do `config/instagram_accounts.yaml`** (experts sem Instagram primeiro, depois as contas na ordem do
-arquivo). Como "Brabo Concursos" vem antes de "Felipe Graton" no YAML, as duas campanhas de YouTube do Felipe
-(`[felipe graton][brabo concursos]`, customer `1450466453`) caíam em `DISTRIBUICAO-BRABO-CONCURSOS`.
-Foram **R$ 133,9 mil** desde set/25, cerca de R$ 12 mil/mês. Em `/lancamentos`, o cartão "Brabo Concursos ·
-Ivan Neto" somava esse gasto ao do Ivan (`backup_de`), e o cartão do Felipe mostrava só o Meta.
+`etl/launch_resolver.py::resolve_perpetuo_or_distribuicao_code` escolhia o código da distribuição pela **ordem do `config/instagram_accounts.yaml`** (experts sem Instagram primeiro, depois as contas na ordem do arquivo). Como "Brabo Concursos" vem antes de "Felipe Graton" no YAML, as duas campanhas de YouTube do Felipe (`[felipe graton][brabo concursos]`, customer `1450466453`) caíam em `DISTRIBUICAO-BRABO-CONCURSOS`. Foram **R$ 133,9 mil** desde set/25, cerca de R$ 12 mil/mês. Em `/lancamentos`, o cartão "Brabo Concursos · Ivan Neto" somava esse gasto ao do Ivan (`backup_de`), e o cartão do Felipe mostrava só o Meta.
 
-Agora, entre os nomes encontrados na campanha, vence **o que aparece primeiro**. A convenção é `[expert][perfil]`,
-então `[ivan neto][brabo concursos]` continua no Ivan. Testes em `tests/test_launch_resolver_perpetuo.py::test_distribuicao_por_expert`.
-A simulação sobre todos os nomes do banco mudou só essas 2 campanhas (de 25).
+Agora, entre os nomes encontrados na campanha, vence **o que aparece primeiro**. A convenção é `[expert][perfil]`, então `[ivan neto][brabo concursos]` continua no Ivan. Testes em `tests/test_launch_resolver_perpetuo.py::test_distribuicao_por_expert`. A simulação sobre todos os nomes do banco mudou só essas 2 campanhas (de 25).
 
-**Deploy feito em 29/10/26** (commit `a901237`; o ETL das 15:05 já gravou os últimos 3 dias certo). **Histórico corrigido em 29/10/26:**
-9.333 linhas / R$ 131,9 mil das campanhas `21779366345` e `22671102707` (set/25–out/26), por UPDATE dirigido com backup (não usar
-`--reavaliar`, que reavalia o banco inteiro) — ver [[MUDANCAS_DISTRIBUICAO-FELIPE-GRATON]], item 5.
+**Deploy feito em 29/10/26** (commit `a901237`; o ETL das 15:05 já gravou os últimos 3 dias certo). **Histórico corrigido em 29/10/26:** 9.333 linhas / R$ 131,9 mil das campanhas `21779366345` e `22671102707` (set/25–out/26), por UPDATE dirigido com backup (não usar `--reavaliar`, que reavalia o banco inteiro) — ver [[MUDANCAS_DISTRIBUICAO-FELIPE-GRATON]], item 5.
 
 
 ### Card "% com anúncio identificado" da Captação e o cache que deixava o número velho (2026-10-29)
 
-`read_utm_cobertura` (`frontend/db_readers/leads.py`) mede, em `lead_utm_lancamento`, a parcela de contatos com o código do
-anúncio (`ADxxx`) em `utm_term` **ou** `utm_content` — a convenção mudou entre lançamentos (PBB-ABR-26 no `utm_content`;
-PI-AGO-26 e PES-NOV-26 no `utm_term`, com o nome do público no `utm_content`). Antes contava `utm_content` preenchido e dava
-~100% sempre. Limite conhecido: a tabela só recebe contatos cuja UTM nomeia o lançamento, então lead sem UTM não entra no
-denominador.
+`read_utm_cobertura` (`frontend/db_readers/leads.py`) mede, em `lead_utm_lancamento`, a parcela de contatos com o código do anúncio (`ADxxx`) em `utm_term` **ou** `utm_content` — a convenção mudou entre lançamentos (PBB-ABR-26 no `utm_content`; PI-AGO-26 e PES-NOV-26 no `utm_term`, com o nome do público no `utm_content`). Antes contava `utm_content` preenchido e dava ~100% sempre. Limite conhecido: a tabela só recebe contatos cuja UTM nomeia o lançamento, então lead sem UTM não entra no denominador.
 
-`_utm_cobertura` e `_total_leads_active` (`frontend/services/fetch.py`) **não usam mais `_get_or_compute`**: com
-stale-while-revalidate e sem nenhum aquecimento que as chamasse, a Captação mostrava o valor da visita anterior (24.500 na tela
-× 30.055 no banco). Regra geral: leitor barato e sem aquecimento não deve ficar atrás do cache com SWR — ou entra no
-`warm_launch`, ou lê direto.
+`_utm_cobertura` e `_total_leads_active` (`frontend/services/fetch.py`) **não usam mais `_get_or_compute`**: com stale-while-revalidate e sem nenhum aquecimento que as chamasse, a Captação mostrava o valor da visita anterior (24.500 na tela × 30.055 no banco). Regra geral: leitor barato e sem aquecimento não deve ficar atrás do cache com SWR — ou entra no `warm_launch`, ou lê direto.
 - **`img/` → `assets/` (2026-10-29).** A pasta de logos e favicon e a URL mudaram juntas: `ASSETS_DIR` em `frontend/app.py`/`core.py`, `app.mount("/assets", ...)` e a liberação sem login (`path.startswith("/assets")`, senão o logo some da tela de login). Os 37 templates passaram a usar `/assets/...`, e `/img/...` deixou de existir (redireciona para o login). Pendência anterior à troca: `meta.html`/`google.html` apontam para `/assets/placeholder-ad.png`, que nunca existiu na pasta, então o fallback de thumbnail dá 404.
 
 ### WhatsApp por etapa na Captação + comparativo antes da captação (2026-10-29)
 
-- **Problema:** `/captacao` do PI-NOV-26 mostrava "Investimento total R$ 26.658" antes de existir captação — era o custo de
-  WhatsApp da janela inteira do lançamento (começa na pré-quali); e o comparativo com o anterior usava "1 dia equivalente"
-  e dava −100% em tudo.
-- **Agora:** `frontend/db_readers/whatsapp_messages.py::custo_por_etapa(wa, cfg)` reparte a série diária por número entre
-  Pré-Qualificação / Captação / Aulas / Carrinho / Outros pelas datas do `launch_config`; dia em duas etapas vai para a
-  mais adiantada (Carrinho > Aulas > Captação > Pré-Qualificação — decisão do usuário 29/10: sobreposição pré-quali ×
-  captação conta como Captação). `/captacao` soma só a fatia "Captação". `kpis_captacao_periodo_comparavel`
-  (`frontend/services/orcamento.py`) devolve `None` antes de `captacao_start_date`.
-- **Limite:** o banco só tem custo por dia × número × categoria. O custo por template existe na API
-  (`/{waba}/template_analytics`, `metric_types` com `COST`), mas em 12–28/10 cobriu só US$ 562 de ~R$ 26,6 mil no INSS —
-  os templates usados pelo Unichat (sufixo `_copy_N`) somem da lista. Os números também são compartilhados entre
-  lançamentos: em 15/10 o WABA `1067144278825913` (99402-6712) disparou a Matrícula da Black (BV-26) e entrou no PI-NOV-26.
-  Mapa dos templates: `outputs/templates_whatsapp_20261029.csv`.
+- **Problema:** `/captacao` do PI-NOV-26 mostrava "Investimento total R$ 26.658" antes de existir captação — era o custo de WhatsApp da janela inteira do lançamento (começa na pré-quali); e o comparativo com o anterior usava "1 dia equivalente" e dava −100% em tudo.
+- **Agora:** `frontend/db_readers/whatsapp_messages.py::custo_por_etapa(wa, cfg)` reparte a série diária por número entre Pré-Qualificação / Captação / Aulas / Carrinho / Outros pelas datas do `launch_config`; dia em duas etapas vai para a mais adiantada (Carrinho > Aulas > Captação > Pré-Qualificação — decisão do usuário 29/10: sobreposição pré-quali × captação conta como Captação). `/captacao` soma só a fatia "Captação". `kpis_captacao_periodo_comparavel` (`frontend/services/orcamento.py`) devolve `None` antes de `captacao_start_date`.
+- **Limite:** o banco só tem custo por dia × número × categoria. O custo por template existe na API (`/{waba}/template_analytics`, `metric_types` com `COST`), mas em 12–28/10 cobriu só US$ 562 de ~R$ 26,6 mil no INSS — os templates usados pelo Unichat (sufixo `_copy_N`) somem da lista. Os números também são compartilhados entre lançamentos: em 15/10 o WABA `1067144278825913` (99402-6712) disparou a Matrícula da Black (BV-26) e entrou no PI-NOV-26. Mapa dos templates: `outputs/templates_whatsapp_20261029.csv`.
 
 ### Criativo "rastreado por UTM" não herda mais o gasto de campanha com anúncios próprios (2026-10-29)
 
-`frontend/services/criativos.py`: código ADxxx que só existe na UTM de comprador recebia gasto/conversões da **campanha
-inteira** do Google citada no `utm_campaign`. No PI-AGO-26 o `AD333` (UTM colada à mão) virou uma linha de R$ 143.253,96 =
-`[GA][captação][quente][principal][PI-AGO-26][27.07.26]`, cujo gasto já estava nos 6 anúncios reais (verba contada duas
-vezes). Agora `GoogleSummary.campanhas_com_ad_code` (`frontend/db_readers/ads_google.py`) lista as campanhas com algum
-anúncio com ADxxx no nome, e essas não emprestam gasto; o código fica só com as vendas, na seção "vendas sem veiculação".
-Campanha sem nenhum ADxxx nos anúncios continua sendo casada pela UTM como antes. Diário: [[MUDANCAS_PI-AGO-26]] item 60.
+`frontend/services/criativos.py`: código ADxxx que só existe na UTM de comprador recebia gasto/conversões da **campanha inteira** do Google citada no `utm_campaign`. No PI-AGO-26 o `AD333` (UTM colada à mão) virou uma linha de R$ 143.253,96 = `[GA][captação][quente][principal][PI-AGO-26][27.07.26]`, cujo gasto já estava nos 6 anúncios reais (verba contada duas vezes). Agora `GoogleSummary.campanhas_com_ad_code` (`frontend/db_readers/ads_google.py`) lista as campanhas com algum anúncio com ADxxx no nome, e essas não emprestam gasto; o código fica só com as vendas, na seção "vendas sem veiculação". Campanha sem nenhum ADxxx nos anúncios continua sendo casada pela UTM como antes. Diário: [[MUDANCAS_PI-AGO-26]] item 60.
 ### Página `/publicos`: públicos em uso por lançamento (2026-10-30)
 
-Mostra, por lançamento, **quais públicos cada conjunto (Facebook/Meta) e cada grupo (Google) inclui e exclui**, o tamanho
-e a saúde de cada um, e os alertas da regra SEG-4. Fica no grupo "Leads & Audiências" (e em "Audiências" para o perfil
-tráfego), ao lado de Meta/Google Audiências, com a mesma permissão (`_MEDIA`). Plano de origem:
-[[PLANO_ABA_PUBLICOS_RODANDO]].
+Mostra, por lançamento, **quais públicos cada conjunto (Facebook/Meta) e cada grupo (Google) inclui e exclui**, o tamanho e a saúde de cada um, e os alertas da regra SEG-4. Fica no grupo "Leads & Audiências" (e em "Audiências" para o perfil tráfego), ao lado de Meta/Google Audiências, com a mesma permissão (`_MEDIA`). Plano de origem: [[PLANO_ABA_PUBLICOS_RODANDO]].
 
-**Fluxo:** `scripts/ads` (leitura das APIs, a mesma da conferência SEG-4) → `etl/etl_publicos.py` → 3 tabelas no banco
-analytics → `frontend/db_readers/publicos.py` → `frontend/routes/media.py::publicos_page` → `publicos.html`. A rota não
-chama Meta nem Google.
+**Fluxo:** `scripts/ads` (leitura das APIs, a mesma da conferência SEG-4) → `etl/etl_publicos.py` → 3 tabelas no banco analytics → `frontend/db_readers/publicos.py` → `frontend/routes/media.py::publicos_page` → `publicos.html`. A rota não chama Meta nem Google.
 
-- **Tabelas** (criadas pelo próprio ETL com `CREATE IF NOT EXISTS`; referência em `etl/schema.sql`):
-  `publicos_snapshot` (o público como a plataforma o vê: tipo, tamanhos, status, retenção, atualização),
-  `publicos_uso` (lançamento → campanha → conjunto/grupo → público, papel `inclui`/`exclui`; o papel `nenhum` marca o
-  conjunto/grupo sem nenhum público, que senão sumiria da tela) e `publicos_tamanho_diario` (um tamanho por público por dia).
-  O uso de um lançamento é **trocado inteiro** a cada coleta, numa transação, e só depois de a plataforma ter respondido
-  por inteiro: falha de API não apaga o que já estava gravado. Meta e Google falham de forma independente.
-- **ETL:** fonte `publicos` do `run_all.py`, no ciclo lento do scheduler. Lançamentos ativos = `dim_lancamentos` de 14 dias
-  antes do início a 3 dias depois do fim (a pré-quali e a captação são criadas antes de o lançamento começar). Pula o
-  lançamento coletado há menos de 6 h (`--forcar` ignora). `--launch X --dry-run` lê e relata sem gravar. Dura ~2,5 min por
-  lançamento, quase tudo na leitura dos grupos do Google.
-- **Alertas calculados no reader, não no ETL:** uma mudança de regra vale sem recoletar. Violações da SEG-4 vêm de
-  `scripts.ads.publicos.problemas_publico` (o frontend importa as funções puras de `scripts/`, que vão na imagem do
-  Docker); tamanho, lista vazia/inelegível/fechada, lista velha (> 30 dias, só o Meta informa a data), público de outro
-  lançamento e nome repetido saem do snapshot.
-- **Limites que a tela explica:** (1) o Meta **nunca informa tamanho abaixo de 1.000** (o menor valor devolvido é 1000, mostrado
-  "≤ 1.000"); por isso o alerta "< 500 pessoas" só é confiável no Google, e no Meta o sinal é o `delivery_status`. (2)
-  Segmento personalizado e interesse não têm tamanho na API. (3) O gasto de um conjunto não se divide por público: a coluna do
-  público é o gasto **dos conjuntos que o incluem**, e não soma.
-- **Primeira coleta (PES-NOV-26):** 92 públicos, 118 conjuntos/grupos; reproduz os achados já conhecidos (2 grupos do
-  Google que não entregam por lista vazia, 3 listas < 500 dentro de público combinado, pré-quali do Google sem exclusão de
-  aluno; Facebook limpo).
+- **Tabelas** (criadas pelo próprio ETL com `CREATE IF NOT EXISTS`; referência em `etl/schema.sql`): `publicos_snapshot` (o público como a plataforma o vê: tipo, tamanhos, status, retenção, atualização), `publicos_uso` (lançamento → campanha → conjunto/grupo → público, papel `inclui`/`exclui`; o papel `nenhum` marca o conjunto/grupo sem nenhum público, que senão sumiria da tela) e `publicos_tamanho_diario` (um tamanho por público por dia). O uso de um lançamento é **trocado inteiro** a cada coleta, numa transação, e só depois de a plataforma ter respondido por inteiro: falha de API não apaga o que já estava gravado. Meta e Google falham de forma independente.
+- **ETL:** fonte `publicos` do `run_all.py`, no ciclo lento do scheduler. Lançamentos ativos = `dim_lancamentos` de 14 dias antes do início a 3 dias depois do fim (a pré-quali e a captação são criadas antes de o lançamento começar). Pula o lançamento coletado há menos de 6 h (`--forcar` ignora). `--launch X --dry-run` lê e relata sem gravar. Dura ~2,5 min por lançamento, quase tudo na leitura dos grupos do Google.
+- **Alertas calculados no reader, não no ETL:** uma mudança de regra vale sem recoletar. Violações da SEG-4 vêm de `scripts.ads.publicos.problemas_publico` (o frontend importa as funções puras de `scripts/`, que vão na imagem do Docker); tamanho, lista vazia/inelegível/fechada, lista velha (> 30 dias, só o Meta informa a data), público de outro lançamento e nome repetido saem do snapshot.
+- **Limites que a tela explica:** (1) o Meta **nunca informa tamanho abaixo de 1.000** (o menor valor devolvido é 1000, mostrado "≤ 1.000"); por isso o alerta "< 500 pessoas" só é confiável no Google, e no Meta o sinal é o `delivery_status`. (2) Segmento personalizado e interesse não têm tamanho na API. (3) O gasto de um conjunto não se divide por público: a coluna do público é o gasto **dos conjuntos que o incluem**, e não soma.
+- **Primeira coleta (PES-NOV-26):** 92 públicos, 118 conjuntos/grupos; reproduz os achados já conhecidos (2 grupos do Google que não entregam por lista vazia, 3 listas < 500 dentro de público combinado, pré-quali do Google sem exclusão de aluno; Facebook limpo).
 - **Não feito ainda:** CPA por conjunto/grupo (hoje gasto, leads e CPL; o CPA exige a atribuição de vendas por conjunto).
-- Testes: `tests/test_etl_publicos.py` (normalização e usos), `tests/test_publicos_reader.py` (alertas e visão),
-  `/publicos` no `tests/test_frontend_smoke.py`.
+- Testes: `tests/test_etl_publicos.py` (normalização e usos), `tests/test_publicos_reader.py` (alertas e visão), `/publicos` no `tests/test_frontend_smoke.py`.
 
 ---
 
 ## ETL do Active Campaign estourando o timeout: escrita em lote (2026-11-03)
 
-**Sintoma:** banner "ETL parado: Active Campaign sem carga desde 03/11 05:45". Em `etl_runs`, toda
-rodada do `active_campaign` do ciclo lento a partir das 06:20 terminou em `timeout apos 1800s`
-(limite de `_TIMEOUTS_POR_FONTE` no `run_all.py`). As durações já vinham subindo ao longo de 02/11
-(1.105 s → 1.577 s) até cruzar os 30 min.
+**Sintoma:** banner "ETL parado: Active Campaign sem carga desde 03/11 05:45". Em `etl_runs`, toda rodada do `active_campaign` do ciclo lento a partir das 06:20 terminou em `timeout apos 1800s` (limite de `_TIMEOUTS_POR_FONTE` no `run_all.py`). As durações já vinham subindo ao longo de 02/11 (1.105 s → 1.577 s) até cruzar os 30 min.
 
-**Causa:** a janela de 3 dias inflou, e não por limpeza nenhuma: é a captação do PI-NOV-26 e do
-PES-NOV-26 em velocidade de cruzeiro. Rastreando pela API as atividades dos contatos "updated" de
-02/11 (domingo): 163 de 200 entraram em automação naquele dia, sendo `Entrada [PI-NOV-26]` (131),
-`Fluxo Email PI-NOV-26` (126), `Entrada [PES-NOV-26] - UnniChat` (34) e `Fluxo Email PES-NOV-26` (33);
-as inscrições vieram do formulário 702 `FORMULÁRIO INSS 2026 [PI-NOV-26] - V9` (13.721 entradas
-desde 08/10) nas listas 22 `INSS` e 124 `Escrevente 360`; e a campanha 4726 "Seu acesso para o
-Curso Gratuito do INSS" (disparada pela automação 367) chegou a 55.863 envios. 78% dos contatos da
-amostra foram criados em 2026. As tags `[LIMPEZA]`/`[LIMPEZA TOTAL]` que apareceram na primeira
-amostra eram de 2023 a 08/2026, em contatos antigos que se recadastraram; não houve ação manual.
-Tudo foi criado pelo usuário compartilhado "Aprovasim Cursos" (`marketing@aprovasim.com`), então a
-API não diz qual pessoa. Números: 50.088 contatos atualizados em 02/11 e 25.166 até as 14h de 03/11,
-contra 4 a 9 mil por dia nas semanas anteriores; a janela do scheduler ficou com 84.060 contatos
-(841 páginas). Vai se repetir em toda captação grande. A API do AC não é o gargalo: ~1 s por página de 100, mesmo em offset 80.000
-(~14 min de paginação). O gargalo era a gravação: `_upsert_batch` e `_exec_chunk` usavam
-`conn.execute(text, lista)`, que o SQLAlchemy executa como `executemany`, ou seja, **uma ida ao banco
-por linha**. 84 mil leads + ~235 mil pares contato×lançamento = ~320 mil round trips; medido em
-~15 ms cada, mais de 1 h só de escrita.
+**Causa:** a janela de 3 dias inflou, e não por limpeza nenhuma: é a captação do PI-NOV-26 e do PES-NOV-26 em velocidade de cruzeiro. Rastreando pela API as atividades dos contatos "updated" de 02/11 (domingo): 163 de 200 entraram em automação naquele dia, sendo `Entrada [PI-NOV-26]` (131), `Fluxo Email PI-NOV-26` (126), `Entrada [PES-NOV-26] - UnniChat` (34) e `Fluxo Email PES-NOV-26` (33); as inscrições vieram do formulário 702 `FORMULÁRIO INSS 2026 [PI-NOV-26] - V9` (13.721 entradas desde 08/10) nas listas 22 `INSS` e 124 `Escrevente 360`; e a campanha 4726 "Seu acesso para o Curso Gratuito do INSS" (disparada pela automação 367) chegou a 55.863 envios. 78% dos contatos da amostra foram criados em 2026. As tags `[LIMPEZA]`/`[LIMPEZA TOTAL]` que apareceram na primeira amostra eram de 2023 a 08/2026, em contatos antigos que se recadastraram; não houve ação manual. Tudo foi criado pelo usuário compartilhado "Aprovasim Cursos" (`marketing@aprovasim.com`), então a API não diz qual pessoa. Números: 50.088 contatos atualizados em 02/11 e 25.166 até as 14h de 03/11, contra 4 a 9 mil por dia nas semanas anteriores; a janela do scheduler ficou com 84.060 contatos (841 páginas). Vai se repetir em toda captação grande. A API do AC não é o gargalo: ~1 s por página de 100, mesmo em offset 80.000 (~14 min de paginação). O gargalo era a gravação: `_upsert_batch` e `_exec_chunk` usavam `conn.execute(text, lista)`, que o SQLAlchemy executa como `executemany`, ou seja, **uma ida ao banco por linha**. 84 mil leads + ~235 mil pares contato×lançamento = ~320 mil round trips; medido em ~15 ms cada, mais de 1 h só de escrita.
 
-**O que mudou (`etl/etl_active_campaign.py`):** `_exec_chunk` passou a montar um único
-`INSERT ... VALUES (...),(...)` por bloco com `psycopg2.extras.execute_values` (via
-`conn.connection.cursor()` dentro do `engine.begin()`, então o retry por bloco e a atomicidade
-continuam iguais). `_upsert_batch` usa o mesmo caminho e o lote de leads subiu de 200 para 1000 linhas.
-Os triggers de `leads` são `FOR EACH STATEMENT` com tabela de transição, então veem as mesmas linhas.
-Teste em tabelas temporárias (`LIKE leads` / `LIKE lead_lancamentos`): 2.501 pares em 0,20 s e 1.500
-leads em 0,25 s, com `ON CONFLICT` atualizando e `COALESCE` preservando `tagged_at` nulo. Suíte
-unitária do ETL: 53 passed.
+**O que mudou (`etl/etl_active_campaign.py`):** `_exec_chunk` passou a montar um único `INSERT ... VALUES (...),(...)` por bloco com `psycopg2.extras.execute_values` (via `conn.connection.cursor()` dentro do `engine.begin()`, então o retry por bloco e a atomicidade continuam iguais). `_upsert_batch` usa o mesmo caminho e o lote de leads subiu de 200 para 1000 linhas. Os triggers de `leads` são `FOR EACH STATEMENT` com tabela de transição, então veem as mesmas linhas. Teste em tabelas temporárias (`LIKE leads` / `LIKE lead_lancamentos`): 2.501 pares em 0,20 s e 1.500 leads em 0,25 s, com `ON CONFLICT` atualizando e `COALESCE` preservando `tagged_at` nulo. Suíte unitária do ETL: 53 passed.
 
-**Resultado medido (deploy do scheduler às 14:13 de 03/11, commit `920fa52`):** primeira rodada
-terminou `ok` em **1.082 s** (18 min) com a mesma janela de 84 mil contatos: ~16 min de paginação
-e ~2 min de escrita (82.399 leads atualizados, 55.559 pares do PI-NOV-26 e 13.192 do PES-NOV-26
-gravados). Antes, só a escrita passava de 1 h. As duas linhas `running` de 14:07 e 14:10 em
-`etl_runs` são processos interrompidos pelo próprio redeploy e ficam assim para sempre (o
-`finish_run` nunca roda); não indicam problema.
+**Resultado medido (deploy do scheduler às 14:13 de 03/11, commit `920fa52`):** primeira rodada terminou `ok` em **1.082 s** (18 min) com a mesma janela de 84 mil contatos: ~16 min de paginação e ~2 min de escrita (82.399 leads atualizados, 55.559 pares do PI-NOV-26 e 13.192 do PES-NOV-26 gravados). Antes, só a escrita passava de 1 h. As duas linhas `running` de 14:07 e 14:10 em `etl_runs` são processos interrompidos pelo próprio redeploy e ficam assim para sempre (o `finish_run` nunca roda); não indicam problema.
 
-**Segunda rodada do mesmo dia, 15h: o volume dobrou e a paginação virou o gargalo.** Às 15:40 a
-janela de 3 dias tinha **167 mil** contatos (159 mil só de 03/11, contra 25 mil às 14h). Rastreando
-150 contatos atualizados nas últimas 3 h: 124 receberam e-mail das automações `Fluxo Email PI-NOV-26`
-(campanha 4726, 59 mil envios) e `Fluxo Email PES-NOV-26` (4710, 62 mil), e a campanha 4313 "Do zero
-à sua aprovação no concurso do INSS" (automação 345) acumula 283 mil envios. **Todo e-mail enviado por
-automação atualiza o `udate` do contato**, então durante uma captação a janela é do tamanho da base
-que recebe e-mail por dia, não dos leads novos. A API respondia cada página em 1,7 a 1,9 s: 1.675
-páginas em sequência dariam ~50 min; a rodada das 14:33 estourou de novo e a das 15:20 ia estourar.
+**Segunda rodada do mesmo dia, 15h: o volume dobrou e a paginação virou o gargalo.** Às 15:40 a janela de 3 dias tinha **167 mil** contatos (159 mil só de 03/11, contra 25 mil às 14h). Rastreando 150 contatos atualizados nas últimas 3 h: 124 receberam e-mail das automações `Fluxo Email PI-NOV-26` (campanha 4726, 59 mil envios) e `Fluxo Email PES-NOV-26` (4710, 62 mil), e a campanha 4313 "Do zero à sua aprovação no concurso do INSS" (automação 345) acumula 283 mil envios. **Todo e-mail enviado por automação atualiza o `udate` do contato**, então durante uma captação a janela é do tamanho da base que recebe e-mail por dia, não dos leads novos. A API respondia cada página em 1,7 a 1,9 s: 1.675 páginas em sequência dariam ~50 min; a rodada das 14:33 estourou de novo e a das 15:20 ia estourar.
 
-Mudança: `load_from_api` lê a primeira página, pega o `total` do `meta` e pede as demais por offset em
-**5 threads** (`_PARALELO`), absorvendo os resultados no thread principal na ordem das páginas (os
-dicts não têm lock e a ordem decide quem ganha em chave repetida). Medido em 60 páginas reais:
-**4,6 páginas/s contra 0,55 sequencial**, ou ~6 min pra 1.675 páginas, com ~170 req/min dos 500 que a
-conta permite. Offset sobre lista que muda durante a leitura pode repetir ou pular contato na borda da
-página: repetição o upsert absorve; o que escapar entra na rodada seguinte, como já era. O timeout do
-`active_campaign` em `run_all.py` subiu de 1800 para 2700 s como folga pra API lenta.
+Mudança: `load_from_api` lê a primeira página, pega o `total` do `meta` e pede as demais por offset em **5 threads** (`_PARALELO`), absorvendo os resultados no thread principal na ordem das páginas (os dicts não têm lock e a ordem decide quem ganha em chave repetida). Medido em 60 páginas reais: **4,6 páginas/s contra 0,55 sequencial**, ou ~6 min pra 1.675 páginas, com ~170 req/min dos 500 que a conta permite. Offset sobre lista que muda durante a leitura pode repetir ou pular contato na borda da página: repetição o upsert absorve; o que escapar entra na rodada seguinte, como já era. O timeout do `active_campaign` em `run_all.py` subiu de 1800 para 2700 s como folga pra API lenta.
 
-**Resultado da segunda mudança (scheduler em `e0d15b9`, 15:47):** rodada `ok` em **16 min 35 s** com
-160.267 leads gravados sobre uma janela de ~167 mil contatos. Mais lento que os ~6 min projetados a
-partir de 60 páginas (a API degrada com 5 páginas em voo e a janela seguiu crescendo), mas cabe com
-folga nos 45 min de timeout e no ciclo de 1 h. Se voltar a apertar, o próximo passo é a decisão de
-produto: ler `created_after` + tags de lançamento em vez de `updated_after` reduz o volume em ~10x,
-ao custo de não capturar UTM alterada em contato antigo.
+**Resultado da segunda mudança (scheduler em `e0d15b9`, 15:47):** rodada `ok` em **16 min 35 s** com 160.267 leads gravados sobre uma janela de ~167 mil contatos. Mais lento que os ~6 min projetados a partir de 60 páginas (a API degrada com 5 páginas em voo e a janela seguiu crescendo), mas cabe com folga nos 45 min de timeout e no ciclo de 1 h. Se voltar a apertar, o próximo passo é a decisão de produto: ler `created_after` + tags de lançamento em vez de `updated_after` reduz o volume em ~10x, ao custo de não capturar UTM alterada em contato antigo.
 
-**Pendências vistas no caminho:** `etl_runs.rows_upserted` nunca é preenchido pro `active_campaign`
-(0 em 191 rodadas); `queryServiceLogs` do EasyPanel antigo responde HTTP 400 (Loki desligado), então
-o log do scheduler só pela tela do painel. Enquanto a janela de 3 dias contiver 02/11 (até 05/11) o
-volume segue alto, mas com a escrita em lote cabe com folga no timeout.
+**Pendências vistas no caminho:** `etl_runs.rows_upserted` nunca é preenchido pro `active_campaign` (0 em 191 rodadas); `queryServiceLogs` do EasyPanel antigo responde HTTP 400 (Loki desligado), então o log do scheduler só pela tela do painel. Enquanto a janela de 3 dias contiver 02/11 (até 05/11) o volume segue alto, mas com a escrita em lote cabe com folga no timeout.
 
 ## Verba diária das campanhas no scheduler (2026-11-04)
 
-Job `verba_diaria` do `etl/scheduler.py` (00h05, Brasília) → `etl/verba_diaria.py`: baixa `config/orcamentos/*.json` da `main`
-(só `.json` do próprio repositório; cai para a imagem se o GitHub falhar), valida com `ler_plano` e aplica cada plano com
-`aplicar_em` = hoje via `scripts/ajustar_verba_lista.py` (valores absolutos, então reaplicar é seguro). Tetos: `VERBA_MAX_CAMPANHA` (R$ 15.000) e `VERBA_MAX_DIA` (R$ 150.000, soma dos planos do dia); acima disso o plano não é aplicado e vai alerta. Falha → webhook de erro.
-Fora do `run_all.py`: não usa o lock nem o circuit breaker do ETL. Na subida do scheduler entre 00h05 e 02h aplica o plano do
-dia (catch-up). Substitui os workflows de verba do GitHub Actions (que atrasavam). Plano: [[PLANO_CRON_VERBA_EASYPANEL]].
+Job `verba_diaria` do `etl/scheduler.py` (00h05, Brasília) → `etl/verba_diaria.py`: baixa `config/orcamentos/*.json` da `main` (só `.json` do próprio repositório; cai para a imagem se o GitHub falhar), valida com `ler_plano` e aplica cada plano com `aplicar_em` = hoje via `scripts/ajustar_verba_lista.py` (valores absolutos, então reaplicar é seguro). Tetos: `VERBA_MAX_CAMPANHA` (R$ 15.000) e `VERBA_MAX_DIA` (R$ 150.000, soma dos planos do dia); acima disso o plano não é aplicado e vai alerta. Falha → webhook de erro. Fora do `run_all.py`: não usa o lock nem o circuit breaker do ETL. Na subida do scheduler entre 00h05 e 02h aplica o plano do dia (catch-up). Substitui os workflows de verba do GitHub Actions (que atrasavam). Plano: [[PLANO_CRON_VERBA_EASYPANEL]].
 
 ## Ações agendadas nos anúncios do Facebook (2026-11-05)
 
-Job `acoes_agendadas` do `etl/scheduler.py` (a cada 5 min) → `etl/acoes_agendadas.py`: troca o status (PAUSED/ACTIVE) de
-anúncio, conjunto ou campanha do Facebook (Meta) numa hora marcada. Cada pedido é um `config/acoes/*.json` com `executar_em`
-(hora de Brasília) e a lista `acoes` (`plataforma: meta`, `id`, `nome`, `status`). Vem da `main` como os planos de verba
-(`verba_diaria.baixar_planos(pasta_repo="config/acoes")`), então pedido novo vale sem redeploy, só com push.
-- Executa quando `executar_em` passou há no máximo 30 min (`JANELA_MIN`), uma vez por processo. Arquivo velho nunca reexecuta
-  e não desfaz mexida manual posterior. Restart dentro da janela executa de novo, o que é seguro: o status é absoluto.
+Job `acoes_agendadas` do `etl/scheduler.py` (a cada 5 min) → `etl/acoes_agendadas.py`: troca o status (PAUSED/ACTIVE) de anúncio, conjunto ou campanha do Facebook (Meta) numa hora marcada. Cada pedido é um `config/acoes/*.json` com `executar_em` (hora de Brasília) e a lista `acoes` (`plataforma: meta`, `id`, `nome`, `status`). Vem da `main` como os planos de verba (`verba_diaria.baixar_planos(pasta_repo="config/acoes")`), então pedido novo vale sem redeploy, só com push.
+- Executa quando `executar_em` passou há no máximo 30 min (`JANELA_MIN`), uma vez por processo. Arquivo velho nunca reexecuta e não desfaz mexida manual posterior. Restart dentro da janela executa de novo, o que é seguro: o status é absoluto.
 - Depois de aplicar, relê o status de cada id. Diferença ou erro → webhook "Ação agendada não aplicou".
-- Valida antes de chamar a plataforma: id numérico, status PAUSED/ACTIVE, até 300 ações. Google fica fora de propósito
-  ("nada automático no Google"; campanha VIDEO nem aceita mutação por API). Status não cascateia: listar o nível que se quer.
+- Valida antes de chamar a plataforma: id numérico, status PAUSED/ACTIVE, até 300 ações. Google fica fora de propósito ("nada automático no Google"; campanha VIDEO nem aceita mutação por API). Status não cascateia: listar o nível que se quer.
 - 1º uso: `PI-NOV-26-pausar-AD304-2026-11-05-22h.json` (13 anúncios do AD304, 05/11 22h).
 
 ## Comercial — motor de comissão, fase 1 (2026-11-06)
 
-Primeira parte da área Comercial ([[PLANO_AREA_COMERCIAL_COMISSOES]], plano
-[[PLANO_IMPLEMENTACAO_COMERCIAL_FASE1]]). **Sem tela e sem gravar no banco ainda** — só o cálculo
-e a conciliação com a planilha do comercial.
+Primeira parte da área Comercial ([[PLANO_AREA_COMERCIAL_COMISSOES]], plano [[PLANO_IMPLEMENTACAO_COMERCIAL_FASE1]]). **Sem tela e sem gravar no banco ainda** — só o cálculo e a conciliação com a planilha do comercial.
 
-- `frontend/services/comercial/` (puro, sem banco): `regras.py` (código AT, modalidade, categoria
-  TMB, janela Reativa, Ativa/Reativa, prevista/elegível/cancelada), `tabelas.py` (percentual com
-  vigência e regra por vendedor, valor-base, participação), `modelos.py` (`Venda`, `Cadastros`),
-  `calculo.py` (`calcular`, `resumo_por_beneficiario`).
-- `frontend/db_readers/comercial.py`: `ler_vendas` lê **só** `hotmart_oficial` /
-  `hotmart_estado_transacao` / `tmb_oficial` (SELECT), 1ª cobrança, dedupe por transação, datas em
-  horário de Brasília, recorte de data por chave texto `YYYYMMDD` (data inválida não derruba a
-  query). `ler_janelas` lê `launch_config`. DDL das tabelas `comercial_*` existe mas **não foi
-  executada** (Fase 2).
-- Achados de dado: nas linhas da API da Hotmart o valor de busca do valor-base é
-  `valor_de_compra_sem_impostos + taxa_de_processamento`; ~100 vendas/mês vêm sem
-  `nome_deste_preco` (código AT recuperado pelo `codigo_do_preco`); a janela Reativa sai de
-  `evento_start_date` (a live), não de `aulas_start_date`.
-- Scripts: `scripts/comercial_carga_inicial.py --dry-run` (cadastros a partir das planilhas, em
-  memória) e `scripts/comercial_conciliar.py --mes AAAA-MM` (sistema × planilha venda a venda).
-  Out/26: R$ 23.031,91 × 23.713,99 (−2,9%), toda diferença classificada.
+- `frontend/services/comercial/` (puro, sem banco): `regras.py` (código AT, modalidade, categoria TMB, janela Reativa, Ativa/Reativa, prevista/elegível/cancelada), `tabelas.py` (percentual com vigência e regra por vendedor, valor-base, participação), `modelos.py` (`Venda`, `Cadastros`), `calculo.py` (`calcular`, `resumo_por_beneficiario`).
+- `frontend/db_readers/comercial.py`: `ler_vendas` lê **só** `hotmart_oficial` / `hotmart_estado_transacao` / `tmb_oficial` (SELECT), 1ª cobrança, dedupe por transação, datas em horário de Brasília, recorte de data por chave texto `YYYYMMDD` (data inválida não derruba a query). `ler_janelas` lê `launch_config`. DDL das tabelas `comercial_*` existe mas **não foi executada** (Fase 2).
+- Achados de dado: nas linhas da API da Hotmart o valor de busca do valor-base é `valor_de_compra_sem_impostos + taxa_de_processamento`; ~100 vendas/mês vêm sem `nome_deste_preco` (código AT recuperado pelo `codigo_do_preco`); a janela Reativa sai de `evento_start_date` (a live), não de `aulas_start_date`.
+- Scripts: `scripts/comercial_carga_inicial.py --dry-run` (cadastros a partir das planilhas, em memória) e `scripts/comercial_conciliar.py --mes AAAA-MM` (sistema × planilha venda a venda). Out/26: R$ 23.031,91 × 23.713,99 (−2,9%), toda diferença classificada.
 
 ## Comercial — leitura da Hotmart pelo índice de data (2026-11-10)
 
-O Mateus criou `idx_hotmart_oficial_data_da_transacao` (btree no texto cru) e revogou a escrita de `anon`/`authenticated`
-nas `comercial_*`, na `hotmart_oficial` e na `tmb_oficial`. `_SQL_HOTMART_PERIODO` (`db_readers/comercial.py`) agora
-filtra antes do CASE, num `UNION ALL` de três partes excludentes:
+O Mateus criou `idx_hotmart_oficial_data_da_transacao` (btree no texto cru) e revogou a escrita de `anon`/`authenticated` nas `comercial_*`, na `hotmart_oficial` e na `tmb_oficial`. `_SQL_HOTMART_PERIODO` (`db_readers/comercial.py`) agora filtra antes do CASE, num `UNION ALL` de três partes excludentes:
 1. **ISO** `AAAA-MM-DD`, por faixa no índice;
 2. **epoch em ms**, 13 dígitos, por faixa no índice;
-3. **outros formatos** (231 linhas em DD/MM/AAAA de jul–set/26 e qualquer formato desconhecido), pelo predicado
-   `PREDICADO_OUTROS_FORMATOS`.
+3. **outros formatos** (231 linhas em DD/MM/AAAA de jul–set/26 e qualquer formato desconhecido), pelo predicado `PREDICADO_OUTROS_FORMATOS`.
 
-As faixas (`_limites_prefiltro_hotmart`) vão de 2 dias antes a 3 dias depois do período, por causa do fuso. O filtro
-exato continua sendo o CASE de fora. Conferido no banco: o resultado é **idêntico** ao da consulta antiga, linha a linha,
-de jan a nov/26. Medido em out/26: as partes 1 e 2 levam **16 ms** (antes, 3,2 s em Seq Scan). O índice parcial
-`idx_hotmart_oficial_data_outros_formatos` (231 linhas, 32 kB, **mesmo predicado**) foi criado pelo Mateus em 10/11/26.
-Na medição de ponta a ponta, com a transferência das ~15 mil linhas, a leitura de um mês caiu de **4–5 s para 0,3–1,2 s**,
-com resultado idêntico ao da consulta antiga de jan a nov.
-Se o predicado mudar no código, o índice precisa ser recriado (há um teste que trava o texto).
+As faixas (`_limites_prefiltro_hotmart`) vão de 2 dias antes a 3 dias depois do período, por causa do fuso. O filtro exato continua sendo o CASE de fora. Conferido no banco: o resultado é **idêntico** ao da consulta antiga, linha a linha, de jan a nov/26. Medido em out/26: as partes 1 e 2 levam **16 ms** (antes, 3,2 s em Seq Scan). O índice parcial `idx_hotmart_oficial_data_outros_formatos` (231 linhas, 32 kB, **mesmo predicado**) foi criado pelo Mateus em 10/11/26. Na medição de ponta a ponta, com a transferência das ~15 mil linhas, a leitura de um mês caiu de **4–5 s para 0,3–1,2 s**, com resultado idêntico ao da consulta antiga de jan a nov. Se o predicado mudar no código, o índice precisa ser recriado (há um teste que trava o texto).
 
 ## Comercial — tela Desempenho, atendente IA e ranking sem números alheios (2026-11-10)
 
 V2 etapa 1 (plano [[PLANO_IMPLEMENTACAO_COMERCIAL_V2_DESEMPENHO]], spec [[PLANO_AREA_COMERCIAL_COMISSOES]] §11.1):
-- **Motor.** `LinhaComissao.produto` (default `""`) e `papel="ia"` para a atendente IA **Camila**: venda sem AT
-  cujo nome do preço termina em "- Camila" (`regras.extrair_atendente_ia`). A linha IA tem base, valor 0 e não
-  gera participação. Fica fora de `resumo_por_beneficiario`, dos totais congelados do fechamento, do ranking e de
-  qualquer total do time. Continua **reivindicável** como a venda `sem_codigo`, aparece em "Vendas sem código" com
-  o chip "Camila (IA)", e a atribuição aprovada a transforma em venda normal. No xlsx aparece como "IA (sem comissão)".
-- **`/comercial/desempenho`** (`services/comercial/desempenho.py`, `comercial_desempenho.html`, menu logo depois de
-  Ranking). Mostra resumo do time, por vendedora, por produto, o bloco IA (só gestor) e a evolução em Chart.js, com
-  os dados via `application/json`. Comparação padrão com o período anterior; mês corrente compara os mesmos dias.
-  Vendedora só compara com mês. Meta do time = soma das metas (`ler_metas_mes(mes, None)`), visível para todos;
-  as metas individuais seguem recortadas.
-- **Isolamento.** A vendedora vê os números gerais do time e os próprios, a posição e a contribuição (período, ano e
-  meta), e nunca um número individual de outra vendedora. O mesmo vale para o **Ranking** e o **Top 3** da Visão
-  geral: das outras, só posição e nome, e a vendedora ordena só por vendido.
-- **Acumulado do ano.** Lê os snapshots **guardados** (`snapshot.ler_guardado`, sem recalcular). Mês passado sem
-  snapshot **não é calculado na requisição**: o acumulado vira "—" com a nota "acumulado incompleto". Os meses de
-  2026 precisam estar guardados (aquecimento feito após o deploy).
+- **Motor.** `LinhaComissao.produto` (default `""`) e `papel="ia"` para a atendente IA **Camila**: venda sem AT cujo nome do preço termina em "- Camila" (`regras.extrair_atendente_ia`). A linha IA tem base, valor 0 e não gera participação. Fica fora de `resumo_por_beneficiario`, dos totais congelados do fechamento, do ranking e de qualquer total do time. Continua **reivindicável** como a venda `sem_codigo`, aparece em "Vendas sem código" com o chip "Camila (IA)", e a atribuição aprovada a transforma em venda normal. No xlsx aparece como "IA (sem comissão)".
+- **`/comercial/desempenho`** (`services/comercial/desempenho.py`, `comercial_desempenho.html`, menu logo depois de Ranking). Mostra resumo do time, por vendedora, por produto, o bloco IA (só gestor) e a evolução em Chart.js, com os dados via `application/json`. Comparação padrão com o período anterior; mês corrente compara os mesmos dias. Vendedora só compara com mês. Meta do time = soma das metas (`ler_metas_mes(mes, None)`), visível para todos; as metas individuais seguem recortadas.
+- **Isolamento.** A vendedora vê os números gerais do time e os próprios, a posição e a contribuição (período, ano e meta), e nunca um número individual de outra vendedora. O mesmo vale para o **Ranking** e o **Top 3** da Visão geral: das outras, só posição e nome, e a vendedora ordena só por vendido.
+- **Acumulado do ano.** Lê os snapshots **guardados** (`snapshot.ler_guardado`, sem recalcular). Mês passado sem snapshot **não é calculado na requisição**: o acumulado vira "—" com a nota "acumulado incompleto". Os meses de 2026 precisam estar guardados (aquecimento feito após o deploy).
 
 ## Comercial — busca alternativa do valor-base (2026-11-09)
 
-O gestor viu duas vendas em "Sem valor-base" (HP1930038622, Cross 10x; HP1190909150, Parcelamento
-Inteligente 12x). A busca por `sem_impostos + taxa` não achava a base. Agora `Venda.valores_alternativos`
-(montado em `db_readers/comercial.py::_valores_alternativos`) e `calculo._base` tentam, **só se o valor de
-hoje falhar**, parcela × N no Parcelamento Inteligente e depois o `valor_de_compra_com_impostos`. A venda que já achava
-base não muda. Detalhe e números em [[METODOLOGIA_EXTRACAO_DADOS]] §14. Os snapshots dos meses abertos
-precisam ser recalculados (o próximo ETL invalida).
+O gestor viu duas vendas em "Sem valor-base" (HP1930038622, Cross 10x; HP1190909150, Parcelamento Inteligente 12x). A busca por `sem_impostos + taxa` não achava a base. Agora `Venda.valores_alternativos` (montado em `db_readers/comercial.py::_valores_alternativos`) e `calculo._base` tentam, **só se o valor de hoje falhar**, parcela × N no Parcelamento Inteligente e depois o `valor_de_compra_com_impostos`. A venda que já achava base não muda. Detalhe e números em [[METODOLOGIA_EXTRACAO_DADOS]] §14. Os snapshots dos meses abertos precisam ser recalculados (o próximo ETL invalida).
 
 ## Comercial — fase 2 (2026-11-06)
 
-Telas, gravação e fechamento da área Comercial ([[PLANO_AREA_COMERCIAL_COMISSOES]],
-[[PLANO_IMPLEMENTACAO_COMERCIAL_FASE2]]). Código na branch `comercial-fase2` (aguardando revisão
-final e merge); **em validação — o pagamento ainda sai pela planilha**.
+Telas, gravação e fechamento da área Comercial ([[PLANO_AREA_COMERCIAL_COMISSOES]], [[PLANO_IMPLEMENTACAO_COMERCIAL_FASE2]]). Código na branch `comercial-fase2` (aguardando revisão final e merge); **em validação — o pagamento ainda sai pela planilha**.
 
-**Tabelas** (banco operacional, `SUPABASE_USERS_URL`; DDL em `frontend/db_readers/comercial.py`):
-`comercial_vendedores` (código AT → pessoa), `comercial_acessos` (e-mail → nível),
-`comercial_regras_percentual` (% por plataforma/modalidade/tipo/categoria/vendedor, com vigência),
-`comercial_valores_base` (valor-base por oferta, com vigência), `comercial_participacoes`
-(Rafael Batista/Lago no time), `comercial_ofertas` (codigo_do_preco → código AT),
-`comercial_atribuicoes` (reivindicação/atribuição manual de venda, com aprovação),
-`comercial_janela_reativa` (janela manual por lançamento), `comercial_metas`, `comercial_bonus`,
-`comercial_decisoes_reembolso` (mantém/tira), `comercial_ajustes` (com justificativa),
-`comercial_historico` (quem/quando/antes → depois de toda alteração), `comercial_snapshot`
-(resultado do mês pré-calculado) e `comercial_fechamentos` (mês congelado). Editar percentual,
-valor-base ou participação **versiona** (fecha a vigência anterior, insere a nova), nunca dá UPDATE
-no valor.
+**Tabelas** (banco operacional, `SUPABASE_USERS_URL`; DDL em `frontend/db_readers/comercial.py`): `comercial_vendedores` (código AT → pessoa), `comercial_acessos` (e-mail → nível), `comercial_regras_percentual` (% por plataforma/modalidade/tipo/categoria/vendedor, com vigência), `comercial_valores_base` (valor-base por oferta, com vigência), `comercial_participacoes` (Rafael Batista/Lago no time), `comercial_ofertas` (codigo_do_preco → código AT), `comercial_atribuicoes` (reivindicação/atribuição manual de venda, com aprovação), `comercial_janela_reativa` (janela manual por lançamento), `comercial_metas`, `comercial_bonus`, `comercial_decisoes_reembolso` (mantém/tira), `comercial_ajustes` (com justificativa), `comercial_historico` (quem/quando/antes → depois de toda alteração), `comercial_snapshot` (resultado do mês pré-calculado) e `comercial_fechamentos` (mês congelado). Editar percentual, valor-base ou participação **versiona** (fecha a vigência anterior, insere a nova), nunca dá UPDATE no valor.
 
-**Acesso.** `comercial_acessos` guarda o nível: `master`, `coordenador`, `vendedor` (+ código
-AT) ou `consulta`. Master = coordenador = tudo; vendedor só o próprio; `admin` do painel = master.
-`consulta` (Financeiro/RH, desde 2026-11-10) só tem `ver_time`: vê tudo o que o gestor vê (time,
-comissão de cada vendedora, Excel, mês fechado, pendências), mas nenhuma ação — os formulários
-somem (`edita`/`edita_bonus`/`fechar`/`reabre` exigem a permissão da ação) e o POST devolve 403;
-"Regras e vendedores" fica fora do menu. O CHECK de nível da tabela foi trocado pela migração
-`SQL_MIGRACAO_ACESSOS_CONSULTA`. O isolamento
-do vendedor é na **camada de serviço** (a consulta já filtra), não no template. Toda rota está em
-`ROUTE_PERMISSIONS` (`_CMRC_AREA`); o nível fino é checado no handler. Não pode remover o próprio
-acesso nem rebaixar o último master.
+**Acesso.** `comercial_acessos` guarda o nível: `master`, `coordenador`, `vendedor` (+ código AT) ou `consulta`. Master = coordenador = tudo; vendedor só o próprio; `admin` do painel = master. `consulta` (Financeiro/RH, desde 2026-11-10) só tem `ver_time`: vê tudo o que o gestor vê (time, comissão de cada vendedora, Excel, mês fechado, pendências), mas nenhuma ação — os formulários somem (`edita`/`edita_bonus`/`fechar`/`reabre` exigem a permissão da ação) e o POST devolve 403; "Regras e vendedores" fica fora do menu. O CHECK de nível da tabela foi trocado pela migração `SQL_MIGRACAO_ACESSOS_CONSULTA`. O isolamento do vendedor é na **camada de serviço** (a consulta já filtra), não no template. Toda rota está em `ROUTE_PERMISSIONS` (`_CMRC_AREA`); o nível fino é checado no handler. Não pode remover o próprio acesso nem rebaixar o último master.
 
 **Ajustes de 2026-11-10 (pedido do comercial).**
-- **Atendimento:** só gestor vê (`acesso.ve_atendimento`). Vendedor e `consulta` não veem, seja
-  qual for o papel no painel. O papel `comercial` só vê com master/coordenador; o marketing
-  segue vendo. O menu e as quatro rotas `/atendimento*` checam isso. A home do papel `comercial`
-  passou a ser `/comercial`.
-- **Venda sem código AT é venda do marketing.** Não aparece nas Inconsistências, nem na tabela
-  e no Excel de Comissões do gestor (`telas._do_marketing`). As vendas da Camila (IA) seguem no
-  bloco próprio do Desempenho.
+- **Atendimento:** só gestor vê (`acesso.ve_atendimento`). Vendedor e `consulta` não veem, seja qual for o papel no painel. O papel `comercial` só vê com master/coordenador; o marketing segue vendo. O menu e as quatro rotas `/atendimento*` checam isso. A home do papel `comercial` passou a ser `/comercial`.
+- **Venda sem código AT é venda do marketing.** Não aparece nas Inconsistências, nem na tabela e no Excel de Comissões do gestor (`telas._do_marketing`). As vendas da Camila (IA) seguem no bloco próprio do Desempenho.
 - **Reivindicação:**
   - Para a vendedora, o menu se chama "Reivindicações".
-  - Ela busca a venda pelo **telefone do contato**: vendas sem código ou da Camila, no mês atual
-    e no anterior, se estiverem abertos. A comparação é por DDD + 8 últimos dígitos
-    (`com.transacoes_do_telefone`), feita só sobre as vendas candidatas.
-  - Ao reivindicar, informa a conexão (lista fixa `inconsistencias.CONEXOES`), o telefone e a
-    justificativa. Os três são obrigatórios e ficam nas colunas novas de `comercial_atribuicoes`
-    (migração `SQL_MIGRACAO_ATRIB_JUSTIFICATIVA`).
-  - O gestor vê os três dados e responde com 👍 Aprovar ou 👎 Recusar; o motivo da recusa é
-    opcional. A resposta aparece em "Suas reivindicações".
+  - Ela busca a venda pelo **telefone do contato**: vendas sem código ou da Camila, no mês atual e no anterior, se estiverem abertos. A comparação é por DDD + 8 últimos dígitos (`com.transacoes_do_telefone`), feita só sobre as vendas candidatas.
+  - Ao reivindicar, informa a conexão (lista fixa `inconsistencias.CONEXOES`), o telefone e a justificativa. Os três são obrigatórios e ficam nas colunas novas de `comercial_atribuicoes` (migração `SQL_MIGRACAO_ATRIB_JUSTIFICATIVA`).
+  - O gestor vê os três dados e responde com 👍 Aprovar ou 👎 Recusar; o motivo da recusa é opcional. A resposta aparece em "Suas reivindicações".
 - **Desempenho:**
-  - Os meses guardados ficam decodificados na memória do processo, presos à versão do mês
-    (`snapshot.versoes_guardadas`, uma consulta leve sem o jsonb).
+  - Os meses guardados ficam decodificados na memória do processo, presos à versão do mês (`snapshot.versoes_guardadas`, uma consulta leve sem o jsonb).
   - Com isso, o acumulado do ano caiu de ~27 s para ~1 s depois da primeira leitura.
   - O aquecimento (`prewarm.warm_comercial`) já deixa o ano carregado no boot e depois de cada ETL.
   - Store injetado (testes) não usa o cache.
 
-**Visão geral: todas as vendas (2026-11-11, pedido do Rafael).** Abaixo do Top 3,
-`/comercial` lista uma linha por venda do período (`telas.todas_as_vendas`), da mais recente para
-a mais antiga. Ela recebe as linhas já filtradas por `linhas_visiveis`: o gestor vê o time e a
-vendedora só as próprias, sem a coluna Vendedora. Ficam de fora a participação, que repetiria a
-venda, e a venda do marketing; a IA entra, marcada "IA (sem comissão)". Ajuste ou atribuição
-manual leva a etiqueta "manual". Tem uma busca na própria página (nome, código, transação ou
-produto, lidos de `data-busca`) e um botão "Baixar Excel", que é o mesmo `/comercial/comissoes.xlsx`.
+**Visão geral: todas as vendas (2026-11-11, pedido do Rafael).** Abaixo do Top 3, `/comercial` lista uma linha por venda do período (`telas.todas_as_vendas`), da mais recente para a mais antiga. Ela recebe as linhas já filtradas por `linhas_visiveis`: o gestor vê o time e a vendedora só as próprias, sem a coluna Vendedora. Ficam de fora a participação, que repetiria a venda, e a venda do marketing; a IA entra, marcada "IA (sem comissão)". Ajuste ou atribuição manual leva a etiqueta "manual". Tem uma busca na própria página (nome, código, transação ou produto, lidos de `data-busca`) e um botão "Baixar Excel", que é o mesmo `/comercial/comissoes.xlsx`.
 
 **Ajustes de 2026-11-18 (pedido do Rafael). Valem para o ano inteiro.**
 - **Reativa só para venda LEAD.**
-  - Dentro da janela do lançamento, só é Reativa a venda de categoria com LEAD
-    (`regras.categoria_permite_reativa`). Apostila, planner e venda sem categoria são Ativa.
-  - Nas categorias mistas ("LEAD/CROSS SELL"), quem decide é o "Nome deste preço": "COM. CROSS…"
-    e "COM. UP…" são Up/Cross Sell e portanto Ativa (`_RE_ALUNO_NO_NOME` passou a reconhecer
-    "COM. UP"). O resto é LEAD.
-- **Black Vitalícia segue só o período** (`regras.JANELAS_BLACK`): de 12 a 19/10/26 é Reativa e
-  fora disso é Ativa, seja Lead, Cross ou Up Sell. A janela do lançamento não conta. A Black é
-  reconhecida por `_e_black`: categoria começando com BLACK ou produto com "black".
+  - Dentro da janela do lançamento, só é Reativa a venda de categoria com LEAD (`regras.categoria_permite_reativa`). Apostila, planner e venda sem categoria são Ativa.
+  - Nas categorias mistas ("LEAD/CROSS SELL"), quem decide é o "Nome deste preço": "COM. CROSS…" e "COM. UP…" são Up/Cross Sell e portanto Ativa (`_RE_ALUNO_NO_NOME` passou a reconhecer "COM. UP"). O resto é LEAD.
+- **Black Vitalícia segue só o período** (`regras.JANELAS_BLACK`): de 12 a 19/10/26 é Reativa e fora disso é Ativa, seja Lead, Cross ou Up Sell. A janela do lançamento não conta. A Black é reconhecida por `_e_black`: categoria começando com BLACK ou produto com "black".
 - **Gestor que também vende.**
-  - `comercial_acessos.vendedor_codigo` passou a valer também para master e coordenador. O campo
-    é opcional e o código precisa estar cadastrado; o nível consulta nunca tem código.
-  - Com código, a página Inconsistências mostra a ele, além da fila de gestor, os blocos
-    "Reivindicar uma venda (suas vendas)" e "Suas reivindicações"
-    (`inconsistencias.pode_reivindicar`).
-  - Sem código no formulário, a reivindicação vai para o código dele (`codigo_do_pedido`), e ele
-    aprova na mesma fila das vendedoras. Caso real: o Rafael, AT12.
-- Impacto medido em 18/11, comparando a regra nova com a antiga sobre os mesmos dados: +R$ 140,84
-  no ano. Outubro não muda, porque a janela da Black já era de 12 a 19/10.
+  - `comercial_acessos.vendedor_codigo` passou a valer também para master e coordenador. O campo é opcional e o código precisa estar cadastrado; o nível consulta nunca tem código.
+  - Com código, a página Inconsistências mostra a ele, além da fila de gestor, os blocos "Reivindicar uma venda (suas vendas)" e "Suas reivindicações" (`inconsistencias.pode_reivindicar`).
+  - Sem código no formulário, a reivindicação vai para o código dele (`codigo_do_pedido`), e ele aprova na mesma fila das vendedoras. Caso real: o Rafael, AT12.
+- Impacto medido em 18/11, comparando a regra nova com a antiga sobre os mesmos dados: +R$ 140,84 no ano. Outubro não muda, porque a janela da Black já era de 12 a 19/10.
 
-**Snapshot.** `obter_mes` devolve `comercial_snapshot` e só recalcula se faltar, se tiver
-`invalidado_em` ou se `gerado_em` for de dia anterior (SP). O refresh do ETL
-(`/api/etl/refresh`) chama `marcar_desatualizado()`; o warm-up recalcula o mês corrente e **não
-recalcula mês fechado**. Período livre: só gestor, até 92 dias; `?mes=` de 2026-01 ao mês corrente.
+**Snapshot.** `obter_mes` devolve `comercial_snapshot` e só recalcula se faltar, se tiver `invalidado_em` ou se `gerado_em` for de dia anterior (SP). O refresh do ETL (`/api/etl/refresh`) chama `marcar_desatualizado()`; o warm-up recalcula o mês corrente e **não recalcula mês fechado**. Período livre: só gestor, até 92 dias; `?mes=` de 2026-01 ao mês corrente.
 
-**Guarda de escrita.** `exigir_so_comercial` só deixa passar: INSERT em tabela da allowlist
-`comercial_*`, os textos exatos registrados (constantes do módulo, comparados após normalizar
-espaços — UPDATE/upsert/DELETE só assim, nunca por padrão genérico) e as migrações registradas
-(`ALTER TABLE comercial_snapshot ADD COLUMN IF NOT EXISTS invalidado_em`). Qualquer outro SQL
-estoura; `hotmart_*`/`tmb_*` continuam só-leitura.
+**Guarda de escrita.** `exigir_so_comercial` só deixa passar: INSERT em tabela da allowlist `comercial_*`, os textos exatos registrados (constantes do módulo, comparados após normalizar espaços — UPDATE/upsert/DELETE só assim, nunca por padrão genérico) e as migrações registradas (`ALTER TABLE comercial_snapshot ADD COLUMN IF NOT EXISTS invalidado_em`). Qualquer outro SQL estoura; `hotmart_*`/`tmb_*` continuam só-leitura.
 
-**Telas.** `/comercial` (visão geral), `/comercial/comissoes` (+ `.xlsx`, com prefixo anti-fórmula),
-`/comercial/ranking`, `/comercial/inconsistencias` (reembolso a verificar, conflito de código,
-sem valor-base, sem regra; venda sem código AT é orgânica e vira lista pesquisável para
-reivindicar), `/comercial/regras` (vendedores, acessos, percentuais, participações, bases, ofertas,
-janelas, metas). POSTs: `recalcular`, `reivindicar`, `atribuicoes/aprovar|recusar`, `atribuir`,
-`reembolso`, `ajuste`, `bonus`, `fechar-mes`, `reabrir-mes`, `regras/*`. Os templates não levam
-dado em JS inline (`data-*`).
+**Telas.** `/comercial` (visão geral), `/comercial/comissoes` (+ `.xlsx`, com prefixo anti-fórmula), `/comercial/ranking`, `/comercial/inconsistencias` (reembolso a verificar, conflito de código, sem valor-base, sem regra; venda sem código AT é orgânica e vira lista pesquisável para reivindicar), `/comercial/regras` (vendedores, acessos, percentuais, participações, bases, ofertas, janelas, metas). POSTs: `recalcular`, `reivindicar`, `atribuicoes/aprovar|recusar`, `atribuir`, `reembolso`, `ajuste`, `bonus`, `fechar-mes`, `reabrir-mes`, `regras/*`. Os templates não levam dado em JS inline (`data-*`).
 
-**Fechamento e estorno.** Fechar congela as linhas, bônus e totais em `comercial_fechamentos`;
-`obter_mes` passa a devolver o congelado. Total pago = elegível + prevista + bônus (**opção A, confirmada pelo usuário
-em 06/11/26**: a prevista é paga no fechamento e um cancelamento dentro do prazo vira estorno no
-mês seguinte). Exige 0 "reembolso a verificar". Estorno = linha congelada cuja
-venda hoje está cancelada (≤7 dias) ou com decisão "tira" → linha negativa no **1º mês aberto**
-seguinte; venda tardia de mês fechado também cai no 1º mês aberto, sem duplicar. Horizonte
-determinístico: `HORIZONTE_MESES = 2` meses fechados contíguos antes do mês, mais qualquer linha
-com decisão "tira" (qualquer idade). Só o **último** mês fechado reabre (`reabrir_ordem`). Escritas
-são recusadas pelo **mês de efeito** (`mes_fechado`, `fora_do_horizonte`,
-`mudou_durante_o_fechamento`). Venda congelada que hoje está "reembolso a verificar" sem decisão
-aparece no 1º mês aberto com valor 0 ("venda de AAAA-MM (fechado)"), entra na fila de
-Inconsistências e trava o fechamento desse mês até o gestor decidir ("tira" vira estorno).
+**Fechamento e estorno.** Fechar congela as linhas, bônus e totais em `comercial_fechamentos`; `obter_mes` passa a devolver o congelado. Total pago = elegível + prevista + bônus (**opção A, confirmada pelo usuário em 06/11/26**: a prevista é paga no fechamento e um cancelamento dentro do prazo vira estorno no mês seguinte). Exige 0 "reembolso a verificar". Estorno = linha congelada cuja venda hoje está cancelada (≤7 dias) ou com decisão "tira" → linha negativa no **1º mês aberto** seguinte; venda tardia de mês fechado também cai no 1º mês aberto, sem duplicar. Horizonte determinístico: `HORIZONTE_MESES = 2` meses fechados contíguos antes do mês, mais qualquer linha com decisão "tira" (qualquer idade). Só o **último** mês fechado reabre (`reabrir_ordem`). Escritas são recusadas pelo **mês de efeito** (`mes_fechado`, `fora_do_horizonte`, `mudou_durante_o_fechamento`). Venda congelada que hoje está "reembolso a verificar" sem decisão aparece no 1º mês aberto com valor 0 ("venda de AAAA-MM (fechado)"), entra na fila de Inconsistências e trava o fechamento desse mês até o gestor decidir ("tira" vira estorno).
 
-**CLI.** `scripts/comercial_carga_inicial.py --dry-run|--gravar|--migrar` (`--gravar` cria só o
-que falta, em lote numa transação, idempotente; semeia `comercial_acessos` só se a tabela estiver
-vazia, para não devolver acesso removido; `--migrar` = só tabelas e migrações, sem dados) e `scripts/comercial_conciliar.py --cadastros banco|planilha` (sistema ×
-planilha usando os cadastros do banco ou da planilha).
+**CLI.** `scripts/comercial_carga_inicial.py --dry-run|--gravar|--migrar` (`--gravar` cria só o que falta, em lote numa transação, idempotente; semeia `comercial_acessos` só se a tabela estiver vazia, para não devolver acesso removido; `--migrar` = só tabelas e migrações, sem dados) e `scripts/comercial_conciliar.py --cadastros banco|planilha` (sistema × planilha usando os cadastros do banco ou da planilha).
 
 ## Tabelas de anúncios — consulta de histórico, transação das cargas e schema (2026-11-09)
 
 Saiu da revisão [[REVISAO_TABELAS_ADS_2026-11-09]].
 
-- **Histórico de criativos de lançamentos anteriores** (`frontend/db_readers/ads_meta.py`,
-  `_ler_nomes_anteriores`, usado por `get_historico_ad_codes` e `get_historico_ad_nomes`). Era a
-  query mais cara do banco: ~12,5 h de CPU entre 21/09 e 09/11/26. O filtro `lancamento_codigo
-  ILIKE 'PI-%'` forçava seq scan. Agora é faixa de texto, `>= 'PI-' AND < 'PI.'`, que vale
-  porque o código é sempre maiúsculo e `.` vem logo depois de `-` em ASCII. O resultado é
-  idêntico ao do `ILIKE` (conferido em 6 lançamentos nas duas tabelas) e cai de 150–2.300 ms
-  para 17–54 ms. As duas funções leem os nomes uma vez só e têm cache por processo de 6 h
-  (antes: 30 min numa e nenhum na outra). 11/11/26: as duas funções compartilham a mesma leitura
-  (`_nomes_anteriores`). Na Black, com o cache frio, a consulta rodava duas vezes. O cache é
-  esquecido (`reset_historico_cache`) no aquecimento pós-ETL quando rodou `meta_ads` ou `google_ads`
-  (`prewarm.warm_active`). Teste: `tests/test_historico_ad_codes_cache.py`.
-- **Públicos/demografia do Google e região/demografia do Facebook (Meta)**
-  (`upsert_audiences`/`upsert_demographics` em `etl_google_ads.py`,
-  `upsert_region`/`upsert_demographics` em `etl_meta_ads.py`). O `to_sql` agora roda na mesma
-  transação do DELETE, como já acontecia na diária desde 27/10. Antes, a janela ficava vazia
-  entre os dois passos. Validado com a rodada de 09/11, as quatro tabelas gravadas.
-- **`etl/schema.sql` alinhado ao banco:** `google_ads_daily.customer_id`,
-  `idx_meta_lancamento_date`/`idx_google_lancamento_date` e `idx_meta_conta`/`idx_google_conta`,
-  que existiam só em produção. Os quatro índices também estão em `etl/indexes_performance.sql`
-  (CONCURRENTLY).
-- **`GET /api/launch-config/{code}` (wizard), 11/11/26.** A rota é `async`, mas rodava
-  `read_launch_config` e `_compute_launch_defaults` direto no loop, e o servidor inteiro parava
-  enquanto isso. A primeira chamada para PI-NOV-26 levou 58 s, dos quais 28 s eram o
-  `COUNT(*)` em `leads`, perto do `statement_timeout` de 30 s. As duas funções agora rodam em
-  `run_in_threadpool`. `autodetect_launch_data` (`launches.py`) tem cache por processo de 10 min.
-  Uma falha não fica no cache: quando a contagem passa de 30 s, o wizard abre sem `meta_leads`
-  e a próxima abertura tenta de novo. Teste: `tests/test_autodetect_launch_cache.py`.
-- **Manutenção do banco, 11/11/26.** Seis índices sem uso foram apagados: o duplicado de
-  `leads.lancamento_codigo`, `idx_leads_utm_content`, `idx_*_ad_id` e `idx_*_lancamento`.
-  A `leads` ganhou autovacuum com scale factor 0,02. Depois do `VACUUM`, a contagem por
-  lançamento caiu de 30 s para menos de 1 s. Detalhes e definições para recriar:
-  [[REVISAO_TABELAS_ADS_2026-11-09]].
+- **Histórico de criativos de lançamentos anteriores** (`frontend/db_readers/ads_meta.py`, `_ler_nomes_anteriores`, usado por `get_historico_ad_codes` e `get_historico_ad_nomes`). Era a query mais cara do banco: ~12,5 h de CPU entre 21/09 e 09/11/26. O filtro `lancamento_codigo ILIKE 'PI-%'` forçava seq scan. Agora é faixa de texto, `>= 'PI-' AND < 'PI.'`, que vale porque o código é sempre maiúsculo e `.` vem logo depois de `-` em ASCII. O resultado é idêntico ao do `ILIKE` (conferido em 6 lançamentos nas duas tabelas) e cai de 150–2.300 ms para 17–54 ms. As duas funções leem os nomes uma vez só e têm cache por processo de 6 h (antes: 30 min numa e nenhum na outra). 11/11/26: as duas funções compartilham a mesma leitura (`_nomes_anteriores`). Na Black, com o cache frio, a consulta rodava duas vezes. O cache é esquecido (`reset_historico_cache`) no aquecimento pós-ETL quando rodou `meta_ads` ou `google_ads` (`prewarm.warm_active`). Teste: `tests/test_historico_ad_codes_cache.py`.
+- **Públicos/demografia do Google e região/demografia do Facebook (Meta)** (`upsert_audiences`/`upsert_demographics` em `etl_google_ads.py`, `upsert_region`/`upsert_demographics` em `etl_meta_ads.py`). O `to_sql` agora roda na mesma transação do DELETE, como já acontecia na diária desde 27/10. Antes, a janela ficava vazia entre os dois passos. Validado com a rodada de 09/11, as quatro tabelas gravadas.
+- **`etl/schema.sql` alinhado ao banco:** `google_ads_daily.customer_id`, `idx_meta_lancamento_date`/`idx_google_lancamento_date` e `idx_meta_conta`/`idx_google_conta`, que existiam só em produção. Os quatro índices também estão em `etl/indexes_performance.sql` (CONCURRENTLY).
+- **`GET /api/launch-config/{code}` (wizard), 11/11/26.** A rota é `async`, mas rodava `read_launch_config` e `_compute_launch_defaults` direto no loop, e o servidor inteiro parava enquanto isso. A primeira chamada para PI-NOV-26 levou 58 s, dos quais 28 s eram o `COUNT(*)` em `leads`, perto do `statement_timeout` de 30 s. As duas funções agora rodam em `run_in_threadpool`. `autodetect_launch_data` (`launches.py`) tem cache por processo de 10 min. Uma falha não fica no cache: quando a contagem passa de 30 s, o wizard abre sem `meta_leads` e a próxima abertura tenta de novo. Teste: `tests/test_autodetect_launch_cache.py`.
+- **Manutenção do banco, 11/11/26.** Seis índices sem uso foram apagados: o duplicado de `leads.lancamento_codigo`, `idx_leads_utm_content`, `idx_*_ad_id` e `idx_*_lancamento`. A `leads` ganhou autovacuum com scale factor 0,02. Depois do `VACUUM`, a contagem por lançamento caiu de 30 s para menos de 1 s. Detalhes e definições para recriar: [[REVISAO_TABELAS_ADS_2026-11-09]].
 - **Grupos de WhatsApp (`whatsapp_eventos.py`): leitura incremental, 11/11/26.**
-  - **O problema:** com o cache de 5 min, o leitor baixava todos os eventos do lançamento a cada
-    rodada (165–187 mil linhas em PES-NOV-26 e PI-NOV-26). Isso dava ~4 GB/dia de egress no
-    Supabase, mais da metade do ciclo, e colocou a organização perto da cota de 250 GB.
-  - **Como funciona agora:** o processo guarda os eventos (`_eventos`). A cada rodada, relê só as
-    últimas 3 h (`_JANELA_RELEITURA`) e troca essa janela pelo que o banco devolve; um evento
-    atrasado ou apagado dentro dela sai certo. A cada 6 h (`_RECARGA_TOTAL`) relê tudo, o que
-    corrige atrasos maiores que a janela. Há uma trava por lançamento.
-  - **Resultado:** ~1–2 mil linhas por rodada, em 0,1 s em vez de 4–6 s. Card idêntico ao da
-    leitura completa, conferido nos dois lançamentos com o cache simulado de 1 h e de 24 h atrás.
+  - **O problema:** com o cache de 5 min, o leitor baixava todos os eventos do lançamento a cada rodada (165–187 mil linhas em PES-NOV-26 e PI-NOV-26). Isso dava ~4 GB/dia de egress no Supabase, mais da metade do ciclo, e colocou a organização perto da cota de 250 GB.
+  - **Como funciona agora:** o processo guarda os eventos (`_eventos`). A cada rodada, relê só as últimas 3 h (`_JANELA_RELEITURA`) e troca essa janela pelo que o banco devolve; um evento atrasado ou apagado dentro dela sai certo. A cada 6 h (`_RECARGA_TOTAL`) relê tudo, o que corrige atrasos maiores que a janela. Há uma trava por lançamento.
+  - **Resultado:** ~1–2 mil linhas por rodada, em 0,1 s em vez de 4–6 s. Card idêntico ao da leitura completa, conferido nos dois lançamentos com o cache simulado de 1 h e de 24 h atrás.
   - Teste: `tests/test_whatsapp_eventos_incremental.py`.
 
 ## `/verba` no layout da planilha "Verba Diária" (2026-11-10)
 
-A página espelha a planilha do Drive, de cima para baixo: 4 cards (Previsão, Investido, Captação
-Previsto, Captação Realizado — estes com total por plataforma e % Google/Meta/TikTok), blocos da
-Pré-Qualificação (Previsão / Verba investida / Restante: total, por dia e % por público), tabela
-"Dias da Semana" (investida × previsão diária, gasto × previsto até hoje) e divisão por público em
-cada dia. As curvas com o diário de ações, o previsto × realizado por dia e as sub-etapas de
-remarketing ficam abaixo, como extras.
+A página espelha a planilha do Drive, de cima para baixo: 4 cards (Previsão, Investido, Captação Previsto, Captação Realizado — estes com total por plataforma e % Google/Meta/TikTok), blocos da Pré-Qualificação (Previsão / Verba investida / Restante: total, por dia e % por público), tabela "Dias da Semana" (investida × previsão diária, gasto × previsto até hoje) e divisão por público em cada dia. As curvas com o diário de ações, o previsto × realizado por dia e as sub-etapas de remarketing ficam abaixo, como extras.
 
-- Dados: `resumo_por_plataforma`, `blocos_pre_quali`, `tabela_dias_semana`, `hoje_brasil` em
-  `frontend/services/orcamento.py`; a rota só monta o contexto (`verba_page`).
-- "Por dia" da pré-quali: previsão ÷ dias da etapa, investida ÷ dias decorridos, restante ÷ dias que
-  faltam (a planilha misturava divisores).
-- `previsto_por_etapa` agora cai no `total` da etapa quando `meta_investimento_pre_quali/captacao`
-  do `launch_config` está vazio (PI-NOV-26 estava; o card de previsão saía zerado).
-- Fora do layout: "Orçamento Diário das Campanhas – Pré Quali" (divisão manual por sub-campanha) e
-  a linha "PQ / Impulsionar" (sem categorização no sistema, aparece como "–").
+- Dados: `resumo_por_plataforma`, `blocos_pre_quali`, `tabela_dias_semana`, `hoje_brasil` em `frontend/services/orcamento.py`; a rota só monta o contexto (`verba_page`).
+- "Por dia" da pré-quali: previsão ÷ dias da etapa, investida ÷ dias decorridos, restante ÷ dias que faltam (a planilha misturava divisores).
+- `previsto_por_etapa` agora cai no `total` da etapa quando `meta_investimento_pre_quali/captacao` do `launch_config` está vazio (PI-NOV-26 estava; o card de previsão saía zerado).
+- Fora do layout: "Orçamento Diário das Campanhas – Pré Quali" (divisão manual por sub-campanha) e a linha "PQ / Impulsionar" (sem categorização no sistema, aparece como "–").
 
 ## Debriefing: forma de pagamento com valor recebido × projetado (2026-11-11)
 
-A seção de forma de pagamento (barras, pizza, tabela de métodos Hotmart) saiu de depois do
-"Detalhamento de Oferta" e agora fica logo abaixo de "Vendas por Dia — Carrinho Aberto", dentro do
-Resumo Executivo, com uma tabela nova **Recebido × Projetado × A receber** por forma
-(Hotmart + TMB).
+A seção de forma de pagamento (barras, pizza, tabela de métodos Hotmart) saiu de depois do "Detalhamento de Oferta" e agora fica logo abaixo de "Vendas por Dia — Carrinho Aberto", dentro do Resumo Executivo, com uma tabela nova **Recebido × Projetado × A receber** por forma (Hotmart + TMB).
 
 - **Projetado** = valor contratado da venda (o mesmo que soma a Receita Líquida).
-- **Recebido, Hotmart** = soma de tudo que foi cobrado dentro do período, inclusive as cobranças
-  seguintes de um parcelado (as linhas que `_parcela_unica_info` marca como repetição e que não
-  contam como venda). Limitado ao projetado do método. Campos `projetado`/`recebido` em
-  `HotmartDetails.pagamentos`.
-- **Recebido, TMB** = só contrato quitado (status Efetivado/Pago). A exportação do TMB não traz as
-  parcelas pagas de um contrato "Em Dia", então o parcelado em andamento entra inteiro em "A receber"
-  (conservador). Campo novo `TmbDetails.pagamentos`.
+- **Recebido, Hotmart** = soma de tudo que foi cobrado dentro do período, inclusive as cobranças seguintes de um parcelado (as linhas que `_parcela_unica_info` marca como repetição e que não contam como venda). Limitado ao projetado do método. Campos `projetado`/`recebido` em `HotmartDetails.pagamentos`.
+- **Recebido, TMB** = só contrato quitado (status Efetivado/Pago). A exportação do TMB não traz as parcelas pagas de um contrato "Em Dia", então o parcelado em andamento entra inteiro em "A receber" (conservador). Campo novo `TmbDetails.pagamentos`.
 - Montado em `frontend/services/debriefing.py` (`pagamentos_valores`, `pv_projetado`, `pv_recebido`).
-- Baseline de caracterização regravado só para `read_hotmart_details` e `read_tmb_details`
-  (campos novos); `ATUALIZAR_BASELINE=1` sobrescreve o arquivo inteiro com as entradas dos testes
-  selecionados — enxertar as duas entradas à mão, como foi feito.
+- Baseline de caracterização regravado só para `read_hotmart_details` e `read_tmb_details` (campos novos); `ATUALIZAR_BASELINE=1` sobrescreve o arquivo inteiro com as entradas dos testes selecionados — enxertar as duas entradas à mão, como foi feito.
 
-**Atualização 11/11/26 — só carrinho aberto.** `read_hotmart_details` e `read_tmb_details` liam o
-período inteiro do lançamento (pré-quali em diante) enquanto `read_vendas` já usava só a janela do
-carrinho; a tabela de forma de pagamento mostrava 66 vendas no PES-NOV-26 (contra 20 do carrinho).
-Agora os dois usam `carrinho_start_date`..`carrinho_end_date` (a segunda da live até o fim do
-carrinho), a mesma janela do `read_vendas`. Baselines de caracterização do Hotmart/TMB regravados
-(janela menor nos lançamentos fechados).
+**Atualização 11/11/26 — só carrinho aberto.** `read_hotmart_details` e `read_tmb_details` liam o período inteiro do lançamento (pré-quali em diante) enquanto `read_vendas` já usava só a janela do carrinho; a tabela de forma de pagamento mostrava 66 vendas no PES-NOV-26 (contra 20 do carrinho). Agora os dois usam `carrinho_start_date`..`carrinho_end_date` (a segunda da live até o fim do carrinho), a mesma janela do `read_vendas`. Baselines de caracterização do Hotmart/TMB regravados (janela menor nos lançamentos fechados).
 
 ## Debriefing: seção "Métricas do lançamento" (2026-11-11)
 
-Os quadros que ficavam no fim do Resumo Executivo — Pico Grupos VIP / Normais, os 4 quadros da
-Hotmart (pago, taxa de parcelamento, taxa Hotmart, líquido do produtor) e a linha de Leads/CPL da
-Captação e por fonte — saíram de lá e formam uma seção própria, **"Métricas do lançamento"**, logo
-abaixo de "Compradores pelo Dia que Entraram no Grupo". Só mudou a posição no template
-(`frontend/templates/debriefing.html`); os dados são os mesmos. A chave da seção (slug do título)
-é nova: visualizações salvas antes de 11/11/26 mostram a seção no fim da página até alguém
-reordenar e salvar.
+Os quadros que ficavam no fim do Resumo Executivo — Pico Grupos VIP / Normais, os 4 quadros da Hotmart (pago, taxa de parcelamento, taxa Hotmart, líquido do produtor) e a linha de Leads/CPL da Captação e por fonte — saíram de lá e formam uma seção própria, **"Métricas do lançamento"**, logo abaixo de "Compradores pelo Dia que Entraram no Grupo". Só mudou a posição no template (`frontend/templates/debriefing.html`); os dados são os mesmos. A chave da seção (slug do título) é nova: visualizações salvas antes de 11/11/26 mostram a seção no fim da página até alguém reordenar e salvar.
 
-**Barra de controles fixa (12/11/26).** No debriefing, a barra "Recolher / Expandir / Seções / Buscar /
-Atualizar agora / Gerar PDF" (`.dbf-accordion-controls`) agora é `position: sticky` e acompanha a
-rolagem, logo abaixo do cabeçalho (`.hdr`, também sticky). O topo exato (`--dbf-sticky-top` = topo +
-altura do `.hdr`) é medido por um script pequeno na própria página, porque muda com o subnav e no
-celular; a barra ganha sombra (`.is-stuck`) quando está grudada e volta ao fluxo normal na impressão.
+**Barra de controles fixa (12/11/26).** No debriefing, a barra "Recolher / Expandir / Seções / Buscar / Atualizar agora / Gerar PDF" (`.dbf-accordion-controls`) agora é `position: sticky` e acompanha a rolagem, logo abaixo do cabeçalho (`.hdr`, também sticky). O topo exato (`--dbf-sticky-top` = topo + altura do `.hdr`) é medido por um script pequeno na própria página, porque muda com o subnav e no celular; a barra ganha sombra (`.is-stuck`) quando está grudada e volta ao fluxo normal na impressão.
 
 ## Oferta avulsa de outro produto contando num lançamento (2026-11-12)
 
-`launch_config.hotmart_produto_ids` agora aceita, além do id do produto, **`oferta:<codigo>`** — o
-`off=` do link de checkout (coluna `codigo_do_preco`, em minúsculas). A venda daquela oferta entra no
-lançamento mesmo que o produto seja de outro projeto. Caso de uso: o upsell "Black Vitalícia 2026 —
-Oferta Funil de Vendas TJSP" (`oferta:izfne8k1`, produto `8643509` da Black) que é do funil do PES-NOV-26.
+`launch_config.hotmart_produto_ids` agora aceita, além do id do produto, **`oferta:<codigo>`** — o `off=` do link de checkout (coluna `codigo_do_preco`, em minúsculas). A venda daquela oferta entra no lançamento mesmo que o produto seja de outro projeto. Caso de uso: o upsell "Black Vitalícia 2026 — Oferta Funil de Vendas TJSP" (`oferta:izfne8k1`, produto `8643509` da Black) que é do funil do PES-NOV-26.
 
-- `frontend.utils.split_hotmart_ids` separa (produtos, ofertas); `read_vendas` e `read_hotmart_details`
-  filtram `(produto do projeto OU oferta listada)`. Sem coluna nova nem mudança no wizard.
+- `frontend.utils.split_hotmart_ids` separa (produtos, ofertas); `read_vendas` e `read_hotmart_details` filtram `(produto do projeto OU oferta listada)`. Sem coluna nova nem mudança no wizard.
 - Entra em `read_vendas`, no detalhamento do debriefing (oferta, forma de pagamento, timeline) e no total.
 - **Fora, por enquanto:** `read_dia1_sales` (curva da 1ª hora), afiliados e perpétuo seguem só por produto.
-- A mesma venda continua contando também no lançamento dono do produto (BV-26 tem o `8643509` inteiro):
-  não há desconto automático entre lançamentos.
+- A mesma venda continua contando também no lançamento dono do produto (BV-26 tem o `8643509` inteiro): não há desconto automático entre lançamentos.
 
-**Vendas por produto em "Métricas do lançamento" (12/11/26).** A seção ganhou a tabela "Vendas por
-Produto": cada produto que compõe a venda do lançamento (Hotmart + TMB) com vendas, % de vendas,
-faturamento líquido, % do faturamento e ticket médio, mais o TOTAL (fecha com a Receita Líquida).
-Uma oferta avulsa de outro produto (`oferta:<codigo>`, ex.: upsell da Black no funil do PES) aparece
-em linha própria. Dados: `HotmartDetails.produtos` e `TmbDetails.produtos` (agrupados no leitor, só
-carrinho aberto) → `vendas_por_produto` em `frontend/services/debriefing.py`. Baselines de
-caracterização do Hotmart/TMB regravados pelo campo novo.
+**Vendas por produto em "Métricas do lançamento" (12/11/26).** A seção ganhou a tabela "Vendas por Produto": cada produto que compõe a venda do lançamento (Hotmart + TMB) com vendas, % de vendas, faturamento líquido, % do faturamento e ticket médio, mais o TOTAL (fecha com a Receita Líquida). Uma oferta avulsa de outro produto (`oferta:<codigo>`, ex.: upsell da Black no funil do PES) aparece em linha própria. Dados: `HotmartDetails.produtos` e `TmbDetails.produtos` (agrupados no leitor, só carrinho aberto) → `vendas_por_produto` em `frontend/services/debriefing.py`. Baselines de caracterização do Hotmart/TMB regravados pelo campo novo.
 
 ## Página /resumo — painel de vendas numa tela só (2026-11-12)
 
-Nova aba **Resumo** no menu (Visão Geral, último item, depois de Verba do Lançamento). A **disposição dos dados** segue um
-painel de referência — 4 cartões (Receita Líquida, ROAS*, Qtd. de Vendas, Ticket Médio), Número de
-Vendas (por produto), Vendas por Dia, Já eram alunos × Novos alunos, Modelo de Pagamento,
-Investimento, Lucro e a hora da venda mais recente — mas o **visual é o do tema** (tokens `--bs-*`,
-cabeçalho `.hdr`, grade de 8px; os gráficos leem as cores dos tokens). Rota `resumo_page`
-(`frontend/routes/analytics.py`), contexto em `frontend/services/resumo.py`, tela
-`frontend/templates/resumo.html` (Chart.js).
+Nova aba **Resumo** no menu (Visão Geral, último item, depois de Verba do Lançamento). A **disposição dos dados** segue um painel de referência — 4 cartões (Receita Líquida, ROAS*, Qtd. de Vendas, Ticket Médio), Número de Vendas (por produto), Vendas por Dia, Já eram alunos × Novos alunos, Modelo de Pagamento, Investimento, Lucro e a hora da venda mais recente — mas o **visual é o do tema** (tokens `--bs-*`, cabeçalho `.hdr`, grade de 8px; os gráficos leem as cores dos tokens). Rota `resumo_page` (`frontend/routes/analytics.py`), contexto em `frontend/services/resumo.py`, tela `frontend/templates/resumo.html` (Chart.js).
 
-- **Números:** receita/vendas de `read_vendas`; investimento = Meta + Google + WhatsApp (o mesmo do
-  `/funil`); ROAS = receita ÷ investimento; Lucro = receita − investimento. Conferido com o painel de
-  referência do PES-SET-26: ROAS 3,41 contra 3,40 e pico de 1.128 vendas em 17/09, com diferença de
-  ~0,3% de receita por vendas lançadas depois.
-- **Vendas por produto:** `HotmartDetails.produtos` + `TmbDetails.produtos`; o sufixo de oferta do TMB
-  ("- Lead…", "- Crossell…", "- UpSell…") sai do nome para a mesma Mentoria não virar várias barras;
-  oferta avulsa de outro produto (`oferta:<codigo>`) fica em barra própria.
-- **Modelo de pagamento:** as 4 faixas exclusivas do debriefing (à vista, 12x, outras parcelas, entrada
-  de boleto parcelado) — não tem as categorias de recorrência do painel de referência.
-- **Aluno × novo:** não existe cadastro de alunos no banco. `read_perfil_compradores`
-  (`frontend/db_readers/resumo.py`) classifica cada comprador do lançamento (por e-mail) pelas compras
-  pagas ANTERIORES ao início do carrinho (Hotmart + TMB): do mesmo projeto, de outro projeto ou
-  nenhuma (novo aluno). É aproximação pelo histórico de vendas, não pelo LMS.
-- **Hora da última venda:** `ultima_venda` em `HotmartDetails`/`TmbDetails` (`parse_ts_brt`, horário de
-  Brasília).
+- **Números:** receita/vendas de `read_vendas`; investimento = Meta + Google + WhatsApp (o mesmo do `/funil`); ROAS = receita ÷ investimento; Lucro = receita − investimento. Conferido com o painel de referência do PES-SET-26: ROAS 3,41 contra 3,40 e pico de 1.128 vendas em 17/09, com diferença de ~0,3% de receita por vendas lançadas depois.
+- **Vendas por produto:** `HotmartDetails.produtos` + `TmbDetails.produtos`; o sufixo de oferta do TMB ("- Lead…", "- Crossell…", "- UpSell…") sai do nome para a mesma Mentoria não virar várias barras; oferta avulsa de outro produto (`oferta:<codigo>`) fica em barra própria.
+- **Modelo de pagamento:** as 4 faixas exclusivas do debriefing (à vista, 12x, outras parcelas, entrada de boleto parcelado) — não tem as categorias de recorrência do painel de referência.
+- **Aluno × novo:** não existe cadastro de alunos no banco. `read_perfil_compradores` (`frontend/db_readers/resumo.py`) classifica cada comprador do lançamento (por e-mail) pelas compras pagas ANTERIORES ao início do carrinho (Hotmart + TMB): do mesmo projeto, de outro projeto ou nenhuma (novo aluno). É aproximação pelo histórico de vendas, não pelo LMS.
+- **Hora da última venda:** `ultima_venda` em `HotmartDetails`/`TmbDetails` (`parse_ts_brt`, horário de Brasília).
 
-**Produtos nas Matrículas (12/11/26).** O cartão "Matrículas" do debriefing ganhou, **dentro do bloco colorido do lançamento atual**, uma
-linha "Produtos:" com um chip por produto que compõe a matrícula (nome, vendas e etiqueta): **Lançamento**
-para os produtos do próprio lançamento (principal e BLP) e **Upsell · oferta de outro produto** para
-a oferta avulsa de outro produto (`oferta:<codigo>`, ex.: upsell da Black no funil do PES). Usa
-`dbf.vendas_por_produto`, o mesmo dado da tabela "Vendas por Produto" de Métricas do lançamento.
+**Produtos nas Matrículas (12/11/26).** O cartão "Matrículas" do debriefing ganhou, **dentro do bloco colorido do lançamento atual**, uma linha "Produtos:" com um chip por produto que compõe a matrícula (nome, vendas e etiqueta): **Lançamento** para os produtos do próprio lançamento (principal e BLP) e **Upsell · oferta de outro produto** para a oferta avulsa de outro produto (`oferta:<codigo>`, ex.: upsell da Black no funil do PES). Usa `dbf.vendas_por_produto`, o mesmo dado da tabela "Vendas por Produto" de Métricas do lançamento.
 
-**Tabela "Hotmart — por método de pagamento" diagramada (12/11/26).** Largura limitada (1040px, as
-colunas deixam de ficar coladas à esquerda com vão à direita), números alinhados à direita e sem
-quebra de linha nos nomes ("Parcelado Hotmart", "À vista"), coluna de % com barra de proporção,
-linha de TOTAL e cabeçalho "Outras parcelas" por extenso.
+**Tabela "Hotmart — por método de pagamento" diagramada (12/11/26).** Largura limitada (1040px, as colunas deixam de ficar coladas à esquerda com vão à direita), números alinhados à direita e sem quebra de linha nos nomes ("Parcelado Hotmart", "À vista"), coluna de % com barra de proporção, linha de TOTAL e cabeçalho "Outras parcelas" por extenso.
 
 ## Tela de loading: 100 frases e retrato do autor (2026-11-12)
 
-O overlay de navegação (`#bs-loading-overlay`, `base.html` + `static/js/carregamento.js` +
-`static/css/layout.css`) passou de 34 para **100 frases** no conjunto padrão (`BS_QUOTES`) e ganhou o
-**retrato do autor** dentro do anel de carregamento.
+O overlay de navegação (`#bs-loading-overlay`, `base.html` + `static/js/carregamento.js` + `static/css/layout.css`) passou de 34 para **100 frases** no conjunto padrão (`BS_QUOTES`) e ganhou o **retrato do autor** dentro do anel de carregamento.
 
-- **Frases:** filósofos, grandes pensadores, bíblicas (texto da NVI 1993/2000, a NVI-PT do Bible
-  Gateway, com autor, livro e versículo, ex.: "Salomão · Provérbios 16:3") e cientistas. Cada item é
-  `[frase, autor, slug]`. Critério: só frase com fonte primária (obra, carta, discurso ou entrevista
-  documentada) e na redação documentada. Conferência de 12/11/26 (Quote Investigator, Wikiquote,
-  textos originais): saíram as atribuições erradas que vinham da lista antiga ("Somos o que fazemos
-  repetidamente" era do Will Durant, "A simplicidade é a sofisticação máxima" não é do Leonardo, as
-  duas do Drucker e as duas do Confúcio não se sustentavam), e as redações populares de Lavoisier,
-  Russell, Suassuna, Goodall e Darcy Ribeiro foram trocadas pelo texto documentado. Frase nova
-  precisa da mesma conferência. Os conjuntos dos temas de filme (Outatime,
-  Predador, Homem-Aranha, Aranhaverso) não mudaram e não têm slug.
-- **Anel:** `.bs-loading-spinner` agora tem 128px. O anel gira num `::before` e o retrato
-  (`.bs-loading-foto`, 104px) fica parado dentro, com contorno na `--bs-accent`. A foto aparece e troca
-  junto com a frase (depois de 400ms, a cada 7s). Os temas de filme continuam escondendo o anel e
-  mostrando o sprite 8 bits deles (ver "Loadings 8 bits" abaixo).
-- **Cor do tema:** os retratos são sanguínea/sépia; um overlay `mix-blend-mode: color` com 55% de
-  opacidade em `--bs-accent` (`.bs-loading-foto::after`) tinge a foto com a cor do tema ativo.
-- **Arquivos:** `frontend/static/img/pensadores/<slug>.webp`, 208px, cerca de 10 KB cada (77 autores,
-  menos de 1 MB). O navegador baixa só o retrato da frase que aparece, e a próxima é pré-carregada.
-  Se o arquivo falhar, aparecem as iniciais do autor no lugar (`.sem-foto`).
-- **Geração:** `scripts/gerar_retratos_pensadores.py`. Gera por IA (ElevenLabs Flows,
-  `POST /v1/flows/image`, modelo `gemini-3-pro-image`, 1:1 1K) no estilo estudo de Leonardo da Vinci
-  e recorta para 208px. Por padrão gera só os slugs sem arquivo; `--so <slug>` refaz um retrato. O
-  dicionário `PESSOAS` tem a descrição visual de cada slug. **Frase com autor novo exige uma entrada
-  ali e rodar o script.** Os PNG brutos ficam em `outputs/_retratos_pensadores_bruto/` e não são versionados.
+- **Frases:** filósofos, grandes pensadores, bíblicas (texto da NVI 1993/2000, a NVI-PT do Bible Gateway, com autor, livro e versículo, ex.: "Salomão · Provérbios 16:3") e cientistas. Cada item é `[frase, autor, slug]`. Critério: só frase com fonte primária (obra, carta, discurso ou entrevista documentada) e na redação documentada. Conferência de 12/11/26 (Quote Investigator, Wikiquote, textos originais): saíram as atribuições erradas que vinham da lista antiga ("Somos o que fazemos repetidamente" era do Will Durant, "A simplicidade é a sofisticação máxima" não é do Leonardo, as duas do Drucker e as duas do Confúcio não se sustentavam), e as redações populares de Lavoisier, Russell, Suassuna, Goodall e Darcy Ribeiro foram trocadas pelo texto documentado. Frase nova precisa da mesma conferência. Os conjuntos dos temas de filme (Outatime, Predador, Homem-Aranha, Aranhaverso) não mudaram e não têm slug.
+- **Anel:** `.bs-loading-spinner` agora tem 128px. O anel gira num `::before` e o retrato (`.bs-loading-foto`, 104px) fica parado dentro, com contorno na `--bs-accent`. A foto aparece e troca junto com a frase (depois de 400ms, a cada 7s). Os temas de filme continuam escondendo o anel e mostrando o sprite 8 bits deles (ver "Loadings 8 bits" abaixo).
+- **Cor do tema:** os retratos são sanguínea/sépia; um overlay `mix-blend-mode: color` com 55% de opacidade em `--bs-accent` (`.bs-loading-foto::after`) tinge a foto com a cor do tema ativo.
+- **Arquivos:** `frontend/static/img/pensadores/<slug>.webp`, 208px, cerca de 10 KB cada (77 autores, menos de 1 MB). O navegador baixa só o retrato da frase que aparece, e a próxima é pré-carregada. Se o arquivo falhar, aparecem as iniciais do autor no lugar (`.sem-foto`).
+- **Geração:** `scripts/gerar_retratos_pensadores.py`. Gera por IA (ElevenLabs Flows, `POST /v1/flows/image`, modelo `gemini-3-pro-image`, 1:1 1K) no estilo estudo de Leonardo da Vinci e recorta para 208px. Por padrão gera só os slugs sem arquivo; `--so <slug>` refaz um retrato. O dicionário `PESSOAS` tem a descrição visual de cada slug. **Frase com autor novo exige uma entrada ali e rodar o script.** Os PNG brutos ficam em `outputs/_retratos_pensadores_bruto/` e não são versionados.
 
-**Tema "Diretiva Primária" (12/11/26).** Easter egg do RoboCop (1987), chave `diretiva`, último da
-lista de temas de filme no seletor (ícone `ti-robot`). Paleta escura de aço azulado (`--bs-accent`
-`#5b9bd5`), cromo no `--bs-accent-2`, vermelho só no perigo e no ponto "ao vivo", ciano de HUD no
-info; números em Russo One (somada ao `@import` de `tokens.css`). No loading, o anel dá lugar a um
-capacete com o visor e a varredura vermelha indo e voltando (sprite 8 bits), e as frases vêm de
-`RC_QUOTES` (falas do filme, sem slug). Peças: `temas.css`, `layout.css`, `base.html` (SVG + opção
-no menu), `tema.js` (`BS_THEME_LABELS`), `carregamento.js` e o baseline de tokens de
-`tests/test_visual.py`.
+**Tema "Diretiva Primária" (12/11/26).** Easter egg do RoboCop (1987), chave `diretiva`, último da lista de temas de filme no seletor (ícone `ti-robot`). Paleta escura de aço azulado (`--bs-accent` `#5b9bd5`), cromo no `--bs-accent-2`, vermelho só no perigo e no ponto "ao vivo", ciano de HUD no info; números em Russo One (somada ao `@import` de `tokens.css`). No loading, o anel dá lugar a um capacete com o visor e a varredura vermelha indo e voltando (sprite 8 bits), e as frases vêm de `RC_QUOTES` (falas do filme, sem slug). Peças: `temas.css`, `layout.css`, `base.html` (SVG + opção no menu), `tema.js` (`BS_THEME_LABELS`), `carregamento.js` e o baseline de tokens de `tests/test_visual.py`.
 
-**Temas de Natal (12/11/26).** Dois easter eggs para o fim de ano, logo depois da Diretiva Primária no
-seletor, pelas mesmas peças:
-- **"Esta Casa É Minha"** (chave `kevin`, Esqueceram de Mim): tema **claro** (creme, vermelho
-  `#c41e3a` no accent, verde-pinheiro na sidebar e no `--bs-accent-2`). Mountains of Christmas só nos
-  títulos (nos números ela desenha o zero como "o"); números em Playfair Display com `lining-nums`.
-  Loading: casa com janelas acesas e pisca-pisca no telhado (sprite 8 bits), frases em `KV_QUOTES`.
-- **"Quemlândia"** (chave `grinch`, O Grinch): escuro verde, accent `#6fa82f` (o limão `#8cc63f` dava
-  contraste 2,05 com texto branco; esse dá 2,87), vermelho de Papai Noel no `--bs-accent-2`, Chewy nos
-  números. Loading: coração que cresce três tamanhos em degraus (sprite 8 bits), frases em
-  `GR_QUOTES` (livro do Dr. Seuss e filme de 2000).
-- Nos dois, neve no fundo do overlay (`#bs-loading-overlay::before`, `z-index:-1`, cor em
-  `--bs-neve`), parada com `prefers-reduced-motion`.
-- **Funil como árvore de Natal** (só no tema `kevin`, só CSS em `temas.css`): o "Funil de Conversão
-  Geral" de `/funil` (`.funil-viz`) usa `column-reverse`, então vendas fica no alto e o topo do funil na
-  base; o HTML não muda. Andares verdes com largura fixa por posição contada do fim (36/52/68/84/100%,
-  funciona com e sem a etapa de pesquisa), bolas abaixo do texto, pisca-pisca no pé de cada andar,
-  estrela (`::after`) e tronco com presentes (`::before`). Sem dados (`.no-data`), nada muda (`:has`).
+**Temas de Natal (12/11/26).** Dois easter eggs para o fim de ano, logo depois da Diretiva Primária no seletor, pelas mesmas peças:
+- **"Esta Casa É Minha"** (chave `kevin`, Esqueceram de Mim): tema **claro** (creme, vermelho `#c41e3a` no accent, verde-pinheiro na sidebar e no `--bs-accent-2`). Mountains of Christmas só nos títulos (nos números ela desenha o zero como "o"); números em Playfair Display com `lining-nums`. Loading: casa com janelas acesas e pisca-pisca no telhado (sprite 8 bits), frases em `KV_QUOTES`.
+- **"Quemlândia"** (chave `grinch`, O Grinch): escuro verde, accent `#6fa82f` (o limão `#8cc63f` dava contraste 2,05 com texto branco; esse dá 2,87), vermelho de Papai Noel no `--bs-accent-2`, Chewy nos números. Loading: coração que cresce três tamanhos em degraus (sprite 8 bits), frases em `GR_QUOTES` (livro do Dr. Seuss e filme de 2000).
+- Nos dois, neve no fundo do overlay (`#bs-loading-overlay::before`, `z-index:-1`, cor em `--bs-neve`), parada com `prefers-reduced-motion`.
+- **Funil como árvore de Natal** (só no tema `kevin`, só CSS em `temas.css`): o "Funil de Conversão Geral" de `/funil` (`.funil-viz`) usa `column-reverse`, então vendas fica no alto e o topo do funil na base; o HTML não muda. Andares verdes com largura fixa por posição contada do fim (36/52/68/84/100%, funciona com e sem a etapa de pesquisa), bolas abaixo do texto, pisca-pisca no pé de cada andar, estrela (`::after`) e tronco com presentes (`::before`). Sem dados (`.no-data`), nada muda (`:has`).
 
-**Loadings 8 bits dos temas de filme (12/11/26).** Os sete temas de filme trocaram os ícones vetoriais do
-loading por pixel art: Outatime (DeLorean voando, com rodas recolhidas, brilho azul, fogo no escape e
-linhas de velocidade), Predador (mira com a tríade de lasers), Amigão da Vizinhança (aranha descendo no
-fio), Aranhaverso (a mesma aranha com fantasmas rosa/ciano e tremor), Diretiva Primária (capacete com a
-varredura no visor), Esta Casa É Minha (casa com neve e pisca-pisca) e Quemlândia (coração crescendo três
-tamanhos). Os SVGs são **gerados** por `scripts/gerar_pixel_loading.py` (mapas de caracteres + paleta;
-um `<path>` por cor, `crispEdges`) em `frontend/templates/_loading_pixel.html`, incluído no overlay do
-`base.html` — não editar o partial à mão; `--check` diz se está desatualizado. A animação é CSS no bloco
-"Loadings 8 bits" de `layout.css`: quadros `<g class="fr frN">` alternados por opacidade com `steps(1)`
-(`--t`, `--i`, `--n`) e movimentos em unidades do grid. Com `prefers-reduced-motion`, fica parado no
-primeiro quadro. Os SVGs vetoriais antigos (relógio, mira, teia, visor, casa, coração) saíram.
+**Loadings 8 bits dos temas de filme (12/11/26).** Os sete temas de filme trocaram os ícones vetoriais do loading por pixel art: Outatime (DeLorean voando, com rodas recolhidas, brilho azul, fogo no escape e linhas de velocidade), Predador (mira com a tríade de lasers), Amigão da Vizinhança (aranha descendo no fio), Aranhaverso (a mesma aranha com fantasmas rosa/ciano e tremor), Diretiva Primária (capacete com a varredura no visor), Esta Casa É Minha (casa com neve e pisca-pisca) e Quemlândia (coração crescendo três tamanhos). Os SVGs são **gerados** por `scripts/gerar_pixel_loading.py` (mapas de caracteres + paleta; um `<path>` por cor, `crispEdges`) em `frontend/templates/_loading_pixel.html`, incluído no overlay do `base.html` — não editar o partial à mão; `--check` diz se está desatualizado. A animação é CSS no bloco "Loadings 8 bits" de `layout.css`: quadros `<g class="fr frN">` alternados por opacidade com `steps(1)` (`--t`, `--i`, `--n`) e movimentos em unidades do grid. Com `prefers-reduced-motion`, fica parado no primeiro quadro. Os SVGs vetoriais antigos (relógio, mira, teia, visor, casa, coração) saíram.
 
-**Faixas de pagamento como cartões (12/11/26).** Em "Forma de Pagamento", os marcadores de baixo (À vista,
-Parcelado em 12x, Outras parcelas, Entrada de boleto parcelado) viraram os mesmos cartões `.dbf-kpi` dos
-KPIs do topo — cantos arredondados, valor (vendas), variação e "ant." do lançamento anterior — em vez de
-só o rótulo com a variação em %.
+**Faixas de pagamento como cartões (12/11/26).** Em "Forma de Pagamento", os marcadores de baixo (À vista, Parcelado em 12x, Outras parcelas, Entrada de boleto parcelado) viraram os mesmos cartões `.dbf-kpi` dos KPIs do topo — cantos arredondados, valor (vendas), variação e "ant." do lançamento anterior — em vez de só o rótulo com a variação em %.
 
-**Matrículas — linha resumida (12/11/26).** Os chips por produto no bloco colorido viraram uma linha
-curta entre "matrículas / vs anterior" e o período: `Mentoria TJSP: 775 · Black Vitalícia: 37 UPSELL`.
-Os produtos do lançamento (principal + BLP/boleto, e as ofertas do TMB) somam numa linha só
-("Mentoria <projeto>"); cada oferta avulsa de outro produto (`oferta:<codigo>`) vira uma linha com o
-nome curto e a etiqueta UPSELL. Função `_resumo_matriculas_produtos` em `frontend/services/debriefing.py`
-→ `dbf.matriculas_produtos`.
+**Matrículas — linha resumida (12/11/26).** Os chips por produto no bloco colorido viraram uma linha curta entre "matrículas / vs anterior" e o período: `Mentoria TJSP: 775 · Black Vitalícia: 37 UPSELL`. Os produtos do lançamento (principal + BLP/boleto, e as ofertas do TMB) somam numa linha só ("Mentoria <projeto>"); cada oferta avulsa de outro produto (`oferta:<codigo>`) vira uma linha com o nome curto e a etiqueta UPSELL. Função `_resumo_matriculas_produtos` em `frontend/services/debriefing.py` → `dbf.matriculas_produtos`.
 
 ## Scheduler: deploy não deixa mais rodada pendurada (2026-11-12)
 
-Todo deploy reinicia o `etl/scheduler.py`, e isso causava dois problemas: (1) a rodada em andamento era
-morta no meio e a linha do `etl_runs` ficava `running` para sempre (havia linhas órfãs de dias); (2) o
-ciclo lento (Active Campaign, ~20 min, até 45 em captura pesada) disparava imediatamente a cada boot e
-era morto pelo deploy seguinte sem nunca terminar — em 05/11/26 os leads chegaram a ficar 5,7 h atrasados.
+Todo deploy reinicia o `etl/scheduler.py`, e isso causava dois problemas: (1) a rodada em andamento era morta no meio e a linha do `etl_runs` ficava `running` para sempre (havia linhas órfãs de dias); (2) o ciclo lento (Active Campaign, ~20 min, até 45 em captura pesada) disparava imediatamente a cada boot e era morto pelo deploy seguinte sem nunca terminar — em 05/11/26 os leads chegaram a ficar 5,7 h atrasados.
 
-- **Boot:** `etl_runs.encerrar_orfas()` marca como `error` ("Interrompida: o scheduler reiniciou…") tudo
-  que está `running`. No boot nenhuma rodada deste processo existe, então são de processo morto; se um
-  container antigo ainda estiver terminando, o `finish_run` dele sobrescreve depois (UPDATE por id).
-- **Ciclo lento no boot só se precisar:** `etl_runs.minutos_desde_ultimo_ok(("active_campaign",))` — se o
-  último Active ok tem menos de 60 min, o ciclo lento não roda no boot e o cron do minuto :20 cobre; se
-  tem mais (ou o banco está indisponível), roda na hora. O ciclo rápido (Meta/Google/GA4) continua
-  rodando no boot (leva ~2 min). Só o Active decide: as outras fontes lentas acabam em segundos e fariam
-  qualquer rodada recente parecer "em dia".
+- **Boot:** `etl_runs.encerrar_orfas()` marca como `error` ("Interrompida: o scheduler reiniciou…") tudo que está `running`. No boot nenhuma rodada deste processo existe, então são de processo morto; se um container antigo ainda estiver terminando, o `finish_run` dele sobrescreve depois (UPDATE por id).
+- **Ciclo lento no boot só se precisar:** `etl_runs.minutos_desde_ultimo_ok(("active_campaign",))` — se o último Active ok tem menos de 60 min, o ciclo lento não roda no boot e o cron do minuto :20 cobre; se tem mais (ou o banco está indisponível), roda na hora. O ciclo rápido (Meta/Google/GA4) continua rodando no boot (leva ~2 min). Só o Active decide: as outras fontes lentas acabam em segundos e fariam qualquer rodada recente parecer "em dia".
 - Testes: `tests/test_etl_runs_boot.py` (SQLite em memória).
 
-**Performance Diária por Plataforma — colunas zeradas somem (12/11/26).** Na página de Captação
-(`dashboard.html`, macro `daily_table`), a plataforma sem nenhum lead/conversão e nenhum gasto no período
-(Facebook, YouTube, GA Search, GA P-Max, GA Display) deixa de aparecer; Dia/Data e Geral ficam sempre. A
-tabela passou a `width:100%`, então as colunas que sobram dividem a largura toda. A lista de plataformas
-agora é dirigida por dados dentro da macro (uma linha por plataforma). A mesma tabela em
-`pre_qualificacao.html` mantém a macro antiga.
+**Performance Diária por Plataforma — colunas zeradas somem (12/11/26).** Na página de Captação (`dashboard.html`, macro `daily_table`), a plataforma sem nenhum lead/conversão e nenhum gasto no período (Facebook, YouTube, GA Search, GA P-Max, GA Display) deixa de aparecer; Dia/Data e Geral ficam sempre. A tabela passou a `width:100%`, então as colunas que sobram dividem a largura toda. A lista de plataformas agora é dirigida por dados dentro da macro (uma linha por plataforma). A mesma tabela em `pre_qualificacao.html` mantém a macro antiga.
 
-**Dia 1 hora a hora: 14h e 23h (12/11/26).** A tabela "Dia 1 — Vendas Hora a Hora" (`/comparativo`, e o
-"Vendas na 1ª Hora" do debriefing) pulava de 13h para 15h e terminava em 22h. `_DIA1_CHECKPOINTS`
-(`frontend/db_readers/_vendas_comum.py`) agora tem 16 pontos, de 8h30 a 23h, incluindo 14h e 23h. Só o
-rótulo "9h" é lido fora da tabela. Baseline de caracterização do `read_dia1_sales` regravado (14 → 16
-checkpoints).
+**Dia 1 hora a hora: 14h e 23h (12/11/26).** A tabela "Dia 1 — Vendas Hora a Hora" (`/comparativo`, e o "Vendas na 1ª Hora" do debriefing) pulava de 13h para 15h e terminava em 22h. `_DIA1_CHECKPOINTS` (`frontend/db_readers/_vendas_comum.py`) agora tem 16 pontos, de 8h30 a 23h, incluindo 14h e 23h. Só o rótulo "9h" é lido fora da tabela. Baseline de caracterização do `read_dia1_sales` regravado (14 → 16 checkpoints).
 
 ### Debriefing: Matrículas contam só alunos novos (12/11/26)
 `total_matriculas` (e `prev_total_matriculas`) = `total_vendas` menos as vendas de oferta avulsa (upsell, `oferta:<codigo>`), pois upsell é venda para quem já é aluno. O cartão "Matrículas", o KPI do resumo e a variação vs anterior usam `total_matriculas`; "Total Vendas", receita, ROAS, ticket e saúde seguem com `total_vendas` (upsell incluído). Em `frontend/services/debriefing.py`.
@@ -4876,59 +2874,21 @@ Chave nova no contexto do debriefing derruba as páginas que leem `debriefing_sn
 
 ## TikTok Ads entra no ETL — `tiktok_ads_daily` (2026-11-13)
 
-Primeira fonte de dado do TikTok. App **Brabo-Analytics** aprovado no TikTok for Business
-(Marketing API v1.3, perfil de desenvolvedor como anunciante direto da Aprova Sim). O token é de
-longa duração: sai uma vez da troca do `auth_code` (redirect em `<painel>/tiktok/callback`, rota
-que **não existe** — o código é lido da barra de endereço) e só para de valer se a autorização for
-revogada. Conta nova = refazer a autorização marcando-a e atualizar `TIKTOK_ADVERTISER_IDS`.
+Primeira fonte de dado do TikTok. App **Brabo-Analytics** aprovado no TikTok for Business (Marketing API v1.3, perfil de desenvolvedor como anunciante direto da Aprova Sim). O token é de longa duração: sai uma vez da troca do `auth_code` (redirect em `<painel>/tiktok/callback`, rota que **não existe** — o código é lido da barra de endereço) e só para de valer se a autorização for revogada. Conta nova = refazer a autorização marcando-a e atualizar `TIKTOK_ADVERTISER_IDS`.
 
-- **Script:** `etl/etl_tiktok_ads.py --since/--until [--launch-code] [--dry-run]`. Fonte
-  `tiktok_ads` do `run_all.py`, no ciclo **rápido** do scheduler (é gasto). Sem
-  `TIKTOK_ACCESS_TOKEN`/`TIKTOK_ADVERTISER_IDS` no ambiente, avisa no log e sai com 0 — não dispara
-  alerta a cada ciclo num servidor ainda sem as variáveis.
-- **Chamada:** `/report/integrated/get/` (`AUCTION_AD`, dimensões `ad_id` + `stat_time_day`),
-  fatiada em janelas de 30 dias (limite da API com quebra diária), paginada em 1.000. O objetivo
-  da campanha vem de `/campaign/get/`. Fuso = o da conta (as 4 são UTC-3). Token vai no header
-  `Access-Token`, nunca na URL. A API responde HTTP 200 com erro em `code` — `api_get` converte
-  em exceção.
-- **Tabela:** `tiktok_ads_daily` (analytics), uma linha por anúncio-dia, só com impressão ou gasto
-  (a API devolve linha zerada para anúncio ativo sem entrega). `conversions` = evento de
-  otimização (lead em `LEAD_GENERATION`); `results` = resultado do objetivo (view de 6s em
-  `VIDEO_VIEWS`). Mesma escrita do Meta: DELETE da janela + INSERT na mesma transação e nome de
-  campanha congelado. Classificação: `campanha_historico.preparar(plataforma="tiktok")` →
-  `src/nomenclatura.categorizar_campanha_tiktok` — colchetes como no Meta (`[TK][captação][quente]`)
-  e, sem colchete, substring. Sem o fallback as campanhas antigas, em texto livre ("[CADASTRO
-  ESCREVENTE] Captação Quente [PES-JAN-26]"), caíam todas em "Outros" e sumiam da Captação. O
-  DELETE é restrito às contas lidas: conta tirada do `.env` não perde o histórico.
-- **`lancamento_codigo`:** `resolve_launch_code`, igual às outras plataformas. Distribuição com tag
-  `[distribuição]` vira `DISTRIBUICAO-<EXPERT>`; Brabo Editora e a `[VV] Distribuição de Conteúdo
-  Frio - 16.05.2025` (sem a tag) ficam NULL, como no Meta.
-- **Carga inicial (13/11/26):** mai/25 → 13/11/26, 2.788 linhas, R$ 91,6 mil. Lançamentos com
-  TikTok: PES-JUN-25 (R$ 3,1 mil), PES-AGO-25 (R$ 11,9 mil), PES-JAN-26 (R$ 7,1 mil); o resto é
-  distribuição (Ivan R$ 45,7 mil, Felipe R$ 4,0 mil, Mateus R$ 3,7 mil) e Brabo Editora.
-- **Leitura no painel** (`frontend/db_readers/ads_tiktok.py::read_tiktok` → `TikTokSummary`, chaves
-  iguais às do `MetaSummary`: `por_etapa`, `por_temperatura_captacao/_prequali`, `por_conta`,
-  `captacao_por_ad`, `preq_por_ad`). Entra em `_fetch_all_data` como `d["tiktok"]` (cache
-  `tiktok::<ini>::<fim>`, recomputado pelo aviso do ETL via `LEITORES_POR_FONTE["tiktok_ads"]`).
-  `leads` do TikTok = `conversions`. Onde aparece:
-  - `/captacao` e `/pre-qualificacao`: soma no investimento, nos leads, CPM e viu 25/50%; linha
-    TikTok em "% de leads por campanha". ThruView **não** soma (TikTok não tem ThruPlay).
-  - "KPIs x anterior" (`kpis_captacao_periodo_comparavel`): TikTok no investimento e nos leads do
-    anterior (`leads_tiktok`).
-  - `/verba`: `get_etapa`/`bucket_realizado`/`buckets_previsto_x_realizado` recebem `tiktok=`;
-    bucket do wizard com plataforma `tiktok` passa a ter realizado.
-  - Debriefing: investimento total (atual e anterior), fonte TikTok em "Leads por fonte", TikTok
-    nas etapas e na pré-quali (`prequali_invest.tiktok`), top anúncios da pré-quali.
-    `SNAPSHOT_VERSION` 21 → 22 e manifesto regravado.
-  - `/comparativo`: `inv_tiktok_*` (janela da Captação) entra em `inv_a/inv_b` e
-    `inv_tiktok_total_*` no total do card "O Paradoxo". Históricos de `core.py`
-    (`read_comparativo_historico`, `read_historico_grande`) somam o TikTok no investimento.
-  - `/distribuicao/<perfil>`: TikTok no investimento, card "Views de 6s (TikTok)" + seguidores
-    ganhos, viu 50%/100%, e tabela "Criativos TikTok" (hook = 2s ÷ impressão, hold = 6s ÷ 2s).
-    Cartões de `/lancamentos` (`read_distribuicao_cards`) somam o gasto do TikTok.
-- **Fica de fora:** thumbnails/texto dos criativos do TikTok, o vigia do ETL
-  (`vigia_etl.LIMITES_H`) e a atribuição de venda por ADxxx (as UTMs do TikTok ainda não são
-  conferidas). Cor da plataforma: `--tiktok-color` (#FE2C55) e `.plat-tiktok`/`.td-tiktok`.
+- **Script:** `etl/etl_tiktok_ads.py --since/--until [--launch-code] [--dry-run]`. Fonte `tiktok_ads` do `run_all.py`, no ciclo **rápido** do scheduler (é gasto). Sem `TIKTOK_ACCESS_TOKEN`/`TIKTOK_ADVERTISER_IDS` no ambiente, avisa no log e sai com 0 — não dispara alerta a cada ciclo num servidor ainda sem as variáveis.
+- **Chamada:** `/report/integrated/get/` (`AUCTION_AD`, dimensões `ad_id` + `stat_time_day`), fatiada em janelas de 30 dias (limite da API com quebra diária), paginada em 1.000. O objetivo da campanha vem de `/campaign/get/`. Fuso = o da conta (as 4 são UTC-3). Token vai no header `Access-Token`, nunca na URL. A API responde HTTP 200 com erro em `code` — `api_get` converte em exceção.
+- **Tabela:** `tiktok_ads_daily` (analytics), uma linha por anúncio-dia, só com impressão ou gasto (a API devolve linha zerada para anúncio ativo sem entrega). `conversions` = evento de otimização (lead em `LEAD_GENERATION`); `results` = resultado do objetivo (view de 6s em `VIDEO_VIEWS`). Mesma escrita do Meta: DELETE da janela + INSERT na mesma transação e nome de campanha congelado. Classificação: `campanha_historico.preparar(plataforma="tiktok")` → `src/nomenclatura.categorizar_campanha_tiktok` — colchetes como no Meta (`[TK][captação][quente]`) e, sem colchete, substring. Sem o fallback as campanhas antigas, em texto livre ("[CADASTRO ESCREVENTE] Captação Quente [PES-JAN-26]"), caíam todas em "Outros" e sumiam da Captação. O DELETE é restrito às contas lidas: conta tirada do `.env` não perde o histórico.
+- **`lancamento_codigo`:** `resolve_launch_code`, igual às outras plataformas. Distribuição com tag `[distribuição]` vira `DISTRIBUICAO-<EXPERT>`; Brabo Editora e a `[VV] Distribuição de Conteúdo Frio - 16.05.2025` (sem a tag) ficam NULL, como no Meta.
+- **Carga inicial (13/11/26):** mai/25 → 13/11/26, 2.788 linhas, R$ 91,6 mil. Lançamentos com TikTok: PES-JUN-25 (R$ 3,1 mil), PES-AGO-25 (R$ 11,9 mil), PES-JAN-26 (R$ 7,1 mil); o resto é distribuição (Ivan R$ 45,7 mil, Felipe R$ 4,0 mil, Mateus R$ 3,7 mil) e Brabo Editora.
+- **Leitura no painel** (`frontend/db_readers/ads_tiktok.py::read_tiktok` → `TikTokSummary`, chaves iguais às do `MetaSummary`: `por_etapa`, `por_temperatura_captacao/_prequali`, `por_conta`, `captacao_por_ad`, `preq_por_ad`). Entra em `_fetch_all_data` como `d["tiktok"]` (cache `tiktok::<ini>::<fim>`, recomputado pelo aviso do ETL via `LEITORES_POR_FONTE["tiktok_ads"]`). `leads` do TikTok = `conversions`. Onde aparece:
+  - `/captacao` e `/pre-qualificacao`: soma no investimento, nos leads, CPM e viu 25/50%; linha TikTok em "% de leads por campanha". ThruView **não** soma (TikTok não tem ThruPlay).
+  - "KPIs x anterior" (`kpis_captacao_periodo_comparavel`): TikTok no investimento e nos leads do anterior (`leads_tiktok`).
+  - `/verba`: `get_etapa`/`bucket_realizado`/`buckets_previsto_x_realizado` recebem `tiktok=`; bucket do wizard com plataforma `tiktok` passa a ter realizado.
+  - Debriefing: investimento total (atual e anterior), fonte TikTok em "Leads por fonte", TikTok nas etapas e na pré-quali (`prequali_invest.tiktok`), top anúncios da pré-quali. `SNAPSHOT_VERSION` 21 → 22 e manifesto regravado.
+  - `/comparativo`: `inv_tiktok_*` (janela da Captação) entra em `inv_a/inv_b` e `inv_tiktok_total_*` no total do card "O Paradoxo". Históricos de `core.py` (`read_comparativo_historico`, `read_historico_grande`) somam o TikTok no investimento.
+  - `/distribuicao/<perfil>`: TikTok no investimento, card "Views de 6s (TikTok)" + seguidores ganhos, viu 50%/100%, e tabela "Criativos TikTok" (hook = 2s ÷ impressão, hold = 6s ÷ 2s). Cartões de `/lancamentos` (`read_distribuicao_cards`) somam o gasto do TikTok.
+- **Fica de fora:** thumbnails/texto dos criativos do TikTok, o vigia do ETL (`vigia_etl.LIMITES_H`) e a atribuição de venda por ADxxx (as UTMs do TikTok ainda não são conferidas). Cor da plataforma: `--tiktok-color` (#FE2C55) e `.plat-tiktok`/`.td-tiktok`.
 
 ### Debriefing: "Compradores pelo Dia que Entraram no Grupo" lê leads_grupos_eventos (16/11/26)
 **Sintoma:** a seção vinha vazia no PES-NOV-26. **Causa:** `read_compradores_por_dia_grupo` só olhava as tabelas por lançamento (`<COD>_API`/`_VIP`), que não existem desde 22/10/26 — `read_whatsapp_groups` já tinha o fallback para `leads_grupos_eventos`, esta função não. **Correção:** sem tabela, `_primeira_entrada_por_eventos` pega a primeira entrada (`ent_sai = 'Entrou'`, data de Brasília) de cada telefone comprador, com o mesmo `CODIGOS_EVENTOS` (PES-NOV-26 → `[PES-PPE-26]`). PES-SET-26 (tabela antiga) não mudou: 1.425. PES-NOV-26: 1.220 (165 pré-quali, 971 captação, 84 fora das janelas, 76 sem telefone/entrada). 22/10 é a carga inicial da automação — 142 compradores caem nesse dia por isso; o rodapé da seção avisa.
@@ -4948,6 +2908,10 @@ Card «Receita Líquida» do debriefing e do `/resumo` mostram a quebra «Lança
 
 **Score por anúncio (17/11/26):** o bloco «Qualidade dos Leads» ganhou a tabela «Por anúncio» (top 15 por gasto, anúncios com 200+ leads): gasto (Meta + Google, `gasto_por_anuncio`), leads, CPL, respondentes, leads A, **% A entre respondentes** (qualidade sem depender da taxa de resposta), **custo por lead A**, compradores e CPA. O anúncio do lead é o ADxxx do `utm_term`/`utm_content` em `lead_utm_lancamento`; o CPL é gasto ÷ leads com UTM, então anúncio com pouco lead rastreado (Google sem UTM no anúncio — ex.: AD135/AD136 no PES-NOV-26, ~200 leads para R$ 22–27 mil) aparece com CPL alto. Compradores por anúncio vêm do cadastro do lead, não da atribuição por última origem do debriefing — os números podem divergir. O cache de 30 min passou a guardar também a lista de anúncios.
 
+**Preocupações como variável (17/11/26):** o modelo passou a usar também a pergunta de múltipla escolha «Selecione as 3 opções que mais preocupam você…» — cada uma das 11 opções é uma variável 0/1 (`OPCOES_PREOCUP` em `scripts/lead_score_treino.py`, gravada no JSON em `multi.preocup`; coeficientes depois das perguntas de escolha única). O campo é recuperado no Typeform antigo pelo texto das respostas (`_campo_preocup` em `lead_score_dataset.py`, cobertura 100%) e no sistema novo pelo título (`_PAD_PREOCUP` em `lead_score.py`). Treinado em 18 lançamentos: AUC médio entre respondentes 0,626 (era 0,609 sem as preocupações), AUC geral 0,634 (era 0,632). PES-NOV-26: A 3,19% · B 2,07% · C 0,68%; PES-SET-26: A 4,90% · B 2,70% · C 1,09%. Maior efeito no PBB e no PI; quase nulo no PES. Pesos mais fortes: «não tenho dinheiro para investir» −0,34 (menos compra), «estou há muito tempo sem estudar» +0,26. Modelo anterior (sem as preocupações) guardado fora do repositório. O treino precisa de float32 (1,9 milhão de linhas × 71 colunas estoura a memória em float64).
+
+**Score por lead com origem — `/leads/score.csv` (18/11/26):** segundo score, **à parte** do bloco do debriefing, em planilha (CSV com `;` e BOM, uma linha por lead, do maior para o menor). Na `/leads` (topo, «Score dos leads — estamos no caminho certo?») o resumo carrega por fetch (`/leads/score/resumo`, `resumo_painel`): **escada de compra por decil** da nota com origem e por faixa da pesquisa, e um **veredito** conforme as vendas entram — compara a taxa dos decis 8–10 com a dos decis 1–3 (nos 11 lançamentos fechados de 2026 a razão foi de 1,0 a 5,4, mediana ~2): «no caminho» a partir de 1,7×, «abaixo do esperado» de 1,3 a 1,7, «fora do esperado» abaixo de 1,3; com menos de 100 compradores diz que ainda é cedo (e com zero, que ainda não há vendas). Atualiza junto com o cache de 30 min. Abaixo, dois botões: a planilha completa e a variante «decis 8–10 que ainda não compraram» (`?decil_min=8&comprou=nao`). Colunas: e-mail, respondeu, faixa e nota **só pela pesquisa** (o mesmo do bloco), canal, temperatura, etapa, nota e decil **com origem** (10 = melhor) e se comprou. **Por que à parte:** o canal entra no score, então ele serve para priorizar o lead, não para julgar anúncio (o Google ganharia nota só por ser Google, repetindo o que o CPA por anúncio já mostra); o bloco do debriefing continua só com a pesquisa. **Modelo:** `config/lead_score_modelo_origem.json`, gerado por `scripts/lead_score_treino_origem.py --exportar` (regressão logística nos 11 lançamentos fechados de 2026: respostas + 11 preocupações + canal/temperatura/etapa; **pontua também quem não respondeu**). A derivação do UTM (`derivar_origem`: canal google/meta/outro/vazio, `[quente]`/`[frio]` e etapa lidos do nome da campanha) é única e vive em `frontend/services/lead_score.py`, usada no treino e na planilha. **Controle do tipo de linha:** as linhas de `lead_utm_lancamento` criadas por carga concentram os compradores (ver «Histórico de UTM por lançamento»), então o treino leva uma coluna `carga` que vale 0 ao pontuar. **Validação** (um lançamento de fora por vez, AUC dentro de cada tipo de linha): +0,036 com a origem, melhora em 10 de 11; entre quem não respondeu 0,500 → 0,565; no PES-NOV-26 (aberto), quem não respondeu e está na metade de cima da nota compra 0,91% contra 0,52% da metade de baixo (PES-SET-26: 1,80% × 0,88%). A nota ordena, **não é probabilidade calibrada** (só uma fração dos não compradores entra no treino; o intercepto é corrigido). Leva 15–30 s na primeira chamada (até ~300 mil leads no PI) e fica em cache por 30 min. Acesso: mesma faixa da `/leads` (`_DTLD`, tem e-mail). Retreino: `lead_score_dataset.py` → `lead_score_treino_origem.py --exportar`; a temperatura só existe nas campanhas de mai/26 em diante.
+
 ## Página /boas-vindas — compras × automação de boas-vindas no dia de abertura do carrinho (2026-11-16)
 
 **O que é:** no dia de abertura do carrinho de um lançamento da Mentoria Vitalícia (PES, PI, PBB), a página compara quem comprou com quem entrou na automação 319 "Email Boas Vindas EDM" do Active Campaign, a cada 5 min. Mostra quatro números (compraram, entraram, na fila, alunos novos fora da automação), um aviso verde, amarelo ou vermelho, a curva acumulada, a tabela de leituras, a divisão por produto, a lista de e-mails de quem ficou de fora e a lista de **todos os compradores do dia**, com e-mail, hora, produto, situação (fora da automação, a caminho, entrou e a que horas, já era aluno), filtro por situação, busca por e-mail e download em CSV (`/boas-vindas/compradores.csv?launch_code=…&situacao=…`, `;` + BOM pro Excel). A lista foi pedida para quem acompanha os alunos no dia de abertura. **Abertura do e-mail:** cada comprador mostra se abriu algum e-mail de boas-vindas desde o dia da abertura (as campanhas da automação, descobertas sozinhas por `automations/319/campaigns`: 3980 TJ-SP, 4039 INSS, 4041 BB e cópias). Vem da API v1 `campaign_report_open_list`, a única que lista quem abriu uma campanha de uma vez (100 por página, da mais recente pra mais antiga; a leitura para ao passar do dia). Há filtro e CSV `situacao=nao_abriu` (entrou e não abriu). No PES-NOV-26: 701 de 949 abriram (74%). Limite: a abertura é medida por pixel, então o Apple Mail pode marcar como aberto sozinho e quem bloqueia imagem aparece como não aberto. Se a leitura das aberturas falhar, a página segue sem a coluna. É uma página por lançamento, no menu do lançamento (grupo Leads & Audiências, ao lado de Campanhas (E-mails)): `/boas-vindas?launch_code=PES-NOV-26`. Antes da abertura mostra a data em que começa; depois, o retrato daquele dia. Lançamento que não usa a automação (BV-26) fica com o item desabilitado. Dois cursos abrindo no mesmo dia têm cada um o seu cálculo.
@@ -4966,3 +2930,15 @@ Card «Receita Líquida» do debriefing e do `/resumo` mostram a quebra «Lança
 **Peças:** `config/monitor_boas_vindas.yaml` (automação, tolerância, intervalo, tag e padrão da TMB por prefixo); `frontend/services/monitor_boas_vindas.py` (leitura do Active por GET e das vendas no banco operacional por SELECT, cálculo, cache de 4,5 min e laço de fundo); `frontend/routes/boas_vindas.py` + `templates/boas_vindas.html`; item "Boas-vindas (carrinho)" em `_build_funis_nav_groups` (some pro papel tráfego, como o resto do grupo); permissão `_DTLD` (lista e-mail de comprador). O dia de abertura vem de `launch_config.abertura_oficial_carrinho` (ou `carrinho_start_date`) e os produtos de `hotmart_produto_ids` (só os ids numéricos).
 
 **Quando roda:** o laço (`agendar()` no startup, `MONITOR_BOAS_VINDAS=false` desliga) confere a data a cada 5 min e só lê o Active e as vendas com o carrinho aberto (da abertura ao fim, desde 18/11/26; antes, só no dia de abertura). Cada leitura faz de 2 a 15 GETs no Active (paginação da automação e e-mails novos, com cache de e-mail por processo) e 2 ou 3 SELECTs pequenos. A página aberta recarrega sozinha a cada 5 min nesse dia. **Limite:** a foto da fila a cada leitura fica em memória, e um redeploy no meio do dia perde os pontos anteriores dela. As curvas de compra e entrada são refeitas pelos horários e não se perdem. Testes: `tests/test_monitor_boas_vindas.py`.
+
+**Índice `idx_lead_utm_lancamento_lanc_contact` (18/11/26).** O aquecimento do debriefing falhava com `QueryCanceled` (statement_timeout de 30 s) em `leads_x_whatsapp`, `cadastrados_lancamentos_anteriores` e `perfil_pesquisa` de lançamentos antigos: `COUNT(DISTINCT contact_id)` em `lead_utm_lancamento` (2,27 milhões de linhas) levava 10,4 s a sós e passava de 30 s com o banco ocupado. Criado `(lancamento_codigo, contact_id)` com `CREATE INDEX CONCURRENTLY` (88 MB, direto no banco; também em `etl/schema.sql`): a contagem do PI-ABR-26 caiu para 2,7 s. O `idx_lead_utm_lancamento_lanc` ficou (é prefixo do novo, 19 MB; pode sair depois).
+
+**Vigia do ETL: "histórico de UTM parado" só com cadastro sem histórico (19/11/26).** O alerta "o Active Campaign carregou às X, mas o histórico de UTM não é gravado desde Y" disparava quando o histórico ficava >3 h atrás do AC. Desde 08/10/26 o histórico é gravado por trigger na `leads`, que só age com contato novo ou UTM trocada — então madrugada ou captação encerrada (PI-NOV-26, 19/11) deixam o histórico parado sem falha: em 19/11 o ETL estava ok, o trigger ativo e todo cadastro novo tinha linha (último lead 00:25, última escrita 01:21). Agora `vigia_etl.avaliar` recebe `leads_sem_historico` (cadastros com UTM de lançamento criados depois da última escrita e sem linha dele, medido em `_ler_estado_banco`): 0 não alerta; >0 alerta e informa quantos; não medido mantém a regra antiga. O texto do alerta passa a trazer a contagem.
+
+**Snapshot do debriefing com o carrinho aberto recalcula as vendas (19/11/26).** Na abertura do PI-NOV-26 (08h) entraram 316 vendas em minutos. O cache de vendas (5 min com o carrinho aberto) é stale-while-revalidate: com a entrada vencida devolve o valor antigo e recalcula em segundo plano, e o snapshot das 08:04 foi montado nessa janela — Receita Líquida R$ 1.726 e ROAS 0,00x com 349 vendas reais (ao vivo: R$ 488 mil, 0,45x). `debriefing_build.refresh_debriefing_snapshot` agora, se `carrinho_aberto(code)`, monta dentro de `force_refresh_start(readers=LEITORES_VENDAS, codes={code})` (o mesmo mecanismo do aquecimento pós-ETL): os leitores de venda daquele lançamento recomputam na hora, o resto segue no cache, e o contexto é desfeito no fim. Navegação normal das páginas continua no cache de 5 min. Teste: `tests/test_snapshot_vendas_frescas.py`.
+
+**/comparativo no mesmo ponto do carrinho (19/11/26).** Com o carrinho do lançamento atual aberto, `read_comparativo` corta o anterior no mesmo tempo decorrido desde a abertura (19/11 08h38 ↔ 13/08 08h38), pela regra do debriefing (1ª cobrança; upgrade fora da contagem): vendas, faturamento, ticket e ROAS dos dois lados passam a ser "no ponto". A regra foi movida para `sales.read_vendas_carrinho_par` (o debriefing chama a mesma). Investimento e leads seguem do lançamento inteiro. Enquanto `comp.ponto_ref` está preenchido, a página mostra um aviso e esconde as linhas Hotmart/TMB do scorecard (o corte não separa as plataformas). Carrinho encerrado: compara o total fechado, como antes. O marcador "ROAS anterior" do medidor do Paradoxo estava ancorado na borda do anel e caía sobre o número (agora parte do centro: `top:50%; left:50%`).
+
+**Resumo Executivo (/lancamentos): total = toda a venda, repartido em 4 origens (19/11/26).** O total da empresa é toda a venda do ano (Hotmart + TMB sem a taxa + conta Brabo Editora). A tabela só o reparte: **Lançamentos** (carrinho), **Perpétuo** (MEQ/Planner nas contas Aprovasim e Editora), **Outros** (antes "Setor de vendas": mentorias/cursos fora do carrinho + o que a Editora vende fora do perpétuo, como Correios e livros) e **Distribuição** (só gasto, sem venda). As linhas somam o total (conferido em 19/11: R$ 34.864.057 + R$ 206.880 + R$ 2.554.257 = R$ 37.625.194 = Hotmart + TMB + Editora). A Distribuição fica no índice 3 de `linhas` (a rota lê `linhas[3]["invest"]`). Legenda das 4 origens sob a tabela.
+
+**Debriefing — "Vendas por Dia" mostra todos os dias do carrinho (19/11/26).** O gráfico desenhava só os dias com venda de matrícula (o upsell/oferta avulsa sai da conta), então no PI-NOV-26 faltavam 16 e 17/11 e a linha ligava 18/11 direto a 19/11. `services/debriefing.py` agora preenche cada dia de `carrinho_start_date` até hoje (ou o fim do carrinho), com zero nos dias sem venda; as janelas de "Vendas por Período" seguem usando a série bruta.

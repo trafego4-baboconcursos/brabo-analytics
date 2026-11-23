@@ -1,0 +1,22 @@
+launch:
+  code: PI-JAN-26
+  client: Brabo Concursos
+  course:
+    code: PI
+    name: Projeto INSS
+
+youtube:
+  aulas:
+    - id: "jKHZqrG-NeY"
+      label: "Aula 1 - Como Comecar DO ZERO para o Concurso do INSS"
+    - id: "wceoEbCAu4g"
+      label: "Aula 2 - Como Sair na Frente de 97% dos Candidatos no INSS"
+    - id: "NMVTIQKqObg"
+      label: "Aula 3 - Plano de Estudos para o Concurso do INSS"
+    - id: "dzqrLo-8Vy0"
+      label: "Aula 4 - Como Montar sua Rotina Diaria de Estudos"
+    - id: "WlOxPEpBAh8"
+      label: "Aula 5 - Como Revisar para o INSS e Lembrar de Tudo"
+
+filters:
+  campaign_name_contains: PI-JAN-26

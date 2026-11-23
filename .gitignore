@@ -122,3 +122,13 @@ scripts/video/output/
 
 # Edição de vídeo (brutos, referências e renders, inclusive os de scripts/video/novo_criativo.py): local, nunca versionar.
 videos/
+
+# outputs/: saídas avulsas de análise (CSV/JSON com e-mail de lead, backups, imagens brutas) ficam fora.
+# Só reports/ e snapshots/ são versionados (outputs/analysis.db já está no git e continua).
+outputs/*
+!outputs/reports/
+!outputs/snapshots/
+
+# Pastas de lançamento com export bruto e legendas (dado de lead, centenas de MB): locais.
+analises/\[PES-SET-26\]/
+analises/bv-26/

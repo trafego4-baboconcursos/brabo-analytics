@@ -1,5 +1,6 @@
 from __future__ import annotations
 import asyncio
+import copy
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.concurrency import run_in_threadpool
@@ -663,6 +664,7 @@ async def lancamentos_page(request: Request, launch_code: str | None = None):
     ])
     summary_by_code = {l.code: s for l, s in zip(lancs_ano, summaries)}
     ctx["summary_by_code"] = summary_by_code
+    ctx["vs_por_code"] = {}   # linha "vs <lançamento do ano anterior>" dos cartões (_comparar_ano_anterior)
 
     from src.constants import PALETA_PRODUTO  # noqa: PLC0415
     ctx["paleta_produto"] = PALETA_PRODUTO
@@ -700,6 +702,10 @@ async def lancamentos_page(request: Request, launch_code: str | None = None):
         codes = [l.code for l in lancs_ano]
         invest_mensal = await run_in_threadpool(_invest_mensal_do_ano, codes)
         ctx["resumo_ano"]["mensal"] = _faturamento_mensal(lancs_ano, summary_by_code, ano, ctx["carrinhos"], invest_mensal)
+        try:
+            await _comparar_ano_anterior(ctx, lancs_ano, summary_by_code, _summary)
+        except Exception:
+            logger.exception("Lançamentos: falha ao comparar com o ano anterior")
 
         # Empresa inteira: perpétuo, setor de vendas (fora do carrinho) e investimento fora de lançamento.
         # A meta anual passa a medir o faturamento TOTAL da empresa, não só o dos lançamentos.
@@ -724,6 +730,70 @@ async def lancamentos_page(request: Request, launch_code: str | None = None):
             logger.exception("Lançamentos: falha ao montar o faturamento total da empresa")
 
     return templates.TemplateResponse("lancamentos.html", ctx)
+
+
+async def _comparar_ano_anterior(ctx: dict, lancs_ano, summary_by_code: dict, summary_fn) -> None:
+    """Faixa "Lançamentos vs <ano anterior>", série tracejada do gráfico mensal e linha "vs" dos cartões.
+
+    Mesmos meses fechados nos dois anos; cartão pareado por produto + mês (PI-JAN-26 × PI-JAN-25).
+    Ver frontend/services/ano_anterior.py e PLANO_BACKFILL_2025 (etapa 6).
+    """
+    from datetime import date as _date  # noqa: PLC0415
+
+    from frontend.services.ano_anterior import (  # noqa: PLC0415
+        anexar_serie_anterior, cartao_vs, comparar_meses, fontes_faltando, pares_do_ano, ultimo_mes_fechado,
+    )
+
+    ra = ctx["resumo_ano"]
+    ano = ra["ano"]
+    ctx.setdefault("vs_por_code", {})
+    lancs_ant = do_ano(ctx["launches"], ano - 1)
+    if not lancs_ant:
+        return
+    codes_ant = [l.code for l in lancs_ant]
+
+    def _dados_ano_anterior():
+        # O ano anterior está fechado: cache de 12 h (o padrão de 1 h pagaria ~30 s a cada hora, e o
+        # aquecimento só cobre lançamentos ativos). Lançamento com venda que volta zerado é falha de
+        # leitura (o _summary engole o erro): levanta para NÃO guardar o número errado.
+        from concurrent.futures import ThreadPoolExecutor  # noqa: PLC0415
+
+        with ThreadPoolExecutor(max_workers=6) as ex:
+            sums = list(ex.map(summary_fn, lancs_ant))
+        falhou = [l.code for l, s in zip(lancs_ant, sums) if getattr(l, "has_vendas", False) and not s.get("receita")]
+        if falhou:
+            raise RuntimeError(f"resumo do ano anterior incompleto: {falhou}")
+        resumo = {l.code: s for l, s in zip(lancs_ant, sums)}
+        carr = _carrinhos_do_ano(codes_ant)
+        return resumo, _faturamento_mensal(lancs_ant, resumo, ano - 1, carr, _invest_mensal_do_ano(codes_ant))
+
+    from frontend.cache import _get_or_compute  # noqa: PLC0415
+
+    summary_ant, mensal_ant = await run_in_threadpool(
+        _get_or_compute, "EMPRESA", f"ano_anterior::{ano - 1}::{','.join(sorted(codes_ant))}", _dados_ano_anterior, 43200)
+    mensal_ant = copy.deepcopy(mensal_ant)   # o gráfico do ano atual reescala por cima; não sujar o cache
+
+    hoje = _date.today()
+    comp = comparar_meses(ra["mensal"], mensal_ant, ultimo_mes_fechado(ano, hoje))
+    if comp:
+        comp["ano_anterior"] = ano - 1
+        # "Dados parciais": fonte comparada sem nenhum dado num dos lados (lançamento já começado)
+        comp["parcial"] = [f"{l.code} sem {', '.join(f)}" for l in list(lancs_ant) + list(lancs_ano)
+                           if (f := fontes_faltando(l)) and not (l.data_inicio and l.data_inicio > hoje)]
+        ra["vs_anterior"] = comp
+    anexar_serie_anterior(ra["mensal"], mensal_ant, ano - 1)
+
+    por_code_ant = {l.code: l for l in lancs_ant}
+    for l in lancs_ano:
+        par = pares_do_ano([l.code], codes_ant).get(l.code)
+        if not par:
+            continue
+        cart = ctx["carrinhos"].get(l.code)
+        fim = (cart[1] if cart and cart[1] else None) or getattr(l, "data_fim", None)
+        v = cartao_vs(summary_by_code.get(l.code), summary_ant.get(par), par, fechado=bool(fim and fim < hoje))
+        if v:
+            v["parcial"] = fontes_faltando(por_code_ant[par])
+            ctx["vs_por_code"][l.code] = v
 
 
 def _resumo_do_ano(launches, summary_by_code, ano: int | None = None) -> dict | None:

@@ -147,6 +147,22 @@
 .ldg-secao-nota { font-size: 11px; color: var(--bs-ink-muted); margin-top: 10px; line-height: 1.5; }
 .ldg-faixa { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; display: flex; }
 .ldg-faixa > span { display: block; }
+
+/* ── Comparação com o ano anterior ─────────────────────────────────────── */
+.ldg-yoy { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; }
+.ldg-yoy > div { padding: 8px 16px; border-left: 1px solid var(--bs-border); min-width: 0; }
+.ldg-yoy > div:first-child { border-left: 0; padding-left: 0; }
+.ldg-yoy-val { font-size: 16px; font-weight: 800; color: var(--bs-ink); white-space: nowrap; }
+.ldg-yoy-var { font-size: 13px; font-weight: 800; color: var(--bs-ink-muted); margin-left: 4px; }
+.ldg-yoy-var.up { color: var(--bs-success); }
+.ldg-yoy-var.down { color: var(--bs-danger); }
+.ldg-yoy-ant { font-size: 11px; color: var(--bs-ink-muted); margin-top: 2px; white-space: nowrap; }
+@media (max-width: 760px) { .ldg-yoy { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 8px; } .ldg-yoy > div { border-left: 0; padding-left: 0; } }
+.ldg-ant { position: absolute; left: 8%; right: 8%; height: 0; border-top: 2px dashed var(--bs-ink-muted); opacity: .8; pointer-events: none; }
+.ldg-leg i.ant { background: none; border-top: 2px dashed var(--bs-ink-muted); border-radius: 0; height: 0; width: 16px; vertical-align: 3px; }
+.ldg-vs { font-size: 10px; color: var(--bs-ink-muted); margin-top: 4px; }
+.ldg-vs b.up { color: var(--bs-success); }
+.ldg-vs b.down { color: var(--bs-danger); }
 </style>
 {% endblock %}
 
@@ -265,6 +281,32 @@
       </div>
       {% endif %}
 
+      {% if ra.vs_anterior %}{% set vs = ra.vs_anterior %}
+      {# bom: True = subir é bom (verde), False = subir é ruim (vermelho), None = neutro #}
+      {% macro yoy_var(v, bom=True) -%}
+        {%- if v is none -%}<span class="ldg-yoy-var">—</span>
+        {%- else -%}<span class="ldg-yoy-var{% if bom is not none and v != 0 %} {{ 'up' if (v > 0) == bom else 'down' }}{% endif %}">{{ '+' if v > 0 else '' }}{{ "%.1f"|format(v) | replace(".", ",") }}%</span>{%- endif -%}
+      {%- endmacro %}
+      <!-- Comparação com o ano anterior: só lançamentos, nos mesmos meses fechados dos dois anos -->
+      <div class="ldg-sub-head"><i class="ti ti-arrows-left-right"></i> Lançamentos {{ ra.ano }} vs {{ vs.ano_anterior }} <span>{{ vs.periodo }}, nos dois anos</span></div>
+      <div class="ldg-panel">
+        {% if vs.parcial %}<div class="ldg-parcial" style="margin:0 0 12px" title="Fonte comparada sem nenhum dado no banco: o total desse lado está incompleto."><i class="ti ti-alert-triangle"></i> Dados parciais · {{ vs.parcial | join('; ') }}</div>{% endif %}
+        <div class="ldg-yoy">
+          <div><div class="ldg-stat-lbl">Faturamento líquido</div><div class="ldg-yoy-val">{{ vs.atual.receita | brl(0) }}{{ yoy_var(vs.var.receita) }}</div><div class="ldg-yoy-ant">{{ vs.ano_anterior }}: {{ vs.anterior.receita | brl(0) }}</div></div>
+          <div><div class="ldg-stat-lbl">Investimento</div><div class="ldg-yoy-val">{{ vs.atual.invest | brl(0) }}{{ yoy_var(vs.var.invest, none) }}</div><div class="ldg-yoy-ant">{{ vs.ano_anterior }}: {{ vs.anterior.invest | brl(0) }}</div></div>
+          <div><div class="ldg-stat-lbl">ROAS</div><div class="ldg-yoy-val">{{ "%.2f"|format(vs.atual.roas) | replace(".", ",") }}x{{ yoy_var(vs.var.roas) }}</div><div class="ldg-yoy-ant">{{ vs.ano_anterior }}: {{ "%.2f"|format(vs.anterior.roas) | replace(".", ",") }}x</div></div>
+          <div><div class="ldg-stat-lbl">Matrículas</div><div class="ldg-yoy-val">{{ vs.atual.vendas | num }}{{ yoy_var(vs.var.vendas) }}</div><div class="ldg-yoy-ant">{{ vs.ano_anterior }}: {{ vs.anterior.vendas | num }}</div></div>
+          <div><div class="ldg-stat-lbl">Custo por matrícula</div><div class="ldg-yoy-val">{{ vs.atual.cac | brl }}{{ yoy_var(vs.var.cac, false) }}</div><div class="ldg-yoy-ant">{{ vs.ano_anterior }}: {{ vs.anterior.cac | brl }}</div></div>
+        </div>
+        <div class="ldg-ano-note" style="margin-top:12px">
+          Só lançamentos, de {{ vs.periodo }} nos dois anos{% if vs.ate_mes < 12 %} (o mês em andamento fica de fora){% endif %}. Em {{ vs.ano_anterior }} o perpétuo e a distribuição não têm a mesma classificação e não entram.
+          Por mês, como no gráfico abaixo: o faturamento de cada lançamento é repartido pelos dias do carrinho, e o investimento é o gasto real do mês.
+          {% if vs.ano_anterior == 2025 %}O carrinho dos lançamentos de 2025 foi deduzido (quinta a segunda), e 6–9% das vendas de 2025 caíram fora dele.{% endif %}
+          Leads não entram na comparação.
+        </div>
+      </div>
+      {% endif %}
+
       <!-- Só o que não aparece no painel acima: eficiência dos lançamentos -->
       <div class="ldg-sub-head"><i class="ti ti-rocket"></i> Eficiência dos lançamentos <span>faturamento, investimento e matrículas deles estão na primeira linha da tabela acima</span></div>
       <div class="tp-kpi-grid tp-kpi-grid-4">
@@ -310,6 +352,7 @@
         <div class="ldg-leg">
           <span><i style="background:var(--bs-success)"></i>Faturamento líquido</span>
           <span><i style="background:#f5b13d"></i>Investimento em anúncios</span>
+          {% if mm.ano_anterior %}<span><i class="ant"></i>Faturamento de {{ mm.ano_anterior }}</span>{% endif %}
           <span>Número sob o mês = matrículas</span>
         </div>
         <div class="ldg-chart-wrap">
@@ -319,6 +362,7 @@
               <div class="ldg-mes-area">
                 <div class="ldg-bar fat" style="height:{{ (x.h_receita * 0.84) | round(1) }}%">{% if x.receita_rot %}<em>{{ x.receita_rot }}</em>{% endif %}</div>
                 <div class="ldg-bar inv" style="height:{{ (x.h_invest * 0.84) | round(1) }}%">{% if x.invest_rot %}<em>{{ x.invest_rot }}</em>{% endif %}</div>
+                {% if mm.ano_anterior and x.h_ant %}<div class="ldg-ant" style="bottom:{{ (x.h_ant * 0.84) | round(1) }}%" title="{{ x.nome }}/{{ mm.ano_anterior }}: {{ x.receita_ant | brl(0) }}"></div>{% endif %}
               </div>
               <div class="ldg-mes-nome">{{ x.nome }}</div>
               <div class="ldg-mes-mat">{{ x.vendas | num if x.vendas else '—' }}</div>
@@ -473,6 +517,13 @@
             {% set pct = s.receita / resumo_ano.total.receita * 100 %}
             <div class="ldg-share"><span style="width:{{ (s.receita / resumo_ano.ranking[0].receita * 100) | round(1) }}%;background:{{ pal.destaque or 'var(--bs-accent)' }}"></span></div>
             <div class="ldg-share-lbl">{{ "%.1f"|format(pct) | replace(".", ",") }}% dos lançamentos de {{ resumo_ano.ano }}</div>
+            {% endif %}
+            {% set vs_c = vs_por_code.get(l.code) if vs_por_code else none %}
+            {% if vs_c %}
+            <div class="ldg-vs" title="{{ vs_c.code }} faturou {{ vs_c.receita_ant | brl(0) }} (ROAS {{ "%.2f"|format(vs_c.roas_ant) | replace('.', ',') }}x){% if vs_c.parcial %}; dados parciais: sem {{ vs_c.parcial | join(', ') }}{% endif %}">
+              {% if vs_c.var_receita is not none %}vs {{ vs_c.code }}: <b class="{{ 'up' if vs_c.var_receita > 0 else ('down' if vs_c.var_receita < 0 else '') }}">{{ '+' if vs_c.var_receita > 0 else '' }}{{ "%.0f"|format(vs_c.var_receita) }}%</b> faturamento
+              {% else %}{{ vs_c.code }} fechou em {{ vs_c.receita_ant | brl(0) }}{% endif %}{% if vs_c.parcial %} · parcial{% endif %}
+            </div>
             {% endif %}
           </div>
 

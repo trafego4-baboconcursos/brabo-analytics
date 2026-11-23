@@ -31,7 +31,7 @@ from frontend.core import (
 from frontend.auth import resposta_403
 import os
 
-from frontend.routes import auth, media, analytics, leads, vendas, comercial, unnichat, settings_router, api, links
+from frontend.routes import auth, media, analytics, leads, vendas, comercial, unnichat, settings_router, api, links, boas_vindas
 
 # ── App ────────────────────────────────────────────────────────────────────────
 _SHOW_DOCS = os.environ.get("SHOW_API_DOCS", "false").lower() == "true"
@@ -164,6 +164,16 @@ async def coletor_unnichat():
 
     iniciar()
 
+
+@app.on_event("startup")
+async def monitor_boas_vindas():
+    # Página /boas-vindas: lê o Active e as vendas de 5 em 5 min, mas só no dia de
+    # abertura do carrinho (nos outros dias só confere a data). Ver
+    # frontend/services/monitor_boas_vindas.py; MONITOR_BOAS_VINDAS=false desliga.
+    from frontend.services.monitor_boas_vindas import agendar  # noqa: PLC0415
+
+    agendar()
+
 # ── Handler global de erros ────────────────────────────────────────────────────
 @app.exception_handler(Exception)
 async def _global_error_handler(request: Request, exc: Exception):  # noqa: ARG001
@@ -200,5 +210,6 @@ app.include_router(vendas.router)
 app.include_router(comercial.router)
 app.include_router(unnichat.router)
 app.include_router(links.router)
+app.include_router(boas_vindas.router)
 app.include_router(settings_router.router)
 app.include_router(api.router)

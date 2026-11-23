@@ -19,7 +19,7 @@ def _i(x: Any) -> int:
     return int(x or 0)
 
 
-def get_etapa(meta: Any, google: Any, name: str, whatsapp: float = 0.0) -> dict:
+def get_etapa(meta: Any, google: Any, name: str, whatsapp: float = 0.0, tiktok: Any = None) -> dict:
     """Investimento/leads realizados de uma etapa, combinando Meta + Google.
     "Remarketing" não existe como chave própria em por_etapa — Meta/Google
     classificam essas campanhas nas sub-etapas (Lembrete, Depoimento, etc.),
@@ -37,8 +37,12 @@ def get_etapa(meta: Any, google: Any, name: str, whatsapp: float = 0.0) -> dict:
         g_c += _f(g_d.get("custo"))
         m_l += _i(m_d.get("leads"))
         g_l += _i(g_d.get("conversoes"))
-    total = m_c + g_c + whatsapp
-    return {"nome": name, "invest": total, "meta": m_c, "google": g_c, "tiktok": 0.0, "whatsapp": whatsapp, "leads": m_l + g_l}
+    t_por = (getattr(tiktok, "por_etapa", {}) or {}) if tiktok else {}
+    t_c = sum(_f((t_por.get(n) or {}).get("gasto")) for n in names)
+    t_l = sum(_i((t_por.get(n) or {}).get("leads")) for n in names)
+    total = m_c + g_c + t_c + whatsapp
+    return {"nome": name, "invest": total, "meta": m_c, "google": g_c, "tiktok": t_c, "whatsapp": whatsapp,
+            "leads": m_l + g_l + t_l}
 
 
 def previsto_por_etapa(cfg: dict | None) -> dict:
@@ -127,13 +131,13 @@ def etapa_cfg(cfg: dict | None, nome: str) -> dict:
     return et
 
 
-def bucket_realizado(meta: Any, google: Any, bucket: dict, etapa_nome: str) -> float:
+def bucket_realizado(meta: Any, google: Any, bucket: dict, etapa_nome: str, tiktok: Any = None) -> float:
     """Gasto real (Meta/Google) de um bucket. Em Captação/Pré-Qualificação o
     bucket tem temperatura no nome ("FB Quente" → Meta/Quente); nas
     sub-etapas de remarketing (Lembrete, etc.) o bucket é só a plataforma
     ("Facebook ADS"/"Google ADS", sem temperatura) — usa o total já
-    calculado por get_etapa pra essa etapa. TikTok não tem fonte de dado
-    ainda (sempre 0 — ver memória project_tiktok_integracao_futura)."""
+    calculado por get_etapa pra essa etapa. TikTok (plataforma "tiktok") lê
+    tiktok_ads_daily pelo mesmo caminho do Meta."""
     plataforma = bucket.get("plataforma")
     # Bucket com conta: o dono da verba é o expert, e cada um tem conta própria.
     # Ler por conta não depende de convenção de nome de campanha — que é
@@ -141,7 +145,7 @@ def bucket_realizado(meta: Any, google: Any, bucket: dict, etapa_nome: str) -> f
     conta = str(bucket.get("conta") or "").strip()
     if conta:
         attr = "por_conta_captacao" if etapa_nome == "Captação" else "por_conta"
-        fonte = meta if plataforma == "meta" else google if plataforma == "google" else None
+        fonte = {"meta": meta, "google": google, "tiktok": tiktok}.get(plataforma)
         d = (getattr(fonte, attr, {}) or {}).get(conta) or {}
         return _f(d.get("custo") or d.get("gasto"))
     temp = _temperatura_de_bucket(bucket.get("nome", ""))
@@ -154,18 +158,21 @@ def bucket_realizado(meta: Any, google: Any, bucket: dict, etapa_nome: str) -> f
             attr = "por_temperatura" if etapa_nome == "Captação" else "por_temperatura_prequali"
             d = (getattr(google, attr, {}) or {}).get(temp) or {}
             return _f(d.get("custo"))
+        if plataforma == "tiktok":
+            attr = "por_temperatura_captacao" if etapa_nome == "Captação" else "por_temperatura_prequali"
+            d = (getattr(tiktok, attr, {}) or {}).get(temp) or {}
+            return _f(d.get("gasto"))
         return 0.0
     # Sem temperatura no nome — bucket de plataforma pura (sub-etapa de
     # remarketing): usa o gasto já somado por get_etapa.
-    e = get_etapa(meta, google, etapa_nome)
-    if plataforma == "meta":
-        return e["meta"]
-    if plataforma == "google":
-        return e["google"]
+    e = get_etapa(meta, google, etapa_nome, tiktok=tiktok)
+    if plataforma in ("meta", "google", "tiktok"):
+        return e[plataforma]
     return 0.0
 
 
-def buckets_previsto_x_realizado(meta: Any, google: Any, cfg: dict | None, etapa_nome: str) -> dict:
+def buckets_previsto_x_realizado(meta: Any, google: Any, cfg: dict | None, etapa_nome: str,
+                                 tiktok: Any = None) -> dict:
     """Linhas Previsto x Realizado por público (bucket) de uma etapa, mais o
     total e a divisão por plataforma (Meta/Google/TikTok) — pauta "Verba do
     Lançamento" (Investimento em Captação / Pré-Qualificação por Público)."""
@@ -175,7 +182,7 @@ def buckets_previsto_x_realizado(meta: Any, google: Any, cfg: dict | None, etapa
     linhas = []
     for b in buckets:
         previsto = total_previsto * _f(b.get("pct")) / 100 if total_previsto > 0 else 0.0
-        realizado = bucket_realizado(meta, google, b, etapa_nome)
+        realizado = bucket_realizado(meta, google, b, etapa_nome, tiktok=tiktok)
         linhas.append({
             "nome": b.get("nome"), "plataforma": b.get("plataforma"),
             "conta": str(b.get("conta") or "").strip(),
@@ -508,13 +515,20 @@ def kpis_captacao_periodo_comparavel(launch, previous, cfg: dict | None, prev_cf
     p_meta = read_meta(previous.code, start_date=p_start_str, end_date=p_end_str)
     p_google = read_google(previous.code, start_date=p_start_str, end_date=p_end_str)
     p_vendas = read_vendas(previous.code, start_date=p_start_str, end_date=p_end_str)
+    try:
+        from frontend.db_readers.ads_tiktok import read_tiktok  # noqa: PLC0415
+        p_tiktok = read_tiktok(previous.code, start_date=p_start_str, end_date=p_end_str)
+    except Exception:
+        p_tiktok = None
 
     p_meta_capt = (getattr(p_meta, "por_etapa", {}) or {}).get("Captação") or {}
     p_google_capt = (getattr(p_google, "por_etapa", {}) or {}).get("Captação") or {}
     p_meta_gasto = _f(p_meta_capt.get("gasto") or p_meta_capt.get("custo"))
     p_google_gasto = _f(p_google_capt.get("custo"))
-    p_invest = p_meta_gasto + p_google_gasto
-    p_leads = _i(p_meta_capt.get("leads")) + int(round(_f(p_google_capt.get("conversoes"))))
+    p_tiktok_capt = (getattr(p_tiktok, "por_etapa", {}) or {}).get("Captação") or {}
+    p_invest = p_meta_gasto + p_google_gasto + _f(p_tiktok_capt.get("gasto"))
+    p_leads = (_i(p_meta_capt.get("leads")) + int(round(_f(p_google_capt.get("conversoes"))))
+               + _i(p_tiktok_capt.get("leads")))
     p_receita = _f(getattr(p_vendas, "total_receita", 0)) if p_vendas else 0.0
     p_vendas_n = _i(getattr(p_vendas, "total_vendas", 0)) if p_vendas else 0
 
@@ -533,6 +547,7 @@ def kpis_captacao_periodo_comparavel(launch, previous, cfg: dict | None, prev_cf
         "vendas": p_vendas_n, "leads": p_leads,
         "leads_meta": _i(p_meta_capt.get("leads")),
         "leads_google": int(round(_f(p_google_capt.get("conversoes")))),
+        "leads_tiktok": _i(p_tiktok_capt.get("leads")),
         "leads_active": p_leads_active, "leads_active_atual": leads_active_atual,
         "cpl": (p_invest / p_leads) if p_leads > 0 else 0.0,
         "periodo": f"{p_cs.strftime('%d/%m')} a {p_window_end.strftime('%d/%m')}",

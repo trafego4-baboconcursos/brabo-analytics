@@ -69,6 +69,8 @@ ROUTE_PERMISSIONS: dict[str, list[str]] = {
     "/publicos":          _MEDIA,
     "/landing-pages":     _MEDIA,
     "/leads":             _DTLD,
+    "/leads/score/resumo": _DTLD,
+    "/leads/score.csv":   _DTLD,   # lista e-mail de lead com score: mesma faixa da /leads (o dict é por caminho exato)
     "/crm-campanhas":     _DTLD,
     "/pesquisas":         _DTLD,
     "/typeform":          _DTLD,  # link legado — redireciona pra /pesquisas
@@ -79,6 +81,9 @@ ROUTE_PERMISSIONS: dict[str, list[str]] = {
     # e qualquer papel logado leria nome de afiliado e comissão, mesmo com o
     # item escondido do menu (o menu não é a trava).
     "/afiliados":         _DTLD,
+    # Boas-vindas no carrinho: lista e-mail de comprador, então fica na faixa das páginas de venda.
+    "/boas-vindas":       _DTLD,
+    "/boas-vindas/compradores.csv": _DTLD,
     "/atendimento":       _CMRC,
     "/atendimento/conversas.csv": _CMRC,
     "/atendimento/atualizar": _CMRC,          # botão "Atualizar agora": só pede releitura, não edita dado

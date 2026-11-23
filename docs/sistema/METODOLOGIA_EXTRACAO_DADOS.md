@@ -2,7 +2,7 @@
 titulo: "Metodologia de Extração e Atribuição de Dados por Lançamento"
 area: sistema
 status: vigente
-atualizado: 2026-10-29
+atualizado: 2026-11-23
 responde:
   - "como e medido o carregamento da pagina dos anuncios"
   - "o que e landing page view"
@@ -106,11 +106,19 @@ relacionados:
 >
 > **Custo de WhatsApp por etapa (29/10/26)**
 >
+>
+> **14. Comissão do comercial: como sai do dado (2026-11-06)**
+>
+>
+> **Receita líquida da TMB: `valor_liquido` vem sem a taxa (18/11/26)**
+>
+>
+> **Faturamento total da empresa: TMB pelo critério do financeiro e Hotmart Editora (18/11/26)**
+>
 
 <!-- SUMARIO:FIM -->
 
-**Última atualização:** Junho de 2026 (Transição para Análises 2.0)
-**Aplicável a:** PBB-ABR-26, PBB-FEV-26, PES-JAN-26, PES-MAI-26 e lançamentos futuros
+**Última atualização:** Junho de 2026 (Transição para Análises 2.0) **Aplicável a:** PBB-ABR-26, PBB-FEV-26, PES-JAN-26, PES-MAI-26 e lançamentos futuros
 
 ---
 
@@ -151,8 +159,7 @@ Meta Ads / Google Ads API (Investimento)
 > - **Typeform foi desligado em agosto de 2026** (conta cancelada) — ver seção 10. A partir do `PBB-AGO-26`, as pesquisas de lançamento rodam no sistema de formulários interno (`formularios`/`perguntas`/`submissoes`/`respostas`), não mais no Typeform.
 
 ### Arquitetura 1.0 (Legado / Baseado em CSV)
-Anteriormente, o processo dependia de exportações manuais depositadas nas pastas `analises/[LANCAMENTO]/`.
-**Scripts Legados de referência:** `scripts-python/generate_analises_por_plataforma.py`
+Anteriormente, o processo dependia de exportações manuais depositadas nas pastas `analises/[LANCAMENTO]/`. **Scripts Legados de referência:** `scripts-python/generate_analises_por_plataforma.py`
 
 ---
 
@@ -335,9 +342,7 @@ Formulários já criados nesse sistema: `[PBB-AGO-26] Pesquisa - Projeto Banco d
 
 ## 11. Métricas das aulas no YouTube sem API (2026-09-15)
 
-Sem a API do YouTube conectada, as métricas das aulas vêm do **relatório pós-transmissão**
-exportado à mão no YouTube Studio (`etl/etl_youtube_csv.py`). Isso muda o que cada número
-significa — não é o mesmo recorte que a API devolve.
+Sem a API do YouTube conectada, as métricas das aulas vêm do **relatório pós-transmissão** exportado à mão no YouTube Studio (`etl/etl_youtube_csv.py`). Isso muda o que cada número significa — não é o mesmo recorte que a API devolve.
 
 **O que o export mede:**
 
@@ -349,19 +354,11 @@ significa — não é o mesmo recorte que a API devolve.
 | `duration_sec` | último ponto da curva | duração da *transmissão*, não do vídeo publicado depois |
 | `chat_msgs` / `reacoes` | soma da curva minuto a minuto | só interações **ao vivo**; comentários do replay não entram |
 
-**O que o export não mede:** views totais, watch time, retenção média, likes, comentários,
-split live vs replay e `video_id`. Esses campos ficam zerados até a API rodar ou até entrar o
-export do **Modo avançado** do Studio.
+**O que o export não mede:** views totais, watch time, retenção média, likes, comentários, split live vs replay e `video_id`. Esses campos ficam zerados até a API rodar ou até entrar o export do **Modo avançado** do Studio.
 
-**Por que a hierarquia importa no debriefing:** a barra de retenção usa `avg_view_pct` quando
-existe e cai para `retencao_live_pct` quando não — e troca o rótulo junto ("Retenção média"
-vs "Retenção ao vivo (fim/pico)"), porque comparar os dois como se fossem a mesma coisa
-inflaria ou deprimiria o número sem aviso. Pelo mesmo motivo os KPIs do rodapé trocam de
-métrica em vez de mostrar zero.
+**Por que a hierarquia importa no debriefing:** a barra de retenção usa `avg_view_pct` quando existe e cai para `retencao_live_pct` quando não — e troca o rótulo junto ("Retenção média" vs "Retenção ao vivo (fim/pico)"), porque comparar os dois como se fossem a mesma coisa inflaria ou deprimiria o número sem aviso. Pelo mesmo motivo os KPIs do rodapé trocam de métrica em vez de mostrar zero.
 
-**Comparação entre lançamentos:** só compare retenção entre aulas com a **mesma** fonte.
-PBB-JUN-26 tem dado de API (`avg_view_pct`); PI-AGO-26 tem dado de CSV
-(`retencao_live_pct`). A coluna `fonte` de `youtube_aulas_stats` existe para essa checagem.
+**Comparação entre lançamentos:** só compare retenção entre aulas com a **mesma** fonte. PBB-JUN-26 tem dado de API (`avg_view_pct`); PI-AGO-26 tem dado de CSV (`retencao_live_pct`). A coluna `fonte` de `youtube_aulas_stats` existe para essa checagem.
 
 ### Os três exports do Studio medem coisas diferentes (2026-09-15)
 
@@ -371,15 +368,9 @@ PBB-JUN-26 tem dado de API (`avg_view_pct`); PI-AGO-26 tem dado de CSV
 | Retenção de público | o **vídeo**, por posição (0-100%), com replay | outra população: pode dar menos views que o pico simultâneo da mesma aula |
 | Conteúdo | views/watch time/impressões **do período escolhido no export** | inútil se o período não cobrir a data da live |
 
-**Nunca somar o primeiro com o segundo.** No PI-AGO-26 a Aula 3 teve pico simultâneo de
-10.118 ao vivo e 9.302 visualizações no relatório de retenção — se fossem a mesma população,
-isso seria impossível. Por isso `visualizacoes_video` tem esse nome e a página mostra as duas
-coisas em seções separadas, cada uma com a janela de datas do seu export.
+**Nunca somar o primeiro com o segundo.** No PI-AGO-26 a Aula 3 teve pico simultâneo de 10.118 ao vivo e 9.302 visualizações no relatório de retenção — se fossem a mesma população, isso seria impossível. Por isso `visualizacoes_video` tem esse nome e a página mostra as duas coisas em seções separadas, cada uma com a janela de datas do seu export.
 
-**Origem do tráfego.** O Studio responde isso em dois níveis: "orgânico vs pago" (dentro do
-relatório de retenção) e "Fontes de tráfego" (notificações, pesquisa, externo…). Nenhum dos
-dois quebra por campanha ou por `ADxxx` — atribuição por criativo continua vindo do Google
-Ads, e só para campanha de vídeo cujo destino seja o próprio vídeo.
+**Origem do tráfego.** O Studio responde isso em dois níveis: "orgânico vs pago" (dentro do relatório de retenção) e "Fontes de tráfego" (notificações, pesquisa, externo…). Nenhum dos dois quebra por campanha ou por `ADxxx` — atribuição por criativo continua vindo do Google Ads, e só para campanha de vídeo cujo destino seja o próprio vídeo.
 
 ## 12. Metricas das aulas no YouTube via API (2026-09-22)
 
@@ -400,21 +391,11 @@ Com a integracao da YouTube Analytics API (etl/etl_youtube_analytics.py), as met
 
 ## 13. A atribuição de lançamento fechado apaga sozinha (2026-10-07)
 
-**Sintoma:** o teste de caracterização de `_sales_attribution` quebrou em dois lançamentos
-fechados. O PI-AGO-26, que fechou em 24/08, passou de **2.051 para 1.680** compradores
-rastreados — o ROAS caiu de **2,36x para 1,97x** sem uma venda nova ter entrado. Nenhuma linha
-de código de atribuição tinha mudado.
+**Sintoma:** o teste de caracterização de `_sales_attribution` quebrou em dois lançamentos fechados. O PI-AGO-26, que fechou em 24/08, passou de **2.051 para 1.680** compradores rastreados — o ROAS caiu de **2,36x para 1,97x** sem uma venda nova ter entrado. Nenhuma linha de código de atribuição tinha mudado.
 
-**Causa:** a tabela `leads` guarda **uma linha por contato** — conferido: os 2.501 compradores
-do PI-AGO-26 têm 2.501 linhas, nenhum tem duas. O lançamento vive numa coluna só,
-`lancamento_codigo`, e um processo externo reescreve a tabela inteira periodicamente (todas as
-linhas dos compradores do PI-AGO-26 têm `updated_at` em outubro/26, inclusive as 1.450 que ainda
-dizem PI-AGO-26).
+**Causa:** a tabela `leads` guarda **uma linha por contato** — conferido: os 2.501 compradores do PI-AGO-26 têm 2.501 linhas, nenhum tem duas. O lançamento vive numa coluna só, `lancamento_codigo`, e um processo externo reescreve a tabela inteira periodicamente (todas as linhas dos compradores do PI-AGO-26 têm `updated_at` em outubro/26, inclusive as 1.450 que ainda dizem PI-AGO-26).
 
-Quando a pessoa se cadastra num lançamento novo, a linha dela é reescrita com o código novo. O
-`_sales_attribution` casa comprador com lead por
-`WHERE lancamento_codigo = :code` — então **o comprador some da atribuição do lançamento
-antigo**, junto com a UTM que dizia qual anúncio o trouxe.
+Quando a pessoa se cadastra num lançamento novo, a linha dela é reescrita com o código novo. O `_sales_attribution` casa comprador com lead por `WHERE lancamento_codigo = :code` — então **o comprador some da atribuição do lançamento antigo**, junto com a UTM que dizia qual anúncio o trouxe.
 
 **Para onde foram os 1.027 compradores do PI-AGO-26 que não têm mais linha dele:**
 
@@ -437,84 +418,46 @@ antigo**, junto com a UTM que dizia qual anúncio o trouxe.
 | PBB-ABR-26 | 545 | 370 | 175 | 32,1% |
 
 **Consequências:**
-- O ROAS de um lançamento fechado **cai sozinho com o tempo**, e hoje está subestimado em
-  ~1/3 em todos eles. O debriefing de um lançamento fechado dá um número diferente a cada vez
-  que é aberto.
-- A erosão **acelera enquanto um lançamento novo capta**: a Black levou 387 compradores do
-  PI-AGO-26 e 320 do PI-ABR-26 só nas últimas semanas.
-- Não dá pra remendar na leitura: a linha reescrita carrega a UTM do lançamento **novo**, não a
-  do antigo. O dado antigo não está escondido — **foi sobrescrito**.
+- O ROAS de um lançamento fechado **cai sozinho com o tempo**, e hoje está subestimado em ~1/3 em todos eles. O debriefing de um lançamento fechado dá um número diferente a cada vez que é aberto.
+- A erosão **acelera enquanto um lançamento novo capta**: a Black levou 387 compradores do PI-AGO-26 e 320 do PI-ABR-26 só nas últimas semanas.
+- Não dá pra remendar na leitura: a linha reescrita carrega a UTM do lançamento **novo**, não a do antigo. O dado antigo não está escondido — **foi sobrescrito**.
 
 **O que resolve, em ordem:**
-1. **Fora do nosso código (o conserto de verdade):** `leads` precisa de uma linha por
-   (contato, lançamento), ou de uma coluna de origem imutável, gravada na primeira captura e
-   nunca sobrescrita. É com quem mantém o upsert externo.
-2. **Dentro do nosso código:** congelar a atribuição quando o carrinho fecha — persistir
-   comprador + UTM escolhida numa tabela por lançamento e ler dali, em vez de recalcular
-   sobre uma `leads` que muda. Preserva daqui pra frente; **não recupera** o que já foi
-   sobrescrito.
-3. Enquanto nenhum dos dois existir, **todo ROAS histórico é piso**, e comparar o ROAS de um
-   lançamento fechado com o de um lançamento em curso é comparar uma medida erodida com uma
-   intacta.
+1. **Fora do nosso código (o conserto de verdade):** `leads` precisa de uma linha por (contato, lançamento), ou de uma coluna de origem imutável, gravada na primeira captura e nunca sobrescrita. É com quem mantém o upsert externo.
+2. **Dentro do nosso código:** congelar a atribuição quando o carrinho fecha — persistir comprador + UTM escolhida numa tabela por lançamento e ler dali, em vez de recalcular sobre uma `leads` que muda. Preserva daqui pra frente; **não recupera** o que já foi sobrescrito.
+3. Enquanto nenhum dos dois existir, **todo ROAS histórico é piso**, e comparar o ROAS de um lançamento fechado com o de um lançamento em curso é comparar uma medida erodida com uma intacta.
 
-**Enquanto isso, o baseline de caracterização não deve ser regravado** nesses dois serviços: ele
-é hoje o único alarme que existe pra essa erosão.
+**Enquanto isso, o baseline de caracterização não deve ser regravado** nesses dois serviços: ele é hoje o único alarme que existe pra essa erosão.
 
 ### 13.1 A trava (07/10/26, mesmo dia)
 
-O caminho 2 foi implementado: `atribuicao_congelada` guarda a **melhor UTM já observada** por
-(lançamento, comprador) e entra em `_sales_attribution` **antes** da leitura ao vivo — o dado de
-hoje só a substitui com score maior. Gravação monotônica, então rodar de novo nunca piora.
+O caminho 2 foi implementado: `atribuicao_congelada` guarda a **melhor UTM já observada** por (lançamento, comprador) e entra em `_sales_attribution` **antes** da leitura ao vivo — o dado de hoje só a substitui com score maior. Gravação monotônica, então rodar de novo nunca piora.
 
-Congelado no mesmo dia: **11 lançamentos, 12.904 pares comprador×UTM**. Detalhe das peças e a
-decisão em aberto (de quanto em quanto tempo rodar) em [[CONGELAR_ATRIBUICAO_LANCAMENTO]].
+Congelado no mesmo dia: **11 lançamentos, 12.904 pares comprador×UTM**. Detalhe das peças e a decisão em aberto (de quanto em quanto tempo rodar) em [[CONGELAR_ATRIBUICAO_LANCAMENTO]].
 
 **O número parou de cair; não voltou.** O que foi sobrescrito antes de 07/10/26 está perdido.
 
 ### 13.1b As leituras passaram a vir do estado (08/10/26)
 
-Os leitores por lançamento (atribuição, vendas × CRM, contagens, UTM dos compradores, typeform) leem agora
-`lead_utm_lancamento` — uma linha por (contato, lançamento) —, não a `leads`. Detalhe, lista do que ficou na
-`leads` e conferência em [[ARQUITETURA]]. Efeito na atribuição dos 10 lançamentos fechados: **12.467 →
-13.698 compradores rastreados**, igual ao da trava; contagens de leads no CRM sobem pelos contatos recuperados
-(PI-AGO-26 267.200 → 272.076) e nunca descem.
+Os leitores por lançamento (atribuição, vendas × CRM, contagens, UTM dos compradores, typeform) leem agora `lead_utm_lancamento` — uma linha por (contato, lançamento) —, não a `leads`. Detalhe, lista do que ficou na `leads` e conferência em [[ARQUITETURA]]. Efeito na atribuição dos 10 lançamentos fechados: **12.467 → 13.698 compradores rastreados**, igual ao da trava; contagens de leads no CRM sobem pelos contatos recuperados (PI-AGO-26 267.200 → 272.076) e nunca descem.
 
-**Quem credita a venda:** cada lançamento lê as UTMs do seu próprio lançamento; a venda é do lançamento em
-cujo carrinho a compra aconteceu. Na Black, o comprador com linha nas duas trilhas é creditado pela da
-**Vitalícia** (a captação da oferta vendida), com a Base Forte de reserva.
+**Quem credita a venda:** cada lançamento lê as UTMs do seu próprio lançamento; a venda é do lançamento em cujo carrinho a compra aconteceu. Na Black, o comprador com linha nas duas trilhas é creditado pela da **Vitalícia** (a captação da oferta vendida), com a Base Forte de reserva.
 
 ### 13.2 Recuperação pelo export do AC da época + trava diária
 
-Os CSVs em `analises/[LANC]/Active Campaign/` guardam a UTM como estava no dia do export.
-`scripts/recuperar_utms_export_ac.py` recuperou **1.216 compradores em 10 lançamentos**, só
-os que têm UTM nomeando o lançamento (o resto seria crédito chutado ou errado), marcados
-`origem = 'export_ac'`. O PI-AGO-26 voltou de 1.680 para 2.003 compradores atribuídos.
+Os CSVs em `analises/[LANC]/Active Campaign/` guardam a UTM como estava no dia do export. `scripts/recuperar_utms_export_ac.py` recuperou **1.216 compradores em 10 lançamentos**, só os que têm UTM nomeando o lançamento (o resto seria crédito chutado ou errado), marcados `origem = 'export_ac'`. O PI-AGO-26 voltou de 1.680 para 2.003 compradores atribuídos.
 
-A trava passou a rodar sozinha, **diária às 4h10, a partir da primeira live de cada
-lançamento** (job `congelar_atribuicao` no `etl/scheduler.py`). Detalhes em
-[[CONGELAR_ATRIBUICAO_LANCAMENTO]].
+A trava passou a rodar sozinha, **diária às 4h10, a partir da primeira live de cada lançamento** (job `congelar_atribuicao` no `etl/scheduler.py`). Detalhes em [[CONGELAR_ATRIBUICAO_LANCAMENTO]].
 
 ### 13.2b O que isso significa para a decisão de criativo (08/10/26)
 
-Medição no PI-AGO-26, detalhada no item 54 do [[MUDANCAS_PI-AGO-26]]: a erosão atinge **1,9% dos leads mas
-18,1% dos compradores** (quem se perde compra 11,6x mais). O ranking de criativos por CPA é estável (correlação
-0,96), mas o CPA individual muda mais de 15% em 24 de 34 criativos. Por isso as páginas `/criativos`, `/meta` e
-`/google` passaram a mostrar a **faixa de cobertura** (vendas que chegam a um criativo × total), e o ROAS vale como
-**piso** e o custo por venda como **teto**.
+Medição no PI-AGO-26, detalhada no item 54 do [[MUDANCAS_PI-AGO-26]]: a erosão atinge **1,9% dos leads mas 18,1% dos compradores** (quem se perde compra 11,6x mais). O ranking de criativos por CPA é estável (correlação 0,96), mas o CPA individual muda mais de 15% em 24 de 34 criativos. Por isso as páginas `/criativos`, `/meta` e `/google` passaram a mostrar a **faixa de cobertura** (vendas que chegam a um criativo × total), e o ROAS vale como **piso** e o custo por venda como **teto**.
 
-**Quem decide o quê, num cadastro em vários lançamentos:** a venda pertence ao lançamento em que a compra
-aconteceu (produto + janela do carrinho). Dentro dele, o criativo creditado é o que captou a pessoa **naquele
-lançamento** (a última UTM, regra do Michel). Os cadastros em lançamentos anteriores são leads que não converteram
-na época e não recebem crédito. A origem do cliente na vida toda (primeiro lançamento em que apareceu) é uma lente
-**separada**, que o histórico `lead_utm_lancamento` já permite montar por ter uma linha por lançamento.
+**Quem decide o quê, num cadastro em vários lançamentos:** a venda pertence ao lançamento em que a compra aconteceu (produto + janela do carrinho). Dentro dele, o criativo creditado é o que captou a pessoa **naquele lançamento** (a última UTM, regra do Michel). Os cadastros em lançamentos anteriores são leads que não converteram na época e não recebem crédito. A origem do cliente na vida toda (primeiro lançamento em que apareceu) é uma lente **separada**, que o histórico `lead_utm_lancamento` já permite montar por ter uma linha por lançamento.
 
 ### 13.3 A tag do AC já guardava o histórico
 
-`etl_active_campaign.py` grava **`lead_lancamentos`** (contato × lançamento) a partir das tags
-do AC, que são **cumulativas** — o contato nunca perde a tag do lançamento anterior. É a origem
-imutável que falta na `leads`, e ninguém estava usando pra isso. Recupera **quem** era do
-lançamento (PI-AGO-26: 2.125 compradores contra 1.474 pela `leads`), mas **não guarda UTM**,
-então não diz qual anúncio creditar. Ver [[CONGELAR_ATRIBUICAO_LANCAMENTO]], frente 1.
+`etl_active_campaign.py` grava **`lead_lancamentos`** (contato × lançamento) a partir das tags do AC, que são **cumulativas** — o contato nunca perde a tag do lançamento anterior. É a origem imutável que falta na `leads`, e ninguém estava usando pra isso. Recupera **quem** era do lançamento (PI-AGO-26: 2.125 compradores contra 1.474 pela `leads`), mas **não guarda UTM**, então não diz qual anúncio creditar. Ver [[CONGELAR_ATRIBUICAO_LANCAMENTO]], frente 1.
 
 ## 14. Carregamento da página — `landing_page_views` e LP por anúncio (2026-10-10)
 
@@ -588,20 +531,47 @@ Exemplo PES-NOV-26 (form 487): 215 aberturas → 190 inícios → 148 envios →
 
 ## Código do anúncio na atribuição de vendas da Black (27/10/26)
 
-A venda é ligada ao anúncio pelo código encontrado nas UTMs do lead (`utm_term`/`utm_content` e demais). Para lançamentos
-`BV-*` o código segue a convenção da Black (`AD-TR35`, `ADC-MA38`, `ADL…`, `UGC…`) e é extraído com
-`src/ad_codes.extract_ad_code(…, launch_code)`, normalizado como `ADC-MA38`. Nos outros lançamentos continua `ADxxx`. Antes de
-27/10/26 a Black não tinha nenhuma venda atribuída a anúncio por causa disso ([[ARQUITETURA]]).
+A venda é ligada ao anúncio pelo código encontrado nas UTMs do lead (`utm_term`/`utm_content` e demais). Para lançamentos `BV-*` o código segue a convenção da Black (`AD-TR35`, `ADC-MA38`, `ADL…`, `UGC…`) e é extraído com `src/ad_codes.extract_ad_code(…, launch_code)`, normalizado como `ADC-MA38`. Nos outros lançamentos continua `ADxxx`. Antes de 27/10/26 a Black não tinha nenhuma venda atribuída a anúncio por causa disso ([[ARQUITETURA]]).
 
 ## Correção de UTM do Google pelo `gclid` (28/10/26)
-Quando a campanha escrita no UTM não é a do clique (erro manual de nomenclatura), `scripts/corrigir_utm_gclid.py` consulta o `click_view` do Google Ads (campanha real por `gclid`; Search, Demand Gen, Vídeo e P-Max; **só 90 dias de histórico**,
-um dia por consulta, filtro por `gclid IN (...)` funciona) e grava o nome real em `atribuicao_congelada` com `origem='gclid_google_ads'` — só para compradores, só `utm_campaign`. Simula por padrão (`--aplicar` grava e guarda CSV de backup em `outputs/`).
-`corrigir_congelada` sobrescreve de propósito; `gravar_congelada` continua monotônica. Aplicado em PI-AGO-26 (320 compradores) e PBB-AGO-26 (134). A correção muda a divisão por campanha (principal × potencial × variantes), não os totais por público.
+Quando a campanha escrita no UTM não é a do clique (erro manual de nomenclatura), `scripts/corrigir_utm_gclid.py` consulta o `click_view` do Google Ads (campanha real por `gclid`; Search, Demand Gen, Vídeo e P-Max; **só 90 dias de histórico**, um dia por consulta, filtro por `gclid IN (...)` funciona) e grava o nome real em `atribuicao_congelada` com `origem='gclid_google_ads'` — só para compradores, só `utm_campaign`. Simula por padrão (`--aplicar` grava e guarda CSV de backup em `outputs/`). `corrigir_congelada` sobrescreve de propósito; `gravar_congelada` continua monotônica. Aplicado em PI-AGO-26 (320 compradores) e PBB-AGO-26 (134). A correção muda a divisão por campanha (principal × potencial × variantes), não os totais por público.
 
 ## Custo de WhatsApp por etapa (29/10/26)
 
-Custo das mensagens (`whatsapp_messages_daily`, com IOF) é repartido por **data**: cada dia vai para a etapa do
-`launch_config` que o contém; dia em duas etapas vai para a mais adiantada (Carrinho > Aulas > Captação >
-Pré-Qualificação). A página Captação usa só a fatia Captação. Não há atribuição por template nem por lançamento: o filtro
-é o produto do número (`config/whatsapp_accounts.yaml`), então disparo de outro lançamento no mesmo número e período
-(ex.: Black BV-26 nos números do Mateus em 15/10/26) entra junto. Detalhes: [[ARQUITETURA]].
+Custo das mensagens (`whatsapp_messages_daily`, com IOF) é repartido por **data**: cada dia vai para a etapa do `launch_config` que o contém; dia em duas etapas vai para a mais adiantada (Carrinho > Aulas > Captação > Pré-Qualificação). A página Captação usa só a fatia Captação. Não há atribuição por template nem por lançamento: o filtro é o produto do número (`config/whatsapp_accounts.yaml`), então disparo de outro lançamento no mesmo número e período (ex.: Black BV-26 nos números do Mateus em 15/10/26) entra junto. Detalhes: [[ARQUITETURA]].
+
+---
+
+## 14. Comissão do comercial: como sai do dado (2026-11-06)
+
+Calculada em `frontend/services/comercial/` a partir de `hotmart_oficial` e `tmb_oficial` (só leitura). Plano e regras: [[PLANO_AREA_COMERCIAL_COMISSOES]]; telas e fechamento: [[ARQUITETURA]].
+
+- **Código AT (vendedor).** Hotmart: `nome_deste_preco`; quando vem vazio (~100 vendas/mês), o `codigo_do_preco` é resolvido por `comercial_ofertas`. TMB: `utm_content` → `utm_last_content`. Venda sem código é orgânica (não é inconsistência); código divergente entre campos é conflito.
+- **Valor-base.** Hotmart pela API: busca por `valor_de_compra_sem_impostos + taxa_de_processamento`, na vigência da data da venda. Quando esse valor não acha base (desde 09/11/26), tenta, nesta ordem: no Parcelamento Inteligente (`quantidade_de_cobrancas` = 1 e `quantidade_total_de_parcelas` > 1), primeiro `valor_de_compra_com_impostos` × parcelas, porque a Hotmart grava só a 1ª parcela, e depois o valor com impostos; nos demais casos, `valor_de_compra_com_impostos`, que é a coluna L, a referência do gestor (1.798,80 Não Aluno / 899,40 Cross / 499,90 Up). A parcela sozinha **não** é tentada antes de × N: 149,90 casaria com a base de recorrência (1.477). Efeito: as 10 vendas sem base de ago–nov/26 acharam base; comissão +27,62 / +184,68 / +173,90 / +64,72.
+- **Só a 1ª cobrança** conta (recorrência não gera nova comissão); dedupe por transação; datas em horário de Brasília.
+- **Ativa × Reativa.** Janela Reativa pela data do evento (`evento_start_date`); sem ela, `aulas_start_date`; a janela manual (`comercial_janela_reativa`) prevalece sobre ambas. Venda para aluno é sempre Ativa, porque a Reativa só vale para aluno novo (desde 10/11/26, `regras.e_up_ou_cross_sell`). O sinal vem do nome do preço ("Cross", "Up Sell" ou "Upgrade" em qualquer lugar) e, sem ele, da categoria `CROSS SELL`/`UP SELL` do valor-base. Exceção: a Black segue Ativa/Reativa.
+- **TMB paga** = tem `data_efetivado` válida, inclusive pedido cancelado depois de efetivado (cancelado antes de efetivar não paga). Cancelado sem `data_cancelamento` cai na data da venda.
+- **Prevista × elegível.** Prevista até 7 dias da efetivação; depois, elegível. Cancelamento ou reembolso nos 7 dias tira a comissão; reembolso que o dado não decide fica como "reembolso a verificar" (inconsistência) até o gestor decidir mantém/tira.
+
+## Receita líquida da TMB: `valor_liquido` vem sem a taxa (18/11/26)
+
+Em `tmb_clean_oficial`, a coluna `valor_liquido` **não é líquida**: tem o mesmo valor do ticket (`tmb_oficial.ticket`), ainda sem a taxa da TMB. Somada como líquida, a TMB ficava ~4,85% acima do que entrou no caixa.
+
+Regra: **receita líquida TMB = `valor_liquido` × `TMB_FATOR_LIQUIDO`** (0,951453, ou seja, desconta 4,8547%), em `src/constants.py`. Vale para toda venda TMB, de qualquer lançamento (carrinho, upsell/crosssell). Hotmart não muda: `valor_de_compra_sem_impostos` já vem líquido.
+
+Origem do fator (financeiro, "contas a receber por data de efetivação", 01/01–31/10/2026, status Efetivado): ticket R$ 12.940.385,51; taxa R$ 603.896,33; recebido líquido R$ 12.312.185,86; 12.312.185,86 ÷ 12.940.385,51 = 0,951453. Usa a taxa **efetiva** (4,85%), não a contratada (4,67%), porque é a que bate com o caixa (inclui tarifas fixas, antecipação e mix de parcelas). Atualizar a constante quando o financeiro fechar novos meses.
+
+Onde se aplica (leitura, nada gravado no banco): `read_vendas` (`tmb_receita`; `tmb_receita_bruta` passa a ser o ticket = `valor_liquido`, antes da taxa), dia 1 (`read_dia1_sales`), carrinho (`read_carrinho`), detalhes TMB (`db_readers/tmb.py`), faturamento da empresa no ano (`db_readers/empresa.py`) e a **área Comercial** (`normalizar_tmb` em `db_readers/comercial.py`: `valor_cobrado` = ticket × fator, base da comissão; aplicado em 18/11/26).
+
+No debriefing, a ponte da TMB fica numa fileira própria abaixo da da Hotmart: **Ticket pago (TMB)** → **Taxa TMB** (= ticket − líquido; `VendasSummary.tmb_taxa`) → **Líquido do produtor (só TMB)**, com o "ant." do lançamento anterior (18/11/26).
+
+## Faturamento total da empresa: TMB pelo critério do financeiro e Hotmart Editora (18/11/26)
+
+Pedido da equipe para o total do Resumo Executivo (`/lancamentos`) bater com o painel da meta (R$ 35.999.623 contra R$ 35.884.713 no painel; diferença de R$ 114.910 em 2 pontos). Só mexe no **total da empresa** (`db_readers/empresa.py`), não nos números por lançamento.
+
+1. **TMB** = `tmb_oficial` com `status = 'Efetivado'`, soma do `ticket` × `TMB_FATOR_LIQUIDO` (0,951453), pela `data_efetivado` (DD/MM/AAAA, ISO ou epoch). É o critério do relatório "contas a receber por data de efetivação". Antes: `tmb_clean_oficial.valor_liquido` pela data de criação do pedido (7.745 pedidos em 2026; agora 7.767) — ~R$ 36 mil abaixo.
+2. **Hotmart Editora** (conta "Brabo Editora Ltda": apostilas físicas, Planner, combos, Correios) vive em **`hotmart_editora_clean_oficial`** (e a bruta `hotmart_editora_oficial`) — fora da `hotmart_clean_oficial`. Em 19/11/26 o Mateus religou o webhook da conta: antes essas tabelas guardavam só a Aprovasim (10.306 linhas, todas também na principal — somar dobrava), agora têm 3.744 linhas do produtor Brabo Editora. A tabela ainda traz ~106 linhas da Aprovasim que já estão na principal: **só vale `produtor_a = 'Brabo Editora Ltda'`** (`PRODUTOR_EDITORA`). Validado: jan–out R$ 78.572,31 + nov (até 18/11) R$ 8.452,21 = R$ 87.024,52, idêntico ao relatório da conta. `ht_editora_*` (vazias) e o valor manual do relatório deixaram de ser usados.
+   - **Perpétuo:** os produtos de MEQ/Planner da Editora têm IDs próprios (MEQ TJ-SP 5150278 + combo 5146580; MEQ INSS 5150260 + combo 5146472; MEQ BB 6239843 + combo 6474104; Planner 5150092 — `HOTMART_EDITORA_IDS_PERPETUO_POR_VERTICAL`). O perpétuo passou a somar as duas contas (Aprovasim pelos IDs de sempre + Editora por esses), em `_vendas`, no mensal, nos cartões e no ano. Fora do perpétuo de propósito: Mentoria/Apostilas dos Correios, Livro Improvável, COMBO INSS 8073438 e KIT TJSP 8073703.
+   - **Total da empresa:** a parte da Editora que já está no perpétuo não entra de novo como "Editora" nem sai do setor de vendas; o resto da Editora (R$ 522 em 2026) soma na linha Perpétuo. O total não mudou com a troca.
+
+Conferência em 18/11/26: Hotmart R$ 23.514.058 + TMB R$ 12.410.194 + Editora R$ 87.025 = R$ 36.011.276, R$ 11.652 acima do painel da meta (Hotmart principal ~R$ 8 mil acima, sem ajuste, mais vendas posteriores ao relatório).

@@ -44,6 +44,7 @@ MAX_LAUNCHES = 5
 LEITORES_POR_FONTE: dict[str, set[str]] = {
     "meta_ads":        {"meta", "meta_temp", "sales_attribution", "utm_cobertura"},
     "google_ads":      {"google", "sales_attribution", "utm_cobertura"},
+    "tiktok_ads":      {"tiktok"},
     "ga4":             {"landing_pages_por_etapa", "conversao_pagina_captura"},
     "sheets_contagem": {"whatsapp_sheets", "whatsapp_sheets_diario"},
     "active_campaign": {"leads", "utm_cobertura", "sales_attribution", "leads_antigos_compradores",

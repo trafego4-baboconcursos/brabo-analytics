@@ -12,7 +12,7 @@ import pandas as pd
 from sqlalchemy import text
 
 from frontend.db import _get_engine, _get_users_engine
-from frontend.db_readers._vendas_comum import _bucket_metodo_pagamento
+from frontend.db_readers._vendas_comum import _bucket_metodo_pagamento, parse_ts_brt
 from frontend.models import TmbDetails
 from frontend.utils import (
     _extract_launch_code,
@@ -21,6 +21,7 @@ from frontend.utils import (
     _safe_date,
 )
 from logger import get_logger
+from src.constants import TMB_FATOR_LIQUIDO
 
 logger = get_logger("db")
 
@@ -36,6 +37,11 @@ def read_tmb_details(launch_folder_or_code: Any, start_date=None, end_date=None)
 
     effective_start = _safe_date(start_date) or _safe_date(dim_start)
     effective_end   = _safe_date(end_date)   or _safe_date(dim_end)
+    # Só as vendas do CARRINHO ABERTO (mesma janela do read_vendas) — ver hotmart.py.
+    from frontend.db_readers.launches import read_launch_config  # noqa: PLC0415
+    _cfg = read_launch_config(code)
+    effective_start = _safe_date(_cfg.get("carrinho_start_date")) or effective_start
+    effective_end = _safe_date(_cfg.get("carrinho_end_date")) or effective_end
 
     ops_engine = _get_users_engine()
     details = TmbDetails()
@@ -80,7 +86,7 @@ def read_tmb_details(launch_folder_or_code: Any, start_date=None, end_date=None)
         })
 
     df_paid = df_all[df_all["status_norm"].isin({"vigente", "efetivado", "pago", "em dia", "integralizado", "aprovado", "concluido", "active"})].copy()
-    df_paid["valor_liq"] = pd.to_numeric(df_paid["valor_liquido"], errors="coerce").fillna(0.0)
+    df_paid["valor_liq"] = pd.to_numeric(df_paid["valor_liquido"], errors="coerce").fillna(0.0) * TMB_FATOR_LIQUIDO
 
     details.total_vendas = len(df_paid)
     details.faturamento = float(df_paid["valor_liq"].sum())
@@ -120,6 +126,38 @@ def read_tmb_details(launch_folder_or_code: Any, start_date=None, end_date=None)
             "ticket_medio": float(group["valor_liq"].mean())
         })
     details.ofertas = sorted(details.ofertas, key=lambda x: x["qtd"], reverse=True)
+
+    # Vendas por produto que compõe o lançamento
+    _tot_f = float(df_paid["valor_liq"].sum())
+    for _nome, _g in df_paid.groupby(df_paid["produto"].fillna("").astype(str).str.strip()):
+        _fat = float(_g["valor_liq"].sum())
+        details.produtos.append({
+            "nome": _nome or "Produto TMB", "oferta_avulsa": False, "qtd": int(len(_g)),
+            "faturamento": _fat, "ticket_medio": _fat / len(_g) if len(_g) else 0.0,
+            "pct_vendas": (len(_g) / len(df_paid) * 100) if len(df_paid) else 0.0,
+            "pct_faturamento": (_fat / _tot_f * 100) if _tot_f else 0.0,
+        })
+    details.produtos.sort(key=lambda p: p["qtd"], reverse=True)
+    _tss = [t for t in (parse_ts_brt(v) for v in df_paid["data_efetivado"]) if t is not None]
+    if _tss:
+        details.ultima_venda = max(_tss).strftime("%Y-%m-%d %H:%M:%S")
+
+    # Forma de pagamento: PROJETADO = valor contratado (o que a página já soma como
+    # receita); RECEBIDO = só o que já está quitado (status Efetivado/Pago). A
+    # exportação do TMB não traz as parcelas pagas de um contrato "Em Dia", então
+    # o parcelado em andamento entra inteiro em "a receber" — é conservador.
+    quitado = {"efetivado", "pago", "integralizado", "concluido"}
+    df_paid["forma_lbl"] = df_paid["forma_pagamento"].fillna("").astype(str).str.strip()
+    df_paid.loc[df_paid["forma_lbl"] == "", "forma_lbl"] = "Não informado"
+    df_paid["quitado"] = df_paid["status_norm"].isin(quitado)
+    for forma, g in df_paid.groupby("forma_lbl"):
+        details.pagamentos.append({
+            "metodo": str(forma).capitalize() + " (TMB)",
+            "qtd": int(len(g)),
+            "projetado": float(g["valor_liq"].sum()),
+            "recebido": float(g.loc[g["quitado"], "valor_liq"].sum()),
+        })
+    details.pagamentos = sorted(details.pagamentos, key=lambda x: x["qtd"], reverse=True)
 
     df_paid["utm_norm"] = df_paid["utm_source"].fillna("").astype(str).str.strip()
     details.com_utm_qtd = int((df_paid["utm_norm"] != "").sum())

@@ -63,6 +63,26 @@ def _safe_date(val):
         return None
 
 
+def split_hotmart_ids(values: Any) -> tuple[list[str], list[str]]:
+    """Separa `hotmart_produto_ids` em (produtos, ofertas).
+
+    Além do id do produto, a lista aceita `oferta:<codigo>` (o `off=` do link de checkout,
+    coluna `codigo_do_preco`): conta no lançamento só as vendas daquela OFERTA, mesmo que o
+    produto seja de outro projeto — ex.: a oferta de upsell do funil do PES que é vendida
+    dentro do produto da Black. Sem coluna nova no banco e sem mexer no wizard.
+    """
+    produtos: list[str] = []
+    ofertas: list[str] = []
+    for token in _normalize_product_ids(values):
+        if token.lower().startswith("oferta:"):
+            cod = token.split(":", 1)[1].strip().lower()
+            if cod:
+                ofertas.append(cod)
+        else:
+            produtos.append(token)
+    return produtos, ofertas
+
+
 def _normalize_product_ids(values: Any) -> list[str]:
     if not values:
         return []

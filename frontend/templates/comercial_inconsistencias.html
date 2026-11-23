@@ -243,7 +243,8 @@
       </div>
       {% else %}<div class="cm-vazio">Nenhuma reivindicação aguardando.</div>{% endif %}
     </div>
-    {% else %}
+    {% endif %}
+    {% if v.reivindica %}
     {% macro campos_reiv() %}
       <label class="cm-sub">Em qual conexão você negociou?
         <select name="conexao" required>
@@ -254,7 +255,8 @@
         <textarea name="justificativa" required maxlength="1000" placeholder="ex.: atendi o lead em 05/11, mandei o link de pagamento e ele comprou logo depois"></textarea></label>
     {% endmacro %}
     <div class="section">
-      <div class="section-title" data-sec-key="comercial-inc-reivindicar"><i class="ti ti-hand-finger"></i> Reivindicar uma venda</div>
+      <div class="section-title" id="reivindicar" data-sec-key="comercial-inc-reivindicar"><i class="ti ti-hand-finger"></i> Reivindicar uma venda{% if v.gestor %} (suas vendas){% endif %}</div>
+      {% if v.gestor %}<div class="cm-sub" style="margin-bottom:var(--s2);">Você também vende ({{ v.acesso.vendedor_codigo }}): a reivindicação entra na fila acima, para aprovar como as das vendedoras.</div>{% endif %}
       <div class="cm-sub" style="margin-bottom:var(--s3);">É para a venda que entrou sem o seu código AT. Digite o telefone do contato com quem você negociou e aparecem as vendas sem código desse telefone neste mês e no anterior.</div>
       {% if v.fechado %}<div class="cm-sub">Mês fechado: escolha um mês aberto para reivindicar.</div>{% else %}
       <form method="get" action="/comercial/inconsistencias" class="cm-busca" role="search">

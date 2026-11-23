@@ -239,8 +239,15 @@
           </table>
         </div>
         <div class="ldg-ano-note" style="margin-top:10px">
-          Total vendido no ano pela Hotmart ({{ em.vendido_hotmart | brl(0) }}) e pela TMB ({{ em.vendido_tmb | brl(0) }}), líquido e contratado.
-          O <strong>setor de vendas</strong> é o que sobra depois de tirar lançamentos e perpétuo: toda venda fora do carrinho.
+          <strong>O total acima é toda a venda da empresa no ano</strong>, líquida: Hotmart ({{ em.vendido_hotmart | brl(0) }}), TMB
+          ({{ em.vendido_tmb | brl(0) }}, já sem a taxa) e a conta Brabo Editora. A tabela só reparte esse total por origem:
+          <ul style="margin:6px 0 0 18px;padding:0">
+            <li><strong>Lançamentos</strong> — vendas dentro da janela do carrinho de cada lançamento do ano.</li>
+            <li><strong>Perpétuo</strong> — Mestre em Questões (TJ-SP, INSS, BB) e Planner, vendidos direto, nas contas Aprovasim e Brabo Editora.</li>
+            <li><strong>Outros</strong> — todo o resto: mentorias e cursos vendidos fora do carrinho e o que a Editora vende fora do perpétuo (Correios, livros).</li>
+            <li><strong>Distribuição</strong> — só investimento, sem venda ligada; o que ela traz aparece em Lançamentos ou em Outros.</li>
+          </ul>
+          Investimento: lançamentos, perpétuo e distribuição; "Outros" não tem anúncio próprio.
         </div>
         {% if not em.completo %}<div class="ldg-emp-aviso"><i class="ti ti-alert-triangle"></i> Alguma fonte não carregou; o total da empresa pode estar incompleto.</div>{% endif %}
       </div>

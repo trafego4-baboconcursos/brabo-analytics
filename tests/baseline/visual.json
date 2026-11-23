@@ -48,6 +48,30 @@
       "--bs-ink": "#0f172a",
       "--bs-sidebar": "#1d4ed8"
     },
+    "diretiva": {
+      "--bs-accent": "#5b9bd5",
+      "--bs-bg": "#0b1016",
+      "--bs-border": "#243241",
+      "--bs-card": "#1a242f",
+      "--bs-ink": "#e6edf3",
+      "--bs-sidebar": "#0e1620"
+    },
+    "grinch": {
+      "--bs-accent": "#6fa82f",
+      "--bs-bg": "#0d1a0f",
+      "--bs-border": "#24402b",
+      "--bs-card": "#1b3122",
+      "--bs-ink": "#f1f7ec",
+      "--bs-sidebar": "#0f2214"
+    },
+    "kevin": {
+      "--bs-accent": "#c41e3a",
+      "--bs-bg": "#faf5ec",
+      "--bs-border": "#eadfcc",
+      "--bs-card": "#ffffff",
+      "--bs-ink": "#2a1d17",
+      "--bs-sidebar": "#133b2b"
+    },
     "outatime": {
       "--bs-accent": "#ff7a00",
       "--bs-bg": "#0a1330",
@@ -301,11 +325,11 @@
     "body_data_page": "debriefing",
     "contadores": {
       "canvas": 10,
-      "kpis": 55,
-      "nav_links": 55,
+      "kpis": 61,
+      "nav_links": 69,
       "pills": 0,
       "secoes": 45,
-      "tabelas": 35,
+      "tabelas": 39,
       "titulos_secao": 45
     },
     "controles_secao": {
@@ -314,15 +338,15 @@
     },
     "geometria": {
       "main": [
-        1200,
+        1144,
         900
       ],
       "sidebar": [
-        240,
+        296,
         900
       ],
       "topbar": [
-        1200,
+        1144,
         3
       ]
     },

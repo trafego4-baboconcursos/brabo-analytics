@@ -14,6 +14,8 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy import text
 
+from src.constants import TMB_FATOR_LIQUIDO
+
 from logger import get_logger
 from frontend.db import _get_users_engine
 from frontend.services.comercial.modelos import Cadastros, Venda  # noqa: F401  (reexportados)
@@ -23,6 +25,7 @@ from frontend.services.comercial.regras import (
 from frontend.services.comercial.tabelas import Participacao, RegraPercentual, ValorBase, categorias_ordenadas
 
 logger = get_logger("db")
+_TMB_FATOR = Decimal(str(TMB_FATOR_LIQUIDO))  # ticket da TMB vem sem a taxa
 
 DDL = [
     """CREATE TABLE IF NOT EXISTS comercial_vendedores (
@@ -611,6 +614,8 @@ def normalizar_tmb(linhas: list[dict]) -> list[Venda]:
         if pedido.upper() == "TESTE":
             continue
         valor = _dec(l.get("ticket"))
+        if valor is not None:
+            valor = (valor * _TMB_FATOR).quantize(Decimal("0.01"))  # ticket vem sem a taxa da TMB
         data = _data_local(l.get("data_efetivado"))
         if valor is None or data is None or not pedido:
             ignoradas += 1
@@ -1057,7 +1062,7 @@ def ler_fila(*, vendedor_codigo: str | None = None, gestor: bool = False) -> dic
                 out["historico"] = [_linha_fila(_COLS_HIST, r)
                                     for r in conn.execute(text(SQL_HISTORICO_RECENTE)).fetchall()]
                 out["vendedores"] = [tuple(r) for r in conn.execute(text(SQL_VENDEDORES_LISTA)).fetchall()]
-            elif vendedor_codigo:
+            if vendedor_codigo:  # gestor que também vende (Rafael, AT12) vê as próprias
                 out["minhas"] = [_linha_fila(_COLS_FILA, r) for r in conn.execute(
                     text(SQL_FILA_DO_VENDEDOR), {"codigo": vendedor_codigo}).fetchall()]
     except Exception as e:
@@ -1203,12 +1208,14 @@ def _txt_acesso(linha) -> str | None:
 @_sem_concorrencia
 def gravar_acesso(email: str, nivel: str, vendedor_codigo: str | None, por: str, *, conn=None) -> None:
     """Cria ou troca o nível de um e-mail (já em minúsculas). Vendedor precisa de código
-    cadastrado. Quem chama limpa o cache de acesso depois do commit."""
+    cadastrado; master/coordenador podem ter um (gestor que também vende, 18/11/26); consulta
+    nunca. Quem chama limpa o cache de acesso depois do commit."""
+    codigo = vendedor_codigo if nivel in ("vendedor", "master", "coordenador") else None
     with _transacao(conn) as c:
-        if nivel == "vendedor" and (not vendedor_codigo or _vendedor(c, vendedor_codigo) is None):
+        if (nivel == "vendedor" or codigo) and (not codigo or _vendedor(c, codigo) is None):
             raise EscritaRecusada("vendedor_nao_encontrado")
         antes = c.execute(text(SQL_ACESSO_LER_UM), {"email": email}).fetchone()
-        depois = (nivel, vendedor_codigo if nivel == "vendedor" else None)
+        depois = (nivel, codigo)
         if antes is not None and tuple(antes) == depois:
             raise EscritaRecusada("sem_mudanca")
         _gravar(c, SQL_ACESSO_UPSERT, {"email": email, "nivel": nivel, "vendedor_codigo": depois[1], "por": por})

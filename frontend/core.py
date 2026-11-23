@@ -230,7 +230,9 @@ def read_comparativo_historico(launch: Launch, all_launches: list[Launch], n: in
         m = _meta(l) if getattr(l, "has_meta", False) else None
         g = _google(l) if getattr(l, "has_google", False) else None
         v = _vendas(l) if getattr(l, "has_vendas", False) else None
-        invest = float(getattr(m, "total_gasto", 0) or 0) + float(getattr(g, "total_custo", 0) or 0)
+        t = _tiktok_seguro(l)
+        invest = (float(getattr(m, "total_gasto", 0) or 0) + float(getattr(g, "total_custo", 0) or 0)
+                  + float(getattr(t, "total_gasto", 0) or 0))
         total_vendas = int(getattr(v, "total_vendas", 0) or 0)
         por_canal = getattr(v, "por_canal", {}) or {}
         comercial_cs = int((por_canal.get("Comercial") or {}).get("vendas", 0)) + int((por_canal.get("IA") or {}).get("vendas", 0))
@@ -244,6 +246,16 @@ def read_comparativo_historico(launch: Launch, all_launches: list[Launch], n: in
         }
 
     return [_linha(l) for l in chain]
+
+
+def _tiktok_seguro(launch: Launch):
+    """TikTok do lançamento para as tabelas históricas; falha de leitura não derruba a linha."""
+    from frontend.services.fetch import _tiktok  # noqa: PLC0415
+    try:
+        return _tiktok(launch)
+    except Exception:
+        logger.exception("TikTok: falha ao ler %s para o histórico", getattr(launch, "code", "?"))
+        return None
 
 
 def read_historico_grande(launch: Launch, all_launches: list[Launch], n: int = 8) -> list[dict]:
@@ -274,7 +286,9 @@ def read_historico_grande(launch: Launch, all_launches: list[Launch], n: int = 8
         g = _google(l) if getattr(l, "has_google", False) else None
         v = _vendas(l) if getattr(l, "has_vendas", False) else None
 
-        invest = float(getattr(m, "total_gasto", 0) or 0) + float(getattr(g, "total_custo", 0) or 0)
+        t = _tiktok_seguro(l)
+        invest = (float(getattr(m, "total_gasto", 0) or 0) + float(getattr(g, "total_custo", 0) or 0)
+                  + float(getattr(t, "total_gasto", 0) or 0))
         total_vendas = int(getattr(v, "total_vendas", 0) or 0)
         receita_bruta = float(getattr(v, "total_receita_bruta", 0) or 0)
         receita_liquida = float(getattr(v, "total_receita_liquida", 0) or 0)
@@ -298,9 +312,9 @@ def read_historico_grande(launch: Launch, all_launches: list[Launch], n: int = 8
         pico_aula1 = int(getattr(aula1, "peak_concurrent", 0) or 0) if aula1 else None
         comp_aula1 = (pico_aula1 / grupos_wpp * 100) if (pico_aula1 and grupos_wpp > 0) else None
 
-        e_pq = get_etapa(m, g, etapa_prequali(l.code))
-        e_capt = get_etapa(m, g, "Captação")
-        e_rmk = get_etapa(m, g, "Remarketing")
+        e_pq = get_etapa(m, g, etapa_prequali(l.code), tiktok=t)
+        e_capt = get_etapa(m, g, "Captação", tiktok=t)
+        e_rmk = get_etapa(m, g, "Remarketing", tiktok=t)
         div_total = e_pq["invest"] + e_capt["invest"] + e_rmk["invest"]
         div_qcr = {
             "quente": (e_pq["invest"] / div_total * 100) if div_total > 0 else 0.0,
@@ -370,6 +384,15 @@ def _v1_reports_for_launch(launch: Launch | None) -> list[dict]:
 
 # ── Contexto base ──────────────────────────────────────────────────────────────
 
+def _tem_boas_vindas(codigo: str | None) -> bool:
+    """O lançamento tem a página Boas-vindas (carrinho)? Só olha o prefixo, sem banco."""
+    try:
+        from frontend.services.monitor_boas_vindas import tem_monitor  # noqa: PLC0415
+        return tem_monitor(codigo)
+    except Exception:  # noqa: BLE001 — menu nunca quebra por causa disso
+        return False
+
+
 def _build_funis_nav_groups(launch, active_code, page, current_user, previous_launch) -> list[dict]:
     """Grupos de navegação do modo Funis — usados tanto na barra horizontal
     (desktop) quanto na lista vertical dentro da gaveta (mobile), pra não
@@ -405,6 +428,8 @@ def _build_funis_nav_groups(launch, active_code, page, current_user, previous_la
                  "href": _href("/debriefing"), "enabled": True},
                 {"page": "verba", "label": "Verba do Lançamento", "icon": "ti-cash",
                  "href": _href("/verba"), "enabled": True},
+                {"page": "resumo", "label": "Resumo", "icon": "ti-layout-dashboard",
+                 "href": _href("/resumo"), "enabled": True},
             ],
         },
         {
@@ -430,6 +455,10 @@ def _build_funis_nav_groups(launch, active_code, page, current_user, previous_la
                  "href": _href("/analise-copys"), "enabled": bool(launch and launch.has_meta)},
                 {"page": "crm_campanhas", "label": "Campanhas (E-mails)", "icon": "ti-mail",
                  "href": _href("/crm-campanhas"), "enabled": bool(launch and launch.has_ac)},
+                # Compras x automação de boas-vindas no dia de abertura do carrinho
+                # (frontend/routes/boas_vindas.py). Só PES/PI/PBB usam essa automação.
+                {"page": "boas_vindas", "label": "Boas-vindas (carrinho)", "icon": "ti-mail-heart",
+                 "href": _href("/boas-vindas"), "enabled": _tem_boas_vindas(active_code)},
                 {"page": "meta-audiences", "label": "Meta Audiências", "icon": "ti-user-check",
                  "href": _href("/meta-audiences"), "enabled": bool(launch and launch.has_meta)},
                 {"page": "google-audiences", "label": "Google Audiências", "icon": "ti-trending-up",
@@ -534,6 +563,18 @@ def _build_distribuicao_nav_items(current_path: str, active_code: str | None) ->
     Redes Sociais/Instagram, lado pago em vez do orgânico)."""
     items = []
     for account in _load_experts():
+        username = account["username"]
+        href = f"/distribuicao/{username}"
+        if active_code:
+            href += f"?launch_code={active_code}"
+        items.append({"username": username, "label": account["name"], "href": href,
+                      "active": current_path == f"/distribuicao/{username}", **_identidade_expert(account)})
+    # Perfis só da distribuição paga (sem Instagram). Quem tem `backup_de` (Ivan Neto) já soma no cartão do
+    # perfil principal e não ganha item próprio.
+    from frontend.db_readers.distribuicao import _load_distribuicao_extra  # noqa: PLC0415
+    for account in _load_distribuicao_extra():
+        if account.get("backup_de"):
+            continue
         username = account["username"]
         href = f"/distribuicao/{username}"
         if active_code:

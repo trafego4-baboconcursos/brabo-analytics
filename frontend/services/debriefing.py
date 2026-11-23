@@ -3,6 +3,9 @@ frontend/services/debriefing.py — Builders de contexto para debriefing.html.
 """
 from __future__ import annotations
 
+import re
+
+from datetime import datetime
 from typing import Any
 
 from src.constants import climas_ordem, etapa_prequali
@@ -12,6 +15,35 @@ from frontend.services.fetch import _launch_cfg
 
 _CLIMA_ORDER = ["Quente", "Frio", "Específico"]
 _REMARKETING_SUBETAPAS = ["Lembrete", "Depoimento", "Aulas no Ar", "Replay", "Matrículas Abertas"]
+
+_SUFIXO_OFERTA_TMB = re.compile(r"\s*-\s*(?:lead|crossell|cross\s?sell|upsell)\w*\s*$", re.IGNORECASE)
+
+
+def _resumo_matriculas_produtos(produtos: list[dict]) -> list[dict]:
+    """[{"nome","qtd","upsell"}] para a linha do cartão de Matrículas.
+
+    Os produtos do lançamento (principal + BLP/boleto, e as ofertas do TMB) somam numa linha só,
+    "Mentoria <projeto>"; cada oferta avulsa de outro produto (upsell) vira uma linha com o nome
+    curto do produto ("Black Vitalícia 2026 - Oferta Funil…" -> "Black Vitalícia").
+    """
+    principais: dict[str, int] = {}
+    upsells: dict[str, int] = {}
+    for p in produtos:
+        qtd = int(p.get("qtd") or 0)
+        nome = str(p.get("nome") or "").strip()
+        if p.get("oferta_avulsa"):
+            curto = re.sub(r"\s+20\d\d\b", "", nome.split(" - ")[0]).strip() or nome
+            upsells[curto] = upsells.get(curto, 0) + qtd
+            continue
+        base = _SUFIXO_OFERTA_TMB.sub("", re.sub(r"\s*-\s*BLP\b", "", nome, flags=re.IGNORECASE)).strip()
+        if base.lower().startswith("mentoria"):
+            base = "Mentoria " + base.replace(" - ", " ").split()[-1]
+        principais[base] = principais.get(base, 0) + qtd
+    linhas = [{"nome": n, "qtd": q, "upsell": False} for n, q in sorted(principais.items(), key=lambda x: -x[1])]
+    linhas += [{"nome": n, "qtd": q, "upsell": True} for n, q in sorted(upsells.items(), key=lambda x: -x[1])]
+    return linhas
+
+
 # Duas perguntas diferentes, e confundi-las já custou um número errado:
 # `_REMARKETING_SUBETAPAS` é quais chaves de `por_etapa` do Meta/Google compõem o
 # *gasto* de Remarketing — o WhatsApp não está lá porque não é campanha de mídia,
@@ -683,6 +715,11 @@ def _compute_debriefing_ctx(
     dia1_sales: Any = None,
     prev_dia1_sales: Any = None,
     sorteio: Any = None,
+    lead_score: Any = None,
+    carrinho: Any = None,
+    prev_carrinho: Any = None,
+    tiktok: Any = None,
+    prev_tiktok: Any = None,
 ) -> dict:
     def _f(x): return float(x or 0)
     def _i(x): return int(x or 0)
@@ -719,13 +756,17 @@ def _compute_debriefing_ctx(
     vendas_primeira_hora = _venda_1h_de(dia1_sales)
     prev_vendas_primeira_hora = _venda_1h_de(prev_dia1_sales)
 
-    invest = _f(getattr(meta, "total_gasto", 0)) + _f(getattr(google, "total_custo", 0)) + wa_gasto
+    invest = (_f(getattr(meta, "total_gasto", 0)) + _f(getattr(google, "total_custo", 0))
+              + _f(getattr(tiktok, "total_gasto", 0)) + wa_gasto)
     receita = _f(getattr(vendas, "total_receita_liquida", 0)) or _f(getattr(vendas, "total_receita", 0))
     receita_bruta = _f(getattr(vendas, "total_receita_bruta", 0)) or _f(getattr(vendas, "total_receita", 0))
     taxa_hotmart = _f(getattr(vendas, "hotmart_taxa", 0))
     parcelamento_hotmart = _f(getattr(vendas, "hotmart_parcelamento", 0))
     pago_hotmart = _f(getattr(vendas, "hotmart_receita_bruta", 0))
     hotmart_liquido = _f(getattr(vendas, "hotmart_receita", 0))
+    taxa_tmb = _f(getattr(vendas, "tmb_taxa", 0))
+    ticket_tmb = _f(getattr(vendas, "tmb_receita_bruta", 0))
+    tmb_liquido = _f(getattr(vendas, "tmb_receita", 0))
     roas = receita / invest if invest > 0 else 0.0
     roas_bruto = receita_bruta / invest if invest > 0 else 0.0
     total_vendas = _i(getattr(vendas, "total_vendas", 0))
@@ -741,16 +782,18 @@ def _compute_debriefing_ctx(
     google_spend = _f(google_capt.get("custo"))
     google_cpl   = google_spend / google_leads if google_leads > 0 else 0.0
 
-    # TikTok — sem integração ainda
-    tiktok_leads = 0
-    tiktok_spend = 0.0
-    tiktok_cpl   = 0.0
+    # TikTok (tiktok_ads_daily, desde 13/11/26): leads = conversões do grupo de lead na Captação.
+    tiktok_capt  = (getattr(tiktok, "por_etapa", {}) or {}).get("Captação") or {}
+    tiktok_leads = _i(tiktok_capt.get("leads"))
+    tiktok_spend = _f(tiktok_capt.get("gasto"))
+    tiktok_cpl   = tiktok_spend / tiktok_leads if tiktok_leads > 0 else 0.0
 
     total_leads = meta_leads + google_leads + tiktok_leads
     total_spend_all = meta_spend + google_spend + tiktok_spend
     cpl = total_spend_all / total_leads if total_leads > 0 else 0.0
 
-    prev_invest = _f(getattr(prev_meta, "total_gasto", 0)) + _f(getattr(prev_google, "total_custo", 0)) + prev_wa_gasto
+    prev_invest = (_f(getattr(prev_meta, "total_gasto", 0)) + _f(getattr(prev_google, "total_custo", 0))
+                   + _f(getattr(prev_tiktok, "total_gasto", 0)) + prev_wa_gasto)
     prev_receita = _f(getattr(prev_vendas, "total_receita_liquida", 0)) or _f(getattr(prev_vendas, "total_receita", 0))
     prev_receita_bruta = _f(getattr(prev_vendas, "total_receita_bruta", 0)) or _f(getattr(prev_vendas, "total_receita", 0))
     prev_roas = prev_receita / prev_invest if prev_invest > 0 else 0.0
@@ -759,8 +802,30 @@ def _compute_debriefing_ctx(
     prev_parcelamento_hotmart = _f(getattr(prev_vendas, "hotmart_parcelamento", 0))
     prev_pago_hotmart = _f(getattr(prev_vendas, "hotmart_receita_bruta", 0))
     prev_hotmart_liquido = _f(getattr(prev_vendas, "hotmart_receita", 0))
+    prev_taxa_tmb = _f(getattr(prev_vendas, "tmb_taxa", 0))
+    prev_ticket_tmb = _f(getattr(prev_vendas, "tmb_receita_bruta", 0))
+    prev_tmb_liquido = _f(getattr(prev_vendas, "tmb_receita", 0))
     prev_total_vendas = _i(getattr(prev_vendas, "total_vendas", 0))
     prev_ticket = _f(getattr(prev_vendas, "total_ticket_medio", 0))
+    # Regra do Painel Lançamento: vendas = 1ª cobrança desde o 1º dia de live, sem upgrade/teste;
+    # ticket = receita sem upgrade ÷ vendas; "ant." no mesmo ponto relativo à abertura do carrinho. ROAS fica com a receita cheia
+    # (acima) — receita e upgrade continuam somando nele.
+    carrinho_ativo = bool(carrinho)
+    carrinho_ref = ""
+    if carrinho_ativo:
+        total_vendas = _i(carrinho.get("vendas"))
+        ticket = _f(carrinho.get("ticket"))
+        if prev_carrinho:
+            prev_total_vendas = _i(prev_carrinho.get("vendas"))
+            prev_ticket = _f(prev_carrinho.get("ticket"))
+            prev_receita = _f(prev_carrinho.get("receita"))
+            # ROAS do anterior no mesmo ponto: receita até ali ÷ investimento do lançamento (o gasto do anterior
+            # após o ponto é desprezível — ~R$ 1 mil de R$ 718 mil no PES-SET-26).
+            prev_roas = prev_receita / prev_invest if prev_invest > 0 and prev_receita > 0 else prev_roas
+            _ate = prev_carrinho.get("ate")
+            _ab = prev_carrinho.get("abertura")
+            if _ate and _ab and _ate < datetime(_ate.year, _ate.month, _ate.day, 23, 59, 59):
+                carrinho_ref = _ate.strftime("%d/%m %Hh%M")
     prev_meta_capt    = _captacao(prev_meta)
     prev_meta_leads   = _i(prev_meta_capt.get("leads"))
     prev_meta_spend   = _f(prev_meta_capt.get("custo"))
@@ -769,8 +834,13 @@ def _compute_debriefing_ctx(
     prev_google_leads = int(_f(prev_google_capt.get("conversoes")))
     prev_google_spend = _f(prev_google_capt.get("custo"))
     prev_google_cpl   = prev_google_spend / prev_google_leads if prev_google_leads > 0 else 0.0
-    prev_total_leads  = prev_meta_leads + prev_google_leads
-    prev_cpl = (prev_meta_spend + prev_google_spend) / prev_total_leads if prev_total_leads > 0 else 0.0
+    prev_tiktok_capt  = (getattr(prev_tiktok, "por_etapa", {}) or {}).get("Captação") or {}
+    prev_tiktok_leads = _i(prev_tiktok_capt.get("leads"))
+    prev_tiktok_spend = _f(prev_tiktok_capt.get("gasto"))
+    prev_tiktok_cpl   = prev_tiktok_spend / prev_tiktok_leads if prev_tiktok_leads > 0 else 0.0
+    prev_total_leads  = prev_meta_leads + prev_google_leads + prev_tiktok_leads
+    prev_cpl = ((prev_meta_spend + prev_google_spend + prev_tiktok_spend) / prev_total_leads
+                if prev_total_leads > 0 else 0.0)
 
     fontes_leads = [
         {"fonte": "Meta",   "icon": "ti-brand-meta",   "color": "#1877F2",
@@ -781,10 +851,10 @@ def _compute_debriefing_ctx(
          "prev_leads": prev_google_leads, "prev_cpl": prev_google_cpl, "has_data": google_leads > 0},
         {"fonte": "TikTok", "icon": "ti-brand-tiktok", "color": "#000000",
          "spend": tiktok_spend, "leads": tiktok_leads, "cpl": tiktok_cpl,
-         "prev_leads": 0, "prev_cpl": 0.0, "has_data": False},
+         "prev_leads": prev_tiktok_leads, "prev_cpl": prev_tiktok_cpl, "has_data": tiktok_leads > 0},
     ]
 
-    def get_etapa(m, g, name, whatsapp=0.0):
+    def get_etapa(m, g, name, whatsapp=0.0, t=None):
         # "Remarketing" não existe como chave própria em por_etapa — Meta/Google
         # classificam essas campanhas nas sub-etapas (Lembrete, Depoimento, etc.),
         # então somamos todas elas para compor o total de Remarketing. O WhatsApp
@@ -801,8 +871,12 @@ def _compute_debriefing_ctx(
             g_c += _f(g_d.get("custo"))
             m_l += _i(m_d.get("leads"))
             g_l += _i(g_d.get("conversoes"))
-        total = m_c + g_c + whatsapp
-        return {"nome": name, "invest": total, "meta": m_c, "google": g_c, "tiktok": 0.0, "whatsapp": whatsapp, "leads": m_l + g_l}
+        t_por = (getattr(t, "por_etapa", {}) or {}) if t else {}
+        t_c = sum(_f((t_por.get(n) or {}).get("gasto")) for n in names)
+        t_l = sum(_i((t_por.get(n) or {}).get("leads")) for n in names)
+        total = m_c + g_c + t_c + whatsapp
+        return {"nome": name, "invest": total, "meta": m_c, "google": g_c, "tiktok": t_c, "whatsapp": whatsapp,
+                "leads": m_l + g_l + t_l}
 
     def _previsto_por_etapa(cfg: dict) -> dict:
         """Verba planejada por etapa (cadastrada no wizard) — Pré-Qualificação e
@@ -833,18 +907,19 @@ def _compute_debriefing_ctx(
     base = invest or 1.0
     etapas = []
     for name in [etapa_pq, "Captação", "Remarketing"]:
-        e = get_etapa(meta, google, name, whatsapp=wa_gasto if name == "Remarketing" else 0.0)
+        e = get_etapa(meta, google, name, whatsapp=wa_gasto if name == "Remarketing" else 0.0, t=tiktok)
         e["pct"] = e["invest"] / base * 100
         e["previsto"] = previsto_map.get(name, 0.0)
         etapas.append(e)
 
     prev_etapas: list = []
-    if prev_meta or prev_google:
+    if prev_meta or prev_google or prev_tiktok:
         prev_cfg = _launch_cfg(previous.code) if previous else {}
         prev_previsto_map = _previsto_por_etapa(prev_cfg)
         prev_base = prev_invest or 1.0
         for name in [etapa_pq, "Captação", "Remarketing"]:
-            e = get_etapa(prev_meta, prev_google, name, whatsapp=prev_wa_gasto if name == "Remarketing" else 0.0)
+            e = get_etapa(prev_meta, prev_google, name, whatsapp=prev_wa_gasto if name == "Remarketing" else 0.0,
+                          t=prev_tiktok)
             e["pct"] = e["invest"] / prev_base * 100
             e["previsto"] = prev_previsto_map.get(name, 0.0)
             prev_etapas.append(e)
@@ -859,7 +934,10 @@ def _compute_debriefing_ctx(
     _merged: dict = {}
     for t in _hm_tl:
         d = t.get("data", "")
-        _merged[d] = {"data": d, "data_str": t.get("data_str", d), "vendas": _i(t.get("vendas")), "faturamento": float(t.get("faturamento") or 0)}
+        # "vendas" = alunos novos: o upsell (venda p/ quem já é aluno) sai da contagem diária,
+        # mas o faturamento continua inteiro. "upsell" fica no registro para quem precisar.
+        _up = _i(t.get("upsell"))
+        _merged[d] = {"data": d, "data_str": t.get("data_str", d), "vendas": max(0, _i(t.get("vendas")) - _up), "upsell": _up, "faturamento": float(t.get("faturamento") or 0)}
     for t in _tmb_tl:
         d = t.get("data", "")
         if d in _merged:
@@ -897,6 +975,26 @@ def _compute_debriefing_ctx(
             periodo_prev = ""
         if c_start and c_end:
             timeline = [t for t in timeline_raw if c_start <= t.get("data", "") <= c_end]
+            # Gráfico "Vendas por Dia": todos os dias do carrinho, do 1º dia (carrinho_start_date) até hoje ou o
+            # fim, com zero nos dias sem venda. Sem isso só apareciam os dias com venda de matrícula (o upsell
+            # sai da conta) e a linha ligava 18/11 direto a 19/11, escondendo 16 e 17/11 (PI-NOV-26, 19/11/26).
+            try:
+                from datetime import date as _d, datetime as _dt, timedelta as _td  # noqa: PLC0415
+                from zoneinfo import ZoneInfo  # noqa: PLC0415
+
+                _ini = _d.fromisoformat(str(c_start))
+                _fim = min(_d.fromisoformat(str(c_end)), _dt.now(ZoneInfo("America/Sao_Paulo")).date())
+                _por_dia = {t.get("data", ""): t for t in timeline}
+                _cheio, _dia = [], _ini
+                while _dia <= _fim:
+                    _iso = _dia.isoformat()
+                    _cheio.append(_por_dia.get(_iso) or {"data": _iso, "data_str": _dia.strftime("%d/%b"),
+                                                         "vendas": 0, "upsell": 0, "faturamento": 0.0})
+                    _dia += _td(days=1)
+                if _cheio:
+                    timeline = _cheio
+            except Exception:
+                pass   # data de config inválida: segue só com os dias que têm venda
         else:
             timeline = timeline_raw
     else:
@@ -1096,6 +1194,47 @@ def _compute_debriefing_ctx(
         {**p, "prev_qtd": prev_por_metodo.get(p.get("metodo") or "", 0)}
         for p in (getattr(hotmart, "pagamentos", []) or [])
     ]
+    # Forma de pagamento com valores (Hotmart + TMB): projetado = valor contratado,
+    # recebido = já pago. Ordenado pelo projetado.
+    # Linha do cartão de Matrículas: "Mentoria TJSP: N" (produto do lançamento, cartão + boleto
+    # somados) e "<Produto>: N UPSELL" para cada oferta avulsa de outro produto.
+    matriculas_produtos = _resumo_matriculas_produtos(
+        [{**p} for p in (getattr(hotmart, "produtos", None) or [])]
+        + [{**p} for p in (getattr(tmb, "produtos", None) or [])]
+    )
+    # Matrículas = alunos novos do produto do lançamento. Upsell (oferta avulsa) é venda para quem
+    # já é aluno, então fica fora da contagem; continua em total_vendas, receita e ROAS.
+    upsell_qtd = sum(int(p.get("qtd") or 0) for p in matriculas_produtos if p.get("upsell"))
+    total_matriculas = total_vendas if carrinho_ativo else max(0, total_vendas - upsell_qtd)
+    prev_upsell_qtd = sum(
+        int(p.get("qtd") or 0)
+        for p in (getattr(prev_hotmart, "produtos", None) or [])
+        if p.get("oferta_avulsa")
+    )
+    prev_total_matriculas = prev_total_vendas if (carrinho_ativo and prev_carrinho) else max(0, prev_total_vendas - prev_upsell_qtd)
+    # Vendas por produto/oferta que compõe o lançamento (Hotmart + TMB), pelo líquido.
+    vendas_por_produto = (
+        [{**p, "plataforma": "Hotmart"} for p in (getattr(hotmart, "produtos", []) or [])]
+        + [{**p, "plataforma": "TMB"} for p in (getattr(tmb, "produtos", []) or [])]
+    )
+    vendas_por_produto.sort(key=lambda p: (p["qtd"], p["faturamento"]), reverse=True)
+    vpp_qtd = sum(p["qtd"] for p in vendas_por_produto)
+    vpp_fat = sum(p["faturamento"] for p in vendas_por_produto)
+    for p in vendas_por_produto:
+        p["pct_vendas"] = (p["qtd"] / vpp_qtd * 100) if vpp_qtd else 0.0
+        p["pct_faturamento"] = (p["faturamento"] / vpp_fat * 100) if vpp_fat else 0.0
+    pagamentos_valores = [
+        {"metodo": p.get("metodo"), "plataforma": "Hotmart", "qtd": _i(p.get("qtd")),
+         "projetado": _f(p.get("projetado")), "recebido": _f(p.get("recebido"))}
+        for p in pagamentos_hm
+    ] + [
+        {"metodo": p.get("metodo"), "plataforma": "TMB", "qtd": _i(p.get("qtd")),
+         "projetado": _f(p.get("projetado")), "recebido": _f(p.get("recebido"))}
+        for p in (getattr(tmb, "pagamentos", []) or [])
+    ]
+    pagamentos_valores.sort(key=lambda r: r["projetado"], reverse=True)
+    pv_projetado = sum(r["projetado"] for r in pagamentos_valores)
+    pv_recebido = sum(r["recebido"] for r in pagamentos_valores)
     total_tmb  = _i(getattr(vendas, "tmb_vendas",    0))
     total_hm_v = _i(getattr(vendas, "hotmart_vendas", 0))
     prev_total_tmb = _i(getattr(prev_vendas, "tmb_vendas", 0))
@@ -1180,11 +1319,15 @@ def _compute_debriefing_ctx(
             "climas": google_preq_clima,
         },
     }
-    prequali_invest["total"] = prequali_invest["meta"]["total"] + prequali_invest["google"]["total"]
-    prequali_invest["prev_total"] = prequali_invest["meta"]["prev_total"] + prequali_invest["google"]["prev_total"]
+    _tk_pq = (getattr(tiktok, "por_etapa", {}) or {}).get(etapa_pq) or {}
+    _prev_tk_pq = (getattr(prev_tiktok, "por_etapa", {}) or {}).get(etapa_pq) or {}
+    prequali_invest["tiktok"] = {"total": _f(_tk_pq.get("gasto")), "prev_total": _f(_prev_tk_pq.get("gasto"))}
+    prequali_invest["total"] = (prequali_invest["meta"]["total"] + prequali_invest["google"]["total"]
+                                + prequali_invest["tiktok"]["total"])
+    prequali_invest["prev_total"] = (prequali_invest["meta"]["prev_total"] + prequali_invest["google"]["prev_total"]
+                                     + prequali_invest["tiktok"]["prev_total"])
 
-    # Top 5 anúncios (por leads) da Pré-Qualificação, por plataforma — TikTok
-    # fica vazio até existir integração.
+    # Top 5 anúncios (por leads) da Pré-Qualificação, por plataforma.
     # Nome: o do Facebook vem completo (descreve o criativo); o do Google/
     # YouTube costuma só repetir o ADxxx sem descrição — usa o nome do Meta
     # como preferência quando o mesmo ad_code roda nas duas plataformas.
@@ -1219,7 +1362,7 @@ def _compute_debriefing_ctx(
     preq_top_ads = {
         "meta":   _preq_top_ads_view(getattr(meta, "preq_por_ad", None) or []),
         "google": _preq_top_ads_view(getattr(google, "preq_por_ad", None) or [], prefer_meta_nome=True),
-        "tiktok": [],
+        "tiktok": _preq_top_ads_view(getattr(tiktok, "preq_por_ad", None) or []),
     }
 
     leads_detail_table = _build_leads_detail_table(
@@ -1319,9 +1462,13 @@ def _compute_debriefing_ctx(
         "invest": invest, "wa_gasto": wa_gasto, "receita": receita, "roas": roas,
         "receita_bruta": receita_bruta, "roas_bruto": roas_bruto,
         "taxa_hotmart": taxa_hotmart, "parcelamento_hotmart": parcelamento_hotmart, "pago_hotmart": pago_hotmart, "hotmart_liquido": hotmart_liquido,
+        "taxa_tmb": taxa_tmb, "ticket_tmb": ticket_tmb, "tmb_liquido": tmb_liquido,
+        "taxa_tmb_pct": taxa_tmb / ticket_tmb * 100 if ticket_tmb > 0 else 0.0,
+        "prev_taxa_tmb": prev_taxa_tmb, "prev_ticket_tmb": prev_ticket_tmb, "prev_tmb_liquido": prev_tmb_liquido,
         "taxa_hotmart_pct": taxa_hotmart / pago_hotmart * 100 if pago_hotmart > 0 else 0.0,
         "parcelamento_hotmart_pct": parcelamento_hotmart / pago_hotmart * 100 if pago_hotmart > 0 else 0.0,
         "total_vendas": total_vendas, "ticket": ticket,
+        "total_matriculas": total_matriculas, "upsell_qtd": upsell_qtd,
         "total_leads": total_leads, "cpl": cpl,
         "fontes_leads": fontes_leads,
         # Saúde do lançamento
@@ -1342,6 +1489,10 @@ def _compute_debriefing_ctx(
         "prev_taxa_hotmart_pct": prev_taxa_hotmart / prev_pago_hotmart * 100 if prev_pago_hotmart > 0 else 0.0,
         "prev_parcelamento_hotmart_pct": prev_parcelamento_hotmart / prev_pago_hotmart * 100 if prev_pago_hotmart > 0 else 0.0,
         "prev_total_vendas": prev_total_vendas, "prev_ticket": prev_ticket,
+        "carrinho_regra": carrinho_ativo, "carrinho_ref": carrinho_ref,
+        "receita_upsell": _f((carrinho or {}).get("receita_upgrade")),
+        "upgrades_qtd": _i((carrinho or {}).get("upgrades")), "pre_abertura_qtd": _i((carrinho or {}).get("pre_abertura")),
+        "prev_total_matriculas": prev_total_matriculas,
         "prev_total_leads": prev_total_leads, "prev_cpl": prev_cpl,
         # Etapas
         "etapas": etapas, "prev_etapas": prev_etapas,
@@ -1374,6 +1525,10 @@ def _compute_debriefing_ctx(
         "prev_vendas_primeira_hora": prev_vendas_primeira_hora,
         # Pagamentos
         "pagamentos_hm": pagamentos_hm, "total_tmb": total_tmb,
+        "pagamentos_valores": pagamentos_valores,
+        "matriculas_produtos": matriculas_produtos,
+        "vendas_por_produto": vendas_por_produto, "vpp_qtd": vpp_qtd, "vpp_fat": vpp_fat,
+        "pv_projetado": pv_projetado, "pv_recebido": pv_recebido,
         "vendas_forma": vendas_forma,
         "total_hm": total_hm_v, "total_vendas_pay": total_tmb + total_hm_v,
         "boleto_hm": boleto_hm, "cartao_hm": cartao_hm, "pix_hm": pix_hm,
@@ -1424,6 +1579,7 @@ def _compute_debriefing_ctx(
         "pesquisa_engajamento": pesquisa_engajamento,
         # Sorteio — participação por aula (Google Forms) × base de leads
         "sorteio": sorteio,
+        "lead_score": lead_score,
         # Comercial × IA × Orgânico (sck Hotmart / utm_source TMB)
         "vendas_por_canal": getattr(vendas, "por_canal", {}) or {},
         # Antigo × novo (ADxxx já usado em lançamento anterior do produto)

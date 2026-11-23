@@ -22,11 +22,21 @@ python -m uvicorn frontend.app:app --reload
 # Full run (all sources)
 python etl/run_all.py --since 2026-04-01 --until 2026-04-30
 
-# Single source (meta_ads | google_ads | active_campaign)
+# Single source (meta_ads | google_ads | tiktok_ads | active_campaign)
 python etl/run_all.py --since 2026-04-01 --until 2026-04-30 --only meta_ads
 
 # Continuous scheduler (runs every hour)
 python etl/scheduler.py
+```
+
+### ETL — TikTok Ads
+Marketing API v1.3 (app Brabo-Analytics) → `tiktok_ads_daily`, uma linha por anúncio-dia. Fonte
+`tiktok_ads` no ciclo rápido do scheduler. Token de longa duração em `TIKTOK_ACCESS_TOKEN`, contas em
+`TIKTOK_ADVERTISER_IDS` (conta nova = refazer a autorização). Leitura no painel:
+`frontend/db_readers/ads_tiktok.py` (`d["tiktok"]` no `_fetch_all_data`). Ver `docs/sistema/ARQUITETURA.md`.
+```bash
+python etl/etl_tiktok_ads.py --since 2026-11-01 --until 2026-11-13
+python etl/etl_tiktok_ads.py --since 2025-05-01 --dry-run   # busca e resume, não grava
 ```
 
 ### ETL — via CSV (plano B, não o fluxo normal)

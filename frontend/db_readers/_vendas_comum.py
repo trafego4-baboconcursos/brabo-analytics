@@ -20,6 +20,49 @@ import pandas as pd
 from frontend.utils import _norm_text
 
 
+def parse_ts_brt(valor: Any):
+    """Instante de uma venda como datetime NAIVE no horário de Brasília, ou None.
+
+    Aceita os formatos que a Hotmart/TMB misturam: `DD/MM/YYYY [HH:MM:SS]` (já em
+    Brasília), epoch em segundos ou milissegundos e ISO/datetime (com fuso é convertido;
+    sem fuso é tratado como Brasília).
+    """
+    from datetime import datetime, timedelta, timezone  # noqa: PLC0415
+
+    brt = timezone(timedelta(hours=-3))
+    if valor is None:
+        return None
+    try:
+        if isinstance(valor, float) and math.isnan(valor):
+            return None
+    except Exception:  # noqa: BLE001
+        pass
+    if isinstance(valor, (datetime, pd.Timestamp)):
+        d = pd.Timestamp(valor)
+        if pd.isna(d):
+            return None
+        return d.tz_convert(brt).tz_localize(None).to_pydatetime() if d.tzinfo else d.to_pydatetime()
+    s = str(valor).strip().strip('"')
+    if not s:
+        return None
+    if re.fullmatch(r"\d{10,13}", s):
+        n = int(s)
+        if len(s) == 13:
+            n //= 1000
+        return datetime.fromtimestamp(n, brt).replace(tzinfo=None)
+    m = re.fullmatch(r"(\d{2})/(\d{2})/(\d{4})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?", s)
+    if m:
+        d, mo, y, hh, mi, ss = m.groups()
+        return datetime(int(y), int(mo), int(d), int(hh or 0), int(mi or 0), int(ss or 0))
+    try:
+        d = pd.Timestamp(s)
+        if pd.isna(d):
+            return None
+        return d.tz_convert(brt).tz_localize(None).to_pydatetime() if d.tzinfo else d.to_pydatetime()
+    except Exception:  # noqa: BLE001
+        return None
+
+
 # Produtos Hotmart do PERPÉTUO, por vertical. Venda desses produtos é SEMPRE perpétuo — mesmo
 # que caia dentro do carrinho de um lançamento do mesmo projeto (o nome do produto tem "INSS",
 # "TJ" ou "BB", e o filtro por projeto dos lançamentos o pegava). Os leitores de lançamento
@@ -31,6 +74,19 @@ HOTMART_IDS_PERPETUO_POR_VERTICAL: dict[str, list[str]] = {
     "planner": ["5334881", "4924116", "7040689", "5004680"],
 }
 HOTMART_IDS_PERPETUO: list[str] = sorted({i for ids in HOTMART_IDS_PERPETUO_POR_VERTICAL.values() for i in ids})
+
+# Mesmos produtos do perpétuo vendidos pela conta "Brabo Editora Ltda" (apostilas físicas, Planner, combos), que tem
+# IDs próprios e vive em `hotmart_editora_clean_oficial` (não na `hotmart_clean_oficial`, que é da Aprovasim). Só linhas com
+# `produtor_a = PRODUTOR_EDITORA`: a tabela também traz algumas da Aprovasim, que já estão na principal (dobraria).
+# Fora de propósito: Mentoria Correios, apostilas/livros dos Correios, Livro Improvável, COMBO INSS 8073438 e KIT TJSP
+# 8073703 (1 venda cada, sem vertical clara). Conferido contra o relatório da conta em 19/11/26.
+PRODUTOR_EDITORA = "Brabo Editora Ltda"
+HOTMART_EDITORA_IDS_PERPETUO_POR_VERTICAL: dict[str, list[str]] = {
+    "pmq-tjsp": ["5150278", "5146580"],
+    "pmq-inss": ["5150260", "5146472"],
+    "pmq-pbb": ["6239843", "6474104"],
+    "planner": ["5150092"],
+}
 
 
 def _hm_data_sql(col: str) -> str:
@@ -271,11 +327,13 @@ def _bucket_metodo_pagamento(metodo: Any) -> str:
 
 
 
+# Hora a hora do dia 1 do carrinho. 14h e 23h entraram em 12/11/26 (faltavam, e a tabela pulava
+# de 13h para 15h e acabava em 22h). Só o rótulo "9h" é lido fora daqui ("Vendas na 1ª Hora").
 _DIA1_CHECKPOINTS = [
     ("8h30", 8 * 60 + 30), ("9h", 9 * 60), ("10h", 10 * 60), ("11h", 11 * 60),
-    ("12h", 12 * 60), ("13h", 13 * 60), ("15h", 15 * 60), ("16h", 16 * 60),
-    ("17h", 17 * 60), ("18h", 18 * 60), ("19h", 19 * 60), ("20h", 20 * 60),
-    ("21h", 21 * 60), ("22h", 22 * 60),
+    ("12h", 12 * 60), ("13h", 13 * 60), ("14h", 14 * 60), ("15h", 15 * 60),
+    ("16h", 16 * 60), ("17h", 17 * 60), ("18h", 18 * 60), ("19h", 19 * 60),
+    ("20h", 20 * 60), ("21h", 21 * 60), ("22h", 22 * 60), ("23h", 23 * 60),
 ]
 
 _HOTMART_STATUS_APROVADO = (

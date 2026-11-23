@@ -99,9 +99,9 @@ def main():
         "client_id": client_id,
         "redirect_uri": REDIRECT_URI,
         "response_type": "code",
-        "scope": "https://www.googleapis.com/auth/adwords",
+        "scope": "https://www.googleapis.com/auth/adwords https://www.googleapis.com/auth/datamanager",
         "access_type": "offline",
-        "prompt": "consent"
+        "prompt": "select_account consent"
     })
     
     print(f"Iniciando servidor local na porta {PORT}...")

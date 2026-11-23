@@ -34,6 +34,18 @@
    linha do botão "Gerar PDF" — por isso align-items:center (evita a
    barra injetada ficar mais baixa que o link do PDF). */
 .dbf-accordion-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 28px; }
+/* Barra fixa ao rolar (12/11/26): cola logo abaixo do cabeçalho (.hdr, também sticky).
+   O topo exato vem do JS (--dbf-sticky-top = topo + altura do .hdr, que muda com o
+   subnav e no celular); 80px é só o valor antes do JS rodar. Sangra até as bordas do
+   .content (margem negativa = padding dele) para o fundo cobrir a página inteira. */
+.dbf-accordion-controls {
+  position: sticky; top: var(--dbf-sticky-top, 80px); z-index: 40;
+  margin: 0 -32px 8px; padding: 12px 32px 20px;   /* folga embaixo é padding (tem fundo), não margem */
+  background: var(--bs-surface); border-bottom: 1px solid transparent;
+  transition: box-shadow .15s ease, border-color .15s ease;
+}
+.dbf-accordion-controls.is-stuck { border-bottom-color: var(--bs-border); box-shadow: 0 6px 14px rgba(20,26,52,.07); }
+@media print { .dbf-accordion-controls { position: static; } }
 .dbf-accordion-controls .bs-accordion-controls { margin-bottom: 0; }
 .dbf-header-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 /* Discreto de propósito, igual .cmp-live-btn em comparativo.html: o
@@ -55,7 +67,7 @@
    perdem o texto e viram um quadrado só com o ícone, senão os 5
    controles não cabem sem quebrar linha (achado 16/09/26). */
 @media (max-width: 640px) {
-  .dbf-accordion-controls { flex-wrap: nowrap; gap: 6px; }
+  .dbf-accordion-controls { flex-wrap: nowrap; gap: 6px; margin: 0 -16px 4px; padding: 8px 16px 12px; }
   .dbf-accordion-controls .bs-accordion-controls { gap: 6px; }
   .dbf-accordion-controls .bs-accordion-controls button,
   .dbf-accordion-controls .bs-sec-picker-btn { padding: 7px 9px; font-size: 11px; }
@@ -174,6 +186,17 @@
 }
 
 /* ── Matrículas ───────────────────────────────────────────────── */
+/* Dentro do cartão azul (.mat-card.curr): chips translúcidos com texto branco */
+.mat-card.curr .mat-prod { margin-top: 16px; }
+.mat-card.curr .mat-prod-tit { color: rgba(255,255,255,.75); }
+.mat-card.curr .mat-prod-chip { background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.32); color: #fff; }
+.mat-card.curr .mat-prod-chip.upsell { background: rgba(255,255,255,.26); border-color: #fff; }
+.mat-card.curr .mat-prod-tag { color: rgba(255,255,255,.78); }
+.mat-card.curr .mat-prod-chip.upsell .mat-prod-tag { color: #fff; }
+.mat-prod-linha { display:flex; flex-wrap:wrap; align-items:center; gap:4px 12px; margin-top:12px; font-size:15px; font-weight:600; color:rgba(255,255,255,.95); }
+.mat-prod-item strong { font-weight:800; font-variant-numeric:tabular-nums; }
+.mat-prod-sep { color:rgba(255,255,255,.5); }
+.mat-prod-upsell { display:inline-block; margin-left:4px; padding:1px 8px; border-radius:20px; background:rgba(255,255,255,.22); border:1px solid rgba(255,255,255,.6); font-size:10px; font-weight:800; letter-spacing:.06em; }
 .mat-cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .mat-card {
   border-radius: 10px; padding: 24px;
@@ -335,6 +358,14 @@
 .vf-chart-wrap { position: relative; height: 300px; }
 .vf-chart-wrap.vf-pie { height: 280px; }
 .vf-metodos { margin-top: 20px; }
+.vf-metodos .table-wrap { max-width: 1040px; }   /* colunas juntas: a moldura não estica até a borda da tela */
+.vf-met-tab { width: 100%; font-size: 12px; }
+.vf-met-tab th, .vf-met-tab td { white-space: nowrap; padding: 8px 16px; }
+.vf-met-tab .num { text-align: right; font-variant-numeric: tabular-nums; min-width: 80px; }
+.vf-met-tab thead th.num { text-align: right; }
+.vf-pct { display: inline-block; min-width: 48px; font-variant-numeric: tabular-nums; }
+.vf-bar { display: inline-block; width: 120px; height: 6px; border-radius: 3px; background: var(--bs-border); vertical-align: middle; margin-left: 8px; overflow: hidden; }
+.vf-bar > span { display: block; height: 100%; background: var(--bs-accent); border-radius: 3px; }
 .vf-metodos-tit { font-size: 12px; font-weight: 700; color: var(--bs-ink-muted); margin-bottom: 8px; }
 
 /* ── Comparison section ────────────────────────────────────────── */
@@ -691,6 +722,32 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
     {% endif %}
   </div>
 
+  <script>
+  (function () {
+    // Mantém a barra de controles colada abaixo do cabeçalho sticky e marca o estado "grudada".
+    var ctrl = document.querySelector('.dbf-accordion-controls');
+    var hdr = document.querySelector('.hdr');
+    if (!ctrl) return;
+    function medir() {
+      var topo = 0;
+      if (hdr) {
+        var t = parseFloat(getComputedStyle(hdr).top) || 0;
+        topo = t + hdr.getBoundingClientRect().height;
+      }
+      ctrl.style.setProperty('--dbf-sticky-top', Math.round(topo) + 'px');
+      return topo;
+    }
+    function marcar() {
+      var topo = medir();
+      ctrl.classList.toggle('is-stuck', ctrl.getBoundingClientRect().top <= topo + 2);
+    }
+    var scroller = document.getElementById('bs-main');
+    [window, scroller].forEach(function (el) { if (el) el.addEventListener('scroll', marcar, { passive: true }); });
+    window.addEventListener('resize', marcar);
+    marcar();
+  })();
+  </script>
+
   {% if slides %}
   <div class="dbf-slides-toolbar">
     <span class="hint">No diálogo de impressão escolha <strong>Salvar como PDF</strong>, margens <strong>Nenhuma</strong> e marque <strong>Gráficos de fundo</strong>.</span>
@@ -705,7 +762,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       <h1>{{ launch.code if launch else 'Debriefing' }}</h1>
       <div class="cv-sub">{{ launch.name if launch else '' }}{% if dbf.periodo_atual %} · {{ dbf.periodo_atual }}{% endif %}{% if dbf.has_prev %} · comparativo vs {{ dbf.prev_code }}{% endif %}</div>
       <div class="cv-kpis">
-        <div class="cv-kpi"><div class="lbl">Matrículas</div><div class="val">{{ dbf.total_vendas | num }}</div></div>
+        <div class="cv-kpi"><div class="lbl">Matrículas</div><div class="val">{{ (dbf.total_matriculas | default(dbf.total_vendas)) | num }}</div></div>
         <div class="cv-kpi"><div class="lbl">Total investido</div><div class="val">{{ dbf.invest | brl(0) }}</div></div>
         <div class="cv-kpi"><div class="lbl">Receita líquida</div><div class="val">{{ dbf.receita | brl(0) }}</div></div>
         <div class="cv-kpi"><div class="lbl">ROAS</div><div class="val">{{ "%.2f"|format(dbf.roas) }}x</div></div>
@@ -787,24 +844,31 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
     <div class="mat-cmp">
       <div class="mat-card curr">
         <div style="display:flex;align-items:baseline;gap:10px">
-          <div class="mat-num">{{ dbf.total_vendas | num }}</div>
+          <div class="mat-num">{{ (dbf.total_matriculas | default(dbf.total_vendas)) | num }}</div>
           <span class="mat-tag" style="margin-top:0">{{ launch.code if launch else '—' }}</span>
         </div>
         <div style="display:flex;align-items:center;gap:10px">
           <div style="font-size:22px;font-weight:700;color:rgba(255,255,255,.9)">matrículas</div>
-          {% if dbf.has_prev and dbf.prev_total_vendas > 0 %}
-            {% set dd = ((dbf.total_vendas - dbf.prev_total_vendas) / dbf.prev_total_vendas * 100) | round(1) %}
+          {% if dbf.has_prev and (dbf.prev_total_matriculas | default(dbf.prev_total_vendas)) > 0 %}
+            {% set dd = (((dbf.total_matriculas | default(dbf.total_vendas)) - (dbf.prev_total_matriculas | default(dbf.prev_total_vendas))) / (dbf.prev_total_matriculas | default(dbf.prev_total_vendas)) * 100) | round(1) %}
             <span class="mat-var-badge {{ 'up' if dd > 0 else ('down' if dd < 0 else '') }}" style="margin-top:0;margin-left:0">
               {% if dd > 0 %}▲ +{% elif dd < 0 %}▼ {% else %}= {% endif %}{{ dd }}% vs anterior
             </span>
           {% endif %}
         </div>
+        {# Produtos que compõem as matrículas: produto do lançamento (cartão + boleto somados) e upsells. #}
+        {% set mat_prod = dbf.matriculas_produtos or [] %}
+        {% if mat_prod %}
+        <div class="mat-prod-linha">
+          {% for p in mat_prod %}<span class="mat-prod-item">{{ p.nome }}: <strong>{{ p.qtd | num }}</strong>{% if p.upsell %} <span class="mat-prod-upsell">UPSELL</span>{% endif %}</span>{% if not loop.last %}<span class="mat-prod-sep">·</span>{% endif %}{% endfor %}
+        </div>
+        {% endif %}
         {% if dbf.periodo_atual %}<div style="font-size:12px;font-weight:700;color:#fff;margin-top:8px"><i class="ti ti-calendar"></i> {{ dbf.periodo_atual }}</div>{% endif %}
       </div>
       <div class="mat-card prev">
         <div style="display:flex;align-items:baseline;gap:10px">
           <div class="mat-num" style="font-size:48px;{% if not dbf.has_prev %}color:var(--bs-ink-subtle){% endif %}">
-            {% if dbf.has_prev %}{{ dbf.prev_total_vendas | num }}{% else %}—{% endif %}
+            {% if dbf.has_prev %}{{ (dbf.prev_total_matriculas | default(dbf.prev_total_vendas)) | num }}{% else %}—{% endif %}
           </div>
           <span class="mat-tag" style="margin-top:0">{% if dbf.has_prev %}{{ dbf.prev_code }}{% else %}Lançamento anterior{% endif %}</span>
         </div>
@@ -834,9 +898,13 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
           {% elif fmt == "roas" %}{{ "%.2f"|format(val) }}x
           {% endif %}
         </div>
+        {% if lbl == "Receita Líquida" and (dbf.receita_upsell | default(0)) > 0 %}
+          <div class="prev-val" style="margin-top:2px">Lançamento {{ (val - dbf.receita_upsell) | brl(0) }}<br>Upsell Black {{ dbf.receita_upsell | brl(0) }}</div>
+        {% endif %}
         {% if dbf.has_prev %}
           {{ dbadge(val, pval, polarity) }}
-          <div class="prev-val">ant.:
+          {%- set _no_ponto = (dbf.carrinho_ref | default('')) and lbl in ["Receita Líquida", "ROAS", "Total Vendas", "Ticket Médio"] %}
+          <div class="prev-val"{% if _no_ponto %} title="{{ dbf.prev_code }} no mesmo ponto do carrinho ({{ dbf.carrinho_ref }}), não o total fechado"{% endif %}>{% if _no_ponto %}{{ dbf.prev_code }} no mesmo ponto:{% else %}ant.:{% endif %}
             {% if fmt == "brl0" %}{{ pval | brl(0) }}
             {% elif fmt == "brl" %}{{ pval | brl }}
             {% elif fmt == "num" %}{{ pval | num }}
@@ -847,7 +915,7 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
       </div>
     {% endmacro %}
 
-    <div class="dbf-kpi-grid" style="--kpi-cols:8">
+    <div class="dbf-kpi-grid" style="--kpi-cols:6">
       {%- set kpis_gerais = [
         ("Total Investido",  dbf.invest,        dbf.prev_invest,        "brl0", "down"),
         ("Receita Líquida",  dbf.receita,       dbf.prev_receita,       "brl0", "up"),
@@ -855,73 +923,22 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
         ("Total Vendas",  dbf.total_vendas, dbf.prev_total_vendas, "num", "up"),
         ("Ticket Médio",  dbf.ticket,       dbf.prev_ticket,       "brl", "up"),
         ("Vendas na 1ª Hora", dbf.vendas_primeira_hora or 0, dbf.prev_vendas_primeira_hora or 0, "num", "up"),
-        ("Pico Grupos VIP", dbf.pessoas_grupos_vip, dbf.prev_pessoas_grupos_vip, "num", "up"),
-        ("Pico Grupos Normais", dbf.pessoas_grupos_normais, dbf.prev_pessoas_grupos_normais, "num", "up"),
       ] -%}
       {% for lbl, val, pval, fmt, polarity in kpis_gerais %}
         {{ kpi_card(lbl, val, pval, fmt, polarity) }}
       {% endfor %}
     </div>
-
-    {# Parte da Hotmart: do que o cliente pagou até o que cai pro produtor. Só Hotmart
-       (a Receita Líquida do topo soma Hotmart + TMB). O líquido já vem depois das duas
-       taxas: nas vendas de 2026 o `valor_de_compra_sem_impostos` é o faturamento
-       líquido do produtor (pago − parcelamento − taxa de processamento). #}
-    {% if dbf.taxa_hotmart > 0 or dbf.parcelamento_hotmart > 0 %}
-    <div class="dbf-kpi-grid" style="--kpi-cols:4">
-      {{ kpi_card("Pago pelos clientes (Hotmart)", dbf.pago_hotmart, dbf.prev_pago_hotmart, "brl0", "up") }}
-      {{ kpi_card("Taxa de parcelamento · " ~ ("%.1f"|format(dbf.parcelamento_hotmart_pct) | replace(".", ",")) ~ "% do pago", dbf.parcelamento_hotmart, dbf.prev_parcelamento_hotmart, "brl0", "down") }}
-      {{ kpi_card("Taxa Hotmart · " ~ ("%.1f"|format(dbf.taxa_hotmart_pct) | replace(".", ",")) ~ "% do pago", dbf.taxa_hotmart, dbf.prev_taxa_hotmart, "brl0", "down") }}
-      {{ kpi_card("Líquido do produtor (só Hotmart)", dbf.hotmart_liquido, dbf.prev_hotmart_liquido, "brl0", "up") }}
-    </div>
+    {% if dbf.carrinho_regra | default(false) %}
+      <p class="dbf-nota-regra" style="font-size:12px;opacity:.75;margin:8px 0 0">
+        Vendas = 1ª cobrança, desde o 1º dia de live; upgrade para a Black{% if dbf.upgrades_qtd | default(0) %} ({{ dbf.upgrades_qtd | num }}){% endif %} e compras de teste ficam fora da contagem e do ticket. A comparação usa a abertura do carrinho como referência de horário.
+        {% if dbf.carrinho_ref | default('') %}«ant.» = {{ dbf.prev_code }} no mesmo ponto do carrinho ({{ dbf.carrinho_ref }}).{% endif %}
+      </p>
+      {% if dbf.carrinho_ref | default('') %}
+        <p class="dbf-aviso-boleto" style="font-size:12px;margin:6px 0 0;padding:8px 12px;border-radius:8px;background:color-mix(in srgb,var(--bs-warning,#f59e0b) 14%,transparent)">
+          <i class="ti ti-alert-triangle"></i> O boleto/Pix parcelado da Hotmart chega ao banco com atraso e com a data original do pedido: durante o carrinho, as vendas do dia podem aparecer menores do que realmente são e sobem nas horas seguintes.
+        </p>
+      {% endif %}
     {% endif %}
-
-    <!-- Leads por fonte -->
-    {% set fontes_soma = dbf.fontes_leads | selectattr('has_data') | map(attribute='fonte') | list | join(' + ') %}
-    <div class="dbf-kpi-grid" style="--kpi-cols:{{ (dbf.fontes_leads | length * 2) + 2 }}">
-      {%- set totais_captacao = [
-        ("Leads Captação", dbf.total_leads, dbf.prev_total_leads, "num", "up"),
-        ("CPL Captação",   dbf.cpl,         dbf.prev_cpl,         "brl", "down"),
-      ] -%}
-      {% for lbl, val, pval, fmt, polarity in totais_captacao %}
-      <div class="dbf-kpi">
-        <div class="lbl">{{ lbl }}</div>
-        <div class="val {% if val == 0 %}zero{% endif %}">
-          {% if fmt == "num" %}{{ val | num }}{% elif fmt == "brl" %}{{ val | brl }}{% endif %}
-        </div>
-        {% if dbf.has_prev %}
-          {{ dbadge(val, pval, polarity) }}
-          <div class="prev-val">ant.: {% if fmt == "num" %}{{ pval | num }}{% elif fmt == "brl" %}{{ pval | brl }}{% endif %}</div>
-        {% endif %}
-        {% if fontes_soma %}<div class="prev-val" style="margin-top:2px">soma: {{ fontes_soma }}</div>{% endif %}
-      </div>
-      {% endfor %}
-      {% for f in dbf.fontes_leads %}
-      {%- set pairs = [
-        (f.fonte ~ " — Leads", f.leads,   f.prev_leads, "num", "up"),
-        (f.fonte ~ " — CPL",   f.cpl,     f.prev_cpl,   "brl", "down"),
-      ] -%}
-      {% for lbl, val, pval, fmt, polarity in pairs %}
-      <div class="dbf-kpi">
-        <div class="lbl"><i class="ti {{ f.icon }}" style="color:{{ f.color }}"></i> {{ lbl }}</div>
-        <div class="val {% if not f.has_data or val == 0 %}zero{% endif %}">
-          {% if not f.has_data %}—
-          {% elif fmt == "num" %}{{ val | num }}
-          {% elif fmt == "brl" %}{{ val | brl }}
-          {% endif %}
-        </div>
-        {% if dbf.has_prev and f.has_data %}
-          {{ dbadge(val, pval, polarity) }}
-          <div class="prev-val">ant.:
-            {% if fmt == "num" %}{{ pval | num }}
-            {% elif fmt == "brl" %}{{ pval | brl }}
-            {% endif %}
-          </div>
-        {% endif %}
-      </div>
-      {% endfor %}
-      {% endfor %}
-    </div>
 
     <!-- Timeline vendas (carrinho aberto) -->
     <div class="info-box" style="margin-top:0">
@@ -985,6 +1002,177 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
         </script>
       {% else %}
         {{ sem_dados("Hotmart — tabela de vendas por dia durante o carrinho") }}
+      {% endif %}
+    </div>
+
+    {# Seção única de pagamento (17/09/26): as barras/pizza mostram a FAIXA DE
+       PARCELAMENTO e a tabela embaixo mostra o MÉTODO, que antes vivia numa
+       segunda seção de cards. As 4 faixas são mutuamente exclusivas e somam o
+       total, então a pizza é legítima — ver o comentário em debriefing.py sobre
+       a barra "Recorrência" que existia aqui e estava errada. #}
+    {% set vf = dbf.vendas_forma or [] %}
+    {% set vf_total = vf | sum(attribute='qtd') %}
+    <div class="info-box" style="margin-top:0">
+      <h2>Forma de Pagamento — Recebido × Projetado</h2>
+      {% set pv = dbf.pagamentos_valores or [] %}
+      {% if pv %}
+      <div class="table-wrap" data-no-filter>
+        <table class="table-compact" style="font-size:12px;">
+          <thead>
+            <tr>
+              <th class="th-dark">Forma de pagamento</th>
+              <th class="th-dark" style="text-align:right">Vendas</th>
+              <th class="th-dark" style="text-align:right">Recebido</th>
+              <th class="th-dark" style="text-align:right">Projetado</th>
+              <th class="th-dark" style="text-align:right">A receber</th>
+              <th class="th-dark" style="text-align:right">% recebido</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in pv %}
+            {% set falta = r.projetado - r.recebido %}
+            <tr>
+              <td class="td-bold">{{ r.metodo }}</td>
+              <td style="text-align:right">{{ r.qtd | num }}</td>
+              <td style="text-align:right;color:var(--bs-accent);font-weight:700">{{ r.recebido | brl }}</td>
+              <td style="text-align:right;color:#2563eb;font-weight:700">{{ r.projetado | brl }}</td>
+              <td style="text-align:right">{{ falta | brl if falta > 0.5 else '—' }}</td>
+              <td style="text-align:right">{{ ((r.recebido / r.projetado * 100) if r.projetado > 0 else 0) | round(1) }}%</td>
+            </tr>
+            {% endfor %}
+            <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
+              <td>TOTAL</td>
+              <td style="text-align:right">{{ pv | sum(attribute='qtd') | num }}</td>
+              <td style="text-align:right">{{ dbf.pv_recebido | brl }}</td>
+              <td style="text-align:right">{{ dbf.pv_projetado | brl }}</td>
+              <td style="text-align:right">{{ (dbf.pv_projetado - dbf.pv_recebido) | brl }}</td>
+              <td style="text-align:right">{{ ((dbf.pv_recebido / dbf.pv_projetado * 100) if dbf.pv_projetado > 0 else 0) | round(1) }}%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="font-size:11px;color:var(--bs-ink-muted);margin:8px 0 16px">
+        Projetado = valor contratado das vendas (o mesmo da Receita Líquida). Recebido = o que já foi cobrado: Hotmart soma as cobranças já feitas dentro do período;
+        no TMB só conta o contrato quitado (status Efetivado) — a exportação não traz as parcelas pagas dos contratos "Em Dia", que entram inteiros em "A receber".
+      </div>
+      {% endif %}
+      {% if vf_total > 0 %}
+      <div style="margin-bottom:4px;font-size:12px;color:var(--bs-ink-muted)">
+        Total: {{ dbf.total_vendas_pay | num }} vendas
+        {% if dbf.total_hm > 0 %} · Hotmart: {{ dbf.total_hm | num }}{% endif %}
+        {% if dbf.total_tmb > 0 %} · TMB (boleto parcelado): {{ dbf.total_tmb | num }}{% endif %}
+      </div>
+      {# Mesmos cartões dos KPIs do topo (cantos arredondados, valor + variação + "ant."). #}
+      <div class="dbf-kpi-grid" style="--kpi-cols:{{ vf | length }};margin-top:16px">
+        {% for f in vf %}
+        {{ kpi_card(f.label, f.qtd, f.prev_qtd, "num", "up") }}
+        {% endfor %}
+      </div>
+      <div class="vf-layout">
+        <div class="vf-chart-wrap"><canvas id="vfBarChart"></canvas></div>
+        <div class="vf-chart-wrap vf-pie"><canvas id="vfPieChart"></canvas></div>
+      </div>
+
+      {% if dbf.pagamentos_hm %}
+      <div class="vf-metodos">
+        <div class="vf-metodos-tit">Hotmart — por método de pagamento</div>
+        <div class="table-wrap" data-no-filter>
+          <table class="table-compact vf-met-tab">
+            <thead>
+              <tr>
+                <th class="th-dark">Método</th>
+                <th class="th-dark num">Vendas</th>
+                <th class="th-dark">% das vendas</th>
+                <th class="th-dark num">À vista</th>
+                <th class="th-dark num">12x</th>
+                <th class="th-dark num">Outras parcelas</th>
+                <th class="th-dark num">vs {{ dbf.prev_code or 'anterior' }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in dbf.pagamentos_hm %}
+              <tr>
+                <td class="td-bold">{{ p.metodo }}</td>
+                <td class="num"><strong>{{ p.qtd | num }}</strong></td>
+                <td><span class="vf-pct">{{ p.pct_vendas | round(1) }}%</span><span class="vf-bar"><span style="width:{{ [p.pct_vendas, 100] | min }}%"></span></span></td>
+                <td class="num">{{ p.a_vista | num }}</td>
+                <td class="num">{{ p.parcelado_12x | num }}</td>
+                <td class="num">{{ p.parcelado_outros | num }}</td>
+                <td class="num">{% if p.prev_qtd %}{{ dbadge(p.qtd, p.prev_qtd, 'up') }}{% else %}—{% endif %}</td>
+              </tr>
+              {% endfor %}
+              <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
+                <td>TOTAL</td>
+                <td class="num">{{ dbf.pagamentos_hm | sum(attribute='qtd') | num }}</td>
+                <td>100%</td>
+                <td class="num">{{ dbf.pagamentos_hm | sum(attribute='a_vista') | num }}</td>
+                <td class="num">{{ dbf.pagamentos_hm | sum(attribute='parcelado_12x') | num }}</td>
+                <td class="num">{{ dbf.pagamentos_hm | sum(attribute='parcelado_outros') | num }}</td>
+                <td class="num"></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+
+      <script>
+      (function() {
+        const labels = [{% for f in vf %}"{{ f.label | e }}"{% if not loop.last %},{% endif %}{% endfor %}];
+        const values = [{% for f in vf %}{{ f.qtd }}{% if not loop.last %},{% endif %}{% endfor %}];
+        const colors = ['#3b82f6', '#22c55e', '#a855f7', '#ef4444'];
+        const cssVar = (name, fallback) => (getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback);
+        const inkColor = cssVar('--bs-ink', '#1f2330');
+        const total = values.reduce((a, b) => a + b, 0);
+
+        const barEl = document.getElementById('vfBarChart');
+        if (barEl) {
+          new Chart(barEl, {
+            type: 'bar',
+            plugins: [ChartDataLabels],
+            data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 4, maxBarThickness: 56 }] },
+            options: {
+              responsive: true, maintainAspectRatio: false,
+              plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false },
+                datalabels: {
+                  anchor: 'end', align: 'top', offset: 2,
+                  font: { size: 12, weight: '700' }, color: inkColor,
+                  formatter: v => v,
+                }
+              },
+              scales: {
+                x: { grid: { display: false }, ticks: { font: { size: 11 }, color: inkColor } },
+                y: { beginAtZero: true, ticks: { font: { size: 11 }, color: inkColor } },
+              },
+            },
+          });
+        }
+
+        const pieEl = document.getElementById('vfPieChart');
+        if (pieEl) {
+          new Chart(pieEl, {
+            type: 'doughnut',
+            plugins: [ChartDataLabels],
+            data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0 }] },
+            options: {
+              responsive: true, maintainAspectRatio: false,
+              plugins: {
+                legend: { position: 'bottom', labels: { font: { size: 11 }, color: inkColor, boxWidth: 12 } },
+                tooltip: { enabled: false },
+                datalabels: {
+                  font: { size: 11, weight: '700' }, color: '#fff',
+                  formatter: v => (total > 0 && v / total >= 0.03) ? (v / total * 100).toFixed(1) + '%' : '',
+                }
+              },
+            },
+          });
+        }
+      })();
+      </script>
+      {% else %}
+      {{ sem_dados("Detalhamento por forma de pagamento (Hotmart + TMB) ainda não disponível para este lançamento") }}
       {% endif %}
     </div>
 
@@ -1083,11 +1271,142 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
           {{ kpi_card("Compradores — Captação", cpg.captacao.total, pcpg.captacao.total if pcpg else 0, "num", "up") }}
         </div>
         <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
-          Data de entrada = primeira entrada em grupo Normal ou VIP, cruzada por telefone com compradores Hotmart+TMB. {{ cpg.sem_data }} compradores sem telefone/entrada de grupo identificada não entram no gráfico.
+          Data de entrada = primeira entrada em grupo Normal ou VIP, cruzada por telefone com compradores Hotmart+TMB. {{ cpg.sem_data }} compradores sem telefone/entrada de grupo identificada não entram no gráfico.{% if cpg.timeline[0].data == '2026-10-22' %} 22/10 é a carga inicial da automação de grupos: concentra quem já estava neles antes dessa data.{% endif %}
         </div>
       {% else %}
         {{ sem_dados("Tabelas de grupo de WhatsApp (Normal/VIP) do lançamento") }}
       {% endif %}
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- MÉTRICAS DO LANÇAMENTO (saiu do Resumo Executivo, 11/11/26)  -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-gauge"></i> Métricas do lançamento</div>
+
+    <div class="dbf-kpi-grid" style="--kpi-cols:2">
+      {{ kpi_card("Pico Grupos VIP", dbf.pessoas_grupos_vip, dbf.prev_pessoas_grupos_vip, "num", "up") }}
+      {{ kpi_card("Pico Grupos Normais", dbf.pessoas_grupos_normais, dbf.prev_pessoas_grupos_normais, "num", "up") }}
+    </div>
+
+    <!-- Vendas por produto que compõe o lançamento -->
+    <div class="info-box" style="margin-top:0">
+      <h2>Vendas por Produto</h2>
+      {% set vpp = dbf.vendas_por_produto or [] %}
+      {% if vpp %}
+      <div class="table-wrap" data-no-filter>
+        <table class="table-compact" style="font-size:12px;">
+          <thead>
+            <tr>
+              <th class="th-dark">Produto</th>
+              <th class="th-dark" style="text-align:right">Vendas</th>
+              <th class="th-dark" style="text-align:right">% vendas</th>
+              <th class="th-dark" style="text-align:right">Faturamento líquido</th>
+              <th class="th-dark" style="text-align:right">% faturamento</th>
+              <th class="th-dark" style="text-align:right">Ticket médio</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in vpp %}
+            <tr>
+              <td class="td-bold">{{ p.nome }}
+                <span class="ldt-pct" style="font-weight:400">{{ p.plataforma }}{% if p.oferta_avulsa %} · oferta de outro produto{% endif %}</span>
+              </td>
+              <td style="text-align:right"><strong>{{ p.qtd | num }}</strong></td>
+              <td style="text-align:right">{{ p.pct_vendas | round(1) }}%</td>
+              <td style="text-align:right">{{ p.faturamento | brl }}</td>
+              <td style="text-align:right">{{ p.pct_faturamento | round(1) }}%</td>
+              <td style="text-align:right">{{ p.ticket_medio | brl }}</td>
+            </tr>
+            {% endfor %}
+            <tr class="tr-total" style="background:#1f2937;color:#fff;font-weight:700;">
+              <td>TOTAL</td>
+              <td style="text-align:right">{{ dbf.vpp_qtd | num }}</td>
+              <td style="text-align:right">100%</td>
+              <td style="text-align:right">{{ dbf.vpp_fat | brl }}</td>
+              <td style="text-align:right">100%</td>
+              <td style="text-align:right">{{ ((dbf.vpp_fat / dbf.vpp_qtd) if dbf.vpp_qtd else 0) | brl }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="font-size:11px;color:var(--bs-ink-muted);margin-top:8px">
+        Só vendas do carrinho aberto, com a mesma regra de valor da Receita Líquida (líquido do produtor; parcelado projetado). Uma oferta avulsa de outro produto
+        (ex.: upsell da Black no funil do PES) aparece em linha própria.
+      </div>
+      {% else %}
+        {{ sem_dados("Vendas Hotmart/TMB do lançamento no período do carrinho") }}
+      {% endif %}
+    </div>
+
+    {# Parte da Hotmart: do que o cliente pagou até o que cai pro produtor. Só Hotmart
+       (a Receita Líquida do topo soma Hotmart + TMB). O líquido já vem depois das duas
+       taxas: nas vendas de 2026 o `valor_de_compra_sem_impostos` é o faturamento
+       líquido do produtor (pago − parcelamento − taxa de processamento). #}
+    {% if dbf.taxa_hotmart > 0 or dbf.parcelamento_hotmart > 0 %}
+    <div class="dbf-kpi-grid" style="--kpi-cols:4">
+      {{ kpi_card("Pago pelos clientes (Hotmart)", dbf.pago_hotmart, dbf.prev_pago_hotmart, "brl0", "up") }}
+      {{ kpi_card("Taxa de parcelamento · " ~ ("%.1f"|format(dbf.parcelamento_hotmart_pct) | replace(".", ",")) ~ "% do pago", dbf.parcelamento_hotmart, dbf.prev_parcelamento_hotmart, "brl0", "down") }}
+      {{ kpi_card("Taxa Hotmart · " ~ ("%.1f"|format(dbf.taxa_hotmart_pct) | replace(".", ",")) ~ "% do pago", dbf.taxa_hotmart, dbf.prev_taxa_hotmart, "brl0", "down") }}
+      {{ kpi_card("Líquido do produtor (só Hotmart)", dbf.hotmart_liquido, dbf.prev_hotmart_liquido, "brl0", "up") }}
+    </div>
+    {% endif %}
+
+    {# Parte da TMB: o ticket vem sem a taxa; a taxa efetiva (TMB_FATOR_LIQUIDO) é o que pagamos à TMB. #}
+    {% if dbf.taxa_tmb > 0 %}
+    <div class="dbf-kpi-grid" style="--kpi-cols:3">
+      {{ kpi_card("Ticket pago (TMB)", dbf.ticket_tmb, dbf.prev_ticket_tmb, "brl0", "up") }}
+      {{ kpi_card("Taxa TMB · " ~ ("%.1f"|format(dbf.taxa_tmb_pct) | replace(".", ",")) ~ "% do ticket", dbf.taxa_tmb, dbf.prev_taxa_tmb, "brl0", "down") }}
+      {{ kpi_card("Líquido do produtor (só TMB)", dbf.tmb_liquido, dbf.prev_tmb_liquido, "brl0", "up") }}
+    </div>
+    {% endif %}
+
+    <!-- Leads por fonte -->
+    {% set fontes_soma = dbf.fontes_leads | selectattr('has_data') | map(attribute='fonte') | list | join(' + ') %}
+    <div class="dbf-kpi-grid" style="--kpi-cols:{{ (dbf.fontes_leads | length * 2) + 2 }}">
+      {%- set totais_captacao = [
+        ("Leads Captação", dbf.total_leads, dbf.prev_total_leads, "num", "up"),
+        ("CPL Captação",   dbf.cpl,         dbf.prev_cpl,         "brl", "down"),
+      ] -%}
+      {% for lbl, val, pval, fmt, polarity in totais_captacao %}
+      <div class="dbf-kpi">
+        <div class="lbl">{{ lbl }}</div>
+        <div class="val {% if val == 0 %}zero{% endif %}">
+          {% if fmt == "num" %}{{ val | num }}{% elif fmt == "brl" %}{{ val | brl }}{% endif %}
+        </div>
+        {% if dbf.has_prev %}
+          {{ dbadge(val, pval, polarity) }}
+          <div class="prev-val">ant.: {% if fmt == "num" %}{{ pval | num }}{% elif fmt == "brl" %}{{ pval | brl }}{% endif %}</div>
+        {% endif %}
+        {% if fontes_soma %}<div class="prev-val" style="margin-top:2px">soma: {{ fontes_soma }}</div>{% endif %}
+      </div>
+      {% endfor %}
+      {% for f in dbf.fontes_leads %}
+      {%- set pairs = [
+        (f.fonte ~ " — Leads", f.leads,   f.prev_leads, "num", "up"),
+        (f.fonte ~ " — CPL",   f.cpl,     f.prev_cpl,   "brl", "down"),
+      ] -%}
+      {% for lbl, val, pval, fmt, polarity in pairs %}
+      <div class="dbf-kpi">
+        <div class="lbl"><i class="ti {{ f.icon }}" style="color:{{ f.color }}"></i> {{ lbl }}</div>
+        <div class="val {% if not f.has_data or val == 0 %}zero{% endif %}">
+          {% if not f.has_data %}—
+          {% elif fmt == "num" %}{{ val | num }}
+          {% elif fmt == "brl" %}{{ val | brl }}
+          {% endif %}
+        </div>
+        {% if dbf.has_prev and f.has_data %}
+          {{ dbadge(val, pval, polarity) }}
+          <div class="prev-val">ant.:
+            {% if fmt == "num" %}{{ pval | num }}
+            {% elif fmt == "brl" %}{{ pval | brl }}
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+      {% endfor %}
     </div>
   </div>
 
@@ -2200,6 +2519,22 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
   {% endif %}
 
   <!-- ═══════════════════════════════════════════════════════════ -->
+  <!-- 4d. QUALIDADE DOS LEADS (score pela pesquisa)             -->
+  <!-- ═══════════════════════════════════════════════════════════ -->
+  {% set ls = dbf.lead_score | default(none) %}
+  {% if lazy %}
+  <div class="dbf-section" data-lazy-section="lead_score">
+    <div class="dbf-section-title"><i class="ti ti-target-arrow"></i> Qualidade dos Leads — Score pela Pesquisa</div>
+    {{ lazy_skeleton() }}
+  </div>
+  {% elif ls and ls.faixas %}
+  <div class="dbf-section">
+    <div class="dbf-section-title"><i class="ti ti-target-arrow"></i> Qualidade dos Leads — Score pela Pesquisa</div>
+    {% include "debriefing/_secao_lead_score.html" %}
+  </div>
+  {% endif %}
+
+  <!-- ═══════════════════════════════════════════════════════════ -->
   <!-- 5. VENDAS POR PÚBLICO (atribuição UTM)                    -->
   <!-- ═══════════════════════════════════════════════════════════ -->
   <div class="dbf-section">
@@ -2413,131 +2748,6 @@ html.bs-slides .aula-thumb:hover img { transform: none; }
     </div>
     {% else %}
     {{ sem_dados("Dados de oferta ainda não cadastrados — preencher em Descrição do Bônus na configuração do lançamento") }}
-    {% endif %}
-  </div>
-
-  <!-- ═══════════════════════════════════════════════════════════ -->
-  <!-- 5h. DETALHAMENTO DE VENDAS (FORMA DE PAGAMENTO)             -->
-  <!-- ═══════════════════════════════════════════════════════════ -->
-  {# Seção única de pagamento (17/09/26): as barras/pizza mostram a FAIXA DE
-     PARCELAMENTO e a tabela embaixo mostra o MÉTODO, que antes vivia numa
-     segunda seção de cards. As 4 faixas são mutuamente exclusivas e somam o
-     total, então a pizza é legítima — ver o comentário em debriefing.py sobre
-     a barra "Recorrência" que existia aqui e estava errada. #}
-  {% set vf = dbf.vendas_forma or [] %}
-  {% set vf_total = vf | sum(attribute='qtd') %}
-  <div class="dbf-section">
-    <div class="dbf-section-title"><i class="ti ti-report-money"></i> Detalhamento de Vendas (Forma de Pagamento)</div>
-    {% if vf_total > 0 %}
-    <div style="margin-bottom:4px;font-size:12px;color:var(--bs-ink-muted)">
-      Total: {{ dbf.total_vendas_pay | num }} vendas
-      {% if dbf.total_hm > 0 %} · Hotmart: {{ dbf.total_hm | num }}{% endif %}
-      {% if dbf.total_tmb > 0 %} · TMB (boleto parcelado): {{ dbf.total_tmb | num }}{% endif %}
-    </div>
-    <div class="vf-badges">
-      {% for f in vf %}
-      <div class="vf-badge-item">
-        <span class="vf-badge-lbl">{{ f.label }}</span>
-        {{ dbadge(f.qtd, f.prev_qtd, 'up') }}
-      </div>
-      {% endfor %}
-    </div>
-    <div class="vf-layout">
-      <div class="vf-chart-wrap"><canvas id="vfBarChart"></canvas></div>
-      <div class="vf-chart-wrap vf-pie"><canvas id="vfPieChart"></canvas></div>
-    </div>
-
-    {% if dbf.pagamentos_hm %}
-    <div class="vf-metodos">
-      <div class="vf-metodos-tit">Hotmart — por método de pagamento</div>
-      <div class="table-wrap" data-no-filter>
-        <table class="table-compact" style="font-size:12px;max-width:560px">
-          <thead>
-            <tr>
-              <th class="th-dark">Método</th>
-              <th class="th-dark" style="text-align:left">Vendas</th>
-              <th class="th-dark" style="text-align:left">%</th>
-              <th class="th-dark" style="text-align:left">À vista</th>
-              <th class="th-dark" style="text-align:left">12x</th>
-              <th class="th-dark" style="text-align:left">Outras</th>
-              <th class="th-dark" style="text-align:left">vs {{ dbf.prev_code or 'anterior' }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for p in dbf.pagamentos_hm %}
-            <tr>
-              <td class="td-bold">{{ p.metodo }}</td>
-              <td style="text-align:left">{{ p.qtd | num }}</td>
-              <td style="text-align:left">{{ p.pct_vendas | round(1) }}%</td>
-              <td style="text-align:left">{{ p.a_vista | num }}</td>
-              <td style="text-align:left">{{ p.parcelado_12x | num }}</td>
-              <td style="text-align:left">{{ p.parcelado_outros | num }}</td>
-              <td style="text-align:left">{% if p.prev_qtd %}{{ dbadge(p.qtd, p.prev_qtd, 'up') }}{% else %}—{% endif %}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-    {% endif %}
-
-    <script>
-    (function() {
-      const labels = [{% for f in vf %}"{{ f.label | e }}"{% if not loop.last %},{% endif %}{% endfor %}];
-      const values = [{% for f in vf %}{{ f.qtd }}{% if not loop.last %},{% endif %}{% endfor %}];
-      const colors = ['#3b82f6', '#22c55e', '#a855f7', '#ef4444'];
-      const cssVar = (name, fallback) => (getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback);
-      const inkColor = cssVar('--bs-ink', '#1f2330');
-      const total = values.reduce((a, b) => a + b, 0);
-
-      const barEl = document.getElementById('vfBarChart');
-      if (barEl) {
-        new Chart(barEl, {
-          type: 'bar',
-          plugins: [ChartDataLabels],
-          data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 4, maxBarThickness: 56 }] },
-          options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: {
-              legend: { display: false },
-              tooltip: { enabled: false },
-              datalabels: {
-                anchor: 'end', align: 'top', offset: 2,
-                font: { size: 12, weight: '700' }, color: inkColor,
-                formatter: v => v,
-              }
-            },
-            scales: {
-              x: { grid: { display: false }, ticks: { font: { size: 11 }, color: inkColor } },
-              y: { beginAtZero: true, ticks: { font: { size: 11 }, color: inkColor } },
-            },
-          },
-        });
-      }
-
-      const pieEl = document.getElementById('vfPieChart');
-      if (pieEl) {
-        new Chart(pieEl, {
-          type: 'doughnut',
-          plugins: [ChartDataLabels],
-          data: { labels, datasets: [{ data: values, backgroundColor: colors, borderWidth: 0 }] },
-          options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: {
-              legend: { position: 'bottom', labels: { font: { size: 11 }, color: inkColor, boxWidth: 12 } },
-              tooltip: { enabled: false },
-              datalabels: {
-                font: { size: 11, weight: '700' }, color: '#fff',
-                formatter: v => (total > 0 && v / total >= 0.03) ? (v / total * 100).toFixed(1) + '%' : '',
-              }
-            },
-          },
-        });
-      }
-    })();
-    </script>
-    {% else %}
-    {{ sem_dados("Detalhamento por forma de pagamento (Hotmart + TMB) ainda não disponível para este lançamento") }}
     {% endif %}
   </div>
 

@@ -185,6 +185,7 @@ class VendasSummary:
     tmb_vendas: int = 0
     tmb_receita: float = 0.0
     tmb_receita_bruta: float = 0.0
+    tmb_taxa: float = 0.0  # taxa efetiva paga à TMB (ticket − líquido)
     tmb_ticket_medio: float = 0.0
     total_vendas: int = 0
     total_receita: float = 0.0
@@ -260,6 +261,8 @@ class HotmartDetails:
     parcelado_12x_qtd: int = 0
     outros_parcelamentos_qtd: int = 0
     pagamentos: list[dict] = field(default_factory=list)
+    produtos: list[dict] = field(default_factory=list)  # vendas por produto/oferta que compõe o lançamento
+    ultima_venda: str = ""  # "AAAA-MM-DD HH:MM:SS" (Brasília) da venda paga mais recente da janela
     parcelas: list[dict] = field(default_factory=list)
     fluxo_caixa: dict = field(default_factory=dict)
     timeline: list[dict] = field(default_factory=list)
@@ -282,6 +285,9 @@ class TmbDetails:
     vendas_d1: int = 0
     vendas_d1_pct: float = 0.0
     ofertas: list[dict] = field(default_factory=list)
+    pagamentos: list[dict] = field(default_factory=list)  # forma de pagamento: projetado x recebido
+    produtos: list[dict] = field(default_factory=list)    # vendas por produto que compõe o lançamento
+    ultima_venda: str = ""  # "AAAA-MM-DD HH:MM:SS" (Brasília) da venda paga mais recente da janela
     com_utm_qtd: int = 0
     com_utm_pct: float = 0.0
     utm_sources: list[dict] = field(default_factory=list)
@@ -489,6 +495,8 @@ class ComparativoData:
     inv_meta_b: float = 0.0
     inv_google_a: float = 0.0
     inv_google_b: float = 0.0
+    inv_tiktok_a: float = 0.0   # TikTok de Captação (tiktok_ads_daily, desde 13/11/26)
+    inv_tiktok_b: float = 0.0
     leads_a: int = 0
     leads_b: int = 0
     cpl_a: float = 0.0
@@ -501,6 +509,8 @@ class ComparativoData:
     dia1_a: dict = field(default_factory=dict)
     dia1_b: dict = field(default_factory=dict)
     dia1_a2: dict = field(default_factory=dict)
+    # Carrinho atual aberto: vendas/faturamento do anterior cortados na mesma hora. Texto "19/11 08h43 ↔ 21/08 08h43".
+    ponto_ref: str = ""
     code_a2: str = ""
     google_conv_a: int = 0
     google_conv_b: int = 0
@@ -547,6 +557,8 @@ class ComparativoData:
     inv_meta_total_b: float = 0.0
     inv_google_total_a: float = 0.0
     inv_google_total_b: float = 0.0
+    inv_tiktok_total_a: float = 0.0
+    inv_tiktok_total_b: float = 0.0
     # Total investido mostrado no card = mídia (todas as etapas) + WhatsApp.
     inv_total_a: float = 0.0
     inv_total_b: float = 0.0

@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi.concurrency import run_in_threadpool
+from frontend.cache import force_refresh_start, force_refresh_end
 
 from frontend.core import (
     logger,
@@ -191,6 +192,19 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
             falhas.append("sorteio")
             return None
 
+    async def f_lead_score():
+        """Qualidade dos leads pelo score da pesquisa (faixas A/B/C). Só lançamento com pesquisa no sistema novo."""
+        if not (launch and vendas) or lazy:
+            return None
+        try:
+            from frontend.services.lead_score import gasto_por_anuncio, obter  # noqa: PLC0415
+            compradores = set(getattr(vendas, "emails_hotmart", set()) or set()) | set(getattr(vendas, "emails_tmb", set()) or set())
+            return await run_in_threadpool(obter, launch.code, compradores, gasto_por_anuncio(meta, google))
+        except Exception:
+            logger.exception("Debriefing: falha ao montar o score dos leads")
+            falhas.append("lead_score")
+            return None
+
     async def f_disparo_resumo():
         if not launch or lazy:
             return None
@@ -313,6 +327,18 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
             falhas.append("whatsapp_groups_resumo")
             return None, None
 
+    async def f_carrinho():
+        """Vendas pela regra do Painel Lançamento (só carrinho, sem upgrade) e o lançamento anterior no
+        MESMO ponto do carrinho (mesmo tempo decorrido desde a abertura)."""
+        if not launch:
+            return None, None
+        try:
+            return await run_in_threadpool(_carrinho_par, launch, previous)
+        except Exception:
+            logger.exception("Debriefing: falha ao montar vendas do carrinho")
+            falhas.append("vendas_carrinho")
+            return None, None
+
     async def f_dia1_sales():
         """Vendas cumulativas hora a hora no dia 1 — "Vendas na 1ª Hora"
         (atual + lançamento anterior, pra comparativo)."""
@@ -368,7 +394,9 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         historico_grande,
         (whatsapp_groups_resumo, prev_whatsapp_groups_resumo),
         (dia1_sales, prev_dia1_sales),
+        (carrinho, prev_carrinho),
         sorteio,
+        lead_score,
         (versao_lp_por_ad, conversao_paginas_todas),
     ) = await asyncio.gather(
         f_creative(), f_leads_antigos(), f_perfil_pesquisa(),
@@ -377,9 +405,17 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         f_disparo_resumo(), f_ebook(), f_hotmart_recompra(),
         f_hotmart_semana_seguinte(), f_compradores_por_dia_grupo(),
         f_forma_pagamento_entrada(), f_comparativo_historico(),
-        f_historico_grande(), f_whatsapp_groups_resumo(), f_dia1_sales(),
-        f_sorteio(), f_versao_lp(),
+        f_historico_grande(), f_whatsapp_groups_resumo(), f_dia1_sales(), f_carrinho(),
+        f_sorteio(), f_lead_score(), f_versao_lp(),
     )
+
+    prev_tiktok = None
+    if previous:
+        try:
+            from frontend.services.fetch import _tiktok  # noqa: PLC0415
+            prev_tiktok = await run_in_threadpool(_tiktok, previous)
+        except Exception:
+            logger.exception("Debriefing: falha ao ler TikTok do lançamento anterior")
 
     dbf = _compute_debriefing_ctx(
         launch, previous,
@@ -417,7 +453,12 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         prev_whatsapp_groups_resumo=prev_whatsapp_groups_resumo,
         dia1_sales=dia1_sales,
         prev_dia1_sales=prev_dia1_sales,
+        carrinho=carrinho,
+        prev_carrinho=prev_carrinho,
         sorteio=sorteio,
+        lead_score=lead_score,
+        tiktok=d.get("tiktok"),
+        prev_tiktok=prev_tiktok,
     )
     return {
         "dbf": dbf,
@@ -426,6 +467,16 @@ async def build_debriefing_context(launch: Any, launches: list, lazy: bool) -> d
         "creative_data_error": creative_data_error,
         "falhas": falhas,
     }
+
+
+def _carrinho_par(launch: Any, previous: Any) -> tuple:
+    """(atual, anterior). O anterior é cortado no mesmo tempo decorrido desde a abertura do carrinho
+    (ex.: 13/11 08h43 ↔ 18/09 08h43); com o carrinho atual já encerrado, compara o total fechado.
+    A regra mora em `sales.read_vendas_carrinho_par` (o /comparativo usa a mesma)."""
+    from frontend.db_readers.sales import read_vendas_carrinho_par  # noqa: PLC0415
+
+    curr, prev, _ponto, _ponto_prev = read_vendas_carrinho_par(launch.code, previous.code if previous else None)
+    return curr, prev
 
 
 # Por que o snapshot de cada lançamento não foi regravado na última tentativa (memória do processo).
@@ -461,11 +512,26 @@ async def refresh_debriefing_snapshot(launch: Any, launches: list) -> None:
     from frontend.db_readers.debriefing_snapshot import read_snapshot, write_snapshot  # noqa: PLC0415
 
     t0 = time.perf_counter()
+    # Com o carrinho aberto, as vendas mudam por fora do ETL e em rajada (abertura: 1 -> 349 vendas em minutos, 19/11/26).
+    # O cache devolve o valor vencido enquanto recalcula em segundo plano; o snapshot montado nessa janela gravava a
+    # receita de antes da abertura (R$ 1.726 e ROAS 0,00x com 349 vendas). Então a montagem recalcula os leitores de
+    # venda NA HORA — só neste caminho e só com o carrinho aberto; quem navega continua no cache de 5 min.
+    token = None
+    try:
+        from frontend.services.fetch import carrinho_aberto  # noqa: PLC0415
+        from frontend.services.prewarm import LEITORES_VENDAS  # noqa: PLC0415
+        if await run_in_threadpool(carrinho_aberto, launch.code):
+            token = force_refresh_start(readers=LEITORES_VENDAS, codes={launch.code})
+    except Exception:
+        logger.exception("Snapshot de %s: não deu pra decidir o refresh forçado das vendas (segue com o cache)", launch.code)
     try:
         built = await build_debriefing_context(launch, launches, lazy=False)
     except Exception as e:
         ULTIMA_FALHA[launch.code] = {"quando": datetime.now(timezone.utc), "blocos": [], "erro": f"{type(e).__name__}: {str(e)[:160]}"}
         raise
+    finally:
+        if token is not None:
+            force_refresh_end(token)
     duration_ms = int((time.perf_counter() - t0) * 1000)
     falhas = built.get("falhas") or []
     if falhas:

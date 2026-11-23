@@ -423,7 +423,7 @@ async def comercial_inconsistencias(request: Request, mes: str | None = None, q:
         pedidos = [l.transacao for l in res.linhas if l.papel == "venda" and l.motivo == "conflito_codigo"]
         conflitos = await run_in_threadpool(com.ler_codigos_conflito, pedidos)
     achadas, erro_busca, tel = [], None, ""
-    if not gestor and (q or "").strip():
+    if inc.pode_reivindicar(acesso) and (q or "").strip():
         try:
             tel = inc.limpar_telefone(q)
         except inc.EntradaInvalida as exc:
@@ -654,7 +654,9 @@ async def comercial_regras_acessos(request: Request, acao: str = Form(""), email
         if acao == "gravar":
             n = rt.escolha(nivel, rt.NIVEIS, "Nível")
             rt.conferir_acesso_proprio(alvo, autor, n)
-            cod = rt.limpar_codigo(vendedor_codigo) if n == "vendedor" else None
+            # vendedor: código obrigatório; gestor que também vende (Rafael, AT12): opcional
+            vende = n == "vendedor" or (n in ("master", "coordenador") and (vendedor_codigo or "").strip())
+            cod = rt.limpar_codigo(vendedor_codigo) if vende else None
             com.gravar_acesso(alvo, n, cod, autor)
             ac.limpar_cache()
             return "acesso_gravado", False

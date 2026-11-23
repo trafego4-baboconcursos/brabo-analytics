@@ -223,3 +223,10 @@ PALETA_PRODUTO: dict[str, dict] = {
 def paleta_do_produto(prefixo: str | None) -> list[str]:
     return list((PALETA_PRODUTO.get(str(prefixo or "").upper()) or {}).get("cores") or [])
 
+
+# Fator da taxa efetiva da TMB. `tmb_clean_oficial.valor_liquido` NÃO vem líquido: é o ticket, ainda sem a
+# taxa. Receita líquida TMB = valor_liquido * TMB_FATOR_LIQUIDO (desconta 4,8547%). Fonte: contas a receber
+# por data de efetivação, 01/01–31/10/2026, status Efetivado (ticket R$ 12.940.385,51; taxa R$ 603.896,33;
+# líquido R$ 12.312.185,86). Taxa efetiva (não a contratada de 4,67%): inclui tarifas fixas, antecipação e mix
+# de parcelas. Atualizar quando o financeiro fechar novos meses. Hotmart NÃO usa: já vem líquida.
+TMB_FATOR_LIQUIDO = 0.951453

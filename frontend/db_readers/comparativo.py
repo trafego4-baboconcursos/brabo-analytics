@@ -153,6 +153,16 @@ def read_comparativo(launch_b: Launch, launch_a: Launch, launch_a2: Launch | Non
             """), p_base).fetchone()
             result["google_inv_total"] = float(r[0] or 0)
 
+            # TikTok (tiktok_ads_daily, desde 13/11/26): mesma janela de Captação do meta_inv acima
+            # (por data, todas as etapas) e o lançamento inteiro, como Meta/Google.
+            r = conn.execute(text(f"""
+                SELECT COALESCE(SUM(spend) FILTER (WHERE TRUE{_date_clause('date')}), 0),
+                       COALESCE(SUM(spend), 0)
+                FROM tiktok_ads_daily WHERE lancamento_codigo = :code
+            """), p_dates if cs and ce else p_base).fetchone()
+            result["tiktok_inv"] = float(r[0] or 0)
+            result["tiktok_inv_total"] = float(r[1] or 0)
+
             # â€” Leads CRM â€”
             r = conn.execute(text(f"""
                 SELECT COUNT(*) FROM leads
@@ -241,14 +251,16 @@ def read_comparativo(launch_b: Launch, launch_a: Launch, launch_a2: Launch | Non
     rb = _query_launch(launch_b)
 
     # â€” Investimentos â€”
-    inv_capt_a = ra["meta_inv"] + ra["google_inv"]
-    inv_capt_b = rb["meta_inv"] + rb["google_inv"]
+    inv_capt_a = ra["meta_inv"] + ra["google_inv"] + ra["tiktok_inv"]
+    inv_capt_b = rb["meta_inv"] + rb["google_inv"] + rb["tiktok_inv"]
     data.inv_a = inv_capt_a
     data.inv_b = inv_capt_b
     data.inv_meta_a = ra["meta_inv"]
     data.inv_meta_b = rb["meta_inv"]
     data.inv_google_a = ra["google_inv"]
     data.inv_google_b = rb["google_inv"]
+    data.inv_tiktok_a = ra["tiktok_inv"]
+    data.inv_tiktok_b = rb["tiktok_inv"]
 
     # WhatsApp entra no total do card, mas NÃO em inv_a/inv_b: aqueles são
     # mídia de Captação e alimentam ROAS/CPA/CPL do resto da página — mexer
@@ -276,8 +288,10 @@ def read_comparativo(launch_b: Launch, launch_a: Launch, launch_a2: Launch | Non
     data.inv_meta_total_b = rb["meta_inv_total"]
     data.inv_google_total_a = ra["google_inv_total"]
     data.inv_google_total_b = rb["google_inv_total"]
-    data.inv_total_a = data.inv_meta_total_a + data.inv_google_total_a + data.inv_whatsapp_a
-    data.inv_total_b = data.inv_meta_total_b + data.inv_google_total_b + data.inv_whatsapp_b
+    data.inv_tiktok_total_a = ra["tiktok_inv_total"]
+    data.inv_tiktok_total_b = rb["tiktok_inv_total"]
+    data.inv_total_a = data.inv_meta_total_a + data.inv_google_total_a + data.inv_tiktok_total_a + data.inv_whatsapp_a
+    data.inv_total_b = data.inv_meta_total_b + data.inv_google_total_b + data.inv_tiktok_total_b + data.inv_whatsapp_b
 
     # â€” Meta â€”
     data.meta_leads_a = ra["meta_leads"]
@@ -326,6 +340,25 @@ def read_comparativo(launch_b: Launch, launch_a: Launch, launch_a2: Launch | Non
     vendas_b = rb["hotmart_count"] + rb["tmb_count"]
     receita_a = ra["hotmart_receita"] + ra["tmb_receita"]
     receita_b = rb["hotmart_receita"] + rb["tmb_receita"]
+
+    # Carrinho do atual ainda aberto: o anterior é cortado na MESMA hora desde a abertura (como o debriefing), senão
+    # o atual (parcial) é comparado com o anterior fechado e tudo aparece como queda. Vendas/faturamento/ticket dos
+    # dois lados passam à regra do Painel Lançamento (1ª cobrança; upgrade fora da contagem). A divisão Hotmart/TMB
+    # não existe nesse corte, então a página esconde essas duas linhas enquanto `ponto_ref` estiver preenchido.
+    ticket_corte_a = ticket_corte_b = None
+    try:
+        from frontend.db_readers.sales import read_vendas_carrinho_par  # noqa: PLC0415
+
+        curr, prev, ponto, ponto_prev = read_vendas_carrinho_par(launch_b.code, launch_a.code)
+        if curr and prev and ponto is not None:
+            vendas_b, receita_b = int(curr["vendas"]), float(curr["receita"])
+            vendas_a, receita_a = int(prev["vendas"]), float(prev["receita"])
+            ticket_corte_b = _safe_div(float(curr["receita_carrinho"]), curr["vendas"])
+            ticket_corte_a = _safe_div(float(prev["receita_carrinho"]), prev["vendas"])
+            data.ponto_ref = f"{ponto:%d/%m %Hh%M} ↔ {ponto_prev:%d/%m %Hh%M}"
+    except Exception:
+        logger.exception("Comparativo: falha ao cortar o anterior no mesmo ponto (%s vs %s); segue com o total",
+                         launch_b.code, launch_a.code)
     data.vendas_a   = vendas_a
     data.vendas_b   = vendas_b
     data.hotmart_a  = ra["hotmart_count"]
@@ -338,8 +371,8 @@ def read_comparativo(launch_b: Launch, launch_a: Launch, launch_a2: Launch | Non
     data.receita_hotmart_b = rb["hotmart_receita"]
     data.receita_tmb_a     = ra["tmb_receita"]
     data.receita_tmb_b     = rb["tmb_receita"]
-    data.ticket_a   = _safe_div(receita_a, vendas_a)
-    data.ticket_b   = _safe_div(receita_b, vendas_b)
+    data.ticket_a   = ticket_corte_a if ticket_corte_a is not None else _safe_div(receita_a, vendas_a)
+    data.ticket_b   = ticket_corte_b if ticket_corte_b is not None else _safe_div(receita_b, vendas_b)
     data.roas_a     = _safe_div(receita_a, inv_capt_a)
     data.roas_b     = _safe_div(receita_b, inv_capt_b)
     # ROAS do card "O Paradoxo": receita sobre o investimento do

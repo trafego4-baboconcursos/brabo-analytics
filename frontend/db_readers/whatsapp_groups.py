@@ -574,6 +574,27 @@ def _fones_com_data(conn, tabela: str | None, alvos: set[str]) -> dict[str, str]
     return out
 
 
+def _primeira_entrada_por_eventos(code: str, alvos: set[str]) -> dict[str, str] | None:
+    """{telefone normalizado: data (YYYY-MM-DD, Brasília) da primeira entrada em qualquer grupo} a partir de
+    `leads_grupos_eventos`, só pros telefones em `alvos`. None se o lançamento não tem evento.
+    O dia 22/10/26 é a carga inicial da automação: quem já estava nos grupos aparece nele."""
+    from frontend.db_readers.whatsapp_eventos import _carregar  # noqa: PLC0415
+
+    df = _carregar(code)
+    if df.empty:
+        return None
+    df = df[df["ent_sai"] == "Entrou"]
+    out: dict[str, str] = {}
+    for ts, numero in zip(df["timestamp"], df["numero_lead"]):
+        p = _norm_phone(numero)
+        if not p or p not in alvos:
+            continue
+        d = ts.tz_convert("America/Sao_Paulo").date().isoformat()
+        if p not in out or d < out[p]:
+            out[p] = d
+    return out
+
+
 def read_compradores_por_dia_grupo(launch_folder_or_code: Any) -> dict | None:
     """Compradores (Hotmart+TMB) pelo dia em que entraram no grupo de
     WhatsApp, separados em Pré-Qualificação × Captação conforme as datas
@@ -607,15 +628,23 @@ def read_compradores_por_dia_grupo(launch_folder_or_code: Any) -> dict | None:
     with engine.connect() as conn:
         t_normal = _escolhe_tabela(conn, candidatos_normal)
         t_vip = _escolhe_tabela(conn, candidatos_vip)
-        if not t_normal and not t_vip:
-            return None
-        datas_normal = _fones_com_data(conn, t_normal, alvo_fones)
-        datas_vip = _fones_com_data(conn, t_vip, alvo_fones)
+        if t_normal or t_vip:
+            datas_normal = _fones_com_data(conn, t_normal, alvo_fones)
+            datas_vip = _fones_com_data(conn, t_vip, alvo_fones)
+        else:
+            datas_normal = datas_vip = None
 
-    datas_por_fone: dict[str, str] = dict(datas_normal)
-    for p, d in datas_vip.items():
-        if p not in datas_por_fone or d < datas_por_fone[p]:
-            datas_por_fone[p] = d
+    if datas_normal is None:
+        # Lançamentos de 22/10/26 em diante não têm tabela `<COD>_API`: a primeira entrada vem de
+        # leads_grupos_eventos (mesma fonte do resto da página de grupos).
+        datas_por_fone = _primeira_entrada_por_eventos(code, alvo_fones)
+        if datas_por_fone is None:
+            return None
+    else:
+        datas_por_fone = dict(datas_normal)
+        for p, d in datas_vip.items():
+            if p not in datas_por_fone or d < datas_por_fone[p]:
+                datas_por_fone[p] = d
 
     por_dia: dict[str, int] = {}
     sem_data = 0

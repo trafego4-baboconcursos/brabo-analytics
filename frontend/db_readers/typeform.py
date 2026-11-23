@@ -1060,16 +1060,21 @@ def read_perfil_por_anuncio(launch_folder_or_code: Any, top_n: int = 5) -> dict 
         )
     """
     tf_email_list = [e for e in tf_df["email_norm"].tolist() if e]
-    leads_df = pd.read_sql(
-        text(f"""
-            SELECT email AS email_norm, {_AD_CODE_SQL} AS ad_code
-            FROM lead_utm_lancamento
-            WHERE lancamento_codigo = :code
-              AND {_AD_CODE_SQL} IS NOT NULL
-              AND email = ANY(:emails)
-        """),
-        engine, params={"code": code, "emails": tf_email_list},
-    )
+    # Timeout maior só nesta transação (SET LOCAL volta ao padrão no commit/rollback): no aquecimento do debriefing
+    # depois de um deploy todos os lançamentos ativos leem juntos e esta consulta (16 mil e-mails × a base do
+    # lançamento) passou dos 30 s do pool no PES-NOV-26 (16/11/26 09h43) — sozinha leva ~0,5 s.
+    with engine.connect() as conn_leads:
+        conn_leads.execute(text("SET LOCAL statement_timeout = 120000"))
+        leads_df = pd.read_sql(
+            text(f"""
+                SELECT email AS email_norm, {_AD_CODE_SQL} AS ad_code
+                FROM lead_utm_lancamento
+                WHERE lancamento_codigo = :code
+                  AND {_AD_CODE_SQL} IS NOT NULL
+                  AND email = ANY(:emails)
+            """),
+            conn_leads, params={"code": code, "emails": tf_email_list},
+        )
     if leads_df.empty:
         return None
     leads_df = leads_df.drop_duplicates("email_norm")
@@ -1079,6 +1084,7 @@ def read_perfil_por_anuncio(launch_folder_or_code: Any, top_n: int = 5) -> dict 
         return None
 
     with engine.connect() as conn:
+        conn.execute(text("SET LOCAL statement_timeout = 120000"))
         leads_por_ad = {
             r[0]: int(r[1])
             for r in conn.execute(

@@ -24,8 +24,10 @@ import pandas as pd
 from sqlalchemy import text
 
 from logger import get_logger
+from src.constants import TMB_FATOR_LIQUIDO
 from frontend.db import _get_engine, _get_users_engine
 from frontend.db_readers._vendas_comum import (
+    parse_ts_brt,
     _HOTMART_STATUS_APROVADO,
     _hm_data_sql,
     _parcela_unica_info,
@@ -33,33 +35,18 @@ from frontend.db_readers._vendas_comum import (
 
 logger = get_logger("db")
 
-_TMB_ANO_SQL = r"""
-SELECT COUNT(*), COALESCE(SUM(valor_liquido), 0) FROM (
-    SELECT c.valor_liquido,
-        CASE WHEN NULLIF(TRIM(o.criado_em),'') ~ '^\d{2}/\d{2}/\d{4}'
-                  THEN to_timestamp(TRIM(o.criado_em),'DD/MM/YYYY HH24:MI:SS')::date
-             WHEN NULLIF(TRIM(o.criado_em),'') ~ '^\d{4}-\d{2}-\d{2}' THEN TRIM(o.criado_em)::timestamp::date
-             ELSE NULL END AS _criado_date,
-        CASE
-            WHEN NULLIF(NULLIF(TRIM(c.data_efetivado::text),''),'""') ~ '^\d{2}/\d{2}/\d{4}'
-                 THEN to_date(TRIM(c.data_efetivado::text),'DD/MM/YYYY')
-            WHEN NULLIF(NULLIF(TRIM(c.data_efetivado::text),''),'""') ~ '^\d{10,13}$' THEN to_timestamp(
-                 CASE WHEN length(NULLIF(NULLIF(TRIM(c.data_efetivado::text),''),'""')) = 13
-                      THEN TRIM(c.data_efetivado::text)::bigint / 1000
-                      ELSE TRIM(c.data_efetivado::text)::bigint END)::date
-            WHEN NULLIF(NULLIF(TRIM(c.data_efetivado::text),''),'""') IS NOT NULL
-                 THEN TRIM(c.data_efetivado::text)::timestamptz::date
-            END AS _efetivado_date
-    FROM tmb_clean_oficial c
-    LEFT JOIN tmb_oficial o ON o.pedido = c.pedido
-    WHERE c.valor_liquido > 0
-) sub
-WHERE COALESCE(
-    CASE WHEN _criado_date IS NOT NULL AND _efetivado_date IS NOT NULL
-              AND (_efetivado_date - _criado_date) BETWEEN 0 AND 20 THEN _criado_date END,
-    _efetivado_date
-) BETWEEN :start AND :end
-"""
+# Total da TMB no ano = mesmo critério do relatório "contas a receber por data de efetivação" do financeiro:
+# `tmb_oficial` com status 'Efetivado', soma do `ticket` pela `data_efetivado` (DD/MM/AAAA, ISO ou epoch),
+# × TMB_FATOR_LIQUIDO. (Antes: `tmb_clean_oficial.valor_liquido` pela data de criação do pedido — ficava com 22
+# pedidos efetivados a menos em 2026 e ~R$ 36 mil abaixo do financeiro.)
+_TMB_ANO_SQL = "SELECT pedido, ticket, data_efetivado FROM tmb_oficial WHERE status = 'Efetivado'"
+
+# Hotmart Editora (conta "Brabo Editora Ltda": apostilas físicas, Planner, combos, Correios). Vive em
+# `hotmart_editora_clean_oficial`, FORA da `hotmart_clean_oficial` — mas a tabela também traz linhas da Aprovasim, que já
+# estão na principal: só vale `produtor_a = PRODUTOR_EDITORA`. (Até 19/11/26 ela guardava só a Aprovasim — o webhook da
+# conta Editora foi religado pelo Mateus — e a Editora era um valor manual do relatório. Conferido: jan–out R$ 78.572,31 +
+# nov até 18/11 R$ 8.452,21 = R$ 87.024,52, idêntico ao relatório da conta.) `ht_editora_*` não é mais usada.
+_EDITORA_TABELA = "hotmart_editora_clean_oficial"
 
 
 def _num(v) -> float:
@@ -70,18 +57,20 @@ def _num(v) -> float:
         return 0.0
 
 
-def _hotmart_ano(ano: int) -> dict:
+def _hotmart_ano(ano: int, tabela: str = "hotmart_clean_oficial", produtor: str | None = None) -> dict:
     sql = (
         "SELECT codigo_do_produto, codigo_do_preco, faturamento_liquido, valor_de_compra_sem_impostos, "
         "tipo_de_cobranca, quantidade_de_cobrancas, quantidade_total_de_parcelas "
-        "FROM hotmart_clean_oficial WHERE status_da_transacao = ANY(:ok) AND COALESCE("
+        "FROM " + tabela + " WHERE status_da_transacao = ANY(:ok) AND COALESCE("
         + _hm_data_sql("data_da_transacao") + ", " + _hm_data_sql("confirmacao_do_pagamento")
         + ") BETWEEN :start AND :end AND (email_do_a_comprador_a IS NULL OR ("
         "email_do_a_comprador_a NOT ILIKE '%+teste%' AND email_do_a_comprador_a NOT ILIKE '%@aprovasim.com'))"
+        + (" AND produtor_a = :produtor" if produtor else "")
     )
     df = pd.read_sql(
         text(sql), _get_users_engine(),
-        params={"ok": list(_HOTMART_STATUS_APROVADO), "start": date(ano, 1, 1), "end": date(ano, 12, 31)},
+        params={"ok": list(_HOTMART_STATUS_APROVADO), "start": date(ano, 1, 1), "end": date(ano, 12, 31),
+                **({"produtor": produtor} if produtor else {})},
     )
     vendas, receita = 0, 0.0
     for _, row in df.iterrows():
@@ -97,9 +86,28 @@ def _hotmart_ano(ano: int) -> dict:
 
 
 def _tmb_ano(ano: int) -> dict:
-    with _get_users_engine().connect() as conn:
-        n, r = conn.execute(text(_TMB_ANO_SQL), {"start": date(ano, 1, 1), "end": date(ano, 12, 31)}).fetchone()
-    return {"vendas": int(n or 0), "receita": float(r or 0.0)}
+    df = pd.read_sql(text(_TMB_ANO_SQL), _get_users_engine())
+    vendas, ticket = 0, 0.0
+    for _, row in df.iterrows():
+        ts = parse_ts_brt(row.get("data_efetivado"))
+        if ts is None or ts.year != ano:
+            continue
+        txt = str(row.get("ticket") or "").replace("R$", "").strip()
+        if "," in txt:
+            txt = txt.replace(".", "").replace(",", ".")
+        valor = _num(txt)
+        if valor <= 0:
+            continue
+        vendas += 1
+        ticket += valor
+    return {"vendas": vendas, "receita": ticket * TMB_FATOR_LIQUIDO}
+
+
+def _editora_ano(ano: int) -> dict:
+    """Hotmart Editora no ano (só o produtor Brabo Editora; mesma regra de valor da Hotmart)."""
+    from frontend.db_readers._vendas_comum import PRODUTOR_EDITORA  # noqa: PLC0415
+
+    return _hotmart_ano(ano, _EDITORA_TABELA, produtor=PRODUTOR_EDITORA)
 
 
 def _investimento_fora_de_lancamento(ano: int) -> dict:
@@ -128,9 +136,9 @@ def _investimento_fora_de_lancamento(ano: int) -> dict:
 def read_empresa_ano(ano: int) -> dict:
     """Tudo que a Hotmart e a TMB venderam no ano + investimento fora de lançamento.
     Cada parte falha sozinha (o resumo aparece sem ela) em vez de derrubar a página."""
-    saida = {"hotmart": {"vendas": 0, "receita": 0.0}, "tmb": {"vendas": 0, "receita": 0.0},
+    saida = {"hotmart": {"vendas": 0, "receita": 0.0}, "tmb": {"vendas": 0, "receita": 0.0}, "editora": {"vendas": 0, "receita": 0.0},
              "invest": {"distribuicao": 0.0, "perpetuo": 0.0, "sem_codigo": 0.0}, "completo": True}
-    for chave, fn in (("hotmart", _hotmart_ano), ("tmb", _tmb_ano), ("invest", _investimento_fora_de_lancamento)):
+    for chave, fn in (("hotmart", _hotmart_ano), ("tmb", _tmb_ano), ("editora", _editora_ano), ("invest", _investimento_fora_de_lancamento)):
         try:
             saida[chave] = fn(ano)
         except Exception:

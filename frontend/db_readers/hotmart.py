@@ -31,7 +31,9 @@ from frontend.utils import (
     _norm_text,
     _normalize_product_ids,
     _safe_date,
+    split_hotmart_ids,
 )
+from frontend.db_readers._vendas_comum import parse_ts_brt
 from logger import get_logger
 
 logger = get_logger("db")
@@ -51,7 +53,12 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
 
     from frontend.db_readers.launches import read_launch_config  # noqa: PLC0415
     cfg = read_launch_config(code)
-    hotmart_ids = _normalize_product_ids(cfg.get("hotmart_produto_ids"))
+    hotmart_ids, hotmart_ofertas = split_hotmart_ids(cfg.get("hotmart_produto_ids"))
+    # Só as vendas do CARRINHO ABERTO (mesma janela do read_vendas): sem isso o
+    # detalhamento contava o período inteiro do lançamento — 66 vendas no PES-NOV-26
+    # contra as do carrinho (11/11/26).
+    effective_start = _safe_date(cfg.get("carrinho_start_date")) or effective_start
+    effective_end = _safe_date(cfg.get("carrinho_end_date")) or effective_end
 
     ops_engine = _get_users_engine()
     details = HotmartDetails()
@@ -62,15 +69,15 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
         SELECT codigo_da_transacao, status_da_transacao, data_da_transacao, confirmacao_do_pagamento,
                metodo_de_pagamento, tipo_de_cobranca, quantidade_de_cobrancas, quantidade_total_de_parcelas,
                faturamento_liquido, valor_de_compra_sem_impostos, valor_de_compra_com_impostos,
-               nome_deste_preco, codigo_do_produto, codigo_do_preco, estado_provincia, cidade
+               nome_deste_preco, codigo_do_produto, codigo_do_preco, estado_provincia, cidade, produto
         FROM hotmart_clean_oficial
-        WHERE CASE
+        WHERE (CASE
               WHEN produto ILIKE '%black vital%' THEN 'BLACK'
               WHEN produto ILIKE '%inss%' THEN 'INSS'
               WHEN (produto ILIKE '%tj%' OR produto ILIKE '%tjsp%' OR produto ILIKE '%escrevente%') THEN 'TJ'
               WHEN (produto ILIKE '%bb%' OR produto ILIKE '%banco do brasil%' OR produto ILIKE '%bbsa%') THEN 'BB'
               ELSE 'OUTRO'
-          END = :project
+          END = :project OR lower(codigo_do_preco) = ANY(:offer_ids))
           AND COALESCE(
             """ + _hm_data_sql("data_da_transacao") + """,
             """ + _hm_data_sql("confirmacao_do_pagamento") + r"""
@@ -81,9 +88,9 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
           ))
     """
     )
-    params: dict = {"project": project, "start": effective_start, "end": effective_end}
+    params: dict = {"project": project, "start": effective_start, "end": effective_end, "offer_ids": hotmart_ofertas}
     if hotmart_ids:
-        sql += " AND codigo_do_produto = ANY(:product_ids)"
+        sql += " AND (codigo_do_produto = ANY(:product_ids) OR lower(codigo_do_preco) = ANY(:offer_ids))"
         params["product_ids"] = hotmart_ids
     else:
         sql += " AND NOT (codigo_do_produto = ANY(:perp_ids))"   # produto do perpétuo não é do lançamento
@@ -125,6 +132,7 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
     recorrencia_receita = 0.0
     recorrencia_idx = []
     repeticao_idx = []
+    recebido_linhas: list = []   # (metodo, valor cobrado) de toda linha paga
     for idx, row in df_paid.iterrows():
         valor = _hmd_num(row.get("faturamento_liquido"))
         if valor is None:
@@ -135,6 +143,10 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
         if valor_bruto is None:
             valor_bruto = valor
         eh_por_parcela, eh_repeticao, cobrancas, parcelas = _parcela_unica_info(row)
+        # Recebido = o que foi de fato cobrado: todas as linhas pagas, inclusive as
+        # cobranças seguintes de um parcelado (que abaixo viram "repeticao" e saem
+        # da contagem de vendas). Guarda o valor ANTES de multiplicar pelas parcelas.
+        recebido_linhas.append((row.get("metodo_de_pagamento"), valor))
         if eh_por_parcela:
             # Venda "de parcela única" (tipo_de_cobranca = Recuperador
             # Inteligente, ou tipo vazio com quantidade_de_cobrancas
@@ -172,6 +184,45 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
     details.receita_liquida = float(df_paid["valor_liq"].sum())
     details.receita_bruta = float(df_paid["valor_bruto"].sum())
     details.faturamento = details.receita_liquida
+
+    # Vendas por produto que compõe o lançamento. Venda que entrou por OFERTA avulsa
+    # (produto de outro projeto, `oferta:<codigo>` no config) vira uma linha própria,
+    # com o nome da oferta; o resto agrupa pelo produto.
+    if not df_paid.empty:
+        _ids_produto = set(hotmart_ids)
+        _de_oferta = (
+            df_paid["codigo_do_produto"].astype(str).map(lambda x: bool(_ids_produto) and x not in _ids_produto)
+        )
+        df_paid["_prod_chave"] = [
+            ("oferta:" + str(cp)) if of else str(cd)
+            for of, cp, cd in zip(_de_oferta, df_paid["codigo_do_preco"], df_paid["codigo_do_produto"])
+        ]
+        df_paid["_prod_nome"] = [
+            str(np_ or pr or "").strip() if of else str(pr or "").strip()
+            for of, np_, pr in zip(_de_oferta, df_paid["nome_deste_preco"], df_paid["produto"])
+        ]
+        _tot_v, _tot_f = len(df_paid), float(df_paid["valor_liq"].sum())
+        for _chave, _g in df_paid.groupby("_prod_chave"):
+            _fat = float(_g["valor_liq"].sum())
+            details.produtos.append({
+                "nome": _g["_prod_nome"].iloc[0] or str(_chave),
+                "oferta_avulsa": str(_chave).startswith("oferta:"),
+                "qtd": int(len(_g)),
+                "faturamento": _fat,
+                "ticket_medio": _fat / len(_g) if len(_g) else 0.0,
+                "pct_vendas": (len(_g) / _tot_v * 100) if _tot_v else 0.0,
+                "pct_faturamento": (_fat / _tot_f * 100) if _tot_f else 0.0,
+            })
+        details.produtos.sort(key=lambda p: p["qtd"], reverse=True)
+
+        # Instante da venda paga mais recente (Brasília) — cartão "última atualização" do /resumo.
+        _tss = [
+            parse_ts_brt(a) or parse_ts_brt(b)
+            for a, b in zip(df_paid["data_da_transacao"], df_paid["confirmacao_do_pagamento"])
+        ]
+        _tss = [t for t in _tss if t is not None]
+        if _tss:
+            details.ultima_venda = max(_tss).strftime("%Y-%m-%d %H:%M:%S")
     details.taxas = max(0.0, details.receita_bruta - details.receita_liquida)
     details.taxas_pct = details.taxas / details.receita_bruta * 100 if details.receita_bruta > 0 else 0.0
     details.ticket_medio = details.faturamento / details.total_vendas if details.total_vendas > 0 else 0.0
@@ -209,6 +260,10 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
     if not df_paid.empty and "metodo_de_pagamento" in df_paid.columns:
         # Agrupa pelo rótulo normalizado, não pelo valor cru: o mesmo método
         # vem em português e em inglês conforme a época da venda (CSV x API).
+        recebido_por_metodo: dict = {}
+        for _m, _v in recebido_linhas:
+            _k = str(_metodo_pagamento_pt(_m))
+            recebido_por_metodo[_k] = recebido_por_metodo.get(_k, 0.0) + float(_v or 0.0)
         pay_grouped = df_paid.groupby(df_paid["metodo_de_pagamento"].map(_metodo_pagamento_pt))
         for metodo, group in pay_grouped:
             faturamento = float(group["valor_liq"].sum())
@@ -226,6 +281,9 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
                 "parcelado_outros": int(((parcelas_grupo >= 2) & (parcelas_grupo != 12)).sum()),
                 "pct_vendas": float(len(group) / details.total_vendas * 100) if details.total_vendas > 0 else 0.0,
                 "faturamento": faturamento,
+                "projetado": faturamento,
+                # nunca acima do projetado (cobranças extras de contrato à vista)
+                "recebido": min(recebido_por_metodo.get(str(metodo), faturamento), faturamento),
                 "pct_faturamento": float(faturamento / details.faturamento * 100) if details.faturamento > 0 else 0.0,
                 "ticket_medio": float(group["valor_liq"].mean()) if not group.empty else 0.0,
             })
@@ -271,9 +329,15 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
         # virava o "D1" da página e a abertura real aparecia como cauda.
         abertura = _safe_date(cfg.get("abertura_oficial_carrinho"))
         d1_date = pd.Timestamp(abertura) if abertura else df_paid["data_parsed"].min()
+        # Upsell (oferta avulsa) por dia: o debriefing desconta das matrículas (aluno novo).
+        if "_prod_chave" in df_paid:
+            df_paid["_upsell"] = df_paid["_prod_chave"].astype(str).str.startswith("oferta:").astype(int)
+        else:
+            df_paid["_upsell"] = 0
         timeline_grouped = df_paid.groupby(df_paid["data_parsed"].dt.date).agg(
             vendas=("valor_liq", "count"),
-            faturamento=("valor_liq", "sum")
+            faturamento=("valor_liq", "sum"),
+            upsell=("_upsell", "sum"),
         ).reset_index().sort_values("data_parsed")
 
         for _, row in timeline_grouped.iterrows():
@@ -283,6 +347,7 @@ def read_hotmart_details(launch_folder_or_code: Any, start_date=None, end_date=N
                 "data_str": dt.strftime("%d/%b"),
                 "vendas": int(row["vendas"]),
                 "faturamento": float(row["faturamento"]),
+                "upsell": int(row["upsell"]),
                 "is_d1": pd.notna(d1_date) and dt == d1_date.date()
             })
 

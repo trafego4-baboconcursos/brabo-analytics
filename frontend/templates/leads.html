@@ -18,6 +18,45 @@
     </div>
     {% else %}
 
+    {# ── Score dos leads: escada de compra por decil + veredito, carregada por fetch (a conta leva 15–30 s na 1ª vez).
+         O score com origem fica AQUI e não no debriefing: o canal entra na nota, então ela serve para priorizar lead,
+         não para comparar anúncio. ── #}
+    <div class="section">
+    <div class="section-title"><i class="ti ti-target-arrow"></i> Score dos leads — estamos no caminho certo?</div>
+    <div id="ls-resumo" data-url="/leads/score/resumo?launch_code={{ active_code }}">
+      <div class="ls-skel"><span></span><span></span><span></span></div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:16px;margin-top:24px;">
+      <a class="btn" href="/leads/score.csv?launch_code={{ active_code }}"><i class="ti ti-download"></i> Baixar planilha de leads com score</a>
+      <a class="btn" href="/leads/score.csv?launch_code={{ active_code }}&decil_min=8&comprou=nao"><i class="ti ti-download"></i> Só decis 8–10 que ainda não compraram</a>
+    </div>
+    <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:8px;max-width:760px">
+      A nota com origem soma as respostas da pesquisa, o canal e o tipo de campanha do UTM, e vale também para quem não respondeu.
+      Serve para priorizar leads (planilha), não para comparar anúncios — o canal já está nela. A escada acima mostra, conforme as
+      vendas entram, se quem tem nota alta está comprando mais que quem tem nota baixa.
+    </div>
+    </div>
+    <style>
+    .ls-skel span { display:block; height:16px; border-radius:8px; margin-bottom:8px; background:linear-gradient(90deg,var(--bs-surface) 25%,var(--bs-border) 50%,var(--bs-surface) 75%); background-size:200% 100%; animation:ls-shimmer 1.4s ease-in-out infinite; }
+    .ls-skel span:nth-child(1){width:72%} .ls-skel span:nth-child(2){width:96%} .ls-skel span:nth-child(3){width:64%}
+    @keyframes ls-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+    </style>
+    <script>
+    (function () {
+      var el = document.getElementById('ls-resumo');
+      if (!el) return;
+      fetch(el.getAttribute('data-url'), { credentials: 'same-origin' })
+        .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+        .then(function (html) {
+          el.innerHTML = html.trim() ? html
+            : '<div style="font-size:12.5px;color:var(--bs-ink-muted)">Este lançamento ainda não tem leads com UTM para pontuar.</div>';
+        })
+        .catch(function () {
+          el.innerHTML = '<div style="font-size:12.5px;color:var(--bs-ink-muted)"><i class="ti ti-alert-triangle"></i> Não foi possível calcular o score agora. <a href="#" onclick="location.reload();return false;">Recarregar</a></div>';
+        });
+    })();
+    </script>
+
     {# ── KPIs (design system: tp-kpi) ── #}
     <div class="section">
     <div class="section-title"><i class="ti ti-gauge"></i> KPIs — Qualidade de Lead</div>

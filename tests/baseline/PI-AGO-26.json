@@ -171,15 +171,15 @@
     "sha256": "c93617fbb5746cf20ddc175878b8ca86eab5eba0770af22eb64a79e2a7ceacc6"
   },
   "read_dia1_sales": {
-    "bytes": 1295,
+    "bytes": 1509,
     "resumo": {
       "checkpoints": {
-        "__n__": 14,
-        "__sha__": "357116813baec6ad"
+        "__n__": 16,
+        "__sha__": "d6dfb6bf7a4d6b9f"
       },
       "data_abertura": "2026-08-13"
     },
-    "sha256": "d27108a8b61dac6bc9e4167b9d31563feb238d8d73d07f6e25d7f7c7fbb455bf"
+    "sha256": "5db43c9688ce7a076615ee12b1a49172a5d3fa1c611312f6147fea1639f97dc4"
   },
   "read_disparo_resumo": {
     "bytes": 155,
@@ -225,11 +225,11 @@
     "resumo": {
       "rows": {
         "__n__": 1,
-        "__sha__": "c2fd6aa3062d579b"
+        "__sha__": "ce2df135230c6edc"
       },
-      "total": 873
+      "total": 872
     },
-    "sha256": "86f74d477c7285d268902fd155263aab6cb8e51e2026c2c724e539e9b88e2aca"
+    "sha256": "00b6fcd04865e058a3b64361737a25ce8729046e98fdd6c8722bbb1b43d9d0b1"
   },
   "read_google": {
     "bytes": 29807,
@@ -524,12 +524,12 @@
     "sha256": "b293cb4993097c39833d4967d487ed56824705487f2db72c7e29e1aa6d5c7508"
   },
   "read_hotmart_details": {
-    "bytes": 7117,
+    "bytes": 6738,
     "resumo": {
-      "__n__": 34,
-      "__sha__": "0da65e2547bb9eb3"
+      "__n__": 36,
+      "__sha__": "53428342bfbfec22"
     },
-    "sha256": "0da65e2547bb9eb3b24b7ab17ea8ccefadc4fdcf8d5c0467be4baf4f4b620fbb"
+    "sha256": "53428342bfbfec226fb4f21ca260486a0697d51d5c97dc3f937074b596ff190b"
   },
   "read_hotmart_recompra": {
     "bytes": 600,
@@ -901,46 +901,55 @@
     "sha256": "a65cab1c5de13fa316b6bcd816c27a509cc833861b399a011b6aab746cb5f708"
   },
   "read_tmb_details": {
-    "bytes": 3694,
+    "bytes": 4051,
     "resumo": {
       "cidades": {
         "__n__": 10,
-        "__sha__": "b59737abaa3a98fc"
+        "__sha__": "4bfb48f2d6fc7254"
       },
-      "com_utm_pct": 99.0836,
-      "com_utm_qtd": 865,
+      "com_utm_pct": 99.1917,
+      "com_utm_qtd": 859,
       "estados": {
         "__n__": 10,
-        "__sha__": "d2040b62f79187bb"
+        "__sha__": "46f403f49c3b1999"
       },
-      "faturamento": 1636044.33,
+      "faturamento": 1542711.0411,
       "file_name": "Supabase DB",
       "has_data": true,
       "ofertas": {
+        "__n__": 3,
+        "__sha__": "cbbbcafa958a2b69"
+      },
+      "pagamentos": {
+        "__n__": 1,
+        "__sha__": "e8756b09cc605cb3"
+      },
+      "produtos": {
         "__n__": 4,
-        "__sha__": "1892440d97f1b0d6"
+        "__sha__": "2a8ca7a59e8ea736"
       },
       "status_emitidos": {
         "__n__": 1,
-        "__sha__": "6e20a7bcbfa89030"
+        "__sha__": "352fe5cec8c45b0b"
       },
       "taxa_cancelamento": 0.0,
-      "ticket_medio": 1874.0485,
+      "ticket_medio": 1781.4215,
       "timeline": {
-        "__n__": 18,
-        "__sha__": "b0c0a6c250b544c6"
+        "__n__": 13,
+        "__sha__": "140e59576e19b535"
       },
       "total_cancelados": 0,
-      "total_emitidos": 873,
-      "total_vendas": 873,
+      "total_emitidos": 866,
+      "total_vendas": 866,
+      "ultima_venda": "2026-08-24 21:28:48",
       "utm_sources": {
         "__n__": 4,
-        "__sha__": "347322ceb8d8c366"
+        "__sha__": "18de6c651829cd8f"
       },
-      "vendas_d1": 1,
-      "vendas_d1_pct": 0.1145
+      "vendas_d1": 3,
+      "vendas_d1_pct": 0.3464
     },
-    "sha256": "49bbe3bcc50146b67bdf0f6d704c1c6d437247c11a55cba8a653d5dbd45a4b36"
+    "sha256": "788f41b484c562793cb7d5d2934cf91fd6c391bfd6a02f5a64264a7a4bfb0b54"
   },
   "read_utm_cobertura": {
     "bytes": 47,
@@ -952,7 +961,7 @@
     "sha256": "01d7317780267dc974b61413e02ef87ad178949745c3b2b66e53eaeb86a9cdd4"
   },
   "read_vendas": {
-    "bytes": 543422,
+    "bytes": 544915,
     "resumo": {
       "canal_por_email": {
         "__n__": 80,
@@ -963,12 +972,12 @@
         "__sha__": "d55292e3af181a3f"
       },
       "emails_tmb": {
-        "__n__": 866,
-        "__sha__": "9d0ab2806e14b016"
+        "__n__": 865,
+        "__sha__": "16be3deb63e61344"
       },
       "estado_por_email": {
-        "__n__": 2497,
-        "__sha__": "21ecce76b9261584"
+        "__n__": 2496,
+        "__sha__": "123319359e109c90"
       },
       "hotmart_parcelamento": 313981.43,
       "hotmart_receita": 2468801.71,
@@ -978,87 +987,104 @@
       "hotmart_ticket_medio": 1512.7461,
       "hotmart_vendas": 1632,
       "nome_por_email": {
-        "__n__": 2497,
-        "__sha__": "f2ef2fcb5d578ce8"
+        "__n__": 2496,
+        "__sha__": "ef35c89a35296841"
       },
-      "pagamento_boleto": 866,
+      "pagamento_boleto": 865,
       "pagamento_cartao": 1257,
       "pagamento_outros": 250,
       "pagamento_pix": 125,
       "phone_por_email": {
-        "__n__": 2497,
-        "__sha__": "747a0a1a1cc4f798"
+        "__n__": 2496,
+        "__sha__": "f73639c7063df029"
       },
       "por_canal": {
         "Comercial": {
-          "receita": 117014.76,
+          "receita": 111334.0444,
           "vendas": 65
         },
         "IA": {
-          "receita": 28190.1,
+          "receita": 26821.5552,
           "vendas": 15
         },
         "Orgânico": {
-          "receita": 3945962.95,
-          "vendas": 2418
+          "receita": 3872463.0996,
+          "vendas": 2417
         }
       },
       "por_status": {},
       "receita_por_email": {
-        "__n__": 2497,
-        "__sha__": "bfc5236becbbe5c5"
+        "__n__": 2496,
+        "__sha__": "46b631b8d225d1e9"
       },
-      "tmb_receita": 1622366.1,
-      "tmb_receita_bruta": 1622366.1,
-      "tmb_ticket_medio": 1873.402,
-      "tmb_vendas": 866,
-      "total_receita": 4091167.81,
-      "total_receita_bruta": 4515008.51,
-      "total_receita_liquida": 4091167.81,
-      "total_ticket_medio": 1637.7773,
-      "total_vendas": 2498,
+      "tmb_receita": 1541816.9893,
+      "tmb_receita_bruta": 1620486.76,
+      "tmb_ticket_medio": 1782.4474,
+      "tmb_vendas": 865,
+      "total_receita": 4010618.6993,
+      "total_receita_bruta": 4513129.17,
+      "total_receita_liquida": 4010618.6993,
+      "total_ticket_medio": 1606.1749,
+      "total_vendas": 2497,
       "vendas_por_email": {
-        "__n__": 2497,
-        "__sha__": "bc6639eb6c416446"
+        "__n__": 2496,
+        "__sha__": "64edb1093dc3c4d9"
       }
     },
-    "sha256": "e53b01439e21897f445eaf3661abaa9eab61961489874371dcee0f59017095f4"
+    "sha256": "61ca7c66f899a153bd312398bd0b00ba2bbbb64623513b30d303be7ff4e984c8"
+  },
+  "read_vendas_carrinho": {
+    "bytes": 264,
+    "resumo": {
+      "abertura": "2026-08-13T00:00:00",
+      "ate": "2026-08-24T23:59:59",
+      "pre_abertura": 8,
+      "receita": 4012937.0762,
+      "receita_carrinho": 4012937.0762,
+      "receita_pre": 10737.0792,
+      "receita_upgrade": 0.0,
+      "ticket": 1605.8172,
+      "ultima_venda": "2026-08-24T22:39:45",
+      "upgrades": 0,
+      "vendas": 2499
+    },
+    "sha256": "8e0ed554cd310094bb02dbb5ce65258f7cd4f9ed653a7e27fc3190db825bd160"
   },
   "read_vendas_consolidado": {
-    "bytes": 2062,
+    "bytes": 2083,
     "resumo": {
       "__n__": 33,
-      "__sha__": "7743928fe812d42a"
+      "__sha__": "5673b8453fdc34ef"
     },
-    "sha256": "7743928fe812d42ad397b73cb7157850a66822ce1b2c3b21f6ebd17ebbfbf5a6"
+    "sha256": "5673b8453fdc34ef87f58057506ee4b4985f1b81dbfe487495c2f8c42992d770"
   },
   "read_vendas_grupos_whatsapp": {
-    "bytes": 188,
+    "bytes": 192,
     "resumo": {
-      "com_telefone": 2497,
-      "dentro": 2382,
+      "com_telefone": 2496,
+      "dentro": 2381,
       "dentro_normal": 179,
-      "dentro_vip": 2203,
+      "dentro_vip": 2202,
       "fora": 115,
-      "pct_dentro": 95.3945,
-      "receita_dentro": 3906957.87,
-      "receita_fora": 184209.94,
+      "pct_dentro": 95.3926,
+      "receita_dentro": 3829671.7124,
+      "receita_fora": 180946.9869,
       "sem_telefone": 0,
-      "total": 2497
+      "total": 2496
     },
-    "sha256": "976d17b04ea883927b9d4efcc3aab81fb35c7014a96a43d1ba2ad899e8fbdb3c"
+    "sha256": "3ce6e92150ab1c408fe183c4aeb7a7ffa8a91e86d88f97128399a32fc3ca216f"
   },
   "read_vendas_por_dia_cadastro": {
-    "bytes": 15835,
+    "bytes": 16188,
     "resumo": {
       "por_dia": {
         "__n__": 329,
-        "__sha__": "7d1aa74b685902b0"
+        "__sha__": "48e4e2204f1a16d1"
       },
       "sem_data": 699,
-      "total": 2497
+      "total": 2496
     },
-    "sha256": "f92579daecf38b77f03db8ee13f2d4ab341c8d57ad1b50d247fe1bf4befd1d6e"
+    "sha256": "db7d80b8e7e790e6277317d14284c7d5c1c7edf6d8c8a7fda7496d4094d57472"
   },
   "read_versao_lp_por_ad": {
     "bytes": 2,

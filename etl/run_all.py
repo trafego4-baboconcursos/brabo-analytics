@@ -107,6 +107,10 @@ def run_api_mode(since: str, until: str, only: str | None):
                             "--since", since, "--until", until],
         "google_ads":      [sys.executable, str(BASE / "etl_google_ads.py"),
                             "--since", since, "--until", until],
+        # TikTok Ads (Marketing API, app Brabo-Analytics). Sem TIKTOK_ACCESS_TOKEN no
+        # ambiente, o script avisa no log e sai com 0.
+        "tiktok_ads":      [sys.executable, str(BASE / "etl_tiktok_ads.py"),
+                            "--since", since, "--until", until],
         # Typeform removido do pipeline automático: conta cancelada, dados
         # agora vêm do backup em Supabase (frontend/db_readers/typeform.py).
         # etl_typeform.py continua existindo pra rodar manualmente se o
@@ -229,7 +233,7 @@ def main():
     mode.add_argument("--csv-mode",        action="store_true",  help="Importa via CSVs exportados manualmente")
 
     parser.add_argument("--until",          metavar="YYYY-MM-DD", default=datetime.now().strftime("%Y-%m-%d"))
-    parser.add_argument("--only",           metavar="SCRIPT",    help="Roda somente estas fontes (separadas por vírgula): active_campaign | meta_ads | google_ads | ac_campaigns | ac_ebook | ac_engajamento | whatsapp | instagram | sheets_contagem | ga4 | youtube")
+    parser.add_argument("--only",           metavar="SCRIPT",    help="Roda somente estas fontes (separadas por vírgula): active_campaign | meta_ads | google_ads | tiktok_ads | ac_campaigns | ac_ebook | ac_engajamento | whatsapp | instagram | sheets_contagem | ga4 | youtube")
     parser.add_argument("--campaign-folder", metavar="PATH",      help="Pasta da campanha (modo --csv-mode), ex: analises/[PBB-ABR-26]")
     parser.add_argument("--period",          metavar="YYYY-MM",   help="Período da campanha (modo --csv-mode), ex: 2026-04")
     args = parser.parse_args()

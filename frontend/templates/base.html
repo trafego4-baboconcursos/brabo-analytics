@@ -70,45 +70,11 @@
 </head>
 <body data-page="{{ page|default('page') }}">
 <div id="bs-topbar"><div id="bs-topbar-fill"></div></div>
-<div id="bs-loading-overlay">
-  <div class="bs-loading-spinner"></div>
-  <svg class="bs-loading-clock" viewBox="0 0 100 112" width="64" height="72" aria-hidden="true">
-    <path d="M50 2 L74 22 H26 Z" fill="currentColor"/>
-    <circle cx="50" cy="60" r="46" fill="none" stroke="currentColor" stroke-width="4"/>
-    <circle cx="50" cy="60" r="38" fill="none" stroke="currentColor" stroke-width="1" opacity=".4"/>
-    <line x1="50" y1="18" x2="50" y2="25" stroke="currentColor" stroke-width="3"/>
-    <line x1="50" y1="95" x2="50" y2="102" stroke="currentColor" stroke-width="3"/>
-    <line x1="8" y1="60" x2="15" y2="60" stroke="currentColor" stroke-width="3"/>
-    <line x1="85" y1="60" x2="92" y2="60" stroke="currentColor" stroke-width="3"/>
-    <line class="bs-clock-hour" x1="50" y1="60" x2="50" y2="38" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-    <line class="bs-clock-min" x1="50" y1="60" x2="50" y2="27" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
-    <circle cx="50" cy="60" r="3.5" fill="currentColor"/>
-  </svg>
-  <svg class="bs-loading-reticle" viewBox="0 0 100 100" width="64" height="64" aria-hidden="true">
-    <circle class="bs-ret-ring" cx="50" cy="50" r="44" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="6 6"/>
-    <circle cx="50" cy="50" r="30" fill="none" stroke="currentColor" stroke-width="1.5" opacity=".5"/>
-    <circle cx="50" cy="50" r="3" fill="currentColor"/>
-    <line x1="50" y1="2" x2="50" y2="16" stroke="currentColor" stroke-width="2.5"/>
-    <line x1="50" y1="84" x2="50" y2="98" stroke="currentColor" stroke-width="2.5"/>
-    <line x1="2" y1="50" x2="16" y2="50" stroke="currentColor" stroke-width="2.5"/>
-    <line x1="84" y1="50" x2="98" y2="50" stroke="currentColor" stroke-width="2.5"/>
-  </svg>
-  <svg class="bs-loading-web" viewBox="0 0 100 100" width="64" height="64" aria-hidden="true">
-    <circle cx="50" cy="50" r="14" fill="none" stroke="currentColor" stroke-width="1" opacity=".55"/>
-    <circle cx="50" cy="50" r="27" fill="none" stroke="currentColor" stroke-width="1" opacity=".4"/>
-    <circle cx="50" cy="50" r="40" fill="none" stroke="currentColor" stroke-width="1" opacity=".25"/>
-    <g class="bs-web-spokes" stroke="currentColor" stroke-width="1.5" opacity=".8">
-      <line x1="50" y1="50" x2="50" y2="6"/>
-      <line x1="50" y1="50" x2="80.3" y2="19.7"/>
-      <line x1="50" y1="50" x2="94" y2="50"/>
-      <line x1="50" y1="50" x2="80.3" y2="80.3"/>
-      <line x1="50" y1="50" x2="50" y2="94"/>
-      <line x1="50" y1="50" x2="19.7" y2="80.3"/>
-      <line x1="50" y1="50" x2="6" y2="50"/>
-      <line x1="50" y1="50" x2="19.7" y2="19.7"/>
-    </g>
-    <circle cx="50" cy="50" r="4" fill="currentColor"/>
-  </svg>
+<div id="bs-loading-overlay" data-fotos="/static/img/pensadores/">
+  <div class="bs-loading-spinner">
+    <div class="bs-loading-foto" aria-hidden="true"><img alt="" decoding="async"><span class="bs-loading-ini"></span></div>
+  </div>
+  {% include "_loading_pixel.html" %}
   <div class="bs-loading-quote" id="bs-loading-quote" aria-live="polite"><div class="q"></div><div class="a"></div></div>
 </div>
 
@@ -469,6 +435,15 @@
           </button>
           <button type="button" class="bs-theme-opt" data-theme-val="boss" onclick="bsSetTheme('boss')">
             <span class="bs-theme-dot" style="background:#141414;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08), inset 0 0 0 3px #d4a017"></span> Boss <i class="ti ti-crown" style="margin-left:auto;font-size:13px;opacity:.6"></i>
+          </button>
+          <button type="button" class="bs-theme-opt" data-theme-val="diretiva" onclick="bsSetTheme('diretiva')">
+            <span class="bs-theme-dot" style="background:#0b1016;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08), inset 0 0 0 3px #5b9bd5"></span> Diretiva Primária <i class="ti ti-robot" style="margin-left:auto;font-size:13px;opacity:.6"></i>
+          </button>
+          <button type="button" class="bs-theme-opt" data-theme-val="kevin" onclick="bsSetTheme('kevin')">
+            <span class="bs-theme-dot" style="background:#faf5ec;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12), inset 0 0 0 2px #c41e3a, inset 0 0 0 4px #1e6b45"></span> Esta Casa É Minha <i class="ti ti-home-heart" style="margin-left:auto;font-size:13px;opacity:.6"></i>
+          </button>
+          <button type="button" class="bs-theme-opt" data-theme-val="grinch" onclick="bsSetTheme('grinch')">
+            <span class="bs-theme-dot" style="background:#0d1a0f;box-shadow:inset 0 0 0 1px rgba(255,255,255,.08), inset 0 0 0 2px #6fa82f, inset 0 0 0 4px #e23b3b"></span> Quemlândia <i class="ti ti-christmas-tree" style="margin-left:auto;font-size:13px;opacity:.6"></i>
           </button>
           <div id="bs-custom-theme-opts"></div>
         </div>

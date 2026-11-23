@@ -209,6 +209,30 @@ def categorizar_campanha_meta(camp: str, launch_code: str | None = None,
     return etapa, temp, bucket, _montar_segmento(temp, bucket, modifier)
 
 
+def categorizar_campanha_tiktok(camp: str, launch_code: str | None = None) -> tuple[str, str, str, str]:
+    """``(etapa, temperatura, bucket, segmento)`` de uma campanha do TikTok Ads.
+
+    Convenção nova (``[TK][captação][quente]...``) resolve como no Meta. As
+    campanhas antigas do TikTok (2025 até PES-JAN-26) vêm em texto livre —
+    "[CADASTRO ESCREVENTE] Captação Quente [PES-JAN-26]" — e cairiam todas em
+    "Outros"; por isso cada dimensão tenta os colchetes e, sem achar, a
+    substring (como o Google faz com a etapa).
+    """
+    if _is_black(launch_code):
+        return categorizar_campanha_meta(camp, launch_code=launch_code)
+    camp = str(camp).lower()
+
+    def _dimensao(mapa_colchetes: dict[str, str], mapa_solto: dict[str, str]) -> str:
+        return (_primeiro_match(camp, mapa_colchetes, entre_colchetes=True)
+                or _primeiro_match(camp, mapa_solto, entre_colchetes=False) or "Outros")
+
+    etapa = _dimensao(ETAPA_MAP_META, ETAPA_MAP_GOOGLE)
+    temp = _dimensao(TEMPERATURA_MAP_META, TEMPERATURA_MAP_GOOGLE)
+    bucket = _dimensao(BUCKET_MAP, BUCKET_MAP)
+    modifier = _primeiro_match(camp, MODIFIER_MAP, entre_colchetes=True)
+    return etapa, temp, bucket, _montar_segmento(temp, bucket, modifier)
+
+
 def categorizar_campanha_google(camp: str, launch_code: str | None = None) -> tuple[str, str, str]:
     """``(etapa, temperatura, segmento)`` de uma campanha do Google Ads."""
     camp = str(camp).lower()

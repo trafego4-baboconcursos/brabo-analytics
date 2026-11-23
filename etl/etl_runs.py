@@ -64,3 +64,53 @@ def finish_run(
             )
     except Exception:
         logger.warning("Não foi possível registrar fim do ETL (run_id=%s)", run_id)
+
+
+def encerrar_orfas(motivo: str = "Interrompida: o scheduler reiniciou (deploy) durante a rodada") -> int:
+    """Fecha como 'error' toda rodada ainda 'running'. Chamar SÓ no boot do scheduler.
+
+    Um deploy mata o container no meio de uma rodada; o `finish_run` nunca roda e a linha
+    fica 'running' para sempre (viram dias de lixo no etl_runs e escondem se o ETL anda).
+    No boot nenhuma rodada deste processo existe ainda, então tudo que está 'running' é de um
+    processo morto. Se um container antigo ainda estiver terminando de verdade, o `finish_run`
+    dele sobrescreve o status depois (UPDATE por id) — sem perda.
+    Devolve quantas linhas fechou (0 se o banco estiver indisponível).
+    """
+    try:
+        from datetime import datetime, timezone
+        from sqlalchemy import text
+        with _engine().begin() as conn:
+            res = conn.execute(
+                text("""
+                    UPDATE etl_runs
+                       SET status = 'error', finished_at = :agora, error_message = :motivo
+                     WHERE status = 'running'
+                """),
+                {"agora": datetime.now(timezone.utc), "motivo": motivo},
+            )
+            return int(res.rowcount or 0)
+    except Exception:
+        logger.warning("Não foi possível encerrar as rodadas órfãs do etl_runs", exc_info=True)
+        return 0
+
+
+def minutos_desde_ultimo_ok(fontes: tuple[str, ...]) -> float | None:
+    """Minutos desde o fim da última rodada 'ok' de qualquer uma das `fontes` (None se nunca)."""
+    try:
+        from datetime import datetime, timezone
+        from sqlalchemy import bindparam, text
+        consulta = text(
+            "SELECT MAX(finished_at) FROM etl_runs WHERE status = 'ok' AND source IN :fontes"
+        ).bindparams(bindparam("fontes", expanding=True))
+        with _engine().connect() as conn:
+            ultimo = conn.execute(consulta, {"fontes": list(fontes)}).scalar()
+        if ultimo is None:
+            return None
+        if isinstance(ultimo, str):
+            ultimo = datetime.fromisoformat(ultimo)
+        if ultimo.tzinfo is None:
+            ultimo = ultimo.replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - ultimo).total_seconds() / 60.0
+    except Exception:
+        logger.warning("Não foi possível consultar a última rodada ok do etl_runs", exc_info=True)
+        return None

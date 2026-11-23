@@ -233,6 +233,14 @@ def _ordenar_detalhe(ls):
     return sorted(ls, key=lambda l: (l.data, l.transacao))
 
 
+def todas_as_vendas(linhas: list[LinhaComissao]) -> list[LinhaComissao]:
+    """Lista unificada da Visão geral (Rafael, 11/11/26): uma linha por venda, mais recente
+    primeiro. Participação fica de fora (repetiria a venda); IA entra, marcada na tela.
+    Recebe as linhas JÁ filtradas por `linhas_visiveis` (vendedor só vê as dele)."""
+    vendas = [l for l in linhas if l.papel in ("venda", PAPEL_IA)]
+    return sorted(vendas, key=lambda l: (l.data, l.transacao), reverse=True)
+
+
 def tabela_vendedores(linhas: list[LinhaComissao]) -> list[dict]:
     """Uma linha por vendedor (linhas de venda com código), ordenada pelo total da comissão."""
     por: dict[str, dict] = {}
@@ -448,6 +456,7 @@ def view_visao(res: ResultadoMes, periodo: Periodo, acesso: AcessoComercial,
         "total_vendedores": len(rk["linhas"]),
         "sem_data": perto if gestor else [],
         "sem_data_antigos": antigos if gestor else [],
+        "vendas": todas_as_vendas(proprias),
     }
 
 

@@ -1,0 +1,39 @@
+# Monitor da automação de boas-vindas no dia de abertura do carrinho
+# (página /boas-vindas, frontend/services/monitor_boas_vindas.py).
+#
+# Os produtos Hotmart de cada lançamento vêm do launch_config
+# (hotmart_produto_ids, só os ids numéricos) e o dia de abertura vem de
+# abertura_oficial_carrinho (ou carrinho_start_date, se aquele estiver vazio).
+# Aqui fica só o que não está no launch_config.
+#
+# Validado no carrinho do PES-NOV-26 (12/11/26): a automação 319 "Email Boas
+# Vindas EDM" é a mesma para os três cursos; o gatilho dela é a tag
+# [MENT] [VIT] <curso> adicionada (roda uma vez por contato). Quem não recebe
+# essa tag não entra, mesmo tendo a [MEN] [VIT] <curso> que vem da Hotmart.
+
+automacao_id: "319"
+automacao_nome: "Email Boas Vindas EDM"
+
+# Compra mais nova que isso ainda pode estar a caminho (a tag leva alguns
+# minutos para chegar no Active). Só depois disso conta como "fora".
+tolerancia_min: 15
+
+# De quanto em quanto tempo o site lê o Active e o banco no dia de abertura.
+intervalo_min: 5
+
+# Só os lançamentos com prefixo listado aqui têm monitor (o BV-26, por
+# exemplo, não usa esta automação). tmb_produto_like filtra a TMB, que não
+# grava o id do produto do launch_config.
+por_projeto:
+  PES:
+    curso: "TJSP"
+    tag_gatilho: "[MENT] [VIT] [TJSP]"
+    tmb_produto_like: "Mentoria Vital%cia - TJSP%"
+  PI:
+    curso: "INSS"
+    tag_gatilho: "[MENT] [VIT] [INSS]"
+    tmb_produto_like: "Mentoria Vital%cia - INSS%"
+  PBB:
+    curso: "Banco do Brasil"
+    tag_gatilho: "[MENT] [VIT] [BBSA]"
+    tmb_produto_like: "Mentoria Vital%cia - B%"

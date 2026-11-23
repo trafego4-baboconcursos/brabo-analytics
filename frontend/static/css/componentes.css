@@ -543,9 +543,11 @@ tr.linha-atual > td { background:var(--bs-accent-bg); }
 /* ── Table cell color helpers ───────────────────────────────────────── */
 .td-meta    { color:var(--meta-color); }
 .td-google  { color:var(--google-color); }
+.td-tiktok  { color:var(--tiktok-color); }
 /* Nome da plataforma em destaque dentro de textos de apoio (KPIs) */
 .plat-meta   { color:var(--meta-color); font-weight:700; }
 .plat-google { color:var(--google-color); font-weight:700; }
+.plat-tiktok { color:var(--tiktok-color); font-weight:700; }
 .plat-wa     { color:var(--whatsapp-text); font-weight:700; }
 .td-success { color:var(--bs-success); }
 .td-success-dark { color:#059669; }

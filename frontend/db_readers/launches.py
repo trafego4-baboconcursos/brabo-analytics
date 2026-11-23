@@ -225,6 +225,7 @@ _CONFIG_COLUNAS = {
     "carrinho_start_date":         _cfg_texto,
     "carrinho_end_date":           _cfg_texto,
     "abertura_oficial_carrinho":   _cfg_texto,
+    "abertura_oficial_hora":       _cfg_texto,
     "meta_faturamento":            _cfg_decimal,
     "depoimento_start_date":       _cfg_texto,
     "depoimento_end_date":         _cfg_texto,

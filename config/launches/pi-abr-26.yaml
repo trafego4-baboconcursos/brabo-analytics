@@ -1,0 +1,22 @@
+launch:
+  code: PI-ABR-26
+  client: Brabo Concursos
+  course:
+    code: PI
+    name: Projeto INSS
+
+youtube:
+  aulas:
+    - id: "ah6SY2jRS88"
+      label: "Aula 1 - Como Comecar DO ZERO para o INSS do Jeito Certo"
+    - id: "m3qoBLZ-URo"
+      label: "Aula 2 - Quanto Tempo Voce Precisa Estudar para Passar no INSS"
+    - id: "kSwP7aQ7ACI"
+      label: "Aula 3 - O Plano De Estudos PRONTO Para Passar No INSS"
+    - id: "HaDA-aDoHDU"
+      label: "Aula 4 - Como Estudar Todos os Dias"
+    - id: "Eawx7VAnL50"
+      label: "Aula 5 - Como Fazer o Que Voce Estuda Ficar na Sua Cabeca"
+
+filters:
+  campaign_name_contains: PI-ABR-26

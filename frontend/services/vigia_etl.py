@@ -49,14 +49,18 @@ ATRASO_INICIAL_MIN = 5  # o boot do site é pesado; a primeira checagem espera
 LIMITES_H: dict[str, float] = {
     "meta_ads": 2.0,
     "google_ads": 2.0,
+    "tiktok_ads": 2.0,   # ciclo rápido, como Meta/Google (desde 13/11/26)
     "active_campaign": 3.0,
 }
 NOMES: dict[str, str] = {
     "meta_ads": "Meta Ads",
     "google_ads": "Google Ads",
+    "tiktok_ads": "TikTok Ads",
     "active_campaign": "Active Campaign",
 }
 HISTORICO = "historico_utm"
+# Mesma regex do trigger (etl/historico_utm_trigger.REGEX_CODIGO): código de lançamento dentro da utm_campaign.
+REGEX_CODIGO_UTM = r"\y(?:(?:PBB|PES|PI)-\w{3}|BV)-\d{2}\y"
 
 # Debriefing: o aquecimento regrava o snapshot a cada ~30 min e o ETL avisa a cada hora. Mais que isso sem
 # renovar um lançamento ATIVO = o servidor não está conseguindo gravar (ver ULTIMA_FALHA em debriefing_build).
@@ -85,7 +89,8 @@ def avaliar(ultimas_ok: dict[str, datetime | None],
             historico_ultimo: datetime | None,
             agora: datetime,
             snapshots: dict[str, datetime | None] | None = None,
-            falhas: dict[str, dict] | None = None) -> list[dict]:
+            falhas: dict[str, dict] | None = None,
+            leads_sem_historico: int | None = None) -> list[dict]:
     """Regra pura: o que está errado agora. Sem banco, para dar pra testar.
 
     `ultimas_ok`: fonte → horário da última carga OK (UTC), ou None.
@@ -93,6 +98,9 @@ def avaliar(ultimas_ok: dict[str, datetime | None],
     quando a tabela não existe (aí a checagem do histórico não se aplica).
     `snapshots`: lançamento ativo → quando o snapshot do debriefing foi calculado pela última vez;
     `falhas`: lançamento → último motivo registrado pelo aquecimento (debriefing_build.ULTIMA_FALHA).
+    `leads_sem_historico`: cadastros novos (UTM de lançamento) que ficaram sem linha no histórico. Desde 08/10/26 o
+    histórico é gravado por trigger e só age quando há contato novo ou UTM trocada: sem cadastro novo ele
+    fica parado de forma normal (madrugada, fim da captação). 0 = não é problema; None = não medido (regra antiga).
     """
     problemas: list[dict] = []
     for fonte, limite in LIMITES_H.items():
@@ -107,7 +115,7 @@ def avaliar(ultimas_ok: dict[str, datetime | None],
 
     ac = ultimas_ok.get("active_campaign")
     ac_ok = ac is not None and agora - ac <= timedelta(hours=LIMITES_H["active_campaign"])
-    if ac_ok and historico_ultimo is not None:
+    if ac_ok and historico_ultimo is not None and leads_sem_historico != 0:
         # O histórico é gravado na mesma passada do AC, antes da `leads`. Se o
         # AC carregou e o histórico ficou para trás mais que o limite do AC, o
         # ETL está rodando sem gravar — código antigo no serviço ou gancho
@@ -117,8 +125,9 @@ def avaliar(ultimas_ok: dict[str, datetime | None],
                 "tipo": "historico_parado",
                 "fonte": HISTORICO,
                 "texto": (f"o Active Campaign carregou às {_local(ac)}, mas o histórico de UTM "
-                          f"não é gravado desde {_local(historico_ultimo)} — o serviço do ETL "
-                          f"está com a versão atual?"),
+                          f"não é gravado desde {_local(historico_ultimo)}"
+                          + (f" e há {leads_sem_historico} cadastro(s) novo(s) sem histórico" if leads_sem_historico else "")
+                          + " — o serviço do ETL está com a versão atual?"),
             })
 
     for codigo, calculado in (snapshots or {}).items():
@@ -160,11 +169,12 @@ def _snapshots_ativos() -> dict[str, datetime | None]:
     return {c: achados.get(c) for c in codigos}
 
 
-def _ler_estado_banco() -> tuple[dict[str, datetime | None], datetime | None]:
+def _ler_estado_banco() -> tuple[dict[str, datetime | None], datetime | None, int | None]:
     from frontend.db import _get_engine  # noqa: PLC0415
 
     ultimas: dict[str, datetime | None] = {f: None for f in LIMITES_H}
     historico: datetime | None = None
+    sem_historico: int | None = None
     with _get_engine().connect() as conn:
         for fonte, quando in conn.execute(text("""
             SELECT source, max(finished_at) FROM etl_runs
@@ -187,7 +197,24 @@ def _ler_estado_banco() -> tuple[dict[str, datetime | None], datetime | None]:
         if "does not exist" not in str(e):
             raise
         historico = None  # tabela ainda não existe: a checagem não se aplica
-    return ultimas, historico
+    if historico is not None:
+        try:
+            with _get_engine().connect() as conn:
+                # Cadastro novo com UTM de lançamento depois da última escrita do histórico e sem linha dele (a
+                # linha do trigger tem ultimo_visto_em >= created_at). Sem isso, "histórico parado" confunde
+                # silêncio de cadastros (madrugada, captação encerrada) com falha de gravação.
+                sem_historico = int(conn.execute(text("""
+                    SELECT count(*) FROM leads l
+                    WHERE l.created_at > :desde
+                      AND l.utm_campaign ~* :rx
+                      AND NOT EXISTS (SELECT 1 FROM lead_utm_lancamento h
+                                      WHERE h.contact_id = l.id::text
+                                        AND h.ultimo_visto_em >= l.created_at - interval '5 minutes')
+                """), {"desde": historico - timedelta(hours=1), "rx": REGEX_CODIGO_UTM}).scalar() or 0)
+        except Exception:
+            logger.exception("Vigia do ETL: não consegui contar cadastros sem histórico (regra antiga vale)")
+            sem_historico = None
+    return ultimas, historico, sem_historico
 
 
 def _enviar_slack(mensagem: str) -> bool:
@@ -255,13 +282,13 @@ def _mensagem_problema(problemas: list[dict], lembrete: bool) -> str:
 def checar_e_avisar(agora: datetime | None = None) -> list[dict]:
     """Uma rodada do vigia. Devolve os problemas encontrados."""
     agora = agora or datetime.now(timezone.utc)
-    ultimas, historico = _ler_estado_banco()
+    ultimas, historico, sem_historico = _ler_estado_banco()
     try:
         from frontend.services.debriefing_build import ULTIMA_FALHA  # noqa: PLC0415
-        problemas = avaliar(ultimas, historico, agora, _snapshots_ativos(), ULTIMA_FALHA)
+        problemas = avaliar(ultimas, historico, agora, _snapshots_ativos(), ULTIMA_FALHA, leads_sem_historico=sem_historico)
     except Exception:
         logger.exception("Vigia: checagem do snapshot do debriefing falhou; seguindo só com o ETL")
-        problemas = avaliar(ultimas, historico, agora)
+        problemas = avaliar(ultimas, historico, agora, leads_sem_historico=sem_historico)
     tinha = bool(ESTADO["problemas"])
 
     if problemas and not tinha:

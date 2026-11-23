@@ -18,7 +18,7 @@ import argparse
 import pandas as pd
 from datetime import datetime, timezone
 from pathlib import Path
-from sqlalchemy import text
+from sqlalchemy import text, bindparam
 from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -81,7 +81,8 @@ def _get_access_token() -> str:
     return creds.token
 
 
-def fetch_report(since: str, until: str, property_ids: list[str] | None = None) -> pd.DataFrame:
+def fetch_report(since: str, until: str, property_ids: list[str] | None = None,
+                 falhas: dict | None = None) -> pd.DataFrame:
     property_ids = property_ids or [
         p.strip() for p in os.environ["GA4_PROPERTY_IDS"].split(",") if p.strip()
     ]
@@ -92,47 +93,58 @@ def fetch_report(since: str, until: str, property_ids: list[str] | None = None) 
 
     records = []
     for prop_id in property_ids:
-        logger.info("Buscando GA4 property %s (%s)", prop_id, PROPERTY_NAMES.get(prop_id, "?"))
-        offset = 0
-        while True:
-            payload = {
-                "dateRanges": [{"startDate": since, "endDate": until}],
-                "dimensions": [{"name": d} for d in DIMENSIONS],
-                "metrics": [{"name": m} for m in METRICS],
-                "limit": PAGE_SIZE,
-                "offset": offset,
-            }
-            r = http_post(f"{DATA_API}/properties/{prop_id}:runReport",
-                          headers=headers, json=payload)
-            data = r.json()
-            rows = data.get("rows", [])
-            for row in rows:
-                dims = [v.get("value", "") for v in row.get("dimensionValues", [])]
-                mets = [v.get("value", "0") for v in row.get("metricValues", [])]
-                raw_date = dims[0]
-                date_iso = f"{raw_date[:4]}-{raw_date[4:6]}-{raw_date[6:8]}" if len(raw_date) == 8 else raw_date
-                campaign = dims[4]
-                records.append({
-                    "date":              date_iso,
-                    "property_id":       prop_id,
-                    "property_name":     PROPERTY_NAMES.get(prop_id, prop_id),
-                    "hostname":          dims[1],
-                    "source":            dims[2],
-                    "medium":            dims[3],
-                    "campaign":          campaign,
-                    "utm_term":          dims[5],
-                    "landing_page":      dims[6],
-                    "lancamento_codigo": resolve_launch_code(campaign, date_iso),
-                    "sessions":          int(mets[0] or 0),
-                    "users":             int(mets[1] or 0),
-                    "engaged_sessions":  int(mets[2] or 0),
-                    "key_events":        float(mets[3] or 0),
-                    "avg_session_duration": round(float(mets[4] or 0), 2),
-                })
-            row_count = data.get("rowCount", 0)
-            offset += len(rows)
-            if not rows or offset >= row_count:
-                break
+        if prop_id in (falhas or {}):
+            continue  # já falhou neste ciclo: não repete a espera (nem gasta cota de erro)
+        prop_records: list = []
+        try:
+            logger.info("Buscando GA4 property %s (%s)", prop_id, PROPERTY_NAMES.get(prop_id, "?"))
+            offset = 0
+            while True:
+                payload = {
+                    "dateRanges": [{"startDate": since, "endDate": until}],
+                    "dimensions": [{"name": d} for d in DIMENSIONS],
+                    "metrics": [{"name": m} for m in METRICS],
+                    "limit": PAGE_SIZE,
+                    "offset": offset,
+                }
+                r = http_post(f"{DATA_API}/properties/{prop_id}:runReport",
+                              headers=headers, json=payload)
+                data = r.json()
+                rows = data.get("rows", [])
+                for row in rows:
+                    dims = [v.get("value", "") for v in row.get("dimensionValues", [])]
+                    mets = [v.get("value", "0") for v in row.get("metricValues", [])]
+                    raw_date = dims[0]
+                    date_iso = f"{raw_date[:4]}-{raw_date[4:6]}-{raw_date[6:8]}" if len(raw_date) == 8 else raw_date
+                    campaign = dims[4]
+                    prop_records.append({
+                        "date":              date_iso,
+                        "property_id":       prop_id,
+                        "property_name":     PROPERTY_NAMES.get(prop_id, prop_id),
+                        "hostname":          dims[1],
+                        "source":            dims[2],
+                        "medium":            dims[3],
+                        "campaign":          campaign,
+                        "utm_term":          dims[5],
+                        "landing_page":      dims[6],
+                        "lancamento_codigo": resolve_launch_code(campaign, date_iso),
+                        "sessions":          int(mets[0] or 0),
+                        "users":             int(mets[1] or 0),
+                        "engaged_sessions":  int(mets[2] or 0),
+                        "key_events":        float(mets[3] or 0),
+                        "avg_session_duration": round(float(mets[4] or 0), 2),
+                    })
+                row_count = data.get("rowCount", 0)
+                offset += len(rows)
+                if not rows or offset >= row_count:
+                    break
+        except Exception as exc:  # noqa: BLE001 - uma propriedade fora do ar não derruba as outras
+            logger.error("GA4 property %s (%s) FALHOU, seguindo com as demais: %s",
+                         prop_id, PROPERTY_NAMES.get(prop_id, "?"), str(exc)[:160])
+            if falhas is not None:
+                falhas[prop_id] = str(exc)[:160]
+            continue
+        records.extend(prop_records)
 
     df = pd.DataFrame(records)
     logger.info("GA4: %d linhas no total (%s a %s)", len(df), since, until)
@@ -159,7 +171,8 @@ EVENTS_DIMENSIONS = [
 EVENTS_METRICS = ["eventCount", "sessions"]
 
 
-def fetch_events_report(since: str, until: str, property_ids: list[str] | None = None) -> pd.DataFrame:
+def fetch_events_report(since: str, until: str, property_ids: list[str] | None = None,
+                        falhas: dict | None = None) -> pd.DataFrame:
     """Sessões/eventos de generate_lead e qualify_lead por landing page —
     alimenta o funil de conversão da página de captura (Captação/Pré-Quali).
     Consulta separada do fetch_report principal: juntar eventName na mesma
@@ -174,44 +187,55 @@ def fetch_events_report(since: str, until: str, property_ids: list[str] | None =
 
     records = []
     for prop_id in property_ids:
-        offset = 0
-        while True:
-            payload = {
-                "dateRanges": [{"startDate": since, "endDate": until}],
-                "dimensions": [{"name": d} for d in EVENTS_DIMENSIONS],
-                "metrics": [{"name": m} for m in EVENTS_METRICS],
-                "dimensionFilter": {
-                    "filter": {
-                        "fieldName": "eventName",
-                        "inListFilter": {"values": EVENTOS_FUNIL},
-                    }
-                },
-                "limit": PAGE_SIZE,
-                "offset": offset,
-            }
-            r = http_post(f"{DATA_API}/properties/{prop_id}:runReport",
-                          headers=headers, json=payload)
-            data = r.json()
-            rows = data.get("rows", [])
-            for row in rows:
-                dims = [v.get("value", "") for v in row.get("dimensionValues", [])]
-                mets = [v.get("value", "0") for v in row.get("metricValues", [])]
-                raw_date = dims[0]
-                date_iso = f"{raw_date[:4]}-{raw_date[4:6]}-{raw_date[6:8]}" if len(raw_date) == 8 else raw_date
-                campaign = dims[1]
-                records.append({
-                    "date":              date_iso,
-                    "property_id":       prop_id,
-                    "landing_page":      dims[2],
-                    "event_name":        dims[3],
-                    "lancamento_codigo": resolve_launch_code(campaign, date_iso),
-                    "event_count":       int(mets[0] or 0),
-                    "sessions":          int(mets[1] or 0),
-                })
-            row_count = data.get("rowCount", 0)
-            offset += len(rows)
-            if not rows or offset >= row_count:
-                break
+        if prop_id in (falhas or {}):
+            continue  # já falhou neste ciclo: não repete a espera (nem gasta cota de erro)
+        prop_records: list = []
+        try:
+            offset = 0
+            while True:
+                payload = {
+                    "dateRanges": [{"startDate": since, "endDate": until}],
+                    "dimensions": [{"name": d} for d in EVENTS_DIMENSIONS],
+                    "metrics": [{"name": m} for m in EVENTS_METRICS],
+                    "dimensionFilter": {
+                        "filter": {
+                            "fieldName": "eventName",
+                            "inListFilter": {"values": EVENTOS_FUNIL},
+                        }
+                    },
+                    "limit": PAGE_SIZE,
+                    "offset": offset,
+                }
+                r = http_post(f"{DATA_API}/properties/{prop_id}:runReport",
+                              headers=headers, json=payload)
+                data = r.json()
+                rows = data.get("rows", [])
+                for row in rows:
+                    dims = [v.get("value", "") for v in row.get("dimensionValues", [])]
+                    mets = [v.get("value", "0") for v in row.get("metricValues", [])]
+                    raw_date = dims[0]
+                    date_iso = f"{raw_date[:4]}-{raw_date[4:6]}-{raw_date[6:8]}" if len(raw_date) == 8 else raw_date
+                    campaign = dims[1]
+                    prop_records.append({
+                        "date":              date_iso,
+                        "property_id":       prop_id,
+                        "landing_page":      dims[2],
+                        "event_name":        dims[3],
+                        "lancamento_codigo": resolve_launch_code(campaign, date_iso),
+                        "event_count":       int(mets[0] or 0),
+                        "sessions":          int(mets[1] or 0),
+                    })
+                row_count = data.get("rowCount", 0)
+                offset += len(rows)
+                if not rows or offset >= row_count:
+                    break
+        except Exception as exc:  # noqa: BLE001 - uma propriedade fora do ar não derruba as outras
+            logger.error("GA4 property %s (%s) FALHOU, seguindo com as demais: %s",
+                         prop_id, PROPERTY_NAMES.get(prop_id, "?"), str(exc)[:160])
+            if falhas is not None:
+                falhas[prop_id] = str(exc)[:160]
+            continue
+        records.extend(prop_records)
 
     df = pd.DataFrame(records)
     logger.info("GA4 eventos: %d linhas no total (%s a %s)", len(df), since, until)
@@ -243,19 +267,31 @@ def ensure_table_events(engine):
                 conn.execute(text(stmt))
 
 
-def upsert_events(df: pd.DataFrame, since: str, until: str):
+def upsert_events(df: pd.DataFrame, since: str, until: str, props_ok: list[str] | None = None):
     if not validate_dataframe(df, _GA4_EVENTS_REQUIRED_COLS, TABLE_EVENTS, logger):
         return
     df["updated_at"] = datetime.now(timezone.utc).isoformat()
     engine = get_engine()
     ensure_table_events(engine)
     with engine.begin() as conn:
-        conn.execute(
-            text(f"DELETE FROM {TABLE_EVENTS} WHERE date BETWEEN :s AND :u"),
-            {"s": since, "u": until},
-        )
+        _delete_janela(conn, TABLE_EVENTS, since, until, props_ok)
     df.to_sql(TABLE_EVENTS, engine, if_exists="append", index=False, method="multi", chunksize=500)
     logger.info("Upsert concluído: %d linhas gravadas em '%s'", len(df), TABLE_EVENTS)
+
+
+def _delete_janela(conn, tabela: str, since: str, until: str, props_ok: list[str] | None) -> None:
+    """Apaga a janela antes de regravar. Com `props_ok`, só das propriedades que responderam:
+    uma propriedade que falhou (GA4 502/429) mantém o que já estava gravado em vez de ficar zerada."""
+    if props_ok is None:
+        conn.execute(text(f"DELETE FROM {tabela} WHERE date BETWEEN :s AND :u"), {"s": since, "u": until})
+        return
+    if not props_ok:
+        return
+    conn.execute(
+        text(f"DELETE FROM {tabela} WHERE date BETWEEN :s AND :u AND property_id IN :ids")
+        .bindparams(bindparam("ids", expanding=True)),
+        {"s": since, "u": until, "ids": [str(x) for x in props_ok]},
+    )
 
 
 DDL = f"""
@@ -292,17 +328,14 @@ def ensure_table(engine):
                 conn.execute(text(stmt))
 
 
-def upsert(df: pd.DataFrame, since: str, until: str):
+def upsert(df: pd.DataFrame, since: str, until: str, props_ok: list[str] | None = None):
     if not validate_dataframe(df, _GA4_REQUIRED_COLS, TABLE, logger):
         return
     df["updated_at"] = datetime.now(timezone.utc).isoformat()
     engine = get_engine()
     ensure_table(engine)
     with engine.begin() as conn:
-        conn.execute(
-            text(f"DELETE FROM {TABLE} WHERE date BETWEEN :s AND :u"),
-            {"s": since, "u": until},
-        )
+        _delete_janela(conn, TABLE, since, until, props_ok)
     df.to_sql(TABLE, engine, if_exists="append", index=False, method="multi", chunksize=500)
     logger.info("Upsert concluído: %d linhas gravadas em '%s'", len(df), TABLE)
 
@@ -315,11 +348,21 @@ def main():
     args = parser.parse_args()
 
     props = [p.strip() for p in args.properties.split(",")] if args.properties else None
-    df = fetch_report(args.since, args.until, props)
-    upsert(df, args.since, args.until)
+    todas = props or [p.strip() for p in os.environ["GA4_PROPERTY_IDS"].split(",") if p.strip()]
+    falhas: dict = {}   # property_id -> motivo; compartilhado: quem falhou no 1º relatório não é repetido no 2º
+    df = fetch_report(args.since, args.until, props, falhas)
+    upsert(df, args.since, args.until, [p for p in todas if p not in falhas])
 
-    df_events = fetch_events_report(args.since, args.until, props)
-    upsert_events(df_events, args.since, args.until)
+    df_events = fetch_events_report(args.since, args.until, props, falhas)
+    upsert_events(df_events, args.since, args.until, [p for p in todas if p not in falhas])
+
+    if falhas:
+        # Grava o que deu e SINALIZA: etl_runs mostra 'error' com o nome da propriedade em vez de a fonte inteira
+        # ficar sem dado por causa de uma só.
+        nomes = ", ".join(f"{p} ({PROPERTY_NAMES.get(p, '?')})" for p in falhas)
+        logger.error("GA4: %d de %d propriedades falharam e ficaram com o dado anterior: %s",
+                     len(falhas), len(todas), nomes)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

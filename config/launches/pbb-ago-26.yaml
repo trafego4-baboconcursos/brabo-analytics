@@ -1,0 +1,24 @@
+launch:
+  code: PBB-AGO-26
+  client: Brabo Concursos
+  course:
+    code: PBB
+    name: Projeto Banco do Brasil
+  date_range:
+    start: 2026-08-17
+    end: 2026-08-21
+
+youtube:
+  channel_id: MINE
+  aulas:
+    - id: "Xli_i3xfNZ8"
+      label: "Aula 1 - 17/08"
+    - id: "leC2Lkm1MpA"
+      label: "Aula 2 - 18/08"
+    - id: "_SFzLBFCd9M"
+      label: "Aula 3 - 19/08"
+    - id: "M9HSEia1zh4"
+      label: "Aula 4 - 20/08"
+
+filters:
+  campaign_name_contains: PBB-AGO-26

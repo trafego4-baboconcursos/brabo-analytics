@@ -4,6 +4,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.concurrency import run_in_threadpool
 
+from frontend.db_readers.launches import get_platform_thumbnails
 from frontend.db_readers.lp_pagina import read_landing_pages, remover_oficial, salvar_oficial
 from frontend.db_readers.publicos import read_publicos
 from frontend.core import (
@@ -172,8 +173,16 @@ async def perpetuo_page(request: Request, vertical: str, launch_code: str | None
     except Exception:
         logger.exception("Perpétuo: falha ao montar a visão mês a mês")
     nome = PERPETUO_VERTICALS.get(vertical, {}).get("nome", vertical)
+    # Miniaturas dos criativos (ad_creatives do pseudo-lançamento PERPETUO-*). Falha só deixa a coluna vazia.
+    thumbs: dict = {}
+    codigo = PERPETUO_VERTICALS.get(vertical, {}).get("codigo")
+    if codigo:
+        try:
+            thumbs = await run_in_threadpool(get_platform_thumbnails, codigo)
+        except Exception:
+            logger.exception("Perpétuo: falha ao buscar miniaturas de %s", vertical)
     ctx = _base_ctx(request, "perpetuo", nome, launch, launches,
-                    perpetuo=detail, perpetuo_mensal=mensal)
+                    perpetuo=detail, perpetuo_mensal=mensal, drive_thumbnails=thumbs)
     return templates.TemplateResponse("perpetuo.html", ctx)
 
 
@@ -183,7 +192,17 @@ async def distribuicao_page(request: Request, username: str, launch_code: str | 
     launches = await run_in_threadpool(get_launches)
     launch = resolve_launch(launch_code, launches)
     detail = await run_in_threadpool(read_distribuicao, username, days, bool(compare), inicio, fim)
-    ctx = _base_ctx(request, "distribuicao", f"@{username}", launch, launches, distrib=detail)
+    # Miniaturas dos criativos: o pseudo-lançamento DISTRIBUICAO-<EXPERT> tem linhas em ad_creatives
+    # (ETL do Meta). Falha aqui não pode derrubar a página, só deixa a coluna vazia.
+    thumbs: dict = {}
+    if detail and detail.get("codigo"):
+        try:
+            for cod in detail.get("codigos") or [detail["codigo"]]:
+                thumbs = {**await run_in_threadpool(get_platform_thumbnails, cod), **thumbs}
+        except Exception:
+            logger.exception("Distribuição: falha ao buscar miniaturas de %s", username)
+    ctx = _base_ctx(request, "distribuicao", f"@{username}", launch, launches, distrib=detail,
+                    drive_thumbnails=thumbs)
     return templates.TemplateResponse("distribuicao.html", ctx)
 
 

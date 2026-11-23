@@ -1,0 +1,62 @@
+{# Resumo do score por lead na /leads (frontend/services/lead_score.py::resumo_painel).
+   Escada de compra por decil (nota com origem) e por faixa (só pesquisa), com o veredito «estamos no caminho certo?». #}
+{% set cores = {"ok": ("var(--bs-success-bg)", "var(--bs-success)"), "cedo": ("var(--bs-surface)", "var(--bs-ink-muted)"),
+                "atencao": ("var(--bs-warning-bg)", "var(--bs-warning)"), "ruim": ("var(--bs-danger-bg)", "var(--bs-danger)")} %}
+{% set icones = {"ok": "ti-circle-check", "cedo": "ti-hourglass", "atencao": "ti-alert-triangle", "ruim": "ti-alert-octagon"} %}
+{% set cor = cores[r.estado] %}
+<div style="background:{{ cor[0] }};border-left:4px solid {{ cor[1] }};border-radius:8px;padding:16px;margin-bottom:24px;">
+  <div style="font-weight:600;font-size:14px;"><i class="ti {{ icones[r.estado] }}" style="color:{{ cor[1] }}"></i> {{ r.texto }}</div>
+  <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:8px;">
+    {{ r.compradores | num }} compradores em {{ r.total | num }} leads ({{ ("%.2f" | format(r.base)) | replace('.', ',') }}% de conversão).
+    Os 30% de maior nota (decis 8–10) compraram <strong>{{ ("%.2f" | format(r.t_topo)) | replace('.', ',') }}%</strong>;
+    os 30% de menor (decis 1–3), <strong>{{ ("%.2f" | format(r.t_fundo)) | replace('.', ',') }}%</strong>{% if r.razao %}
+    — <strong>{{ ("%.1f" | format(r.razao)) | replace('.', ',') }}×</strong>{% endif %}.
+    {% if r.gerado_em %}Calculado em {{ r.gerado_em }} (atualiza a cada 30 min, junto com as vendas).{% endif %}
+  </div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:24px;">
+  <div>
+    <h3 style="font-size:13px;margin:0 0 8px">Por decil da nota com origem (10 = melhor)</h3>
+    <div class="table-wrap" data-no-filter>
+      <table class="table-compact" style="font-size:12px;">
+        <thead><tr><th>Decil</th><th>Leads</th><th>Compradores</th><th>Taxa de compra</th><th title="Taxa do decil ÷ taxa geral">vs. média</th></tr></thead>
+        <tbody>
+        {% for d in r.decis %}
+          <tr>
+            <td>{{ d.decil }}</td>
+            <td class="numero">{{ d.leads | num }}</td>
+            <td class="numero">{{ d.compradores | num }}</td>
+            <td class="numero"><strong>{{ ("%.2f" | format(d.taxa)) | replace('.', ',') }}%</strong></td>
+            <td class="numero">{{ ("%.1f" | format(d.lift)) | replace('.', ',') }}×</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div>
+    <h3 style="font-size:13px;margin:0 0 8px">Só pela pesquisa (a do debriefing)</h3>
+    <div class="table-wrap" data-no-filter>
+      <table class="table-compact" style="font-size:12px;">
+        <thead><tr><th>Faixa</th><th>Leads</th><th>Compradores</th><th>Taxa de compra</th></tr></thead>
+        <tbody>
+        {% set rotulos = {"A": "A — respondeu, perfil forte", "B": "B — respondeu, perfil médio", "C": "C — não respondeu"} %}
+        {% for f in r.faixas %}
+          <tr>
+            <td>{{ rotulos[f.faixa] }}</td>
+            <td class="numero">{{ f.leads | num }}</td>
+            <td class="numero">{{ f.compradores | num }}</td>
+            <td class="numero"><strong>{{ ("%.2f" | format(f.taxa)) | replace('.', ',') }}%</strong></td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:8px;">
+      Entre os {{ r.nr_total | num }} que <strong>não responderam</strong> a pesquisa, a metade de maior nota com origem comprou
+      <strong>{{ ("%.2f" | format(r.nr_alta)) | replace('.', ',') }}%</strong> e a de menor,
+      <strong>{{ ("%.2f" | format(r.nr_baixa)) | replace('.', ',') }}%</strong> — é onde a pesquisa sozinha não separa ninguém.
+    </div>
+  </div>
+</div>

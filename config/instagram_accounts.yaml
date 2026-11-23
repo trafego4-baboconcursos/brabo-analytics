@@ -23,3 +23,7 @@ distribuicao_extra:
     # @braboconcursos É o perfil do Ivan Neto (confirmado em 22/10/26). As campanhas "[ivan neto]" e
     # "[brabo concursos]" são do mesmo perfil: em /lancamentos somam num cartão só.
     backup_de: "braboconcursos"
+  # Brabo Editora (livros/planner): campanhas "[distribuição]...[brabo editora]" no Meta e no TikTok.
+  # Sem Instagram cadastrado aqui, então fica só no lado pago (menu Distribuição e cartão de /lancamentos).
+  - name: "Brabo Editora"
+    username: "brabo-editora"   # chave interna de rota, nao e um @ do Instagram

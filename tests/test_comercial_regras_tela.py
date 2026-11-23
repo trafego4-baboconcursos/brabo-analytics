@@ -518,9 +518,14 @@ def test_acessos(banco):
     with pytest.raises(com.EscritaRecusada) as e:
         com.gravar_acesso("x@teste.local", "vendedor", "AT77", "g@x")
     assert e.value.codigo == "vendedor_nao_encontrado"
-    com.gravar_acesso("pri@teste.local", "coordenador", "AT9", "g@x")  # código some fora de vendedor
+    com.gravar_acesso("pri@teste.local", "coordenador", None, "g@x")  # gestor sem código
     assert banco.acessos["pri@teste.local"] == ("coordenador", None)
     assert banco.historico[-1]["antes"] == "vendedor (AT9)" and banco.historico[-1]["depois"] == "coordenador"
+    com.gravar_acesso("pri@teste.local", "coordenador", "AT9", "g@x")  # gestor que também vende
+    assert banco.acessos["pri@teste.local"] == ("coordenador", "AT9")
+    com.gravar_acesso("pri@teste.local", "consulta", "AT9", "g@x")  # consulta nunca tem código
+    assert banco.acessos["pri@teste.local"] == ("consulta", None)
+    com.gravar_acesso("pri@teste.local", "coordenador", None, "g@x")
     com.remover_acesso("pri@teste.local", "g@x")
     assert "pri@teste.local" not in banco.acessos
     with pytest.raises(com.EscritaRecusada):
@@ -887,6 +892,19 @@ def test_acesso_novo_limpa_cache_e_nao_invalida(cli):
     r = _como(cli, "master@teste.local").post("/comercial/regras/acessos", data={
         "acao": "gravar", "email": "nova@teste.local", "nivel": "vendedor", "vendedor_codigo": "AT77"})
     assert r.headers["location"].endswith("erro=vendedor_nao_encontrado#acessos")
+
+
+def test_coordenador_que_vende_guarda_codigo_e_consulta_nao(cli):
+    """Rafael (coordenador) também vende como AT12 (18/11/26): o código é opcional para gestor."""
+    _como(cli, "master@teste.local").post("/comercial/regras/acessos", data={
+        "acao": "gravar", "email": "coord2@teste.local", "nivel": "coordenador", "vendedor_codigo": "AT9"})
+    assert cli.banco.acessos["coord2@teste.local"] == ("coordenador", "AT9")
+    _como(cli, "master@teste.local").post("/comercial/regras/acessos", data={
+        "acao": "gravar", "email": "coord3@teste.local", "nivel": "coordenador", "vendedor_codigo": ""})
+    assert cli.banco.acessos["coord3@teste.local"] == ("coordenador", None)
+    _como(cli, "master@teste.local").post("/comercial/regras/acessos", data={
+        "acao": "gravar", "email": "fin2@teste.local", "nivel": "consulta", "vendedor_codigo": "AT9"})
+    assert cli.banco.acessos["fin2@teste.local"] == ("consulta", None)
 
 
 def test_vendedor_renomear_invalida_todos_ativo_nao(cli):

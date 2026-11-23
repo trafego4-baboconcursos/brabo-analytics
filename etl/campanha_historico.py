@@ -48,6 +48,7 @@ from logger import get_logger  # noqa: E402
 from nomenclatura import (  # noqa: E402  (src/nomenclatura.py)
     categorizar_campanha_google,
     categorizar_campanha_meta,
+    categorizar_campanha_tiktok,
 )
 
 logger = get_logger("etl.campanha_historico")
@@ -125,7 +126,7 @@ def classificar(df: pd.DataFrame, plataforma: str) -> pd.DataFrame:
     ao que `frontend/db_readers/ads_meta.py` faz na leitura, para os dois lados
     darem exatamente o mesmo resultado.
     """
-    colunas = COLUNAS_META if plataforma == "meta" else COLUNAS_GOOGLE
+    colunas = COLUNAS_GOOGLE if plataforma == "google" else COLUNAS_META
     if df.empty:
         for coluna in colunas:
             df[coluna] = pd.Series(dtype="object")
@@ -142,6 +143,9 @@ def classificar(df: pd.DataFrame, plataforma: str) -> pd.DataFrame:
             categorizar_campanha_meta(nome, launch_code=codigo, legacy=uses_legacy_ad_codes(codigo))
             for nome, codigo in zip(nomes, codigos)
         ]
+    elif plataforma == "tiktok":
+        # Mesmas 4 colunas do Meta; as campanhas antigas em texto livre exigem o fallback por substring.
+        resultado = [categorizar_campanha_tiktok(nome, launch_code=codigo) for nome, codigo in zip(nomes, codigos)]
     else:
         resultado = [
             categorizar_campanha_google(nome, launch_code=codigo)
@@ -192,7 +196,7 @@ def preparar(
 
     df = classificar(df, plataforma)
 
-    colunas = COLUNAS_META if plataforma == "meta" else COLUNAS_GOOGLE
+    colunas = COLUNAS_GOOGLE if plataforma == "google" else COLUNAS_META
     try:
         existentes = _colunas_da_tabela(conn, tabela)
     except Exception:

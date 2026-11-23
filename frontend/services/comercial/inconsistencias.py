@@ -145,8 +145,10 @@ def ler_ajuste(pct_txt: str | None, base_txt: str | None) -> tuple[Decimal | Non
 # ---------------------------------------------------------------- regras das ações
 def codigo_do_pedido(acesso: AcessoComercial, codigo_form: str | None) -> str:
     """Vendedor reivindica sempre para o PRÓPRIO código (o do formulário é ignorado);
-    gestor informa para quem."""
+    gestor informa para quem — sem informar, vale o código dele (coordenador que vende)."""
     if pode(acesso.nivel, "aprovar"):
+        if not (codigo_form or "").strip() and acesso.vendedor_codigo:
+            return acesso.vendedor_codigo
         return limpar_codigo(codigo_form)
     if not acesso.vendedor_codigo:
         raise EntradaInvalida("Seu acesso não tem código de vendedor.")
@@ -292,6 +294,11 @@ def meses_da_busca(hoje: date, fechados) -> list[date]:
     return [m for m in (atual, anterior) if m not in set(fechados or ())]
 
 
+def pode_reivindicar(acesso: AcessoComercial | None) -> bool:
+    """Quem tem código de vendedor e a permissão: as vendedoras e o gestor que também vende."""
+    return bool(acesso and acesso.vendedor_codigo and pode(acesso.nivel, "reivindicar"))
+
+
 def view_inconsistencias(res: ResultadoMes, periodo, acesso: AcessoComercial, fila: dict,
                          conflitos: dict[str, tuple] | None = None, q: str | None = None,
                          achadas: list[tuple[date, LinhaComissao]] | None = None) -> dict:
@@ -299,6 +306,7 @@ def view_inconsistencias(res: ResultadoMes, periodo, acesso: AcessoComercial, fi
     desse telefone (a rota busca). O gestor não recebe lista de vendas sem código."""
     gestor = pode(acesso.nivel, "ver_time")
     edita = pode(acesso.nivel, "aprovar")
+    reivindica = pode_reivindicar(acesso)
     q = (q or "").strip()[:32]
     com_pedido = set(fila.get("com_pedido") or ())
     base = {
@@ -306,11 +314,12 @@ def view_inconsistencias(res: ResultadoMes, periodo, acesso: AcessoComercial, fi
         "acesso": acesso, "fechado": res.fechado, "fechado_em": res.fechado_em,
         "fechado_por": res.fechado_por, "sem_livre": True, "q": q,
         "achadas": list(achadas or [])[:LIMITE_LISTA], "buscou": bool(q),
-        "conexoes": CONEXOES, "com_pedido": com_pedido,
+        "conexoes": CONEXOES, "com_pedido": com_pedido, "reivindica": reivindica,
     }
+    meu = acesso.vendedor_codigo
+    minhas = [_com_fone(p) for p in fila.get("minhas", []) if p["vendedor_codigo"] == meu] if reivindica else []
     if not gestor:
-        meu = acesso.vendedor_codigo
-        return {**base, "minhas": [_com_fone(p) for p in fila.get("minhas", []) if p["vendedor_codigo"] == meu],
+        return {**base, "minhas": minhas,
                 "pendentes": [], "reembolso": [], "conflitos": [], "sem_base": [], "sem_regra": [],
                 "codigos_novos": [], "historico": [], "vendedores": []}
     vendas = _vendas(res.linhas)
@@ -318,7 +327,7 @@ def view_inconsistencias(res: ResultadoMes, periodo, acesso: AcessoComercial, fi
     ordem = lambda ls: sorted(ls, key=lambda l: (l.data, l.transacao))  # noqa: E731
     return {
         **base,
-        "minhas": [],
+        "minhas": minhas,
         "pendentes": [_com_fone(_com_dono(p, vendas)) for p in fila.get("pendentes", [])],
         "reembolso": ordem(l for l in vendas if l.situacao == "reembolso_a_verificar"),
         "conflitos": [Conflito(l, tuple(c for c in dict.fromkeys(conflitos.get(l.transacao, ())) if c))

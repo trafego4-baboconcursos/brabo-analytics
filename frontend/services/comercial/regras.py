@@ -147,11 +147,37 @@ def situacao(pago: bool, data_venda: datetime, cancelada_em: datetime | None, ho
 # categoria do valor-base (CROSS SELL / UP SELL — as mistas "LEAD/CROSS SELL" o valor não separa).
 # Exceção: a Black segue Ativa/Reativa mesmo para aluno, por ser outra ação.
 CATEGORIAS_SEMPRE_ATIVA = frozenset({"CROSS SELL", "UP SELL"})
-_RE_ALUNO_NO_NOME = re.compile(r"\b(cross(\s*-?\s*sell)?|up\s*-?\s*sell|upgrade)\b", re.IGNORECASE)
+# "COM. UP LEAD - AT12" = Up Sell e "COM. CROSS LEAD - AT12" = Cross Sell (Rafael, 18/11/26): o
+# "Nome deste preço" sempre descreve a venda.
+_RE_ALUNO_NO_NOME = re.compile(r"\b(cross(\s*-?\s*sell)?|up\s*-?\s*sell|upgrade|com\.?\s*up)\b",
+                               re.IGNORECASE)
 
 
 def _e_black(categoria: str | None, produto: str | None) -> bool:
     return (categoria or "").strip().upper().startswith("BLACK") or "black" in (produto or "").lower()
+
+
+# Reativa só para venda LEAD (Rafael Batista, 18/11/26; vale para o ano inteiro): dentro da
+# janela do lançamento, LEAD de Mentoria Vitalícia é Reativa; apostila, planner, venda sem
+# categoria etc. são Ativa; Up/Cross Sell já eram Ativa (`e_up_ou_cross_sell`). Categoria mista
+# ("LEAD/CROSS SELL") conta como LEAD: o "Nome deste preço" é quem separa — "COM. CROSS…" /
+# "COM. UP…" caem em Up/Cross Sell antes.
+def categoria_permite_reativa(categoria: str | None) -> bool:
+    c = re.sub(r"\s+", " ", (categoria or "").strip().upper())
+    return bool(re.search(r"\bLEAD\b", c))
+
+
+# Black Vitalícia é caso à parte (Rafael, 18/11/26): Lead, Cross ou Up Sell, vale só o período —
+# de 12 a 19/10/26 é Reativa, fora dele é Ativa. Não usa a janela do lançamento.
+JANELAS_BLACK = ((datetime(2026, 10, 12), datetime(2026, 10, 19, 23, 59, 59)),)
+
+
+def e_black(categoria: str | None, produto: str | None) -> bool:
+    return _e_black(categoria, produto)
+
+
+def tipo_black(quando: datetime) -> str:
+    return "Reativa" if any(i <= quando <= f for i, f in JANELAS_BLACK) else "Ativa"
 
 
 def e_up_ou_cross_sell(categoria: str | None, oferta: str | None, produto: str | None = None) -> bool:

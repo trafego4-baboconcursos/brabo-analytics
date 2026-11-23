@@ -53,6 +53,7 @@
         <div class="tp-compare">
           {% if meta %}Meta: {{ meta_preq_gasto | brl }}{% endif %}
           {% if google %}{% if meta %} · {% endif %}Google: {{ google_preq_gasto | brl }}{% endif %}
+          {% if tiktok_preq_gasto %}{% if meta or google %} · {% endif %}<span class="plat-tiktok">TikTok</span>: {{ tiktok_preq_gasto | brl }}{% endif %}
         </div>
       </div>
 
@@ -63,6 +64,7 @@
         <div class="tp-compare">
           {% if meta %}Meta: {{ meta_preq_leads | num }}{% endif %}
           {% if google %}{% if meta %} · {% endif %}Google: {{ "%.0f"|format(google_preq_conv) }}{% endif %}
+          {% if tiktok_preq_leads %}{% if meta or google %} · {% endif %}TikTok: {{ tiktok_preq_leads | num }}{% endif %}
         </div>
       </div>
 
@@ -73,6 +75,7 @@
         <div class="tp-compare">
           {% if meta %}Meta: {{ meta_preq_cpm | brl }}{% endif %}
           {% if google %}{% if meta %} · {% endif %}Google: {{ google_preq_cpm | brl }}{% endif %}
+          {% if tiktok_preq_gasto %}{% if meta or google %} · {% endif %}TikTok: {{ tiktok_preq_cpm | brl }}{% endif %}
         </div>
       </div>
 
@@ -90,14 +93,14 @@
         <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-target-arrow"></i></div></div>
         <div class="tp-value">{{ custo_v50_preq | brl(3) if v50_preq > 0 else "–" }}</div>
         <div class="tp-label">Custo por Viu 50%</div>
-        <div class="tp-compare">Investimento / pessoas que viram 50% do vídeo (Meta + Google)</div>
+        <div class="tp-compare">Investimento / pessoas que viram 50% do vídeo (Meta + Google{% if tiktok_preq_gasto %} + TikTok{% endif %})</div>
       </div>
 
       <div class="tp-kpi">
         <div class="tp-kpi-top"><div class="tp-icon success"><i class="ti ti-report-money"></i></div></div>
         <div class="tp-value">{{ cpl_preq | brl }}</div>
         <div class="tp-label">CPL</div>
-        <div class="tp-compare">Investimento / leads (Meta + Google)</div>
+        <div class="tp-compare">Investimento / leads (Meta + Google{% if tiktok_preq_gasto %} + TikTok{% endif %})</div>
       </div>
 
       <div class="tp-kpi">
@@ -107,6 +110,7 @@
         <div class="tp-compare">
           {% if meta %}Meta: {{ meta_preq_v25 | num }}{% endif %}
           {% if google %}{% if meta %} · {% endif %}Google: {{ google_preq_v25 | num }}{% endif %}
+          {% if tiktok_preq_v25 %}{% if meta or google %} · {% endif %}TikTok: {{ tiktok_preq_v25 | num }}{% endif %}
         </div>
       </div>
 
@@ -117,6 +121,7 @@
         <div class="tp-compare">
           {% if meta %}Meta: {{ meta_preq_v50 | num }}{% endif %}
           {% if google %}{% if meta %} · {% endif %}Google: {{ google_preq_v50 | num }}{% endif %}
+          {% if tiktok_preq_v50 %}{% if meta or google %} · {% endif %}TikTok: {{ tiktok_preq_v50 | num }}{% endif %}
         </div>
       </div>
 

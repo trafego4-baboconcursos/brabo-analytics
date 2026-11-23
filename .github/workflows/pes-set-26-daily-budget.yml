@@ -1,9 +1,13 @@
 name: PES-SET-26 - Orcamento diario (Captacao)
 
 on:
-  schedule:
-    # 00:05 America/Sao_Paulo (UTC-3) = 03:05 UTC
-    - cron: "5 3 * * *"
+  # DESLIGADO em 23/11/26: a verba diaria e aplicada pelo scheduler do Easypanel as 00h05
+  # (etl/verba_diaria.py, docs/projetos/PLANO_CRON_VERBA_EASYPANEL.md passo 4). O cron do
+  # GitHub rodava com 6-9h de atraso e reaplicava o plano por cima de ajuste manual da madrugada.
+  # Fica so o disparo manual (workflow_dispatch) como reserva.
+  # schedule:
+  #   # 00:05 America/Sao_Paulo (UTC-3) = 03:05 UTC
+  #   - cron: "5 3 * * *"
   workflow_dispatch:
     inputs:
       date:

@@ -6,9 +6,13 @@ name: PI-NOV-26 - Verba diaria da Captacao Meta + Google (00h05)
 # Plano de outro dia = o script sai sem fazer nada. Falha de qualquer campanha => job VERMELHO (codigo 1).
 
 on:
-  schedule:
-    # 00:05 America/Sao_Paulo (UTC-3) = 03:05 UTC, todo dia. O GitHub pode atrasar alguns minutos.
-    - cron: "5 3 * * *"
+  # DESLIGADO em 23/11/26: a verba diaria e aplicada pelo scheduler do Easypanel as 00h05
+  # (etl/verba_diaria.py, docs/projetos/PLANO_CRON_VERBA_EASYPANEL.md passo 4). O cron do
+  # GitHub rodava com 6-9h de atraso e reaplicava o plano por cima de ajuste manual da madrugada.
+  # Fica so o disparo manual (workflow_dispatch) como reserva.
+  # schedule:
+  #   # 00:05 America/Sao_Paulo (UTC-3) = 03:05 UTC, todo dia. O GitHub pode atrasar alguns minutos.
+  #   - cron: "5 3 * * *"
   workflow_dispatch:
     inputs:
       dry_run:

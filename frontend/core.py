@@ -25,7 +25,7 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from datetime import date
-from src.anos import ANO_COOKIE, ano_do_codigo, anos_disponiveis, resolver_ano
+from src.anos import ANO_COOKIE, ano_do_codigo, anos_disponiveis, resolver_ano, roda_no_ano
 from frontend.db_readers import (
     discover_launches, get_launch, Launch,
     read_comparativo, AcCampaignSummary,
@@ -637,16 +637,18 @@ def _base_ctx(
 
     month_order = {"JAN": 1, "FEV": 2, "MAR": 3, "ABR": 4, "MAI": 5, "JUN": 6, "JUL": 7, "AGO": 8, "SET": 9, "OUT": 10, "NOV": 11, "DEZ": 12}
     # Ano global (seletor do Calendário): ?ano= → cookie → ano corrente. O seletor de lançamentos
-    # lista só os do ano escolhido (mais o lançamento aberto, de qualquer ano).
+    # lista os do ano escolhido e os que rodam dentro dele (PI-JAN-27 começa em 14/12/26), mais o
+    # lançamento aberto, de qualquer ano. O ano do código entra na ordem: o de 2027 vem depois dos de 2026.
     _anos = anos_disponiveis(visible_launches)
     ano_sel = resolver_ano(_anos, request.query_params.get("ano"), request.cookies.get(ANO_COOKIE))
+    _no_ano = {l.code for l in roda_no_ano(visible_launches, ano_sel)}
     launch_groups: list[dict] = []
     grouped_launches = sorted(
         visible_launches,
-        key=lambda item: (item.product_order, month_order.get(item.short, 99), item.code),
+        key=lambda item: (item.product_order, ano_do_codigo(item.code) or 0, month_order.get(item.short, 99), item.code),
     )
     for item in grouped_launches:
-        if ano_do_codigo(item.code) != ano_sel and not (launch and item.code == launch.code):
+        if item.code not in _no_ano and not (launch and item.code == launch.code):
             continue
         if not launch_groups or launch_groups[-1]["product"] != item.product:
             launch_groups.append({

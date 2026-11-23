@@ -30,6 +30,31 @@ def do_ano(codigos: Iterable, ano: int) -> list:
     return [c for c in codigos if ano_do_codigo(getattr(c, "code", c)) == ano]
 
 
+def _data(v) -> date | None:
+    if not v or isinstance(v, date):
+        return v or None
+    try:
+        return date.fromisoformat(str(v)[:10])
+    except ValueError:
+        return None
+
+
+def roda_no_ano(itens: Iterable, ano: int) -> list:
+    """Lançamentos que pertencem ao ano OU que rodam dentro dele (janela `data_inicio`–`data_fim`).
+    É o filtro do menu e do Calendário: o PI-JAN-27 começa em 14/12/26 e precisa aparecer em 2026
+    enquanto roda. Somas "por ano" (faturamento, metas) continuam no `do_ano`, que é pelo código."""
+    saida = []
+    for c in itens:
+        if ano_do_codigo(getattr(c, "code", c)) == ano:
+            saida.append(c)
+            continue
+        ini = _data(getattr(c, "data_inicio", None))
+        fim = _data(getattr(c, "data_fim", None)) or ini
+        if ini and fim and ini.year <= ano <= fim.year:
+            saida.append(c)
+    return saida
+
+
 def anos_disponiveis(codigos: Iterable, hoje: date | None = None) -> list[int]:
     """Anos com lançamento, do mais novo ao mais antigo. O ano corrente entra sempre
     (mesmo sem lançamento ainda), para o padrão nunca apontar para um ano ausente."""

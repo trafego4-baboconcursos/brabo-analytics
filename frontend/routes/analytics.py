@@ -5,7 +5,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.concurrency import run_in_threadpool
 
-from src.anos import ANO_COOKIE, do_ano
+from src.anos import ANO_COOKIE, do_ano, roda_no_ano
 from src.constants import climas_ordem, etapa_prequali
 from frontend.cache import force_refresh_end, force_refresh_start
 from frontend.core import (
@@ -607,7 +607,7 @@ async def calendario_page(request: Request, launch_code: str | None = None):
     launches = await run_in_threadpool(get_launches)
     launch   = resolve_launch(launch_code, launches)
     ctx = _base_ctx(request, "calendario", "Calendário", launch, launches)
-    cal = await run_in_threadpool(build_calendario_ctx, do_ano(ctx["launches"], ctx["ano_sel"]), _launch_cfg)
+    cal = await run_in_threadpool(build_calendario_ctx, roda_no_ano(ctx["launches"], ctx["ano_sel"]), _launch_cfg)
     ctx["cal"] = cal
     return templates.TemplateResponse("calendario.html", ctx)
 

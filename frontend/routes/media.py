@@ -173,8 +173,16 @@ async def perpetuo_page(request: Request, vertical: str, launch_code: str | None
     except Exception:
         logger.exception("Perpétuo: falha ao montar a visão mês a mês")
     nome = PERPETUO_VERTICALS.get(vertical, {}).get("nome", vertical)
+    # Miniaturas dos criativos (ad_creatives do pseudo-lançamento PERPETUO-*). Falha só deixa a coluna vazia.
+    thumbs: dict = {}
+    codigo = PERPETUO_VERTICALS.get(vertical, {}).get("codigo")
+    if codigo:
+        try:
+            thumbs = await run_in_threadpool(get_platform_thumbnails, codigo)
+        except Exception:
+            logger.exception("Perpétuo: falha ao buscar miniaturas de %s", vertical)
     ctx = _base_ctx(request, "perpetuo", nome, launch, launches,
-                    perpetuo=detail, perpetuo_mensal=mensal)
+                    perpetuo=detail, perpetuo_mensal=mensal, drive_thumbnails=thumbs)
     return templates.TemplateResponse("perpetuo.html", ctx)
 
 

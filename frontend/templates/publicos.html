@@ -66,10 +66,18 @@
 
     <div class="section">
       <div class="section-title"><i class="ti ti-users"></i> Públicos em uso</div>
-      <p class="tp-compare">Gasto e leads são dos conjuntos que <strong>incluem</strong> o público; um conjunto com vários públicos aparece em cada um, então esta coluna não soma. No Facebook (Meta) o tamanho nunca aparece abaixo de 1.000.</p>
+      <p class="tp-compare">Gasto, leads e vendas são dos conjuntos que <strong>incluem</strong> o público; um conjunto com vários públicos aparece em cada um, então esta coluna não soma. No Facebook (Meta) o tamanho nunca aparece abaixo de 1.000.</p>
+      {% set vg = publicos.vendas %}
+      {% if vg %}
+      <p class="tp-compare">Vendas e CPA: as matrículas atribuídas pela regra de sempre (e-mail ou telefone do comprador → UTM do cadastro), ligadas ao conjunto ou grupo pelo nome da campanha e do conjunto na UTM.
+        {% for plat, rot in [('meta', 'Facebook (Meta)'), ('google', 'Google')] %}{% set cob = vg.cobertura(plat) %}{% if cob is not none %}
+        {{ rot }}: <strong>{{ vg.ligadas.get(plat, 0) | num }}</strong> de {{ (vg.ligadas.get(plat, 0) + vg.sem_grupo.get(plat, 0)) | num }} vendas ligadas ({{ "%.0f"|format(cob) }}%){{ ';' if loop.first else '.' }}
+        {% endif %}{% endfor %}
+        Sem conjunto identificado: UTM que não aponta para um conjunto (link da bio, comentário) ou conjunto renomeado depois do clique sem manter o número do grupo.</p>
+      {% endif %}
       <div class="table-wrap"><table id="t-publicos">
         <thead><tr><th>Público</th><th>Plataforma</th><th>Tipo</th><th>Tamanho</th><th>Status</th><th>Retenção</th><th>Atualizado</th>
-          <th>Inclui</th><th>Exclui</th><th>Gasto 3d</th><th>CPL 3d</th><th>Gasto total</th><th>CPL</th><th>Alertas</th></tr></thead>
+          <th>Inclui</th><th>Exclui</th><th>Gasto 3d</th><th>CPL 3d</th><th>Gasto total</th><th>CPL</th><th>Vendas</th><th>CPA</th><th>Alertas</th></tr></thead>
         <tbody>
         {% for p in publicos.publicos %}
           <tr data-plat="{{ p.plataforma }}" data-temp="{{ p.temperaturas | join(' ') }}" data-etapa="{{ p.etapas | join(' ') }}" data-alerta="{{ 1 if p.alertas else 0 }}">
@@ -83,6 +91,7 @@
             <td>{{ p.n_inclui }}</td><td>{{ p.n_exclui }}</td>
             <td>{{ p.desempenho.gasto_3d | brl }}</td><td>{{ p.desempenho.cpl_3d | brl if p.desempenho.cpl_3d else '—' }}</td>
             <td>{{ p.desempenho.gasto | brl }}</td><td>{{ p.desempenho.cpl | brl if p.desempenho.cpl else '—' }}</td>
+            <td>{{ p.desempenho.vendas | num if p.desempenho.vendas else '—' }}</td><td>{{ p.desempenho.cpa | brl if p.desempenho.cpa else '—' }}</td>
             <td>{% for a in p.alertas %}{{ pill(a.nivel, a.texto) }} {% endfor %}</td>
           </tr>
         {% endfor %}
@@ -98,7 +107,7 @@
         <summary><strong>{{ camp_nome }}</strong> <small>({{ 'Facebook' if g0.plataforma == 'meta' else 'Google' }} · ID {{ g0.campanha_id }} · {{ g0.campanha_status }})</small>
           {% if com_problema %}{{ pill('atencao', (com_problema | length) ~ ' com problema') }}{% endif %}</summary>
         <div class="table-wrap"><table>
-          <thead><tr><th>Conjunto / grupo</th><th>Inclui</th><th>Exclui</th><th>Gasto 3d</th><th>Gasto total</th><th>Problemas</th></tr></thead>
+          <thead><tr><th>Conjunto / grupo</th><th>Inclui</th><th>Exclui</th><th>Gasto 3d</th><th>Gasto total</th><th>Vendas</th><th>CPA</th><th>Problemas</th></tr></thead>
           <tbody>
           {% for g in itens %}
             <tr>
@@ -106,6 +115,7 @@
               <td>{% for r in g.inclui %}{{ r.nome }} <small>({{ r.tamanho_label }})</small><br>{% else %}—{% endfor %}</td>
               <td>{% for r in g.exclui %}{{ r.nome }} <small>({{ r.tamanho_label }})</small><br>{% else %}—{% endfor %}</td>
               <td>{{ g.desempenho.gasto_3d | brl }}</td><td>{{ g.desempenho.gasto | brl }}</td>
+              <td>{{ g.desempenho.vendas | num if g.desempenho.vendas else '—' }}</td><td>{{ g.desempenho.cpa | brl if g.desempenho.cpa else '—' }}</td>
               <td>{% for t in g.problemas %}{{ pill('atencao', t.split(': ', 1)[-1]) }}<br>{% endfor %}</td>
             </tr>
           {% endfor %}

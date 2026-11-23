@@ -115,6 +115,9 @@ relacionados:
 >
 > **Faturamento total da empresa: TMB pelo critério do financeiro e Hotmart Editora (18/11/26)**
 >
+>
+> **Vendas por conjunto (Meta) e por grupo (Google) — CPA da /publicos (23/11/26)**
+>
 
 <!-- SUMARIO:FIM -->
 
@@ -575,3 +578,7 @@ Pedido da equipe para o total do Resumo Executivo (`/lancamentos`) bater com o p
    - **Total da empresa:** a parte da Editora que já está no perpétuo não entra de novo como "Editora" nem sai do setor de vendas; o resto da Editora (R$ 522 em 2026) soma na linha Perpétuo. O total não mudou com a troca.
 
 Conferência em 18/11/26: Hotmart R$ 23.514.058 + TMB R$ 12.410.194 + Editora R$ 87.025 = R$ 36.011.276, R$ 11.652 acima do painel da meta (Hotmart principal ~R$ 8 mil acima, sem ajuste, mais vendas posteriores ao relatório).
+
+## Vendas por conjunto (Meta) e por grupo (Google) — CPA da /publicos (23/11/26)
+
+A venda continua atribuída pela regra de sempre (comprador → lead por e-mail ou telefone → UTM do cadastro, com a UTM congelada). O que é novo é só o nível: a UTM escolhida é ligada ao conjunto/grupo pelo **nome da campanha (`utm_campaign`) e do conjunto (`utm_content`)**, comparados sem acento, caixa e pontuação; se o nome não casa (conjunto renomeado depois do clique), pelo **número do grupo dentro da campanha** (`04 - ...`); se a campanha falta, pelo nome do conjunto quando ele é único no lançamento. Só resposta única conta. CPA = gasto do conjunto/grupo no lançamento ÷ vendas ligadas a ele. As vendas atribuídas à plataforma que não acham conjunto ficam fora do CPA e aparecem como cobertura na tela (98–100% nos lançamentos ativos em 23/11/26). Detalhe em [[ARQUITETURA]], seção "CPA por conjunto (Facebook/Meta) e por grupo (Google) na `/publicos`".

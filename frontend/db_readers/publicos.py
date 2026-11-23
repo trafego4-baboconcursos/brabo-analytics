@@ -49,6 +49,17 @@ class Desempenho:
     leads_3d: float = 0.0
     gasto: float = 0.0
     leads: float = 0.0
+    # vendas atribuídas ao conjunto/grupo (frontend/services/vendas_por_grupo.py); 0 quando a ligação não achou
+    vendas: float = 0.0
+    receita: float = 0.0
+
+    @property
+    def cpa(self) -> float | None:
+        return self.gasto / self.vendas if self.vendas else None
+
+    @property
+    def roas(self) -> float | None:
+        return self.receita / self.gasto if self.gasto else None
 
     @property
     def cpl_3d(self) -> float | None:
@@ -127,6 +138,7 @@ class PublicosView:
     publicos: list[PublicoLinha]
     grupos: list[GrupoUso]
     atencao: list[dict]         # [{nivel, onde, texto}] — o bloco "Precisa de atenção" do topo
+    vendas: Any = None          # VendasPorGrupo (cobertura da ligação venda → conjunto/grupo), None sem venda
 
     @property
     def vazio(self) -> bool:
@@ -305,6 +317,8 @@ def montar_visao(lancamento: str, usos: list[dict], snaps: dict[tuple[str, str, 
             linha.desempenho.leads_3d += g.desempenho.leads_3d
             linha.desempenho.gasto += g.desempenho.gasto
             linha.desempenho.leads += g.desempenho.leads
+            linha.desempenho.vendas += g.desempenho.vendas
+            linha.desempenho.receita += g.desempenho.receita
         publicos.append(linha)
 
     # --- SEG-4 por grupo + bloco de atenção
@@ -350,8 +364,9 @@ def _desempenho(conn, lancamento: str, hoje: date) -> dict[tuple[str, str], Dese
     return out
 
 
-def read_publicos(launch_code: str) -> PublicosView | None:
-    """None = sem coleta ainda (ETL não rodou para o lançamento) ou falha de leitura (a página mostra o aviso)."""
+def read_publicos(launch_code: str, vendas_por_grupo: Any = None) -> PublicosView | None:
+    """None = sem coleta ainda (ETL não rodou para o lançamento) ou falha de leitura (a página mostra o aviso).
+    `vendas_por_grupo` (VendasPorGrupo, opcional): vendas atribuídas por conjunto/grupo, para o CPA."""
     if not launch_code:
         return None
     hoje = datetime.now(_TZ_BR).date()
@@ -375,4 +390,10 @@ def read_publicos(launch_code: str) -> PublicosView | None:
         # Tabelas ainda inexistentes (ETL nunca rodou) ou banco fora: a página mostra "sem coleta", não quebra.
         logger.exception("read_publicos: falha para %s", launch_code)
         return None
-    return montar_visao(launch_code, usos, snaps, desemp, tam7, hoje)
+    if vendas_por_grupo is not None:
+        for k, (n, receita) in vendas_por_grupo.por_grupo.items():
+            d = desemp.setdefault(k, Desempenho())
+            d.vendas, d.receita = float(n), float(receita)
+    view = montar_visao(launch_code, usos, snaps, desemp, tam7, hoje)
+    view.vendas = vendas_por_grupo
+    return view

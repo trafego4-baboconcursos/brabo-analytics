@@ -231,9 +231,17 @@ async def google_audiences(request: Request, launch_code: str | None = None):
 async def publicos_page(request: Request, launch_code: str | None = None):
     """Públicos em uso do lançamento (Meta + Google): tamanho, status, quem inclui/exclui e alertas (SEG-4).
     Lê só o banco (`etl/etl_publicos.py` coleta das plataformas); sem coleta a página explica como gerar."""
+    from frontend.services.vendas_por_grupo import read_vendas_por_grupo  # noqa: PLC0415
+
     launches = await run_in_threadpool(get_launches)
     launch = resolve_launch(launch_code, launches)
-    view = await run_in_threadpool(read_publicos, launch.code) if launch else None
+    vendas_grupo = None
+    if launch:
+        try:   # CPA por conjunto/grupo: sem ele a página segue com gasto e CPL
+            vendas_grupo = await run_in_threadpool(read_vendas_por_grupo, launch)
+        except Exception:
+            logger.exception("Públicos: falha ao ligar as vendas aos conjuntos/grupos de %s", launch.code)
+    view = await run_in_threadpool(read_publicos, launch.code, vendas_grupo) if launch else None
     ctx = _base_ctx(request, "publicos", "Públicos", launch, launches, publicos=view)
     return templates.TemplateResponse("publicos.html", ctx)
 

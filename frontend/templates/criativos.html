@@ -206,12 +206,13 @@
       <div class="note">
         O ranking remove temperatura e bucket porque o mesmo AD pode rodar em várias campanhas. Cada linha soma todas as ocorrências do código do anúncio em captação.
         A coluna de vendas mostra apenas vendas rastreadas por UTM; zero significa que não encontramos comprador atribuído a esse AD nas UTMs disponíveis.
+        Score (0–100): compara o custo por lead A do anúncio com a mediana do lançamento. 50 = na mediana; abaixo de 25 = lead caro para a qualidade (custo por lead A acima de 1,5× a mediana), vale rever o criativo; acima de 75 = lead bom pelo custo. Lead A = respondeu a pesquisa e ficou na metade de cima do score da pesquisa. Sem nota com menos de 30 leads A. Funciona durante a captação, antes de qualquer venda.
       </div>
 
       <div class="table-wrap funil-table-wrap">
-        <table class="funil-table criativos-overview-table" style="table-layout:fixed;width:100%;">
+        <table class="funil-table criativos-overview-table" id="cs-tabela" data-score-url="/criativos/score?launch_code={{ active_code }}" style="table-layout:fixed;width:100%;">
           <colgroup>
-            <col style="width:36px"><col style="width:320px;min-width:200px"><col style="width:110px"><col style="width:70px"><col style="width:90px"><col style="width:60px"><col style="width:90px"><col style="width:90px"><col style="width:110px"><col style="width:70px">
+            <col style="width:36px"><col style="width:320px;min-width:200px"><col style="width:110px"><col style="width:70px"><col style="width:90px"><col style="width:72px"><col style="width:60px"><col style="width:90px"><col style="width:90px"><col style="width:110px"><col style="width:70px">
           </colgroup>
           <thead>
             <tr>
@@ -220,6 +221,7 @@
               <th class="th-num">Investimento</th>
               <th class="th-num">Leads</th>
               <th class="th-num">CPL</th>
+              <th class="th-num" title="Nota de 0 a 100 do custo por lead A, comparado com a mediana do lançamento">Score</th>
               <th class="th-num">CTR</th>
               <th class="th-num">CPM</th>
               <th class="th-num">Vendas rastreadas</th>
@@ -264,6 +266,7 @@
               <td class="numero">{{ c.gasto | brl }}</td>
               <td class="numero"><strong>{{ c.leads | num }}</strong></td>
               <td class="numero {{ 'positivo' if c.cpl and c.cpl < 3 else ('negativo' if c.cpl > 8 else '') }}">{{ c.cpl | brl }}</td>
+              <td class="numero cs-score" data-ad="{{ c.ad_code }}"><span class="cs-skel"></span></td>
               <td class="numero">{{ c.ctr | pct(2) }}</td>
               <td class="numero">{{ c.cpm | brl }}</td>
               <td class="numero"><strong>{{ c.vendas | num }}</strong></td>
@@ -274,6 +277,60 @@
           </tbody>
         </table>
       </div>
+      <style>
+      .cs-skel { display:inline-block; width:40px; height:16px; border-radius:8px; vertical-align:middle; background:linear-gradient(90deg,var(--bs-surface) 25%,var(--bs-border) 50%,var(--bs-surface) 75%); background-size:200% 100%; animation:cs-shimmer 1.4s ease-in-out infinite; }
+      @keyframes cs-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+      .cs-nota { display:inline-block; min-width:32px; padding:2px 8px; border-radius:16px; font-weight:700; text-align:center; }
+      .cs-nota.cs-ruim { background:var(--bs-danger-bg); color:var(--bs-danger); }
+      .cs-nota.cs-bom { background:var(--bs-success-bg); color:var(--bs-success); }
+      .cs-vazio { color:var(--bs-ink-muted); cursor:help; }
+      </style>
+      <script>
+      (function () {
+        var tabela = document.getElementById('cs-tabela');
+        if (!tabela) return;
+        var celulas = tabela.querySelectorAll('td.cs-score');
+        var brl = function (v) { return Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); };
+        var MOTIVOS = {
+          poucos_leads_a: 'Menos de 30 leads A: pouco dado ainda',
+          sem_leads: 'Nenhum lead A deste anúncio ainda',
+          sem_gasto: 'Sem investimento de captação'
+        };
+        function vazio(td, motivo) {
+          td.textContent = '';
+          var s = document.createElement('span');
+          s.className = 'cs-vazio';
+          s.textContent = '—';
+          s.title = motivo;
+          td.appendChild(s);
+        }
+        function todas(motivo) { celulas.forEach(function (td) { vazio(td, motivo); }); }
+        fetch(tabela.getAttribute('data-score-url'), { credentials: 'same-origin' })
+          .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+          .then(function (d) {
+            if (!d || d.pontuavel === false) {
+              todas('A pesquisa deste lançamento não é pontuável (Typeform antigo)');
+              return;
+            }
+            var anuncios = d.anuncios || {};
+            celulas.forEach(function (td) {
+              var a = anuncios[td.getAttribute('data-ad')];
+              if (!a) { vazio(td, 'Sem dado de score para este AD'); return; }
+              if (a.nota === null || a.nota === undefined) {
+                vazio(td, MOTIVOS[a.motivo] || 'Sem dado de score para este AD');
+                return;
+              }
+              var s = document.createElement('span');
+              s.className = 'cs-nota' + (a.nota < 25 ? ' cs-ruim' : (a.nota > 75 ? ' cs-bom' : ''));
+              s.textContent = String(a.nota);
+              s.title = 'Leads A: ' + a.leads_a + ' · Custo por lead A: ' + brl(a.custo_a) + ' · Mediana: ' + brl(d.mediana);
+              td.textContent = '';
+              td.appendChild(s);
+            });
+          })
+          .catch(function () { todas('Não foi possível calcular agora'); });
+      })();
+      </script>
     </div>
 
     {% if not e_black and ov.prequali_rows %}

@@ -2,7 +2,7 @@
 titulo: "Metodologia de Extração e Atribuição de Dados por Lançamento"
 area: sistema
 status: vigente
-atualizado: 2026-11-23
+atualizado: 2026-11-25
 responde:
   - "como e medido o carregamento da pagina dos anuncios"
   - "o que e landing page view"
@@ -185,6 +185,8 @@ Todo o cálculo pesado que antes era feito nos DataFrames (ex: `cruzamento_perpe
 
 ### 3.1 Atribuição de Leads (UTM Content)
 O código de criativo (ex: `AD092`) é extraído via expressão regular do campo `utm_content` no banco de dados.
+
+**Custo por lead A por criativo (25/11/26):** `custo_a = gasto ÷ leads_a` de cada ADxxx. O `gasto` é o da linha do Ranking Geral (`_creative_overview(...)["rows"]`, só captação; a pré-quali fica de fora porque o ranking já é só de captação). `leads_a` é a contagem de leads com `faixa_pesquisa == "A"` (respondeu a pesquisa e ficou acima da mediana da probabilidade dos respondentes do lançamento) agrupados pelo código ADxxx extraído do `utm_term` (regex `^(AD\d+)`, com `utm_content` de reserva). O AD só entra na mediana e recebe nota com 30 ou mais leads A e gasto maior que zero; um AD sem nenhum lead A não aparece na contagem e fica «sem leads». Pode divergir de um cálculo feito com o gasto total do AD (inclui pré-quali) justamente por usar só captação.
 
 ### 3.2 Cruzamento Vendas vs. Leads
 A View cruza a tabela de vendas (Hotmart/TMB) com a tabela de `leads` usando o campo **`email`** em minúsculas (trim+lower).

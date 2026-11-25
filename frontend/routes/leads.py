@@ -26,12 +26,9 @@ async def leads_page(request: Request, launch_code: str | None = None):
 
 def _score_leads_df(code: str):
     """DataFrame do score por lead do lançamento (cache de 30 min em `lead_score.obter_leads`)."""
-    from frontend.db_readers.sales import read_vendas  # noqa: PLC0415
     from frontend.services import lead_score as ls  # noqa: PLC0415
 
-    v = read_vendas(code)
-    compradores = (v.emails_hotmart | v.emails_tmb) if v else set()
-    return ls.obter_leads(code, compradores)
+    return ls.obter_leads_do_lancamento(code)
 
 
 @router.get("/leads/score/resumo", response_class=HTMLResponse)

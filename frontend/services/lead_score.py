@@ -362,6 +362,17 @@ def obter_leads(code: str, emails_compradores: set[str]) -> pd.DataFrame | None:
     return _get_or_compute(code, "lead_score_leads", lambda: calcular_leads(code, emails_compradores), ttl=1800)
 
 
+def obter_leads_do_lancamento(code: str) -> pd.DataFrame | None:
+    """Score por lead do lançamento, com os compradores (Hotmart | TMB) lidos aqui. É o ÚNICO caminho que chama
+    `obter_leads` para os consumidores do painel (/leads e /criativos): os dois dividem a entrada de cache
+    `lead_score_leads`, então passar um conjunto de compradores diferente (ex.: vazio) envenenaria o outro."""
+    from frontend.db_readers.sales import read_vendas  # noqa: PLC0415
+
+    v = read_vendas(code)
+    compradores = (v.emails_hotmart | v.emails_tmb) if v else set()
+    return obter_leads(code, compradores)
+
+
 def resumo_painel(df: pd.DataFrame) -> dict:
     """Escada de compra do score com origem (por decil) e da pesquisa (A/B/C) para a /leads, mais um veredito de
     «estamos no caminho certo?»: quanto mais compra os 30% de maior nota (decis 8–10) em relação aos 30% de menor

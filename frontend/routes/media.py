@@ -1,7 +1,7 @@
 from __future__ import annotations
 import asyncio
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.concurrency import run_in_threadpool
 
 from frontend.db_readers.launches import get_platform_thumbnails
@@ -86,6 +86,29 @@ async def criativos_page(request: Request, launch_code: str | None = None):
         drive_thumbnails=drive_thumbnails,
         data_errors=d.get("_errors", []))
     return templates.TemplateResponse("criativos.html", ctx)
+
+
+@router.get("/criativos/score")
+async def criativos_score(request: Request, launch_code: str | None = None):
+    """Nota 0-100 por ADxxx (custo por lead A), em JSON; a /criativos busca depois de abrir a página."""
+    from frontend.services import score_criativos as sc
+    try:
+        launches = await run_in_threadpool(get_launches)
+        launch = resolve_launch(launch_code, launches)
+        if not launch:
+            return JSONResponse({"pontuavel": False})
+        leads_a = await run_in_threadpool(sc.leads_a_por_anuncio, launch.code)
+        if leads_a is None:
+            return JSONResponse({"pontuavel": False})
+        d = await _fetch_all_data(launch)
+        ov = await run_in_threadpool(
+            _creative_overview, d["meta"], d["google"], d["vendas"], None, launch_code=launch.code
+        )
+        gasto = {r["ad_code"]: r["gasto"] for r in (ov or {}).get("rows", [])}
+        return JSONResponse({"pontuavel": True, **sc.notas_por_anuncio(gasto, leads_a)})
+    except Exception:
+        logger.exception("Criativos: falha ao calcular o score por criativo")
+        return JSONResponse({"erro": "falha ao calcular"}, status_code=500)
 
 
 @router.get("/instagram", response_class=HTMLResponse)

@@ -75,3 +75,69 @@ def test_leads_e_criativos_usam_a_mesma_funcao_de_compradores(monkeypatch):
     rl._score_leads_df("X")
     assert sc._leads_a_por_anuncio_sem_cache("X") == {"AD1": 1}
     assert recebidos == [{"h@x", "t@x"}, {"h@x", "t@x"}]
+
+
+# ── Tarefa 3: rota JSON /criativos/score ──────────────────────────────────────────────────────────────────────
+import pytest
+from types import SimpleNamespace
+
+
+@pytest.fixture(scope="module")
+def client_trafego():
+    from fastapi.testclient import TestClient
+
+    from frontend.app import app
+    from frontend.auth import _sign_session
+
+    with TestClient(app, follow_redirects=False) as c:
+        c.cookies.set("session_token", _sign_session("u-teste", "trafego", ["PES"], "t@teste.local"))
+        yield c
+
+
+def _fakes_da_rota(monkeypatch, leads_a, lancamento=True):
+    from frontend.routes import media
+
+    async def _dados(launch, **k):
+        return {"meta": None, "google": None, "vendas": None}
+
+    monkeypatch.setattr(media, "get_launches", lambda: [])
+    monkeypatch.setattr(media, "resolve_launch",
+                        lambda code, launches: SimpleNamespace(code="PES-NOV-26") if lancamento else None)
+    monkeypatch.setattr(media, "_fetch_all_data", _dados)
+    monkeypatch.setattr(media, "_creative_overview",
+                        lambda *a, **k: {"rows": [{"ad_code": "AD1", "gasto": 3000.0}]})
+    monkeypatch.setattr(sc, "leads_a_por_anuncio", lambda code: leads_a)
+
+
+def test_rota_score_devolve_notas(client_trafego, monkeypatch):
+    _fakes_da_rota(monkeypatch, {"AD1": 50})
+    r = client_trafego.get("/criativos/score?launch_code=PES-NOV-26")
+    assert r.status_code == 200
+    j = r.json()
+    assert j["pontuavel"] is True and j["mediana"] == 60.0 and j["anuncios"]["AD1"]["nota"] == 50
+
+
+def test_rota_score_sem_pesquisa_pontuavel(client_trafego, monkeypatch):
+    _fakes_da_rota(monkeypatch, None)
+    assert client_trafego.get("/criativos/score?launch_code=PI-JAN-26").json() == {"pontuavel": False}
+
+
+def test_rota_score_lancamento_inexistente(client_trafego, monkeypatch):
+    _fakes_da_rota(monkeypatch, {"AD1": 50}, lancamento=False)
+    r = client_trafego.get("/criativos/score?launch_code=XXX")
+    assert r.status_code == 200 and r.json() == {"pontuavel": False}
+
+
+def test_rota_score_falha_devolve_500(client_trafego, monkeypatch):
+    _fakes_da_rota(monkeypatch, {"AD1": 50})
+
+    def _boom(code):
+        raise RuntimeError("x")
+
+    monkeypatch.setattr(sc, "leads_a_por_anuncio", _boom)
+    assert client_trafego.get("/criativos/score?launch_code=PES-NOV-26").status_code == 500
+
+
+def test_rota_score_tem_permissao_de_midia():
+    from frontend.auth import ROUTE_PERMISSIONS, _MEDIA
+    assert ROUTE_PERMISSIONS["/criativos/score"] == _MEDIA

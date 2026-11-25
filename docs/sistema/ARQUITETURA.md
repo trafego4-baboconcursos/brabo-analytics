@@ -1765,6 +1765,8 @@ Usuário mandou print do Debriefing no celular ("Detalhamento por Dia de Captaç
 
 **Seção nova numa página com ordem salva (25/11/26):** até aqui, uma seção que não existia quando a ordem foi salva (no `localStorage` ou numa visualização) ia para o **fim** da página. Agora o `migrarKeys` do `secoes.js` encaixa cada seção nova logo depois da seção que vem antes dela no HTML, ou no topo se ela for a primeira. O caso que motivou a mudança foi o "Resumo executivo" do perpétuo: ele é o topo da página e aparecia lá embaixo para quem já tinha ordem salva. Também desde 25/11, `data-sec-aberta` na `.section` deixa a seção aberta quando não há estado salvo (`padraoRecolhida`). Sem o atributo, só a 1ª seção abre.
 
+**Versão do layout (`data-sec-versao`, 25/11/26):** o estado de trabalho (`bs-section-state:<página>`) é regravado a cada visita. Por isso reordenar seções no template não chegava a ninguém que já tivesse aberto a página: a ordem salva vencia sempre. Agora a página pode marcar um elemento com `data-sec-versao="<x>"`. Quando a versão salva no estado é diferente, o `secoes.js` descarta só a **ordem** salva, uma vez, e grava a versão nova. As seções recolhidas e ocultas e os apelidos continuam, e uma reordenação feita pela pessoa depois disso é respeitada. **Mudou a ordem das seções no template? Suba a versão.** O perpétuo usa `perpetuo-2`, no `.content`.
+
 De quebra: as duas badges de lançamento do Debriefing (`.dbf-launch-badge`) perderam o "vs" — "vs PI-ABR-26" virou só "PI-ABR-26" — pedido explícito junto com o desenho.
 
 ## Título sem "Captação/Pré-Quali/Meta/Google/YouTube/TikTok" no texto — vira badge (2026-09-16)
@@ -1954,6 +1956,8 @@ A venda **não é atribuída ao anúncio**: o perpétuo vende direto, sem captur
 **Aviso de "sem dado" (18/11/26):** quando a vertical não tem linha no período, `read_perpetuo` busca o último dia com gasto (`_ultimo_dia_com_gasto`, Meta + Google pelo `PERPETUO-*`) e a página diz "sem veiculação desde DD/MM/AAAA" — o caso normal é campanha pausada (INSS desde 03/11, BB desde 22/10). O aviso antigo ("não foi renomeada / conta fora do ETL") fica só para vertical que nunca teve gasto.
 
 **Resumo executivo e vendas por dia (25/11/26):** os cartões do topo viraram a seção "Resumo executivo" (`data-sec-key="perpetuo-resumo"`). Sem título, o bloco não era seção do accordion, e a barra de busca/Recolher/Expandir, que o `secoes.js` põe antes da 1ª seção com título, caía abaixo dos cartões. Logo depois vem "Vendas por dia": gráfico de barras (Chart.js) do período do seletor, com uma série só, vendas. Faturamento e investimento do dia aparecem no tooltip e numa tabela recolhível, sem segundo eixo. A série vem de `read_perpetuo()["serie_diaria"]`: `_vendas_por_dia` faz o mesmo recorte de `_vendas` (duas contas Hotmart, status aprovado, valor líquido) com `GROUP BY` dia, e `_serie_diaria` preenche os dias sem venda com zero e soma o investimento Meta + Google do dia. A soma dos dias bate com o cartão "Vendas do produto". Foi conferido em 7, 30 e 90 dias e no período livre. As duas seções levam `data-sec-aberta`, que as deixa abertas na primeira visita.
+
+**Ordem (25/11/26, pedido do Michel):** Resumo executivo → Vendas por dia → Criativos Meta → Criativos Google → Mês a mês → Públicos.
 
 ### Histórico de UTM por lançamento (`lead_utm_lancamento`)
 

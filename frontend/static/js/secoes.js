@@ -177,10 +177,18 @@
     // O que vai pro banco são as visualizações NOMEADAS, em /api/section-views:
     // as pessoais seguem você entre navegadores, e a da equipe marcada como
     // padrão é a que todo mundo abre na primeira visita.
-    var salvoLocal = load(stateKey, {});
-    var temEstadoLocal = !!(salvoLocal && salvoLocal.order);
+    var salvoLocal = load(stateKey, {}) || {};
+    // Versão do layout (data-sec-versao em qualquer elemento da página). O estado de trabalho é regravado a cada
+    // visita, então reordenar as seções no template não chegava a quem já tinha aberto a página: a ordem salva
+    // vencia sempre. Quando o template sobe a versão, a ORDEM salva antiga é descartada uma vez (volta a do
+    // template); recolhidas, ocultas e apelidos continuam. Visualização nomeada aplicada depois segue valendo.
+    var versaoEl = document.querySelector('[data-sec-versao]');
+    var VERSAO = versaoEl ? versaoEl.getAttribute('data-sec-versao') : '';
+    var ordemSalva = (VERSAO && salvoLocal.versao !== VERSAO) ? null : salvoLocal.order;
+    function salvarEstado(w) { save(stateKey, VERSAO ? Object.assign({}, w, { versao: VERSAO }) : w); }
+    var temEstadoLocal = !!ordemSalva;
     var inicial = migrarKeys({
-      order: salvoLocal.order, hidden: salvoLocal.hidden,
+      order: ordemSalva, hidden: salvoLocal.hidden,
       collapsed: load(collapsedKey, {}), customs: load(customKey, {}),
     });
     var working  = { order: inicial.order, hidden: inicial.hidden };
@@ -237,7 +245,7 @@
         m.el.classList.toggle('bs-hidden-section', !!working.hidden[m.key]);
         applyCustom(m.key);
       });
-      save(stateKey, working);
+      salvarEstado(working);
       save(collapsedKey, collapsed);
       save(customKey, customs);
       renderSecPanel();
@@ -384,7 +392,7 @@
           if (hide) working.hidden[key] = true; else delete working.hidden[key];
           if (byKey[key]) byKey[key].el.classList.toggle('bs-hidden-section', hide);
         });
-        save(stateKey, working);
+        salvarEstado(working);
         renderSecPanel();
       });
     });
@@ -416,7 +424,7 @@
           if (e.target.checked) delete working.hidden[key]; else working.hidden[key] = true;
           m.el.classList.toggle('bs-hidden-section', !e.target.checked);
           row.classList.toggle('is-hidden', !e.target.checked);
-          save(stateKey, working);
+          salvarEstado(working);
         });
         row.querySelector('[data-act="tag"]').addEventListener('click', function (e) {
           e.stopPropagation();
@@ -453,7 +461,7 @@
           order.splice(to, 0, dragKey);
           working.order = order;
           if (sameParent) order.forEach(function (k) { if (byKey[k]) container.appendChild(byKey[k].el); });
-          save(stateKey, working);
+          salvarEstado(working);
           renderSecPanel();
         });
         list.appendChild(row);

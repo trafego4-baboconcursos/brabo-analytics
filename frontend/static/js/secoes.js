@@ -138,10 +138,21 @@
       }
       // A ordem salva pode citar seção que não existe mais nesta página (título renomeado, seção removida, view de outra
       // tela). Chave fantasma na frente da ordem derrubava o script em `byKey[...].el` ANTES de criar a barra
-      // Recolher/Expandir — a página ficava sem os botões (captação, 28/10/26). Fantasmas saem; seção nova entra no fim.
+      // Recolher/Expandir — a página ficava sem os botões (captação, 28/10/26). Fantasmas saem.
+      // Seção nova (não existia quando a ordem foi salva) entra na posição natural dela — logo depois da seção
+      // que a precede na página — e não no fim: até 25/11/26 ia pro fim, e o "Resumo executivo" do perpétuo,
+      // que é o topo da página, aparecia lá embaixo para quem já tinha ordem salva.
       var ordem = (est.order && est.order.length ? est.order : defaultOrder).map(k)
         .filter(function (x, i, a) { return byKey[x] && a.indexOf(x) === i; });
-      meta.forEach(function (m) { if (ordem.indexOf(m.key) === -1) ordem.push(m.key); });
+      meta.forEach(function (m, i) {
+        if (ordem.indexOf(m.key) !== -1) return;
+        var pos = 0;
+        for (var j = i - 1; j >= 0; j--) {
+          var p = ordem.indexOf(meta[j].key);
+          if (p !== -1) { pos = p + 1; break; }
+        }
+        ordem.splice(pos, 0, m.key);
+      });
       return {
         order:     ordem,
         hidden:    obj(est.hidden),
@@ -179,6 +190,9 @@
     var podeGlobal = false;  // admin/analista
     var bancoOk = false;     // migration 010 rodou e a API respondeu
 
+    // Sem estado salvo, só a 1ª seção abre expandida — a não ser que o template marque a seção com
+    // data-sec-aberta (ex.: gráfico de vendas por dia do perpétuo, que é para ser visto ao abrir a página).
+    function padraoRecolhida(m, idx) { return idx !== 0 && !m.el.hasAttribute('data-sec-aberta'); }
     function getLabel(key) { var c = customs[key]; return (c && c.name) ? c.name : (byKey[key] ? byKey[key].label : ''); }
     function getTag(key) { var c = customs[key]; if (c && c.tag !== undefined) return c.tag; return byKey[key] ? byKey[key].autoTag : ''; }
     function applyCustom(key) {
@@ -214,11 +228,11 @@
       customs   = Object.assign({}, est.customs);
       if (sameParent) {
         working.order.forEach(function (key) { if (byKey[key]) container.appendChild(byKey[key].el); });
-        // seção nova na página (não existia quando a view foi salva) vai pro final.
+        // rede de segurança: migrarKeys já pôs toda seção da página na ordem (as novas na posição natural).
         meta.forEach(function (m) { if (working.order.indexOf(m.key) === -1) container.appendChild(m.el); });
       }
       meta.forEach(function (m, idx) {
-        var isCollapsed = (m.key in collapsed) ? collapsed[m.key] : (idx !== 0);
+        var isCollapsed = (m.key in collapsed) ? collapsed[m.key] : padraoRecolhida(m, idx);
         m.el.classList.toggle('collapsed', isCollapsed);
         m.el.classList.toggle('bs-hidden-section', !!working.hidden[m.key]);
         applyCustom(m.key);
@@ -652,7 +666,7 @@
           if (colapsoAntesDaBusca) {
             collapsed = Object.assign({}, colapsoAntesDaBusca);
             meta.forEach(function (m, idx) {
-              var c = (m.key in collapsed) ? collapsed[m.key] : (idx !== 0);
+              var c = (m.key in collapsed) ? collapsed[m.key] : padraoRecolhida(m, idx);
               m.el.classList.toggle('collapsed', c);
             });
             save(collapsedKey, collapsed);

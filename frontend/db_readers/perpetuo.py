@@ -156,6 +156,62 @@ def _vendas(produtos: list[str], start: date, end: date, produtos_editora: list[
     return saida
 
 
+def _vendas_por_dia(produtos: list[str], start: date, end: date, produtos_editora: list[str] | None = None) -> dict:
+    """Mesmo recorte de `_vendas` (mesmas contas, status e valor líquido), aberto por dia.
+
+    Devolve {date: (vendas, receita)}. A soma dos dias bate com o cartão "Vendas do produto" de propósito:
+    o gráfico diário é o mesmo número, só que distribuído no período. Falha devolve {} (o gráfico some).
+    """
+    if not produtos and not produtos_editora:
+        return {}
+    data_sql = _hm_data_sql("data_da_transacao")
+    base = ("SELECT {data} AS dia, COUNT(*), COALESCE(SUM({valor}),0) FROM {tabela} "
+            "WHERE codigo_do_produto = ANY(:ids) AND status_da_transacao = ANY(:ok){extra} "
+            "AND {data} BETWEEN :start AND :end GROUP BY 1")
+    ok = list(_HOTMART_STATUS_APROVADO)
+    saida: dict[date, tuple[int, float]] = {}
+
+    def _somar(linhas):
+        for dia, n, receita in linhas:
+            if dia is None:
+                continue
+            v, r = saida.get(dia, (0, 0.0))
+            saida[dia] = (v + int(n or 0), r + float(receita or 0))
+
+    try:
+        with _get_users_engine().connect() as conn:
+            if produtos:
+                _somar(conn.execute(text(base.format(data=data_sql, valor=_VALOR_LIQUIDO_SQL,
+                                                     tabela="hotmart_clean_oficial", extra="")),
+                                    {"ids": produtos, "ok": ok, "start": start, "end": end}).fetchall())
+            if produtos_editora:
+                _somar(conn.execute(text(base.format(data=data_sql, valor=_VALOR_LIQUIDO_SQL,
+                                                     tabela="hotmart_editora_clean_oficial",
+                                                     extra=" AND produtor_a = :produtor")),
+                                    {"ids": produtos_editora, "ok": ok, "produtor": PRODUTOR_EDITORA,
+                                     "start": start, "end": end}).fetchall())
+    except Exception:
+        logger.exception("read_perpetuo: falha ao ler vendas por dia de %s / editora %s", produtos, produtos_editora)
+        return {}
+    return saida
+
+
+def _serie_diaria(start: date, end: date, vendas_dia: dict, meta_rows, google_rows) -> list[dict]:
+    """Um ponto por dia do período (dia sem venda entra com zero): vendas, faturamento e investimento."""
+    invest: dict[date, float] = {}
+    for r in meta_rows:
+        invest[r.date] = invest.get(r.date, 0.0) + float(r.spend or 0)
+    for r in google_rows:
+        invest[r.date] = invest.get(r.date, 0.0) + float(r.cost or 0)
+    serie, dia = [], start
+    while dia <= end:
+        n, receita = vendas_dia.get(dia, (0, 0.0))
+        serie.append({"dia": dia.isoformat(), "vendas": n, "receita": round(receita, 2),
+                      "invest": round(invest.get(dia, 0.0), 2)})
+        dia += timedelta(days=1)
+    return serie
+
+
 def _meta_totals(rows) -> dict:
     return {
         "spend": sum(float(r.spend or 0) for r in rows),
@@ -298,6 +354,10 @@ def read_perpetuo(vertical: str, days: int = 30, compare: bool = False, inicio=N
         "cpa": round(investimento_total / vendas["vendas"], 2) if vendas["vendas"] else None,
         "roas": round(vendas["receita"] / investimento_total, 2) if investimento_total else None,
         "vendas_atribuidas": False,
+        "serie_diaria": _serie_diaria(
+            start, end,
+            _vendas_por_dia(info.get("hotmart") or [], start, end, info.get("hotmart_editora")),
+            meta_rows, google_rows),
         "criativos_meta": _meta_criativos(meta_rows),
         "criativos_google": _google_criativos(google_rows),
         "publico_meta": _meta_publico(meta_rows),

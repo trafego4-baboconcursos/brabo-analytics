@@ -36,7 +36,10 @@
       <code>docs/performance/perpetuo/LEVANTAMENTO_PERPETUO_DISTRIBUICAO.md</code>.</div>
     {% endif %}
 
-    <div class="section">
+    {# Com título, este bloco vira seção do accordion (secoes.js): a barra de busca/Recolher/Expandir
+       entra antes da 1ª seção com título — sem ele, ela caía abaixo dos cartões. #}
+    <div class="section" data-sec-aberta>
+      <div class="section-title" data-sec-key="perpetuo-resumo"><i class="ti ti-report-analytics"></i> Resumo executivo</div>
       <div class="tp-kpi-grid">
         <div class="tp-kpi">
           <div class="tp-kpi-top">
@@ -124,6 +127,95 @@
         <code>[compra]</code> — a partir daí a venda chega carimbada.
       </div>
     </div>
+
+    {# ── Vendas por dia ─────────────────────────────────────────────────
+       Mesmo recorte do cartão "Vendas do produto" (soma dos dias = cartão), no período do seletor.
+       Uma série só (vendas); faturamento e investimento do dia vão no tooltip e na tabela — nada de
+       segundo eixo. #}
+    {% set serie = perpetuo.serie_diaria or [] %}
+    {% if serie %}
+    {% set total_v = serie | sum(attribute="vendas") %}
+    {% set melhor = serie | sort(attribute="vendas", reverse=True) | first %}
+    <div class="section" data-sec-aberta>
+      <div class="section-title" data-sec-key="perpetuo-vendas-dia"><i class="ti ti-chart-bar"></i> Vendas por dia</div>
+      <div style="font-size:12px;color:var(--bs-ink-muted);margin-bottom:var(--s2);">
+        {{ total_v | num }} vendas em {{ serie | length }} dias · média de
+        <strong>{{ "%.1f"|format(total_v / (serie | length)) | replace(".", ",") }}</strong> por
+        dia{% if melhor.vendas %} · melhor dia {{ melhor.dia | br_date }} ({{ melhor.vendas }}){% endif %}.
+        Venda do produto, não atribuída ao anúncio (mesma ressalva do resumo).
+      </div>
+      <div style="position:relative;height:240px;">
+        <canvas id="perpVendasDia" role="img"
+                aria-label="Vendas por dia de {{ perpetuo.range_start | br_date }} a {{ perpetuo.range_end | br_date }}: {{ total_v }} vendas"></canvas>
+      </div>
+      <details style="margin-top:var(--s3);">
+        <summary style="cursor:pointer;font-size:12px;color:var(--bs-ink-muted);">Ver tabela por dia</summary>
+        <div class="table-wrap" style="margin-top:var(--s2);">
+          <table>
+            <thead>
+              <tr>
+                <th>Dia</th>
+                <th class="th-num">Vendas</th>
+                <th class="th-num">Faturamento</th>
+                <th class="th-num">Investimento</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for p in serie | reverse %}
+              <tr>
+                <td>{{ p.dia | br_date }}</td>
+                <td class="numero">{{ p.vendas | num }}</td>
+                <td class="numero">{{ p.receita | brl }}</td>
+                <td class="numero">{{ p.invest | brl }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+    (function(){
+      const canvas = document.getElementById('perpVendasDia');
+      if (!canvas || typeof Chart === 'undefined') return;
+      const serie = {{ serie | tojson }};
+      const css = getComputedStyle(document.documentElement);
+      const cor   = css.getPropertyValue('--bs-accent').trim() || '#374151';
+      const muted = css.getPropertyValue('--bs-ink-muted').trim() || '#6b7280';
+      const grid  = css.getPropertyValue('--bs-border').trim() || '#e5e7eb';
+      const brl = v => v.toLocaleString('pt-BR', {style: 'currency', currency: 'BRL'});
+      const dm = s => { const [y, m, d] = s.split('-'); return d + '/' + m; };
+      new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: serie.map(p => dm(p.dia)),
+          datasets: [{
+            label: 'Vendas', data: serie.map(p => p.vendas), backgroundColor: cor,
+            borderRadius: {topLeft: 4, topRight: 4}, borderSkipped: 'bottom',
+            maxBarThickness: 24, categoryPercentage: 0.9, barPercentage: 0.9,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: {mode: 'index', intersect: false},
+          plugins: {
+            legend: {display: false},
+            tooltip: {displayColors: false, callbacks: {
+              title: items => { const p = serie[items[0].dataIndex]; const [y, m, d] = p.dia.split('-'); return d + '/' + m + '/' + y; },
+              label: item => { const p = serie[item.dataIndex]; return [
+                'Vendas: ' + p.vendas, 'Faturamento: ' + brl(p.receita), 'Investimento: ' + brl(p.invest)]; },
+            }},
+          },
+          scales: {
+            x: {grid: {display: false}, ticks: {color: muted, autoSkip: true, maxRotation: 0}},
+            y: {beginAtZero: true, grid: {color: grid}, border: {display: false}, ticks: {color: muted, precision: 0}},
+          }
+        }
+      });
+    })();
+    </script>
+    {% endif %}
 
     {# ── Mês a mês (todas as verticais) ────────────────────────────────
        Em paralelo ao seletor de 7/30/90 dias, que nunca fecha um mês. É a

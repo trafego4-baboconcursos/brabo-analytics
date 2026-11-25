@@ -194,10 +194,22 @@ def linha_da_venda(mes: date, transacao: str) -> LinhaComissao | None:
     """Linha da venda no mês: snapshot guardado (sem recalcular); se não está lá, o cálculo
     do mês (obter_mes — pode recalcular). Roda em threadpool."""
     from frontend.services.comercial import snapshot as snap  # noqa: PLC0415
-    linha = localizar(linhas_guardadas(mes), transacao)
+    linha = linha_guardada(mes, transacao)
     if linha is None:
         linha = localizar(snap.obter_mes(mes).linhas, transacao)
     return linha
+
+
+def linha_guardada(mes: date | None, transacao: str) -> LinhaComissao | None:
+    """A linha da venda no mês guardado, lendo só ela do banco (não o mês inteiro). Sem a
+    leitura direta, o caminho antigo (`linhas_guardadas`)."""
+    from frontend.services.comercial import snapshot as snap  # noqa: PLC0415
+    if mes is None:
+        return None
+    ls = snap.linhas_das_transacoes(mes, [transacao])
+    if ls is None:
+        ls = linhas_guardadas(mes)
+    return localizar(ls, transacao)
 
 
 def localizar(linhas: list[LinhaComissao] | None, transacao: str) -> LinhaComissao | None:
@@ -215,6 +227,9 @@ def exigir_venda_de_mes_aberto(transacao: str, *, reembolso: bool = False) -> da
     depois do fechamento -> venda tardia no primeiro mês aberto): passa, devolve None."""
     from frontend.db_readers import comercial as com  # noqa: PLC0415
     from frontend.services.comercial import fechamento as fech  # noqa: PLC0415
+    fechados = com.meses_fechados()
+    if not fechados:  # nenhum mês fechado: nada a conferir (poupa 2 consultas por ação)
+        return None
     mes = com.mes_fechado_da_transacao(transacao)
     if mes is not None:
         if not reembolso:
@@ -222,7 +237,6 @@ def exigir_venda_de_mes_aberto(transacao: str, *, reembolso: bool = False) -> da
         return mes
     # fora de congelado: se o mês dela está fechado e não é candidato do primeiro mês aberto
     # depois (Ruling 21), a ação não teria efeito em lugar nenhum -> recusa em vez de "gravado"
-    fechados = com.meses_fechados()
     if fechados:
         data = com.data_da_venda(transacao, plataforma_de(transacao))
         if data is not None and not fech.tem_mes_de_efeito(data.date(), fechados):
@@ -285,6 +299,36 @@ def buscar_por_telefone(telefone_norm: str, meses_linhas: list[tuple[date, list[
         return []
     achadas = fones_fn(sorted({l.transacao for _m, l in cands}), telefone_norm)
     return [(m, l) for m, l in cands if l.transacao in achadas]
+
+
+def buscar_telefone_rapido(telefone_norm: str, meses: list[date], atual,
+                           candidatas_fn, linhas_fn, fones_fn) -> list[tuple[date, LinhaComissao]]:
+    """Como `buscar_por_telefone`, sem baixar meses inteiros: o mês já carregado (`atual`, um
+    ResultadoMes) entra pelas linhas; os outros, só pelos códigos das candidatas
+    (`candidatas_fn(mes)`); UMA consulta de telefone para tudo; e só as achadas são lidas
+    (`linhas_fn(mes, transacoes)`)."""
+    em_memoria: dict[str, tuple[date, LinhaComissao]] = {}
+    de_fora: dict[str, date] = {}
+    for m in meses:
+        if atual is not None and atual.mes == m:
+            for l in candidatas_reivindicacao(atual.linhas):
+                em_memoria.setdefault(l.transacao, (m, l))
+        else:
+            for t in candidatas_fn(m) or ():
+                de_fora.setdefault(t, m)
+    todas = sorted(set(em_memoria) | set(de_fora))
+    if not todas:
+        return []
+    achadas = fones_fn(todas, telefone_norm)
+    saida = [em_memoria[t] for t in todas if t in achadas and t in em_memoria]
+    por_mes: dict[date, list[str]] = {}
+    for t in todas:
+        if t in achadas and t not in em_memoria:
+            por_mes.setdefault(de_fora[t], []).append(t)
+    for m, ts in por_mes.items():
+        for l in candidatas_reivindicacao(linhas_fn(m, ts) or []):
+            saida.append((m, l))
+    return sorted(saida, key=lambda ml: (ml[1].data, ml[1].transacao))
 
 
 def meses_da_busca(hoje: date, fechados) -> list[date]:

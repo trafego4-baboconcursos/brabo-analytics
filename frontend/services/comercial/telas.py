@@ -153,10 +153,13 @@ def calcular_periodo(inicio: date, fim: date, hoje: datetime | None = None) -> R
     return ResultadoMes(inicio, linhas, sem_data, _snap.agora_sp())
 
 
-def carregar(periodo: Periodo) -> ResultadoMes:
-    """Mês -> snapshot (ou cálculo + gravação); período livre -> cálculo ao vivo."""
+def carregar(periodo: Periodo, rapido: bool = False) -> ResultadoMes:
+    """Mês -> snapshot (ou cálculo + gravação); período livre -> cálculo ao vivo. `rapido`
+    (Inconsistências): aceita o mês da memória desatualizado e recalcula em segundo plano."""
     if periodo.livre:
         return calcular_periodo(periodo.inicio, periodo.fim)
+    if rapido:
+        return _snap.obter_mes_tela(periodo.mes)
     return _snap.obter_mes(periodo.mes)
 
 

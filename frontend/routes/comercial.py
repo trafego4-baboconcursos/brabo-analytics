@@ -390,7 +390,7 @@ async def _acao(request: Request, permissao: str, mes: str | None, executar):
             meses = [None] if invalida[1] is None else list(invalida[1])
         else:
             # mês da venda se ela está no snapshot do mês da tela; senão todos (mês desconhecido)
-            achou = inc.localizar(await run_in_threadpool(inc.linhas_guardadas, mes_d), transacao)
+            achou = await run_in_threadpool(inc.linha_guardada, mes_d, transacao)
             meses = [mes_d if achou else None]
         try:
             for m in meses:
@@ -399,6 +399,11 @@ async def _acao(request: Request, permissao: str, mes: str | None, executar):
             import logging  # noqa: PLC0415
             logging.getLogger("comercial.inconsistencias").exception("marcar_desatualizado")
             return _voltar_inc(mes_d, ok=ok, erro="nao_invalidou")
+        # o gestor não espera o mês ser refeito: a tela volta com o que está na memória e o
+        # recálculo roda em segundo plano (aprovações seguidas viram uma rodada só)
+        for m in meses:
+            if m is not None:
+                snap.recalcular_em_segundo_plano(m)
     return _voltar_inc(mes_d, ok=ok)
 
 
@@ -415,21 +420,27 @@ async def comercial_inconsistencias(request: Request, mes: str | None = None, q:
         periodo = t.resolver_periodo(mes, None, None, hoje)  # só mês: as ações voltam para um mês
     except t.PeriodoInvalido as exc:
         return resposta_400(str(exc))
-    res = await run_in_threadpool(t.carregar, periodo)
+    import asyncio  # noqa: PLC0415
     gestor = ac.pode(acesso.nivel, "ver_time")
-    fila = await run_in_threadpool(lambda: com.ler_fila(vendedor_codigo=acesso.vendedor_codigo, gestor=gestor))
-    conflitos = {}
+    # o mês e a fila não dependem um do outro: em paralelo (cada consulta custa ~1 s de ida e volta)
+    res, fila = await asyncio.gather(
+        run_in_threadpool(t.carregar, periodo, True),
+        run_in_threadpool(lambda: com.ler_fila(vendedor_codigo=acesso.vendedor_codigo, gestor=gestor)))
+
+    async def _nada(v):
+        return v
+    pedidos = None
     if gestor:
         pedidos = [l.transacao for l in res.linhas if l.papel == "venda" and l.motivo == "conflito_codigo"]
-        conflitos = await run_in_threadpool(com.ler_codigos_conflito, pedidos)
-    achadas, erro_busca, tel = [], None, ""
+    erro_busca, tel = None, ""
     if inc.pode_reivindicar(acesso) and (q or "").strip():
         try:
             tel = inc.limpar_telefone(q)
         except inc.EntradaInvalida as exc:
             erro_busca = str(exc)
-        else:
-            achadas = await run_in_threadpool(_buscar_telefone, tel, res, hoje)
+    conflitos, achadas = await asyncio.gather(
+        run_in_threadpool(com.ler_codigos_conflito, pedidos) if pedidos is not None else _nada({}),
+        run_in_threadpool(_buscar_telefone, tel, res, hoje) if tel else _nada([]))
     view = inc.view_inconsistencias(res, periodo, acesso, fila, conflitos, q, achadas)
     view["telefone_busca"] = tel
     view["telefone_rotulo"] = inc.formatar_telefone(tel)
@@ -442,14 +453,21 @@ async def comercial_inconsistencias(request: Request, mes: str | None = None, q:
 def _buscar_telefone(tel: str, res, hoje):
     """Vendas sem código do telefone no mês atual e no anterior (abertos). O mês atual vem do
     que a tela já carregou; o anterior, do snapshot guardado (sem recalcular no request)."""
+    from concurrent.futures import ThreadPoolExecutor  # noqa: PLC0415
+    from datetime import timedelta  # noqa: PLC0415
+
+    from frontend.services.comercial import snapshot as snap  # noqa: PLC0415
     inc, com = _inc(), _com()
-    meses = inc.meses_da_busca(hoje, com.meses_fechados())
-    meses_linhas = []
-    for m in meses:
-        ls = res.linhas if res.mes == m else inc.linhas_guardadas(m)
-        if ls:
-            meses_linhas.append((m, ls))
-    return inc.buscar_por_telefone(tel, meses_linhas, com.transacoes_do_telefone)
+    anterior = (hoje.replace(day=1) - timedelta(days=1)).replace(day=1)
+    # meses fechados e candidatas do mês anterior não dependem um do outro: juntos
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        f_fech = ex.submit(com.meses_fechados)
+        f_cand = None if res.mes == anterior else ex.submit(snap.transacoes_candidatas, anterior)
+        meses = inc.meses_da_busca(hoje, f_fech.result())
+        pre = {anterior: f_cand.result()} if f_cand is not None else {}
+    return inc.buscar_telefone_rapido(tel, meses, res,
+                                      lambda m: pre[m] if m in pre else snap.transacoes_candidatas(m),
+                                      snap.linhas_das_transacoes, com.transacoes_do_telefone)
 
 
 @router.post("/comercial/reivindicar")

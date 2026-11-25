@@ -2764,6 +2764,26 @@ Telas, gravação e fechamento da área Comercial ([[PLANO_AREA_COMERCIAL_COMISS
   - Sem código no formulário, a reivindicação vai para o código dele (`codigo_do_pedido`), e ele aprova na mesma fila das vendedoras. Caso real: o Rafael, AT12.
 - Impacto medido em 18/11, comparando a regra nova com a antiga sobre os mesmos dados: +R$ 140,84 no ano. Outubro não muda, porque a janela da Black já era de 12 a 19/10.
 
+**Reivindicação ágil (2026-11-25, pedido do Rafael: "muito lento para alimentar e para o gestor aprovar").**
+- Causas medidas:
+  - Cada aprovação marcava o mês como desatualizado, e a página para onde o gestor voltava recalculava o mês inteiro na hora (~12 s mais a gravação; ~25–30 s por aprovação).
+  - Achar uma venda para validar ou para descobrir o mês a invalidar baixava o snapshot inteiro do mês (2,5–4 s).
+  - A busca por telefone baixava o mês anterior inteiro.
+  - Cada consulta custa ~1 s, entre pre-ping, `SET statement_timeout`, a consulta e o rollback.
+- O que mudou:
+  - **Recálculo em segundo plano.** Depois da ação, `snapshot.recalcular_em_segundo_plano` roda um recálculo por mês. Pedidos durante o cálculo viram uma rodada a mais, então 10 aprovações seguidas dão 2 recálculos. Ao terminar, guarda o mês na memória com a versão nova.
+  - **Página servida da memória.** A página de Inconsistências usa `obter_mes_tela`: devolve o mês da memória mesmo desatualizado e pede o recálculo. Sem memória, usa o caminho normal. Comissões, Visão e Ranking seguem estritos, com `obter_mes`, que espera o recálculo em andamento em vez de duplicá-lo.
+  - **Leitura cirúrgica.** `snapshot.linhas_das_transacoes` traz só as linhas pedidas do jsonb, via `jsonb_array_elements` no banco, do congelado se o mês está fechado. `snapshot.transacoes_candidatas` traz só os códigos reivindicáveis. `inconsistencias.linha_guardada` e a busca (`buscar_telefone_rapido`) usam essas funções, com uma consulta de telefone para os dois meses.
+  - **Menos consultas em sequência.** `exigir_venda_de_mes_aberto` pula duas consultas quando não há mês fechado. A rota roda em paralelo o mês e a fila, e depois os conflitos e a busca. Os meses fechados e as candidatas do mês anterior também saem juntos.
+- Medido do PC, contra o banco real:
+
+  | Ação | Antes | Depois |
+  |---|---|---|
+  | Página depois de aprovar | ~15–20 s | ~1,9 s |
+  | Busca por telefone | ~9,5 s | ~4,5 s |
+  | Achar uma venda | ~4 s | ~1,2 s |
+  | Conferir mês aberto | ~3,2 s | ~1,1 s |
+
 **Snapshot.** `obter_mes` devolve `comercial_snapshot` e só recalcula se faltar, se tiver `invalidado_em` ou se `gerado_em` for de dia anterior (SP). O refresh do ETL (`/api/etl/refresh`) chama `marcar_desatualizado()`; o warm-up recalcula o mês corrente e **não recalcula mês fechado**. Período livre: só gestor, até 92 dias; `?mes=` de 2026-01 ao mês corrente.
 
 **Guarda de escrita.** `exigir_so_comercial` só deixa passar: INSERT em tabela da allowlist `comercial_*`, os textos exatos registrados (constantes do módulo, comparados após normalizar espaços — UPDATE/upsert/DELETE só assim, nunca por padrão genérico) e as migrações registradas (`ALTER TABLE comercial_snapshot ADD COLUMN IF NOT EXISTS invalidado_em`). Qualquer outro SQL estoura; `hotmart_*`/`tmb_*` continuam só-leitura.

@@ -495,6 +495,17 @@ def cli(_app_client, banco, monkeypatch):
     monkeypatch.setattr(snap, "obter_mes", lambda mes, **kw: _res())
     monkeypatch.setattr(snap, "marcar_desatualizado", lambda mes=None, **kw: desat.append(mes))
     monkeypatch.setattr(inc, "linhas_guardadas", lambda mes: _linhas() if mes == date(2026, 10, 1) else None)
+    # leitura direta (25/11/26) segue o que o teste puser em linhas_guardadas; recálculo em
+    # segundo plano só registra o mês (nada de thread nem banco no teste)
+    def _linhas_das(mes, ts):
+        ls = inc.linhas_guardadas(mes)
+        return None if ls is None else [l for l in ls if l.transacao in set(ts)]
+    monkeypatch.setattr(snap, "linhas_das_transacoes", _linhas_das)
+    monkeypatch.setattr(snap, "transacoes_candidatas",
+                        lambda mes: [l.transacao for l in inc.candidatas_reivindicacao(inc.linhas_guardadas(mes) or [])])
+    fundo = []
+    monkeypatch.setattr(snap, "recalcular_em_segundo_plano", lambda mes: fundo.append(mes))
+    _app_client.fundo = fundo
     monkeypatch.setattr(rotas, "_hoje", lambda: date(2026, 11, 6))
     monkeypatch.setattr(rotas, "get_launches", lambda: [])
     monkeypatch.setattr(acesso_mod, "acesso_comercial", lambda user, **kw: _USUARIOS.get((user or {}).get("email")))
@@ -559,6 +570,7 @@ def test_fluxo_vendedor_reivindica_coordenador_aprova(cli):
     assert a["status"] == "aprovada" and a["aprovado_por"] == "coord@teste.local"
     assert [h["depois"] for h in cli.banco.historico] == ["pendente (AT4)", "aprovada (AT4)"]
     assert cli.desat == [date(2026, 10, 1)]  # mês da venda
+    assert cli.fundo == [date(2026, 10, 1)]  # recalcula em segundo plano, o gestor não espera
 
     r = _como(cli, "coord@teste.local").post("/comercial/atribuicoes/aprovar",
                                              data={"transacao": "HP-SEM-007", "mes": "2026-10"})
@@ -938,3 +950,55 @@ def test_rota_coordenador_que_vende_ve_reivindicar(cli, monkeypatch):
     assert "Reivindicações de venda" in html  # e segue com a fila de gestor
     html = _como(cli, "master@teste.local").get("/comercial/inconsistencias?mes=2026-10").text
     assert "Reivindicar uma venda" not in html
+
+
+
+# ---------------------------------------------------------------- reivindicação ágil (25/11/26)
+def test_busca_rapida_mes_carregado_pela_memoria_e_anterior_pelos_codigos():
+    ls_out = _linhas()
+    cands_out = [l.transacao for l in inc.candidatas_reivindicacao(ls_out)]
+    assert len(cands_out) >= 2
+    alvo_fora = cands_out[1]
+    nov = ResultadoMes(date(2026, 11, 1), [], [], datetime(2026, 11, 6))  # mês atual sem candidatas
+    pedidos = {"fones": [], "linhas": []}
+
+    def fones(ts, tel):
+        pedidos["fones"].append(list(ts))
+        return {alvo_fora}
+
+    def linhas(mes, ts):
+        pedidos["linhas"].append((mes, list(ts)))
+        return [l for l in ls_out if l.transacao in ts]
+
+    achadas = inc.buscar_telefone_rapido("1191234567", [date(2026, 11, 1), date(2026, 10, 1)], nov,
+                                         lambda m: cands_out if m == date(2026, 10, 1) else [], linhas, fones)
+    assert [(m, l.transacao) for m, l in achadas] == [(date(2026, 10, 1), alvo_fora)]
+    assert len(pedidos["fones"]) == 1  # uma consulta de telefone para os dois meses
+    assert pedidos["linhas"] == [(date(2026, 10, 1), [alvo_fora])]  # só a achada é lida
+
+
+def test_busca_rapida_usa_linhas_do_mes_em_memoria():
+    res = _res()
+    alvo = inc.candidatas_reivindicacao(res.linhas)[0].transacao
+    achadas = inc.buscar_telefone_rapido("1191234567", [date(2026, 10, 1)], res,
+                                         lambda m: pytest.fail("mês em memória não vai ao banco"),
+                                         lambda m, ts: pytest.fail("idem"), lambda ts, tel: {alvo})
+    assert [l.transacao for _m, l in achadas] == [alvo]
+
+
+def test_conferencia_sem_mes_fechado_nao_consulta_mais_nada(monkeypatch):
+    monkeypatch.setattr(com, "meses_fechados", lambda: {})
+    monkeypatch.setattr(com, "mes_fechado_da_transacao", lambda t: pytest.fail("não precisava"))
+    monkeypatch.setattr(com, "data_da_venda", lambda t, p: pytest.fail("não precisava"))
+    assert inc.exigir_venda_de_mes_aberto("HP-1") is None
+
+
+def test_linha_guardada_le_so_a_venda(monkeypatch):
+    pedidos = []
+    monkeypatch.setattr(snap, "linhas_das_transacoes", lambda mes, ts: (pedidos.append(ts), [_l("HP-X", "AT4")])[1])
+    monkeypatch.setattr(inc, "linhas_guardadas", lambda mes: pytest.fail("não baixa o mês inteiro"))
+    assert inc.linha_guardada(date(2026, 10, 1), "HP-X").transacao == "HP-X"
+    assert pedidos == [["HP-X"]]
+    monkeypatch.setattr(snap, "linhas_das_transacoes", lambda mes, ts: None)  # sem leitura direta
+    monkeypatch.setattr(inc, "linhas_guardadas", lambda mes: [_l("HP-Y", "AT4")])
+    assert inc.linha_guardada(date(2026, 10, 1), "HP-Y").transacao == "HP-Y"

@@ -251,6 +251,138 @@ def limpar_cache() -> None:
         _cache.clear()
 
 
+# ---------------------------------------------------------------- reivindicação ágil (25/11/26)
+# Rafael: reivindicar e aprovar demoravam 10–30 s. Causas medidas: (1) cada aprovação marcava o
+# mês para recalcular e a página seguinte refazia o mês inteiro na hora (~12 s); (2) achar UMA
+# venda baixava o snapshot inteiro do mês (2,5–4 s); (3) a busca por telefone baixava o mês
+# anterior inteiro. Daqui para baixo: leitura só das linhas pedidas, a tela de Inconsistências
+# servida da memória (mesmo desatualizada) e o recálculo em segundo plano, um por mês.
+SQL_LINHAS_SNAP = (
+    "SELECT e.linha FROM comercial_snapshot s CROSS JOIN LATERAL jsonb_array_elements(s.linhas) "
+    "AS e(linha) WHERE s.mes = :mes AND e.linha->>'transacao' = ANY(:transacoes)")
+SQL_LINHAS_FECH = (
+    "SELECT e.linha FROM comercial_fechamentos f CROSS JOIN LATERAL jsonb_array_elements(f.linhas) "
+    "AS e(linha) WHERE f.ativo AND f.mes = :mes AND e.linha->>'transacao' = ANY(:transacoes)")
+SQL_FECH_ATIVO_DO_MES = "SELECT 1 FROM comercial_fechamentos WHERE ativo AND mes = :mes"
+SQL_CANDIDATAS_SNAP = (
+    "SELECT DISTINCT e.linha->>'transacao' FROM comercial_snapshot s CROSS JOIN LATERAL "
+    "jsonb_array_elements(s.linhas) AS e(linha) WHERE s.mes = :mes AND ("
+    "(e.linha->>'papel' = 'venda' AND e.linha->>'situacao' = 'inconsistente' "
+    "AND e.linha->>'motivo' = 'sem_codigo') "
+    "OR (e.linha->>'papel' = 'ia' AND e.linha->>'situacao' <> 'cancelada'))")
+
+
+def linhas_das_transacoes(mes: date, transacoes: list[str]) -> list[LinhaComissao] | None:
+    """Só as linhas destas transações no mês guardado (congelado, se o mês está fechado), sem
+    baixar o mês inteiro. None = não deu para ler (quem chama cai no caminho antigo)."""
+    from frontend.db import _get_users_engine  # noqa: PLC0415
+    ts = sorted({t for t in transacoes if t})
+    if mes is None or not ts:
+        return []
+    m = mes.replace(day=1)
+    try:
+        with _get_users_engine().connect() as c:
+            fechado = c.execute(text(SQL_FECH_ATIVO_DO_MES), {"mes": m}).fetchone() is not None
+            rows = c.execute(text(SQL_LINHAS_FECH if fechado else SQL_LINHAS_SNAP),
+                             {"mes": m, "transacoes": ts}).fetchall()
+        return [linha_de_json(r[0] if not isinstance(r[0], str) else json.loads(r[0])) for r in rows]
+    except Exception:  # noqa: BLE001
+        logger.warning("linhas_das_transacoes(%s): sem leitura direta; caminho antigo", mes, exc_info=True)
+        return None
+
+
+def transacoes_candidatas(mes: date) -> list[str] | None:
+    """Transações reivindicáveis do snapshot guardado do mês (sem código / Camila), só os
+    códigos. None = não deu para ler."""
+    from frontend.db import _get_users_engine  # noqa: PLC0415
+    try:
+        with _get_users_engine().connect() as c:
+            return [r[0] for r in c.execute(text(SQL_CANDIDATAS_SNAP), {"mes": mes.replace(day=1)}).fetchall()]
+    except Exception:  # noqa: BLE001
+        logger.warning("transacoes_candidatas(%s): sem leitura direta", mes, exc_info=True)
+        return None
+
+
+_bg_lock = __import__("threading").Lock()
+_bg_estado: dict[date, str] = {}          # mês -> "rodando" | "de_novo"
+_bg_fim: dict[date, object] = {}          # mês -> threading.Event do recálculo em andamento
+
+
+def recalcular_em_segundo_plano(mes: date) -> bool:
+    """Recalcula o mês numa thread. Um por mês: pedido durante o cálculo vira UMA rodada a mais
+    no fim (aprovar 10 seguidas = 2 recálculos, não 10). Devolve False se só agendou a rodada."""
+    import threading  # noqa: PLC0415
+    m = mes.replace(day=1)
+    with _bg_lock:
+        if m in _bg_estado:
+            _bg_estado[m] = "de_novo"
+            return False
+        _bg_estado[m] = "rodando"
+        _bg_fim[m] = threading.Event()
+    threading.Thread(target=_trabalho_segundo_plano, args=(m,), daemon=True,
+                     name=f"comercial-recalculo-{m:%Y-%m}").start()
+    return True
+
+
+def _trabalho_segundo_plano(mes: date) -> None:
+    try:
+        while True:
+            try:
+                st = StoreBanco()
+                if st.fechamento(mes) is None:  # mês fechado não se recalcula
+                    _cache_depois_do_recalculo(mes, recalcular_mes(mes, store=st))
+            except Exception:  # noqa: BLE001 — a próxima leitura recalcula do jeito normal
+                logger.exception("comercial: recálculo em segundo plano de %s falhou", mes)
+            with _bg_lock:
+                if _bg_estado.get(mes) == "de_novo":
+                    _bg_estado[mes] = "rodando"
+                    continue
+                return
+    finally:
+        with _bg_lock:
+            _bg_estado.pop(mes, None)
+            ev = _bg_fim.pop(mes, None)
+        if ev is not None:
+            ev.set()
+
+
+def _cache_depois_do_recalculo(mes: date, r: ResultadoMes) -> None:
+    """O recálculo acabou de gravar: guarda na memória com a versão nova, para a próxima tela
+    não baixar o mês de novo (só se a versão do banco é a deste cálculo)."""
+    versoes = versoes_guardadas()
+    versao = (versoes or {}).get(mes)
+    if versao and versao[0] and r.gerado_em == _naive_sp(versao[0][0]) and not versao[0][1]:
+        _para_cache(mes, versao, r)
+
+
+def aguardar_segundo_plano(mes: date, timeout: float = 90) -> None:
+    """Se o mês está recalculando em segundo plano, espera (em vez de calcular de novo junto)."""
+    with _bg_lock:
+        ev = _bg_fim.get(mes.replace(day=1))
+    if ev is not None:
+        ev.wait(timeout)
+
+
+def obter_mes_tela(mes: date, *, hoje: datetime | None = None) -> ResultadoMes:
+    """Para a tela de Inconsistências/Reivindicações: o que está na memória, mesmo desatualizado
+    (a ação acabou de marcar o mês), e o recálculo vai para o segundo plano. Sem nada na memória,
+    o caminho normal (`obter_mes`)."""
+    m = mes.replace(day=1)
+    with _cache_lock:
+        hit = _cache.get(m)
+    if hit is None:
+        return obter_mes(m, hoje=hoje)
+    versao_mem, r = hit
+    if r.fechado:
+        return r
+    versao = (versoes_guardadas() or {}).get(m)
+    em_dia = (versao == versao_mem and not r.desatualizado
+              and r.gerado_em.date() >= (hoje or agora_sp()).date())
+    if not em_dia:
+        recalcular_em_segundo_plano(m)
+    return r
+
+
 def obter_mes(mes: date, *, hoje: datetime | None = None, store: Store | None = None,
               versoes: dict[date, tuple] | None = None) -> ResultadoMes:
     """Mês fechado -> as linhas congeladas (comercial_fechamentos), nunca recalculadas. Senão,
@@ -264,6 +396,16 @@ def obter_mes(mes: date, *, hoje: datetime | None = None, store: Store | None = 
         if r is not None and (r.fechado or (not r.desatualizado
                                             and r.gerado_em.date() >= (hoje or agora_sp()).date())):
             return r
+        with _bg_lock:
+            rodando = mes in _bg_estado
+        if rodando:  # o segundo plano já está refazendo este mês: espera e relê em vez de duplicar
+            aguardar_segundo_plano(mes)
+            versoes = versoes_guardadas()
+            versao = (versoes or {}).get(mes) if versoes is not None else None
+            r = _do_cache(mes, versao)
+            if r is not None and (r.fechado or (not r.desatualizado
+                                                and r.gerado_em.date() >= (hoje or agora_sp()).date())):
+                return r
         r = _obter_mes_banco(mes, hoje=hoje, store=StoreBanco())
         # versão de antes da leitura: se o snapshot mudou no meio, a próxima leitura relê
         if r.fechado or (r.gerado_em and versao and versao[0] and r.gerado_em == _naive_sp(versao[0][0])):

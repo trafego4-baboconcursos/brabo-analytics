@@ -76,3 +76,63 @@ def test_obter_mes_de_ontem_nao_sai_da_memoria(banco, monkeypatch):
     snap.obter_mes(NOV, hoje=datetime(2026, 11, 11, 9))  # snapshot de 10/11: velho
     snap.obter_mes(NOV, hoje=datetime(2026, 11, 11, 9))
     assert calc == [NOV, NOV]  # nunca devolve do cache um snapshot de dia anterior
+
+
+
+# ---------------------------------------------------------------- reivindicação ágil (25/11/26)
+def test_tela_serve_da_memoria_desatualizada_e_recalcula_em_segundo_plano(monkeypatch):
+    from datetime import date as _d, datetime as _dt
+    from frontend.services.comercial import snapshot as snap
+    from frontend.services.comercial.snapshot import ResultadoMes
+    snap.limpar_cache()
+    mes = _d(2026, 11, 1)
+    r = ResultadoMes(mes, [], [], _dt(2026, 11, 25, 9, 0))
+    snap._para_cache(mes, ("v1",), r)
+    fundo = []
+    monkeypatch.setattr(snap, "recalcular_em_segundo_plano", lambda m: fundo.append(m))
+    monkeypatch.setattr(snap, "obter_mes", lambda *a, **k: (_ for _ in ()).throw(AssertionError("não recalcula na hora")))
+    monkeypatch.setattr(snap, "versoes_guardadas", lambda: {mes: ("v2",)})  # o mês foi marcado
+    assert snap.obter_mes_tela(mes, hoje=_dt(2026, 11, 25, 10)) is r
+    assert fundo == [mes]
+    fundo.clear()
+    monkeypatch.setattr(snap, "versoes_guardadas", lambda: {mes: ("v1",)})  # em dia: nada a fazer
+    assert snap.obter_mes_tela(mes, hoje=_dt(2026, 11, 25, 10)) is r
+    assert fundo == []
+    snap.limpar_cache()
+
+
+def test_tela_sem_memoria_vai_pelo_caminho_normal(monkeypatch):
+    from datetime import date as _d
+    from frontend.services.comercial import snapshot as snap
+    snap.limpar_cache()
+    monkeypatch.setattr(snap, "obter_mes", lambda m, **k: "normal")
+    assert snap.obter_mes_tela(_d(2026, 11, 1)) == "normal"
+
+
+def test_segundo_plano_junta_pedidos_seguidos(monkeypatch):
+    import threading
+    from datetime import date as _d, datetime as _dt
+    from frontend.services.comercial import snapshot as snap
+    from frontend.services.comercial.snapshot import ResultadoMes
+    mes = _d(2026, 11, 1)
+    liberar, rodadas = threading.Event(), []
+
+    class _St:
+        def fechamento(self, m):
+            return None
+
+    def recalc(m, store=None):
+        rodadas.append(m)
+        liberar.wait(5)
+        return ResultadoMes(m, [], [], _dt(2026, 11, 25, 10))
+
+    monkeypatch.setattr(snap, "StoreBanco", _St)
+    monkeypatch.setattr(snap, "recalcular_mes", recalc)
+    monkeypatch.setattr(snap, "_cache_depois_do_recalculo", lambda m, r: None)
+    assert snap.recalcular_em_segundo_plano(mes) is True
+    for _ in range(5):  # cinco aprovações durante o cálculo
+        assert snap.recalcular_em_segundo_plano(mes) is False
+    liberar.set()
+    snap.aguardar_segundo_plano(mes, timeout=10)
+    assert rodadas == [mes, mes]  # a rodada em andamento + UMA para os cinco pedidos
+    assert mes not in snap._bg_estado

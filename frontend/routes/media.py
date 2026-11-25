@@ -158,20 +158,35 @@ async def instagram_detail_page(request: Request, username: str, launch_code: st
     return templates.TemplateResponse("instagram_detail.html", ctx)
 
 
+@router.get("/perpetuo", response_class=HTMLResponse)
+async def perpetuo_resumo_page(request: Request, launch_code: str | None = None,
+                               days: int = 30, compare: int = 0, inicio: str | None = None, fim: str | None = None):
+    """Resumo do perpétuo: painel executivo das 4 verticais somadas + relatório mês a mês (que saiu das páginas
+    dos produtos em 25/11/26 — a pergunta "quanto o perpétuo deu em agosto?" é do perpétuo inteiro)."""
+    from frontend.db_readers.perpetuo import read_perpetuo_mensal, read_perpetuo_resumo  # noqa: PLC0415
+    launches = await run_in_threadpool(get_launches)
+    launch = resolve_launch(launch_code, launches)
+    resumo, mensal = await asyncio.gather(
+        run_in_threadpool(read_perpetuo_resumo, days, bool(compare), inicio, fim),
+        run_in_threadpool(read_perpetuo_mensal, 6),
+        return_exceptions=True)
+    if isinstance(resumo, BaseException):
+        logger.error("Perpétuo: falha ao montar o resumo: %r", resumo)
+        resumo = None
+    if isinstance(mensal, BaseException):
+        logger.error("Perpétuo: falha ao montar a visão mês a mês: %r", mensal)
+        mensal = None
+    ctx = _base_ctx(request, "perpetuo_resumo", "Perpétuo — Resumo", launch, launches,
+                    resumo=resumo, perpetuo_mensal=mensal)
+    return templates.TemplateResponse("perpetuo_resumo.html", ctx)
+
+
 @router.get("/perpetuo/{vertical}", response_class=HTMLResponse)
 async def perpetuo_page(request: Request, vertical: str, launch_code: str | None = None,
                          days: int = 30, compare: int = 0, inicio: str | None = None, fim: str | None = None):
     launches = await run_in_threadpool(get_launches)
     launch = resolve_launch(launch_code, launches)
     detail = await run_in_threadpool(read_perpetuo, vertical, days, bool(compare), inicio, fim)
-    # Mês fechado, em paralelo ao seletor de dias corridos: o seletor nunca
-    # responde "quanto o perpétuo deu em agosto?" — ver read_perpetuo_mensal.
-    mensal = None
-    try:
-        from frontend.db_readers.perpetuo import read_perpetuo_mensal  # noqa: PLC0415
-        mensal = await run_in_threadpool(read_perpetuo_mensal, 6)
-    except Exception:
-        logger.exception("Perpétuo: falha ao montar a visão mês a mês")
     nome = PERPETUO_VERTICALS.get(vertical, {}).get("nome", vertical)
     # Miniaturas dos criativos (ad_creatives do pseudo-lançamento PERPETUO-*). Falha só deixa a coluna vazia.
     thumbs: dict = {}
@@ -182,7 +197,7 @@ async def perpetuo_page(request: Request, vertical: str, launch_code: str | None
         except Exception:
             logger.exception("Perpétuo: falha ao buscar miniaturas de %s", vertical)
     ctx = _base_ctx(request, "perpetuo", nome, launch, launches,
-                    perpetuo=detail, perpetuo_mensal=mensal, drive_thumbnails=thumbs)
+                    perpetuo=detail, drive_thumbnails=thumbs)
     return templates.TemplateResponse("perpetuo.html", ctx)
 
 

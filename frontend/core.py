@@ -539,7 +539,10 @@ def _build_perpetuo_nav_items(current_path: str, active_code: str | None) -> lis
     """Submenu fixo do modo Perpétuo — as 4 verticais (Mestre em Questões
     TJ-SP/INSS/BB + Planner), pedido explicitamente pelo usuário (diferente
     do modo Redes Sociais, que só linka de volta pro índice)."""
-    items = []
+    # "Resumo" (/perpetuo) vem acima das verticais: painel executivo das 4 somadas + mês a mês (25/11/26).
+    items = [{"slug": "resumo", "label": "Resumo", "curto": "Resumo",
+              "href": "/perpetuo" + (f"?launch_code={active_code}" if active_code else ""),
+              "active": current_path.rstrip("/") == "/perpetuo"}]
     for slug, info in PERPETUO_VERTICALS.items():
         href = f"/perpetuo/{slug}"
         if active_code:
@@ -664,7 +667,9 @@ def _base_ctx(
 
     if page == "instagram":
         nav_mode = "redes_sociais"
-    elif page == "perpetuo":
+    elif page in ("perpetuo", "perpetuo_resumo"):
+        # perpetuo_resumo = /perpetuo. Nome próprio porque o `page` vira o data-page do <body>, e é a chave da
+        # ordem/estado das seções salvos no navegador (secoes.js): Resumo e produtos não podem dividir a mesma.
         nav_mode = "perpetuo"
     elif page == "distribuicao":
         nav_mode = "distribuicao"

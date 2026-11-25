@@ -28,6 +28,7 @@ from frontend.db_readers._vendas_comum import (
     HOTMART_EDITORA_IDS_PERPETUO_POR_VERTICAL as _IDS_ED,
     PRODUTOR_EDITORA,
     _hm_data_sql,
+    _parcela_unica_info,
 )
 
 logger = get_logger("db")
@@ -154,6 +155,141 @@ def _vendas(produtos: list[str], start: date, end: date, produtos_editora: list[
     saida["vendas"] += saida["vendas_editora"]
     saida["receita"] += saida["receita_editora"]
     return saida
+
+
+# ── Quebra das vendas: sem vendedor × comercial, e preço cheio × com desconto ─────────────────────────────
+# Vendas do perpétuo misturam duas origens: a compra direta (anúncio, orgânico, e-mail, régua) e o cross sell dos
+# vendedores do Comercial. A venda é do comercial quando a oferta (`codigo_do_preco`) está em `comercial_ofertas`
+# com código AT, ou quando a transação tem atribuição aprovada em `comercial_atribuicoes` (mesma regra da
+# área /comercial). O resto é "sem vendedor" — e continua sendo teto de venda do anúncio.
+_LIMITE_DESCONTO = 0.97   # preço pago abaixo de 97% do preço de referência = com desconto
+_MIN_VENDAS_REFERENCIA = 5
+
+
+def _num(v) -> float:
+    try:
+        return float(str(v).replace(",", ".")) if v not in (None, "") else 0.0
+    except ValueError:
+        return 0.0
+
+
+def classificar_vendas(linhas: list[dict], ofertas: dict[str, str], atribuicoes: dict[str, str]) -> dict:
+    """Separa as vendas em sem vendedor × comercial (por vendedor) e em preço cheio × com desconto.
+
+    Não existe preço de lista no banco, e a Hotmart não tem cupom nessas vendas (o desconto vem como OFERTA de preço
+    menor do mesmo produto). Então o preço de referência de cada produto é o MAIOR preço praticado de forma
+    relevante no período (aparece em pelo menos 10% das vendas do produto, mínimo 3). Venda abaixo de 97% dele é
+    "com desconto". Cobrança repetida (parcela 2+) não tem preço próprio: conta no canal, fora do preço. Produto com
+    menos de 5 vendas com preço não tem referência e conta como preço cheio.
+    """
+    itens = []
+    for l in linhas:
+        por_parcela, rep, _c, parc = _parcela_unica_info(l)
+        pago = _num(l.get("pago"))
+        preco = None if rep or pago <= 0 else (pago * max(1, parc) if por_parcela else pago)
+        at = atribuicoes.get(str(l.get("transacao"))) or ofertas.get(str(l.get("preco_id") or ""))
+        itens.append({"produto_id": str(l.get("produto_id")), "produto": l.get("produto") or "", "at": at,
+                      "preco_nome": l.get("preco_nome") or "", "preco": preco, "receita": _num(l.get("liquido"))})
+
+    referencia: dict[str, float] = {}
+    por_produto: dict[str, list[float]] = {}
+    for i in itens:
+        if i["preco"] is not None:
+            por_produto.setdefault(i["produto_id"], []).append(round(i["preco"]))
+    for pid, precos in por_produto.items():
+        if len(precos) < _MIN_VENDAS_REFERENCIA:
+            continue
+        contagem: dict[float, int] = {}
+        for pr in precos:
+            contagem[pr] = contagem.get(pr, 0) + 1
+        piso = max(3, 0.10 * len(precos))
+        relevantes = [pr for pr, n in contagem.items() if n >= piso]
+        if relevantes:
+            referencia[pid] = float(max(relevantes))
+
+    def vazio() -> dict:
+        return {"vendas": 0, "receita": 0.0, "cheio": 0, "desconto": 0, "receita_desconto": 0.0}
+
+    canais = {"sem_vendedor": vazio(), "comercial": vazio()}
+    vendedores: dict[str, dict] = {}
+    produtos: dict[str, dict] = {}
+    ofertas_desc: dict[tuple, dict] = {}
+    perda = 0.0
+    for i in itens:
+        ref = referencia.get(i["produto_id"])
+        desconto = bool(ref and i["preco"] is not None and i["preco"] < _LIMITE_DESCONTO * ref)
+        alvos = [canais["comercial" if i["at"] else "sem_vendedor"]]
+        if i["at"]:
+            alvos.append(vendedores.setdefault(i["at"], vazio()))
+        alvos.append(produtos.setdefault(i["produto_id"], dict(vazio(), produto=i["produto"], referencia=ref)))
+        for a in alvos:
+            a["vendas"] += 1
+            a["receita"] += i["receita"]
+            if desconto:
+                a["desconto"] += 1
+                a["receita_desconto"] += i["receita"]
+            else:
+                a["cheio"] += 1
+        if desconto:
+            perda += ref - i["preco"]
+            o = ofertas_desc.setdefault((i["produto_id"], i["preco_nome"], round(i["preco"])),
+                                        {"produto": i["produto"], "oferta": i["preco_nome"] or "(sem nome)",
+                                         "preco": round(i["preco"]), "referencia": ref, "vendas": 0})
+            o["vendas"] += 1
+
+    def arredonda(d: dict) -> dict:
+        d["receita"] = round(d["receita"], 2)
+        d["receita_desconto"] = round(d["receita_desconto"], 2)
+        return d
+
+    total = vazio()
+    for c in canais.values():
+        for k in total:
+            total[k] += c[k]
+    return {
+        "total": arredonda(total),
+        "canais": {k: arredonda(v) for k, v in canais.items()},
+        "vendedores": sorted(({"at": k, **arredonda(v)} for k, v in vendedores.items()), key=lambda x: -x["vendas"]),
+        "produtos": sorted((arredonda(v) for v in produtos.values()), key=lambda x: -x["vendas"]),
+        "descontos": sorted(ofertas_desc.values(), key=lambda x: -x["vendas"]),
+        "perda_desconto": round(perda, 2),
+        "limite_desconto_pct": int(_LIMITE_DESCONTO * 100),
+    }
+
+
+_COLS_QUEBRA = ("codigo_da_transacao AS transacao, codigo_do_produto AS produto_id, produto, codigo_do_preco AS preco_id, "
+                "nome_deste_preco AS preco_nome, valor_de_compra_sem_impostos AS pago, tipo_de_cobranca, "
+                "quantidade_de_cobrancas, quantidade_total_de_parcelas, codigo_do_produto, codigo_do_preco, ")
+
+
+def _quebra_vendas(produtos: list[str], start: date, end: date, produtos_editora: list[str] | None = None) -> dict | None:
+    """Linhas de venda da vertical no período (mesmo recorte de `_vendas`: soma das duas contas) classificadas por
+    `classificar_vendas`. None em falha — a página só não mostra a quebra."""
+    if not produtos and not produtos_editora:
+        return None
+    data_sql = _hm_data_sql("data_da_transacao")
+    ok = list(_HOTMART_STATUS_APROVADO)
+    base = ("SELECT " + _COLS_QUEBRA + _VALOR_LIQUIDO_SQL + " AS liquido FROM @TABELA@ "
+            "WHERE codigo_do_produto = ANY(:ids) AND status_da_transacao = ANY(:ok)@EXTRA@ "
+            "AND " + data_sql + " BETWEEN :start AND :end")
+    linhas: list[dict] = []
+    try:
+        with _get_users_engine().connect() as conn:
+            if produtos:
+                r = conn.execute(text(base.replace("@TABELA@", "hotmart_clean_oficial").replace("@EXTRA@", "")),
+                                 {"ids": produtos, "ok": ok, "start": start, "end": end})
+                linhas += [dict(x._mapping) for x in r]
+            if produtos_editora:
+                r = conn.execute(text(base.replace("@TABELA@", "hotmart_editora_clean_oficial").replace("@EXTRA@", " AND produtor_a = :produtor")),
+                                 {"ids": produtos_editora, "ok": ok, "produtor": PRODUTOR_EDITORA, "start": start, "end": end})
+                linhas += [dict(x._mapping) for x in r]
+            ofertas = {r[0]: r[1] for r in conn.execute(text("SELECT codigo_do_preco, codigo_at FROM comercial_ofertas")) if r[1]}
+            atribuicoes = {r[0]: r[1] for r in conn.execute(text(
+                "SELECT transacao, vendedor_codigo FROM comercial_atribuicoes WHERE status = 'aprovada' AND vendedor_codigo IS NOT NULL"))}
+    except Exception:
+        logger.exception("read_perpetuo: falha ao montar a quebra das vendas")
+        return None
+    return classificar_vendas(linhas, ofertas, atribuicoes)
 
 
 def _vendas_por_dia(produtos: list[str], start: date, end: date, produtos_editora: list[str] | None = None) -> dict:
@@ -354,6 +490,7 @@ def read_perpetuo(vertical: str, days: int = 30, compare: bool = False, inicio=N
         "cpa": round(investimento_total / vendas["vendas"], 2) if vendas["vendas"] else None,
         "roas": round(vendas["receita"] / investimento_total, 2) if investimento_total else None,
         "vendas_atribuidas": False,
+        "quebra_vendas": _quebra_vendas(info.get("hotmart") or [], start, end, info.get("hotmart_editora")),
         "serie_diaria": _serie_diaria(
             start, end,
             _vendas_por_dia(info.get("hotmart") or [], start, end, info.get("hotmart_editora")),
@@ -372,6 +509,9 @@ def read_perpetuo(vertical: str, days: int = 30, compare: bool = False, inicio=N
         prev_leads_total = prev_meta_totals["leads"] + prev_google_totals["conversions"]
         result["prev_range_start"] = prev_start.isoformat()
         result["prev_range_end"] = prev_end.isoformat()
+        # Valores absolutos do período anterior: o Resumo soma as 4 verticais, e delta em % não se soma.
+        result["prev"] = {"investimento_total": prev_investimento_total, "leads_total": prev_leads_total,
+                          "vendas": prev_vendas["vendas"], "receita": prev_vendas["receita"]}
         prev_cpa = (prev_investimento_total / prev_vendas["vendas"]) if prev_vendas["vendas"] else 0.0
         result["deltas"] = {
             "investimento_total": _pct_delta(investimento_total, prev_investimento_total),
@@ -382,6 +522,73 @@ def read_perpetuo(vertical: str, days: int = 30, compare: bool = False, inicio=N
         }
 
     return result
+
+
+def read_perpetuo_resumo(days: int = 30, compare: bool = False, inicio=None, fim=None) -> dict:
+    """Painel executivo do perpétuo: as 4 verticais somadas no período do seletor.
+
+    Monta em cima de `read_perpetuo` de cada vertical, então os números batem com as páginas dos produtos
+    (mesma ressalva: venda do produto, não atribuída ao anúncio — custo por venda e ROAS são teto).
+    Devolve o mesmo formato de período de `read_perpetuo` (o macro `seletor_periodo` usa), mais
+    `verticais` (uma linha por vertical, na ordem de VERTICALS), `serie_diaria` (soma por dia, com a
+    venda de cada vertical em `por_vertical`) e, com `compare`, `deltas`.
+    """
+    linhas, falhas = [], []
+    for slug, info in VERTICALS.items():
+        d = read_perpetuo(slug, days, compare, inicio, fim)
+        if not d:
+            falhas.append(info["nome"])
+            continue
+        linhas.append({"slug": slug, "d": d})
+    if not linhas:
+        return {"erro": True, "verticais": [], "serie_diaria": []}
+    base = linhas[0]["d"]
+
+    def soma(chave, fonte=None):
+        return sum(((l["d"].get(fonte) or {}) if fonte else l["d"]).get(chave) or 0 for l in linhas)
+
+    inv, vendas, receita, leads = soma("investimento_total"), soma("vendas"), soma("receita"), soma("leads_total")
+    serie: dict[str, dict] = {}
+    for l in linhas:
+        for p in l["d"].get("serie_diaria") or []:
+            s = serie.setdefault(p["dia"], {"dia": p["dia"], "vendas": 0, "receita": 0.0, "invest": 0.0, "por_vertical": {}})
+            s["vendas"] += p["vendas"]
+            s["receita"] = round(s["receita"] + p["receita"], 2)
+            s["invest"] = round(s["invest"] + p["invest"], 2)
+            if p["vendas"]:
+                s["por_vertical"][l["d"]["nome"]] = p["vendas"]
+
+    out = {
+        "erro": False,
+        "falhas": falhas,
+        "days": base["days"], "personalizado": base["personalizado"], "compare": compare,
+        "range_start": base["range_start"], "range_end": base["range_end"],
+        "investimento_meta": soma("investimento_meta"), "investimento_google": soma("investimento_google"),
+        "investimento_total": inv, "leads_total": leads, "vendas": vendas, "receita": round(receita, 2),
+        "cpl": round(inv / leads, 2) if leads else None,
+        "cpa": round(inv / vendas, 2) if vendas else None,
+        "roas": round(receita / inv, 2) if inv else None,
+        "verticais": [{
+            "slug": l["slug"], "nome": l["d"]["nome"],
+            "investimento": l["d"]["investimento_total"], "vendas": l["d"]["vendas"], "receita": l["d"]["receita"],
+            "cpa": l["d"]["cpa"], "roas": l["d"]["roas"],
+            "parte_receita": round(l["d"]["receita"] / receita * 100, 1) if receita else None,
+            "sem_veiculacao": l["d"]["no_data"], "ultimo_gasto": l["d"].get("ultimo_gasto"),
+        } for l in linhas],
+        "serie_diaria": [serie[k] for k in sorted(serie)],
+    }
+    if compare:
+        out["prev_range_start"], out["prev_range_end"] = base.get("prev_range_start"), base.get("prev_range_end")
+        p_inv, p_v, p_r = soma("investimento_total", "prev"), soma("vendas", "prev"), soma("receita", "prev")
+        p_cpa = (p_inv / p_v) if p_v else 0.0
+        out["deltas"] = {
+            "investimento_total": _pct_delta(inv, p_inv),
+            "leads_total": _pct_delta(leads, soma("leads_total", "prev")),
+            "vendas": _pct_delta(vendas, p_v),
+            "receita": _pct_delta(receita, p_r),
+            "cpa": _pct_delta(out["cpa"] or 0.0, p_cpa),
+        }
+    return out
 
 
 # ── Visão mês a mês ───────────────────────────────────────────────────────────

@@ -1765,7 +1765,7 @@ Usuário mandou print do Debriefing no celular ("Detalhamento por Dia de Captaç
 
 **Seção nova numa página com ordem salva (25/11/26):** até aqui, uma seção que não existia quando a ordem foi salva (no `localStorage` ou numa visualização) ia para o **fim** da página. Agora o `migrarKeys` do `secoes.js` encaixa cada seção nova logo depois da seção que vem antes dela no HTML, ou no topo se ela for a primeira. O caso que motivou a mudança foi o "Resumo executivo" do perpétuo: ele é o topo da página e aparecia lá embaixo para quem já tinha ordem salva. Também desde 25/11, `data-sec-aberta` na `.section` deixa a seção aberta quando não há estado salvo (`padraoRecolhida`). Sem o atributo, só a 1ª seção abre.
 
-**Versão do layout (`data-sec-versao`, 25/11/26):** o estado de trabalho (`bs-section-state:<página>`) é regravado a cada visita. Por isso reordenar seções no template não chegava a ninguém que já tivesse aberto a página: a ordem salva vencia sempre. Agora a página pode marcar um elemento com `data-sec-versao="<x>"`. Quando a versão salva no estado é diferente, o `secoes.js` descarta só a **ordem** salva, uma vez, e grava a versão nova. As seções recolhidas e ocultas e os apelidos continuam, e uma reordenação feita pela pessoa depois disso é respeitada. **Mudou a ordem das seções no template? Suba a versão.** O perpétuo usa `perpetuo-2`, no `.content`.
+**Versão do layout (`data-sec-versao`, 25/11/26):** o estado de trabalho (`bs-section-state:<página>`) é regravado a cada visita. Por isso reordenar seções no template não chegava a ninguém que já tivesse aberto a página: a ordem salva vencia sempre. Agora a página pode marcar um elemento com `data-sec-versao="<x>"`. Quando a versão salva no estado é diferente, o `secoes.js` descarta só a **ordem** salva, uma vez, e grava a versão nova. As seções recolhidas e ocultas e os apelidos continuam, e uma reordenação feita pela pessoa depois disso é respeitada. **Mudou a ordem das seções no template? Suba a versão.** A página de produto do perpétuo usa `perpetuo-3`, e o Resumo usa `perpetuo-resumo-1`, os dois no `.content`.
 
 De quebra: as duas badges de lançamento do Debriefing (`.dbf-launch-badge`) perderam o "vs" — "vs PI-ABR-26" virou só "PI-ABR-26" — pedido explícito junto com o desenho.
 
@@ -1949,7 +1949,7 @@ Só que **a venda por afiliado aqui é majoritariamente perpétua** — a Mentor
 
 A venda **não é atribuída ao anúncio**: o perpétuo vende direto, sem captura de lead, e o `src` da Hotmart chega vazio porque os anúncios não o passam no link de checkout. Custo por venda e ROAS são **teto** — incluem orgânico, e-mail e régua —, e a página diz isso na tela. O que resolve é ad-ops, não código: `?src=` com o código da campanha no checkout dos anúncios `[compra]`.
 
-`read_perpetuo_mensal(meses=6)` (07/10/26) dá o mesmo recorte por **mês civil fechado** e com as 4 verticais juntas, porque o seletor da página é em dias corridos (7/30/90) e nunca fecha um mês. Uma seção só, repetida nas 4 páginas de propósito: a pergunta "quanto o perpétuo deu em agosto?" é do perpétuo inteiro.
+`read_perpetuo_mensal(meses=6)` (07/10/26) dá o mesmo recorte por **mês civil fechado** e com as 4 verticais juntas, porque o seletor da página é em dias corridos (7/30/90) e nunca fecha um mês. A pergunta "quanto o perpétuo deu em agosto?" é do perpétuo inteiro. Até 25/11/26 essa seção ficava repetida nas 4 páginas de produto; desde então aparece só no Resumo (`/perpetuo`).
 
 **Classificação (21/10/26):** sem a tag `[perpétuo]`, uma campanha cai num `PERPETUO-*` pelo fallback de `etl/launch_resolver.py` — `[compra]` + tag de produto e **nenhum** código de lançamento no nome. Até 21/10 o fallback exigia também `[frio]`, e as search `[compra][quente]` (R$ 7,5 mil, mai–ago/26) ficavam com `lancamento_codigo` NULL; foram reclassificadas no banco. Teste em `tests/test_launch_resolver_perpetuo.py`.
 
@@ -1957,7 +1957,17 @@ A venda **não é atribuída ao anúncio**: o perpétuo vende direto, sem captur
 
 **Resumo executivo e vendas por dia (25/11/26):** os cartões do topo viraram a seção "Resumo executivo" (`data-sec-key="perpetuo-resumo"`). Sem título, o bloco não era seção do accordion, e a barra de busca/Recolher/Expandir, que o `secoes.js` põe antes da 1ª seção com título, caía abaixo dos cartões. Logo depois vem "Vendas por dia": gráfico de barras (Chart.js) do período do seletor, com uma série só, vendas. Faturamento e investimento do dia aparecem no tooltip e numa tabela recolhível, sem segundo eixo. A série vem de `read_perpetuo()["serie_diaria"]`: `_vendas_por_dia` faz o mesmo recorte de `_vendas` (duas contas Hotmart, status aprovado, valor líquido) com `GROUP BY` dia, e `_serie_diaria` preenche os dias sem venda com zero e soma o investimento Meta + Google do dia. A soma dos dias bate com o cartão "Vendas do produto". Foi conferido em 7, 30 e 90 dias e no período livre. As duas seções levam `data-sec-aberta`, que as deixa abertas na primeira visita.
 
-**Ordem (25/11/26, pedido do Michel):** Resumo executivo → Vendas por dia → Criativos Meta → Criativos Google → Mês a mês → Públicos.
+**Ordem da página de produto (25/11/26, pedido do Michel):** Resumo executivo → Vendas por dia → Criativos Meta → Criativos Google → Públicos.
+
+**Resumo do perpétuo, `/perpetuo` (25/11/26, pedido do Michel):** é o primeiro item do menu Perpétuo, acima das 4 verticais (`_build_perpetuo_nav_items`). A página é `perpetuo_resumo.html`, e a rota fica em `routes/media.py`, declarada antes de `/perpetuo/{vertical}`. Ela tem quatro seções:
+- **Painel executivo:** cartões das 4 verticais somadas no período do seletor, com comparação ao período anterior.
+- **Por produto:** investido, vendas, faturamento, participação no faturamento, custo por venda e ROAS de cada vertical, com link para a página dela. A vertical sem gasto no período leva o selo "sem anúncio no período".
+- **Vendas por dia:** todas as verticais, com a venda de cada produto no tooltip e na tabela.
+- **Mês a mês — todas as verticais:** saiu das 4 páginas de produto, onde estava repetida, e passou a existir só aqui.
+
+O leitor é `read_perpetuo_resumo`, que soma `read_perpetuo` das 4 verticais. Por isso os números batem com as páginas de produto. Para a comparação, `read_perpetuo` passou a devolver também `prev`, com os valores absolutos do período anterior, porque delta em % não se soma.
+
+O `page` do contexto é `perpetuo_resumo`, não `perpetuo`. O `page` vira o `data-page` do `<body>`, que é a chave da ordem das seções salva pelo `secoes.js`. Com a mesma chave, as versões de layout diferentes das duas páginas desfariam a ordem uma da outra a cada troca. O `nav_mode` continua `perpetuo`.
 
 ### Histórico de UTM por lançamento (`lead_utm_lancamento`)
 

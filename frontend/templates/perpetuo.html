@@ -10,8 +10,9 @@
   </div>
 
   {# data-sec-versao: subir o número quando mudar a ORDEM das seções aqui — descarta a ordem salva no navegador
-     de cada pessoa (secoes.js). v2 (25/11/26): Criativos Meta/Google logo depois de "Vendas por dia". #}
-  <div class="content" data-sec-versao="perpetuo-2">
+     de cada pessoa (secoes.js). v2 (25/11/26): Criativos Meta/Google logo depois de "Vendas por dia".
+     v3 (25/11/26): "Mês a mês — todas as verticais" saiu daqui e foi para o Resumo (/perpetuo). #}
+  <div class="content" data-sec-versao="perpetuo-3">
 
   {% if not perpetuo %}
     <div class="no-data">
@@ -144,7 +145,7 @@
         {{ total_v | num }} vendas em {{ serie | length }} dias · média de
         <strong>{{ "%.1f"|format(total_v / (serie | length)) | replace(".", ",") }}</strong> por
         dia{% if melhor.vendas %} · melhor dia {{ melhor.dia | br_date }} ({{ melhor.vendas }}){% endif %}.
-        Venda do produto, não atribuída ao anúncio (mesma ressalva do resumo).
+        Venda do produto, não atribuída ao anúncio (mesma ressalva do Resumo executivo).
       </div>
       <div style="position:relative;height:240px;">
         <canvas id="perpVendasDia" role="img"
@@ -217,6 +218,108 @@
       });
     })();
     </script>
+    {% endif %}
+
+    {# ── Quebra das vendas: sem vendedor × comercial e preço cheio × com desconto ───────────────────────
+       Mesmo recorte dos cartões "Vendas do produto" (soma dos canais = cartão). Regras em
+       perpetuo.classificar_vendas. #}
+    {% set qb = perpetuo.quebra_vendas %}
+    {% if qb and qb.total.vendas %}
+    <div class="section">
+      <div class="section-title"><i class="ti ti-users"></i> Quebra das vendas: sem vendedor × comercial</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Origem</th>
+              <th class="th-num">Vendas</th>
+              <th class="th-num">Faturamento</th>
+              <th class="th-num">Preço cheio</th>
+              <th class="th-num">Com desconto</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for chave, rotulo in [("sem_vendedor", "Sem vendedor (anúncio, orgânico, e-mail, régua)"), ("comercial", "Comercial (cross sell dos vendedores)")] %}
+            {% set c = qb.canais[chave] %}
+            <tr>
+              <td><strong>{{ rotulo }}</strong></td>
+              <td class="numero">{{ c.vendas | num }}</td>
+              <td class="numero">{{ c.receita | brl }}</td>
+              <td class="numero">{{ c.cheio | num }}</td>
+              <td class="numero">{{ c.desconto | num }}{% if c.desconto %} <span style="opacity:.65">({{ c.receita_desconto | brl }})</span>{% endif %}</td>
+            </tr>
+            {% if chave == "comercial" %}
+            {% for v in qb.vendedores %}
+            <tr>
+              <td style="padding-left:24px;">{{ v.at }}</td>
+              <td class="numero">{{ v.vendas | num }}</td>
+              <td class="numero">{{ v.receita | brl }}</td>
+              <td class="numero">{{ v.cheio | num }}</td>
+              <td class="numero">{{ v.desconto | num }}</td>
+            </tr>
+            {% endfor %}
+            {% endif %}
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td><strong>Total</strong></td>
+              <td class="numero td-bold">{{ qb.total.vendas | num }}</td>
+              <td class="numero td-bold">{{ qb.total.receita | brl }}</td>
+              <td class="numero td-bold">{{ qb.total.cheio | num }}</td>
+              <td class="numero td-bold">{{ qb.total.desconto | num }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      {% set com_ref = qb.produtos | selectattr("referencia") | list %}
+      {% if com_ref %}
+      <div class="table-wrap" style="margin-top:var(--s3);">
+        <table>
+          <thead>
+            <tr>
+              <th>Produto</th>
+              <th class="th-num">Preço de referência</th>
+              <th class="th-num">Vendas</th>
+              <th class="th-num">Preço cheio</th>
+              <th class="th-num">Com desconto</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in com_ref %}
+            <tr>
+              <td>{{ p.produto }}</td>
+              <td class="numero">{{ p.referencia | brl }}</td>
+              <td class="numero">{{ p.vendas | num }}</td>
+              <td class="numero">{{ p.cheio | num }}</td>
+              <td class="numero">{{ p.desconto | num }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+
+      {% if qb.descontos %}
+      <div class="note warning" style="margin-top:var(--s3);">
+        <strong>Ofertas com desconto no período:</strong>
+        {% for d in qb.descontos %}{{ d.oferta }} a {{ d.preco | brl(0) }} (referência {{ d.referencia | brl(0) }}): {{ d.vendas | num }} venda{{ "s" if d.vendas != 1 }}{{ "; " if not loop.last }}{% endfor %}.
+        Desconto total contra o preço de referência: {{ qb.perda_desconto | brl }}.
+      </div>
+      {% endif %}
+
+      <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:12px">
+        <strong>Comercial</strong> é a venda cuja oferta tem código de vendedor (<code>comercial_ofertas</code>) ou
+        que tem atribuição aprovada em <code>comercial_atribuicoes</code>, a mesma regra da área Comercial.
+        <strong>Sem vendedor</strong> continua sendo teto de venda do anúncio: inclui orgânico, e-mail e régua.
+        Não há cupom nessas vendas: o desconto existe como <strong>oferta de preço menor do mesmo produto</strong>.
+        O <strong>preço de referência</strong> é o maior preço praticado de forma relevante no período (presente em ao menos
+        10% das vendas do produto); venda abaixo de {{ qb.limite_desconto_pct }}% dele é "com desconto". Se o período todo já foi
+        vendido pelo preço menor, ele vira a referência. Preço pago sem impostos; faturamento líquido, como nos cartões acima.
+        Cobrança repetida (parcela 2+) conta na origem, fora da divisão de preço.
+      </div>
+    </div>
     {% endif %}
 
     {% if perpetuo.criativos_meta %}
@@ -294,67 +397,6 @@
             </tr>
             {% endfor %}
           </tbody>
-        </table>
-      </div>
-    </div>
-    {% endif %}
-
-    {# ── Mês a mês (todas as verticais) ────────────────────────────────
-       Em paralelo ao seletor de 7/30/90 dias, que nunca fecha um mês. É a
-       mesma tabela nas 4 páginas de propósito: a pergunta "quanto o perpétuo
-       deu em agosto?" é do perpétuo inteiro, não de uma vertical. #}
-    {% if perpetuo_mensal and perpetuo_mensal.meses %}
-    <div class="section">
-      <div class="section-title"><i class="ti ti-calendar-stats"></i> Mês a mês — todas as verticais</div>
-      <div class="note">
-        Mês civil fechado, independente do seletor de período do topo. Investimento de Meta + Google;
-        venda e faturamento do produto na Hotmart. <strong>Mesma ressalva do Resumo executivo:</strong>
-        a venda não é atribuída ao anúncio, então custo por venda e ROAS são teto.
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Vertical</th>
-              <th class="th-num">Investido</th>
-              <th class="th-num">Vendas</th>
-              <th class="th-num">Receita</th>
-              <th class="th-num">Custo/venda</th>
-              <th class="th-num">ROAS (teto)</th>
-            </tr>
-          </thead>
-          {% for m in perpetuo_mensal.meses %}
-          <tbody>
-            <tr class="linha-mes">
-              <td colspan="6">
-                <strong>{{ m.label }}</strong>
-                {% if m.parcial %}<span class="bs-pill neutral" style="margin-left:8px">mês em curso</span>{% endif %}
-              </td>
-            </tr>
-            {% for l in m.linhas %}
-            <tr{% if l.slug == perpetuo.vertical %} class="linha-atual"{% endif %}>
-              <td>{{ l.nome }}{% if l.slug == perpetuo.vertical %} <span class="bs-pill accent" style="margin-left:6px">esta página</span>{% endif %}</td>
-              <td class="numero">{{ l.investido | brl }}</td>
-              <td class="numero">{{ l.vendas | num }}</td>
-              <td class="numero">{{ l.receita | brl }}</td>
-              <td class="numero">{% if l.vendas and l.investido %}{{ l.cpa | brl }}{% else %}—{% endif %}</td>
-              <td class="numero {{ 'positivo' if l.roas >= 1 else ('negativo' if l.investido and l.roas < 1 else '') }}">
-                {% if l.investido %}{{ "%.2f"|format(l.roas) | replace(".", ",") }}x{% else %}—{% endif %}
-              </td>
-            </tr>
-            {% endfor %}
-            <tr class="linha-total-mes">
-              <td><strong>Total {{ m.label }}</strong></td>
-              <td class="numero td-bold">{{ m.total.investido | brl }}</td>
-              <td class="numero td-bold">{{ m.total.vendas | num }}</td>
-              <td class="numero td-bold">{{ m.total.receita | brl }}</td>
-              <td class="numero td-bold">{% if m.total.vendas %}{{ m.total.cpa | brl }}{% else %}—{% endif %}</td>
-              <td class="numero td-bold {{ 'positivo' if m.total.roas >= 1 else 'negativo' }}">
-                {{ "%.2f"|format(m.total.roas) | replace(".", ",") }}x
-              </td>
-            </tr>
-          </tbody>
-          {% endfor %}
         </table>
       </div>
     </div>

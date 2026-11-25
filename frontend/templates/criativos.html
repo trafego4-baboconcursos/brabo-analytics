@@ -309,7 +309,9 @@
           .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
           .then(function (d) {
             if (!d || d.pontuavel === false) {
-              todas('A pesquisa deste lançamento não é pontuável (Typeform antigo)');
+              todas(d && d.motivo === 'codigo_legado'
+                ? 'Lançamento da Black usa códigos AD-XX##: o score por criativo ainda não cobre'
+                : 'Ainda não há respostas pontuáveis da pesquisa neste lançamento (ou a pesquisa é do Typeform antigo)');
               return;
             }
             var anuncios = d.anuncios || {};

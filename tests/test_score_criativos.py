@@ -135,7 +135,33 @@ def test_rota_score_falha_devolve_500(client_trafego, monkeypatch):
         raise RuntimeError("x")
 
     monkeypatch.setattr(sc, "leads_a_por_anuncio", _boom)
-    assert client_trafego.get("/criativos/score?launch_code=PES-NOV-26").status_code == 500
+    r = client_trafego.get("/criativos/score?launch_code=PES-NOV-26")
+    assert r.status_code == 500 and r.json() == {"erro": "falha ao calcular"}
+
+
+def test_rota_score_black_codigo_legado(client_trafego, monkeypatch):
+    from frontend.routes import media
+    _fakes_da_rota(monkeypatch, {"AD1": 50})
+    monkeypatch.setattr(media, "resolve_launch", lambda code, launches: SimpleNamespace(code="BV-25"))
+
+    def _nao_deve_chamar(code):
+        raise AssertionError("chamada pesada antes do retorno antecipado")
+
+    monkeypatch.setattr(sc, "leads_a_por_anuncio", _nao_deve_chamar)
+    r = client_trafego.get("/criativos/score?launch_code=BV-25")
+    assert r.status_code == 200 and r.json() == {"pontuavel": False, "motivo": "codigo_legado"}
+
+
+def test_rota_score_erro_de_leitura_da_plataforma_devolve_500(client_trafego, monkeypatch):
+    from frontend.routes import media
+    _fakes_da_rota(monkeypatch, {"AD1": 50})
+
+    async def _dados(launch, **k):
+        return {"meta": None, "google": None, "vendas": None, "_errors": ["meta: timeout"]}
+
+    monkeypatch.setattr(media, "_fetch_all_data", _dados)
+    r = client_trafego.get("/criativos/score?launch_code=PES-NOV-26")
+    assert r.status_code == 500 and r.json() == {"erro": "falha ao calcular"}
 
 
 def test_rota_score_tem_permissao_de_midia():

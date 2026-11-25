@@ -1,7 +1,7 @@
 """
 frontend/services/score_criativos.py — Nota 0–100 por criativo (ADxxx) a partir do custo por lead A.
 
-Régua pura (`nota_custo_lead_a`, `notas_por_anuncio`); a leitura dos leads A por anúncio vem do banco. Plano: .superpowers/sdd/PLANO_SCORE_CRIATIVOS.
+Régua pura (`nota_custo_lead_a`, `notas_por_anuncio`); a leitura dos leads A por anúncio vem do banco. Plano: docs/projetos/PLANO_SCORE_CRIATIVOS.md; arquitetura: docs/sistema/ARQUITETURA.md, seção «Score por criativo».
 Lead A = `faixa_pesquisa == "A"` do `lead_score.calcular_leads` (respondeu a pesquisa e ficou na metade de
 cima da probabilidade dos respondentes do lançamento). Gasto = o `gasto` do Ranking Geral (só captação).
 

@@ -7,6 +7,7 @@ from fastapi.concurrency import run_in_threadpool
 from frontend.db_readers.launches import get_platform_thumbnails
 from frontend.db_readers.lp_pagina import read_landing_pages, remover_oficial, salvar_oficial
 from frontend.db_readers.publicos import read_publicos
+from src.ad_codes import uses_legacy_ad_codes
 from frontend.core import (
     templates, logger, get_launches, resolve_launch, _base_ctx,
     _fetch_all_data, _creative_overview, get_instagram_profiles,
@@ -97,10 +98,15 @@ async def criativos_score(request: Request, launch_code: str | None = None):
         launch = resolve_launch(launch_code, launches)
         if not launch:
             return JSONResponse({"pontuavel": False})
+        if uses_legacy_ad_codes(launch.code):   # Black usa AD-XX##, que o SQL (^AD[0-9]+) não casa
+            return JSONResponse({"pontuavel": False, "motivo": "codigo_legado"})
         leads_a = await run_in_threadpool(sc.leads_a_por_anuncio, launch.code)
         if leads_a is None:
             return JSONResponse({"pontuavel": False})
         d = await _fetch_all_data(launch)
+        if d.get("_errors"):   # leitura Meta/Google falhou: dado vazio não pode virar «sem dado de score»
+            logger.warning("Criativos: leitura de plataforma falhou no score (%s): %s", launch.code, d["_errors"])
+            return JSONResponse({"erro": "falha ao calcular"}, status_code=500)
         ov = await run_in_threadpool(
             _creative_overview, d["meta"], d["google"], d["vendas"], None, launch_code=launch.code
         )

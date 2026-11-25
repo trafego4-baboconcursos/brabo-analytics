@@ -83,20 +83,20 @@
           </div>
           <div class="tp-value">{{ r.cpa | brl if r.cpa is not none else "—" }}</div>
           <div class="tp-label">Custo por venda (teto)</div>
-          <div class="tp-compare">{% if r.roas is not none %}ROAS {{ r.roas }}x{% else %}sem investimento no período{% endif %}</div>
+          {% if not r.vendas %}<div class="tp-compare">sem venda no período</div>{% endif %}
         </div>
         <div class="tp-kpi">
           <div class="tp-kpi-top">
-            <div class="tp-icon success"><i class="ti ti-users"></i></div>
-            {% if r.compare and r.deltas.leads_total is not none %}
-            <div class="tp-delta {{ 'up' if r.deltas.leads_total >= 0 else 'down' }}">
-              {{ '+' if r.deltas.leads_total >= 0 }}{{ r.deltas.leads_total }}%
+            <div class="tp-icon success"><i class="ti ti-chart-arrows-vertical"></i></div>
+            {% if r.compare and r.deltas.roas is not none %}
+            <div class="tp-delta {{ 'up' if r.deltas.roas >= 0 else 'down' }}">
+              {{ '+' if r.deltas.roas >= 0 }}{{ r.deltas.roas }}%
             </div>
             {% endif %}
           </div>
-          <div class="tp-value">{{ r.leads_total | num }}</div>
-          <div class="tp-label">Leads/conversões</div>
-          <div class="tp-compare">CPL {{ r.cpl | brl if r.cpl is not none else "—" }}</div>
+          <div class="tp-value">{{ ("%.2f"|format(r.roas) | replace(".", ",")) ~ "x" if r.roas is not none else "—" }}</div>
+          <div class="tp-label">ROAS (teto)</div>
+          <div class="tp-compare">Faturamento ÷ investimento</div>
         </div>
       </div>
       <div style="font-size:12px;color:var(--bs-ink-muted);margin-top:12px">

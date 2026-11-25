@@ -1959,6 +1959,8 @@ A venda **não é atribuída ao anúncio**: o perpétuo vende direto, sem captur
 
 **Ordem da página de produto (25/11/26, pedido do Michel):** Resumo executivo → Vendas por dia → Criativos Meta → Criativos Google → Públicos.
 
+**Cartões do topo (25/11/26, pedido do Michel):** no Resumo executivo da página de produto e no Painel executivo do Resumo, saíram **Leads/conversões e CPL** e entrou **ROAS (teto)**. O ROAS é o faturamento da Hotmart ÷ o investimento, com delta no modo comparar (`deltas.roas`, calculado em `read_perpetuo` e `read_perpetuo_resumo`). O custo por venda deixou de repetir o ROAS embaixo do número. **Vendas, valor e ROAS por criativo nas tabelas de criativos ficaram para depois:** precisam de colunas novas no banco (compras do pixel por anúncio), e o Michel preferiu não mexer no banco por enquanto. O código está pronto em `outputs/patches/perpetuo_vendas_por_criativo_2026-11-25.patch` (fora do git). A análise equivalente, feita pelas APIs, está no item 64 de [[ACOMPANHAMENTO_PERPETUO_MEQ]].
+
 **Resumo do perpétuo, `/perpetuo` (25/11/26, pedido do Michel):** é o primeiro item do menu Perpétuo, acima das 4 verticais (`_build_perpetuo_nav_items`). A página é `perpetuo_resumo.html`, e a rota fica em `routes/media.py`, declarada antes de `/perpetuo/{vertical}`. Ela tem quatro seções:
 - **Painel executivo:** cartões das 4 verticais somadas no período do seletor, com comparação ao período anterior.
 - **Por produto:** investido, vendas, faturamento, participação no faturamento, custo por venda e ROAS de cada vertical, com link para a página dela. A vertical sem gasto no período leva o selo "sem anúncio no período".

@@ -513,7 +513,9 @@ def read_perpetuo(vertical: str, days: int = 30, compare: bool = False, inicio=N
         result["prev"] = {"investimento_total": prev_investimento_total, "leads_total": prev_leads_total,
                           "vendas": prev_vendas["vendas"], "receita": prev_vendas["receita"]}
         prev_cpa = (prev_investimento_total / prev_vendas["vendas"]) if prev_vendas["vendas"] else 0.0
+        prev_roas = (prev_vendas["receita"] / prev_investimento_total) if prev_investimento_total else 0.0
         result["deltas"] = {
+            "roas": _pct_delta(result["roas"] or 0.0, prev_roas),
             "investimento_total": _pct_delta(investimento_total, prev_investimento_total),
             "leads_total": _pct_delta(leads_total, prev_leads_total),
             "vendas": _pct_delta(vendas["vendas"], prev_vendas["vendas"]),
@@ -582,6 +584,7 @@ def read_perpetuo_resumo(days: int = 30, compare: bool = False, inicio=None, fim
         p_inv, p_v, p_r = soma("investimento_total", "prev"), soma("vendas", "prev"), soma("receita", "prev")
         p_cpa = (p_inv / p_v) if p_v else 0.0
         out["deltas"] = {
+            "roas": _pct_delta(out["roas"] or 0.0, (p_r / p_inv) if p_inv else 0.0),
             "investimento_total": _pct_delta(inv, p_inv),
             "leads_total": _pct_delta(leads, soma("leads_total", "prev")),
             "vendas": _pct_delta(vendas, p_v),

@@ -57,24 +57,6 @@
           <div class="tp-label">Investimento total</div>
           <div class="tp-compare">Meta {{ perpetuo.investimento_meta | brl }} · Google {{ perpetuo.investimento_google | brl }}</div>
         </div>
-        <div class="tp-kpi">
-          <div class="tp-kpi-top">
-            <div class="tp-icon success"><i class="ti ti-users"></i></div>
-            {% if perpetuo.compare and perpetuo.deltas.leads_total is not none %}
-            <div class="tp-delta {{ 'up' if perpetuo.deltas.leads_total >= 0 else 'down' }}">
-              {{ '+' if perpetuo.deltas.leads_total >= 0 }}{{ perpetuo.deltas.leads_total }}%
-            </div>
-            {% endif %}
-          </div>
-          <div class="tp-value">{{ perpetuo.leads_total | num }}</div>
-          <div class="tp-label">Leads/conversões</div>
-          <div class="tp-compare">Meta {{ perpetuo.leads_meta | num }} · Google {{ perpetuo.conversoes_google | num }}</div>
-        </div>
-        <div class="tp-kpi">
-          <div class="tp-kpi-top"><div class="tp-icon warning"><i class="ti ti-target-arrow"></i></div></div>
-          <div class="tp-value">{{ perpetuo.cpl | brl if perpetuo.cpl is not none else "—" }}</div>
-          <div class="tp-label">CPL</div>
-        </div>
 
         {# Venda do PRODUTO no período — ver a nota abaixo do grid. #}
         <div class="tp-kpi">
@@ -115,7 +97,22 @@
           </div>
           <div class="tp-value">{{ perpetuo.cpa | brl if perpetuo.cpa is not none else "—" }}</div>
           <div class="tp-label">Custo por venda (teto)</div>
-          <div class="tp-compare">{% if perpetuo.roas is not none %}ROAS {{ perpetuo.roas }}x{% else %}sem venda no período{% endif %}</div>
+          {% if not perpetuo.vendas %}<div class="tp-compare">sem venda no período</div>{% endif %}
+        </div>
+
+        {# ROAS no lugar de Leads/CPL (25/11/26): faturamento do produto ÷ investimento — teto, como o custo por venda. #}
+        <div class="tp-kpi">
+          <div class="tp-kpi-top">
+            <div class="tp-icon success"><i class="ti ti-chart-arrows-vertical"></i></div>
+            {% if perpetuo.compare and perpetuo.deltas.roas is not none %}
+            <div class="tp-delta {{ 'up' if perpetuo.deltas.roas >= 0 else 'down' }}">
+              {{ '+' if perpetuo.deltas.roas >= 0 }}{{ perpetuo.deltas.roas }}%
+            </div>
+            {% endif %}
+          </div>
+          <div class="tp-value">{{ ("%.2f"|format(perpetuo.roas) | replace(".", ",")) ~ "x" if perpetuo.roas is not none else "—" }}</div>
+          <div class="tp-label">ROAS (teto)</div>
+          <div class="tp-compare">Faturamento ÷ investimento</div>
         </div>
       </div>
 

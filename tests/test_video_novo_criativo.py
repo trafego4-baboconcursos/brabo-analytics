@@ -2,9 +2,15 @@
 import json
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+import pytest
 
-from scripts.video.novo_criativo import (
+# O pipeline de vídeo só roda local (como a transcrição): o Pillow não está no requirements.txt do servidor/CI.
+# Sem ele, o arquivo inteiro pula em vez de quebrar a coleta do CI (quebrou de 23/11 a 26/11/26).
+pytest.importorskip("PIL")
+
+from PIL import Image, ImageDraw, ImageFont  # noqa: E402
+
+from scripts.video.novo_criativo import (  # noqa: E402
     GLOSSARIO_PADRAO,
     aplicar_glossario,
     detectar_legenda_queimada,

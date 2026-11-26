@@ -111,6 +111,13 @@ def test_peca_filha_e_lida_relativa_a_caixa_da_mae():
     assert diferencas_ajustes(CRIATIVO, manif, lido) == [("dona", "etiquetas[0]", {}, {"dx": 20})]
 
 
+# O pipeline de vídeo só roda local: o Pillow não está no requirements.txt do servidor/CI. Os testes que montam
+# PNG pulam sem ele; o resto do arquivo segue rodando no CI.
+import importlib.util  # noqa: E402
+
+precisa_pil = pytest.mark.skipif(importlib.util.find_spec("PIL") is None, reason="Pillow só no ambiente local de vídeo")
+
+
 def _png(caminho, caixa=None, tamanho=(1080, 1920)):
     from PIL import Image
     img = Image.new("RGBA", tamanho, (0, 0, 0, 0))
@@ -120,6 +127,7 @@ def _png(caminho, caixa=None, tamanho=(1080, 1920)):
     img.save(caminho)
 
 
+@precisa_pil
 def test_montar_pecas_corta_pelo_alfa_e_pula_peca_vazia(tmp_path):
     from scripts.video.storyboard import montar_pecas
     cena = tmp_path / "dona"
@@ -154,6 +162,7 @@ def test_rotacao_em_volta_da_imagem_compensa_a_origem_da_caixa():
     assert difs == [("dona", "etiquetas[0]", {}, {"dx": -290, "dy": -290, "rot": -90.0})]
 
 
+@precisa_pil
 def test_montar_pecas_le_a_origem_da_caixa(tmp_path):
     from scripts.video.storyboard import montar_pecas
     cena = tmp_path / "dona"
@@ -266,6 +275,7 @@ def test_numero_editado_volta_como_numero():
     assert diferencas_nativas(crit, manif, lido, n0)[1] == [("sal", "valorFinal", 7234, 7500)]
 
 
+@precisa_pil
 def test_caixa_alfa_de_png_opaco_sem_canal_alfa_e_a_imagem_toda(tmp_path):
     # o render grava RGB quando a peça cobre o quadro inteiro (ex.: ilustração em tela cheia)
     from PIL import Image

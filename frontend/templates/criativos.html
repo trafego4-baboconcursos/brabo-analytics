@@ -277,14 +277,6 @@
           </tbody>
         </table>
       </div>
-      <style>
-      .cs-skel { display:inline-block; width:40px; height:16px; border-radius:8px; vertical-align:middle; background:linear-gradient(90deg,var(--bs-surface) 25%,var(--bs-border) 50%,var(--bs-surface) 75%); background-size:200% 100%; animation:cs-shimmer 1.4s ease-in-out infinite; }
-      @keyframes cs-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
-      .cs-nota { display:inline-block; min-width:32px; padding:2px 8px; border-radius:16px; font-weight:700; text-align:center; }
-      .cs-nota.cs-ruim { background:var(--bs-danger-bg); color:var(--bs-danger); }
-      .cs-nota.cs-bom { background:var(--bs-success-bg); color:var(--bs-success); }
-      .cs-vazio { color:var(--bs-ink-muted); cursor:help; }
-      </style>
       <script>
       (function () {
         var tabela = document.getElementById('cs-tabela');
@@ -334,6 +326,108 @@
       })();
       </script>
     </div>
+
+    <div class="section">
+      <div class="section-title" data-tag="Captação"><i class="ti ti-target-arrow"></i> Score por conjunto/grupo {{ plat_badge("Meta") }}{{ plat_badge("Google") }}</div>
+      <div class="note">
+        Nota de 0 a 100 do custo por lead A de cada conjunto (Meta) ou grupo de anúncios (Google), comparado com a mediana dos conjuntos do lançamento. Só entra gasto de captação. Clique numa linha para ver os anúncios do conjunto: a nota do anúncio é comparada com todos os pares anúncio × conjunto do lançamento.
+      </div>
+      <div class="table-wrap funil-table-wrap">
+        <table class="funil-table" id="sc-conjuntos" data-score-conjuntos-url="/criativos/score-conjuntos?launch_code={{ active_code }}" style="table-layout:fixed;width:100%;">
+          <colgroup>
+            <col style="width:96px"><col><col style="width:120px"><col style="width:80px"><col style="width:140px"><col style="width:88px">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>Plataforma</th>
+              <th>Campanha → conjunto/grupo</th>
+              <th class="th-num">Gasto</th>
+              <th class="th-num">Leads A</th>
+              <th class="th-num">Custo por lead A</th>
+              <th class="th-num" title="Nota de 0 a 100 do custo por lead A, comparado com a mediana do lançamento">Score</th>
+            </tr>
+          </thead>
+          <tbody><tr><td colspan="6"><span class="cs-skel"></span></td></tr></tbody>
+        </table>
+      </div>
+      <div class="note" id="sc-cobertura" hidden></div>
+    </div>
+    <script src="{{ static_url('js/score.js') }}"></script>
+    <script>
+    (function () {
+      var tabela = document.getElementById('sc-conjuntos');
+      if (!tabela || !window.BraboScore) return;
+      var B = window.BraboScore;
+      var tbody = tabela.querySelector('tbody');
+      function el(tag, cls, txt) { var e = document.createElement(tag); if (cls) e.className = cls; if (txt !== undefined) e.textContent = txt; return e; }
+      function num(v) { return (v === null || v === undefined) ? '—' : String(v); }
+      function brlOuTraco(v) { return (v === null || v === undefined) ? '—' : B.brl(v); }
+      function msg(t) { tbody.textContent = ''; var tr = el('tr'); var td = el('td'); td.colSpan = 6; td.appendChild(el('span', 'cs-vazio', t)); tr.appendChild(td); tbody.appendChild(tr); }
+      function ordenar(obj) {
+        var ks = Object.keys(obj || {});
+        var com = ks.filter(function (k) { return obj[k].nota !== null && obj[k].nota !== undefined; });
+        var sem = ks.filter(function (k) { return com.indexOf(k) < 0; });
+        com.sort(function (a, b) { return obj[a].nota - obj[b].nota; });
+        sem.sort(function (a, b) { return (obj[b].gasto || 0) - (obj[a].gasto || 0); });
+        return com.concat(sem);
+      }
+      function notaTd(item) { var td = el('td', 'numero'); B.pintar(td, item); return td; }
+      function linha(cls, cels) { var tr = el('tr', cls); cels.forEach(function (c) { tr.appendChild(c); }); return tr; }
+      B.buscar(tabela.getAttribute('data-score-conjuntos-url')).then(function (d) {
+        if (!d || d.pontuavel === false) { msg(B.textoNeutro(d)); return; }
+        tbody.textContent = '';
+        ordenar(d.conjuntos).forEach(function (k) {
+          var c = d.conjuntos[k];
+          var filhos = ordenar(c.anuncios);
+          var plat = c.plataforma === 'google' ? 'Google' : (c.plataforma === 'meta' ? 'Meta' : (c.plataforma || ''));
+          var nome = (c.campanha ? c.campanha + ' → ' : '') + (c.nome || k);
+          var tr = linha('sc-pai', [
+            el('td', '', plat),
+            el('td', '', nome),
+            el('td', 'numero', B.brl(c.gasto)),
+            el('td', 'numero', num(c.leads_a)),
+            el('td', 'numero', brlOuTraco(c.custo_a)),
+            notaTd(c)
+          ]);
+          tr.children[1].title = nome;
+          tr.children[1].style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+          tbody.appendChild(tr);
+          if (!filhos.length) return;
+          tr.style.cursor = 'pointer';
+          tr.tabIndex = 0;
+          tr.setAttribute('aria-expanded', 'false');
+          var kids = filhos.map(function (ad) {
+            var a = c.anuncios[ad];
+            var f = linha('sc-filho', [
+              el('td'), el('td', '', ad),
+              el('td', 'numero', B.brl(a.gasto)),
+              el('td', 'numero', num(a.leads_a)),
+              el('td', 'numero', brlOuTraco(a.custo_a)),
+              notaTd(a)
+            ]);
+            f.hidden = true;
+            f.children[1].style.paddingLeft = '24px';
+            return f;
+          });
+          var ref = tr;
+          kids.forEach(function (f) { ref.after(f); ref = f; });
+          function alternar() {
+            var abrir = kids[0].hidden;
+            kids.forEach(function (f) { f.hidden = !abrir; });
+            tr.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+          }
+          tr.addEventListener('click', alternar);
+          tr.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); alternar(); } });
+        });
+        if (!tbody.children.length) msg('Sem gasto de captação');
+        var cob = document.getElementById('sc-cobertura');
+        if (cob && d.cobertura_leads_a !== null && d.cobertura_leads_a !== undefined) {
+          cob.textContent = Math.round(d.cobertura_leads_a) + '% dos leads A ligados a um conjunto/grupo';
+          cob.hidden = false;
+        }
+      }).catch(function () { msg(B.textoNeutro(null, true)); });
+    })();
+    </script>
 
     {% if not e_black and ov.prequali_rows %}
     {{ bloco_criativos(ov.prequali_rows, "Criativos — " ~ ov.etapa_pq, ov.etapa_pq,

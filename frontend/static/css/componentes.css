@@ -620,3 +620,11 @@ table td.numero { white-space:nowrap; }
 .par-plataformas { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:var(--s3, 16px); align-items:start; }
 .par-plataformas > .section { min-width:0; }
 @media (max-width: 1100px) { .par-plataformas { grid-template-columns:minmax(0, 1fr); } }
+
+/* Score (0-100) por criativo/conjunto: Ranking Geral e js/score.js */
+.cs-skel { display:inline-block; width:40px; height:16px; border-radius:8px; vertical-align:middle; background:linear-gradient(90deg,var(--bs-surface) 25%,var(--bs-border) 50%,var(--bs-surface) 75%); background-size:200% 100%; animation:cs-shimmer 1.4s ease-in-out infinite; }
+@keyframes cs-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+.cs-nota { display:inline-block; min-width:32px; padding:2px 8px; border-radius:16px; font-weight:700; text-align:center; }
+.cs-nota.cs-ruim { background:var(--bs-danger-bg); color:var(--bs-danger); }
+.cs-nota.cs-bom { background:var(--bs-success-bg); color:var(--bs-success); }
+.cs-vazio { color:var(--bs-ink-muted); cursor:help; }

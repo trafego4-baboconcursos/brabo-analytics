@@ -211,3 +211,14 @@ def test_rota_conjuntos_falha_devolve_500(client_trafego, monkeypatch):
 def test_rota_conjuntos_permissao_como_a_de_criativos():
     from frontend.auth import ROUTE_PERMISSIONS
     assert ROUTE_PERMISSIONS["/criativos/score-conjuntos"] == ROUTE_PERMISSIONS["/criativos"]
+
+
+# ── Tarefa 5: seção na /criativos + score.js ──────────────────────────────────────────────────────────────────
+def test_criativos_tem_secao_score_por_conjunto():
+    from pathlib import Path
+    raiz = Path(__file__).resolve().parent.parent
+    html = (raiz / "frontend" / "templates" / "criativos.html").read_text(encoding="utf-8")
+    assert 'id="sc-conjuntos"' in html
+    assert "data-score-conjuntos-url" in html
+    assert "js/score.js" in html
+    assert (raiz / "frontend" / "static" / "js" / "score.js").exists()

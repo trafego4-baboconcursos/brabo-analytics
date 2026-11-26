@@ -118,6 +118,26 @@ async def criativos_score(request: Request, launch_code: str | None = None):
         return JSONResponse({"erro": "falha ao calcular"}, status_code=500)
 
 
+@router.get("/criativos/score-conjuntos")
+async def criativos_score_conjuntos(request: Request, launch_code: str | None = None):
+    """Nota 0-100 por conjunto/grupo, par anúncio×conjunto, público e segmento, em JSON; as páginas buscam depois de abrir."""
+    from frontend.services import score_conjuntos as scj
+    try:
+        launches = await run_in_threadpool(get_launches)
+        launch = resolve_launch(launch_code, launches)
+        if not launch:
+            return JSONResponse({"pontuavel": False})
+        if uses_legacy_ad_codes(launch.code):   # Black usa AD-XX##, que o SQL (^AD[0-9]+) não casa
+            return JSONResponse({"pontuavel": False, "motivo": "codigo_legado"})
+        score = await run_in_threadpool(scj.score_conjuntos, launch.code)
+        if score is None:
+            return JSONResponse({"pontuavel": False})
+        return JSONResponse({"pontuavel": True, **score})
+    except Exception:
+        logger.exception("Criativos: falha ao calcular o score por conjunto")
+        return JSONResponse({"erro": "falha ao calcular"}, status_code=500)
+
+
 @router.get("/instagram", response_class=HTMLResponse)
 async def instagram_page(request: Request, launch_code: str | None = None):
     launches = await run_in_threadpool(get_launches)

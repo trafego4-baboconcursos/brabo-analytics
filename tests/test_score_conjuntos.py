@@ -135,3 +135,79 @@ def test_nao_monta_a_base_inteira(monkeypatch):
     monkeypatch.setattr(lead_score, "obter_leads", _boom, raising=False)
     _prepara(monkeypatch)
     assert score_conjuntos._score_conjuntos_sem_cache("X-1") is not None
+
+
+# ── Tarefa 4: rota JSON /criativos/score-conjuntos ────────────────────────────────────────────────────────────
+import pytest as _pytest
+from types import SimpleNamespace as _NS
+
+
+@_pytest.fixture(scope="module")
+def client_trafego():
+    from fastapi.testclient import TestClient
+
+    from frontend.app import app
+    from frontend.auth import _sign_session
+
+    with TestClient(app, follow_redirects=False) as c:
+        c.cookies.set("session_token", _sign_session("u-teste", "trafego", ["PES"], "t@teste.local"))
+        yield c
+
+
+def _fakes_da_rota(monkeypatch, score, lancamento=True):
+    from frontend.routes import media
+    from frontend.services import score_conjuntos as svc
+
+    monkeypatch.setattr(media, "get_launches", lambda: [])
+    monkeypatch.setattr(media, "resolve_launch",
+                        lambda code, launches: _NS(code="PES-NOV-26") if lancamento else None)
+    monkeypatch.setattr(svc, "score_conjuntos", lambda code: score)
+    return svc
+
+
+def test_rota_conjuntos_devolve_notas(client_trafego, monkeypatch):
+    _fakes_da_rota(monkeypatch, {"mediana_conjunto": 100, "conjuntos": {"meta:1": {"nota": 93}}})
+    r = client_trafego.get("/criativos/score-conjuntos?launch_code=PES-NOV-26")
+    assert r.status_code == 200
+    j = r.json()
+    assert j["pontuavel"] is True and j["conjuntos"]["meta:1"]["nota"] == 93
+
+
+def test_rota_conjuntos_sem_pesquisa(client_trafego, monkeypatch):
+    _fakes_da_rota(monkeypatch, None)
+    assert client_trafego.get("/criativos/score-conjuntos?launch_code=PI-JAN-26").json() == {"pontuavel": False}
+
+
+def test_rota_conjuntos_lancamento_inexistente(client_trafego, monkeypatch):
+    _fakes_da_rota(monkeypatch, {"conjuntos": {}}, lancamento=False)
+    r = client_trafego.get("/criativos/score-conjuntos?launch_code=XXX")
+    assert r.status_code == 200 and r.json() == {"pontuavel": False}
+
+
+def test_rota_conjuntos_black_codigo_legado(client_trafego, monkeypatch):
+    from frontend.routes import media
+    svc = _fakes_da_rota(monkeypatch, {"conjuntos": {}})
+    monkeypatch.setattr(media, "resolve_launch", lambda code, launches: _NS(code="BV-25"))
+
+    def _nao_deve_chamar(code):
+        raise AssertionError("chamada pesada antes do retorno antecipado")
+
+    monkeypatch.setattr(svc, "score_conjuntos", _nao_deve_chamar)
+    r = client_trafego.get("/criativos/score-conjuntos?launch_code=BV-25")
+    assert r.status_code == 200 and r.json() == {"pontuavel": False, "motivo": "codigo_legado"}
+
+
+def test_rota_conjuntos_falha_devolve_500(client_trafego, monkeypatch):
+    svc = _fakes_da_rota(monkeypatch, {"conjuntos": {}})
+
+    def _boom(code):
+        raise RuntimeError("x")
+
+    monkeypatch.setattr(svc, "score_conjuntos", _boom)
+    r = client_trafego.get("/criativos/score-conjuntos?launch_code=PES-NOV-26")
+    assert r.status_code == 500 and r.json() == {"erro": "falha ao calcular"}
+
+
+def test_rota_conjuntos_permissao_como_a_de_criativos():
+    from frontend.auth import ROUTE_PERMISSIONS
+    assert ROUTE_PERMISSIONS["/criativos/score-conjuntos"] == ROUTE_PERMISSIONS["/criativos"]

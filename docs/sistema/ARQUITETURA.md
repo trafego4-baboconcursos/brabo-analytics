@@ -131,6 +131,9 @@ relacionados:
 > - [[ARQUITETURA#3. Caracterização (`-m caracterizacao`) — precisa de banco|3. Caracterização (`-m caracterizacao`) — precisa de banco]]
 > - [[ARQUITETURA#4. Visual (`-m visual`) — precisa de banco **e** do Chromium do Playwright|4. Visual (`-m visual`) — precisa de banco **e** do Chromium do Playwright]]
 >
+> **Python 3.14 no servidor e pandas travado (2026-11-26)**
+>
+>
 > **Rodar os testes escrevia no banco de producao (2026-09-16)**
 >
 > - [[ARQUITETURA#Reincidiu no mesmo dia, com três servidores (2026-09-16)|Reincidiu no mesmo dia, com três servidores (2026-09-16)]]
@@ -453,6 +456,9 @@ relacionados:
 > - [[ARQUITETURA#Debriefing: bloco «Qualidade dos Leads — Score pela Pesquisa» (16/11/26)|Debriefing: bloco «Qualidade dos Leads — Score pela Pesquisa» (16/11/26)]]
 >
 > **Página /boas-vindas — compras × automação de boas-vindas no dia de abertura do carrinho (2026-11-16)**
+>
+>
+> **Distribuição com Brabo Editora, miniaturas, quebra do perpétuo e ano no menu (2026-11-26)**
 >
 
 <!-- SUMARIO:FIM -->
@@ -3005,3 +3011,13 @@ Card «Receita Líquida» do debriefing e do `/resumo` mostram a quebra «Lança
 **Debriefing — "Vendas por Dia" mostra todos os dias do carrinho (19/11/26).** O gráfico desenhava só os dias com venda de matrícula (o upsell/oferta avulsa sai da conta), então no PI-NOV-26 faltavam 16 e 17/11 e a linha ligava 18/11 direto a 19/11. `services/debriefing.py` agora preenche cada dia de `carrinho_start_date` até hoje (ou o fim do carrinho), com zero nos dias sem venda; as janelas de "Vendas por Período" seguem usando a série bruta.
 
 **Hotmart — `codigo_src`/`codigo_sck` vazios desde set/26, e o repasse da origem nas páginas de matrícula (25/11/26).** Conferido no banco operacional (somente leitura): em `hotmart_oficial` o SCK vinha em 281 vendas em abr/26, 88 em ago, 36 em set e **0 em out e nov/26** (15–16 mil linhas por mês); em `hotmart_clean_oficial` está zerado desde set/26 (abr, jul e ago tinham milhares de linhas, quase todas com o valor literal `(none)`). `canal_usado_para_venda` também parou de vir (NULL em 47 mil das 47 mil linhas desde set). Os valores que existiam eram do Comercial e do atendimento (`ana`, `camila`, `beatriz`, `whatsapp`, `atendimentoia`, `HOTMART_SALES_AGENT`, `agente_ia`) e um ou outro `s=ActiveCampaign|m=email|…`. Consequência: `_canal_venda` (`db_readers/_vendas_comum.py`) classifica **toda** venda Hotmart de out/26 em diante como Orgânico (Comercial/IA só pelo `utm_source` da TMB), e a página `/afiliados` perdeu o SRC/SCK. A carga das duas tabelas é externa a este repo (pipeline do Mateus); a hipótese é que a carga deixou de mapear o `purchase.tracking` (`source`, `source_sck`) — a confirmar com ele. **Páginas de matrícula:** o script de repasse (`brabo_track`, lê `src`/`sck`/`utm_*` da URL, guarda em `sessionStorage` e acrescenta nos links `hotmart.com`/`hotm.art` sem sobrescrever o que já existe) está no ar em todas as 6 de `lp.braboconcursos.com.br` (`matricula-bb`, `-bb-v3`, `-bb-v4`, `matricula-tjsp`, `-tjsp-v2`, `-tjsp-v3`), fora do Delay JS do Perfmatters (sai como `<script>` comum). Teste no Chromium (PC e iPhone) com `?src=teste&sck=TESTE-01`: os links `pay.hotmart.com` saem com `&src=teste&sck=TESTE-01`, e a página seguinte sem parâmetro mantém a origem. **Falta** nas 2 de `lp.mateusandrade.com.br` (`matricula-inss`, `-inss-v3`). Não alcança os links da TMB (`pay.tmb.com.br`, encurtados `tmbe.site`). Todos os botões são link direto `pay.hotmart.com` (sem widget `hotmart-fb`, sem `hotm.art`). Enquanto a carga não trouxer o SCK, o repasse não aparece no painel: só no relatório da própria Hotmart (coluna "Código SCK").
+
+## Distribuição com Brabo Editora, miniaturas, quebra do perpétuo e ano no menu (2026-11-26)
+
+**Distribuição — um perfil, vários códigos.** `read_distribuicao` devolve `codigo` e `codigos`: o perfil soma o pseudo-lançamento próprio e o de quem tem `backup_de` apontando para ele em `config/instagram_accounts.yaml` (`distribuicao_extra`). `@braboconcursos` é o perfil do Ivan Neto, então a página soma `DISTRIBUICAO-IVAN-NETO` (antes aparecia zerada). **Brabo Editora** entrou em `distribuicao_extra` (username `brabo-editora`, código `DISTRIBUICAO-BRABO-EDITORA`) e aparece no menu pelo `_build_distribuicao_nav_items` (`frontend/core.py`). Backfill em 26/11/26: 717 linhas de `meta_ads_daily` e 438 de `tiktok_ads_daily` com `lancamento_codigo` nulo e campanha `[distribuição]` + "Brabo Editora" passaram para o código novo. O resolver (`etl/launch_resolver.py`) é cacheado (`lru_cache`): reiniciar o processo ao mudar o YAML.
+
+**Miniaturas.** `frontend/templates/_macro_miniatura.html` (`th_thumb`, `celula_thumb`) é usado por `/distribuicao` e `/perpetuo`; a imagem vem de `get_platform_thumbnails(codigo)` (tabela `ad_creatives`, servida em `/api/meta-creative/{code}/{ad}/thumb`) e a coluna some quando não há nenhuma. No perpétuo o código vem de `PERPETUO_VERTICALS[vertical]["codigo"]`; falha de leitura vira coluna vazia, só logada.
+
+**Perpétuo — quebra das vendas.** `perpetuo.classificar_vendas` / `_quebra_vendas` (resultado em `quebra_vendas`) separa as vendas do período em **sem vendedor × comercial** (por AT) e em **preço cheio × com desconto**. É comercial a venda cuja oferta (`codigo_do_preco`) está em `comercial_ofertas` com código AT, ou cuja transação tem atribuição `aprovada` em `comercial_atribuicoes` (a atribuição vence). Não há preço de lista no banco nem cupom nessas vendas: o desconto é uma **oferta de preço menor** do mesmo produto. Preço de referência do produto = maior preço presente em ao menos 10% das vendas com preço (mínimo 3); abaixo de 97% dele é desconto. Cobrança repetida (parcela 2+) conta no canal e fica fora do preço; produto com menos de 5 vendas com preço não tem referência e conta como cheio. A referência é relativa à janela escolhida: numa janela em que só existe a oferta mais barata, nada aparece como desconto. Testes: `tests/test_perpetuo_quebra_vendas.py`.
+
+**Menu.** O seletor de lançamentos de `base.html` põe um rótulo de ano (`bs-launch-picker-group`) dentro do produto quando ele tem lançamentos de mais de um ano (hoje INSS e Banco do Brasil, com PI-JAN-27/PBB-JAN-27). O ano vem dos dois últimos dígitos do código.

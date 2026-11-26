@@ -120,7 +120,7 @@
               <td>{{ g.desempenho.vendas | num if g.desempenho.vendas else '—' }}</td><td>{{ g.desempenho.cpa | brl if g.desempenho.cpa else '—' }}</td>
               <td>{% for t in g.problemas %}{{ pill('atencao', t.split(': ', 1)[-1]) }}<br>{% endfor %}</td>
               {% if g.etapa == 'captacao' %}<td class="numero" data-score-chave="{{ g.plataforma }}:{{ g.grupo_id }}"><span class="cs-skel"></span></td>
-              {% else %}<td class="numero"><span class="cs-vazio" title="Pré-quali: a régua é o custo por view (PQ-1)">—</span></td>{% endif %}
+              {% else %}<td class="numero"><span class="cs-vazio" title="{{ 'Pré-quali: a régua é o custo por view (PQ-1)' if g.etapa == 'pre_quali' else 'Fora da captação: o score só vale para conjuntos de captação' }}">—</span></td>{% endif %}
             </tr>
           {% endfor %}
           </tbody></table></div>
@@ -129,6 +129,7 @@
       <div class="note">Score (0–100) do conjunto ou grupo: custo por lead A comparado com a mediana do lançamento, só para campanhas de captação. Sem nota com menos de 30 leads A.</div>
     </div>
 
+    {% if publicos.publicos or publicos.grupos %}
     <script src="{{ static_url('js/score.js') }}"></script>
     <script>
     (function () {
@@ -142,6 +143,7 @@
       }).catch(function () { B.preencherNeutro(document, B.textoNeutro(null, true)); });
     })();
     </script>
+    {% endif %}
 
     <script>
     (function () {

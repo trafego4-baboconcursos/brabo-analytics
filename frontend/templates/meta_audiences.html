@@ -270,6 +270,7 @@
   </div>
   <div class="footing">Gerado em tempo real | Brabo Analytics{% if launch %} &mdash; {{ launch.code }}{% endif %}</div>
 </div>
+    {% if meta and meta.publicos %}
     <script src="{{ static_url('js/score.js') }}"></script>
     <script>
     (function () {
@@ -281,4 +282,5 @@
       }).catch(function () { B.preencherNeutro(document, B.textoNeutro(null, true)); });
     })();
     </script>
+    {% endif %}
 {% endblock %}

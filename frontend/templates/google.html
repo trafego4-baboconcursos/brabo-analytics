@@ -427,7 +427,6 @@
       </div>
       <div class="note">Score (0–100) do anúncio no lançamento, com o gasto de Meta e de Google somados, igual ao Ranking Geral da página Criativos. Mede o custo por lead A contra a mediana do lançamento; sem nota com menos de 30 leads A.</div>
     </div>
-    {% endif %}
     <script src="{{ static_url('js/score.js') }}"></script>
     <script>
     (function () {
@@ -439,6 +438,7 @@
       }).catch(function () { B.preencherNeutro(document, B.textoNeutro(null, true)); });
     })();
     </script>
+    {% endif %}
 
     {% endif %}{# end if google #}
   </div>

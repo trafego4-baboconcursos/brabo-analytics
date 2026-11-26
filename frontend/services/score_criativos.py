@@ -2,8 +2,9 @@
 frontend/services/score_criativos.py — Nota 0–100 por criativo (ADxxx) a partir do custo por lead A.
 
 Régua pura (`nota_custo_lead_a`, `notas_por_anuncio`); a leitura dos leads A por anúncio vem do banco. Plano: docs/projetos/PLANO_SCORE_CRIATIVOS.md; arquitetura: docs/sistema/ARQUITETURA.md, seção «Score por criativo».
-Lead A = `faixa_pesquisa == "A"` do `lead_score.calcular_leads` (respondeu a pesquisa e ficou na metade de
-cima da probabilidade dos respondentes do lançamento). Gasto = o `gasto` do Ranking Geral (só captação).
+Lead A = respondeu a pesquisa, está na base de leads do lançamento e ficou acima da mediana da probabilidade
+(modelo só da pesquisa) entre esses respondentes — a mesma faixa A de `lead_score.calcular_leads`, mas calculada
+só sobre quem respondeu (~20% dos leads), sem montar a base inteira. Gasto = o `gasto` do Ranking Geral (só captação).
 
 Régua: nota = round(50 − 50 · ln(custo_a / mediana) / ln(FATOR²)), limitada a 0–100.
 50 na mediana, 25 em 1,5× a mediana, 75 em mediana ÷ 1,5. A mediana vem só dos ADs com
@@ -72,31 +73,55 @@ def contar_leads_a(leads: pd.DataFrame, ad_por_email: dict[str, str]) -> dict[st
     return contagem
 
 
-def _ad_por_email(code: str) -> dict[str, str]:
-    """ADxxx de cada e-mail do lançamento: o do primeiro UTM visto que traz um código de anúncio."""
+def _ad_dos_respondentes(code: str, emails: list[str]) -> dict[str, str | None]:
+    """Respondentes que estão na base de leads do lançamento → ADxxx do primeiro UTM visto que traz código de
+    anúncio (None se nenhum UTM do e-mail traz). E-mail fora da base não aparece."""
     from frontend.services.lead_score import _AD_SQL  # noqa: PLC0415
 
+    if not emails:
+        return {}
     with _get_engine().connect() as conn:
         conn.execute(text("SET LOCAL statement_timeout = 120000"))
         rows = conn.execute(text(
             "SELECT DISTINCT ON (email) email, " + _AD_SQL + " FROM lead_utm_lancamento "
-            "WHERE lancamento_codigo = :c AND email <> '' AND " + _AD_SQL + " IS NOT NULL "
-            "ORDER BY email, primeiro_visto_em"), {"c": code}).fetchall()
+            "WHERE lancamento_codigo = :c AND email = ANY(:e) "
+            "ORDER BY email, (" + _AD_SQL + " IS NULL), primeiro_visto_em"), {"c": code, "e": emails}).fetchall()
     return {email: ad for email, ad in rows}
 
 
-def _leads_a_por_anuncio_sem_cache(code: str) -> dict[str, int] | None:
-    """{ADxxx: nº de leads A}. None sem leads/modelo ou quando ninguém respondeu a pesquisa (não há faixa A)."""
+def leads_a_dos_respondentes(resp: pd.DataFrame, na_base: set[str], m: dict) -> set[str]:
+    """E-mails na faixa A: entre os respondentes que estão na base, probabilidade acima da mediana deles."""
     from frontend.services import lead_score  # noqa: PLC0415
 
-    leads = lead_score.obter_leads_do_lancamento(code)
-    if leads is None or leads.empty or int(leads["respondeu"].sum()) == 0:
+    df = resp[resp["email"].isin(na_base)].reset_index(drop=True)
+    if df.empty:
+        return set()
+    df = df.assign(respondeu=1)
+    p = lead_score._logit_vetorial(m, df)
+    corte = float(pd.Series(p).median())
+    return set(df.loc[p > corte, "email"])
+
+
+def _leads_a_por_anuncio_sem_cache(code: str) -> dict[str, int] | None:
+    """{ADxxx: nº de leads A}. None sem modelo, sem pesquisa pontuável ou sem respondente na base de leads."""
+    from frontend.services import lead_score  # noqa: PLC0415
+
+    m = lead_score._carregar_modelo()
+    if not m:
         return None
-    return contar_leads_a(leads, _ad_por_email(code))
+    resp = lead_score._respostas_df(code, m)
+    if resp is None or resp.empty:
+        return None
+    ad_de = _ad_dos_respondentes(code, [e for e in resp["email"].tolist() if e])
+    if not ad_de:
+        return None
+    emails_a = leads_a_dos_respondentes(resp, set(ad_de), m)
+    leads = pd.DataFrame({"email": sorted(emails_a), "faixa_pesquisa": "A"})
+    return contar_leads_a(leads, {e: ad for e, ad in ad_de.items() if ad})
 
 
 def leads_a_por_anuncio(code: str) -> dict[str, int] | None:
-    """`_leads_a_por_anuncio_sem_cache` com o mesmo cache de 30 min do score por lead."""
+    """`_leads_a_por_anuncio_sem_cache` com cache de 30 min (só o dicionário pequeno fica em memória)."""
     from frontend.cache import _get_or_compute  # noqa: PLC0415
 
     return _get_or_compute(code, "score_criativos_leads_a", lambda: _leads_a_por_anuncio_sem_cache(code), ttl=1800)

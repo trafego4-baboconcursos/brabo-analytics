@@ -45,36 +45,59 @@ def test_contar_leads_a_por_anuncio():
     assert sc.contar_leads_a(leads, {"a": "AD1", "b": "AD1", "c": "AD1", "d": "AD2"}) == {"AD1": 2}
 
 
-def test_leads_a_none_quando_ninguem_respondeu(monkeypatch):
+def _modelo_teste() -> dict:
+    # coef: respondeu, idade=a, idade=b, preocup "medo"
+    return {"perguntas": ["idade"], "vocab": {"idade": ["a", "b"]}, "multi": {"preocup": ["medo"]},
+            "intercepto": -3.0, "coef": [0.5, 0.4, -0.4, 0.2]}
+
+
+def test_leads_a_dos_respondentes_usa_so_quem_esta_na_base():
+    resp = pd.DataFrame({"email": ["x", "y", "z", "fora"], "idade": ["a", "b", "a", "a"],
+                         "preocup": ["medo", "", "", "medo"]})
+    # na base: x (a + medo), y (b), z (a). Mediana = z; acima dela só x. "fora" não entra no corte nem no resultado.
+    assert sc.leads_a_dos_respondentes(resp, {"x", "y", "z"}, _modelo_teste()) == {"x"}
+
+
+def test_leads_a_none_sem_pesquisa_ou_sem_respondente_na_base(monkeypatch):
     from frontend.services import lead_score as ls
-    monkeypatch.setattr(ls, "obter_leads_do_lancamento",
-                        lambda code: pd.DataFrame({"email": ["a"], "respondeu": [0], "faixa_pesquisa": ["C"]}))
-    monkeypatch.setattr(sc, "_ad_por_email", lambda code: {"a": "AD1"})
+    monkeypatch.setattr(ls, "_carregar_modelo", lambda: _modelo_teste())
+    monkeypatch.setattr(ls, "_respostas_df", lambda code, m: None)
+    assert sc._leads_a_por_anuncio_sem_cache("X") is None
+    monkeypatch.setattr(ls, "_respostas_df", lambda code, m: pd.DataFrame(
+        {"email": ["x"], "idade": ["a"], "preocup": [""]}))
+    monkeypatch.setattr(sc, "_ad_dos_respondentes", lambda code, emails: {})
     assert sc._leads_a_por_anuncio_sem_cache("X") is None
 
 
-def test_leads_e_criativos_usam_a_mesma_funcao_de_compradores(monkeypatch):
-    """/criativos e /leads dividem a entrada de cache `lead_score_leads`: os dois têm de chamar `obter_leads` com o
-    mesmo conjunto de compradores (hotmart | tmb), senão um comprador vazio envenenaria a /leads."""
+def test_criativos_conta_leads_a_sem_montar_a_base_inteira(monkeypatch):
+    """A /criativos não pode chamar o score por lead da base inteira (pesado e com cache compartilhado com a /leads)."""
+    from frontend.services import lead_score as ls
+
+    def proibido(*a, **k):
+        raise AssertionError("não pode montar a base inteira de leads")
+
+    monkeypatch.setattr(ls, "obter_leads", proibido)
+    monkeypatch.setattr(ls, "obter_leads_do_lancamento", proibido)
+    monkeypatch.setattr(ls, "_carregar_modelo", lambda: _modelo_teste())
+    monkeypatch.setattr(ls, "_respostas_df", lambda code, m: pd.DataFrame(
+        {"email": ["x", "y", "z", "w"], "idade": ["a", "b", "a", "a"], "preocup": ["medo", "", "", "medo"]}))
+    # w está na base mas sem código de anúncio no UTM: entra no corte, não na contagem
+    monkeypatch.setattr(sc, "_ad_dos_respondentes", lambda code, emails: {"x": "AD1", "y": "AD1", "z": "AD2", "w": None})
+    assert sc._leads_a_por_anuncio_sem_cache("X") == {"AD1": 1}
+
+
+def test_leads_passa_hotmart_e_tmb_como_compradores(monkeypatch):
+    """A /leads segue montando o score por lead com os compradores hotmart | tmb."""
     from types import SimpleNamespace
     from frontend.db_readers import sales
     from frontend.routes import leads as rl
     from frontend.services import lead_score as ls
 
-    monkeypatch.setattr(sales, "read_vendas", lambda code: SimpleNamespace(
-        emails_hotmart={"h@x"}, emails_tmb={"t@x"}))
+    monkeypatch.setattr(sales, "read_vendas", lambda code: SimpleNamespace(emails_hotmart={"h@x"}, emails_tmb={"t@x"}))
     recebidos = []
-
-    def falso_obter_leads(code, emails_compradores):
-        recebidos.append(set(emails_compradores))
-        return pd.DataFrame({"email": ["a"], "respondeu": [1], "faixa_pesquisa": ["A"]})
-
-    monkeypatch.setattr(ls, "obter_leads", falso_obter_leads)
-    monkeypatch.setattr(sc, "_ad_por_email", lambda code: {"a": "AD1"})
-
+    monkeypatch.setattr(ls, "obter_leads", lambda code, emails_compradores: recebidos.append(set(emails_compradores)))
     rl._score_leads_df("X")
-    assert sc._leads_a_por_anuncio_sem_cache("X") == {"AD1": 1}
-    assert recebidos == [{"h@x", "t@x"}, {"h@x", "t@x"}]
+    assert recebidos == [{"h@x", "t@x"}]
 
 
 # ── Tarefa 3: rota JSON /criativos/score ──────────────────────────────────────────────────────────────────────
@@ -157,11 +180,23 @@ def test_rota_score_erro_de_leitura_da_plataforma_devolve_500(client_trafego, mo
     _fakes_da_rota(monkeypatch, {"AD1": 50})
 
     async def _dados(launch, **k):
-        return {"meta": None, "google": None, "vendas": None, "_errors": ["meta: timeout"]}
+        return {"meta": None, "google": None, "vendas": None, "_errors": ["Meta Ads"]}
 
     monkeypatch.setattr(media, "_fetch_all_data", _dados)
     r = client_trafego.get("/criativos/score?launch_code=PES-NOV-26")
     assert r.status_code == 500 and r.json() == {"erro": "falha ao calcular"}
+
+
+def test_rota_score_ignora_erro_de_fonte_que_nao_e_gasto(client_trafego, monkeypatch):
+    from frontend.routes import media
+    _fakes_da_rota(monkeypatch, {"AD1": 50})
+
+    async def _dados(launch, **k):
+        return {"meta": None, "google": None, "vendas": None, "_errors": ["TikTok Ads", "Hotmart", "Campanhas de e-mail"]}
+
+    monkeypatch.setattr(media, "_fetch_all_data", _dados)
+    r = client_trafego.get("/criativos/score?launch_code=PES-NOV-26")
+    assert r.status_code == 200 and r.json()["anuncios"]["AD1"]["nota"] == 50
 
 
 def test_rota_score_tem_permissao_de_midia():

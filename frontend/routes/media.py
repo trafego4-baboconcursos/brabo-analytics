@@ -104,8 +104,9 @@ async def criativos_score(request: Request, launch_code: str | None = None):
         if leads_a is None:
             return JSONResponse({"pontuavel": False})
         d = await _fetch_all_data(launch)
-        if d.get("_errors"):   # leitura Meta/Google falhou: dado vazio não pode virar «sem dado de score»
-            logger.warning("Criativos: leitura de plataforma falhou no score (%s): %s", launch.code, d["_errors"])
+        falhas_gasto = {"Meta Ads", "Google Ads"} & set(d.get("_errors") or [])
+        if falhas_gasto:   # o gasto vem de Meta/Google: sem eles, dado vazio viraria «sem dado de score»
+            logger.warning("Criativos: leitura de plataforma falhou no score (%s): %s", launch.code, sorted(falhas_gasto))
             return JSONResponse({"erro": "falha ao calcular"}, status_code=500)
         ov = await run_in_threadpool(
             _creative_overview, d["meta"], d["google"], d["vendas"], None, launch_code=launch.code

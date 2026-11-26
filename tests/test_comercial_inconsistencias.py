@@ -505,6 +505,8 @@ def cli(_app_client, banco, monkeypatch):
                         lambda mes: [l.transacao for l in inc.candidatas_reivindicacao(inc.linhas_guardadas(mes) or [])])
     fundo = []
     monkeypatch.setattr(snap, "recalcular_em_segundo_plano", lambda mes: fundo.append(mes))
+    # venda fora de todo snapshot: por padrão também não existe na plataforma (não recalcula)
+    monkeypatch.setattr(com, "data_da_venda", lambda t, p: None)
     _app_client.fundo = fundo
     monkeypatch.setattr(rotas, "_hoje", lambda: date(2026, 11, 6))
     monkeypatch.setattr(rotas, "get_launches", lambda: [])
@@ -1002,3 +1004,30 @@ def test_linha_guardada_le_so_a_venda(monkeypatch):
     monkeypatch.setattr(snap, "linhas_das_transacoes", lambda mes, ts: None)  # sem leitura direta
     monkeypatch.setattr(inc, "linhas_guardadas", lambda mes: [_l("HP-Y", "AT4")])
     assert inc.linha_guardada(date(2026, 10, 1), "HP-Y").transacao == "HP-Y"
+
+
+
+def test_reivindicar_venda_que_chegou_depois_do_calculo_recalcula_o_mes(monkeypatch):
+    """Pedido TMB 2385433 (26/11/26): na plataforma, mas fora do snapshot -> recalcula o mês dela."""
+    nova = _l("2385433", None, sit="inconsistente", motivo="sem_codigo")
+    monkeypatch.setattr(inc, "linha_guardada", lambda mes, t: None)
+    monkeypatch.setattr(snap, "obter_mes", lambda mes, **kw: _res())
+    monkeypatch.setattr(com, "data_da_venda", lambda t, p: datetime(2026, 11, 21, 11, 56))
+    monkeypatch.setattr(com, "meses_fechados", lambda: {})
+    recalc = []
+    monkeypatch.setattr(snap, "recalcular_mes", lambda m, **kw: (recalc.append(m), ResultadoMes(m, [nova], [], datetime(2026, 11, 26)))[1])
+    assert inc.linha_da_venda(date(2026, 10, 1), "2385433") is None  # sem a opção: não recalcula
+    assert recalc == []
+    assert inc.linha_da_venda(date(2026, 10, 1), "2385433", recalcular_se_faltar=True).transacao == "2385433"
+    assert recalc == [date(2026, 11, 1)]  # o mês da venda, não o do formulário
+
+
+def test_codigo_inexistente_ou_de_mes_fechado_nao_recalcula(monkeypatch):
+    monkeypatch.setattr(inc, "linha_guardada", lambda mes, t: None)
+    monkeypatch.setattr(snap, "obter_mes", lambda mes, **kw: _res())
+    monkeypatch.setattr(snap, "recalcular_mes", lambda m, **kw: pytest.fail("não devia recalcular"))
+    monkeypatch.setattr(com, "data_da_venda", lambda t, p: None)
+    assert inc.linha_da_venda(date(2026, 10, 1), "HP-INVENTADO", recalcular_se_faltar=True) is None
+    monkeypatch.setattr(com, "data_da_venda", lambda t, p: datetime(2026, 9, 3))
+    monkeypatch.setattr(com, "meses_fechados", lambda: {date(2026, 9, 1): {}})
+    assert inc.linha_da_venda(date(2026, 10, 1), "HP-SETEMBRO", recalcular_se_faltar=True) is None

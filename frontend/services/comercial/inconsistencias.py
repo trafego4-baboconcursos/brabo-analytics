@@ -190,13 +190,25 @@ def conferir_reivindicacao(linha: LinhaComissao | None, codigo: str,
     raise EscritaRecusada("de_outro")
 
 
-def linha_da_venda(mes: date, transacao: str) -> LinhaComissao | None:
+def linha_da_venda(mes: date, transacao: str, *, recalcular_se_faltar: bool = False) -> LinhaComissao | None:
     """Linha da venda no mês: snapshot guardado (sem recalcular); se não está lá, o cálculo
-    do mês (obter_mes — pode recalcular). Roda em threadpool."""
+    do mês (obter_mes — pode recalcular). Roda em threadpool.
+
+    `recalcular_se_faltar` (reivindicação pelo código, 26/11/26): a venda que chegou na
+    Hotmart/TMB depois do último cálculo (ex.: pedido TMB 2385433, de 21/11, que só apareceu na
+    tabela em 25/11) não está em snapshot nenhum. Se ela existe na plataforma e o mês dela está
+    aberto, recalcula esse mês na hora e procura de novo. Código que não existe não recalcula."""
     from frontend.services.comercial import snapshot as snap  # noqa: PLC0415
     linha = linha_guardada(mes, transacao)
     if linha is None:
         linha = localizar(snap.obter_mes(mes).linhas, transacao)
+    if linha is None and recalcular_se_faltar:
+        from frontend.db_readers import comercial as com  # noqa: PLC0415
+        data = com.data_da_venda(transacao, plataforma_de(transacao))
+        if data is not None:
+            mes_venda = data.date().replace(day=1)
+            if mes_venda not in set(com.meses_fechados() or ()):
+                linha = localizar(snap.recalcular_mes(mes_venda).linhas, transacao)
     return linha
 
 

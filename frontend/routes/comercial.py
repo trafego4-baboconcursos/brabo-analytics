@@ -483,7 +483,7 @@ async def comercial_reivindicar(request: Request, transacao: str = Form(""), ven
         codigo = inc.codigo_do_pedido(acesso, vendedor_codigo)
         mes_venda = inc.mes_obrigatorio(mes, _hoje())  # Ruling 14: sem mês válido -> 400
         inc.exigir_venda_de_mes_aberto(t)  # Ruling 17
-        linha = inc.linha_da_venda(mes_venda, t)
+        linha = inc.linha_da_venda(mes_venda, t, recalcular_se_faltar=True)
         conflito = None
         if linha is not None and linha.motivo == "conflito_codigo":
             conflito = com.ler_codigos_conflito([t]).get(t)

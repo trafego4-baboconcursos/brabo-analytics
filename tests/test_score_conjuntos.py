@@ -63,3 +63,75 @@ def test_publico_so_com_conjuntos_sem_gasto_de_captacao():
 
 def test_cobertura_passa_direto():
     assert _montar(cobertura_leads_a=0.8)["cobertura_leads_a"] == 0.8
+
+
+# ---- leitura do banco (leitores trocados por monkeypatch) -------------------------------------------------------
+import pandas as pd
+import pytest
+
+from frontend.services import lead_score, score_conjuntos, score_criativos, vendas_por_grupo
+
+
+def _prepara(monkeypatch, *, modelo=True, resp="ok", utms=None, publicos=None):
+    monkeypatch.setattr(lead_score, "_carregar_modelo", lambda: {"m": 1} if modelo else None)
+    if isinstance(resp, str):
+        r = pd.DataFrame({"email": ["a@x", "b@x", "c@x"]})
+    else:
+        r = resp
+    monkeypatch.setattr(lead_score, "_respostas_df", lambda code, m: r)
+    if utms is None:
+        utms = pd.DataFrame({
+            "email": ["a@x", "b@x", "c@x"],
+            "source": ["fb", "fb", "fb"], "medium": ["paid", "paid", "paid"],
+            "campaign": ["[MA][captação] X", "[MA][captação] X", "[MA][captação] X"],
+            "content": ["Grupo 1", "Zzz sem conjunto", "Grupo 1"],
+            "ad": ["AD1", None, "AD2"]})
+    monkeypatch.setattr(score_conjuntos, "_utms_dos_respondentes", lambda code, emails: utms)
+    monkeypatch.setattr(score_criativos, "leads_a_dos_respondentes", lambda resp, na_base, m: {"a@x", "b@x"})
+    monkeypatch.setattr(vendas_por_grupo, "_grupos_do_lancamento",
+                        lambda code: [("meta", "[MA][captação] X", "Grupo 1", "11")])
+    gasto = pd.DataFrame([
+        {"chave": "meta:11", "plataforma": "meta", "campanha": "[MA][captação] X", "nome": "Grupo 1",
+         "ad": "AD1", "gasto": 100.0},
+        {"chave": "meta:11", "plataforma": "meta", "campanha": "[MA][captação] X", "nome": "Grupo 1",
+         "ad": "", "gasto": 50.0}])
+    monkeypatch.setattr(score_conjuntos, "_gasto_captacao", lambda code: gasto)
+    monkeypatch.setattr(score_conjuntos, "_publicos_dos_grupos",
+                        lambda code: {"meta:P1": {"meta:11"}} if publicos is None else publicos)
+    monkeypatch.setattr(score_conjuntos, "_segmentos_google", lambda code, casar: {})
+
+
+def test_score_conjuntos_junta_leads_a_e_gasto(monkeypatch):
+    _prepara(monkeypatch)
+    r = score_conjuntos._score_conjuntos_sem_cache("X-1")
+    assert r["cobertura_leads_a"] == 50.0
+    c = r["conjuntos"]["meta:11"]
+    assert c["gasto"] == 150.0 and c["leads_a"] == 1 and c["nome"] == "Grupo 1"
+    assert c["anuncios"]["AD1"]["gasto"] == 100.0 and c["anuncios"]["AD1"]["leads_a"] == 1
+    assert "AD2" not in c["anuncios"]
+    assert r["publicos"]["meta:P1"]["leads_a"] == 1
+    assert r["conjuntos_meta_por_nome"]["Grupo 1"]["gasto"] == 150.0
+
+
+def test_score_conjuntos_none_sem_pesquisa(monkeypatch):
+    _prepara(monkeypatch, modelo=False)
+    assert score_conjuntos._score_conjuntos_sem_cache("X-1") is None
+    _prepara(monkeypatch, resp=None)
+    assert score_conjuntos._score_conjuntos_sem_cache("X-1") is None
+    _prepara(monkeypatch, resp=pd.DataFrame({"email": []}))
+    assert score_conjuntos._score_conjuntos_sem_cache("X-1") is None
+    _prepara(monkeypatch, utms=pd.DataFrame(columns=["email", "source", "medium", "campaign", "content", "ad"]))
+    assert score_conjuntos._score_conjuntos_sem_cache("X-1") is None
+
+
+def test_score_conjuntos_sem_publicos_coletados(monkeypatch):
+    _prepara(monkeypatch, publicos={})
+    assert score_conjuntos._score_conjuntos_sem_cache("X-1")["publicos"] == {}
+
+
+def test_nao_monta_a_base_inteira(monkeypatch):
+    def _boom(*a, **k):
+        raise AssertionError("não pode montar a base inteira")
+    monkeypatch.setattr(lead_score, "obter_leads", _boom, raising=False)
+    _prepara(monkeypatch)
+    assert score_conjuntos._score_conjuntos_sem_cache("X-1") is not None

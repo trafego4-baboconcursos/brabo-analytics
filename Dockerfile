@@ -1,4 +1,7 @@
-FROM python:3.10-slim
+# Mesma versão do Python da máquina de desenvolvimento (3.14) e do CI (.github/workflows/ci.yml): o pandas 3
+# exige Python >= 3.11, e servidor com 3.10 + pandas 2.x diferente do local já quebrou o debriefing da BV-26.
+# Ao trocar aqui, trocar no ci.yml junto.
+FROM python:3.14-slim
 
 WORKDIR /app
 

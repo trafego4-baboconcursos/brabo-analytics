@@ -949,6 +949,14 @@ python -m pytest tests/test_visual.py -m visual
 
 ---
 
+## Python 3.14 no servidor e pandas travado (2026-11-26)
+
+O container passou de `python:3.10-slim` para **`python:3.14-slim`**, a mesma versão da máquina de desenvolvimento, e o CI (`.github/workflows/ci.yml`) foi junto para 3.14. No `requirements.txt`, **`pandas==3.0.3` e `numpy==2.5.1`** ficaram travados (antes `pandas>=2.0`).
+
+**Por quê:** com `pandas>=2.0` o servidor em 3.10 instalava um pandas 2.x, enquanto o local rodava o 3.x. Uma conta que passava nos testes daqui podia quebrar em produção, e foi o que aconteceu com o debriefing da BV-26. Fixar só o pandas 3 não dava: ele exige Python ≥ 3.11, e o build quebraria no 3.10.
+
+**Conferido antes do deploy (26/11/26):** todas as 80 dependências do `requirements.txt` têm wheel pronta para Linux + CPython 3.14 (`pip download --platform manylinux... --python-version 3.14 --only-binary=:all:`), então o build não compila nada; a suíte do CI (`-m "not smoke and not visual"`, banco falso) roda local no mesmo Python/pandas/numpy. **Subir pandas ou numpy:** trocar no `requirements.txt`, rodar os testes local e esperar o CI. **Trocar o Python:** Dockerfile e `ci.yml` juntos.
+
 ## Rodar os testes escrevia no banco de producao (2026-09-16)
 
 `PRE_WARM_CACHE` vem **ligado por padrao** (`os.environ.get("PRE_WARM_CACHE", "true")`). O aquecimento sobe junto com o app, no evento de startup do FastAPI, e grava `debriefing_snapshot` — tabela do banco analytics, que **nao** tem guard de somente-leitura (o guard existe so no banco operacional e cobre duas tabelas: `tmb_clean_oficial` e `hotmart_clean_oficial`).
@@ -2166,7 +2174,7 @@ A miniatura da LP no "Landing Pages que Mais Converteram" passou a ser **print n
 | rota | `GET /api/lp-screenshot/{landing_page}` |
 | miniatura | macro `lp_thumb` no `debriefing.html`, 300px de largura |
 
-**Por que script e não parte do app.** A captura exige Chromium (~400MB via Playwright) e a imagem de produção é uma `python:3.10-slim`. Rodando a captura fora do container, o deploy continua leve — o app só lê bytes do banco, sem nenhuma dependência nova. O custo é a recaptura ser manual, o que casa com o fato de a LP mudar poucas vezes por lançamento. Se um dia isso tiver que ser automático, aí sim entra `playwright` no `requirements.txt` e `playwright install --with-deps chromium` no Dockerfile — decisão consciente, não esquecimento. Por isso o `playwright` **não** está no requirements: quem captura instala à parte.
+**Por que script e não parte do app.** A captura exige Chromium (~400MB via Playwright) e a imagem de produção é uma `python:3.14-slim` (3.10 até 26/11/26). Rodando a captura fora do container, o deploy continua leve — o app só lê bytes do banco, sem nenhuma dependência nova. O custo é a recaptura ser manual, o que casa com o fato de a LP mudar poucas vezes por lançamento. Se um dia isso tiver que ser automático, aí sim entra `playwright` no `requirements.txt` e `playwright install --with-deps chromium` no Dockerfile — decisão consciente, não esquecimento. Por isso o `playwright` **não** está no requirements: quem captura instala à parte.
 
 **Layout desktop com arquivo pequeno.** Estreitar o viewport pra diminuir a imagem renderizaria o layout mobile, que é justamente o defeito do thum.io. A saída é `device_scale_factor=0.5`: a página é montada em 1280px CSS (desktop) e o arquivo sai com 640px de largura. Exibida a 300px, ainda sobra resolução pra tela retina.
 

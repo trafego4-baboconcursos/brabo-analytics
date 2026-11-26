@@ -1,7 +1,11 @@
 python-dotenv>=1.0.0
 sqlalchemy>=2.0
 psycopg2-binary>=2.9
-pandas>=2.0
+# pandas e numpy TRAVADOS na versão da máquina de desenvolvimento: com `pandas>=2.0` o servidor (Python 3.10)
+# instalava um 2.x e o local rodava o 3.x, e o debriefing da BV-26 quebrou só em produção. Subir de versão =
+# trocar aqui, rodar os testes local e no CI (Python 3.14, igual ao Dockerfile).
+pandas==3.0.3
+numpy==2.5.1
 requests>=2.31
 google-auth>=2.23.0
 google-api-python-client>=2.100.0  # googleapiclient — miniaturas de criativos via Google Drive

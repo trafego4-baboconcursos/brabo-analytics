@@ -2823,6 +2823,16 @@ Saiu da revisão [[REVISAO_TABELAS_ADS_2026-11-09]].
   - **Como funciona agora:** o processo guarda os eventos (`_eventos`). A cada rodada, relê só as últimas 3 h (`_JANELA_RELEITURA`) e troca essa janela pelo que o banco devolve; um evento atrasado ou apagado dentro dela sai certo. A cada 6 h (`_RECARGA_TOTAL`) relê tudo, o que corrige atrasos maiores que a janela. Há uma trava por lançamento.
   - **Resultado:** ~1–2 mil linhas por rodada, em 0,1 s em vez de 4–6 s. Card idêntico ao da leitura completa, conferido nos dois lançamentos com o cache simulado de 1 h e de 24 h atrás.
   - Teste: `tests/test_whatsapp_eventos_incremental.py`.
+- **Grupos de WhatsApp: filtro por nome exato, com índice, 26/11/26.**
+  - **O problema:** mesmo incremental, o filtro era `nome_campanha ILIKE '%[COD]%'`. Com `%` no começo, nenhum índice serve, e toda chamada lia a tabela inteira (2 mi de eventos, 330 MB, 42 mil blocos), inclusive em lançamento sem evento nenhum. Somava ~45% do tempo e do disco lido do banco: 1.020 chamadas e 242 GB lidos do disco desde a troca para o Medium. Expulsava do cache o resto do painel, e foi parte do travamento de 25/11 (ver [[REVISAO_TABELAS_ADS_2026-11-09]]).
+  - **Como funciona agora:** `_consultar` lê os nomes distintos de campanha (~30) com um "loose index scan" (`_SQL_NOMES`). Escolhe em Python os que contêm "[COD]" (`_nomes_do_lancamento`, a mesma regra do ILIKE, com `CODIGOS_EVENTOS`) e filtra com `nome_campanha = ANY(:nomes)`. Lançamento sem nome não consulta a tabela.
+  - **Índice novo:** `idx_leads_grupos_eventos_camp_ts ON leads_grupos_eventos (nome_campanha, "timestamp")`, 40 MB, criado com `CONCURRENTLY` em 26/11. A tabela é da automação e não está no `schema.sql`, por isso a definição fica registrada aqui.
+  - **Resultado:**
+    - Os mesmos eventos linha a linha nos 11 casos testados: completo e janela de 3 h, em PI-NOV-26, PES-NOV-26, PES-SET-26, PES-JAN-26, PI-AGO-26 e PBB-JAN-27 (sem evento).
+    - PI-NOV-26 completo: de 3,45 s e 42 mil blocos para 0,24 s e 15 mil blocos.
+    - Lançamento sem evento: de 6,2 s para 0,1 s.
+  - Teste: `tests/test_whatsapp_eventos_nomes.py`.
+- **`VACUUM (ANALYZE) lead_utm_lancamento`, 26/11/26.** A tabela nunca tinha passado por vacuum e só 64% das páginas estavam marcadas como visíveis. Com isso, `COUNT(DISTINCT contact_id) ... WHERE lancamento_codigo = ...` (2.193 chamadas, chamado do comparativo, de vendas, do Typeform e dos grupos) ia à tabela a cada linha. Depois do vacuum: 100% visível, consulta só no índice (`idx_lead_utm_lancamento_lanc_contact`, 0 heap fetches), de 1,4 s em média para 68 ms no PI-NOV-26.
 
 ## `/verba` no layout da planilha "Verba Diária" (2026-11-10)
 

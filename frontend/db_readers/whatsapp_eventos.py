@@ -47,18 +47,49 @@ def _codigos(code: str) -> list[str]:
     return [code, *CODIGOS_EVENTOS.get(code.upper(), ())]
 
 
+_COLUNAS = ["timestamp", "nome_grupo", "ent_sai", "numero_lead", "nome_campanha"]
+
+# Nomes distintos de campanha (~30) por "loose index scan": uma descida no índice por nome, em vez de ler a
+# tabela. Usa os índices que começam por nome_campanha (idx_leads_grupos_eventos_camp_ts e _camp_lead_grp_ts).
+_SQL_NOMES = text("""
+    WITH RECURSIVE t AS (
+        (SELECT nome_campanha FROM leads_grupos_eventos
+          WHERE nome_campanha IS NOT NULL ORDER BY nome_campanha LIMIT 1)
+        UNION ALL
+        SELECT (SELECT e.nome_campanha FROM leads_grupos_eventos e
+                 WHERE e.nome_campanha > t.nome_campanha ORDER BY e.nome_campanha LIMIT 1)
+          FROM t WHERE t.nome_campanha IS NOT NULL
+    )
+    SELECT nome_campanha FROM t WHERE nome_campanha IS NOT NULL
+""")
+
+
+def _nomes_do_lancamento(code: str, nomes: list[str]) -> list[str]:
+    """Os nomes de campanha que contêm "[COD]", sem diferenciar maiúsculas. É a mesma regra do antigo
+    `nome_campanha ILIKE '%[COD]%'`, aplicada à lista de nomes em vez de a cada linha da tabela."""
+    alvos = [f"[{c}]".lower() for c in _codigos(code)]
+    return [n for n in nomes if any(a in n.lower() for a in alvos)]
+
+
 def _consultar(code: str, desde: pd.Timestamp | None = None) -> pd.DataFrame:
-    """Eventos do lançamento no banco; com `desde`, só os de `timestamp >= desde` (usa idx_eventos_timestamp)."""
-    filtros = " OR ".join(f"nome_campanha ILIKE :p{i}" for i, _ in enumerate(_codigos(code)))
-    params: dict[str, Any] = {f"p{i}": f"%[{c}]%" for i, c in enumerate(_codigos(code))}
-    corte = ""
-    if desde is not None:
-        corte = " AND timestamp >= :desde"
-        params["desde"] = desde.to_pydatetime()
+    """Eventos do lançamento no banco; com `desde`, só os de `timestamp >= desde`.
+
+    Até 26/11/26 o filtro era `nome_campanha ILIKE '%[COD]%'`. Com `%` no começo nenhum índice serve, e cada
+    chamada lia a tabela inteira (2 mi de eventos, 330 MB): eram ~45% do tempo e do disco lido do banco, e o
+    cache expulso deixava o resto do painel lento. Agora acha os nomes do lançamento e filtra por igualdade,
+    com o índice (nome_campanha, timestamp)."""
     with _get_engine().connect() as conn:
+        nomes = _nomes_do_lancamento(code, [r[0] for r in conn.execute(_SQL_NOMES)])
+        if not nomes:
+            return pd.DataFrame(columns=_COLUNAS)
+        params: dict[str, Any] = {"nomes": nomes}
+        corte = ""
+        if desde is not None:
+            corte = " AND timestamp >= :desde"
+            params["desde"] = desde.to_pydatetime()
         return pd.read_sql(
             text(f"""SELECT timestamp, nome_grupo, TRIM(ent_sai) AS ent_sai, numero_lead::text AS numero_lead, nome_campanha
-                     FROM leads_grupos_eventos WHERE ({filtros}){corte}"""),
+                     FROM leads_grupos_eventos WHERE nome_campanha = ANY(:nomes){corte}"""),
             conn, params=params,
         )
 

@@ -18,7 +18,7 @@ import re
 import unicodedata
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable
 
 from frontend.services.classificadores import _classify_campaign
 from logger import get_logger
@@ -50,9 +50,9 @@ class VendasPorGrupo:
         return self.ligadas.get(plataforma, 0) / total * 100 if total else None
 
 
-def ligar_vendas(buyer_utms: dict[str, dict], vendas_por_email: dict, receita_por_email: dict,
-                 grupos: list[tuple[str, str, str, str]]) -> VendasPorGrupo:
-    """`grupos`: [(plataforma, nome da campanha, nome do conjunto/grupo, id)] do lançamento. Pura."""
+def casador_de_grupos(grupos: list[tuple[str, str, str, str]]) -> Callable[[str, str, str, str], tuple[str, str] | None]:
+    """`grupos`: [(plataforma, nome da campanha, nome do conjunto/grupo, id)] do lançamento. Devolve uma função
+    `(source, medium, campaign, content) -> (plataforma, id do grupo) | None`, na ordem do docstring do módulo. Pura."""
     por_par, por_numero, por_nome = defaultdict(set), defaultdict(set), defaultdict(set)
     for plat, camp, nome, gid in grupos:
         gid = str(gid)
@@ -64,23 +64,37 @@ def ligar_vendas(buyer_utms: dict[str, dict], vendas_por_email: dict, receita_po
     def _unico(ids):
         return next(iter(ids)) if len(ids) == 1 else None
 
+    def casar(source: str, medium: str, campaign: str, content: str) -> tuple[str, str] | None:
+        canal = _CANAL.get(_classify_campaign(campaign or "", source or "", medium or "")["channel"])
+        if not canal:
+            return None
+        camp, conteudo = slug(campaign), content or ""
+        gid = _unico(por_par.get((canal, camp, slug(conteudo)), ()))
+        if gid is None and camp and (n := numero_do_grupo(conteudo)):
+            gid = _unico(por_numero.get((canal, camp, n), ()))
+        if gid is None:
+            gid = _unico(por_nome.get((canal, slug(conteudo)), ()))
+        return (canal, gid) if gid is not None else None
+
+    return casar
+
+
+def ligar_vendas(buyer_utms: dict[str, dict], vendas_por_email: dict, receita_por_email: dict,
+                 grupos: list[tuple[str, str, str, str]]) -> VendasPorGrupo:
+    """`grupos`: [(plataforma, nome da campanha, nome do conjunto/grupo, id)] do lançamento. Pura."""
+    casar = casador_de_grupos(grupos)
     out = VendasPorGrupo()
     acum: dict[tuple[str, str], list] = {}
     for email, u in buyer_utms.items():
         canal = _CANAL.get(_classify_campaign(u.get("campaign") or "", u.get("source") or "", u.get("medium") or "")["channel"])
         if not canal:
             continue
-        camp, conteudo = slug(u.get("campaign")), u.get("content") or ""
-        gid = _unico(por_par.get((canal, camp, slug(conteudo)), ()))
-        if gid is None and camp and (n := numero_do_grupo(conteudo)):
-            gid = _unico(por_numero.get((canal, camp, n), ()))
-        if gid is None:
-            gid = _unico(por_nome.get((canal, slug(conteudo)), ()))
+        achou = casar(u.get("source") or "", u.get("medium") or "", u.get("campaign") or "", u.get("content") or "")
         vendas = int(vendas_por_email.get(email, 1) or 1)
-        if gid is None:
+        if achou is None:
             out.sem_grupo[canal] = out.sem_grupo.get(canal, 0) + vendas
             continue
-        a = acum.setdefault((canal, gid), [0, 0.0])
+        a = acum.setdefault(achou, [0, 0.0])
         a[0] += vendas
         a[1] += float(receita_por_email.get(email, 0.0) or 0.0)
         out.ligadas[canal] = out.ligadas.get(canal, 0) + vendas

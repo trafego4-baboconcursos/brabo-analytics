@@ -1,6 +1,6 @@
 """Vendas atribuídas por conjunto (Facebook/Meta) e grupo (Google) — CPA da página /publicos."""
 from frontend.db_readers import publicos as R
-from frontend.services.vendas_por_grupo import ligar_vendas, numero_do_grupo, slug
+from frontend.services.vendas_por_grupo import casador_de_grupos, ligar_vendas, numero_do_grupo, slug
 
 CAMP_M = "[MA][cadastro][captação][quente][principal][PES-NOV-26][26.10.26]"
 CAMP_G = "[GA][cadastro][captação][quente][principal][PES-NOV-26][26.10.26]"
@@ -60,3 +60,26 @@ def test_cpa_e_soma_das_vendas_no_publico():
     assert (p.desempenho.vendas, p.desempenho.receita) == (4, 8000) and p.desempenho.cpa == 1500 / 4
     assert d[("meta", "a1")].cpa == 250 and d[("meta", "a2")].cpa is None
     assert d[("meta", "a1")].roas == 8.0
+
+
+REF = ("meta", "[MA][captação][PES-NOV-26] Frio", "04 - Interesse", "111")
+
+
+def test_casador_pelo_par_campanha_e_nome():
+    c = casador_de_grupos([REF])
+    assert c("facebook", "paid", "[MA][captação][PES-NOV-26] Frio", "04 - Interesse") == ("meta", "111")
+
+
+def test_casador_conjunto_renomeado_casa_pelo_numero():
+    c = casador_de_grupos([REF])
+    assert c("facebook", "paid", "[MA][captação][PES-NOV-26] Frio", "04 - Interesse renomeado") == ("meta", "111")
+
+
+def test_casador_nome_repetido_em_campanhas_diferentes_sem_campanha_da_none():
+    c = casador_de_grupos([REF, ("meta", "[MA][captação][PES-NOV-26] Quente", "04 - Interesse", "222")])
+    assert c("facebook", "paid", "", "04 - Interesse") is None
+
+
+def test_casador_canal_fora_de_meta_e_google_da_none():
+    c = casador_de_grupos([REF])
+    assert c("email", "", "newsletter", "04 - Interesse") is None

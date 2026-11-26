@@ -86,7 +86,7 @@ def _prepara(monkeypatch, *, modelo=True, resp="ok", utms=None, publicos=None):
             "campaign": ["[MA][captação] X", "[MA][captação] X", "[MA][captação] X"],
             "content": ["Grupo 1", "Zzz sem conjunto", "Grupo 1"],
             "ad": ["AD1", None, "AD2"]})
-    monkeypatch.setattr(score_conjuntos, "_utms_dos_respondentes", lambda code, emails: utms)
+    monkeypatch.setattr(score_criativos, "_utms_dos_respondentes", lambda code, emails: utms)
     monkeypatch.setattr(score_criativos, "leads_a_dos_respondentes", lambda resp, na_base, m: {"a@x", "b@x"})
     monkeypatch.setattr(vendas_por_grupo, "_grupos_do_lancamento",
                         lambda code: [("meta", "[MA][captação] X", "Grupo 1", "11")])
@@ -99,6 +99,9 @@ def _prepara(monkeypatch, *, modelo=True, resp="ok", utms=None, publicos=None):
     monkeypatch.setattr(score_conjuntos, "_publicos_dos_grupos",
                         lambda code: {"meta:P1": {"meta:11"}} if publicos is None else publicos)
     monkeypatch.setattr(score_conjuntos, "_segmentos_google", lambda code, casar: {})
+    # sem cache nos testes: a contagem compartilhada é calculada na hora
+    monkeypatch.setattr(score_criativos, "contagem_leads_a",
+                        lambda code, ttl=1800: score_criativos._contagem_leads_a_sem_cache(code))
 
 
 def test_score_conjuntos_junta_leads_a_e_gasto(monkeypatch):
@@ -161,7 +164,7 @@ def _fakes_da_rota(monkeypatch, score, lancamento=True):
     monkeypatch.setattr(media, "get_launches", lambda: [])
     monkeypatch.setattr(media, "resolve_launch",
                         lambda code, launches: _NS(code="PES-NOV-26") if lancamento else None)
-    monkeypatch.setattr(svc, "score_conjuntos", lambda code: score)
+    monkeypatch.setattr(svc, "score_conjuntos", lambda code, ttl=None: score)
     return svc
 
 
@@ -189,7 +192,7 @@ def test_rota_conjuntos_black_codigo_legado(client_trafego, monkeypatch):
     svc = _fakes_da_rota(monkeypatch, {"conjuntos": {}})
     monkeypatch.setattr(media, "resolve_launch", lambda code, launches: _NS(code="BV-25"))
 
-    def _nao_deve_chamar(code):
+    def _nao_deve_chamar(code, ttl=None):
         raise AssertionError("chamada pesada antes do retorno antecipado")
 
     monkeypatch.setattr(svc, "score_conjuntos", _nao_deve_chamar)
@@ -200,7 +203,7 @@ def test_rota_conjuntos_black_codigo_legado(client_trafego, monkeypatch):
 def test_rota_conjuntos_falha_devolve_500(client_trafego, monkeypatch):
     svc = _fakes_da_rota(monkeypatch, {"conjuntos": {}})
 
-    def _boom(code):
+    def _boom(code, ttl=None):
         raise RuntimeError("x")
 
     monkeypatch.setattr(svc, "score_conjuntos", _boom)
@@ -271,7 +274,7 @@ def test_lead_de_conjunto_pre_quali_nao_entra_no_publico(monkeypatch):
         "campaign": ["[MA][captação] X", "[MA][pré-quali] X", "[MA][pré-quali] X", "[GA][captação] Y"],
         "content": ["Grupo 1", "Grupo PQ", "Grupo PQ", "Zzz"],
         "ad": ["AD1", "AD9", "AD9", None]})
-    monkeypatch.setattr(score_conjuntos, "_utms_dos_respondentes", lambda code, emails: utms)
+    monkeypatch.setattr(score_criativos, "_utms_dos_respondentes", lambda code, emails: utms)
     monkeypatch.setattr(score_criativos, "leads_a_dos_respondentes",
                         lambda resp, na_base, m: {"a@x", "b@x", "c@x", "d@x"})
     monkeypatch.setattr(vendas_por_grupo, "_grupos_do_lancamento",

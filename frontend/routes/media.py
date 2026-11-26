@@ -100,7 +100,7 @@ async def criativos_score(request: Request, launch_code: str | None = None):
             return JSONResponse({"pontuavel": False})
         if uses_legacy_ad_codes(launch.code):   # Black usa AD-XX##, que o SQL (^AD[0-9]+) não casa
             return JSONResponse({"pontuavel": False, "motivo": "codigo_legado"})
-        leads_a = await run_in_threadpool(sc.leads_a_por_anuncio, launch.code)
+        leads_a = await run_in_threadpool(sc.leads_a_por_anuncio, launch.code, sc.ttl_do_lancamento(launch))
         if leads_a is None:
             return JSONResponse({"pontuavel": False})
         d = await _fetch_all_data(launch)
@@ -122,6 +122,7 @@ async def criativos_score(request: Request, launch_code: str | None = None):
 async def criativos_score_conjuntos(request: Request, launch_code: str | None = None):
     """Nota 0-100 por conjunto/grupo, par anúncio×conjunto, público e segmento, em JSON; as páginas buscam depois de abrir."""
     from frontend.services import score_conjuntos as scj
+    from frontend.services.score_criativos import ttl_do_lancamento
     try:
         launches = await run_in_threadpool(get_launches)
         launch = resolve_launch(launch_code, launches)
@@ -129,7 +130,7 @@ async def criativos_score_conjuntos(request: Request, launch_code: str | None = 
             return JSONResponse({"pontuavel": False})
         if uses_legacy_ad_codes(launch.code):   # Black usa AD-XX##, que o SQL (^AD[0-9]+) não casa
             return JSONResponse({"pontuavel": False, "motivo": "codigo_legado"})
-        score = await run_in_threadpool(scj.score_conjuntos, launch.code)
+        score = await run_in_threadpool(scj.score_conjuntos, launch.code, ttl_do_lancamento(launch))
         if score is None:
             return JSONResponse({"pontuavel": False})
         return JSONResponse({"pontuavel": True, **score})

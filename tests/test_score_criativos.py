@@ -39,12 +39,6 @@ def test_notas_sem_nenhum_anuncio_com_30_leads_a():
 import pandas as pd
 
 
-def test_contar_leads_a_por_anuncio():
-    leads = pd.DataFrame({"email": ["a", "b", "c", "d", "e"],
-                          "faixa_pesquisa": ["A", "A", "B", "C", "A"]})
-    assert sc.contar_leads_a(leads, {"a": "AD1", "b": "AD1", "c": "AD1", "d": "AD2"}) == {"AD1": 2}
-
-
 def _modelo_teste() -> dict:
     # coef: respondeu, idade=a, idade=b, preocup "medo"
     return {"perguntas": ["idade"], "vocab": {"idade": ["a", "b"]}, "multi": {"preocup": ["medo"]},
@@ -58,15 +52,27 @@ def test_leads_a_dos_respondentes_usa_so_quem_esta_na_base():
     assert sc.leads_a_dos_respondentes(resp, {"x", "y", "z"}, _modelo_teste()) == {"x"}
 
 
+def _utms(linhas):
+    """[(email, ad)] → DataFrame no formato de `_utms_dos_respondentes` (UTM de Meta captação, conjunto "G1")."""
+    return pd.DataFrame([(e, "fb", "paid", "[MA][captação] X", "G1", ad) for e, ad in linhas],
+                        columns=["email", "source", "medium", "campaign", "content", "ad"])
+
+
+def _sem_grupos(monkeypatch):
+    from frontend.services import vendas_por_grupo
+    monkeypatch.setattr(vendas_por_grupo, "_grupos_do_lancamento", lambda code: [("meta", "[MA][captação] X", "G1", "7")])
+
+
 def test_leads_a_none_sem_pesquisa_ou_sem_respondente_na_base(monkeypatch):
     from frontend.services import lead_score as ls
+    _sem_grupos(monkeypatch)
     monkeypatch.setattr(ls, "_carregar_modelo", lambda: _modelo_teste())
     monkeypatch.setattr(ls, "_respostas_df", lambda code, m: None)
-    assert sc._leads_a_por_anuncio_sem_cache("X") is None
+    assert sc._contagem_leads_a_sem_cache("X") is None
     monkeypatch.setattr(ls, "_respostas_df", lambda code, m: pd.DataFrame(
         {"email": ["x"], "idade": ["a"], "preocup": [""]}))
-    monkeypatch.setattr(sc, "_ad_dos_respondentes", lambda code, emails: {})
-    assert sc._leads_a_por_anuncio_sem_cache("X") is None
+    monkeypatch.setattr(sc, "_utms_dos_respondentes", lambda code, emails: _utms([])[0:0])
+    assert sc._contagem_leads_a_sem_cache("X") is None
 
 
 def test_criativos_conta_leads_a_sem_montar_a_base_inteira(monkeypatch):
@@ -76,15 +82,47 @@ def test_criativos_conta_leads_a_sem_montar_a_base_inteira(monkeypatch):
     def proibido(*a, **k):
         raise AssertionError("não pode montar a base inteira de leads")
 
+    _sem_grupos(monkeypatch)
     monkeypatch.setattr(ls, "obter_leads", proibido)
     monkeypatch.setattr(ls, "obter_leads_do_lancamento", proibido)
     monkeypatch.setattr(ls, "_carregar_modelo", lambda: _modelo_teste())
     monkeypatch.setattr(ls, "_respostas_df", lambda code, m: pd.DataFrame(
         {"email": ["x", "y", "z", "w"], "idade": ["a", "b", "a", "b"], "preocup": ["medo", "", "", ""]}))
     # w está na base mas sem código de anúncio no UTM: entra no corte (puxa a mediana para baixo e põe z na faixa A),
-    # mas não na contagem. Se w ficasse fora do corte, a mediana seria z e o resultado, só {"AD1": 1}.
-    monkeypatch.setattr(sc, "_ad_dos_respondentes", lambda code, emails: {"x": "AD1", "y": "AD1", "z": "AD2", "w": None})
-    assert sc._leads_a_por_anuncio_sem_cache("X") == {"AD1": 1, "AD2": 1}
+    # mas não na contagem por anúncio. Se w ficasse fora do corte, a mediana seria z e o resultado, só {"AD1": 1}.
+    monkeypatch.setattr(sc, "_utms_dos_respondentes",
+                        lambda code, emails: _utms([("x", "AD1"), ("y", "AD1"), ("z", "AD2"), ("w", None)]))
+    c = sc._contagem_leads_a_sem_cache("X")
+    assert c["por_ad"] == {"AD1": 1, "AD2": 1}
+    assert c["por_grupo"] == {"meta:7": 2} and c["por_par"] == {"meta:7|AD1": 1, "meta:7|AD2": 1}
+    assert c["total_canal"] == 2
+
+
+def test_criativos_e_conjuntos_leem_a_pesquisa_uma_vez(monkeypatch):
+    """As duas rotas abrem juntas na /criativos: a leitura dos respondentes tem de ser uma só por lançamento."""
+    from frontend.services import lead_score as ls, score_conjuntos as scj
+
+    _sem_grupos(monkeypatch)
+    leituras = []
+    monkeypatch.setattr(ls, "_carregar_modelo", lambda: _modelo_teste())
+    monkeypatch.setattr(ls, "_respostas_df", lambda code, m: leituras.append(code) or pd.DataFrame(
+        {"email": ["x", "y"], "idade": ["a", "b"], "preocup": ["medo", ""]}))
+    monkeypatch.setattr(sc, "_utms_dos_respondentes", lambda code, emails: _utms([("x", "AD1"), ("y", "AD2")]))
+    monkeypatch.setattr(scj, "_gasto_captacao", lambda code: pd.DataFrame(
+        [{"chave": "meta:7", "plataforma": "meta", "campanha": "[MA][captação] X", "nome": "G1", "ad": "AD1", "gasto": 10.0}]))
+    monkeypatch.setattr(scj, "_publicos_dos_grupos", lambda code: {})
+    monkeypatch.setattr(scj, "_segmentos_google", lambda code, casar: {})
+    code = "TESTE-LEITURA-UNICA"
+    assert sc.leads_a_por_anuncio(code) == {"AD1": 1}
+    assert scj.score_conjuntos(code)["conjuntos"]["meta:7"]["leads_a"] == 1
+    assert leituras == [code]
+
+
+def test_ttl_maior_no_lancamento_encerrado():
+    from datetime import date, timedelta
+    from types import SimpleNamespace
+    assert sc.ttl_do_lancamento(SimpleNamespace(code="A", data_fim=None)) == 1800
+    assert sc.ttl_do_lancamento(SimpleNamespace(code="A", data_fim=date.today() - timedelta(days=30))) == 6 * 3600
 
 
 def test_leads_passa_hotmart_e_tmb_como_compradores(monkeypatch):
@@ -130,7 +168,7 @@ def _fakes_da_rota(monkeypatch, leads_a, lancamento=True):
     monkeypatch.setattr(media, "_fetch_all_data", _dados)
     monkeypatch.setattr(media, "_creative_overview",
                         lambda *a, **k: {"rows": [{"ad_code": "AD1", "gasto": 3000.0}]})
-    monkeypatch.setattr(sc, "leads_a_por_anuncio", lambda code: leads_a)
+    monkeypatch.setattr(sc, "leads_a_por_anuncio", lambda code, ttl=None: leads_a)
 
 
 def test_rota_score_devolve_notas(client_trafego, monkeypatch):
@@ -155,7 +193,7 @@ def test_rota_score_lancamento_inexistente(client_trafego, monkeypatch):
 def test_rota_score_falha_devolve_500(client_trafego, monkeypatch):
     _fakes_da_rota(monkeypatch, {"AD1": 50})
 
-    def _boom(code):
+    def _boom(code, ttl=None):
         raise RuntimeError("x")
 
     monkeypatch.setattr(sc, "leads_a_por_anuncio", _boom)
@@ -168,7 +206,7 @@ def test_rota_score_black_codigo_legado(client_trafego, monkeypatch):
     _fakes_da_rota(monkeypatch, {"AD1": 50})
     monkeypatch.setattr(media, "resolve_launch", lambda code, launches: SimpleNamespace(code="BV-25"))
 
-    def _nao_deve_chamar(code):
+    def _nao_deve_chamar(code, ttl=None):
         raise AssertionError("chamada pesada antes do retorno antecipado")
 
     monkeypatch.setattr(sc, "leads_a_por_anuncio", _nao_deve_chamar)

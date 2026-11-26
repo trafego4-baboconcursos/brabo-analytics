@@ -68,23 +68,6 @@ def montar_score(gasto_grupo: dict[str, float], leads_grupo: dict[str, int],
     }
 
 
-def _utms_dos_respondentes(code: str, emails: list[str]) -> pd.DataFrame:
-    """Uma linha por respondente que está na base de leads: UTM e ADxxx do primeiro UTM visto que traz código de
-    anúncio (mesma ordem de `score_criativos._ad_dos_respondentes`). Colunas: email, source, medium, campaign, content, ad."""
-    from frontend.services.lead_score import _AD_SQL  # noqa: PLC0415
-
-    colunas = ["email", "source", "medium", "campaign", "content", "ad"]
-    if not emails:
-        return pd.DataFrame(columns=colunas)
-    with _get_engine().connect() as conn:
-        conn.execute(text("SET LOCAL statement_timeout = 120000"))
-        rows = conn.execute(text(
-            "SELECT DISTINCT ON (email) email, utm_source, utm_medium, utm_campaign, utm_content, " + _AD_SQL +
-            " FROM lead_utm_lancamento WHERE lancamento_codigo = :c AND email = ANY(:e) "
-            "ORDER BY email, (" + _AD_SQL + " IS NULL), primeiro_visto_em"), {"c": code, "e": emails}).fetchall()
-    return pd.DataFrame([tuple(r) for r in rows], columns=colunas)
-
-
 def _gasto_captacao(code: str) -> pd.DataFrame:
     """Gasto de captação por campanha × conjunto/grupo × `ad_name` (ADxxx vazio quando o nome não traz código).
     Colunas: chave, plataforma, campanha, nome, ad, gasto."""
@@ -139,40 +122,15 @@ def _segmentos_google(code: str, casar) -> dict[str, set[str]]:
     return out
 
 
-def _score_conjuntos_sem_cache(code: str) -> dict | None:
+def _score_conjuntos_sem_cache(code: str, ttl: int = 1800) -> dict | None:
     """Notas de todos os níveis. None sem modelo, sem pesquisa pontuável ou sem respondente na base de leads.
-    Mesmos respondentes e mesmo corte de lead A de `score_criativos`; sem montar a base inteira."""
-    from frontend.services import lead_score, score_criativos, vendas_por_grupo  # noqa: PLC0415
-    from frontend.services.classificadores import _classify_campaign  # noqa: PLC0415
+    Os leads A vêm da contagem compartilhada com a coluna Score do Ranking Geral (`score_criativos.contagem_leads_a`):
+    a pesquisa e a `lead_utm_lancamento` são lidas uma vez só por lançamento."""
+    from frontend.services import score_criativos, vendas_por_grupo  # noqa: PLC0415
 
-    m = lead_score._carregar_modelo()
-    if not m:
+    contagem = score_criativos.contagem_leads_a(code, ttl)
+    if contagem is None:
         return None
-    resp = lead_score._respostas_df(code, m)
-    if resp is None or resp.empty:
-        return None
-    utms = _utms_dos_respondentes(code, [e for e in resp["email"].tolist() if e])
-    if utms.empty:
-        return None
-    emails_a = score_criativos.leads_a_dos_respondentes(resp, set(utms["email"]), m)
-
-    casar = vendas_por_grupo.casador_de_grupos(vendas_por_grupo._grupos_do_lancamento(code))
-    leads_grupo: dict[str, int] = {}
-    leads_par: dict[str, int] = {}
-    total_a = 0
-    for email, source, medium, campaign, content, ad in utms.itertuples(index=False, name=None):
-        if email not in emails_a:
-            continue
-        if _classify_campaign(campaign or "", source or "", medium or "")["channel"] in ("Meta Ads", "Google Ads"):
-            total_a += 1
-        achou = casar(source or "", medium or "", campaign or "", content or "")
-        if not achou:
-            continue
-        chave = f"{achou[0]}:{achou[1]}"
-        leads_grupo[chave] = leads_grupo.get(chave, 0) + 1
-        if ad:
-            par = f"{chave}|{ad}"
-            leads_par[par] = leads_par.get(par, 0) + 1
 
     gasto = _gasto_captacao(code)
     gasto_grupo = {k: float(v) for k, v in gasto.groupby("chave")["gasto"].sum().items()}
@@ -185,16 +143,17 @@ def _score_conjuntos_sem_cache(code: str) -> dict | None:
         nomes_meta.setdefault(r.nome, set()).add(r.chave)
 
     # Só conta lead A de conjunto de captação: o gasto só cobre captação, e público/segmento somam conjuntos.
-    leads_grupo = {k: v for k, v in leads_grupo.items() if k in gasto_grupo}
-    leads_par = {k: v for k, v in leads_par.items() if k in gasto_par}
-    com_grupo = sum(leads_grupo.values())
-    cobertura = 100 * com_grupo / total_a if total_a else None
+    leads_grupo = {k: v for k, v in contagem["por_grupo"].items() if k in gasto_grupo}
+    leads_par = {k: v for k, v in contagem["por_par"].items() if k in gasto_par}
+    total_a = contagem["total_canal"]
+    cobertura = 100 * sum(leads_grupo.values()) / total_a if total_a else None
+    casar = vendas_por_grupo.casador_de_grupos(vendas_por_grupo._grupos_do_lancamento(code))
     return montar_score(gasto_grupo, leads_grupo, gasto_par, leads_par, info_grupo,
                         _publicos_dos_grupos(code), _segmentos_google(code, casar), nomes_meta, cobertura)
 
 
-def score_conjuntos(code: str) -> dict | None:
-    """`_score_conjuntos_sem_cache` com cache de 30 min."""
+def score_conjuntos(code: str, ttl: int = 1800) -> dict | None:
+    """`_score_conjuntos_sem_cache` com cache (30 min no lançamento ativo; `ttl` maior quando já encerrou)."""
     from frontend.cache import _get_or_compute  # noqa: PLC0415
 
-    return _get_or_compute(code, "score_conjuntos", lambda: _score_conjuntos_sem_cache(code), ttl=1800)
+    return _get_or_compute(code, "score_conjuntos", lambda: _score_conjuntos_sem_cache(code, ttl), ttl=ttl)

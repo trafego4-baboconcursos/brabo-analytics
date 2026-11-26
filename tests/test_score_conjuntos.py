@@ -283,3 +283,16 @@ def test_lead_de_conjunto_pre_quali_nao_entra_no_publico(monkeypatch):
     assert "meta:22|AD9" not in str(r["conjuntos"]["meta:11"]["anuncios"])
     # cobertura: 4 leads A Meta/Google; só 1 casou com conjunto de captação
     assert r["cobertura_leads_a"] == 25.0
+
+
+def test_tabela_por_conjunto_nao_usa_a_ordenacao_generica():
+    """A ordenação genérica (tabelas.js) ordena linha a linha e separaria os anúncios do seu conjunto."""
+    import re
+    from pathlib import Path
+
+    html = Path("frontend/templates/criativos.html").read_text(encoding="utf-8")
+    ini = html.index('id="sc-conjuntos"')
+    thead = html[ini:html.index("</thead>", ini)]
+    ths = re.findall(r"<th\b[^>]*>", thead)
+    assert len(ths) == 6
+    assert all("data-nosort" in th and "data-sc-col=" in th for th in ths)

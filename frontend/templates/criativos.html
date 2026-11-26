@@ -339,12 +339,12 @@
           </colgroup>
           <thead>
             <tr>
-              <th>Plataforma</th>
-              <th>Campanha → conjunto/grupo</th>
-              <th class="th-num">Gasto</th>
-              <th class="th-num">Leads A</th>
-              <th class="th-num">Custo por lead A</th>
-              <th class="th-num" title="Nota de 0 a 100 do custo por lead A, comparado com a mediana do lançamento">Score</th>
+              <th data-nosort data-sc-col="plataforma">Plataforma</th>
+              <th data-nosort data-sc-col="nome">Campanha → conjunto/grupo</th>
+              <th data-nosort data-sc-col="gasto" class="th-num">Gasto</th>
+              <th data-nosort data-sc-col="leads_a" class="th-num">Leads A</th>
+              <th data-nosort data-sc-col="custo_a" class="th-num">Custo por lead A</th>
+              <th data-nosort data-sc-col="nota" class="th-num" title="Nota de 0 a 100 do custo por lead A, comparado com a mediana do lançamento">Score</th>
             </tr>
           </thead>
           <tbody><tr><td colspan="6"><span class="cs-skel"></span></td></tr></tbody>
@@ -373,6 +373,33 @@
       }
       function notaTd(item) { var td = el('td', 'numero'); B.pintar(td, item); return td; }
       function linha(cls, cels) { var tr = el('tr', cls); cels.forEach(function (c) { tr.appendChild(c); }); return tr; }
+      // Ordenação própria (data-nosort desliga a genérica de tabelas.js, que separaria os anúncios do seu conjunto):
+      // cada conjunto se move junto com as linhas dos seus anúncios; vazio fica sempre no fim.
+      var grupos = [];
+      function render() { tbody.textContent = ''; grupos.forEach(function (g) { tbody.appendChild(g.tr); g.kids.forEach(function (f) { tbody.appendChild(f); }); }); }
+      function chave(g, col) { var c = g.c; if (col === 'plataforma') return c.plataforma || ''; if (col === 'nome') return (c.campanha || '') + ' ' + (c.nome || ''); var v = c[col]; return (v === null || v === undefined) ? null : v; }
+      var colAtiva = null, dir = 1;
+      tabela.querySelectorAll('th[data-sc-col]').forEach(function (th) {
+        th.style.cursor = 'pointer';
+        th.title = th.title || 'Clique para ordenar (o conjunto leva junto os seus anúncios)';
+        th.addEventListener('click', function () {
+          if (!grupos.length) return;
+          var col = th.getAttribute('data-sc-col');
+          dir = (colAtiva === col) ? -dir : (col === 'nota' || col === 'plataforma' || col === 'nome' ? 1 : -1);
+          colAtiva = col;
+          grupos.sort(function (a, b) {
+            var va = chave(a, col), vb = chave(b, col);
+            if (va === null && vb === null) return 0;
+            if (va === null) return 1;
+            if (vb === null) return -1;
+            if (typeof va === 'string') return va.localeCompare(vb) * dir;
+            return (va - vb) * dir;
+          });
+          tabela.querySelectorAll('th[data-sc-col] .sc-seta').forEach(function (s) { s.remove(); });
+          th.appendChild(el('span', 'sc-seta', dir === 1 ? ' ▲' : ' ▼'));
+          render();
+        });
+      });
       B.buscar(tabela.getAttribute('data-score-conjuntos-url')).then(function (d) {
         if (!d || d.pontuavel === false) { msg(B.textoNeutro(d)); return; }
         tbody.textContent = '';
@@ -392,6 +419,8 @@
           tr.children[1].title = nome;
           tr.children[1].style.cssText = 'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
           tbody.appendChild(tr);
+          var g = { tr: tr, kids: [], c: c };
+          grupos.push(g);
           if (!filhos.length) return;
           tr.style.cursor = 'pointer';
           tr.tabIndex = 0;
@@ -409,6 +438,7 @@
             f.children[1].style.paddingLeft = '24px';
             return f;
           });
+          g.kids = kids;
           var ref = tr;
           kids.forEach(function (f) { ref.after(f); ref = f; });
           function alternar() {

@@ -143,6 +143,7 @@ def _score_conjuntos_sem_cache(code: str) -> dict | None:
     """Notas de todos os níveis. None sem modelo, sem pesquisa pontuável ou sem respondente na base de leads.
     Mesmos respondentes e mesmo corte de lead A de `score_criativos`; sem montar a base inteira."""
     from frontend.services import lead_score, score_criativos, vendas_por_grupo  # noqa: PLC0415
+    from frontend.services.classificadores import _classify_campaign  # noqa: PLC0415
 
     m = lead_score._carregar_modelo()
     if not m:
@@ -158,15 +159,15 @@ def _score_conjuntos_sem_cache(code: str) -> dict | None:
     casar = vendas_por_grupo.casador_de_grupos(vendas_por_grupo._grupos_do_lancamento(code))
     leads_grupo: dict[str, int] = {}
     leads_par: dict[str, int] = {}
-    total_a = com_grupo = 0
+    total_a = 0
     for email, source, medium, campaign, content, ad in utms.itertuples(index=False, name=None):
         if email not in emails_a:
             continue
-        total_a += 1
+        if _classify_campaign(campaign or "", source or "", medium or "")["channel"] in ("Meta Ads", "Google Ads"):
+            total_a += 1
         achou = casar(source or "", medium or "", campaign or "", content or "")
         if not achou:
             continue
-        com_grupo += 1
         chave = f"{achou[0]}:{achou[1]}"
         leads_grupo[chave] = leads_grupo.get(chave, 0) + 1
         if ad:
@@ -183,6 +184,10 @@ def _score_conjuntos_sem_cache(code: str) -> dict | None:
     for r in gasto[gasto["plataforma"] == "meta"].drop_duplicates("chave").itertuples():
         nomes_meta.setdefault(r.nome, set()).add(r.chave)
 
+    # Só conta lead A de conjunto de captação: o gasto só cobre captação, e público/segmento somam conjuntos.
+    leads_grupo = {k: v for k, v in leads_grupo.items() if k in gasto_grupo}
+    leads_par = {k: v for k, v in leads_par.items() if k in gasto_par}
+    com_grupo = sum(leads_grupo.values())
     cobertura = 100 * com_grupo / total_a if total_a else None
     return montar_score(gasto_grupo, leads_grupo, gasto_par, leads_par, info_grupo,
                         _publicos_dos_grupos(code), _segmentos_google(code, casar), nomes_meta, cobertura)

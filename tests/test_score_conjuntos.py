@@ -260,3 +260,26 @@ def test_templates_meta_google_tem_coluna_score_de_anuncio():
         assert 'data-score-chave="{{ c.ad_code }}"' in html, nome
         assert "/criativos/score" in html, nome
         assert "js/score.js" in html, nome
+
+
+def test_lead_de_conjunto_pre_quali_nao_entra_no_publico(monkeypatch):
+    """Conjunto só de pré-quali (lead A, sem gasto de captação) não infla o público que ele compartilha."""
+    _prepara(monkeypatch, publicos={"meta:P1": {"meta:11", "meta:22"}})
+    utms = pd.DataFrame({
+        "email": ["a@x", "b@x", "c@x", "d@x"],
+        "source": ["fb", "fb", "fb", "google"], "medium": ["paid", "paid", "paid", "cpc"],
+        "campaign": ["[MA][captação] X", "[MA][pré-quali] X", "[MA][pré-quali] X", "[GA][captação] Y"],
+        "content": ["Grupo 1", "Grupo PQ", "Grupo PQ", "Zzz"],
+        "ad": ["AD1", "AD9", "AD9", None]})
+    monkeypatch.setattr(score_conjuntos, "_utms_dos_respondentes", lambda code, emails: utms)
+    monkeypatch.setattr(score_criativos, "leads_a_dos_respondentes",
+                        lambda resp, na_base, m: {"a@x", "b@x", "c@x", "d@x"})
+    monkeypatch.setattr(vendas_por_grupo, "_grupos_do_lancamento",
+                        lambda code: [("meta", "[MA][captação] X", "Grupo 1", "11"),
+                                      ("meta", "[MA][pré-quali] X", "Grupo PQ", "22")])
+    r = score_conjuntos._score_conjuntos_sem_cache("X-1")
+    assert "meta:22" not in r["conjuntos"]
+    assert r["publicos"]["meta:P1"]["leads_a"] == 1
+    assert "meta:22|AD9" not in str(r["conjuntos"]["meta:11"]["anuncios"])
+    # cobertura: 4 leads A Meta/Google; só 1 casou com conjunto de captação
+    assert r["cobertura_leads_a"] == 25.0

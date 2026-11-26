@@ -252,7 +252,17 @@
               <i class="ti ti-chevron-down bs-picker-subgroup-chevron"></i>
             </button>
             <div class="bs-picker-subgroup-body">
+              {# Lançamentos de anos diferentes não se misturam na lista: quando o produto tem mais de um ano
+                 (ex.: PI-JAN-27 ao lado dos de 2026), cada ano ganha o seu rótulo. O ano vem do final do código. #}
+              {% set _anos_grupo = [] %}
+              {% for l in group.launches %}{% if l.code[-2:] not in _anos_grupo %}{% set _ = _anos_grupo.append(l.code[-2:]) %}{% endif %}{% endfor %}
+              {% set _ano_ant = namespace(v='') %}
               {% for l in group.launches %}
+              {% set _ano = '20' ~ l.code[-2:] %}
+              {% if _anos_grupo | length > 1 and _ano != _ano_ant.v %}
+              <div class="bs-launch-picker-group">{{ _ano }}</div>
+              {% endif %}
+              {% set _ano_ant.v = _ano %}
               <a class="bs-launch-picker-item {% if nav_mode == 'funis' and active_code == l.code %}active{% endif %}"
                  href="{{ _switch_base }}?launch_code={{ l.code }}">
                 {{ l.code }}

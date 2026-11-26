@@ -251,3 +251,12 @@ def test_segmento_google_leva_nome_cru():
     assert linha["audience_name"] == "uservertical::123"
     assert linha["segmento"] == "Público de Afinidade/Mercado (123)"
     assert linha["cpl"] == 10.0
+
+
+# ── Tarefa 7: coluna Score nos anúncios de /meta e /google ────────────────────────────────────────────────────
+def test_templates_meta_google_tem_coluna_score_de_anuncio():
+    for nome in ("meta.html", "google.html"):
+        html = _template(nome)
+        assert 'data-score-chave="{{ c.ad_code }}"' in html, nome
+        assert "/criativos/score" in html, nome
+        assert "js/score.js" in html, nome

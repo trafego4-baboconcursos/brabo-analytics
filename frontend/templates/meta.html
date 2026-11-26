@@ -361,7 +361,7 @@
       <div class="table-wrap funil-table-wrap">
         <table class="funil-table" style="table-layout:fixed;width:100%;">
           <colgroup>
-            <col style="width:36px"><col style="width:320px;min-width:200px"><col style="width:110px"><col style="width:70px"><col style="width:90px"><col style="width:60px"><col style="width:90px"><col style="width:90px"><col style="width:110px"><col style="width:70px">
+            <col style="width:36px"><col style="width:320px;min-width:200px"><col style="width:110px"><col style="width:70px"><col style="width:90px"><col style="width:60px"><col style="width:90px"><col style="width:90px"><col style="width:110px"><col style="width:70px"><col style="width:80px">
           </colgroup>
           <thead>
             <tr>
@@ -375,6 +375,7 @@
               <th class="th-num">Vendas rastreadas</th>
               <th class="th-num">Faturamento</th>
               <th class="th-num">ROAS</th>
+              <th class="th-num">Score</th>
             </tr>
           </thead>
           <tbody>
@@ -415,13 +416,26 @@
               <td class="numero"><strong>{{ c.vendas | num }}</strong></td>
               <td class="numero">{{ c.faturamento | brl }}</td>
               <td class="numero {{ 'positivo' if c.roas >= 1 else ('negativo' if c.roas == 0 else '') }}"><strong>{{ c.roas | num(2) }}x</strong></td>
+              <td class="numero" data-score-chave="{{ c.ad_code }}"><span class="cs-skel"></span></td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
+      <div class="note">Score (0–100) do anúncio no lançamento, com o gasto de Meta e de Google somados, igual ao Ranking Geral da página Criativos. Mede o custo por lead A contra a mediana do lançamento; sem nota com menos de 30 leads A.</div>
     </div>
     {% endif %}
+    <script src="{{ static_url('js/score.js') }}"></script>
+    <script>
+    (function () {
+      var B = window.BraboScore;
+      if (!B) return;
+      B.buscar('/criativos/score?launch_code={{ active_code | urlencode }}').then(function (d) {
+        if (!d || d.pontuavel === false) { B.preencherNeutro(document, B.textoNeutro(d)); return; }
+        B.preencher(document, d.anuncios);
+      }).catch(function () { B.preencherNeutro(document, B.textoNeutro(null, true)); });
+    })();
+    </script>
 
     {# ── 6. Melhores e Piores CPL ──────────────────────────────────── #}
     {% if meta.top_por_cpl or meta.piores_cpl %}

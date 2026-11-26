@@ -50,6 +50,38 @@ def _slug(s: Any) -> str:
     return s
 
 
+def _linha_publico_google(r, api_to_sales: dict) -> dict:
+    """Linha da tabela de segmentos Google. `segmento` é o rótulo amigável; `audience_name`
+    é o nome cru, a chave que casa com o score (BraboScore) — nunca casar pelo rótulo."""
+    leads = float(r["conversions"] or 0)
+    cost = float(r["cost"] or 0)
+    clicks = int(r["clicks"] or 0)
+    impr = int(r["impressions"] or 0)
+
+    segmento = r["audience_name"]
+    if isinstance(segmento, str) and segmento.startswith("uservertical::"):
+        segmento = f"Público de Afinidade/Mercado ({segmento.split('::')[-1]})"
+
+    agg_data = api_to_sales.get(r["audience_name"], {"sales": 0, "receita": 0.0})
+    vendas_cruzadas = int(agg_data["sales"])
+    receita_cruzada = float(agg_data["receita"])
+
+    return {
+        "segmento": segmento,
+        "audience_name": r["audience_name"],
+        "custo": cost,
+        "cliques": clicks,
+        "conversoes": leads,
+        "impressoes": impr,
+        "cpl": cost / leads if leads > 0 else 0.0,
+        "vendas": vendas_cruzadas,
+        "receita": receita_cruzada,
+        "cpa_vendas": cost / vendas_cruzadas if vendas_cruzadas > 0 else 0.0,
+        "cpc": cost / clicks if clicks > 0 else 0.0,
+        "ctr": clicks / impr * 100 if impr > 0 else 0.0,
+    }
+
+
 def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> GoogleSummary | None:
     code = _extract_launch_code(launch_folder_or_code)
     engine = _get_engine()
@@ -443,32 +475,7 @@ def read_google(launch_folder_or_code: Any, start_date=None, end_date=None) -> G
             api_to_sales[api]["receita"] += data["receita"]
 
         for _, r in df_aud.iterrows():
-            leads = float(r["conversions"] or 0)
-            cost = float(r["cost"] or 0)
-            clicks = int(r["clicks"] or 0)
-            impr = int(r["impressions"] or 0)
-
-            segmento = r["audience_name"]
-            if isinstance(segmento, str) and segmento.startswith("uservertical::"):
-                segmento = f"Público de Afinidade/Mercado ({segmento.split('::')[-1]})"
-
-            agg_data = api_to_sales.get(r["audience_name"], {"sales": 0, "receita": 0.0})
-            vendas_cruzadas = int(agg_data["sales"])
-            receita_cruzada = float(agg_data["receita"])
-
-            summary.publicos.append({
-                "segmento": segmento,
-                "custo": cost,
-                "cliques": clicks,
-                "conversoes": leads,
-                "impressoes": impr,
-                "cpl": cost / leads if leads > 0 else 0.0,
-                "vendas": vendas_cruzadas,
-                "receita": receita_cruzada,
-                "cpa_vendas": cost / vendas_cruzadas if vendas_cruzadas > 0 else 0.0,
-                "cpc": cost / clicks if clicks > 0 else 0.0,
-                "ctr": clicks / impr * 100 if impr > 0 else 0.0
-            })
+            summary.publicos.append(_linha_publico_google(r, api_to_sales))
 
     # Detalhamento dos públicos por clima — Captação (pauta debriefing, igual
     # à seção já existente do Meta). Atribuição por GRUPO DE ANÚNCIO

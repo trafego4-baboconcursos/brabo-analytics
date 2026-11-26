@@ -53,10 +53,14 @@
     });
   }
 
+  function preencherNeutro(raiz, texto) {
+    raiz.querySelectorAll('td[data-score-chave]').forEach(function (td) { vazio(td, texto); });
+  }
+
   function textoNeutro(d, erro) {
     if (erro) return TEXTO_ERRO;
     return d && d.motivo === 'codigo_legado' ? TEXTO_LEGADO : TEXTO_NAO_PONTUAVEL;
   }
 
-  window.BraboScore = { pintar: pintar, buscar: buscar, preencher: preencher, textoNeutro: textoNeutro, brl: brl };
+  window.BraboScore = { pintar: pintar, buscar: buscar, preencher: preencher, preencherNeutro: preencherNeutro, textoNeutro: textoNeutro, brl: brl };
 })();

@@ -222,3 +222,32 @@ def test_criativos_tem_secao_score_por_conjunto():
     assert "data-score-conjuntos-url" in html
     assert "js/score.js" in html
     assert (raiz / "frontend" / "static" / "js" / "score.js").exists()
+
+
+# ── Tarefa 6: coluna Score nas páginas de público ─────────────────────────────────────────────────────────────
+def _template(nome):
+    from pathlib import Path
+    raiz = Path(__file__).resolve().parent.parent
+    return (raiz / "frontend" / "templates" / nome).read_text(encoding="utf-8")
+
+
+def test_templates_de_publico_tem_coluna_score():
+    for nome in ("publicos.html", "meta_audiences.html", "google_audiences.html"):
+        html = _template(nome)
+        assert "data-score-chave" in html, nome
+        assert "js/score.js" in html, nome
+    pub = _template("publicos.html")
+    assert pub.count("data-score-chave") >= 2
+    assert 'data-score-chave="{{ g.plataforma }}:{{ g.grupo_id }}"' in pub
+    assert 'data-score-chave="{{ p.plataforma }}:{{ p.id }}"' in pub
+    assert 'data-score-chave="{{ p.segmento }}"' in _template("meta_audiences.html")
+    assert 'data-score-chave="{{ p.audience_name }}"' in _template("google_audiences.html")
+
+
+def test_segmento_google_leva_nome_cru():
+    from frontend.db_readers.ads_google import _linha_publico_google
+    r = {"audience_name": "uservertical::123", "conversions": 10, "cost": 100.0, "clicks": 50, "impressions": 1000}
+    linha = _linha_publico_google(r, {})
+    assert linha["audience_name"] == "uservertical::123"
+    assert linha["segmento"] == "Público de Afinidade/Mercado (123)"
+    assert linha["cpl"] == 10.0

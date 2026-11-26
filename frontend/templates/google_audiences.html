@@ -142,6 +142,7 @@
               <th>CPA</th>
               <th>Receita</th>
               <th>ROAS</th>
+              <th>Score</th>
             </tr>
           </thead>
           <tbody>
@@ -158,11 +159,13 @@
               <td class="numero" style="font-weight: bold; color: var(--color-success);">{{ p.receita | brl if p.receita else "-" }}</td>
               {% set roas = (p.receita / p.custo) if p.receita and p.custo > 0 else 0 %}
               <td class="numero" style="font-weight: bold; {{ 'color:var(--color-success)' if roas >= 1 else 'color:var(--color-danger)' }}">{{ "%.2f"|format(roas)|replace('.',',') }}x</td>
+              <td class="numero" data-score-chave="{{ p.audience_name }}"><span class="cs-skel"></span></td>
             </tr>
             {% endfor %}
           </tbody>
         </table>
       </div>
+      <div class="note">Score (0–100) do segmento: custo por lead A comparado com a mediana do lançamento, só captação. Um segmento que aparece em vários grupos mistura os resultados deles.</div>
     </div>
     <!-- Demografia Google -->
     {% set demo_total = google.demografia_idade | sum(attribute='cost') %}
@@ -248,4 +251,15 @@
   </div>
   <div class="footing">Gerado em tempo real | Brabo Analytics{% if launch %} &mdash; {{ launch.code }}{% endif %}</div>
 </div>
+    <script src="{{ static_url('js/score.js') }}"></script>
+    <script>
+    (function () {
+      var B = window.BraboScore;
+      if (!B) return;
+      B.buscar('/criativos/score-conjuntos?launch_code={{ active_code | urlencode }}').then(function (d) {
+        if (!d || d.pontuavel === false) { B.preencherNeutro(document, B.textoNeutro(d)); return; }
+        B.preencher(document, d.segmentos_google);
+      }).catch(function () { B.preencherNeutro(document, B.textoNeutro(null, true)); });
+    })();
+    </script>
 {% endblock %}

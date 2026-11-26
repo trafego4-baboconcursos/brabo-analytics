@@ -80,10 +80,11 @@ def test_criativos_conta_leads_a_sem_montar_a_base_inteira(monkeypatch):
     monkeypatch.setattr(ls, "obter_leads_do_lancamento", proibido)
     monkeypatch.setattr(ls, "_carregar_modelo", lambda: _modelo_teste())
     monkeypatch.setattr(ls, "_respostas_df", lambda code, m: pd.DataFrame(
-        {"email": ["x", "y", "z", "w"], "idade": ["a", "b", "a", "a"], "preocup": ["medo", "", "", "medo"]}))
-    # w está na base mas sem código de anúncio no UTM: entra no corte, não na contagem
+        {"email": ["x", "y", "z", "w"], "idade": ["a", "b", "a", "b"], "preocup": ["medo", "", "", ""]}))
+    # w está na base mas sem código de anúncio no UTM: entra no corte (puxa a mediana para baixo e põe z na faixa A),
+    # mas não na contagem. Se w ficasse fora do corte, a mediana seria z e o resultado, só {"AD1": 1}.
     monkeypatch.setattr(sc, "_ad_dos_respondentes", lambda code, emails: {"x": "AD1", "y": "AD1", "z": "AD2", "w": None})
-    assert sc._leads_a_por_anuncio_sem_cache("X") == {"AD1": 1}
+    assert sc._leads_a_por_anuncio_sem_cache("X") == {"AD1": 1, "AD2": 1}
 
 
 def test_leads_passa_hotmart_e_tmb_como_compradores(monkeypatch):

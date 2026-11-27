@@ -57,6 +57,10 @@ class FakeBanco:
             com.SQL_ATRIB_APROVAR: lambda p: self._decidir(p, "aprovada"),
             com.SQL_ATRIB_RECUSAR: lambda p: self._decidir(p, "recusada"),
             com.SQL_ATRIB_GESTOR: self._gestor,
+            com.SQL_ATRIB_DESFAZER_RECUSA: self._desfazer,
+            com.SQL_FILA_RECUSADAS: lambda p: _Res([self._fila(k, v) for k, v in self.atrib.items()
+                                                    if v["status"] == "recusada"
+                                                    and v["origem"] == "reivindicacao"]),
             com.SQL_REEMBOLSO_LER_UM: self._reemb_ler,
             com.SQL_REEMBOLSO_UPSERT: self._reemb_upsert,
             com.SQL_AJUSTE_LER_ATIVO: self._aj_ler,
@@ -130,6 +134,13 @@ class FakeBanco:
         if not v or v["status"] != "pendente":
             return _Res(rowcount=0)
         v.update(status=novo, aprovado_por=p["por"], motivo=p.get("motivo"))
+        return _Res(rowcount=1)
+
+    def _desfazer(self, p):
+        v = self.atrib.get(self._k(p))
+        if not v or v["status"] != "recusada":
+            return _Res(rowcount=0)
+        v.update(status="aprovada", aprovado_por=p["por"], motivo=p["motivo"])
         return _Res(rowcount=1)
 
     def _gestor(self, p):
@@ -265,6 +276,32 @@ def test_gestor_atribui_sobre_recusada_mas_nao_sobre_aprovada(banco):
     assert banco.historico[-1]["antes"] == "recusada (AT9)"
     with pytest.raises(com.EscritaRecusada):
         com.atribuir_gestor("9", "tmb", "AT9", "g@x")
+
+
+def test_desfazer_recusa_aprova_e_mantem_a_origem(banco):
+    """Rafael, 27/11/26: gestor recusou por engano e a vendedora não conseguia pedir de novo."""
+    banco.atrib[("tmb", "9")] = {"vendedor_codigo": "AT4", "origem": "reivindicacao", "status": "recusada",
+                                 "pedido_por": "edi@x", "motivo": "clique errado"}
+    assert com.desfazer_recusa("9", "tmb", "g@x") == "AT4"
+    v = banco.atrib[("tmb", "9")]
+    assert (v["status"], v["origem"], v["aprovado_por"]) == ("aprovada", "reivindicacao", "g@x")
+    assert v["motivo"] == com.MOTIVO_RECUSA_DESFEITA
+    assert banco.historico[-1]["antes"] == "recusada (AT4)"
+    assert banco.historico[-1]["depois"] == "aprovada (AT4): recusa desfeita pelo gestor"
+    with pytest.raises(com.EscritaRecusada) as e:  # de novo: já aprovada, nada duplica
+        com.desfazer_recusa("9", "tmb", "g@x")
+    assert e.value.codigo == "ja_aprovada"
+
+
+@pytest.mark.parametrize("status,codigo", [(None, "nao_encontrada"), ("pendente", "nao_recusada")])
+def test_desfazer_recusa_so_de_recusada(banco, status, codigo):
+    if status:
+        banco.atrib[("hotmart", "HP1")] = {"vendedor_codigo": "AT4", "origem": "reivindicacao",
+                                           "status": status, "pedido_por": "x"}
+    with pytest.raises(com.EscritaRecusada) as e:
+        com.desfazer_recusa("HP1", "hotmart", "g@x")
+    assert e.value.codigo == codigo
+    assert banco.historico == []
 
 
 def test_ajuste_desativa_o_anterior(banco):
@@ -527,7 +564,8 @@ def _como(c, email, role="comercial"):
 
 
 ROTAS_POST = ["/comercial/reivindicar", "/comercial/atribuicoes/aprovar", "/comercial/atribuicoes/recusar",
-              "/comercial/atribuir", "/comercial/reembolso", "/comercial/ajuste"]
+              "/comercial/atribuir", "/comercial/reembolso", "/comercial/ajuste",
+              "/comercial/atribuicoes/desfazer-recusa"]
 
 
 def test_rotas_registradas():
@@ -604,6 +642,26 @@ def test_reivindicar_duplicado(cli):
                                               data={**_R, "transacao": "HP-SEM-001", "vendedor_codigo": "AT9", "mes": "2026-10"})
     assert "erro=ja_reivindicada" in r.headers["location"]
     assert cli.banco.atrib[("hotmart", "HP-SEM-001")]["vendedor_codigo"] == "AT4"
+
+
+def test_recusa_por_engano_desfeita_pela_tela(cli):
+    _como(cli, "edileia@teste.local").post("/comercial/reivindicar", data={**_R, "transacao": "HP-SEM-001", "mes": "2026-10"})
+    _como(cli, "master@teste.local").post("/comercial/atribuicoes/recusar", data={"transacao": "HP-SEM-001", "mes": "2026-10"})
+    # a vendedora não consegue pedir de novo (continua assim: quem desfaz é o gestor)
+    r = _como(cli, "edileia@teste.local").post("/comercial/reivindicar", data={**_R, "transacao": "HP-SEM-001", "mes": "2026-10"})
+    assert "erro=ja_recusada" in r.headers["location"]
+    html = _como(cli, "master@teste.local").get("/comercial/inconsistencias?mes=2026-10").text
+    assert "Recusadas recentemente (1)" in html and 'action="/comercial/atribuicoes/desfazer-recusa"' in html
+    cli.desat.clear()
+    r = cli.post("/comercial/atribuicoes/desfazer-recusa", data={"transacao": "HP-SEM-001", "mes": "2026-10"})
+    assert r.status_code == 303 and "ok=recusa_desfeita" in r.headers["location"]
+    assert cli.banco.atrib[("hotmart", "HP-SEM-001")]["status"] == "aprovada"
+    assert cli.desat  # aprovou: o mês recalcula
+    html = cli.get("/comercial/inconsistencias?mes=2026-10").text
+    assert "Recusadas recentemente" not in html
+    # a vendedora vê a venda aprovada nas reivindicações dela
+    html = _como(cli, "edileia@teste.local").get("/comercial/inconsistencias?mes=2026-10").text
+    assert "Recusadas recentemente" not in html and "recusa desfeita pelo gestor" in html
 
 
 def test_recusar_motivo_opcional(cli):

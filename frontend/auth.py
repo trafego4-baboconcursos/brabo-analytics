@@ -103,6 +103,7 @@ ROUTE_PERMISSIONS: dict[str, list[str]] = {
     "/comercial/reivindicar":           _CMRC_AREA,
     "/comercial/atribuicoes/aprovar":   _CMRC_AREA,
     "/comercial/atribuicoes/recusar":   _CMRC_AREA,
+    "/comercial/atribuicoes/desfazer-recusa": _CMRC_AREA,
     "/comercial/atribuir":              _CMRC_AREA,
     "/comercial/reembolso":             _CMRC_AREA,
     "/comercial/ajuste":                _CMRC_AREA,

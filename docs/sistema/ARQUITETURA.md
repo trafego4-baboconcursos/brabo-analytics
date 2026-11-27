@@ -2,7 +2,7 @@
 titulo: "Arquitetura do Brabo Analytics — 2026-11-03"
 area: sistema
 status: vigente
-atualizado: 2026-11-26
+atualizado: 2026-11-27
 responde:
   - "onde fica o monitor de boas-vindas no dia de abertura do carrinho"
   - "por que codigo_sck e codigo_src da hotmart estao vazios"
@@ -2798,6 +2798,8 @@ Telas, gravação e fechamento da área Comercial ([[PLANO_AREA_COMERCIAL_COMISS
   | Busca por telefone | ~9,5 s | ~4,5 s |
   | Achar uma venda | ~4 s | ~1,2 s |
   | Conferir mês aberto | ~3,2 s | ~1,1 s |
+
+**Desfazer recusa por engano (2026-11-27, Rafael: o gestor recusou sem querer uma reivindicação que era para aprovar, e a vendedora não conseguiu pedir de novo).** A `comercial_atribuicoes` tem uma linha por venda (`plataforma, transacao`), então a recusa trava um novo pedido (`ja_recusada`) de propósito: só o gestor desfaz. Na fila de Reivindicações, o gestor tem agora a lista **Recusadas recentemente** (as 30 últimas de origem `reivindicacao`, `SQL_FILA_RECUSADAS` em `ler_fila`), com o botão **Desfazer recusa e aprovar** → `POST /comercial/atribuicoes/desfazer-recusa` → `com.desfazer_recusa`: declaração exata `SQL_ATRIB_DESFAZER_RECUSA` (na guarda, `ESCRITAS_TELA`) que só sai de `recusada` para `aprovada`, grava `motivo = 'recusa desfeita pelo gestor'` e o histórico `recusada (ATx) → aprovada (ATx): recusa desfeita pelo gestor`. A origem continua `reivindicacao`, então a venda segue em "Suas reivindicações" da vendedora (a atribuição direta, `SQL_ATRIB_GESTOR`, trocaria a origem para `gestor` e a tiraria dessa lista). Mesmas travas da aprovação: mês aberto (Ruling 17), nível `aprovar`, recálculo do mês em segundo plano. Testes em `tests/test_comercial_inconsistencias.py` (`desfazer_recusa`, `recusa_por_engano_desfeita_pela_tela`).
 
 **Snapshot.** `obter_mes` devolve `comercial_snapshot` e só recalcula se faltar, se tiver `invalidado_em` ou se `gerado_em` for de dia anterior (SP). O refresh do ETL (`/api/etl/refresh`) chama `marcar_desatualizado()`; o warm-up recalcula o mês corrente e **não recalcula mês fechado**. Período livre: só gestor, até 92 dias; `?mes=` de 2026-01 ao mês corrente.
 

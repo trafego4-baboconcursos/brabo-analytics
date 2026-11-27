@@ -36,6 +36,7 @@ MENSAGENS_OK = {
     "aprovada": "Reivindicação aprovada: a venda passa para a vendedora (recalcula na próxima abertura).",
     "recusada": "Reivindicação recusada. A vendedora vê a resposta na tela dela.",
     "atribuida": "Venda atribuída ao vendedor.",
+    "recusa_desfeita": "Recusa desfeita: a reivindicação foi aprovada e a venda passa para a vendedora.",
     "reembolso": "Decisão de reembolso registrada.",
     "ajuste": "Ajuste manual registrado.",
 }
@@ -45,6 +46,7 @@ MENSAGENS_ERRO = {
     "ja_recusada": "O pedido dessa venda já foi recusado. Fale com o gestor.",
     "ja_aprovada": "Esse pedido já estava aprovado — nada foi duplicado.",
     "ja_decidida": "Esse pedido já foi decidido.",
+    "nao_recusada": "Esse pedido não está recusado: aprove pela fila de reivindicações.",
     "nao_encontrada": "Pedido não encontrado.",
     "ja_e_sua": "Essa venda já está no seu código.",
     "nao_invalidou": "Gravado, mas o cálculo guardado do mês não foi marcado: use Recalcular.",
@@ -376,7 +378,7 @@ def view_inconsistencias(res: ResultadoMes, periodo, acesso: AcessoComercial, fi
     minhas = [_com_fone(p) for p in fila.get("minhas", []) if p["vendedor_codigo"] == meu] if reivindica else []
     if not gestor:
         return {**base, "minhas": minhas,
-                "pendentes": [], "reembolso": [], "conflitos": [], "sem_base": [], "sem_regra": [],
+                "pendentes": [], "recusadas": [], "reembolso": [], "conflitos": [], "sem_base": [], "sem_regra": [],
                 "codigos_novos": [], "historico": [], "vendedores": []}
     vendas = _vendas(res.linhas)
     conflitos = conflitos or {}
@@ -385,6 +387,7 @@ def view_inconsistencias(res: ResultadoMes, periodo, acesso: AcessoComercial, fi
         **base,
         "minhas": minhas,
         "pendentes": [_com_fone(_com_dono(p, vendas)) for p in fila.get("pendentes", [])],
+        "recusadas": [_com_fone(_com_dono(p, vendas)) for p in fila.get("recusadas", [])],
         "reembolso": ordem(l for l in vendas if l.situacao == "reembolso_a_verificar"),
         "conflitos": [Conflito(l, tuple(c for c in dict.fromkeys(conflitos.get(l.transacao, ())) if c))
                       for l in ordem(l for l in vendas

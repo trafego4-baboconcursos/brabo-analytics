@@ -517,6 +517,18 @@ async def comercial_recusar(request: Request, transacao: str = Form(""), motivo:
     return await _acao(request, "aprovar", mes, executar)
 
 
+@router.post("/comercial/atribuicoes/desfazer-recusa")
+async def comercial_desfazer_recusa(request: Request, transacao: str = Form(""), mes: str = Form("")):
+    """Recusa por engano (Rafael, 27/11/26): o gestor aprova o pedido recusado."""
+    def executar(acesso, email, mes_d):
+        inc, com = _inc(), _com()
+        t = inc.limpar_transacao(transacao)
+        inc.exigir_venda_de_mes_aberto(t)  # Ruling 17: aprovar = atribuir
+        com.desfazer_recusa(t, inc.plataforma_de(t), email)
+        return "recusa_desfeita", t, True
+    return await _acao(request, "aprovar", mes, executar)
+
+
 @router.post("/comercial/atribuir")
 async def comercial_atribuir(request: Request, transacao: str = Form(""), vendedor_codigo: str = Form(""),
                              motivo: str = Form(""), mes: str = Form("")):

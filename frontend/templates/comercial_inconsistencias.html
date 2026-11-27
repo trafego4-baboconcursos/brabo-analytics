@@ -242,6 +242,39 @@
         </table>
       </div>
       {% else %}<div class="cm-vazio">Nenhuma reivindicação aguardando.</div>{% endif %}
+      {% if v.recusadas %}
+      <details style="margin-top:var(--s3);"><summary class="cm-sub" style="cursor:pointer;">Recusadas recentemente ({{ v.recusadas | length }}): recusou por engano? Aprove por aqui</summary>
+      <div class="table-wrap" style="margin-top:var(--s2);">
+        <table class="cm-tabela">
+          <thead><tr>
+            <th class="th-dark">Vendedora</th><th class="th-dark">Transação</th><th class="th-dark">Telefone do contato</th>
+            <th class="th-dark">Justificativa</th><th class="th-dark">Recusada por</th><th class="th-dark">Dono atual</th><th class="th-dark">Ação</th>
+          </tr></thead>
+          <tbody>
+            {% for p in v.recusadas %}
+            <tr>
+              <td class="nome">{{ p.vendedor_codigo }}<div class="cm-sub">{{ p.pedido_por or '' }}</div></td>
+              <td style="white-space:nowrap;">{{ p.transacao }}<div class="cm-sub">pedido em {{ p.criado_em.strftime('%d/%m %H:%M') if p.criado_em else '—' }}</div></td>
+              <td style="white-space:nowrap;">{{ p.telefone_rotulo or '—' }}</td>
+              <td class="cm-just">{{ p.justificativa or '—' }}</td>
+              <td>{{ p.aprovado_por or '—' }}{% if p.motivo %}<div class="cm-sub">{{ p.motivo }}</div>{% endif %}</td>
+              <td>{{ p.dono or '—' }}
+                {% if p.de_outro %}<span class="cm-chip inconsistente">venda de outro vendedor</span>{% endif %}</td>
+              <td>
+                {% if v.edita and not v.fechado %}
+                <form method="post" action="/comercial/atribuicoes/desfazer-recusa" class="cm-acao">
+                  {{ mes_hidden() }}<input type="hidden" name="transacao" value="{{ p.transacao }}">
+                  <button type="submit" class="cm-btn ok"><i class="ti ti-arrow-back-up"></i> Desfazer recusa e aprovar</button>
+                </form>
+                {% else %}<span class="cm-sub">decisão do gestor</span>{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      </details>
+      {% endif %}
     </div>
     {% endif %}
     {% if v.reivindica %}

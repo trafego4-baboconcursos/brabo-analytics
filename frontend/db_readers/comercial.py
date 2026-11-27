@@ -247,6 +247,11 @@ SQL_ATRIB_APROVAR = (
 SQL_ATRIB_RECUSAR = (
     "UPDATE comercial_atribuicoes SET status = 'recusada', aprovado_por = :por, motivo = :motivo "
     "WHERE plataforma = :plataforma AND transacao = :transacao AND status = 'pendente'")
+# Recusa por engano (Rafael, 27/11/26): o gestor desfaz a recusa e aprova. Só sai de
+# `recusada`; a origem segue `reivindicacao` (a venda continua nas reivindicações da vendedora).
+SQL_ATRIB_DESFAZER_RECUSA = (
+    "UPDATE comercial_atribuicoes SET status = 'aprovada', aprovado_por = :por, motivo = :motivo "
+    "WHERE plataforma = :plataforma AND transacao = :transacao AND status = 'recusada'")
 SQL_ATRIB_GESTOR = (
     "INSERT INTO comercial_atribuicoes (transacao, plataforma, vendedor_codigo, origem, status, "
     "pedido_por, aprovado_por, motivo) VALUES (:transacao, :plataforma, :vendedor_codigo, 'gestor', "
@@ -340,6 +345,7 @@ ESCRITAS_REGRAS = (SQL_VEND_CRIAR, SQL_VEND_RENOMEAR, SQL_VEND_ATIVAR, SQL_VEND_
                    SQL_OFERTA_UPSERT, SQL_JANELA_UPSERT, SQL_JANELA_REMOVER, SQL_META_UPSERT,
                    SQL_BONUS_UPSERT)
 ESCRITAS_TELA = (SQL_ATRIB_REIVINDICAR, SQL_ATRIB_APROVAR, SQL_ATRIB_RECUSAR, SQL_ATRIB_GESTOR,
+                 SQL_ATRIB_DESFAZER_RECUSA,
                  SQL_REEMBOLSO_UPSERT, SQL_AJUSTE_DESATIVAR, SQL_AJUSTE_INSERIR, SQL_HISTORICO_INSERIR)
 _EXATAS = {" ".join(q.split()) for q in
            (SQL_SNAPSHOT_UPSERT, SQL_SNAPSHOT_DESATUALIZAR_MES, SQL_SNAPSHOT_DESATUALIZAR_TODOS,
@@ -965,6 +971,27 @@ def decidir_atribuicao(transacao: str, plataforma: str, aprovar: bool, por: str,
         return atual[1]
 
 
+MOTIVO_RECUSA_DESFEITA = "recusa desfeita pelo gestor"
+
+
+def desfazer_recusa(transacao: str, plataforma: str, por: str, *, conn=None) -> str:
+    """recusada -> aprovada (o gestor recusou por engano). Devolve o código do vendedor.
+    Pedido que não está recusado não muda: pendente se aprova pela fila; aprovado já vale."""
+    with _transacao(conn) as c:
+        atual = c.execute(text(SQL_ATRIB_LER), _chave(plataforma, transacao)).fetchone()
+        if atual is None:
+            raise EscritaRecusada("nao_encontrada")
+        if atual[0] != "recusada":
+            raise EscritaRecusada("ja_aprovada" if atual[0] == "aprovada" else "nao_recusada")
+        r = _gravar(c, SQL_ATRIB_DESFAZER_RECUSA, {**_chave(plataforma, transacao), "por": por,
+                                                   "motivo": MOTIVO_RECUSA_DESFEITA})
+        if r.rowcount == 0:  # outra decisão entrou entre a leitura e o UPDATE
+            raise EscritaRecusada("ja_decidida")
+        _historico(c, "comercial_atribuicoes", f"{plataforma}:{transacao}", "status",
+                   f"recusada ({atual[1]})", f"aprovada ({atual[1]}): {MOTIVO_RECUSA_DESFEITA}", por)
+        return atual[1]
+
+
 def atribuir_gestor(transacao: str, plataforma: str, vendedor_codigo: str, por: str,
                     motivo: str | None = None, *, conn=None) -> None:
     """Gestor atribui direto (aprovada). Cobre venda sem código, conflito TMB e pedido
@@ -1028,6 +1055,11 @@ SQL_FILA_DO_VENDEDOR = ("SELECT plataforma, transacao, vendedor_codigo, origem, 
                       "FROM comercial_atribuicoes "
                         "WHERE vendedor_codigo = :codigo AND origem = 'reivindicacao' "
                         "ORDER BY criado_em DESC, transacao LIMIT 100")
+SQL_FILA_RECUSADAS = ("SELECT plataforma, transacao, vendedor_codigo, origem, status, pedido_por, "
+                      "aprovado_por, criado_em, motivo, conexao, telefone_contato, justificativa "
+                      "FROM comercial_atribuicoes "
+                      "WHERE status = 'recusada' AND origem = 'reivindicacao' "
+                      "ORDER BY criado_em DESC, transacao LIMIT 30")
 SQL_TRANSACOES_PENDENTES = "SELECT transacao FROM comercial_atribuicoes WHERE status = 'pendente'"
 SQL_HISTORICO_RECENTE = ("SELECT tabela, registro_id, campo, antes, depois, por, em "
                          "FROM comercial_historico ORDER BY em DESC, id DESC LIMIT 50")
@@ -1052,13 +1084,16 @@ def ler_fila(*, vendedor_codigo: str | None = None, gestor: bool = False) -> dic
     """Leitura da tela. Gestor: pedidos pendentes de todos, histórico, vendedores ativos.
     Vendedor: SÓ os próprios pedidos (o filtro é na consulta) + as transações com pedido
     pendente (sem dono: só para não oferecer o botão de novo). Tabela ausente = vazio."""
-    out = {"pendentes": [], "minhas": [], "historico": [], "vendedores": [], "com_pedido": set()}
+    out = {"pendentes": [], "recusadas": [], "minhas": [], "historico": [], "vendedores": [],
+           "com_pedido": set()}
     try:
         with _get_users_engine().connect() as conn:
             out["com_pedido"] = {r[0] for r in conn.execute(text(SQL_TRANSACOES_PENDENTES)).fetchall()}
             if gestor:
                 out["pendentes"] = [_linha_fila(_COLS_FILA, r)
                                     for r in conn.execute(text(SQL_FILA_PENDENTES)).fetchall()]
+                out["recusadas"] = [_linha_fila(_COLS_FILA, r)
+                                    for r in conn.execute(text(SQL_FILA_RECUSADAS)).fetchall()]
                 out["historico"] = [_linha_fila(_COLS_HIST, r)
                                     for r in conn.execute(text(SQL_HISTORICO_RECENTE)).fetchall()]
                 out["vendedores"] = [tuple(r) for r in conn.execute(text(SQL_VENDEDORES_LISTA)).fetchall()]
